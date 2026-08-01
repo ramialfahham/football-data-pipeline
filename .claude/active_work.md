@@ -5,107 +5,69 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-07-31**. main GREEN at **8b43d48**. **IN FLIGHT: PR #874
-`feat/868-org-operational` at `d90c650`, AWAITING THE CPO'S MERGE.** 19 files, 3 reviewers PASS after
-6 rounds under a CPO override; CI green except `data-build`, still running. **Merge before new work.**
+_Last updated **2026-08-01**. main GREEN at **e34f4dd**. **NOTHING IN FLIGHT — no open PRs.**
 The product is **Matchday Pilot** on `matchdaypilot.com`.
-The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in `stash@{0}` with a
-known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS: read "⭐ CURRENT", run
-`git stash list` before any git work, read #848 before the International tab.**
+**FIRST ACTIONS: read "⭐ THE REVIEW RULES CHANGED" below — it changes how every task runs — then run
+`git stash list` before any git work.** The player page is FOUR tabs (#848); its Overview is **BUILT
+but UNCOMMITTED in `stash@{0}` with a known-wrong default rule**, held on #845 + #846._
 
-**#858 in force: every plan is challenged by two independent reviewers BEFORE the CPO sees it.** 24
-defects on C2's plan, 9 on #868's. Never present an unchallenged plan._
+## ⭐ THE REVIEW RULES CHANGED (#878, merged 2026-08-01) — read before reviewing anything
 
-## ✅ THE ORG IS IMPLEMENTED — branch `feat/868-org-operational`, #868
-Four CPO rulings (2026-07-31) are now MECHANISMS. **`escalations.log` is the DECISIONS log now and
-holds all four verbatim with their authority. Read it before re-deciding anything.**
-1. **CTO SPLIT.** `platform-reviewer` (NEW) takes territory + line review; `cto-reviewer` keeps
-   authority, no broad globs, woken by a PROPERTY of the change. **cto 28%→12%, platform 24%.**
-   Zero `site_v2/src/**` pulls in either (test-pinned). Of the 8 guard paths, cto gets all at opus,
-   platform joins on **2** (`hooks/**`, `workflows/**`); widening that is a cost = §10.
-2. **Thresholds.** 2 of 4 are routing rows; new-mechanism + recurring-cost are DECLARED in
-   `decisions_taken:`, tripwire = `scope-auditor`'s undeclared-threshold item (cite by NAME, numbers
-   shift). **No gate parses that field: judgement at haiku tier. Stated, not hidden.**
-3. **QA = evidence artifact + gate**, not an agent. `_acceptance_gate` fires ONLY on `site_v2/src/`:
-   needs `acceptance_criteria:` + each demonstrated in `.claude/task/acceptance_evidence.md` under
-   `criteria_demonstrated:`, from BUILT output. **No CI twin (#870).**
-4. **Criteria: I draft, CPO approves BEFORE code, LOCKED after.** The lock is the mechanism.
-5. **Editorial = mechanical gate** (`check_copy_gate.py`), never a copy approver. Wording ALWAYS
-   yours. Growth owns a title's shape, Editorial its words.
+#370 took **twelve rounds** for a ~300-line change; the code was right from round 5 and rounds 6-12
+found only defects in the branch's own paperwork. Measured cause and the fix, all four CPO-ruled:
 
-**⚠ `check_copy_gate.py` EXITS 1 — 16 findings** (14 em dashes, `fi.secForm` `Muotovertailu` not
-`kunto`, `fi.footerDataSource` in English). **Not wired to CI: every fix is copy = §10 (#872).**
-`report_process_health.py` reports rulings/branch, rounds, activation. **NOT CPO-ruled, sets NO
-target** — an earlier draft invented a threshold AND a sunset rule for withdrawing your process; both
-guard reviewers failed that. **Any threshold is yours.**
+1. **Reviewers no longer see the task notes.** `review_exclude_paths` in `review_routing.json` hides
+   `review.md`, `review_input.patch`, both evidence artifacts, both templates, `active_work.md`.
+   **`contract.md` and `escalations.log` ARE delivered** — they carry authority, and a reviewer cannot
+   check whether a cited ruling exists without the log.
+2. **Build the patch with the hook, never by hand:**
+   `python .claude/hooks/git_discipline.py --review-patch > .claude/task/review_input.patch`
+   It is CUMULATIVE from the base branch and fails loud or large, never quietly narrower.
+3. **The two evidence artifacts left `diff_sha256`.** Fixing a typo in them no longer voids a PASS —
+   this is what let two verdicts survive three fix passes on #370. `contract.md` stays hashed, so
+   scope still cannot move after review.
+4. **A PASS may find nothing.** One entry under `risks_checked:` stating what was EXAMINED is enough;
+   "checked X against Y, no defect" is complete. Never invent a finding. The old "two named risks"
+   rule made invention mandatory on correct code. Floor is 1 in BOTH the hook and the CI twin
+   (`check_task_artifacts.py`) — they must always agree.
+
+**The org itself did NOT change** and the CPO ruled on that explicitly: activation-on-necessity is
+right and **low activation is not a defect**. `data-engineer-reviewer` fires on 1% of commits and
+caught 2 real bugs. A specialist that sleeps until its domain is touched is the cheapest thing here.
+No role, brief, routing row or decision right was removed. Do not propose cutting reviewers.
+
+**⭐ THE STANDING RULE THIS PRODUCED — a correction REPLACES, it never accumulates.** CPO: *"if one
+comment doesn't pass the PR then you change it and only the new version stays. not the old and the
+new."* No "an earlier version said X", no "caught by <reviewer> in round N", no running tallies in a
+living document (they go stale and correcting them writes the next wrong number — four rounds failed
+on exactly that). A moving set of items lives in ONE issue with file:line refs and no total.
+Applying it took #370's paperwork from ~3.5 MB to ~240 KB and its contract from 643 lines to 171.
 
 ## THE GOAL
-**The new website live.** Quality over speed. He runs **a 100% audit before go-live** and expects a
-refactor. "The result has to be (almost) perfect."
+A football-stats site a fan actually uses. Data honesty is non-negotiable — the CPO cannot verify
+numbers by hand, so every number the site shows is covered by an automated test.
 
-## ⭐ CURRENT — after #874 merges: unblock the player page (#845 + #846).
+## ⭐ CURRENT — unblock the player page (#845 + #846)
 
-### 0. **PR D not started:** pre-launch with #799/#377 — slug persistence, the freeze, #843 redirects.
-**WHY THE PLAYER PAGE BEATS D:** its Overview is built, tested and reviewer-passed in `stash@{0}`.
-Two decisions (#845, #846) convert finished work into a shipped page. Everything else is longer.
+**Owed to the CPO first:** an **org/process overview** — one page he LOOKS AT, not a document he
+reads. What gates what, who decides what, where things stop. He asked for it repeatedly; the answer
+is a visual, and it must show the CURRENT state (the org above plus #878's review rules), not a
+redesign. He has rejected: documents, example-anchored designs, and cutting roles.
 
-**BLOCKING GO-LIVE, in rough order of harm:** **#838** renders a synthetic points number in the
-CRAWLABLE BODY (`RecordStrip.astro:28`, verified `#3 · 71 pts`) — must land before indexing ·
-**#861** fixture URLs destroyed weeks after kickoff · **#843/#852** slugs re-derive every build so an
-indexed URL can move · **#845** what earns a page (154,644 player pages otherwise) · **#799**
-imprint, the CPO's · **6 of 15 screens unspec'd**.
-
-**⚠ `PROJECT_BOARD_TITLE`** (`board-request-sync.yml` + `_paused/project-status-sync.yml`) is a
-**live lookup key** for `Matchday Pilot - Project Board`: `:101` matches BY TITLE, **throws** at
-`:104`. String and board move together, never "tidy" one alone.
-
-**Old brand ON PURPOSE, do not "fix":** `north_star.md` (#860) · 6 wireframe `| Matchday IQ` titles ·
-`site_v2/package*.json` · `system.css:2` (locked, stripped at build) · **`site/**`, the retired
-prototype, where `Matchday IQ` is CORRECT HISTORY.**
-
-**Rulings** (escalations.log): **E3 TRANSLITERATE** — base letter where one exists, expand where
-none, so `ü→u` AND `ß→ss` are ONE rule · **E2 warehouse** produces slugs · ONE locale-independent
-slug · **base prepares, the core dim publishes.**
-
-**Carry into D:** 39 teams lack a country, **22 have one in `stg_apif__teams`** · flat `slug_map` so
-**90 player kebabs equal coach kebabs** · players id-suffixed · `fixture_slug` from NAMES in Python ·
-`team_name_key` zero callers · **#3045 takes `/teams/dragon/`, #4207 `/teams/warriors/`** silently.
-
-### 1. #844 SHIPPED (#867). What it leaves open.
-
-Gate: `scripts/audit-seo.mjs` + `integrations/seo-audit.mjs`; switch: `src/config/indexability.mjs`;
-specs carry a required `seo` block. **Flipping `INDEXABLE` true is the go-live act**, and the audit
-refuses it while `STUB_PAGES` is non-empty.
-
-**Open:** `LinksFooter` renders `<span>` where `<a>` belongs (own PR) · no redirect/alias mechanism ·
-no 404 strategy for the fixture cliff · structured-data COMPLETENESS (the check is format-only) ·
-rich vs thin tier · OG-image fitness · **localised COMPETITION names** (registry has ONE `name`, so
-Finnish readers see "Premier League" not "Valioliiga") · the title-width gate fails at 660px not 600.
-
-**Siblings:** **#845** what earns a page · **#843** the URL derives from an unverified mutable field ·
-**#846** window selection in the frontend.
-
-**`seo-expert-reviewer` (#842) is STILL INERT** — absent from `review_routing.json`. The org work
-(#868) did NOT route it: approved in principle, not commissioned, its own governance event. **It IS
-usable directly as a consultant** — its #844 ruling reversed a CPO decision. Its domain IS
-enumerable in 12 globs, so the old "no glob expresses it" premise was FALSE.
-
-### 2. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
-
+### 1. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
 Overview · Performance · Career = **club only**, always shown. **International = national lens, shown
 only when `national_appearances_total >= 1`.** A tab, NOT a toggle: a crawler cannot follow a control,
 so the national lens would have no URL. The condition is a **served fact**, so more national data
 makes the tab appear with zero template change. It carries a competition selector **+ PERFORMANCE**.
 **Read #848 before shaping it** — four CPO-class consequences are NOT actioned there.
 
-### 3. ⚠️ PLAYER OVERVIEW IS BUILT BUT UNCOMMITTED — IN stash@{0}, WITH A KNOWN-WRONG RULE
-
+### 2. ⚠️ PLAYER OVERVIEW IS BUILT BUT UNCOMMITTED — IN `stash@{0}`, WITH A KNOWN-WRONG RULE
 `git checkout feat/player-overview-tab && git stash pop` — **do NOT rebuild it.** Build and tests
 green, `bi-analyst-reviewer` + `scope-auditor` PASS; uncommitted because the gate rejects a FAIL.
 **⚠️ Its default-season rule is WRONG:** `seasons[0]` = most recent of ANY competition, so both
 sample players open on **World Cup 2026** with their national side. Under #848 the club tabs are
-club-only, so it must be the most recent CLUB season. **Note: it would now ALSO be blocked by the new
-acceptance gate**, which is the point — it passed both reviewers while doing the wrong thing.
+club-only, so it must be the most recent CLUB season. It would also now be blocked by the acceptance
+gate — which is the point: it passed both reviewers while doing the wrong thing.
 
 **Held on:** **#845** — adding `players` = **154,644 pages** against a build already needing 8GB at a
 sixteenth of that · **#846** — the payload must carry the lens per season AND which club season is
@@ -123,44 +85,30 @@ Nav order · search style · desktop RAIL per page type · footer/legal (imprint
 default-theme policy. **Deferred:** component/metric catalogue, import-boundary rule, #828.
 
 ## DESIGN DISCIPLINE (the weak spot — read every time)
-- **Compose from the locked `system.css` ONLY.** Refs `be7bd6d3` · fixture `d70aae67` · team
-  `f6348775`; player `6c21ef71` NOT approved.
-- **Show, don't describe.** Rendered output or a mock IS the proposal; never ask him to rule on prose.
-- **A rename is not a find-and-replace.** Where a line describes the RETIRED MVP, `Matchday IQ` is
-  correct history; only forward-looking refs become Matchday Pilot.
-- **READ THE DOCS AND QUERY THE DATA FIRST, don't assert.** Eight logged misses, each a query away.
-  Memory `feedback_engineering` + `feedback_verify_real_world_identity`.
-- **A decision taken means the next action is an EDIT**, not another artifact.
-- **MY SEARCHES KEEP BEING STRUCTURALLY UNABLE TO FIND THE THING.** `git grep` is BRE so `?` is
-  literal; a brand grep cannot find a CLAIM omitting the brand; an `--include` narrower than the
-  class. **State what a grep CANNOT see or do not call it a sweep.** Verify renames against RENDERED
-  TEXT (Astro EMITS `<!-- -->`). Memory `feedback_verify_renames_against_rendered_text`.
-- **I CANNOT self-assess copy in ANY language, English included.** #844: FOUR of nine strings wrong
-  (German missing an article, Finnish `sarjassa` + an uninflected borrowed noun, `muoto` not `kunto`,
-  an unverified separator). **`site/i18n/*.json` = 127 VALIDATED strings per locale, check against
-  it** — `check_copy_gate.py` now does. Em dashes read as AI-generated.
-- **Design for the DEFAULT case** — a page built around a goalkeeper gave two wrong conclusions.
-- **Never fill an empty slot to balance a layout.**
-- **Real data only** — honest empty states; "no hero, not shippable" is RETRACTED.
-- **Multi-tab pages: write the per-tab content boundary FIRST, build ONE tab at a time.** Check ALL
-  sibling wireframes, not one.
-
-## WHERE WE STAND
-**Pages** 2 of 5 (fixture + team) + player Overview HELD · **6 of 15 screens UNSPEC'D** (home, comp
-hub, browse, leaderboards, h2h, glossary) · **Real data** ✅ · **Hosting** LIVE, trigger shape +
-go-public left · **Legal** not started. Marts + metric layer DONE, do not reopen.
-
-**⚠️ v2 makes third-party requests TODAY** — `Crest`/`PlayerRow` render `media.api-sports.io` as
-`<img>`, the defect that took the MVP offline. Fix = mirror crests to our origin.
+Never design off the cuff. Use the approved wireframes and role briefs. Never invent a block to fill
+a slot. Never design the canonical page around an edge case (the player page was first built around
+a goalkeeper). Build ONE tab at a time, each content boundary decided before mocking.
+**Show rendered output or a mock — never ask the CPO to rule on prose in the abstract.**
+**Copy is ALWAYS his (§10).** Gather copy decisions UP FRONT in one pass, before the branch: #370
+extracted 14 rulings one review round at a time, which is the single biggest cost driver on record.
 
 ## OWED — deferred, not forgotten (must survive rewrites)
-- **A ui-BUILDER agent** (`stash@{1}`) — superseded: the org chose ONE builder wearing lenses.
-- **The metric-change skill** (one metric touched SIX files) · **mirror the crests** · **reviewers
-  as peers** (#822 shipped only the model half) · **amend `metrics_display.md`** (#804's 2 metrics).
+- **The org/process overview** (see ⭐ CURRENT) — the CPO's outstanding ask.
+- **The round cap still only RECORDS.** `ROUND_CAP = 3` is checked by the COMMIT gate against a
+  number the builder types, so nothing stops a fourth round while rounds run. Rounds 5-6 of #370 were
+  taken unnoticed. CPO ruled "finish this branch, then tighten the rule" — the rule is NOT tightened.
+- **No gate records when it fires.** ~2,500 lines of enforcement across 7 hooks and 5 CI scripts, with
+  zero telemetry, so most of ~72 checks cannot be shown to have ever worked. One appended line per
+  denial is the highest-value follow-up in the repo.
+- **The copy gate is wired to nothing** (#872) — it finds 16 real user-visible defects on main and
+  blocks none. Blocked on those 16 being the CPO's copy to fix.
+- A **metric-change skill** (one metric touched SIX files) · **mirror the crests** (built pages
+  hotlink `media.api-sports.io`) · **reviewers as peers** (#822 shipped only the model half) ·
+  **amend `metrics_display.md`** (#804's 2 metrics).
 
 ## DONE (history is in git — only still-live gotchas kept)
-Filed: **#838–#841, #843–#846, #848, #850–#853, #863–#866, #868, #870–#873**. Merged: #842, #847,
-#854, #857, #862, #865, #867. #753 carries the player design state. Metric layer complete.
+Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · #842, #847, #854, #857,
+#862, #865, #867, #874. #753 carries the player design state. Metric layer complete.
 - ⚠️ `appearances` = played legs (`minutes_played > 0`), not squad selections.
 - ⚠️ `astro build` OOMs at full scale (`--max-old-space-size=8192`); before a local dev build run
   `git clean -fX site_v2/src/data`.
@@ -168,19 +116,25 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863–#866, #868, #870–
   reselling is the one hard prohibition.
 
 ## NEXT
-1. **Player page** (#845 + #846), then Performance → Career, ONE tab at a time, each content
-   boundary decided before mocking.
-2. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
-3. Follow-ups: **#863** PROTECTED path editable with NO `protected_override` · **#866**
-   `Regular Season - 20` untranslated · **#864** stale `cutover` comments · **routing matcher is
-   hand-copied** in `git_discipline.py:132` + `check_task_artifacts.py:156`, NO parity test ·
-   copy-gate's 16 findings (CPO) · route `seo-expert-reviewer`; GAP-22 should be GAP-20; #833.
+1. **The org overview** (visual, current state).
+2. **Player page** (#845 + #846), then Performance → Career, ONE tab at a time.
+3. **#880 the README's mermaid diagram does not render on GitHub** — an error box on the public
+   portfolio repo. Cannot be verified locally; GitHub renders it server-side, so check the PR page.
+4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
+5. Follow-ups: **#875** metric GROUP headings render in English on DE/FI pages, **needs a CPO ruling**
+   on where a group name lives · **#877** `GD`, `W/D/L`, `T·I·B` and the result letters reach DE/FI
+   readers in English, needs only the words · **#876** Performance rows break mid-word (CPO: filed) ·
+   **#863** PROTECTED path editable with NO `protected_override` · **#866** `Regular Season - 20`
+   untranslated · **#864** stale `cutover` comments · **#873** routing matcher hand-copied in
+   `git_discipline.py` + `check_task_artifacts.py`, no parity test · route `seo-expert-reviewer`
+   (0/150 commits, the only reviewer with no routing row) · GAP-22 should be GAP-20 · #833.
 
 ## OPEN — the CPO's alone
 - **Imprint operator + address** (#799) — blocks publication; get a lawyer, never conclude it.
 - **Hosting recurring run** — trigger shape only; go-public is imprint-blocked.
 - **The feedback Apps Script** — #687.
 - **#850's alias decision** — which duplicate team record is canonical. PR D freezes the URLs.
+- **#875** — where a metric group name lives (chrome strings, or a catalogue/seed column per GAP-09).
 
 ## DO NOT (standing)
 - Do NOT treat the tracker as agreed work; re-validate before acting.
@@ -188,10 +142,12 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863–#866, #868, #870–
 - Do NOT touch `site/` (retired/frozen). Do NOT build an unapproved page.
 - Do NOT derive facts in the export or frontend — select/group/rename only.
 - **Never merge a PR. The CPO merges. Branch from main; never commit to main.**
-- Communication: plain language, lead with the decision, **no em dashes** (he flagged them twice as
-  an AI tell, in my prose AND in product copy), no walls of text.
+- Communication: plain language, lead with the decision, **no em dashes** (flagged twice as an AI
+  tell, in prose AND product copy), no walls of text.
 - Do NOT ask him to adjudicate what a rule can settle. Bring a rule that runs itself, or say plainly
   that none exists and name the cost. **But copy is ALWAYS his (§10) — that is not adjudication.**
+- Do NOT bring him a fix for a defect he did not ask about, framed as though it changes a decision.
+  Fix it in ten seconds and move on.
 
 ## Operational notes
 - **dbt CLI is broken locally. SQLFluff is NOT** — only its dbt templater is (needs GCP). **Lint from
@@ -202,10 +158,12 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863–#866, #868, #870–
   **zero `noqa`**. Nesting ceiling ≈8 calls.
 - **Frontend:** `deploy-site-v2.yml` (manual-only) does export → build → firebase deploy. The Browser
   pane CAN drive the dev server (`preview_start` name `v2`) — accessibility tree, geometry and console
-  all work; only `screenshot` fails. **Artifact delivery works** with the three rules in "⭐ CURRENT".
-- **Commit mechanics:** `git commit` runs alone (no chaining); `--amend` gate-blocked; **no double
-  quotes in the message** (the form gate reads them as pathspecs). A post-commit hook auto-pushes and
-  opens the PR. `review.md` must be COMMITTED or CI reads the stale hash.
+  all work; only `screenshot` fails (the pane is not displayed). Measure overflow with a **Range-based**
+  method; `scrollWidth` lies. Force the tab radio AND sub-panel or a hidden container reads as clean.
+- **Commit mechanics:** `git commit` runs alone (no chaining); `--amend` gate-blocked. **Use
+  `git commit -F <file>` for any message — an apostrophe breaks the form gate's shlex parse.** Write
+  the message to the scratchpad, not the repo. A post-commit hook auto-pushes and opens the PR.
+  `review.md` must be COMMITTED or CI reads the stale hash.
 - **Contract edits need a CLEAN tree** — stash-dance with explicit paths. ⚠ A pathspec stash can
   capture MORE than the paths given; if popping conflicts, `git checkout stash@{0} -- <paths>` then
   drop. Check `git stash list` after — never assume the index.
@@ -213,13 +171,16 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863–#866, #868, #870–
   measures nothing. **⚠ `fnmatch`'s `*` CROSSES `/`**, so `site_v2/*.json` also matches
   `site_v2/src/data/*.json`; and `scope_paths`' `[lang]`/`[team]` are CHARACTER CLASSES, so a literal
   Astro dynamic-route path can NEVER match itself — use `site_v2/src/pages/*/teams/*.astro`.
+- **⚠ A line-based grep misses a phrase that straddles a line break** — three rounds of #878 missed
+  the same stale rule that way. Sweep whitespace-collapsed when checking prose.
 - **⚠ `src/pages/index.astro` is DEAD CODE** — `prefixDefaultLocale` writes a root redirect over it.
 
 ## Verified state reference
 - **Live to users:** no PUBLIC site. v2 is on `football-data-pipeline-gcp.web.app` (unlisted), every
   page `noindex`. **Nothing is published, which is why URLs are still free to change.**
 - **v2 built:** design system (`system.css` + 26 components), fixture page, team page (3 tabs), nav
-  shell (#825), page-spec + SEO contract (#826/#844). `.shell`/`.page-grid`/`.rail` wired into zero
-  pages; team/fixture stay at 680px `.inner`.
+  shell (#825), page-spec + SEO contract (#826/#844), **metric labels per locale (#879)**.
+  `.shell`/`.page-grid`/`.rail` wired into zero pages; team/fixture stay at 680px `.inner`.
 - **Datasets:** base + seeds in `dbt_analytics`; also `staging`, `core`, `marts`, `ci_*`.
   `generate_schema_name` prefixes non-prod targets, but **never run a local `dbt build`.**
+- **Tests:** 258 governance (`tests/test_governance_hooks.py`), 59 site (`cd site_v2 && npm test`).
