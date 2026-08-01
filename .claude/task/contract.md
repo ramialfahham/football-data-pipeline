@@ -1,186 +1,156 @@
-# Task contract — make the new org operational (#868)
+# Task contract — reviewers stop reviewing the review's own paperwork (#868 follow-up)
 
-> Written on a CLEAN tree, before any file was touched. Branch `feat/868-org-operational` from
-> `main`; no open PRs. Governance task: it edits the guards themselves, so it carries
-> `protected_override` + `impact_map`. See docs/working_agreement.md §2, §10, §11, Appendix A.
+> Written on a clean tree before any file was touched. Branch `fix/868-review-scope` from `main` at
+> `cc6cc45`; `gh pr list --state open` empty. Governance task: it edits the guards, so it carries
+> `protected_override` and `impact_map`.
 
 objective: >
-  Put the CPO's 2026-07-31 org design into force. Four rulings become running mechanisms: the CTO
-  splits so it stops reviewing markup and starts ruling on thresholds; a new Platform and
-  Reliability reviewer inherits the territory and the line review; acceptance criteria are drafted,
-  approved and locked before code; a Quality Assurance evidence artifact becomes gate-required; and
-  user-visible strings hit a mechanical localisation gate. The session's rulings are also written to
-  the decisions log so they survive the chat.
+  #370 took twelve review rounds for a ~300-line change. The code was correct from round 5; rounds 6
+  to 12 found nothing a visitor would see. Measured cause, three mechanisms compounding:
+
+  1. Governance artifacts are inside `scope_paths`, so reviewers read the paperwork the review itself
+     produces — 839 lines of code inside a 38,932-line reviewed diff.
+  2. Two evidence artifacts are inside `diff_sha256`, so correcting a typo in prose voids every PASS
+     already given and forces a new round.
+  3. Every reviewer brief says a PASS requires two named risks, so on correct code a reviewer is
+     *required* to find something. It finds prose.
+
+  This closes all three. It changes what reviewers see, what invalidates their verdict, and what a
+  PASS must contain. It does NOT change the org, the roles, the activation model, the decision rights
+  or the definition of done.
 
 refs: >
-  #868 (Operationalise the agent org). CPO session 2026-07-31: four in-conversation rulings, plus an
-  implementation plan for the split that two independent reviewers challenged (nine defects, all
-  fixed) and the CPO approved. Plan saved at
-  `C:\Users\Rami\.claude\plans\ethereal-beaming-charm.md`.
+  #868. CPO rulings 2026-08-01, in this conversation, quoted in `protected_override` below.
 
 scope_paths:
   - .claude/review_routing.json
-  - .claude/agents/*.md
   - .claude/hooks/git_discipline.py
+  - .claude/agents/*.md
+  - docs/working_agreement.md
+  - docs/agent_guardrails.md
+  - tests/test_governance_hooks.py
   - .claude/task/*.md
   - .claude/task/escalations.log
   - .claude/active_work.md
-  - docs/roles/*.md
-  - docs/working_agreement.md
-  - docs/agent_guardrails.md
-  - docs/north_star.md
-  - scripts/check_copy_gate.py
-  - scripts/report_process_health.py
-  - tests/test_governance_hooks.py
+  # ADDED after round 1. All three reviewers found that this file re-implements the
+  # PASS floor (`:169`) and enforces the OLD value of 2 in CI, fail-closed, on every
+  # PR — so change 3 was inoperative at the PR boundary and a one-entry PASS would
+  # have commited locally and reddened CI. See the amendment.
+  - scripts/check_task_artifacts.py
 
 protected_override: >
-  CPO approval, 2026-07-31, this conversation. Three authorities, in his words:
-  (1) the split and threshold plan was presented in plan mode and APPROVED via ExitPlanMode;
-  (2) asked whether to proceed on the split he answered **"do it"**, and on the threshold mechanism
-  **"go"**;
-  (3) on the exercise as a whole: **"I want the new org to be operational"** and **"do we have a
-  concept for the company that we will put in action"** — an instruction to implement, not to plan
-  further.
-  Each of the four rulings is recorded verbatim in `.claude/task/escalations.log` under 2026-07-31.
+  CPO approval, 2026-08-01, this conversation. He was shown the defect in plain language and approved
+  each change separately:
+  (1) and (2) — **"yes to those two"**, to reviewers no longer seeing task notes, and to a note fix no
+  longer restarting the review.
+  (3) — **"why would we force it? Of course, the reviewer needs to have he critical attitude but it's
+  allowed to approve and not invent some finding."**
+  (4) — **"go ahead"**, to implementing all three.
+  He also ruled, correcting me, that the ORG IS NOT THE PROBLEM: activation-on-necessity is right and
+  low activation is not a defect. No role, brief or routing row is removed by this task.
+
+acceptance_criteria:
+  # NOT drafted by me. These are the CPO's own three sentences turned into checks, so the lock is his
+  # wording rather than my paraphrase.
+  - A reviewer does not see the review's own paperwork. `review_input.patch` is generated with
+    `.claude/task/**` and `.claude/active_work.md` excluded, by a command in the hook rather than by
+    hand, and the briefs say what is in scope for them to read.
+  - Correcting a note does not restart the review. Editing `acceptance_evidence.md` or
+    `rendered_page_evidence.md` leaves `--staged-hash` unchanged, so a PASS survives it. Editing
+    `contract.md` still changes the hash, because `scope_paths` and `acceptance_criteria` carry
+    authority and must not move after review.
+  - A reviewer may approve without inventing a finding. A PASS states what was examined and needs no
+    named risk. It still cannot be a bare verdict with nothing behind it.
+  - Nothing about the org changes. The same eight briefs exist, the same routing rows fire, the same
+    decision rights hold, `done_when` is unchanged.
 
 impact_map: >
-  writers: `.claude/review_routing.json` has exactly two consumers, verified by grepping every key
-    name across all non-markdown files. `.claude/hooks/git_discipline.py:123` (`_load_routing`)
-    fails OPEN — it swallows every exception and returns None, so a malformed file silently disables
-    the local gate. `scripts/check_task_artifacts.py:93` (bare `open`) fails CLOSED — traceback and
-    non-zero exit in CI. No workflow other than `ci-validate.yml` reaches it.
+  writers: `.claude/review_routing.json` has exactly two consumers — `git_discipline.py::_load_routing`
+    (fails OPEN, swallows exceptions and returns None, so a malformed file silently disables the local
+    gate) and `scripts/check_task_artifacts.py` (fails CLOSED in CI). Both must agree on the new key.
 
-  downstream: the required-reviewer set is computed by a matching loop HAND-COPIED into both
-    consumers (`git_discipline.py:132-139`, `check_task_artifacts.py:156-160`) with NO parity test —
-    `tests/test_governance_hooks.py:491` pins only `_rounds_gate` and `_NULLISH`. Every row added
-    here must be correct in both, and only the local copy is exercised in-process (the helper at
-    `:418` calls the hook's matcher alone). A follow-up issue is filed, not fixed here.
+  downstream: the PASS floor exists in TWO places and both must move together —
+    `git_discipline.py::_commit_gate` (the local hook) and `scripts/check_task_artifacts.py:169`
+    (the CI twin, fail-closed, run on every PR by `ci-validate.yml`). The twin also re-implements the
+    reviewer-matching loop by hand with no parity test (#873, open).
+    ⚠ This entry previously claimed the quota "exists in one place. Verified before editing." **That
+    was false and it was the load-bearing sentence of this impact map.** All three reviewers caught it
+    in round 1. I asserted a verification I had not actually performed — the exact failure the
+    impact_map field exists to prevent.
 
-  layer_rules: not a warehouse change, so `check_layer_contract.py` is unaffected. The machine rules
-    that DO apply: `tests/test_governance_hooks.py:456` — every `.claude/agents/*.md` must carry a
-    byte-identical `## Delta re-review` with nothing after it, globbed with no opt-out; `:606` and
-    `:613` — every routing pattern must be pinned in `PINNED_CASES`; `:541` and `:557` — the two
-    frontend routing invariants.
+  layer_rules: no warehouse change. The machine rules that apply are in
+    `tests/test_governance_hooks.py`: every `.claude/agents/*.md` must carry a byte-identical
+    `## Delta re-review` section with nothing after it (globbed, no opt-out), and every routing
+    pattern must be pinned in `PINNED_CASES`.
 
-  deploy_order: no warehouse or deploy sequencing, but this branch is routed BY ITS OWN new table,
-    because both consumers read the file from the working tree and not from HEAD. The commit that
-    changes routing must therefore also contain `platform-reviewer.md`, or the gate demands a
-    verdict from a reviewer whose brief does not exist. Commit order is fixed for that reason.
+  deploy_order: this branch is routed BY ITS OWN new table, because both consumers read the file from
+    the working tree rather than from HEAD. It is also the first branch reviewed under its own new
+    PASS condition.
 
-  blast_radius: every future commit in this repo. What stops being enforced if it is wrong — a moved
-    row with no matching brief means the gate demands a `## <name>` section forever and nothing can
-    commit; a duplicate JSON key silently drops a reviewer requirement with no signal, because
-    `json.load` keeps only the last occurrence of a key; a typo in a reviewer name fails nothing at
-    all, because no allowlist of reviewer names exists anywhere in the repo. Measured effect on
-    review volume over the last 150 commits: `cto-reviewer` 28% -> 12%, `platform-reviewer` 24%,
-    10% requiring both. Verified that zero tracked `site_v2/src/**` files will require either.
+  blast_radius: every future commit in this repo. What stops being enforced if this is wrong: a PASS
+    could become a rubber stamp (mitigated — a PASS must still state what was examined, and the gate
+    still requires one entry), or the hash could stop covering something that carries authority
+    (mitigated — `contract.md` stays inside the hash; only the two evidence artifacts leave).
 
 decisions_taken: >
-  **The CPO's four rulings, 2026-07-31, now in force.** (1) Quality Assurance exists as a required
-  evidence artifact with a gate, NOT as a reviewer agent — the builder demonstrates each acceptance
-  criterion against BUILT output. (2) Acceptance criteria: the builder drafts, the CPO approves
-  before any code, locked after; the lock is the mechanism, not the authorship. (3) Editorial and
-  Localisation is a mechanical gate, not a copy approver — wording stays the CPO's, and Growth owns
-  a title's shape while Editorial owns its words. (4) Split the CTO: Platform and Reliability
-  inherits the territory and the line review, the CTO keeps the authority and loses the globs, and
-  thresholds no glob can express are declared here with the always-on scope-auditor as tripwire.
-
-  **Builder judgement inside those rulings, recorded so it is visible rather than silent.** The slug
-  `platform-reviewer`, which must be whitespace-free because the gate parses `## <name>` with
-  `(\S+)`. The hunt-item allocation between CTO and Platform, with item 4 (fail-open vs fail-closed)
-  STAYING with the CTO because the challenge showed moving it would cost the opus depth that caught
-  the G3 commit-gate bypasses. `*requirements*.txt` replaces `requirements*.txt`, a deliberate
-  correction: the old pattern anchors at the start of the path, so
-  `ingestion/api_football/requirements.txt` never reached the dependency threshold at all, and the
-  new one matches exactly two tracked files, verified. Patterns shared by two roles are ONE JSON key
-  carrying both names in its array.
-
-  **The threshold mechanism is judgement, not machinery, and this contract says so plainly.** No gate
-  parses `decisions_taken` — `task_contract_gate._read_contract` returns only `scope`,
-  `protected_override`, `impact_map_present` and `decisions_reserved_present`. Enforcement is one
-  always-on reviewer, pinned to haiku, reading prose. That is a real downgrade from every other
-  threshold in this system, and it is accepted deliberately as the cheapest thing better than
-  nothing.
-
-  **Added after review round 3, on the CPO's rulings of 2026-07-31.** Three things the reviewers were
-  right to demand be recorded here rather than left to the diff:
-
-  (a) **The credentials hunt item is on THREE reviewers, not moved.** The approved plan moved it off
-  `cto-reviewer`; `cto-reviewer` at opus then found that this left nothing hunting secrets in
-  `site_v2/src/**`, `dbt_project/**` or `ingestion/**`, and `scope-auditor` escalated that on the six
-  guard paths platform is not routed to — `.mcp.json` and `.claude/settings.json` above all, the file
-  class that carries tokens — a secret would be hunted only at haiku. Put to the CPO as a plain
-  question; he answered **"yes"** to putting it back on the CTO as well. So it now sits on
-  `cto-reviewer` (its former home, still spawned at opus on all eight guard paths),
-  `platform-reviewer` (its own territory) and `scope-auditor` (every diff, because a secret can land
-  anywhere). Strictly wider than before the split, at no extra cost, since the CTO is already spawned
-  on those paths.
-
-  (b) **`scripts/report_process_health.py` ships BUILDER-INITIATED and UNRULED.** It was proposed to
-  the CPO as one of six gap fixes and he did not rule on it. It reads artifacts and prints them; it
-  carries no authority and sets no target. An earlier draft invented a threshold AND a rule for
-  withdrawing CPO-ruled process, which both guard reviewers failed as builder-authored governance.
-  Whether any number it prints should carry a threshold is reserved below.
-
-  (c) **Review round 4 is authorised.** `ROUND_CAP = 3`. Asked whether to go past it to write the two
-  missing tests `platform-reviewer` demanded, the CPO answered **"yes"**. `review.md` carries the
-  matching `rounds_cap_override:`.
+  - The four CPO rulings above.
+  - Builder judgement: `contract.md` STAYS inside `diff_sha256`. Excluding it would let scope or
+    acceptance criteria be widened after every reviewer has passed, which is the F10/#409 guard. Only
+    the two evidence artifacts leave the hash, because they carry evidence rather than authority.
+  - Builder judgement: the PASS floor drops from two entries to one, not to zero. Zero would allow a
+    bare `VERDICT: PASS` with nothing behind it, which is the rubber-stamp the two-risk rule was
+    written to prevent. One entry keeps that protection and removes the forced invention.
+  - Builder judgement: `risks_checked:` keeps its name in the artifact format so no reviewer brief or
+    test has to change key names, but the briefs now ask for what was EXAMINED rather than what was
+    FOUND.
 
 decisions_reserved:
-  - The priority mechanism. The CPO confirmed the milestone order, but 116 issues have been closed in
-    this repo and NOT ONE was in a milestone, while 86 open issues have none — including every issue
-    we call next (#845, #846, #838, #861, #843, #852, #868). The confirmed order has no throughput to
-    order, and Phase 0 was written for a site retired on 2026-07-21. This contract records the
-    finding and does NOT invent a replacement; the mechanism is the CPO's.
-  - Routing `seo-expert-reviewer`. Approved in principle this session, not commissioned. It fires on
-    nothing today and stays that way until its own governance event.
-  - Which of the twelve stashes are dropped. Two are empty (`stash@{9}`, `stash@{12}`), eight are ten
-    weeks to three months old, two are live. Dropping is destructive and needs the CPO's yes.
-  - Whether cost is its own function (`docs/roles/cfo.md` exists and was excluded from the org) and
-    whether narrative becomes one (`docs/roles/data_journalist.md`, same). Both unruled.
-  - The remaining process moments: the discovery-spike gate, the design-review moment, and the
-    release-readiness checklist. Designed and presented, NOT ruled on. Nothing here implements them.
-  - **Wiring `scripts/check_copy_gate.py` into CI.** It exits 1 on `main` with 16 findings and every
-    fix is copy, which is §10. Wiring it today makes CI red on strings only the CPO may rewrite, so it
-    ships runnable and unwired, with the reason in its own docstring. Filed as #872. (Reserved here
-    because `cto-reviewer` round 3 caught the docstring claiming this was already reserved when it was
-    not — the sentence is now true.)
-  - **Whether any number in `report_process_health.py` carries a threshold, and what follows from
-    crossing one.** The script deliberately sets none. Setting one is a rule extension.
-  - ~~The mechanical half of the credentials guard is unenforced in CI.~~ **WITHDRAWN in round 5: the
-    premise was FALSE and I should never have put it to the CPO.** `.github/workflows/security-secrets.yml`
-    runs `gitleaks-action@v2` on every `pull_request` and on push to `main`, with a terminal gate that
-    exits 1 — CI secret scanning exists and fails CLOSED. `check_no_secrets.py` and
-    `detect-private-key` are a LOCAL-ONLY second layer. `cto-reviewer` caught this by grepping all 11
-    workflows; I had inferred the coverage. Kept here struck through rather than deleted, because a
-    cost question asked on bad data is a defect worth leaving visible. The residual question, much
-    smaller and probably not the CPO's, is whether the two local hooks catch patterns gitleaks misses.
+  - The round cap still records rather than refuses: it is checked at commit time against a number the
+    builder types, so nothing stops a fourth round while rounds are running. Fixing it means deriving
+    the count mechanically. Not in this task.
+  - `.claude/task/escalations.log` is in `hash_exclude_paths`, so the durable ruling record sits
+    outside the hash and can be rewritten after every reviewer passes. Whether to bind it is a
+    mechanism question.
+  - No gate records when it denies, so most of the 72 enumerated checks are unobservable and cannot be
+    shown to have ever fired. Adding one appended line per denial is the highest-value follow-up.
+  - Whether any reviewer or role should be removed. The CPO ruled the org is not the problem; nothing
+    here touches it.
 
 done_when:
-  - `python -m pytest tests/test_governance_hooks.py -q` passes in full, not a subset.
-  - `.claude/review_routing.json` parses, AND the count of `paths` keys equals the count of distinct
-    pattern strings in the raw file text, proving no duplicate key was silently collapsed.
-  - The activation measurement reproduces: `cto-reviewer` at 12% over the last 150 commits, and zero
-    tracked `site_v2/src/**` files requiring `cto-reviewer` or `platform-reviewer`.
-  - `git diff` shows no change to the bytes after `## Delta re-review` in any pre-existing brief.
+  - `python -m pytest tests/test_governance_hooks.py -q` green, with new tests pinning each of the
+    three changes so a revert fails.
+  - `python .claude/hooks/git_discipline.py --staged-hash` is unchanged by an edit to
+    `acceptance_evidence.md`, and changed by an edit to `contract.md`. Demonstrated, not asserted.
   - `python scripts/check_task_artifacts.py` agrees with the local hook on the new table.
-  - `python scripts/report_process_health.py` prints the four baseline numbers (rounds, reviewer
-    FAILs, CPO rulings, gate denials), so the org design has a measurable before.
-  - The four rulings and the milestone finding are recorded in `.claude/task/escalations.log`.
+  - `python -c "import json; json.load(open('.claude/review_routing.json'))"` parses, and the number of
+    `paths` keys equals the number of distinct pattern strings in the file text.
+  - The four CPO rulings are appended to `.claude/task/escalations.log`, the durable record. They
+    authorise a change whose blast radius is every future commit, and `contract.md` does not survive
+    the next task.
 
 amendments:
-  - 2026-07-31: + `docs/north_star.md` — authority: CPO, asked directly whether the roles roster there
-    should be updated now or filed as a to-do, answered **"yes, update"**. Raised by `scope-auditor`
-    as an ESCALATE in review round 3: `CLAUDE.md` cites that roster as the definition of the roles,
-    this branch adds `docs/roles/platform_reliability.md` and narrows `docs/roles/cto.md`, and the
-    roster was neither updated nor in scope. **Content: itemised in full in `escalations.log`'s E5
-    answer** — that is the authoritative description, and this clause is a pointer to it, not a
-    summary of it. In outline: add the Platform and Reliability row; narrow the CTO's to
-    authority-only; add the three rows that were missing (`seo_expert`, `data_journalist`, and the
-    Scope Auditor, never listed despite firing on every commit); replace the empty `Brief` column with
-    a **Wakes on** column naming what actually routes each role; and append a paragraph on the three
-    functions ruled to be mechanisms rather than reviewer roles. Round 4 correctly failed a narrower
-    description than the diff, and round 5 established that a contract under-describing its own
-    amendment is the surface a §10 item gets smuggled through. Written on a tree made clean outside
-    `.claude/task/` by stashing the branch's other 13 paths, then popped back — the stash-dance the
-    clean-tree rule forces. Done twice; the 13 older stashes verified untouched each time.
+  - `+ scripts/check_task_artifacts.py` — **authority: the CPO's 2026-08-01 ruling (3) + (4)**,
+    quoted in `protected_override`. He ruled that a reviewer may approve without inventing a finding,
+    and said "go ahead" to implementing it. That ruling CANNOT be satisfied in only one of the two
+    places the floor lives: this file is the fail-closed CI twin, so leaving it at 2 meant a one-entry
+    PASS committed locally and then reddened the PR — the permission he granted would not have existed
+    at the boundary that matters. Extending scope to the second copy is the minimum needed to carry out
+    the ruling, not a new decision.
+    (Round 1's reviewers found the divergence; both `cto-reviewer` and `scope-auditor` then noted that
+    an amendment must record the CPO's authority and not the reviewers' — §2, and the precedent in
+    `escalations.log` 2026-06-23. Correct: a reviewer FAIL is a reason to look, never an authority.)
+
+  - Round 1, three reviewers, eight findings, all real machinery defects and none about artifact
+    phrasing — which is the evidence that the change works. Fixed:
+    (1) the CI twin above. This contract's `impact_map` had asserted a verification I never performed.
+    (2) `_review_patch_bytes` ignored git's return code, so any git failure wrote a zero-byte patch and
+    exited 0 — a reviewer would read "nothing changed" and could pass on it. Now fails loud.
+    (3) `.claude/task/escalations.log` REMOVED from `review_exclude_paths`. `cto-reviewer` was right
+    that it is AUTHORITY, not a note: `protected_override` cites it as the locatable record, and
+    "does the claimed ruling actually exist" is a check that has fired before. I applied the
+    authority-vs-evidence split to the hash and forgot to apply it to visibility.
+    (4) `docs/agent_guardrails.md` still stated the old rule, in scope and untouched.
+    (5) `seo-expert-reviewer.md` carried the old rule one line under the new one.
+    (6) No test pinned the REAL routing's new `hash_exclude_paths` entries, so deleting them left the
+    suite green. (7) `test_every_task_artifact_is_classified` could pass vacuously on an empty
+    `git ls-files` and hand-rolled an enumeration the file's own `tracked()` helper already does safely.

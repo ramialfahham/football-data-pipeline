@@ -7,7 +7,8 @@
 > (`python .claude/hooks/git_discipline.py --staged-hash`), every reviewer
 > required by `.claude/review_routing.json` for the staged paths has a verdict
 > section, no FAIL exists, every ESCALATE has a `CPO ANSWER:`, every PASS
-> names at least two checked risks, and `rounds:` is present and within the cap
+> says what it examined (at least one entry under `risks_checked:` — it need NOT
+> name a defect; CPO 2026-08-01), and `rounds:` is present and within the cap
 > of 3. Commits touching only artifact paths
 > (.claude/task/**, .claude/active_work.md) are exempt. Stage with `git add`
 > then plain `git commit` as the SOLE command in its own call — commit flags
@@ -22,14 +23,14 @@ rounds: <how many review rounds this branch has taken; 1 on the first. The gate 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- <risk 1>
-- <risk 2>
+- <what you examined, and what you concluded — "checked X against Y, no defect"
+  is a complete entry. One is enough. Do NOT invent a finding to fill a second.>
 
 ## <other-required-reviewer>
 VERDICT: PASS
 risks_checked:
-- <risk 1>
-- <risk 2>
+- <what you examined, and what you concluded — "checked X against Y, no defect"
+  is a complete entry. One is enough. Do NOT invent a finding to fill a second.>
 
 ## escalations
 (none)

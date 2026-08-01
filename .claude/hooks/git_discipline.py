@@ -149,6 +149,97 @@ def _hash_exclude_pathspec(routing: dict | None) -> list[str]:
     return ["--", "."] + [f":(exclude){p}" for p in excludes]
 
 
+def _review_patch_bytes(root: str) -> bytes:
+    """The staged diff AS THE REVIEWERS SEE IT: code and contract.md, never the review's
+    own paperwork. CPO 2026-08-01 — reviewers stopped being able to fail a commit over a
+    defect in the notes about the commit. This is a SEPARATE exclusion list from
+    `hash_exclude_paths`: what a reviewer reads and what invalidates their verdict are
+    different questions, and conflating them is what made a typo fix cost a full round.
+    Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
+    generated; generating it by hand is how it came to re-embed its own history."""
+    import subprocess
+    excludes = (_load_routing(root) or {}).get("review_exclude_paths") or []
+    spec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
+    # CUMULATIVE vs the base branch, not just the staged increment. Every brief's
+    # first input line, working_agreement §2 and agent_guardrails all promise the
+    # reviewers "the cumulative branch diff vs main", and two individually clean
+    # commits can cumulatively drift. `--staged` alone gives index-vs-HEAD, so on a
+    # branch that already has a commit — an explicitly documented flow (§3: re-stage
+    # and re-run the review cycle after an amend) — reviewers would silently receive
+    # only the last increment, and nothing could detect it because review_input.patch
+    # is in both exclusion lists. `git diff --staged <base>` is base-to-index, which
+    # is what CI recomputes as `git diff base...HEAD` after the commit.
+    return _cumulative_diff(root, spec)
+
+
+def _base_commit(root: str) -> str:
+    """The commit the reviewers' patch is cumulative FROM. Raises rather than
+    guessing, or returns the root commit — never a base that narrows the diff.
+
+    An earlier version returned nothing when `git merge-base HEAD main` failed and
+    fell through to a bare `git diff --staged`, i.e. index-vs-HEAD, which hands
+    reviewers only the last increment of a multi-commit branch. Its comment claimed
+    that was safe because "no `main` means HEAD is the whole history" — FALSE
+    whenever the branch already has commits, which is the normal case in: a clone
+    that has only `origin/main` (the CI twin spells the base that way), a repo whose
+    default branch is `master`/`develop` (these guards are written to travel to other
+    repos), a `--single-branch` clone, a shallow `fetch-depth: 1` checkout, or two
+    histories with no common ancestor. All three reviewers caught it.
+    """
+    import subprocess
+
+    def _git(*args: str) -> tuple[int, str]:
+        r = subprocess.run(["git", *args], cwd=root, capture_output=True,
+                           text=True, timeout=30)
+        return r.returncode, r.stdout.strip()
+
+    for ref in ("main", "origin/main"):
+        if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] != 0:
+            continue
+        code, base = _git("merge-base", "HEAD", ref)
+        if code == 0 and base:
+            return base
+        # The ref exists but shares no history with HEAD. Do not guess — a silently
+        # narrower patch is the one outcome this function must never produce.
+        raise RuntimeError(
+            f"`{ref}` exists but has no common ancestor with HEAD, so the cumulative "
+            "branch diff cannot be determined. Refusing to hand the reviewers a "
+            "partial patch."
+        )
+    # No base branch resolves at all. Fail LARGE: diff from the root commit, which is
+    # the whole history and therefore cumulative by construction.
+    code, root_commit = _git("rev-list", "--max-parents=0", "HEAD")
+    if code != 0 or not root_commit:
+        raise RuntimeError(
+            "no `main`/`origin/main` and no root commit — cannot build a cumulative "
+            "reviewers' patch."
+        )
+    return root_commit.split("\n")[0]
+
+
+def _cumulative_diff(root: str, spec: list[str]) -> bytes:
+    import subprocess
+    rng = [_base_commit(root)]
+    r = subprocess.run(
+        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"] + rng + spec,
+        cwd=root, capture_output=True, timeout=30,
+    )
+    # FAIL LOUD, never silently smaller. The documented usage redirects stdout into
+    # review_input.patch, and a redirect truncates its target BEFORE the process runs —
+    # so returning empty bytes on a git error leaves a zero-byte patch that reads to a
+    # reviewer as "nothing changed" rather than as a failure. Unlike the staged hash,
+    # which CI recomputes and compares, nothing downstream can detect a truncated patch:
+    # review_input.patch is in both hash_exclude_paths and review_exclude_paths.
+    # Reviewer input may fail loud or fail LARGE (a malformed routing file yields no
+    # exclusions and hands over the whole diff), never quietly narrower.
+    if r.returncode != 0:
+        raise RuntimeError(
+            "git diff failed while building the reviewers' patch: "
+            + (r.stderr.decode("utf-8", "replace").strip() or f"exit {r.returncode}")
+        )
+    return r.stdout
+
+
 def _artifact_only(paths: list[str], routing: dict) -> bool:
     import fnmatch
     # F10 (#409): contract.md authorizes which code may be edited, so a commit that
@@ -420,14 +511,27 @@ def _commit_gate(root: str) -> str | None:
                 "record its section in review.md."
             )
         if "VERDICT: PASS" in body:
-            # count only bullets after the risks_checked: marker — a stray
-            # bullet list above it must not satisfy the quota (CTO, round 3)
+            # A PASS must say what was EXAMINED. It need not name a defect.
+            #
+            # This floor was 2 until 2026-08-01, on the theory that a reviewer with no
+            # findings was not looking hard enough. The effect was the opposite: given a
+            # correct diff, a reviewer REQUIRED to produce two findings produces two, and
+            # what it finds is prose. #370 ran twelve rounds, of which 6-12 found nothing
+            # a visitor would see. CPO ruling: "Of course, the reviewer needs to have the
+            # critical attitude but it's allowed to approve and not invent some finding."
+            #
+            # The floor is 1, not 0, deliberately: 0 permits a bare `VERDICT: PASS` with
+            # nothing behind it, which is the rubber stamp the original rule was written
+            # to prevent. One entry keeps a reviewer accountable for having looked.
+            # Count only entries after the marker — a stray bullet list above it must not
+            # satisfy the floor (CTO, G3 round 3).
             _, _, risks_block = body.partition("risks_checked:")
             risks = re.findall(r"^\s*-\s+\S", risks_block, flags=re.MULTILINE)
-            if len(risks) < 2:
+            if len(risks) < 1:
                 return (
-                    f"REVIEW GATE: `{reviewer}` PASS without two named risks — "
-                    "malformed verdict (no free passes). Re-run the reviewer."
+                    f"REVIEW GATE: `{reviewer}` PASS with nothing under "
+                    "`risks_checked:` — a pass must state what was examined, even "
+                    "when it found nothing. Re-run the reviewer."
                 )
     return None
 
@@ -436,6 +540,9 @@ def main() -> int:
     if "--staged-hash" in sys.argv:
         import hashlib
         print(hashlib.sha256(_staged_diff_bytes(_repo_root())).hexdigest())
+        return 0
+    if "--review-patch" in sys.argv:
+        sys.stdout.buffer.write(_review_patch_bytes(_repo_root()))
         return 0
     cmd = bash_command(read_event())
     if not cmd:

@@ -864,6 +864,17 @@ ROUTING = {
         ".claude/task/review_input.patch",
         ".claude/task/escalations.log",
         ".claude/active_work.md",
+        ".claude/task/acceptance_evidence.md",
+        ".claude/task/rendered_page_evidence.md",
+    ],
+    # Mirrors the REAL review_exclude_paths. escalations.log is deliberately ABSENT:
+    # it is authority, not a note, so reviewers must receive it (cto-reviewer, round 1).
+    "review_exclude_paths": [
+        ".claude/task/review.md",
+        ".claude/task/review_input.patch",
+        ".claude/task/acceptance_evidence.md",
+        ".claude/task/rendered_page_evidence.md",
+        ".claude/active_work.md",
     ],
 }
 
@@ -949,12 +960,29 @@ def test_commit_denied_when_required_reviewer_missing(repo):
     assert denied(out) and "analytics-engineer-reviewer" in out
 
 
-def test_commit_denied_on_pass_without_two_risks(repo):
+def test_commit_allowed_on_pass_with_one_thing_examined(repo):
+    """A PASS may find nothing (CPO 2026-08-01). One entry under risks_checked:
+    is enough — the floor dropped from 2 to 1, because requiring two on correct
+    code obliged the reviewer to invent, and what it invented was findings about
+    the builder's own paperwork (#370 rounds 6-12)."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace("- risk two checked\n\n## analytics", "\n## analytics", 1)
     write_review(repo, staged_hash(repo), body)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
-    assert denied(out) and "two named risks" in out
+    assert not denied(out), out
+
+
+def test_commit_denied_on_pass_with_nothing_examined(repo):
+    """The floor is 1, not 0. A bare PASS with nothing under risks_checked: is
+    still denied — that is the rubber stamp the original two-risk rule existed
+    to prevent, and it survives the 2026-08-01 relaxation."""
+    setup_review_repo(repo)
+    body = GOOD_BODY.replace(
+        "risks_checked:\n- risk one checked\n- risk two checked\n\n## analytics",
+        "risks_checked:\n\n## analytics", 1)
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "state what was examined" in out
 
 
 def test_bullets_before_risks_marker_do_not_satisfy_quota(repo):
@@ -966,7 +994,7 @@ def test_bullets_before_risks_marker_do_not_satisfy_quota(repo):
         "- stray bullet\n- another stray\nVERDICT: PASS\nrisks_checked:\n\n## analytics", 1)
     write_review(repo, staged_hash(repo), body)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
-    assert denied(out) and "two named risks" in out
+    assert denied(out) and "state what was examined" in out
 
 
 def test_commit_allowed_with_complete_review(repo):
@@ -1880,3 +1908,269 @@ def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
     ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
     assert "TRUNCATED" not in ctx
     assert text in ctx                                        # and nothing was dropped
+
+
+# ---------------------------------------------------------------------------
+# Reviewers stop reviewing the review's own paperwork (CPO 2026-08-01).
+# Three changes, three invariants. #370 ran twelve rounds because the paperwork
+# was inside both the reviewed patch AND the hash, and a PASS required two
+# findings — so a typo fix voided every verdict and bought another round.
+# ---------------------------------------------------------------------------
+
+def test_editing_an_evidence_artifact_does_not_change_the_staged_hash(repo):
+    """CHANGE 2. Correcting a note must not restart the review. The two evidence
+    artifacts are in hash_exclude_paths, so a PASS survives an edit to them.
+    Fails on revert: put either file back in the hash and the digests differ."""
+    setup_review_repo(repo)
+    before = staged_hash(repo)
+    for name in ("acceptance_evidence.md", "rendered_page_evidence.md"):
+        (repo / ".claude" / "task" / name).write_text("evidence, rewritten\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    assert staged_hash(repo) == before, (
+        "editing an evidence artifact changed the review hash, which voids every "
+        "reviewer's PASS and forces a fresh round"
+    )
+
+
+def test_editing_the_contract_DOES_change_the_staged_hash(repo):
+    """The guard that must survive change 2 (F10/F11, #409). contract.md carries
+    scope_paths and acceptance_criteria, so widening scope after the reviewers
+    passed has to break the hash. If this ever goes green, the exclusion list has
+    been widened too far."""
+    setup_review_repo(repo)
+    before = staged_hash(repo)
+    (repo / ".claude" / "task" / "contract.md").write_text(
+        "objective: something else entirely\nscope_paths:\n  - anywhere/**\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    assert staged_hash(repo) != before, (
+        "contract.md left the review hash — scope could now be widened after "
+        "every reviewer passed, with no gate noticing"
+    )
+
+
+def _review_patch(repo) -> str:
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert r.returncode == 0, r.stderr
+    return r.stdout
+
+
+def test_review_patch_excludes_the_tasks_own_paperwork(repo):
+    """CHANGE 1. Reviewers see code and contract.md, never the notes about the
+    work. Measured on #370 before this: 839 lines of code inside a 38,932-line
+    reviewed diff."""
+    setup_review_repo(repo)
+    # Create EVERY file that should be hidden, so all the assertions below bite.
+    # Three of the four used to assert nothing because the files did not exist
+    # (platform-reviewer, round 3).
+    hidden = ("acceptance_evidence.md", "rendered_page_evidence.md",
+              "review.md", "review_input.patch")
+    for i, name in enumerate(hidden):
+        (repo / ".claude" / "task" / name).write_text(f"HIDDEN_MARKER_{i}\n")
+    (repo / ".claude" / "active_work.md").write_text("HANDOVER_MARKER\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    patch = _review_patch(repo)
+    for i, name in enumerate(hidden):
+        assert f"HIDDEN_MARKER_{i}" not in patch, f"{name}'s content reached the patch"
+        # Match the DIFF HEADER, not the bare filename: review_routing.json is itself
+        # in the patch and lists these paths as data, so a substring check on the name
+        # false-positives on correct output.
+        assert f"diff --git a/.claude/task/{name}" not in patch, f"{name} is in the diff"
+    assert "HANDOVER_MARKER" not in patch
+
+
+def test_review_patch_DOES_deliver_the_rulings_log(repo):
+    """The other authority file. `escalations.log` is the durable record of CPO
+    rulings that `protected_override` cites, so a reviewer that cannot see it cannot
+    check whether a claimed ruling exists — a check that has fired. It was wrongly
+    excluded for one round; this pins the mechanism, not just the routing data."""
+    setup_review_repo(repo)
+    (repo / ".claude" / "task" / "escalations.log").write_text("LOG_MARKER\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    assert "LOG_MARKER" in _review_patch(repo), (
+        "escalations.log did not reach the reviewers — they cannot verify a cited ruling"
+    )
+
+
+def test_review_patch_is_cumulative_not_just_the_last_increment(repo):
+    """Every brief promises "the cumulative branch diff vs main", because two
+    individually clean commits can cumulatively drift. `git diff --staged` alone is
+    index-vs-HEAD, so on a branch that already has a commit the reviewers would get
+    only the newest slice. Fails on revert to a bare `--staged` (cto-reviewer)."""
+    setup_review_repo(repo)
+    subprocess.run(["git", "branch", "-f", "main", "HEAD"], cwd=repo, check=True)
+    subprocess.run(["git", "checkout", "-q", "-b", "feat/two-commits"], cwd=repo, check=True)
+    # The two changes MUST be in different files. Putting both markers on one line
+    # makes the test vacuous: a staged-only diff shows the whole changed line, so the
+    # earlier marker appears in it as well and the assertion passes on the bug.
+    first = repo / "dbt_project" / "models" / "committed.sql"
+    first.write_text("select 1 as FIRST_COMMIT_MARKER\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "first"], cwd=repo, check=True)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2 as STAGED_MARKER\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    patch = _review_patch(repo)
+    assert "STAGED_MARKER" in patch
+    assert "FIRST_COMMIT_MARKER" in patch, (
+        "the reviewers received only the staged increment, not the whole branch"
+    )
+
+
+def test_review_patch_still_contains_the_code_and_the_contract(repo):
+    """The other direction, so change 1 cannot be satisfied by excluding
+    everything: the reviewers must still receive the code diff, and contract.md
+    because that is what scope-auditor and cto-reviewer check authority against."""
+    setup_review_repo(repo)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1 as CODE_MARKER\n")
+    (repo / ".claude" / "task" / "contract.md").write_text("objective: CONTRACT_MARKER\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    patch = _review_patch(repo)
+    assert "CODE_MARKER" in patch
+    assert "CONTRACT_MARKER" in patch, (
+        "contract.md must reach the reviewers — it carries the scope and the "
+        "authority they are asked to check"
+    )
+
+
+def test_every_task_artifact_is_classified(repo):
+    """Stops `review_exclude_paths` from decaying as artifacts are added.
+
+    Every tracked file in `.claude/task/` must be either excluded from what the
+    reviewers read, or contract.md, which they MUST read. A new artifact that is
+    neither fails here, so it gets classified deliberately instead of silently
+    becoming reviewable surface — which is how #370's paperwork ended up inside
+    its own review.
+
+    This reads the REAL routing file, not the fixture: the fixture cannot catch a
+    file that exists only in the repo."""
+    excluded = set(real_routing().get("review_exclude_paths") or [])
+    files = tracked(".claude/task/")
+    assert files, "no tracked files under .claude/task/ — has the tree moved?"
+    # The two files there that carry AUTHORITY and must reach the reviewers.
+    authority = {".claude/task/contract.md", ".claude/task/escalations.log"}
+    unclassified = [p for p in files if p not in excluded and p not in authority]
+    assert not unclassified, (
+        "these .claude/task/ files are neither hidden from reviewers nor one of the "
+        f"two authority files, so reviewers will review their own paperwork: {unclassified}"
+    )
+    # And the other direction: an authority file must never be hidden. cto-reviewer
+    # caught escalations.log excluded here — protected_override cites it as the
+    # locatable record, so a reviewer that cannot see it cannot check whether a
+    # claimed CPO ruling exists.
+    hidden_authority = sorted(authority & excluded)
+    assert not hidden_authority, (
+        f"authority files hidden from reviewers: {hidden_authority}"
+    )
+
+
+def test_real_routing_hides_the_evidence_artifacts_from_the_hash(repo):
+    """Pins the REAL routing data for change 2, not the synthetic fixture.
+
+    `platform-reviewer` caught that every test of the hash exclusion used the
+    fixture, so deleting the two evidence artifacts from the real
+    `hash_exclude_paths` left the whole suite green — the change was demonstrated
+    once by hand and then unprotected. The same gap shipped a routing change that
+    missed six tracked files, which is why `real_routing()` exists at all."""
+    excl = set(real_routing().get("hash_exclude_paths") or [])
+    for p in (".claude/task/acceptance_evidence.md",
+              ".claude/task/rendered_page_evidence.md"):
+        assert p in excl, (
+            f"{p} is back inside diff_sha256 — editing it now voids every "
+            "reviewer's PASS and buys a fresh round"
+        )
+    assert ".claude/task/contract.md" not in excl, (
+        "contract.md left the review hash — scope and acceptance_criteria could be "
+        "widened after every reviewer passed (F10/F11, #409)"
+    )
+
+
+def _ci_repo_with_review(ci_repo, body: str):
+    """Commit code + contract, then a review.md carrying the recomputed PR hash and
+    `body`. Mirrors test_ci_check_passes_with_complete_artifacts."""
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 1\n\n" + body
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
+    return run_ci_check(ci_repo)
+
+
+def test_ci_twin_accepts_a_pass_with_one_thing_examined(ci_repo):
+    """The CI twin's floor must equal the local hook's, and nothing pinned it.
+
+    The floor lives in TWO places — `git_discipline._commit_gate` and
+    `check_task_artifacts.py` — and for one review round they disagreed: the hook
+    allowed one entry while fail-closed CI still demanded two, so a reviewer taking
+    the CPO's 2026-08-01 permission committed locally and then reddened the PR. Every
+    existing CI-path test used a two-entry body, so all 248 stayed green through that
+    divergence. Fails on revert of the CI floor to 2."""
+    body = GOOD_BODY.replace("- risk two checked\n", "", 1)
+    code, out = _ci_repo_with_review(ci_repo, body)
+    assert code == 0, out
+
+
+def test_ci_twin_denies_a_pass_with_nothing_examined(ci_repo):
+    """The other direction, so the floor cannot be satisfied by deleting it: zero
+    entries is still a rubber stamp and still fails CI. Pins the message text too,
+    so the two copies cannot drift in what they tell the builder."""
+    body = GOOD_BODY.replace("- risk one checked\n- risk two checked\n", "", 1)
+    code, out = _ci_repo_with_review(ci_repo, body)
+    assert code == 1, out
+    assert "state what was examined" in out
+
+
+def test_review_patch_fails_LOUD_when_git_fails(tmp_path):
+    """The most dangerous behaviour of the new path, and nothing pinned it.
+
+    `--review-patch`'s documented usage redirects stdout into review_input.patch, and
+    a redirect truncates its target BEFORE the process runs. So a git failure that
+    returned empty bytes and exit 0 would leave a zero-byte patch that reads to a
+    reviewer as "nothing changed" — and nothing downstream can detect it, because
+    review_input.patch is in both exclusion lists. Reverting the `raise` leaves the
+    rest of the suite green (platform-reviewer, round 3).
+
+    A directory with a routing file but no `.git` makes every git call fail."""
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp_path))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(tmp_path), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert r.returncode != 0, "a git failure produced a successful exit"
+    assert r.stdout == "", "a failed run still emitted patch bytes"
+    assert "cumulative" in r.stderr or "patch" in r.stderr, r.stderr
+
+
+def test_review_patch_refuses_a_base_that_shares_no_history(tmp_path, _repo_template):
+    """`main` exists but has no common ancestor with HEAD. The old code fell back to
+    a bare `--staged` here, silently handing reviewers the last increment only. It
+    must refuse instead — loud or large, never narrower."""
+    dst = tmp_path / "unrelated"
+    shutil.copytree(_repo_template, dst)
+    setup_review_repo(dst)
+    subprocess.run(["git", "commit", "-qm", "one"], cwd=dst, check=True)
+    start = subprocess.run(["git", "branch", "--show-current"], cwd=dst,
+                           capture_output=True, text=True, check=True).stdout.strip()
+    # An orphan branch named main: no shared history with the current HEAD.
+    subprocess.run(["git", "checkout", "-q", "--orphan", "main"], cwd=dst, check=True)
+    (dst / "unrelated.txt").write_text("x\n")
+    subprocess.run(["git", "add", "-A"], cwd=dst, check=True)
+    subprocess.run(["git", "commit", "-qm", "orphan"], cwd=dst, check=True)
+    subprocess.run(["git", "checkout", "-q", start], cwd=dst, check=True)
+    (dst / "dbt_project" / "models" / "allowed.sql").write_text("select 99\n")
+    subprocess.run(["git", "add", "-A"], cwd=dst, check=True)
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(dst))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(dst), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert r.returncode != 0, "unrelated histories produced a patch instead of refusing"
+    assert "common ancestor" in r.stderr, r.stderr
