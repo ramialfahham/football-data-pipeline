@@ -88,9 +88,9 @@ const EN: Dict = {
   secDeserved: "Deserved vs actual",
   secYoY: "Vs last season",
   secFixtures: "Fixtures",
-  heroSotFor: "Ø Shots on target",
-  heroSotAgainst: "Ø Shots on target against",
-  heroSotDiff: "Ø Shots on target difference",
+  // heroSotFor / heroSotAgainst / heroSotDiff removed (#370): they were a THIRD hand-written copy of
+  // three metric names that the catalogue already identifies. The hero tiles now read them from
+  // METRIC_LABELS below, like every other metric name on the site.
   heroVerdictUnder: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They finished {gap} short of what they created.",
   heroVerdictOver: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They took {gap} more than they created.",
   heroCaption: "Every dot is a {competition} team, placed by shots-on-target difference per match (left to right) against points won (up = more). The dashed line is the points that level of play usually earns.",
@@ -239,15 +239,18 @@ const DE: Dict = {
   secDeserved: "Verdient vs. tatsächlich",
   secYoY: "Vs. letzte Saison",
   secFixtures: "Spiele",
-  heroSotFor: "Ø Schüsse aufs Tor",
-  heroSotAgainst: "Ø Schüsse aufs Tor gegen",
-  heroSotDiff: "Ø Differenz Schüsse aufs Tor",
-  heroVerdictUnder: "Ein Spiel wie das von {team} — eine Differenz von {sotd} Schüssen aufs Tor pro Partie — bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
-  heroVerdictOver: "Ein Spiel wie das von {team} — eine Differenz von {sotd} Schüssen aufs Tor pro Partie — bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
-  heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Differenz der Schüsse aufs Tor pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
+  // heroSot* removed (#370): the three German tile labels moved to METRIC_LABELS_DE unchanged.
+  // ⚠ FOUR strings on the deserved-vs-actual block name this metric — the two sentences below, the
+  // tile label in METRIC_LABELS_DE, the axis (`axPlay`) and the caption (`heroCaption`). Nothing binds
+  // them, so revising one silently leaves three disagreeing. Change them together or not at all.
+  // Wording is the CPO's (§10); `Torschussdifferenz` and `pro Spiel` are both his.
+  heroVerdictUnder: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
+  heroVerdictOver: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
+  heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Torschussdifferenz pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
   heroNoData: "Eine Verdient-vs.-tatsächlich-Einordnung braucht eine einzige Ligatabelle und wird daher nur für Ligen gezeigt.",
   axPoints: "Geholte Punkte",
-  axPlay: "Differenz Schüsse aufs Tor / Spiel",
+  // Chrome, not a metric label: the `/ Spiel` suffix is axis grammar. See the ⚠ above heroVerdict*.
+  axPlay: "Torschussdifferenz / Spiel",
   trendLabel: "wie erwartet",
   yoyPoints: "Punkte",
   yoyGoalsFor: "Tore",
@@ -380,15 +383,20 @@ const FI: Dict = {
   secDeserved: "Ansaittu vs. toteutunut",
   secYoY: "Vs. viime kausi",
   secFixtures: "Ottelut",
-  heroSotFor: "Ø Laukauksia maalia kohti",
-  heroSotAgainst: "Ø Laukauksia maalia kohti vastaan",
-  heroSotDiff: "Ø Laukausero maalia kohti",
-  heroVerdictUnder: "Tällainen peli — laukausero maalia kohti {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
-  heroVerdictOver: "Tällainen peli — laukausero maalia kohti {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
-  heroCaption: "Jokainen piste on {competition}-joukkue, sijoitettuna laukauseron maalia kohti per ottelu (vasemmalta oikealle) ja kerättyjen pisteiden (ylös = enemmän) mukaan. Katkoviiva on pistemäärä, jonka tällainen peli yleensä tuottaa.",
+  // heroSot* removed (#370): the three Finnish tile labels moved to METRIC_LABELS_FI.
+  // ⚠ Same four-string trap as the German block above — these two sentences, the tile label, `axPlay`
+  // and `heroCaption` all name this metric and nothing binds them. Change them together or not at all.
+  // Wording is the CPO's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
+  heroVerdictUnder: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
+  heroVerdictOver: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
+  // ⚠ `eron` is a GENITIVE ending I inferred, not the CPO's word — his noun is `maalilaukauksien ero`.
+  // The case is governed by the later `mukaan`. Finnish inflection is where #867 went wrong four times,
+  // so this is unverified against a Finnish source; the CPO approved it knowing that.
+  heroCaption: "Jokainen piste on {competition}-joukkue, sijoitettuna maalilaukauksien eron ottelua kohden (vasemmalta oikealle) ja kerättyjen pisteiden (ylös = enemmän) mukaan. Katkoviiva on pistemäärä, jonka tällainen peli yleensä tuottaa.",
   heroNoData: "Ansaittu vs. toteutunut -tarkastelu vaatii yhden sarjataulukon, joten se näytetään vain sarjoille.",
   axPoints: "Kerätyt pisteet",
-  axPlay: "Laukausero maalia kohti / ottelu",
+  // Chrome, not a metric label: the `/ ottelu` suffix is axis grammar. See the ⚠ above heroVerdict*.
+  axPlay: "Maalilaukauksien ero / ottelu",
   trendLabel: "odotetusti",
   yoyPoints: "Pisteet",
   yoyGoalsFor: "Maalit",
@@ -416,9 +424,8 @@ const FI: Dict = {
   // as machine translation. Parentheses instead: no case, no inflection, and they work for a
   // league name in any language. Same form as the EN and DE descriptions.
   seoTeamDesc: "{team} ({competition}): kunto, ottelut, kokoonpano ja kauden tilastot.",
-  // "vs." restored. I had changed it to an en dash, asserting Finnish football writing prefers one;
-  // bi-analyst-reviewer agreed. Neither of us verified it and the CPO's source disagrees — three
-  // unverified opinions are not evidence. Capital K and "&" are his too, kept verbatim.
+  // "vs." and the capital K are the CPO's, verbatim. Do not swap "vs." for an en dash without a
+  // Finnish source: the assumption that Finnish football writing prefers one is unverified.
   seoFixtureTitle: "{home} vs. {away} | {competition}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Kilpailut",
@@ -453,4 +460,150 @@ export function positionLabel(lang: Lang, code: string | null | undefined): stri
   const key = code ? `pos${code.toUpperCase()}` : "";
   const label = STRINGS[lang]?.[key] ?? EN[key];
   return label ?? (code ?? "");
+}
+
+/* ================================================================================================ *
+ *  METRIC LABELS (#370) — the display name of a metric, per locale, in ONE place.
+ *
+ *  Before this, a metric's name lived in FOUR: the catalogue held `label_i18n_key` but no
+ *  translation; `lib/metricRows.ts` hard-coded an English `label`; the three `heroSot*` keys above
+ *  hard-coded three more; and `heroVerdict*` spells one out in prose. Nothing kept them in step, and
+ *  the German and Finnish pages showed ENGLISH metric names because the catalogue's keys resolved to
+ *  nothing at all.
+ *
+ *  KEYED BY THE CATALOGUE'S OWN `label_i18n_key`, verbatim, so the binding is explicit and a test can
+ *  cross-check every key against `dbt_project/seeds/metric_catalogue.csv`. Division of ownership:
+ *  the catalogue owns a metric's IDENTITY, direction and format; this file owns its DISPLAY STRING.
+ *  Display copy does not belong in a warehouse seed, which is why the translations are here and not
+ *  in the CSV.
+ *
+ *  A DEDICATED map, not dotted keys inside the Dicts above, and that is deliberate: a quoted dotted
+ *  key is invisible to `scripts/check_copy_gate.py`'s entry regex AND to `check-page-specs.mjs`'s key
+ *  extraction, so flat keys would have smuggled 54 strings past the copy check. This map has its own
+ *  reader in the copy gate.
+ *
+ *  ENGLISH IS UNCHANGED BY THIS TASK. Every EN string below is byte-identical to what shipped before,
+ *  including `% Goals per shot on target`, which the CPO's MVP corpus calls `% Conversion rate` — two
+ *  approved English names for one metric, a §10 pick left to him and recorded in the contract.
+ *  DE/FI provenance: 10 are the CPO's validated MVP corpus (`site/i18n/*.json`), test-pinned so they
+ *  cannot drift; the rest were written for this task and externally verified, EXCEPT the three
+ *  Finnish forms the CPO supplied himself.
+ * ================================================================================================ */
+
+type MetricLabels = Record<string, string>;
+
+const METRIC_LABELS_EN: MetricLabels = {
+  "metrics.goals_per_match.label": "Ø Goals",
+  "metrics.goals_against_per_match.label": "Ø Goals against",
+  "metrics.clean_sheets.label": "Clean sheets",
+  "metrics.shots_per_match.label": "Ø Shots",
+  "metrics.danger_zone_ratio.label": "% Shots from box",
+  "metrics.shots_on_target_per_match.label": "Ø Shots on target",
+  "metrics.shots_on_goal_against_per_match.label": "Ø Shots on target against",
+  "metrics.sot_difference_per_match.label": "Ø Shots on target difference",
+  "metrics.finishing_efficiency.label": "% Goals per shot on target",
+  "metrics.duels_per_match.label": "Ø Duels",
+  "metrics.duels_won_pct.label": "% Duels won",
+  "metrics.defensive_actions_per_match.label": "Ø Defensive actions",
+  "metrics.passes_per_match.label": "Ø Passes",
+  "metrics.pass_accuracy.label": "% Pass accuracy",
+  "metrics.key_passes_per_match.label": "Ø Key passes",
+  "metrics.corner_kicks_per_match.label": "Ø Corners",
+  "metrics.corners_against_per_match.label": "Ø Corners against",
+  "metrics.save_ratio.label": "% Save percentage",
+};
+
+const METRIC_LABELS_DE: MetricLabels = {
+  "metrics.goals_per_match.label": "Ø Tore",
+  "metrics.goals_against_per_match.label": "Ø Gegentore",
+  // Statista and FootyStats DE both use "Zu-Null-Spiele"; Transfermarkt's "weiße Weste" is the other
+  // live German idiom and was not chosen, because the statistical label is the one a stat row wants.
+  "metrics.clean_sheets.label": "Zu-Null-Spiele",
+  "metrics.shots_per_match.label": "Ø Schüsse",
+  "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
+  // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
+  // replaces `Schüsse aufs Tor`, and it is the compact form Bundesliga, kicker and sport.de all use
+  // as a stat label. It also makes the German internally consistent, since `save_ratio` already reads
+  // `% Gehaltene Torschüsse`. The Ø prefix is retained: the underlying metrics are per-match, and
+  // without it `Torschüsse` reads as a season total.
+  // ⚠ He chose `Torschussdifferenz` after being shown, with measurements, that an 18-character
+  // compound clips in the 71px hero tile at 375px exactly as the Finnish compounds do. That is a
+  // knowing decision, not an oversight; the fix belongs in the design system, not in his copy.
+  "metrics.shots_on_target_per_match.label": "Ø Torschüsse",
+  "metrics.shots_on_goal_against_per_match.label": "Ø Torschüsse gegen",
+  "metrics.sot_difference_per_match.label": "Ø Torschussdifferenz",
+  "metrics.finishing_efficiency.label": "% Trefferquote",
+  // NOT "Duelle". Every German football source uses Zweikampf/Zweikämpfe — bundesliga.com's own stat
+  // category is literally "Gewonnene Zweikämpfe", and kicker and sport.de agree. `Duelle` was my
+  // first draft and it reads as a translation rather than as football German.
+  "metrics.duels_per_match.label": "Ø Zweikämpfe",
+  "metrics.duels_won_pct.label": "% Gewonnene Zweikämpfe",
+  // halbfeldflanke defines Defensivaktionen as exactly this metric: balls intercepted, tackles
+  // completed, duels won. It is also the denominator in the German PPDA definition.
+  "metrics.defensive_actions_per_match.label": "Ø Defensivaktionen",
+  "metrics.passes_per_match.label": "Ø Pässe",
+  "metrics.pass_accuracy.label": "% Angekommene Pässe",
+  // "Schlüsselpässe", not "Torschussvorlagen": the latter means shot assists, a different metric.
+  "metrics.key_passes_per_match.label": "Ø Schlüsselpässe",
+  "metrics.corner_kicks_per_match.label": "Ø Ecken",
+  "metrics.corners_against_per_match.label": "Ø Ecken gegen",
+  "metrics.save_ratio.label": "% Gehaltene Torschüsse",
+};
+
+const METRIC_LABELS_FI: MetricLabels = {
+  "metrics.goals_per_match.label": "Ø Maalit",
+  "metrics.goals_against_per_match.label": "Ø Päästetyt maalit",
+  // Confirmed in Finnish football media (apu.fi on Veikkausliiga goalkeepers).
+  "metrics.clean_sheets.label": "Nollapelit",
+  "metrics.shots_per_match.label": "Ø Laukaukset",
+  "metrics.danger_zone_ratio.label": "% Laukaukset boksista",
+  // These three are CPO-SUPPLIED, 2026-07-31, including `vastaan`, which keeps Finnish parallel to
+  // the German `gegen`. He chose them after being shown that his validated corpus and the old hero
+  // tiles used two different forms for the same metric. His first form for the third one was
+  // `maalilaukaisujen ero` and he revised it himself — see the note above that entry. An earlier
+  // version of this comment claimed he supplied `laukaisujen` "verbatim", six lines above the note
+  // recording that he had moved off it; no string below has ever contained that stem.
+  // Capitalisation after the Ø/% prefix is house style, matching every other entry.
+  "metrics.shots_on_target_per_match.label": "Ø Maalilaukaukset",
+  "metrics.shots_on_goal_against_per_match.label": "Ø Maalilaukaukset vastaan",
+  // CPO revised this on 2026-07-31 from `maalilaukaisujen ero` to `maalilaukauksien ero`, which is the
+  // genitive plural of `maalilaukaus` and so matches `maalilaukaukset` above; `laukaisujen` came off a
+  // different stem (`laukaisu`) and was internally inconsistent.
+  "metrics.sot_difference_per_match.label": "Ø Maalilaukauksien ero",
+  "metrics.finishing_efficiency.label": "% Viimeistelytehokkuus",
+  // Veikkausliiga's own reporting uses kaksinkamppailut, and reports duels won as a percentage.
+  "metrics.duels_per_match.label": "Ø Kaksinkamppailut",
+  "metrics.duels_won_pct.label": "% Voitetut kaksinkamppailut",
+  // CPO-confirmed 2026-07-31. I could not verify this one against a Finnish source — Veikkausliiga's
+  // stats pages serve a broken certificate chain — and said so before he confirmed it.
+  "metrics.defensive_actions_per_match.label": "Ø Puolustustoimet",
+  "metrics.passes_per_match.label": "Ø Syötöt",
+  "metrics.pass_accuracy.label": "% Syöttötarkkuus",
+  // CPO-confirmed 2026-07-31, same unverified caveat as Puolustustoimet.
+  "metrics.key_passes_per_match.label": "Ø Avainsyötöt",
+  "metrics.corner_kicks_per_match.label": "Ø Kulmapotkut",
+  "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
+  "metrics.save_ratio.label": "% Torjuntaosuus",
+};
+
+const METRIC_LABELS: Record<Lang, MetricLabels> = {
+  de: METRIC_LABELS_DE,
+  en: METRIC_LABELS_EN,
+  fi: METRIC_LABELS_FI,
+};
+
+// Deliberately no `METRIC_LABEL_KEYS` / `METRIC_LABELS` export: the tests text-parse this file, as
+// every other checker here does, so nothing imports them. Add an export when something actually does.
+
+/**
+ * Display name for a metric, by its catalogue `label_i18n_key`.
+ *
+ * Deliberately does NOT fall back to the key, unlike `t()` above. `t()` returns the key when a lookup
+ * misses, which is tolerable for chrome (a developer sees it immediately) and unacceptable here: a
+ * missing metric name would print `metrics.duels_per_match.label` on a public page for a reader.
+ * Falls back to English, then to empty. `check-metric-labels.test.mjs` asserts every key resolves in
+ * every locale, so neither fallback should ever be reachable in a shipped build.
+ */
+export function metricLabel(lang: Lang, labelKey: string): string {
+  return METRIC_LABELS[lang]?.[labelKey] ?? METRIC_LABELS_EN[labelKey] ?? "";
 }

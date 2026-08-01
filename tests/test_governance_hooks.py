@@ -810,6 +810,119 @@ def test_copy_gate_floor_is_in_the_gate_not_only_in_this_test(tmp_path, monkeypa
         "over zero strings is worse than no gate at all")
 
 
+def _copy_gate():
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    try:
+        import check_copy_gate as gate
+    finally:
+        sys.path.pop(0)
+    return gate
+
+
+def _strings_fixture(chrome_values='"v{i}"', metric_values='"m{i}"', metric_n=18,
+                     metric_locales=("EN", "DE", "FI")):
+    """A synthetic strings.ts: three healthy chrome dicts plus METRIC_LABELS blocks for
+    `metric_locales`. Omitting a locale from that tuple is how a missing block is
+    reproduced, rather than regex-deleting it after the fact (`re` is deliberately not
+    imported in this module)."""
+    out = []
+    for loc in ("EN", "DE", "FI"):
+        body = "".join(f"  key{i}: {chrome_values.format(i=i)},\n" for i in range(40))
+        out.append(f"const {loc}: Dict = {{\n{body}}};\n")
+    for loc in metric_locales:
+        body = "".join(
+            f'  "metrics.m{i}.label": {metric_values.format(i=i)},\n'
+            for i in range(metric_n))
+        out.append(f"const METRIC_LABELS_{loc}: MetricLabels = {{\n{body}}};\n")
+    return "\n".join(out)
+
+
+def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monkeypatch):
+    """Pins `check_copy_gate.MIN_METRIC_KEYS` (#370), the SECOND floor.
+
+    The sibling test above passes for the OLD reason and gives this none: its fixture
+    has no METRIC_LABELS block at all, so the CHROME floor fires and `main()` returns
+    before the metric block is ever reached. So `MIN_METRIC_KEYS = 0`, or deleting the
+    `thin_metrics` branch, broke no test — a second unpinned floor added while the
+    comment beside it cited the first one's lesson. Caught by platform-reviewer,
+    round 1 of #370.
+
+    The fixture therefore keeps the chrome dicts HEALTHY (40 double-quoted entries, so
+    the chrome floor passes) and breaks only the metric values, using backtick
+    templates: `_METRIC_DICT_RE` still matches while `_METRIC_ENTRY_RE` yields zero."""
+    gate = _copy_gate()
+    broken = tmp_path / "strings.ts"
+    broken.write_text(_strings_fixture(metric_values="`m{i}`"), encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", broken)
+
+    text = broken.read_text(encoding="utf-8")
+    assert len(gate._dicts(text)["en"]) >= gate.MIN_KEYS, (
+        "the fixture must clear the CHROME floor, or this test passes for the wrong reason")
+    assert gate._metric_labels(text).keys() >= {"en", "de", "fi"}, (
+        "the fixture must reproduce the real failure: metric blocks FOUND but EMPTY")
+    assert all(v == {} for v in gate._metric_labels(text).values())
+    assert gate.main() == 1, (
+        "the gate must FAIL when it extracted no metric labels; otherwise 54 "
+        "user-visible strings skip the em dash and completeness checks silently")
+
+
+def test_copy_gate_fails_when_a_metric_labels_block_is_absent(tmp_path, monkeypatch):
+    """The other new branch: `missing_metric_locales`. A locale losing its whole
+    METRIC_LABELS block must FAIL rather than let that locale's metric names go
+    unchecked."""
+    gate = _copy_gate()
+    partial = tmp_path / "strings.ts"
+    # FI keeps its chrome dict but loses its metric block entirely
+    text = _strings_fixture(metric_locales=("EN", "DE"))
+    partial.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", partial)
+
+    assert "fi" not in gate._metric_labels(text), "fixture must actually drop the FI block"
+    assert gate.main() == 1, "a locale with no METRIC_LABELS block must fail the gate"
+
+
+def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
+    """Third parser, same anchor. `"metrics.X.label"` is parsed by three hand-written
+    regexes: this gate's `_METRIC_ENTRY_RE`, `check-page-specs.mjs`'s inline one, and
+    `check-metric-labels.test.mjs`'s. The two JS ones are pinned to each other in that
+    test file; this pins the PYTHON one to the keys the page actually asks for, so all
+    three are tied to a common anchor rather than merely agreeing by luck. The drift
+    class is the one `platform-reviewer`'s brief names for the hand-copied reviewer
+    matcher (round 1 of #370)."""
+    import pathlib
+    import re as _re
+
+    gate = _copy_gate()
+    root = pathlib.Path(__file__).resolve().parents[1]
+    parsed = gate._metric_labels(gate.STRINGS.read_text(encoding="utf-8"))
+    assert set(parsed) == {"en", "de", "fi"}
+
+    pattern = _re.compile(r'"(metrics\.[A-Za-z0-9_]+\.label)"')
+    asked = set()
+    for rel in ("site_v2/src/lib/metricRows.ts",
+                "site_v2/src/components/team/DeservedHero.astro"):
+        asked |= set(pattern.findall((root / rel).read_text(encoding="utf-8")))
+    assert len(asked) >= 18, f"only {len(asked)} keys found in the consumers"
+
+    for loc in ("en", "de", "fi"):
+        missing = sorted(asked - set(parsed[loc]))
+        assert not missing, (
+            f"the Python parser does not see {missing} for {loc}, but a component asks for it — "
+            "either the regex drifted or a label is genuinely absent")
+
+
+def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
+    """The point of merging the metric labels into `dicts`: an em dash in a metric NAME
+    is still an em dash. Without the merge these 54 strings would be parsed and then
+    ignored, which is the failure mode that makes a gate worse than none."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    text = _strings_fixture().replace('"metrics.m3.label": "m3"', '"metrics.m3.label": "a — b"')
+    f.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", f)
+    assert gate.main() == 1, "an em dash inside a metric label must be reported like any other"
+
+
 def test_routing_has_no_duplicate_keys():
     """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
     `json.load` keeps the LAST one and the other reviewer requirement vanishes

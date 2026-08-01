@@ -127,6 +127,62 @@ Set pieces → Goalkeeping.
 
 Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
 
+### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
+
+**The Display label column above is still the locked ENGLISH contract and is unchanged.** What moved
+is where the string is stored. Until #370 the English label was hard-coded in
+`site_v2/src/lib/metricRows.ts`, three more were hard-coded as `heroSot*` chrome strings, and the
+German and Finnish pages showed English because the catalogue's i18n keys resolved to nothing.
+
+Now every metric name lives once per locale in `METRIC_LABELS_{EN,DE,FI}` in
+`site_v2/src/i18n/strings.ts`, keyed by the catalogue's own `label_i18n_key`, and is rendered with
+`metricLabel(lang, row.labelKey)`. `metricRows.ts` keeps the order, group, tier, format and direction
+contract from this document and holds no metric NAME. One string does remain there: row 10's
+`sublabel`, `tackles + interceptions + blocks`, which is this table's own row-10 parenthetical. It is a
+caption rather than a name, it is still English in all three locales, and that is recorded in #370's
+`acceptance_evidence.md` residuals and in a comment beside the row itself. (This sentence said "in the
+task contract"; `contract.md` never mentioned `sublabel` at all. `scope-auditor` caught it.) Division
+of ownership:
+`dbt_project/seeds/metric_catalogue.csv` owns a metric's identity, direction and format; this document
+owns its order, grouping and tier; the i18n layer owns its display string per locale.
+
+⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
+id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
+`shots_on_goal_per_match` — the internal id says "on goal", the user-facing term is "on target". The
+catalogue reconciles them in its `label_i18n_key` column, which for that row is
+`metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during #370: the key was
+read as a metric id, judged dangling, and replaced with one the catalogue declares nowhere. **Resolve
+a label by reading the `label_i18n_key` column; never infer it from an id or a payload field.**
+
+Row 7's "relabeled" note is also load-bearing: this document rules that v2 ships
+`% Goals per shot on target`, while the retired MVP corpus (`site/i18n/*.json`) says
+`% Conversion rate`. #370 kept this document's version and left the divergence for the CPO.
+
+**German and Finnish are CPO-approved** (2026-07-31); ten are carried forward from the validated MVP
+corpus and are test-pinned to it so they cannot drift.
+
+**Long compounds in those locales do not fit the layouts this document assumes, and the fix is part of
+the display contract.** `Ø Torschussdifferenz` needs 89.1px; the hero tile label box was 71px and the
+Performance row's is 77px, both measured at 375px.
+
+- `system.css` gives both `overflow-wrap: anywhere`, which stops the clipping (worst case was +53.3px).
+- That alone was NOT enough: it breaks a compound at an arbitrary letter with no hyphen, and it
+  rendered `Ø` / `Torschussdiffe` / `renz` plus all three Finnish hero tiles the same way. `hyphens:
+  auto` is inert — the rendering engine carries no de/fi dictionary.
+- **The three hero tiles therefore STACK on phones** (CPO-approved 2026-08-01, shown the rendered line
+  breaks), name left and value right. The tile becomes 301px wide and the label can take ~231px of it
+  (the rest is the value and the gap), against the 89.1px the longest German name needs — measured, not
+  assumed, after an earlier version of this line said "the full width" and meant the tile's.
+  0 mid-word breaks in all three
+  locales, at a cost of 53px of block height. ⚠ He ruled "on phones"; **the 560px threshold is the
+  builder's**, picked because it collides with no existing breakpoint. Disclosed here because this is
+  the document a cold reader takes the display contract from.
+- **The Performance rows still break mid-word** — 3 in German, 9 in Finnish — because widening that
+  column costs the comparison bar 115px → 80px. Open as **#876**; this document's row order and
+  grouping are unaffected either way.
+
+Any locale that compounds (Dutch is next) inherits all of this.
+
 **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
 comparison): `shot_accuracy` (% shots on target — superseded by the Ø-shots vs
 Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /

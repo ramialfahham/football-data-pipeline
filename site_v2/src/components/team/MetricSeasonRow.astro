@@ -7,7 +7,7 @@
 import { formatValue, signedDelta } from "../../lib/format";
 import type { Lang, SingleFormat } from "../../lib/format";
 import { beatsMedian } from "../../lib/bars";
-import { t } from "../../i18n/strings";
+import { t, metricLabel } from "../../i18n/strings";
 import type { MetricRowDef } from "../../lib/metricRows";
 import type { Benchmark } from "../../lib/types";
 
@@ -25,7 +25,7 @@ const green = beatsMedian(delta, row.direction);
 ---
 
 <div class="ss-row">
-  <span class="vs-name">{row.label}</span>
+  <span class="vs-name">{metricLabel(lang, row.labelKey)}</span>
   <span class="ss-rt">
     <span class="vs-val num">{formatValue(bench?.metric_value, fmt, lang)}</span>
     <span class:list={["ss-chg", "num", { up: green }]}>{chg.value}{chg.unit && <span class="u">{t(lang, "unitPp")}</span>}</span>

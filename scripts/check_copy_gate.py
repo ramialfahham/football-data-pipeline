@@ -54,6 +54,9 @@ LOCALES = ("en", "de", "fi")
 # page alone needs about two dozen labels, so anything under this means the regex
 # broke rather than the copy shrank.
 MIN_KEYS = 20
+# Floor for the metric-label maps (#370). 18 metrics get a name today; 15 leaves room for a row to be
+# retired without a false alarm, while still tripping if the quoted-dotted-key regex breaks.
+MIN_METRIC_KEYS = 15
 
 # Terms the validated corpus settles. term -> (wrong, right, why)
 # Only entries evidenced by the corpus or by a recorded CPO correction belong here.
@@ -68,11 +71,28 @@ TERMINOLOGY = {
 _DICT_RE = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.S | re.M)
 _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
 
+# #370 added a SECOND string class this gate has to see: metric display names, in their own
+# `METRIC_LABELS_<LOC>` maps keyed by the catalogue's `label_i18n_key`. Their keys are QUOTED and
+# DOTTED, which `_ENTRY_RE` above cannot match by design — it requires a bare identifier. So without
+# this second parser the 54 metric labels would be invisible here and would skip the em dash,
+# completeness and terminology checks entirely: 54 user-visible strings past the gate that exists to
+# catch exactly those defects.
+_METRIC_DICT_RE = re.compile(
+    r"^const\s+METRIC_LABELS_([A-Z]{2}):\s*MetricLabels\s*=\s*\{(.*?)^\};", re.S | re.M)
+_METRIC_ENTRY_RE = re.compile(r'^\s*"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"', re.M)
+
 
 def _dicts(text: str) -> dict[str, dict[str, str]]:
     out: dict[str, dict[str, str]] = {}
     for m in _DICT_RE.finditer(text):
         out[m.group(1).lower()] = dict(_ENTRY_RE.findall(m.group(2)))
+    return out
+
+
+def _metric_labels(text: str) -> dict[str, dict[str, str]]:
+    out: dict[str, dict[str, str]] = {}
+    for m in _METRIC_DICT_RE.finditer(text):
+        out[m.group(1).lower()] = dict(_METRIC_ENTRY_RE.findall(m.group(2)))
     return out
 
 
@@ -111,6 +131,25 @@ def main() -> int:
               "The entry regex has stopped matching — a gate over zero strings "
               "always passes. Check that every dictionary value is DOUBLE-quoted.")
         return 1
+
+    # Metric labels (#370): same four checks, own parser, own floor. Merged into `dicts` because a
+    # metric name is a user-visible string like any other — an em dash in one is still an em dash, a
+    # locale missing one is still a hole. Keys cannot collide: chrome keys are bare identifiers,
+    # metric keys are dotted and quoted.
+    metrics = _metric_labels(text)
+    missing_metric_locales = [loc for loc in LOCALES if loc not in metrics]
+    if missing_metric_locales:
+        print(f"FAIL: strings.ts has no METRIC_LABELS block for {missing_metric_locales}")
+        return 1
+    thin_metrics = {loc: len(metrics[loc]) for loc in LOCALES if len(metrics[loc]) < MIN_METRIC_KEYS}
+    if thin_metrics:
+        print(f"FAIL: extracted too few metric labels {thin_metrics} (floor {MIN_METRIC_KEYS} per "
+              "locale). The METRIC_LABELS entry regex has stopped matching, which would let every "
+              "metric name skip this gate.")
+        return 1
+    metric_count = sum(len(metrics[loc]) for loc in LOCALES)
+    for loc in LOCALES:
+        dicts[loc].update(metrics[loc])
 
     # 1. em dashes in shipped copy
     for loc in LOCALES:
@@ -182,7 +221,8 @@ def main() -> int:
         return 1
 
     total = sum(len(dicts[loc]) for loc in LOCALES)
-    print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales, "
+    print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales "
+          f"({total - metric_count} chrome + {metric_count} metric labels), "
           f"{sum(len(v) for v in corpus.values())} corpus strings consulted")
     return 0
 

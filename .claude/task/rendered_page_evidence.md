@@ -1,125 +1,135 @@
-# Rendered-page evidence — feat/844-seo-build-gate (PR C2)
+# Rendered-page evidence — feat/370-metric-labels-from-catalogue
 
-> Required by #827 for any `site_v2/src/**` diff. Every claim below is read from the BUILT output
-> (`site_v2/dist/`), never from source and never from `outerHTML` — the rule #862 produced after a
-> source grep and an `outerHTML` check both certified a defect as fixed while it was still shipping.
+> Required by #827 for any `site_v2/src/**` diff. Read from the BUILT output (`site_v2/dist/`) or
+> measured against the running dev server — never from source, never from `outerHTML`.
 
-## 1. The live defect, before and after
+## 1. What renders differently
 
-`[team].astro` built its title by concatenating `team.name` and a competition name. Both are
-locale-independent: `team.name` is the provider name, and `src/data/competitions.json` carries ONE
-`name` per competition (verified — its entries have only `name` and `slug`, built from the
-registry's single field by `_competitions_index()`). So all three locales shipped the same string.
+Metric names moved out of `metricRows.ts` and three hero chrome strings into one per-locale block keyed
+by the catalogue's `label_i18n_key`. **Before this branch, every metric name on the German and Finnish
+team and fixture pages was the English one.**
 
-**Before** (on `main`): `<title>Manchester United — Premier League</title>` in de, en AND fi.
+| surface | en | de | fi |
+|---|---|---|---|
+| hero tile 1 | `Ø Shots on target` | `Ø Torschüsse` | `Ø Maalilaukaukset` |
+| hero tile 2 | `Ø Shots on target against` | `Ø Torschüsse gegen` | `Ø Maalilaukaukset vastaan` |
+| hero tile 3 | `Ø Shots on target difference` | `Ø Torschussdifferenz` | `Ø Maalilaukauksien ero` |
+| Performance row 1 | `Ø Goals` | `Ø Tore` | `Ø Maalit` |
+| Performance row 3 | `Clean sheets` | `Zu-Null-Spiele` | `Nollapelit` |
+| Performance row 8 | `Ø Duels` | `Ø Zweikämpfe` | `Ø Kaksinkamppailut` |
 
-**After**, read from `dist/{de,en,fi}/teams/manchester-united/index.html`:
+## 2. Overflow — the defect this branch caused, and its fix
 
-```
-de  Manchester United — Statistiken, Form & Saisonbilanz | Matchday Pilot
-en  Manchester United — Stats, Form & Season Records | Matchday Pilot
-fi  Manchester United — tilastot, muoto ja kauden tulokset | Matchday Pilot
-    -> titles distinct 3/3, descriptions distinct 3/3
+Localised names are longer than English ones, so `overflow-wrap: normal` (inherited from the design
+system) clipped them. Measured on the running dev server at **375 x 812** with a **Range-based** method,
+after `scrollWidth` proved untrustworthy — it reported nothing wrong on the fixture page while a
+22-character word sat in a 49px box. Numbers are `max(text rect width) − content box width`; negative
+fits. Each container is measured **on the tab that renders it**: a hidden container yields no client
+rects, which would read as a clean zero.
 
-de  Palmeiras gegen Atletico-MG — Form, direkter Vergleich & Statistiken | Serie A
-en  Palmeiras vs Atletico-MG — Form, Head-to-Head & Stats | Serie A
-fi  Palmeiras – Atletico-MG — muoto, keskinäiset ottelut ja tilastot | Serie A
-    -> titles distinct 3/3, descriptions distinct 3/3
-```
+**Before**, with labels localised and no styling change:
 
-**A second defect the first version of this check would have missed.** The Finnish fixture
-DESCRIPTION was byte-identical to the English one (`aboutNoH2h` was `"{home} vs {away} · {round}."`
-in both) while German differed. The cross-locale check as first written asked "are they ALL
-identical", saw variety, and said nothing. It now fails on ANY group of locales sharing a value, and
-the Finnish string was corrected. Regression-locked by a test.
+| surface | locale | worst label | over |
+|---|---|---|---|
+| hero tile (71px box) | fi | `Ø Maalilaukauksien ero` | **+12.0** |
+| Performance row (77px box) | fi | `% Viimeistelytehokkuus` | **+53.3** |
+| Performance rows | fi | **9 of 16 overflowed** | |
 
-## 2. The emitted surface, from `dist/en/teams/manchester-united/index.html`
+`% Viimeistelytehokkuus` is a **CPO-validated corpus string**, so the gap was pre-existing in
+`system.css` and localisation merely exposed it. Not a defect in his copy.
 
-```
-<meta name="robots" content="noindex">
-<link rel="canonical" href="https://matchdaypilot.com/en/teams/manchester-united/">
-<link rel="alternate" hreflang="de|en|fi" href="https://matchdaypilot.com/{lang}/teams/manchester-united/">
-<link rel="alternate" hreflang="x-default" href="https://matchdaypilot.com/en/teams/manchester-united/">
-og:type / og:site_name / og:locale / og:url / og:title / og:description / og:image
-twitter:card=summary_large_image / twitter:title / twitter:description / twitter:image
-<script type="application/ld+json"> @graph = [BreadcrumbList(3 items), SportsTeam]
-```
+**After** `overflow-wrap: anywhere` on `.hero .hn .hl` and `.vs-name`, plus the hero stack:
 
-The `SportsTeam` node carries `name`, `sport`, `logo`, `foundingDate: "1878"`,
-`location: {Place, England}`, `memberOf: {SportsOrganization, Premier League}` — every value a
-served payload field, nothing computed. Canonical is absolute and self-referential on all 10 pages.
+| container | tab measured on | en | de | fi |
+|---|---|---|---|---|
+| hero tiles, worst of 3 | Overview | +0.5 | +0.4 | +0.3 |
+| `.verdict` + `.cap2` prose | Overview | −2.8 | −5.6 | −1.3 |
+| `.vs-row` labels, worst of 16 | Performance / vs-league | −0.3 | −0.3 | −0.3 |
+| `.ss-row` labels, worst of 16 | Performance / vs-season | +0.5 | +0.4 | +0.5 |
+| anything over **1px** | both | 0 | 0 | 0 |
+| `unmeasured` (no client rects) | both | 0 | 0 | 0 |
+| sideways page scroll | both | no (375 = 375) | no | no |
 
-## 3. The gate FAILS, proven rather than assumed
+The sub-pixel figures are rounding between a fractional Range rect and an integer `clientWidth`: they
+appear in **English**, where this branch changes no string. `.ss-row` also has no `overflow: hidden` and
+its label box grows to 175px, so a real 0.5px excess would wrap rather than clip.
 
-Finnish `seoTeamTitle` was temporarily set to the English string and the build re-run:
+## 3. Zero overflow is not the same as reading like a word
 
-```
-audit-seo: 1 violation(s) in 10 built page(s):
-  - /teams/manchester-united/: title is BYTE-IDENTICAL across en/fi — the localised template
-    is not reaching the output: "Manchester United — Stats, Form & Season Records | Matchday Pilot"
-seo-audit: the built site violates its own page specs (see the list above).
-build exit = 1
-```
+`overflow-wrap: anywhere` prevents clipping by breaking at an arbitrary letter, with no hyphen.
+Measured with the same Range method, walking character by character to recover each line's text:
 
-Reverted; `build exit = 0`. The gate stops CI and the deploy workflow, both of which run
-`npm run build`.
+| locale | hero tile 3, before the stack |
+|---|---|
+| de | `Ø` / `Torschussdiffe` / `renz` |
+| fi | `Ø` / `Maalilaukauksi` / `en ero` — all THREE Finnish tiles broke this way |
 
-**It also failed for real, twice, on first run** — that is how the locale-landing defect above was
-found. The first build reported 21 violations: the three scaffolds had no canonical and no hreflang
-and all shipped `<title>Matchday Pilot</title>`. The original plan proposed EXEMPTING the scaffolds;
-that would have hidden this.
+`hyphens: auto` does not fix it: tested live, and this engine carries no de/fi hyphenation dictionary,
+so the line breaks are byte-identical with it on. The tile label box is 71px at 375px while
+`Torschussdifferenz` alone needs **89.1px**, so no wrap rule can save three tiles side by side.
 
-## 4. Whole-build assertions
-
-```
-dist/robots.txt          -> "User-agent: *\nDisallow: /"
-dist/sitemap-index.xml   -> present (NOT sitemap.xml — a checker looking for that passes vacuously)
-dist/sitemap-0.xml       -> 9 <loc> entries = 10 built pages minus the excluded root redirect
-```
-
-The sitemap is generated while the site is `noindex` and is referenced by nothing, so its
-cap-splitting and locale logic get exercised on every build instead of first running at go-live.
-
-## 5. Page-count driver, free from the build hook
-
-```
-[seo-audit] page-count driver: /robots.txt -> 1, /[lang]/teams/[team] -> 3,
-            /[lang]/[competition]/matches/[fixture] -> 3, /[lang] -> 3, / -> 1
-```
-
-Route PATTERN -> emitted file count, from `astro:build:done`'s `assets` map. This is the one thing a
-`dist/` walker genuinely cannot reconstruct, and it is the honest reason the verifier is an
-integration — not the `--ignore-scripts` bypass the plan cited, which does not exist in this
-pipeline (neither workflow passes that flag; both run `npm run build`).
-
-## 6. The one RENDERING change: the locale landing now composes the site chrome
-
-**This section exists because `bi-analyst-reviewer` FAILed the first version of this document.** It
-said in §1 that the landing "gained the standard header/footer" and then in §6 that "nothing changes
-a pixel" — a contradiction, and the second half was wrong. `[lang]/index.astro` moved from a
-hand-rolled bare `<html><body><h1>` to `Layout`, so `SiteHeader` and `SiteFooter` render on that
-route **for the first time**. That is a composition #827 requires evidence for. Measured against the
-live dev server, not read from source:
-
-**Accessibility tree @ 700x800** — the composition is real and correctly landmarked:
-`banner` (brand link "Matchday"+"Pilot", "Main navigation" with 6 items, search, theme toggle, menu)
-→ `heading "Matchday Pilot v2 — under construction"` → the blurb → `contentinfo` (brand, 5 links,
-"Imprint (pending)", "EN · DE · FI · Data: API-Football"). One `h1`, inside a real document outline.
-
-**Geometry @ 320x720** — the width the header is tightest at:
+**Fix, CPO-approved ("Stack them on phones") after being shown the rendered line breaks:** below 560px
+the three tiles become three rows, name left and value right. Measured at 375px, per tile:
 
 | | px |
 |---|---|
-| `horizontalScroll` | **false** (`scrollWidth` 320 = viewport 320) |
-| brand | 16 → 140 |
-| `.header-actions` | 180 → 304 |
-| **clearance between them** | **40** |
-| `.mainnav` | `display: none` (below the 700px breakpoint, as designed) |
-| `h1` | 16 → 304, 288 wide, no overflow |
+| tile, outer | 301.0 |
+| tile, content box | 277.0 |
+| value box (`.hv`, widest) | 36.2 |
+| flex gap | 10 |
+| **label's available width** | **~231** |
+| label's rendered width, longest German (`Ø Torschussdifferenz`) | 100.4 |
+| what that word needs | 89.1 |
 
-**Console** — `read_console_messages(onlyErrors: true)` → **no errors**.
+| | en | de | fi |
+|---|---|---|---|
+| hero tile mid-word breaks, before | 0 | 2 | 3 |
+| hero tile mid-word breaks, after | **0** | **0** | **0** |
+| `.heronums` block height | 96px → **149px** | same | same |
+| `.ss-row` mid-word breaks | 0 | 0 | 0 |
 
-**No screenshot.** `computer{action:"screenshot"}` fails in this environment ("the Browser pane is
-not displayed"), a limitation already recorded in the handover. The geometry above is the stronger
-evidence for the question actually at issue — whether the chrome fits and the page overflows — since
-it gives measured pixel clearance rather than an eyeball on whether two boxes touch.
+A mid-word break is counted mechanically: a line that is not the last and does not end in whitespace or
+a hyphen. English is unaffected either way — its names already fit.
+
+**`.vs-row` still breaks mid-word: 3 rows in German, 9 in Finnish.** Its label column is 77px inside a
+four-column grid, and widening it costs the comparison bar 115px → 80px, which is a visible change to a
+block the CPO has not ruled on. Nothing clips or overflows there (max −0.3px). **#876**, with the
+one-line fix and its measured trade-off; he ruled "leave it filed".
+
+## 4. The fixture page, tabulated
+
+16 of the 19 render slots this branch localises are on the fixture page, and its German row 6 changed
+value (`Ø Schüsse aufs Tor` → `Ø Torschüsse`). Same instrument, same viewport, both windows forced via
+`#seg-w1` / `#seg-w2`:
+
+| `.mlabel`, 375x812 | en w1 | en w2 | de w1 | de w2 | fi w1 | fi w2 |
+|---|---|---|---|---|---|---|
+| labels measured | 16 | 16 | 16 | 16 | 16 | 16 |
+| `unmeasured` | 0 | 0 | 0 | 0 | 0 | 0 |
+| worst overflow | +0.3 | +0.3 | +0.4 | +0.4 | +0.4 | +0.4 |
+| over **1px** | 0 | 0 | 0 | 0 | 0 | 0 |
+| **mid-word breaks** | **0** | **0** | **0** | **0** | **0** | **0** |
+| sideways page scroll | no (375 = 375) | | no | | no | |
+
+`.mlabel` deliberately did NOT get `overflow-wrap: anywhere`, and the numbers say it does not need it:
+`.mmid` is the centre track of the `1fr 1.5fr 1fr` grid at `system.css:126` and centres rather than
+stretches, so a long compound wraps on whitespace inside a wide box. At 375px that track is ~137px,
+nearly double the hero tile. It is the only container clean **without** the wrap rule.
+
+## 5. No lookup code reaches a reader
+
+```
+grep -rE 'metrics\.[a-z_]+\.label' dist   ->  0 files   (all of dist, not only HTML)
+find dist -name '*.html'                  ->  10 files
+audit-seo: 10 built page(s) checked. OK.
+check-page-specs: 3 page(s) validated against their specs. OK.
+npm test: 59 pass, 0 fail   (runs via prebuild, so it gates the build)
+```
+
+## 6. No screenshot, and why that is not a gap
+
+`computer{action:"screenshot"}` fails in this environment ("the Browser pane is not displayed, so the
+page is not compositing frames"). For the questions at issue — does the block name one metric
+consistently, and does any label clip or break — measured text and measured pixel overflow are stronger
+evidence than an eyeball, and #862's rule points the same way: read the built output, not a rendering
+of it.
