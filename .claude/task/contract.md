@@ -1,182 +1,73 @@
-# Task contract — the pipeline decides which season a page opens on (#846)
+# Task contract — restore the exactly-one-featured-season DQ test (#886)
 
-> Written on a clean tree before any file was touched. Branch `feat/846-featured-season-from-mart`
-> from `main` at `162789a`. No protected path in scope, so no `protected_override`.
-> `dbt_project/models/**`, `scripts/export_*.py` and `site_v2/` are all structural, so `impact_map`
-> is required and present. `site_v2/src/` is in scope, so `acceptance_criteria` are required,
-> CPO-approved before any code, and LOCKED.
+> Written on a clean tree before any file was touched. Branch `feat/886-featured-season-dq-test`
+> from `main` at `79317d3`. No protected path in scope, so no `protected_override`. No
+> `dbt_project/models/**`, `ingestion/**`, `scripts/export_*.py` or `site*/` path in scope, so
+> `impact_map` is not gate-required; a one-line evidenced short-form is given anyway.
+> No `site_v2/src/` path in scope, so no `acceptance_criteria`.
 
 objective: >
-  A team or player has many seasons. Opening their page shows one of them first, and today the
-  rule that picks it is written down THREE times: `_latest_season_row` in the export
-  (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the
-  team page (`[team].astro:56`), and the same rule again in different code on the stashed player
-  page. They already disagree. The export's copy is pure recency, which is why a player's
-  `current_team` resolves to England rather than Aston Villa.
+  Close out #846's acceptance criterion 4 by restoring the test that was written, reviewed and
+  PASSED there, then split out on the CPO's ruling because prod did not yet have the column it
+  reads. Prod has it now.
 
-  This moves the rule into the warehouse. Both profile marts mark exactly one season per entity,
-  and the export and the pages read that mark instead of deciding for themselves.
+  `is_featured_season` marks the one season an entity's page opens on. "Never two" already holds by
+  construction (`row_number() = 1`) and `not_null` on the column shipped with #846. The half still
+  uncovered is "never none", which a future rewrite of the window expression could introduce
+  silently. This test is what makes that loud.
 
 refs: >
-  #846. The CPO ruled the classification on 2026-08-02: the pipeline picks, not the page.
-  #848 supplies the lens rule (the club tabs are club-only), which is what "most recent" has to be
-  scoped by. NOT in this task: #845 (which entities earn a page), #882 (reaching past seasons at
-  all), and the player page's own consumer, which lands when `stash@{0}` comes off the stash.
+  #886. Restores `dbt_project/tests/assert_one_featured_season_per_entity.sql` from `5479ef5^`
+  UNCHANGED — the exact file `analytics-engineer-reviewer` passed in #846 (PR #884, round 3).
+  Precondition met: main-push `ci-data-build` completed successfully after #884 merged, so prod's
+  `mart_team_profile` and `mart_player_profile` carry the column.
+  NOT in this task: #887, the CI gap that forced the split.
 
 scope_paths:
-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-  - dbt_project/models/5_marts/shared/shared.yml
-  - scripts/export_site_data.py
-  - tests/test_export_site_data.py
-  - site_v2/src/pages/*/teams/*.astro
-  - site_v2/src/lib/types.ts
   - dbt_project/tests/assert_one_featured_season_per_entity.sql
-  - site_v2/src/data/teams/33.json
+  - dbt_project/models/5_marts/shared/shared.yml
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
-  - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
   - .claude/task/escalations.log
   - .claude/active_work.md
 
-# fnmatch full-string-matches and `[lang]`/`[team]` are CHARACTER CLASSES, so the literal Astro
-# dynamic-route path can never match itself. `site_v2/src/pages/*/teams/*.astro` is the only form
-# that matches the real file. This is a known trap, not a widening.
-
-acceptance_criteria:
-  - A player who played a summer tournament still opens on their club season. Today M. Rogers opens
-    on World Cup 2026 with England instead of Premier League 2025/26 with Aston Villa.
-  - Nothing a visitor sees on a team page changes. Every sample team opens on the same season as it
-    does today. This is plumbing, not a redesign.
-  - The opening season is decided in one place instead of three. Today the team page decides it, the
-    player page decides it again in different code, and the export has its own copy. After this, all
-    three read one answer from the pipeline.
-  - If the rule ever breaks, a test catches it before a reader does. Every team and every player has
-    exactly one opening season, never none and never two.
-  - The change does not quietly alter anything else. No number, name or season anywhere else moves.
-
 impact_map: >
-  writers: `mart_team_profile` and `mart_player_profile` are the only models changed. Neither is
-    written by anything else; each is built once by dbt.
-
-  downstream: BOTH ARE LEAF MARTS. Evidence, run with the project venv dbt (`dbt=1.7.19`,
-    `bigquery=1.7.2`, 94 models parsed), not asserted:
-      `dbt ls --select mart_team_profile+ --resource-type model`
-        -> football_data_pipeline.5_marts.shared.mart_team_profile
-      `dbt ls --select mart_player_profile+ --resource-type model`
-        -> football_data_pipeline.5_marts.shared.mart_player_profile
-    Each returns ONLY itself, so no dbt model consumes either one. Their sole consumer is the
-    export, enumerated from the tree: `export_site_data.py:678` (`select *` from mart_team_profile)
-    and `:733` (`select *` from mart_player_profile). Because both reads are `select *`, a new
-    column reaches the export with no query change.
-
-    Upstream of `mart_team_profile`, for the record of what a rebuild pulls:
-      `dbt ls --select +mart_team_profile` -> int_team_season__metrics_cumulative,
-      int_team_season__standings_primary, int_team_season_record, mart_team_season, and the
-      stg_apif__ models for fixture_events, fixture_players, fixture_statistics, fixtures_next,
-      leagues, standings, teams.
-
-  layer_rules: `check_layer_contract.py` is unaffected; no model moves layer and no staging model is
-    touched. The change is the layer contract being OBEYED rather than bent:
-    `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend",
-    and its own test ("would this value deserve a DQ test, or need to be byte-identical across two
-    frontends?") is yes on both counts. `competition_type` is already a mart column on
-    `mart_team_profile` and on `mart_player_career` (which joins the `competition_types` seed);
-    only `mart_player_profile` lacks it, so the player side propagates an existing, precedented
-    column rather than modelling something new.
-
-  deploy_order: the marts must be rebuilt before the export runs, which is the normal nightly order
-    (dbt build then export). Adding a column is additive, so the deployed export keeps working
-    against the old table until the rebuild lands; nothing breaks mid-deploy. NO LOCAL BUILD:
-    dbt shares the CI and prod datasets, so a local `dbt build` would clobber prod. Criteria 1 and 4
-    are demonstrated from `ci-data-build` output on the PR.
-
-  blast_radius: one new boolean column on two leaf marts, plus one new field in each entity payload.
-    NO existing number, name, rank or season value changes. The team page must open on the same
-    season it opens on today (criterion 2) because the warehouse rule is the same rule the page
-    already applies; the only behaviour that CHANGES is the export's entity identity for players,
-    which today is pure recency and therefore wrong. What breaks if it is wrong: a player page
-    opens on a national tournament under a club-only tab, which is exactly the defect #846 exists
-    to remove, and criterion 4's test is what makes that loud instead of silent.
+  Short-form, and honest about why it is short: this adds a TEST, not a model. No model, no column
+  and no value changes, so there is no lineage to trace and no blast radius to measure.
+  `dbt ls --select mart_team_profile+ --resource-type model` and the same for
+  `mart_player_profile+` each still return only themselves, so nothing downstream exists to break.
+  What DOES change is a gate: the test can now fail a build that previously passed. That is the
+  point of it, and the reason it is safe to add now is that it already ran green against real data
+  in #884 (`ci_marts.mart_team_profile` 12.7k rows, `ci_marts.mart_player_profile` 168.5k rows).
 
 decisions_taken: >
-  CPO rulings on this task. Full text in `.claude/task/escalations.log`.
+  Restoring a previously reviewed file unchanged, under an existing CPO ruling. The ruling
+  ("do 1 now", 2026-08-02) deferred this test to a follow-up PR; this is that PR. Acceptance
+  criterion 4 of #846 was never reworded, so nothing is being reinterpreted here.
 
-  - The §10 classification, 2026-08-02: the pipeline picks the opening season, not the page.
-    His words: "that the opening season is a warehouse fact -> I tend to yes", then "OK" on the
-    rule being scoped by lens.
-  - The five acceptance criteria above: "all 5 approved". Locked; only he moves them.
-  - "Most recent" is scoped by the lens the tab shows (#848): club tabs open on the most recent CLUB
-    season, the International tab on the most recent national competition. Without that scoping the
-    player page opens on a World Cup, which #848 already ruled against.
+  Two `shared.yml` comments say the explicit assertion "is #886 — deferred". They become wrong the
+  moment this lands, so they are corrected in the same diff. That is the standing rule that a
+  correction replaces rather than accumulates, applied to the thing this change makes stale.
 
-  THRESHOLD DECLARATIONS. NEW MECHANISM: none. A boolean column on an existing mart is not a new
-  warehouse object class; no UDF, no hook, no lifecycle step, no dependency. RECURRING COST: none.
-  No new scheduled run, no extra API call, no additional reviewer. The nightly build gains two
-  columns.
-
-  Builder judgement, recorded because it is visible in the diff: the player page is NOT converted
-  here. Its consumer lives in `stash@{0}`, which is held on #845, so pulling it in would drag an
-  undecided scope question into this branch. The mart change it needs IS included, so it becomes a
-  one-line change when that branch resumes.
+  THRESHOLD DECLARATIONS. NEW MECHANISM: none — a singular test is an existing resource type and
+  `dbt_project/tests/` already holds 28 of them. RECURRING COST: none — it runs inside the existing
+  `dbt test --select test_type:singular` step, adding one query to a suite that already runs.
 
 decisions_reserved:
-  - #882: whether a past season gets its own URL or a control on one page, and which seasons earn a
-    page at all. Decided with #845, not here. This task only decides what the BARE entity URL opens
-    on.
-  - Which competition the International tab itself opens on. Not needed until that tab is built.
-  - The column name `is_featured_season` is a builder choice on an internal mart column, not a
-    user-visible string. If the CPO wants it named differently, say so and it changes.
+  - none: this restores a file that was already written, reviewed and PASSED in #884, byte-for-byte
+    unchanged, now that the precondition it was waiting on holds. If a reviewer finds it should
+    differ from the version that passed, that is a finding to raise rather than a decision I make.
+  - #887 may later change how this test is invoked on a PR. That is its own governance task and does
+    not alter what this test asserts.
 
 done_when:
-  - `dbt ls --select mart_team_profile+` and `mart_player_profile+` still return only themselves
-    (no accidental new dependency).
-  - `python -m pytest tests/test_export_site_data.py` passes.
-  - `cd site_v2 && npm test` passes (59 tests).
-  - `python -m sqlfluff lint <changed models> --templater jinja --dialect bigquery` clean from the
-    REPO ROOT, full rule set.
-  - `ci-data-build` green, and its output demonstrates criteria 1 and 4 in
-    `.claude/task/acceptance_evidence.md` under `criteria_demonstrated:`.
-  - Built team pages before and after show the same opening season (criterion 2).
+  - `git diff 5479ef5^ -- dbt_project/tests/assert_one_featured_season_per_entity.sql` is empty,
+    proving the restored file is the reviewed one and not a rewrite.
+  - `dbt ls --select test_type:singular` lists `assert_one_featured_season_per_entity` again.
+  - `dbt parse` clean; `sqlfluff lint` clean from the repo root, full rule set.
+  - No `shared.yml` comment still describes the assertion as deferred.
+  - `ci-data-build` green on the PR, which is the first time this test runs against prod's marts
+    carrying the column.
 
-amendments:
-  - 2026-08-02: + `dbt_project/tests/assert_one_featured_season_per_entity.sql` — authority: the CPO's
-    approval of acceptance criterion 4 ("If the rule ever breaks, a test catches it before a reader
-    does. Every team and every player has exactly one opening season, never none and never two"),
-    which this file IS. Written on a clean tree; the two mart edits were stashed for the amendment
-    and restored after. The path was missed when the contract was drafted: `test-paths: ["tests"]`
-    means a dbt singular test cannot live in the model directory, and a yml test cannot express the
-    criterion — `unique` with `where: is_featured_season` catches "two" but never "none", and
-    criterion 4 requires both halves.
-  - 2026-08-02: + `site_v2/src/data/teams/33.json` — authority: the CPO's approval of acceptance
-    criterion 5, which names this file ("the committed sample data differing only by the one new
-    field"), and criterion 2, which cannot be demonstrated without it: the page now reads the flag,
-    so the committed sample must carry it or the sample team has no season to open on. Verified by
-    `git ls-files site_v2/src/data` that this is the ONLY committed sample with a `seasons` array —
-    `fixtures/1492306.json` and `competitions.json` have none, so no other sample needs the field.
-    Written on a clean tree; the code changes were stashed for the amendment and restored after.
-    Both amendments have the same root cause, stated once rather than twice: `scope_paths` was
-    drafted from the change I had in mind instead of from the whole chain the change travels,
-    mart -> test -> export -> payload -> page -> committed sample.
-  - 2026-08-02: **DELETED** `dbt_project/tests/assert_one_featured_season_per_entity.sql` from the
-    branch — authority: CPO, **"do 1 now"**, answering an escalation with two paths. The path STAYS
-    in `scope_paths`: the diff deletes that file, so scope has to authorise touching it. Dropping it
-    from scope was tried first and the contract gate correctly refused the deletion.
-    The test is correct and PASSED against the real rebuilt marts (12.7k team rows, 168.5k player
-    rows) in `ci-data-build`'s BUILD step. It fails the SEPARATE singular-test step, which runs
-    `--defer --favor-state` so every model reference resolves to PROD, and prod has no
-    `is_featured_season` until main-push rebuilds it. That is an ordering property of the CI design,
-    not a defect in the test: `ci_*` datasets are shared across PRs, so dbt cannot trust a `ci_`
-    relation, so the flag forces prod, so the PR-time DQ step cannot see the branch's own models.
-    Acceptance criterion 4 is NOT weakened and NOT reworded — it is locked and stays as approved.
-    Its automated half lands in the follow-up PR (#886) once prod carries the column, which is the
-    earliest point the test can read a table that has it. The CI gap itself is #887. Until then
-    "never two" holds by construction (`row_number() = 1` cannot yield two) and `not_null` on the
-    column ships here.
-  - 2026-08-02: + `.claude/task/rendered_page_evidence.md` — authority: `bi-analyst-reviewer`'s
-    round-1 FAIL. Its brief requires that artifact whenever the diff makes a rendering-affecting
-    change under `site_v2/src/**`, and the file in the tree still held the merged #370 task's
-    content, so for this branch it was functionally absent. Same root cause as the two above, which
-    is why it is the third: the chain was walked one file at a time instead of once, end to end.
+amendments: (none)
