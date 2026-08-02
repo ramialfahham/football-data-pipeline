@@ -1,174 +1,104 @@
-# Task contract — stop re-scanning raw on every test, and make cost measurable (#547)
+# Task contract — prune the latest-payload read (#890)
 
-> Written on a clean tree before any file was touched. Branch `fix/547-base-tables-and-cost-guard`
-> from `main` at `d20c5bc`. No protected path in scope, so no `protected_override`.
-> `dbt_project/` materialisation is a structural change, so `impact_map` is present.
+> Written on a clean tree before any file was touched. Branch `fix/890-prune-latest-payload-read`
+> from `main` at `4899025`. No protected path in scope, so no `protected_override`.
+> `ingestion/**` is the structural surface, so `impact_map` is required and present.
 > No `site_v2/src/` path in scope, so no `acceptance_criteria`.
 
 objective: >
-  The nightly build re-reads the raw JSON tables once per TEST, because `1_staging` and `2_base` are
-  both views. Nothing stores an intermediate result, so every test on a base model re-executes the
-  whole chain down to raw.
+  `read_latest_payload_json` returns ONE row and scans the entire history of the raw table to do it.
+  The raw tables are partitioned by `ingested_at` and clustered by `league_code`, so the league
+  filter prunes correctly, but `ORDER BY ingested_at DESC LIMIT 1` cannot prune partitions: to rank
+  rows BigQuery must read every partition, on the widest column in the warehouse.
 
-  Measured over 35 days on the prod target, from `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT`:
-  tests cost **$23.91** and building the models cost **$5.84**. Testing costs four times what
-  building costs. `RAW_APIF_TRANSFERS` is **6.82 GiB across 1,117 rows** (6.25 MB per row), it
-  carries six tests plus a fact build, and it is scanned about seven times a night. Transfers alone
-  is **$8.56** of the $29.79 prod total.
+  Measured by dry run (free, exact) against `RAW_APIF_TRANSFERS`, league BL1:
+    current  `SELECT payload ... ORDER BY ingested_at DESC LIMIT 1`      -> **6.634 GiB**
+    step 1   `SELECT MAX(ingested_at) ... WHERE league_code = @lc`       -> **0.013 MiB**
+    step 2   `SELECT payload ... AND ingested_at = @ts`                  -> **2.95 MiB**
+    total after the fix                                                   -> **2.96 MiB**
+  A **2,290x** reduction per call, and there are ~10,300 such calls per 35 days ($21.47, the single
+  largest line in the bill).
 
-  This materialises `2_base` as tables so each raw table is read once per night instead of once per
-  test, pins that choice with a test so it cannot be undone silently, and ships the measurement
-  script so the next person can answer "what does this cost" instead of guessing.
+  The cost also grows with UPTIME rather than with data: one more partition exists every day the
+  pipeline runs, so this query gets permanently more expensive even if nothing new is ingested.
 
 refs: >
-  #547 (the cost-optimisation program, status "not started"), and Thread 1 of
-  `docs/product_direction_threads.md`, closed 2026-05-25 as "architecture signed off". This is the
-  part of that thread that stopped holding. NOT in this task: #890 (the ingestion read path), and
-  the CI-side spend, which #887 changes first.
-
-protected_override: >
-  CPO, 2026-08-02, in-session: shown that the base-as-view rule also lives inside
-  `.claude/hooks/dbt_layer_gate.py`, where it is INJECTED into every future agent that edits a base
-  model, and asked directly whether to edit that protected file. He answered **"yes"**. The same
-  exchange carries his ruling on the materialisation change itself: **"Fix it and ensure that this
-  will not happen again in the future."** Both are recorded verbatim in `escalations.log`.
+  #890. Sibling of #892 (the same defect in the dbt staging models) and part of the #547 program.
+  NOT in this task: #892, and the `1_staging` models generally.
 
 scope_paths:
-  - dbt_project/dbt_project.yml
-  - dbt_project/docs/layering.md
-  - scripts/check_layer_contract.py
-  - CLAUDE.md
-  - .claude/hooks/dbt_layer_gate.py
-  - docs/roles/analytics_engineer.md
-  - dbt_project/profiles.example.yml
-  - tests/test_materialisation_policy.py
-  - scripts/report_bq_cost.py
-  - .claude/task/contract.md
-  - .claude/task/review.md
-  - .claude/task/review_input.patch
-  - .claude/task/escalations.log
-  - .claude/active_work.md
+  - ingestion/api_football/bigquery.py
+  - tests/test_latest_payload_read.py
 
 impact_map: >
-  writers: nothing changes what any model COMPUTES. `2_base` moves from `view` to `table`, so 16
-  models that were inlined into their consumers are now stored. No SQL is edited.
+  writers: none. This is a READ path; nothing about what is ingested or stored changes.
 
-  downstream: every `3_core` model that refs a base model, which is the whole warehouse. Evidence,
-  from the project venv dbt (`dbt=1.7.19`, 94 models parsed):
-    `dbt ls --select 2_base --resource-type model` -> 16 models
-    `dbt ls --select 2_base+ --resource-type model` -> the base models plus their core/intermediate/
-    mart descendants (pasted in the PR body; it is the bulk of the project).
-  Semantics are identical: a view and a table over the same SELECT return the same rows within one
-  `dbt build`, because the whole pipeline runs in a single ordered pass. What changes is WHEN the
-  SELECT is evaluated (once, at base build) instead of once per consumer and once per test.
+  downstream: 5 call sites, enumerated with grep rather than from memory —
+    `ingestion/api_football/completeness.py:125,192`
+    `ingestion/api_football/ingest_plan.py:113,125`
+    `ingestion/api_football/loads/fixtures.py:117`
+    `scripts/compare_fixture_statistics_live.py:41`
+  plus `tests/test_fixtures_cache_skip.py`, which monkeypatches the name at 101 and 175 and
+  therefore does not exercise the query at all. Every caller wants "the newest payload for this
+  league" and none inspects the SQL, so the contract they depend on is the RETURN VALUE, which is
+  unchanged.
 
-  layer_rules: `check_layer_contract.py` governs what logic may live in a layer, not how it is
-  materialised, so it is unaffected. `dbt_project/docs/layering.md` records the base-as-view
-  decision and is updated here with the measured reason, because that decision explicitly allows a
-  change with a documented reason and this is it.
+  layer_rules: this is ingestion, not dbt, so `check_layer_contract.py` does not apply. The raw
+  landing contract (`docs/data_contract.md`) is untouched: no table, column, schema or write path
+  changes.
 
-  deploy_order: the first prod run after merge creates 16 new tables in the `base` dataset and the
-  views are replaced. dbt handles the swap in dependency order. Storage added is small: the base
-  models are the deduplicated, flattened rows, far smaller than the raw JSON they read.
+  deploy_order: none. A read-only change with no migration; the next nightly picks it up. It cannot
+  half-apply, because it is one function.
 
-  blast_radius: NO number on any page changes. What changes is the bytes the nightly scans, which
-  is the point. Risk if wrong: a base model that is non-deterministic would freeze at build time
-  rather than being re-evaluated per consumer. Checked: base models dedupe and union, and the only
-  time-dependent input is `ingested_at` from raw, which is fixed for the run.
-
-  SECOND BUILD — the new cost this change creates, enumerated from dbt rather than from memory
-  after two wrong counts. `pages-match-preview.yml` runs its own build selecting
-  `+mart_team_season_insights`, and it fires on the 07:30 cron, on push to main AND on dispatch, so
-  it is once a day plus once per merge, not "twice a day".
-    `dbt ls --select +mart_team_season_insights --resource-type model | grep 2_base` -> **9 of 16**:
-    base_apif__competition_seasons, base_apif__fixture_events, base_apif__fixture_players,
-    base_apif__fixture_statistics, base_apif__fixtures_next, base_apif__leagues,
-    base_apif__standings, base_apif__teams, base_apif__teams_global.
-  I first wrote "four", omitting `fixture_players` and `fixture_events`, which flatten the largest
-  per-fixture JSON arrays in the project. While base was a view, rebuilding all nine cost nothing —
-  `CREATE VIEW` is DDL and BigQuery does not bill it. As tables they are a real scan.
-
-  The offsetting measurement, which is what makes the net still negative: base nodes are **$14.20**
-  of the $29.79 prod total over 35 days, and base model BUILDS are **$0.00** — direct evidence that
-  a view is free to create and expensive to test through. Those $14.20 are the tests re-executing
-  the chain, and they collapse to one build each. The new exposure is nine base builds on the
-  second run; `base_apif__transfers`, the single most expensive entity at $8.56, is NOT among them
-  and is built once a day as before. Net remains negative, and the number that could contradict it
-  now exists. Reproduce with `python scripts/report_bq_cost.py`.
-
-  PROTECTED PATH — `.claude/hooks/dbt_layer_gate.py`. It is not machinery being changed, only a
-  string it injects. Traced what depends on it: `_LAYER_RE` matches a `2_base` path, `main()` looks
-  the layer up in `_LAYER_RULES` and calls `emit_context`, so the ONLY effect is which text an agent
-  is shown before it edits a base model. Nothing parses the string, no gate branches on it, and it
-  fails open. What stops being enforced if it is wrong: nothing mechanical, but every future agent
-  editing a base model is told the superseded rule, which is precisely the drift this task exists to
-  end. On failure the hook already fails open, and that is unchanged.
+  blast_radius: the VALUE returned must be identical, and that is the whole risk. Two behaviours
+  must be preserved exactly: (1) a table with no rows for the league returns None, and (2) where
+  several rows share the newest timestamp, one payload is returned rather than an error. What
+  changes is only how many bytes BigQuery reads to find it. The failure mode if the timestamp
+  lookup and the payload read disagree is a returned None where a payload exists, which would make
+  the ingest re-fetch from the API rather than reuse the cache — visible as extra API calls, not as
+  wrong data.
 
 decisions_taken: >
-  **CPO ruling, 2026-08-02: "Fix it and ensure that this will not happen again in the future."**
-  That is the authority for changing the base materialisation. An earlier version of this contract
-  cited the layer doc's "not without a documented reason" clause instead, and `scope-auditor`
-  correctly failed it: a documented architectural decision is the CPO's to move, and treating a
-  permissive clause as a delegation is the §10 meta-rule violation (analogy is not a licence).
-  The measurement in `objective` is the documented reason the doc requires; it is not the authority.
+  **AUTHORITY. CPO, 2026-08-02, in session: "merged, do 890"** — a direct instruction to do this
+  issue, given after merging #891. It sits under the standing ruling that opened the cost work,
+  **"Fix it and ensure that this will not happen again in the future."** Both are in
+  `escalations.log`; the second was recorded with #547 and the first is appended with this task.
 
-  **CPO approval, same exchange: "yes"** to editing `.claude/hooks/dbt_layer_gate.py`, asked
-  explicitly as a protected-path question. See `protected_override`.
+  **Why this is agent-executable rather than a §10 cost decision.** §10 reserves "cost, schedule,
+  scope: API budget, history depth, run cadence, widening a task". This changes none of them. It
+  does not touch what is ingested, how often, or how much history; it makes one existing read scan
+  fewer bytes for an identical result. The RECURRING COST declaration below is NEGATIVE, and it is
+  declared so `cto-reviewer` can see it, not because a reduction needs approval. Stating this
+  plainly because the first version of this contract declared the threshold and named no authority
+  at all, which `scope-auditor` correctly failed.
 
-  THRESHOLD DECLARATIONS. NEW MECHANISM: `scripts/report_bq_cost.py` is a new read-only reporting
-  script. It is not wired into any workflow or hook and nothing depends on it; it exists so a cost
-  claim can cite a number. RECURRING COST: **negative, and measured rather than asserted.** This
-  removes roughly six redundant scans of every raw table per night. I am declaring it with a figure
-  because writing "none" from intuition is exactly how this regression survived: I wrote
-  "RECURRING COST: none" twice earlier today without measuring either.
+  Two round trips rather than one query, and that is measured, not stylistic. The single-query form
+  `WHERE ingested_at = (SELECT MAX(ingested_at) ...)` was dry-run and scans the **same 6.634 GiB**:
+  BigQuery does not prune partitions on a subquery predicate. So the two-step read is the only shape
+  that actually prunes, and the first step costs 13 KB.
+
+  The SQL moves from f-string interpolation to query PARAMETERS. The timestamp has to be a parameter
+  for the fix, and leaving `league_code` interpolated in the same rewritten statement would be worse
+  than fixing it; league codes come from the registry rather than user input, so this is hardening
+  in a line already being rewritten, not a new concern.
+
+  THRESHOLD DECLARATIONS. NEW MECHANISM: none. No new dependency, service, table or workflow step;
+  the same client issues one extra small query. RECURRING COST: **strongly negative, and measured
+  rather than asserted** — 6.634 GiB to 2.96 MiB per call, on ~10,300 calls per 35 days. Figures
+  from `bq query --dry_run`, which bills nothing, and reproducible with `scripts/report_bq_cost.py`.
 
 decisions_reserved:
-  - Whether the `RECURRING COST` declaration should be REQUIRED to cite a measured number rather
-    than allowing the word "none". That would extend a written rule in `working_agreement.md` §2,
-    which is §10, so it is the CPO's. The script this task ships is the thing that would make such a
-    rule cheap to satisfy. Not done here.
-  - Whether `1_staging` should also be materialised. It is the JSON explosion and therefore the
-    expensive part, but it is also 17 models over the widest tables, so it is a bigger storage and
-    build-time trade. Measure the effect of the base change first, then decide.
-  - The threshold at which the pinning test should fail is the layer POLICY, not a tuned number, so
-    there is no magic constant to reserve.
+  - Whether the same two-step shape should be pushed into the dbt staging models is #892, decided
+    there. The classes differ: some raw tables are skip-if-present accumulations whose staging MUST
+    read every snapshot, and pruning those would silently drop entities.
+  - Nothing else is open. The return contract is unchanged, so no caller has to be consulted.
 
 done_when:
-  - `dbt parse` clean; `python -m pytest tests/test_materialisation_policy.py` passes, and fails if
-    `2_base` is flipped back to `view` (verified by flipping it, running, and flipping back).
-  - `python -m pytest tests/` green overall, since python-ci runs the whole directory.
-  - `scripts/report_bq_cost.py` runs against the real project and reproduces the figures quoted in
-    the objective.
-  - `layering.md` states the materialisation policy and the measured reason.
-  - `ci-data-build` green, and its prod build shows base models created as tables.
+  - `python -m pytest tests/test_latest_payload_read.py` passes, covering: the pruned two-step path,
+    the empty-table None, the `ingested_datetime` variant, the no-timestamp-column fallback, and
+    that the payload query carries an equality predicate on the partition column (the property that
+    makes it prune).
+  - `python -m pytest tests/` green overall, including the existing `test_fixtures_cache_skip.py`.
+  - A dry run of the emitted SQL confirms the scan is megabytes rather than gigabytes.
 
-amendments:
-  - 2026-08-02: + `scripts/check_layer_contract.py` and `CLAUDE.md` — authority: the objective
-    itself. The base-as-view rule is written in FOUR places, and changing one leaves three
-    contradicting it: `dbt_project.yml` (the real config), `layering.md` lines 13 and 160,
-    `CLAUDE.md` line 56, and `check_layer_contract.py`, whose comment cites CLAUDE.md as
-    non-negotiable and whose logic rejects any per-model materialisation that is not `view`. With
-    the layer default now `table`, that check would reject a model for matching the default, so
-    leaving it alone is not neutral, it is a new bug. The check becomes "a base model must not
-    override materialisation at all; the layer default governs", which is simpler and stricter.
-    Written on a clean tree; the config change was stashed for the amendment and restored after.
-  - 2026-08-02: + `.claude/hooks/dbt_layer_gate.py` (PROTECTED, see `protected_override`) and
-    `docs/roles/analytics_engineer.md` — authority: the CPO's "yes", after `analytics-engineer-
-    reviewer` found them. ⚠ THE AMENDMENT ABOVE CLAIMED THE RULE LIVED IN FOUR PLACES AND THAT I HAD
-    GREPPED RATHER THAN TRUSTED MEMORY. It lives in SEVEN. I grepped `docs/` and the dbt project and
-    never searched the hooks or the role briefs, so the claim was true of the search I ran and false
-    about the repo. The hook is the worst of the three misses: it INJECTS the superseded rule into
-    every future agent that edits a base model.
-  - 2026-08-02: + `dbt_project/profiles.example.yml` — authority: the same CPO ruling; found by
-    `platform-reviewer`, which is the EIGHTH site and the THIRD time in this one task that I claimed
-    a complete enumeration without running a command that could prove it (four, then seven, now
-    eight). The claims are now replaced by pasted output, and the guard no longer depends on a list
-    I maintain by hand:
-      `dbt ls --select +mart_team_season_insights --resource-type model | grep 2_base` -> **9**
-        base_apif__competition_seasons, base_apif__fixture_events, base_apif__fixture_players,
-        base_apif__fixture_statistics, base_apif__fixtures_next, base_apif__leagues,
-        base_apif__standings, base_apif__teams, base_apif__teams_global
-      `git grep -inE "base (models? )?(are |as )?views|base views|views \+ seeds|2_base.*materiali"`
-        -> the complete site list, which is what found profiles.example.yml.
-    The guard now asserts repo-WIDE that no file states base is a view, so a ninth site cannot be
-    added without failing, whether or not I remember to list it.
+amendments: (none)
