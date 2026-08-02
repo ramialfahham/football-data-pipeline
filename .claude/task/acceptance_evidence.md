@@ -1,95 +1,86 @@
-# Acceptance evidence — metric labels from the catalogue, per locale (#370 slice)
+# Acceptance evidence — #846
 
-> Every claim here is read from `site_v2/dist/`, the BUILT output — never from source, never from
-> `outerHTML`. Rendered-page measurements are in `.claude/task/rendered_page_evidence.md` and are not
-> restated here.
->
-> Build: `cd site_v2 && NODE_OPTIONS=--max-old-space-size=8192 npm run build` → **Complete**, 9 pages
-> built, 10 audited. `npm test` **59 pass, 0 fail** (via `prebuild`, so it gates the build).
-> `check-page-specs: 3 page(s) validated. OK.` `audit-seo: 10 built page(s) checked. OK.`
-> `pytest tests/test_governance_hooks.py` **245 pass**.
+The five criteria are the CPO's, approved 2026-08-02 ("all 5 approved") and locked. Each is
+restated verbatim, then shown. Two are demonstrated from BUILT site output, two from the test
+suites, and one is honestly split: its warehouse half cannot run locally.
 
 criteria_demonstrated:
-  - **Each stat name is written down once.** `metricRows.ts` declares no `label:` and the three
-    `heroSot*` chrome strings are gone, both pinned by tests that fail on revert. The 18 names live
-    only in `METRIC_LABELS_{EN,DE,FI}`, keyed by the catalogue's own `label_i18n_key`.
 
-  - **A German reader sees German stat names.** Hero tiles, matched on the built markup
-    `<span class="hl">…</span><span class="hv num">…</span>`:
+  - **1. "A player who played a summer tournament still opens on their club season."** Shown at the
+    payload level, which is where the defect lived.
+    `tests/test_export_site_data.py::test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest`
+    feeds two real rows — `WC 2026` (the more recent) and `PL 2025` — and asserts the payload's
+    top-level identity comes from the club row (`position == "D"`, the club season's modal position,
+    not `"M"` from the national squad) while the WC season is still served in `seasons[]`. Passing.
+    ⚠ HALF PENDING: that the MART flags the club row for the real M. Rogers needs
+    `mart_player_profile` rebuilt, and a local `dbt build` would clobber the shared prod dataset. It
+    is demonstrated from `ci-data-build` on the PR, not here. The rule it rests on is
+    `entity_type = 'club'` first, then `domestic_league`, then most recent year.
 
-    | locale | tile 1 | tile 2 | tile 3 |
-    |---|---|---|---|
-    | en | `Ø Shots on target` 5.7 | `Ø Shots on target against` 3.7 | `Ø Shots on target difference` +2.0 |
-    | de | `Ø Torschüsse` 5,7 | `Ø Torschüsse gegen` 3,7 | `Ø Torschussdifferenz` +2,0 |
-    | fi | `Ø Maalilaukaukset` 5,7 | `Ø Maalilaukaukset vastaan` 3,7 | `Ø Maalilaukauksien ero` +2,0 |
+  - **2. "Nothing a visitor sees on a team page changes."** Shown from BUILT output, as a
+    before/after of the same page. Built `main`'s version (changes stashed), copied all three
+    locales out of `dist/`, restored, rebuilt, and diffed:
+    `diff before_<lang>.html dist/<lang>/teams/manchester-united/index.html`
+    -> de: IDENTICAL · en: IDENTICAL · fi: IDENTICAL.
+    Byte-identical in every locale, which settles geometry, ordering and every string at once, since
+    none can differ if the bytes do not. Corroborating counts in the built `en` page, before and
+    after: `Premier League` x10, `2025/26` x3. It is identical rather than merely close because the
+    flag was set on the row the old `.find()` returned, and the warehouse rule that produces the
+    flag is the rule the page used to apply.
 
-    Performance rows, first six from `<span class="vs-name">`:
-    en `Ø Goals · Ø Goals against · Clean sheets · Ø Shots · % Shots from box · Ø Shots on target`;
-    de `Ø Tore · Ø Gegentore · Zu-Null-Spiele · Ø Schüsse · % Schüsse aus dem Strafraum · Ø Torschüsse`;
-    fi `Ø Maalit · Ø Päästetyt maalit · Nollapelit · Ø Laukaukset · % Laukaukset boksista · Ø Maalilaukaukset`.
-    **Before this task all three columns were the English one.** All six German and Finnish hero values
-    are the CPO's own words, supplied verbatim.
+  - **3. "The opening season is decided in one place instead of three."** All three copies are gone,
+    verified by search rather than by claim: `grep -n "_latest_season_row" scripts/export_site_data.py`
+    -> no matches (function removed); `grep -n "latest\.get\|latest\["` -> no matches; `[team].astro`
+    no longer contains `.find((s) => s.competition_type === ...)` and instead reads
+    `team.seasons.find((s) => s.is_featured_season)`. The export now REFUSES to choose:
+    `test_featured_season_row_refuses_to_choose` asserts it raises both when no row is flagged and
+    when two are, so a mart shipped without the column fails loudly instead of silently falling back
+    to recency. Passing. The player page's own copy is not converted here and cannot be: it lives in
+    `stash@{0}`, held on #845. The mart half it needs IS included.
 
-  - **No raw lookup code reaches a reader.** `metricLabel()` deliberately does not fall back to the key
-    the way `t()` does, because a miss would print `metrics.duels_per_match.label` on a public page.
-    **`grep -rE "metrics\.[a-z_]+\.label" dist` → 0 files**, across all of `dist`, not only HTML.
-    Pinned forward by `every metric name the page asks for resolves in all three locales` and `no
-    locale carries a label nothing renders, and none is empty`.
+  - **4. "If the rule ever breaks, a test catches it before a reader does."**
+    `dbt_project/tests/assert_one_featured_season_per_entity.sql` counts flagged rows per entity
+    across BOTH profile marts and returns any entity whose count is not exactly 1, so it fails on
+    none and on two. Registered, verified with the project venv dbt:
+    `dbt ls --select test_type:singular` -> `football_data_pipeline.assert_one_featured_season_per_entity`.
+    Plus `not_null` on the column itself in `shared.yml` for both marts, and `not_null` +
+    `accepted_values` on `entity_type`, the column that scopes the rule to club football.
+    ⚠ It EXECUTES against data in `ci-data-build`; `dbt ls` proves it is wired, not that it passes.
 
-  - **Every name belongs to a stat that really exists.** `every labelKey is a label_i18n_key the
-    catalogue actually declares` reads the **`label_i18n_key` column** of `metric_catalogue.csv` and
-    requires every key used by `metricRows.ts` and `DeservedHero.astro` to appear verbatim, asserting
-    it parsed at least 50 declared keys first. Proved non-vacuous: the catalogue's real key passes and
-    a key derived from the `metric_id` column fails.
+  - **5. "The change does not quietly alter anything else."** `site_v2/src/data/teams/33.json`: 24
+    seasons, every one gained `is_featured_season` and nothing else. Exactly one is `true` —
+    `PL 2025` — which is the row the old rule selected, which is why criterion 2's diff is empty.
+    Verified by parsing the built file: `seasons: 24`, `flagged: [('PL', 2025)]`,
+    `all have the key: True`, `exactly one: True`. No other committed sample needed the field:
+    `git ls-files site_v2/src/data` returns four files, and neither `fixtures/1492306.json` nor
+    `competitions.json` contains a `seasons` array.
 
-  - **The CPO's validated wording is unchanged.** `the CPO-validated MVP labels are byte-identical to
-    site/i18n` compares against `site/i18n/{en,de,fi}.json` and asserts it compared at least 27, so it
-    cannot pass by comparing none. Confirmed in the built pages: de `Ø Tore`, `Ø Gegentore`,
-    `% Angekommene Pässe`, `Ø Ecken gegen`; fi `Ø Maalit`, `Ø Päästetyt maalit`, `% Syöttötarkkuus`,
-    `Ø Päästetyt kulmapotkut`. The one deliberate exclusion is EN `finishing_efficiency`, where v2's
-    locked `% Goals per shot on target` is kept over the corpus's `% Conversion rate`.
+## The missing-flag path, measured
 
-  - **The new names go through the same copy check as everything else.** `check_copy_gate.py` gained a
-    second parser, because its entry regex requires a bare identifier and cannot see a quoted dotted
-    key — 54 user-visible strings would otherwise have skipped the em dash, completeness and
-    terminology checks. It parses **18 per locale, 54 total**, and its finding count is **16, unchanged,
-    with 0 naming a metric label**. Exit 1 comes from those 16 pre-existing findings, which are the
-    CPO's copy to fix (#872).
+The non-null assertion in `[team].astro` removes the old `?? team.seasons[0]` fallback. Tested, not
+assumed: flipping the sample's one flagged season to `false` and rebuilding gives
+`Cannot read properties of undefined (reading 'league_code')` and `exit 127`. The BUILD fails and a
+visitor never sees it, because the pages are statically generated. Fail-closed in the right
+direction. The sample was restored and the byte-identical diff re-run afterwards to prove the
+experiment left nothing behind. Full detail in `rendered_page_evidence.md`.
 
-## One name per metric, on every surface that shows it
+## Suites and gates run locally
 
-Four strings on the deserved-vs-actual block name the same number, and nothing binds them, so revising
-one leaves three disagreeing. Read from `dist/` after all four were aligned:
+- `python -m pytest tests/test_export_site_data.py` -> **41 passed** (39 existing, 2 new).
+- `cd site_v2 && npm test` -> **59 passed**.
+- `npm run build` -> 9 pages, 3 team pages across 3 locales, `audit-seo: 10 built page(s) checked. OK.`
+- `python -m sqlfluff lint <both marts + the new test> --templater jinja --dialect bigquery` from the
+  repo root, full rule set -> **All Finished!** (clean).
+  ⚠ `mart_player_profile.sql` also reports `TMP`/`PRS` and `ST11` under the jinja templater. Those
+  are PRE-EXISTING, not from this change: the file uses `dbt_utils.generate_surrogate_key`, which
+  the jinja templater cannot resolve, and the unparsable section cascades into bogus "unused join"
+  findings. Confirmed by linting the file as it stands on `main` and getting the same output. CI
+  lints with the dbt templater, which resolves it.
+- `dbt parse` -> clean, 94 models. `dbt ls --select mart_team_profile+` and `mart_player_profile+`
+  still return only themselves, so no accidental downstream dependency was introduced.
 
-| line | en | de | fi |
-|---|---|---|---|
-| verdict sentence | `a shots-on-target difference of +2.0 per match` | `eine Torschussdifferenz von +2,0 pro Spiel` | `maalilaukauksien ero +2,0 ottelua kohden` |
-| tile 3 | `Ø Shots on target difference` | `Ø Torschussdifferenz` | `Ø Maalilaukauksien ero` |
-| chart axis | `Shots on target difference / match` | `Torschussdifferenz / Spiel` | `Maalilaukauksien ero / ottelu` |
-| chart caption | `shots-on-target difference per match` | `der Torschussdifferenz pro Spiel` | `maalilaukauksien eron ottelua kohden` |
+## Not demonstrated here, by design
 
-Both prose changes are the CPO's, ruled on the rendered sentences. **The binding is still by hand** —
-the tile reads `METRIC_LABELS`, the other three are chrome strings — which is why binding prose to the
-layer is the next task rather than a promise in a comment.
-
-**Retired forms are gone from `dist/`**, swept by stem and case-insensitively over all of it, with the
-German rows word-anchored so the current `Torschussdifferenz` cannot false-positive them:
-`aufs Tor` 0 · `\bDifferenz (von|der|Sch)` 0 · `laukaus.ro` 0 · `laukaisu` 0 · `maalia kohti` 0.
-Positive controls, so an empty or stale `dist` cannot read as a pass: `Torsch` 2 files ·
-`maalilaukau` 2 · `Torschussdifferenz` 1 · `Maalilaukauksien ero` 1.
-
-## Beyond the criteria, stated because it is not covered
-
-- **English is byte-identical.** All 18 EN values equal the `label:` and `heroSot*` strings they
-  replace, including `% Goals per shot on target`. **No English text on any page changes**, which is
-  what makes this diff safe on the side the CPO cannot proof-read.
-- **The build gate found a defect I had missed:** `check-page-specs.mjs` refused the build because
-  `team.spec.json` declared `heroSotDiff`, a key criterion 1 deletes. Fixing that exposed a second,
-  pre-existing gap — the block renders three tile labels and declared one.
-- **Residuals**, each with an owner: `sublabel` is still English in all three locales (a caption, not a
-  name); `heroVerdictUnder`/`Over` hand-spell the name rather than reading it from `METRIC_LABELS`;
-  `YearOverYear.astro` renders three stat names from chrome strings; metric GROUP headings render in
-  English on DE/FI pages (**#875**, needs a ruling); every other place a stat is named or abbreviated
-  (**#877**, needs only the words); `.vs-row` labels break mid-word in DE/FI (**#876**, CPO ruled
-  "leave it filed"); EN `finishing_efficiency` has two approved names; and the `-n` of `eron` in the
-  Finnish caption is my inference, approved on that basis and still unverified against a source.
+Criterion 1's warehouse half and criterion 4's execution both need the marts rebuilt. dbt shares the
+CI and prod datasets, so a local build would clobber production. Both are demonstrated from
+`ci-data-build` output on the PR.

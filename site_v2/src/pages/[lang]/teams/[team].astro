@@ -46,14 +46,14 @@ interface Props {
 }
 const { team, lang } = Astro.props;
 
-// Featured season = the team's most-recent domestic-league season (seasons[] is served
-// sorted year-desc), else the most-recent season. This is the codebase's own default-
-// season convention (mirrors `_latest_season_row` in the export and `pickDefaultSeason`
-// on the preserved branch) and matches how the mock frames a team page — its current
-// standing. Pure SELECTION of a served row — no derivation. At scale the season selector
-// (#362) lets a reader reach earlier seasons.
-const season: TeamSeason =
-  team.seasons.find((s) => s.competition_type === "domestic_league") ?? team.seasons[0];
+// The season this page opens on is decided in the warehouse and served on the row (#846).
+// This is a lookup of a flag, not a choice: the rule used to be written here, again on the
+// player page in different code, and a third time in the export, and the three had already
+// drifted. Exactly one season carries the flag, asserted by a dbt test, so the `!` is the
+// contract rather than an assumption.
+// Reaching a season OTHER than this one is #882 and does not exist yet: there is no season
+// segment in the URL and no selector, so today this is the only season a reader can see.
+const season: TeamSeason = team.seasons.find((s) => s.is_featured_season)!;
 
 const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
 const compName = comp?.name ?? season.league_code;

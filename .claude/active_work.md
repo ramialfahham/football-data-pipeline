@@ -5,7 +5,8 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-01**. main GREEN at **e34f4dd**. **NOTHING IN FLIGHT — no open PRs.**
+_Last updated **2026-08-02**. main GREEN at **162789a**. **IN FLIGHT: `feat/846-featured-season-from-mart`,
+4 reviewers PASS in 3 rounds, ready for the CPO's merge.**
 The product is **Matchday Pilot** on `matchdaypilot.com`.
 **FIRST ACTIONS: read "⭐ THE REVIEW RULES CHANGED" below — it changes how every task runs — then run
 `git stash list` before any git work.** The player page is FOUR tabs (#848); its Overview is **BUILT
@@ -49,10 +50,19 @@ numbers by hand, so every number the site shows is covered by an automated test.
 
 ## ⭐ CURRENT — unblock the player page (#845 + #846)
 
-**Owed to the CPO first:** an **org/process overview** — one page he LOOKS AT, not a document he
-reads. What gates what, who decides what, where things stop. He asked for it repeatedly; the answer
-is a visual, and it must show the CURRENT state (the org above plus #878's review rules), not a
-redesign. He has rejected: documents, example-anchored designs, and cutting roles.
+**#846 IS BUILT AND REVIEWED** on `feat/846-featured-season-from-mart`. The season a page opens on is
+now a warehouse fact: both profile marts emit `is_featured_season`, the export's `_latest_season_row`
+is gone and the team page's `.find()` on `competition_type` with it. **CPO ruling 2026-08-02: the
+pipeline picks, not the page**, and "most recent" is scoped by the LENS the tab shows (club tabs =
+most recent CLUB season). Built team pages are **byte-identical** in all three locales. The player
+page's own `.find()` is NOT converted — it is in `stash@{0}`, held on #845; its mart half IS shipped,
+so it becomes a one-line change there. Two gaps found in review and filed, not fixed: **#882** past
+seasons are ingested but unreachable (no season URL, no selector — the CPO wants them selectable),
+**#883** a registry entry with a blank `competition_type` is skipped silently by all three guards.
+
+**The org/process overview was delivered** (a visual board, not committed). The CPO's verdict:
+*"Actually, I wanted something else but nevermind."* Best guess at the miss, unconfirmed: he wanted a
+MAP of how work flows, not a dense reference board to look things up in. Do not rebuild it unasked.
 
 ### 1. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
 Overview · Performance · Career = **club only**, always shown. **International = national lens, shown
@@ -116,10 +126,15 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
   reselling is the one hard prohibition.
 
 ## NEXT
-1. **The org overview** (visual, current state).
-2. **Player page** (#845 + #846), then Performance → Career, ONE tab at a time.
-3. **#880 the README's mermaid diagram does not render on GitHub** — an error box on the public
-   portfolio repo. Cannot be verified locally; GitHub renders it server-side, so check the PR page.
+1. **Merge #846** (the CPO merges), then **#845** — which entities earn a page, HIS decision, bring
+   him the page counts. Then the player page comes off `stash@{0}`, Performance → Career, ONE tab
+   at a time.
+2. **#882 + #845 are one decision.** Season pages multiply page count by history depth (1 to 11 per
+   competition) on top of 154,644 player pages. Decide them together.
+3. ~~#880 README mermaid~~ **RESOLVED, no code change.** The source is valid and renders; GitHub
+   renders mermaid in a `viewscreen.githubusercontent.com` iframe and the error box was that bundle
+   failing, not our diagram. Verified rendering on three loads. Offered to replace it with a committed
+   SVG so a transient can never show a red box on the portfolio; the CPO did not take it up.
 4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 5. Follow-ups: **#875** metric GROUP headings render in English on DE/FI pages, **needs a CPO ruling**
    on where a group name lives · **#877** `GD`, `W/D/L`, `T·I·B` and the result letters reach DE/FI
@@ -150,7 +165,14 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
   Fix it in ten seconds and move on.
 
 ## Operational notes
-- **dbt CLI is broken locally. SQLFluff is NOT** — only its dbt templater is (needs GCP). **Lint from
+- **⚠ THE dbt CLI IS NOT BROKEN — the one on PATH is. This note said the opposite for weeks and cost
+  every session its lineage evidence.** Use **`.venv/Scripts/dbt.exe`** (`dbt=1.7.19` +
+  `bigquery=1.7.2`, exactly the `requirements.txt` pin): `parse`, `ls`, `ls --select <model>+` all
+  work with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`. The GLOBAL `dbt` has dbt-core 1.11.11 beside
+  dbt-bigquery 1.7.2 and throws `ModuleNotFoundError: dbt.adapters.factory`. Nothing needs installing.
+  **Use it for `impact_map` lineage instead of grepping.** Never run `dbt build` (shared prod dataset).
+  The dbt MCP server also starts and registers its tools by hand; it just does not connect in-session.
+- **SQLFluff works; only its dbt templater needs GCP.** **Lint from
   the REPO ROOT** (the root `.sqlfluff` has the jinja macro path, `dbt_project/.sqlfluff` does not):
   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set (a `--rules`
   subset missed ST06). BigQuery rejects a FROM-less WHERE.

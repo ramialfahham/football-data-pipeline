@@ -124,9 +124,26 @@ def _bigquery_rows_to_dicts(rows) -> list[dict]:
     return [dict(row.items()) for row in rows]
 
 
-def _latest_season_row(rows: list[dict]) -> dict:
-    """The row with the greatest season_api_year (identity comes from it)."""
-    return max(rows, key=lambda r: (r.get("season_api_year") or 0))
+def _featured_season_row(rows: list[dict]) -> dict:
+    """The row the entity's page opens on, and the row its top-level identity comes from.
+
+    SELECTION of a served flag, never a decision. `is_featured_season` is computed in
+    mart_team_profile / mart_player_profile (#846), because picking here was window selection in
+    the consumption layer (layering.md) and because the same rule was written three times and had
+    already drifted. It picked on recency alone, which is wrong for a player: their most recent
+    football is genuinely the summer tournament, so a player who has just played one took their
+    top-level position from that squad rather than from their club.
+
+    Raises rather than falling back. A fallback to recency is the exact defect this removes, and a
+    missing flag is a data gap to fix in the mart -- never to bridge here.
+    """
+    featured = [r for r in rows if r.get("is_featured_season")]
+    if len(featured) != 1:
+        raise ValueError(
+            f"expected exactly 1 row with is_featured_season, found {len(featured)}. "
+            "The warehouse decides the opening season (#846); the export must not choose one."
+        )
+    return featured[0]
 
 
 # Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
@@ -224,8 +241,8 @@ def shape_team_payload(
         roster below (GAP-22).
     benchmark_rows: that team's mart_team_competition_benchmarks rows (rank-vs-league per season; GAP-23).
     """
-    latest = _latest_season_row(profile_rows)
-    team_id = int(latest["team_sk"])
+    featured = _featured_season_row(profile_rows)
+    team_id = int(featured["team_sk"])
     seasons = sorted(
         profile_rows,
         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
@@ -303,12 +320,12 @@ def shape_team_payload(
         # Served, not computed: mart_team_profile carries team_slug, derived in the warehouse
         # from the corrected name (#852). A slug built here would be identity generation in the
         # consumption layer, and would reintroduce the provider id the CPO ruled out.
-        "slug": latest.get("team_slug"),
-        "name": latest.get("team_name"),
-        "country": latest.get("team_country"),
-        "crest": latest.get("team_logo_url"),
-        "founded_year": latest.get("team_founded_year"),
-        "venue": _venue_block(latest),
+        "slug": featured.get("team_slug"),
+        "name": featured.get("team_name"),
+        "country": featured.get("team_country"),
+        "crest": featured.get("team_logo_url"),
+        "founded_year": featured.get("team_founded_year"),
+        "venue": _venue_block(featured),
         "seasons": seasons_out,
     }
 
@@ -424,8 +441,8 @@ def shape_player_payload(
     career_rows: list[dict] | None = None,
 ) -> dict:
     """One player's profile rows + match-log rows (+ benchmark rows + career rows) -> the player page payload."""
-    latest = _latest_season_row(profile_rows)
-    player_id = int(latest["player_sk"])
+    featured = _featured_season_row(profile_rows)
+    player_id = int(featured["player_sk"])
     seasons = sorted(
         profile_rows,
         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
@@ -486,12 +503,14 @@ def shape_player_payload(
     return {
         "type": "player",
         "player_id": player_id,
-        "slug": player_slug_with_id(latest.get("player_name"), player_id),
-        "name": latest.get("player_name"),
-        "nationality": latest.get("player_nationality"),
-        "birth_date": latest.get("player_birth_date"),
-        "photo": latest.get("player_photo_url"),
-        "position": latest.get("position_code"),
+        "slug": player_slug_with_id(featured.get("player_name"), player_id),
+        "name": featured.get("player_name"),
+        "nationality": featured.get("player_nationality"),
+        "birth_date": featured.get("player_birth_date"),
+        "photo": featured.get("player_photo_url"),
+        # From the FEATURED season, not the most recent one: modal position is per season, so a
+        # player fresh off a tournament was showing the position they played for their country.
+        "position": featured.get("position_code"),
         "current_team": current_team,
         "seasons": seasons_out,
         "match_log": matches,

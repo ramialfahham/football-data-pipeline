@@ -1,171 +1,167 @@
-# Task contract — metric labels come from the catalogue, per locale (#370 slice)
+# Task contract — the pipeline decides which season a page opens on (#846)
 
-> Written on a clean tree before any file was touched. Branch `feat/370-metric-labels-from-catalogue`
-> from `main` at `cc6cc45`. No protected path in scope, so no `protected_override`. `site_v2/` is the
-> structural surface, so `impact_map` is required and present.
+> Written on a clean tree before any file was touched. Branch `feat/846-featured-season-from-mart`
+> from `main` at `162789a`. No protected path in scope, so no `protected_override`.
+> `dbt_project/models/**`, `scripts/export_*.py` and `site_v2/` are all structural, so `impact_map`
+> is required and present. `site_v2/src/` is in scope, so `acceptance_criteria` are required,
+> CPO-approved before any code, and LOCKED.
 
 objective: >
-  A stat's name is currently written down in FOUR places: the catalogue holds the i18n key but no
-  translation, `metricRows.ts` hard-codes an English label, `strings.ts` hard-codes three more for the
-  hero tiles, and the narrative sentence spells one out in prose. Nothing keeps them in step, and the
-  German and Finnish pages show English stat names because the catalogue's keys resolve to nothing.
+  A team or player has many seasons. Opening their page shows one of them first, and today the
+  rule that picks it is written down THREE times: `_latest_season_row` in the export
+  (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the
+  team page (`[team].astro:56`), and the same rule again in different code on the stashed player
+  page. They already disagree. The export's copy is pure recency, which is why a player's
+  `current_team` resolves to England rather than Aston Villa.
 
-  This makes the catalogue's `label_i18n_key` real: one per-locale name per metric, read from one
-  place by every page. It is the slice of #370 that unblocks composing narrative text from the
-  semantic layer instead of hand-writing it per locale.
+  This moves the rule into the warehouse. Both profile marts mark exactly one season per entity,
+  and the export and the pages read that mark instead of deciding for themselves.
 
 refs: >
-  #370, the bullet "metric labels from `metric_catalogue` i18n keys (never hardcoded)" and only that
-  bullet. The rest of #370 (hreflang, per-locale sitemaps, five new languages, locale-aware
-  formatting, localised competition names) is explicitly NOT in this task.
+  #846. The CPO ruled the classification on 2026-08-02: the pipeline picks, not the page.
+  #848 supplies the lens rule (the club tabs are club-only), which is what "most recent" has to be
+  scoped by. NOT in this task: #845 (which entities earn a page), #882 (reaching past seasons at
+  all), and the player page's own consumer, which lands when `stash@{0}` comes off the stash.
 
 scope_paths:
-  - site_v2/src/i18n/strings.ts
-  - site_v2/src/lib/metricRows.ts
-  - site_v2/src/components/fixture/MetricRow.astro
-  - site_v2/src/components/team/MetricLeagueRow.astro
-  - site_v2/src/components/team/MetricSeasonRow.astro
-  - site_v2/src/components/team/DeservedHero.astro
-  - site_v2/src/styles/system.css
-  - site_v2/src/specs/teams/team.spec.json
-  - site_v2/src/specs/competition/matches/fixture.spec.json
-  - site_v2/scripts/check-metric-labels.test.mjs
-  - site_v2/scripts/check-page-specs.mjs
-  - site_v2/scripts/check-page-specs.test.mjs
-  - scripts/check_copy_gate.py
-  - docs/wireframes/metrics_display.md
-  - tests/test_governance_hooks.py
-  - .claude/task/*.md
+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - scripts/export_site_data.py
+  - tests/test_export_site_data.py
+  - site_v2/src/pages/*/teams/*.astro
+  - site_v2/src/lib/types.ts
+  - dbt_project/tests/assert_one_featured_season_per_entity.sql
+  - site_v2/src/data/teams/33.json
+  - .claude/task/contract.md
+  - .claude/task/review.md
+  - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
   - .claude/task/rendered_page_evidence.md
   - .claude/task/escalations.log
-  - .claude/task/review_input.patch
   - .claude/active_work.md
 
+# fnmatch full-string-matches and `[lang]`/`[team]` are CHARACTER CLASSES, so the literal Astro
+# dynamic-route path can never match itself. `site_v2/src/pages/*/teams/*.astro` is the only form
+# that matches the real file. This is a known trap, not a widening.
+
 acceptance_criteria:
-  - Each stat name is written down once. `metricRows.ts` has no `label:` field, `heroSotFor`,
-    `heroSotAgainst` and `heroSotDiff` are gone from `strings.ts`, and no stat name is spelled
-    anywhere outside the one metric-label block.
-  - A German reader sees German stat names. In the BUILT output the German hero tiles read
-    `Ø Torschüsse`, `Ø Torschüsse gegen`, `Ø Torschussdifferenz`; the Finnish read
-    `Ø Maalilaukaukset`, `Ø Maalilaukaukset vastaan`, `Ø Maalilaukauksien ero`; and the Performance
-    rows differ per locale the same way.
-  - If a name is ever missing, the page must not show gibberish. `t()` falls back to the key itself,
-    so a gap would print the lookup code for a visitor to read. The built HTML contains zero
-    occurrences of `metrics.`, and a test asserts every key resolves in all three locales.
-  - Every name on the page belongs to a stat that really exists. A test cross-checks each key against
-    `metric_catalogue.csv`, which is what catches the dangling `shots_on_target_per_match`.
-    # Locked wording, kept verbatim. Its example is wrong — the catalogue DOES declare that key — and
-    # only the CPO moves a locked criterion. He was asked and chose to leave it annotated.
-  - The ten names the CPO already validated stay exactly as he wrote them. A test compares them
-    against `site/i18n/*.json` so nothing approved is silently reworded while strings move.
-  - The new names go through the same copy check as everything else. `scripts/check_copy_gate.py`
-    reports a higher string count and applies its em dash, locale-completeness and terminology checks
-    to the metric labels too.
+  - A player who played a summer tournament still opens on their club season. Today M. Rogers opens
+    on World Cup 2026 with England instead of Premier League 2025/26 with Aston Villa.
+  - Nothing a visitor sees on a team page changes. Every sample team opens on the same season as it
+    does today. This is plumbing, not a redesign.
+  - The opening season is decided in one place instead of three. Today the team page decides it, the
+    player page decides it again in different code, and the export has its own copy. After this, all
+    three read one answer from the pipeline.
+  - If the rule ever breaks, a test catches it before a reader does. Every team and every player has
+    exactly one opening season, never none and never two.
+  - The change does not quietly alter anything else. No number, name or season anywhere else moves.
 
 impact_map: >
-  writers: nothing writes these values at runtime. They are static per-locale strings in
-    `site_v2/src/i18n/strings.ts`. The catalogue seed (`dbt_project/seeds/metric_catalogue.csv`)
-    supplies `label_i18n_key`, `direction` and `format` and is NOT edited here. Every key the page
-    uses is declared verbatim in the `label_i18n_key` COLUMN; none is invented.
+  writers: `mart_team_profile` and `mart_player_profile` are the only models changed. Neither is
+    written by anything else; each is built once by dbt.
 
-  downstream: four render sites consume a metric name, enumerated from the tree rather than assumed —
-    `components/fixture/MetricRow.astro`, `components/team/MetricLeagueRow.astro`,
-    `MetricSeasonRow.astro`, and `components/team/DeservedHero.astro` (three `heroSot*` calls). All
-    four already receive `lang` as a prop, so no prop threading is needed. `lib/metricRows.ts` is the
-    LOCKED 16-row display contract read by `MetricComparison.astro` and `TeamPerformance.astro`; its
-    `field`, `format`, `direction`, `group`, `tier`, `denom` and `sublabel` are untouched — only
-    `label` leaves.
+  downstream: BOTH ARE LEAF MARTS. Evidence, run with the project venv dbt (`dbt=1.7.19`,
+    `bigquery=1.7.2`, 94 models parsed), not asserted:
+      `dbt ls --select mart_team_profile+ --resource-type model`
+        -> football_data_pipeline.5_marts.shared.mart_team_profile
+      `dbt ls --select mart_player_profile+ --resource-type model`
+        -> football_data_pipeline.5_marts.shared.mart_player_profile
+    Each returns ONLY itself, so no dbt model consumes either one. Their sole consumer is the
+    export, enumerated from the tree: `export_site_data.py:678` (`select *` from mart_team_profile)
+    and `:733` (`select *` from mart_player_profile). Because both reads are `select *`, a new
+    column reaches the export with no query change.
 
-  layer_rules: no warehouse change, so `check_layer_contract.py` is unaffected. Selecting a string by
-    key is selection, not derivation, so resolving a label per locale stays inside what the
-    consumption layer may do. What it may NOT do is invent or restate a metric's meaning, which is
-    exactly the duplication being removed.
+    Upstream of `mart_team_profile`, for the record of what a rebuild pulls:
+      `dbt ls --select +mart_team_profile` -> int_team_season__metrics_cumulative,
+      int_team_season__standings_primary, int_team_season_record, mart_team_season, and the
+      stg_apif__ models for fixture_events, fixture_players, fixture_statistics, fixtures_next,
+      leagues, standings, teams.
 
-  deploy_order: none. No warehouse, no migration, no export change; the payload is untouched. The
-    build runs `npm test` via `prebuild`, so the new test gates the build itself rather than only CI.
+  layer_rules: `check_layer_contract.py` is unaffected; no model moves layer and no staging model is
+    touched. The change is the layer contract being OBEYED rather than bent:
+    `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend",
+    and its own test ("would this value deserve a DQ test, or need to be byte-identical across two
+    frontends?") is yes on both counts. `competition_type` is already a mart column on
+    `mart_team_profile` and on `mart_player_career` (which joins the `competition_types` seed);
+    only `mart_player_profile` lacks it, so the player side propagates an existing, precedented
+    column rather than modelling something new.
 
-  blast_radius: every metric name on the fixture page and both team-page tabs, in three locales — 18
-    distinct keys across 19 render slots (`shots_on_target_per_match` is used twice: hero tile 1 and
-    Performance row 6). Ten are CPO-validated strings that must not change and are test-pinned to
-    `site/i18n/*.json`. What breaks if it is wrong: `t()` returns the KEY when a lookup misses, so a
-    missed name renders `metrics.duels_per_match.label` as visible text on a public page. That failure
-    is silent in review and loud to a reader, which is why criterion 3 greps the built HTML rather
-    than trusting the diff.
+  deploy_order: the marts must be rebuilt before the export runs, which is the normal nightly order
+    (dbt build then export). Adding a column is additive, so the deployed export keeps working
+    against the old table until the rebuild lands; nothing breaks mid-deploy. NO LOCAL BUILD:
+    dbt shares the CI and prod datasets, so a local `dbt build` would clobber prod. Criteria 1 and 4
+    are demonstrated from `ci-data-build` output on the PR.
+
+  blast_radius: one new boolean column on two leaf marts, plus one new field in each entity payload.
+    NO existing number, name, rank or season value changes. The team page must open on the same
+    season it opens on today (criterion 2) because the warehouse rule is the same rule the page
+    already applies; the only behaviour that CHANGES is the export's entity identity for players,
+    which today is pure recency and therefore wrong. What breaks if it is wrong: a player page
+    opens on a national tournament under a club-only tab, which is exactly the defect #846 exists
+    to remove, and criterion 4's test is what makes that loud instead of silent.
 
 decisions_taken: >
-  CPO rulings on this task, one line each. **Full text with what was asked and what he answered is in
-  `.claude/task/escalations.log`**, which survives this task; this contract does not.
+  CPO rulings on this task. Full text in `.claude/task/escalations.log`.
 
-  - The six acceptance criteria above: "All approved." Locked; only he moves them.
-  - German metric names, supplied verbatim: `Torschüsse`, `Torschüsse gegen`, `Torschussdifferenz`.
-  - Finnish, supplied verbatim: `maalilaukaukset`, `maalilaukaukset vastaan`, `maalilaukauksien ero`.
-  - Eight further DE/FI names that were mine, plus two Finnish he had confirmed separately:
-    "Approved, record it."
-  - The overflow fix is styling, not shorter copy: "Change the styling."
-  - `docs/wireframes/metrics_display.md` updated in this branch, not deferred: "Update it now."
-  - Criterion 4's false example stays annotated rather than reworded: "Leave it, the note is enough."
-  - The metric's name inside the hero prose sentences: "Yes, use my words."
-  - The Finnish caption keeps its per-match basis and the `eron` inflection: "Put 'per match' back."
-  - The two `axPlay` values and the German `heroCaption`: "Approve them."
-  - The German rate word, chosen against my recommendation: `pro Spiel`.
-  - Hero tiles stack on phones rather than breaking words mid-word: "Stack them on phones."
-    The 560px threshold is a builder choice; he ruled the behaviour, not the number.
-  - `.vs-row` mid-word breaks are filed, not fixed here: "Leave it filed, fix later" (#876).
-  - Review rounds past the cap of 3, and finishing this branch: "yes and yes", then "finish 370".
+  - The §10 classification, 2026-08-02: the pipeline picks the opening season, not the page.
+    His words: "that the opening season is a warehouse fact -> I tend to yes", then "OK" on the
+    rule being scoped by lens.
+  - The five acceptance criteria above: "all 5 approved". Locked; only he moves them.
+  - "Most recent" is scoped by the lens the tab shows (#848): club tabs open on the most recent CLUB
+    season, the International tab on the most recent national competition. Without that scoping the
+    player page opens on a World Cup, which #848 already ruled against.
 
-  Builder judgement, recorded because it is visible in the design: the labels live in the i18n layer
-  rather than a new seed, because the catalogue owns a metric's identity, direction and format while
-  display copy does not belong in a warehouse seed. The structure is a dedicated per-metric map rather
-  than flat dotted keys in the chrome dictionary, because a quoted dotted key is invisible to both
-  `check_copy_gate.py`'s entry regex and `check-page-specs.mjs`'s key extraction — flat keys would
-  have smuggled 54 strings past the copy check that criterion 6 requires.
+  THRESHOLD DECLARATIONS. NEW MECHANISM: none. A boolean column on an existing mart is not a new
+  warehouse object class; no UDF, no hook, no lifecycle step, no dependency. RECURRING COST: none.
+  No new scheduled run, no extra API call, no additional reviewer. The nightly build gains two
+  columns.
+
+  Builder judgement, recorded because it is visible in the diff: the player page is NOT converted
+  here. Its consumer lives in `stash@{0}`, which is held on #845, so pulling it in would drag an
+  undecided scope question into this branch. The mart change it needs IS included, so it becomes a
+  one-line change when that branch resumes.
 
 decisions_reserved:
-  - The narrative sentences themselves — shape, voice, rotation. This task is why #370 goes first:
-    once labels resolve from the layer, a narrative can name a metric in any locale without a
-    hand-written string. `heroVerdictUnder`/`Over` still hand-spell the name in all three locales and
-    nothing mechanical keeps them in step with `METRIC_LABELS`.
-  - `defensive_actions_per_match.sublabel` is still English in all three locales. It is a caption, not
-    a name.
-  - `YearOverYear.astro` renders three stat names from chrome strings and cannot be bound without a
-    catalogue key that does not exist. Two of them are a second spelling of a name the new block owns.
-  - Metric GROUP headings render in English on every DE/FI page that lists metrics, from two call
-    sites. Where a group name should live is a schema question: **#875**, needs a CPO ruling.
-  - Every other place a stat is named or abbreviated: **#877**, the single source for that set. Needs
-    no ruling — it is ordinary display copy. Nothing in it was introduced by this branch.
-  - The `-n` of `eron` in the Finnish `heroCaption` is a case ending I inferred, not the CPO's word.
-    He approved it knowing that. Still unverified against a Finnish source.
-  - EN `finishing_efficiency` has two approved names: v2's `% Goals per shot on target` and the MVP
-    corpus's `% Conversion rate`. This task keeps v2's, which is why no English text changes.
-  - Wiring `check_copy_gate.py` into CI: **#872**, blocked on the 16 copy findings, which are the CPO's.
-  - Whether magnitude should change the narrative's wording, so 22 points reads differently from 4.
-    Would need the tier to come from the mart; classifying the gap in the frontend is forbidden.
+  - #882: whether a past season gets its own URL or a control on one page, and which seasons earn a
+    page at all. Decided with #845, not here. This task only decides what the BARE entity URL opens
+    on.
+  - Which competition the International tab itself opens on. Not needed until that tab is built.
+  - The column name `is_featured_season` is a builder choice on an internal mart column, not a
+    user-visible string. If the CPO wants it named differently, say so and it changes.
 
 done_when:
-  - `cd site_v2 && npm run build` passes, which runs `npm test` and `check-page-specs.mjs` via
-    `prebuild`, so the new test gates the build.
-  - Every acceptance criterion demonstrated in `.claude/task/acceptance_evidence.md`, read from
-    `site_v2/dist/`, never from source and never from `outerHTML`.
-  - `grep -rE "metrics\.[a-z_]+\.label" site_v2/dist` returns nothing.
-  - `python scripts/check_copy_gate.py` reports a string count that includes the metric labels.
-  - `python -m pytest tests/test_governance_hooks.py -q` green.
+  - `dbt ls --select mart_team_profile+` and `mart_player_profile+` still return only themselves
+    (no accidental new dependency).
+  - `python -m pytest tests/test_export_site_data.py` passes.
+  - `cd site_v2 && npm test` passes (59 tests).
+  - `python -m sqlfluff lint <changed models> --templater jinja --dialect bigquery` clean from the
+    REPO ROOT, full rule set.
+  - `ci-data-build` green, and its output demonstrates criteria 1 and 4 in
+    `.claude/task/acceptance_evidence.md` under `criteria_demonstrated:`.
+  - Built team pages before and after show the same opening season (criterion 2).
 
 amendments:
-  Scope additions, each with its authority. One line each.
-
-  - `+ site_v2/scripts/check-page-specs.mjs`, `+ site_v2/src/specs/teams/team.spec.json` — the
-    standing page-spec rule (#826/#844): a page declares its own surface. Found by the build gate,
-    which refused the build because `team.spec.json` declared a key criterion 1 deletes.
-  - `+ tests/test_governance_hooks.py`, `+ site_v2/scripts/check-page-specs.test.mjs` — the standing
-    rule that new gate behaviour is pinned by a test that fails on revert.
-  - `+ site_v2/src/styles/system.css`, `+ docs/wireframes/metrics_display.md` — CPO: "Change the
-    styling" and "Update it now."
-  - `+ site_v2/src/specs/competition/matches/fixture.spec.json` — same page-spec rule. `MetricRow`
-    changed from `def.label` to `metricLabel()`, so the fixture page renders 16 names through the new
-    key class and its spec declared none of them.
-  - `+ .claude/task/escalations.log`, `+ .claude/task/review_input.patch` — both were already in the
-    diff while excluded from declared scope. `escalations.log` is the durable record §11 requires;
-    `.claude/task/*.md` does not match a `.patch` file.
-  - Criterion 2 updated to the words the CPO chose after he revised all four himself, on his explicit
-    yes. A later instruction supersedes an earlier one, but the record has to say so.
+  - 2026-08-02: + `dbt_project/tests/assert_one_featured_season_per_entity.sql` — authority: the CPO's
+    approval of acceptance criterion 4 ("If the rule ever breaks, a test catches it before a reader
+    does. Every team and every player has exactly one opening season, never none and never two"),
+    which this file IS. Written on a clean tree; the two mart edits were stashed for the amendment
+    and restored after. The path was missed when the contract was drafted: `test-paths: ["tests"]`
+    means a dbt singular test cannot live in the model directory, and a yml test cannot express the
+    criterion — `unique` with `where: is_featured_season` catches "two" but never "none", and
+    criterion 4 requires both halves.
+  - 2026-08-02: + `site_v2/src/data/teams/33.json` — authority: the CPO's approval of acceptance
+    criterion 5, which names this file ("the committed sample data differing only by the one new
+    field"), and criterion 2, which cannot be demonstrated without it: the page now reads the flag,
+    so the committed sample must carry it or the sample team has no season to open on. Verified by
+    `git ls-files site_v2/src/data` that this is the ONLY committed sample with a `seasons` array —
+    `fixtures/1492306.json` and `competitions.json` have none, so no other sample needs the field.
+    Written on a clean tree; the code changes were stashed for the amendment and restored after.
+    Both amendments have the same root cause, stated once rather than twice: `scope_paths` was
+    drafted from the change I had in mind instead of from the whole chain the change travels,
+    mart -> test -> export -> payload -> page -> committed sample.
+  - 2026-08-02: + `.claude/task/rendered_page_evidence.md` — authority: `bi-analyst-reviewer`'s
+    round-1 FAIL. Its brief requires that artifact whenever the diff makes a rendering-affecting
+    change under `site_v2/src/**`, and the file in the tree still held the merged #370 task's
+    content, so for this branch it was functionally absent. Same root cause as the two above, which
+    is why it is the third: the chain was walked one file at a time instead of once, end to end.

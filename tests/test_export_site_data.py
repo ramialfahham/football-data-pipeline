@@ -26,6 +26,21 @@ from scripts.export_site_data import (
     shape_top_players,
     player_slug_with_id,
 )
+from scripts.export_site_data import _featured_season_row
+
+
+def _mark_featured(rows: list[dict]) -> list[dict]:
+    """Flag the row the marts would flag, so a fixture mirrors served data (#846).
+
+    Defaults to the greatest season_api_year, which is exactly what these fixtures assumed back
+    when the export picked the row itself. That is deliberate: every assertion below is unchanged,
+    so a passing suite is evidence the payload did not move when the decision left the export.
+    A player fixture that needs the club lens flags its own row instead — see the WC/PL test.
+    """
+    top = max(rows, key=lambda r: (r.get("season_api_year") or 0))
+    for r in rows:
+        r["is_featured_season"] = r is top
+    return rows
 
 
 def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
@@ -216,7 +231,7 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
          "team_logo_url": "u2", "points": 82,
          "team_founded_year": 1900, "venue_name": "Allianz Arena", "venue_city": "München", "venue_capacity": 75000},
     ]
-    p = shape_team_payload(rows)
+    p = shape_team_payload(_mark_featured(rows))
     assert p["team_id"] == 157
     # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
     # The old assertion was "bayern-munchen-157" -- that id is exactly what the CPO ruled out.
@@ -235,8 +250,8 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
 
 def test_shape_team_payload_venue_absent_is_none():
     # a team with no venue/founded data -> honest absence (venue None, founded_year None)
-    p = shape_team_payload([{"team_sk": 9, "season_api_year": 2025,
-                             "league_code": "BL1", "team_name": "X"}])
+    p = shape_team_payload(_mark_featured([{"team_sk": 9, "season_api_year": 2025,
+                                            "league_code": "BL1", "team_name": "X"}]))
     assert p["venue"] is None
     assert p["founded_year"] is None
 
@@ -272,7 +287,7 @@ def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
         {"team_sk": 2, "league_code": "PL", "season_api_year": 2024,
          "sot_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
     ])
-    p = shape_team_payload(rows, scatter_index=idx)
+    p = shape_team_payload(_mark_featured(rows), scatter_index=idx)
     sc = p["seasons"][0]["deserved_scatter"]
     assert len(sc) == 2
     self_dot = next(d for d in sc if d["is_self"])
@@ -284,7 +299,7 @@ def test_shape_team_payload_no_scatter_when_season_not_fittable():
     # a season with no deserved value (not in the index) -> no deserved_scatter key (absent state)
     rows = [{"team_sk": 9, "season_api_year": 2026, "league_code": "WC",
              "team_name": "X", "points": 6}]
-    p = shape_team_payload(rows, scatter_index={})
+    p = shape_team_payload(_mark_featured(rows), scatter_index={})
     assert "deserved_scatter" not in p["seasons"][0]
 
 
@@ -309,7 +324,7 @@ def test_deserved_scatter_preserves_the_fitted_line():
                   "team_name": "Self", "points": 52,
                   "sot_difference_per_match": 0.5,
                   "deserved_points": intercept + slope * 0.5}]
-    sc = shape_team_payload(self_rows, scatter_index=idx)["seasons"][0]["deserved_scatter"]
+    sc = shape_team_payload(_mark_featured(self_rows), scatter_index=idx)["seasons"][0]["deserved_scatter"]
     assert len(sc) == len(sotds)
     for d in sc:                                   # every dot on intercept + slope*sotd
         assert d["deserved"] == intercept + slope * d["sotd"]
@@ -341,7 +356,7 @@ def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
         fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
         fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
     ]
-    p = shape_team_payload(rows, fixtures)
+    p = shape_team_payload(_mark_featured(rows), fixtures)
     s2025 = p["seasons"][0]
     assert s2025["season_api_year"] == 2025
     assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
@@ -385,7 +400,7 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
         member(1, "Neuer", position="Goalkeeper"),
         member(99, None),
     ]
-    p = shape_team_payload(rows, None, roster)
+    p = shape_team_payload(_mark_featured(rows), None, roster)
     s2025 = p["seasons"][0]
     assert s2025["season_api_year"] == 2025
     # sorted by player_sk (byte-stable), the null-name member omitted
@@ -410,7 +425,7 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
 def test_shape_team_payload_squad_defaults_empty_without_roster():
     rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
-    p = shape_team_payload(rows)
+    p = shape_team_payload(_mark_featured(rows))
     assert p["seasons"][0]["squad"] == []
 
 
@@ -433,7 +448,7 @@ def test_shape_team_payload_joins_career_stats_to_squad_by_player_sk():
          "appearances": 32, "minutes_per_appearance": 90.0, "goals": 36, "assists": 8},
         # Neuer: no career row -> stats null (never appeared in a finished-match squad)
     ]
-    p = shape_team_payload(rows, None, roster, None, None, career)
+    p = shape_team_payload(_mark_featured(rows), None, roster, None, None, career)
     squad = {m["player_id"]: m for m in p["seasons"][0]["squad"]}
     # joined by (league_code, season, player_sk); the 2024 row did not leak into 2025
     assert squad[9]["appearances"] == 30
@@ -479,7 +494,7 @@ def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
     # deliberately out of metric_key order; one row on the other season
     benchmark = [bench("shots_per_match", 14.1), bench("goals_per_match", 2.2),
                  bench("goals_against_per_match", 0.8, season=2024)]
-    p = shape_team_payload(rows, None, None, benchmark)
+    p = shape_team_payload(_mark_featured(rows), None, None, benchmark)
     s2025 = p["seasons"][0]
     assert s2025["season_api_year"] == 2025
     # flat metrics list (no position nesting), byte-stable by metric_key
@@ -492,7 +507,7 @@ def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
 def test_shape_team_payload_benchmarks_default_empty_without_rows():
     rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
-    p = shape_team_payload(rows)
+    p = shape_team_payload(_mark_featured(rows))
     assert p["seasons"][0]["benchmarks"] == []
 
 
@@ -509,7 +524,7 @@ def test_shape_player_payload_orders_match_log_desc():
         {"player_sk": 1090, "kickoff_datetime": "2025-10-01T18:30:00",
          "opponent_name": "B", "goals_total": 0},
     ]
-    p = shape_player_payload(profiles, matches)
+    p = shape_player_payload(_mark_featured(profiles), matches)
     assert p["player_id"] == 1090
     assert p["slug"] == "jamal-musiala-1090"
     assert p["position"] == "M"
@@ -531,7 +546,7 @@ def test_shape_player_payload_current_team_and_per_season_team():
         {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
          "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
     ]
-    p = shape_player_payload(profiles, [])
+    p = shape_player_payload(_mark_featured(profiles), [])
     assert p["current_team"] == {"team_id": 157, "name": "Bayern",
                                  "crest": "fcb.png", "country": "Germany"}
     teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
@@ -608,14 +623,14 @@ def test_shape_player_payload_attaches_benchmarks_per_season():
          "peer_count": 40, "peer_median": 0.3, "vs_median_delta": 0.6,
          "minutes": 2500, "appearances": 30, "metric_numerator": None, "metric_denominator": None},
     ]
-    p = shape_player_payload(profiles, [], benchmarks)
+    p = shape_player_payload(_mark_featured(profiles), [], benchmarks)
     s2025, s2024 = p["seasons"][0], p["seasons"][1]
     assert s2025["benchmarks"][0]["position_group"] == "ATT"
     assert s2025["benchmarks"][0]["metrics"][0]["metric_key"] == "goals_per90"
     # a season with no benchmark rows renders an empty list (honest absence)
     assert s2024["benchmarks"] == []
     # default (no benchmark_rows) also yields empty benchmarks
-    p2 = shape_player_payload(profiles, [])
+    p2 = shape_player_payload(_mark_featured(profiles), [])
     assert all(s["benchmarks"] == [] for s in p2["seasons"])
 
 
@@ -672,7 +687,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
          "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
          "club_latest_kickoff_at": "2019-06-01T20:00:00"},
     ]
-    p = shape_player_payload(profiles, [], None, career)
+    p = shape_player_payload(_mark_featured(profiles), [], None, career)
     # club_latest desc: Spurs 2024-05-19, England 2023-07-09, Bayern 2022-05-14. Spurs rows contiguous
     # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
     assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
@@ -681,7 +696,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
     assert len(p["career"]) == 5
     assert p["national_appearances_total"] == 23
     # empty default (no career_rows) -> empty career + None total
-    p2 = shape_player_payload(profiles, [])
+    p2 = shape_player_payload(_mark_featured(profiles), [])
     assert p2["career"] == [] and p2["national_appearances_total"] is None
 
 
@@ -710,3 +725,42 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
     # known active leagues resolve (registry-backed)
     assert idx["PL"]["slug"] == "premier-league"
     assert idx["BL1"]["slug"]
+
+
+def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
+    """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
+
+    Both rows are real football. The WC row is the more recent one, which is what the export used
+    to pick and why a player's top-level identity came from their national side. Nothing here
+    ranks anything: the mart flags the club season and the export reads the flag.
+    """
+    profiles = [
+        {"player_sk": 7, "season_sk": 2, "season_api_year": 2026, "league_code": "WC",
+         "player_name": "M. Rogers", "position_code": "M", "is_featured_season": False},
+        {"player_sk": 7, "season_sk": 1, "season_api_year": 2025, "league_code": "PL",
+         "player_name": "M. Rogers", "position_code": "D", "is_featured_season": True},
+    ]
+    p = shape_player_payload(profiles, [])
+    # identity comes from the club season, not the tournament
+    assert p["position"] == "D"
+    # and the tournament season is still served — it is not the one the page OPENS on
+    assert [s["league_code"] for s in p["seasons"]] == ["WC", "PL"]
+    assert [s["is_featured_season"] for s in p["seasons"]] == [False, True]
+
+
+def test_featured_season_row_refuses_to_choose():
+    """#846 criterion 3: the export decides nothing.
+
+    With no flag it fails loudly instead of falling back to recency. The fallback IS the defect
+    this replaced, so a tolerant export would quietly reintroduce it the first time a mart shipped
+    without the column.
+    """
+    import pytest
+
+    with pytest.raises(ValueError):
+        _featured_season_row([{"season_api_year": 2026}, {"season_api_year": 2025}])
+    with pytest.raises(ValueError):
+        _featured_season_row([
+            {"season_api_year": 2026, "is_featured_season": True},
+            {"season_api_year": 2025, "is_featured_season": True},
+        ])

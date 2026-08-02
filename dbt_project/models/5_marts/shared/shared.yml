@@ -290,6 +290,12 @@ models:
           expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
           name: team_profile_finishing_efficiency_in_range
     columns:
+      # #846: the season this team's page opens on — the most recent domestic-league season,
+      # falling back to the most recent of any type. Exactly one row per team is true, asserted
+      # across BOTH profile marts in tests/assert_one_featured_season_per_entity.sql: it is one
+      # rule, and one failure surface is what keeps the two from drifting apart again.
+      - name: is_featured_season
+        tests: [not_null]
       - name: team_sk
         tests:
           - not_null
@@ -634,6 +640,33 @@ models:
           expression: "saves <= shots_on_goal_against"
           name: player_profile_saves_lte_faced
     columns:
+      # #846: the season this player's page opens on — the most recent CLUB season, preferring a
+      # domestic league, falling back to the most recent of any kind for a player with no club
+      # football. Scoped to club because #848 made Overview, Performance and Career club-only.
+      # Exactly one row per player is true (tests/assert_one_featured_season_per_entity.sql).
+      - name: is_featured_season
+        tests: [not_null]
+      - name: competition_type
+        description: >
+          The competition's type from the registry (domestic_league, domestic_cup,
+          continental_club, world_championship, …). Carried so the featured-season rule can prefer
+          a league over a cup within club football, and so a consumer can tell the two apart
+          without re-joining the registry.
+      - name: entity_type
+        description: >
+          club or national, from the competition_types seed — what scopes the featured season to
+          club football (#846/#848). NULL is reachable two ways, not one: a league_code absent from
+          the registry, and a league_code PRESENT in the registry with a blank competition_type.
+          The second is silent — sync_dbt_vars.py writes a seed row only `if code and ctype`, and
+          both check_competition_type_seed.py and check_registry_var_sync.py skip such an entry on
+          the same condition, so registry and seed agree by both being empty (#883). All 45
+          registry entries carry a competition_type today. not_null is here because a NULL would
+          not break the page: the featured-season CASE simply treats it as non-club, so the entity
+          would quietly open on the wrong season instead of failing.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
       - name: player_season_sk
         tests: [unique, not_null]
       - name: player_sk
