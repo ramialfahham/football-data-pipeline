@@ -5,44 +5,28 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-02**. main GREEN at **79317d3**; **#846 is MERGED**. **IN FLIGHT:
-`feat/886-featured-season-dq-test`, 2 reviewers PASS, awaiting the CPO's merge.**
+_Last updated **2026-08-02**. main GREEN at **d20c5bc**; **#846 and #886 are MERGED**. **IN FLIGHT:
+`fix/547-base-tables-and-cost-guard` — the COST regression, 4 reviewers PASS in 3 rounds.**
 The product is **Matchday Pilot** on `matchdaypilot.com`.
 **FIRST ACTIONS: read "⭐ THE REVIEW RULES CHANGED" below — it changes how every task runs — then run
 `git stash list` before any git work.** The player page is FOUR tabs (#848); its Overview is **BUILT
 but UNCOMMITTED in `stash@{0}` with a known-wrong default rule**, held on #845 + #846._
 
-## ⭐ THE REVIEW RULES CHANGED (#878, merged 2026-08-01) — read before reviewing anything
+## ⭐ REVIEW MECHANICS — the parts you cannot derive from the working agreement
 
-#370 took **twelve rounds** for a ~300-line change; the code was right from round 5 and rounds 6-12
-found only defects in the branch's own paperwork. Measured cause and the fix, all four CPO-ruled:
+The rules themselves are `docs/working_agreement.md` §2 (#878). Only the traps live here.
 
-1. **Reviewers no longer see the task notes.** `review_exclude_paths` in `review_routing.json` hides
-   `review.md`, `review_input.patch`, both evidence artifacts, both templates, `active_work.md`.
-   **`contract.md` and `escalations.log` ARE delivered** — they carry authority, and a reviewer cannot
-   check whether a cited ruling exists without the log.
-2. **Build the patch with the hook, never by hand:**
-   `python .claude/hooks/git_discipline.py --review-patch > .claude/task/review_input.patch`
-   It is CUMULATIVE from the base branch and fails loud or large, never quietly narrower.
-3. **The two evidence artifacts left `diff_sha256`.** Fixing a typo in them no longer voids a PASS —
-   this is what let two verdicts survive three fix passes on #370. `contract.md` stays hashed, so
-   scope still cannot move after review.
-4. **A PASS may find nothing.** One entry under `risks_checked:` stating what was EXAMINED is enough;
-   "checked X against Y, no defect" is complete. Never invent a finding. The old "two named risks"
-   rule made invention mandatory on correct code. Floor is 1 in BOTH the hook and the CI twin
-   (`check_task_artifacts.py`) — they must always agree.
-
-**The org itself did NOT change** and the CPO ruled on that explicitly: activation-on-necessity is
-right and **low activation is not a defect**. `data-engineer-reviewer` fires on 1% of commits and
-caught 2 real bugs. A specialist that sleeps until its domain is touched is the cheapest thing here.
-No role, brief, routing row or decision right was removed. Do not propose cutting reviewers.
-
-**⭐ THE STANDING RULE THIS PRODUCED — a correction REPLACES, it never accumulates.** CPO: *"if one
-comment doesn't pass the PR then you change it and only the new version stays. not the old and the
-new."* No "an earlier version said X", no "caught by <reviewer> in round N", no running tallies in a
-living document (they go stale and correcting them writes the next wrong number — four rounds failed
-on exactly that). A moving set of items lives in ONE issue with file:line refs and no total.
-Applying it took #370's paperwork from ~3.5 MB to ~240 KB and its contract from 643 lines to 171.
+- **Build the patch with the hook, never by hand:**
+  `python .claude/hooks/git_discipline.py --review-patch > .claude/task/review_input.patch`
+  It is CUMULATIVE from the base branch. Reviewers do NOT see the task notes; `contract.md` and
+  `escalations.log` ARE delivered, because they carry authority.
+- **A PASS may find nothing.** One `risks_checked:` entry stating what was EXAMINED is enough.
+  Never invent a finding. Cap is 3 rounds, then STOP and bring the open findings to the CPO.
+- **The org does NOT change and the CPO ruled on it explicitly**: activation-on-necessity is right,
+  **low activation is not a defect**. Do not propose cutting reviewers.
+- **⭐ A correction REPLACES, it never accumulates.** CPO: *"only the new version stays. not the old
+  and the new."* No "an earlier version said X", no "caught in round N", no running tallies in a
+  living document. A moving set of items lives in ONE issue with file:line refs and no total.
 
 ## THE GOAL
 A football-stats site a fan actually uses. Data honesty is non-negotiable — the CPO cannot verify
@@ -50,18 +34,34 @@ numbers by hand, so every number the site shows is covered by an automated test.
 
 ## ⭐ CURRENT — unblock the player page (#845 + #846)
 
-**#846 IS BUILT AND REVIEWED** on `feat/846-featured-season-from-mart`. The season a page opens on is
-now a warehouse fact: both profile marts emit `is_featured_season`, the export's `_latest_season_row`
-is gone and the team page's `.find()` on `competition_type` with it. **CPO ruling 2026-08-02: the
-pipeline picks, not the page**, and "most recent" is scoped by the LENS the tab shows (club tabs =
-most recent CLUB season). Built team pages are **byte-identical** in all three locales. The player
-page's own `.find()` is NOT converted — it is in `stash@{0}`, held on #845; its mart half IS shipped,
-so it becomes a one-line change there. Filed, not fixed: **#882** past seasons ingested but
-unreachable (he wants them selectable), **#883** a blank `competition_type` in the registry is
-skipped by all three guards, **#887** why #886 had to wait: `ci_*` datasets are SHARED, so
-`--favor-state` forces
-every ref to prod and **the PR-time DQ step cannot see the branch's own models**. ⚠ My first fix was
-to drop the flag; he caught it as a hack.
+**#846 + #886 ARE MERGED.** The season a page opens on is a warehouse fact: both profile marts emit
+`is_featured_season` with a DQ guard, the export's `_latest_season_row` and the team page's `.find()`
+are gone. **CPO ruling: the pipeline picks, not the page**, and "most recent" is scoped by the LENS
+the tab shows (club tabs = most recent CLUB season). The player page's own `.find()` is NOT converted
+— it is in `stash@{0}`, held on **#845**; its mart half IS shipped, so it is a one-line change there.
+**#845 is the next CPO decision** and #882 belongs with it: both are page-count decisions and
+deciding them apart would set the URL shape twice. Counts are measured and in the transcript
+(51,589 players → 154,767 pages at 3 locales; matches are BIGGER at 176,235; h2h 51,903).
+Also filed: **#883** a blank `competition_type` in the registry is skipped by all three guards ·
+**#887** `ci_*` datasets are SHARED, so `--favor-state` forces every ref to prod and **the PR-time DQ
+step cannot see the branch's own models**. ⚠ My first fix for that was to drop the flag; he caught it
+as a hack before I did.
+
+## ⭐ COST IS A FUNDAMENTAL REQUIREMENT, NOT A WISH — and it silently regressed for two months
+**Never say cost optimisation "was never anyone's task".** It is **#547** (an open program) and
+Thread 1 of `docs/product_direction_threads.md`, CLOSED 2026-05-25 as "architecture signed off".
+**What actually happened:** `3fbbc64` landed the fix on 05-25; `6e4ba18` (unified staging, #253/#254)
+removed every caller two days later. The macro `apif_latest_source_partition.sql` still has ZERO
+callers. Spend: Apr $1.58 → May $46.63 → **Jun $82.89**. Nothing caught it, because all ~865 dbt
+tests ask "is this number right", none asks "did this get expensive".
+**Measure before claiming: `python scripts/report_bq_cost.py`** (read-only, free). Last 35d: dbt prod
+$29.79 / raw payload reads $21.47 / dbt CI $13.75; within prod **tests $23.91 vs builds $5.84**.
+`RAW_APIF_TRANSFERS` is 6.82 GiB over 1,117 rows, scanned ~7x a night.
+**In flight:** `2_base` becomes TABLES so tests stop re-scanning raw, pinned repo-wide by
+`tests/test_materialisation_policy.py`.
+**Still open: #890** the ingestion `ORDER BY … LIMIT 1` that reads every partition to return one row.
+⚠ **Three completeness claims in that one task, all wrong** (4→7→8 sites; "four" base models where
+dbt says nine). **Paste the command output or do not claim it.**
 
 **The org/process overview was delivered** (a visual board, not committed); he said *"I wanted
 something else but nevermind."* Guess: a MAP of how work flows, not a reference board. Do not

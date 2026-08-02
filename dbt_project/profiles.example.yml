@@ -9,7 +9,7 @@
 #     target prod -> marts,      core,      …   (nightly / main-push / Pages only)
 #   So a local build can NEVER clobber prod as long as your target is named anything but
 #   `prod`. Keep your local default target = `dev`.
-#   Models WITHOUT a `+schema` (base views + seeds) fall back to the profile `dataset` below,
+#   Models WITHOUT a `+schema` (the base models + seeds) fall back to the profile `dataset` below,
 #   which is already per-environment.
 
 football_data_pipeline:
@@ -20,7 +20,7 @@ football_data_pipeline:
       type: bigquery
       method: oauth
       project: football-data-pipeline-gcp
-      # Fallback dataset for models without `+schema` (base views + seeds).
+      # Fallback dataset for models without `+schema` (the base models + seeds).
       dataset: dev_scratch
       threads: 4
       timeout_seconds: 300
