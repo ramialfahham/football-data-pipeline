@@ -68,10 +68,11 @@ The sample was restored immediately afterwards and the byte-identical diff in se
 against the restored build to prove the experiment left nothing behind:
 `de: IDENTICAL · en: IDENTICAL · fi: IDENTICAL`, `flagged: [('PL', 2025)] | exactly one: True`.
 
-Upstream of that, three things have to fail before a build can reach this state: the dbt singular
-test `assert_one_featured_season_per_entity` (which fails on none and on two), the `not_null` test
-on the column in `shared.yml` for both marts, and the export's own `_featured_season_row`, which
-raises rather than writing a payload with no flagged season.
+Upstream of that, two things have to fail before a build can reach this state: the `not_null` test on
+the column in `shared.yml` for both marts, and the export's own `_featured_season_row`, which raises
+rather than writing a payload with no flagged season. A third guard, the singular test asserting
+exactly one flagged season per entity, is split out to #886 on the CPO's ruling — it passed against
+the real marts in this branch's CI run but cannot ship until prod carries the column (#887).
 
 ## 4. Not covered here
 

@@ -56,13 +56,17 @@ is gone and the team page's `.find()` on `competition_type` with it. **CPO rulin
 pipeline picks, not the page**, and "most recent" is scoped by the LENS the tab shows (club tabs =
 most recent CLUB season). Built team pages are **byte-identical** in all three locales. The player
 page's own `.find()` is NOT converted — it is in `stash@{0}`, held on #845; its mart half IS shipped,
-so it becomes a one-line change there. Two gaps found in review and filed, not fixed: **#882** past
-seasons are ingested but unreachable (no season URL, no selector — the CPO wants them selectable),
-**#883** a registry entry with a blank `competition_type` is skipped silently by all three guards.
+so it becomes a one-line change there. Filed, not fixed: **#882** past seasons are ingested but
+unreachable (the CPO wants them selectable), **#883** a registry entry with a blank
+`competition_type` is skipped silently by all three guards, **#886** the exactly-one-featured-season
+DQ test, split out on the CPO's ruling and **owed the moment prod carries the column**, **#887** why
+it had to be: `ci_*` datasets are SHARED across PRs, so `--favor-state` forces every ref to prod and
+**the PR-time DQ step structurally cannot see the branch's own models**. ⚠ My first fix for that was
+to drop the flag; the CPO caught it as a hack before I did.
 
-**The org/process overview was delivered** (a visual board, not committed). The CPO's verdict:
-*"Actually, I wanted something else but nevermind."* Best guess at the miss, unconfirmed: he wanted a
-MAP of how work flows, not a dense reference board to look things up in. Do not rebuild it unasked.
+**The org/process overview was delivered** (a visual board, not committed) and the CPO said *"I
+wanted something else but nevermind."* Unconfirmed guess: he wanted a MAP of how work flows, not a
+reference board. Do not rebuild it unasked.
 
 ### 1. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
 Overview · Performance · Career = **club only**, always shown. **International = national lens, shown
@@ -131,10 +135,9 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
    at a time.
 2. **#882 + #845 are one decision.** Season pages multiply page count by history depth (1 to 11 per
    competition) on top of 154,644 player pages. Decide them together.
-3. ~~#880 README mermaid~~ **RESOLVED, no code change.** The source is valid and renders; GitHub
-   renders mermaid in a `viewscreen.githubusercontent.com` iframe and the error box was that bundle
-   failing, not our diagram. Verified rendering on three loads. Offered to replace it with a committed
-   SVG so a transient can never show a red box on the portfolio; the CPO did not take it up.
+3. **#880 RESOLVED, no code change.** The mermaid is valid and renders; GitHub renders it in a
+   `viewscreen.githubusercontent.com` iframe and the error box was that bundle failing. A committed
+   SVG was offered so a transient can never show a red box on the portfolio; not taken up.
 4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 5. Follow-ups: **#875** metric GROUP headings render in English on DE/FI pages, **needs a CPO ruling**
    on where a group name lives · **#877** `GD`, `W/D/L`, `T·I·B` and the result letters reach DE/FI
@@ -171,7 +174,6 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
   work with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`. The GLOBAL `dbt` has dbt-core 1.11.11 beside
   dbt-bigquery 1.7.2 and throws `ModuleNotFoundError: dbt.adapters.factory`. Nothing needs installing.
   **Use it for `impact_map` lineage instead of grepping.** Never run `dbt build` (shared prod dataset).
-  The dbt MCP server also starts and registers its tools by hand; it just does not connect in-session.
 - **SQLFluff works; only its dbt templater needs GCP.** **Lint from
   the REPO ROOT** (the root `.sqlfluff` has the jinja macro path, `dbt_project/.sqlfluff` does not):
   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set (a `--rules`

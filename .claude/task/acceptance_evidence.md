@@ -38,14 +38,18 @@ criteria_demonstrated:
     to recency. Passing. The player page's own copy is not converted here and cannot be: it lives in
     `stash@{0}`, held on #845. The mart half it needs IS included.
 
-  - **4. "If the rule ever breaks, a test catches it before a reader does."**
-    `dbt_project/tests/assert_one_featured_season_per_entity.sql` counts flagged rows per entity
-    across BOTH profile marts and returns any entity whose count is not exactly 1, so it fails on
-    none and on two. Registered, verified with the project venv dbt:
-    `dbt ls --select test_type:singular` -> `football_data_pipeline.assert_one_featured_season_per_entity`.
-    Plus `not_null` on the column itself in `shared.yml` for both marts, and `not_null` +
-    `accepted_values` on `entity_type`, the column that scopes the rule to club football.
-    ⚠ It EXECUTES against data in `ci-data-build`; `dbt ls` proves it is wired, not that it passes.
+  - **4. "If the rule ever breaks, a test catches it before a reader does."** PARTLY SHIPPED HERE,
+    by the CPO's ruling ("do 1 now", 2026-08-02), and the criterion itself is unchanged and still
+    locked. What ships in this PR: `not_null` on `is_featured_season` for BOTH marts, and `not_null`
+    + `accepted_values` on `entity_type`, the column that scopes the rule to club football. All four
+    ran against the real rebuilt marts in `ci-data-build` and passed — `ci_marts.mart_team_profile`
+    12.7k rows, `ci_marts.mart_player_profile` 168.5k rows, `Done. PASS=31 WARN=0 ERROR=0 TOTAL=31`.
+    "Never two" additionally holds by construction: `row_number() = 1` cannot flag two rows in a
+    partition. The half that is NOT covered until **#886** lands is "never none", which is reachable
+    only by a future rewrite of the window expression. The exactly-one test was written, reviewed and
+    PASSED in that same CI run, then split out because a separate step re-runs the singular suite
+    with `--defer --favor-state` against PROD, which has no such column until main-push. That is the
+    CI gap **#887**, not a defect in the test.
 
   - **5. "The change does not quietly alter anything else."** `site_v2/src/data/teams/33.json`: 24
     seasons, every one gained `is_featured_season` and nothing else. Exactly one is `true` —
