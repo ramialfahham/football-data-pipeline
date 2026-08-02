@@ -56,17 +56,16 @@ is gone and the team page's `.find()` on `competition_type` with it. **CPO rulin
 pipeline picks, not the page**, and "most recent" is scoped by the LENS the tab shows (club tabs =
 most recent CLUB season). Built team pages are **byte-identical** in all three locales. The player
 page's own `.find()` is NOT converted — it is in `stash@{0}`, held on #845; its mart half IS shipped,
-so it becomes a one-line change there. Filed, not fixed: **#882** past seasons are ingested but
-unreachable (the CPO wants them selectable), **#883** a registry entry with a blank
-`competition_type` is skipped silently by all three guards, **#886** the exactly-one-featured-season
-DQ test, split out on the CPO's ruling and **owed the moment prod carries the column**, **#887** why
-it had to be: `ci_*` datasets are SHARED across PRs, so `--favor-state` forces every ref to prod and
-**the PR-time DQ step structurally cannot see the branch's own models**. ⚠ My first fix for that was
-to drop the flag; the CPO caught it as a hack before I did.
+so it becomes a one-line change there. Filed, not fixed: **#882** past seasons ingested but
+unreachable (he wants them selectable), **#883** a blank `competition_type` in the registry is
+skipped by all three guards, **#886** the exactly-one DQ test, split out by his ruling and **owed
+once prod carries the column**, **#887** why: `ci_*` datasets are SHARED, so `--favor-state` forces
+every ref to prod and **the PR-time DQ step cannot see the branch's own models**. ⚠ My first fix was
+to drop the flag; he caught it as a hack.
 
-**The org/process overview was delivered** (a visual board, not committed) and the CPO said *"I
-wanted something else but nevermind."* Unconfirmed guess: he wanted a MAP of how work flows, not a
-reference board. Do not rebuild it unasked.
+**The org/process overview was delivered** (a visual board, not committed); he said *"I wanted
+something else but nevermind."* Guess: a MAP of how work flows, not a reference board. Do not
+rebuild unasked.
 
 ### 1. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
 Overview · Performance · Career = **club only**, always shown. **International = national lens, shown
@@ -136,8 +135,7 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
 2. **#882 + #845 are one decision.** Season pages multiply page count by history depth (1 to 11 per
    competition) on top of 154,644 player pages. Decide them together.
 3. **#880 RESOLVED, no code change.** The mermaid is valid and renders; GitHub renders it in a
-   `viewscreen.githubusercontent.com` iframe and the error box was that bundle failing. A committed
-   SVG was offered so a transient can never show a red box on the portfolio; not taken up.
+   viewscreen iframe and the error box was that bundle failing. A committed SVG was offered, not taken.
 4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 5. Follow-ups: **#875** metric GROUP headings render in English on DE/FI pages, **needs a CPO ruling**
    on where a group name lives · **#877** `GD`, `W/D/L`, `T·I·B` and the result letters reach DE/FI
@@ -171,9 +169,9 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
 - **⚠ THE dbt CLI IS NOT BROKEN — the one on PATH is. This note said the opposite for weeks and cost
   every session its lineage evidence.** Use **`.venv/Scripts/dbt.exe`** (`dbt=1.7.19` +
   `bigquery=1.7.2`, exactly the `requirements.txt` pin): `parse`, `ls`, `ls --select <model>+` all
-  work with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`. The GLOBAL `dbt` has dbt-core 1.11.11 beside
-  dbt-bigquery 1.7.2 and throws `ModuleNotFoundError: dbt.adapters.factory`. Nothing needs installing.
-  **Use it for `impact_map` lineage instead of grepping.** Never run `dbt build` (shared prod dataset).
+  work with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`. The GLOBAL `dbt` pairs core 1.11.11 with
+  bigquery 1.7.2 and throws `ModuleNotFoundError: dbt.adapters.factory`. Nothing needs installing.
+  **Use it for `impact_map` lineage.** Never run `dbt build` (shared prod dataset).
 - **SQLFluff works; only its dbt templater needs GCP.** **Lint from
   the REPO ROOT** (the root `.sqlfluff` has the jinja macro path, `dbt_project/.sqlfluff` does not):
   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set (a `--rules`
@@ -188,6 +186,9 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
   `git commit -F <file>` for any message — an apostrophe breaks the form gate's shlex parse.** Write
   the message to the scratchpad, not the repo. A post-commit hook auto-pushes and opens the PR.
   `review.md` must be COMMITTED or CI reads the stale hash.
+- **⚠ ON A SECOND COMMIT, `--staged-hash` IS THE WRONG NUMBER** — it covers only the increment, CI
+  recomputes over the whole branch. Take it from `check_task_artifacts.py --base origin/main`, the
+  code CI runs. A `review.md`-only commit is artifact-exempt, so rebinding is free.
 - **Contract edits need a CLEAN tree** — stash-dance with explicit paths. ⚠ A pathspec stash can
   capture MORE than the paths given; if popping conflicts, `git checkout stash@{0} -- <paths>` then
   drop. Check `git stash list` after — never assume the index.

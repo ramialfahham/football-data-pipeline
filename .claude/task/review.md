@@ -1,7 +1,13 @@
 # Review — feat/846-featured-season-from-mart — 2026-08-02
 
 branch: feat/846-featured-season-from-mart
-diff_sha256: 51b556f6b6975a56362f2ee2a545c78bf139dcf8d74c3812b42855005ff57456
+diff_sha256: 9cf5ad7b56af1b22a3808cc77335a98d26ee78024c3ebf7a72f854b61426a1bd
+# ⚠ This is the CUMULATIVE `origin/main...HEAD` hash, NOT `--staged-hash`. The two are identical on a
+# one-commit branch and diverge the moment a branch has two, because `--staged-hash` covers only the
+# increment being committed while CI recomputes over the whole branch (F11). This branch has two
+# commits, so the staged value (51b556f6…) would have bound the review to the second commit alone and
+# CI correctly refused it. Take this number from `python scripts/check_task_artifacts.py --base
+# origin/main`, which is the same code CI runs.
 
 rounds: 5
 rounds_cap_override: >
