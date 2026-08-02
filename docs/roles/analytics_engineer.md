@@ -28,7 +28,7 @@ Build and maintain the dbt pipeline that transforms raw football data into relia
 
 1. **Generic staging, unified raw tables (the zero-file rule).** All competitions share six unified raw tables discriminated by a `league_code` column; staging models are generic — one per entity, never per competition. Adding a league is one registry entry and zero model files; `league_code` flows through every layer as a column. There is NO per-competition staging and NO UNION-per-league loop (that architecture was retired; CI enforces).
 2. **Tests are not optional.** Every new model needs grain tests. Every new metric needs a consistency test (rate = sum/count, ratio = num/denom) and, for ratios, the same-window rule: numerator and denominator computed over the same game set (coverage counts).
-3. **Deduplication lives in base, not staging.** Staging is raw cleanup only. Base applies the first business logic (dedup, entity alignment) and materializes as views by design.
+3. **Deduplication lives in base, not staging.** Staging is raw cleanup only. Base applies the first business logic (dedup, entity alignment). Materialisation is a LAYER decision set once in `dbt_project.yml` — currently `2_base: +materialized: table` (#547) — and a base model must never override it per model.
 4. **Singular tests for pipeline health.** Stale fixtures, metric arithmetic, completeness — these are singular dbt tests, not schema tests, and they run in CI.
 5. **Document the grain.** Every model description must state its grain. If you can't state the grain, the model isn't ready.
 6. **Seeds and project config are code.** A seed row or `dbt_project.yml` change can alter mart behavior with zero SQL in the diff — it gets the same review, documentation and tests as a model change. The `metric_catalogue` seed is the single source of metric definitions (CPO-gated).
@@ -41,7 +41,7 @@ Build and maintain the dbt pipeline that transforms raw football data into relia
 | Layer | Allowed | Not allowed |
 |-------|---------|-------------|
 | `1_staging` | Renaming, casting, unnesting, flattening — generic models reading the unified raw tables | Business logic, deduplication, per-competition models |
-| `2_base` | Deduplication, entity alignment, first business logic (views by design) | Metric calculation, joins to dims, per-competition ref() loops |
+| `2_base` | Deduplication, entity alignment, first business logic (`2_base: +materialized: table`) | Metric calculation, joins to dims, per-competition ref() loops, any per-model materialized= |
 | `3_core` | Surrogate keys, fact/dim grain enforcement, clean joins | `stg_*` refs, raw JSON parsing, competition-specific logic |
 | `4_intermediate` | Complex transforms, feature engineering, window builders | Consumption-level formatting, refs to marts |
 | `5_marts` | Denormalised, consumer-ready, competition-agnostic | Raw column exposure, untested metrics, hardcoded competitions |

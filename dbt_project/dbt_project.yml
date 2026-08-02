@@ -82,9 +82,15 @@ models:
       +materialized: view
       +schema: staging
 
-    # 2. Base: UNION ALL + dedup (Views — chains into core tables without storing intermediate results)
+    # 2. Base: UNION ALL + dedup. TABLES since 2026-08-02 (#547). These were views, on the reasoning
+    # that not storing an intermediate result is cheaper. Measured, it is the opposite: staging and
+    # base were BOTH views, so nothing stored anything and every TEST on a base model re-executed
+    # the whole chain down to the raw JSON. Over 35 days on prod, tests cost $23.91 against $5.84 to
+    # build the models. RAW_APIF_TRANSFERS is 6.82 GiB over 1,117 rows and was scanned about seven
+    # times a night (six tests plus a fact build) for $8.56 of a $29.79 total. Storing base once a
+    # night makes every test read a small table instead. See dbt_project/docs/layering.md.
     2_base:
-      +materialized: view
+      +materialized: table
 
     # 3. Core: Star Schema / Dimensional Entities (Tables)
     3_core:

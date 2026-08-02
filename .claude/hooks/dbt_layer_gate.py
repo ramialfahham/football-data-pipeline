@@ -50,8 +50,11 @@ _LAYER_RULES = {
     "2_base": (
         "LAYER = base — first business logic: deduplication, UNION ALL across sources, entity "
         "alignment. Read generic staging via `ref('stg_apif__<entity>')`; `league_code` flows "
-        "through as a column — no per-competition ref(), no UNION-per-league loop. Base models "
-        "are VIEWS by design. See dbt_project/docs/layering.md §2_base."
+        "through as a column — no per-competition ref(), no UNION-per-league loop. "
+        "Materialisation is a LAYER decision, not a per-model one: `2_base: +materialized: table` "
+        "(#547 — they were views, and because staging was a view too, every test re-scanned the "
+        "raw JSON). Never add a per-model config(materialized=...). "
+        "See dbt_project/docs/layering.md §2_base."
     ),
     "3_core": (
         "LAYER = core — system of record: canonical facts/dims, surrogate keys, grain "

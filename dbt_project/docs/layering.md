@@ -10,12 +10,12 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 |---------|------------------|
 | **`raw`** | 1:1 ingestion from Python (unified `RAW_APIF_*` tables, e.g. `RAW_APIF_FIXTURES_NEXT`, shared across all competitions and discriminated by a `league_code STRING` column — there are no per-competition raw tables). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
 | **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
-| **`base`** | `2_base` models (views): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
+| **`base`** | `2_base` models (tables since #547): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
 | **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
 | **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
 | **`marts`** | `5_marts` models (tables): **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
 
-dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema` (base views + seeds). Configured layer models take their dataset from [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), which prefixes the name by dbt target — see **Environment isolation** below.
+dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema` (the base models + seeds). Configured layer models take their dataset from [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), which prefixes the name by dbt target — see **Environment isolation** below.
 
 **Ingestion vs dbt:** Python loads **`project.raw.*`**. dbt builds **`project.staging.*`**, **`project.base.*`**, etc. Same GCP **project**, different datasets.
 
@@ -157,7 +157,9 @@ Not allowed:
 - Declaring the authoritative business **fact** or **dimension** system of record (that belongs in **core**).
 - Presentation or delivery logic aimed at a specific app or report.
 - `ref()`-ing a core / intermediate / mart model. Base sits below them in the DAG and may only read `stg_*` or other `base_*` models. *(CI-enforced by `scripts/check_layer_contract.py`.)*
-- Overriding materialization: base models materialise as **views** by design (`dbt_project.yml` `2_base: +materialized: view`). Do not add a per-model `config(materialized=...)` that changes this. *(CI-enforced.)*
+- Overriding materialization: base models materialise as **tables** (`dbt_project.yml` `2_base: +materialized: table`). Do not add a per-model `config(materialized=...)` at all — the layer default governs, and a per-model override is what lets one model drift from the policy. *(CI-enforced by `check_layer_contract.py`.)*
+
+  **Why tables, changed 2026-08-02 (#547).** They were views, on the reasoning that not storing an intermediate result is cheaper. Measured, it was the opposite. Staging and base were BOTH views, so nothing stored anything and every **test** on a base model re-executed the whole chain down to the raw JSON. Over 35 days on the prod target, tests cost **$23.91** against **$5.84** to build the models — testing cost four times what building cost. `RAW_APIF_TRANSFERS` is **6.82 GiB across 1,117 rows**, carries six tests plus a fact build, and was scanned about seven times a night for **$8.56** of a $29.79 total. A base table is read once per night and every test then reads a small stored table. Reproduce the figures with `python scripts/report_bq_cost.py`.
 
 ## 3_core
 

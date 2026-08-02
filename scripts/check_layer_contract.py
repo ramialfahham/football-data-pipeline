@@ -25,10 +25,15 @@ BASE_FORBIDDEN_UPWARD_REF = re.compile(
     re.IGNORECASE,
 )
 
-# Base models materialise as views by design (dbt_project.yml `2_base:
-# +materialized: view`; CLAUDE.md treats this as non-negotiable). A per-model
-# config() that overrides materialization to anything other than `view` breaks
-# that contract.
+# Materialization for base is set once, per LAYER, in dbt_project.yml:
+#   2_base: +materialized: table
+# (since #547 — see dbt_project/docs/layering.md for the measurement behind that
+# change; tests/test_materialisation_policy.py pins this line against the config).
+# A base model must not carry a per-model
+# config(materialized=...) AT ALL, whatever the value: the point is that one
+# place decides, so the layer can be re-costed by editing one line. Before #547
+# this check allowed `view` and rejected everything else, which silently became
+# wrong the moment the layer default changed.
 BASE_MATERIALIZED = re.compile(
     r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
     re.IGNORECASE,
@@ -108,14 +113,15 @@ def check_base_layer(errors: list[str]) -> None:
                 f"or base_* models. {layering_ref}"
             )
 
-        # 2. Must materialize as a view — no per-model override to table/incremental/etc.
+        # 2. Materialization is a LAYER decision, so a base model must not set it at all.
         for match in BASE_MATERIALIZED.finditer(content):
             kind = match.group(1).lower()
-            if kind != "view":
-                errors.append(
-                    f"{rel}: base model overrides materialization to '{kind}'. Base models "
-                    f"materialise as views by design; do not override this. {layering_ref}"
-                )
+            errors.append(
+                f"{rel}: base model sets materialization to '{kind}' per model. Base "
+                f"materialization is decided once for the layer in dbt_project.yml; a per-model "
+                f"override is how one model drifts off the policy and stops being re-costed with "
+                f"the rest. Remove the config(). {layering_ref}"
+            )
 
 
 def check_intermediate_no_mart_refs(errors: list[str]) -> None:

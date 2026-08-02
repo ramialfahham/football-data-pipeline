@@ -53,7 +53,7 @@ Next: player insights chain (#153 → #156).
 - **UI flow**: v2 website IA per `docs/site_architecture.md` (hybrid browse + fixtures-first home, epic #361). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**; #377 is v2's own go-live.
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
-- **Base models are views** — `2_base` models materialise as views by design. Never change this to table without a documented reason.
+- **Base models are TABLES** (changed 2026-08-02, #547; they were views). Staging and base were both views, so nothing stored an intermediate result and every *test* on a base model re-scanned the raw JSON. Measured over 35 days: tests $23.91 vs $5.84 to build the models, with `RAW_APIF_TRANSFERS` (6.82 GiB) read about seven times a night. Storing base once makes each test read a small table. Materialisation is a LAYER decision set once in `dbt_project.yml` — `2_base: +materialized: table` — and a base model must never override it per model.
 
 ## Scalability rules — enforced by CI
 
