@@ -252,6 +252,25 @@ def load_json_payload_rows_to_bq(
     return len(payloads)
 
 
+def _scalar(
+    client: bigquery.Client,
+    sql: str,
+    params: list[bigquery.ScalarQueryParameter],
+):
+    """Run a one-cell query and return that cell, or None when there is no row.
+
+    Kept separate so the cheap timestamp lookup in read_latest_payload_json cannot accidentally be
+    routed through the Storage Read API path below it, which exists for multi-megabyte payload rows
+    and is pure overhead for a single scalar.
+    """
+    rows = list(
+        client.query(
+            sql, job_config=bigquery.QueryJobConfig(query_parameters=params)
+        ).result()
+    )
+    return rows[0][0] if rows else None
+
+
 def read_latest_payload_json(
     client: bigquery.Client,
     table_name: str,
@@ -265,9 +284,14 @@ def read_latest_payload_json(
 
     Returns None if the table does not exist or is empty.
 
-    Implementation note: results are streamed via the BigQuery Storage Read
+    Reads in TWO steps when the table has an ingest-time column, because that column is the
+    partition key and it is the only shape that prunes (#890). The reasoning and the measured
+    numbers are at the call site below, next to the queries they describe.
+
+    Implementation note: the PAYLOAD result is streamed via the BigQuery Storage Read
     API (gRPC) rather than the REST paginator, because merged payload rows
-    can exceed REST's 20 MiB per-row response cap on large competitions.
+    can exceed REST's 20 MiB per-row response cap on large competitions. The timestamp
+    lookup deliberately does not use that path -- see ``_scalar``.
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     try:
@@ -279,17 +303,55 @@ def read_latest_payload_json(
     if "payload" not in colnames:
         return None
 
-    league_filter = (
-        f" WHERE league_code = '{league_code}'" if league_code else ""
+    # Which column carries the ingest time, if any. It is the PARTITION column on the raw tables.
+    ts_col = (
+        "ingested_at" if "ingested_at" in colnames
+        else "ingested_datetime" if "ingested_datetime" in colnames
+        else None
     )
-    if "ingested_at" in colnames:
-        q = f"SELECT payload FROM `{table_id}`{league_filter} ORDER BY ingested_at DESC LIMIT 1"
-    elif "ingested_datetime" in colnames:
-        q = f"SELECT payload FROM `{table_id}`{league_filter} ORDER BY ingested_datetime DESC LIMIT 1"
-    else:
-        q = f"SELECT payload FROM `{table_id}`{league_filter} LIMIT 1"
 
-    job = client.query(q)
+    # The parameter type has to match the column: `ingested_at` is TIMESTAMP but a table using
+    # `ingested_datetime` may be DATETIME, and a mismatched parameter is a query error rather than
+    # a wrong answer. Read it from the schema instead of assuming.
+    ts_type = next((f.field_type for f in table.schema if f.name == ts_col), None) if ts_col else None
+
+    conditions: list[str] = []
+    params: list[bigquery.ScalarQueryParameter] = []
+    if league_code:
+        conditions.append("league_code = @league_code")
+        params.append(bigquery.ScalarQueryParameter("league_code", "STRING", league_code))
+
+    def _where(extra: list[str] | None = None) -> str:
+        clauses = conditions + (extra or [])
+        return (" WHERE " + " AND ".join(clauses)) if clauses else ""
+
+    if ts_col is None:
+        # No ingest-time column, so there is no partition to prune to. Unchanged behaviour.
+        q = f"SELECT payload FROM `{table_id}`{_where()} LIMIT 1"
+    else:
+        # TWO queries, deliberately (#890). `ORDER BY {ts_col} DESC LIMIT 1` returns one row but
+        # cannot prune partitions: to rank, BigQuery reads every partition ever written, on the
+        # widest column in the warehouse. Measured by dry run on RAW_APIF_TRANSFERS/BL1:
+        #   ORDER BY ... LIMIT 1                          6.634 GiB
+        #   MAX({ts_col}) alone                           0.013 MiB   <- reads one narrow column
+        #   payload WHERE {ts_col} = <literal>            2.95  MiB   <- prunes to one partition
+        # A subquery predicate (`= (SELECT MAX(...))`) was measured too and scans the SAME
+        # 6.634 GiB, because BigQuery does not prune on a subquery. So one round trip cannot work;
+        # the extra call costs 13 KB and saves gigabytes.
+        latest = _scalar(
+            client,
+            f"SELECT MAX({ts_col}) AS ts FROM `{table_id}`{_where()}",
+            params,
+        )
+        if latest is None:
+            # No rows for this league at all. The second query would return nothing, so skip it.
+            return None
+        q = f"SELECT payload FROM `{table_id}`{_where([f'{ts_col} = @ts'])} LIMIT 1"
+        params = params + [
+            bigquery.ScalarQueryParameter("ts", ts_type or "TIMESTAMP", latest)
+        ]
+
+    job = client.query(q, job_config=bigquery.QueryJobConfig(query_parameters=params))
     arrow_table = job.result().to_arrow(create_bqstorage_client=True)
     if arrow_table.num_rows == 0:
         return None
