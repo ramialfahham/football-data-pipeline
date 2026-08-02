@@ -194,7 +194,18 @@ select
     -- and, for the split formats, the season points total sums two separate tournaments.
     d.deserved_points,
     d.deserved_rank,
-    d.sot_points_gap
+    d.sot_points_gap,
+    -- The season this team's page opens on (#846). Exactly one row per team is true: the most
+    -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
+    -- with no league season. Ruled a warehouse fact (CPO 2026-08-02), so the export and the page
+    -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
+    -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
+    row_number() over (
+        partition by m.team_sk
+        order by
+            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
+            m.season_api_year desc
+    ) = 1 as is_featured_season
 from metrics as m
 left join team_season as ts
     on m.team_season_sk = ts.team_season_sk

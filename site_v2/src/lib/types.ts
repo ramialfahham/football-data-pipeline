@@ -183,6 +183,13 @@ export interface TeamSeason {
   league_code: string;
   season_api_year: number;
   competition_type?: string | null;
+  /**
+   * The season this team's page opens on, decided in the warehouse (#846) and served here.
+   * Exactly one season per team carries `true`, asserted by a dbt test. Not optional: a page
+   * that has to cope with the flag being absent would need a fallback, and the fallback is the
+   * defect this replaced.
+   */
+  is_featured_season: boolean;
   // record / rank / form
   latest_rank?: number | null;
   points?: number | null;

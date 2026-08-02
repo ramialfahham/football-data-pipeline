@@ -86,6 +86,24 @@ yoy as (
 -- that competition-season (content_architecture §6.4).
 contribution as (
     select * from {{ ref('int_player_profile__contribution') }}
+),
+
+-- #846: the competition's type, and whether it is club or national football. Same two-step seed
+-- join mart_player_career already uses. Needed because the season a player's page opens on is a
+-- CLUB season (#848 made Overview, Performance and Career club-only), and a player-season row on
+-- its own cannot tell club football from national.
+registry as (
+    select
+        league_code,
+        competition_type
+    from {{ ref('competition_registry') }}
+),
+
+types as (
+    select
+        competition_type,
+        entity_type
+    from {{ ref('competition_types') }}
 )
 
 select
@@ -96,6 +114,8 @@ select
     a.league_sk,
     a.league_code,
     a.season_api_year,
+    reg.competition_type,
+    ct.entity_type,
     -- identity + descriptors (not catalogue metrics)
     p.player_name,
     p.player_first_name,
@@ -178,7 +198,21 @@ select
     -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
     c.scorer_points,
     c.team_goals_season,
-    c.contribution_share
+    c.contribution_share,
+    -- The season this player's page opens on (#846). Exactly one row per player is true: the most
+    -- recent CLUB season, preferring a domestic league over a cup, and falling back to the most
+    -- recent season of any kind for a player with no club football at all. Scoped to club because
+    -- #848 made the three main tabs club-only; on pure recency a player who has just played a
+    -- tournament opens on it, which is why M. Rogers opened on World Cup 2026 with England rather
+    -- than the Premier League with Aston Villa. Last in the list because ST06 puts calculations
+    -- after simple targets.
+    row_number() over (
+        partition by a.player_sk
+        order by
+            case when ct.entity_type = 'club' then 0 else 1 end asc,
+            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
+            a.season_api_year desc
+    ) = 1 as is_featured_season
 from season as a
 left join players as p
     on a.player_sk = p.player_sk
@@ -204,3 +238,7 @@ left join contribution as c
         a.player_sk = c.player_sk
         and ta.team_sk = c.team_sk
         and a.season_sk = c.season_sk
+left join registry as reg
+    on a.league_code = reg.league_code
+left join types as ct
+    on reg.competition_type = ct.competition_type

@@ -1,1409 +1,1097 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7534ba5..a87d2e9 100644
+index a87d2e9..dfc2cb6 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,156 +1,171 @@
--# Task contract — reviewers stop reviewing the review's own paperwork (#868 follow-up)
-+# Task contract — metric labels come from the catalogue, per locale (#370 slice)
+@@ -1,171 +1,167 @@
+-# Task contract — metric labels come from the catalogue, per locale (#370 slice)
++# Task contract — the pipeline decides which season a page opens on (#846)
  
--> Written on a clean tree before any file was touched. Branch `fix/868-review-scope` from `main` at
--> `cc6cc45`; `gh pr list --state open` empty. Governance task: it edits the guards, so it carries
--> `protected_override` and `impact_map`.
-+> Written on a clean tree before any file was touched. Branch `feat/370-metric-labels-from-catalogue`
-+> from `main` at `cc6cc45`. No protected path in scope, so no `protected_override`. `site_v2/` is the
-+> structural surface, so `impact_map` is required and present.
+-> Written on a clean tree before any file was touched. Branch `feat/370-metric-labels-from-catalogue`
+-> from `main` at `cc6cc45`. No protected path in scope, so no `protected_override`. `site_v2/` is the
+-> structural surface, so `impact_map` is required and present.
++> Written on a clean tree before any file was touched. Branch `feat/846-featured-season-from-mart`
++> from `main` at `162789a`. No protected path in scope, so no `protected_override`.
++> `dbt_project/models/**`, `scripts/export_*.py` and `site_v2/` are all structural, so `impact_map`
++> is required and present. `site_v2/src/` is in scope, so `acceptance_criteria` are required,
++> CPO-approved before any code, and LOCKED.
  
  objective: >
--  #370 took twelve review rounds for a ~300-line change. The code was correct from round 5; rounds 6
--  to 12 found nothing a visitor would see. Measured cause, three mechanisms compounding:
-+  A stat's name is currently written down in FOUR places: the catalogue holds the i18n key but no
-+  translation, `metricRows.ts` hard-codes an English label, `strings.ts` hard-codes three more for the
-+  hero tiles, and the narrative sentence spells one out in prose. Nothing keeps them in step, and the
-+  German and Finnish pages show English stat names because the catalogue's keys resolve to nothing.
+-  A stat's name is currently written down in FOUR places: the catalogue holds the i18n key but no
+-  translation, `metricRows.ts` hard-codes an English label, `strings.ts` hard-codes three more for the
+-  hero tiles, and the narrative sentence spells one out in prose. Nothing keeps them in step, and the
+-  German and Finnish pages show English stat names because the catalogue's keys resolve to nothing.
++  A team or player has many seasons. Opening their page shows one of them first, and today the
++  rule that picks it is written down THREE times: `_latest_season_row` in the export
++  (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the
++  team page (`[team].astro:56`), and the same rule again in different code on the stashed player
++  page. They already disagree. The export's copy is pure recency, which is why a player's
++  `current_team` resolves to England rather than Aston Villa.
  
--  1. Governance artifacts are inside `scope_paths`, so reviewers read the paperwork the review itself
--     produces — 839 lines of code inside a 38,932-line reviewed diff.
--  2. Two evidence artifacts are inside `diff_sha256`, so correcting a typo in prose voids every PASS
--     already given and forces a new round.
--  3. Every reviewer brief says a PASS requires two named risks, so on correct code a reviewer is
--     *required* to find something. It finds prose.
--
--  This closes all three. It changes what reviewers see, what invalidates their verdict, and what a
--  PASS must contain. It does NOT change the org, the roles, the activation model, the decision rights
--  or the definition of done.
-+  This makes the catalogue's `label_i18n_key` real: one per-locale name per metric, read from one
-+  place by every page. It is the slice of #370 that unblocks composing narrative text from the
-+  semantic layer instead of hand-writing it per locale.
+-  This makes the catalogue's `label_i18n_key` real: one per-locale name per metric, read from one
+-  place by every page. It is the slice of #370 that unblocks composing narrative text from the
+-  semantic layer instead of hand-writing it per locale.
++  This moves the rule into the warehouse. Both profile marts mark exactly one season per entity,
++  and the export and the pages read that mark instead of deciding for themselves.
  
  refs: >
--  #868. CPO rulings 2026-08-01, in this conversation, quoted in `protected_override` below.
-+  #370, the bullet "metric labels from `metric_catalogue` i18n keys (never hardcoded)" and only that
-+  bullet. The rest of #370 (hreflang, per-locale sitemaps, five new languages, locale-aware
-+  formatting, localised competition names) is explicitly NOT in this task.
+-  #370, the bullet "metric labels from `metric_catalogue` i18n keys (never hardcoded)" and only that
+-  bullet. The rest of #370 (hreflang, per-locale sitemaps, five new languages, locale-aware
+-  formatting, localised competition names) is explicitly NOT in this task.
++  #846. The CPO ruled the classification on 2026-08-02: the pipeline picks, not the page.
++  #848 supplies the lens rule (the club tabs are club-only), which is what "most recent" has to be
++  scoped by. NOT in this task: #845 (which entities earn a page), #882 (reaching past seasons at
++  all), and the player page's own consumer, which lands when `stash@{0}` comes off the stash.
  
  scope_paths:
--  - .claude/review_routing.json
--  - .claude/hooks/git_discipline.py
--  - .claude/agents/*.md
--  - docs/working_agreement.md
--  - docs/agent_guardrails.md
-+  - site_v2/src/i18n/strings.ts
-+  - site_v2/src/lib/metricRows.ts
-+  - site_v2/src/components/fixture/MetricRow.astro
-+  - site_v2/src/components/team/MetricLeagueRow.astro
-+  - site_v2/src/components/team/MetricSeasonRow.astro
-+  - site_v2/src/components/team/DeservedHero.astro
-+  - site_v2/src/styles/system.css
-+  - site_v2/src/specs/teams/team.spec.json
-+  - site_v2/src/specs/competition/matches/fixture.spec.json
-+  - site_v2/scripts/check-metric-labels.test.mjs
-+  - site_v2/scripts/check-page-specs.mjs
-+  - site_v2/scripts/check-page-specs.test.mjs
-+  - scripts/check_copy_gate.py
-+  - docs/wireframes/metrics_display.md
-   - tests/test_governance_hooks.py
-   - .claude/task/*.md
-+  - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
-   - .claude/task/escalations.log
+-  - site_v2/src/i18n/strings.ts
+-  - site_v2/src/lib/metricRows.ts
+-  - site_v2/src/components/fixture/MetricRow.astro
+-  - site_v2/src/components/team/MetricLeagueRow.astro
+-  - site_v2/src/components/team/MetricSeasonRow.astro
+-  - site_v2/src/components/team/DeservedHero.astro
+-  - site_v2/src/styles/system.css
+-  - site_v2/src/specs/teams/team.spec.json
+-  - site_v2/src/specs/competition/matches/fixture.spec.json
+-  - site_v2/scripts/check-metric-labels.test.mjs
+-  - site_v2/scripts/check-page-specs.mjs
+-  - site_v2/scripts/check-page-specs.test.mjs
+-  - scripts/check_copy_gate.py
+-  - docs/wireframes/metrics_display.md
+-  - tests/test_governance_hooks.py
+-  - .claude/task/*.md
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - site_v2/src/pages/*/teams/*.astro
++  - site_v2/src/lib/types.ts
++  - dbt_project/tests/assert_one_featured_season_per_entity.sql
++  - site_v2/src/data/teams/33.json
++  - .claude/task/contract.md
++  - .claude/task/review.md
 +  - .claude/task/review_input.patch
+   - .claude/task/acceptance_evidence.md
+   - .claude/task/rendered_page_evidence.md
+   - .claude/task/escalations.log
+-  - .claude/task/review_input.patch
    - .claude/active_work.md
--  # ADDED after round 1. All three reviewers found that this file re-implements the
--  # PASS floor (`:169`) and enforces the OLD value of 2 in CI, fail-closed, on every
--  # PR — so change 3 was inoperative at the PR boundary and a one-entry PASS would
--  # have commited locally and reddened CI. See the amendment.
--  - scripts/check_task_artifacts.py
--
--protected_override: >
--  CPO approval, 2026-08-01, this conversation. He was shown the defect in plain language and approved
--  each change separately:
--  (1) and (2) — **"yes to those two"**, to reviewers no longer seeing task notes, and to a note fix no
--  longer restarting the review.
--  (3) — **"why would we force it? Of course, the reviewer needs to have he critical attitude but it's
--  allowed to approve and not invent some finding."**
--  (4) — **"go ahead"**, to implementing all three.
--  He also ruled, correcting me, that the ORG IS NOT THE PROBLEM: activation-on-necessity is right and
--  low activation is not a defect. No role, brief or routing row is removed by this task.
  
++# fnmatch full-string-matches and `[lang]`/`[team]` are CHARACTER CLASSES, so the literal Astro
++# dynamic-route path can never match itself. `site_v2/src/pages/*/teams/*.astro` is the only form
++# that matches the real file. This is a known trap, not a widening.
++
  acceptance_criteria:
--  # NOT drafted by me. These are the CPO's own three sentences turned into checks, so the lock is his
--  # wording rather than my paraphrase.
--  - A reviewer does not see the review's own paperwork. `review_input.patch` is generated with
--    `.claude/task/**` and `.claude/active_work.md` excluded, by a command in the hook rather than by
--    hand, and the briefs say what is in scope for them to read.
--  - Correcting a note does not restart the review. Editing `acceptance_evidence.md` or
--    `rendered_page_evidence.md` leaves `--staged-hash` unchanged, so a PASS survives it. Editing
--    `contract.md` still changes the hash, because `scope_paths` and `acceptance_criteria` carry
--    authority and must not move after review.
--  - A reviewer may approve without inventing a finding. A PASS states what was examined and needs no
--    named risk. It still cannot be a bare verdict with nothing behind it.
--  - Nothing about the org changes. The same eight briefs exist, the same routing rows fire, the same
--    decision rights hold, `done_when` is unchanged.
-+  - Each stat name is written down once. `metricRows.ts` has no `label:` field, `heroSotFor`,
-+    `heroSotAgainst` and `heroSotDiff` are gone from `strings.ts`, and no stat name is spelled
-+    anywhere outside the one metric-label block.
-+  - A German reader sees German stat names. In the BUILT output the German hero tiles read
-+    `Ø Torschüsse`, `Ø Torschüsse gegen`, `Ø Torschussdifferenz`; the Finnish read
-+    `Ø Maalilaukaukset`, `Ø Maalilaukaukset vastaan`, `Ø Maalilaukauksien ero`; and the Performance
-+    rows differ per locale the same way.
-+  - If a name is ever missing, the page must not show gibberish. `t()` falls back to the key itself,
-+    so a gap would print the lookup code for a visitor to read. The built HTML contains zero
-+    occurrences of `metrics.`, and a test asserts every key resolves in all three locales.
-+  - Every name on the page belongs to a stat that really exists. A test cross-checks each key against
-+    `metric_catalogue.csv`, which is what catches the dangling `shots_on_target_per_match`.
-+    # Locked wording, kept verbatim. Its example is wrong — the catalogue DOES declare that key — and
-+    # only the CPO moves a locked criterion. He was asked and chose to leave it annotated.
-+  - The ten names the CPO already validated stay exactly as he wrote them. A test compares them
-+    against `site/i18n/*.json` so nothing approved is silently reworded while strings move.
-+  - The new names go through the same copy check as everything else. `scripts/check_copy_gate.py`
-+    reports a higher string count and applies its em dash, locale-completeness and terminology checks
-+    to the metric labels too.
+-  - Each stat name is written down once. `metricRows.ts` has no `label:` field, `heroSotFor`,
+-    `heroSotAgainst` and `heroSotDiff` are gone from `strings.ts`, and no stat name is spelled
+-    anywhere outside the one metric-label block.
+-  - A German reader sees German stat names. In the BUILT output the German hero tiles read
+-    `Ø Torschüsse`, `Ø Torschüsse gegen`, `Ø Torschussdifferenz`; the Finnish read
+-    `Ø Maalilaukaukset`, `Ø Maalilaukaukset vastaan`, `Ø Maalilaukauksien ero`; and the Performance
+-    rows differ per locale the same way.
+-  - If a name is ever missing, the page must not show gibberish. `t()` falls back to the key itself,
+-    so a gap would print the lookup code for a visitor to read. The built HTML contains zero
+-    occurrences of `metrics.`, and a test asserts every key resolves in all three locales.
+-  - Every name on the page belongs to a stat that really exists. A test cross-checks each key against
+-    `metric_catalogue.csv`, which is what catches the dangling `shots_on_target_per_match`.
+-    # Locked wording, kept verbatim. Its example is wrong — the catalogue DOES declare that key — and
+-    # only the CPO moves a locked criterion. He was asked and chose to leave it annotated.
+-  - The ten names the CPO already validated stay exactly as he wrote them. A test compares them
+-    against `site/i18n/*.json` so nothing approved is silently reworded while strings move.
+-  - The new names go through the same copy check as everything else. `scripts/check_copy_gate.py`
+-    reports a higher string count and applies its em dash, locale-completeness and terminology checks
+-    to the metric labels too.
++  - A player who played a summer tournament still opens on their club season. Today M. Rogers opens
++    on World Cup 2026 with England instead of Premier League 2025/26 with Aston Villa.
++  - Nothing a visitor sees on a team page changes. Every sample team opens on the same season as it
++    does today. This is plumbing, not a redesign.
++  - The opening season is decided in one place instead of three. Today the team page decides it, the
++    player page decides it again in different code, and the export has its own copy. After this, all
++    three read one answer from the pipeline.
++  - If the rule ever breaks, a test catches it before a reader does. Every team and every player has
++    exactly one opening season, never none and never two.
++  - The change does not quietly alter anything else. No number, name or season anywhere else moves.
  
  impact_map: >
--  writers: `.claude/review_routing.json` has exactly two consumers — `git_discipline.py::_load_routing`
--    (fails OPEN, swallows exceptions and returns None, so a malformed file silently disables the local
--    gate) and `scripts/check_task_artifacts.py` (fails CLOSED in CI). Both must agree on the new key.
+-  writers: nothing writes these values at runtime. They are static per-locale strings in
+-    `site_v2/src/i18n/strings.ts`. The catalogue seed (`dbt_project/seeds/metric_catalogue.csv`)
+-    supplies `label_i18n_key`, `direction` and `format` and is NOT edited here. Every key the page
+-    uses is declared verbatim in the `label_i18n_key` COLUMN; none is invented.
 -
--  downstream: the PASS floor exists in TWO places and both must move together —
--    `git_discipline.py::_commit_gate` (the local hook) and `scripts/check_task_artifacts.py:169`
--    (the CI twin, fail-closed, run on every PR by `ci-validate.yml`). The twin also re-implements the
--    reviewer-matching loop by hand with no parity test (#873, open).
--    ⚠ This entry previously claimed the quota "exists in one place. Verified before editing." **That
--    was false and it was the load-bearing sentence of this impact map.** All three reviewers caught it
--    in round 1. I asserted a verification I had not actually performed — the exact failure the
--    impact_map field exists to prevent.
+-  downstream: four render sites consume a metric name, enumerated from the tree rather than assumed —
+-    `components/fixture/MetricRow.astro`, `components/team/MetricLeagueRow.astro`,
+-    `MetricSeasonRow.astro`, and `components/team/DeservedHero.astro` (three `heroSot*` calls). All
+-    four already receive `lang` as a prop, so no prop threading is needed. `lib/metricRows.ts` is the
+-    LOCKED 16-row display contract read by `MetricComparison.astro` and `TeamPerformance.astro`; its
+-    `field`, `format`, `direction`, `group`, `tier`, `denom` and `sublabel` are untouched — only
+-    `label` leaves.
 -
--  layer_rules: no warehouse change. The machine rules that apply are in
--    `tests/test_governance_hooks.py`: every `.claude/agents/*.md` must carry a byte-identical
--    `## Delta re-review` section with nothing after it (globbed, no opt-out), and every routing
--    pattern must be pinned in `PINNED_CASES`.
+-  layer_rules: no warehouse change, so `check_layer_contract.py` is unaffected. Selecting a string by
+-    key is selection, not derivation, so resolving a label per locale stays inside what the
+-    consumption layer may do. What it may NOT do is invent or restate a metric's meaning, which is
+-    exactly the duplication being removed.
 -
--  deploy_order: this branch is routed BY ITS OWN new table, because both consumers read the file from
--    the working tree rather than from HEAD. It is also the first branch reviewed under its own new
--    PASS condition.
+-  deploy_order: none. No warehouse, no migration, no export change; the payload is untouched. The
+-    build runs `npm test` via `prebuild`, so the new test gates the build itself rather than only CI.
 -
--  blast_radius: every future commit in this repo. What stops being enforced if this is wrong: a PASS
--    could become a rubber stamp (mitigated — a PASS must still state what was examined, and the gate
--    still requires one entry), or the hash could stop covering something that carries authority
--    (mitigated — `contract.md` stays inside the hash; only the two evidence artifacts leave).
-+  writers: nothing writes these values at runtime. They are static per-locale strings in
-+    `site_v2/src/i18n/strings.ts`. The catalogue seed (`dbt_project/seeds/metric_catalogue.csv`)
-+    supplies `label_i18n_key`, `direction` and `format` and is NOT edited here. Every key the page
-+    uses is declared verbatim in the `label_i18n_key` COLUMN; none is invented.
+-  blast_radius: every metric name on the fixture page and both team-page tabs, in three locales — 18
+-    distinct keys across 19 render slots (`shots_on_target_per_match` is used twice: hero tile 1 and
+-    Performance row 6). Ten are CPO-validated strings that must not change and are test-pinned to
+-    `site/i18n/*.json`. What breaks if it is wrong: `t()` returns the KEY when a lookup misses, so a
+-    missed name renders `metrics.duels_per_match.label` as visible text on a public page. That failure
+-    is silent in review and loud to a reader, which is why criterion 3 greps the built HTML rather
+-    than trusting the diff.
++  writers: `mart_team_profile` and `mart_player_profile` are the only models changed. Neither is
++    written by anything else; each is built once by dbt.
 +
-+  downstream: four render sites consume a metric name, enumerated from the tree rather than assumed —
-+    `components/fixture/MetricRow.astro`, `components/team/MetricLeagueRow.astro`,
-+    `MetricSeasonRow.astro`, and `components/team/DeservedHero.astro` (three `heroSot*` calls). All
-+    four already receive `lang` as a prop, so no prop threading is needed. `lib/metricRows.ts` is the
-+    LOCKED 16-row display contract read by `MetricComparison.astro` and `TeamPerformance.astro`; its
-+    `field`, `format`, `direction`, `group`, `tier`, `denom` and `sublabel` are untouched — only
-+    `label` leaves.
++  downstream: BOTH ARE LEAF MARTS. Evidence, run with the project venv dbt (`dbt=1.7.19`,
++    `bigquery=1.7.2`, 94 models parsed), not asserted:
++      `dbt ls --select mart_team_profile+ --resource-type model`
++        -> football_data_pipeline.5_marts.shared.mart_team_profile
++      `dbt ls --select mart_player_profile+ --resource-type model`
++        -> football_data_pipeline.5_marts.shared.mart_player_profile
++    Each returns ONLY itself, so no dbt model consumes either one. Their sole consumer is the
++    export, enumerated from the tree: `export_site_data.py:678` (`select *` from mart_team_profile)
++    and `:733` (`select *` from mart_player_profile). Because both reads are `select *`, a new
++    column reaches the export with no query change.
 +
-+  layer_rules: no warehouse change, so `check_layer_contract.py` is unaffected. Selecting a string by
-+    key is selection, not derivation, so resolving a label per locale stays inside what the
-+    consumption layer may do. What it may NOT do is invent or restate a metric's meaning, which is
-+    exactly the duplication being removed.
++    Upstream of `mart_team_profile`, for the record of what a rebuild pulls:
++      `dbt ls --select +mart_team_profile` -> int_team_season__metrics_cumulative,
++      int_team_season__standings_primary, int_team_season_record, mart_team_season, and the
++      stg_apif__ models for fixture_events, fixture_players, fixture_statistics, fixtures_next,
++      leagues, standings, teams.
 +
-+  deploy_order: none. No warehouse, no migration, no export change; the payload is untouched. The
-+    build runs `npm test` via `prebuild`, so the new test gates the build itself rather than only CI.
++  layer_rules: `check_layer_contract.py` is unaffected; no model moves layer and no staging model is
++    touched. The change is the layer contract being OBEYED rather than bent:
++    `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend",
++    and its own test ("would this value deserve a DQ test, or need to be byte-identical across two
++    frontends?") is yes on both counts. `competition_type` is already a mart column on
++    `mart_team_profile` and on `mart_player_career` (which joins the `competition_types` seed);
++    only `mart_player_profile` lacks it, so the player side propagates an existing, precedented
++    column rather than modelling something new.
 +
-+  blast_radius: every metric name on the fixture page and both team-page tabs, in three locales — 18
-+    distinct keys across 19 render slots (`shots_on_target_per_match` is used twice: hero tile 1 and
-+    Performance row 6). Ten are CPO-validated strings that must not change and are test-pinned to
-+    `site/i18n/*.json`. What breaks if it is wrong: `t()` returns the KEY when a lookup misses, so a
-+    missed name renders `metrics.duels_per_match.label` as visible text on a public page. That failure
-+    is silent in review and loud to a reader, which is why criterion 3 greps the built HTML rather
-+    than trusting the diff.
++  deploy_order: the marts must be rebuilt before the export runs, which is the normal nightly order
++    (dbt build then export). Adding a column is additive, so the deployed export keeps working
++    against the old table until the rebuild lands; nothing breaks mid-deploy. NO LOCAL BUILD:
++    dbt shares the CI and prod datasets, so a local `dbt build` would clobber prod. Criteria 1 and 4
++    are demonstrated from `ci-data-build` output on the PR.
++
++  blast_radius: one new boolean column on two leaf marts, plus one new field in each entity payload.
++    NO existing number, name, rank or season value changes. The team page must open on the same
++    season it opens on today (criterion 2) because the warehouse rule is the same rule the page
++    already applies; the only behaviour that CHANGES is the export's entity identity for players,
++    which today is pure recency and therefore wrong. What breaks if it is wrong: a player page
++    opens on a national tournament under a club-only tab, which is exactly the defect #846 exists
++    to remove, and criterion 4's test is what makes that loud instead of silent.
  
  decisions_taken: >
--  - The four CPO rulings above.
--  - Builder judgement: `contract.md` STAYS inside `diff_sha256`. Excluding it would let scope or
--    acceptance criteria be widened after every reviewer has passed, which is the F10/#409 guard. Only
--    the two evidence artifacts leave the hash, because they carry evidence rather than authority.
--  - Builder judgement: the PASS floor drops from two entries to one, not to zero. Zero would allow a
--    bare `VERDICT: PASS` with nothing behind it, which is the rubber-stamp the two-risk rule was
--    written to prevent. One entry keeps that protection and removes the forced invention.
--  - Builder judgement: `risks_checked:` keeps its name in the artifact format so no reviewer brief or
--    test has to change key names, but the briefs now ask for what was EXAMINED rather than what was
--    FOUND.
-+  CPO rulings on this task, one line each. **Full text with what was asked and what he answered is in
-+  `.claude/task/escalations.log`**, which survives this task; this contract does not.
+-  CPO rulings on this task, one line each. **Full text with what was asked and what he answered is in
+-  `.claude/task/escalations.log`**, which survives this task; this contract does not.
+-
+-  - The six acceptance criteria above: "All approved." Locked; only he moves them.
+-  - German metric names, supplied verbatim: `Torschüsse`, `Torschüsse gegen`, `Torschussdifferenz`.
+-  - Finnish, supplied verbatim: `maalilaukaukset`, `maalilaukaukset vastaan`, `maalilaukauksien ero`.
+-  - Eight further DE/FI names that were mine, plus two Finnish he had confirmed separately:
+-    "Approved, record it."
+-  - The overflow fix is styling, not shorter copy: "Change the styling."
+-  - `docs/wireframes/metrics_display.md` updated in this branch, not deferred: "Update it now."
+-  - Criterion 4's false example stays annotated rather than reworded: "Leave it, the note is enough."
+-  - The metric's name inside the hero prose sentences: "Yes, use my words."
+-  - The Finnish caption keeps its per-match basis and the `eron` inflection: "Put 'per match' back."
+-  - The two `axPlay` values and the German `heroCaption`: "Approve them."
+-  - The German rate word, chosen against my recommendation: `pro Spiel`.
+-  - Hero tiles stack on phones rather than breaking words mid-word: "Stack them on phones."
+-    The 560px threshold is a builder choice; he ruled the behaviour, not the number.
+-  - `.vs-row` mid-word breaks are filed, not fixed here: "Leave it filed, fix later" (#876).
+-  - Review rounds past the cap of 3, and finishing this branch: "yes and yes", then "finish 370".
+-
+-  Builder judgement, recorded because it is visible in the design: the labels live in the i18n layer
+-  rather than a new seed, because the catalogue owns a metric's identity, direction and format while
+-  display copy does not belong in a warehouse seed. The structure is a dedicated per-metric map rather
+-  than flat dotted keys in the chrome dictionary, because a quoted dotted key is invisible to both
+-  `check_copy_gate.py`'s entry regex and `check-page-specs.mjs`'s key extraction — flat keys would
+-  have smuggled 54 strings past the copy check that criterion 6 requires.
++  CPO rulings on this task. Full text in `.claude/task/escalations.log`.
 +
-+  - The six acceptance criteria above: "All approved." Locked; only he moves them.
-+  - German metric names, supplied verbatim: `Torschüsse`, `Torschüsse gegen`, `Torschussdifferenz`.
-+  - Finnish, supplied verbatim: `maalilaukaukset`, `maalilaukaukset vastaan`, `maalilaukauksien ero`.
-+  - Eight further DE/FI names that were mine, plus two Finnish he had confirmed separately:
-+    "Approved, record it."
-+  - The overflow fix is styling, not shorter copy: "Change the styling."
-+  - `docs/wireframes/metrics_display.md` updated in this branch, not deferred: "Update it now."
-+  - Criterion 4's false example stays annotated rather than reworded: "Leave it, the note is enough."
-+  - The metric's name inside the hero prose sentences: "Yes, use my words."
-+  - The Finnish caption keeps its per-match basis and the `eron` inflection: "Put 'per match' back."
-+  - The two `axPlay` values and the German `heroCaption`: "Approve them."
-+  - The German rate word, chosen against my recommendation: `pro Spiel`.
-+  - Hero tiles stack on phones rather than breaking words mid-word: "Stack them on phones."
-+    The 560px threshold is a builder choice; he ruled the behaviour, not the number.
-+  - `.vs-row` mid-word breaks are filed, not fixed here: "Leave it filed, fix later" (#876).
-+  - Review rounds past the cap of 3, and finishing this branch: "yes and yes", then "finish 370".
++  - The §10 classification, 2026-08-02: the pipeline picks the opening season, not the page.
++    His words: "that the opening season is a warehouse fact -> I tend to yes", then "OK" on the
++    rule being scoped by lens.
++  - The five acceptance criteria above: "all 5 approved". Locked; only he moves them.
++  - "Most recent" is scoped by the lens the tab shows (#848): club tabs open on the most recent CLUB
++    season, the International tab on the most recent national competition. Without that scoping the
++    player page opens on a World Cup, which #848 already ruled against.
 +
-+  Builder judgement, recorded because it is visible in the design: the labels live in the i18n layer
-+  rather than a new seed, because the catalogue owns a metric's identity, direction and format while
-+  display copy does not belong in a warehouse seed. The structure is a dedicated per-metric map rather
-+  than flat dotted keys in the chrome dictionary, because a quoted dotted key is invisible to both
-+  `check_copy_gate.py`'s entry regex and `check-page-specs.mjs`'s key extraction — flat keys would
-+  have smuggled 54 strings past the copy check that criterion 6 requires.
++  THRESHOLD DECLARATIONS. NEW MECHANISM: none. A boolean column on an existing mart is not a new
++  warehouse object class; no UDF, no hook, no lifecycle step, no dependency. RECURRING COST: none.
++  No new scheduled run, no extra API call, no additional reviewer. The nightly build gains two
++  columns.
++
++  Builder judgement, recorded because it is visible in the diff: the player page is NOT converted
++  here. Its consumer lives in `stash@{0}`, which is held on #845, so pulling it in would drag an
++  undecided scope question into this branch. The mart change it needs IS included, so it becomes a
++  one-line change when that branch resumes.
  
  decisions_reserved:
--  - The round cap still records rather than refuses: it is checked at commit time against a number the
--    builder types, so nothing stops a fourth round while rounds are running. Fixing it means deriving
--    the count mechanically. Not in this task.
--  - `.claude/task/escalations.log` is in `hash_exclude_paths`, so the durable ruling record sits
--    outside the hash and can be rewritten after every reviewer passes. Whether to bind it is a
--    mechanism question.
--  - No gate records when it denies, so most of the 72 enumerated checks are unobservable and cannot be
--    shown to have ever fired. Adding one appended line per denial is the highest-value follow-up.
--  - Whether any reviewer or role should be removed. The CPO ruled the org is not the problem; nothing
--    here touches it.
-+  - The narrative sentences themselves — shape, voice, rotation. This task is why #370 goes first:
-+    once labels resolve from the layer, a narrative can name a metric in any locale without a
-+    hand-written string. `heroVerdictUnder`/`Over` still hand-spell the name in all three locales and
-+    nothing mechanical keeps them in step with `METRIC_LABELS`.
-+  - `defensive_actions_per_match.sublabel` is still English in all three locales. It is a caption, not
-+    a name.
-+  - `YearOverYear.astro` renders three stat names from chrome strings and cannot be bound without a
-+    catalogue key that does not exist. Two of them are a second spelling of a name the new block owns.
-+  - Metric GROUP headings render in English on every DE/FI page that lists metrics, from two call
-+    sites. Where a group name should live is a schema question: **#875**, needs a CPO ruling.
-+  - Every other place a stat is named or abbreviated: **#877**, the single source for that set. Needs
-+    no ruling — it is ordinary display copy. Nothing in it was introduced by this branch.
-+  - The `-n` of `eron` in the Finnish `heroCaption` is a case ending I inferred, not the CPO's word.
-+    He approved it knowing that. Still unverified against a Finnish source.
-+  - EN `finishing_efficiency` has two approved names: v2's `% Goals per shot on target` and the MVP
-+    corpus's `% Conversion rate`. This task keeps v2's, which is why no English text changes.
-+  - Wiring `check_copy_gate.py` into CI: **#872**, blocked on the 16 copy findings, which are the CPO's.
-+  - Whether magnitude should change the narrative's wording, so 22 points reads differently from 4.
-+    Would need the tier to come from the mart; classifying the gap in the frontend is forbidden.
+-  - The narrative sentences themselves — shape, voice, rotation. This task is why #370 goes first:
+-    once labels resolve from the layer, a narrative can name a metric in any locale without a
+-    hand-written string. `heroVerdictUnder`/`Over` still hand-spell the name in all three locales and
+-    nothing mechanical keeps them in step with `METRIC_LABELS`.
+-  - `defensive_actions_per_match.sublabel` is still English in all three locales. It is a caption, not
+-    a name.
+-  - `YearOverYear.astro` renders three stat names from chrome strings and cannot be bound without a
+-    catalogue key that does not exist. Two of them are a second spelling of a name the new block owns.
+-  - Metric GROUP headings render in English on every DE/FI page that lists metrics, from two call
+-    sites. Where a group name should live is a schema question: **#875**, needs a CPO ruling.
+-  - Every other place a stat is named or abbreviated: **#877**, the single source for that set. Needs
+-    no ruling — it is ordinary display copy. Nothing in it was introduced by this branch.
+-  - The `-n` of `eron` in the Finnish `heroCaption` is a case ending I inferred, not the CPO's word.
+-    He approved it knowing that. Still unverified against a Finnish source.
+-  - EN `finishing_efficiency` has two approved names: v2's `% Goals per shot on target` and the MVP
+-    corpus's `% Conversion rate`. This task keeps v2's, which is why no English text changes.
+-  - Wiring `check_copy_gate.py` into CI: **#872**, blocked on the 16 copy findings, which are the CPO's.
+-  - Whether magnitude should change the narrative's wording, so 22 points reads differently from 4.
+-    Would need the tier to come from the mart; classifying the gap in the frontend is forbidden.
++  - #882: whether a past season gets its own URL or a control on one page, and which seasons earn a
++    page at all. Decided with #845, not here. This task only decides what the BARE entity URL opens
++    on.
++  - Which competition the International tab itself opens on. Not needed until that tab is built.
++  - The column name `is_featured_season` is a builder choice on an internal mart column, not a
++    user-visible string. If the CPO wants it named differently, say so and it changes.
  
  done_when:
--  - `python -m pytest tests/test_governance_hooks.py -q` green, with new tests pinning each of the
--    three changes so a revert fails.
--  - `python .claude/hooks/git_discipline.py --staged-hash` is unchanged by an edit to
--    `acceptance_evidence.md`, and changed by an edit to `contract.md`. Demonstrated, not asserted.
--  - `python scripts/check_task_artifacts.py` agrees with the local hook on the new table.
--  - `python -c "import json; json.load(open('.claude/review_routing.json'))"` parses, and the number of
--    `paths` keys equals the number of distinct pattern strings in the file text.
--  - The four CPO rulings are appended to `.claude/task/escalations.log`, the durable record. They
--    authorise a change whose blast radius is every future commit, and `contract.md` does not survive
--    the next task.
-+  - `cd site_v2 && npm run build` passes, which runs `npm test` and `check-page-specs.mjs` via
-+    `prebuild`, so the new test gates the build.
-+  - Every acceptance criterion demonstrated in `.claude/task/acceptance_evidence.md`, read from
-+    `site_v2/dist/`, never from source and never from `outerHTML`.
-+  - `grep -rE "metrics\.[a-z_]+\.label" site_v2/dist` returns nothing.
-+  - `python scripts/check_copy_gate.py` reports a string count that includes the metric labels.
-+  - `python -m pytest tests/test_governance_hooks.py -q` green.
+-  - `cd site_v2 && npm run build` passes, which runs `npm test` and `check-page-specs.mjs` via
+-    `prebuild`, so the new test gates the build.
+-  - Every acceptance criterion demonstrated in `.claude/task/acceptance_evidence.md`, read from
+-    `site_v2/dist/`, never from source and never from `outerHTML`.
+-  - `grep -rE "metrics\.[a-z_]+\.label" site_v2/dist` returns nothing.
+-  - `python scripts/check_copy_gate.py` reports a string count that includes the metric labels.
+-  - `python -m pytest tests/test_governance_hooks.py -q` green.
++  - `dbt ls --select mart_team_profile+` and `mart_player_profile+` still return only themselves
++    (no accidental new dependency).
++  - `python -m pytest tests/test_export_site_data.py` passes.
++  - `cd site_v2 && npm test` passes (59 tests).
++  - `python -m sqlfluff lint <changed models> --templater jinja --dialect bigquery` clean from the
++    REPO ROOT, full rule set.
++  - `ci-data-build` green, and its output demonstrates criteria 1 and 4 in
++    `.claude/task/acceptance_evidence.md` under `criteria_demonstrated:`.
++  - Built team pages before and after show the same opening season (criterion 2).
  
  amendments:
--  - `+ scripts/check_task_artifacts.py` — **authority: the CPO's 2026-08-01 ruling (3) + (4)**,
--    quoted in `protected_override`. He ruled that a reviewer may approve without inventing a finding,
--    and said "go ahead" to implementing it. That ruling CANNOT be satisfied in only one of the two
--    places the floor lives: this file is the fail-closed CI twin, so leaving it at 2 meant a one-entry
--    PASS committed locally and then reddened the PR — the permission he granted would not have existed
--    at the boundary that matters. Extending scope to the second copy is the minimum needed to carry out
--    the ruling, not a new decision.
--    (Round 1's reviewers found the divergence; both `cto-reviewer` and `scope-auditor` then noted that
--    an amendment must record the CPO's authority and not the reviewers' — §2, and the precedent in
--    `escalations.log` 2026-06-23. Correct: a reviewer FAIL is a reason to look, never an authority.)
+-  Scope additions, each with its authority. One line each.
 -
--  - Round 1, three reviewers, eight findings, all real machinery defects and none about artifact
--    phrasing — which is the evidence that the change works. Fixed:
--    (1) the CI twin above. This contract's `impact_map` had asserted a verification I never performed.
--    (2) `_review_patch_bytes` ignored git's return code, so any git failure wrote a zero-byte patch and
--    exited 0 — a reviewer would read "nothing changed" and could pass on it. Now fails loud.
--    (3) `.claude/task/escalations.log` REMOVED from `review_exclude_paths`. `cto-reviewer` was right
--    that it is AUTHORITY, not a note: `protected_override` cites it as the locatable record, and
--    "does the claimed ruling actually exist" is a check that has fired before. I applied the
--    authority-vs-evidence split to the hash and forgot to apply it to visibility.
--    (4) `docs/agent_guardrails.md` still stated the old rule, in scope and untouched.
--    (5) `seo-expert-reviewer.md` carried the old rule one line under the new one.
--    (6) No test pinned the REAL routing's new `hash_exclude_paths` entries, so deleting them left the
--    suite green. (7) `test_every_task_artifact_is_classified` could pass vacuously on an empty
--    `git ls-files` and hand-rolled an enumeration the file's own `tracked()` helper already does safely.
-+  Scope additions, each with its authority. One line each.
-+
-+  - `+ site_v2/scripts/check-page-specs.mjs`, `+ site_v2/src/specs/teams/team.spec.json` — the
-+    standing page-spec rule (#826/#844): a page declares its own surface. Found by the build gate,
-+    which refused the build because `team.spec.json` declared a key criterion 1 deletes.
-+  - `+ tests/test_governance_hooks.py`, `+ site_v2/scripts/check-page-specs.test.mjs` — the standing
-+    rule that new gate behaviour is pinned by a test that fails on revert.
-+  - `+ site_v2/src/styles/system.css`, `+ docs/wireframes/metrics_display.md` — CPO: "Change the
-+    styling" and "Update it now."
-+  - `+ site_v2/src/specs/competition/matches/fixture.spec.json` — same page-spec rule. `MetricRow`
-+    changed from `def.label` to `metricLabel()`, so the fixture page renders 16 names through the new
-+    key class and its spec declared none of them.
-+  - `+ .claude/task/escalations.log`, `+ .claude/task/review_input.patch` — both were already in the
-+    diff while excluded from declared scope. `escalations.log` is the durable record §11 requires;
-+    `.claude/task/*.md` does not match a `.patch` file.
-+  - Criterion 2 updated to the words the CPO chose after he revised all four himself, on his explicit
-+    yes. A later instruction supersedes an earlier one, but the record has to say so.
+-  - `+ site_v2/scripts/check-page-specs.mjs`, `+ site_v2/src/specs/teams/team.spec.json` — the
+-    standing page-spec rule (#826/#844): a page declares its own surface. Found by the build gate,
+-    which refused the build because `team.spec.json` declared a key criterion 1 deletes.
+-  - `+ tests/test_governance_hooks.py`, `+ site_v2/scripts/check-page-specs.test.mjs` — the standing
+-    rule that new gate behaviour is pinned by a test that fails on revert.
+-  - `+ site_v2/src/styles/system.css`, `+ docs/wireframes/metrics_display.md` — CPO: "Change the
+-    styling" and "Update it now."
+-  - `+ site_v2/src/specs/competition/matches/fixture.spec.json` — same page-spec rule. `MetricRow`
+-    changed from `def.label` to `metricLabel()`, so the fixture page renders 16 names through the new
+-    key class and its spec declared none of them.
+-  - `+ .claude/task/escalations.log`, `+ .claude/task/review_input.patch` — both were already in the
+-    diff while excluded from declared scope. `escalations.log` is the durable record §11 requires;
+-    `.claude/task/*.md` does not match a `.patch` file.
+-  - Criterion 2 updated to the words the CPO chose after he revised all four himself, on his explicit
+-    yes. A later instruction supersedes an earlier one, but the record has to say so.
++  - 2026-08-02: + `dbt_project/tests/assert_one_featured_season_per_entity.sql` — authority: the CPO's
++    approval of acceptance criterion 4 ("If the rule ever breaks, a test catches it before a reader
++    does. Every team and every player has exactly one opening season, never none and never two"),
++    which this file IS. Written on a clean tree; the two mart edits were stashed for the amendment
++    and restored after. The path was missed when the contract was drafted: `test-paths: ["tests"]`
++    means a dbt singular test cannot live in the model directory, and a yml test cannot express the
++    criterion — `unique` with `where: is_featured_season` catches "two" but never "none", and
++    criterion 4 requires both halves.
++  - 2026-08-02: + `site_v2/src/data/teams/33.json` — authority: the CPO's approval of acceptance
++    criterion 5, which names this file ("the committed sample data differing only by the one new
++    field"), and criterion 2, which cannot be demonstrated without it: the page now reads the flag,
++    so the committed sample must carry it or the sample team has no season to open on. Verified by
++    `git ls-files site_v2/src/data` that this is the ONLY committed sample with a `seasons` array —
++    `fixtures/1492306.json` and `competitions.json` have none, so no other sample needs the field.
++    Written on a clean tree; the code changes were stashed for the amendment and restored after.
++    Both amendments have the same root cause, stated once rather than twice: `scope_paths` was
++    drafted from the change I had in mind instead of from the whole chain the change travels,
++    mart -> test -> export -> payload -> page -> committed sample.
++  - 2026-08-02: + `.claude/task/rendered_page_evidence.md` — authority: `bi-analyst-reviewer`'s
++    round-1 FAIL. Its brief requires that artifact whenever the diff makes a rendering-affecting
++    change under `site_v2/src/**`, and the file in the tree still held the merged #370 task's
++    content, so for this branch it was functionally absent. Same root cause as the two above, which
++    is why it is the third: the chain was walked one file at a time instead of once, end to end.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 7277a4f..2b9e569 100644
+index 0486181..d9a0005 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -329,6 +329,43 @@ This entry is the durable record of the metric-definition authority the contract
-   - (banked) A reviewer that names a fix is not the same as a reviewer that names the RIGHT fix. Round 1 said three documents over-claimed against the routing rows; the cheap remedy was to correct the prose, the expensive one was to widen the rows, and round 2 chose the expensive one and bought unapproved opus review time. **A doc/row mismatch is fixed by editing whichever side is wrong, and that is almost always the prose.**
-   - (banked) A test that reads real git history is a test that depends on CI's checkout depth. Round 4 caught a new test asserting `total > 0` over `git log`, which would have reddened EVERY pull request in the repo: `python-ci.yml` checks out at the default `fetch-depth: 1`, so on a PR the range is one merge commit and `diff-tree` prints nothing for it. The script under test documented that exact shape and handled it; the test asserted it could not happen. **Fake the subprocess. A hermetic version was also 5x faster and pinned two more branches.**
+@@ -376,3 +376,11 @@ This entry is the durable record of the metric-definition authority the contract
+   - (⭐ the standing rule this produced, and it is general) **"if one comment doesn't pass the PR then you change it and only the new version stays. not the old and the new."** A correction REPLACES; it never accumulates. Applies to code comments, contracts, evidence artifacts and issue bodies. This was the single generator of #370's cost: every round appended "this said X until round N, which was wrong, now Y", keeping both — and that text was itself inside the reviewed diff, so the next round found defects in it. Measured: 134 of 220 added comment lines in `strings.ts` narrated the review rather than explaining the code. Applying the rule took #370's paperwork from ~3.5 MB to ~240 KB and its contract from 643 lines to 171.
+   - (banked — WHAT ROUND 1 OF THIS BRANCH PROVED) All three reviewers FAILED it, and **not one finding was about artifact phrasing.** Every one was a real machinery defect: the CI twin still enforcing the old floor, a new code path failing open in the unsafe direction, two stale rule statements in guard files, and two unpinned tests. That is the evidence the change works — the reviewers went back to finding bugs. Keep the diff free of the review's own paperwork and adversarial review pays for itself again.
+   - (banked) **The most serious round-1 finding was a verification I claimed and had not done.** `impact_map` said the PASS floor "exists in one place. Verified before editing." It existed in two, and the second was fail-closed CI on every PR, so change 3 was inoperative exactly where it mattered. An `impact_map` asserted from memory is worse than an absent one, because the reviewers are entitled to rely on it. Paste the evidence or do not make the claim.
++2026-08-02 feat/846-featured-season-from-mart — the §10 classification behind #846, plus the acceptance criteria.
++  - (the classification, and it is the whole of #846's step 1) A team or player has many seasons and opening their page shows one first. Today the PAGE picks: `_latest_season_row` in the export (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the team page (`[team].astro:56`), and the same rule written differently on the stashed player page. `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend", but the team page does it and its comment argues it is merely selecting a served row. Both readings are defensible, so the meta-rule makes the classification his. Put to him with two paths and a recommendation for the warehouse.
++      CPO ANSWER (2026-08-02): **"that the opening season is a warehouse fact -> I tend to yes"** — THE PIPELINE PICKS, not the page.
++  - (the qualifier he added, and it is the part that makes the rule correct) His reasoning was that a reader expects the most recent data. Scoped by nothing, "most recent" is what produces the defect: a player's most recent football genuinely IS the World Cup. **"Most recent" is therefore scoped by the LENS the tab shows (#848): the club tabs open on the most recent CLUB season, the International tab on the most recent national competition.**
++  - (acceptance criteria) Five, drafted in plain language after he rejected a first set as unreadable: *"The criteria have to be written in a way that I can understand."* Each states what must be true, with the mechanical check attached rather than embedded.
++      CPO ANSWER (2026-08-02): **"all 5 approved"**. Locked; only he moves them.
++  - (his product direction, filed rather than absorbed) **"We are ingesting historical data, so I want to see them as well on the website."** Past seasons are ingested (`history_seasons` 1 to 11 per competition) and unreachable: one page per entity, no season in the URL, no selector, and the team page's comment promising one cites #362, which is the closed Astro-scaffold issue. Filed as **#882**. It does NOT change this task — the bare entity URL still has to open on something, and that is what #846 decides. Whether a season gets its own URL or a control is decided with #845, because it multiplies page count by history depth on top of 154,644 player pages.
++  - (banked — A WRONG NOTE THAT COST REAL TIME, now corrected at source) The handover told every session **"dbt CLI is broken locally"**, so impact maps were being built from greps instead of lineage. It is wrong. `.venv/Scripts/dbt.exe` works: `dbt=1.7.19` + `bigquery=1.7.2`, exactly the `requirements.txt` pin, and it parses all 94 models and answers `dbt ls`. What is broken is the **global** `dbt` on PATH, where dbt-core 1.11.11 sits beside dbt-bigquery 1.7.2 and throws `ModuleNotFoundError: dbt.adapters.factory`. Nothing needs installing; call the venv. The dbt MCP server also starts and registers its tools when run by hand and simply did not connect in-session, most likely `uvx` cold-start latency resolving a separate 3.12 interpreter. Changing `.mcp.json` is a protected-path governance task and is NOT worth spending while the CLI answers the same question.
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index b4378d6..282e583 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -86,6 +86,24 @@ yoy as (
+ -- that competition-season (content_architecture §6.4).
+ contribution as (
+     select * from {{ ref('int_player_profile__contribution') }}
++),
++
++-- #846: the competition's type, and whether it is club or national football. Same two-step seed
++-- join mart_player_career already uses. Needed because the season a player's page opens on is a
++-- CLUB season (#848 made Overview, Performance and Career club-only), and a player-season row on
++-- its own cannot tell club football from national.
++registry as (
++    select
++        league_code,
++        competition_type
++    from {{ ref('competition_registry') }}
++),
++
++types as (
++    select
++        competition_type,
++        entity_type
++    from {{ ref('competition_types') }}
+ )
  
-+
-+2026-07-31 / 2026-08-01 feat/370-metric-labels-from-catalogue — CPO rulings on the metric-label task. Appended because `scope-auditor` failed a round for their absence and was right: they had lived only in `contract.md`, which the next task overwrites. The rule is the CPO's own, recorded in the entry above: "Recording a ruling in the contract is not recording it."
-+  - (acceptance criteria) Six criteria drafted before any code and put to him in plain language after he said the first version was unreadable: "you are not using a language that a human being understands."
-+      CPO ANSWER (2026-07-31): **"All approved."** Locked. He then immediately found a gap the criteria missed — "we have shots on target and we have shots on target against. Is that covered as well?" — which is the argument for writing criteria in plain words: he could only catch the omission because he could read them.
-+  - (German and Finnish metric names) Consolidating four hand-written label sites into one per-locale block forced a choice wherever two forms were live. His validated MVP corpus said `Maalilaukaukset` while the hero tiles said `Laukauksia maalia kohti`; both are real Finnish football usage.
-+      CPO ANSWER (2026-07-31), Finnish, verbatim: **`maalilaukaukset`**, **`maalilaukaukset vastaan`**, **`maalilaukauksien ero`** (revised from his own first answer `maalilaukaisujen ero`, which came off a different stem). German, verbatim, after being shown with measurements that an 18-character compound would not fit the 71px tile: **`Torschüsse`**, **`Torschüsse gegen`**, **`Torschussdifferenz`**.
-+      ⚠ STANDING BAR SET HERE. He asked one question before answering: **"Did you check DE and FI vs other football related resources"** — I had not. Checking found `Duelle` was wrong; every German source uses `Zweikämpfe`, and bundesliga.com's own category is "Gewonnene Zweikämpfe". **External source verification of a foreign-language term is now the bar, not a nicety.**
-+  - (the eight names that were mine, plus two more) `scope-auditor` found that roughly twelve user-visible names were builder-authored with no recorded authority, and that external verification is not authority. Its list was partly wrong and I checked rather than accepting it: `% Gehaltene Torschüsse`, `% Laukaukset boksista`, `% Viimeistelytehokkuus` and `% Torjuntaosuus` are from his own corpus. The rest were mine: `Zu-Null-Spiele`, `Ø Zweikämpfe`, `% Gewonnene Zweikämpfe`, `Ø Defensivaktionen`, `Ø Schlüsselpässe`, `Nollapelit`, `Ø Kaksinkamppailut`, `% Voitetut kaksinkamppailut`, plus `Ø Puolustustoimet` and `Ø Avainsyötöt`, which ship with an explicit caveat that I could not reach a Finnish source (Veikkausliiga's stats pages serve a broken certificate chain) and said so before he confirmed.
-+      CPO ANSWER (2026-07-31): **"Approved, record it."**
-+  - (the tile that would not fit) `Ø Maalilaukauksien ero` overflowed the hero tile by 12px and `% Viimeistelytehokkuus`, one of his own validated strings, overflowed a Performance row by 53px. Two paths: change the styling, or shorten the words.
-+      CPO ANSWER (2026-07-31): **"Change the styling."** The pre-existing gap in `system.css` was exposed by localisation, not caused by it.
-+  - (the doc recording where strings live) `docs/wireframes/metrics_display.md` documented labels living in `metricRows.ts`, which this task empties.
-+      CPO ANSWER (2026-07-31): **"Update it now."** And separately, on a locked criterion whose EXAMPLE was false while the criterion itself was met: **"Leave it, the note is enough"** — annotate, never silently reword a locked criterion.
-+  - (the metric's name inside the hero prose) In German and Finnish the verdict sentence named the metric the superseded way directly above a tile that did not, and the Finnish carried the doubled-per form he had already replaced. A prose sentence is §10 copy, so he was shown both sentences rendered, with "leave them alone" offered as an equal option.
-+      CPO ANSWER (2026-08-01): **"Yes, use my words."**
-+  - (the Finnish caption) It had lost the per-match basis that English and German both keep, so it described the x-axis with no rate while the axis beside it read `/ ottelu`.
-+      CPO ANSWER (2026-08-01): **"Put 'per match' back, keep `eron`."** He was told before approving that the `-n` of `eron` is my inference and not his word. Still unverified against a Finnish source.
-+  - (three strings I had changed on my own authority) The two `axPlay` axis labels and the German `heroCaption`, changed when review found the block naming one metric two ways, and defended as "applying his word, not choosing one". `scope-auditor` demolished that.
-+      CPO ANSWER (2026-08-01): **"Approve them"**, shown the before/after for all three.
-+  - (the German rate word) Main said `pro Partie`; the preview I put to him read `pro Spiel`, which silently changed a word nobody had ruled on. Reverting it was itself a §10 call taken on top of an approval, which two reviewers said and were right about. Put to him with both rendered and the repetition named as the cost; my recommendation was `Partie`.
-+      CPO ANSWER (2026-08-01): **`pro Spiel`**, against my recommendation. ⚠ The lesson is not "he overruled me" — it is that **a preview is a proposal and every word in it is mine until he picks it.** I put a word in front of him I had not noticed changing.
-+  - (hero tiles breaking words in half) `overflow-wrap: anywhere` stops clipping but breaks a compound at an arbitrary letter with no hyphen: German rendered `Ø / Torschussdiffe / renz` and all three Finnish tiles broke the same way. `hyphens: auto` is inert — this engine ships no de/fi dictionary, tested rather than assumed. `Torschussdifferenz` needs 89.1px in a 71px box, so no wrap rule can rescue three tiles side by side. Three options put to him with the rendered line breaks.
-+      CPO ANSWER (2026-08-01): **"Stack them on phones."** Result: 0 mid-word breaks in all three locales, block height 96px -> 149px. ⚠ **The 560px threshold is mine** — he ruled the behaviour, not a number.
-+  - (the same defect on the Performance tab) `.vs-row`'s 77px label column breaks 9 Finnish and 3 German names mid-word. Widening it costs the comparison bar 115px -> 80px, a third of the thing the block exists to show. Reviewers split on whether accepting that was mine to decide, so it went to him with three options and the measurement.
-+      CPO ANSWER (2026-08-01): **"Leave it filed, fix later"** — #876.
-+  - (splitting the branch) `scope-auditor` recommended landing the mechanical half and moving all German/Finnish wording to its own contract. I disagreed on the record: the tiles carry his words BECAUSE the plumbing landed, so moving the wording out ships a page naming one stat two ways in two languages.
-+      CPO ANSWER (2026-08-01): **"Keep it as one branch."**
-+  - (the round cap, which I broke) `ROUND_CAP = 3` is a CPO rule: past three, stop and bring him the open findings. He authorised round 4; **rounds 5 and 6 I took on my own judgement and did not notice I was doing it.** Raised by `scope-auditor`. Put to him with the pattern stated: every extra round fixed real defects and introduced a new false statement the next round found.
-+      CPO ANSWER (2026-08-01): **"yes and yes"** to round 4, later **"finish 370"**. ⚠ MECHANISM GAP, and it is why this happened: the cap is enforced by the COMMIT gate reading a `rounds:` number the builder types, after the fact. Nothing checks it while rounds run, so continuing costs nothing and is invisible.
-+  - (⭐ THE PROCESS RULING THIS TASK PRODUCED, 2026-08-01) Twelve review rounds for a ~300-line change. The code was correct from round 5; rounds 6-12 found nothing a visitor would see. The cause, measured: governance artifacts are inside `scope_paths` so reviewers read the review's own paperwork (839 lines of code inside a 38,932-line reviewed diff), three of those artifacts are inside `diff_sha256` so fixing a typo voids every PASS, and the briefs require two named risks to pass so on correct code a reviewer must invent. He also measured the org change's effect himself: **1.24 CPO rulings per branch before, 10.50 after**, against a stated goal of less interruption.
-+      CPO ANSWER (2026-08-01), four rulings: **(1)** reviewers stop seeing `.claude/task/**`; **(2)** fixing a note no longer restarts the review; **(3)** a reviewer may approve without inventing a finding — *"Of course, the reviewer needs to have the critical attitude but it's allowed to approve and not invent some finding"*; **(4)** strip the review history out of source comments, and in general **"if one comment doesn't pass the PR then you change it and only the new version stays. not the old and the new."**
-+      ⚠ He also ruled on the shape of the org itself, correcting me: **activation-on-necessity is right and low activation is not a defect.** A specialist that sleeps until its domain is touched is the cheapest thing in the system — `data-engineer-reviewer` fires on 1% of commits and caught 2 real bugs. 7 of 8 reviewers are wired and fire correctly; only `seo-expert-reviewer` has no routing row. **The org is not the problem and does not change.**
-+  - (banked — A CORRECTION REPLACES, IT DOES NOT ACCUMULATE) The single generator of this task's cost. Every round I appended "this said X until round N, which was wrong, now Y", keeping both versions — in code comments, the contract, and the evidence files. That text was itself inside the reviewed diff, so reviewers found defects in it, and each correction added a layer for the next round. Measured: 134 of 220 added lines in `strings.ts` were comment and almost none explained the code. **Write the current truth. Never write the history of what it used to say, who caught it, or in which round. Git holds history.**
-+  - (banked) **Never write a running count into a document still being edited** — rulings so far, rounds so far, instances of a defect. It goes stale the moment anything else happens, and correcting it writes the next wrong number. Four consecutive reviews failed on exactly that. A moving set of items lives in ONE place, a GitHub issue, with file:line references and no total.
-+  - (banked) **Revising copy is not one edit.** It is the string, every other place the same metric is named on that page, and every artifact that quotes it. FOUR strings name one metric on the deserved-vs-actual block and nothing binds them, so each round found the same defect one string further along.
-+  - (banked — A MECHANISM GAP, no owner assigned) **`validateSpec` checks that DECLARED i18n keys resolve, and never that RENDERED keys are declared.** `site_v2/scripts/check-page-specs.mjs` iterates `block.i18n_keys` and nothing walks the components, so a spec omitting a key its page renders is invisible to the build. Found by eye five times, one per round. Closing it is a new mechanism and the CTO's to authorise.
-+  - (banked — A MECHANISM GAP, no owner assigned) `scripts/report_process_health.py`'s entry-header regex captures the branch as a bare `/` for a `DATE / DATE` header, which splits one entry into a phantom branch and halves the per-branch figure the report exists to show. Advisory only; no gate reads it. And `.claude/task/escalations.log` is in `hash_exclude_paths`, so this durable record sits outside `diff_sha256` and can be rewritten after every reviewer has passed with no gate noticing — whether to bind it is a mechanism question.
- 2026-08-01 fix/868-review-scope — FOUR CPO RULINGS on the review machinery itself. Recorded here because `contract.md` does not survive the next task and all three round-1 reviewers caught their absence. Blast radius: every future commit in this repo.
-   - (why) #370 took TWELVE review rounds for a ~300-line change. The code was correct from round 5; rounds 6-12 found nothing a visitor to the site would see. Three mechanisms compounded: governance artifacts sat inside `scope_paths`, so reviewers read the paperwork the review itself produces (measured: 839 lines of code inside a 38,932-line reviewed diff); two evidence artifacts sat inside `diff_sha256`, so correcting a typo voided every PASS already given; and every brief required two named risks for a PASS, so on correct code a reviewer was OBLIGED to find something, and what it found was prose. He directed the measurement and I ran it, on the instrument built for exactly this claim (`scripts/report_process_health.py`): **1.24 CPO rulings per branch before the 2026-07-31 org change, 10.50 after**, against his stated goal of less interruption.
-       CPO ANSWER (2026-08-01), shown the defect in plain language and asked change by change:
-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 90dec39..7bb665d 100644
---- a/docs/wireframes/metrics_display.md
-+++ b/docs/wireframes/metrics_display.md
-@@ -127,6 +127,62 @@ Set pieces → Goalkeeping.
- 
- Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
- 
-+### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
-+
-+**The Display label column above is still the locked ENGLISH contract and is unchanged.** What moved
-+is where the string is stored. Until #370 the English label was hard-coded in
-+`site_v2/src/lib/metricRows.ts`, three more were hard-coded as `heroSot*` chrome strings, and the
-+German and Finnish pages showed English because the catalogue's i18n keys resolved to nothing.
-+
-+Now every metric name lives once per locale in `METRIC_LABELS_{EN,DE,FI}` in
-+`site_v2/src/i18n/strings.ts`, keyed by the catalogue's own `label_i18n_key`, and is rendered with
-+`metricLabel(lang, row.labelKey)`. `metricRows.ts` keeps the order, group, tier, format and direction
-+contract from this document and holds no metric NAME. One string does remain there: row 10's
-+`sublabel`, `tackles + interceptions + blocks`, which is this table's own row-10 parenthetical. It is a
-+caption rather than a name, it is still English in all three locales, and that is recorded in #370's
-+`acceptance_evidence.md` residuals and in a comment beside the row itself. (This sentence said "in the
-+task contract"; `contract.md` never mentioned `sublabel` at all. `scope-auditor` caught it.) Division
-+of ownership:
-+`dbt_project/seeds/metric_catalogue.csv` owns a metric's identity, direction and format; this document
-+owns its order, grouping and tier; the i18n layer owns its display string per locale.
-+
-+⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
-+id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
-+`shots_on_goal_per_match` — the internal id says "on goal", the user-facing term is "on target". The
-+catalogue reconciles them in its `label_i18n_key` column, which for that row is
-+`metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during #370: the key was
-+read as a metric id, judged dangling, and replaced with one the catalogue declares nowhere. **Resolve
-+a label by reading the `label_i18n_key` column; never infer it from an id or a payload field.**
-+
-+Row 7's "relabeled" note is also load-bearing: this document rules that v2 ships
-+`% Goals per shot on target`, while the retired MVP corpus (`site/i18n/*.json`) says
-+`% Conversion rate`. #370 kept this document's version and left the divergence for the CPO.
-+
-+**German and Finnish are CPO-approved** (2026-07-31); ten are carried forward from the validated MVP
-+corpus and are test-pinned to it so they cannot drift.
-+
-+**Long compounds in those locales do not fit the layouts this document assumes, and the fix is part of
-+the display contract.** `Ø Torschussdifferenz` needs 89.1px; the hero tile label box was 71px and the
-+Performance row's is 77px, both measured at 375px.
-+
-+- `system.css` gives both `overflow-wrap: anywhere`, which stops the clipping (worst case was +53.3px).
-+- That alone was NOT enough: it breaks a compound at an arbitrary letter with no hyphen, and it
-+  rendered `Ø` / `Torschussdiffe` / `renz` plus all three Finnish hero tiles the same way. `hyphens:
-+  auto` is inert — the rendering engine carries no de/fi dictionary.
-+- **The three hero tiles therefore STACK on phones** (CPO-approved 2026-08-01, shown the rendered line
-+  breaks), name left and value right. The tile becomes 301px wide and the label can take ~231px of it
-+  (the rest is the value and the gap), against the 89.1px the longest German name needs — measured, not
-+  assumed, after an earlier version of this line said "the full width" and meant the tile's.
-+  0 mid-word breaks in all three
-+  locales, at a cost of 53px of block height. ⚠ He ruled "on phones"; **the 560px threshold is the
-+  builder's**, picked because it collides with no existing breakpoint. Disclosed here because this is
-+  the document a cold reader takes the display contract from.
-+- **The Performance rows still break mid-word** — 3 in German, 9 in Finnish — because widening that
-+  column costs the comparison bar 115px → 80px. Open as **#876**; this document's row order and
-+  grouping are unaffected either way.
-+
-+Any locale that compounds (Dutch is next) inherits all of this.
-+
- **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
- comparison): `shot_accuracy` (% shots on target — superseded by the Ø-shots vs
- Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /
-diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
-index 714f522..545bcad 100644
---- a/scripts/check_copy_gate.py
-+++ b/scripts/check_copy_gate.py
-@@ -54,6 +54,9 @@ LOCALES = ("en", "de", "fi")
- # page alone needs about two dozen labels, so anything under this means the regex
- # broke rather than the copy shrank.
- MIN_KEYS = 20
-+# Floor for the metric-label maps (#370). 18 metrics get a name today; 15 leaves room for a row to be
-+# retired without a false alarm, while still tripping if the quoted-dotted-key regex breaks.
-+MIN_METRIC_KEYS = 15
- 
- # Terms the validated corpus settles. term -> (wrong, right, why)
- # Only entries evidenced by the corpus or by a recorded CPO correction belong here.
-@@ -68,6 +71,16 @@ TERMINOLOGY = {
- _DICT_RE = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.S | re.M)
- _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
- 
-+# #370 added a SECOND string class this gate has to see: metric display names, in their own
-+# `METRIC_LABELS_<LOC>` maps keyed by the catalogue's `label_i18n_key`. Their keys are QUOTED and
-+# DOTTED, which `_ENTRY_RE` above cannot match by design — it requires a bare identifier. So without
-+# this second parser the 54 metric labels would be invisible here and would skip the em dash,
-+# completeness and terminology checks entirely: 54 user-visible strings past the gate that exists to
-+# catch exactly those defects.
-+_METRIC_DICT_RE = re.compile(
-+    r"^const\s+METRIC_LABELS_([A-Z]{2}):\s*MetricLabels\s*=\s*\{(.*?)^\};", re.S | re.M)
-+_METRIC_ENTRY_RE = re.compile(r'^\s*"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"', re.M)
-+
- 
- def _dicts(text: str) -> dict[str, dict[str, str]]:
-     out: dict[str, dict[str, str]] = {}
-@@ -76,6 +89,13 @@ def _dicts(text: str) -> dict[str, dict[str, str]]:
-     return out
- 
- 
-+def _metric_labels(text: str) -> dict[str, dict[str, str]]:
-+    out: dict[str, dict[str, str]] = {}
-+    for m in _METRIC_DICT_RE.finditer(text):
-+        out[m.group(1).lower()] = dict(_METRIC_ENTRY_RE.findall(m.group(2)))
-+    return out
-+
-+
- def _corpus_leaves(obj) -> list[str]:
-     if isinstance(obj, dict):
-         return [s for v in obj.values() for s in _corpus_leaves(v)]
-@@ -112,6 +132,25 @@ def main() -> int:
-               "always passes. Check that every dictionary value is DOUBLE-quoted.")
-         return 1
- 
-+    # Metric labels (#370): same four checks, own parser, own floor. Merged into `dicts` because a
-+    # metric name is a user-visible string like any other — an em dash in one is still an em dash, a
-+    # locale missing one is still a hole. Keys cannot collide: chrome keys are bare identifiers,
-+    # metric keys are dotted and quoted.
-+    metrics = _metric_labels(text)
-+    missing_metric_locales = [loc for loc in LOCALES if loc not in metrics]
-+    if missing_metric_locales:
-+        print(f"FAIL: strings.ts has no METRIC_LABELS block for {missing_metric_locales}")
-+        return 1
-+    thin_metrics = {loc: len(metrics[loc]) for loc in LOCALES if len(metrics[loc]) < MIN_METRIC_KEYS}
-+    if thin_metrics:
-+        print(f"FAIL: extracted too few metric labels {thin_metrics} (floor {MIN_METRIC_KEYS} per "
-+              "locale). The METRIC_LABELS entry regex has stopped matching, which would let every "
-+              "metric name skip this gate.")
-+        return 1
-+    metric_count = sum(len(metrics[loc]) for loc in LOCALES)
-+    for loc in LOCALES:
-+        dicts[loc].update(metrics[loc])
-+
-     # 1. em dashes in shipped copy
-     for loc in LOCALES:
-         for key, val in dicts[loc].items():
-@@ -182,7 +221,8 @@ def main() -> int:
-         return 1
- 
-     total = sum(len(dicts[loc]) for loc in LOCALES)
--    print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales, "
-+    print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales "
-+          f"({total - metric_count} chrome + {metric_count} metric labels), "
-           f"{sum(len(v) for v in corpus.values())} corpus strings consulted")
-     return 0
- 
-diff --git a/site_v2/scripts/check-metric-labels.test.mjs b/site_v2/scripts/check-metric-labels.test.mjs
+ select
+@@ -96,6 +114,8 @@ select
+     a.league_sk,
+     a.league_code,
+     a.season_api_year,
++    reg.competition_type,
++    ct.entity_type,
+     -- identity + descriptors (not catalogue metrics)
+     p.player_name,
+     p.player_first_name,
+@@ -178,7 +198,21 @@ select
+     -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
+     c.scorer_points,
+     c.team_goals_season,
+-    c.contribution_share
++    c.contribution_share,
++    -- The season this player's page opens on (#846). Exactly one row per player is true: the most
++    -- recent CLUB season, preferring a domestic league over a cup, and falling back to the most
++    -- recent season of any kind for a player with no club football at all. Scoped to club because
++    -- #848 made the three main tabs club-only; on pure recency a player who has just played a
++    -- tournament opens on it, which is why M. Rogers opened on World Cup 2026 with England rather
++    -- than the Premier League with Aston Villa. Last in the list because ST06 puts calculations
++    -- after simple targets.
++    row_number() over (
++        partition by a.player_sk
++        order by
++            case when ct.entity_type = 'club' then 0 else 1 end asc,
++            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
++            a.season_api_year desc
++    ) = 1 as is_featured_season
+ from season as a
+ left join players as p
+     on a.player_sk = p.player_sk
+@@ -204,3 +238,7 @@ left join contribution as c
+         a.player_sk = c.player_sk
+         and ta.team_sk = c.team_sk
+         and a.season_sk = c.season_sk
++left join registry as reg
++    on a.league_code = reg.league_code
++left join types as ct
++    on reg.competition_type = ct.competition_type
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index e6d0251..58e0207 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -194,7 +194,18 @@ select
+     -- and, for the split formats, the season points total sums two separate tournaments.
+     d.deserved_points,
+     d.deserved_rank,
+-    d.sot_points_gap
++    d.sot_points_gap,
++    -- The season this team's page opens on (#846). Exactly one row per team is true: the most
++    -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
++    -- with no league season. Ruled a warehouse fact (CPO 2026-08-02), so the export and the page
++    -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
++    -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
++    row_number() over (
++        partition by m.team_sk
++        order by
++            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
++            m.season_api_year desc
++    ) = 1 as is_featured_season
+ from metrics as m
+ left join team_season as ts
+     on m.team_season_sk = ts.team_season_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 2e81e78..c0ab912 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -290,6 +290,12 @@ models:
+           expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
+           name: team_profile_finishing_efficiency_in_range
+     columns:
++      # #846: the season this team's page opens on — the most recent domestic-league season,
++      # falling back to the most recent of any type. Exactly one row per team is true, asserted
++      # across BOTH profile marts in tests/assert_one_featured_season_per_entity.sql: it is one
++      # rule, and one failure surface is what keeps the two from drifting apart again.
++      - name: is_featured_season
++        tests: [not_null]
+       - name: team_sk
+         tests:
+           - not_null
+@@ -634,6 +640,33 @@ models:
+           expression: "saves <= shots_on_goal_against"
+           name: player_profile_saves_lte_faced
+     columns:
++      # #846: the season this player's page opens on — the most recent CLUB season, preferring a
++      # domestic league, falling back to the most recent of any kind for a player with no club
++      # football. Scoped to club because #848 made Overview, Performance and Career club-only.
++      # Exactly one row per player is true (tests/assert_one_featured_season_per_entity.sql).
++      - name: is_featured_season
++        tests: [not_null]
++      - name: competition_type
++        description: >
++          The competition's type from the registry (domestic_league, domestic_cup,
++          continental_club, world_championship, …). Carried so the featured-season rule can prefer
++          a league over a cup within club football, and so a consumer can tell the two apart
++          without re-joining the registry.
++      - name: entity_type
++        description: >
++          club or national, from the competition_types seed — what scopes the featured season to
++          club football (#846/#848). NULL is reachable two ways, not one: a league_code absent from
++          the registry, and a league_code PRESENT in the registry with a blank competition_type.
++          The second is silent — sync_dbt_vars.py writes a seed row only `if code and ctype`, and
++          both check_competition_type_seed.py and check_registry_var_sync.py skip such an entry on
++          the same condition, so registry and seed agree by both being empty (#883). All 45
++          registry entries carry a competition_type today. not_null is here because a NULL would
++          not break the page: the featured-season CASE simply treats it as non-club, so the entity
++          would quietly open on the wrong season instead of failing.
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["club", "national"]
+       - name: player_season_sk
+         tests: [unique, not_null]
+       - name: player_sk
+diff --git a/dbt_project/tests/assert_one_featured_season_per_entity.sql b/dbt_project/tests/assert_one_featured_season_per_entity.sql
 new file mode 100644
-index 0000000..955e46f
+index 0000000..48a4b01
 --- /dev/null
-+++ b/site_v2/scripts/check-metric-labels.test.mjs
-@@ -0,0 +1,135 @@
-+// Metric labels resolve from the catalogue, per locale (#370).
-+//
-+// Runs in `npm test`, which `prebuild` runs, so this gates the BUILD and not only CI. Each test below
-+// is one of the acceptance criteria the CPO locked on 2026-07-31.
-+//
-+// Parses the TypeScript as TEXT rather than importing it, which is the house pattern here:
-+// `check-page-specs.mjs` extracts the EN key set from `strings.ts` the same way, because `node --test`
-+// cannot import `.ts` and adding a transpile step for four assertions would not earn its cost.
++++ b/dbt_project/tests/assert_one_featured_season_per_entity.sql
+@@ -0,0 +1,52 @@
++{#
++  #846 acceptance criterion 4: "If the rule ever breaks, a test catches it before a reader does.
++  Every team and every player has exactly one opening season, never none and never two."
 +
-+import { test } from "node:test";
-+import assert from "node:assert/strict";
-+import { readFileSync } from "node:fs";
-+import { fileURLToPath } from "node:url";
-+import { dirname, join } from "node:path";
++  `is_featured_season` marks the season an entity's page opens on. It is a row_number() = 1 over a
++  partition, so it cannot produce two by construction — but it CAN produce none if the ordering
++  expression ever sees only NULLs it cannot rank, or if a join drops the column's inputs. Both
++  halves are asserted here because the criterion names both, and because a zero-featured entity is
++  the silent failure: the page would fall back to nothing rather than to the wrong season.
 +
-+const HERE = dirname(fileURLToPath(import.meta.url));
-+const SITE = join(HERE, "..");
-+const REPO = join(SITE, "..");
++  Covers both marts in one test: the rule is one rule, so a single failure surface keeps them from
++  drifting apart, which is the whole point of #846.
++#}
 +
-+const strings = readFileSync(join(SITE, "src/i18n/strings.ts"), "utf8");
-+const rowsSrc = readFileSync(join(SITE, "src/lib/metricRows.ts"), "utf8");
-+const LOCALES = ["EN", "DE", "FI"];
++with team_counts as (
++    select
++        'team' as entity_kind,
++        cast(team_sk as string) as entity_id,
++        countif(is_featured_season) as featured_seasons
++    from {{ ref('mart_team_profile') }}
++    group by team_sk
++),
 +
-+/** The `metrics.*.label` keys inside one METRIC_LABELS_<loc> block. */
-+function labelBlock(loc) {
-+  const m = strings.match(
-+    new RegExp(`const METRIC_LABELS_${loc}: MetricLabels = \\{([\\s\\S]*?)\\n\\};`));
-+  assert.ok(m, `METRIC_LABELS_${loc} not found in strings.ts`);
-+  const out = new Map();
-+  for (const [, key, val] of m[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"/g)) {
-+    out.set(key, val);
-+  }
-+  return out;
-+}
++player_counts as (
++    select
++        'player' as entity_kind,
++        cast(player_sk as string) as entity_id,
++        countif(is_featured_season) as featured_seasons
++    from {{ ref('mart_player_profile') }}
++    group by player_sk
++),
 +
-+const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
-+const rowKeys = [...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]);
-+const heroKeys = [...readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8")
-+  .matchAll(/metricLabel\(lang,\s*"(metrics\.[A-Za-z0-9_]+\.label)"\)/g)].map((m) => m[1]);
++combined as (
++    select
++        entity_kind,
++        entity_id,
++        featured_seasons
++    from team_counts
++    union all
++    select
++        entity_kind,
++        entity_id,
++        featured_seasons
++    from player_counts
++)
 +
-+test("every metric name the page asks for resolves in all three locales", () => {
-+  const asked = [...new Set([...rowKeys, ...heroKeys])];
-+  assert.ok(asked.length >= 18, `expected >=18 metric names in use, found ${asked.length}`);
-+  for (const loc of LOCALES) {
-+    const missing = asked.filter((k) => !labels[loc].get(k));
-+    assert.deepEqual(missing, [],
-+      `${loc} has no label for: ${missing.join(", ")}. t()'s sibling metricLabel() falls back to ` +
-+      `English, so a gap here silently ships English to a ${loc} reader.`);
-+  }
-+});
++select
++    entity_kind,
++    entity_id,
++    featured_seasons
++from combined
++where featured_seasons != 1
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 99f03f5..635ce72 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -124,9 +124,26 @@ def _bigquery_rows_to_dicts(rows) -> list[dict]:
+     return [dict(row.items()) for row in rows]
+ 
+ 
+-def _latest_season_row(rows: list[dict]) -> dict:
+-    """The row with the greatest season_api_year (identity comes from it)."""
+-    return max(rows, key=lambda r: (r.get("season_api_year") or 0))
++def _featured_season_row(rows: list[dict]) -> dict:
++    """The row the entity's page opens on, and the row its top-level identity comes from.
 +
-+test("no locale carries a label nothing renders, and none is empty", () => {
-+  const asked = new Set([...rowKeys, ...heroKeys]);
-+  for (const loc of LOCALES) {
-+    for (const [key, val] of labels[loc]) {
-+      assert.ok(asked.has(key), `${loc}.${key} is defined but no component asks for it`);
-+      assert.ok(val.trim().length > 0, `${loc}.${key} is empty, which renders a blank label`);
-+    }
-+  }
-+});
++    SELECTION of a served flag, never a decision. `is_featured_season` is computed in
++    mart_team_profile / mart_player_profile (#846), because picking here was window selection in
++    the consumption layer (layering.md) and because the same rule was written three times and had
++    already drifted. It picked on recency alone, which is wrong for a player: their most recent
++    football is genuinely the summer tournament, so a player who has just played one took their
++    top-level position from that squad rather than from their club.
 +
-+test("every labelKey is a label_i18n_key the catalogue actually declares", () => {
-+  // Checks the `label_i18n_key` COLUMN, verbatim. The first version of this test stripped
-+  // ⚠ Read the `label_i18n_key` COLUMN. Do not strip `metrics.`/`.label` and look the remainder up in
-+  // `metric_id` — that is a different and wrong invariant. metric_id `shots_on_goal_per_match` declares
-+  // label_i18n_key `metrics.shots_on_target_per_match.label` (internal id "on goal", user-facing term
-+  // "on target"), so an id-based check calls the real key dangling and an invented one valid.
-+  const csv = readFileSync(join(REPO, "dbt_project/seeds/metric_catalogue.csv"), "utf8");
-+  const lines = csv.split(/\r?\n/);
-+  const header = lines[0].split(",");
-+  const col = header.indexOf("label_i18n_key");
-+  assert.ok(col > 0, "metric_catalogue.csv has no label_i18n_key column");
-+  const declared = new Set(
-+    lines.slice(1).map((l) => l.split(",")[col]).filter(Boolean));
-+  assert.ok(declared.size >= 50,
-+    `parsed only ${declared.size} label_i18n_key values — the CSV column split broke, and a set that ` +
-+    `small would make every key look undeclared`);
-+  const asked = [...new Set([...rowKeys, ...heroKeys])];
-+  const bad = asked.filter((k) => !declared.has(k));
-+  assert.deepEqual(bad, [],
-+    `label keys the catalogue does not declare in label_i18n_key: ${bad.join(", ")}. ` +
-+    `Read the column; never infer the key from the metric_id or the payload field.`);
-+});
-+
-+test("the CPO-validated MVP labels are byte-identical to site/i18n", () => {
-+  const corpus = Object.fromEntries(["en", "de", "fi"].map((l) => [
-+    l.toUpperCase(),
-+    JSON.parse(readFileSync(join(REPO, `site/i18n/${l}.json`), "utf8")).metrics ?? {},
-+  ]));
-+  let compared = 0;
-+  const drift = [];
-+  for (const loc of LOCALES) {
-+    for (const [key, val] of labels[loc]) {
-+      const id = key.replace(/^metrics\./, "").replace(/\.label$/, "");
-+      const validated = corpus[loc][id]?.label;
-+      if (!validated) continue;
-+      // EN diverges for finishing_efficiency by design: v2's locked label is kept and the corpus's
-+      // "% Conversion rate" is a §10 pick reserved to the CPO. Recorded in the task contract.
-+      if (loc === "EN" && id === "finishing_efficiency") continue;
-+      compared += 1;
-+      if (val !== validated) drift.push(`${loc}.${id}: "${val}" != validated "${validated}"`);
-+    }
-+  }
-+  assert.ok(compared >= 27, `expected >=27 validated labels to compare, compared ${compared}`);
-+  assert.deepEqual(drift, [], `CPO-validated wording changed:\n  ${drift.join("\n  ")}`);
-+});
-+
-+test("the three hand-written hero label strings are gone", () => {
-+  for (const key of ["heroSotFor", "heroSotAgainst", "heroSotDiff"]) {
-+    assert.ok(!new RegExp(`^\\s+${key}:`, "m").test(strings),
-+      `${key} is still a chrome string; it is a metric name and belongs in METRIC_LABELS`);
-+  }
-+});
-+
-+test("the page-spec checker's parser and this one see the SAME metric keys", async () => {
-+  // The `"metrics.X.label"` shape is now parsed by THREE hand-written regexes: this file's
-+  // `labelBlock`, `check-page-specs.mjs`'s inline one inside `collectEnI18nKeys`, and
-+  // `scripts/check_copy_gate.py`'s `_METRIC_ENTRY_RE`. An edit to one (a hyphen in a metric id, a
-+  // different quote style) can silently diverge from the others. This pins the two JS parsers to each
-+  // other; the Python one is pinned to the same anchor in tests/test_governance_hooks.py.
-+  const { collectEnI18nKeys } = await import("./check-page-specs.mjs");
-+  const { keys, error } = collectEnI18nKeys();
-+  assert.equal(error, null);
-+  const theirs = new Set([...keys].filter((k) => /^metrics\./.test(k)));
-+  const mine = new Set(labels.EN.keys());
-+  assert.deepEqual([...theirs].sort(), [...mine].sort(),
-+    "the two metric-key parsers disagree; one of the regexes has drifted");
-+});
-+
-+test("metricRows.ts no longer carries an English label", () => {
-+  assert.ok(!/^\s*label:/m.test(rowsSrc),
-+    "metricRows.ts still declares `label:` — a metric name must live in one place only");
-+  assert.ok(!/\blabel:\s*"/.test(rowsSrc),
-+    "metricRows.ts still has an inline label string");
-+});
-diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
-index df1b34c..314cc6e 100644
---- a/site_v2/scripts/check-page-specs.mjs
-+++ b/site_v2/scripts/check-page-specs.mjs
-@@ -128,6 +128,27 @@ export function collectEnI18nKeys() {
-       error: `extracted only ${keys.size} EN keys from ${rel(STRINGS_FILE)} (expected >= ${MIN_EXPECTED_KEYS}) -- the EN-block extraction regex likely broke on a strings.ts reformat, not that the file actually shrank`,
-     };
-   }
-+  // SECOND KEY CLASS (#370). A metric's display name is no longer a chrome string; it lives in
-+  // METRIC_LABELS_EN keyed by the catalogue's own `label_i18n_key`. A spec must still be able to
-+  // DECLARE that a block renders one, so those keys are collected too and validated the same way.
-+  // Without this, deleting the three hand-written `heroSot*` chrome strings makes `team.spec.json`'s
-+  // declaration unresolvable -- which is exactly how this gate caught the change.
-+  const mm = src.match(/\nconst METRIC_LABELS_EN: MetricLabels = \{([\s\S]*?)\n\};/);
-+  if (!mm) {
-+    return { keys: null, error: `could not locate "const METRIC_LABELS_EN: MetricLabels = {...};" block in ${rel(STRINGS_FILE)}` };
-+  }
-+  const metricKeys = new Set();
-+  for (const k of mm[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"/g)) metricKeys.add(k[1]);
-+  // Its own floor, for the same reason as the one above: a quoted-dotted-key reformat must fail
-+  // loudly rather than make every declared metric label look missing.
-+  const MIN_EXPECTED_METRIC_KEYS = 15;
-+  if (metricKeys.size < MIN_EXPECTED_METRIC_KEYS) {
-+    return {
-+      keys: null,
-+      error: `extracted only ${metricKeys.size} metric label keys from ${rel(STRINGS_FILE)} (expected >= ${MIN_EXPECTED_METRIC_KEYS}) -- the METRIC_LABELS_EN extraction regex likely broke, not that the labels vanished`,
-+    };
-+  }
-+  for (const k of metricKeys) keys.add(k);
-   return { keys, error: null };
++    Raises rather than falling back. A fallback to recency is the exact defect this removes, and a
++    missing flag is a data gap to fix in the mart -- never to bridge here.
++    """
++    featured = [r for r in rows if r.get("is_featured_season")]
++    if len(featured) != 1:
++        raise ValueError(
++            f"expected exactly 1 row with is_featured_season, found {len(featured)}. "
++            "The warehouse decides the opening season (#846); the export must not choose one."
++        )
++    return featured[0]
+ 
+ 
+ # Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
+@@ -224,8 +241,8 @@ def shape_team_payload(
+         roster below (GAP-22).
+     benchmark_rows: that team's mart_team_competition_benchmarks rows (rank-vs-league per season; GAP-23).
+     """
+-    latest = _latest_season_row(profile_rows)
+-    team_id = int(latest["team_sk"])
++    featured = _featured_season_row(profile_rows)
++    team_id = int(featured["team_sk"])
+     seasons = sorted(
+         profile_rows,
+         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
+@@ -303,12 +320,12 @@ def shape_team_payload(
+         # Served, not computed: mart_team_profile carries team_slug, derived in the warehouse
+         # from the corrected name (#852). A slug built here would be identity generation in the
+         # consumption layer, and would reintroduce the provider id the CPO ruled out.
+-        "slug": latest.get("team_slug"),
+-        "name": latest.get("team_name"),
+-        "country": latest.get("team_country"),
+-        "crest": latest.get("team_logo_url"),
+-        "founded_year": latest.get("team_founded_year"),
+-        "venue": _venue_block(latest),
++        "slug": featured.get("team_slug"),
++        "name": featured.get("team_name"),
++        "country": featured.get("team_country"),
++        "crest": featured.get("team_logo_url"),
++        "founded_year": featured.get("team_founded_year"),
++        "venue": _venue_block(featured),
+         "seasons": seasons_out,
+     }
+ 
+@@ -424,8 +441,8 @@ def shape_player_payload(
+     career_rows: list[dict] | None = None,
+ ) -> dict:
+     """One player's profile rows + match-log rows (+ benchmark rows + career rows) -> the player page payload."""
+-    latest = _latest_season_row(profile_rows)
+-    player_id = int(latest["player_sk"])
++    featured = _featured_season_row(profile_rows)
++    player_id = int(featured["player_sk"])
+     seasons = sorted(
+         profile_rows,
+         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
+@@ -486,12 +503,14 @@ def shape_player_payload(
+     return {
+         "type": "player",
+         "player_id": player_id,
+-        "slug": player_slug_with_id(latest.get("player_name"), player_id),
+-        "name": latest.get("player_name"),
+-        "nationality": latest.get("player_nationality"),
+-        "birth_date": latest.get("player_birth_date"),
+-        "photo": latest.get("player_photo_url"),
+-        "position": latest.get("position_code"),
++        "slug": player_slug_with_id(featured.get("player_name"), player_id),
++        "name": featured.get("player_name"),
++        "nationality": featured.get("player_nationality"),
++        "birth_date": featured.get("player_birth_date"),
++        "photo": featured.get("player_photo_url"),
++        # From the FEATURED season, not the most recent one: modal position is per season, so a
++        # player fresh off a tournament was showing the position they played for their country.
++        "position": featured.get("position_code"),
+         "current_team": current_team,
+         "seasons": seasons_out,
+         "match_log": matches,
+diff --git a/site_v2/src/data/teams/33.json b/site_v2/src/data/teams/33.json
+index fa07d71..798bfea 100644
+--- a/site_v2/src/data/teams/33.json
++++ b/site_v2/src/data/teams/33.json
+@@ -19,6 +19,7 @@
+       "league_code": "PL",
+       "season_api_year": 2025,
+       "competition_type": "domestic_league",
++      "is_featured_season": true,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 20,
+@@ -1060,6 +1061,7 @@
+       "league_code": "FAC",
+       "season_api_year": 2025,
+       "competition_type": "domestic_cup",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 1,
+       "wins": 0,
+@@ -1185,6 +1187,7 @@
+       "league_code": "UEL",
+       "season_api_year": 2024,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 15,
+       "wins": 9,
+@@ -2500,6 +2503,7 @@
+       "league_code": "PL",
+       "season_api_year": 2024,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 11,
+@@ -3927,6 +3931,7 @@
+       "league_code": "FAC",
+       "season_api_year": 2024,
+       "competition_type": "domestic_cup",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 3,
+       "wins": 1,
+@@ -4285,6 +4290,7 @@
+       "league_code": "UCL",
+       "season_api_year": 2023,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 6,
+       "wins": 1,
+@@ -5576,6 +5582,7 @@
+       "league_code": "PL",
+       "season_api_year": 2023,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 18,
+@@ -6989,6 +6996,7 @@
+       "league_code": "FAC",
+       "season_api_year": 2023,
+       "competition_type": "domestic_cup",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 6,
+       "wins": 5,
+@@ -7379,6 +7387,7 @@
+       "league_code": "UEL",
+       "season_api_year": 2022,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 12,
+       "wins": 8,
+@@ -8658,6 +8667,7 @@
+       "league_code": "PL",
+       "season_api_year": 2022,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 23,
+@@ -10059,6 +10069,7 @@
+       "league_code": "FAC",
+       "season_api_year": 2022,
+       "competition_type": "domestic_cup",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 6,
+       "wins": 4,
+@@ -10449,6 +10460,7 @@
+       "league_code": "UCL",
+       "season_api_year": 2021,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 8,
+       "wins": 3,
+@@ -11512,6 +11524,7 @@
+       "league_code": "PL",
+       "season_api_year": 2021,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 16,
+@@ -12697,6 +12710,7 @@
+       "league_code": "FAC",
+       "season_api_year": 2021,
+       "competition_type": "domestic_cup",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 2,
+       "wins": 1,
+@@ -12833,6 +12847,7 @@
+       "league_code": "UEL",
+       "season_api_year": 2020,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 9,
+       "wins": 5,
+@@ -13728,6 +13743,7 @@
+       "league_code": "UCL",
+       "season_api_year": 2020,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 6,
+       "wins": 3,
+@@ -14623,6 +14639,7 @@
+       "league_code": "PL",
+       "season_api_year": 2020,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 21,
+@@ -15640,6 +15657,7 @@
+       "league_code": "UEL",
+       "season_api_year": 2019,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 12,
+       "wins": 8,
+@@ -16619,6 +16637,7 @@
+       "league_code": "PL",
+       "season_api_year": 2019,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 18,
+@@ -17720,6 +17739,7 @@
+       "league_code": "UCL",
+       "season_api_year": 2018,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 10,
+       "wins": 4,
+@@ -18567,6 +18587,7 @@
+       "league_code": "PL",
+       "season_api_year": 2018,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 19,
+@@ -19536,6 +19557,7 @@
+       "league_code": "UCL",
+       "season_api_year": 2017,
+       "competition_type": "continental_club",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 8,
+       "wins": 5,
+@@ -20197,6 +20219,7 @@
+       "league_code": "PL",
+       "season_api_year": 2017,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 25,
+@@ -21130,6 +21153,7 @@
+       "league_code": "PL",
+       "season_api_year": 2016,
+       "competition_type": "domestic_league",
++      "is_featured_season": false,
+       "team_code": "MUN",
+       "played": 38,
+       "wins": 18,
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 46397a2..897503b 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -183,6 +183,13 @@ export interface TeamSeason {
+   league_code: string;
+   season_api_year: number;
+   competition_type?: string | null;
++  /**
++   * The season this team's page opens on, decided in the warehouse (#846) and served here.
++   * Exactly one season per team carries `true`, asserted by a dbt test. Not optional: a page
++   * that has to cope with the flag being absent would need a fallback, and the fallback is the
++   * defect this replaced.
++   */
++  is_featured_season: boolean;
+   // record / rank / form
+   latest_rank?: number | null;
+   points?: number | null;
+diff --git a/site_v2/src/pages/[lang]/teams/[team].astro b/site_v2/src/pages/[lang]/teams/[team].astro
+index c51fe44..553e065 100644
+--- a/site_v2/src/pages/[lang]/teams/[team].astro
++++ b/site_v2/src/pages/[lang]/teams/[team].astro
+@@ -46,14 +46,14 @@ interface Props {
  }
+ const { team, lang } = Astro.props;
  
-diff --git a/site_v2/scripts/check-page-specs.test.mjs b/site_v2/scripts/check-page-specs.test.mjs
-index 8017bf1..1ce5adb 100644
---- a/site_v2/scripts/check-page-specs.test.mjs
-+++ b/site_v2/scripts/check-page-specs.test.mjs
-@@ -156,6 +156,25 @@ test("real EN dict extraction stays above the self-check floor (guards against a
-   assert.ok(keys.size >= 50);
- });
+-// Featured season = the team's most-recent domestic-league season (seasons[] is served
+-// sorted year-desc), else the most-recent season. This is the codebase's own default-
+-// season convention (mirrors `_latest_season_row` in the export and `pickDefaultSeason`
+-// on the preserved branch) and matches how the mock frames a team page — its current
+-// standing. Pure SELECTION of a served row — no derivation. At scale the season selector
+-// (#362) lets a reader reach earlier seasons.
+-const season: TeamSeason =
+-  team.seasons.find((s) => s.competition_type === "domestic_league") ?? team.seasons[0];
++// The season this page opens on is decided in the warehouse and served on the row (#846).
++// This is a lookup of a flag, not a choice: the rule used to be written here, again on the
++// player page in different code, and a third time in the export, and the three had already
++// drifted. Exactly one season carries the flag, asserted by a dbt test, so the `!` is the
++// contract rather than an assumption.
++// Reaching a season OTHER than this one is #882 and does not exist yet: there is no season
++// segment in the URL and no selector, so today this is the only season a reader can see.
++const season: TeamSeason = team.seasons.find((s) => s.is_featured_season)!;
  
-+test("collectEnI18nKeys also returns the metric label keys, not just chrome keys (#370)", () => {
-+  // The test above cannot cover this: the chrome dict alone clears its floor of 50, so it passes
-+  // whether the METRIC_LABELS_EN merge works or not. This asserts the metric keys are actually IN the
-+  // set validateSpec checks `i18n_keys` against, which is the only reason a spec may declare
-+  // `metrics.*.label` at all.
-+  const { keys, error } = collectEnI18nKeys();
-+  assert.equal(error, null);
-+  const metricKeys = [...keys].filter((k) => /^metrics\.[A-Za-z0-9_]+\.label$/.test(k));
-+  assert.ok(metricKeys.length >= 15,
-+    `only ${metricKeys.length} metric label keys reached the i18n key set (floor 15) — the ` +
-+    `METRIC_LABELS_EN extraction is broken, and every spec declaring one would look invalid`);
-+  // The key the catalogue really declares for shots_on_goal_per_match. Named explicitly because the
-+  // internal metric_id says "on_goal" while this display key says "on_target", and a round-1 defect
-+  // in this very task came from inferring the key from the id instead of reading the column.
-+  assert.ok(keys.has("metrics.shots_on_target_per_match.label"));
-+  // Chrome and metric keys must coexist, not replace one another.
-+  assert.ok(keys.has("secDeserved"));
-+});
+ const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
+ const compName = comp?.name ?? season.league_code;
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 9cdb7d6..29b730a 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -26,6 +26,21 @@ from scripts.export_site_data import (
+     shape_top_players,
+     player_slug_with_id,
+ )
++from scripts.export_site_data import _featured_season_row
 +
- test("real mart directory has at least the marts both committed specs reference", () => {
-   const marts = collectMartNames();
-   for (const name of ["mart_team_profile", "mart_team_fixtures", "mart_roster", "mart_head_to_head"]) {
-diff --git a/site_v2/src/components/fixture/MetricRow.astro b/site_v2/src/components/fixture/MetricRow.astro
-index 47b61f7..5f9e6b4 100644
---- a/site_v2/src/components/fixture/MetricRow.astro
-+++ b/site_v2/src/components/fixture/MetricRow.astro
-@@ -8,6 +8,7 @@ import { barWidth, betterSide } from "../../lib/bars";
- import { asNumber } from "../../lib/types";
- import type { WindowStats } from "../../lib/types";
- import type { MetricRowDef } from "../../lib/metricRows";
-+import { metricLabel } from "../../i18n/strings";
- 
- interface Props {
-   def: MetricRowDef;
-@@ -39,7 +40,7 @@ const aWidth = barWidth(av, hv);
- <div class="mrow">
-   <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
-   <div class="mmid">
--    <div class="mlabel">{def.label}{def.sublabel && <small>{def.sublabel}</small>}</div>
-+    <div class="mlabel">{metricLabel(lang, def.labelKey)}{def.sublabel && <small>{def.sublabel}</small>}</div>
-     <div class="mbar" aria-hidden="true">
-       <div class="bside home">
-         <span class:list={["fill", { better: better === "home" }]} style={`width:${hWidth}%`}></span>
-diff --git a/site_v2/src/components/team/DeservedHero.astro b/site_v2/src/components/team/DeservedHero.astro
-index d5749ed..d04609f 100644
---- a/site_v2/src/components/team/DeservedHero.astro
-+++ b/site_v2/src/components/team/DeservedHero.astro
-@@ -13,7 +13,7 @@
- // scatter.
- import { decimal1, integer, DASH } from "../../lib/format";
- import type { Lang } from "../../lib/format";
--import { t } from "../../i18n/strings";
-+import { t, metricLabel } from "../../i18n/strings";
- import type { TeamSeason } from "../../lib/types";
- 
- interface Props {
-@@ -37,9 +37,15 @@ const canPlot = dots.length >= 2 && self != null && s.deserved_points != null;
- 
- // three shots-on-target boxes (served rates)
- const nums = [
--  { label: t(lang, "heroSotFor"), value: decimal1(s.shots_on_goal_per_match, lang) },
--  { label: t(lang, "heroSotAgainst"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
--  { label: t(lang, "heroSotDiff"), value: signedDec1(s.sot_difference_per_match) },
-+  // #370: names read from the catalogue's own i18n keys, not from three hand-written `heroSot*`
-+  // strings. Each key is the metric whose value sits beside it, so the tile cannot drift from the
-+  // number it labels.
-+  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target" — internal id vs
-+  // user-facing term. Read it from the catalogue's `label_i18n_key` column; never infer it from the
-+  // payload field name.
-+  { label: metricLabel(lang, "metrics.shots_on_target_per_match.label"), value: decimal1(s.shots_on_goal_per_match, lang) },
-+  { label: metricLabel(lang, "metrics.shots_on_goal_against_per_match.label"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
-+  { label: metricLabel(lang, "metrics.sot_difference_per_match.label"), value: signedDec1(s.sot_difference_per_match) },
- ];
- 
- // verdict: which template (over / under / in line) is the display encoding of the
-diff --git a/site_v2/src/components/team/MetricLeagueRow.astro b/site_v2/src/components/team/MetricLeagueRow.astro
-index 56329bc..c01bb00 100644
---- a/site_v2/src/components/team/MetricLeagueRow.astro
-+++ b/site_v2/src/components/team/MetricLeagueRow.astro
-@@ -8,7 +8,7 @@
- import { formatValue, ordinal } from "../../lib/format";
- import type { Lang, SingleFormat } from "../../lib/format";
- import { displayRank, rankFill, beatsMedian } from "../../lib/bars";
--import { t } from "../../i18n/strings";
-+import { t, metricLabel } from "../../i18n/strings";
- import type { MetricRowDef } from "../../lib/metricRows";
- import type { Benchmark } from "../../lib/types";
- 
-@@ -33,7 +33,7 @@ const rankLabel =
- ---
- 
- <div class="vs-row">
--  <span class="vs-name">{row.label}{sub && <span class="sub">{sub}</span>}</span>
-+  <span class="vs-name">{metricLabel(lang, row.labelKey)}{sub && <span class="sub">{sub}</span>}</span>
-   <div class="vs-bar">
-     {dr != null && <div class:list={["vs-fill", { up: green }]} style={`width:${fill}%`}></div>}
-     <div class="vs-notch"></div>
-diff --git a/site_v2/src/components/team/MetricSeasonRow.astro b/site_v2/src/components/team/MetricSeasonRow.astro
-index b879ce6..1621693 100644
---- a/site_v2/src/components/team/MetricSeasonRow.astro
-+++ b/site_v2/src/components/team/MetricSeasonRow.astro
-@@ -7,7 +7,7 @@
- import { formatValue, signedDelta } from "../../lib/format";
- import type { Lang, SingleFormat } from "../../lib/format";
- import { beatsMedian } from "../../lib/bars";
--import { t } from "../../i18n/strings";
-+import { t, metricLabel } from "../../i18n/strings";
- import type { MetricRowDef } from "../../lib/metricRows";
- import type { Benchmark } from "../../lib/types";
- 
-@@ -25,7 +25,7 @@ const green = beatsMedian(delta, row.direction);
- ---
- 
- <div class="ss-row">
--  <span class="vs-name">{row.label}</span>
-+  <span class="vs-name">{metricLabel(lang, row.labelKey)}</span>
-   <span class="ss-rt">
-     <span class="vs-val num">{formatValue(bench?.metric_value, fmt, lang)}</span>
-     <span class:list={["ss-chg", "num", { up: green }]}>{chg.value}{chg.unit && <span class="u">{t(lang, "unitPp")}</span>}</span>
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 28a63ed..d8ec516 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -88,9 +88,9 @@ const EN: Dict = {
-   secDeserved: "Deserved vs actual",
-   secYoY: "Vs last season",
-   secFixtures: "Fixtures",
--  heroSotFor: "Ø Shots on target",
--  heroSotAgainst: "Ø Shots on target against",
--  heroSotDiff: "Ø Shots on target difference",
-+  // heroSotFor / heroSotAgainst / heroSotDiff removed (#370): they were a THIRD hand-written copy of
-+  // three metric names that the catalogue already identifies. The hero tiles now read them from
-+  // METRIC_LABELS below, like every other metric name on the site.
-   heroVerdictUnder: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They finished {gap} short of what they created.",
-   heroVerdictOver: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They took {gap} more than they created.",
-   heroCaption: "Every dot is a {competition} team, placed by shots-on-target difference per match (left to right) against points won (up = more). The dashed line is the points that level of play usually earns.",
-@@ -239,15 +239,18 @@ const DE: Dict = {
-   secDeserved: "Verdient vs. tatsächlich",
-   secYoY: "Vs. letzte Saison",
-   secFixtures: "Spiele",
--  heroSotFor: "Ø Schüsse aufs Tor",
--  heroSotAgainst: "Ø Schüsse aufs Tor gegen",
--  heroSotDiff: "Ø Differenz Schüsse aufs Tor",
--  heroVerdictUnder: "Ein Spiel wie das von {team} — eine Differenz von {sotd} Schüssen aufs Tor pro Partie — bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
--  heroVerdictOver: "Ein Spiel wie das von {team} — eine Differenz von {sotd} Schüssen aufs Tor pro Partie — bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
--  heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Differenz der Schüsse aufs Tor pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
-+  // heroSot* removed (#370): the three German tile labels moved to METRIC_LABELS_DE unchanged.
-+  // ⚠ FOUR strings on the deserved-vs-actual block name this metric — the two sentences below, the
-+  // tile label in METRIC_LABELS_DE, the axis (`axPlay`) and the caption (`heroCaption`). Nothing binds
-+  // them, so revising one silently leaves three disagreeing. Change them together or not at all.
-+  // Wording is the CPO's (§10); `Torschussdifferenz` and `pro Spiel` are both his.
-+  heroVerdictUnder: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
-+  heroVerdictOver: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
-+  heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Torschussdifferenz pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
-   heroNoData: "Eine Verdient-vs.-tatsächlich-Einordnung braucht eine einzige Ligatabelle und wird daher nur für Ligen gezeigt.",
-   axPoints: "Geholte Punkte",
--  axPlay: "Differenz Schüsse aufs Tor / Spiel",
-+  // Chrome, not a metric label: the `/ Spiel` suffix is axis grammar. See the ⚠ above heroVerdict*.
-+  axPlay: "Torschussdifferenz / Spiel",
-   trendLabel: "wie erwartet",
-   yoyPoints: "Punkte",
-   yoyGoalsFor: "Tore",
-@@ -380,15 +383,20 @@ const FI: Dict = {
-   secDeserved: "Ansaittu vs. toteutunut",
-   secYoY: "Vs. viime kausi",
-   secFixtures: "Ottelut",
--  heroSotFor: "Ø Laukauksia maalia kohti",
--  heroSotAgainst: "Ø Laukauksia maalia kohti vastaan",
--  heroSotDiff: "Ø Laukausero maalia kohti",
--  heroVerdictUnder: "Tällainen peli — laukausero maalia kohti {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
--  heroVerdictOver: "Tällainen peli — laukausero maalia kohti {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
--  heroCaption: "Jokainen piste on {competition}-joukkue, sijoitettuna laukauseron maalia kohti per ottelu (vasemmalta oikealle) ja kerättyjen pisteiden (ylös = enemmän) mukaan. Katkoviiva on pistemäärä, jonka tällainen peli yleensä tuottaa.",
-+  // heroSot* removed (#370): the three Finnish tile labels moved to METRIC_LABELS_FI.
-+  // ⚠ Same four-string trap as the German block above — these two sentences, the tile label, `axPlay`
-+  // and `heroCaption` all name this metric and nothing binds them. Change them together or not at all.
-+  // Wording is the CPO's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
-+  heroVerdictUnder: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
-+  heroVerdictOver: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
-+  // ⚠ `eron` is a GENITIVE ending I inferred, not the CPO's word — his noun is `maalilaukauksien ero`.
-+  // The case is governed by the later `mukaan`. Finnish inflection is where #867 went wrong four times,
-+  // so this is unverified against a Finnish source; the CPO approved it knowing that.
-+  heroCaption: "Jokainen piste on {competition}-joukkue, sijoitettuna maalilaukauksien eron ottelua kohden (vasemmalta oikealle) ja kerättyjen pisteiden (ylös = enemmän) mukaan. Katkoviiva on pistemäärä, jonka tällainen peli yleensä tuottaa.",
-   heroNoData: "Ansaittu vs. toteutunut -tarkastelu vaatii yhden sarjataulukon, joten se näytetään vain sarjoille.",
-   axPoints: "Kerätyt pisteet",
--  axPlay: "Laukausero maalia kohti / ottelu",
-+  // Chrome, not a metric label: the `/ ottelu` suffix is axis grammar. See the ⚠ above heroVerdict*.
-+  axPlay: "Maalilaukauksien ero / ottelu",
-   trendLabel: "odotetusti",
-   yoyPoints: "Pisteet",
-   yoyGoalsFor: "Maalit",
-@@ -416,9 +424,8 @@ const FI: Dict = {
-   // as machine translation. Parentheses instead: no case, no inflection, and they work for a
-   // league name in any language. Same form as the EN and DE descriptions.
-   seoTeamDesc: "{team} ({competition}): kunto, ottelut, kokoonpano ja kauden tilastot.",
--  // "vs." restored. I had changed it to an en dash, asserting Finnish football writing prefers one;
--  // bi-analyst-reviewer agreed. Neither of us verified it and the CPO's source disagrees — three
--  // unverified opinions are not evidence. Capital K and "&" are his too, kept verbatim.
-+  // "vs." and the capital K are the CPO's, verbatim. Do not swap "vs." for an en dash without a
-+  // Finnish source: the assumption that Finnish football writing prefers one is unverified.
-   seoFixtureTitle: "{home} vs. {away} | {competition}",
-   // --- chrome (site-wide header/footer, #825) ---
-   navCompetitions: "Kilpailut",
-@@ -454,3 +461,149 @@ export function positionLabel(lang: Lang, code: string | null | undefined): stri
-   const label = STRINGS[lang]?.[key] ?? EN[key];
-   return label ?? (code ?? "");
- }
 +
-+/* ================================================================================================ *
-+ *  METRIC LABELS (#370) — the display name of a metric, per locale, in ONE place.
-+ *
-+ *  Before this, a metric's name lived in FOUR: the catalogue held `label_i18n_key` but no
-+ *  translation; `lib/metricRows.ts` hard-coded an English `label`; the three `heroSot*` keys above
-+ *  hard-coded three more; and `heroVerdict*` spells one out in prose. Nothing kept them in step, and
-+ *  the German and Finnish pages showed ENGLISH metric names because the catalogue's keys resolved to
-+ *  nothing at all.
-+ *
-+ *  KEYED BY THE CATALOGUE'S OWN `label_i18n_key`, verbatim, so the binding is explicit and a test can
-+ *  cross-check every key against `dbt_project/seeds/metric_catalogue.csv`. Division of ownership:
-+ *  the catalogue owns a metric's IDENTITY, direction and format; this file owns its DISPLAY STRING.
-+ *  Display copy does not belong in a warehouse seed, which is why the translations are here and not
-+ *  in the CSV.
-+ *
-+ *  A DEDICATED map, not dotted keys inside the Dicts above, and that is deliberate: a quoted dotted
-+ *  key is invisible to `scripts/check_copy_gate.py`'s entry regex AND to `check-page-specs.mjs`'s key
-+ *  extraction, so flat keys would have smuggled 54 strings past the copy check. This map has its own
-+ *  reader in the copy gate.
-+ *
-+ *  ENGLISH IS UNCHANGED BY THIS TASK. Every EN string below is byte-identical to what shipped before,
-+ *  including `% Goals per shot on target`, which the CPO's MVP corpus calls `% Conversion rate` — two
-+ *  approved English names for one metric, a §10 pick left to him and recorded in the contract.
-+ *  DE/FI provenance: 10 are the CPO's validated MVP corpus (`site/i18n/*.json`), test-pinned so they
-+ *  cannot drift; the rest were written for this task and externally verified, EXCEPT the three
-+ *  Finnish forms the CPO supplied himself.
-+ * ================================================================================================ */
++def _mark_featured(rows: list[dict]) -> list[dict]:
++    """Flag the row the marts would flag, so a fixture mirrors served data (#846).
 +
-+type MetricLabels = Record<string, string>;
-+
-+const METRIC_LABELS_EN: MetricLabels = {
-+  "metrics.goals_per_match.label": "Ø Goals",
-+  "metrics.goals_against_per_match.label": "Ø Goals against",
-+  "metrics.clean_sheets.label": "Clean sheets",
-+  "metrics.shots_per_match.label": "Ø Shots",
-+  "metrics.danger_zone_ratio.label": "% Shots from box",
-+  "metrics.shots_on_target_per_match.label": "Ø Shots on target",
-+  "metrics.shots_on_goal_against_per_match.label": "Ø Shots on target against",
-+  "metrics.sot_difference_per_match.label": "Ø Shots on target difference",
-+  "metrics.finishing_efficiency.label": "% Goals per shot on target",
-+  "metrics.duels_per_match.label": "Ø Duels",
-+  "metrics.duels_won_pct.label": "% Duels won",
-+  "metrics.defensive_actions_per_match.label": "Ø Defensive actions",
-+  "metrics.passes_per_match.label": "Ø Passes",
-+  "metrics.pass_accuracy.label": "% Pass accuracy",
-+  "metrics.key_passes_per_match.label": "Ø Key passes",
-+  "metrics.corner_kicks_per_match.label": "Ø Corners",
-+  "metrics.corners_against_per_match.label": "Ø Corners against",
-+  "metrics.save_ratio.label": "% Save percentage",
-+};
-+
-+const METRIC_LABELS_DE: MetricLabels = {
-+  "metrics.goals_per_match.label": "Ø Tore",
-+  "metrics.goals_against_per_match.label": "Ø Gegentore",
-+  // Statista and FootyStats DE both use "Zu-Null-Spiele"; Transfermarkt's "weiße Weste" is the other
-+  // live German idiom and was not chosen, because the statistical label is the one a stat row wants.
-+  "metrics.clean_sheets.label": "Zu-Null-Spiele",
-+  "metrics.shots_per_match.label": "Ø Schüsse",
-+  "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
-+  // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
-+  // replaces `Schüsse aufs Tor`, and it is the compact form Bundesliga, kicker and sport.de all use
-+  // as a stat label. It also makes the German internally consistent, since `save_ratio` already reads
-+  // `% Gehaltene Torschüsse`. The Ø prefix is retained: the underlying metrics are per-match, and
-+  // without it `Torschüsse` reads as a season total.
-+  // ⚠ He chose `Torschussdifferenz` after being shown, with measurements, that an 18-character
-+  // compound clips in the 71px hero tile at 375px exactly as the Finnish compounds do. That is a
-+  // knowing decision, not an oversight; the fix belongs in the design system, not in his copy.
-+  "metrics.shots_on_target_per_match.label": "Ø Torschüsse",
-+  "metrics.shots_on_goal_against_per_match.label": "Ø Torschüsse gegen",
-+  "metrics.sot_difference_per_match.label": "Ø Torschussdifferenz",
-+  "metrics.finishing_efficiency.label": "% Trefferquote",
-+  // NOT "Duelle". Every German football source uses Zweikampf/Zweikämpfe — bundesliga.com's own stat
-+  // category is literally "Gewonnene Zweikämpfe", and kicker and sport.de agree. `Duelle` was my
-+  // first draft and it reads as a translation rather than as football German.
-+  "metrics.duels_per_match.label": "Ø Zweikämpfe",
-+  "metrics.duels_won_pct.label": "% Gewonnene Zweikämpfe",
-+  // halbfeldflanke defines Defensivaktionen as exactly this metric: balls intercepted, tackles
-+  // completed, duels won. It is also the denominator in the German PPDA definition.
-+  "metrics.defensive_actions_per_match.label": "Ø Defensivaktionen",
-+  "metrics.passes_per_match.label": "Ø Pässe",
-+  "metrics.pass_accuracy.label": "% Angekommene Pässe",
-+  // "Schlüsselpässe", not "Torschussvorlagen": the latter means shot assists, a different metric.
-+  "metrics.key_passes_per_match.label": "Ø Schlüsselpässe",
-+  "metrics.corner_kicks_per_match.label": "Ø Ecken",
-+  "metrics.corners_against_per_match.label": "Ø Ecken gegen",
-+  "metrics.save_ratio.label": "% Gehaltene Torschüsse",
-+};
-+
-+const METRIC_LABELS_FI: MetricLabels = {
-+  "metrics.goals_per_match.label": "Ø Maalit",
-+  "metrics.goals_against_per_match.label": "Ø Päästetyt maalit",
-+  // Confirmed in Finnish football media (apu.fi on Veikkausliiga goalkeepers).
-+  "metrics.clean_sheets.label": "Nollapelit",
-+  "metrics.shots_per_match.label": "Ø Laukaukset",
-+  "metrics.danger_zone_ratio.label": "% Laukaukset boksista",
-+  // These three are CPO-SUPPLIED, 2026-07-31, including `vastaan`, which keeps Finnish parallel to
-+  // the German `gegen`. He chose them after being shown that his validated corpus and the old hero
-+  // tiles used two different forms for the same metric. His first form for the third one was
-+  // `maalilaukaisujen ero` and he revised it himself — see the note above that entry. An earlier
-+  // version of this comment claimed he supplied `laukaisujen` "verbatim", six lines above the note
-+  // recording that he had moved off it; no string below has ever contained that stem.
-+  // Capitalisation after the Ø/% prefix is house style, matching every other entry.
-+  "metrics.shots_on_target_per_match.label": "Ø Maalilaukaukset",
-+  "metrics.shots_on_goal_against_per_match.label": "Ø Maalilaukaukset vastaan",
-+  // CPO revised this on 2026-07-31 from `maalilaukaisujen ero` to `maalilaukauksien ero`, which is the
-+  // genitive plural of `maalilaukaus` and so matches `maalilaukaukset` above; `laukaisujen` came off a
-+  // different stem (`laukaisu`) and was internally inconsistent.
-+  "metrics.sot_difference_per_match.label": "Ø Maalilaukauksien ero",
-+  "metrics.finishing_efficiency.label": "% Viimeistelytehokkuus",
-+  // Veikkausliiga's own reporting uses kaksinkamppailut, and reports duels won as a percentage.
-+  "metrics.duels_per_match.label": "Ø Kaksinkamppailut",
-+  "metrics.duels_won_pct.label": "% Voitetut kaksinkamppailut",
-+  // CPO-confirmed 2026-07-31. I could not verify this one against a Finnish source — Veikkausliiga's
-+  // stats pages serve a broken certificate chain — and said so before he confirmed it.
-+  "metrics.defensive_actions_per_match.label": "Ø Puolustustoimet",
-+  "metrics.passes_per_match.label": "Ø Syötöt",
-+  "metrics.pass_accuracy.label": "% Syöttötarkkuus",
-+  // CPO-confirmed 2026-07-31, same unverified caveat as Puolustustoimet.
-+  "metrics.key_passes_per_match.label": "Ø Avainsyötöt",
-+  "metrics.corner_kicks_per_match.label": "Ø Kulmapotkut",
-+  "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
-+  "metrics.save_ratio.label": "% Torjuntaosuus",
-+};
-+
-+const METRIC_LABELS: Record<Lang, MetricLabels> = {
-+  de: METRIC_LABELS_DE,
-+  en: METRIC_LABELS_EN,
-+  fi: METRIC_LABELS_FI,
-+};
-+
-+// Deliberately no `METRIC_LABEL_KEYS` / `METRIC_LABELS` export: the tests text-parse this file, as
-+// every other checker here does, so nothing imports them. Add an export when something actually does.
-+
-+/**
-+ * Display name for a metric, by its catalogue `label_i18n_key`.
-+ *
-+ * Deliberately does NOT fall back to the key, unlike `t()` above. `t()` returns the key when a lookup
-+ * misses, which is tolerable for chrome (a developer sees it immediately) and unacceptable here: a
-+ * missing metric name would print `metrics.duels_per_match.label` on a public page for a reader.
-+ * Falls back to English, then to empty. `check-metric-labels.test.mjs` asserts every key resolves in
-+ * every locale, so neither fallback should ever be reachable in a shipped build.
-+ */
-+export function metricLabel(lang: Lang, labelKey: string): string {
-+  return METRIC_LABELS[lang]?.[labelKey] ?? METRIC_LABELS_EN[labelKey] ?? "";
-+}
-diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
-index b2d8603..42f2b33 100644
---- a/site_v2/src/lib/metricRows.ts
-+++ b/site_v2/src/lib/metricRows.ts
-@@ -9,6 +9,12 @@
- //
- // `field` is the payload key on w1/w2 (the bare metric name) — NOT the display id.
- // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
-+//
-+// #370: there is no `label` field here. A metric's display name lives once, per locale, in
-+// `i18n/strings.ts` (METRIC_LABELS), keyed by the catalogue's own `label_i18n_key` — which is what
-+// `labelKey` below holds. Render a name with `metricLabel(lang, row.labelKey)`; never re-spell one
-+// here. The order/group/tier contract from `docs/wireframes/metrics_display.md` is unchanged and still
-+// lives in this file; only the strings moved.
- 
- import type { Direction } from "./bars";
- 
-@@ -18,8 +24,11 @@ export type MetricGroup =
- 
- export interface MetricRowDef {
-   field: string;              // payload key on w1 / w2
--  label: string;              // locked display label (metrics_display.md); EN for now
--  labelKey: string;           // catalogue i18n key — per-locale wiring is #370
-+  // The catalogue's `label_i18n_key`, verbatim. Resolve it with `metricLabel(lang, labelKey)`.
-+  // ⚠ Read it from the `label_i18n_key` COLUMN of metric_catalogue.csv, never from `metric_id` —
-+  // those two deliberately disagree for at least one metric (see row 6). Inferring a key from an id
-+  // is how you break the binding. `check-metric-labels.test.mjs` cross-checks every one.
-+  labelKey: string;
-   group: MetricGroup;
-   tier: 1 | 2 | 3;            // visibility under constraint (never reorders — display doc)
-   format: RowFormat;
-@@ -36,20 +45,27 @@ export const GROUP_ORDER: MetricGroup[] = [
- ];
- 
- export const METRIC_ROWS: MetricRowDef[] = [
--  { field: "goals_per_match", label: "Ø Goals", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
--  { field: "goals_against_per_match", label: "Ø Goals against", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
--  { field: "clean_sheets", label: "Clean sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" } },
--  { field: "shots_per_match", label: "Ø Shots", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
--  { field: "danger_zone_ratio", label: "% Shots from box", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
--  { field: "shots_on_goal_per_match", label: "Ø Shots on target", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
--  { field: "finishing_efficiency", label: "% Goals per shot on target", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
--  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
--  { field: "duels_won_pct", label: "% Duels won", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
--  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
--  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
--  { field: "pass_accuracy", label: "% Pass accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
--  { field: "key_passes_per_match", label: "Ø Key passes", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
--  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
--  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
--  { field: "save_ratio", label: "% Save percentage", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
-+  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
-+  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
-+  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" } },
-+  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
-+  { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
-+  // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
-+  //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
-+  // The internal id says "on goal", the user-facing term is "on target". Do NOT "fix" this to
-+  // `metrics.shots_on_goal_per_match.label` — the catalogue declares no such key and the label would
-+  // resolve to nothing.
-+  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
-+  { field: "finishing_efficiency", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
-+  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
-+  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
-+  // ⚠ `sublabel` is still an ENGLISH string rendered in all three locales. It is a caption, not a
-+  // metric name, so it is outside this task's criteria — recorded in the contract as residual.
-+  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
-+  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
-+  { field: "pass_accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
-+  { field: "key_passes_per_match", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
-+  { field: "corner_kicks_per_match", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
-+  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
-+  { field: "save_ratio", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
- ];
-diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
-index 7124077..7b39cf6 100644
---- a/site_v2/src/specs/competition/matches/fixture.spec.json
-+++ b/site_v2/src/specs/competition/matches/fixture.spec.json
-@@ -26,7 +26,31 @@
-     {
-       "block": "Form (recent)",
-       "mart": ["mart_team_momentum", "mart_team_season_record", "mart_team_momentum_window"],
--      "i18n_keys": ["secForm", "segLast5", "segSeason", "scopeAllComps", "secRecent", "noRecentForm", "noMatchStats"]
-+      "i18n_keys": [
-+        "secForm",
-+        "segLast5",
-+        "segSeason",
-+        "scopeAllComps",
-+        "secRecent",
-+        "noRecentForm",
-+        "noMatchStats",
-+        "metrics.goals_per_match.label",
-+        "metrics.goals_against_per_match.label",
-+        "metrics.clean_sheets.label",
-+        "metrics.shots_per_match.label",
-+        "metrics.danger_zone_ratio.label",
-+        "metrics.shots_on_target_per_match.label",
-+        "metrics.finishing_efficiency.label",
-+        "metrics.duels_per_match.label",
-+        "metrics.duels_won_pct.label",
-+        "metrics.defensive_actions_per_match.label",
-+        "metrics.passes_per_match.label",
-+        "metrics.pass_accuracy.label",
-+        "metrics.key_passes_per_match.label",
-+        "metrics.corner_kicks_per_match.label",
-+        "metrics.corners_against_per_match.label",
-+        "metrics.save_ratio.label"
-+      ]
-     },
-     {
-       "block": "Lineups / key players",
-diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
-index eac9096..84c9a7c 100644
---- a/site_v2/src/specs/teams/team.spec.json
-+++ b/site_v2/src/specs/teams/team.spec.json
-@@ -26,12 +26,24 @@
-     {
-       "block": "Deserved-vs-actual (flagship)",
-       "mart": "mart_team_profile",
--      "i18n_keys": ["secDeserved", "heroSotDiff", "heroVerdictUnder", "heroVerdictOver", "heroCaption", "heroNoData"]
-+      "i18n_keys": [
-+        "secDeserved",
-+        "metrics.shots_on_target_per_match.label",
-+        "metrics.shots_on_goal_against_per_match.label",
-+        "metrics.sot_difference_per_match.label",
-+        "heroVerdictUnder",
-+        "heroVerdictOver",
-+        "heroCaption",
-+        "heroNoData",
-+        "axPoints",
-+        "axPlay",
-+        "trendLabel"
-+      ]
-     },
-     {
-       "block": "Season-over-season",
-       "mart": "mart_team_profile",
--      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "noYoY"]
-+      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "yoyThroughGames", "noYoY"]
-     },
-     {
-       "block": "Upcoming / Results",
-@@ -41,7 +53,33 @@
-     {
-       "block": "Vs-benchmark (bars vs league avg + percentile)",
-       "mart": "mart_team_competition_benchmarks",
--      "i18n_keys": ["vsLeague", "vsLastSeason", "median", "rankOfCount", "notRankable"]
-+      "i18n_keys": [
-+        "vsLeague",
-+        "vsLastSeason",
-+        "median",
-+        "rankOfCount",
-+        "notRankable",
-+        "rankedInLeague",
-+        "vsPriorSeasonGames",
-+        "unitPp",
-+        "noYoY",
-+        "metrics.goals_per_match.label",
-+        "metrics.goals_against_per_match.label",
-+        "metrics.clean_sheets.label",
-+        "metrics.shots_per_match.label",
-+        "metrics.danger_zone_ratio.label",
-+        "metrics.shots_on_target_per_match.label",
-+        "metrics.finishing_efficiency.label",
-+        "metrics.duels_per_match.label",
-+        "metrics.duels_won_pct.label",
-+        "metrics.defensive_actions_per_match.label",
-+        "metrics.passes_per_match.label",
-+        "metrics.pass_accuracy.label",
-+        "metrics.key_passes_per_match.label",
-+        "metrics.corner_kicks_per_match.label",
-+        "metrics.corners_against_per_match.label",
-+        "metrics.save_ratio.label"
-+      ]
-     },
-     {
-       "block": "Squad / roster",
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index bf75172..21d09be 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -264,8 +264,29 @@ section { margin-top: 36px; }
- .hero .verdict b { color: var(--ink); font-weight: 700; }
- .hero .heronums { display: flex; gap: 8px; margin: 0 0 18px; }
- .hero .hn { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; display: flex; flex-direction: column; }
--.hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; }
-+/* `overflow-wrap: anywhere` (#370, CPO-approved 2026-07-31): metric names are localised now, and
-+   German and Finnish build single long compounds where English uses several short words. MEASURED at
-+   375px, where this box is 71px: `Ø Maalilaukaukset` needs 78 and `Ø Torschussdifferenz` needs 89, so
-+   the text ran into the tile's padding with nowhere to break — the default `overflow-wrap: normal`
-+   plus `hyphens: manual` gives a 16-character compound no break opportunity at all. `anywhere` rather
-+   than `break-word` because it also lowers min-content width, which is what a flex item with
-+   `min-width: 0` actually sizes against. Every future compounding locale (Dutch next) needs this. */
-+.hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
- .hero .hn .hv { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 8px; }
-+/* Stack the hero tiles on phones (#370, CPO-approved). Three side by side leave 71px per label, and
-+   `overflow-wrap: anywhere` above then breaks a German or Finnish compound at an arbitrary letter with
-+   no hyphen — `Ø / Torschussdiffe / renz`. `hyphens: auto` cannot help: this engine ships no de/fi
-+   hyphenation dictionary. Stacked, the label gets ~231px (the 301px tile less padding, the value and
-+   the gap, since `.hl` and `.hv` share the row) against the 89px the longest German name needs, so
-+   every name fits on one line. Costs 53px of block height. English is unaffected either way.
-+   The `anywhere` rule above STAYS as the backstop for `.vs-name`, which is not stacked (#876).
-+   560px is a builder choice, not part of the ruling: the shell's breakpoints are all min-width
-+   700/900/1010 and the container queries at 560/520 target other selectors, so it collides with none. */
-+@media (max-width: 560px) {
-+  .hero .heronums { flex-direction: column; gap: 6px; }
-+  .hero .hn { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 10px; }
-+  .hero .hn .hv { margin-top: 0; padding-top: 0; }
-+}
- .hero .cap2 { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 14px 0 0; }
- .sc { width: 100%; height: auto; display: block; overflow: visible; }
- .sc .ax { stroke: var(--div); stroke-width: 1; }
-@@ -315,7 +336,14 @@ section { margin-top: 36px; }
- .vs-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
- .vs-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
- .vs-row:last-child { border-bottom: 0; }
--.vs-name { font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; }
-+/* Same rule, same reason, and this is the surface that measured WORST (#370, CPO-approved
-+   2026-07-31): at 375px this column is 77px and 9 of the 16 Performance rows overflowed it in
-+   Finnish, `% Viimeistelytehokkuus` by 53px — far enough to run the label into the bar column beside
-+   it. Note that string is from the CPO's own validated corpus, so the gap is pre-existing in this
-+   file and localising the labels merely exposed it. `.mlabel` on the fixture page deliberately does
-+   NOT get this: it was measured too and is fine, because `.mmid` centres rather than stretches so its
-+   box grows to fit. Fix what measured over, not every label that might. */
-+.vs-name { font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
- .vs-name .sub { display: block; font-size: 11px; color: var(--muted); }
- .vs-bar { position: relative; height: 6px; background: var(--track); border-radius: 3px; }
- .vs-fill { position: absolute; left: 0; top: 0; bottom: 0; min-width: 3px; background: var(--ink); border-radius: 3px; }
-@@ -338,11 +366,13 @@ section { margin-top: 36px; }
-  *  FOUNDATION SHELL — global header/footer + responsive layout system   *
-  *  (#825). Transcribed from the CPO-approved foundation mock (artifact  *
-  *  87d14109, "looks good for now"). Same token contract as above — no   *
-- *  new colours, no new type scale. Three breakpoints, all viewport      *
-- *  (@media), distinct from the component-level @container queries      *
-- *  above: nav goes inline + hamburger/drawer hide >=700px; the page     *
-- *  grid below goes two-column >=900px; the search field replaces its   *
-- *  icon-only button >=1010px. Nav/drawer items render as <a> OR <span> *
-+ *  new colours, no new type scale. THE SHELL'S three breakpoints are    *
-+ *  all viewport (@media) and min-width, distinct from the component-    *
-+ *  level @container queries above: nav goes inline + hamburger/drawer   *
-+ *  hide >=700px; the page grid below goes two-column >=900px; the       *
-+ *  search field replaces its icon-only button >=1010px. There is also  *
-+ *  one max-width query, at .heronums above, outside this shell set.     *
-+ *  Nav/drawer items render as <a> OR <span>                             *
-  *  — `.mainnav a, .mainnav span` styles both identically, because most *
-  *  nav items are inert placeholders (no index page built yet) and get *
-  *  the same look as a real link, per the codebase's existing no-dead-  *
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 048f39f..acef135 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -810,6 +810,119 @@ def test_copy_gate_floor_is_in_the_gate_not_only_in_this_test(tmp_path, monkeypa
-         "over zero strings is worse than no gate at all")
++    Defaults to the greatest season_api_year, which is exactly what these fixtures assumed back
++    when the export picked the row itself. That is deliberate: every assertion below is unchanged,
++    so a passing suite is evidence the payload did not move when the decision left the export.
++    A player fixture that needs the club lens flags its own row instead — see the WC/PL test.
++    """
++    top = max(rows, key=lambda r: (r.get("season_api_year") or 0))
++    for r in rows:
++        r["is_featured_season"] = r is top
++    return rows
  
  
-+def _copy_gate():
-+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-+    try:
-+        import check_copy_gate as gate
-+    finally:
-+        sys.path.pop(0)
-+    return gate
+ def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
+@@ -216,7 +231,7 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
+          "team_logo_url": "u2", "points": 82,
+          "team_founded_year": 1900, "venue_name": "Allianz Arena", "venue_city": "München", "venue_capacity": 75000},
+     ]
+-    p = shape_team_payload(rows)
++    p = shape_team_payload(_mark_featured(rows))
+     assert p["team_id"] == 157
+     # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
+     # The old assertion was "bayern-munchen-157" -- that id is exactly what the CPO ruled out.
+@@ -235,8 +250,8 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
+ 
+ def test_shape_team_payload_venue_absent_is_none():
+     # a team with no venue/founded data -> honest absence (venue None, founded_year None)
+-    p = shape_team_payload([{"team_sk": 9, "season_api_year": 2025,
+-                             "league_code": "BL1", "team_name": "X"}])
++    p = shape_team_payload(_mark_featured([{"team_sk": 9, "season_api_year": 2025,
++                                            "league_code": "BL1", "team_name": "X"}]))
+     assert p["venue"] is None
+     assert p["founded_year"] is None
+ 
+@@ -272,7 +287,7 @@ def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
+         {"team_sk": 2, "league_code": "PL", "season_api_year": 2024,
+          "sot_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
+     ])
+-    p = shape_team_payload(rows, scatter_index=idx)
++    p = shape_team_payload(_mark_featured(rows), scatter_index=idx)
+     sc = p["seasons"][0]["deserved_scatter"]
+     assert len(sc) == 2
+     self_dot = next(d for d in sc if d["is_self"])
+@@ -284,7 +299,7 @@ def test_shape_team_payload_no_scatter_when_season_not_fittable():
+     # a season with no deserved value (not in the index) -> no deserved_scatter key (absent state)
+     rows = [{"team_sk": 9, "season_api_year": 2026, "league_code": "WC",
+              "team_name": "X", "points": 6}]
+-    p = shape_team_payload(rows, scatter_index={})
++    p = shape_team_payload(_mark_featured(rows), scatter_index={})
+     assert "deserved_scatter" not in p["seasons"][0]
+ 
+ 
+@@ -309,7 +324,7 @@ def test_deserved_scatter_preserves_the_fitted_line():
+                   "team_name": "Self", "points": 52,
+                   "sot_difference_per_match": 0.5,
+                   "deserved_points": intercept + slope * 0.5}]
+-    sc = shape_team_payload(self_rows, scatter_index=idx)["seasons"][0]["deserved_scatter"]
++    sc = shape_team_payload(_mark_featured(self_rows), scatter_index=idx)["seasons"][0]["deserved_scatter"]
+     assert len(sc) == len(sotds)
+     for d in sc:                                   # every dot on intercept + slope*sotd
+         assert d["deserved"] == intercept + slope * d["sotd"]
+@@ -341,7 +356,7 @@ def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
+         fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
+         fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
+     ]
+-    p = shape_team_payload(rows, fixtures)
++    p = shape_team_payload(_mark_featured(rows), fixtures)
+     s2025 = p["seasons"][0]
+     assert s2025["season_api_year"] == 2025
+     assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
+@@ -385,7 +400,7 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
+         member(1, "Neuer", position="Goalkeeper"),
+         member(99, None),
+     ]
+-    p = shape_team_payload(rows, None, roster)
++    p = shape_team_payload(_mark_featured(rows), None, roster)
+     s2025 = p["seasons"][0]
+     assert s2025["season_api_year"] == 2025
+     # sorted by player_sk (byte-stable), the null-name member omitted
+@@ -410,7 +425,7 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
+ def test_shape_team_payload_squad_defaults_empty_without_roster():
+     rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
+              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
+-    p = shape_team_payload(rows)
++    p = shape_team_payload(_mark_featured(rows))
+     assert p["seasons"][0]["squad"] == []
+ 
+ 
+@@ -433,7 +448,7 @@ def test_shape_team_payload_joins_career_stats_to_squad_by_player_sk():
+          "appearances": 32, "minutes_per_appearance": 90.0, "goals": 36, "assists": 8},
+         # Neuer: no career row -> stats null (never appeared in a finished-match squad)
+     ]
+-    p = shape_team_payload(rows, None, roster, None, None, career)
++    p = shape_team_payload(_mark_featured(rows), None, roster, None, None, career)
+     squad = {m["player_id"]: m for m in p["seasons"][0]["squad"]}
+     # joined by (league_code, season, player_sk); the 2024 row did not leak into 2025
+     assert squad[9]["appearances"] == 30
+@@ -479,7 +494,7 @@ def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
+     # deliberately out of metric_key order; one row on the other season
+     benchmark = [bench("shots_per_match", 14.1), bench("goals_per_match", 2.2),
+                  bench("goals_against_per_match", 0.8, season=2024)]
+-    p = shape_team_payload(rows, None, None, benchmark)
++    p = shape_team_payload(_mark_featured(rows), None, None, benchmark)
+     s2025 = p["seasons"][0]
+     assert s2025["season_api_year"] == 2025
+     # flat metrics list (no position nesting), byte-stable by metric_key
+@@ -492,7 +507,7 @@ def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
+ def test_shape_team_payload_benchmarks_default_empty_without_rows():
+     rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
+              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
+-    p = shape_team_payload(rows)
++    p = shape_team_payload(_mark_featured(rows))
+     assert p["seasons"][0]["benchmarks"] == []
+ 
+ 
+@@ -509,7 +524,7 @@ def test_shape_player_payload_orders_match_log_desc():
+         {"player_sk": 1090, "kickoff_datetime": "2025-10-01T18:30:00",
+          "opponent_name": "B", "goals_total": 0},
+     ]
+-    p = shape_player_payload(profiles, matches)
++    p = shape_player_payload(_mark_featured(profiles), matches)
+     assert p["player_id"] == 1090
+     assert p["slug"] == "jamal-musiala-1090"
+     assert p["position"] == "M"
+@@ -531,7 +546,7 @@ def test_shape_player_payload_current_team_and_per_season_team():
+         {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
+          "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
+     ]
+-    p = shape_player_payload(profiles, [])
++    p = shape_player_payload(_mark_featured(profiles), [])
+     assert p["current_team"] == {"team_id": 157, "name": "Bayern",
+                                  "crest": "fcb.png", "country": "Germany"}
+     teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
+@@ -608,14 +623,14 @@ def test_shape_player_payload_attaches_benchmarks_per_season():
+          "peer_count": 40, "peer_median": 0.3, "vs_median_delta": 0.6,
+          "minutes": 2500, "appearances": 30, "metric_numerator": None, "metric_denominator": None},
+     ]
+-    p = shape_player_payload(profiles, [], benchmarks)
++    p = shape_player_payload(_mark_featured(profiles), [], benchmarks)
+     s2025, s2024 = p["seasons"][0], p["seasons"][1]
+     assert s2025["benchmarks"][0]["position_group"] == "ATT"
+     assert s2025["benchmarks"][0]["metrics"][0]["metric_key"] == "goals_per90"
+     # a season with no benchmark rows renders an empty list (honest absence)
+     assert s2024["benchmarks"] == []
+     # default (no benchmark_rows) also yields empty benchmarks
+-    p2 = shape_player_payload(profiles, [])
++    p2 = shape_player_payload(_mark_featured(profiles), [])
+     assert all(s["benchmarks"] == [] for s in p2["seasons"])
+ 
+ 
+@@ -672,7 +687,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
+          "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
+          "club_latest_kickoff_at": "2019-06-01T20:00:00"},
+     ]
+-    p = shape_player_payload(profiles, [], None, career)
++    p = shape_player_payload(_mark_featured(profiles), [], None, career)
+     # club_latest desc: Spurs 2024-05-19, England 2023-07-09, Bayern 2022-05-14. Spurs rows contiguous
+     # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
+     assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
+@@ -681,7 +696,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
+     assert len(p["career"]) == 5
+     assert p["national_appearances_total"] == 23
+     # empty default (no career_rows) -> empty career + None total
+-    p2 = shape_player_payload(profiles, [])
++    p2 = shape_player_payload(_mark_featured(profiles), [])
+     assert p2["career"] == [] and p2["national_appearances_total"] is None
+ 
+ 
+@@ -710,3 +725,42 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
+     # known active leagues resolve (registry-backed)
+     assert idx["PL"]["slug"] == "premier-league"
+     assert idx["BL1"]["slug"]
 +
 +
-+def _strings_fixture(chrome_values='"v{i}"', metric_values='"m{i}"', metric_n=18,
-+                     metric_locales=("EN", "DE", "FI")):
-+    """A synthetic strings.ts: three healthy chrome dicts plus METRIC_LABELS blocks for
-+    `metric_locales`. Omitting a locale from that tuple is how a missing block is
-+    reproduced, rather than regex-deleting it after the fact (`re` is deliberately not
-+    imported in this module)."""
-+    out = []
-+    for loc in ("EN", "DE", "FI"):
-+        body = "".join(f"  key{i}: {chrome_values.format(i=i)},\n" for i in range(40))
-+        out.append(f"const {loc}: Dict = {{\n{body}}};\n")
-+    for loc in metric_locales:
-+        body = "".join(
-+            f'  "metrics.m{i}.label": {metric_values.format(i=i)},\n'
-+            for i in range(metric_n))
-+        out.append(f"const METRIC_LABELS_{loc}: MetricLabels = {{\n{body}}};\n")
-+    return "\n".join(out)
++def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
++    """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
++
++    Both rows are real football. The WC row is the more recent one, which is what the export used
++    to pick and why a player's top-level identity came from their national side. Nothing here
++    ranks anything: the mart flags the club season and the export reads the flag.
++    """
++    profiles = [
++        {"player_sk": 7, "season_sk": 2, "season_api_year": 2026, "league_code": "WC",
++         "player_name": "M. Rogers", "position_code": "M", "is_featured_season": False},
++        {"player_sk": 7, "season_sk": 1, "season_api_year": 2025, "league_code": "PL",
++         "player_name": "M. Rogers", "position_code": "D", "is_featured_season": True},
++    ]
++    p = shape_player_payload(profiles, [])
++    # identity comes from the club season, not the tournament
++    assert p["position"] == "D"
++    # and the tournament season is still served — it is not the one the page OPENS on
++    assert [s["league_code"] for s in p["seasons"]] == ["WC", "PL"]
++    assert [s["is_featured_season"] for s in p["seasons"]] == [False, True]
 +
 +
-+def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monkeypatch):
-+    """Pins `check_copy_gate.MIN_METRIC_KEYS` (#370), the SECOND floor.
++def test_featured_season_row_refuses_to_choose():
++    """#846 criterion 3: the export decides nothing.
 +
-+    The sibling test above passes for the OLD reason and gives this none: its fixture
-+    has no METRIC_LABELS block at all, so the CHROME floor fires and `main()` returns
-+    before the metric block is ever reached. So `MIN_METRIC_KEYS = 0`, or deleting the
-+    `thin_metrics` branch, broke no test — a second unpinned floor added while the
-+    comment beside it cited the first one's lesson. Caught by platform-reviewer,
-+    round 1 of #370.
++    With no flag it fails loudly instead of falling back to recency. The fallback IS the defect
++    this replaced, so a tolerant export would quietly reintroduce it the first time a mart shipped
++    without the column.
++    """
++    import pytest
 +
-+    The fixture therefore keeps the chrome dicts HEALTHY (40 double-quoted entries, so
-+    the chrome floor passes) and breaks only the metric values, using backtick
-+    templates: `_METRIC_DICT_RE` still matches while `_METRIC_ENTRY_RE` yields zero."""
-+    gate = _copy_gate()
-+    broken = tmp_path / "strings.ts"
-+    broken.write_text(_strings_fixture(metric_values="`m{i}`"), encoding="utf-8")
-+    monkeypatch.setattr(gate, "STRINGS", broken)
-+
-+    text = broken.read_text(encoding="utf-8")
-+    assert len(gate._dicts(text)["en"]) >= gate.MIN_KEYS, (
-+        "the fixture must clear the CHROME floor, or this test passes for the wrong reason")
-+    assert gate._metric_labels(text).keys() >= {"en", "de", "fi"}, (
-+        "the fixture must reproduce the real failure: metric blocks FOUND but EMPTY")
-+    assert all(v == {} for v in gate._metric_labels(text).values())
-+    assert gate.main() == 1, (
-+        "the gate must FAIL when it extracted no metric labels; otherwise 54 "
-+        "user-visible strings skip the em dash and completeness checks silently")
-+
-+
-+def test_copy_gate_fails_when_a_metric_labels_block_is_absent(tmp_path, monkeypatch):
-+    """The other new branch: `missing_metric_locales`. A locale losing its whole
-+    METRIC_LABELS block must FAIL rather than let that locale's metric names go
-+    unchecked."""
-+    gate = _copy_gate()
-+    partial = tmp_path / "strings.ts"
-+    # FI keeps its chrome dict but loses its metric block entirely
-+    text = _strings_fixture(metric_locales=("EN", "DE"))
-+    partial.write_text(text, encoding="utf-8")
-+    monkeypatch.setattr(gate, "STRINGS", partial)
-+
-+    assert "fi" not in gate._metric_labels(text), "fixture must actually drop the FI block"
-+    assert gate.main() == 1, "a locale with no METRIC_LABELS block must fail the gate"
-+
-+
-+def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
-+    """Third parser, same anchor. `"metrics.X.label"` is parsed by three hand-written
-+    regexes: this gate's `_METRIC_ENTRY_RE`, `check-page-specs.mjs`'s inline one, and
-+    `check-metric-labels.test.mjs`'s. The two JS ones are pinned to each other in that
-+    test file; this pins the PYTHON one to the keys the page actually asks for, so all
-+    three are tied to a common anchor rather than merely agreeing by luck. The drift
-+    class is the one `platform-reviewer`'s brief names for the hand-copied reviewer
-+    matcher (round 1 of #370)."""
-+    import pathlib
-+    import re as _re
-+
-+    gate = _copy_gate()
-+    root = pathlib.Path(__file__).resolve().parents[1]
-+    parsed = gate._metric_labels(gate.STRINGS.read_text(encoding="utf-8"))
-+    assert set(parsed) == {"en", "de", "fi"}
-+
-+    pattern = _re.compile(r'"(metrics\.[A-Za-z0-9_]+\.label)"')
-+    asked = set()
-+    for rel in ("site_v2/src/lib/metricRows.ts",
-+                "site_v2/src/components/team/DeservedHero.astro"):
-+        asked |= set(pattern.findall((root / rel).read_text(encoding="utf-8")))
-+    assert len(asked) >= 18, f"only {len(asked)} keys found in the consumers"
-+
-+    for loc in ("en", "de", "fi"):
-+        missing = sorted(asked - set(parsed[loc]))
-+        assert not missing, (
-+            f"the Python parser does not see {missing} for {loc}, but a component asks for it — "
-+            "either the regex drifted or a label is genuinely absent")
-+
-+
-+def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
-+    """The point of merging the metric labels into `dicts`: an em dash in a metric NAME
-+    is still an em dash. Without the merge these 54 strings would be parsed and then
-+    ignored, which is the failure mode that makes a gate worse than none."""
-+    gate = _copy_gate()
-+    f = tmp_path / "strings.ts"
-+    text = _strings_fixture().replace('"metrics.m3.label": "m3"', '"metrics.m3.label": "a — b"')
-+    f.write_text(text, encoding="utf-8")
-+    monkeypatch.setattr(gate, "STRINGS", f)
-+    assert gate.main() == 1, "an em dash inside a metric label must be reported like any other"
-+
-+
- def test_routing_has_no_duplicate_keys():
-     """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
-     `json.load` keeps the LAST one and the other reviewer requirement vanishes
++    with pytest.raises(ValueError):
++        _featured_season_row([{"season_api_year": 2026}, {"season_api_year": 2025}])
++    with pytest.raises(ValueError):
++        _featured_season_row([
++            {"season_api_year": 2026, "is_featured_season": True},
++            {"season_api_year": 2025, "is_featured_season": True},
++        ])

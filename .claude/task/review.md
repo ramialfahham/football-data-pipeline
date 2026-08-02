@@ -1,105 +1,91 @@
-# Review — metric labels come from the catalogue, per locale (#370 slice)
+# Review — feat/846-featured-season-from-mart — 2026-08-02
 
-branch: feat/370-metric-labels-from-catalogue
-diff_sha256: 288339a7cf2e810f6a3c73ed62d6f7725ac9395e0655de729f2dea1f9fb3d262
+branch: feat/846-featured-season-from-mart
+diff_sha256: b85aa3ff20a527d058e40af2f9f918b0e422a11a9a3aa4e76b1b4ae4abc4b511
 rounds: 3
-rounds_cap_override: >
-  Not needed for a cap breach — this is round 3. Recorded because the round count restarted:
-  this branch ran twelve rounds before PR #878 merged, was rebased onto the new rules, and was
-  reviewed fresh. The CPO authorised finishing it ("finish 370", then "ok go ahead").
-  What changed between the two histories is the point of #878. Before it, reviewers received
-  38,932 lines to review 839 lines of code, and rounds 6-12 found only defects in this branch's
-  own paperwork. After it they receive 1,409 lines, and all three reviewers reached a verdict on
-  the code in one round. `bi-analyst-reviewer` and `scope-auditor` PASSed first time.
-  `platform-reviewer` FAILed on a real defect this branch introduced — an entry header form that
-  `report_process_health.py` mis-parses into a phantom branch — and its two follow-ups were
-  resolved without moving the hash, because `escalations.log` is hash-excluded but review-visible.
-  That split is exactly what #878 built, and it meant two verdicts survived three fix passes.
-
-> **All three required reviewers PASS at this hash.**
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- All 18 `labelKey`s read against the `label_i18n_key` COLUMN of `metric_catalogue.csv`: every one
-  declared verbatim, including the two hero-only keys and the deliberate `metric_id
-  shots_on_goal_per_match` → `metrics.shots_on_target_per_match.label` mismatch. The round-1
-  inverted-key defect has not returned.
-- Field bindings behind the changed surfaces are real in `mart_team_profile.sql` and pass through
-  `export_site_data.py`; no sample-only key introduced, no `field` value touched.
-- The locked 16-row contract checked row by row against `metrics_display.md`: order, groups, tier
-  shape (4×t1 / 9×t2 / 3×t3), formats, directions, `denom` and row-10 `sublabel` byte-identical.
-  Only `label:` left.
-- Built output, all three locales, all 19 render slots: hero tiles, both team `.vs-row`/`.ss-row`
-  blocks and the fixture page's 16 `.mlabel` values are localised in the locked order.
-  `grep -rE 'metrics\.[a-z_]+\.label' dist` → 0.
-- No English regression: every `METRIC_LABELS_EN` value byte-identical to the `label:` it replaces.
-- The hero block names the metric consistently on all four strings in all three locales, read from
-  the built HTML; no superseded form survives anywhere in `dist/`.
-- Rendering read from the evidence artifact, not re-derived: the 560px stack fires (96px → 149px
-  measured), 0 overflow above 1px on every container, 0 unmeasured, no sideways scroll, 0 mid-word
-  breaks. The remaining `.vs-row` breaks clip nothing and are CPO-ruled filed (#876).
-- Wording authority for every changed user-visible string: 10 DE and 10 FI byte-identical to the
-  validated corpus, the rest carrying a quoted CPO answer in `escalations.log`.
-- No metric added or removed on any surface; the spec additions declare what already renders.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Rebase integrity of `tests/test_governance_hooks.py`: a single pure insertion hunk, 113 added
-  lines, zero removed. All thirteen of #878's test functions present by name; #370's four present.
-  Nothing lost from either side.
-- The three Python floors fail on revert, traced rather than assumed: `MIN_METRIC_KEYS`'s fixture
-  keeps the chrome dicts healthy so control reaches the metric block, and setting the floor to 0
-  makes `main()` return 0 and the test red.
-- Three-parser parity traced as a chain: `check-metric-labels.test.mjs` pins `labels.EN == asked`,
-  test 6 pins `check-page-specs.mjs`'s subset to it, and the Python test pins its own to `asked` —
-  all three anchored to the same set rather than agreeing by luck.
-- The catalogue cross-check is not passing by luck: `label_i18n_key` is column 2 and columns 0-1
-  never contain a comma, so the naive split is safe for this column order; the ≥50 floor has real
-  headroom at ~80 declared keys.
-- Fail direction: the new test file runs under `node --test` from `prebuild`, so it fails CLOSED on
-  the build and in both build workflows; `check-page-specs.mjs`'s new early returns exit 1;
-  `check_copy_gate.py` returns 1 on both new branches.
-- Re-run and interruption safety: every changed script is a read-only checker holding no lock.
-- Build health: 10 built pages across 3 locales unchanged; no new dependency, no lockfile change.
-- Header parsing re-derived independently after the fix: 53 headers, exactly five with a non-branch
-  token, four distinct junk keys, all pre-split; both two-day headers parse to the real branch.
-- Both buckets recomputed from the log; the corrected figures reconcile with the instrument.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Silent §10 copy: all 54 `METRIC_LABELS_*` values checked against `escalations.log` and against
-  `site/i18n/{de,fi}.json` byte-for-byte. Every DE/FI string is CPO-supplied verbatim, on the
-  "Approved, record it" list, or identical to his validated corpus; all 18 EN labels identical to
-  the values they replaced.
-- Invented metric keys (A1): 13 of 18 `labelKey` values checked against the catalogue column,
-  including the deliberate id/key mismatch. All declared; the seed is unedited.
-- Rebase content loss: `escalations.log` carries both #370's entry and #878's, complete.
-- Scope and amendment authority: all 17 diffed files inside `scope_paths`; each of the five
-  amendments traced to a quoted ruling or a standing rule.
-- Undeclared threshold / new mechanism: no dependency, workflow, permission, cadence or query
-  change, and the `validateSpec` rendered-key walker the log reserves to the CTO was not smuggled in.
-- `decisions_reserved`: each of the nine items checked against the diff; none is decided here.
-- Consumption-layer contract (A5): `metricLabel()` is a keyed lookup with no derivation; zero
-  residual `def.label`/`row.label` in `site_v2/src`; four render sites matching the `impact_map`.
-- Doc-sync: `metrics_display.md` updated per the ruling, and `north_star.md`'s "16 findings" claim
-  still true against the gate's four checks over the 54 new strings.
+- Every changed path is covered by `scope_paths`, including the Astro dynamic route, which only
+  matches through `site_v2/src/pages/*/teams/*.astro` because fnmatch reads `[lang]`/`[team]` as
+  character classes.
+- The §10 classification (the pipeline picks the opening season, not the page) is recorded in
+  `decisions_taken` with the CPO's 2026-08-02 wording, and the matching entry exists in
+  `escalations.log`. Checked that the cited ruling is real rather than asserted.
+- The five acceptance criteria are unchanged from the approved set and remain locked.
+- All three amendments cite real authority: criteria 4, 5 and 2 for the first two, a routed
+  reviewer's finding for the third. Verified the third by ordering, not by claim: the artifact was
+  rewritten after the amendment was recorded. The contract states one root cause for all three,
+  which matches the pattern of each.
+- Threshold declarations checked against the diff: no new mechanism (a boolean column on an existing
+  mart is not a new warehouse object class) and no recurring cost (no new run, API call or reviewer).
+- Appendix A anti-patterns: logic moves OUT of the frontend and the export INTO the warehouse, which
+  is the opposite of A5; the `impact_map` pastes `dbt ls` output rather than asserting lineage (A6).
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- `row_number() over (partition by ...) = 1` in both marts: BigQuery assigns exactly one rank-1 row
+  per non-empty partition regardless of NULLs in the ORDER BY, so "two flagged" is unreachable by
+  construction and "none" only if the entity has no row in the mart at all.
+- Fan-out from the two new joins in `mart_player_profile`: `competition_registry.league_code` and
+  `competition_types.competition_type` are both `unique` + `not_null` in `seeds/schema.yml`, so
+  neither join can multiply rows and the `(player_sk, season_sk)` grain holds.
+- `'domestic_league'` and `'club'` are taxonomy values from the registry and the seed, applied
+  uniformly for every `league_code`, not hardcoded competition identifiers.
+- `assert_one_featured_season_per_entity.sql` is valid BigQuery and catches both zero and two for
+  any entity present in the mart.
+- `_featured_season_row` in the export selects on a served flag and raises rather than deriving a
+  fallback, which stays inside the consumption-layer contract.
+- `entity_type` reaches NULL two ways, not one: an absent league_code, and a registry entry PRESENT
+  with a blank `competition_type`, which `sync_dbt_vars.py`, `check_competition_type_seed.py` and
+  `check_registry_var_sync.py` all skip on the same `if code and ctype` condition. Verified against
+  the scripts. `not_null` on the mart column converts that from a silent mis-scoping into a failing
+  dbt test; the registry-side silence is outside this task's `scope_paths` and is filed as #883.
+  Counted `docs/competition_registry.yml`: 45 entries, every one carries a `competition_type`.
+- `impact_map`'s leaf-mart and sole-consumer claims verified independently by grep over
+  `dbt_project/models/`.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- `is_featured_season` traces from both marts through `_featured_season_row` and `_strip_identity`
+  into the served payload and the `TeamSeason` type. No field is drawn that the data does not carry.
+- The committed sample `site_v2/src/data/teams/33.json` has exactly one `is_featured_season: true`
+  (`PL` / `2025`), and that is the row the old `.find((s) => s.competition_type === "domestic_league")`
+  would have returned, so acceptance criterion 2 is not contradicted by the sample itself.
+- Widening `TeamSeason.is_featured_season` to a required field breaks no other consumer: no other
+  committed sample carries a `seasons` array and no component constructs a bare `TeamSeason` literal.
+- The non-null assertion at `[team].astro:56` fails at BUILD time, not in a visitor's browser.
+  Confirmed against `astro.config.mjs` (`output: "static"`, no adapter), and confirmed empirically in
+  `rendered_page_evidence.md` by flipping the sample's flag and observing exit 127.
+- The rendered-page artifact is specific to this branch and measures rather than asserts: built HTML
+  byte-identical across de, en and fi, before and after. For "nothing a visitor sees changes" that is
+  stricter than a screenshot, since identical bytes fix every viewport and every string at once.
+  Cross-checked its claims against the repo rather than taking them on faith; nothing contradicts it.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- `_mark_featured` mutates fixture dicts in place, but every call site builds its own literal list
+  inside its own test function; no module-level or shared fixture object exists in the file, so there
+  is no cross-test coupling.
+- The helper's default reproduces the removed `_latest_season_row` exactly, including tie-breaking,
+  so the unchanged assertions really do prove the payload did not move rather than masking it.
+- Both new tests pin the changed behaviour: reverting to recency flips `position` from `"D"` to
+  `"M"`, and reverting the raise makes both `pytest.raises` blocks fail.
+- Traced the `ValueError` through the call graph and the workflows. `dbt-scheduled.yml` never calls
+  the export; the only caller is `deploy-site-v2.yml`, which is `workflow_dispatch`-only. So a bad
+  row fails a manual, non-public deploy loudly rather than taking down a live nightly. Fail-closed is
+  the correct direction for a data-validity gate.
+- The new singular test is covered by CI: `ci-data-build.yml` runs `dbt test --select
+  test_type:singular` on PR and on main, and `dbt-scheduled.yml`'s nightly `dbt build` runs it too.
+  `dbt_project/models/**` and `dbt_project/tests/**` both trigger that workflow, ruling out a
+  deploy-order race where the export meets a mart without the column.
+- No dependency, workflow or build-config file is touched, so pinning does not apply.
+- `import pytest` inside a test function is a style inconsistency, not a defect; recorded, not raised
+  as a FAIL, because it cannot fail.
 
 ## escalations
 (none)
-
-## owed — recorded, none blocking
-- `check-metric-labels.test.mjs:63` carries a half-deleted sentence from the history strip.
-- `metrics_display.md` and the `strings.ts` FI block still carry a little review narration, against
-  the CPO's standing "a correction replaces" rule. The test file's neighbours already read that way
-  on `main`, so that half is a pre-existing house pattern rather than drift from this branch.
-- `report_process_health.py`'s header regex is narrower than the forms a human writes: five
-  historical headers carry no branch token, so the pre-split baseline it prints (1.24) is understated
-  by roughly 10%. Fixing it means widening the regex plus a test pinning header parsing — nothing
-  covers `rulings()` today — or reserving an explicit no-branch key. Advisory only; no gate reads it.
-  The five historical headers must NOT be edited: they are other branches' durable records.
-- `check-page-specs.mjs`'s `MIN_EXPECTED_METRIC_KEYS` floor is not pinned by a test that fails on its
-  removal, mirroring the pre-existing `MIN_EXPECTED_KEYS`. Both are fail-closed and neither absence
-  opens a hole; pinning them needs a reshape of the checker.
