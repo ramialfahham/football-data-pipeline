@@ -160,6 +160,21 @@ amendments:
     Both amendments have the same root cause, stated once rather than twice: `scope_paths` was
     drafted from the change I had in mind instead of from the whole chain the change travels,
     mart -> test -> export -> payload -> page -> committed sample.
+  - 2026-08-02: **DELETED** `dbt_project/tests/assert_one_featured_season_per_entity.sql` from the
+    branch — authority: CPO, **"do 1 now"**, answering an escalation with two paths. The path STAYS
+    in `scope_paths`: the diff deletes that file, so scope has to authorise touching it. Dropping it
+    from scope was tried first and the contract gate correctly refused the deletion.
+    The test is correct and PASSED against the real rebuilt marts (12.7k team rows, 168.5k player
+    rows) in `ci-data-build`'s BUILD step. It fails the SEPARATE singular-test step, which runs
+    `--defer --favor-state` so every model reference resolves to PROD, and prod has no
+    `is_featured_season` until main-push rebuilds it. That is an ordering property of the CI design,
+    not a defect in the test: `ci_*` datasets are shared across PRs, so dbt cannot trust a `ci_`
+    relation, so the flag forces prod, so the PR-time DQ step cannot see the branch's own models.
+    Acceptance criterion 4 is NOT weakened and NOT reworded — it is locked and stays as approved.
+    Its automated half lands in the follow-up PR (#886) once prod carries the column, which is the
+    earliest point the test can read a table that has it. The CI gap itself is #887. Until then
+    "never two" holds by construction (`row_number() = 1` cannot yield two) and `not_null` on the
+    column ships here.
   - 2026-08-02: + `.claude/task/rendered_page_evidence.md` — authority: `bi-analyst-reviewer`'s
     round-1 FAIL. Its brief requires that artifact whenever the diff makes a rendering-affecting
     change under `site_v2/src/**`, and the file in the tree still held the merged #370 task's

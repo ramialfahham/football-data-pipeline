@@ -291,9 +291,11 @@ models:
           name: team_profile_finishing_efficiency_in_range
     columns:
       # #846: the season this team's page opens on — the most recent domestic-league season,
-      # falling back to the most recent of any type. Exactly one row per team is true, asserted
-      # across BOTH profile marts in tests/assert_one_featured_season_per_entity.sql: it is one
-      # rule, and one failure surface is what keeps the two from drifting apart again.
+      # falling back to the most recent of any type. Exactly one row per team is true BY
+      # CONSTRUCTION: the model computes it as `row_number() over (partition by team_sk ...) = 1`,
+      # which cannot produce two. The cross-mart test that asserts it explicitly, so a future
+      # rewrite of that window cannot silently produce NONE, is #886 — deferred because prod has
+      # no such column until main-push, which is the CI gap #887.
       - name: is_featured_season
         tests: [not_null]
       - name: team_sk
@@ -643,7 +645,8 @@ models:
       # #846: the season this player's page opens on — the most recent CLUB season, preferring a
       # domestic league, falling back to the most recent of any kind for a player with no club
       # football. Scoped to club because #848 made Overview, Performance and Career club-only.
-      # Exactly one row per player is true (tests/assert_one_featured_season_per_entity.sql).
+      # Exactly one row per player is true by construction (`row_number() ... = 1`); the test that
+      # asserts it explicitly, and would catch NONE after a future rewrite, is #886 (see #887).
       - name: is_featured_season
         tests: [not_null]
       - name: competition_type
