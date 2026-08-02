@@ -5,8 +5,8 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-02**. main GREEN at **162789a**. **IN FLIGHT: `feat/846-featured-season-from-mart`,
-4 reviewers PASS in 3 rounds, ready for the CPO's merge.**
+_Last updated **2026-08-02**. main GREEN at **79317d3**; **#846 is MERGED**. **IN FLIGHT:
+`feat/886-featured-season-dq-test`, 2 reviewers PASS, awaiting the CPO's merge.**
 The product is **Matchday Pilot** on `matchdaypilot.com`.
 **FIRST ACTIONS: read "⭐ THE REVIEW RULES CHANGED" below — it changes how every task runs — then run
 `git stash list` before any git work.** The player page is FOUR tabs (#848); its Overview is **BUILT
@@ -58,8 +58,8 @@ most recent CLUB season). Built team pages are **byte-identical** in all three l
 page's own `.find()` is NOT converted — it is in `stash@{0}`, held on #845; its mart half IS shipped,
 so it becomes a one-line change there. Filed, not fixed: **#882** past seasons ingested but
 unreachable (he wants them selectable), **#883** a blank `competition_type` in the registry is
-skipped by all three guards, **#886** the exactly-one DQ test, split out by his ruling and **owed
-once prod carries the column**, **#887** why: `ci_*` datasets are SHARED, so `--favor-state` forces
+skipped by all three guards, **#887** why #886 had to wait: `ci_*` datasets are SHARED, so
+`--favor-state` forces
 every ref to prod and **the PR-time DQ step cannot see the branch's own models**. ⚠ My first fix was
 to drop the flag; he caught it as a hack.
 

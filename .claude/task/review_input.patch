@@ -1,1060 +1,323 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a87d2e9..6dbde3c 100644
+index 6dbde3c..fa851df 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,171 +1,182 @@
--# Task contract — metric labels come from the catalogue, per locale (#370 slice)
-+# Task contract — the pipeline decides which season a page opens on (#846)
+@@ -1,182 +1,73 @@
+-# Task contract — the pipeline decides which season a page opens on (#846)
++# Task contract — restore the exactly-one-featured-season DQ test (#886)
  
--> Written on a clean tree before any file was touched. Branch `feat/370-metric-labels-from-catalogue`
--> from `main` at `cc6cc45`. No protected path in scope, so no `protected_override`. `site_v2/` is the
--> structural surface, so `impact_map` is required and present.
-+> Written on a clean tree before any file was touched. Branch `feat/846-featured-season-from-mart`
-+> from `main` at `162789a`. No protected path in scope, so no `protected_override`.
-+> `dbt_project/models/**`, `scripts/export_*.py` and `site_v2/` are all structural, so `impact_map`
-+> is required and present. `site_v2/src/` is in scope, so `acceptance_criteria` are required,
-+> CPO-approved before any code, and LOCKED.
+-> Written on a clean tree before any file was touched. Branch `feat/846-featured-season-from-mart`
+-> from `main` at `162789a`. No protected path in scope, so no `protected_override`.
+-> `dbt_project/models/**`, `scripts/export_*.py` and `site_v2/` are all structural, so `impact_map`
+-> is required and present. `site_v2/src/` is in scope, so `acceptance_criteria` are required,
+-> CPO-approved before any code, and LOCKED.
++> Written on a clean tree before any file was touched. Branch `feat/886-featured-season-dq-test`
++> from `main` at `79317d3`. No protected path in scope, so no `protected_override`. No
++> `dbt_project/models/**`, `ingestion/**`, `scripts/export_*.py` or `site*/` path in scope, so
++> `impact_map` is not gate-required; a one-line evidenced short-form is given anyway.
++> No `site_v2/src/` path in scope, so no `acceptance_criteria`.
  
  objective: >
--  A stat's name is currently written down in FOUR places: the catalogue holds the i18n key but no
--  translation, `metricRows.ts` hard-codes an English label, `strings.ts` hard-codes three more for the
--  hero tiles, and the narrative sentence spells one out in prose. Nothing keeps them in step, and the
--  German and Finnish pages show English stat names because the catalogue's keys resolve to nothing.
-+  A team or player has many seasons. Opening their page shows one of them first, and today the
-+  rule that picks it is written down THREE times: `_latest_season_row` in the export
-+  (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the
-+  team page (`[team].astro:56`), and the same rule again in different code on the stashed player
-+  page. They already disagree. The export's copy is pure recency, which is why a player's
-+  `current_team` resolves to England rather than Aston Villa.
+-  A team or player has many seasons. Opening their page shows one of them first, and today the
+-  rule that picks it is written down THREE times: `_latest_season_row` in the export
+-  (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the
+-  team page (`[team].astro:56`), and the same rule again in different code on the stashed player
+-  page. They already disagree. The export's copy is pure recency, which is why a player's
+-  `current_team` resolves to England rather than Aston Villa.
++  Close out #846's acceptance criterion 4 by restoring the test that was written, reviewed and
++  PASSED there, then split out on the CPO's ruling because prod did not yet have the column it
++  reads. Prod has it now.
  
--  This makes the catalogue's `label_i18n_key` real: one per-locale name per metric, read from one
--  place by every page. It is the slice of #370 that unblocks composing narrative text from the
--  semantic layer instead of hand-writing it per locale.
-+  This moves the rule into the warehouse. Both profile marts mark exactly one season per entity,
-+  and the export and the pages read that mark instead of deciding for themselves.
+-  This moves the rule into the warehouse. Both profile marts mark exactly one season per entity,
+-  and the export and the pages read that mark instead of deciding for themselves.
++  `is_featured_season` marks the one season an entity's page opens on. "Never two" already holds by
++  construction (`row_number() = 1`) and `not_null` on the column shipped with #846. The half still
++  uncovered is "never none", which a future rewrite of the window expression could introduce
++  silently. This test is what makes that loud.
  
  refs: >
--  #370, the bullet "metric labels from `metric_catalogue` i18n keys (never hardcoded)" and only that
--  bullet. The rest of #370 (hreflang, per-locale sitemaps, five new languages, locale-aware
--  formatting, localised competition names) is explicitly NOT in this task.
-+  #846. The CPO ruled the classification on 2026-08-02: the pipeline picks, not the page.
-+  #848 supplies the lens rule (the club tabs are club-only), which is what "most recent" has to be
-+  scoped by. NOT in this task: #845 (which entities earn a page), #882 (reaching past seasons at
-+  all), and the player page's own consumer, which lands when `stash@{0}` comes off the stash.
+-  #846. The CPO ruled the classification on 2026-08-02: the pipeline picks, not the page.
+-  #848 supplies the lens rule (the club tabs are club-only), which is what "most recent" has to be
+-  scoped by. NOT in this task: #845 (which entities earn a page), #882 (reaching past seasons at
+-  all), and the player page's own consumer, which lands when `stash@{0}` comes off the stash.
++  #886. Restores `dbt_project/tests/assert_one_featured_season_per_entity.sql` from `5479ef5^`
++  UNCHANGED — the exact file `analytics-engineer-reviewer` passed in #846 (PR #884, round 3).
++  Precondition met: main-push `ci-data-build` completed successfully after #884 merged, so prod's
++  `mart_team_profile` and `mart_player_profile` carry the column.
++  NOT in this task: #887, the CI gap that forced the split.
  
  scope_paths:
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/metricRows.ts
--  - site_v2/src/components/fixture/MetricRow.astro
--  - site_v2/src/components/team/MetricLeagueRow.astro
--  - site_v2/src/components/team/MetricSeasonRow.astro
--  - site_v2/src/components/team/DeservedHero.astro
--  - site_v2/src/styles/system.css
--  - site_v2/src/specs/teams/team.spec.json
--  - site_v2/src/specs/competition/matches/fixture.spec.json
--  - site_v2/scripts/check-metric-labels.test.mjs
--  - site_v2/scripts/check-page-specs.mjs
--  - site_v2/scripts/check-page-specs.test.mjs
--  - scripts/check_copy_gate.py
--  - docs/wireframes/metrics_display.md
--  - tests/test_governance_hooks.py
--  - .claude/task/*.md
-+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
+-  - site_v2/src/pages/*/teams/*.astro
+-  - site_v2/src/lib/types.ts
+   - dbt_project/tests/assert_one_featured_season_per_entity.sql
+-  - site_v2/src/data/teams/33.json
 +  - dbt_project/models/5_marts/shared/shared.yml
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - site_v2/src/pages/*/teams/*.astro
-+  - site_v2/src/lib/types.ts
-+  - dbt_project/tests/assert_one_featured_season_per_entity.sql
-+  - site_v2/src/data/teams/33.json
-+  - .claude/task/contract.md
-+  - .claude/task/review.md
-+  - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
-   - .claude/task/rendered_page_evidence.md
+   - .claude/task/contract.md
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
+-  - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
    - .claude/task/escalations.log
--  - .claude/task/review_input.patch
    - .claude/active_work.md
  
-+# fnmatch full-string-matches and `[lang]`/`[team]` are CHARACTER CLASSES, so the literal Astro
-+# dynamic-route path can never match itself. `site_v2/src/pages/*/teams/*.astro` is the only form
-+# that matches the real file. This is a known trap, not a widening.
-+
- acceptance_criteria:
--  - Each stat name is written down once. `metricRows.ts` has no `label:` field, `heroSotFor`,
--    `heroSotAgainst` and `heroSotDiff` are gone from `strings.ts`, and no stat name is spelled
--    anywhere outside the one metric-label block.
--  - A German reader sees German stat names. In the BUILT output the German hero tiles read
--    `Ø Torschüsse`, `Ø Torschüsse gegen`, `Ø Torschussdifferenz`; the Finnish read
--    `Ø Maalilaukaukset`, `Ø Maalilaukaukset vastaan`, `Ø Maalilaukauksien ero`; and the Performance
--    rows differ per locale the same way.
--  - If a name is ever missing, the page must not show gibberish. `t()` falls back to the key itself,
--    so a gap would print the lookup code for a visitor to read. The built HTML contains zero
--    occurrences of `metrics.`, and a test asserts every key resolves in all three locales.
--  - Every name on the page belongs to a stat that really exists. A test cross-checks each key against
--    `metric_catalogue.csv`, which is what catches the dangling `shots_on_target_per_match`.
--    # Locked wording, kept verbatim. Its example is wrong — the catalogue DOES declare that key — and
--    # only the CPO moves a locked criterion. He was asked and chose to leave it annotated.
--  - The ten names the CPO already validated stay exactly as he wrote them. A test compares them
--    against `site/i18n/*.json` so nothing approved is silently reworded while strings move.
--  - The new names go through the same copy check as everything else. `scripts/check_copy_gate.py`
--    reports a higher string count and applies its em dash, locale-completeness and terminology checks
--    to the metric labels too.
-+  - A player who played a summer tournament still opens on their club season. Today M. Rogers opens
-+    on World Cup 2026 with England instead of Premier League 2025/26 with Aston Villa.
-+  - Nothing a visitor sees on a team page changes. Every sample team opens on the same season as it
-+    does today. This is plumbing, not a redesign.
-+  - The opening season is decided in one place instead of three. Today the team page decides it, the
-+    player page decides it again in different code, and the export has its own copy. After this, all
-+    three read one answer from the pipeline.
-+  - If the rule ever breaks, a test catches it before a reader does. Every team and every player has
-+    exactly one opening season, never none and never two.
-+  - The change does not quietly alter anything else. No number, name or season anywhere else moves.
- 
+-# fnmatch full-string-matches and `[lang]`/`[team]` are CHARACTER CLASSES, so the literal Astro
+-# dynamic-route path can never match itself. `site_v2/src/pages/*/teams/*.astro` is the only form
+-# that matches the real file. This is a known trap, not a widening.
+-
+-acceptance_criteria:
+-  - A player who played a summer tournament still opens on their club season. Today M. Rogers opens
+-    on World Cup 2026 with England instead of Premier League 2025/26 with Aston Villa.
+-  - Nothing a visitor sees on a team page changes. Every sample team opens on the same season as it
+-    does today. This is plumbing, not a redesign.
+-  - The opening season is decided in one place instead of three. Today the team page decides it, the
+-    player page decides it again in different code, and the export has its own copy. After this, all
+-    three read one answer from the pipeline.
+-  - If the rule ever breaks, a test catches it before a reader does. Every team and every player has
+-    exactly one opening season, never none and never two.
+-  - The change does not quietly alter anything else. No number, name or season anywhere else moves.
+-
  impact_map: >
--  writers: nothing writes these values at runtime. They are static per-locale strings in
--    `site_v2/src/i18n/strings.ts`. The catalogue seed (`dbt_project/seeds/metric_catalogue.csv`)
--    supplies `label_i18n_key`, `direction` and `format` and is NOT edited here. Every key the page
--    uses is declared verbatim in the `label_i18n_key` COLUMN; none is invented.
+-  writers: `mart_team_profile` and `mart_player_profile` are the only models changed. Neither is
+-    written by anything else; each is built once by dbt.
 -
--  downstream: four render sites consume a metric name, enumerated from the tree rather than assumed —
--    `components/fixture/MetricRow.astro`, `components/team/MetricLeagueRow.astro`,
--    `MetricSeasonRow.astro`, and `components/team/DeservedHero.astro` (three `heroSot*` calls). All
--    four already receive `lang` as a prop, so no prop threading is needed. `lib/metricRows.ts` is the
--    LOCKED 16-row display contract read by `MetricComparison.astro` and `TeamPerformance.astro`; its
--    `field`, `format`, `direction`, `group`, `tier`, `denom` and `sublabel` are untouched — only
--    `label` leaves.
+-  downstream: BOTH ARE LEAF MARTS. Evidence, run with the project venv dbt (`dbt=1.7.19`,
+-    `bigquery=1.7.2`, 94 models parsed), not asserted:
+-      `dbt ls --select mart_team_profile+ --resource-type model`
+-        -> football_data_pipeline.5_marts.shared.mart_team_profile
+-      `dbt ls --select mart_player_profile+ --resource-type model`
+-        -> football_data_pipeline.5_marts.shared.mart_player_profile
+-    Each returns ONLY itself, so no dbt model consumes either one. Their sole consumer is the
+-    export, enumerated from the tree: `export_site_data.py:678` (`select *` from mart_team_profile)
+-    and `:733` (`select *` from mart_player_profile). Because both reads are `select *`, a new
+-    column reaches the export with no query change.
 -
--  layer_rules: no warehouse change, so `check_layer_contract.py` is unaffected. Selecting a string by
--    key is selection, not derivation, so resolving a label per locale stays inside what the
--    consumption layer may do. What it may NOT do is invent or restate a metric's meaning, which is
--    exactly the duplication being removed.
+-    Upstream of `mart_team_profile`, for the record of what a rebuild pulls:
+-      `dbt ls --select +mart_team_profile` -> int_team_season__metrics_cumulative,
+-      int_team_season__standings_primary, int_team_season_record, mart_team_season, and the
+-      stg_apif__ models for fixture_events, fixture_players, fixture_statistics, fixtures_next,
+-      leagues, standings, teams.
 -
--  deploy_order: none. No warehouse, no migration, no export change; the payload is untouched. The
--    build runs `npm test` via `prebuild`, so the new test gates the build itself rather than only CI.
+-  layer_rules: `check_layer_contract.py` is unaffected; no model moves layer and no staging model is
+-    touched. The change is the layer contract being OBEYED rather than bent:
+-    `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend",
+-    and its own test ("would this value deserve a DQ test, or need to be byte-identical across two
+-    frontends?") is yes on both counts. `competition_type` is already a mart column on
+-    `mart_team_profile` and on `mart_player_career` (which joins the `competition_types` seed);
+-    only `mart_player_profile` lacks it, so the player side propagates an existing, precedented
+-    column rather than modelling something new.
 -
--  blast_radius: every metric name on the fixture page and both team-page tabs, in three locales — 18
--    distinct keys across 19 render slots (`shots_on_target_per_match` is used twice: hero tile 1 and
--    Performance row 6). Ten are CPO-validated strings that must not change and are test-pinned to
--    `site/i18n/*.json`. What breaks if it is wrong: `t()` returns the KEY when a lookup misses, so a
--    missed name renders `metrics.duels_per_match.label` as visible text on a public page. That failure
--    is silent in review and loud to a reader, which is why criterion 3 greps the built HTML rather
--    than trusting the diff.
-+  writers: `mart_team_profile` and `mart_player_profile` are the only models changed. Neither is
-+    written by anything else; each is built once by dbt.
-+
-+  downstream: BOTH ARE LEAF MARTS. Evidence, run with the project venv dbt (`dbt=1.7.19`,
-+    `bigquery=1.7.2`, 94 models parsed), not asserted:
-+      `dbt ls --select mart_team_profile+ --resource-type model`
-+        -> football_data_pipeline.5_marts.shared.mart_team_profile
-+      `dbt ls --select mart_player_profile+ --resource-type model`
-+        -> football_data_pipeline.5_marts.shared.mart_player_profile
-+    Each returns ONLY itself, so no dbt model consumes either one. Their sole consumer is the
-+    export, enumerated from the tree: `export_site_data.py:678` (`select *` from mart_team_profile)
-+    and `:733` (`select *` from mart_player_profile). Because both reads are `select *`, a new
-+    column reaches the export with no query change.
-+
-+    Upstream of `mart_team_profile`, for the record of what a rebuild pulls:
-+      `dbt ls --select +mart_team_profile` -> int_team_season__metrics_cumulative,
-+      int_team_season__standings_primary, int_team_season_record, mart_team_season, and the
-+      stg_apif__ models for fixture_events, fixture_players, fixture_statistics, fixtures_next,
-+      leagues, standings, teams.
-+
-+  layer_rules: `check_layer_contract.py` is unaffected; no model moves layer and no staging model is
-+    touched. The change is the layer contract being OBEYED rather than bent:
-+    `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend",
-+    and its own test ("would this value deserve a DQ test, or need to be byte-identical across two
-+    frontends?") is yes on both counts. `competition_type` is already a mart column on
-+    `mart_team_profile` and on `mart_player_career` (which joins the `competition_types` seed);
-+    only `mart_player_profile` lacks it, so the player side propagates an existing, precedented
-+    column rather than modelling something new.
-+
-+  deploy_order: the marts must be rebuilt before the export runs, which is the normal nightly order
-+    (dbt build then export). Adding a column is additive, so the deployed export keeps working
-+    against the old table until the rebuild lands; nothing breaks mid-deploy. NO LOCAL BUILD:
-+    dbt shares the CI and prod datasets, so a local `dbt build` would clobber prod. Criteria 1 and 4
-+    are demonstrated from `ci-data-build` output on the PR.
-+
-+  blast_radius: one new boolean column on two leaf marts, plus one new field in each entity payload.
-+    NO existing number, name, rank or season value changes. The team page must open on the same
-+    season it opens on today (criterion 2) because the warehouse rule is the same rule the page
-+    already applies; the only behaviour that CHANGES is the export's entity identity for players,
-+    which today is pure recency and therefore wrong. What breaks if it is wrong: a player page
-+    opens on a national tournament under a club-only tab, which is exactly the defect #846 exists
-+    to remove, and criterion 4's test is what makes that loud instead of silent.
+-  deploy_order: the marts must be rebuilt before the export runs, which is the normal nightly order
+-    (dbt build then export). Adding a column is additive, so the deployed export keeps working
+-    against the old table until the rebuild lands; nothing breaks mid-deploy. NO LOCAL BUILD:
+-    dbt shares the CI and prod datasets, so a local `dbt build` would clobber prod. Criteria 1 and 4
+-    are demonstrated from `ci-data-build` output on the PR.
+-
+-  blast_radius: one new boolean column on two leaf marts, plus one new field in each entity payload.
+-    NO existing number, name, rank or season value changes. The team page must open on the same
+-    season it opens on today (criterion 2) because the warehouse rule is the same rule the page
+-    already applies; the only behaviour that CHANGES is the export's entity identity for players,
+-    which today is pure recency and therefore wrong. What breaks if it is wrong: a player page
+-    opens on a national tournament under a club-only tab, which is exactly the defect #846 exists
+-    to remove, and criterion 4's test is what makes that loud instead of silent.
++  Short-form, and honest about why it is short: this adds a TEST, not a model. No model, no column
++  and no value changes, so there is no lineage to trace and no blast radius to measure.
++  `dbt ls --select mart_team_profile+ --resource-type model` and the same for
++  `mart_player_profile+` each still return only themselves, so nothing downstream exists to break.
++  What DOES change is a gate: the test can now fail a build that previously passed. That is the
++  point of it, and the reason it is safe to add now is that it already ran green against real data
++  in #884 (`ci_marts.mart_team_profile` 12.7k rows, `ci_marts.mart_player_profile` 168.5k rows).
  
  decisions_taken: >
--  CPO rulings on this task, one line each. **Full text with what was asked and what he answered is in
--  `.claude/task/escalations.log`**, which survives this task; this contract does not.
+-  CPO rulings on this task. Full text in `.claude/task/escalations.log`.
++  Restoring a previously reviewed file unchanged, under an existing CPO ruling. The ruling
++  ("do 1 now", 2026-08-02) deferred this test to a follow-up PR; this is that PR. Acceptance
++  criterion 4 of #846 was never reworded, so nothing is being reinterpreted here.
+ 
+-  - The §10 classification, 2026-08-02: the pipeline picks the opening season, not the page.
+-    His words: "that the opening season is a warehouse fact -> I tend to yes", then "OK" on the
+-    rule being scoped by lens.
+-  - The five acceptance criteria above: "all 5 approved". Locked; only he moves them.
+-  - "Most recent" is scoped by the lens the tab shows (#848): club tabs open on the most recent CLUB
+-    season, the International tab on the most recent national competition. Without that scoping the
+-    player page opens on a World Cup, which #848 already ruled against.
++  Two `shared.yml` comments say the explicit assertion "is #886 — deferred". They become wrong the
++  moment this lands, so they are corrected in the same diff. That is the standing rule that a
++  correction replaces rather than accumulates, applied to the thing this change makes stale.
+ 
+-  THRESHOLD DECLARATIONS. NEW MECHANISM: none. A boolean column on an existing mart is not a new
+-  warehouse object class; no UDF, no hook, no lifecycle step, no dependency. RECURRING COST: none.
+-  No new scheduled run, no extra API call, no additional reviewer. The nightly build gains two
+-  columns.
 -
--  - The six acceptance criteria above: "All approved." Locked; only he moves them.
--  - German metric names, supplied verbatim: `Torschüsse`, `Torschüsse gegen`, `Torschussdifferenz`.
--  - Finnish, supplied verbatim: `maalilaukaukset`, `maalilaukaukset vastaan`, `maalilaukauksien ero`.
--  - Eight further DE/FI names that were mine, plus two Finnish he had confirmed separately:
--    "Approved, record it."
--  - The overflow fix is styling, not shorter copy: "Change the styling."
--  - `docs/wireframes/metrics_display.md` updated in this branch, not deferred: "Update it now."
--  - Criterion 4's false example stays annotated rather than reworded: "Leave it, the note is enough."
--  - The metric's name inside the hero prose sentences: "Yes, use my words."
--  - The Finnish caption keeps its per-match basis and the `eron` inflection: "Put 'per match' back."
--  - The two `axPlay` values and the German `heroCaption`: "Approve them."
--  - The German rate word, chosen against my recommendation: `pro Spiel`.
--  - Hero tiles stack on phones rather than breaking words mid-word: "Stack them on phones."
--    The 560px threshold is a builder choice; he ruled the behaviour, not the number.
--  - `.vs-row` mid-word breaks are filed, not fixed here: "Leave it filed, fix later" (#876).
--  - Review rounds past the cap of 3, and finishing this branch: "yes and yes", then "finish 370".
--
--  Builder judgement, recorded because it is visible in the design: the labels live in the i18n layer
--  rather than a new seed, because the catalogue owns a metric's identity, direction and format while
--  display copy does not belong in a warehouse seed. The structure is a dedicated per-metric map rather
--  than flat dotted keys in the chrome dictionary, because a quoted dotted key is invisible to both
--  `check_copy_gate.py`'s entry regex and `check-page-specs.mjs`'s key extraction — flat keys would
--  have smuggled 54 strings past the copy check that criterion 6 requires.
-+  CPO rulings on this task. Full text in `.claude/task/escalations.log`.
-+
-+  - The §10 classification, 2026-08-02: the pipeline picks the opening season, not the page.
-+    His words: "that the opening season is a warehouse fact -> I tend to yes", then "OK" on the
-+    rule being scoped by lens.
-+  - The five acceptance criteria above: "all 5 approved". Locked; only he moves them.
-+  - "Most recent" is scoped by the lens the tab shows (#848): club tabs open on the most recent CLUB
-+    season, the International tab on the most recent national competition. Without that scoping the
-+    player page opens on a World Cup, which #848 already ruled against.
-+
-+  THRESHOLD DECLARATIONS. NEW MECHANISM: none. A boolean column on an existing mart is not a new
-+  warehouse object class; no UDF, no hook, no lifecycle step, no dependency. RECURRING COST: none.
-+  No new scheduled run, no extra API call, no additional reviewer. The nightly build gains two
-+  columns.
-+
-+  Builder judgement, recorded because it is visible in the diff: the player page is NOT converted
-+  here. Its consumer lives in `stash@{0}`, which is held on #845, so pulling it in would drag an
-+  undecided scope question into this branch. The mart change it needs IS included, so it becomes a
-+  one-line change when that branch resumes.
+-  Builder judgement, recorded because it is visible in the diff: the player page is NOT converted
+-  here. Its consumer lives in `stash@{0}`, which is held on #845, so pulling it in would drag an
+-  undecided scope question into this branch. The mart change it needs IS included, so it becomes a
+-  one-line change when that branch resumes.
++  THRESHOLD DECLARATIONS. NEW MECHANISM: none — a singular test is an existing resource type and
++  `dbt_project/tests/` already holds 28 of them. RECURRING COST: none — it runs inside the existing
++  `dbt test --select test_type:singular` step, adding one query to a suite that already runs.
  
  decisions_reserved:
--  - The narrative sentences themselves — shape, voice, rotation. This task is why #370 goes first:
--    once labels resolve from the layer, a narrative can name a metric in any locale without a
--    hand-written string. `heroVerdictUnder`/`Over` still hand-spell the name in all three locales and
--    nothing mechanical keeps them in step with `METRIC_LABELS`.
--  - `defensive_actions_per_match.sublabel` is still English in all three locales. It is a caption, not
--    a name.
--  - `YearOverYear.astro` renders three stat names from chrome strings and cannot be bound without a
--    catalogue key that does not exist. Two of them are a second spelling of a name the new block owns.
--  - Metric GROUP headings render in English on every DE/FI page that lists metrics, from two call
--    sites. Where a group name should live is a schema question: **#875**, needs a CPO ruling.
--  - Every other place a stat is named or abbreviated: **#877**, the single source for that set. Needs
--    no ruling — it is ordinary display copy. Nothing in it was introduced by this branch.
--  - The `-n` of `eron` in the Finnish `heroCaption` is a case ending I inferred, not the CPO's word.
--    He approved it knowing that. Still unverified against a Finnish source.
--  - EN `finishing_efficiency` has two approved names: v2's `% Goals per shot on target` and the MVP
--    corpus's `% Conversion rate`. This task keeps v2's, which is why no English text changes.
--  - Wiring `check_copy_gate.py` into CI: **#872**, blocked on the 16 copy findings, which are the CPO's.
--  - Whether magnitude should change the narrative's wording, so 22 points reads differently from 4.
--    Would need the tier to come from the mart; classifying the gap in the frontend is forbidden.
-+  - #882: whether a past season gets its own URL or a control on one page, and which seasons earn a
-+    page at all. Decided with #845, not here. This task only decides what the BARE entity URL opens
-+    on.
-+  - Which competition the International tab itself opens on. Not needed until that tab is built.
-+  - The column name `is_featured_season` is a builder choice on an internal mart column, not a
-+    user-visible string. If the CPO wants it named differently, say so and it changes.
+-  - #882: whether a past season gets its own URL or a control on one page, and which seasons earn a
+-    page at all. Decided with #845, not here. This task only decides what the BARE entity URL opens
+-    on.
+-  - Which competition the International tab itself opens on. Not needed until that tab is built.
+-  - The column name `is_featured_season` is a builder choice on an internal mart column, not a
+-    user-visible string. If the CPO wants it named differently, say so and it changes.
++  - none: this restores a file that was already written, reviewed and PASSED in #884, byte-for-byte
++    unchanged, now that the precondition it was waiting on holds. If a reviewer finds it should
++    differ from the version that passed, that is a finding to raise rather than a decision I make.
++  - #887 may later change how this test is invoked on a PR. That is its own governance task and does
++    not alter what this test asserts.
  
  done_when:
--  - `cd site_v2 && npm run build` passes, which runs `npm test` and `check-page-specs.mjs` via
--    `prebuild`, so the new test gates the build.
--  - Every acceptance criterion demonstrated in `.claude/task/acceptance_evidence.md`, read from
--    `site_v2/dist/`, never from source and never from `outerHTML`.
--  - `grep -rE "metrics\.[a-z_]+\.label" site_v2/dist` returns nothing.
--  - `python scripts/check_copy_gate.py` reports a string count that includes the metric labels.
--  - `python -m pytest tests/test_governance_hooks.py -q` green.
-+  - `dbt ls --select mart_team_profile+` and `mart_player_profile+` still return only themselves
-+    (no accidental new dependency).
-+  - `python -m pytest tests/test_export_site_data.py` passes.
-+  - `cd site_v2 && npm test` passes (59 tests).
-+  - `python -m sqlfluff lint <changed models> --templater jinja --dialect bigquery` clean from the
-+    REPO ROOT, full rule set.
-+  - `ci-data-build` green, and its output demonstrates criteria 1 and 4 in
-+    `.claude/task/acceptance_evidence.md` under `criteria_demonstrated:`.
-+  - Built team pages before and after show the same opening season (criterion 2).
- 
- amendments:
--  Scope additions, each with its authority. One line each.
+-  - `dbt ls --select mart_team_profile+` and `mart_player_profile+` still return only themselves
+-    (no accidental new dependency).
+-  - `python -m pytest tests/test_export_site_data.py` passes.
+-  - `cd site_v2 && npm test` passes (59 tests).
+-  - `python -m sqlfluff lint <changed models> --templater jinja --dialect bigquery` clean from the
+-    REPO ROOT, full rule set.
+-  - `ci-data-build` green, and its output demonstrates criteria 1 and 4 in
+-    `.claude/task/acceptance_evidence.md` under `criteria_demonstrated:`.
+-  - Built team pages before and after show the same opening season (criterion 2).
 -
--  - `+ site_v2/scripts/check-page-specs.mjs`, `+ site_v2/src/specs/teams/team.spec.json` — the
--    standing page-spec rule (#826/#844): a page declares its own surface. Found by the build gate,
--    which refused the build because `team.spec.json` declared a key criterion 1 deletes.
--  - `+ tests/test_governance_hooks.py`, `+ site_v2/scripts/check-page-specs.test.mjs` — the standing
--    rule that new gate behaviour is pinned by a test that fails on revert.
--  - `+ site_v2/src/styles/system.css`, `+ docs/wireframes/metrics_display.md` — CPO: "Change the
--    styling" and "Update it now."
--  - `+ site_v2/src/specs/competition/matches/fixture.spec.json` — same page-spec rule. `MetricRow`
--    changed from `def.label` to `metricLabel()`, so the fixture page renders 16 names through the new
--    key class and its spec declared none of them.
--  - `+ .claude/task/escalations.log`, `+ .claude/task/review_input.patch` — both were already in the
--    diff while excluded from declared scope. `escalations.log` is the durable record §11 requires;
--    `.claude/task/*.md` does not match a `.patch` file.
--  - Criterion 2 updated to the words the CPO chose after he revised all four himself, on his explicit
--    yes. A later instruction supersedes an earlier one, but the record has to say so.
-+  - 2026-08-02: + `dbt_project/tests/assert_one_featured_season_per_entity.sql` — authority: the CPO's
-+    approval of acceptance criterion 4 ("If the rule ever breaks, a test catches it before a reader
-+    does. Every team and every player has exactly one opening season, never none and never two"),
-+    which this file IS. Written on a clean tree; the two mart edits were stashed for the amendment
-+    and restored after. The path was missed when the contract was drafted: `test-paths: ["tests"]`
-+    means a dbt singular test cannot live in the model directory, and a yml test cannot express the
-+    criterion — `unique` with `where: is_featured_season` catches "two" but never "none", and
-+    criterion 4 requires both halves.
-+  - 2026-08-02: + `site_v2/src/data/teams/33.json` — authority: the CPO's approval of acceptance
-+    criterion 5, which names this file ("the committed sample data differing only by the one new
-+    field"), and criterion 2, which cannot be demonstrated without it: the page now reads the flag,
-+    so the committed sample must carry it or the sample team has no season to open on. Verified by
-+    `git ls-files site_v2/src/data` that this is the ONLY committed sample with a `seasons` array —
-+    `fixtures/1492306.json` and `competitions.json` have none, so no other sample needs the field.
-+    Written on a clean tree; the code changes were stashed for the amendment and restored after.
-+    Both amendments have the same root cause, stated once rather than twice: `scope_paths` was
-+    drafted from the change I had in mind instead of from the whole chain the change travels,
-+    mart -> test -> export -> payload -> page -> committed sample.
-+  - 2026-08-02: **DELETED** `dbt_project/tests/assert_one_featured_season_per_entity.sql` from the
-+    branch — authority: CPO, **"do 1 now"**, answering an escalation with two paths. The path STAYS
-+    in `scope_paths`: the diff deletes that file, so scope has to authorise touching it. Dropping it
-+    from scope was tried first and the contract gate correctly refused the deletion.
-+    The test is correct and PASSED against the real rebuilt marts (12.7k team rows, 168.5k player
-+    rows) in `ci-data-build`'s BUILD step. It fails the SEPARATE singular-test step, which runs
-+    `--defer --favor-state` so every model reference resolves to PROD, and prod has no
-+    `is_featured_season` until main-push rebuilds it. That is an ordering property of the CI design,
-+    not a defect in the test: `ci_*` datasets are shared across PRs, so dbt cannot trust a `ci_`
-+    relation, so the flag forces prod, so the PR-time DQ step cannot see the branch's own models.
-+    Acceptance criterion 4 is NOT weakened and NOT reworded — it is locked and stays as approved.
-+    Its automated half lands in the follow-up PR (#886) once prod carries the column, which is the
-+    earliest point the test can read a table that has it. The CI gap itself is #887. Until then
-+    "never two" holds by construction (`row_number() = 1` cannot yield two) and `not_null` on the
-+    column ships here.
-+  - 2026-08-02: + `.claude/task/rendered_page_evidence.md` — authority: `bi-analyst-reviewer`'s
-+    round-1 FAIL. Its brief requires that artifact whenever the diff makes a rendering-affecting
-+    change under `site_v2/src/**`, and the file in the tree still held the merged #370 task's
-+    content, so for this branch it was functionally absent. Same root cause as the two above, which
-+    is why it is the third: the chain was walked one file at a time instead of once, end to end.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 0486181..daee435 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -376,3 +376,14 @@ This entry is the durable record of the metric-definition authority the contract
-   - (⭐ the standing rule this produced, and it is general) **"if one comment doesn't pass the PR then you change it and only the new version stays. not the old and the new."** A correction REPLACES; it never accumulates. Applies to code comments, contracts, evidence artifacts and issue bodies. This was the single generator of #370's cost: every round appended "this said X until round N, which was wrong, now Y", keeping both — and that text was itself inside the reviewed diff, so the next round found defects in it. Measured: 134 of 220 added comment lines in `strings.ts` narrated the review rather than explaining the code. Applying the rule took #370's paperwork from ~3.5 MB to ~240 KB and its contract from 643 lines to 171.
-   - (banked — WHAT ROUND 1 OF THIS BRANCH PROVED) All three reviewers FAILED it, and **not one finding was about artifact phrasing.** Every one was a real machinery defect: the CI twin still enforcing the old floor, a new code path failing open in the unsafe direction, two stale rule statements in guard files, and two unpinned tests. That is the evidence the change works — the reviewers went back to finding bugs. Keep the diff free of the review's own paperwork and adversarial review pays for itself again.
-   - (banked) **The most serious round-1 finding was a verification I claimed and had not done.** `impact_map` said the PASS floor "exists in one place. Verified before editing." It existed in two, and the second was fail-closed CI on every PR, so change 3 was inoperative exactly where it mattered. An `impact_map` asserted from memory is worse than an absent one, because the reviewers are entitled to rely on it. Paste the evidence or do not make the claim.
-+2026-08-02 feat/846-featured-season-from-mart — the §10 classification behind #846, plus the acceptance criteria.
-+  - (the classification, and it is the whole of #846's step 1) A team or player has many seasons and opening their page shows one first. Today the PAGE picks: `_latest_season_row` in the export (`export_site_data.py:127`, used for entity identity at `:227` and `:427`), a `.find()` in the team page (`[team].astro:56`), and the same rule written differently on the stashed player page. `dbt_project/docs/layering.md:331` lists window selection under "Never allowed in the frontend", but the team page does it and its comment argues it is merely selecting a served row. Both readings are defensible, so the meta-rule makes the classification his. Put to him with two paths and a recommendation for the warehouse.
-+      CPO ANSWER (2026-08-02): **"that the opening season is a warehouse fact -> I tend to yes"** — THE PIPELINE PICKS, not the page.
-+  - (the qualifier he added, and it is the part that makes the rule correct) His reasoning was that a reader expects the most recent data. Scoped by nothing, "most recent" is what produces the defect: a player's most recent football genuinely IS the World Cup. **"Most recent" is therefore scoped by the LENS the tab shows (#848): the club tabs open on the most recent CLUB season, the International tab on the most recent national competition.**
-+  - (acceptance criteria) Five, drafted in plain language after he rejected a first set as unreadable: *"The criteria have to be written in a way that I can understand."* Each states what must be true, with the mechanical check attached rather than embedded.
-+      CPO ANSWER (2026-08-02): **"all 5 approved"**. Locked; only he moves them.
-+  - (his product direction, filed rather than absorbed) **"We are ingesting historical data, so I want to see them as well on the website."** Past seasons are ingested (`history_seasons` 1 to 11 per competition) and unreachable: one page per entity, no season in the URL, no selector, and the team page's comment promising one cites #362, which is the closed Astro-scaffold issue. Filed as **#882**. It does NOT change this task — the bare entity URL still has to open on something, and that is what #846 decides. Whether a season gets its own URL or a control is decided with #845, because it multiplies page count by history depth on top of 154,644 player pages.
-+  - (banked — A WRONG NOTE THAT COST REAL TIME, now corrected at source) The handover told every session **"dbt CLI is broken locally"**, so impact maps were being built from greps instead of lineage. It is wrong. `.venv/Scripts/dbt.exe` works: `dbt=1.7.19` + `bigquery=1.7.2`, exactly the `requirements.txt` pin, and it parses all 94 models and answers `dbt ls`. What is broken is the **global** `dbt` on PATH, where dbt-core 1.11.11 sits beside dbt-bigquery 1.7.2 and throws `ModuleNotFoundError: dbt.adapters.factory`. Nothing needs installing; call the venv. The dbt MCP server also starts and registers its tools when run by hand and simply did not connect in-session, most likely `uvx` cold-start latency resolving a separate 3.12 interpreter. Changing `.mcp.json` is a protected-path governance task and is NOT worth spending while the CLI answers the same question.
-+  - (the DQ test could not ship in this PR, and the first fix I proposed was a hack) `ci-data-build` failed on `assert_one_featured_season_per_entity` with `Unrecognized name: is_featured_season`. The test is CORRECT and PASSED in the same job's BUILD step against the real rebuilt marts — `ci_marts.mart_team_profile` 12.7k rows, `ci_marts.mart_player_profile` 168.5k rows, `Done. PASS=31 ERROR=0`. It failed in the SEPARATE singular-test step, which runs `--defer --favor-state`, so every model reference resolves to PROD, and prod has no such column until main-push rebuilds it. **I first recommended dropping `--favor-state` from that step. The CPO rejected it before I saw it myself: *"My suspicion in this case: you are recommending another hack again."* He was right — it would have turned my PR green while letting a stale `ci_` table from an unrelated PR feed the DQ gate.** The real root cause is that `ci_*` datasets are SHARED across PRs, so dbt cannot trust a `ci_` relation, so the flag forces prod, so the PR-time DQ step structurally cannot see the branch's own models. Put to him as two paths: ship the guard one PR later, or fix the CI isolation first.
-+      CPO ANSWER (2026-08-02): **"do 1 now"** — ship the guard one PR later. Acceptance criterion 4 is NOT reworded and NOT weakened; it stays locked as approved, and its automated half lands in **#886** once prod carries the column. The CI gap is **#887**. In the meantime "never two" holds by construction (`row_number() = 1`) and `not_null` on the column ships in this PR.
-+      ⚠ THE LESSON, and it is general: when my own change goes red, the first fix that occurs to me is the one that makes MY build green. Check whether it also makes the system correct, or say plainly that it does not.
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index b4378d6..282e583 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -86,6 +86,24 @@ yoy as (
- -- that competition-season (content_architecture §6.4).
- contribution as (
-     select * from {{ ref('int_player_profile__contribution') }}
-+),
+-amendments:
+-  - 2026-08-02: + `dbt_project/tests/assert_one_featured_season_per_entity.sql` — authority: the CPO's
+-    approval of acceptance criterion 4 ("If the rule ever breaks, a test catches it before a reader
+-    does. Every team and every player has exactly one opening season, never none and never two"),
+-    which this file IS. Written on a clean tree; the two mart edits were stashed for the amendment
+-    and restored after. The path was missed when the contract was drafted: `test-paths: ["tests"]`
+-    means a dbt singular test cannot live in the model directory, and a yml test cannot express the
+-    criterion — `unique` with `where: is_featured_season` catches "two" but never "none", and
+-    criterion 4 requires both halves.
+-  - 2026-08-02: + `site_v2/src/data/teams/33.json` — authority: the CPO's approval of acceptance
+-    criterion 5, which names this file ("the committed sample data differing only by the one new
+-    field"), and criterion 2, which cannot be demonstrated without it: the page now reads the flag,
+-    so the committed sample must carry it or the sample team has no season to open on. Verified by
+-    `git ls-files site_v2/src/data` that this is the ONLY committed sample with a `seasons` array —
+-    `fixtures/1492306.json` and `competitions.json` have none, so no other sample needs the field.
+-    Written on a clean tree; the code changes were stashed for the amendment and restored after.
+-    Both amendments have the same root cause, stated once rather than twice: `scope_paths` was
+-    drafted from the change I had in mind instead of from the whole chain the change travels,
+-    mart -> test -> export -> payload -> page -> committed sample.
+-  - 2026-08-02: **DELETED** `dbt_project/tests/assert_one_featured_season_per_entity.sql` from the
+-    branch — authority: CPO, **"do 1 now"**, answering an escalation with two paths. The path STAYS
+-    in `scope_paths`: the diff deletes that file, so scope has to authorise touching it. Dropping it
+-    from scope was tried first and the contract gate correctly refused the deletion.
+-    The test is correct and PASSED against the real rebuilt marts (12.7k team rows, 168.5k player
+-    rows) in `ci-data-build`'s BUILD step. It fails the SEPARATE singular-test step, which runs
+-    `--defer --favor-state` so every model reference resolves to PROD, and prod has no
+-    `is_featured_season` until main-push rebuilds it. That is an ordering property of the CI design,
+-    not a defect in the test: `ci_*` datasets are shared across PRs, so dbt cannot trust a `ci_`
+-    relation, so the flag forces prod, so the PR-time DQ step cannot see the branch's own models.
+-    Acceptance criterion 4 is NOT weakened and NOT reworded — it is locked and stays as approved.
+-    Its automated half lands in the follow-up PR (#886) once prod carries the column, which is the
+-    earliest point the test can read a table that has it. The CI gap itself is #887. Until then
+-    "never two" holds by construction (`row_number() = 1` cannot yield two) and `not_null` on the
+-    column ships here.
+-  - 2026-08-02: + `.claude/task/rendered_page_evidence.md` — authority: `bi-analyst-reviewer`'s
+-    round-1 FAIL. Its brief requires that artifact whenever the diff makes a rendering-affecting
+-    change under `site_v2/src/**`, and the file in the tree still held the merged #370 task's
+-    content, so for this branch it was functionally absent. Same root cause as the two above, which
+-    is why it is the third: the chain was walked one file at a time instead of once, end to end.
++  - `git diff 5479ef5^ -- dbt_project/tests/assert_one_featured_season_per_entity.sql` is empty,
++    proving the restored file is the reviewed one and not a rewrite.
++  - `dbt ls --select test_type:singular` lists `assert_one_featured_season_per_entity` again.
++  - `dbt parse` clean; `sqlfluff lint` clean from the repo root, full rule set.
++  - No `shared.yml` comment still describes the assertion as deferred.
++  - `ci-data-build` green on the PR, which is the first time this test runs against prod's marts
++    carrying the column.
 +
-+-- #846: the competition's type, and whether it is club or national football. Same two-step seed
-+-- join mart_player_career already uses. Needed because the season a player's page opens on is a
-+-- CLUB season (#848 made Overview, Performance and Career club-only), and a player-season row on
-+-- its own cannot tell club football from national.
-+registry as (
-+    select
-+        league_code,
-+        competition_type
-+    from {{ ref('competition_registry') }}
-+),
-+
-+types as (
-+    select
-+        competition_type,
-+        entity_type
-+    from {{ ref('competition_types') }}
- )
- 
- select
-@@ -96,6 +114,8 @@ select
-     a.league_sk,
-     a.league_code,
-     a.season_api_year,
-+    reg.competition_type,
-+    ct.entity_type,
-     -- identity + descriptors (not catalogue metrics)
-     p.player_name,
-     p.player_first_name,
-@@ -178,7 +198,21 @@ select
-     -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
-     c.scorer_points,
-     c.team_goals_season,
--    c.contribution_share
-+    c.contribution_share,
-+    -- The season this player's page opens on (#846). Exactly one row per player is true: the most
-+    -- recent CLUB season, preferring a domestic league over a cup, and falling back to the most
-+    -- recent season of any kind for a player with no club football at all. Scoped to club because
-+    -- #848 made the three main tabs club-only; on pure recency a player who has just played a
-+    -- tournament opens on it, which is why M. Rogers opened on World Cup 2026 with England rather
-+    -- than the Premier League with Aston Villa. Last in the list because ST06 puts calculations
-+    -- after simple targets.
-+    row_number() over (
-+        partition by a.player_sk
-+        order by
-+            case when ct.entity_type = 'club' then 0 else 1 end asc,
-+            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
-+            a.season_api_year desc
-+    ) = 1 as is_featured_season
- from season as a
- left join players as p
-     on a.player_sk = p.player_sk
-@@ -204,3 +238,7 @@ left join contribution as c
-         a.player_sk = c.player_sk
-         and ta.team_sk = c.team_sk
-         and a.season_sk = c.season_sk
-+left join registry as reg
-+    on a.league_code = reg.league_code
-+left join types as ct
-+    on reg.competition_type = ct.competition_type
-diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index e6d0251..58e0207 100644
---- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -194,7 +194,18 @@ select
-     -- and, for the split formats, the season points total sums two separate tournaments.
-     d.deserved_points,
-     d.deserved_rank,
--    d.sot_points_gap
-+    d.sot_points_gap,
-+    -- The season this team's page opens on (#846). Exactly one row per team is true: the most
-+    -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
-+    -- with no league season. Ruled a warehouse fact (CPO 2026-08-02), so the export and the page
-+    -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
-+    -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
-+    row_number() over (
-+        partition by m.team_sk
-+        order by
-+            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
-+            m.season_api_year desc
-+    ) = 1 as is_featured_season
- from metrics as m
- left join team_season as ts
-     on m.team_season_sk = ts.team_season_sk
++amendments: (none)
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 2e81e78..3a80764 100644
+index 3a80764..2d8bef2 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -290,6 +290,14 @@ models:
-           expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
-           name: team_profile_finishing_efficiency_in_range
-     columns:
-+      # #846: the season this team's page opens on — the most recent domestic-league season,
-+      # falling back to the most recent of any type. Exactly one row per team is true BY
-+      # CONSTRUCTION: the model computes it as `row_number() over (partition by team_sk ...) = 1`,
-+      # which cannot produce two. The cross-mart test that asserts it explicitly, so a future
-+      # rewrite of that window cannot silently produce NONE, is #886 — deferred because prod has
-+      # no such column until main-push, which is the CI gap #887.
-+      - name: is_featured_season
-+        tests: [not_null]
+@@ -293,9 +293,10 @@ models:
+       # #846: the season this team's page opens on — the most recent domestic-league season,
+       # falling back to the most recent of any type. Exactly one row per team is true BY
+       # CONSTRUCTION: the model computes it as `row_number() over (partition by team_sk ...) = 1`,
+-      # which cannot produce two. The cross-mart test that asserts it explicitly, so a future
+-      # rewrite of that window cannot silently produce NONE, is #886 — deferred because prod has
+-      # no such column until main-push, which is the CI gap #887.
++      # which cannot produce two. tests/assert_one_featured_season_per_entity.sql asserts it
++      # explicitly across BOTH profile marts, so a future rewrite of that window cannot silently
++      # produce NONE either. One rule, one failure surface, which is what keeps the two marts from
++      # drifting apart again.
+       - name: is_featured_season
+         tests: [not_null]
        - name: team_sk
-         tests:
-           - not_null
-@@ -634,6 +642,34 @@ models:
-           expression: "saves <= shots_on_goal_against"
-           name: player_profile_saves_lte_faced
-     columns:
-+      # #846: the season this player's page opens on — the most recent CLUB season, preferring a
-+      # domestic league, falling back to the most recent of any kind for a player with no club
-+      # football. Scoped to club because #848 made Overview, Performance and Career club-only.
-+      # Exactly one row per player is true by construction (`row_number() ... = 1`); the test that
-+      # asserts it explicitly, and would catch NONE after a future rewrite, is #886 (see #887).
-+      - name: is_featured_season
-+        tests: [not_null]
-+      - name: competition_type
-+        description: >
-+          The competition's type from the registry (domestic_league, domestic_cup,
-+          continental_club, world_championship, …). Carried so the featured-season rule can prefer
-+          a league over a cup within club football, and so a consumer can tell the two apart
-+          without re-joining the registry.
-+      - name: entity_type
-+        description: >
-+          club or national, from the competition_types seed — what scopes the featured season to
-+          club football (#846/#848). NULL is reachable two ways, not one: a league_code absent from
-+          the registry, and a league_code PRESENT in the registry with a blank competition_type.
-+          The second is silent — sync_dbt_vars.py writes a seed row only `if code and ctype`, and
-+          both check_competition_type_seed.py and check_registry_var_sync.py skip such an entry on
-+          the same condition, so registry and seed agree by both being empty (#883). All 45
-+          registry entries carry a competition_type today. not_null is here because a NULL would
-+          not break the page: the featured-season CASE simply treats it as non-club, so the entity
-+          would quietly open on the wrong season instead of failing.
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["club", "national"]
-       - name: player_season_sk
-         tests: [unique, not_null]
-       - name: player_sk
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 99f03f5..635ce72 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -124,9 +124,26 @@ def _bigquery_rows_to_dicts(rows) -> list[dict]:
-     return [dict(row.items()) for row in rows]
- 
- 
--def _latest_season_row(rows: list[dict]) -> dict:
--    """The row with the greatest season_api_year (identity comes from it)."""
--    return max(rows, key=lambda r: (r.get("season_api_year") or 0))
-+def _featured_season_row(rows: list[dict]) -> dict:
-+    """The row the entity's page opens on, and the row its top-level identity comes from.
+@@ -645,8 +646,8 @@ models:
+       # #846: the season this player's page opens on — the most recent CLUB season, preferring a
+       # domestic league, falling back to the most recent of any kind for a player with no club
+       # football. Scoped to club because #848 made Overview, Performance and Career club-only.
+-      # Exactly one row per player is true by construction (`row_number() ... = 1`); the test that
+-      # asserts it explicitly, and would catch NONE after a future rewrite, is #886 (see #887).
++      # Exactly one row per player is true by construction (`row_number() ... = 1`) and asserted
++      # explicitly, including the NONE case, by tests/assert_one_featured_season_per_entity.sql.
+       - name: is_featured_season
+         tests: [not_null]
+       - name: competition_type
+diff --git a/dbt_project/tests/assert_one_featured_season_per_entity.sql b/dbt_project/tests/assert_one_featured_season_per_entity.sql
+new file mode 100644
+index 0000000..48a4b01
+--- /dev/null
++++ b/dbt_project/tests/assert_one_featured_season_per_entity.sql
+@@ -0,0 +1,52 @@
++{#
++  #846 acceptance criterion 4: "If the rule ever breaks, a test catches it before a reader does.
++  Every team and every player has exactly one opening season, never none and never two."
 +
-+    SELECTION of a served flag, never a decision. `is_featured_season` is computed in
-+    mart_team_profile / mart_player_profile (#846), because picking here was window selection in
-+    the consumption layer (layering.md) and because the same rule was written three times and had
-+    already drifted. It picked on recency alone, which is wrong for a player: their most recent
-+    football is genuinely the summer tournament, so a player who has just played one took their
-+    top-level position from that squad rather than from their club.
++  `is_featured_season` marks the season an entity's page opens on. It is a row_number() = 1 over a
++  partition, so it cannot produce two by construction — but it CAN produce none if the ordering
++  expression ever sees only NULLs it cannot rank, or if a join drops the column's inputs. Both
++  halves are asserted here because the criterion names both, and because a zero-featured entity is
++  the silent failure: the page would fall back to nothing rather than to the wrong season.
 +
-+    Raises rather than falling back. A fallback to recency is the exact defect this removes, and a
-+    missing flag is a data gap to fix in the mart -- never to bridge here.
-+    """
-+    featured = [r for r in rows if r.get("is_featured_season")]
-+    if len(featured) != 1:
-+        raise ValueError(
-+            f"expected exactly 1 row with is_featured_season, found {len(featured)}. "
-+            "The warehouse decides the opening season (#846); the export must not choose one."
-+        )
-+    return featured[0]
- 
- 
- # Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
-@@ -224,8 +241,8 @@ def shape_team_payload(
-         roster below (GAP-22).
-     benchmark_rows: that team's mart_team_competition_benchmarks rows (rank-vs-league per season; GAP-23).
-     """
--    latest = _latest_season_row(profile_rows)
--    team_id = int(latest["team_sk"])
-+    featured = _featured_season_row(profile_rows)
-+    team_id = int(featured["team_sk"])
-     seasons = sorted(
-         profile_rows,
-         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
-@@ -303,12 +320,12 @@ def shape_team_payload(
-         # Served, not computed: mart_team_profile carries team_slug, derived in the warehouse
-         # from the corrected name (#852). A slug built here would be identity generation in the
-         # consumption layer, and would reintroduce the provider id the CPO ruled out.
--        "slug": latest.get("team_slug"),
--        "name": latest.get("team_name"),
--        "country": latest.get("team_country"),
--        "crest": latest.get("team_logo_url"),
--        "founded_year": latest.get("team_founded_year"),
--        "venue": _venue_block(latest),
-+        "slug": featured.get("team_slug"),
-+        "name": featured.get("team_name"),
-+        "country": featured.get("team_country"),
-+        "crest": featured.get("team_logo_url"),
-+        "founded_year": featured.get("team_founded_year"),
-+        "venue": _venue_block(featured),
-         "seasons": seasons_out,
-     }
- 
-@@ -424,8 +441,8 @@ def shape_player_payload(
-     career_rows: list[dict] | None = None,
- ) -> dict:
-     """One player's profile rows + match-log rows (+ benchmark rows + career rows) -> the player page payload."""
--    latest = _latest_season_row(profile_rows)
--    player_id = int(latest["player_sk"])
-+    featured = _featured_season_row(profile_rows)
-+    player_id = int(featured["player_sk"])
-     seasons = sorted(
-         profile_rows,
-         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
-@@ -486,12 +503,14 @@ def shape_player_payload(
-     return {
-         "type": "player",
-         "player_id": player_id,
--        "slug": player_slug_with_id(latest.get("player_name"), player_id),
--        "name": latest.get("player_name"),
--        "nationality": latest.get("player_nationality"),
--        "birth_date": latest.get("player_birth_date"),
--        "photo": latest.get("player_photo_url"),
--        "position": latest.get("position_code"),
-+        "slug": player_slug_with_id(featured.get("player_name"), player_id),
-+        "name": featured.get("player_name"),
-+        "nationality": featured.get("player_nationality"),
-+        "birth_date": featured.get("player_birth_date"),
-+        "photo": featured.get("player_photo_url"),
-+        # From the FEATURED season, not the most recent one: modal position is per season, so a
-+        # player fresh off a tournament was showing the position they played for their country.
-+        "position": featured.get("position_code"),
-         "current_team": current_team,
-         "seasons": seasons_out,
-         "match_log": matches,
-diff --git a/site_v2/src/data/teams/33.json b/site_v2/src/data/teams/33.json
-index fa07d71..798bfea 100644
---- a/site_v2/src/data/teams/33.json
-+++ b/site_v2/src/data/teams/33.json
-@@ -19,6 +19,7 @@
-       "league_code": "PL",
-       "season_api_year": 2025,
-       "competition_type": "domestic_league",
-+      "is_featured_season": true,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 20,
-@@ -1060,6 +1061,7 @@
-       "league_code": "FAC",
-       "season_api_year": 2025,
-       "competition_type": "domestic_cup",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 1,
-       "wins": 0,
-@@ -1185,6 +1187,7 @@
-       "league_code": "UEL",
-       "season_api_year": 2024,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 15,
-       "wins": 9,
-@@ -2500,6 +2503,7 @@
-       "league_code": "PL",
-       "season_api_year": 2024,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 11,
-@@ -3927,6 +3931,7 @@
-       "league_code": "FAC",
-       "season_api_year": 2024,
-       "competition_type": "domestic_cup",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 3,
-       "wins": 1,
-@@ -4285,6 +4290,7 @@
-       "league_code": "UCL",
-       "season_api_year": 2023,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 6,
-       "wins": 1,
-@@ -5576,6 +5582,7 @@
-       "league_code": "PL",
-       "season_api_year": 2023,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 18,
-@@ -6989,6 +6996,7 @@
-       "league_code": "FAC",
-       "season_api_year": 2023,
-       "competition_type": "domestic_cup",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 6,
-       "wins": 5,
-@@ -7379,6 +7387,7 @@
-       "league_code": "UEL",
-       "season_api_year": 2022,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 12,
-       "wins": 8,
-@@ -8658,6 +8667,7 @@
-       "league_code": "PL",
-       "season_api_year": 2022,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 23,
-@@ -10059,6 +10069,7 @@
-       "league_code": "FAC",
-       "season_api_year": 2022,
-       "competition_type": "domestic_cup",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 6,
-       "wins": 4,
-@@ -10449,6 +10460,7 @@
-       "league_code": "UCL",
-       "season_api_year": 2021,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 8,
-       "wins": 3,
-@@ -11512,6 +11524,7 @@
-       "league_code": "PL",
-       "season_api_year": 2021,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 16,
-@@ -12697,6 +12710,7 @@
-       "league_code": "FAC",
-       "season_api_year": 2021,
-       "competition_type": "domestic_cup",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 2,
-       "wins": 1,
-@@ -12833,6 +12847,7 @@
-       "league_code": "UEL",
-       "season_api_year": 2020,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 9,
-       "wins": 5,
-@@ -13728,6 +13743,7 @@
-       "league_code": "UCL",
-       "season_api_year": 2020,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 6,
-       "wins": 3,
-@@ -14623,6 +14639,7 @@
-       "league_code": "PL",
-       "season_api_year": 2020,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 21,
-@@ -15640,6 +15657,7 @@
-       "league_code": "UEL",
-       "season_api_year": 2019,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 12,
-       "wins": 8,
-@@ -16619,6 +16637,7 @@
-       "league_code": "PL",
-       "season_api_year": 2019,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 18,
-@@ -17720,6 +17739,7 @@
-       "league_code": "UCL",
-       "season_api_year": 2018,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 10,
-       "wins": 4,
-@@ -18567,6 +18587,7 @@
-       "league_code": "PL",
-       "season_api_year": 2018,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 19,
-@@ -19536,6 +19557,7 @@
-       "league_code": "UCL",
-       "season_api_year": 2017,
-       "competition_type": "continental_club",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 8,
-       "wins": 5,
-@@ -20197,6 +20219,7 @@
-       "league_code": "PL",
-       "season_api_year": 2017,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 25,
-@@ -21130,6 +21153,7 @@
-       "league_code": "PL",
-       "season_api_year": 2016,
-       "competition_type": "domestic_league",
-+      "is_featured_season": false,
-       "team_code": "MUN",
-       "played": 38,
-       "wins": 18,
-diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
-index 46397a2..897503b 100644
---- a/site_v2/src/lib/types.ts
-+++ b/site_v2/src/lib/types.ts
-@@ -183,6 +183,13 @@ export interface TeamSeason {
-   league_code: string;
-   season_api_year: number;
-   competition_type?: string | null;
-+  /**
-+   * The season this team's page opens on, decided in the warehouse (#846) and served here.
-+   * Exactly one season per team carries `true`, asserted by a dbt test. Not optional: a page
-+   * that has to cope with the flag being absent would need a fallback, and the fallback is the
-+   * defect this replaced.
-+   */
-+  is_featured_season: boolean;
-   // record / rank / form
-   latest_rank?: number | null;
-   points?: number | null;
-diff --git a/site_v2/src/pages/[lang]/teams/[team].astro b/site_v2/src/pages/[lang]/teams/[team].astro
-index c51fe44..553e065 100644
---- a/site_v2/src/pages/[lang]/teams/[team].astro
-+++ b/site_v2/src/pages/[lang]/teams/[team].astro
-@@ -46,14 +46,14 @@ interface Props {
- }
- const { team, lang } = Astro.props;
- 
--// Featured season = the team's most-recent domestic-league season (seasons[] is served
--// sorted year-desc), else the most-recent season. This is the codebase's own default-
--// season convention (mirrors `_latest_season_row` in the export and `pickDefaultSeason`
--// on the preserved branch) and matches how the mock frames a team page — its current
--// standing. Pure SELECTION of a served row — no derivation. At scale the season selector
--// (#362) lets a reader reach earlier seasons.
--const season: TeamSeason =
--  team.seasons.find((s) => s.competition_type === "domestic_league") ?? team.seasons[0];
-+// The season this page opens on is decided in the warehouse and served on the row (#846).
-+// This is a lookup of a flag, not a choice: the rule used to be written here, again on the
-+// player page in different code, and a third time in the export, and the three had already
-+// drifted. Exactly one season carries the flag, asserted by a dbt test, so the `!` is the
-+// contract rather than an assumption.
-+// Reaching a season OTHER than this one is #882 and does not exist yet: there is no season
-+// segment in the URL and no selector, so today this is the only season a reader can see.
-+const season: TeamSeason = team.seasons.find((s) => s.is_featured_season)!;
- 
- const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
- const compName = comp?.name ?? season.league_code;
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 9cdb7d6..29b730a 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -26,6 +26,21 @@ from scripts.export_site_data import (
-     shape_top_players,
-     player_slug_with_id,
- )
-+from scripts.export_site_data import _featured_season_row
++  Covers both marts in one test: the rule is one rule, so a single failure surface keeps them from
++  drifting apart, which is the whole point of #846.
++#}
 +
++with team_counts as (
++    select
++        'team' as entity_kind,
++        cast(team_sk as string) as entity_id,
++        countif(is_featured_season) as featured_seasons
++    from {{ ref('mart_team_profile') }}
++    group by team_sk
++),
 +
-+def _mark_featured(rows: list[dict]) -> list[dict]:
-+    """Flag the row the marts would flag, so a fixture mirrors served data (#846).
++player_counts as (
++    select
++        'player' as entity_kind,
++        cast(player_sk as string) as entity_id,
++        countif(is_featured_season) as featured_seasons
++    from {{ ref('mart_player_profile') }}
++    group by player_sk
++),
 +
-+    Defaults to the greatest season_api_year, which is exactly what these fixtures assumed back
-+    when the export picked the row itself. That is deliberate: every assertion below is unchanged,
-+    so a passing suite is evidence the payload did not move when the decision left the export.
-+    A player fixture that needs the club lens flags its own row instead — see the WC/PL test.
-+    """
-+    top = max(rows, key=lambda r: (r.get("season_api_year") or 0))
-+    for r in rows:
-+        r["is_featured_season"] = r is top
-+    return rows
- 
- 
- def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
-@@ -216,7 +231,7 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
-          "team_logo_url": "u2", "points": 82,
-          "team_founded_year": 1900, "venue_name": "Allianz Arena", "venue_city": "München", "venue_capacity": 75000},
-     ]
--    p = shape_team_payload(rows)
-+    p = shape_team_payload(_mark_featured(rows))
-     assert p["team_id"] == 157
-     # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
-     # The old assertion was "bayern-munchen-157" -- that id is exactly what the CPO ruled out.
-@@ -235,8 +250,8 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
- 
- def test_shape_team_payload_venue_absent_is_none():
-     # a team with no venue/founded data -> honest absence (venue None, founded_year None)
--    p = shape_team_payload([{"team_sk": 9, "season_api_year": 2025,
--                             "league_code": "BL1", "team_name": "X"}])
-+    p = shape_team_payload(_mark_featured([{"team_sk": 9, "season_api_year": 2025,
-+                                            "league_code": "BL1", "team_name": "X"}]))
-     assert p["venue"] is None
-     assert p["founded_year"] is None
- 
-@@ -272,7 +287,7 @@ def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
-         {"team_sk": 2, "league_code": "PL", "season_api_year": 2024,
-          "sot_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
-     ])
--    p = shape_team_payload(rows, scatter_index=idx)
-+    p = shape_team_payload(_mark_featured(rows), scatter_index=idx)
-     sc = p["seasons"][0]["deserved_scatter"]
-     assert len(sc) == 2
-     self_dot = next(d for d in sc if d["is_self"])
-@@ -284,7 +299,7 @@ def test_shape_team_payload_no_scatter_when_season_not_fittable():
-     # a season with no deserved value (not in the index) -> no deserved_scatter key (absent state)
-     rows = [{"team_sk": 9, "season_api_year": 2026, "league_code": "WC",
-              "team_name": "X", "points": 6}]
--    p = shape_team_payload(rows, scatter_index={})
-+    p = shape_team_payload(_mark_featured(rows), scatter_index={})
-     assert "deserved_scatter" not in p["seasons"][0]
- 
- 
-@@ -309,7 +324,7 @@ def test_deserved_scatter_preserves_the_fitted_line():
-                   "team_name": "Self", "points": 52,
-                   "sot_difference_per_match": 0.5,
-                   "deserved_points": intercept + slope * 0.5}]
--    sc = shape_team_payload(self_rows, scatter_index=idx)["seasons"][0]["deserved_scatter"]
-+    sc = shape_team_payload(_mark_featured(self_rows), scatter_index=idx)["seasons"][0]["deserved_scatter"]
-     assert len(sc) == len(sotds)
-     for d in sc:                                   # every dot on intercept + slope*sotd
-         assert d["deserved"] == intercept + slope * d["sotd"]
-@@ -341,7 +356,7 @@ def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
-         fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
-         fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
-     ]
--    p = shape_team_payload(rows, fixtures)
-+    p = shape_team_payload(_mark_featured(rows), fixtures)
-     s2025 = p["seasons"][0]
-     assert s2025["season_api_year"] == 2025
-     assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
-@@ -385,7 +400,7 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
-         member(1, "Neuer", position="Goalkeeper"),
-         member(99, None),
-     ]
--    p = shape_team_payload(rows, None, roster)
-+    p = shape_team_payload(_mark_featured(rows), None, roster)
-     s2025 = p["seasons"][0]
-     assert s2025["season_api_year"] == 2025
-     # sorted by player_sk (byte-stable), the null-name member omitted
-@@ -410,7 +425,7 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
- def test_shape_team_payload_squad_defaults_empty_without_roster():
-     rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
-              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
--    p = shape_team_payload(rows)
-+    p = shape_team_payload(_mark_featured(rows))
-     assert p["seasons"][0]["squad"] == []
- 
- 
-@@ -433,7 +448,7 @@ def test_shape_team_payload_joins_career_stats_to_squad_by_player_sk():
-          "appearances": 32, "minutes_per_appearance": 90.0, "goals": 36, "assists": 8},
-         # Neuer: no career row -> stats null (never appeared in a finished-match squad)
-     ]
--    p = shape_team_payload(rows, None, roster, None, None, career)
-+    p = shape_team_payload(_mark_featured(rows), None, roster, None, None, career)
-     squad = {m["player_id"]: m for m in p["seasons"][0]["squad"]}
-     # joined by (league_code, season, player_sk); the 2024 row did not leak into 2025
-     assert squad[9]["appearances"] == 30
-@@ -479,7 +494,7 @@ def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
-     # deliberately out of metric_key order; one row on the other season
-     benchmark = [bench("shots_per_match", 14.1), bench("goals_per_match", 2.2),
-                  bench("goals_against_per_match", 0.8, season=2024)]
--    p = shape_team_payload(rows, None, None, benchmark)
-+    p = shape_team_payload(_mark_featured(rows), None, None, benchmark)
-     s2025 = p["seasons"][0]
-     assert s2025["season_api_year"] == 2025
-     # flat metrics list (no position nesting), byte-stable by metric_key
-@@ -492,7 +507,7 @@ def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
- def test_shape_team_payload_benchmarks_default_empty_without_rows():
-     rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
-              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
--    p = shape_team_payload(rows)
-+    p = shape_team_payload(_mark_featured(rows))
-     assert p["seasons"][0]["benchmarks"] == []
- 
- 
-@@ -509,7 +524,7 @@ def test_shape_player_payload_orders_match_log_desc():
-         {"player_sk": 1090, "kickoff_datetime": "2025-10-01T18:30:00",
-          "opponent_name": "B", "goals_total": 0},
-     ]
--    p = shape_player_payload(profiles, matches)
-+    p = shape_player_payload(_mark_featured(profiles), matches)
-     assert p["player_id"] == 1090
-     assert p["slug"] == "jamal-musiala-1090"
-     assert p["position"] == "M"
-@@ -531,7 +546,7 @@ def test_shape_player_payload_current_team_and_per_season_team():
-         {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
-          "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
-     ]
--    p = shape_player_payload(profiles, [])
-+    p = shape_player_payload(_mark_featured(profiles), [])
-     assert p["current_team"] == {"team_id": 157, "name": "Bayern",
-                                  "crest": "fcb.png", "country": "Germany"}
-     teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
-@@ -608,14 +623,14 @@ def test_shape_player_payload_attaches_benchmarks_per_season():
-          "peer_count": 40, "peer_median": 0.3, "vs_median_delta": 0.6,
-          "minutes": 2500, "appearances": 30, "metric_numerator": None, "metric_denominator": None},
-     ]
--    p = shape_player_payload(profiles, [], benchmarks)
-+    p = shape_player_payload(_mark_featured(profiles), [], benchmarks)
-     s2025, s2024 = p["seasons"][0], p["seasons"][1]
-     assert s2025["benchmarks"][0]["position_group"] == "ATT"
-     assert s2025["benchmarks"][0]["metrics"][0]["metric_key"] == "goals_per90"
-     # a season with no benchmark rows renders an empty list (honest absence)
-     assert s2024["benchmarks"] == []
-     # default (no benchmark_rows) also yields empty benchmarks
--    p2 = shape_player_payload(profiles, [])
-+    p2 = shape_player_payload(_mark_featured(profiles), [])
-     assert all(s["benchmarks"] == [] for s in p2["seasons"])
- 
- 
-@@ -672,7 +687,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
-          "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
-          "club_latest_kickoff_at": "2019-06-01T20:00:00"},
-     ]
--    p = shape_player_payload(profiles, [], None, career)
-+    p = shape_player_payload(_mark_featured(profiles), [], None, career)
-     # club_latest desc: Spurs 2024-05-19, England 2023-07-09, Bayern 2022-05-14. Spurs rows contiguous
-     # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
-     assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
-@@ -681,7 +696,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
-     assert len(p["career"]) == 5
-     assert p["national_appearances_total"] == 23
-     # empty default (no career_rows) -> empty career + None total
--    p2 = shape_player_payload(profiles, [])
-+    p2 = shape_player_payload(_mark_featured(profiles), [])
-     assert p2["career"] == [] and p2["national_appearances_total"] is None
- 
- 
-@@ -710,3 +725,42 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
-     # known active leagues resolve (registry-backed)
-     assert idx["PL"]["slug"] == "premier-league"
-     assert idx["BL1"]["slug"]
++combined as (
++    select
++        entity_kind,
++        entity_id,
++        featured_seasons
++    from team_counts
++    union all
++    select
++        entity_kind,
++        entity_id,
++        featured_seasons
++    from player_counts
++)
 +
-+
-+def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
-+    """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
-+
-+    Both rows are real football. The WC row is the more recent one, which is what the export used
-+    to pick and why a player's top-level identity came from their national side. Nothing here
-+    ranks anything: the mart flags the club season and the export reads the flag.
-+    """
-+    profiles = [
-+        {"player_sk": 7, "season_sk": 2, "season_api_year": 2026, "league_code": "WC",
-+         "player_name": "M. Rogers", "position_code": "M", "is_featured_season": False},
-+        {"player_sk": 7, "season_sk": 1, "season_api_year": 2025, "league_code": "PL",
-+         "player_name": "M. Rogers", "position_code": "D", "is_featured_season": True},
-+    ]
-+    p = shape_player_payload(profiles, [])
-+    # identity comes from the club season, not the tournament
-+    assert p["position"] == "D"
-+    # and the tournament season is still served — it is not the one the page OPENS on
-+    assert [s["league_code"] for s in p["seasons"]] == ["WC", "PL"]
-+    assert [s["is_featured_season"] for s in p["seasons"]] == [False, True]
-+
-+
-+def test_featured_season_row_refuses_to_choose():
-+    """#846 criterion 3: the export decides nothing.
-+
-+    With no flag it fails loudly instead of falling back to recency. The fallback IS the defect
-+    this replaced, so a tolerant export would quietly reintroduce it the first time a mart shipped
-+    without the column.
-+    """
-+    import pytest
-+
-+    with pytest.raises(ValueError):
-+        _featured_season_row([{"season_api_year": 2026}, {"season_api_year": 2025}])
-+    with pytest.raises(ValueError):
-+        _featured_season_row([
-+            {"season_api_year": 2026, "is_featured_season": True},
-+            {"season_api_year": 2025, "is_featured_season": True},
-+        ])
++select
++    entity_kind,
++    entity_id,
++    featured_seasons
++from combined
++where featured_seasons != 1
