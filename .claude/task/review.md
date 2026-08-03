@@ -1,79 +1,84 @@
-# Review — fix/897-pace-production-ingest — 2026-08-03
+# Review — fix/896-incomplete-fetch-must-not-supersede — 2026-08-03
 
-branch: fix/897-pace-production-ingest
-diff_sha256: 19be579ebea19c09b24353fadf976f715ab0eadac61db5f7e37db9b75f52cbe3
+branch: fix/896-incomplete-fetch-must-not-supersede
+diff_sha256: 28840a4b2a50cbf4f058af772424f096790637b212cd0b9ad785d69524a5edd0
 
-rounds: 1
+rounds: 2
 # Required reviewer set computed from `.claude/review_routing.json` for the staged paths:
 # `ingestion/**` routes `data-engineer-reviewer`, `tests/**` routes `platform-reviewer`, and
-# `scope-auditor` is always-on. No routing row matches `docs/operations_guide.md` or
-# `docs/api_football_ingestion_blueprint.md`. The commit is NOT artifact-exempt, because
-# `contract.md` is never artifact-exempt (F10/#409).
+# `scope-auditor` is always-on. The commit is NOT artifact-exempt, because `contract.md` is never
+# artifact-exempt (F10/#409).
+#
+# ROUND 1 FAILED. `data-engineer-reviewer` found that carrying the completeness signal as a KEY on
+# the dict returned by `fetch_merged_paged` would leak it into four raw tables (RAW_APIF_STANDINGS,
+# RAW_APIF_TEAMS, RAW_APIF_INJURIES, RAW_APIF_FIXTURES_NEXT) via `_merge_merged_paged` and the
+# manual envelope comprehensions, with a value frozen at the first iteration of a multi-season
+# merge. The signal was redesigned into a function, `http_client.result_is_complete`, so no returned
+# dict gains a key. `impact_map` was extended on a clean tree to trace the shared helper's other
+# callers; `scope_paths` unchanged. Full record in `escalations.log`. Verdicts below are round 2.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope containment: every file in the diff is listed in `scope_paths`; no file outside it was edited.
-- Cost decision (§10): one RECURRING COST declared and approved with measured evidence (wall-clock
-  1.55x, ~3.4x headroom under GitHub's 6h default, daily freshness preserved, API budget at 10% of
-  quota). CPO authority recorded in `escalations.log` dated 2026-08-03.
-- `impact_map` requirement for the structural surface `ingestion/api_football/settings.py`: present
-  as an evidenced SHORT FORM with a complete call trace (one read site, one caller, one call site, no
-  dbt lineage). Not a claim of triviality.
-- Doc-sync: both touched docs are updated in the same branch to match the code.
-- Scope drift: confirmed the out-of-scope edit to the blueprint cost-model bullet was reverted, and
-  the stale "20-50 API calls total" estimate appears as unchanged context in the diff, not as an
-  added line.
-- Test pinning: the new tests reproduce production exactly and fail on the pre-fix value.
-- Appendix A anti-patterns A1 to A6: none detected. No invented metric, no new mechanism, no
-  coverage-cut masquerading as a fix, no credential in the diff.
+- Amendment narrowness: the extended `impact_map` only documents blast radius that was always
+  present, widens no permission and takes no new decision. `scope_paths` unchanged.
+- Redesign recording: the round 1 failure and its resolution are both recorded in
+  `escalations.log`, and the underlying CPO ruling on trigger-signal (error versus emptiness) is in
+  `decisions_taken` with its measured price.
+- Threshold accuracy after the redesign: NEW MECHANISM "none" rests on the CPO's explicit
+  classification of this as an EXTENSION of the existing `quota_cut` PARTIAL handling.
+  `result_is_complete` is a new function but not a new mechanism under §10. RECURRING COST "none"
+  holds: call count, daily quota draw and run duration are unchanged, and the rejected alternative's
+  +42 min/run figure is recorded so it is not re-litigated.
+- Scope boundary: all seven changed files fall within `scope_paths`; no protected path touched.
+- Decisions reserved: all three (PR 3 threshold, the pre-existing `meta=None` hazard, page-cap
+  behaviour) are listed and appropriate.
+- No credential or secret in the diff.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- `settings.py` changes only the `full`-profile `API_FOOTBALL_REQUEST_PAUSE_MS` default from `"0"` to
-  `"250"`; no other entry in the setdefault bundle moved, and `os.environ.setdefault` semantics are
-  preserved so an explicitly set value still wins.
-- Re-traced the consumer chain independently of the contract's claim: `quota.py:99`
-  `_request_pause_seconds` to `quota.py:108` `_throttle` to `http_client.py:51`, called once per
-  successful `fetch_json` response. Matches the `impact_map` exactly; no other read site exists.
-- Economy profile genuinely untouched: `_apply_ingest_profile_defaults` returns early for
-  `default`/`economy`/`free`, so the variable stays unset and the 6.6s free-tier fallback stands.
-- `docs/operations_guide.md`, the profile docstring and the profile log line all now say 250 and none
-  still says 0, so no stale doc/code contradiction survives the diff.
-- Blueprint §4: the new Ultra row is stated as measured from response headers rather than asserted,
-  and the 250ms/240-per-minute arithmetic is consistent with `quota.py`'s actual pause value.
-- Confirmed no workflow sets `API_FOOTBALL_INGEST_PROFILE` or `API_FOOTBALL_REQUEST_PAUSE_MS`, so
-  production really does inherit the default by omission, and no `timeout-minutes` is set.
-- Data-loss potential: the diff adds a `time.sleep()` and touches no writer, no BigQuery call, no
-  parse or merge logic, no schema and no grain. It cannot duplicate, truncate or drop rows.
-  Completeness only improves as provider rejections fall.
-- Confirmed only the new test file calls `_apply_ingest_profile_defaults()` directly, so the
-  module-local autouse fixture fully contains the env leak and no other test file needs it.
+- Leak closure verified at the SOURCE, not just the call site: `fetch_merged_paged` builds `out`
+  from provider envelope fields plus `errors`/`response`/`results`/`paging` only, in both branches.
+  No completeness key is ever set. `result_is_complete` reads `data` and never writes into it, and
+  the value reaches only a local control-flow gate in `squads.py`, never the written row. The four
+  sibling loaders named in round 1 are unaffected because the leak was in the shared helper's return
+  shape, now fixed at the one place all of them read from. `TestReturnedKeySetIsStable` pins the
+  exact key set for both branches, so a reintroduction fails CI rather than relying on review.
+- Semantics versus the pre-existing `quota_cut`: these are independent, non-conflicting signals.
+  `quota_cut` still only drives the end-of-run PARTIAL log line. The four measured incidents were
+  per-minute rate limits, which arrive as HTTP 200 with a non-empty body-level `errors` and are
+  caught by the error half; the quota half exists for genuine daily exhaustion, where `fetch_json`
+  short-circuits to an empty body with no error at all. The paginated loop aggregates `merged_errors`
+  across all pages, so the APD/463 shape (limit on page 2 of 3) still surfaces in the final errors.
+- Call-ordering hazard: completeness is computed immediately after the fetch returns, before the
+  only intervening call (`append_api_errors`, which does no I/O). The pipeline is single-threaded
+  and single-process and holds an ingest lock, so the process-global flag cannot change in between.
+- The guard holds: an incomplete fetch withholds both the row append and the `written_keys` append,
+  so `_delete_superseded_player_rows` cannot delete for an incomplete key and no row is written that
+  would poison `captured_player_team_seasons`.
+- General merits: `players_response_for_team` has exactly one caller, so the tuple-return change
+  breaks nothing silently. No raw schema, column or naming change. No cost or scope knob touched.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Independently re-derived the "4 of 7 fail on revert" claim from the code rather than trusting the
-  narration: with the default back at `"0"`, `test_production_config_is_paced`,
-  `test_explicit_full_profile_gets_the_blueprint_pause`,
-  `test_profile_aliases_get_the_blueprint_pause` and `test_sets_the_documented_millisecond_value`
-  fail, while the three override and economy tests correctly stay green because they do not depend on
-  the default.
-- Override and economy paths are both covered and match the real branching in `settings.py` and
-  `quota.py`.
-- Env-var leak checked for scope, not just presence: the autouse fixture is file-local, and no
-  `tests/conftest.py` exists, which is correct because the leak path was module-boundary leakage via
-  `os.environ.setdefault`. Also checked `python-ci.yml` and `requirements.txt` for a random-order
-  plugin that would break the file-order assumption behind the bug: none present, so the fix holds in
-  CI too.
-- Operational consequence: `dbt-scheduled.yml` sets neither profile variable at its ingestion step,
-  so production inherits the new 250ms default as claimed, and no `timeout-minutes` exists anywhere in
-  that file. `ci-data-build.yml`'s ingestion steps inherit the same default but are bounded to newly
-  added leagues, so no material risk.
-- Re-run and interruption safety: no script, hook or workflow step changed. The pause is read fresh
-  via `os.getenv` on every call with no cached or on-disk state, so double-run and mid-run-death
-  behaviour is unaffected.
+- `TestReturnedKeySetIsStable` is not vacuous: verified against the real key-building logic, and the
+  reintroduction check was actually observed to fail with the extra key present.
+- The provider-meta pass-through test drives synthetic `fetch_json` output and asserts against the
+  real pass-through mechanism, so it cannot spuriously break when the provider adds an envelope
+  field, and it is not an over-constraint.
+- `_http_quota_exhausted` isolation across the now-larger set of touched classes: every mutation
+  path is covered, either by `monkeypatch.setattr` or by the autouse reset fixture, including the
+  one test that sets the flag by bare assignment inside a closure, because the fixture teardown
+  resets unconditionally.
+- The signature change from `list` to `tuple[list, bool]` has exactly one production caller, which
+  is correctly updated.
+- No leftovers from the rejected key-on-dict design: no stale comment, dead variable or docstring
+  refers to it; the only remaining mentions warn against reintroducing it.
+- Re-run and interruption safety: withholding the write and the key leaves the prior row untouched
+  and the team-season uncaptured, so a retried run re-fetches it. Self-healing, no half-applied
+  state.
 
 ## escalations
 (none)

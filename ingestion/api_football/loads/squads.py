@@ -12,6 +12,14 @@ touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a war
 logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
 is assembled in base.
 
+ONLY A COMPLETE FETCH MAY SUPERSEDE (#896). A response carrying a body-level error, or cut
+short by the quota flag mid-pagination, is neither written nor added to ``written_keys``, so
+the prior row survives untouched. Withholding the WRITE matters as much as withholding the
+delete: a written row marks the (team, season) captured in ``captured_player_team_seasons``,
+and a historical season would then never be re-fetched, turning a transient failure into a
+permanent hole. An empty response with NO error is a complete answer ("no players") and does
+supersede.
+
 Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
 stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
 never re-requested — see ``plan_player_team_season_fetch`` / ``captured_player_team_seasons``.
@@ -146,13 +154,14 @@ def load_squad_players_batch(
 
     rows: list[dict] = []
     written_keys: list[str] = []
+    incomplete_keys: list[str] = []
     quota_cut = False
     for season, team_id in fetch_keys:
         if errors_quota._http_quota_exhausted:
             quota_cut = True
             break
         try:
-            players_rows = players_response_for_team(
+            players_rows, complete = players_response_for_team(
                 ctx.headers,
                 team_id,
                 season,
@@ -161,6 +170,16 @@ def load_squad_players_batch(
                     f"players {league_code} team_id={team_id} season={season}"
                 ),
             )
+            # An incomplete fetch must never supersede stored data (#896). The key is withheld from
+            # `written_keys`, so `_delete_superseded_player_rows` leaves the prior row alone, and the
+            # row is not written at all — writing it would ALSO mark the (team, season) captured in
+            # `captured_player_team_seasons`, and a historical season would then never be re-fetched.
+            # Before this guard a rate-limited response deleted the good rows it failed to replace:
+            # on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and
+            # APD 463 46 to 40 when the limit hit mid-pagination.
+            if not complete:
+                incomplete_keys.append(f"{team_id}-{season}")
+                continue
             rows.append(
                 {
                     "league_code": league_code,
@@ -196,6 +215,13 @@ def load_squad_players_batch(
             ctx.add_loaded(1)
         except Exception as e:
             ctx.errors.append(f"players BQ {league_code}: {e}")
+
+    if incomplete_keys:
+        ctx.errors.append(
+            f"players {league_code}: {len(incomplete_keys)} team-season(s) SKIPPED on an incomplete "
+            f"fetch and kept their prior rows: {', '.join(incomplete_keys[:10])}"
+            + (" ..." if len(incomplete_keys) > 10 else "")
+        )
 
     if quota_cut:
         ctx.errors.append(

@@ -41,7 +41,7 @@ from google.cloud.exceptions import NotFound
 from .bigquery import load_json_to_bq
 from .settings import DATASET_ID, GCP_PROJECT_ID, _env_int, raw_league_table
 from .quota import append_api_errors, _last_requests_remaining
-from .http_client import fetch_merged_paged
+from .http_client import fetch_merged_paged, result_is_complete
 
 # (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)
 # Defined here so fixture_scheduling.py can gate the fanout queue without importing loads/.
@@ -461,8 +461,14 @@ def players_response_for_team(
     errors: list[str] | None = None,
     *,
     error_context: str = "",
-) -> list:
-    """All /players pages for team+season (API paginates; free tier caps ``page`` — see env)."""
+) -> tuple[list, bool]:
+    """All /players pages for team+season (API paginates; free tier caps ``page`` — see env).
+
+    Returns ``(rows, complete)``. ``complete`` is False when the provider returned a body-level
+    error (the per-minute rate limit arrives as HTTP 200 with the error in the body) or the run's
+    quota flag cut pagination short. In that case ``rows`` may be empty OR partial while looking
+    like a successful response, and the caller MUST NOT let it supersede stored data (#896).
+    """
     max_page = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
     data = fetch_merged_paged(
         "/players",
@@ -470,10 +476,12 @@ def players_response_for_team(
         {"team": team_id, "season": season},
         max_pages=max_page,
     )
+    # Evaluated before any further fetch: the quota flag latches for the rest of the run.
+    complete = result_is_complete(data)
     if errors is not None:
         ctx = error_context or f"players team_id={team_id}"
         append_api_errors(data, ctx, errors)
-    return list(data.get("response") or [])
+    return list(data.get("response") or []), complete
 
 
 def transfers_response_for_team(
