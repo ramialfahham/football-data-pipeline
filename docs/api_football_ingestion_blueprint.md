@@ -97,17 +97,25 @@ knockout/group-stage competitions requires the `/standings` endpoint separately.
 
 ## 4. Rate Limits and Burst Management
 
-| Plan    | Daily quota | Per-minute burst |
-|---------|-------------|-----------------|
-| Free    | 100         | 10/min          |
-| Starter | 7,500       | 30/min          |
-| Pro     | 75,000      | 300/min         |
+| Plan                     | Daily quota | Per-minute burst |
+|--------------------------|-------------|------------------|
+| Free                     | 100         | 10/min           |
+| Starter                  | 7,500       | 30/min           |
+| Pro                      | 75,000      | 300/min          |
+| **Ultra (our plan)**     | **75,000**  | **450/min**      |
+
+Our own row is measured, not quoted from pricing copy: the provider returns
+`x-ratelimit-limit: 450` and `x-ratelimit-requests-limit: 75000` on every response. Read them from
+any response header rather than re-deriving them. Before #897 this table had no row for the plan we
+are actually on, and the pacing rule below was written against Pro's 300/min.
 
 **Implementation rules (non-negotiable):**
 
-- Use `time.sleep(0.25)` between calls (Pro plan: 4 calls/sec, safely under 300/min).
+- Use `time.sleep(0.25)` between calls: 4 calls/sec caps the rate at 240/min, i.e. 53% of our
+  measured 450/min ceiling. Set by `API_FOOTBALL_REQUEST_PAUSE_MS`, which defaults to 250 under the
+  `full` profile (`settings.py`) so no workflow can inherit zero pacing by omission.
 - **Synchronous HTTP only** — async/threading triggers a permanent IP ban per the ToS.
-- The daily quota is not the binding constraint at Pro tier; per-minute burst is.
+- The daily quota is not the binding constraint on our plan; per-minute burst is.
 - With the two-step batch pattern, a full daily run over all competitions is
   approximately 20–50 API calls total — well within any plan tier.
 

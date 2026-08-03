@@ -1,84 +1,439 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 71954b4..f7c7411 100644
+index f7c7411..555baa4 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,23 +1,26 @@
--# Task contract — handover after the cost work (#547 PR1, #890)
-+# Task contract — handover: the ingest silent-failure cluster, then cost
+@@ -1,54 +1,118 @@
+-# Task contract — handover: the ingest silent-failure cluster, then cost
++# Task contract — #897: production pauses between API calls
  
--> Written on a clean tree before any file was touched. Branch `chore/handover-cost-work` from
--> `main` at `bb61a51`. No protected path in scope, so no `protected_override`. No structural path
--> in scope, so no `impact_map`. No `site_v2/src/` path in scope, so no `acceptance_criteria`.
-+> Written on a clean tree before any file was touched. Branch `chore/handover-ingest-and-cost` from
-+> `main` at `bb61a51`. No protected path in scope, so no `protected_override`. No structural path in
-+> scope, so no `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`.
+-> Written on a clean tree before any file was touched. Branch `chore/handover-ingest-and-cost` from
+-> `main` at `bb61a51`. No protected path in scope, so no `protected_override`. No structural path in
+-> scope, so no `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`.
++> Written on a clean tree before any file was touched. Branch `fix/897-pace-production-ingest` from
++> `main` at `36b5f98`. No protected path in scope, so no `protected_override`. No `site_v2/src/`
++> path, so no `acceptance_criteria`. `ingestion/api_football/settings.py` IS on the structural
++> surface, so `impact_map:` below is required and is evidenced, not asserted.
++
++impact_map: >
++  SHORT FORM, and the evidence is a complete call trace rather than a claim of triviality.
++
++  WRITERS. `settings.py` writes no table: `grep -n "load_json|bigquery|insert|query(" ` over it
++  returns zero hits. It sets process env defaults and nothing else.
++
++  FULL CONSUMER TRACE of the value being changed. `API_FOOTBALL_REQUEST_PAUSE_MS` is read at exactly
++  ONE site, `quota.py:99` inside `_request_pause_seconds`. That function has exactly ONE caller,
++  `_throttle` at `quota.py:109`. `_throttle` has exactly ONE call site, `http_client.py:51`, reached
++  after a successful HTTP response. Verified by
++  `grep -rn "_request_pause_seconds|_throttle" --include=*.py .` which returns those five lines and
++  no others. So the entire reachable effect of this change is the duration of one `time.sleep()`
++  between API calls.
++
++  DOWNSTREAM LINEAGE. None to trace. No dbt model, no SQL, no seed and no schema is touched, so
++  there is no `ref()` edge to follow and no CI layer rule (staging/base/core/marts) is engaged.
++  `dbt ls` is not applicable to a change that adds no node and alters no node.
++
++  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged. Nothing is built or deployed by this diff, so there
++  is no ordering constraint against the shared CI/prod datasets.
++
++  BLAST RADIUS ON NUMBERS: none, in the strict sense that no mart value can change as a
++  CONSEQUENCE of the diff. Same endpoints, same call count, same payloads, same raw tables, same
++  columns, same row grain. The two observable changes are both non-data: run duration rises by a
++  measured factor of 1.55, and provider rejections fall. Where a number does move, it moves only
++  toward completeness: a call that is no longer rejected returns rows it previously did not. This
++  change cannot remove data.
++
++  RAW COUNT EVIDENCE. `RAW_APIF_TRANSFERS` is the table the sibling issues touch and is untouched
++  here: 1,117 rows / 6.82 GiB, partitioned on `ingested_at` (DAY), clustered on `league_code`. This
++  diff writes to it neither before nor after.
  
  objective: >
--  Bring the handover to current state after four merges: #846 and #886 (the featured season and its
--  DQ guard), #547 PR1 (base models become tables, plus the cost-measurement script and the policy
--  guard) and #890 (the ingestion read stops scanning all partitions).
-+  Hand over with no gaps so a fresh chat continues without re-investigation. The CPO's stated order
-+  is: fix the ingest silent-failure cluster first, then resume cost optimisation.
+-  Hand over with no gaps so a fresh chat continues without re-investigation. The CPO's stated order
+-  is: fix the ingest silent-failure cluster first, then resume cost optimisation.
++  Production ingest runs with NO pacing between API calls, against a requirement this repo wrote
++  down. `settings.py:146` sets `API_FOOTBALL_REQUEST_PAUSE_MS=0` under the `full` profile, and
++  `dbt-scheduled.yml` sets no profile, so production inherits zero.
++  `docs/api_football_ingestion_blueprint.md` §4 mandates a 0.25s pause and names the per-minute
++  burst as the binding constraint.
  
--  This is its own commit on purpose. It was attempted inside #890's branch by widening that
--  contract's `scope_paths` to admit `.claude/active_work.md`, and `scope-auditor` failed it because
--  the authority cited was a rule I had named rather than a recorded ruling. The correct answer was
--  not a better citation: a commit touching only `.claude/task/**` and `.claude/active_work.md` is
--  already exempt from the review cycle, so the handover never needed to ride in a code branch.
-+  This session found that the nightly ingest has been dropping API calls since 2026-07-16 on 10 of 18
-+  runs, every one reported green, and that an empty response DELETES previously good rows while the
-+  table row count goes UP. That is filed as #896/#897/#898. The cost work is filed on #547 with the
-+  corrections that three independent analyses produced, including one proposal of mine that would
-+  have destroyed live data.
-+
-+  The detail belongs in the tracker, not here. This rewrite points at it and keeps only what a fresh
-+  chat cannot derive: what is decided, what is verified versus inferred, and the traps.
+-  This session found that the nightly ingest has been dropping API calls since 2026-07-16 on 10 of 18
+-  runs, every one reported green, and that an empty response DELETES previously good rows while the
+-  table row count goes UP. That is filed as #896/#897/#898. The cost work is filed on #547 with the
+-  corrections that three independent analyses produced, including one proposal of mine that would
+-  have destroyed live data.
++  Consequence, measured on the 2026-08-02 nightly: 26 calls rejected by the provider's per-minute
++  limit (7 coaches, 11 players, 7 player_squads, 1 transfers). It has hit 10 of the last 18 runs
++  since 2026-07-16, and every one reported `success`. The trigger is volume growth, not a code
++  change: per-team calls are now 2,058 per entity across 26 leagues.
+ 
+-  The detail belongs in the tracker, not here. This rewrite points at it and keeps only what a fresh
+-  chat cannot derive: what is decided, what is verified versus inferred, and the traps.
++  This is the cheapest of the three sibling fixes and reduces the failure RATE. It does NOT make a
++  failure visible (#898) and does NOT stop an empty response destroying good rows (#896). Those are
++  separate PRs, in that order, by CPO decision.
  
  refs: >
--  #846, #886, #547, #890. Bookkeeping only — no issue is closed or opened by this, and no decision
--  is taken.
-+  #896, #897, #898 (the ingest cluster, all filed this session). #547 (cost programme, with a
-+  comment carrying the full state). #892, #895 (cost items, both corrected this session).
-+  #845 + #882 (the CPO's next decision). Bookkeeping only — no decision is taken here.
+-  #896, #897, #898 (the ingest cluster, all filed this session). #547 (cost programme, with a
+-  comment carrying the full state). #892, #895 (cost items, both corrected this session).
+-  #845 + #882 (the CPO's next decision). Bookkeeping only — no decision is taken here.
++  #897 (this). Siblings #896 (an incomplete fetch must not supersede) and #898 (dropped calls are
++  invisible in four places) follow as PR 2 and PR 3. #892 is the precedent for the pinning test: a
++  silently reverted default regressed for two months because nothing asserted it.
  
  scope_paths:
-   - .claude/active_work.md
-@@ -27,23 +30,25 @@ scope_paths:
+-  - .claude/active_work.md
++  - ingestion/api_football/settings.py
++  - docs/operations_guide.md
++  - docs/api_football_ingestion_blueprint.md
++  - tests/test_ingest_profile_pacing.py
+   - .claude/task/contract.md
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
    - .claude/task/escalations.log
  
  decisions_taken: >
--  None. This records state that already exists; every ruling it mentions is already in
--  `escalations.log` with its authority.
-+  None. This records state that already exists. Every ruling it references is already in
-+  `escalations.log` or on a GitHub issue with its authority.
+-  None. This records state that already exists. Every ruling it references is already in
+-  `escalations.log` or on a GitHub issue with its authority.
++  CPO, this session, asked as one batch before any file was touched:
++
++  1. Fix via the `settings.py` profile default, NOT via `dbt-scheduled.yml`. The workflow route
++     touches a protected path and would need `protected_override` + `impact_map`; the settings route
++     also prevents recurrence, because nothing can inherit zero pacing by omission afterwards.
++  2. The value is 250ms, the figure the blueprint already mandates.
++
++  THRESHOLD DECLARATIONS.
++
++  NEW MECHANISM: none. This changes the value of an existing setting and adds a test.
  
--  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none — no query, model, workflow or
--  scheduled run is touched. This is the one case where "none" is safe to write without a figure,
--  because the diff contains no executable line.
-+  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none — the diff contains no executable
-+  line, which is the one case where "none" is safe without a figure.
+-  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none — the diff contains no executable
+-  line, which is the one case where "none" is safe without a figure.
++  RECURRING COST: a real one, measured, and approved with the numbers in hand.
++    - API calls per run: UNCHANGED. Same endpoints, same count. Measured usage today is 7,437 of a
++      75,000 daily quota (~10%), so the daily budget is not affected and is not the constraint.
++    - BigQuery: unchanged. No model, no query, no storage touched.
++    - Wall-clock: ingest averages 0.455 s/call today; a 250ms pause makes it 0.705 s/call, a factor
++      of 1.55. Ingest 63 min -> ~98 min; whole run 1h11m -> ~1h46m. The job has no
++      `timeout-minutes`, so GitHub's 6h default applies: ~3.4x headroom. Daily freshness is
++      preserved, which is the non-negotiable this trade was checked against.
++    - GitHub Actions minutes: free. The repository is public.
++    - Provider limits are MEASURED, not assumed: `x-ratelimit-limit: 450` per minute and
++      `x-ratelimit-requests-limit: 75000` per day. Our plan is Ultra. 250ms caps the request rate at
++      240/min, i.e. 53% of the real per-minute limit.
  
  decisions_reserved:
--  - none: the handover states what was decided and by whom, and decides nothing itself. Where a
--    question is open (#845 with #882, and #892) it is recorded as open rather than resolved.
-+  - none: the handover states what was decided and by whom and decides nothing. Where a question is
-+    open (#845 with #882, the threshold policy in #898, the pacing fix's protected-path route in
-+    #897) it is recorded as open rather than resolved.
+-  - none: the handover states what was decided and by whom and decides nothing. Where a question is
+-    open (#845 with #882, the threshold policy in #898, the pacing fix's protected-path route in
+-    #897) it is recorded as open rather than resolved.
++  - The blueprint's §4 plan table has no row for the plan we are actually on, and its "approximately
++    20-50 API calls total" estimate for a full daily run is stale by roughly 200x against a measured
++    ~8,300. This contract corrects the table and the pacing rule ONLY. Rewriting the blueprint's cost
++    model is not attempted here.
++  - #898's threshold policy (how many dropped calls a run may tolerate) is decided but belongs to
++    PR 3, not here.
++  - `standings.py:30` and `teams.py:28` loop every configured season daily with no skip. Real, and a
++    #547 cost item. Out of scope.
  
  done_when:
--  - `.claude/active_work.md` is under the 16,000 CHARACTER limit, measured in characters and not
--    with `wc -c`, which counts bytes and over-reports on this file.
--  - It names what a fresh chat needs first: current main, what is in flight, and that #892 is the
--    remaining half of the cost work.
--  - The commit touches only artifact paths, so the commit gate's artifact exemption applies and no
--    review cycle is required.
-+  - `.claude/active_work.md` is under 16,000 CHARACTERS, measured in characters (`wc -c` counts bytes
-+    and over-reports on this file).
-+  - It names, for a cold reader: current main, that nothing is in flight, the ingest cluster as the
-+    next work with its order, and that transfers healing is UNVERIFIED.
-+  - Every claim that was corrected this session is stated in its corrected form only, with no "this
-+    used to say" narration, per the standing correction-replaces rule.
-+  - The commit touches only artifact paths. NOTE: it still requires a scope audit, because
-+    `contract.md` is never artifact-exempt (F10/#409) — the artifact exemption does not apply.
+-  - `.claude/active_work.md` is under 16,000 CHARACTERS, measured in characters (`wc -c` counts bytes
+-    and over-reports on this file).
+-  - It names, for a cold reader: current main, that nothing is in flight, the ingest cluster as the
+-    next work with its order, and that transfers healing is UNVERIFIED.
+-  - Every claim that was corrected this session is stated in its corrected form only, with no "this
+-    used to say" narration, per the standing correction-replaces rule.
+-  - The commit touches only artifact paths. NOTE: it still requires a scope audit, because
+-    `contract.md` is never artifact-exempt (F10/#409) — the artifact exemption does not apply.
++  - `API_FOOTBALL_REQUEST_PAUSE_MS` defaults to 250 under the `full` profile, and an explicitly set
++    env var still wins (`setdefault` semantics unchanged).
++  - The `economy` profile is untouched: unset still yields `quota.py`'s 6600ms free-tier pacing.
++  - A test pins the `full` default and asserts the explicit-override path. It must FAIL against the
++    pre-fix value, otherwise it does not pin anything.
++  - Every user-facing statement of the old value is corrected in the same commit: the profile
++    docstring, the profile log line, and `docs/operations_guide.md`.
++  - `docs/api_football_ingestion_blueprint.md` §4 states the plan tier we are on with its measured
++    per-minute limit, so the next reader does not re-derive it.
++  - `python -m pytest tests/ -q` passes.
  
  amendments: (none)
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 6914259..c4b582d 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -400,3 +400,78 @@ This entry is the durable record of the metric-definition authority the contract
+   - (why it is agent-executable, stated because the first version of the contract did not) §10 reserves cost decisions about **API budget, history depth, run cadence and widening a task**. This changes none of those: same data, same cadence, same history, identical return value, fewer bytes read. `scope-auditor` FAILED the first version for declaring a RECURRING COST threshold while citing no authority at all — a fair hit, since the authority existed and I simply had not written it down.
+   - (an amendment attempted and WITHDRAWN, round 3) I added `.claude/active_work.md` to `scope_paths` so the handover could be updated in this branch, citing "the standing handover rule". `scope-auditor` FAILED it and was right: that rule is not documented in `working_agreement.md`, `CLAUDE.md` or `agent_guardrails.md`, and §2 requires an amendment to record CPO **authority**, not a rule name I have invented a title for. Withdrawn rather than re-argued. **The handover never needed to be in this branch at all** — the working agreement already exempts a commit touching only `.claude/task/**` and `.claude/active_work.md` from the review cycle, so it goes in its own commit. Withdrawing restored the diff to byte-identical with what all three reviewers passed (`51f6ff2…`), which is why this was not a fourth round. ⚠ THE LESSON: when a gate says a path is out of scope, the first question is whether the EDIT belongs in this branch, not how to widen the contract to admit it.
+   - (⭐ THE MEASUREMENT THAT SETTLED THE DESIGN, and it is reusable) `bq query --dry_run` bills nothing and reports exact bytes, so the shape was chosen from numbers rather than from instinct. On `RAW_APIF_TRANSFERS`/BL1: `ORDER BY … LIMIT 1` **6.634 GiB**; `MAX(ingested_at)` alone **0.013 MiB**; `payload WHERE ingested_at = @ts` **2.95 MiB**; and the tempting one-query form `WHERE ingested_at = (SELECT MAX(…))` **6.634 GiB — a subquery predicate does NOT prune**. That last number is the whole reason the fix is two round trips, and it is the thing a future reader will try to "simplify" away. Parameters were dry-run too and prune exactly like literals. **Dry-run before choosing a query shape; it is free.**
++
++## 2026-08-03 — #897, production pauses between API calls (PR 1 of the ingest silent-failure cluster)
++
++- (CPO ruling, AskUserQuestion, taken as ONE batch before any file was touched) Four questions were
++  put together rather than one per round, and all four were answered in a single pass:
++  1. **#897 is fixed via the `settings.py` profile default, not via `dbt-scheduled.yml`.** The
++     workflow route touches a protected path and would need `protected_override` + `impact_map` +
++     cto/platform at the opus floor. The settings route needs none of that AND prevents recurrence,
++     because after it nothing can inherit zero pacing by omission. The value is 250 ms, the figure
++     `docs/api_football_ingestion_blueprint.md` §4 already mandates.
++  2. **#898's threshold policy: visible always, fail only on STAGNATION.** Dropped calls are
++     surfaced in the job summary counted by endpoint on every run; a single bad run never fails,
++     because failing blocks the dbt build and daily freshness is a stated non-negotiable. The run
++     fails only when the same entity drops on N consecutive runs, i.e. when it is demonstrably not
++     healing. Reuses the existing `stagnant_statistics` no-progress-since-last-run pattern rather
++     than inventing a mechanism. Belongs to PR 3, recorded here because it was decided here.
++  3. **#896 covers the empty AND the partial case in one PR.** The CPO classified
++     "a fetch result carries whether it is complete, and only a complete result may supersede" as an
++     extension of the `quota_cut` PARTIAL handling already in `squads.py`, NOT a new mechanism.
++  4. **Three sequential PRs**, #897 then #896 then #898, so the one-setting pacing fix can merge
++     without waiting on the other two.
++
++- (⭐ THE MEASUREMENT THAT SETTLED THE COST APPROVAL, and it corrects a doc we wrote) The blueprint's
++  §4 table had **no row for the plan we are actually on** and its pacing rule was written against
++  Pro's 300/min. Measured from the provider's own response headers: `x-ratelimit-limit: 450` and
++  `x-ratelimit-requests-limit: 75000`. We are on **Ultra: 450/min, 75,000/day**. So 250 ms caps the
++  request rate at 240/min, i.e. **53% of the real ceiling**, not the 80% the old table implied.
++  Daily usage measured the same day: **7,437 of 75,000, about 10%**. This CONFIRMS the two prior
++  signed-off assessments that the API budget is fine, and is the evidence the standing rule demanded
++  before anyone claims otherwise.
++
++- (the wall-clock trade, approved with the number in hand) Pacing is not free and the cost is
++  RECURRING. Ingest averages **0.455 s/call** today (63 min of ingest, 06:32:20 to 07:35:18 on the
++  2026-08-02 nightly); adding 250 ms makes it 0.705 s/call, a factor of **1.55**. Ingest goes to
++  ~98 min and the whole run from 1h11m to about **1h46m**. The job sets no `timeout-minutes`, so
++  GitHub's 6h default applies: **~3.4x headroom**, and Actions minutes are free on a public repo.
++  Daily freshness therefore survives, which is the non-negotiable this trade was checked against.
++  Cost, data quality and daily freshness are all non-negotiable, so trading one for another is a CPO
++  call; the numbers were put in front of the CPO before the option was chosen, not after.
++
++- (SCOPE DRIFT, caught and REVERTED by the builder before commit) The approved plan listed the
++  blueprint's stale "20-50 API calls total" estimate under **Not in scope**. While correcting the
++  §4 table I edited that bullet anyway, having first added a measured "~8,300 calls" figure directly
++  above it that made the two adjacent lines contradict. Both edits were reverted so the diff matches
++  the approved plan exactly, and the stale estimate was filed as **#900** instead. ⚠ THE LESSON is
++  the one already in this log in a different form: when an edit outside the agreed scope looks
++  obviously right, the drift is not the edit, it is having created the justification for it a moment
++  earlier. The plan is the authority, and "it is only one line" is how a contract stops meaning
++  anything.
++
++- (the gate corrected the contract, and it was right) The first contract said "No structural path in
++  scope, so no `impact_map`". The CONTRACT GATE refused the `settings.py` edit: that file is on the
++  structural surface. The `impact_map` was added on a clean tree as an evidenced SHORT FORM, and the
++  evidence is a complete call trace rather than a claim of triviality: `API_FOOTBALL_REQUEST_PAUSE_MS`
++  is read at exactly one site (`quota.py:99`), which has exactly one caller (`_throttle`,
++  `quota.py:109`), which has exactly one call site (`http_client.py:51`). No dbt node, no schema, no
++  column, no row grain is touched, so there is no lineage to trace and no layer rule engaged. The
++  reachable effect of the diff is the duration of one `time.sleep()`.
++
++- (a test that pins behaviour, because #892 is the precedent) #897 asked for a test pinning the
++  default, since a silently reverted default regressed for two months. `tests/test_ingest_profile_pacing.py`
++  pins the effective pause through `_request_pause_seconds()`, not just the env string, so a change
++  to either `settings.py` or `quota.py` has to face it. **Verified it actually pins**: reverted the
++  value to `0` and 4 of 7 tests failed, including `test_production_config_is_paced`, which
++  reproduces production exactly (no profile set, so `full` is inherited). The 3 that still passed
++  are the explicit-override and economy cases, which correctly do not depend on the default.
++
++- (⚠ A BUG IN MY OWN TEST, found by running the FULL suite rather than the new file) The new tests
++  passed alone and broke `test_wide_history_truncates_to_profile_cap_on_default_profile` when the
++  suite ran in file order. Cause: `_apply_ingest_profile_defaults` writes the WHOLE profile bundle
++  via `os.environ.setdefault` (`ALL_SEASONS`, page caps, fanout soft cap), and **monkeypatch only
++  reverts what monkeypatch itself set**, so the bundle leaked into later tests. Fixed with an
++  autouse fixture that snapshots and restores `os.environ` wholesale. THE LESSON: a test that calls
++  a function which mutates global process state cannot be cleaned up with `monkeypatch.delenv` on
++  the one variable under test, and running only the new file will never show it.
+diff --git a/docs/api_football_ingestion_blueprint.md b/docs/api_football_ingestion_blueprint.md
+index b4a1b5b..d393a93 100644
+--- a/docs/api_football_ingestion_blueprint.md
++++ b/docs/api_football_ingestion_blueprint.md
+@@ -97,17 +97,25 @@ knockout/group-stage competitions requires the `/standings` endpoint separately.
+ 
+ ## 4. Rate Limits and Burst Management
+ 
+-| Plan    | Daily quota | Per-minute burst |
+-|---------|-------------|-----------------|
+-| Free    | 100         | 10/min          |
+-| Starter | 7,500       | 30/min          |
+-| Pro     | 75,000      | 300/min         |
++| Plan                     | Daily quota | Per-minute burst |
++|--------------------------|-------------|------------------|
++| Free                     | 100         | 10/min           |
++| Starter                  | 7,500       | 30/min           |
++| Pro                      | 75,000      | 300/min          |
++| **Ultra (our plan)**     | **75,000**  | **450/min**      |
++
++Our own row is measured, not quoted from pricing copy: the provider returns
++`x-ratelimit-limit: 450` and `x-ratelimit-requests-limit: 75000` on every response. Read them from
++any response header rather than re-deriving them. Before #897 this table had no row for the plan we
++are actually on, and the pacing rule below was written against Pro's 300/min.
+ 
+ **Implementation rules (non-negotiable):**
+ 
+-- Use `time.sleep(0.25)` between calls (Pro plan: 4 calls/sec, safely under 300/min).
++- Use `time.sleep(0.25)` between calls: 4 calls/sec caps the rate at 240/min, i.e. 53% of our
++  measured 450/min ceiling. Set by `API_FOOTBALL_REQUEST_PAUSE_MS`, which defaults to 250 under the
++  `full` profile (`settings.py`) so no workflow can inherit zero pacing by omission.
+ - **Synchronous HTTP only** — async/threading triggers a permanent IP ban per the ToS.
+-- The daily quota is not the binding constraint at Pro tier; per-minute burst is.
++- The daily quota is not the binding constraint on our plan; per-minute burst is.
+ - With the two-step batch pattern, a full daily run over all competitions is
+   approximately 20–50 API calls total — well within any plan tier.
+ 
+diff --git a/docs/operations_guide.md b/docs/operations_guide.md
+index f36a3c5..7836cae 100644
+--- a/docs/operations_guide.md
++++ b/docs/operations_guide.md
+@@ -113,7 +113,7 @@ Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `
+ 
+ #### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
+ 
+-Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing under economy profile and `0` under `full`. Set explicitly to enforce a specific rate.
++Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing (6600 ms) under the economy profile and `250` under `full`, which is the blueprint §4 rate-limit rule. Set explicitly to enforce a specific rate; an explicit value always wins over the profile default.
+ 
+ #### `API_FOOTBALL_SKIP_INGEST_LOCK` (optional)
+ 
+diff --git a/ingestion/api_football/settings.py b/ingestion/api_football/settings.py
+index cfef878..82016b2 100644
+--- a/ingestion/api_football/settings.py
++++ b/ingestion/api_football/settings.py
+@@ -121,7 +121,12 @@ def _apply_ingest_profile_defaults() -> None:
+     """
+     **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
+     default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
+-    history_seasons widens it, no request pacing unless you set it, and high pagination caps.
++    history_seasons widens it, a 250 ms pause between requests, and high pagination caps.
++
++    The pause is the blueprint's §4 rule (``time.sleep(0.25)``), and the constraint it protects is
++    the **per-minute** burst limit, not the daily quota. It defaults here rather than in a workflow
++    so nothing can inherit zero pacing by omission: this default used to be ``0``, no workflow set
++    the variable, and production therefore ran unpaced until #897.
+     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
+ 
+     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
+@@ -143,7 +148,7 @@ def _apply_ingest_profile_defaults() -> None:
+ 
+     d = os.environ
+     d.setdefault("API_FOOTBALL_ALL_SEASONS", "1")
+-    d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
++    d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "250")
+     d.setdefault("API_FOOTBALL_PLAYERS_MAX_PAGE", "50")
+     d.setdefault("API_FOOTBALL_PLAYERS_RESERVE_CALLS", "20")
+     d.setdefault("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", "-1")
+@@ -152,7 +157,7 @@ def _apply_ingest_profile_defaults() -> None:
+     print(
+         "[api-football] ingest profile=full -> unset env got paid defaults "
+         f"(multi-season within the default window last {DEFAULT_SEASON_WINDOW_YEARS} API season years, "
+-        "REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
++        "REQUEST_PAUSE_MS=250, higher page caps, fanout soft cap off). "
+         "Unset API_FOOTBALL_SEASON for multi-season; set any var explicitly to override.",
+         flush=True,
+     )
+diff --git a/tests/test_ingest_profile_pacing.py b/tests/test_ingest_profile_pacing.py
+new file mode 100644
+index 0000000..8604d6f
+--- /dev/null
++++ b/tests/test_ingest_profile_pacing.py
+@@ -0,0 +1,109 @@
++"""Tests for request pacing defaults per ingest profile (#897).
++
++Production ran UNPACED for three weeks. `_apply_ingest_profile_defaults` set
++``API_FOOTBALL_REQUEST_PAUSE_MS=0`` under the `full` profile, `dbt-scheduled.yml` sets no profile so
++it inherited that zero, and the provider rejected calls against its per-minute limit on 10 of 18
++nightly runs while every one reported success.
++
++These tests exist because nothing asserted the value. That is the same failure mode as #892, where a
++silently reverted default regressed for two months. They pin the effective pause, not just the
++string, so a future change to either `settings.py` or `quota.py` has to face them.
++"""
++
++from __future__ import annotations
++
++import os
++
++import pytest
++
++from ingestion.api_football.quota import _request_pause_seconds
++from ingestion.api_football.settings import _apply_ingest_profile_defaults
++
++
++@pytest.fixture(autouse=True)
++def _restore_environ():
++    """Undo every environment write these tests cause.
++
++    `_apply_ingest_profile_defaults` writes to `os.environ` with `setdefault` for the whole profile
++    bundle (ALL_SEASONS, page caps, fanout soft cap), not just the pause. monkeypatch only reverts
++    what monkeypatch itself set, so without this the bundle leaks into later tests: it broke
++    `test_wide_history_truncates_to_profile_cap_on_default_profile` when the suite ran in file order.
++    """
++    saved = os.environ.copy()
++    yield
++    os.environ.clear()
++    os.environ.update(saved)
++
++# Blueprint §4: 4 calls/sec caps the request rate at 240/min, against a measured 450/min ceiling.
++BLUEPRINT_PAUSE_MS = "250"
++BLUEPRINT_PAUSE_SECONDS = 0.25
++
++# quota.py's free-tier fallback when the variable is unset (~9 calls/min under a 10/min limit).
++ECONOMY_FALLBACK_SECONDS = 6.6
++
++
++def _clear_pacing_env(monkeypatch):
++    """Start from a genuinely unset environment, as a fresh CI runner would."""
++    monkeypatch.delenv("API_FOOTBALL_REQUEST_PAUSE_MS", raising=False)
++    monkeypatch.delenv("API_FOOTBALL_INGEST_PROFILE", raising=False)
++    monkeypatch.delenv("API_FOOTBALL_PAID_FULL_LOAD", raising=False)
++
++
++class TestFullProfilePacing:
++    def test_production_config_is_paced(self, monkeypatch):
++        # THE #897 REGRESSION TEST. This reproduces production exactly: dbt-scheduled.yml sets no
++        # API_FOOTBALL_INGEST_PROFILE, so _ingest_profile_name() returns "full" by default. Before
++        # the fix this pause was 0.0 and the nightly burst-limited itself.
++        _clear_pacing_env(monkeypatch)
++        _apply_ingest_profile_defaults()
++        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
++        assert _request_pause_seconds() > 0, "production must never run unpaced (#897)"
++
++    def test_explicit_full_profile_gets_the_blueprint_pause(self, monkeypatch):
++        _clear_pacing_env(monkeypatch)
++        monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
++        _apply_ingest_profile_defaults()
++        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
++
++    def test_profile_aliases_get_the_blueprint_pause(self, monkeypatch):
++        # "paid" and "complete" are accepted aliases of the full profile; they must not diverge.
++        for alias in ("paid", "complete"):
++            _clear_pacing_env(monkeypatch)
++            monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", alias)
++            _apply_ingest_profile_defaults()
++            assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS, alias
++
++    def test_sets_the_documented_millisecond_value(self, monkeypatch):
++        # Pins the stored value too, so docs quoting "250" cannot silently drift from the code.
++        _clear_pacing_env(monkeypatch)
++        _apply_ingest_profile_defaults()
++        assert os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == BLUEPRINT_PAUSE_MS
++
++
++class TestExplicitOverrideStillWins:
++    def test_explicit_value_beats_the_profile_default(self, monkeypatch):
++        # setdefault semantics: an operator who sets the variable is obeyed. A local backfill that
++        # deliberately wants a different rate must still be able to ask for one.
++        _clear_pacing_env(monkeypatch)
++        monkeypatch.setenv("API_FOOTBALL_REQUEST_PAUSE_MS", "1000")
++        _apply_ingest_profile_defaults()
++        assert _request_pause_seconds() == 1.0
++
++    def test_explicit_zero_is_still_honoured(self, monkeypatch):
++        # Zero remains reachable ON PURPOSE. The defect was inheriting it by omission, not the
++        # ability to choose it.
++        _clear_pacing_env(monkeypatch)
++        monkeypatch.setenv("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
++        _apply_ingest_profile_defaults()
++        assert _request_pause_seconds() == 0.0
++
++
++class TestEconomyProfileUnchanged:
++    def test_economy_keeps_free_tier_fallback(self, monkeypatch):
++        # The economy profile bundles no defaults, so the variable stays unset and quota.py's
++        # free-tier fallback applies. #897 must not have moved this.
++        for profile in ("default", "economy", "free"):
++            _clear_pacing_env(monkeypatch)
++            monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", profile)
++            _apply_ingest_profile_defaults()
++            assert _request_pause_seconds() == ECONOMY_FALLBACK_SECONDS, profile

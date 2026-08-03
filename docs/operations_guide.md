@@ -113,7 +113,7 @@ Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `
 
 #### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
 
-Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing under economy profile and `0` under `full`. Set explicitly to enforce a specific rate.
+Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing (6600 ms) under the economy profile and `250` under `full`, which is the blueprint §4 rate-limit rule. Set explicitly to enforce a specific rate; an explicit value always wins over the profile default.
 
 #### `API_FOOTBALL_SKIP_INGEST_LOCK` (optional)
 
