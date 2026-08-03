@@ -55,6 +55,33 @@ def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
     raise AssertionError("fetch_json: unreachable")
 
 
+def result_is_complete(data: dict) -> bool:
+    """Whether a just-returned fetch result is safe to supersede stored data with (#896).
+
+    True only when the provider reported no body-level error AND the run's daily-quota flag is not
+    set. BOTH signals are required, because the two failure shapes look different:
+    a per-minute rate limit arrives as HTTP 200 with the error in the body (so ``response`` is empty
+    or partial while the call looks successful), whereas once the daily quota is gone
+    ``fetch_json`` short-circuits and returns an empty body with NO error at all. Either signal
+    alone misses one of them.
+
+    Call this IMMEDIATELY after the fetch, before issuing another one: the quota flag is
+    process-global and latches for the rest of the run.
+
+    Deliberately a function rather than a key on the returned dict. ``_merge_merged_paged`` and the
+    manual envelope comprehensions in loads/teams.py and loads/injuries.py copy every key they do
+    not explicitly exclude straight into the stored raw payload, so an extra key would be persisted
+    into four raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
+    FIRST source only, so the value would freeze at the first season of a multi-season loop and a
+    run whose fourth season was rate-limited would still record the snapshot as complete.
+
+    An empty response with no error counts as COMPLETE: that is the provider reporting no rows, and
+    it is indistinguishable from one (CPO decision, 2026-08-03). Stopping at the deliberate page cap
+    also counts as complete, because that cap has always bounded the stored snapshot.
+    """
+    return not (data.get("errors") or []) and not errors_quota._http_quota_exhausted
+
+
 def _paging_done(data: dict, page: int) -> bool:
     paging = data.get("paging") or {}
     current = int(paging.get("current") or page)
@@ -73,6 +100,11 @@ def fetch_merged_paged(
     """
     Fetch API list endpoints. When ``paginate`` is True, merges all ``page=`` results (e.g. ``/players``).
     When False, sends ``base_params`` only — many endpoints (and free-tier plans) reject ``page``.
+
+    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Four loaders build the
+    raw payload they persist by copying every key except a fixed exclusion list, so a new key lands
+    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and RAW_APIF_FIXTURES_NEXT. To ask
+    whether a result may supersede stored data, call :func:`result_is_complete` (#896).
     """
     if not paginate:
         data = fetch_json(path, headers, params=dict(base_params))

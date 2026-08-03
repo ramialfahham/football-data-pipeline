@@ -1,439 +1,809 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f7c7411..555baa4 100644
+index 555baa4..e0c1e76 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,54 +1,118 @@
--# Task contract — handover: the ingest silent-failure cluster, then cost
-+# Task contract — #897: production pauses between API calls
+@@ -1,118 +1,163 @@
+-# Task contract — #897: production pauses between API calls
++# Task contract — #896: an incomplete fetch must never supersede good data
  
--> Written on a clean tree before any file was touched. Branch `chore/handover-ingest-and-cost` from
--> `main` at `bb61a51`. No protected path in scope, so no `protected_override`. No structural path in
--> scope, so no `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`.
-+> Written on a clean tree before any file was touched. Branch `fix/897-pace-production-ingest` from
-+> `main` at `36b5f98`. No protected path in scope, so no `protected_override`. No `site_v2/src/`
-+> path, so no `acceptance_criteria`. `ingestion/api_football/settings.py` IS on the structural
-+> surface, so `impact_map:` below is required and is evidenced, not asserted.
-+
-+impact_map: >
-+  SHORT FORM, and the evidence is a complete call trace rather than a claim of triviality.
-+
-+  WRITERS. `settings.py` writes no table: `grep -n "load_json|bigquery|insert|query(" ` over it
-+  returns zero hits. It sets process env defaults and nothing else.
-+
-+  FULL CONSUMER TRACE of the value being changed. `API_FOOTBALL_REQUEST_PAUSE_MS` is read at exactly
-+  ONE site, `quota.py:99` inside `_request_pause_seconds`. That function has exactly ONE caller,
-+  `_throttle` at `quota.py:109`. `_throttle` has exactly ONE call site, `http_client.py:51`, reached
-+  after a successful HTTP response. Verified by
-+  `grep -rn "_request_pause_seconds|_throttle" --include=*.py .` which returns those five lines and
-+  no others. So the entire reachable effect of this change is the duration of one `time.sleep()`
-+  between API calls.
-+
-+  DOWNSTREAM LINEAGE. None to trace. No dbt model, no SQL, no seed and no schema is touched, so
-+  there is no `ref()` edge to follow and no CI layer rule (staging/base/core/marts) is engaged.
-+  `dbt ls` is not applicable to a change that adds no node and alters no node.
-+
-+  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged. Nothing is built or deployed by this diff, so there
-+  is no ordering constraint against the shared CI/prod datasets.
-+
-+  BLAST RADIUS ON NUMBERS: none, in the strict sense that no mart value can change as a
-+  CONSEQUENCE of the diff. Same endpoints, same call count, same payloads, same raw tables, same
-+  columns, same row grain. The two observable changes are both non-data: run duration rises by a
-+  measured factor of 1.55, and provider rejections fall. Where a number does move, it moves only
-+  toward completeness: a call that is no longer rejected returns rows it previously did not. This
-+  change cannot remove data.
-+
-+  RAW COUNT EVIDENCE. `RAW_APIF_TRANSFERS` is the table the sibling issues touch and is untouched
-+  here: 1,117 rows / 6.82 GiB, partitioned on `ingested_at` (DAY), clustered on `league_code`. This
-+  diff writes to it neither before nor after.
+-> Written on a clean tree before any file was touched. Branch `fix/897-pace-production-ingest` from
+-> `main` at `36b5f98`. No protected path in scope, so no `protected_override`. No `site_v2/src/`
+-> path, so no `acceptance_criteria`. `ingestion/api_football/settings.py` IS on the structural
+-> surface, so `impact_map:` below is required and is evidenced, not asserted.
++> Written on a clean tree before any file was touched. Branch
++> `fix/896-incomplete-fetch-must-not-supersede` from `main` at `d2b5789`. No protected path in
++> scope, so no `protected_override`. No `site_v2/src/` path, so no `acceptance_criteria`.
++> `loads/squads.py` WRITES a raw table, so `impact_map:` below is required and is evidenced.
  
- objective: >
--  Hand over with no gaps so a fresh chat continues without re-investigation. The CPO's stated order
--  is: fix the ingest silent-failure cluster first, then resume cost optimisation.
-+  Production ingest runs with NO pacing between API calls, against a requirement this repo wrote
-+  down. `settings.py:146` sets `API_FOOTBALL_REQUEST_PAUSE_MS=0` under the `full` profile, and
-+  `dbt-scheduled.yml` sets no profile, so production inherits zero.
-+  `docs/api_football_ingestion_blueprint.md` §4 mandates a 0.25s pause and names the per-minute
-+  burst as the binding constraint.
+ impact_map: >
+-  SHORT FORM, and the evidence is a complete call trace rather than a claim of triviality.
++  WRITERS OF THE AFFECTED TABLE. `RAW_APIF_PLAYERS` has exactly one writer:
++  `loads/squads.py::load_squad_players_batch`, via `load_json_payload_rows_to_bq` (append) followed
++  by `_delete_superseded_player_rows`. Verified by `grep -rn "delete from|_delete_superseded"` over
++  `ingestion/`, which returns THREE lines, all inside `loads/squads.py`. The merge-on-write pattern
++  this task fixes exists in exactly one place, so there is no second site to fix.
++
++  DOWNSTREAM LINEAGE, taken from dbt rather than asserted.
++  `dbt ls --select stg_apif__players+ --resource-type model` returns 13 models:
++  1_staging: stg_apif__players
++  2_base: base_apif__players, base_apif__player_team_season
++  3_core: dim_player, dim_player_team_season_mapping
++  5_marts: mart_roster, mart_leaderboards, mart_player_career, mart_player_profile,
++  mart_player_match_log, mart_player_fixture_stats, mart_player_competition_benchmarks,
++  mart_team_momentum_window
++
++  THE SHARED HELPER'S OTHER CALLERS. `http_client.fetch_merged_paged` is shared by seven call
++  sites, so editing it has a blast radius wider than `RAW_APIF_PLAYERS`. Review round 1 FAILED the
++  first version of this diff for exactly that omission: it added a `complete` key to the returned
++  dict, and four loaders build the raw payload they persist by copying every key except a fixed
++  exclusion list. The key would have been written into `RAW_APIF_STANDINGS` (via
++  `seasons.py::_merge_merged_paged`, `loads/standings.py:47-55`), `RAW_APIF_TEAMS`
++  (`loads/teams.py:41-43`), `RAW_APIF_INJURIES` (`loads/injuries.py:52-58`) and
++  `RAW_APIF_FIXTURES_NEXT` (`loads/fixtures.py:242-249`). `load_json_to_bq` stores `payload` as a
++  schemaless JSON column with no key filtering, so it would have been physically written. The value
++  would also have been WRONG: `_merge_merged_paged` copies from the FIRST source only, so it would
++  freeze at the first season of a multi-season loop and a run whose fourth season was rate-limited
++  would still record the snapshot as complete.
++
++  THE RESOLUTION: completeness is now a FUNCTION (`http_client.result_is_complete`) and no returned
++  dict gains a key, so the leak is impossible by construction rather than by remembering to exclude
++  a name in four separate places. `coaches.py` and `transfers_response_for_team` were verified to
++  read only `.response` and were unaffected either way. A regression test pins the returned key set
++  so the next person to reach for a key hits a failing test instead of four raw tables.
++
++  CI LAYER RULES. None are engaged: no model, schema, seed or SQL file is touched, so no
++  staging/base/core/marts boundary moves and `check_layer_contract.py` has nothing to judge. No
++  per-competition file is added, so the zero-file rule is not implicated.
++
++  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged. This diff builds nothing and deploys nothing; it
++  changes only which raw rows survive a run. No `dbt build` is run from this branch.
++
++  BLAST RADIUS ON NUMBERS: mart values CAN change, and this is stated plainly rather than claimed to
++  be nil. The change alters which raw rows survive, so every model in the list above can see rows it
++  would otherwise have lost. The direction is one-way: the fix only PREVENTS deletion of rows already
++  held. It derives nothing, adds no column, and changes no grain or formula. Concretely, on a run
++  like 2026-08-02 the fix retains the squads for UCL 340 (25 players), UEL 573 (24) and UECL 20034
++  (23) that were reduced to zero, and the 6 of 46 lost for APD 463.
++
++  RAW COUNT EVIDENCE. `RAW_APIF_PLAYERS`: 22,589 rows / 0.55 GiB, partitioned on `ingested_at` (DAY),
++  clustered on `league_code`. Of 22,589 team-season blocks, 4,973 currently hold an EMPTY payload and
++  3,539 of those are historical (season < 2026). That measurement is what settled the design; see
++  decisions_taken.
  
--  This session found that the nightly ingest has been dropping API calls since 2026-07-16 on 10 of 18
--  runs, every one reported green, and that an empty response DELETES previously good rows while the
--  table row count goes UP. That is filed as #896/#897/#898. The cost work is filed on #547 with the
--  corrections that three independent analyses produced, including one proposal of mine that would
--  have destroyed live data.
-+  Consequence, measured on the 2026-08-02 nightly: 26 calls rejected by the provider's per-minute
-+  limit (7 coaches, 11 players, 7 player_squads, 1 transfers). It has hit 10 of the last 18 runs
-+  since 2026-07-16, and every one reported `success`. The trigger is volume growth, not a code
-+  change: per-team calls are now 2,058 per entity across 26 leagues.
+-  WRITERS. `settings.py` writes no table: `grep -n "load_json|bigquery|insert|query(" ` over it
+-  returns zero hits. It sets process env defaults and nothing else.
+-
+-  FULL CONSUMER TRACE of the value being changed. `API_FOOTBALL_REQUEST_PAUSE_MS` is read at exactly
+-  ONE site, `quota.py:99` inside `_request_pause_seconds`. That function has exactly ONE caller,
+-  `_throttle` at `quota.py:109`. `_throttle` has exactly ONE call site, `http_client.py:51`, reached
+-  after a successful HTTP response. Verified by
+-  `grep -rn "_request_pause_seconds|_throttle" --include=*.py .` which returns those five lines and
+-  no others. So the entire reachable effect of this change is the duration of one `time.sleep()`
+-  between API calls.
+-
+-  DOWNSTREAM LINEAGE. None to trace. No dbt model, no SQL, no seed and no schema is touched, so
+-  there is no `ref()` edge to follow and no CI layer rule (staging/base/core/marts) is engaged.
+-  `dbt ls` is not applicable to a change that adds no node and alters no node.
+-
+-  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged. Nothing is built or deployed by this diff, so there
+-  is no ordering constraint against the shared CI/prod datasets.
+-
+-  BLAST RADIUS ON NUMBERS: none, in the strict sense that no mart value can change as a
+-  CONSEQUENCE of the diff. Same endpoints, same call count, same payloads, same raw tables, same
+-  columns, same row grain. The two observable changes are both non-data: run duration rises by a
+-  measured factor of 1.55, and provider rejections fall. Where a number does move, it moves only
+-  toward completeness: a call that is no longer rejected returns rows it previously did not. This
+-  change cannot remove data.
++objective: >
++  When a `/players` fetch fails, the loader treats the failed response as authoritative and DELETES
++  the previously good rows for the same (league_code, team_id, season).
++  `loads/squads.py::_delete_superseded_player_rows` is keyed on what the NEW row claims, with no
++  check that the new row actually contains players or that the fetch even succeeded.
  
--  The detail belongs in the tracker, not here. This rewrite points at it and keeps only what a fresh
--  chat cannot derive: what is decided, what is verified versus inferred, and the traps.
-+  This is the cheapest of the three sibling fixes and reduces the failure RATE. It does NOT make a
-+  failure visible (#898) and does NOT stop an empty response destroying good rows (#896). Those are
-+  separate PRs, in that order, by CPO decision.
+-  RAW COUNT EVIDENCE. `RAW_APIF_TRANSFERS` is the table the sibling issues touch and is untouched
+-  here: 1,117 rows / 6.82 GiB, partitioned on `ingested_at` (DAY), clustered on `league_code`. This
+-  diff writes to it neither before nor after.
++  Measured via BigQuery time travel on the 2026-08-02 nightly: UCL team 340 went 25 players to 0,
++  UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40 (a rate limit mid-pagination inside
++  `fetch_merged_paged`). All four appear in that run's rate-limit list, so every one carried a
++  body-level error.
+ 
+-objective: >
+-  Production ingest runs with NO pacing between API calls, against a requirement this repo wrote
+-  down. `settings.py:146` sets `API_FOOTBALL_REQUEST_PAUSE_MS=0` under the `full` profile, and
+-  `dbt-scheduled.yml` sets no profile, so production inherits zero.
+-  `docs/api_football_ingestion_blueprint.md` §4 mandates a 0.25s pause and names the per-minute
+-  burst as the binding constraint.
++  No existing test can catch this class, and none could be written against the current signals: the
++  TABLE GREW while the data was destroyed (`RAW_APIF_PLAYERS` 721,755 to 721,938 rows), so
++  row-count, freshness and not-null tests all pass. The loss is only visible per entity.
+ 
+-  Consequence, measured on the 2026-08-02 nightly: 26 calls rejected by the provider's per-minute
+-  limit (7 coaches, 11 players, 7 player_squads, 1 transfers). It has hit 10 of the last 18 runs
+-  since 2026-07-16, and every one reported `success`. The trigger is volume growth, not a code
+-  change: per-team calls are now 2,058 per entity across 26 leagues.
++  The rate limit is only the TRIGGER. The destructive delete is the DEFECT, and it fires for any
++  failed fetch whatever the cause.
+ 
+-  This is the cheapest of the three sibling fixes and reduces the failure RATE. It does NOT make a
+-  failure visible (#898) and does NOT stop an empty response destroying good rows (#896). Those are
+-  separate PRs, in that order, by CPO decision.
++  ROOT CAUSE, confirmed by reading the models rather than inferred: `base_apif__player_team_season`
++  unnests per player and picks with `qualify row_number() over (...) order by raw_ingested_at desc`.
++  An empty payload contributes ZERO rows, so it cannot win that race; it is not in the race at all.
++  The downstream loss is therefore caused solely by the raw row being physically deleted.
  
  refs: >
--  #896, #897, #898 (the ingest cluster, all filed this session). #547 (cost programme, with a
--  comment carrying the full state). #892, #895 (cost items, both corrected this session).
--  #845 + #882 (the CPO's next decision). Bookkeeping only — no decision is taken here.
-+  #897 (this). Siblings #896 (an incomplete fetch must not supersede) and #898 (dropped calls are
-+  invisible in four places) follow as PR 2 and PR 3. #892 is the precedent for the pinning test: a
-+  silently reverted default regressed for two months because nothing asserted it.
+-  #897 (this). Siblings #896 (an incomplete fetch must not supersede) and #898 (dropped calls are
+-  invisible in four places) follow as PR 2 and PR 3. #892 is the precedent for the pinning test: a
+-  silently reverted default regressed for two months because nothing asserted it.
++  #896 (this). #897 merged as PR 1 (`d2b5789`) and reduces the failure RATE but not this defect.
++  #898 follows as PR 3 and makes the failure VISIBLE. #900 is the stale blueprint cost model, filed
++  out of scope during PR 1.
++
++amendment_note: >
++  `impact_map` was extended in round 2 after `data-engineer-reviewer` FAILED round 1. The addition
++  records blast radius that was always true and that the first version failed to trace; it widens no
++  permission and takes no decision. `scope_paths` is unchanged.
  
  scope_paths:
--  - .claude/active_work.md
-+  - ingestion/api_football/settings.py
-+  - docs/operations_guide.md
-+  - docs/api_football_ingestion_blueprint.md
-+  - tests/test_ingest_profile_pacing.py
+-  - ingestion/api_football/settings.py
+-  - docs/operations_guide.md
+-  - docs/api_football_ingestion_blueprint.md
+-  - tests/test_ingest_profile_pacing.py
++  - ingestion/api_football/http_client.py
++  - ingestion/api_football/fixture_scheduling.py
++  - ingestion/api_football/loads/squads.py
++  - tests/test_squad_players_rows.py
++  - tests/test_incomplete_fetch_no_supersede.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/escalations.log
  
  decisions_taken: >
--  None. This records state that already exists. Every ruling it references is already in
--  `escalations.log` or on a GitHub issue with its authority.
-+  CPO, this session, asked as one batch before any file was touched:
+-  CPO, this session, asked as one batch before any file was touched:
++  CPO, this session:
 +
-+  1. Fix via the `settings.py` profile default, NOT via `dbt-scheduled.yml`. The workflow route
-+     touches a protected path and would need `protected_override` + `impact_map`; the settings route
-+     also prevents recurrence, because nothing can inherit zero pacing by omission afterwards.
-+  2. The value is 250ms, the figure the blueprint already mandates.
++  1. (taken before PR 1) #896 covers the EMPTY and the PARTIAL case in one PR. The CPO classified
++     "a fetch result carries whether it is complete, and only a complete result may supersede" as an
++     EXTENSION of the `quota_cut` PARTIAL handling that already exists in `squads.py`, NOT a new
++     mechanism.
 +
-+  THRESHOLD DECLARATIONS.
-+
-+  NEW MECHANISM: none. This changes the value of an existing setting and adds a test.
++  2. (taken for this PR, with the measurement in hand) THE TRIGGER IS THE ERROR SIGNAL, NOT
++     EMPTINESS. A fetch does not supersede when it carried a body-level error or was cut by quota
++     mid-pagination. An empty response with NO error is treated as the provider genuinely reporting
++     no players, and DOES supersede.
  
--  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none — the diff contains no executable
--  line, which is the one case where "none" is safe without a figure.
-+  RECURRING COST: a real one, measured, and approved with the numbers in hand.
-+    - API calls per run: UNCHANGED. Same endpoints, same count. Measured usage today is 7,437 of a
-+      75,000 daily quota (~10%), so the daily budget is not affected and is not the constraint.
-+    - BigQuery: unchanged. No model, no query, no storage touched.
-+    - Wall-clock: ingest averages 0.455 s/call today; a 250ms pause makes it 0.705 s/call, a factor
-+      of 1.55. Ingest 63 min -> ~98 min; whole run 1h11m -> ~1h46m. The job has no
-+      `timeout-minutes`, so GitHub's 6h default applies: ~3.4x headroom. Daily freshness is
-+      preserved, which is the non-negotiable this trade was checked against.
-+    - GitHub Actions minutes: free. The repository is public.
-+    - Provider limits are MEASURED, not assumed: `x-ratelimit-limit: 450` per minute and
-+      `x-ratelimit-requests-limit: 75000` per day. Our plan is Ultra. 250ms caps the request rate at
-+      240/min, i.e. 53% of the real per-minute limit.
+-  1. Fix via the `settings.py` profile default, NOT via `dbt-scheduled.yml`. The workflow route
+-     touches a protected path and would need `protected_override` + `impact_map`; the settings route
+-     also prevents recurrence, because nothing can inherit zero pacing by omission afterwards.
+-  2. The value is 250ms, the figure the blueprint already mandates.
++     The alternative, refusing to supersede on any empty payload, is what #896's own text suggests
++     ("skips the delete when the new payload has zero entities"). It was put to the CPO with its
++     price and REJECTED on cost: 3,539 historical team-seasons currently hold an empty payload, and
++     refusing to write them would keep them out of `captured_player_team_seasons` forever, so
++     `plan_player_team_season_fetch` would re-fetch all 3,539 EVERY night. At 0.705 s/call that is
++     about +42 minutes per run, taking the nightly from ~1h46m to roughly 2h28m, permanently.
++
++     The evidence for the cheaper option being sufficient: all four measured loss cases carried a
++     body-level error, so the error signal catches every case actually observed.
++
++     KNOWN GAP, stated rather than hidden: an empty response with no error is indistinguishable from
++     a genuinely empty squad, and would still supersede. Accepted deliberately.
+ 
+   THRESHOLD DECLARATIONS.
+ 
+-  NEW MECHANISM: none. This changes the value of an existing setting and adds a test.
+-
+-  RECURRING COST: a real one, measured, and approved with the numbers in hand.
+-    - API calls per run: UNCHANGED. Same endpoints, same count. Measured usage today is 7,437 of a
+-      75,000 daily quota (~10%), so the daily budget is not affected and is not the constraint.
+-    - BigQuery: unchanged. No model, no query, no storage touched.
+-    - Wall-clock: ingest averages 0.455 s/call today; a 250ms pause makes it 0.705 s/call, a factor
+-      of 1.55. Ingest 63 min -> ~98 min; whole run 1h11m -> ~1h46m. The job has no
+-      `timeout-minutes`, so GitHub's 6h default applies: ~3.4x headroom. Daily freshness is
+-      preserved, which is the non-negotiable this trade was checked against.
+-    - GitHub Actions minutes: free. The repository is public.
+-    - Provider limits are MEASURED, not assumed: `x-ratelimit-limit: 450` per minute and
+-      `x-ratelimit-requests-limit: 75000` per day. Our plan is Ultra. 250ms caps the request rate at
+-      240/min, i.e. 53% of the real per-minute limit.
++  NEW MECHANISM: none, per the CPO classification in (1) above.
++
++  RECURRING COST: none. The chosen design leaves the call count, the daily quota draw and the run
++  duration unchanged; it only skips a WRITE and a DELETE on a fetch that already failed. The
++  rejected alternative would have carried a real recurring cost and is recorded above with its
++  figure so the decision is not re-litigated from scratch.
  
  decisions_reserved:
--  - none: the handover states what was decided and by whom and decides nothing. Where a question is
--    open (#845 with #882, the threshold policy in #898, the pacing fix's protected-path route in
--    #897) it is recorded as open rather than resolved.
-+  - The blueprint's §4 plan table has no row for the plan we are actually on, and its "approximately
-+    20-50 API calls total" estimate for a full daily run is stale by roughly 200x against a measured
-+    ~8,300. This contract corrects the table and the pacing rule ONLY. Rewriting the blueprint's cost
-+    model is not attempted here.
-+  - #898's threshold policy (how many dropped calls a run may tolerate) is decided but belongs to
-+    PR 3, not here.
-+  - `standings.py:30` and `teams.py:28` loop every configured season daily with no skip. Real, and a
-+    #547 cost item. Out of scope.
+-  - The blueprint's §4 plan table has no row for the plan we are actually on, and its "approximately
+-    20-50 API calls total" estimate for a full daily run is stale by roughly 200x against a measured
+-    ~8,300. This contract corrects the table and the pacing rule ONLY. Rewriting the blueprint's cost
+-    model is not attempted here.
+-  - #898's threshold policy (how many dropped calls a run may tolerate) is decided but belongs to
+-    PR 3, not here.
+-  - `standings.py:30` and `teams.py:28` loop every configured season daily with no skip. Real, and a
+-    #547 cost item. Out of scope.
++  - #898's threshold policy is decided (visible always, fail only on stagnation) but belongs to
++    PR 3.
++  - `fetch_merged_paged` builds `out = dict(meta)` where `meta` stays None if the page loop breaks on
++    the first iteration, which would raise TypeError. Pre-existing, not reachable from
++    `load_squad_players_batch` because it guards on the quota flag before calling. NOT fixed here.
++  - Stopping at the deliberate page cap (`API_FOOTBALL_PLAYERS_MAX_PAGE`) is treated as COMPLETE,
++    preserving today's behaviour. Treating a cap stop as incomplete would change behaviour beyond
++    this defect and is not attempted.
  
  done_when:
--  - `.claude/active_work.md` is under 16,000 CHARACTERS, measured in characters (`wc -c` counts bytes
--    and over-reports on this file).
--  - It names, for a cold reader: current main, that nothing is in flight, the ingest cluster as the
--    next work with its order, and that transfers healing is UNVERIFIED.
--  - Every claim that was corrected this session is stated in its corrected form only, with no "this
--    used to say" narration, per the standing correction-replaces rule.
--  - The commit touches only artifact paths. NOTE: it still requires a scope audit, because
--    `contract.md` is never artifact-exempt (F10/#409) — the artifact exemption does not apply.
-+  - `API_FOOTBALL_REQUEST_PAUSE_MS` defaults to 250 under the `full` profile, and an explicitly set
-+    env var still wins (`setdefault` semantics unchanged).
-+  - The `economy` profile is untouched: unset still yields `quota.py`'s 6600ms free-tier pacing.
-+  - A test pins the `full` default and asserts the explicit-override path. It must FAIL against the
-+    pre-fix value, otherwise it does not pin anything.
-+  - Every user-facing statement of the old value is corrected in the same commit: the profile
-+    docstring, the profile log line, and `docs/operations_guide.md`.
-+  - `docs/api_football_ingestion_blueprint.md` §4 states the plan tier we are on with its measured
-+    per-minute limit, so the next reader does not re-derive it.
-+  - `python -m pytest tests/ -q` passes.
+-  - `API_FOOTBALL_REQUEST_PAUSE_MS` defaults to 250 under the `full` profile, and an explicitly set
+-    env var still wins (`setdefault` semantics unchanged).
+-  - The `economy` profile is untouched: unset still yields `quota.py`'s 6600ms free-tier pacing.
+-  - A test pins the `full` default and asserts the explicit-override path. It must FAIL against the
+-    pre-fix value, otherwise it does not pin anything.
+-  - Every user-facing statement of the old value is corrected in the same commit: the profile
+-    docstring, the profile log line, and `docs/operations_guide.md`.
+-  - `docs/api_football_ingestion_blueprint.md` §4 states the plan tier we are on with its measured
+-    per-minute limit, so the next reader does not re-derive it.
+-  - `python -m pytest tests/ -q` passes.
++  - A fetch that carried a body-level error, or was cut by the quota flag mid-pagination, does NOT
++    write a row and does NOT contribute its key to `written_keys`, so the prior row survives.
++  - The partial-pagination case is covered by the same signal, so APD/463-style loss (46 to 40)
++    cannot recur silently.
++  - A successful fetch still supersedes exactly as before, including a legitimately empty one.
++  - Tests assert BOTH that an incomplete fetch leaves prior rows intact and that a complete fetch
++    still supersedes. They must fail against the pre-fix code, otherwise they pin nothing.
++  - `python -m pytest tests/ -q` passes, including the three existing tests in
++    `tests/test_squad_players_rows.py` that monkeypatch `players_response_for_team` and must be
++    updated for its new return shape.
  
  amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 6914259..c4b582d 100644
+index c4b582d..39ccc84 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -400,3 +400,78 @@ This entry is the durable record of the metric-definition authority the contract
-   - (why it is agent-executable, stated because the first version of the contract did not) §10 reserves cost decisions about **API budget, history depth, run cadence and widening a task**. This changes none of those: same data, same cadence, same history, identical return value, fewer bytes read. `scope-auditor` FAILED the first version for declaring a RECURRING COST threshold while citing no authority at all — a fair hit, since the authority existed and I simply had not written it down.
-   - (an amendment attempted and WITHDRAWN, round 3) I added `.claude/active_work.md` to `scope_paths` so the handover could be updated in this branch, citing "the standing handover rule". `scope-auditor` FAILED it and was right: that rule is not documented in `working_agreement.md`, `CLAUDE.md` or `agent_guardrails.md`, and §2 requires an amendment to record CPO **authority**, not a rule name I have invented a title for. Withdrawn rather than re-argued. **The handover never needed to be in this branch at all** — the working agreement already exempts a commit touching only `.claude/task/**` and `.claude/active_work.md` from the review cycle, so it goes in its own commit. Withdrawing restored the diff to byte-identical with what all three reviewers passed (`51f6ff2…`), which is why this was not a fourth round. ⚠ THE LESSON: when a gate says a path is out of scope, the first question is whether the EDIT belongs in this branch, not how to widen the contract to admit it.
-   - (⭐ THE MEASUREMENT THAT SETTLED THE DESIGN, and it is reusable) `bq query --dry_run` bills nothing and reports exact bytes, so the shape was chosen from numbers rather than from instinct. On `RAW_APIF_TRANSFERS`/BL1: `ORDER BY … LIMIT 1` **6.634 GiB**; `MAX(ingested_at)` alone **0.013 MiB**; `payload WHERE ingested_at = @ts` **2.95 MiB**; and the tempting one-query form `WHERE ingested_at = (SELECT MAX(…))` **6.634 GiB — a subquery predicate does NOT prune**. That last number is the whole reason the fix is two round trips, and it is the thing a future reader will try to "simplify" away. Parameters were dry-run too and prune exactly like literals. **Dry-run before choosing a query shape; it is free.**
+@@ -475,3 +475,98 @@ This entry is the durable record of the metric-definition authority the contract
+   autouse fixture that snapshots and restores `os.environ` wholesale. THE LESSON: a test that calls
+   a function which mutates global process state cannot be cleaned up with `monkeypatch.delenv` on
+   the one variable under test, and running only the new file will never show it.
 +
-+## 2026-08-03 — #897, production pauses between API calls (PR 1 of the ingest silent-failure cluster)
++## 2026-08-03 — #896, an incomplete fetch must never supersede good data (PR 2 of the cluster)
 +
-+- (CPO ruling, AskUserQuestion, taken as ONE batch before any file was touched) Four questions were
-+  put together rather than one per round, and all four were answered in a single pass:
-+  1. **#897 is fixed via the `settings.py` profile default, not via `dbt-scheduled.yml`.** The
-+     workflow route touches a protected path and would need `protected_override` + `impact_map` +
-+     cto/platform at the opus floor. The settings route needs none of that AND prevents recurrence,
-+     because after it nothing can inherit zero pacing by omission. The value is 250 ms, the figure
-+     `docs/api_football_ingestion_blueprint.md` §4 already mandates.
-+  2. **#898's threshold policy: visible always, fail only on STAGNATION.** Dropped calls are
-+     surfaced in the job summary counted by endpoint on every run; a single bad run never fails,
-+     because failing blocks the dbt build and daily freshness is a stated non-negotiable. The run
-+     fails only when the same entity drops on N consecutive runs, i.e. when it is demonstrably not
-+     healing. Reuses the existing `stagnant_statistics` no-progress-since-last-run pattern rather
-+     than inventing a mechanism. Belongs to PR 3, recorded here because it was decided here.
-+  3. **#896 covers the empty AND the partial case in one PR.** The CPO classified
-+     "a fetch result carries whether it is complete, and only a complete result may supersede" as an
-+     extension of the `quota_cut` PARTIAL handling already in `squads.py`, NOT a new mechanism.
-+  4. **Three sequential PRs**, #897 then #896 then #898, so the one-setting pacing fix can merge
-+     without waiting on the other two.
++- (⭐ THE CPO DECISION THAT SHAPED THE FIX, taken with the measurement in hand) The question put was
++  whether an EMPTY-but-error-free response counts as incomplete. It is a cost-versus-data-quality
++  trade, which §10 reserves to the CPO, so it was escalated with both paths priced rather than
++  decided by the builder. **Ruling: THE TRIGGER IS THE ERROR SIGNAL, NOT EMPTINESS.** A fetch does
++  not supersede when it carried a body-level error or was cut by the quota flag mid-pagination. An
++  empty response with NO error is the provider genuinely reporting no players, and DOES supersede.
++  - The rejected alternative is what #896's own text suggests ("skips the delete when the new
++    payload has zero entities"). It was rejected on a measured price:
++    **4,973 of 22,589 team-season blocks in `RAW_APIF_PLAYERS` already hold an empty payload, and
++    3,539 of those are historical.** Refusing to WRITE them keeps them out of
++    `captured_player_team_seasons` forever, so `plan_player_team_season_fetch` re-fetches all 3,539
++    EVERY night. At 0.705 s/call that is about **+42 minutes per run, permanently**, taking the
++    nightly from ~1h46m to roughly 2h28m.
++  - The evidence that the cheaper option suffices: **all four measured loss cases carried a
++    body-level error** (UCL 340, UEL 573, UECL 20034, APD 463 all appear in the 2026-08-02 run's
++    rate-limit list), so the error signal catches every case actually observed.
++  - KNOWN GAP, stated rather than hidden: an empty response with no error is indistinguishable from
++    a genuinely empty squad and would still supersede. Accepted deliberately.
 +
-+- (⭐ THE MEASUREMENT THAT SETTLED THE COST APPROVAL, and it corrects a doc we wrote) The blueprint's
-+  §4 table had **no row for the plan we are actually on** and its pacing rule was written against
-+  Pro's 300/min. Measured from the provider's own response headers: `x-ratelimit-limit: 450` and
-+  `x-ratelimit-requests-limit: 75000`. We are on **Ultra: 450/min, 75,000/day**. So 250 ms caps the
-+  request rate at 240/min, i.e. **53% of the real ceiling**, not the 80% the old table implied.
-+  Daily usage measured the same day: **7,437 of 75,000, about 10%**. This CONFIRMS the two prior
-+  signed-off assessments that the API budget is fine, and is the evidence the standing rule demanded
-+  before anyone claims otherwise.
++- (the trap that would have broken the cheap option, found by reading `fetch_json` rather than
++  assuming) `fetch_json` returns `{"errors": [], "response": [], ...}` when
++  `_http_quota_exhausted` is already set — an empty body with **NO error**. So "error signal only",
++  implemented naively, would have read a quota-exhausted call as a genuine empty and deleted good
++  rows on exactly the run where the most calls fail. `complete` therefore combines BOTH signals:
++  no body-level error AND no quota cut. This is why the fix lives in `fetch_merged_paged`, where
++  both are visible, rather than in the loader.
 +
-+- (the wall-clock trade, approved with the number in hand) Pacing is not free and the cost is
-+  RECURRING. Ingest averages **0.455 s/call** today (63 min of ingest, 06:32:20 to 07:35:18 on the
-+  2026-08-02 nightly); adding 250 ms makes it 0.705 s/call, a factor of **1.55**. Ingest goes to
-+  ~98 min and the whole run from 1h11m to about **1h46m**. The job sets no `timeout-minutes`, so
-+  GitHub's 6h default applies: **~3.4x headroom**, and Actions minutes are free on a public repo.
-+  Daily freshness therefore survives, which is the non-negotiable this trade was checked against.
-+  Cost, data quality and daily freshness are all non-negotiable, so trading one for another is a CPO
-+  call; the numbers were put in front of the CPO before the option was chosen, not after.
++- (why the WRITE is withheld and not just the DELETE) `captured_player_team_seasons` reads
++  `$.team_id`/`$.season` from the stored block, and those are present even when `players_payload`
++  is `[]`. Writing an empty row therefore marks the team-season CAPTURED, and
++  `plan_player_team_season_fetch` skips any historical season already captured. Writing the failed
++  row would have converted a transient rate limit into a permanent hole that never re-fetches.
++  Skipping both the write and the delete is what makes the failure self-heal on the next clean run.
 +
-+- (SCOPE DRIFT, caught and REVERTED by the builder before commit) The approved plan listed the
-+  blueprint's stale "20-50 API calls total" estimate under **Not in scope**. While correcting the
-+  §4 table I edited that bullet anyway, having first added a measured "~8,300 calls" figure directly
-+  above it that made the two adjacent lines contradict. Both edits were reverted so the diff matches
-+  the approved plan exactly, and the stale estimate was filed as **#900** instead. ⚠ THE LESSON is
-+  the one already in this log in a different form: when an edit outside the agreed scope looks
-+  obviously right, the drift is not the edit, it is having created the justification for it a moment
-+  earlier. The plan is the authority, and "it is only one line" is how a contract stops meaning
-+  anything.
++- (ROOT CAUSE, confirmed against the models rather than inferred) `base_apif__player_team_season`
++  unnests per player and picks with `qualify row_number() ... order by raw_ingested_at desc`. An
++  empty payload contributes ZERO rows, so it cannot win that race; it is not in the race at all.
++  The downstream loss is caused SOLELY by the raw row being physically deleted. That is also why
++  `transfers` behaves differently: `load_transfers_batch` is append-only with no delete, so its raw
++  history survives and the gap is staging masking rather than destruction.
 +
-+- (the gate corrected the contract, and it was right) The first contract said "No structural path in
-+  scope, so no `impact_map`". The CONTRACT GATE refused the `settings.py` edit: that file is on the
-+  structural surface. The `impact_map` was added on a clean tree as an evidenced SHORT FORM, and the
-+  evidence is a complete call trace rather than a claim of triviality: `API_FOOTBALL_REQUEST_PAUSE_MS`
-+  is read at exactly one site (`quota.py:99`), which has exactly one caller (`_throttle`,
-+  `quota.py:109`), which has exactly one call site (`http_client.py:51`). No dbt node, no schema, no
-+  column, no row grain is touched, so there is no lineage to trace and no layer rule engaged. The
-+  reachable effect of the diff is the duration of one `time.sleep()`.
++- (⭐ THE HANDOVER ITEM THAT WAS UNVERIFIED IS NOW OBSERVED) The handover recorded transfers healing
++  as INFERRED and NOT OBSERVED. Measured on `RAW_APIF_TRANSFERS` for UEL team 376:
++  **184 players on 08-01, 0 on 08-02, 184 again on 08-03.** Four earlier dip-and-recover cycles
++  appear in the same series (07-16 86,232 to 07-17 94,168; 07-19 91,004 to 07-20 94,719; 07-21
++  90,844 to 07-22 94,836). Healing is now OBSERVED, not inferred, on the exact team the handover
++  flagged.
 +
-+- (a test that pins behaviour, because #892 is the precedent) #897 asked for a test pinning the
-+  default, since a silently reverted default regressed for two months. `tests/test_ingest_profile_pacing.py`
-+  pins the effective pause through `_request_pause_seconds()`, not just the env string, so a change
-+  to either `settings.py` or `quota.py` has to face it. **Verified it actually pins**: reverted the
-+  value to `0` and 4 of 7 tests failed, including `test_production_config_is_paced`, which
-+  reproduces production exactly (no profile set, so `full` is inherited). The 3 that still passed
-+  are the explicit-override and economy cases, which correctly do not depend on the default.
++- (scope) The merge-on-write pattern exists in exactly ONE place. `grep -rn "delete from|_delete_superseded"`
++  over `ingestion/` returns three lines, all inside `loads/squads.py`, so there is no second site to
++  fix and the issue's "wherever the merge-on-write pattern is reused" resolves to nothing further.
 +
-+- (⚠ A BUG IN MY OWN TEST, found by running the FULL suite rather than the new file) The new tests
-+  passed alone and broke `test_wide_history_truncates_to_profile_cap_on_default_profile` when the
-+  suite ran in file order. Cause: `_apply_ingest_profile_defaults` writes the WHOLE profile bundle
-+  via `os.environ.setdefault` (`ALL_SEASONS`, page caps, fanout soft cap), and **monkeypatch only
-+  reverts what monkeypatch itself set**, so the bundle leaked into later tests. Fixed with an
-+  autouse fixture that snapshots and restores `os.environ` wholesale. THE LESSON: a test that calls
-+  a function which mutates global process state cannot be cleaned up with `monkeypatch.delenv` on
-+  the one variable under test, and running only the new file will never show it.
-diff --git a/docs/api_football_ingestion_blueprint.md b/docs/api_football_ingestion_blueprint.md
-index b4a1b5b..d393a93 100644
---- a/docs/api_football_ingestion_blueprint.md
-+++ b/docs/api_football_ingestion_blueprint.md
-@@ -97,17 +97,25 @@ knockout/group-stage competitions requires the `/standings` endpoint separately.
- 
- ## 4. Rate Limits and Burst Management
- 
--| Plan    | Daily quota | Per-minute burst |
--|---------|-------------|-----------------|
--| Free    | 100         | 10/min          |
--| Starter | 7,500       | 30/min          |
--| Pro     | 75,000      | 300/min         |
-+| Plan                     | Daily quota | Per-minute burst |
-+|--------------------------|-------------|------------------|
-+| Free                     | 100         | 10/min           |
-+| Starter                  | 7,500       | 30/min           |
-+| Pro                      | 75,000      | 300/min          |
-+| **Ultra (our plan)**     | **75,000**  | **450/min**      |
++- (pre-existing defect NOTED and deliberately NOT fixed) `fetch_merged_paged` builds
++  `out = dict(meta)` where `meta` stays None if the page loop breaks on its first iteration, which
++  would raise TypeError. Not reachable from `load_squad_players_batch`, which guards on the quota
++  flag before calling. Left alone rather than folded in, per scope discipline.
 +
-+Our own row is measured, not quoted from pricing copy: the provider returns
-+`x-ratelimit-limit: 450` and `x-ratelimit-requests-limit: 75000` on every response. Read them from
-+any response header rather than re-deriving them. Before #897 this table had no row for the plan we
-+are actually on, and the pacing rule below was written against Pro's 300/min.
- 
- **Implementation rules (non-negotiable):**
- 
--- Use `time.sleep(0.25)` between calls (Pro plan: 4 calls/sec, safely under 300/min).
-+- Use `time.sleep(0.25)` between calls: 4 calls/sec caps the rate at 240/min, i.e. 53% of our
-+  measured 450/min ceiling. Set by `API_FOOTBALL_REQUEST_PAUSE_MS`, which defaults to 250 under the
-+  `full` profile (`settings.py`) so no workflow can inherit zero pacing by omission.
- - **Synchronous HTTP only** — async/threading triggers a permanent IP ban per the ToS.
--- The daily quota is not the binding constraint at Pro tier; per-minute burst is.
-+- The daily quota is not the binding constraint on our plan; per-minute burst is.
- - With the two-step batch pattern, a full daily run over all competitions is
-   approximately 20–50 API calls total — well within any plan tier.
- 
-diff --git a/docs/operations_guide.md b/docs/operations_guide.md
-index f36a3c5..7836cae 100644
---- a/docs/operations_guide.md
-+++ b/docs/operations_guide.md
-@@ -113,7 +113,7 @@ Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `
- 
- #### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
- 
--Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing under economy profile and `0` under `full`. Set explicitly to enforce a specific rate.
-+Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing (6600 ms) under the economy profile and `250` under `full`, which is the blueprint §4 rate-limit rule. Set explicitly to enforce a specific rate; an explicit value always wins over the profile default.
- 
- #### `API_FOOTBALL_SKIP_INGEST_LOCK` (optional)
- 
-diff --git a/ingestion/api_football/settings.py b/ingestion/api_football/settings.py
-index cfef878..82016b2 100644
---- a/ingestion/api_football/settings.py
-+++ b/ingestion/api_football/settings.py
-@@ -121,7 +121,12 @@ def _apply_ingest_profile_defaults() -> None:
-     """
-     **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
-     default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
--    history_seasons widens it, no request pacing unless you set it, and high pagination caps.
-+    history_seasons widens it, a 250 ms pause between requests, and high pagination caps.
++- (verification) The tests pin BOTH halves, because pinning only the refusal would let a fix that
++  never supersedes anything pass. Confirmed they pin: with the guard disabled, the 4 "must not
++  supersede" tests fail and the 7 that cover successful superseding plus the completeness signal
++  itself correctly still pass. Full suite 525 passed.
 +
-+    The pause is the blueprint's §4 rule (``time.sleep(0.25)``), and the constraint it protects is
-+    the **per-minute** burst limit, not the daily quota. It defaults here rather than in a workflow
-+    so nothing can inherit zero pacing by omission: this default used to be ``0``, no workflow set
-+    the variable, and production therefore ran unpaced until #897.
-     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
++- (⭐ ROUND 1 FAILED, and the finding is the most valuable thing in this task) `data-engineer-reviewer`
++  FAILED the first version. The fix carried the completeness signal as a NEW KEY on the dict
++  returned by `fetch_merged_paged`. That function is shared by seven call sites, and FOUR loaders
++  build the raw payload they persist by copying every key except a fixed exclusion list. The key
++  would therefore have been physically written into **four raw tables**: `RAW_APIF_STANDINGS` (via
++  `seasons.py::_merge_merged_paged`, `loads/standings.py:47-55`), `RAW_APIF_TEAMS`
++  (`loads/teams.py:41-43`), `RAW_APIF_INJURIES` (`loads/injuries.py:52-58`) and
++  `RAW_APIF_FIXTURES_NEXT` (`loads/fixtures.py:242-249`). `load_json_to_bq` stores `payload` as a
++  schemaless JSON column with no key filtering, so nothing would have stripped it.
++  - **The value would also have been WRONG, not merely extra.** `_merge_merged_paged` copies from
++    the FIRST source only and never refreshes the key on later iterations, so it would freeze at
++    the first season of a multi-season loop: a run whose fourth season was rate-limited would still
++    have recorded `"complete": true` for the whole merged snapshot.
++  - The reviewer also noted the word collides with `docs/data_contract.md:61`, where "complete
++    snapshot" already names the load-bearing append-only invariant staging depends on. A future
++    reader of those payloads could have read a stale per-iteration flag as that invariant.
++  - RESOLUTION: completeness became a FUNCTION, `http_client.result_is_complete`. No returned dict
++    gains a key, so the leak is impossible BY CONSTRUCTION rather than by remembering to add an
++    exclusion in four separate places. A regression test pins the returned key set, and it was
++    verified to work by reintroducing the key and watching
++    `TestReturnedKeySetIsStable::test_non_paginated_returns_only_contract_keys` fail with
++    "Extra items in the left set: 'complete'". Full suite after the redesign: 528 passed.
++  - ⚠ THE LESSON, and it generalises past this task: **the builder had already found two of the four
++    leak sites and still under-called it.** I checked `standings` and `teams`, concluded "a real
++    defect", and planned the fix; the reviewer found `injuries` and `fixtures` as well, plus the
++    frozen-value bug, which is the part that would have made the data actively misleading rather
++    than merely noisy. Finding a defect yourself is not evidence you have found all of it. The
++    `impact_map` was the specific thing at fault: it traced the ONE table the task was about and
++    stopped, when the diff edited a helper shared by seven callers. When a diff touches a shared
++    low-level function, the impact map owes every caller, not the caller you came for.
+diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
+index cdc8860..c86807e 100644
+--- a/ingestion/api_football/fixture_scheduling.py
++++ b/ingestion/api_football/fixture_scheduling.py
+@@ -41,7 +41,7 @@ from google.cloud.exceptions import NotFound
+ from .bigquery import load_json_to_bq
+ from .settings import DATASET_ID, GCP_PROJECT_ID, _env_int, raw_league_table
+ from .quota import append_api_errors, _last_requests_remaining
+-from .http_client import fetch_merged_paged
++from .http_client import fetch_merged_paged, result_is_complete
  
-     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
-@@ -143,7 +148,7 @@ def _apply_ingest_profile_defaults() -> None:
- 
-     d = os.environ
-     d.setdefault("API_FOOTBALL_ALL_SEASONS", "1")
--    d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
-+    d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "250")
-     d.setdefault("API_FOOTBALL_PLAYERS_MAX_PAGE", "50")
-     d.setdefault("API_FOOTBALL_PLAYERS_RESERVE_CALLS", "20")
-     d.setdefault("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", "-1")
-@@ -152,7 +157,7 @@ def _apply_ingest_profile_defaults() -> None:
-     print(
-         "[api-football] ingest profile=full -> unset env got paid defaults "
-         f"(multi-season within the default window last {DEFAULT_SEASON_WINDOW_YEARS} API season years, "
--        "REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
-+        "REQUEST_PAUSE_MS=250, higher page caps, fanout soft cap off). "
-         "Unset API_FOOTBALL_SEASON for multi-season; set any var explicitly to override.",
-         flush=True,
+ # (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)
+ # Defined here so fixture_scheduling.py can gate the fanout queue without importing loads/.
+@@ -461,8 +461,14 @@ def players_response_for_team(
+     errors: list[str] | None = None,
+     *,
+     error_context: str = "",
+-) -> list:
+-    """All /players pages for team+season (API paginates; free tier caps ``page`` — see env)."""
++) -> tuple[list, bool]:
++    """All /players pages for team+season (API paginates; free tier caps ``page`` — see env).
++
++    Returns ``(rows, complete)``. ``complete`` is False when the provider returned a body-level
++    error (the per-minute rate limit arrives as HTTP 200 with the error in the body) or the run's
++    quota flag cut pagination short. In that case ``rows`` may be empty OR partial while looking
++    like a successful response, and the caller MUST NOT let it supersede stored data (#896).
++    """
+     max_page = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
+     data = fetch_merged_paged(
+         "/players",
+@@ -470,10 +476,12 @@ def players_response_for_team(
+         {"team": team_id, "season": season},
+         max_pages=max_page,
      )
-diff --git a/tests/test_ingest_profile_pacing.py b/tests/test_ingest_profile_pacing.py
++    # Evaluated before any further fetch: the quota flag latches for the rest of the run.
++    complete = result_is_complete(data)
+     if errors is not None:
+         ctx = error_context or f"players team_id={team_id}"
+         append_api_errors(data, ctx, errors)
+-    return list(data.get("response") or [])
++    return list(data.get("response") or []), complete
+ 
+ 
+ def transfers_response_for_team(
+diff --git a/ingestion/api_football/http_client.py b/ingestion/api_football/http_client.py
+index eef9a54..7168c10 100644
+--- a/ingestion/api_football/http_client.py
++++ b/ingestion/api_football/http_client.py
+@@ -55,6 +55,33 @@ def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
+     raise AssertionError("fetch_json: unreachable")
+ 
+ 
++def result_is_complete(data: dict) -> bool:
++    """Whether a just-returned fetch result is safe to supersede stored data with (#896).
++
++    True only when the provider reported no body-level error AND the run's daily-quota flag is not
++    set. BOTH signals are required, because the two failure shapes look different:
++    a per-minute rate limit arrives as HTTP 200 with the error in the body (so ``response`` is empty
++    or partial while the call looks successful), whereas once the daily quota is gone
++    ``fetch_json`` short-circuits and returns an empty body with NO error at all. Either signal
++    alone misses one of them.
++
++    Call this IMMEDIATELY after the fetch, before issuing another one: the quota flag is
++    process-global and latches for the rest of the run.
++
++    Deliberately a function rather than a key on the returned dict. ``_merge_merged_paged`` and the
++    manual envelope comprehensions in loads/teams.py and loads/injuries.py copy every key they do
++    not explicitly exclude straight into the stored raw payload, so an extra key would be persisted
++    into four raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
++    FIRST source only, so the value would freeze at the first season of a multi-season loop and a
++    run whose fourth season was rate-limited would still record the snapshot as complete.
++
++    An empty response with no error counts as COMPLETE: that is the provider reporting no rows, and
++    it is indistinguishable from one (CPO decision, 2026-08-03). Stopping at the deliberate page cap
++    also counts as complete, because that cap has always bounded the stored snapshot.
++    """
++    return not (data.get("errors") or []) and not errors_quota._http_quota_exhausted
++
++
+ def _paging_done(data: dict, page: int) -> bool:
+     paging = data.get("paging") or {}
+     current = int(paging.get("current") or page)
+@@ -73,6 +100,11 @@ def fetch_merged_paged(
+     """
+     Fetch API list endpoints. When ``paginate`` is True, merges all ``page=`` results (e.g. ``/players``).
+     When False, sends ``base_params`` only — many endpoints (and free-tier plans) reject ``page``.
++
++    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Four loaders build the
++    raw payload they persist by copying every key except a fixed exclusion list, so a new key lands
++    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and RAW_APIF_FIXTURES_NEXT. To ask
++    whether a result may supersede stored data, call :func:`result_is_complete` (#896).
+     """
+     if not paginate:
+         data = fetch_json(path, headers, params=dict(base_params))
+diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
+index 9c00c0c..6766901 100644
+--- a/ingestion/api_football/loads/squads.py
++++ b/ingestion/api_football/loads/squads.py
+@@ -12,6 +12,14 @@ touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a war
+ logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
+ is assembled in base.
+ 
++ONLY A COMPLETE FETCH MAY SUPERSEDE (#896). A response carrying a body-level error, or cut
++short by the quota flag mid-pagination, is neither written nor added to ``written_keys``, so
++the prior row survives untouched. Withholding the WRITE matters as much as withholding the
++delete: a written row marks the (team, season) captured in ``captured_player_team_seasons``,
++and a historical season would then never be re-fetched, turning a transient failure into a
++permanent hole. An empty response with NO error is a complete answer ("no players") and does
++supersede.
++
+ Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
+ stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
+ never re-requested — see ``plan_player_team_season_fetch`` / ``captured_player_team_seasons``.
+@@ -146,13 +154,14 @@ def load_squad_players_batch(
+ 
+     rows: list[dict] = []
+     written_keys: list[str] = []
++    incomplete_keys: list[str] = []
+     quota_cut = False
+     for season, team_id in fetch_keys:
+         if errors_quota._http_quota_exhausted:
+             quota_cut = True
+             break
+         try:
+-            players_rows = players_response_for_team(
++            players_rows, complete = players_response_for_team(
+                 ctx.headers,
+                 team_id,
+                 season,
+@@ -161,6 +170,16 @@ def load_squad_players_batch(
+                     f"players {league_code} team_id={team_id} season={season}"
+                 ),
+             )
++            # An incomplete fetch must never supersede stored data (#896). The key is withheld from
++            # `written_keys`, so `_delete_superseded_player_rows` leaves the prior row alone, and the
++            # row is not written at all — writing it would ALSO mark the (team, season) captured in
++            # `captured_player_team_seasons`, and a historical season would then never be re-fetched.
++            # Before this guard a rate-limited response deleted the good rows it failed to replace:
++            # on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and
++            # APD 463 46 to 40 when the limit hit mid-pagination.
++            if not complete:
++                incomplete_keys.append(f"{team_id}-{season}")
++                continue
+             rows.append(
+                 {
+                     "league_code": league_code,
+@@ -197,6 +216,13 @@ def load_squad_players_batch(
+         except Exception as e:
+             ctx.errors.append(f"players BQ {league_code}: {e}")
+ 
++    if incomplete_keys:
++        ctx.errors.append(
++            f"players {league_code}: {len(incomplete_keys)} team-season(s) SKIPPED on an incomplete "
++            f"fetch and kept their prior rows: {', '.join(incomplete_keys[:10])}"
++            + (" ..." if len(incomplete_keys) > 10 else "")
++        )
++
+     if quota_cut:
+         ctx.errors.append(
+             f"players {league_code}: PARTIAL — quota exhausted mid-fetch; "
+diff --git a/tests/test_incomplete_fetch_no_supersede.py b/tests/test_incomplete_fetch_no_supersede.py
 new file mode 100644
-index 0000000..8604d6f
+index 0000000..7f41cff
 --- /dev/null
-+++ b/tests/test_ingest_profile_pacing.py
-@@ -0,0 +1,109 @@
-+"""Tests for request pacing defaults per ingest profile (#897).
++++ b/tests/test_incomplete_fetch_no_supersede.py
+@@ -0,0 +1,259 @@
++"""An incomplete /players fetch must never supersede stored data (#896).
 +
-+Production ran UNPACED for three weeks. `_apply_ingest_profile_defaults` set
-+``API_FOOTBALL_REQUEST_PAUSE_MS=0`` under the `full` profile, `dbt-scheduled.yml` sets no profile so
-+it inherited that zero, and the provider rejected calls against its per-minute limit on 10 of 18
-+nightly runs while every one reported success.
++The defect: `_delete_superseded_player_rows` deleted the prior row for a (team, season) keyed on
++what the NEW row claimed, with no check that the fetch had succeeded. A per-minute rate limit
++arrives as HTTP 200 with the error in the body, so a rejected call looked like an empty-but-valid
++squad and destroyed the good rows it failed to replace. Measured on the 2026-08-02 nightly: UCL 340
++went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40 when the limit hit
++mid-pagination.
 +
-+These tests exist because nothing asserted the value. That is the same failure mode as #892, where a
-+silently reverted default regressed for two months. They pin the effective pause, not just the
-+string, so a future change to either `settings.py` or `quota.py` has to face them.
++No existing test could catch this class and none could be written against the old signals: the
++TABLE GREW while the data was destroyed, so row-count, freshness and not-null checks all passed.
++
++These tests pin both halves of the rule, because pinning only the refusal would let a fix that
++never supersedes anything pass.
 +"""
 +
 +from __future__ import annotations
 +
-+import os
++import types
 +
 +import pytest
 +
-+from ingestion.api_football.quota import _request_pause_seconds
-+from ingestion.api_football.settings import _apply_ingest_profile_defaults
++from ingestion.api_football import http_client, quota as errors_quota
++from ingestion.api_football.loads import squads as sq
 +
 +
-+@pytest.fixture(autouse=True)
-+def _restore_environ():
-+    """Undo every environment write these tests cause.
++def _ctx():
++    return types.SimpleNamespace(
++        headers={}, errors=[], client=None, add_loaded=lambda n: None
++    )
 +
-+    `_apply_ingest_profile_defaults` writes to `os.environ` with `setdefault` for the whole profile
-+    bundle (ALL_SEASONS, page caps, fanout soft cap), not just the pause. monkeypatch only reverts
-+    what monkeypatch itself set, so without this the bundle leaks into later tests: it broke
-+    `test_wide_history_truncates_to_profile_cap_on_default_profile` when the suite ran in file order.
++
++def _wire(monkeypatch, fetch):
++    """Run load_squad_players_batch with no network and no BigQuery, capturing the writes."""
++    captured: dict = {"rows": None, "delete_keys": None, "load_calls": 0}
++
++    def fake_loader(client, table, rows, *, league_code, append=True, ingested_at=None):
++        captured["rows"] = rows
++        captured["load_calls"] += 1
++        return len(rows)
++
++    def fake_delete(client, table, league_code, keys, before):
++        captured["delete_keys"] = keys
++
++    monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
++    monkeypatch.setattr(sq, "players_response_for_team", fetch)
++    monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", fake_loader)
++    monkeypatch.setattr(sq, "_delete_superseded_player_rows", fake_delete)
++    return captured
++
++
++class TestIncompleteFetchDoesNotSupersede:
++    def test_rate_limited_empty_response_does_not_delete_prior_rows(self, monkeypatch):
++        # THE #896 REGRESSION TEST, in the shape that destroyed UCL 340 / UEL 573 / UECL 20034:
++        # the provider returns 200 with a rateLimit error in the body, so rows are empty and the
++        # response looks successful. The key must never reach the delete.
++        captured = _wire(monkeypatch, lambda *a, **k: ([], False))
++        ctx = _ctx()
++        sq.load_squad_players_batch(ctx, "UCL", [2026], {340})
++
++        assert captured["load_calls"] == 0, "an incomplete fetch must not be written"
++        assert captured["delete_keys"] is None, "the prior row must not be deleted"
++        assert any("SKIPPED on an incomplete fetch" in e for e in ctx.errors)
++
++    def test_partial_pagination_does_not_supersede(self, monkeypatch):
++        # The APD/463 shape: NON-EMPTY but partial, because the limit hit mid-pagination and only
++        # 40 of 46 players came back. An is-it-empty check cannot catch this; completeness can.
++        captured = _wire(
++            monkeypatch, lambda *a, **k: ([{"player": {"id": i}} for i in range(40)], False)
++        )
++        ctx = _ctx()
++        sq.load_squad_players_batch(ctx, "APD", [2026], {463})
++
++        assert captured["load_calls"] == 0
++        assert captured["delete_keys"] is None
++
++    def test_incomplete_key_is_not_marked_captured(self, monkeypatch):
++        # Withholding the WRITE matters as much as withholding the delete. A written row marks the
++        # (team, season) captured, and a historical season would then never be re-fetched, turning
++        # a transient failure into a permanent hole.
++        captured = _wire(monkeypatch, lambda *a, **k: ([], False))
++        sq.load_squad_players_batch(_ctx(), "UCL", [2025], {340})
++        assert captured["rows"] is None
++
++    def test_one_bad_team_does_not_block_the_others(self, monkeypatch):
++        # A single rejected call must not cost the whole league its refresh.
++        def fetch(headers, team_id, season, errors, error_context=""):
++            if team_id == 340:
++                return [], False
++            return [{"player": {"id": team_id}}], True
++
++        captured = _wire(monkeypatch, fetch)
++        sq.load_squad_players_batch(_ctx(), "UCL", [2026], {340, 341})
++
++        assert captured["delete_keys"] == ["341-2026"], "only the good key may supersede"
++        written = [e["team_id"] for r in captured["rows"] for e in r["response"]]
++        assert written == [341]
++
++
++class TestCompleteFetchStillSupersedes:
++    def test_successful_fetch_supersedes_as_before(self, monkeypatch):
++        # The other half of the rule. Without this, a fix that never supersedes anything passes.
++        captured = _wire(monkeypatch, lambda *a, **k: ([{"player": {"id": 7}}], True))
++        ctx = _ctx()
++        sq.load_squad_players_batch(ctx, "UCL", [2026], {340})
++
++        assert captured["load_calls"] == 1
++        assert captured["delete_keys"] == ["340-2026"]
++        assert ctx.errors == []
++
++    def test_empty_but_complete_response_still_supersedes(self, monkeypatch):
++        # CPO decision 2026-08-03: an empty response with NO error is the provider genuinely
++        # reporting no players, and is indistinguishable from one. It supersedes. Refusing to
++        # supersede on emptiness would strand 3,539 historical team-seasons outside the fetch
++        # cache and re-fetch them every night, about +42 min per run, permanently.
++        captured = _wire(monkeypatch, lambda *a, **k: ([], True))
++        sq.load_squad_players_batch(_ctx(), "UCL", [2026], {340})
++
++        assert captured["load_calls"] == 1
++        assert captured["delete_keys"] == ["340-2026"]
++
++
++class TestResultIsComplete:
++    """The completeness signal itself, pinned at the source."""
++
++    @pytest.fixture(autouse=True)
++    def _reset_quota(self):
++        errors_quota.reset_http_quota_exhausted()
++        yield
++        errors_quota.reset_http_quota_exhausted()
++
++    def test_body_level_error_is_incomplete(self, monkeypatch):
++        # The per-minute limit is HTTP 200 with the error in the body, which is exactly why
++        # http_client's 429 branch never fires for it.
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {
++                "response": [],
++                "errors": {"rateLimit": "Too many requests."},
++                "paging": {"current": 1, "total": 1},
++            },
++        )
++        out = http_client.fetch_merged_paged("/players", {}, {"team": 1})
++        assert http_client.result_is_complete(out) is False
++
++    def test_clean_response_is_complete(self, monkeypatch):
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {
++                "response": [{"player": {"id": 1}}],
++                "errors": [],
++                "paging": {"current": 1, "total": 1},
++            },
++        )
++        out = http_client.fetch_merged_paged("/players", {}, {"team": 1})
++        assert http_client.result_is_complete(out) is True
++
++    def test_empty_clean_response_is_complete(self, monkeypatch):
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {"response": [], "errors": [], "paging": {"current": 1, "total": 1}},
++        )
++        out = http_client.fetch_merged_paged("/players", {}, {"team": 1})
++        assert http_client.result_is_complete(out) is True
++
++    def test_quota_cut_mid_pagination_is_incomplete(self, monkeypatch):
++        # A quota-exhausted call returns an empty body with NO errors, so the error signal alone
++        # would misread it as a genuine empty. The quota flag has to be part of completeness.
++        calls = {"n": 0}
++
++        def fake_fetch_json(path, headers, params=None):
++            calls["n"] += 1
++            if calls["n"] >= 2:
++                errors_quota._http_quota_exhausted = True
++                return {"response": [], "errors": [], "paging": {"current": 2, "total": 5}}
++            return {
++                "response": [{"player": {"id": 1}}],
++                "errors": [],
++                "paging": {"current": 1, "total": 5},
++            }
++
++        monkeypatch.setattr(http_client, "fetch_json", fake_fetch_json)
++        out = http_client.fetch_merged_paged("/players", {}, {"team": 1}, max_pages=5)
++        assert http_client.result_is_complete(out) is False
++
++    def test_non_paginated_error_is_incomplete(self, monkeypatch):
++        # /transfers and /teams reject `page`, so they take the paginate=False branch.
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {"response": [], "errors": {"rateLimit": "Too many requests."}},
++        )
++        out = http_client.fetch_merged_paged("/transfers", {}, {"team": 1}, paginate=False)
++        assert http_client.result_is_complete(out) is False
++
++
++class TestReturnedKeySetIsStable:
++    """Regression guard for the defect review round 1 caught.
++
++    `fetch_merged_paged`'s returned dict is copied wholesale into the stored raw payload by
++    `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehensions in
++    loads/teams.py and loads/injuries.py, each of which excludes only a fixed key list. A new
++    top-level key therefore lands in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and
++    RAW_APIF_FIXTURES_NEXT. The first attempt at #896 added a `complete` key here and would have
++    done exactly that, with a value frozen at the first season of a multi-season merge.
++
++    This is why completeness is a function, not a key.
 +    """
-+    saved = os.environ.copy()
-+    yield
-+    os.environ.clear()
-+    os.environ.update(saved)
 +
-+# Blueprint §4: 4 calls/sec caps the request rate at 240/min, against a measured 450/min ceiling.
-+BLUEPRINT_PAUSE_MS = "250"
-+BLUEPRINT_PAUSE_SECONDS = 0.25
++    @pytest.fixture(autouse=True)
++    def _reset_quota(self):
++        errors_quota.reset_http_quota_exhausted()
++        yield
++        errors_quota.reset_http_quota_exhausted()
 +
-+# quota.py's free-tier fallback when the variable is unset (~9 calls/min under a 10/min limit).
-+ECONOMY_FALLBACK_SECONDS = 6.6
++    EXPECTED = {"response", "errors", "results", "paging"}
 +
++    def test_paginated_returns_only_contract_keys(self, monkeypatch):
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {
++                "response": [{"player": {"id": 1}}],
++                "errors": [],
++                "paging": {"current": 1, "total": 1},
++            },
++        )
++        out = http_client.fetch_merged_paged("/players", {}, {"team": 1})
++        assert set(out) == self.EXPECTED
 +
-+def _clear_pacing_env(monkeypatch):
-+    """Start from a genuinely unset environment, as a fresh CI runner would."""
-+    monkeypatch.delenv("API_FOOTBALL_REQUEST_PAUSE_MS", raising=False)
-+    monkeypatch.delenv("API_FOOTBALL_INGEST_PROFILE", raising=False)
-+    monkeypatch.delenv("API_FOOTBALL_PAID_FULL_LOAD", raising=False)
++    def test_non_paginated_returns_only_contract_keys(self, monkeypatch):
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {"response": [], "errors": [], "paging": {"current": 1, "total": 1}},
++        )
++        out = http_client.fetch_merged_paged("/transfers", {}, {"team": 1}, paginate=False)
++        assert set(out) == self.EXPECTED
 +
-+
-+class TestFullProfilePacing:
-+    def test_production_config_is_paced(self, monkeypatch):
-+        # THE #897 REGRESSION TEST. This reproduces production exactly: dbt-scheduled.yml sets no
-+        # API_FOOTBALL_INGEST_PROFILE, so _ingest_profile_name() returns "full" by default. Before
-+        # the fix this pause was 0.0 and the nightly burst-limited itself.
-+        _clear_pacing_env(monkeypatch)
-+        _apply_ingest_profile_defaults()
-+        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
-+        assert _request_pause_seconds() > 0, "production must never run unpaced (#897)"
-+
-+    def test_explicit_full_profile_gets_the_blueprint_pause(self, monkeypatch):
-+        _clear_pacing_env(monkeypatch)
-+        monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
-+        _apply_ingest_profile_defaults()
-+        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
-+
-+    def test_profile_aliases_get_the_blueprint_pause(self, monkeypatch):
-+        # "paid" and "complete" are accepted aliases of the full profile; they must not diverge.
-+        for alias in ("paid", "complete"):
-+            _clear_pacing_env(monkeypatch)
-+            monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", alias)
-+            _apply_ingest_profile_defaults()
-+            assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS, alias
-+
-+    def test_sets_the_documented_millisecond_value(self, monkeypatch):
-+        # Pins the stored value too, so docs quoting "250" cannot silently drift from the code.
-+        _clear_pacing_env(monkeypatch)
-+        _apply_ingest_profile_defaults()
-+        assert os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == BLUEPRINT_PAUSE_MS
-+
-+
-+class TestExplicitOverrideStillWins:
-+    def test_explicit_value_beats_the_profile_default(self, monkeypatch):
-+        # setdefault semantics: an operator who sets the variable is obeyed. A local backfill that
-+        # deliberately wants a different rate must still be able to ask for one.
-+        _clear_pacing_env(monkeypatch)
-+        monkeypatch.setenv("API_FOOTBALL_REQUEST_PAUSE_MS", "1000")
-+        _apply_ingest_profile_defaults()
-+        assert _request_pause_seconds() == 1.0
-+
-+    def test_explicit_zero_is_still_honoured(self, monkeypatch):
-+        # Zero remains reachable ON PURPOSE. The defect was inheriting it by omission, not the
-+        # ability to choose it.
-+        _clear_pacing_env(monkeypatch)
-+        monkeypatch.setenv("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
-+        _apply_ingest_profile_defaults()
-+        assert _request_pause_seconds() == 0.0
-+
-+
-+class TestEconomyProfileUnchanged:
-+    def test_economy_keeps_free_tier_fallback(self, monkeypatch):
-+        # The economy profile bundles no defaults, so the variable stays unset and quota.py's
-+        # free-tier fallback applies. #897 must not have moved this.
-+        for profile in ("default", "economy", "free"):
-+            _clear_pacing_env(monkeypatch)
-+            monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", profile)
-+            _apply_ingest_profile_defaults()
-+            assert _request_pause_seconds() == ECONOMY_FALLBACK_SECONDS, profile
++    def test_provider_meta_keys_still_pass_through(self, monkeypatch):
++        # The exclusion is about keys WE add. Genuine provider envelope fields must still flow
++        # through, because that pass-through is what the stored raw payload is built from.
++        monkeypatch.setattr(
++            http_client,
++            "fetch_json",
++            lambda *a, **k: {
++                "get": "players",
++                "parameters": {"team": "1"},
++                "response": [],
++                "errors": [],
++                "paging": {"current": 1, "total": 1},
++            },
++        )
++        out = http_client.fetch_merged_paged("/players", {}, {"team": 1})
++        assert set(out) == self.EXPECTED | {"get", "parameters"}
+diff --git a/tests/test_squad_players_rows.py b/tests/test_squad_players_rows.py
+index 325f38a..182a69a 100644
+--- a/tests/test_squad_players_rows.py
++++ b/tests/test_squad_players_rows.py
+@@ -34,7 +34,8 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
+     }
+ 
+     def fake_fetch(headers, team_id, season, errors, error_context=""):
+-        return by_key.get((team_id, season), [])
++        # (rows, complete) — a successful fetch is complete and supersedes as before (#896).
++        return by_key.get((team_id, season), []), True
+ 
+     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
+     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
+@@ -110,7 +111,7 @@ def test_quota_cut_logs_partial_warning(monkeypatch):
+ 
+     def fake_fetch(headers, team_id, season, errors, error_context=""):
+         monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", True)  # exhaust after first
+-        return [{"player": {"id": 1}}]
++        return [{"player": {"id": 1}}], True
+ 
+     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
+     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", lambda *a, **k: 1)

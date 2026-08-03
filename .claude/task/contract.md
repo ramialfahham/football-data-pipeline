@@ -1,118 +1,163 @@
-# Task contract — #897: production pauses between API calls
+# Task contract — #896: an incomplete fetch must never supersede good data
 
-> Written on a clean tree before any file was touched. Branch `fix/897-pace-production-ingest` from
-> `main` at `36b5f98`. No protected path in scope, so no `protected_override`. No `site_v2/src/`
-> path, so no `acceptance_criteria`. `ingestion/api_football/settings.py` IS on the structural
-> surface, so `impact_map:` below is required and is evidenced, not asserted.
+> Written on a clean tree before any file was touched. Branch
+> `fix/896-incomplete-fetch-must-not-supersede` from `main` at `d2b5789`. No protected path in
+> scope, so no `protected_override`. No `site_v2/src/` path, so no `acceptance_criteria`.
+> `loads/squads.py` WRITES a raw table, so `impact_map:` below is required and is evidenced.
 
 impact_map: >
-  SHORT FORM, and the evidence is a complete call trace rather than a claim of triviality.
+  WRITERS OF THE AFFECTED TABLE. `RAW_APIF_PLAYERS` has exactly one writer:
+  `loads/squads.py::load_squad_players_batch`, via `load_json_payload_rows_to_bq` (append) followed
+  by `_delete_superseded_player_rows`. Verified by `grep -rn "delete from|_delete_superseded"` over
+  `ingestion/`, which returns THREE lines, all inside `loads/squads.py`. The merge-on-write pattern
+  this task fixes exists in exactly one place, so there is no second site to fix.
 
-  WRITERS. `settings.py` writes no table: `grep -n "load_json|bigquery|insert|query(" ` over it
-  returns zero hits. It sets process env defaults and nothing else.
+  DOWNSTREAM LINEAGE, taken from dbt rather than asserted.
+  `dbt ls --select stg_apif__players+ --resource-type model` returns 13 models:
+  1_staging: stg_apif__players
+  2_base: base_apif__players, base_apif__player_team_season
+  3_core: dim_player, dim_player_team_season_mapping
+  5_marts: mart_roster, mart_leaderboards, mart_player_career, mart_player_profile,
+  mart_player_match_log, mart_player_fixture_stats, mart_player_competition_benchmarks,
+  mart_team_momentum_window
 
-  FULL CONSUMER TRACE of the value being changed. `API_FOOTBALL_REQUEST_PAUSE_MS` is read at exactly
-  ONE site, `quota.py:99` inside `_request_pause_seconds`. That function has exactly ONE caller,
-  `_throttle` at `quota.py:109`. `_throttle` has exactly ONE call site, `http_client.py:51`, reached
-  after a successful HTTP response. Verified by
-  `grep -rn "_request_pause_seconds|_throttle" --include=*.py .` which returns those five lines and
-  no others. So the entire reachable effect of this change is the duration of one `time.sleep()`
-  between API calls.
+  THE SHARED HELPER'S OTHER CALLERS. `http_client.fetch_merged_paged` is shared by seven call
+  sites, so editing it has a blast radius wider than `RAW_APIF_PLAYERS`. Review round 1 FAILED the
+  first version of this diff for exactly that omission: it added a `complete` key to the returned
+  dict, and four loaders build the raw payload they persist by copying every key except a fixed
+  exclusion list. The key would have been written into `RAW_APIF_STANDINGS` (via
+  `seasons.py::_merge_merged_paged`, `loads/standings.py:47-55`), `RAW_APIF_TEAMS`
+  (`loads/teams.py:41-43`), `RAW_APIF_INJURIES` (`loads/injuries.py:52-58`) and
+  `RAW_APIF_FIXTURES_NEXT` (`loads/fixtures.py:242-249`). `load_json_to_bq` stores `payload` as a
+  schemaless JSON column with no key filtering, so it would have been physically written. The value
+  would also have been WRONG: `_merge_merged_paged` copies from the FIRST source only, so it would
+  freeze at the first season of a multi-season loop and a run whose fourth season was rate-limited
+  would still record the snapshot as complete.
 
-  DOWNSTREAM LINEAGE. None to trace. No dbt model, no SQL, no seed and no schema is touched, so
-  there is no `ref()` edge to follow and no CI layer rule (staging/base/core/marts) is engaged.
-  `dbt ls` is not applicable to a change that adds no node and alters no node.
+  THE RESOLUTION: completeness is now a FUNCTION (`http_client.result_is_complete`) and no returned
+  dict gains a key, so the leak is impossible by construction rather than by remembering to exclude
+  a name in four separate places. `coaches.py` and `transfers_response_for_team` were verified to
+  read only `.response` and were unaffected either way. A regression test pins the returned key set
+  so the next person to reach for a key hits a failing test instead of four raw tables.
 
-  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged. Nothing is built or deployed by this diff, so there
-  is no ordering constraint against the shared CI/prod datasets.
+  CI LAYER RULES. None are engaged: no model, schema, seed or SQL file is touched, so no
+  staging/base/core/marts boundary moves and `check_layer_contract.py` has nothing to judge. No
+  per-competition file is added, so the zero-file rule is not implicated.
 
-  BLAST RADIUS ON NUMBERS: none, in the strict sense that no mart value can change as a
-  CONSEQUENCE of the diff. Same endpoints, same call count, same payloads, same raw tables, same
-  columns, same row grain. The two observable changes are both non-data: run duration rises by a
-  measured factor of 1.55, and provider rejections fall. Where a number does move, it moves only
-  toward completeness: a call that is no longer rejected returns rows it previously did not. This
-  change cannot remove data.
+  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged. This diff builds nothing and deploys nothing; it
+  changes only which raw rows survive a run. No `dbt build` is run from this branch.
 
-  RAW COUNT EVIDENCE. `RAW_APIF_TRANSFERS` is the table the sibling issues touch and is untouched
-  here: 1,117 rows / 6.82 GiB, partitioned on `ingested_at` (DAY), clustered on `league_code`. This
-  diff writes to it neither before nor after.
+  BLAST RADIUS ON NUMBERS: mart values CAN change, and this is stated plainly rather than claimed to
+  be nil. The change alters which raw rows survive, so every model in the list above can see rows it
+  would otherwise have lost. The direction is one-way: the fix only PREVENTS deletion of rows already
+  held. It derives nothing, adds no column, and changes no grain or formula. Concretely, on a run
+  like 2026-08-02 the fix retains the squads for UCL 340 (25 players), UEL 573 (24) and UECL 20034
+  (23) that were reduced to zero, and the 6 of 46 lost for APD 463.
+
+  RAW COUNT EVIDENCE. `RAW_APIF_PLAYERS`: 22,589 rows / 0.55 GiB, partitioned on `ingested_at` (DAY),
+  clustered on `league_code`. Of 22,589 team-season blocks, 4,973 currently hold an EMPTY payload and
+  3,539 of those are historical (season < 2026). That measurement is what settled the design; see
+  decisions_taken.
 
 objective: >
-  Production ingest runs with NO pacing between API calls, against a requirement this repo wrote
-  down. `settings.py:146` sets `API_FOOTBALL_REQUEST_PAUSE_MS=0` under the `full` profile, and
-  `dbt-scheduled.yml` sets no profile, so production inherits zero.
-  `docs/api_football_ingestion_blueprint.md` §4 mandates a 0.25s pause and names the per-minute
-  burst as the binding constraint.
+  When a `/players` fetch fails, the loader treats the failed response as authoritative and DELETES
+  the previously good rows for the same (league_code, team_id, season).
+  `loads/squads.py::_delete_superseded_player_rows` is keyed on what the NEW row claims, with no
+  check that the new row actually contains players or that the fetch even succeeded.
 
-  Consequence, measured on the 2026-08-02 nightly: 26 calls rejected by the provider's per-minute
-  limit (7 coaches, 11 players, 7 player_squads, 1 transfers). It has hit 10 of the last 18 runs
-  since 2026-07-16, and every one reported `success`. The trigger is volume growth, not a code
-  change: per-team calls are now 2,058 per entity across 26 leagues.
+  Measured via BigQuery time travel on the 2026-08-02 nightly: UCL team 340 went 25 players to 0,
+  UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40 (a rate limit mid-pagination inside
+  `fetch_merged_paged`). All four appear in that run's rate-limit list, so every one carried a
+  body-level error.
 
-  This is the cheapest of the three sibling fixes and reduces the failure RATE. It does NOT make a
-  failure visible (#898) and does NOT stop an empty response destroying good rows (#896). Those are
-  separate PRs, in that order, by CPO decision.
+  No existing test can catch this class, and none could be written against the current signals: the
+  TABLE GREW while the data was destroyed (`RAW_APIF_PLAYERS` 721,755 to 721,938 rows), so
+  row-count, freshness and not-null tests all pass. The loss is only visible per entity.
+
+  The rate limit is only the TRIGGER. The destructive delete is the DEFECT, and it fires for any
+  failed fetch whatever the cause.
+
+  ROOT CAUSE, confirmed by reading the models rather than inferred: `base_apif__player_team_season`
+  unnests per player and picks with `qualify row_number() over (...) order by raw_ingested_at desc`.
+  An empty payload contributes ZERO rows, so it cannot win that race; it is not in the race at all.
+  The downstream loss is therefore caused solely by the raw row being physically deleted.
 
 refs: >
-  #897 (this). Siblings #896 (an incomplete fetch must not supersede) and #898 (dropped calls are
-  invisible in four places) follow as PR 2 and PR 3. #892 is the precedent for the pinning test: a
-  silently reverted default regressed for two months because nothing asserted it.
+  #896 (this). #897 merged as PR 1 (`d2b5789`) and reduces the failure RATE but not this defect.
+  #898 follows as PR 3 and makes the failure VISIBLE. #900 is the stale blueprint cost model, filed
+  out of scope during PR 1.
+
+amendment_note: >
+  `impact_map` was extended in round 2 after `data-engineer-reviewer` FAILED round 1. The addition
+  records blast radius that was always true and that the first version failed to trace; it widens no
+  permission and takes no decision. `scope_paths` is unchanged.
 
 scope_paths:
-  - ingestion/api_football/settings.py
-  - docs/operations_guide.md
-  - docs/api_football_ingestion_blueprint.md
-  - tests/test_ingest_profile_pacing.py
+  - ingestion/api_football/http_client.py
+  - ingestion/api_football/fixture_scheduling.py
+  - ingestion/api_football/loads/squads.py
+  - tests/test_squad_players_rows.py
+  - tests/test_incomplete_fetch_no_supersede.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/escalations.log
 
 decisions_taken: >
-  CPO, this session, asked as one batch before any file was touched:
+  CPO, this session:
 
-  1. Fix via the `settings.py` profile default, NOT via `dbt-scheduled.yml`. The workflow route
-     touches a protected path and would need `protected_override` + `impact_map`; the settings route
-     also prevents recurrence, because nothing can inherit zero pacing by omission afterwards.
-  2. The value is 250ms, the figure the blueprint already mandates.
+  1. (taken before PR 1) #896 covers the EMPTY and the PARTIAL case in one PR. The CPO classified
+     "a fetch result carries whether it is complete, and only a complete result may supersede" as an
+     EXTENSION of the `quota_cut` PARTIAL handling that already exists in `squads.py`, NOT a new
+     mechanism.
+
+  2. (taken for this PR, with the measurement in hand) THE TRIGGER IS THE ERROR SIGNAL, NOT
+     EMPTINESS. A fetch does not supersede when it carried a body-level error or was cut by quota
+     mid-pagination. An empty response with NO error is treated as the provider genuinely reporting
+     no players, and DOES supersede.
+
+     The alternative, refusing to supersede on any empty payload, is what #896's own text suggests
+     ("skips the delete when the new payload has zero entities"). It was put to the CPO with its
+     price and REJECTED on cost: 3,539 historical team-seasons currently hold an empty payload, and
+     refusing to write them would keep them out of `captured_player_team_seasons` forever, so
+     `plan_player_team_season_fetch` would re-fetch all 3,539 EVERY night. At 0.705 s/call that is
+     about +42 minutes per run, taking the nightly from ~1h46m to roughly 2h28m, permanently.
+
+     The evidence for the cheaper option being sufficient: all four measured loss cases carried a
+     body-level error, so the error signal catches every case actually observed.
+
+     KNOWN GAP, stated rather than hidden: an empty response with no error is indistinguishable from
+     a genuinely empty squad, and would still supersede. Accepted deliberately.
 
   THRESHOLD DECLARATIONS.
 
-  NEW MECHANISM: none. This changes the value of an existing setting and adds a test.
+  NEW MECHANISM: none, per the CPO classification in (1) above.
 
-  RECURRING COST: a real one, measured, and approved with the numbers in hand.
-    - API calls per run: UNCHANGED. Same endpoints, same count. Measured usage today is 7,437 of a
-      75,000 daily quota (~10%), so the daily budget is not affected and is not the constraint.
-    - BigQuery: unchanged. No model, no query, no storage touched.
-    - Wall-clock: ingest averages 0.455 s/call today; a 250ms pause makes it 0.705 s/call, a factor
-      of 1.55. Ingest 63 min -> ~98 min; whole run 1h11m -> ~1h46m. The job has no
-      `timeout-minutes`, so GitHub's 6h default applies: ~3.4x headroom. Daily freshness is
-      preserved, which is the non-negotiable this trade was checked against.
-    - GitHub Actions minutes: free. The repository is public.
-    - Provider limits are MEASURED, not assumed: `x-ratelimit-limit: 450` per minute and
-      `x-ratelimit-requests-limit: 75000` per day. Our plan is Ultra. 250ms caps the request rate at
-      240/min, i.e. 53% of the real per-minute limit.
+  RECURRING COST: none. The chosen design leaves the call count, the daily quota draw and the run
+  duration unchanged; it only skips a WRITE and a DELETE on a fetch that already failed. The
+  rejected alternative would have carried a real recurring cost and is recorded above with its
+  figure so the decision is not re-litigated from scratch.
 
 decisions_reserved:
-  - The blueprint's §4 plan table has no row for the plan we are actually on, and its "approximately
-    20-50 API calls total" estimate for a full daily run is stale by roughly 200x against a measured
-    ~8,300. This contract corrects the table and the pacing rule ONLY. Rewriting the blueprint's cost
-    model is not attempted here.
-  - #898's threshold policy (how many dropped calls a run may tolerate) is decided but belongs to
-    PR 3, not here.
-  - `standings.py:30` and `teams.py:28` loop every configured season daily with no skip. Real, and a
-    #547 cost item. Out of scope.
+  - #898's threshold policy is decided (visible always, fail only on stagnation) but belongs to
+    PR 3.
+  - `fetch_merged_paged` builds `out = dict(meta)` where `meta` stays None if the page loop breaks on
+    the first iteration, which would raise TypeError. Pre-existing, not reachable from
+    `load_squad_players_batch` because it guards on the quota flag before calling. NOT fixed here.
+  - Stopping at the deliberate page cap (`API_FOOTBALL_PLAYERS_MAX_PAGE`) is treated as COMPLETE,
+    preserving today's behaviour. Treating a cap stop as incomplete would change behaviour beyond
+    this defect and is not attempted.
 
 done_when:
-  - `API_FOOTBALL_REQUEST_PAUSE_MS` defaults to 250 under the `full` profile, and an explicitly set
-    env var still wins (`setdefault` semantics unchanged).
-  - The `economy` profile is untouched: unset still yields `quota.py`'s 6600ms free-tier pacing.
-  - A test pins the `full` default and asserts the explicit-override path. It must FAIL against the
-    pre-fix value, otherwise it does not pin anything.
-  - Every user-facing statement of the old value is corrected in the same commit: the profile
-    docstring, the profile log line, and `docs/operations_guide.md`.
-  - `docs/api_football_ingestion_blueprint.md` §4 states the plan tier we are on with its measured
-    per-minute limit, so the next reader does not re-derive it.
-  - `python -m pytest tests/ -q` passes.
+  - A fetch that carried a body-level error, or was cut by the quota flag mid-pagination, does NOT
+    write a row and does NOT contribute its key to `written_keys`, so the prior row survives.
+  - The partial-pagination case is covered by the same signal, so APD/463-style loss (46 to 40)
+    cannot recur silently.
+  - A successful fetch still supersedes exactly as before, including a legitimately empty one.
+  - Tests assert BOTH that an incomplete fetch leaves prior rows intact and that a complete fetch
+    still supersedes. They must fail against the pre-fix code, otherwise they pin nothing.
+  - `python -m pytest tests/ -q` passes, including the three existing tests in
+    `tests/test_squad_players_rows.py` that monkeypatch `players_response_for_team` and must be
+    updated for its new return shape.
 
 amendments: (none)

@@ -34,7 +34,8 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
     }
 
     def fake_fetch(headers, team_id, season, errors, error_context=""):
-        return by_key.get((team_id, season), [])
+        # (rows, complete) — a successful fetch is complete and supersedes as before (#896).
+        return by_key.get((team_id, season), []), True
 
     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
@@ -110,7 +111,7 @@ def test_quota_cut_logs_partial_warning(monkeypatch):
 
     def fake_fetch(headers, team_id, season, errors, error_context=""):
         monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", True)  # exhaust after first
-        return [{"player": {"id": 1}}]
+        return [{"player": {"id": 1}}], True
 
     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", lambda *a, **k: 1)

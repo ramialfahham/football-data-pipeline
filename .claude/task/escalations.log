@@ -475,3 +475,98 @@ This entry is the durable record of the metric-definition authority the contract
   autouse fixture that snapshots and restores `os.environ` wholesale. THE LESSON: a test that calls
   a function which mutates global process state cannot be cleaned up with `monkeypatch.delenv` on
   the one variable under test, and running only the new file will never show it.
+
+## 2026-08-03 — #896, an incomplete fetch must never supersede good data (PR 2 of the cluster)
+
+- (⭐ THE CPO DECISION THAT SHAPED THE FIX, taken with the measurement in hand) The question put was
+  whether an EMPTY-but-error-free response counts as incomplete. It is a cost-versus-data-quality
+  trade, which §10 reserves to the CPO, so it was escalated with both paths priced rather than
+  decided by the builder. **Ruling: THE TRIGGER IS THE ERROR SIGNAL, NOT EMPTINESS.** A fetch does
+  not supersede when it carried a body-level error or was cut by the quota flag mid-pagination. An
+  empty response with NO error is the provider genuinely reporting no players, and DOES supersede.
+  - The rejected alternative is what #896's own text suggests ("skips the delete when the new
+    payload has zero entities"). It was rejected on a measured price:
+    **4,973 of 22,589 team-season blocks in `RAW_APIF_PLAYERS` already hold an empty payload, and
+    3,539 of those are historical.** Refusing to WRITE them keeps them out of
+    `captured_player_team_seasons` forever, so `plan_player_team_season_fetch` re-fetches all 3,539
+    EVERY night. At 0.705 s/call that is about **+42 minutes per run, permanently**, taking the
+    nightly from ~1h46m to roughly 2h28m.
+  - The evidence that the cheaper option suffices: **all four measured loss cases carried a
+    body-level error** (UCL 340, UEL 573, UECL 20034, APD 463 all appear in the 2026-08-02 run's
+    rate-limit list), so the error signal catches every case actually observed.
+  - KNOWN GAP, stated rather than hidden: an empty response with no error is indistinguishable from
+    a genuinely empty squad and would still supersede. Accepted deliberately.
+
+- (the trap that would have broken the cheap option, found by reading `fetch_json` rather than
+  assuming) `fetch_json` returns `{"errors": [], "response": [], ...}` when
+  `_http_quota_exhausted` is already set — an empty body with **NO error**. So "error signal only",
+  implemented naively, would have read a quota-exhausted call as a genuine empty and deleted good
+  rows on exactly the run where the most calls fail. `complete` therefore combines BOTH signals:
+  no body-level error AND no quota cut. This is why the fix lives in `fetch_merged_paged`, where
+  both are visible, rather than in the loader.
+
+- (why the WRITE is withheld and not just the DELETE) `captured_player_team_seasons` reads
+  `$.team_id`/`$.season` from the stored block, and those are present even when `players_payload`
+  is `[]`. Writing an empty row therefore marks the team-season CAPTURED, and
+  `plan_player_team_season_fetch` skips any historical season already captured. Writing the failed
+  row would have converted a transient rate limit into a permanent hole that never re-fetches.
+  Skipping both the write and the delete is what makes the failure self-heal on the next clean run.
+
+- (ROOT CAUSE, confirmed against the models rather than inferred) `base_apif__player_team_season`
+  unnests per player and picks with `qualify row_number() ... order by raw_ingested_at desc`. An
+  empty payload contributes ZERO rows, so it cannot win that race; it is not in the race at all.
+  The downstream loss is caused SOLELY by the raw row being physically deleted. That is also why
+  `transfers` behaves differently: `load_transfers_batch` is append-only with no delete, so its raw
+  history survives and the gap is staging masking rather than destruction.
+
+- (⭐ THE HANDOVER ITEM THAT WAS UNVERIFIED IS NOW OBSERVED) The handover recorded transfers healing
+  as INFERRED and NOT OBSERVED. Measured on `RAW_APIF_TRANSFERS` for UEL team 376:
+  **184 players on 08-01, 0 on 08-02, 184 again on 08-03.** Four earlier dip-and-recover cycles
+  appear in the same series (07-16 86,232 to 07-17 94,168; 07-19 91,004 to 07-20 94,719; 07-21
+  90,844 to 07-22 94,836). Healing is now OBSERVED, not inferred, on the exact team the handover
+  flagged.
+
+- (scope) The merge-on-write pattern exists in exactly ONE place. `grep -rn "delete from|_delete_superseded"`
+  over `ingestion/` returns three lines, all inside `loads/squads.py`, so there is no second site to
+  fix and the issue's "wherever the merge-on-write pattern is reused" resolves to nothing further.
+
+- (pre-existing defect NOTED and deliberately NOT fixed) `fetch_merged_paged` builds
+  `out = dict(meta)` where `meta` stays None if the page loop breaks on its first iteration, which
+  would raise TypeError. Not reachable from `load_squad_players_batch`, which guards on the quota
+  flag before calling. Left alone rather than folded in, per scope discipline.
+
+- (verification) The tests pin BOTH halves, because pinning only the refusal would let a fix that
+  never supersedes anything pass. Confirmed they pin: with the guard disabled, the 4 "must not
+  supersede" tests fail and the 7 that cover successful superseding plus the completeness signal
+  itself correctly still pass. Full suite 525 passed.
+
+- (⭐ ROUND 1 FAILED, and the finding is the most valuable thing in this task) `data-engineer-reviewer`
+  FAILED the first version. The fix carried the completeness signal as a NEW KEY on the dict
+  returned by `fetch_merged_paged`. That function is shared by seven call sites, and FOUR loaders
+  build the raw payload they persist by copying every key except a fixed exclusion list. The key
+  would therefore have been physically written into **four raw tables**: `RAW_APIF_STANDINGS` (via
+  `seasons.py::_merge_merged_paged`, `loads/standings.py:47-55`), `RAW_APIF_TEAMS`
+  (`loads/teams.py:41-43`), `RAW_APIF_INJURIES` (`loads/injuries.py:52-58`) and
+  `RAW_APIF_FIXTURES_NEXT` (`loads/fixtures.py:242-249`). `load_json_to_bq` stores `payload` as a
+  schemaless JSON column with no key filtering, so nothing would have stripped it.
+  - **The value would also have been WRONG, not merely extra.** `_merge_merged_paged` copies from
+    the FIRST source only and never refreshes the key on later iterations, so it would freeze at
+    the first season of a multi-season loop: a run whose fourth season was rate-limited would still
+    have recorded `"complete": true` for the whole merged snapshot.
+  - The reviewer also noted the word collides with `docs/data_contract.md:61`, where "complete
+    snapshot" already names the load-bearing append-only invariant staging depends on. A future
+    reader of those payloads could have read a stale per-iteration flag as that invariant.
+  - RESOLUTION: completeness became a FUNCTION, `http_client.result_is_complete`. No returned dict
+    gains a key, so the leak is impossible BY CONSTRUCTION rather than by remembering to add an
+    exclusion in four separate places. A regression test pins the returned key set, and it was
+    verified to work by reintroducing the key and watching
+    `TestReturnedKeySetIsStable::test_non_paginated_returns_only_contract_keys` fail with
+    "Extra items in the left set: 'complete'". Full suite after the redesign: 528 passed.
+  - ⚠ THE LESSON, and it generalises past this task: **the builder had already found two of the four
+    leak sites and still under-called it.** I checked `standings` and `teams`, concluded "a real
+    defect", and planned the fix; the reviewer found `injuries` and `fixtures` as well, plus the
+    frozen-value bug, which is the part that would have made the data actively misleading rather
+    than merely noisy. Finding a defect yourself is not evidence you have found all of it. The
+    `impact_map` was the specific thing at fault: it traced the ONE table the task was about and
+    stopped, when the diff edited a helper shared by seven callers. When a diff touches a shared
+    low-level function, the impact map owes every caller, not the caller you came for.
