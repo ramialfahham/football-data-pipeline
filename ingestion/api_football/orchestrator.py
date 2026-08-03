@@ -22,7 +22,12 @@ from .completeness import (
     evaluate_completeness_outcome,
     load_prior_dropped_calls,
     load_prior_fixture_statistics_missing,
+    load_prior_per_team_missing,
+    PER_TEAM_ENTITIES,
+    per_team_expectations_from_results,
+    per_team_missing_by_league_entity,
     persist_fixture_statistics_missing,
+    read_per_team_coverage,
     run_ingest_completeness_checks,
     write_github_output,
     write_step_summary_if_configured,
@@ -209,7 +214,20 @@ def _load_api_football(request):
         prior_stats_missing = load_prior_fixture_statistics_missing(client)
         # Read BEFORE persisting this run's counts, or the comparison is against itself.
         prior_dropped = load_prior_dropped_calls(client)
+        prior_per_team = load_prior_per_team_missing(client)
         dropped_calls = minute_rate_limit_counts()
+        # #898 cause 3: the per-team endpoints (players, squads, transfers, coaches) had no
+        # completeness check at all. Two-step read on purpose — see _latest_snapshot_timestamps.
+        #
+        # Expected comes from THIS RUN, not from BigQuery. `results` holds only the competitions
+        # that ran the full phases; poll-mode ones never fetch teams, players, squads or transfers,
+        # so they cannot be judged and must not appear. `team_ids` is the exact set the loaders
+        # iterated and `max(seasons_list)` is the exact reference season
+        # `load_squad_players_batch` was called with, so expectation and fetch cannot drift apart.
+        per_team = read_per_team_coverage(
+            client, per_team_expectations_from_results(results)
+        )
+        per_team_missing = per_team_missing_by_league_entity(per_team)
         report = run_ingest_completeness_checks(client)
         print(completeness_summary_line(report), flush=True)
 
@@ -218,9 +236,15 @@ def _load_api_football(request):
             prior_fixture_statistics_missing=prior_stats_missing,
             dropped_calls=dropped_calls,
             prior_dropped_calls=prior_dropped,
+            per_team_missing=per_team_missing,
+            prior_per_team_missing=prior_per_team,
         )
         persist_fixture_statistics_missing(
-            client, report, run_id=run_id, dropped_calls=dropped_calls
+            client,
+            report,
+            run_id=run_id,
+            dropped_calls=dropped_calls,
+            per_team_missing=per_team_missing,
         )
 
         # Always render the markdown summary so the per-competition coverage
@@ -241,6 +265,26 @@ def _load_api_football(request):
                 + ", ".join(
                     f"{s['endpoint']} ({s['prior_count']} then {s['count']})"
                     for s in outcome["stagnant_dropped_calls"]
+                )
+            )
+        # #898 cause 3. Reported on EVERY run, including COACHES, which never gates. Reporting a
+        # number that never fails is the point: it is how a slow drift becomes visible before it
+        # becomes a hole.
+        per_team_notes = [
+            f"{lc}/{entity} {info['missing_count']}/{info['expected_count']}"
+            for lc, block in sorted(per_team.items())
+            for entity in PER_TEAM_ENTITIES
+            for info in [block.get(entity) or {}]
+            if info.get("missing_count")
+        ]
+        if per_team_notes:
+            notes.append("per-team teams MISSING: " + ", ".join(per_team_notes))
+        if outcome["stagnant_per_team_gaps"]:
+            notes.append(
+                "STAGNANT per-team gaps (same league+entity two runs running): "
+                + ", ".join(
+                    f"{s['league_code']}/{s['entity']} ({s['prior_count']} then {s['count']})"
+                    for s in outcome["stagnant_per_team_gaps"]
                 )
             )
         if outcome["soft_partial"]:
@@ -270,6 +314,15 @@ def _load_api_football(request):
 
         if outcome["hard_fail"]:
             parts: list[str] = []
+            if outcome["stagnant_per_team_gaps"]:
+                parts.append(
+                    "per-team gaps not healing: "
+                    + ", ".join(
+                        f"{s['league_code']}/{s['entity']} "
+                        f"({s['prior_count']} then {s['count']} teams missing)"
+                        for s in outcome["stagnant_per_team_gaps"]
+                    )
+                )
             if outcome["stagnant_dropped_calls"]:
                 # A single bad run stays green on purpose: the per-minute limit self-heals, and
                 # failing skips the dbt build (every post-ingest step is gated on this step

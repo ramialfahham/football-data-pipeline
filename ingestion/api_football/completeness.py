@@ -21,11 +21,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
 
 from .bigquery import load_json_to_bq, read_latest_payload_json
 from .coverage import read_coverage
 from .registry import selected_competitions
-from .settings import raw_table
+from .settings import DATASET_ID, GCP_PROJECT_ID, raw_table
 
 COMPLETENESS_SNAPSHOT_TABLE = "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT"
 _STATS_ENTITY = "FIXTURE_STATISTICS"
@@ -38,6 +39,20 @@ FANOUT_ENTITIES = (
     "FIXTURE_STATISTICS",
     "FIXTURE_PLAYERS",
 )
+
+# PER-TEAM raw entities (#898 cause 3). These are fetched one call per team, and until now had NO
+# completeness check at all: FANOUT_ENTITIES above covers fixture-level data only, so a regression
+# in any of these was invisible to every test in the repo. #896 is the proof that matters — the
+# table GREW while data was destroyed, so row-count, freshness and not-null checks all passed.
+PER_TEAM_ENTITIES = ("PLAYERS", "SQUADS", "TRANSFERS", "COACHES")
+
+# ...but only these may FAIL a run. COACHES is reported and never gates: ~23 of 1,265 teams have no
+# coach on every single run (measured stable over five days, 2026-07-30 to 08-03), because the
+# provider genuinely has none for them. Gating that would be permanently red, and a permanently-red
+# gate trains everyone to ignore the alarm — which is exactly how ten green runs came to mean
+# nothing. The other three measured 0 missing when this was introduced, so the gate starts green and
+# can only fire on a real regression. CPO decision, 2026-08-03.
+PER_TEAM_GATED = ("PLAYERS", "SQUADS", "TRANSFERS")
 
 # API-Football ``fixture.status.short`` codes where the match has concluded and
 # per-fixture fanout data is expected to exist. Everything else (upcoming, in-play,
@@ -176,6 +191,254 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
     return out
 
 
+def _latest_snapshot_timestamps(
+    client: bigquery.Client, table_name: str
+) -> dict[str, datetime]:
+    """Per-league ``max(ingested_at)`` for a snapshot table. Metadata-only, ~15 KB.
+
+    Step ONE of a deliberate two-step read, and the two steps must stay separate. Measured on
+    RAW_APIF_TRANSFERS with ``--dry_run``:
+      - ``WHERE ingested_at = (SELECT MAX(...) ... )``  **7.51 GB**, a subquery predicate does NOT prune
+      - ``WHERE date(ingested_at) IN (<literals>)``      **384 MB**
+      - this query alone                                 **14.8 KB**
+    So the cheap shape is: read the maxima here, then inline them as literals in
+    :func:`read_per_team_coverage`. A future reader will want to "simplify" this into one query.
+    That costs 19.6x on the largest raw table we have.
+
+    A fixed lookback window is NOT an alternative. Poll-mode competitions go months between
+    refreshes (WC last on 2026-07-20, CWC on 2026-06-22), so a recent-days filter would return zero
+    rows for them and report those leagues as 100% missing.
+    """
+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+    try:
+        client.get_table(table_id)
+    except NotFound:
+        return {}
+    q = f"SELECT league_code, MAX(ingested_at) AS mx FROM `{table_id}` GROUP BY league_code"
+    return {
+        row.league_code: row.mx
+        for row in client.query(q).result()
+        if row.league_code and row.mx
+    }
+
+
+def _raw_table_exists(client: bigquery.Client, entity: str) -> bool:
+    """Whether a raw table exists yet, so a first-ever run degrades instead of crashing."""
+    try:
+        client.get_table(f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table(entity)}")
+        return True
+    except NotFound:
+        return False
+
+
+def per_team_expectations_from_results(results: list[Any]) -> dict[str, dict[str, Any]]:
+    """What THIS RUN intended to fetch per competition, for the per-team completeness check.
+
+    ``results`` is the orchestrator's list of ``CompetitionRunResult``, which contains ONLY the
+    competitions that ran the full phases. Poll-mode competitions are absent by construction, and
+    that is the point: ``run_poll_phases`` never fetches teams, players, squads or transfers, so
+    there is nothing to judge them against.
+
+    ⚠ DO NOT rebuild this from BigQuery. Two versions that did were both wrong against production:
+    deriving the season as the calendar year reported ACN as 24 of 24 teams missing (ACN is on
+    2027, and so is J1), and deriving the league set from RAW_APIF_TEAMS judged 45 leagues and
+    reported 33 league/entity pairs missing, including FAC/PLAYERS 749, none of which were gaps.
+    ``team_ids`` here is the exact set the loaders iterated and ``max(seasons_list)`` is the exact
+    value ``load_squad_players_batch`` was called with, so expectation and fetch cannot drift.
+    """
+    return {
+        r.league_code: {
+            "team_ids": set(r.team_ids or ()),
+            "reference_season": max(r.seasons_list) if r.seasons_list else None,
+        }
+        for r in (results or [])
+    }
+
+
+def read_per_team_coverage(
+    client: bigquery.Client,
+    expectations: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Expected-versus-covered team counts for the PER-TEAM endpoints (#898 cause 3).
+
+    ``expectations`` comes from the RUN, not from BigQuery:
+    ``{league_code: {"team_ids": set[int], "reference_season": int | None}}``, built by the
+    orchestrator from the ``CompetitionRunResult`` list. Returns
+    ``out[league_code][entity] = {expected_count, missing_count}`` plus ``reference_season``.
+
+    ⚠ EXPECTED MUST COME FROM THE RUN. Two earlier versions derived it from BigQuery and both were
+    wrong against production:
+      - deriving the season as the calendar year reported ACN as 24 of 24 teams missing. ACN is on
+        2027, and so is J1. Here the season is ``max(seasons_list)``, the exact value
+        ``load_squad_players_batch`` was called with, so the two cannot disagree.
+      - deriving the league set from RAW_APIF_TEAMS judged 45 leagues and reported 33 league/entity
+        pairs missing, including FAC/PLAYERS 749. Those competitions are SELECTED but run in POLL
+        mode, which never fetches teams, players, squads or transfers, so nothing was missing: they
+        were simply never fetched. Only competitions that returned a ``CompetitionRunResult`` ran
+        the per-team phases, and only those can be judged.
+
+    EXPECTED SETS mirror what each loader iterates: PLAYERS is season-scoped and checked as
+    ``(team_id, reference_season)``; SQUADS, TRANSFERS and COACHES take the full ``team_ids`` set.
+
+    RAW_APIF_PLAYERS is merge-on-write, so it has no per-run snapshot and is read in full
+    (0.55 GiB). The others are read at their latest snapshot only.
+
+    FIRST-RUN SAFE: every one of the four tables is existence-checked before it is queried, and when
+    no table exists the query is skipped entirely rather than rendering an empty ``FROM ()``. An
+    absent table degrades to "no coverage" for that entity, never an exception.
+    """
+    leagues = [lc for lc, e in (expectations or {}).items() if e.get("team_ids")]
+    if not leagues:
+        return {}
+    league_list = ", ".join(f"'{lc}'" for lc in sorted(leagues))
+
+    def _fq(name: str) -> str:
+        return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table(name)}"
+
+    def _snapshot_block(entity: str, name: str) -> str | None:
+        """Covered team ids from each league's latest snapshot of a per-run table.
+
+        ⚠ The league and its OWN timestamp are paired. A flat `ingested_at IN (...)` plus a flat
+        `league_code IN (...)` are two INDEPENDENT filters, so a row for league A carrying league
+        B's latest timestamp would satisfy both and be counted as coverage for A. That is the same
+        contamination class the PLAYERS season pairing below guards against, and it fails in the
+        dangerous direction: it makes a real miss look covered.
+        """
+        stamps = _latest_snapshot_timestamps(client, raw_table(name))
+        stamps = {lc: ts for lc, ts in stamps.items() if lc in set(leagues)}
+        if not stamps:
+            return None
+        pairs = " OR ".join(
+            f"(s.league_code = '{lc}' AND s.ingested_at = TIMESTAMP('{ts.isoformat()}'))"
+            for lc, ts in sorted(stamps.items())
+        )
+        return f"""
+            SELECT '{entity}' AS entity, s.league_code,
+                   SAFE_CAST(JSON_VALUE(r, '$.team_id') AS INT64) AS team_id
+            FROM `{_fq(name)}` s, UNNEST(JSON_QUERY_ARRAY(s.payload, '$.response')) r
+            WHERE {pairs}
+        """
+
+    blocks = [
+        b
+        for b in (
+            _snapshot_block("SQUADS", "SQUADS"),
+            _snapshot_block("TRANSFERS", "TRANSFERS"),
+            _snapshot_block("COACHES", "COACHES"),
+        )
+        if b
+    ]
+    # PLAYERS is merge-on-write: no snapshot timestamp, and the season must match THAT league's
+    # reference season. A shared season list would let one league's 2027 rows satisfy another
+    # league's 2026 expectation, so the pairs are spelled out per league.
+    season_pairs = " OR ".join(
+        f"(p.league_code = '{lc}' AND SAFE_CAST(JSON_VALUE(r, '$.season') AS INT64) = "
+        f"{int(e['reference_season'])})"
+        for lc, e in sorted(expectations.items())
+        if lc in set(leagues) and e.get("reference_season") is not None
+    )
+    # The existence guard is NOT optional here. The three snapshot blocks get it for free via
+    # _latest_snapshot_timestamps; PLAYERS has no maxima step, so without this an absent table
+    # raises straight through the orchestrator's blanket handler and hard-fails the run instead of
+    # degrading to "no coverage". Review caught exactly that.
+    if season_pairs and _raw_table_exists(client, "PLAYERS"):
+        blocks.append(
+            f"""
+            SELECT 'PLAYERS' AS entity, p.league_code,
+                   SAFE_CAST(JSON_VALUE(r, '$.team_id') AS INT64) AS team_id
+            FROM `{_fq('PLAYERS')}` p, UNNEST(JSON_QUERY_ARRAY(p.payload, '$.response')) r
+            WHERE p.league_code IN ({league_list}) AND ({season_pairs})
+            """
+        )
+
+    covered: dict[tuple[str, str], set[int]] = {}
+    # With no blocks at all (a first-ever run where none of the raw tables exist yet) the UNION
+    # would render as `FROM ()`, which is invalid SQL and would be executed unguarded. Skip the
+    # query entirely and report everything as uncovered, which on such a run is the truth.
+    if blocks:
+        q = (
+            "SELECT DISTINCT entity, league_code, team_id FROM (\n"
+            + "\nUNION ALL\n".join(blocks)
+            + "\n)"
+        )
+        for row in client.query(q).result():
+            if row.team_id is None:
+                continue
+            covered.setdefault((row.league_code, row.entity), set()).add(int(row.team_id))
+
+    out: dict[str, dict[str, Any]] = {}
+    for league_code in sorted(leagues):
+        exp = expectations[league_code]
+        team_ids = set(exp.get("team_ids") or ())
+        block: dict[str, Any] = {"reference_season": exp.get("reference_season")}
+        for entity in PER_TEAM_ENTITIES:
+            got = covered.get((league_code, entity), set())
+            block[entity] = {
+                "expected_count": len(team_ids),
+                "missing_count": len(team_ids - got),
+            }
+        out[league_code] = block
+    return out
+
+
+
+def per_team_missing_by_league_entity(
+    per_team: dict[str, dict[str, Any]],
+) -> dict[str, int]:
+    """Flatten to ``{"LEAGUE/ENTITY": missing_count}`` for the run-over-run stagnation compare.
+
+    Only GATED entities are included: COACHES is reported but never gates, so it must not reach the
+    snapshot that drives a hard fail.
+    """
+    out: dict[str, int] = {}
+    for league_code, block in (per_team or {}).items():
+        for entity in PER_TEAM_GATED:
+            info = block.get(entity) or {}
+            missing = int(info.get("missing_count") or 0)
+            if missing > 0:
+                out[f"{league_code}/{entity}"] = missing
+    return out
+
+
+def detect_stagnant_per_team_gaps(
+    current: dict[str, int],
+    prior: dict[str, int] | None,
+) -> list[dict[str, Any]]:
+    """(league, entity) pairs still missing teams on TWO consecutive runs.
+
+    Same window and same reasoning as ``detect_stagnant_dropped_calls``: a hard fail skips the dbt
+    build and costs daily freshness, so a single observation must not trigger it. A brand-new team
+    whose first fetch fails would otherwise fail the run on the day it appears.
+    """
+    if not prior:
+        return []
+    stagnant: list[dict[str, Any]] = []
+    for key, count in sorted(current.items()):
+        prev = prior.get(key, 0)
+        if count > 0 and prev > 0:
+            league_code, _, entity = key.partition("/")
+            stagnant.append(
+                {
+                    "league_code": league_code,
+                    "entity": entity,
+                    "prior_count": prev,
+                    "count": count,
+                }
+            )
+    return stagnant
+
+
+def load_prior_per_team_missing(client: bigquery.Client) -> dict[str, int] | None:
+    """Previous run's per-team gaps, or None when there is no prior record (fail-open)."""
+    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+    if not payload:
+        return None
+    raw = payload.get("per_team_missing")
+    if not isinstance(raw, dict):
+        return None
+    return {str(k): int(v) for k, v in raw.items()}
+
+
 def fixture_statistics_missing_by_league(report: dict[str, Any]) -> dict[str, int]:
     """Per-league count of finished fixtures still missing FIXTURE_STATISTICS."""
     out: dict[str, int] = {}
@@ -245,6 +508,7 @@ def persist_fixture_statistics_missing(
     *,
     run_id: str,
     dropped_calls: dict[str, int] | None = None,
+    per_team_missing: dict[str, int] | None = None,
 ) -> None:
     """Store this run's statistics gap signature for stagnation checks on the next run.
 
@@ -260,6 +524,7 @@ def persist_fixture_statistics_missing(
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "fixture_statistics_missing": fixture_statistics_missing_by_league(report),
         "dropped_calls_by_endpoint": dict(dropped_calls or {}),
+        "per_team_missing": dict(per_team_missing or {}),
     }
     load_json_to_bq(
         client,
@@ -305,6 +570,8 @@ def evaluate_completeness_outcome(
     prior_fixture_statistics_missing: dict[str, int] | None = None,
     dropped_calls: dict[str, int] | None = None,
     prior_dropped_calls: dict[str, int] | None = None,
+    per_team_missing: dict[str, int] | None = None,
+    prior_per_team_missing: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Decide whether the ingest run should hard-fail.
 
@@ -323,6 +590,7 @@ def evaluate_completeness_outcome(
         "soft_partial": [],
         "stagnant_statistics": [],
         "stagnant_dropped_calls": [],
+        "stagnant_per_team_gaps": [],
     }
     if report.get("skipped"):
         return out
@@ -369,11 +637,20 @@ def evaluate_completeness_outcome(
     out["stagnant_dropped_calls"] = detect_stagnant_dropped_calls(
         dropped_calls or {}, prior_dropped_calls
     )
+    # #898 cause 3. Evaluated HERE, never ORed in by the orchestrator, so it inherits both operator
+    # kill-switches by construction: the `report["skipped"]` early return above
+    # (API_FOOTBALL_SKIP_COMPLETENESS_CHECK) and `fail_on_incomplete()` below
+    # (API_FOOTBALL_FAIL_ON_INCOMPLETE=0, the documented backfill override). Placing a third
+    # stagnation signal anywhere else is the exact defect review caught in the previous task.
+    out["stagnant_per_team_gaps"] = detect_stagnant_per_team_gaps(
+        per_team_missing or {}, prior_per_team_missing
+    )
 
     if fail_on_incomplete() and (
         out["hard_gated_failures"]
         or out["stagnant_statistics"]
         or out["stagnant_dropped_calls"]
+        or out["stagnant_per_team_gaps"]
     ):
         out["hard_fail"] = True
     return out
