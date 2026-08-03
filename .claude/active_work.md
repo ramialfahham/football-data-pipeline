@@ -5,7 +5,7 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-03**. main GREEN at **c3e23f3**. **NOTHING IN FLIGHT — no open PRs.**
+_Last updated **2026-08-03**. main GREEN at **d379ee2**. **NOTHING IN FLIGHT — no open PRs.**
 Merged this session: **#897 `d2b5789`, #896 `0a4f636`, #898 `e7758a6`, #898 cause 3 `c3e23f3`.**
 The product is **Matchday Pilot**.
 **FIRST ACTIONS: run `git stash list` before any git work** (`stash@{0}` is the player Overview, built,
@@ -74,19 +74,14 @@ corrections. Do not redo the analysis. Key traps:
   rebuilds unconditionally (07:30Z cron, no `new_data` gate) — ranked here but NEVER MEASURED.
   4 **#895** ~$9.96/35d, needs the CPO's slim-vs-drop call. 5 **#892** staging pruning ~$2/month.
   6 guards (`require_partition_filter`, `maximum_bytes_billed`), neither set. 7 merge-on-write.
-- **MEASURED 2026-08-03 post-PR1, `report_bq_cost.py --days 1`: $2.73/day total**, dbt prod $2.22
-  (tests $1.46 vs models $0.75), ingestion raw reads $0.26. PR1 WORKED: the `base_apif__transfers`
-  tests that led the 14-day table at ~$1.07 each are gone from the top.
-  **The top remaining test is `not_null_stg_apif__transfers_raw_ingested_at` at $0.30/day — a test
-  on a STAGING model, still a view, re-scanning `RAW_APIF_TRANSFERS` (6.99 GiB).** That is PR1's bug
-  one layer up, and #547's baseline already measured staging tests at $5.02/35d. Likely the next
-  real lever, but confirm against a quiet day: 2026-08-03 saw 7 runs of every node because four PRs
-  merged, so it overstates a normal day.
-- **The two-step read is the proven cheap shape** and cause 3 uses it: per-league `MAX(ingested_at)`
-  first (14.8 KB), then those timestamps inlined as LITERALS. Measured on `RAW_APIF_TRANSFERS`
-  (6.99 GiB): subquery-MAX predicate **7.51 GB**, literals **384 MB**, maxima alone **14.8 KB**.
-  Pair each league to its OWN timestamp; two independent `IN` filters let one league's row satisfy
-  another and make a real miss look covered.
+- **MEASURED 2026-08-03 post-PR1 (`report_bq_cost.py --days 1`): $2.73/day**, prod tests $1.46 vs
+  models $0.75. PR1 WORKED: the `base_apif__transfers` tests that led the 14-day table are gone from
+  the top. **What replaced them is `not_null_stg_apif__transfers_raw_ingested_at` at $0.30/day, a
+  test on a STAGING model, still a view, re-scanning 6.99 GiB.** PR1's bug one layer up; #547's
+  baseline independently measured staging tests at $5.02/35d.
+- **The two-step read is the proven cheap shape.** On `RAW_APIF_TRANSFERS` (6.99 GiB): subquery-MAX
+  predicate **7.51 GB**, literal timestamps **384 MB**, maxima alone **14.8 KB**. Full rationale and
+  the per-league pairing trap are in `completeness.py::_latest_snapshot_timestamps`.
 
 ## ⭐ REVIEW MECHANICS — what you cannot derive from the working agreement
 
@@ -150,9 +145,14 @@ slot. Never design the canonical page around an edge case. Build ONE tab at a ti
 - **#900: blueprint §4 says a full daily run is 20-50 API calls; measured ~8,300.**
 
 ## NEXT
-1. **Read the 08-04 nightly** (see the ⭐ block). It is the first evidence for any of the four fixes.
-2. **COST, per #547's ranked list.** #895 first, and it needs the CPO's slim-vs-drop call.
-3. **#845 + #882** — the CPO's decision. Then the player page off `stash@{0}`, one tab at a time.
+1. **Read the 08-04 nightly** (⭐ block above). First evidence for any of the four fixes. Minutes.
+2. **#845 + #882 — the CPO's decision, and the ONLY unblocked next step.** Counts are measured and
+   in this file: bring them, not a general question. Unblocks the player page off `stash@{0}`.
+3. **COST IS PARTLY BLOCKED, which is why it is not step 2.** #547 ranks two items above #895 and
+   NEITHER IS MEASURED; #895 needs the CPO's slim-vs-drop call; and the staging-view fix changes a
+   LAYER materialisation, which is CPO-class. What IS unblocked: **measure a QUIET day** (08-03 ran
+   every node 7x because four PRs merged, so its $2.73 overstates a normal day) and **price
+   `pages-match-preview.yml`'s ungated rebuild**, which has never been measured.
 4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 5. Follow-ups: **#875** metric GROUP headings in English on DE/FI, needs a CPO ruling on where a group
    name lives · **#877** `GD`, `W/D/L`, `T·I·B` need the DE/FI words · **#876** rows break mid-word ·
