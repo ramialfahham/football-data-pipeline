@@ -1,1378 +1,265 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 129692a..6eb3fee 100644
+index 6eb3fee..6a7c91b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,95 +1,111 @@
--# Task contract — #898: a run that drops API calls cannot look clean
-+# Task contract — cause 3: the per-team endpoints get a completeness check
+@@ -1,213 +1,66 @@
+-# Task contract — cause 3: the per-team endpoints get a completeness check
++# Task contract — handover: the ingest silent-failure cluster is closed, cost is next
  
--> Written on a clean tree before any file was touched. Branch `fix/898-surface-dropped-calls` from
--> `main` at `0a4f636`. No protected path in scope, so no `protected_override`. No `site_v2/src/`
--> path, so no `acceptance_criteria`. `completeness.py` WRITES a raw table, so `impact_map:` below is
--> required and is evidenced.
-+> Written on a clean tree before any file was touched. Branch
-+> `feat/898-cause3-per-team-completeness` from `main` at `e7758a6`. No protected path in scope, so
-+> no `protected_override`. No `site_v2/src/` path, so no `acceptance_criteria`.
-+> `completeness.py` WRITES a raw table, so `impact_map:` below is required and is evidenced.
- 
- impact_map: >
--  Written with the #896 lesson applied: this diff touches functions shared by many callers, so the
--  map traces EVERY caller rather than the one the task came for.
+ > Written on a clean tree before any file was touched. Branch
+-> `feat/898-cause3-per-team-completeness` from `main` at `e7758a6`. No protected path in scope, so
+-> no `protected_override`. No `site_v2/src/` path, so no `acceptance_criteria`.
+-> `completeness.py` WRITES a raw table, so `impact_map:` below is required and is evidenced.
 -
--  SHARED FUNCTION 1 — `quota.append_api_errors` is NOT changed, and round 1 is why. The first
--  version counted dropped calls inside it, keyed off the caller's context string, on the reasoning
--  that all 16 call sites pass the endpoint as the first token. `data-engineer-reviewer` FAILED that:
--  `loads/fixtures.py` calls it TWICE against overlapping data, per season at :163 and again at :183
--  on the accumulated envelope, and `seasons.py::_merge_merged_paged` extends `dst["errors"]` so the
--  earlier seasons' rate-limit text is carried forward. The `fixtures` count was inflated up to 2x.
--  Verified independently by reading those lines. Counting now happens in `fetch_json`, once per HTTP
--  call whose final attempt was still rejected, keyed by API path. That is immune to how many times
--  any caller reports the same error, so it fixes the class rather than the `fixtures.py` instance.
+-impact_map: >
+-  Written with the lesson from the two preceding tasks applied: BOTH failed review round 1 because
+-  the map traced the one table the task was about and stopped, while the diff touched something
+-  shared. Every caller of every function this diff changes is enumerated below by reading the call
+-  sites, not by counting grep hits.
 -
--  SHARED FUNCTION 1a — `completeness.evaluate_completeness_outcome` gains two optional keyword
--  arguments and one new key in its returned dict. Callers: `orchestrator.py` (updated) and
--  `tests/test_completeness_outcome_and_summary.py`, which asserts the returned dict by EXACT
--  equality. That test is updated to include the new key rather than relaxed to a subset, so a future
--  signal still cannot be added unnoticed. Both arguments default to None, so the shape change is
--  additive and no other caller behaviour moves.
+-  ⚠ THIS SECTION COUNTS PRODUCTION CALL SITES ONLY, and that is a deliberate correction rather than
+-  a narrowing. Earlier versions enumerated per-test-file call-site counts, and reviewers found a
+-  wrong number in FIVE separate rounds. The counts were wrong because they are brittle by nature:
+-  every test I add changes them, so a number written when the section was drafted is stale by the
+-  time the tests are finished. They also carry no blast radius — a test calling a function is not a
+-  consumer that can break in production. What matters for blast radius is the production callers,
+-  plus any test whose ASSERTION SHAPE breaks, which is called out by name below. Every count here
+-  was produced by grep at the final revision, not from memory.
 -
--  SHARED FUNCTION 2 — `http_client.fetch_json`, the single HTTP entry point for every endpoint. The
--  change adds ONE retry branch for a body-level per-minute rate limit. It does not alter the
--  returned dict's key set. That constraint is load-bearing and is why #896 round 1 failed: four
--  loaders persist the raw payload by copying every key except a fixed exclusion list. A test added
--  in #896 (`TestReturnedKeySetIsStable`) pins that key set and will catch any regression here.
+-  FUNCTION 1 — `evaluate_completeness_outcome` gains TWO optional keyword arguments
+-  (`per_team_missing`, `prior_per_team_missing`, both defaulting to None) and one new key in its
+-  returned dict (`stagnant_per_team_gaps`). Counted off the signature.
+-    - PRODUCTION CALLERS: exactly one, `orchestrator.py`. Updated here.
+-    - Both new arguments default to None and the added key is additive, so every caller that does
+-      not pass them is unaffected — with ONE exception, which is the only test fact that matters:
+-      `tests/test_completeness_outcome_and_summary.py::test_skipped_report_returns_no_failures`
+-      asserts the returned dict by EXACT EQUALITY and therefore breaks. That file is in
+-      `scope_paths` FROM THE START for this reason. The literal is EXTENDED with the new key, never
+-      relaxed to a subset. No other assertion anywhere compares the outcome dict whole, verified by
+-      `grep -n "outcome ==\|out ==" tests/`.
 -
--  WRITER OF THE AFFECTED TABLE — `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT`, written only by
--  `completeness.persist_fixture_statistics_missing` and read only by
--  `completeness.load_prior_fixture_statistics_missing`, both in the same module.
--  `grep -rn "COMPLETENESS_SNAPSHOT_TABLE"` returns three lines, all in `completeness.py`.
+-  FUNCTION 2 — `persist_fixture_statistics_missing` gains one optional keyword argument.
+-  PRODUCTION CALLERS: exactly one, `orchestrator.py`. No test calls it.
 -
--  DOWNSTREAM LINEAGE: NONE, and this was checked rather than assumed.
--  `grep -rn "INGEST_COMPLETENESS_SNAPSHOT" dbt_project/ scripts/` returns nothing, and no dbt source
--  or model references it. The snapshot is internal run state, not warehouse data, so adding a key to
--  its payload has zero downstream blast radius. This is the check whose absence caused #896 round 1.
-+  Written with the lesson from the two preceding tasks applied: BOTH failed review round 1 because
-+  the map traced the one table the task was about and stopped, while the diff touched something
-+  shared. Every caller of every function this diff changes is enumerated below by reading the call
-+  sites, not by counting grep hits.
-+
-+  ⚠ THIS SECTION COUNTS PRODUCTION CALL SITES ONLY, and that is a deliberate correction rather than
-+  a narrowing. Earlier versions enumerated per-test-file call-site counts, and reviewers found a
-+  wrong number in FIVE separate rounds. The counts were wrong because they are brittle by nature:
-+  every test I add changes them, so a number written when the section was drafted is stale by the
-+  time the tests are finished. They also carry no blast radius — a test calling a function is not a
-+  consumer that can break in production. What matters for blast radius is the production callers,
-+  plus any test whose ASSERTION SHAPE breaks, which is called out by name below. Every count here
-+  was produced by grep at the final revision, not from memory.
-+
-+  FUNCTION 1 — `evaluate_completeness_outcome` gains TWO optional keyword arguments
-+  (`per_team_missing`, `prior_per_team_missing`, both defaulting to None) and one new key in its
-+  returned dict (`stagnant_per_team_gaps`). Counted off the signature.
-+    - PRODUCTION CALLERS: exactly one, `orchestrator.py`. Updated here.
-+    - Both new arguments default to None and the added key is additive, so every caller that does
-+      not pass them is unaffected — with ONE exception, which is the only test fact that matters:
-+      `tests/test_completeness_outcome_and_summary.py::test_skipped_report_returns_no_failures`
-+      asserts the returned dict by EXACT EQUALITY and therefore breaks. That file is in
-+      `scope_paths` FROM THE START for this reason. The literal is EXTENDED with the new key, never
-+      relaxed to a subset. No other assertion anywhere compares the outcome dict whole, verified by
-+      `grep -n "outcome ==\|out ==" tests/`.
-+
-+  FUNCTION 2 — `persist_fixture_statistics_missing` gains one optional keyword argument.
-+  PRODUCTION CALLERS: exactly one, `orchestrator.py`. No test calls it.
-+
-+  FUNCTION 3 — `completeness_markdown_summary` is NOT changed. The orchestrator passes it more
-+  `notes` entries, which is data, not signature. No caller is affected.
-+
-+  NEW FUNCTIONS, none with existing callers by definition. Production call sites:
-+    - `read_per_team_coverage` — one, `orchestrator.py`.
-+    - `per_team_expectations_from_results` — one, `orchestrator.py`. Extracted from an inline
-+      comprehension after `platform-reviewer` observed the expected-set fix lived in untested
-+      orchestrator code, so a regression back to `selected_competitions()` would not be caught.
-+      Covered by `TestExpectationsComeFromTheRunNotBigQuery`.
-+    - `_raw_table_exists`, `_latest_snapshot_timestamps`, `detect_stagnant_per_team_gaps`,
-+      `load_prior_per_team_missing`, `per_team_missing_by_league_entity` — module-local, each
-+      reached from `read_per_team_coverage`, `evaluate_completeness_outcome` or `orchestrator.py`.
-+
-+  FIRST-RUN SAFETY, stated precisely because round 1 caught the first version overclaiming it. ALL
-+  FOUR tables are existence-checked before being queried: SQUADS, TRANSFERS and COACHES via
-+  `_latest_snapshot_timestamps`'s `get_table`/`NotFound`, and PLAYERS via `_raw_table_exists`.
-+  PLAYERS needed its own check because it has no maxima step and so did not get one for free; both
-+  reviewers found that independently. When no block survives, the query is skipped entirely rather
-+  than rendering an invalid `FROM ()`. An absent table degrades to "no coverage" for that entity,
-+  never an exception.
-+
-+  WRITER AND READERS OF THE AFFECTED TABLE — `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT`, from
-+  `grep -n "COMPLETENESS_SNAPSHOT_TABLE" completeness.py` at the final revision: ONE writer,
-+  `persist_fixture_statistics_missing`, and THREE readers,
-+  `load_prior_fixture_statistics_missing`, `load_prior_dropped_calls` and
-+  `load_prior_per_team_missing` — the third added by THIS diff. All four in `completeness.py`. The
-+  payload gains one key. An earlier version of this section named only two readers, having described
-+  the state before this diff rather than after it.
-+
-+  DOWNSTREAM LINEAGE: NONE, checked rather than assumed.
-+  `grep -rn "INGEST_COMPLETENESS_SNAPSHOT" dbt_project/ scripts/` returns nothing and no dbt source
-+  or model references it. It is internal run state, not warehouse data.
-+
-+  TABLES READ, none written: `RAW_APIF_PLAYERS` (22,589 rows / 0.55 GiB), `RAW_APIF_SQUADS`
-+  (1,161 / 0.25), `RAW_APIF_COACHES` (1,591 / 0.21), `RAW_APIF_TRANSFERS` (1,143 / 6.99).
-+  `RAW_APIF_TEAMS` is NOT read: expected teams come from the run's in-memory
-+  `CompetitionRunResult` list, so the table appears in this module only inside comments describing
-+  the rejected design. An earlier version of this contract listed it as read, which was stale copy
-+  from that design. Read-only overall: this diff issues SELECTs and writes no raw entity table.
- 
-   CI LAYER RULES. None engaged: no model, schema, seed or SQL file is touched.
- 
--  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged; nothing is built or deployed by this diff.
-+  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged; nothing is built or deployed.
- 
-   BLAST RADIUS ON NUMBERS: none. No mart value can change. No fact is derived, no grain moves, no
--  raw entity table gains or loses a row. The diff changes what a run REPORTS and, in one specific
--  case, whether it exits nonzero.
+-  FUNCTION 3 — `completeness_markdown_summary` is NOT changed. The orchestrator passes it more
+-  `notes` entries, which is data, not signature. No caller is affected.
 -
--  ⚠ THE ONE REAL CONSEQUENCE, stated plainly because it trades a non-negotiable. A hard fail returns
--  503, which `main.py` maps to exit code 3. In `dbt-scheduled.yml` every post-ingest step is
--  conditioned on `steps.ingest.outputs.new_data == 'true'` with NO `always()`, so a nonzero ingest
--  exit SKIPS `dbt deps`, `dbt seed`, the layer-contract check and `dbt build`. On a day the
--  stagnation gate fires, the warehouse therefore does NOT ingest that day's marts and the data is a
--  day stale. That is the existing behaviour of the `stagnant_statistics` gate too; this diff adds a
--  second trigger to the same exit path rather than a new one.
-+  entity table gains or loses a row. The diff changes what a run REPORTS and, on a repeated
-+  regression, whether it exits nonzero.
+-  NEW FUNCTIONS, none with existing callers by definition. Production call sites:
+-    - `read_per_team_coverage` — one, `orchestrator.py`.
+-    - `per_team_expectations_from_results` — one, `orchestrator.py`. Extracted from an inline
+-      comprehension after `platform-reviewer` observed the expected-set fix lived in untested
+-      orchestrator code, so a regression back to `selected_competitions()` would not be caught.
+-      Covered by `TestExpectationsComeFromTheRunNotBigQuery`.
+-    - `_raw_table_exists`, `_latest_snapshot_timestamps`, `detect_stagnant_per_team_gaps`,
+-      `load_prior_per_team_missing`, `per_team_missing_by_league_entity` — module-local, each
+-      reached from `read_per_team_coverage`, `evaluate_completeness_outcome` or `orchestrator.py`.
+-
+-  FIRST-RUN SAFETY, stated precisely because round 1 caught the first version overclaiming it. ALL
+-  FOUR tables are existence-checked before being queried: SQUADS, TRANSFERS and COACHES via
+-  `_latest_snapshot_timestamps`'s `get_table`/`NotFound`, and PLAYERS via `_raw_table_exists`.
+-  PLAYERS needed its own check because it has no maxima step and so did not get one for free; both
+-  reviewers found that independently. When no block survives, the query is skipped entirely rather
+-  than rendering an invalid `FROM ()`. An absent table degrades to "no coverage" for that entity,
+-  never an exception.
+-
+-  WRITER AND READERS OF THE AFFECTED TABLE — `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT`, from
+-  `grep -n "COMPLETENESS_SNAPSHOT_TABLE" completeness.py` at the final revision: ONE writer,
+-  `persist_fixture_statistics_missing`, and THREE readers,
+-  `load_prior_fixture_statistics_missing`, `load_prior_dropped_calls` and
+-  `load_prior_per_team_missing` — the third added by THIS diff. All four in `completeness.py`. The
+-  payload gains one key. An earlier version of this section named only two readers, having described
+-  the state before this diff rather than after it.
+-
+-  DOWNSTREAM LINEAGE: NONE, checked rather than assumed.
+-  `grep -rn "INGEST_COMPLETENESS_SNAPSHOT" dbt_project/ scripts/` returns nothing and no dbt source
+-  or model references it. It is internal run state, not warehouse data.
+-
+-  TABLES READ, none written: `RAW_APIF_PLAYERS` (22,589 rows / 0.55 GiB), `RAW_APIF_SQUADS`
+-  (1,161 / 0.25), `RAW_APIF_COACHES` (1,591 / 0.21), `RAW_APIF_TRANSFERS` (1,143 / 6.99).
+-  `RAW_APIF_TEAMS` is NOT read: expected teams come from the run's in-memory
+-  `CompetitionRunResult` list, so the table appears in this module only inside comments describing
+-  the rejected design. An earlier version of this contract listed it as read, which was stale copy
+-  from that design. Read-only overall: this diff issues SELECTs and writes no raw entity table.
+-
+-  CI LAYER RULES. None engaged: no model, schema, seed or SQL file is touched.
+-
+-  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged; nothing is built or deployed.
+-
+-  BLAST RADIUS ON NUMBERS: none. No mart value can change. No fact is derived, no grain moves, no
+-  entity table gains or loses a row. The diff changes what a run REPORTS and, on a repeated
+-  regression, whether it exits nonzero.
++> `chore/handover-ingest-cluster-complete` from `main` at `c3e23f3`. No protected path in scope, so
++> no `protected_override`. No structural path in scope, so no `impact_map`. No `site_v2/src/` path,
++> so no `acceptance_criteria`.
  
  objective: >
--  A nightly run that dropped 26 API calls reported `conclusion: success`, and that has happened on
--  10 of the last 18 runs since 2026-07-16, every one green. The project's stated non-negotiable is
--  that the CPO cannot verify numbers by hand, so a run reporting success is the only signal that the
--  data is complete. For three weeks it has meant nothing.
+-  `completeness.py`'s `FANOUT_ENTITIES` covers four fixture-level entities only, so `coaches`,
+-  `players`, `player_squads` and `transfers` have NO completeness check at all. This is cause 3 of
+-  #898, reserved there. #898 reports when the provider REJECTED a call, which is not the same as
+-  knowing the data is whole.
++  Bring `.claude/active_work.md` up to date so a cold chat continues with zero re-investigation. It
++  is currently four PRs stale: it states that nothing is in flight and that #896, #897 and #898 are
++  open and unstarted. All three are merged, and cause 3 of #898 is merged on top. A fresh session
++  reading it today would redo work that is already live.
+ 
+-  It matters because #896 proved this loss class is invisible to every existing test: the table GREW
+-  while data was destroyed, so row-count, freshness and not-null checks all passed.
 -
--  Four independent causes, all verified in code:
--  1. `http_client.py` retries on `status_code == 429`, but the per-minute limit arrives as HTTP 200
--     with the error in the body, so the retry never fires and the call is dropped with ZERO retries.
--  2. `quota.py::_payload_shows_daily_limit_exceeded` matches only the DAILY text ("request limit"
--     and "day"), so the per-minute class sets no flag and is invisible to every consumer of it.
--  3. `completeness.py`'s `FANOUT_ENTITIES` covers only LINEUPS / FIXTURE_EVENTS /
--     FIXTURE_STATISTICS / FIXTURE_PLAYERS — zero overlap with coaches, players, player_squads,
--     transfers, which are the endpoints that actually dropped.
--  4. `orchestrator.py` builds the job summary from `tables_loaded`, `soft_partial`,
--     `stagnant_statistics` and `hard_gated_failures`. `ctx.errors` is NEVER appended. The only
--     channel is a stdout line deduped and truncated at 40 entries; the 07-16 run ended "+1480".
--
--  #897 (merged) reduced the failure RATE. #896 (merged) stopped a dropped call DESTROYING data.
--  Neither makes a dropped call visible. This does.
-+  `completeness.py`'s `FANOUT_ENTITIES` covers four fixture-level entities only, so `coaches`,
-+  `players`, `player_squads` and `transfers` have NO completeness check at all. This is cause 3 of
-+  #898, reserved there. #898 reports when the provider REJECTED a call, which is not the same as
-+  knowing the data is whole.
-+
-+  It matters because #896 proved this loss class is invisible to every existing test: the table GREW
-+  while data was destroyed, so row-count, freshness and not-null checks all passed.
-+
-+  MEASURED FIRST, and it changes what this task is. Today: transfers 0 teams missing, player_squads
-+  0, players 0 once each competition's own reference season is used, coaches 22-26 of 1,265 and
-+  STABLE across five days. The per-team data is COMPLETE. This is regression insurance, not repair,
-+  and the CPO approved it on exactly that basis: a gate introduced while the metric reads 0 starts
-+  green and can only ever fire on a regression.
+-  MEASURED FIRST, and it changes what this task is. Today: transfers 0 teams missing, player_squads
+-  0, players 0 once each competition's own reference season is used, coaches 22-26 of 1,265 and
+-  STABLE across five days. The per-team data is COMPLETE. This is regression insurance, not repair,
+-  and the CPO approved it on exactly that basis: a gate introduced while the metric reads 0 starts
+-  green and can only ever fire on a regression.
++  It also carries one item that this session RESOLVED and must not be left as open: transfers
++  healing was recorded as INFERRED and NOT OBSERVED. It is now observed.
  
  refs: >
--  #898 (this). #897 merged as `d2b5789`, #896 as `0a4f636`. #900 is the stale blueprint cost model,
--  filed during #897. Cause 3 (the fanout-only completeness gate) is a deliberate,
--  registry-configurable mechanism and is NOT changed here; this adds a parallel signal instead.
-+  Cause 3 of #898. #897 (`d2b5789`), #896 (`0a4f636`) and #898 (`e7758a6`) are all merged. #900 is
-+  the stale blueprint cost model. Cost (#547) resumes after this.
+-  Cause 3 of #898. #897 (`d2b5789`), #896 (`0a4f636`) and #898 (`e7758a6`) are all merged. #900 is
+-  the stale blueprint cost model. Cost (#547) resumes after this.
++  #897 merged (`d2b5789`), #896 merged (`0a4f636`), #898 merged (`e7758a6`), cause 3 merged
++  (`c3e23f3`). Filed this session and still open: #900 (stale blueprint cost model), #904 (contract
++  claims are unverified). Cost programme is #547, with #895, #892 and #890 as its ranked items.
  
  scope_paths:
--  - ingestion/api_football/quota.py
--  - ingestion/api_football/http_client.py
+-  - ingestion/api_football/completeness.py
 -  - ingestion/api_football/orchestrator.py
-   - ingestion/api_football/completeness.py
--  - tests/test_dropped_call_visibility.py
-+  - ingestion/api_football/orchestrator.py
-+  - tests/test_per_team_completeness.py
-   - tests/test_completeness_outcome_and_summary.py
+-  - tests/test_per_team_completeness.py
+-  - tests/test_completeness_outcome_and_summary.py
++  - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
-@@ -97,71 +113,101 @@ scope_paths:
+   - .claude/task/review_input.patch
    - .claude/task/escalations.log
  
  decisions_taken: >
--  CPO, 2026-08-03, asked as one batch before any file was touched and recorded in
--  `escalations.log`:
+-  CPO, 2026-08-03, asked as one batch with the measurements in hand, before any file was touched:
 -
--  THE THRESHOLD POLICY IS: VISIBLE ALWAYS, FAIL ONLY ON STAGNATION.
--  - Dropped calls are surfaced in the job summary on EVERY run, counted by endpoint, so a green run
--    with drops looks visibly different from a clean one.
--  - A single bad run NEVER fails. Failing would block the dbt build and cost daily freshness, and
--    the CPO ruled explicitly against paying that for a transient limit that self-heals.
--  - The run fails only when the SAME endpoint drops on consecutive runs, i.e. when it is
--    demonstrably not healing.
--  - It reuses the existing `stagnant_statistics` no-progress-since-last-run pattern and its existing
--    snapshot table, rather than inventing a mechanism. That was the explicit instruction.
+-  1. BUILD IT NOW, as regression insurance, precisely because the metric reads 0 today.
+-  2. GATE `players`, `transfers`, `player_squads`. REPORT ONLY for `coaches`. Coaches sits at a
+-     stable ~23 missing because the provider genuinely has no coach for those teams; gating it would
+-     be permanently red, and a permanently-red gate trains everyone to ignore the alarm, which is
+-     the failure mode that made ten green runs meaningless.
+-  3. EXPECTED IS PER-COMPETITION, never a global year. The builder's first measurement flagged ACN
+-     as 24/24 missing because it hardcoded season 2026; ACN is on 2027 and so is J1. A gate
+-     repeating that assumption would be permanently red on every tournament.
 -
--  N = 2 CONSECUTIVE RUNS, and this is a rule-settled choice rather than a fresh decision: the
--  existing `detect_stagnant_statistics_backfill` compares exactly prior-versus-current, so a second
--  stagnation signal on the same gate uses the same window. Choosing anything else would have made
--  two gates on one exit path disagree about what "stagnant" means.
-+  CPO, 2026-08-03, asked as one batch with the measurements in hand, before any file was touched:
-+
-+  1. BUILD IT NOW, as regression insurance, precisely because the metric reads 0 today.
-+  2. GATE `players`, `transfers`, `player_squads`. REPORT ONLY for `coaches`. Coaches sits at a
-+     stable ~23 missing because the provider genuinely has no coach for those teams; gating it would
-+     be permanently red, and a permanently-red gate trains everyone to ignore the alarm, which is
-+     the failure mode that made ten green runs meaningless.
-+  3. EXPECTED IS PER-COMPETITION, never a global year. The builder's first measurement flagged ACN
-+     as 24/24 missing because it hardcoded season 2026; ACN is on 2027 and so is J1. A gate
-+     repeating that assumption would be permanently red on every tournament.
-+
-+  DERIVED BY RULE, not escalated: failing follows #898's ruling rather than inventing a second
-+  policy. Report every run, fail only when the same (league, entity) is STILL missing on the next
-+  run. The CPO's stated reason for #898 applies unchanged: a hard fail skips `dbt build` and costs
-+  daily freshness, so a transient must not trigger it. A brand-new team whose first fetch fails would
-+  otherwise fail the run on the day it appears.
- 
-   THRESHOLD DECLARATIONS.
- 
--  NEW MECHANISM: none. The gate, its exit code (503 to exit 3), its snapshot table and its
--  prior-versus-current comparison all already exist; this adds a second trigger to them. The retry
--  is a fourth branch in `fetch_json`'s existing retry loop, treating a per-minute limit as the 429
--  the provider chose to deliver as a 200.
+-  DERIVED BY RULE, not escalated: failing follows #898's ruling rather than inventing a second
+-  policy. Report every run, fail only when the same (league, entity) is STILL missing on the next
+-  run. The CPO's stated reason for #898 applies unchanged: a hard fail skips `dbt build` and costs
+-  daily freshness, so a transient must not trigger it. A brand-new team whose first fetch fails would
+-  otherwise fail the run on the day it appears.
 -
--  RECURRING COST: small, bounded, and measured against the real baseline.
--  - The retry costs at most ONE extra HTTP call per rate-limited call, plus its wait. On the
--    2026-08-02 baseline of 26 drops that is at most 26 extra calls against ~8,300 (0.3%) and at most
--    ~78s. After #897's pacing the drop count should be near zero, so the expected cost is near zero.
--  - No change to the endpoints called, the daily quota draw, or the pacing.
--  - One extra key in an existing snapshot payload, which has no dbt consumer.
--  - The freshness cost is the stagnation fail described in `impact_map`, and it is the trade the CPO
--    approved knowingly.
-+  NEW MECHANISM: declared rather than argued away. This adds a NEW CHECK, and its gate is a new
-+  trigger on the existing exit path. It reuses the existing gate, exit code, snapshot table,
-+  `evaluate_completeness_outcome`, both operator kill-switches and the markdown summary, so it is an
-+  extension in the same sense #898's was. The CPO approved building it in this session with the
-+  measurements in hand; that approval is the authority, recorded in `escalations.log`.
+-  THRESHOLD DECLARATIONS.
+-
+-  NEW MECHANISM: declared rather than argued away. This adds a NEW CHECK, and its gate is a new
+-  trigger on the existing exit path. It reuses the existing gate, exit code, snapshot table,
+-  `evaluate_completeness_outcome`, both operator kill-switches and the markdown summary, so it is an
+-  extension in the same sense #898's was. The CPO approved building it in this session with the
+-  measurements in hand; that approval is the authority, recorded in `escalations.log`.
+-
+-  RECURRING COST: measured by dry-running THE QUERIES THE SHIPPED CODE ACTUALLY ISSUES, not the
+-  query shapes an earlier design would have issued. Four queries per run:
+-    - three `MAX(ingested_at)` maxima reads: 15,021 + 14,757 + 20,678 bytes, about 50 KB total
+-    - one coverage query: 999,200,648 bytes
+-    - TOTAL 999,251,104 bytes = **0.931 GiB per run**, about **$0.0045 per run and $1.66 a year**
+-      at $5/TiB.
+-  An earlier version of this contract derived ~1.0 GiB from shapes that included a
+-  `RAW_APIF_TEAMS` scan the shipped code does not perform. The figure was close but the derivation
+-  was wrong; this one is measured against the real code. No additional API calls, no change to the
+-  daily quota draw, and no change to pacing or run duration beyond those four queries.
++  None. This records state that already exists and decides nothing. Every ruling it references is
++  already in `escalations.log` or on a GitHub issue with its authority.
 +
-+  RECURRING COST: measured by dry-running THE QUERIES THE SHIPPED CODE ACTUALLY ISSUES, not the
-+  query shapes an earlier design would have issued. Four queries per run:
-+    - three `MAX(ingested_at)` maxima reads: 15,021 + 14,757 + 20,678 bytes, about 50 KB total
-+    - one coverage query: 999,200,648 bytes
-+    - TOTAL 999,251,104 bytes = **0.931 GiB per run**, about **$0.0045 per run and $1.66 a year**
-+      at $5/TiB.
-+  An earlier version of this contract derived ~1.0 GiB from shapes that included a
-+  `RAW_APIF_TEAMS` scan the shipped code does not perform. The figure was close but the derivation
-+  was wrong; this one is measured against the real code. No additional API calls, no change to the
-+  daily quota draw, and no change to pacing or run duration beyond those four queries.
++  `.claude/active_work.md` is in `scope_paths` from the start, declared here on a clean tree rather
++  than amended in later. VERIFIABLE PRECEDENT rather than an assertion: the merged #899 handover
++  contract listed exactly this path first in its own `scope_paths`. Check it with
++  `git show 36b5f98:.claude/task/contract.md`. The failure recorded in `escalations.log` was adding
++  this path MID-TASK to a CODE branch while citing a rule that did not exist, which is a different
++  thing from declaring it up front on a dedicated handover branch.
++
++  ⚠ REVIEWER NOTE, because this already produced one false FAIL on this task.
++  `.claude/active_work.md` is listed in `review_exclude_paths` in `.claude/review_routing.json`, so
++  `git_discipline.py --review-patch` OMITS it from `review_input.patch` BY DESIGN. Its absence from
++  the patch is NOT evidence that it was not modified. It is modified: 62 insertions, 38 deletions
++  per `git diff --cached --stat`. READ IT FROM THE WORKING TREE. A previous scope audit of the #899
++  handover did exactly that and recorded the reasoning.
++
++  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none, and this is the one case where
++  "none" is safe without a figure, because the diff contains no executable line.
  
  decisions_reserved:
--  - Cause 3 is NOT fixed. Widening `FANOUT_ENTITIES` to cover per-team endpoints would change a
--    deliberate, registry-configurable gate and is a separate decision.
--  - The retry is BEST EFFORT and this is stated rather than oversold: a per-minute window can take
--    up to 60s to clear, and the retry waits `Retry-After` or 3s. It will not rescue every call. The
--    real protections are #897 (pacing, so limits are rare) and #896 (so a drop cannot destroy data);
--    this adds the alarm. Waiting out a full minute per drop was NOT chosen, because it would trade
--    run time for a case pacing should already have removed.
--  - `_http_quota_exhausted` is deliberately NOT set by the per-minute detector. That flag aborts all
--    remaining HTTP for the run, which is right for a daily cap and catastrophic for a transient one.
-+  - `FANOUT_ENTITIES` itself is NOT widened. That gate is deliberate and registry-configurable.
-+  - The coaches tolerance question (what number of genuine absences is acceptable, and whether it
-+    should ever gate) is NOT decided. Coaches reports only.
-+  - Cost (#547) is out of scope and resumes after this.
-+  - `.claude/active_work.md` is deliberately NOT in `scope_paths`. The handover goes in its own
-+    commit on its own branch after this merges, per the standing lesson that widening a contract to
-+    admit it is the wrong move.
+-  - `FANOUT_ENTITIES` itself is NOT widened. That gate is deliberate and registry-configurable.
+-  - The coaches tolerance question (what number of genuine absences is acceptable, and whether it
+-    should ever gate) is NOT decided. Coaches reports only.
+-  - Cost (#547) is out of scope and resumes after this.
+-  - `.claude/active_work.md` is deliberately NOT in `scope_paths`. The handover goes in its own
+-    commit on its own branch after this merges, per the standing lesson that widening a contract to
+-    admit it is the wrong move.
++  - The cost work itself (#547) is NOT started here. This task only points at it.
++  - #904's lint is filed, not built.
++  - Nothing about tomorrow's nightly is asserted. No paced run has happened yet, so the handover
++    must record the fixes as merged but UNVERIFIED in production, not as proven.
  
  done_when:
--  - A body-level per-minute rate limit is retried once, and a 429 still behaves exactly as before.
--  - The per-minute detector never sets `_http_quota_exhausted`.
--  - Dropped calls appear in the `$GITHUB_STEP_SUMMARY` notes counted by endpoint, on every run.
--  - The same endpoint dropping on two consecutive runs hard-fails; dropping on one does not.
--  - The counter resets per run, so a count cannot leak across runs in the same process.
--  - Tests pin each of those, and fail against the pre-fix code.
--  - `python -m pytest tests/ -q` passes.
-+  - Per-league, per-entity expected and missing counts appear in the job summary on EVERY run.
-+  - `players` uses each competition's own reference season, and ACN resolves to 2027 rather than
-+    being reported as 24/24 missing.
-+  - `coaches` is reported and NEVER gates.
-+  - A first observation of a miss does not fail; the same (league, entity) missing on the next run
-+    does.
-+  - The gate is evaluated inside `evaluate_completeness_outcome`, so both `report["skipped"]` and
-+    `fail_on_incomplete()` suppress the FAILURE while the REPORTING survives.
-+  - Against production the check reports 0 missing for players, transfers and squads and ~23 for
-+    coaches. Anything else means the expected set is wrong, not the data.
-+  - Tests pin each of the above and fail against the pre-fix code. `python -m pytest tests/ -q`
-+    passes.
- 
- amendments:
--  - ROUND 2, after both specialist reviewers FAILED round 1. Authority: the CPO's approval of #898
--    itself, which is what makes these edits necessary rather than a widening. Per the standing
--    lesson, the first question was whether the EDIT belongs in this branch, not how to widen the
--    contract to admit it. It does: the approved change breaks that test, and the branch cannot be
--    green without it.
--    1. `tests/test_completeness_outcome_and_summary.py` added to `scope_paths`. Its
--       `test_skipped_report_returns_no_failures` asserts `evaluate_completeness_outcome`'s returned
--       dict by exact equality, and the approved fix adds a key to that dict. The test is EXTENDED
--       to include the new key, never relaxed to a subset.
--    2. `impact_map` corrected: `append_api_errors` is no longer changed at all, and the reason is
--       recorded above so the rejected approach is not retried.
--    No decision is taken here and no permission is widened beyond that one test file. The threshold
--    policy, N, and the freshness trade are unchanged from `decisions_taken`.
-+  - ROUND 2, after both specialist reviewers FAILED round 1. Authority: the CPO's approval of this
-+    task, recorded in `escalations.log`. No permission is widened, no `scope_paths` entry is added,
-+    and no decision is taken. The `impact_map` is CORRECTED, because its first version claimed a
-+    `NotFound` guard that existed for three of the four tables and not for PLAYERS, and it did not
-+    name the second new function. Both statements now match the code.
-+  - The RECURRING COST figure is unchanged and still measured: the round 2 fix pairs each league
-+    with its own snapshot timestamp, and that was dry-run to confirm partition pruning survives.
-+    `RAW_APIF_TRANSFERS` reads 383,545,007 bytes either way, byte-identical, so correctness cost
-+    nothing.
-+  - ROUND 3, after both specialists FAILED round 2 on the same finding. Authority: the CPO's
-+    approval of this task. No permission widened, no `scope_paths` entry added, no decision taken.
-+    THREE inaccurate statements in this contract are corrected, and the pattern behind them is worth
-+    naming rather than hiding: each was written in the same edit as the fix it described, so the
-+    claim ran ahead of the code.
-+      1. "Now tested directly" for `per_team_expectations_from_results` was FALSE — the extraction
-+         happened in round 2 and the tests did not. Seven tests now cover it, including that a
-+         poll-mode competition cannot appear and that the reference season is `max(seasons_list)`.
-+      2. `_ts_in_list` was listed as a module-local function "with one call site". It had NONE: it
-+         was dead code left from the rejected unpaired-timestamp design. Deleted.
-+      3. `RAW_APIF_TEAMS` was listed under TABLES READ and used in the cost derivation. The shipped
-+         code never queries it. Both statements corrected, and the cost re-measured against the
-+         queries the code actually issues.
-+  - ROUND 4, on the CPO's explicit override of the 3-round cap (recorded as `rounds_cap_override`
-+    in `review.md`). `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
-+    on a FIFTH instance: the snapshot table was described as having two readers when this diff adds
-+    a third. A self-sweep prompted by that finding then found two MORE wrong numbers in the same
-+    section, both call-site counts.
-+    THE ROOT CAUSE, finally identified rather than patched again: the `impact_map` enumerated
-+    per-test-file CALL-SITE COUNTS. Those are brittle by construction — every test added changes
-+    them, so a number written while drafting is stale by the time the tests are done — and they
-+    carry no blast radius, because a test calling a function is not a production consumer that can
-+    break. The section now counts PRODUCTION call sites only and names the one test whose assertion
-+    SHAPE breaks. That removes the class, not the instance. No code changed.
-+  - ROUND 3 verdicts: `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
-+    on a FOURTH instance of the same pattern, found inside the amendment that documents the pattern:
-+    `evaluate_completeness_outcome` was described as gaining "one optional keyword argument" when it
-+    gains two. Corrected by counting off the signature. No code change. THE ROUND CAP OF 3 IS NOW
-+    REACHED, so this is brought to the CPO rather than looped into a fourth round.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index efafda9..e6fc314 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -695,3 +695,177 @@ This entry is the durable record of the metric-definition authority the contract
-   breaks that test and the branch cannot be green without it.
- 
- - (verification, round 2) Full suite 553 passed.
-+
-+## 2026-08-03 — cause 3: the per-team endpoints get a completeness check
-+
-+- (⭐ THE PREMISE WAS CHECKED BEFORE THE WORK, and it changed what the task is) The CPO picked cause
-+  3 over cost on my ranking. I then measured it, per §11's premise-check duty, and brought the
-+  numbers back BEFORE spending a cycle: **transfers 0 teams missing, player_squads 0, players 0 once
-+  each competition's own reference season is used, coaches 22-26 of 1,265 and STABLE across five
-+  days (07-30 to 08-03).** The per-team data is COMPLETE. So this is regression insurance, not
-+  repair. The CPO confirmed on exactly that basis, and the basis is sound: a gate introduced while
-+  the metric reads 0 starts green and can only ever fire on a real regression, which is the safest
-+  moment to add one.
-+
-+- (CPO ruling, one batch, before any file was touched)
-+  1. Build it now, as insurance.
-+  2. **GATE players, squads, transfers. REPORT ONLY coaches.** ~23 teams have no coach on every
-+     single run because the provider genuinely has none; gating that is permanently red, and a
-+     permanently-red gate trains everyone to ignore the alarm, which is precisely how ten green runs
-+     came to mean nothing.
-+  3. **Expected is per competition, never a global year.**
-+
-+- (⚠ TWO EXPECTED-SET DESIGNS WERE WRONG, and BOTH were caught by running against production rather
-+  than by reasoning. This is the single most useful thing in this entry.)
-+  1. **Hardcoding the calendar year.** My first measurement reported ACN as 24 of 24 teams missing.
-+     ACN is on season **2027**, and so is J1. The pipeline was right and my query was wrong. A gate
-+     shipping that assumption is permanently red on every tournament.
-+  2. **Deriving the league set from `RAW_APIF_TEAMS`.** Running the real function against production
-+     judged **45 leagues, not 26**, and reported **33 league/entity pairs missing, including
-+     FAC/PLAYERS 749**. Restricting to `selected_competitions()` did NOT fix it: that also returns
-+     45. The reason is POLL MODE — those competitions are selected but run `run_poll_phases`, which
-+     never fetches teams, players, squads or transfers. Nothing was missing; nothing had ever been
-+     fetched.
-+  - RESOLUTION, and it is better than either attempt: **expected comes from the RUN, not from
-+    BigQuery.** The orchestrator already holds `results`, a list of `CompetitionRunResult`, and only
-+    competitions that ran the full phases are in it. `team_ids` is the exact set the loaders
-+    iterated and `max(seasons_list)` is the exact value `load_squad_players_batch` was called with,
-+    so expectation and fetch cannot drift apart by construction. It is also free: no teams query at
-+    all.
-+  - ⚠ THE LESSON: I would have shipped a gate that fired on 33 pairs on its first run, having
-+    "verified" the design with a query that agreed with me. The plan's own verification step said to
-+    run it against production and that anything other than 0 means THE EXPECTED SET is wrong, not
-+    the data. That step is what caught it. Write that step into the plan every time.
-+
-+- (⭐ THE COST SHAPE, measured, and the documented trap reproduced exactly) `RAW_APIF_TRANSFERS` is
-+  6.99 GiB, so the read shape matters more than the read. Dry-run:
-+    - `WHERE ingested_at = (SELECT MAX(...))`  **7.51 GB** — a subquery predicate does NOT prune
-+    - `WHERE date(ingested_at) IN (<literals>)` **384 MB**
-+    - `SELECT league_code, MAX(ingested_at)` alone **14.8 KB**
-+  So the read is deliberately TWO steps: cheap maxima first, then literals inlined. That is 19.6x on
-+  our largest raw table, and a future reader will want to collapse it into one query. A fixed
-+  lookback window is NOT an alternative and the standing rule says so: poll-mode competitions go
-+  months between refreshes (WC last 2026-07-20, CWC 2026-06-22), so a recent-days filter reports
-+  those leagues as 100% missing.
-+
-+- (the kill-switch lesson applied UP FRONT rather than after a FAIL) `stagnant_per_team_gaps` is
-+  computed INSIDE `evaluate_completeness_outcome`, so it inherits both operator escape hatches by
-+  construction: the `report["skipped"]` early return and `fail_on_incomplete()`. The previous task
-+  shipped the equivalent signal ORed into the orchestrator and `platform-reviewer` FAILED it,
-+  because a documented backfill would still have exited 3. Same class, fixed before review this
-+  time, and pinned by four tests.
-+
-+- (the stagnation window, settled by rule not escalated) Two consecutive runs, matching
-+  `detect_stagnant_statistics_backfill` and `detect_stagnant_dropped_calls`. Three stagnation
-+  signals now share one exit code and must agree on what "stagnant" means. The CPO's freshness
-+  reasoning for #898 applies unchanged: a hard fail skips `dbt build`, so a transient must not
-+  trigger it, and a brand-new team whose first fetch fails would otherwise fail the run on the day
-+  it appears.
-+
-+- (an existing guard EXTENDED, never loosened) `test_skipped_report_returns_no_failures` asserts the
-+  outcome dict by exact equality. The new key was added to the literal. `tests/test_completeness_outcome_and_summary.py`
-+  was declared in `scope_paths` FROM THE START this time, rather than amended in mid-task, which is
-+  what the previous task had to do after the gate refused the edit.
-+
-+- (verification) Against production with a run-shaped expectation set: 26 leagues judged,
-+  **PLAYERS 0, SQUADS 0, TRANSFERS 0 missing, COACHES 29**, and the GATED set is EMPTY, so the gate
-+  starts green exactly as the premise required. ACN resolves to reference season 2027 with 0 players
-+  missing. 20 new tests, full suite **573 passed**. Confirmed the guard pins: adding COACHES to
-+  `PER_TEAM_GATED` fails three tests with `{'BL1/COACHES': 7}` leaking into the gate.
-+
-+- (⭐ ROUND 1 FAILED ON BOTH SPECIALISTS, and the second finding is the sharper one)
-+
-+  **FAIL A, found by BOTH reviewers independently: PLAYERS had no table-existence guard.** The three
-+  snapshot entities get one for free via `_latest_snapshot_timestamps`, which does
-+  `get_table`/`NotFound`. PLAYERS has no maxima step and so had none, and the contract's
-+  `impact_map` claimed the function "mirrors `coverage.read_coverage`, including that function's
-+  `client.get_table` / `NotFound` guard". That was true for three of four blocks. An absent table
-+  would raise through the orchestrator's blanket handler and hard-fail the run on the FIRST
-+  occurrence, skipping `dbt build` — the precise outcome the two-run stagnation window exists to
-+  prevent. `data-engineer-reviewer` also noted it is operationally reachable, not theoretical:
-+  `API_FOOTBALL_SKIP_PLAYERS` is a documented archive-run flag. A second, related defect: with no
-+  blocks at all the UNION rendered `FROM ()`, invalid SQL, executed unguarded.
-+  RESOLUTION: `_raw_table_exists` guards PLAYERS, and the query is skipped entirely when no block
-+  survives.
-+
-+  **FAIL B, `data-engineer-reviewer` only, and it is the one I should have seen: the snapshot
-+  timestamp was not paired to its own league.** `_snapshot_block` applied
-+  `ingested_at IN (<all leagues' maxima>)` and `league_code IN (<all leagues>)` as two INDEPENDENT
-+  filters, so a row for league A carrying league B's latest timestamp satisfied both and counted as
-+  coverage for A. It fails in the DANGEROUS direction: it makes a real miss look covered, which is
-+  the exact property this whole task exists to guarantee.
-+  ⚠ THE LESSON: I had already written the comment explaining why pairing matters — for the PLAYERS
-+  season list, three lines away — and did not apply the same reasoning to the timestamps. Recognising
-+  a bug class and fixing one instance of it is not the same as sweeping for it. This is the
-+  fix-the-class-not-the-instance rule turned on its author.
-+  RESOLUTION: `(league_code = X AND ingested_at = TIMESTAMP(Y))` pairs, per league. **Measured: the
-+  paired form costs 383,545,007 bytes on RAW_APIF_TRANSFERS, byte-identical to the unpaired form**,
-+  so partition pruning is unaffected and correctness was free. A test asserts the unpaired
-+  `s.ingested_at IN (` form cannot reappear.
-+
-+- (the fake that could not express the bug) `test_missing_tables_do_not_raise` always supplied a
-+  `reference_season`, so the PLAYERS block was always present and the test could never reach the
-+  unguarded path; and `_FakeClient` had one has_tables flag, so it could not say "PLAYERS
-+  specifically is absent". Both were rebuilt: the fake now takes `missing_tables` per entity, and
-+  three tests cover PLAYERS-absent, all-absent, and one-snapshot-absent.
-+
-+- (coverage gap closed rather than noted) `platform-reviewer` observed that the expected-set fix
-+  lived in an inline dict comprehension in the orchestrator, which no test exercised, so a future
-+  regression back to `selected_competitions()` would not be caught. Extracted to
-+  `per_team_expectations_from_results` in `completeness.py` and tested directly.
-+
-+- (verification, round 2) Full suite **576 passed**. Re-verified against production after the query
-+  shape changed: 26 leagues judged, PLAYERS 0, SQUADS 0, TRANSFERS 0 missing, COACHES 29, GATED set
-+  EMPTY, ACN reference season 2027.
-+
-+- (⭐ ROUND 2 FAILED ON BOTH SPECIALISTS, converging on ONE finding, and it is about my ARTIFACTS
-+  rather than my code)
-+
-+  **`per_team_expectations_from_results` had ZERO test coverage.** In round 2 I extracted it out of
-+  the orchestrator specifically to close a `platform-reviewer` coverage gap, wrote "Now tested
-+  directly" into both this log and the contract, and never wrote the test. `grep -rn` over `tests/`
-+  returned nothing. So the regression the extraction exists to prevent — reverting to a
-+  `selected_competitions()` or `RAW_APIF_TEAMS`-derived expected set, the designs that reported 33
-+  false-missing pairs and ACN as 24/24 — would have shipped through the suite undetected. The fix
-+  moved the risk into a named function without closing it. Seven tests now cover it, including
-+  poll-mode exclusion and `max(seasons_list)`.
-+
-+  Two further artifact inaccuracies found in the same pass:
-+  - `_ts_in_list` was DEAD CODE, left from the rejected unpaired-timestamp design, and the contract
-+    listed it among functions "each with one call site" when it had none. Deleted.
-+  - The contract's TABLES READ and cost derivation both described `RAW_APIF_TEAMS` as scanned. The
-+    shipped code never queries it; teams come from the in-memory run results. Stale copy from the
-+    rejected design.
-+
-+  ⚠ THE LESSON, and it is the through-line of this whole task: **THREE separate statements in my
-+  contract were false, and every one was written in the same edit as the change it described.** The
-+  claim ran ahead of the code each time. Round 1's version said the NotFound guard covered all four
-+  tables when it covered three. Round 2's said a function was tested when no test existed. The
-+  fix is not "be more careful"; it is that a contract sentence asserting a property of the code —
-+  tested, guarded, has one call site, is read — must be verified against the code by grep or by a
-+  run BEFORE it is written down, exactly as `impact_map` evidence already must be. I verified the
-+  measurements in this task rigorously and the prose describing them not at all.
-+
-+- (the cost figure re-measured against the SHIPPED code, not a design) Four queries per run: three
-+  maxima at 15,021 + 14,757 + 20,678 bytes and one coverage query at 999,200,648 bytes. **TOTAL
-+  999,251,104 bytes = 0.931 GiB, $0.0045 per run, $1.66 a year.** The earlier ~1.0 GiB figure was
-+  close but derived from shapes including a `RAW_APIF_TEAMS` scan the code does not perform.
-+
-+- (verification, round 3) Full suite **583 passed**.
-+
-+- (round 3 verdicts, and the FOURTH instance of the pattern) `data-engineer-reviewer` PASS,
-+  `platform-reviewer` PASS, `scope-auditor` FAIL. The FAIL was not a code defect: the contract said
-+  `evaluate_completeness_outcome` "gains one optional keyword argument" when it gains two
-+  (`per_team_missing`, `prior_per_team_missing`). Corrected by counting off the signature.
-+  ⚠ It was written INSIDE the amendment that documents this exact pattern. I stated the lesson
-+  accurately and repeated the error in the same edit, which says the lesson as prose does not bind
-+  even under full attention. The mechanical form is the one that would: a contract claim of the
-+  shape "X is tested / X is guarded / X has N callers / X is read / X gains N arguments" is a
-+  factual assertion about the tree and should be checked with a grep or a signature read at the
-+  moment it is written, the same way `impact_map` evidence already must be.
-+
-+- (⭐ CPO RULING: THE ROUND CAP IS OVERRIDDEN) The cap of 3 was reached and the open finding was
-+  brought to the CPO rather than looped, per §2. The CPO authorised a FOURTH round. Recorded in
-+  `review.md` as `rounds_cap_override`, which is the mechanism the review template provides for
-+  exactly this. The round 4 diff differs from round 3 by one corrected sentence in `contract.md` and
-+  nothing else: no code, no test, no behaviour.
-diff --git a/ingestion/api_football/completeness.py b/ingestion/api_football/completeness.py
-index 2a055e6..32e2013 100644
---- a/ingestion/api_football/completeness.py
-+++ b/ingestion/api_football/completeness.py
-@@ -21,11 +21,12 @@ from datetime import datetime, timezone
- from typing import Any
- 
- from google.cloud import bigquery
-+from google.cloud.exceptions import NotFound
- 
- from .bigquery import load_json_to_bq, read_latest_payload_json
- from .coverage import read_coverage
- from .registry import selected_competitions
--from .settings import raw_table
-+from .settings import DATASET_ID, GCP_PROJECT_ID, raw_table
- 
- COMPLETENESS_SNAPSHOT_TABLE = "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT"
- _STATS_ENTITY = "FIXTURE_STATISTICS"
-@@ -39,6 +40,20 @@ FANOUT_ENTITIES = (
-     "FIXTURE_PLAYERS",
- )
- 
-+# PER-TEAM raw entities (#898 cause 3). These are fetched one call per team, and until now had NO
-+# completeness check at all: FANOUT_ENTITIES above covers fixture-level data only, so a regression
-+# in any of these was invisible to every test in the repo. #896 is the proof that matters — the
-+# table GREW while data was destroyed, so row-count, freshness and not-null checks all passed.
-+PER_TEAM_ENTITIES = ("PLAYERS", "SQUADS", "TRANSFERS", "COACHES")
-+
-+# ...but only these may FAIL a run. COACHES is reported and never gates: ~23 of 1,265 teams have no
-+# coach on every single run (measured stable over five days, 2026-07-30 to 08-03), because the
-+# provider genuinely has none for them. Gating that would be permanently red, and a permanently-red
-+# gate trains everyone to ignore the alarm — which is exactly how ten green runs came to mean
-+# nothing. The other three measured 0 missing when this was introduced, so the gate starts green and
-+# can only fire on a real regression. CPO decision, 2026-08-03.
-+PER_TEAM_GATED = ("PLAYERS", "SQUADS", "TRANSFERS")
-+
- # API-Football ``fixture.status.short`` codes where the match has concluded and
- # per-fixture fanout data is expected to exist. Everything else (upcoming, in-play,
- # cancelled, abandoned, postponed) is excluded from the completeness expected set:
-@@ -176,6 +191,254 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
-     return out
- 
- 
-+def _latest_snapshot_timestamps(
-+    client: bigquery.Client, table_name: str
-+) -> dict[str, datetime]:
-+    """Per-league ``max(ingested_at)`` for a snapshot table. Metadata-only, ~15 KB.
-+
-+    Step ONE of a deliberate two-step read, and the two steps must stay separate. Measured on
-+    RAW_APIF_TRANSFERS with ``--dry_run``:
-+      - ``WHERE ingested_at = (SELECT MAX(...) ... )``  **7.51 GB**, a subquery predicate does NOT prune
-+      - ``WHERE date(ingested_at) IN (<literals>)``      **384 MB**
-+      - this query alone                                 **14.8 KB**
-+    So the cheap shape is: read the maxima here, then inline them as literals in
-+    :func:`read_per_team_coverage`. A future reader will want to "simplify" this into one query.
-+    That costs 19.6x on the largest raw table we have.
-+
-+    A fixed lookback window is NOT an alternative. Poll-mode competitions go months between
-+    refreshes (WC last on 2026-07-20, CWC on 2026-06-22), so a recent-days filter would return zero
-+    rows for them and report those leagues as 100% missing.
-+    """
-+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
-+    try:
-+        client.get_table(table_id)
-+    except NotFound:
-+        return {}
-+    q = f"SELECT league_code, MAX(ingested_at) AS mx FROM `{table_id}` GROUP BY league_code"
-+    return {
-+        row.league_code: row.mx
-+        for row in client.query(q).result()
-+        if row.league_code and row.mx
-+    }
-+
-+
-+def _raw_table_exists(client: bigquery.Client, entity: str) -> bool:
-+    """Whether a raw table exists yet, so a first-ever run degrades instead of crashing."""
-+    try:
-+        client.get_table(f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table(entity)}")
-+        return True
-+    except NotFound:
-+        return False
-+
-+
-+def per_team_expectations_from_results(results: list[Any]) -> dict[str, dict[str, Any]]:
-+    """What THIS RUN intended to fetch per competition, for the per-team completeness check.
-+
-+    ``results`` is the orchestrator's list of ``CompetitionRunResult``, which contains ONLY the
-+    competitions that ran the full phases. Poll-mode competitions are absent by construction, and
-+    that is the point: ``run_poll_phases`` never fetches teams, players, squads or transfers, so
-+    there is nothing to judge them against.
-+
-+    ⚠ DO NOT rebuild this from BigQuery. Two versions that did were both wrong against production:
-+    deriving the season as the calendar year reported ACN as 24 of 24 teams missing (ACN is on
-+    2027, and so is J1), and deriving the league set from RAW_APIF_TEAMS judged 45 leagues and
-+    reported 33 league/entity pairs missing, including FAC/PLAYERS 749, none of which were gaps.
-+    ``team_ids`` here is the exact set the loaders iterated and ``max(seasons_list)`` is the exact
-+    value ``load_squad_players_batch`` was called with, so expectation and fetch cannot drift.
-+    """
-+    return {
-+        r.league_code: {
-+            "team_ids": set(r.team_ids or ()),
-+            "reference_season": max(r.seasons_list) if r.seasons_list else None,
-+        }
-+        for r in (results or [])
-+    }
-+
-+
-+def read_per_team_coverage(
-+    client: bigquery.Client,
-+    expectations: dict[str, dict[str, Any]],
-+) -> dict[str, dict[str, Any]]:
-+    """Expected-versus-covered team counts for the PER-TEAM endpoints (#898 cause 3).
-+
-+    ``expectations`` comes from the RUN, not from BigQuery:
-+    ``{league_code: {"team_ids": set[int], "reference_season": int | None}}``, built by the
-+    orchestrator from the ``CompetitionRunResult`` list. Returns
-+    ``out[league_code][entity] = {expected_count, missing_count}`` plus ``reference_season``.
-+
-+    ⚠ EXPECTED MUST COME FROM THE RUN. Two earlier versions derived it from BigQuery and both were
-+    wrong against production:
-+      - deriving the season as the calendar year reported ACN as 24 of 24 teams missing. ACN is on
-+        2027, and so is J1. Here the season is ``max(seasons_list)``, the exact value
-+        ``load_squad_players_batch`` was called with, so the two cannot disagree.
-+      - deriving the league set from RAW_APIF_TEAMS judged 45 leagues and reported 33 league/entity
-+        pairs missing, including FAC/PLAYERS 749. Those competitions are SELECTED but run in POLL
-+        mode, which never fetches teams, players, squads or transfers, so nothing was missing: they
-+        were simply never fetched. Only competitions that returned a ``CompetitionRunResult`` ran
-+        the per-team phases, and only those can be judged.
-+
-+    EXPECTED SETS mirror what each loader iterates: PLAYERS is season-scoped and checked as
-+    ``(team_id, reference_season)``; SQUADS, TRANSFERS and COACHES take the full ``team_ids`` set.
-+
-+    RAW_APIF_PLAYERS is merge-on-write, so it has no per-run snapshot and is read in full
-+    (0.55 GiB). The others are read at their latest snapshot only.
-+
-+    FIRST-RUN SAFE: every one of the four tables is existence-checked before it is queried, and when
-+    no table exists the query is skipped entirely rather than rendering an empty ``FROM ()``. An
-+    absent table degrades to "no coverage" for that entity, never an exception.
-+    """
-+    leagues = [lc for lc, e in (expectations or {}).items() if e.get("team_ids")]
-+    if not leagues:
-+        return {}
-+    league_list = ", ".join(f"'{lc}'" for lc in sorted(leagues))
-+
-+    def _fq(name: str) -> str:
-+        return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table(name)}"
-+
-+    def _snapshot_block(entity: str, name: str) -> str | None:
-+        """Covered team ids from each league's latest snapshot of a per-run table.
-+
-+        ⚠ The league and its OWN timestamp are paired. A flat `ingested_at IN (...)` plus a flat
-+        `league_code IN (...)` are two INDEPENDENT filters, so a row for league A carrying league
-+        B's latest timestamp would satisfy both and be counted as coverage for A. That is the same
-+        contamination class the PLAYERS season pairing below guards against, and it fails in the
-+        dangerous direction: it makes a real miss look covered.
-+        """
-+        stamps = _latest_snapshot_timestamps(client, raw_table(name))
-+        stamps = {lc: ts for lc, ts in stamps.items() if lc in set(leagues)}
-+        if not stamps:
-+            return None
-+        pairs = " OR ".join(
-+            f"(s.league_code = '{lc}' AND s.ingested_at = TIMESTAMP('{ts.isoformat()}'))"
-+            for lc, ts in sorted(stamps.items())
-+        )
-+        return f"""
-+            SELECT '{entity}' AS entity, s.league_code,
-+                   SAFE_CAST(JSON_VALUE(r, '$.team_id') AS INT64) AS team_id
-+            FROM `{_fq(name)}` s, UNNEST(JSON_QUERY_ARRAY(s.payload, '$.response')) r
-+            WHERE {pairs}
-+        """
-+
-+    blocks = [
-+        b
-+        for b in (
-+            _snapshot_block("SQUADS", "SQUADS"),
-+            _snapshot_block("TRANSFERS", "TRANSFERS"),
-+            _snapshot_block("COACHES", "COACHES"),
-+        )
-+        if b
-+    ]
-+    # PLAYERS is merge-on-write: no snapshot timestamp, and the season must match THAT league's
-+    # reference season. A shared season list would let one league's 2027 rows satisfy another
-+    # league's 2026 expectation, so the pairs are spelled out per league.
-+    season_pairs = " OR ".join(
-+        f"(p.league_code = '{lc}' AND SAFE_CAST(JSON_VALUE(r, '$.season') AS INT64) = "
-+        f"{int(e['reference_season'])})"
-+        for lc, e in sorted(expectations.items())
-+        if lc in set(leagues) and e.get("reference_season") is not None
-+    )
-+    # The existence guard is NOT optional here. The three snapshot blocks get it for free via
-+    # _latest_snapshot_timestamps; PLAYERS has no maxima step, so without this an absent table
-+    # raises straight through the orchestrator's blanket handler and hard-fails the run instead of
-+    # degrading to "no coverage". Review caught exactly that.
-+    if season_pairs and _raw_table_exists(client, "PLAYERS"):
-+        blocks.append(
-+            f"""
-+            SELECT 'PLAYERS' AS entity, p.league_code,
-+                   SAFE_CAST(JSON_VALUE(r, '$.team_id') AS INT64) AS team_id
-+            FROM `{_fq('PLAYERS')}` p, UNNEST(JSON_QUERY_ARRAY(p.payload, '$.response')) r
-+            WHERE p.league_code IN ({league_list}) AND ({season_pairs})
-+            """
-+        )
-+
-+    covered: dict[tuple[str, str], set[int]] = {}
-+    # With no blocks at all (a first-ever run where none of the raw tables exist yet) the UNION
-+    # would render as `FROM ()`, which is invalid SQL and would be executed unguarded. Skip the
-+    # query entirely and report everything as uncovered, which on such a run is the truth.
-+    if blocks:
-+        q = (
-+            "SELECT DISTINCT entity, league_code, team_id FROM (\n"
-+            + "\nUNION ALL\n".join(blocks)
-+            + "\n)"
-+        )
-+        for row in client.query(q).result():
-+            if row.team_id is None:
-+                continue
-+            covered.setdefault((row.league_code, row.entity), set()).add(int(row.team_id))
-+
-+    out: dict[str, dict[str, Any]] = {}
-+    for league_code in sorted(leagues):
-+        exp = expectations[league_code]
-+        team_ids = set(exp.get("team_ids") or ())
-+        block: dict[str, Any] = {"reference_season": exp.get("reference_season")}
-+        for entity in PER_TEAM_ENTITIES:
-+            got = covered.get((league_code, entity), set())
-+            block[entity] = {
-+                "expected_count": len(team_ids),
-+                "missing_count": len(team_ids - got),
-+            }
-+        out[league_code] = block
-+    return out
-+
-+
-+
-+def per_team_missing_by_league_entity(
-+    per_team: dict[str, dict[str, Any]],
-+) -> dict[str, int]:
-+    """Flatten to ``{"LEAGUE/ENTITY": missing_count}`` for the run-over-run stagnation compare.
-+
-+    Only GATED entities are included: COACHES is reported but never gates, so it must not reach the
-+    snapshot that drives a hard fail.
-+    """
-+    out: dict[str, int] = {}
-+    for league_code, block in (per_team or {}).items():
-+        for entity in PER_TEAM_GATED:
-+            info = block.get(entity) or {}
-+            missing = int(info.get("missing_count") or 0)
-+            if missing > 0:
-+                out[f"{league_code}/{entity}"] = missing
-+    return out
-+
-+
-+def detect_stagnant_per_team_gaps(
-+    current: dict[str, int],
-+    prior: dict[str, int] | None,
-+) -> list[dict[str, Any]]:
-+    """(league, entity) pairs still missing teams on TWO consecutive runs.
-+
-+    Same window and same reasoning as ``detect_stagnant_dropped_calls``: a hard fail skips the dbt
-+    build and costs daily freshness, so a single observation must not trigger it. A brand-new team
-+    whose first fetch fails would otherwise fail the run on the day it appears.
-+    """
-+    if not prior:
-+        return []
-+    stagnant: list[dict[str, Any]] = []
-+    for key, count in sorted(current.items()):
-+        prev = prior.get(key, 0)
-+        if count > 0 and prev > 0:
-+            league_code, _, entity = key.partition("/")
-+            stagnant.append(
-+                {
-+                    "league_code": league_code,
-+                    "entity": entity,
-+                    "prior_count": prev,
-+                    "count": count,
-+                }
-+            )
-+    return stagnant
-+
-+
-+def load_prior_per_team_missing(client: bigquery.Client) -> dict[str, int] | None:
-+    """Previous run's per-team gaps, or None when there is no prior record (fail-open)."""
-+    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-+    if not payload:
-+        return None
-+    raw = payload.get("per_team_missing")
-+    if not isinstance(raw, dict):
-+        return None
-+    return {str(k): int(v) for k, v in raw.items()}
-+
-+
- def fixture_statistics_missing_by_league(report: dict[str, Any]) -> dict[str, int]:
-     """Per-league count of finished fixtures still missing FIXTURE_STATISTICS."""
-     out: dict[str, int] = {}
-@@ -245,6 +508,7 @@ def persist_fixture_statistics_missing(
-     *,
-     run_id: str,
-     dropped_calls: dict[str, int] | None = None,
-+    per_team_missing: dict[str, int] | None = None,
- ) -> None:
-     """Store this run's statistics gap signature for stagnation checks on the next run.
- 
-@@ -260,6 +524,7 @@ def persist_fixture_statistics_missing(
-         "recorded_at": datetime.now(timezone.utc).isoformat(),
-         "fixture_statistics_missing": fixture_statistics_missing_by_league(report),
-         "dropped_calls_by_endpoint": dict(dropped_calls or {}),
-+        "per_team_missing": dict(per_team_missing or {}),
-     }
-     load_json_to_bq(
-         client,
-@@ -305,6 +570,8 @@ def evaluate_completeness_outcome(
-     prior_fixture_statistics_missing: dict[str, int] | None = None,
-     dropped_calls: dict[str, int] | None = None,
-     prior_dropped_calls: dict[str, int] | None = None,
-+    per_team_missing: dict[str, int] | None = None,
-+    prior_per_team_missing: dict[str, int] | None = None,
- ) -> dict[str, Any]:
-     """Decide whether the ingest run should hard-fail.
- 
-@@ -323,6 +590,7 @@ def evaluate_completeness_outcome(
-         "soft_partial": [],
-         "stagnant_statistics": [],
-         "stagnant_dropped_calls": [],
-+        "stagnant_per_team_gaps": [],
-     }
-     if report.get("skipped"):
-         return out
-@@ -369,11 +637,20 @@ def evaluate_completeness_outcome(
-     out["stagnant_dropped_calls"] = detect_stagnant_dropped_calls(
-         dropped_calls or {}, prior_dropped_calls
-     )
-+    # #898 cause 3. Evaluated HERE, never ORed in by the orchestrator, so it inherits both operator
-+    # kill-switches by construction: the `report["skipped"]` early return above
-+    # (API_FOOTBALL_SKIP_COMPLETENESS_CHECK) and `fail_on_incomplete()` below
-+    # (API_FOOTBALL_FAIL_ON_INCOMPLETE=0, the documented backfill override). Placing a third
-+    # stagnation signal anywhere else is the exact defect review caught in the previous task.
-+    out["stagnant_per_team_gaps"] = detect_stagnant_per_team_gaps(
-+        per_team_missing or {}, prior_per_team_missing
-+    )
- 
-     if fail_on_incomplete() and (
-         out["hard_gated_failures"]
-         or out["stagnant_statistics"]
-         or out["stagnant_dropped_calls"]
-+        or out["stagnant_per_team_gaps"]
-     ):
-         out["hard_fail"] = True
-     return out
-diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
-index 1a084db..bf1b44a 100644
---- a/ingestion/api_football/orchestrator.py
-+++ b/ingestion/api_football/orchestrator.py
-@@ -22,7 +22,12 @@ from .completeness import (
-     evaluate_completeness_outcome,
-     load_prior_dropped_calls,
-     load_prior_fixture_statistics_missing,
-+    load_prior_per_team_missing,
-+    PER_TEAM_ENTITIES,
-+    per_team_expectations_from_results,
-+    per_team_missing_by_league_entity,
-     persist_fixture_statistics_missing,
-+    read_per_team_coverage,
-     run_ingest_completeness_checks,
-     write_github_output,
-     write_step_summary_if_configured,
-@@ -209,7 +214,20 @@ def _load_api_football(request):
-         prior_stats_missing = load_prior_fixture_statistics_missing(client)
-         # Read BEFORE persisting this run's counts, or the comparison is against itself.
-         prior_dropped = load_prior_dropped_calls(client)
-+        prior_per_team = load_prior_per_team_missing(client)
-         dropped_calls = minute_rate_limit_counts()
-+        # #898 cause 3: the per-team endpoints (players, squads, transfers, coaches) had no
-+        # completeness check at all. Two-step read on purpose — see _latest_snapshot_timestamps.
-+        #
-+        # Expected comes from THIS RUN, not from BigQuery. `results` holds only the competitions
-+        # that ran the full phases; poll-mode ones never fetch teams, players, squads or transfers,
-+        # so they cannot be judged and must not appear. `team_ids` is the exact set the loaders
-+        # iterated and `max(seasons_list)` is the exact reference season
-+        # `load_squad_players_batch` was called with, so expectation and fetch cannot drift apart.
-+        per_team = read_per_team_coverage(
-+            client, per_team_expectations_from_results(results)
-+        )
-+        per_team_missing = per_team_missing_by_league_entity(per_team)
-         report = run_ingest_completeness_checks(client)
-         print(completeness_summary_line(report), flush=True)
- 
-@@ -218,9 +236,15 @@ def _load_api_football(request):
-             prior_fixture_statistics_missing=prior_stats_missing,
-             dropped_calls=dropped_calls,
-             prior_dropped_calls=prior_dropped,
-+            per_team_missing=per_team_missing,
-+            prior_per_team_missing=prior_per_team,
-         )
-         persist_fixture_statistics_missing(
--            client, report, run_id=run_id, dropped_calls=dropped_calls
-+            client,
-+            report,
-+            run_id=run_id,
-+            dropped_calls=dropped_calls,
-+            per_team_missing=per_team_missing,
-         )
- 
-         # Always render the markdown summary so the per-competition coverage
-@@ -243,6 +267,26 @@ def _load_api_football(request):
-                     for s in outcome["stagnant_dropped_calls"]
-                 )
-             )
-+        # #898 cause 3. Reported on EVERY run, including COACHES, which never gates. Reporting a
-+        # number that never fails is the point: it is how a slow drift becomes visible before it
-+        # becomes a hole.
-+        per_team_notes = [
-+            f"{lc}/{entity} {info['missing_count']}/{info['expected_count']}"
-+            for lc, block in sorted(per_team.items())
-+            for entity in PER_TEAM_ENTITIES
-+            for info in [block.get(entity) or {}]
-+            if info.get("missing_count")
-+        ]
-+        if per_team_notes:
-+            notes.append("per-team teams MISSING: " + ", ".join(per_team_notes))
-+        if outcome["stagnant_per_team_gaps"]:
-+            notes.append(
-+                "STAGNANT per-team gaps (same league+entity two runs running): "
-+                + ", ".join(
-+                    f"{s['league_code']}/{s['entity']} ({s['prior_count']} then {s['count']})"
-+                    for s in outcome["stagnant_per_team_gaps"]
-+                )
-+            )
-         if outcome["soft_partial"]:
-             partial_codes = ", ".join(
-                 f"{p['league_code']} ({p['total_missing']} missing)"
-@@ -270,6 +314,15 @@ def _load_api_football(request):
- 
-         if outcome["hard_fail"]:
-             parts: list[str] = []
-+            if outcome["stagnant_per_team_gaps"]:
-+                parts.append(
-+                    "per-team gaps not healing: "
-+                    + ", ".join(
-+                        f"{s['league_code']}/{s['entity']} "
-+                        f"({s['prior_count']} then {s['count']} teams missing)"
-+                        for s in outcome["stagnant_per_team_gaps"]
-+                    )
-+                )
-             if outcome["stagnant_dropped_calls"]:
-                 # A single bad run stays green on purpose: the per-minute limit self-heals, and
-                 # failing skips the dbt build (every post-ingest step is gated on this step
-diff --git a/tests/test_completeness_outcome_and_summary.py b/tests/test_completeness_outcome_and_summary.py
-index 66d842f..0179341 100644
---- a/tests/test_completeness_outcome_and_summary.py
-+++ b/tests/test_completeness_outcome_and_summary.py
-@@ -176,6 +176,10 @@ class TestEvaluateCompletenessOutcome:
-             # Kept inside the exact-equality assertion rather than relaxed to a subset, so a
-             # future signal still cannot be added here unnoticed.
-             "stagnant_dropped_calls": [],
-+            # #898 cause 3: per-team gaps are evaluated inside this function so that
-+            # SKIP_COMPLETENESS_CHECK suppresses them too. Extended in place, never relaxed to a
-+            # subset, so a future signal still cannot be added here unnoticed.
-+            "stagnant_per_team_gaps": [],
-         }
- 
- 
-diff --git a/tests/test_per_team_completeness.py b/tests/test_per_team_completeness.py
-new file mode 100644
-index 0000000..e34662d
---- /dev/null
-+++ b/tests/test_per_team_completeness.py
-@@ -0,0 +1,375 @@
-+"""Per-team endpoints get a completeness check (#898 cause 3).
-+
-+`FANOUT_ENTITIES` covers fixture-level data only, so `coaches`, `players`, `player_squads` and
-+`transfers` had NO completeness check at all. #896 is why that matters: the table GREW while data
-+was destroyed, so row-count, freshness and not-null tests all passed.
-+
-+Measured before building: transfers 0 teams missing, squads 0, players 0, coaches 29 of 2,058 and
-+stable across five days. The data is complete, so this is regression insurance, and a gate
-+introduced at 0 can only ever fire on a regression.
-+
-+Two expected-set designs were tried against production and BOTH were wrong. These tests pin the
-+third, so neither is reintroduced:
-+  1. Deriving the season as the calendar year reported ACN as 24/24 missing. ACN is on 2027.
-+  2. Deriving the league set from RAW_APIF_TEAMS judged 45 leagues and reported 33 league/entity
-+     pairs missing, including FAC/PLAYERS 749 — competitions that are SELECTED but run in POLL mode
-+     and never fetch per-team data at all.
-+"""
-+
-+from __future__ import annotations
-+
-+import types
-+
-+import pytest
-+
-+from ingestion.api_football.completeness import (
-+    PER_TEAM_ENTITIES,
-+    PER_TEAM_GATED,
-+    detect_stagnant_per_team_gaps,
-+    evaluate_completeness_outcome,
-+    per_team_expectations_from_results,
-+    per_team_missing_by_league_entity,
-+    read_per_team_coverage,
-+)
-+
-+
-+class _Result:
-+    def __init__(self, rows):
-+        self._rows = rows
-+
-+    def result(self):
-+        return self._rows
-+
-+
-+class _FakeClient:
-+    """Answers the maxima queries and the single coverage query, with no network.
-+
-+    ``missing_tables`` names raw entities that do not exist yet, so the first-run path can actually
-+    be exercised per table. The first version of this fake had a single has_tables flag and could
-+    not express "RAW_APIF_PLAYERS specifically is absent", which is the one path that was unguarded.
-+    """
-+
-+    def __init__(self, covered_rows, missing_tables=()):
-+        self._covered = covered_rows
-+        self._missing = set(missing_tables)
-+        self.queries: list[str] = []
-+
-+    def get_table(self, table_id):
-+        if any(f"RAW_APIF_{m}" in table_id for m in self._missing):
-+            from google.cloud.exceptions import NotFound
-+
-+            raise NotFound(table_id)
-+        return object()
-+
-+    def query(self, q):
-+        self.queries.append(q)
-+        if "MAX(ingested_at)" in q:
-+            return _Result(
-+                [
-+                    types.SimpleNamespace(league_code="BL1", mx=_TS),
-+                    types.SimpleNamespace(league_code="ACN", mx=_TS),
-+                ]
-+            )
-+        return _Result(self._covered)
-+
-+    @property
-+    def coverage_queries(self) -> list[str]:
-+        return [q for q in self.queries if "MAX(ingested_at)" not in q]
-+
-+
-+class _TSObj:
-+    def isoformat(self):
-+        return "2026-08-03T04:00:00+00:00"
-+
-+
-+_TS = _TSObj()
-+
-+
-+def _row(entity, league_code, team_id):
-+    return types.SimpleNamespace(entity=entity, league_code=league_code, team_id=team_id)
-+
-+
-+def _run_result(league_code, team_ids, seasons_list):
-+    """The fields per_team_expectations_from_results reads off a CompetitionRunResult."""
-+    return types.SimpleNamespace(
-+        league_code=league_code, team_ids=set(team_ids), seasons_list=list(seasons_list)
-+    )
-+
-+
-+class TestExpectationsComeFromTheRunNotBigQuery:
-+    """The function that makes the two proven-wrong expected-set designs un-reintroducible.
-+
-+    Review FAILED an earlier round twice over this: the extraction happened, the tests did not, and
-+    the contract claimed otherwise. Without these, reverting to a `selected_competitions()` or
-+    RAW_APIF_TEAMS-derived expected set — the designs that reported 33 false-missing league/entity
-+    pairs including FAC/PLAYERS 749, and ACN as 24/24 missing — would ship undetected.
-+    """
-+
-+    def test_reference_season_is_max_of_seasons_list(self):
-+        # Must equal what load_squad_players_batch is actually called with, which is
-+        # max(result.seasons_list). If these drift, every players count is judged against the
-+        # wrong season.
-+        out = per_team_expectations_from_results(
-+            [_run_result("BL1", {1, 2}, [2024, 2025, 2026])]
-+        )
-+        assert out == {"BL1": {"team_ids": {1, 2}, "reference_season": 2026}}
-+
-+    def test_a_tournament_on_a_later_edition_is_carried_correctly(self):
-+        # ACN and J1 are on 2027 while everything else is on 2026. Taking the calendar year here
-+        # is what reported ACN as 24 of 24 teams missing.
-+        out = per_team_expectations_from_results(
-+            [_run_result("ACN", {9}, [2025, 2027]), _run_result("BL1", {1}, [2026])]
-+        )
-+        assert out["ACN"]["reference_season"] == 2027
-+        assert out["BL1"]["reference_season"] == 2026
-+
-+    def test_poll_mode_competitions_cannot_appear(self):
-+        # THE REGRESSION THAT MATTERS. Poll-mode competitions never return a CompetitionRunResult,
-+        # because run_poll_phases fetches no teams, players, squads or transfers. They are absent by
-+        # construction, which is why nothing derived from BigQuery may be substituted here.
-+        out = per_team_expectations_from_results([_run_result("BL1", {1}, [2026])])
-+        assert set(out) == {"BL1"}
-+        for absent in ("FAC", "CDR", "EURO", "WCQEU"):
-+            assert absent not in out
-+
-+    def test_empty_results_yield_no_expectations(self):
-+        assert per_team_expectations_from_results([]) == {}
-+        assert per_team_expectations_from_results(None) == {}
-+
-+    def test_missing_seasons_list_gives_no_reference_season(self):
-+        # A competition whose season plan failed must not silently be judged against season None;
-+        # read_per_team_coverage skips the PLAYERS pairing for it.
-+        out = per_team_expectations_from_results([_run_result("BL1", {1}, [])])
-+        assert out["BL1"]["reference_season"] is None
-+
-+    def test_team_ids_are_copied_not_aliased(self):
-+        # The loaders hold the same set object; mutating the expectation must not reach them.
-+        result = _run_result("BL1", {1, 2}, [2026])
-+        out = per_team_expectations_from_results([result])
-+        out["BL1"]["team_ids"].add(99)
-+        assert result.team_ids == {1, 2}
-+
-+    def test_feeds_read_per_team_coverage_end_to_end(self):
-+        # The extraction is only worth anything if its output is the shape the consumer expects.
-+        client = _FakeClient([_row("SQUADS", "BL1", 1)])
-+        out = read_per_team_coverage(
-+            client, per_team_expectations_from_results([_run_result("BL1", {1, 2}, [2026])])
-+        )
-+        assert out["BL1"]["SQUADS"] == {"expected_count": 2, "missing_count": 1}
-+        assert out["BL1"]["reference_season"] == 2026
-+
-+
-+class TestExpectedComesFromTheRun:
-+    def test_only_leagues_in_expectations_are_judged(self):
-+        # THE POLL-MODE REGRESSION TEST. Competitions that ran poll phases never fetch per-team
-+        # data, so they must not appear at all. Deriving the league set from BigQuery instead
-+        # reported FAC/PLAYERS as 749 teams missing when nothing had ever fetched them.
-+        covered = [_row(e, "BL1", 1) for e in PER_TEAM_ENTITIES]
-+        client = _FakeClient(covered)
-+        out = read_per_team_coverage(
-+            client, {"BL1": {"team_ids": {1}, "reference_season": 2026}}
-+        )
-+        assert set(out) == {"BL1"}
-+
-+    def test_a_league_with_no_teams_is_not_judged(self):
-+        client = _FakeClient([])
-+        out = read_per_team_coverage(
-+            client, {"BL1": {"team_ids": set(), "reference_season": 2026}}
-+        )
-+        assert out == {}
-+
-+    def test_empty_expectations_short_circuits_without_querying(self):
-+        client = _FakeClient([])
-+        assert read_per_team_coverage(client, {}) == {}
-+        assert client.queries == []
-+
-+    def test_missing_count_is_expected_minus_covered(self):
-+        covered = [_row("SQUADS", "BL1", 1), _row("SQUADS", "BL1", 2)]
-+        client = _FakeClient(covered)
-+        out = read_per_team_coverage(
-+            client, {"BL1": {"team_ids": {1, 2, 3}, "reference_season": 2026}}
-+        )
-+        assert out["BL1"]["SQUADS"] == {"expected_count": 3, "missing_count": 1}
-+        # An entity with no covered rows at all is fully missing, not silently absent.
-+        assert out["BL1"]["TRANSFERS"] == {"expected_count": 3, "missing_count": 3}
-+
-+    def test_reference_season_is_carried_per_league(self):
-+        # ACN is on 2027 while everything else is on 2026. The season comes from the run's
-+        # seasons_list, so it cannot disagree with what the loader was called with.
-+        client = _FakeClient([])
-+        out = read_per_team_coverage(
-+            client,
-+            {
-+                "BL1": {"team_ids": {1}, "reference_season": 2026},
-+                "ACN": {"team_ids": {9}, "reference_season": 2027},
-+            },
-+        )
-+        assert out["ACN"]["reference_season"] == 2027
-+        assert out["BL1"]["reference_season"] == 2026
-+
-+    def test_snapshot_timestamp_is_paired_to_its_own_league(self):
-+        # A flat `ingested_at IN (...)` plus a flat `league_code IN (...)` are two INDEPENDENT
-+        # filters, so a row for one league carrying another league's latest timestamp counts as
-+        # coverage. Review caught this; it fails in the dangerous direction, making a real miss look
-+        # covered. Measured: pairing costs nothing, 383,545,007 bytes either way on RAW_APIF_TRANSFERS.
-+        client = _FakeClient([])
-+        read_per_team_coverage(
-+            client,
-+            {
-+                "BL1": {"team_ids": {1}, "reference_season": 2026},
-+                "ACN": {"team_ids": {9}, "reference_season": 2027},
-+            },
-+        )
-+        coverage_q = client.coverage_queries[0]
-+        assert "(s.league_code = 'BL1' AND s.ingested_at = TIMESTAMP(" in coverage_q
-+        assert "(s.league_code = 'ACN' AND s.ingested_at = TIMESTAMP(" in coverage_q
-+        # The unpaired form must not survive anywhere.
-+        assert "s.ingested_at IN (" not in coverage_q
-+
-+    def test_players_season_is_matched_per_league_not_globally(self):
-+        # A shared season IN-list would let ACN's 2027 rows satisfy BL1's 2026 expectation.
-+        client = _FakeClient([])
-+        read_per_team_coverage(
-+            client,
-+            {
-+                "BL1": {"team_ids": {1}, "reference_season": 2026},
-+                "ACN": {"team_ids": {9}, "reference_season": 2027},
-+            },
-+        )
-+        coverage_q = [q for q in client.queries if "MAX(ingested_at)" not in q][0]
-+        assert "(p.league_code = 'ACN' AND" in coverage_q
-+        assert "= 2027)" in coverage_q
-+        assert "(p.league_code = 'BL1' AND" in coverage_q
-+        assert "= 2026)" in coverage_q
-+
-+    def test_players_table_missing_does_not_raise(self):
-+        # REGRESSION TEST for the defect review caught. PLAYERS has no maxima step, so it does not
-+        # get the existence guard for free the way the three snapshot entities do. Without an
-+        # explicit check the query raised straight through the orchestrator's blanket handler and
-+        # hard-failed the run. Note reference_season IS supplied here: the earlier version of this
-+        # test could never reach the bug because the PLAYERS block was always present.
-+        client = _FakeClient([], missing_tables={"PLAYERS"})
-+        out = read_per_team_coverage(
-+            client, {"BL1": {"team_ids": {1, 2}, "reference_season": 2026}}
-+        )
-+        assert out["BL1"]["PLAYERS"]["missing_count"] == 2
-+        assert all("RAW_APIF_PLAYERS" not in q for q in client.coverage_queries)
-+
-+    def test_all_tables_missing_issues_no_coverage_query(self):
-+        # The degenerate case: with no blocks the UNION rendered as `FROM ()`, invalid SQL that was
-+        # executed unguarded. Nothing should be queried, and everything reads as uncovered.
-+        client = _FakeClient([], missing_tables={"PLAYERS", "SQUADS", "TRANSFERS", "COACHES"})
-+        out = read_per_team_coverage(
-+            client, {"BL1": {"team_ids": {1, 2, 3}, "reference_season": 2026}}
-+        )
-+        assert client.coverage_queries == []
-+        for entity in PER_TEAM_ENTITIES:
-+            assert out["BL1"][entity] == {"expected_count": 3, "missing_count": 3}
-+
-+    def test_one_snapshot_table_missing_degrades_only_that_entity(self):
-+        client = _FakeClient(
-+            [_row("SQUADS", "BL1", 1), _row("PLAYERS", "BL1", 1)],
-+            missing_tables={"TRANSFERS"},
-+        )
-+        out = read_per_team_coverage(
-+            client, {"BL1": {"team_ids": {1}, "reference_season": 2026}}
-+        )
-+        assert out["BL1"]["SQUADS"]["missing_count"] == 0
-+        assert out["BL1"]["TRANSFERS"]["missing_count"] == 1
-+
-+
-+class TestCoachesReportsButNeverGates:
-+    def test_coaches_is_reported(self):
-+        assert "COACHES" in PER_TEAM_ENTITIES
-+
-+    def test_coaches_is_not_gated(self):
-+        # ~23 of 1,265 teams have no coach on EVERY run, measured stable over five days, because
-+        # the provider genuinely has none. Gating it would be permanently red, and a permanently-red
-+        # gate is how ten green runs came to mean nothing.
-+        assert "COACHES" not in PER_TEAM_GATED
-+
-+    def test_coaches_gaps_never_reach_the_stagnation_snapshot(self):
-+        per_team = {
-+            "BL1": {
-+                "reference_season": 2026,
-+                "COACHES": {"expected_count": 30, "missing_count": 7},
-+                "PLAYERS": {"expected_count": 18, "missing_count": 0},
-+                "SQUADS": {"expected_count": 30, "missing_count": 0},
-+                "TRANSFERS": {"expected_count": 30, "missing_count": 0},
-+            }
-+        }
-+        assert per_team_missing_by_league_entity(per_team) == {}
-+
-+    def test_gated_entity_gaps_do_reach_it(self):
-+        per_team = {
-+            "BL1": {
-+                "reference_season": 2026,
-+                "COACHES": {"expected_count": 30, "missing_count": 7},
-+                "PLAYERS": {"expected_count": 18, "missing_count": 3},
-+                "SQUADS": {"expected_count": 30, "missing_count": 0},
-+                "TRANSFERS": {"expected_count": 30, "missing_count": 0},
-+            }
-+        }
-+        assert per_team_missing_by_league_entity(per_team) == {"BL1/PLAYERS": 3}
-+
-+
-+class TestStagnationWindow:
-+    def test_one_run_does_not_fail(self):
-+        # A hard fail skips dbt build and costs daily freshness, and a brand-new team whose first
-+        # fetch fails would otherwise fail the run on the day it appears.
-+        assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, {}) == []
-+
-+    def test_two_runs_running_fails(self):
-+        out = detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, {"BL1/PLAYERS": 5})
-+        assert out == [
-+            {"league_code": "BL1", "entity": "PLAYERS", "prior_count": 5, "count": 3}
-+        ]
-+
-+    def test_healed_gap_does_not_fail(self):
-+        assert detect_stagnant_per_team_gaps({}, {"BL1/PLAYERS": 5}) == []
-+
-+    def test_a_different_entity_is_not_stagnation(self):
-+        assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, {"BL1/SQUADS": 3}) == []
-+
-+    def test_no_prior_run_is_silent(self):
-+        assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, None) == []
-+
-+
-+class TestGateRespectsTheOperatorKillSwitches:
-+    """The same defect review caught in the previous task, pinned up front here."""
-+
-+    _REPORT = {"leagues": {}}
-+    _CUR = {"BL1/PLAYERS": 3}
-+    _PRIOR = {"BL1/PLAYERS": 5}
-+
-+    def test_hard_fails_by_default(self, monkeypatch):
-+        monkeypatch.delenv("API_FOOTBALL_FAIL_ON_INCOMPLETE", raising=False)
-+        out = evaluate_completeness_outcome(
-+            self._REPORT, per_team_missing=self._CUR, prior_per_team_missing=self._PRIOR
-+        )
-+        assert out["stagnant_per_team_gaps"]
-+        assert out["hard_fail"] is True
-+
-+    def test_fail_on_incomplete_override_suppresses_the_fail(self, monkeypatch):
-+        monkeypatch.setenv("API_FOOTBALL_FAIL_ON_INCOMPLETE", "0")
-+        out = evaluate_completeness_outcome(
-+            self._REPORT, per_team_missing=self._CUR, prior_per_team_missing=self._PRIOR
-+        )
-+        assert out["stagnant_per_team_gaps"], "still reported, so it stays visible"
-+        assert out["hard_fail"] is False
-+
-+    def test_skipped_report_suppresses_the_fail(self, monkeypatch):
-+        monkeypatch.delenv("API_FOOTBALL_FAIL_ON_INCOMPLETE", raising=False)
-+        out = evaluate_completeness_outcome(
-+            {"skipped": True},
-+            per_team_missing=self._CUR,
-+            prior_per_team_missing=self._PRIOR,
-+        )
-+        assert out["stagnant_per_team_gaps"] == []
-+        assert out["hard_fail"] is False
-+
-+    def test_absent_args_change_nothing(self, monkeypatch):
-+        monkeypatch.delenv("API_FOOTBALL_FAIL_ON_INCOMPLETE", raising=False)
-+        out = evaluate_completeness_outcome(self._REPORT)
-+        assert out["stagnant_per_team_gaps"] == []
-+        assert out["hard_fail"] is False
+-  - Per-league, per-entity expected and missing counts appear in the job summary on EVERY run.
+-  - `players` uses each competition's own reference season, and ACN resolves to 2027 rather than
+-    being reported as 24/24 missing.
+-  - `coaches` is reported and NEVER gates.
+-  - A first observation of a miss does not fail; the same (league, entity) missing on the next run
+-    does.
+-  - The gate is evaluated inside `evaluate_completeness_outcome`, so both `report["skipped"]` and
+-    `fail_on_incomplete()` suppress the FAILURE while the REPORTING survives.
+-  - Against production the check reports 0 missing for players, transfers and squads and ~23 for
+-    coaches. Anything else means the expected set is wrong, not the data.
+-  - Tests pin each of the above and fail against the pre-fix code. `python -m pytest tests/ -q`
+-    passes.
+-
+-amendments:
+-  - ROUND 2, after both specialist reviewers FAILED round 1. Authority: the CPO's approval of this
+-    task, recorded in `escalations.log`. No permission is widened, no `scope_paths` entry is added,
+-    and no decision is taken. The `impact_map` is CORRECTED, because its first version claimed a
+-    `NotFound` guard that existed for three of the four tables and not for PLAYERS, and it did not
+-    name the second new function. Both statements now match the code.
+-  - The RECURRING COST figure is unchanged and still measured: the round 2 fix pairs each league
+-    with its own snapshot timestamp, and that was dry-run to confirm partition pruning survives.
+-    `RAW_APIF_TRANSFERS` reads 383,545,007 bytes either way, byte-identical, so correctness cost
+-    nothing.
+-  - ROUND 3, after both specialists FAILED round 2 on the same finding. Authority: the CPO's
+-    approval of this task. No permission widened, no `scope_paths` entry added, no decision taken.
+-    THREE inaccurate statements in this contract are corrected, and the pattern behind them is worth
+-    naming rather than hiding: each was written in the same edit as the fix it described, so the
+-    claim ran ahead of the code.
+-      1. "Now tested directly" for `per_team_expectations_from_results` was FALSE — the extraction
+-         happened in round 2 and the tests did not. Seven tests now cover it, including that a
+-         poll-mode competition cannot appear and that the reference season is `max(seasons_list)`.
+-      2. `_ts_in_list` was listed as a module-local function "with one call site". It had NONE: it
+-         was dead code left from the rejected unpaired-timestamp design. Deleted.
+-      3. `RAW_APIF_TEAMS` was listed under TABLES READ and used in the cost derivation. The shipped
+-         code never queries it. Both statements corrected, and the cost re-measured against the
+-         queries the code actually issues.
+-  - ROUND 4, on the CPO's explicit override of the 3-round cap (recorded as `rounds_cap_override`
+-    in `review.md`). `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
+-    on a FIFTH instance: the snapshot table was described as having two readers when this diff adds
+-    a third. A self-sweep prompted by that finding then found two MORE wrong numbers in the same
+-    section, both call-site counts.
+-    THE ROOT CAUSE, finally identified rather than patched again: the `impact_map` enumerated
+-    per-test-file CALL-SITE COUNTS. Those are brittle by construction — every test added changes
+-    them, so a number written while drafting is stale by the time the tests are done — and they
+-    carry no blast radius, because a test calling a function is not a production consumer that can
+-    break. The section now counts PRODUCTION call sites only and names the one test whose assertion
+-    SHAPE breaks. That removes the class, not the instance. No code changed.
+-  - ROUND 3 verdicts: `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
+-    on a FOURTH instance of the same pattern, found inside the amendment that documents the pattern:
+-    `evaluate_completeness_outcome` was described as gaining "one optional keyword argument" when it
+-    gains two. Corrected by counting off the signature. No code change. THE ROUND CAP OF 3 IS NOW
+-    REACHED, so this is brought to the CPO rather than looped into a fourth round.
++  - `.claude/active_work.md` is under 16,000 CHARACTERS (it is 12,602 before this edit).
++  - It names, for a cold reader: current main, that the ingest cluster is closed, that cost is next
++    with its ranked list, and that no production run has yet exercised any of the four fixes.
++  - The transfers-healing item is stated as OBSERVED with its evidence, not as unverified.
++  - Every claim that was corrected this session appears in corrected form only, with no "this used
++    to say" narration, per the standing correction-replaces rule.
++  - The commit touches only artifact paths. It still requires a scope audit, because `contract.md`
++    is never artifact-exempt (F10/#409).
++
++amendments: (none)

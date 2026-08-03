@@ -1,213 +1,66 @@
-# Task contract — cause 3: the per-team endpoints get a completeness check
+# Task contract — handover: the ingest silent-failure cluster is closed, cost is next
 
 > Written on a clean tree before any file was touched. Branch
-> `feat/898-cause3-per-team-completeness` from `main` at `e7758a6`. No protected path in scope, so
-> no `protected_override`. No `site_v2/src/` path, so no `acceptance_criteria`.
-> `completeness.py` WRITES a raw table, so `impact_map:` below is required and is evidenced.
-
-impact_map: >
-  Written with the lesson from the two preceding tasks applied: BOTH failed review round 1 because
-  the map traced the one table the task was about and stopped, while the diff touched something
-  shared. Every caller of every function this diff changes is enumerated below by reading the call
-  sites, not by counting grep hits.
-
-  ⚠ THIS SECTION COUNTS PRODUCTION CALL SITES ONLY, and that is a deliberate correction rather than
-  a narrowing. Earlier versions enumerated per-test-file call-site counts, and reviewers found a
-  wrong number in FIVE separate rounds. The counts were wrong because they are brittle by nature:
-  every test I add changes them, so a number written when the section was drafted is stale by the
-  time the tests are finished. They also carry no blast radius — a test calling a function is not a
-  consumer that can break in production. What matters for blast radius is the production callers,
-  plus any test whose ASSERTION SHAPE breaks, which is called out by name below. Every count here
-  was produced by grep at the final revision, not from memory.
-
-  FUNCTION 1 — `evaluate_completeness_outcome` gains TWO optional keyword arguments
-  (`per_team_missing`, `prior_per_team_missing`, both defaulting to None) and one new key in its
-  returned dict (`stagnant_per_team_gaps`). Counted off the signature.
-    - PRODUCTION CALLERS: exactly one, `orchestrator.py`. Updated here.
-    - Both new arguments default to None and the added key is additive, so every caller that does
-      not pass them is unaffected — with ONE exception, which is the only test fact that matters:
-      `tests/test_completeness_outcome_and_summary.py::test_skipped_report_returns_no_failures`
-      asserts the returned dict by EXACT EQUALITY and therefore breaks. That file is in
-      `scope_paths` FROM THE START for this reason. The literal is EXTENDED with the new key, never
-      relaxed to a subset. No other assertion anywhere compares the outcome dict whole, verified by
-      `grep -n "outcome ==\|out ==" tests/`.
-
-  FUNCTION 2 — `persist_fixture_statistics_missing` gains one optional keyword argument.
-  PRODUCTION CALLERS: exactly one, `orchestrator.py`. No test calls it.
-
-  FUNCTION 3 — `completeness_markdown_summary` is NOT changed. The orchestrator passes it more
-  `notes` entries, which is data, not signature. No caller is affected.
-
-  NEW FUNCTIONS, none with existing callers by definition. Production call sites:
-    - `read_per_team_coverage` — one, `orchestrator.py`.
-    - `per_team_expectations_from_results` — one, `orchestrator.py`. Extracted from an inline
-      comprehension after `platform-reviewer` observed the expected-set fix lived in untested
-      orchestrator code, so a regression back to `selected_competitions()` would not be caught.
-      Covered by `TestExpectationsComeFromTheRunNotBigQuery`.
-    - `_raw_table_exists`, `_latest_snapshot_timestamps`, `detect_stagnant_per_team_gaps`,
-      `load_prior_per_team_missing`, `per_team_missing_by_league_entity` — module-local, each
-      reached from `read_per_team_coverage`, `evaluate_completeness_outcome` or `orchestrator.py`.
-
-  FIRST-RUN SAFETY, stated precisely because round 1 caught the first version overclaiming it. ALL
-  FOUR tables are existence-checked before being queried: SQUADS, TRANSFERS and COACHES via
-  `_latest_snapshot_timestamps`'s `get_table`/`NotFound`, and PLAYERS via `_raw_table_exists`.
-  PLAYERS needed its own check because it has no maxima step and so did not get one for free; both
-  reviewers found that independently. When no block survives, the query is skipped entirely rather
-  than rendering an invalid `FROM ()`. An absent table degrades to "no coverage" for that entity,
-  never an exception.
-
-  WRITER AND READERS OF THE AFFECTED TABLE — `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT`, from
-  `grep -n "COMPLETENESS_SNAPSHOT_TABLE" completeness.py` at the final revision: ONE writer,
-  `persist_fixture_statistics_missing`, and THREE readers,
-  `load_prior_fixture_statistics_missing`, `load_prior_dropped_calls` and
-  `load_prior_per_team_missing` — the third added by THIS diff. All four in `completeness.py`. The
-  payload gains one key. An earlier version of this section named only two readers, having described
-  the state before this diff rather than after it.
-
-  DOWNSTREAM LINEAGE: NONE, checked rather than assumed.
-  `grep -rn "INGEST_COMPLETENESS_SNAPSHOT" dbt_project/ scripts/` returns nothing and no dbt source
-  or model references it. It is internal run state, not warehouse data.
-
-  TABLES READ, none written: `RAW_APIF_PLAYERS` (22,589 rows / 0.55 GiB), `RAW_APIF_SQUADS`
-  (1,161 / 0.25), `RAW_APIF_COACHES` (1,591 / 0.21), `RAW_APIF_TRANSFERS` (1,143 / 6.99).
-  `RAW_APIF_TEAMS` is NOT read: expected teams come from the run's in-memory
-  `CompetitionRunResult` list, so the table appears in this module only inside comments describing
-  the rejected design. An earlier version of this contract listed it as read, which was stale copy
-  from that design. Read-only overall: this diff issues SELECTs and writes no raw entity table.
-
-  CI LAYER RULES. None engaged: no model, schema, seed or SQL file is touched.
-
-  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged; nothing is built or deployed.
-
-  BLAST RADIUS ON NUMBERS: none. No mart value can change. No fact is derived, no grain moves, no
-  entity table gains or loses a row. The diff changes what a run REPORTS and, on a repeated
-  regression, whether it exits nonzero.
+> `chore/handover-ingest-cluster-complete` from `main` at `c3e23f3`. No protected path in scope, so
+> no `protected_override`. No structural path in scope, so no `impact_map`. No `site_v2/src/` path,
+> so no `acceptance_criteria`.
 
 objective: >
-  `completeness.py`'s `FANOUT_ENTITIES` covers four fixture-level entities only, so `coaches`,
-  `players`, `player_squads` and `transfers` have NO completeness check at all. This is cause 3 of
-  #898, reserved there. #898 reports when the provider REJECTED a call, which is not the same as
-  knowing the data is whole.
+  Bring `.claude/active_work.md` up to date so a cold chat continues with zero re-investigation. It
+  is currently four PRs stale: it states that nothing is in flight and that #896, #897 and #898 are
+  open and unstarted. All three are merged, and cause 3 of #898 is merged on top. A fresh session
+  reading it today would redo work that is already live.
 
-  It matters because #896 proved this loss class is invisible to every existing test: the table GREW
-  while data was destroyed, so row-count, freshness and not-null checks all passed.
-
-  MEASURED FIRST, and it changes what this task is. Today: transfers 0 teams missing, player_squads
-  0, players 0 once each competition's own reference season is used, coaches 22-26 of 1,265 and
-  STABLE across five days. The per-team data is COMPLETE. This is regression insurance, not repair,
-  and the CPO approved it on exactly that basis: a gate introduced while the metric reads 0 starts
-  green and can only ever fire on a regression.
+  It also carries one item that this session RESOLVED and must not be left as open: transfers
+  healing was recorded as INFERRED and NOT OBSERVED. It is now observed.
 
 refs: >
-  Cause 3 of #898. #897 (`d2b5789`), #896 (`0a4f636`) and #898 (`e7758a6`) are all merged. #900 is
-  the stale blueprint cost model. Cost (#547) resumes after this.
+  #897 merged (`d2b5789`), #896 merged (`0a4f636`), #898 merged (`e7758a6`), cause 3 merged
+  (`c3e23f3`). Filed this session and still open: #900 (stale blueprint cost model), #904 (contract
+  claims are unverified). Cost programme is #547, with #895, #892 and #890 as its ranked items.
 
 scope_paths:
-  - ingestion/api_football/completeness.py
-  - ingestion/api_football/orchestrator.py
-  - tests/test_per_team_completeness.py
-  - tests/test_completeness_outcome_and_summary.py
+  - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/escalations.log
 
 decisions_taken: >
-  CPO, 2026-08-03, asked as one batch with the measurements in hand, before any file was touched:
+  None. This records state that already exists and decides nothing. Every ruling it references is
+  already in `escalations.log` or on a GitHub issue with its authority.
 
-  1. BUILD IT NOW, as regression insurance, precisely because the metric reads 0 today.
-  2. GATE `players`, `transfers`, `player_squads`. REPORT ONLY for `coaches`. Coaches sits at a
-     stable ~23 missing because the provider genuinely has no coach for those teams; gating it would
-     be permanently red, and a permanently-red gate trains everyone to ignore the alarm, which is
-     the failure mode that made ten green runs meaningless.
-  3. EXPECTED IS PER-COMPETITION, never a global year. The builder's first measurement flagged ACN
-     as 24/24 missing because it hardcoded season 2026; ACN is on 2027 and so is J1. A gate
-     repeating that assumption would be permanently red on every tournament.
+  `.claude/active_work.md` is in `scope_paths` from the start, declared here on a clean tree rather
+  than amended in later. VERIFIABLE PRECEDENT rather than an assertion: the merged #899 handover
+  contract listed exactly this path first in its own `scope_paths`. Check it with
+  `git show 36b5f98:.claude/task/contract.md`. The failure recorded in `escalations.log` was adding
+  this path MID-TASK to a CODE branch while citing a rule that did not exist, which is a different
+  thing from declaring it up front on a dedicated handover branch.
 
-  DERIVED BY RULE, not escalated: failing follows #898's ruling rather than inventing a second
-  policy. Report every run, fail only when the same (league, entity) is STILL missing on the next
-  run. The CPO's stated reason for #898 applies unchanged: a hard fail skips `dbt build` and costs
-  daily freshness, so a transient must not trigger it. A brand-new team whose first fetch fails would
-  otherwise fail the run on the day it appears.
+  ⚠ REVIEWER NOTE, because this already produced one false FAIL on this task.
+  `.claude/active_work.md` is listed in `review_exclude_paths` in `.claude/review_routing.json`, so
+  `git_discipline.py --review-patch` OMITS it from `review_input.patch` BY DESIGN. Its absence from
+  the patch is NOT evidence that it was not modified. It is modified: 62 insertions, 38 deletions
+  per `git diff --cached --stat`. READ IT FROM THE WORKING TREE. A previous scope audit of the #899
+  handover did exactly that and recorded the reasoning.
 
-  THRESHOLD DECLARATIONS.
-
-  NEW MECHANISM: declared rather than argued away. This adds a NEW CHECK, and its gate is a new
-  trigger on the existing exit path. It reuses the existing gate, exit code, snapshot table,
-  `evaluate_completeness_outcome`, both operator kill-switches and the markdown summary, so it is an
-  extension in the same sense #898's was. The CPO approved building it in this session with the
-  measurements in hand; that approval is the authority, recorded in `escalations.log`.
-
-  RECURRING COST: measured by dry-running THE QUERIES THE SHIPPED CODE ACTUALLY ISSUES, not the
-  query shapes an earlier design would have issued. Four queries per run:
-    - three `MAX(ingested_at)` maxima reads: 15,021 + 14,757 + 20,678 bytes, about 50 KB total
-    - one coverage query: 999,200,648 bytes
-    - TOTAL 999,251,104 bytes = **0.931 GiB per run**, about **$0.0045 per run and $1.66 a year**
-      at $5/TiB.
-  An earlier version of this contract derived ~1.0 GiB from shapes that included a
-  `RAW_APIF_TEAMS` scan the shipped code does not perform. The figure was close but the derivation
-  was wrong; this one is measured against the real code. No additional API calls, no change to the
-  daily quota draw, and no change to pacing or run duration beyond those four queries.
+  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none, and this is the one case where
+  "none" is safe without a figure, because the diff contains no executable line.
 
 decisions_reserved:
-  - `FANOUT_ENTITIES` itself is NOT widened. That gate is deliberate and registry-configurable.
-  - The coaches tolerance question (what number of genuine absences is acceptable, and whether it
-    should ever gate) is NOT decided. Coaches reports only.
-  - Cost (#547) is out of scope and resumes after this.
-  - `.claude/active_work.md` is deliberately NOT in `scope_paths`. The handover goes in its own
-    commit on its own branch after this merges, per the standing lesson that widening a contract to
-    admit it is the wrong move.
+  - The cost work itself (#547) is NOT started here. This task only points at it.
+  - #904's lint is filed, not built.
+  - Nothing about tomorrow's nightly is asserted. No paced run has happened yet, so the handover
+    must record the fixes as merged but UNVERIFIED in production, not as proven.
 
 done_when:
-  - Per-league, per-entity expected and missing counts appear in the job summary on EVERY run.
-  - `players` uses each competition's own reference season, and ACN resolves to 2027 rather than
-    being reported as 24/24 missing.
-  - `coaches` is reported and NEVER gates.
-  - A first observation of a miss does not fail; the same (league, entity) missing on the next run
-    does.
-  - The gate is evaluated inside `evaluate_completeness_outcome`, so both `report["skipped"]` and
-    `fail_on_incomplete()` suppress the FAILURE while the REPORTING survives.
-  - Against production the check reports 0 missing for players, transfers and squads and ~23 for
-    coaches. Anything else means the expected set is wrong, not the data.
-  - Tests pin each of the above and fail against the pre-fix code. `python -m pytest tests/ -q`
-    passes.
+  - `.claude/active_work.md` is under 16,000 CHARACTERS (it is 12,602 before this edit).
+  - It names, for a cold reader: current main, that the ingest cluster is closed, that cost is next
+    with its ranked list, and that no production run has yet exercised any of the four fixes.
+  - The transfers-healing item is stated as OBSERVED with its evidence, not as unverified.
+  - Every claim that was corrected this session appears in corrected form only, with no "this used
+    to say" narration, per the standing correction-replaces rule.
+  - The commit touches only artifact paths. It still requires a scope audit, because `contract.md`
+    is never artifact-exempt (F10/#409).
 
-amendments:
-  - ROUND 2, after both specialist reviewers FAILED round 1. Authority: the CPO's approval of this
-    task, recorded in `escalations.log`. No permission is widened, no `scope_paths` entry is added,
-    and no decision is taken. The `impact_map` is CORRECTED, because its first version claimed a
-    `NotFound` guard that existed for three of the four tables and not for PLAYERS, and it did not
-    name the second new function. Both statements now match the code.
-  - The RECURRING COST figure is unchanged and still measured: the round 2 fix pairs each league
-    with its own snapshot timestamp, and that was dry-run to confirm partition pruning survives.
-    `RAW_APIF_TRANSFERS` reads 383,545,007 bytes either way, byte-identical, so correctness cost
-    nothing.
-  - ROUND 3, after both specialists FAILED round 2 on the same finding. Authority: the CPO's
-    approval of this task. No permission widened, no `scope_paths` entry added, no decision taken.
-    THREE inaccurate statements in this contract are corrected, and the pattern behind them is worth
-    naming rather than hiding: each was written in the same edit as the fix it described, so the
-    claim ran ahead of the code.
-      1. "Now tested directly" for `per_team_expectations_from_results` was FALSE — the extraction
-         happened in round 2 and the tests did not. Seven tests now cover it, including that a
-         poll-mode competition cannot appear and that the reference season is `max(seasons_list)`.
-      2. `_ts_in_list` was listed as a module-local function "with one call site". It had NONE: it
-         was dead code left from the rejected unpaired-timestamp design. Deleted.
-      3. `RAW_APIF_TEAMS` was listed under TABLES READ and used in the cost derivation. The shipped
-         code never queries it. Both statements corrected, and the cost re-measured against the
-         queries the code actually issues.
-  - ROUND 4, on the CPO's explicit override of the 3-round cap (recorded as `rounds_cap_override`
-    in `review.md`). `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
-    on a FIFTH instance: the snapshot table was described as having two readers when this diff adds
-    a third. A self-sweep prompted by that finding then found two MORE wrong numbers in the same
-    section, both call-site counts.
-    THE ROOT CAUSE, finally identified rather than patched again: the `impact_map` enumerated
-    per-test-file CALL-SITE COUNTS. Those are brittle by construction — every test added changes
-    them, so a number written while drafting is stale by the time the tests are done — and they
-    carry no blast radius, because a test calling a function is not a production consumer that can
-    break. The section now counts PRODUCTION call sites only and names the one test whose assertion
-    SHAPE breaks. That removes the class, not the instance. No code changed.
-  - ROUND 3 verdicts: `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
-    on a FOURTH instance of the same pattern, found inside the amendment that documents the pattern:
-    `evaluate_completeness_outcome` was described as gaining "one optional keyword argument" when it
-    gains two. Corrected by counting off the signature. No code change. THE ROUND CAP OF 3 IS NOW
-    REACHED, so this is brought to the CPO rather than looped into a fourth round.
+amendments: (none)
