@@ -5,8 +5,8 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-02**. main GREEN at **d20c5bc**; **#846 and #886 are MERGED**. **IN FLIGHT:
-`fix/547-base-tables-and-cost-guard` — the COST regression, 4 reviewers PASS in 3 rounds.**
+_Last updated **2026-08-03**. main GREEN at **bb61a51**. **NOTHING IN FLIGHT — no open PRs.**
+**#846, #886, #547-PR1 and #890 are all MERGED.**
 The product is **Matchday Pilot** on `matchdaypilot.com`.
 **FIRST ACTIONS: read "⭐ THE REVIEW RULES CHANGED" below — it changes how every task runs — then run
 `git stash list` before any git work.** The player page is FOUR tabs (#848); its Overview is **BUILT
@@ -50,18 +50,21 @@ as a hack before I did.
 ## ⭐ COST IS A FUNDAMENTAL REQUIREMENT, NOT A WISH — and it silently regressed for two months
 **Never say cost optimisation "was never anyone's task".** It is **#547** (an open program) and
 Thread 1 of `docs/product_direction_threads.md`, CLOSED 2026-05-25 as "architecture signed off".
-**What actually happened:** `3fbbc64` landed the fix on 05-25; `6e4ba18` (unified staging, #253/#254)
-removed every caller two days later. The macro `apif_latest_source_partition.sql` still has ZERO
-callers. Spend: Apr $1.58 → May $46.63 → **Jun $82.89**. Nothing caught it, because all ~865 dbt
-tests ask "is this number right", none asks "did this get expensive".
-**Measure before claiming: `python scripts/report_bq_cost.py`** (read-only, free). Last 35d: dbt prod
-$29.79 / raw payload reads $21.47 / dbt CI $13.75; within prod **tests $23.91 vs builds $5.84**.
-`RAW_APIF_TRANSFERS` is 6.82 GiB over 1,117 rows, scanned ~7x a night.
-**In flight:** `2_base` becomes TABLES so tests stop re-scanning raw, pinned repo-wide by
-`tests/test_materialisation_policy.py`.
-**Still open: #890** the ingestion `ORDER BY … LIMIT 1` that reads every partition to return one row.
-⚠ **Three completeness claims in that one task, all wrong** (4→7→8 sites; "four" base models where
-dbt says nine). **Paste the command output or do not claim it.**
+**What happened:** the 05-25 fix was removed two days later by the unified-staging refactor; the
+macro `apif_latest_source_partition.sql` still has ZERO callers. Apr $1.58 → **Jun $82.89**. Nothing
+caught it: all ~865 dbt tests ask "is this number right", none asks "did this get expensive".
+**MEASURE BEFORE CLAIMING: `python scripts/report_bq_cost.py`** (read-only, free). Baseline, last
+35d before the fixes: dbt prod $29.79 / raw reads $21.47 / CI $13.75; within prod **tests $23.91 vs
+builds $5.84**.
+**LANDED:** `2_base` is TABLES (tests read a stored table, not the raw JSON), pinned by
+`tests/test_materialisation_policy.py`; and #890, the ingestion read, now `MAX(ts)` then
+`payload WHERE ts = @ts` — **6.634 GiB → 2.96 MiB**.
+**⚠ FIRST NIGHTLY WITH BOTH: 2026-08-03 ~06:30Z. Report the measurement, never a projection.**
+**STILL OPEN: #892**, the same defect in **6 of 15 staging models**: each reads every partition to
+find the newest snapshot, which is ~2% of the table and grows with uptime.
+**⭐ `bq query --dry_run` is free and exact — use it to CHOOSE a query shape.** It proved a subquery
+predicate does NOT prune (same 6.634 GiB), so the tempting one-query form is wrong.
+⚠ **Paste the command output or do not claim it** — 3 completeness claims in #547 were wrong.
 
 **The org/process overview was delivered** (a visual board, not committed); he said *"I wanted
 something else but nevermind."* Guess: a MAP of how work flows, not a reference board. Do not
@@ -129,14 +132,12 @@ Merged: **#878** (review scope) · **#879** (#370 metric labels, per locale) · 
   reselling is the one hard prohibition.
 
 ## NEXT
-1. **Merge #846** (the CPO merges), then **#845** — which entities earn a page, HIS decision, bring
-   him the page counts. Then the player page comes off `stash@{0}`, Performance → Career, ONE tab
-   at a time.
-2. **#882 + #845 are one decision.** Season pages multiply page count by history depth (1 to 11 per
-   competition) on top of 154,644 player pages. Decide them together.
-3. **#880 RESOLVED, no code change.** The mermaid is valid and renders; GitHub renders it in a
-   viewscreen iframe and the error box was that bundle failing. A committed SVG was offered, not taken.
-4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
+1. **#892** — the last half of the cost work, and it needs nothing from the CPO.
+2. **#845 + #882 are ONE decision, and his.** Which entities earn a page, and whether a past season
+   gets a URL or a control. Deciding them apart sets the URL shape twice. Bring the counts, not a
+   general question. Then the player page comes off `stash@{0}`, Performance → Career, one tab at a
+   time.
+3. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 5. Follow-ups: **#875** metric GROUP headings render in English on DE/FI pages, **needs a CPO ruling**
    on where a group name lives · **#877** `GD`, `W/D/L`, `T·I·B` and the result letters reach DE/FI
    readers in English, needs only the words · **#876** Performance rows break mid-word (CPO: filed) ·
