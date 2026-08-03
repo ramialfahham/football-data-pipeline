@@ -1,35 +1,36 @@
-# Review — chore/handover-cost-work — 2026-08-03
+# Review — chore/handover-ingest-and-cost — 2026-08-03
 
-branch: chore/handover-cost-work
-diff_sha256: 293453d1c6f4f1452db338d126bd3cb319fe931c5eef2e12d3360a7810557c00
+branch: chore/handover-ingest-and-cost
+diff_sha256: a6f53f1d7f980bead1d17bc1dc32ba55b01b968dc03a777f638f0c0c58abc3a4
 
 rounds: 1
 # Only `scope-auditor` is required: the diff touches `.claude/task/contract.md` and
 # `.claude/active_work.md`, and no routing row matches either. The commit is NOT artifact-exempt,
-# because `contract.md` is never artifact-exempt (F10/#409) — which is why this ran at all.
+# because `contract.md` is never artifact-exempt (F10/#409).
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The #890 round-3 finding is resolved rather than relocated. That one failed because the authority
-  cited was an undocumented "standing handover rule". Here the authority is documented and was
-  checked at source: `working_agreement.md` §2 explicitly names `.claude/task/**` and
-  `.claude/active_work.md` as governance artifacts. Moving the edit to its own branch is the fix,
-  not a rewording of the same claim.
-- Every changed path is in `scope_paths`. `.claude/active_work.md` does not appear in the reviewed
-  patch because it is in `review_exclude_paths`, and was read from the working tree instead.
-- No §10 class is touched: no product or UX decision, no metric, no naming, no new mechanism, no
-  rule reinterpretation, no shipped number, no cost or scope change.
-- `decisions_taken: None` is accurate. The branch records state produced by already-approved PRs and
-  rulings that already sit in `escalations.log` with their authority.
-- `RECURRING COST: none` without a figure is honest here specifically, because the diff contains no
-  executable line. The standing instruction to cite a measured number applies where something can
-  run; nothing here can.
-- The handover checked against the merged PRs: it records #846, #886, #547 PR1 and #890 as merged
-  without overstating them, marks #892 and the #845/#882 pair as open rather than settled, and
-  labels the 2026-08-03 nightly as the first measurement point rather than presenting a projected
-  saving as fact.
-- Appendix A: none apply to an artifact-only diff.
+- Scope: the only file in the reviewed patch is `contract.md`, which is in `scope_paths`.
+  `.claude/active_work.md` is correctly absent from the patch because it sits in
+  `review_exclude_paths`, and was read from the working tree instead.
+- Accuracy, spot-checked against the code rather than taken on trust: `settings.py:146` does default
+  `API_FOOTBALL_REQUEST_PAUSE_MS` to 0 under the `full` profile; `loads/squads.py:35-66` does delete
+  prior rows for the same key after appending; the "tables grew while data was destroyed" claim is
+  coherent, because failed responses add an empty row and delete the good one while successful
+  fetches add more; the coaches full-snapshot behaviour matches the 2026-06-23 CPO ruling in
+  `escalations.log`; `stg_apif__squads` has zero consumers outside its own schema test, verified by
+  grep.
+- The `transfers` healing is stated as UNVERIFIED, which is accurate: healing is verified in code but
+  not yet observed in a completed run, and the handover gives the query that would settle it.
+- "No public site" is correct and the ingest findings are not overstated as a live user incident.
+- `decisions_taken: None` is accurate. Every item either records a decision already made with its
+  authority, or is listed as open.
+- The standing correction-replaces rule is honoured: grep found no "an earlier version said X"
+  narration anywhere in the rewrite; corrected cost claims appear in final form only.
+- Threshold declarations match the diff: no new mechanism, and "none" for recurring cost is safe here
+  because the diff contains no executable line.
+- Appendix A: none of A1 to A6 apply. No credential or secret in the diff.
 
 ## escalations
 (none)
