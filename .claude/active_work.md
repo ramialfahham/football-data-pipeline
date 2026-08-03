@@ -5,42 +5,49 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-03**. main GREEN at **bb61a51**. **NOTHING IN FLIGHT — no open PRs.**
-Merged this session: #846, #886, #547-PR1, #890. The product is **Matchday Pilot**.
+_Last updated **2026-08-03**. main GREEN at **c3e23f3**. **NOTHING IN FLIGHT — no open PRs.**
+Merged this session: **#897 `d2b5789`, #896 `0a4f636`, #898 `e7758a6`, #898 cause 3 `c3e23f3`.**
+The product is **Matchday Pilot**.
 **FIRST ACTIONS: run `git stash list` before any git work** (`stash@{0}` is the player Overview, built,
 uncommitted, do NOT rebuild) — then read the two ⭐ blocks below, in order._
 
-## ⭐ START HERE — the ingest silently drops data and reports success (#896, #897, #898)
+## ⭐ START HERE — the ingest cluster is CLOSED but UNVERIFIED. Cost is next.
 
-Found 2026-08-03 by reading a nightly log. **10 of the last 18 nightly runs dropped API calls. Every
-one reported `success`.** Onset 2026-07-16, caused by volume growth, not a code change.
+The four fixes below are merged and live. **NO PRODUCTION RUN HAS EXERCISED ANY OF THEM.** The last
+nightly ran 2026-08-03 07:25 UTC; #897 merged at 09:06. **The 08-04 04:00 UTC run is the first paced
+one.** Read it before claiming anything works:
 
-**Fix in this order. All three are open and none is started.**
+`gh run list --workflow dbt-scheduled.yml --limit 3` then
+`gh run view <id> --log | grep -c "rateLimit: Too many requests"`
 
-1. **#897 — production runs UNPACED.** `settings.py:146` defaults `API_FOOTBALL_REQUEST_PAUSE_MS=0`
-   under the `full` profile, and `dbt-scheduled.yml` sets no profile, so it inherits zero.
-   `docs/api_football_ingestion_blueprint.md` §4 mandates 0.25s and names the **per-minute burst** as
-   the binding constraint. Production violates a requirement we wrote. Cheapest fix, do it first.
-2. **#896 — an empty response DELETES the previously good rows.** `loads/squads.py:35-66`
-   `_delete_superseded_player_rows` writes the empty row then deletes the prior one for the same key.
-   Verified by time travel on 08-02: UCL 340 `25→0` players, UEL 573 `24→0`, UECL 20034 `23→0`,
-   APD 463 `46→40`. `fct_transfer` moves for UEL 376 `389→118` (−70%).
-   **⚠ THE TABLES GREW WHILE THIS HAPPENED** (`RAW_APIF_PLAYERS` 721,755→721,938). No row-count,
-   freshness or not-null test can see this class. This is the worst of the three.
-3. **#898 — the failure is invisible in FOUR places.** The per-minute limit arrives as **HTTP 200
-   with the error in the body**, so `http_client.py:31` (retries on 429) never fires and there are
-   ZERO retries. `quota.py:28` only matches the *daily* text, so the completeness guard gated on it
-   never runs. `completeness.py:35` covers only fanout entities. `orchestrator.py:216` never puts
-   `ctx.errors` in the job summary. **Do NOT just fail the run** — that blocks the daily build and
-   daily freshness is required. Threshold policy is a CPO decision.
+Expect **zero** rate-limit drops, and ingest near **98 min** (run ~1h46m) rather than 63 min. The
+08-03 baseline was 6 drops in 1h16m38s; 08-02 was 26 drops. If it lands materially off, the 1.55x
+pacing estimate was wrong — say so with the log output rather than explaining it away.
 
-**Verified vs not.** `coaches` never loses data (staging keeps all snapshots). `player_squads` leaves
-a staging hole with **zero consumers** (`stg_apif__squads` has one grep hit, its own schema test).
-`players` loss VERIFIED, healing verified in code. **`transfers` loss VERIFIED, healing INFERRED and
-NOT OBSERVED** — the 08-03 run was still in flight. Confirm with:
-`bq query 'select date(ingested_at), count(*) from raw.RAW_APIF_TRANSFERS where league_code="UEL" group by 1 order by 1 desc limit 3'`
+**What shipped, and what each one does NOT do:**
+1. **#897 pacing.** `settings.py` `full` profile now defaults `API_FOOTBALL_REQUEST_PAUSE_MS=250`.
+   Reduces the failure RATE only.
+2. **#896 no destructive supersede.** An incomplete fetch (body-level error OR quota cut) neither
+   writes nor deletes, so the prior row survives and the team-season stays un-captured and re-fetches.
+   Stops the data LOSS. Does not make failure visible.
+3. **#898 visibility.** Per-minute limit is retried once, counted by endpoint in the job summary, and
+   hard-fails only on STAGNATION (same endpoint two runs running). Does not measure completeness.
+4. **cause 3 per-team completeness.** `read_per_team_coverage` compares expected teams (from the
+   run's `CompetitionRunResult`, never from BigQuery) against players/squads/transfers/coaches.
+   **Gates the first three; COACHES reports only** (~23 teams genuinely have no coach, so gating is
+   permanently red).
 
-**No user impact today: there is no public site.** Do not present this as a live incident.
+**Measured, and each corrected a document or an assumption:**
+- **Plan is Ultra: 450/min, 75,000/day**, from `x-ratelimit-limit` headers. The blueprint said Pro
+  300/min and had no row for us. Daily draw is ~8,300 of 75,000 (~11%), so the daily quota is NOT
+  the constraint.
+- **Transfers healing is OBSERVED**, not inferred: UEL team 376 `184 → 0 → 184` across 08-01/02/03.
+  `load_transfers_batch` is append-only with no delete, so raw history survives and the gap is
+  staging masking, recoverable. Materially lower severity than `players`.
+- **Per-team data is COMPLETE today**: players/squads/transfers **0 teams missing**, coaches 29 of
+  2,058. That is why cause 3's gate starts green and can only fire on a regression.
+
+**No user impact: there is no public site.** Do not present any of this as a live incident.
 
 ## ⭐ COST — read #547's 2026-08-03 comment before touching anything
 
@@ -61,6 +68,25 @@ corrections. Do not redo the analysis. Key traps:
   `apif_latest_source_partition` macro never pruned either. `python scripts/report_bq_cost.py`
   (shipped in #547 PR1, read-only, free) gives spend by workload, by dbt node, tests vs models.
 - ⚠ **Paste the command output or do not claim it.** Three completeness claims in #547 were wrong.
+- **#547's ranked list, in ITS order, not from memory.** 1 the ingest cluster (DONE). 2 fetch-side
+  skip on `/standings` `/teams` `/coachs` `/injuries` — they loop every configured season daily with
+  no skip; an API-VOLUME finding, explicitly NOT a proven quota breach. 3 `pages-match-preview.yml`
+  rebuilds unconditionally (07:30Z cron, no `new_data` gate) — ranked here but NEVER MEASURED.
+  4 **#895** ~$9.96/35d, needs the CPO's slim-vs-drop call. 5 **#892** staging pruning ~$2/month.
+  6 guards (`require_partition_filter`, `maximum_bytes_billed`), neither set. 7 merge-on-write.
+- **MEASURED 2026-08-03 post-PR1, `report_bq_cost.py --days 1`: $2.73/day total**, dbt prod $2.22
+  (tests $1.46 vs models $0.75), ingestion raw reads $0.26. PR1 WORKED: the `base_apif__transfers`
+  tests that led the 14-day table at ~$1.07 each are gone from the top.
+  **The top remaining test is `not_null_stg_apif__transfers_raw_ingested_at` at $0.30/day — a test
+  on a STAGING model, still a view, re-scanning `RAW_APIF_TRANSFERS` (6.99 GiB).** That is PR1's bug
+  one layer up, and #547's baseline already measured staging tests at $5.02/35d. Likely the next
+  real lever, but confirm against a quiet day: 2026-08-03 saw 7 runs of every node because four PRs
+  merged, so it overstates a normal day.
+- **The two-step read is the proven cheap shape** and cause 3 uses it: per-league `MAX(ingested_at)`
+  first (14.8 KB), then those timestamps inlined as LITERALS. Measured on `RAW_APIF_TRANSFERS`
+  (6.99 GiB): subquery-MAX predicate **7.51 GB**, literals **384 MB**, maxima alone **14.8 KB**.
+  Pair each league to its OWN timestamp; two independent `IN` filters let one league's row satisfy
+  another and make a real miss look covered.
 
 ## ⭐ REVIEW MECHANICS — what you cannot derive from the working agreement
 
@@ -115,11 +141,18 @@ slot. Never design the canonical page around an edge case. Build ONE tab at a ti
   Blocked on those 16 being the CPO's copy.
 - Delete or rewrite `macros/apif_latest_source_partition.sql` — zero callers and it never pruned.
 - A metric-change skill · mirror the crests · reviewers as peers (#822 shipped only the model half).
+- **#904: contract claims about the code are unverified.** SEVEN false factual statements in one
+  task's `contract.md`, every one caught in review, costing five rounds and two cap overrides on a
+  task whose CODE passed cleanly. Cause: the contract is written BEFORE the code, so its claims are
+  predictions, and nothing re-reads it against the finished tree. Measurements never failed because
+  producing them verified them. **Until the lint exists: grep every "is tested / is read / has N
+  callers / gains N arguments" claim before writing it**, and never count test-file call sites.
+- **#900: blueprint §4 says a full daily run is 20-50 API calls; measured ~8,300.**
 
 ## NEXT
-1. **#897 → #896 → #898**, in that order.
-2. **#845 + #882** — the CPO's decision. Then the player page off `stash@{0}`, one tab at a time.
-3. Resume cost per #547's ranked list.
+1. **Read the 08-04 nightly** (see the ⭐ block). It is the first evidence for any of the four fixes.
+2. **COST, per #547's ranked list.** #895 first, and it needs the CPO's slim-vs-drop call.
+3. **#845 + #882** — the CPO's decision. Then the player page off `stash@{0}`, one tab at a time.
 4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 5. Follow-ups: **#875** metric GROUP headings in English on DE/FI, needs a CPO ruling on where a group
    name lives · **#877** `GD`, `W/D/L`, `T·I·B` need the DE/FI words · **#876** rows break mid-word ·
@@ -131,7 +164,8 @@ slot. Never design the canonical page around an edge case. Build ONE tab at a ti
 ## OPEN — the CPO's alone
 **Imprint operator + address** (#799), blocks publication, never conclude it · hosting recurring run ·
 the feedback Apps Script (#687) · **#850**'s alias decision · **#875** where a group name lives ·
-#898's threshold policy · #895 slim-vs-drop.
+**#895 slim-vs-drop, which blocks the biggest remaining cost item**. (#898's threshold policy is
+DECIDED and shipped: visible always, fail only on stagnation.)
 
 ## DO NOT (standing)
 - Do NOT treat the tracker as agreed work; re-validate before acting.
@@ -171,6 +205,7 @@ the feedback Apps Script (#687) · **#850**'s alias decision · **#875** where a
   Nothing is published, which is why URLs are still free to change.
 - **v2 built:** design system + 26 components, fixture page, team page (3 tabs), nav shell,
   page-spec + SEO contract (#826/#844), metric labels per locale (#879).
-- **Tests:** 258 governance, 59 site (`cd site_v2 && npm test`), 506 python total.
+- **Tests:** **583 python** (measured 2026-08-03, `.venv/Scripts/python.exe -m pytest tests/ -q`),
+  plus 59 site (`cd site_v2 && npm test`). The governance count is not re-measured here.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). API-Football:
   reselling is the one hard prohibition.
