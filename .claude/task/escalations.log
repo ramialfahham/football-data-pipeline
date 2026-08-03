@@ -400,3 +400,78 @@ This entry is the durable record of the metric-definition authority the contract
   - (why it is agent-executable, stated because the first version of the contract did not) §10 reserves cost decisions about **API budget, history depth, run cadence and widening a task**. This changes none of those: same data, same cadence, same history, identical return value, fewer bytes read. `scope-auditor` FAILED the first version for declaring a RECURRING COST threshold while citing no authority at all — a fair hit, since the authority existed and I simply had not written it down.
   - (an amendment attempted and WITHDRAWN, round 3) I added `.claude/active_work.md` to `scope_paths` so the handover could be updated in this branch, citing "the standing handover rule". `scope-auditor` FAILED it and was right: that rule is not documented in `working_agreement.md`, `CLAUDE.md` or `agent_guardrails.md`, and §2 requires an amendment to record CPO **authority**, not a rule name I have invented a title for. Withdrawn rather than re-argued. **The handover never needed to be in this branch at all** — the working agreement already exempts a commit touching only `.claude/task/**` and `.claude/active_work.md` from the review cycle, so it goes in its own commit. Withdrawing restored the diff to byte-identical with what all three reviewers passed (`51f6ff2…`), which is why this was not a fourth round. ⚠ THE LESSON: when a gate says a path is out of scope, the first question is whether the EDIT belongs in this branch, not how to widen the contract to admit it.
   - (⭐ THE MEASUREMENT THAT SETTLED THE DESIGN, and it is reusable) `bq query --dry_run` bills nothing and reports exact bytes, so the shape was chosen from numbers rather than from instinct. On `RAW_APIF_TRANSFERS`/BL1: `ORDER BY … LIMIT 1` **6.634 GiB**; `MAX(ingested_at)` alone **0.013 MiB**; `payload WHERE ingested_at = @ts` **2.95 MiB**; and the tempting one-query form `WHERE ingested_at = (SELECT MAX(…))` **6.634 GiB — a subquery predicate does NOT prune**. That last number is the whole reason the fix is two round trips, and it is the thing a future reader will try to "simplify" away. Parameters were dry-run too and prune exactly like literals. **Dry-run before choosing a query shape; it is free.**
+
+## 2026-08-03 — #897, production pauses between API calls (PR 1 of the ingest silent-failure cluster)
+
+- (CPO ruling, AskUserQuestion, taken as ONE batch before any file was touched) Four questions were
+  put together rather than one per round, and all four were answered in a single pass:
+  1. **#897 is fixed via the `settings.py` profile default, not via `dbt-scheduled.yml`.** The
+     workflow route touches a protected path and would need `protected_override` + `impact_map` +
+     cto/platform at the opus floor. The settings route needs none of that AND prevents recurrence,
+     because after it nothing can inherit zero pacing by omission. The value is 250 ms, the figure
+     `docs/api_football_ingestion_blueprint.md` §4 already mandates.
+  2. **#898's threshold policy: visible always, fail only on STAGNATION.** Dropped calls are
+     surfaced in the job summary counted by endpoint on every run; a single bad run never fails,
+     because failing blocks the dbt build and daily freshness is a stated non-negotiable. The run
+     fails only when the same entity drops on N consecutive runs, i.e. when it is demonstrably not
+     healing. Reuses the existing `stagnant_statistics` no-progress-since-last-run pattern rather
+     than inventing a mechanism. Belongs to PR 3, recorded here because it was decided here.
+  3. **#896 covers the empty AND the partial case in one PR.** The CPO classified
+     "a fetch result carries whether it is complete, and only a complete result may supersede" as an
+     extension of the `quota_cut` PARTIAL handling already in `squads.py`, NOT a new mechanism.
+  4. **Three sequential PRs**, #897 then #896 then #898, so the one-setting pacing fix can merge
+     without waiting on the other two.
+
+- (⭐ THE MEASUREMENT THAT SETTLED THE COST APPROVAL, and it corrects a doc we wrote) The blueprint's
+  §4 table had **no row for the plan we are actually on** and its pacing rule was written against
+  Pro's 300/min. Measured from the provider's own response headers: `x-ratelimit-limit: 450` and
+  `x-ratelimit-requests-limit: 75000`. We are on **Ultra: 450/min, 75,000/day**. So 250 ms caps the
+  request rate at 240/min, i.e. **53% of the real ceiling**, not the 80% the old table implied.
+  Daily usage measured the same day: **7,437 of 75,000, about 10%**. This CONFIRMS the two prior
+  signed-off assessments that the API budget is fine, and is the evidence the standing rule demanded
+  before anyone claims otherwise.
+
+- (the wall-clock trade, approved with the number in hand) Pacing is not free and the cost is
+  RECURRING. Ingest averages **0.455 s/call** today (63 min of ingest, 06:32:20 to 07:35:18 on the
+  2026-08-02 nightly); adding 250 ms makes it 0.705 s/call, a factor of **1.55**. Ingest goes to
+  ~98 min and the whole run from 1h11m to about **1h46m**. The job sets no `timeout-minutes`, so
+  GitHub's 6h default applies: **~3.4x headroom**, and Actions minutes are free on a public repo.
+  Daily freshness therefore survives, which is the non-negotiable this trade was checked against.
+  Cost, data quality and daily freshness are all non-negotiable, so trading one for another is a CPO
+  call; the numbers were put in front of the CPO before the option was chosen, not after.
+
+- (SCOPE DRIFT, caught and REVERTED by the builder before commit) The approved plan listed the
+  blueprint's stale "20-50 API calls total" estimate under **Not in scope**. While correcting the
+  §4 table I edited that bullet anyway, having first added a measured "~8,300 calls" figure directly
+  above it that made the two adjacent lines contradict. Both edits were reverted so the diff matches
+  the approved plan exactly, and the stale estimate was filed as **#900** instead. ⚠ THE LESSON is
+  the one already in this log in a different form: when an edit outside the agreed scope looks
+  obviously right, the drift is not the edit, it is having created the justification for it a moment
+  earlier. The plan is the authority, and "it is only one line" is how a contract stops meaning
+  anything.
+
+- (the gate corrected the contract, and it was right) The first contract said "No structural path in
+  scope, so no `impact_map`". The CONTRACT GATE refused the `settings.py` edit: that file is on the
+  structural surface. The `impact_map` was added on a clean tree as an evidenced SHORT FORM, and the
+  evidence is a complete call trace rather than a claim of triviality: `API_FOOTBALL_REQUEST_PAUSE_MS`
+  is read at exactly one site (`quota.py:99`), which has exactly one caller (`_throttle`,
+  `quota.py:109`), which has exactly one call site (`http_client.py:51`). No dbt node, no schema, no
+  column, no row grain is touched, so there is no lineage to trace and no layer rule engaged. The
+  reachable effect of the diff is the duration of one `time.sleep()`.
+
+- (a test that pins behaviour, because #892 is the precedent) #897 asked for a test pinning the
+  default, since a silently reverted default regressed for two months. `tests/test_ingest_profile_pacing.py`
+  pins the effective pause through `_request_pause_seconds()`, not just the env string, so a change
+  to either `settings.py` or `quota.py` has to face it. **Verified it actually pins**: reverted the
+  value to `0` and 4 of 7 tests failed, including `test_production_config_is_paced`, which
+  reproduces production exactly (no profile set, so `full` is inherited). The 3 that still passed
+  are the explicit-override and economy cases, which correctly do not depend on the default.
+
+- (⚠ A BUG IN MY OWN TEST, found by running the FULL suite rather than the new file) The new tests
+  passed alone and broke `test_wide_history_truncates_to_profile_cap_on_default_profile` when the
+  suite ran in file order. Cause: `_apply_ingest_profile_defaults` writes the WHOLE profile bundle
+  via `os.environ.setdefault` (`ALL_SEASONS`, page caps, fanout soft cap), and **monkeypatch only
+  reverts what monkeypatch itself set**, so the bundle leaked into later tests. Fixed with an
+  autouse fixture that snapshots and restores `os.environ` wholesale. THE LESSON: a test that calls
+  a function which mutates global process state cannot be cleaned up with `monkeypatch.delenv` on
+  the one variable under test, and running only the new file will never show it.

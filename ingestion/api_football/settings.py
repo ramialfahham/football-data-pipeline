@@ -121,7 +121,12 @@ def _apply_ingest_profile_defaults() -> None:
     """
     **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
     default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
-    history_seasons widens it, no request pacing unless you set it, and high pagination caps.
+    history_seasons widens it, a 250 ms pause between requests, and high pagination caps.
+
+    The pause is the blueprint's §4 rule (``time.sleep(0.25)``), and the constraint it protects is
+    the **per-minute** burst limit, not the daily quota. It defaults here rather than in a workflow
+    so nothing can inherit zero pacing by omission: this default used to be ``0``, no workflow set
+    the variable, and production therefore ran unpaced until #897.
     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
 
     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
@@ -143,7 +148,7 @@ def _apply_ingest_profile_defaults() -> None:
 
     d = os.environ
     d.setdefault("API_FOOTBALL_ALL_SEASONS", "1")
-    d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
+    d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "250")
     d.setdefault("API_FOOTBALL_PLAYERS_MAX_PAGE", "50")
     d.setdefault("API_FOOTBALL_PLAYERS_RESERVE_CALLS", "20")
     d.setdefault("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", "-1")
@@ -152,7 +157,7 @@ def _apply_ingest_profile_defaults() -> None:
     print(
         "[api-football] ingest profile=full -> unset env got paid defaults "
         f"(multi-season within the default window last {DEFAULT_SEASON_WINDOW_YEARS} API season years, "
-        "REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
+        "REQUEST_PAUSE_MS=250, higher page caps, fanout soft cap off). "
         "Unset API_FOOTBALL_SEASON for multi-season; set any var explicitly to override.",
         flush=True,
     )
