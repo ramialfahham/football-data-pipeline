@@ -20,6 +20,7 @@ from .completeness import (
     completeness_markdown_summary,
     completeness_summary_line,
     evaluate_completeness_outcome,
+    load_prior_dropped_calls,
     load_prior_fixture_statistics_missing,
     persist_fixture_statistics_missing,
     run_ingest_completeness_checks,
@@ -53,7 +54,9 @@ from .registry import (
 from .quota import (
     _bind_quota_error_sink,
     _dedupe_errors_preserve_order,
+    minute_rate_limit_counts,
     reset_http_quota_exhausted,
+    reset_minute_rate_limit_counts,
 )
 from .loads.context import PipelineContext
 from .ingest_plan import resolve_ingest_mode
@@ -90,6 +93,7 @@ def _load_api_football(request):
         lock_acquired = True
 
         reset_http_quota_exhausted()
+        reset_minute_rate_limit_counts()
         _apply_ingest_profile_defaults()
         _bind_quota_error_sink(ctx.errors)
         _lo = effective_season_min()
@@ -203,19 +207,42 @@ def _load_api_football(request):
             msg += f" Notes: {tail}"
 
         prior_stats_missing = load_prior_fixture_statistics_missing(client)
+        # Read BEFORE persisting this run's counts, or the comparison is against itself.
+        prior_dropped = load_prior_dropped_calls(client)
+        dropped_calls = minute_rate_limit_counts()
         report = run_ingest_completeness_checks(client)
         print(completeness_summary_line(report), flush=True)
 
         outcome = evaluate_completeness_outcome(
             report,
             prior_fixture_statistics_missing=prior_stats_missing,
+            dropped_calls=dropped_calls,
+            prior_dropped_calls=prior_dropped,
         )
-        persist_fixture_statistics_missing(client, report, run_id=run_id)
+        persist_fixture_statistics_missing(
+            client, report, run_id=run_id, dropped_calls=dropped_calls
+        )
 
         # Always render the markdown summary so the per-competition coverage
         # state is visible on every workflow run page.
         notes: list[str] = []
         notes.append(f"Loaded {ctx.tables_loaded} API-Football tables.")
+        # #898: a run that dropped calls must not look like a clean one. Before this, ctx.errors
+        # reached only a stdout line that was deduped and truncated at 40 entries, so 10 of 18
+        # nightly runs reported success while dropping calls.
+        if dropped_calls:
+            notes.append(
+                f"DROPPED {sum(dropped_calls.values())} API call(s) to the per-minute rate limit: "
+                + ", ".join(f"{ep} {n}" for ep, n in dropped_calls.items())
+            )
+        if outcome["stagnant_dropped_calls"]:
+            notes.append(
+                "STAGNANT dropped calls (same endpoint two runs running): "
+                + ", ".join(
+                    f"{s['endpoint']} ({s['prior_count']} then {s['count']})"
+                    for s in outcome["stagnant_dropped_calls"]
+                )
+            )
         if outcome["soft_partial"]:
             partial_codes = ", ".join(
                 f"{p['league_code']} ({p['total_missing']} missing)"
@@ -243,6 +270,18 @@ def _load_api_football(request):
 
         if outcome["hard_fail"]:
             parts: list[str] = []
+            if outcome["stagnant_dropped_calls"]:
+                # A single bad run stays green on purpose: the per-minute limit self-heals, and
+                # failing skips the dbt build (every post-ingest step is gated on this step
+                # succeeding), which would cost daily freshness. Two runs running means it is not
+                # healing, and that IS worth a day of staleness. CPO decision, 2026-08-03.
+                parts.append(
+                    "dropped calls not healing: "
+                    + ", ".join(
+                        f"{s['endpoint']} ({s['prior_count']} then {s['count']})"
+                        for s in outcome["stagnant_dropped_calls"]
+                    )
+                )
             if outcome["hard_gated_failures"]:
                 parts.append(
                     "incomplete: "

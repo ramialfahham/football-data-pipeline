@@ -198,19 +198,68 @@ def load_prior_fixture_statistics_missing(
     return {str(k): int(v) for k, v in raw.items()}
 
 
+def load_prior_dropped_calls(client: bigquery.Client) -> dict[str, int] | None:
+    """Previous run's per-endpoint dropped-call counts, or None if there is no prior record.
+
+    None means "no comparison possible" and the stagnation check stays silent, which is the same
+    fail-open direction ``load_prior_fixture_statistics_missing`` takes: a first run, or a run after
+    the snapshot was skipped, must not raise a false alarm.
+    """
+    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+    if not payload:
+        return None
+    raw = payload.get("dropped_calls_by_endpoint")
+    if not isinstance(raw, dict):
+        return None
+    return {str(k): int(v) for k, v in raw.items()}
+
+
+def detect_stagnant_dropped_calls(
+    current: dict[str, int],
+    prior: dict[str, int] | None,
+) -> list[dict[str, Any]]:
+    """Endpoints that dropped calls on BOTH this run and the previous one (#898).
+
+    The window is prior-versus-current, matching ``detect_stagnant_statistics_backfill`` exactly.
+    Two stagnation signals share one exit path, so they must agree on what "stagnant" means.
+
+    A single bad run is deliberately NOT a failure: the per-minute limit is transient and self-heals,
+    and failing would skip the dbt build and cost daily freshness. Two consecutive runs on the same
+    endpoint means it is not healing (CPO decision, 2026-08-03).
+    """
+    if not prior:
+        return []
+    stagnant: list[dict[str, Any]] = []
+    for endpoint, count in sorted(current.items()):
+        prev = prior.get(endpoint, 0)
+        if count > 0 and prev > 0:
+            stagnant.append(
+                {"endpoint": endpoint, "prior_count": prev, "count": count}
+            )
+    return stagnant
+
+
 def persist_fixture_statistics_missing(
     client: bigquery.Client,
     report: dict[str, Any],
     *,
     run_id: str,
+    dropped_calls: dict[str, int] | None = None,
 ) -> None:
-    """Store this run's statistics gap signature for stagnation checks on the next run."""
+    """Store this run's statistics gap signature for stagnation checks on the next run.
+
+    Also stores per-endpoint dropped-call counts (#898) in the same payload, so the dropped-call
+    stagnation check reuses this table rather than adding one. The table has no dbt consumer
+    (verified: no reference anywhere under dbt_project/ or scripts/), so the extra key changes
+    nothing downstream.
+    """
     if report.get("skipped"):
         return
     payload = {
         "run_id": run_id,
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "fixture_statistics_missing": fixture_statistics_missing_by_league(report),
+        "dropped_calls_by_endpoint": dict(dropped_calls or {}),
     }
     load_json_to_bq(
         client,
@@ -254,6 +303,8 @@ def evaluate_completeness_outcome(
     report: dict[str, Any],
     *,
     prior_fixture_statistics_missing: dict[str, int] | None = None,
+    dropped_calls: dict[str, int] | None = None,
+    prior_dropped_calls: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Decide whether the ingest run should hard-fail.
 
@@ -271,6 +322,7 @@ def evaluate_completeness_outcome(
         "in_progress_partial": [],
         "soft_partial": [],
         "stagnant_statistics": [],
+        "stagnant_dropped_calls": [],
     }
     if report.get("skipped"):
         return out
@@ -308,9 +360,20 @@ def evaluate_completeness_outcome(
     out["stagnant_statistics"] = detect_stagnant_statistics_backfill(
         report, prior_fixture_statistics_missing
     )
+    # #898's dropped-call stagnation is evaluated HERE, not ORed in by the orchestrator, so it is
+    # subject to exactly the same two operator kill-switches as every other completeness failure:
+    # the `report["skipped"]` early return above (API_FOOTBALL_SKIP_COMPLETENESS_CHECK) and
+    # `fail_on_incomplete()` below (API_FOOTBALL_FAIL_ON_INCOMPLETE=0, the documented backfill
+    # escape hatch). Two stagnation signals sharing one exit code must also share when they apply;
+    # the first version bypassed both and would have failed a backfill run that set the override.
+    out["stagnant_dropped_calls"] = detect_stagnant_dropped_calls(
+        dropped_calls or {}, prior_dropped_calls
+    )
 
     if fail_on_incomplete() and (
-        out["hard_gated_failures"] or out["stagnant_statistics"]
+        out["hard_gated_failures"]
+        or out["stagnant_statistics"]
+        or out["stagnant_dropped_calls"]
     ):
         out["hard_fail"] = True
     return out

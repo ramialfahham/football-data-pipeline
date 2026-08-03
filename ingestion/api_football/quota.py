@@ -14,10 +14,37 @@ _last_requests_remaining: int | None = None
 _http_quota_exhausted: bool = False
 _pipeline_errors_for_quota: list[str] | None = None
 
+# Per-endpoint count of calls the provider rejected on its PER-MINUTE limit this run (#898).
+# Keyed by API path ("/players", "/coachs", ...) and incremented in ONE place: fetch_json, once per
+# HTTP call whose final attempt was still rejected. Reset per run by the orchestrator.
+#
+# ⚠ It is counted at the HTTP layer ON PURPOSE. The first version counted inside
+# `append_api_errors`, keyed off the caller's context string, and double-counted: loads/fixtures.py
+# appends per season AND again on the merged envelope, which `_merge_merged_paged` carries the
+# earlier seasons' error text into. Counting where the call actually happens makes the number
+# independent of how many times any caller chooses to report the same error.
+_minute_rate_limited_calls: dict[str, int] = {}
+
 
 def reset_http_quota_exhausted() -> None:
     global _http_quota_exhausted
     _http_quota_exhausted = False
+
+
+def reset_minute_rate_limit_counts() -> None:
+    _minute_rate_limited_calls.clear()
+
+
+def record_minute_rate_limit(endpoint: str) -> None:
+    """Count one dropped call. Called only from ``fetch_json``, after its retry is exhausted."""
+    _minute_rate_limited_calls[endpoint] = _minute_rate_limited_calls.get(endpoint, 0) + 1
+
+
+def minute_rate_limit_counts() -> dict[str, int]:
+    """Dropped-call counts by endpoint for this run, highest first."""
+    return dict(
+        sorted(_minute_rate_limited_calls.items(), key=lambda kv: (-kv[1], kv[0]))
+    )
 
 
 def _bind_quota_error_sink(errors: list[str] | None) -> None:
@@ -29,6 +56,25 @@ def _payload_shows_daily_limit_exceeded(data: dict) -> bool:
     for msg in _flatten_api_errors(data.get("errors")):
         low = str(msg).lower()
         if "request limit" in low and "day" in low:
+            return True
+    return False
+
+
+def _payload_shows_minute_rate_limit(data: dict) -> bool:
+    """The PER-MINUTE limit, which is a different class from the daily one (#898).
+
+    It arrives as HTTP 200 with the error in the body:
+    ``rateLimit: Too many requests. You have exceeded the limit of requests per minute of your
+    subscription.`` The daily detector above requires "day" and never matches it, which is why the
+    class was invisible everywhere.
+
+    ⚠ A match must NEVER set ``_http_quota_exhausted``. That flag stops all remaining HTTP for the
+    run, which is correct for a daily cap that will not recover and catastrophic for a limit that
+    clears within the minute.
+    """
+    for msg in _flatten_api_errors(data.get("errors")):
+        low = str(msg).lower()
+        if "minute" in low and ("limit" in low or "too many requests" in low):
             return True
     return False
 

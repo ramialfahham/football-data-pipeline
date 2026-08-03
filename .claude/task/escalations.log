@@ -570,3 +570,128 @@ This entry is the durable record of the metric-definition authority the contract
     `impact_map` was the specific thing at fault: it traced the ONE table the task was about and
     stopped, when the diff edited a helper shared by seven callers. When a diff touches a shared
     low-level function, the impact map owes every caller, not the caller you came for.
+
+## 2026-08-03 — #898, a run that drops API calls cannot look clean (PR 3, closes the cluster)
+
+- (CPO ruling, recorded when the batch was taken before PR 1, implemented here) THE THRESHOLD POLICY
+  IS **VISIBLE ALWAYS, FAIL ONLY ON STAGNATION**. Dropped calls are counted by endpoint and shown in
+  the job summary on EVERY run. A single bad run never fails, because failing blocks the dbt build
+  and daily freshness is a stated non-negotiable. The run fails only when the SAME endpoint drops on
+  consecutive runs, i.e. when it is demonstrably not healing. It reuses the existing
+  `stagnant_statistics` no-progress-since-last-run pattern and its existing snapshot table, which
+  was the explicit instruction: do not invent a mechanism.
+
+- (N settled by rule, not escalated) N = 2 consecutive runs. `detect_stagnant_statistics_backfill`
+  already compares exactly prior-versus-current, and both gates now share ONE exit path, so a second
+  stagnation signal on that path uses the same window. Two gates on one exit code disagreeing about
+  what "stagnant" means would be a defect, not a choice. Per the standing rule, a question a rule
+  can settle is not put to the CPO.
+
+- (⚠ THE FRESHNESS CONSEQUENCE, traced in the workflow rather than assumed) A hard fail returns 503,
+  which `main.py` maps to exit code 3. In `dbt-scheduled.yml` every post-ingest step is conditioned
+  on `steps.ingest.outputs.new_data == 'true'` with **no `always()`**, and GitHub Actions ANDs an
+  implicit `success()` into that. So a nonzero ingest exit SKIPS `dbt deps`, `dbt seed`, the
+  layer-contract check and `dbt build`: on the day the gate fires, the marts are a day stale. This
+  is not new behaviour introduced here (the existing `stagnant_statistics` gate already exits the
+  same way); this diff adds a second trigger to the same path. Stated explicitly because it trades
+  daily freshness, which is CPO territory, and the CPO approved the trade knowing a fail blocks the
+  build.
+
+- (the retry is BEST EFFORT and is documented as such rather than oversold) `fetch_json` now gives
+  the per-minute limit the single retry a 429 already got, because it IS a 429 that the provider
+  chose to deliver as HTTP 200 with the error in the body. That is why `raise_for_status()` passed
+  and the call was dropped with ZERO retries. But a per-minute window can take up to 60s to clear
+  and the retry waits `Retry-After` or 3s, so it will not rescue every call. Waiting out a full
+  minute per drop was considered and rejected: it trades run time for a case #897's pacing should
+  already have made rare. The guarantees live elsewhere — #897 makes limits rare, #896 makes a drop
+  non-destructive, and this makes what remains impossible to miss.
+
+- (the ordering bug avoided) The prior dropped-call counts are read BEFORE this run's are persisted.
+  Reading after would compare the run against itself and every run would look stagnant. The read and
+  the write both use the existing `COMPLETENESS_SNAPSHOT_TABLE`.
+
+- (⭐ THE #896 LESSON APPLIED, and it is why this contract's impact_map looks different) #896 round 1
+  failed because the impact map traced the one table the task was about while the diff edited a
+  helper shared by seven callers. This task edits TWO shared functions, so both were enumerated
+  before writing a line:
+  - `append_api_errors` has **16 call sites** (`grep -rn "append_api_errors(" ingestion/`), and every
+    one passes a context whose FIRST token is the endpoint name. That is what makes counting by
+    endpoint possible without touching a single call site, and the change adds a counter increment
+    only: the return value, the messages appended to the sink, and their order are untouched.
+  - `fetch_json` is the single HTTP entry point for every endpoint. The new branch adds no key to
+    the returned dict, which is the constraint #896 established, and #896's
+    `TestReturnedKeySetIsStable` would catch a regression.
+  - The snapshot table gains a key, so its consumers were checked rather than assumed:
+    `grep -rn "INGEST_COMPLETENESS_SNAPSHOT" dbt_project/ scripts/` returns NOTHING and no dbt
+    source or model references it. It is internal run state, so the extra key has zero downstream
+    blast radius. That is precisely the check whose absence caused #896 round 1.
+
+- (the dangerous flag, guarded by a test) `_payload_shows_minute_rate_limit` must NEVER set
+  `_http_quota_exhausted`. That flag stops all remaining HTTP for the run, which is right for a
+  daily cap that will not recover and catastrophic for a limit that clears within the minute. There
+  is a test asserting the detector leaves it false, and another asserting the two detectors do not
+  overlap in either direction.
+
+- (verification) 19 new tests, full suite 547 passed. Confirmed they pin: disabling the retry branch
+  fails `test_body_level_limit_is_retried_once` with "a per-minute limit must be retried" and
+  `test_retry_is_attempted_only_once`, while the 17 covering detection, counting and the stagnation
+  window correctly still pass because they do not depend on the retry.
+
+- (⭐ ROUND 1 FAILED TWICE, on two independent defects, and both were mine)
+
+  **FAIL A, `data-engineer-reviewer`: the counter double-counted `fixtures`.** The first version
+  counted inside `append_api_errors`, keyed off the caller's context string, justified in the
+  contract by "all 16 call sites pass the endpoint as the first token". That audit treated all 16
+  grep hits as equivalent single-fetch sites. They are not: `loads/fixtures.py` calls it TWICE
+  against OVERLAPPING data, per season at :163 and again at :183 on the accumulated envelope, and
+  `seasons.py::_merge_merged_paged` does `dst["errors"].extend(...)` so the earlier seasons'
+  rate-limit text is carried forward into the post-loop call. One real drop, counted twice.
+  Verified independently by reading those lines before accepting the finding.
+  - It did not corrupt the pass/fail boolean (`detect_stagnant_dropped_calls` tests `count > 0`,
+    not magnitude) but it corrupted THE NUMBER, which is the entire deliverable of #898: after
+    three weeks of runs whose success meant nothing, the fix shipped a headline count that was
+    structurally wrong for its most-called endpoint.
+  - RESOLUTION: counting moved to `fetch_json`, once per HTTP call whose FINAL attempt was still
+    rejected, keyed by API path. `append_api_errors` is now unchanged. This is fix-the-class rather
+    than fix-the-instance: the tally no longer depends on how many times any caller reports the
+    same error, so no future caller shape can inflate it. A retry that SUCCEEDS is deliberately not
+    counted, because no data was lost. Guard test verified by reinstating the old counting, which
+    fails with `{'fixtures': 2} == {}` — the defect reproduced exactly.
+
+  **FAIL B, `platform-reviewer`: the new gate bypassed both operator kill-switches.**
+  `stagnant_dropped` was computed in the orchestrator and ORed into the exit condition, so it
+  honoured neither `report["skipped"]` (`API_FOOTBALL_SKIP_COMPLETENESS_CHECK`) nor
+  `fail_on_incomplete()` (`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`). The pre-existing
+  `stagnant_statistics` signal honours both, because it lives inside
+  `evaluate_completeness_outcome`. So an operator following the documented backfill playbook in
+  `docs/operations_guide.md` would still have got exit 3 — and a backfill is heavy on calls, which
+  is exactly when this fires. Verified against `completeness.py`'s early return and its
+  `fail_on_incomplete()` condition before accepting.
+  - ⚠ It contradicted THIS TASK'S OWN CONTRACT, which argued N must match the existing gate because
+    "two gates on one exit code disagreeing about what stagnant means would be a defect". I applied
+    that reasoning to the WINDOW and not to WHEN THE GATE APPLIES AT ALL, which is the larger of
+    the two disagreements.
+  - RESOLUTION: the signal moved INTO `evaluate_completeness_outcome`, so both stagnation signals
+    are now subject to the same early return and the same `fail_on_incomplete()` condition, by
+    construction rather than by duplicated checks. The orchestrator reads
+    `outcome["stagnant_dropped_calls"]` and its exit condition is back to plain
+    `if outcome["hard_fail"]`. Visibility is unaffected: the "DROPPED n call(s)" note is
+    independent of the report and still prints on every run, so the escape hatches suppress the
+    FAILURE and never the REPORTING.
+
+  ⚠ THE LESSON, and it is the second time in two tasks: **both defects were in the part of the
+  contract I wrote most confidently.** FAIL A was justified by a grep whose 16 hits I counted but
+  did not read; FAIL B was justified by a consistency argument I applied to one dimension and not
+  the obvious second one. An enumeration is not an audit until each item is read, and a consistency
+  argument has to be run against every axis it names, not the first.
+
+- (an existing guard extended, never loosened) `test_skipped_report_returns_no_failures` asserts
+  `evaluate_completeness_outcome`'s returned dict by EXACT equality, and the new key broke it. The
+  expected dict was extended to include `stagnant_dropped_calls`, deliberately NOT relaxed to a
+  subset check, so a future signal still cannot be added there unnoticed. That file was outside
+  `scope_paths` and the CONTRACT GATE refused the edit; the contract was amended on a clean tree via
+  the stash-dance, admitting that one test file. The first question asked was whether the EDIT
+  belongs in this branch rather than how to widen the contract: it does, because the approved change
+  breaks that test and the branch cannot be green without it.
+
+- (verification, round 2) Full suite 553 passed.

@@ -171,6 +171,11 @@ class TestEvaluateCompletenessOutcome:
             "in_progress_partial": [],
             "soft_partial": [],
             "stagnant_statistics": [],
+            # #898: dropped-call stagnation is evaluated inside this function precisely so that
+            # SKIP_COMPLETENESS_CHECK suppresses it too, like every other completeness failure.
+            # Kept inside the exact-equality assertion rather than relaxed to a subset, so a
+            # future signal still cannot be added here unnoticed.
+            "stagnant_dropped_calls": [],
         }
 
 
