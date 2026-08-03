@@ -14,13 +14,26 @@ from .quota import (
     _flatten_api_errors,
     _maybe_log_quota,
     _payload_shows_daily_limit_exceeded,
+    _payload_shows_minute_rate_limit,
     _throttle,
+    record_minute_rate_limit,
 )
 
 
 def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
     """
     GET JSON from API-Football. Retries 429 / 5xx once with backoff (guide: safe single retry).
+
+    Also retries once on the PER-MINUTE rate limit, which the provider delivers as HTTP 200 with
+    the error in the body rather than as a 429 (#898). Before this, `raise_for_status()` saw a
+    healthy response and the call was dropped with ZERO retries, which is how 10 of 18 nightly runs
+    lost calls while reporting success.
+
+    BEST EFFORT, deliberately. A per-minute window can take up to 60s to clear and this waits
+    `Retry-After` or 3s, so it will not rescue every call. Waiting out a full minute per drop would
+    trade run time for a case #897's pacing should already have made rare. The guarantees live
+    elsewhere: #897 makes limits rare, #896 makes a drop non-destructive, and the counter below
+    makes what remains visible.
     """
     if errors_quota._http_quota_exhausted:
         return {"errors": [], "response": [], "results": 0, "paging": {}}
@@ -51,6 +64,18 @@ def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
         _throttle()
         if _payload_shows_daily_limit_exceeded(data):
             _flag_daily_quota_exhausted_once()
+            return data
+        # The per-minute limit is a 200 carrying a 429's meaning, so give it a 429's single retry.
+        # Checked AFTER the daily test: once the daily cap is gone a retry cannot help.
+        if _payload_shows_minute_rate_limit(data):
+            if attempt == 0:
+                ra = response.headers.get("Retry-After", "")
+                time.sleep(float(ra) if ra.isdigit() else 3.0)
+                continue
+            # Retry exhausted and still rejected, so this call is genuinely dropped. Counted here,
+            # at the one place an HTTP call happens, so the tally cannot be inflated by a caller
+            # that reports the same error twice.
+            record_minute_rate_limit(path)
         return data
     raise AssertionError("fetch_json: unreachable")
 
