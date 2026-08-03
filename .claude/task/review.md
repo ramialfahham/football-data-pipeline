@@ -1,96 +1,88 @@
-# Review — fix/898-surface-dropped-calls — 2026-08-03
+# Review — feat/898-cause3-per-team-completeness — 2026-08-03
 
-branch: fix/898-surface-dropped-calls
-diff_sha256: ebc5c5b35770c640772f0c4221e3b82a754b21cc4892f91f54456c0e6a9ad99d
+branch: feat/898-cause3-per-team-completeness
+diff_sha256: f60efe46f041433e2988e87fe27c3c77ad1b4da7cdc7c63550bebf23cbb9359a
 
-rounds: 2
+rounds: 5
+rounds_cap_override: CPO authorised rounds 4 and 5 explicitly after the cap of 3 was reached and the
+  open finding was brought to them per §2. Both overrides were granted on the same basis: every
+  round-3-onward FAIL was a false FACTUAL CLAIM in `contract.md` prose, never a code defect. The
+  CODE passed `data-engineer-reviewer` and `platform-reviewer` in rounds 3 AND 4 and has not changed
+  since round 3. Round 5 ran `scope-auditor` ALONE and deliberately, because the only delta since
+  the specialists' PASS was the `impact_map` rewrite, which is that reviewer's remit and nobody
+  else's; re-running the specialists would have re-reviewed a byte-identical `completeness.py` for a
+  third time.
+
 # Required reviewer set from `.claude/review_routing.json` for the staged paths: `ingestion/**`
-# routes `data-engineer-reviewer`, `tests/**` routes `platform-reviewer`, and `scope-auditor` is
+# routes `data-engineer-reviewer`, `tests/**` routes `platform-reviewer`, `scope-auditor` is
 # always-on. NOT artifact-exempt, because `contract.md` is never artifact-exempt (F10/#409).
 #
-# ROUND 1 FAILED TWICE, on two independent defects found by the two specialists:
-#  A. `data-engineer-reviewer` — the counter lived in `append_api_errors` and double-counted
-#     `fixtures`, because `loads/fixtures.py` calls it twice against overlapping data (per season at
-#     :163, then on the accumulated envelope at :183, which `_merge_merged_paged` carries the
-#     earlier errors into). Fixed by moving counting into `fetch_json`, once per call whose final
-#     attempt was still rejected, keyed by API path. `append_api_errors` is now unchanged.
-#  B. `platform-reviewer` — the new gate was ORed into the orchestrator's exit condition and so
-#     honoured neither `report["skipped"]` nor `fail_on_incomplete()`, unlike the existing
-#     `stagnant_statistics` signal. Fixed by moving it inside `evaluate_completeness_outcome`.
-# The contract was amended on a clean tree to admit one test file whose exact-equality assertion the
-# approved change breaks. Full record in `escalations.log`. Verdicts below are round 2.
+# ROUND HISTORY. Round 1: scope PASS, data-engineer FAIL (PLAYERS had no table-existence guard;
+# empty `blocks` rendered invalid `FROM ()`), platform FAIL (same guard, plus the tests could not
+# reach the bug and the expected-set fix sat in untested orchestrator code). Round 2: scope PASS,
+# data-engineer FAIL (snapshot timestamps not paired per league, which made a real miss look
+# covered), platform FAIL (same). Round 3: both specialists PASS, scope FAIL (argument miscount).
+# Round 4: both specialists PASS, scope FAIL (snapshot reader count). Round 5: scope PASS.
+#
+# SEVEN false factual claims in `contract.md` were found across those rounds. None reached the code.
+# Root cause and its durable fix are recorded in `escalations.log` and filed as #904.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Amendment authority: the CPO approved a change that adds a key to `evaluate_completeness_outcome`'s
-  returned dict, a test asserts that dict by exact equality, so the test must change and the file
-  must be in scope. Inference grounded in a recorded CPO decision, not an invented rule.
-- Scope: only `tests/test_completeness_outcome_and_summary.py` was added to `scope_paths`. The
-  `impact_map` correction removes a false claim about `append_api_errors` rather than widening
-  permission. No new decision is taken; threshold policy, N and the freshness trade are unchanged.
-- NEW MECHANISM still "none" after the redesign: the gate, the 503 to exit 3 path, the snapshot
-  table and the prior-versus-current comparison all pre-existed, and the retry is a fourth branch in
-  an existing loop.
-- RECURRING COST still accurate: one extra HTTP call per rate-limited call, one extra key in an
-  existing payload, no change to endpoints, quota draw or pacing.
-- Guard preservation: the exact-equality assertion was EXTENDED to include the new key, not relaxed
-  to a subset, so a future signal still cannot be added there unnoticed.
-- Both round 1 defects verified fixed at the root, and the per-minute detector never sets
-  `_http_quota_exhausted`.
+- Rewritten `impact_map` claims verified against code signatures and call sites, not against the
+  builder's verification output: the two new keyword arguments on `evaluate_completeness_outcome`,
+  the one on `persist_fixture_statistics_missing`, the new returned key, all four new functions and
+  their production call sites, the three snapshot readers, the four tables read, and that
+  `RAW_APIF_TEAMS` is genuinely never queried.
+- Dropping per-test-file call-site counts judged a LEGITIMATE CORRECTION, not a narrowing that hides
+  blast radius: those counts are brittle by construction, carry zero blast-radius value because a
+  test is not a production consumer, and the one test whose assertion SHAPE breaks is named by
+  exception rather than omitted.
+- `_ts_in_list` checker FAIL independently confirmed as a false positive: the only remaining
+  mentions sit in `amendments:`, recording the corrected error rather than asserting a live fact.
+- Amendment scope: no permission widened, no `scope_paths` entry added, no decision taken. Only
+  `contract.md` and `escalations.log` changed since round 4.
+- Guard integrity: nothing loosened, and a guard was ADDED (`_raw_table_exists`). The exact-equality
+  assertion was extended with the new key, never relaxed to a subset.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 Fail A fixed at the root: `append_api_errors` is unchanged from main, confirmed by the
-  diff touching no hunk in it and by grep over all 16 call sites, including the two overlapping
-  calls in `loads/fixtures.py`. Counting lives solely in `record_minute_rate_limit`, called from
-  exactly one site. A caller reporting the same drop twice can no longer inflate the tally, because
-  nothing at that layer increments it.
-- Every path through `fetch_json` traced by hand: the `_http_quota_exhausted` early return (no HTTP,
-  no count), a daily-limit body (returns before the minute branch), a minute limit on attempt 0
-  (sleeps and continues, no count), a minute limit surviving to attempt 1 (counted exactly once), a
-  retry that comes back clean (no count), and a clean first response (no count). A 429 or 5xx retry
-  landing on attempt 1 with a body-level minute limit is still counted once, because the two-attempt
-  budget is shared rather than additive.
-- Round 1 Fail B verified structurally rather than from the contract's word: the signal is computed
-  inside `evaluate_completeness_outcome`, before its single `fail_on_incomplete()` gate and after
-  its `report["skipped"]` early return, and the orchestrator's exit condition is back to plain
-  `if outcome["hard_fail"]` with no separate OR.
-- Visibility versus failure separation: the raw per-run counts are read straight from
-  `minute_rate_limit_counts()` and print regardless of either kill-switch; only the stagnation note
-  and the fail path read the gated value. A skipped or overridden run still shows the drops and
-  never exits 3.
-- Read-before-write ordering: prior counts are loaded before this run's are persisted, so the
-  comparison is prior-versus-current and not self-versus-self, and no HTTP call happens in between.
-- Endpoint keys are stable literals: every `fetch_json` / `fetch_merged_paged` call site passes a
-  fixed path string, never interpolated with team or player ids, so the dict keys compare correctly
-  run over run.
-- The two detectors do not cross-match in either direction against the real provider strings, and
-  the per-minute one never touches `_http_quota_exhausted`.
-- Downstream and scheduler claims verified rather than taken on faith: no dbt or script reference to
-  the snapshot table, and every post-ingest workflow step is gated on the ingest step succeeding.
+- Round-4 delta confirmed limited to one corrected sentence, verified against
+  `evaluate_completeness_outcome`'s actual signature.
+- Both round-1 defects fixed at the root: all four tables existence-checked (three via
+  `_latest_snapshot_timestamps`'s `NotFound`, PLAYERS via `_raw_table_exists`), and the all-absent
+  case skips the query rather than emitting `FROM ()`. Each path has a dedicated test.
+- The round-2 dangerous-direction defect fixed: `_snapshot_block` and the PLAYERS `season_pairs`
+  both pair `league_code` to its own timestamp and season rather than using independent `IN (...)`
+  filters, so a stale row can no longer make a real miss look covered.
+- Kill-switch inheritance: `stagnant_per_team_gaps` computed inside `evaluate_completeness_outcome`,
+  after the `report["skipped"]` early return and before `fail_on_incomplete()`, so both operator
+  escape hatches suppress the failure while reporting survives.
+- Orchestrator wiring: prior counts read before this run's are persisted, so no self-comparison;
+  `per_team_missing_by_league_entity` gates PLAYERS/SQUADS/TRANSFERS and never COACHES.
+- Cost figure re-derived independently from the code shape (two-step maxima-then-literal reads,
+  `RAW_APIF_TEAMS` absent from the query set) and matches the measured 0.931 GiB per run.
+- Downstream lineage claim evidenced: no dbt or scripts reference to the snapshot table.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Both kill-switches now gate the signal from inside `evaluate_completeness_outcome`, and no
-  separate ORed variable survives in the orchestrator. Pinned by five tests that call the function
-  directly and would raise TypeError against the round 1 code, so this is genuine regression
-  coverage rather than happy-path.
-- Visibility preserved under both switches: the "DROPPED n call(s)" note is built from counts
-  computed independently of the report and the override, so it prints on every run.
-- The exact-equality assertion was extended in place, not relaxed to a subset or a containment
-  check. Confirmed by reading the literal.
-- Counter fix confirmed at source: `record_minute_rate_limit` is called from exactly one place, only
-  on the final attempt, and `append_api_errors` is byte-for-byte unchanged.
-- Test-state isolation: the counter is touched only by the new test file, which resets it before and
-  after every test. Every other test file that exercises `fetch_json` monkeypatches it at a higher
-  import site, so the real counter is never reached outside the file that manages it.
-- Swept for leftovers of both rejected designs: no counting re-added to `append_api_errors`, no
-  stray `stagnant_dropped` local, dead import or commented-out OR condition.
-- Re-run safety: the counter resets at the top of every invocation, and the prior read precedes the
-  persist, mirroring the existing `stagnant_statistics` pattern with no new failure mode.
+- The seven tests for `per_team_expectations_from_results` genuinely exercise it, and each would
+  fail under either previously-proven-wrong design. `max(seasons_list)` cross-checked as
+  byte-identical to the real production call site in `competition_runner.py`.
+- Poll-mode exclusion is real, not decorative: `results` structurally excludes poll-mode
+  competitions in unchanged orchestrator code, and the league codes asserted absent were confirmed
+  to be real registry entries.
+- No leftovers from either rejected design: `_ts_in_list` gone from all source, and
+  `RAW_APIF_TEAMS` survives only in comments explaining why it is not read.
+- Global state isolated: fresh fakes per test, read-only class-level fixtures, `monkeypatch` for env.
+  `per_team_expectations_from_results` copies `team_ids` rather than aliasing the loader's set.
+- Re-run and first-run safe: prior read precedes persist, and a crash before the persist leaves the
+  next run comparing against the last successfully persisted state.
+- On the CPO's question about a mechanical guard: the countable sub-class is checkable and would
+  have caught most instances; the semantic ones stay prose-level. Filed as #904.
 
 ## escalations
 (none)

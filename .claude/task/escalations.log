@@ -695,3 +695,177 @@ This entry is the durable record of the metric-definition authority the contract
   breaks that test and the branch cannot be green without it.
 
 - (verification, round 2) Full suite 553 passed.
+
+## 2026-08-03 — cause 3: the per-team endpoints get a completeness check
+
+- (⭐ THE PREMISE WAS CHECKED BEFORE THE WORK, and it changed what the task is) The CPO picked cause
+  3 over cost on my ranking. I then measured it, per §11's premise-check duty, and brought the
+  numbers back BEFORE spending a cycle: **transfers 0 teams missing, player_squads 0, players 0 once
+  each competition's own reference season is used, coaches 22-26 of 1,265 and STABLE across five
+  days (07-30 to 08-03).** The per-team data is COMPLETE. So this is regression insurance, not
+  repair. The CPO confirmed on exactly that basis, and the basis is sound: a gate introduced while
+  the metric reads 0 starts green and can only ever fire on a real regression, which is the safest
+  moment to add one.
+
+- (CPO ruling, one batch, before any file was touched)
+  1. Build it now, as insurance.
+  2. **GATE players, squads, transfers. REPORT ONLY coaches.** ~23 teams have no coach on every
+     single run because the provider genuinely has none; gating that is permanently red, and a
+     permanently-red gate trains everyone to ignore the alarm, which is precisely how ten green runs
+     came to mean nothing.
+  3. **Expected is per competition, never a global year.**
+
+- (⚠ TWO EXPECTED-SET DESIGNS WERE WRONG, and BOTH were caught by running against production rather
+  than by reasoning. This is the single most useful thing in this entry.)
+  1. **Hardcoding the calendar year.** My first measurement reported ACN as 24 of 24 teams missing.
+     ACN is on season **2027**, and so is J1. The pipeline was right and my query was wrong. A gate
+     shipping that assumption is permanently red on every tournament.
+  2. **Deriving the league set from `RAW_APIF_TEAMS`.** Running the real function against production
+     judged **45 leagues, not 26**, and reported **33 league/entity pairs missing, including
+     FAC/PLAYERS 749**. Restricting to `selected_competitions()` did NOT fix it: that also returns
+     45. The reason is POLL MODE — those competitions are selected but run `run_poll_phases`, which
+     never fetches teams, players, squads or transfers. Nothing was missing; nothing had ever been
+     fetched.
+  - RESOLUTION, and it is better than either attempt: **expected comes from the RUN, not from
+    BigQuery.** The orchestrator already holds `results`, a list of `CompetitionRunResult`, and only
+    competitions that ran the full phases are in it. `team_ids` is the exact set the loaders
+    iterated and `max(seasons_list)` is the exact value `load_squad_players_batch` was called with,
+    so expectation and fetch cannot drift apart by construction. It is also free: no teams query at
+    all.
+  - ⚠ THE LESSON: I would have shipped a gate that fired on 33 pairs on its first run, having
+    "verified" the design with a query that agreed with me. The plan's own verification step said to
+    run it against production and that anything other than 0 means THE EXPECTED SET is wrong, not
+    the data. That step is what caught it. Write that step into the plan every time.
+
+- (⭐ THE COST SHAPE, measured, and the documented trap reproduced exactly) `RAW_APIF_TRANSFERS` is
+  6.99 GiB, so the read shape matters more than the read. Dry-run:
+    - `WHERE ingested_at = (SELECT MAX(...))`  **7.51 GB** — a subquery predicate does NOT prune
+    - `WHERE date(ingested_at) IN (<literals>)` **384 MB**
+    - `SELECT league_code, MAX(ingested_at)` alone **14.8 KB**
+  So the read is deliberately TWO steps: cheap maxima first, then literals inlined. That is 19.6x on
+  our largest raw table, and a future reader will want to collapse it into one query. A fixed
+  lookback window is NOT an alternative and the standing rule says so: poll-mode competitions go
+  months between refreshes (WC last 2026-07-20, CWC 2026-06-22), so a recent-days filter reports
+  those leagues as 100% missing.
+
+- (the kill-switch lesson applied UP FRONT rather than after a FAIL) `stagnant_per_team_gaps` is
+  computed INSIDE `evaluate_completeness_outcome`, so it inherits both operator escape hatches by
+  construction: the `report["skipped"]` early return and `fail_on_incomplete()`. The previous task
+  shipped the equivalent signal ORed into the orchestrator and `platform-reviewer` FAILED it,
+  because a documented backfill would still have exited 3. Same class, fixed before review this
+  time, and pinned by four tests.
+
+- (the stagnation window, settled by rule not escalated) Two consecutive runs, matching
+  `detect_stagnant_statistics_backfill` and `detect_stagnant_dropped_calls`. Three stagnation
+  signals now share one exit code and must agree on what "stagnant" means. The CPO's freshness
+  reasoning for #898 applies unchanged: a hard fail skips `dbt build`, so a transient must not
+  trigger it, and a brand-new team whose first fetch fails would otherwise fail the run on the day
+  it appears.
+
+- (an existing guard EXTENDED, never loosened) `test_skipped_report_returns_no_failures` asserts the
+  outcome dict by exact equality. The new key was added to the literal. `tests/test_completeness_outcome_and_summary.py`
+  was declared in `scope_paths` FROM THE START this time, rather than amended in mid-task, which is
+  what the previous task had to do after the gate refused the edit.
+
+- (verification) Against production with a run-shaped expectation set: 26 leagues judged,
+  **PLAYERS 0, SQUADS 0, TRANSFERS 0 missing, COACHES 29**, and the GATED set is EMPTY, so the gate
+  starts green exactly as the premise required. ACN resolves to reference season 2027 with 0 players
+  missing. 20 new tests, full suite **573 passed**. Confirmed the guard pins: adding COACHES to
+  `PER_TEAM_GATED` fails three tests with `{'BL1/COACHES': 7}` leaking into the gate.
+
+- (⭐ ROUND 1 FAILED ON BOTH SPECIALISTS, and the second finding is the sharper one)
+
+  **FAIL A, found by BOTH reviewers independently: PLAYERS had no table-existence guard.** The three
+  snapshot entities get one for free via `_latest_snapshot_timestamps`, which does
+  `get_table`/`NotFound`. PLAYERS has no maxima step and so had none, and the contract's
+  `impact_map` claimed the function "mirrors `coverage.read_coverage`, including that function's
+  `client.get_table` / `NotFound` guard". That was true for three of four blocks. An absent table
+  would raise through the orchestrator's blanket handler and hard-fail the run on the FIRST
+  occurrence, skipping `dbt build` — the precise outcome the two-run stagnation window exists to
+  prevent. `data-engineer-reviewer` also noted it is operationally reachable, not theoretical:
+  `API_FOOTBALL_SKIP_PLAYERS` is a documented archive-run flag. A second, related defect: with no
+  blocks at all the UNION rendered `FROM ()`, invalid SQL, executed unguarded.
+  RESOLUTION: `_raw_table_exists` guards PLAYERS, and the query is skipped entirely when no block
+  survives.
+
+  **FAIL B, `data-engineer-reviewer` only, and it is the one I should have seen: the snapshot
+  timestamp was not paired to its own league.** `_snapshot_block` applied
+  `ingested_at IN (<all leagues' maxima>)` and `league_code IN (<all leagues>)` as two INDEPENDENT
+  filters, so a row for league A carrying league B's latest timestamp satisfied both and counted as
+  coverage for A. It fails in the DANGEROUS direction: it makes a real miss look covered, which is
+  the exact property this whole task exists to guarantee.
+  ⚠ THE LESSON: I had already written the comment explaining why pairing matters — for the PLAYERS
+  season list, three lines away — and did not apply the same reasoning to the timestamps. Recognising
+  a bug class and fixing one instance of it is not the same as sweeping for it. This is the
+  fix-the-class-not-the-instance rule turned on its author.
+  RESOLUTION: `(league_code = X AND ingested_at = TIMESTAMP(Y))` pairs, per league. **Measured: the
+  paired form costs 383,545,007 bytes on RAW_APIF_TRANSFERS, byte-identical to the unpaired form**,
+  so partition pruning is unaffected and correctness was free. A test asserts the unpaired
+  `s.ingested_at IN (` form cannot reappear.
+
+- (the fake that could not express the bug) `test_missing_tables_do_not_raise` always supplied a
+  `reference_season`, so the PLAYERS block was always present and the test could never reach the
+  unguarded path; and `_FakeClient` had one has_tables flag, so it could not say "PLAYERS
+  specifically is absent". Both were rebuilt: the fake now takes `missing_tables` per entity, and
+  three tests cover PLAYERS-absent, all-absent, and one-snapshot-absent.
+
+- (coverage gap closed rather than noted) `platform-reviewer` observed that the expected-set fix
+  lived in an inline dict comprehension in the orchestrator, which no test exercised, so a future
+  regression back to `selected_competitions()` would not be caught. Extracted to
+  `per_team_expectations_from_results` in `completeness.py` and tested directly.
+
+- (verification, round 2) Full suite **576 passed**. Re-verified against production after the query
+  shape changed: 26 leagues judged, PLAYERS 0, SQUADS 0, TRANSFERS 0 missing, COACHES 29, GATED set
+  EMPTY, ACN reference season 2027.
+
+- (⭐ ROUND 2 FAILED ON BOTH SPECIALISTS, converging on ONE finding, and it is about my ARTIFACTS
+  rather than my code)
+
+  **`per_team_expectations_from_results` had ZERO test coverage.** In round 2 I extracted it out of
+  the orchestrator specifically to close a `platform-reviewer` coverage gap, wrote "Now tested
+  directly" into both this log and the contract, and never wrote the test. `grep -rn` over `tests/`
+  returned nothing. So the regression the extraction exists to prevent — reverting to a
+  `selected_competitions()` or `RAW_APIF_TEAMS`-derived expected set, the designs that reported 33
+  false-missing pairs and ACN as 24/24 — would have shipped through the suite undetected. The fix
+  moved the risk into a named function without closing it. Seven tests now cover it, including
+  poll-mode exclusion and `max(seasons_list)`.
+
+  Two further artifact inaccuracies found in the same pass:
+  - `_ts_in_list` was DEAD CODE, left from the rejected unpaired-timestamp design, and the contract
+    listed it among functions "each with one call site" when it had none. Deleted.
+  - The contract's TABLES READ and cost derivation both described `RAW_APIF_TEAMS` as scanned. The
+    shipped code never queries it; teams come from the in-memory run results. Stale copy from the
+    rejected design.
+
+  ⚠ THE LESSON, and it is the through-line of this whole task: **THREE separate statements in my
+  contract were false, and every one was written in the same edit as the change it described.** The
+  claim ran ahead of the code each time. Round 1's version said the NotFound guard covered all four
+  tables when it covered three. Round 2's said a function was tested when no test existed. The
+  fix is not "be more careful"; it is that a contract sentence asserting a property of the code —
+  tested, guarded, has one call site, is read — must be verified against the code by grep or by a
+  run BEFORE it is written down, exactly as `impact_map` evidence already must be. I verified the
+  measurements in this task rigorously and the prose describing them not at all.
+
+- (the cost figure re-measured against the SHIPPED code, not a design) Four queries per run: three
+  maxima at 15,021 + 14,757 + 20,678 bytes and one coverage query at 999,200,648 bytes. **TOTAL
+  999,251,104 bytes = 0.931 GiB, $0.0045 per run, $1.66 a year.** The earlier ~1.0 GiB figure was
+  close but derived from shapes including a `RAW_APIF_TEAMS` scan the code does not perform.
+
+- (verification, round 3) Full suite **583 passed**.
+
+- (round 3 verdicts, and the FOURTH instance of the pattern) `data-engineer-reviewer` PASS,
+  `platform-reviewer` PASS, `scope-auditor` FAIL. The FAIL was not a code defect: the contract said
+  `evaluate_completeness_outcome` "gains one optional keyword argument" when it gains two
+  (`per_team_missing`, `prior_per_team_missing`). Corrected by counting off the signature.
+  ⚠ It was written INSIDE the amendment that documents this exact pattern. I stated the lesson
+  accurately and repeated the error in the same edit, which says the lesson as prose does not bind
+  even under full attention. The mechanical form is the one that would: a contract claim of the
+  shape "X is tested / X is guarded / X has N callers / X is read / X gains N arguments" is a
+  factual assertion about the tree and should be checked with a grep or a signature read at the
+  moment it is written, the same way `impact_map` evidence already must be.
+
+- (⭐ CPO RULING: THE ROUND CAP IS OVERRIDDEN) The cap of 3 was reached and the open finding was
+  brought to the CPO rather than looped, per §2. The CPO authorised a FOURTH round. Recorded in
+  `review.md` as `rounds_cap_override`, which is the mechanism the review template provides for
+  exactly this. The round 4 diff differs from round 3 by one corrected sentence in `contract.md` and
+  nothing else: no code, no test, no behaviour.

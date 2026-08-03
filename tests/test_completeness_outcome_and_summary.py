@@ -176,6 +176,10 @@ class TestEvaluateCompletenessOutcome:
             # Kept inside the exact-equality assertion rather than relaxed to a subset, so a
             # future signal still cannot be added here unnoticed.
             "stagnant_dropped_calls": [],
+            # #898 cause 3: per-team gaps are evaluated inside this function so that
+            # SKIP_COMPLETENESS_CHECK suppresses them too. Extended in place, never relaxed to a
+            # subset, so a future signal still cannot be added here unnoticed.
+            "stagnant_per_team_gaps": [],
         }
 
 
