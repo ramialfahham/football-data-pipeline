@@ -32,11 +32,11 @@ def main() -> int:
             emit_context(
                 "PostToolUse",
                 "WORKFLOW GATE: commit made. Per docs/working_agreement.md §3, the task is not "
-                "done until: (3) you push with an explicit refspec — `git push origin "
+                "done until: (3) you push with an explicit refspec — `git push gitlab "
                 "<branch>:<branch>` — and verify the output says `-> <branch>` (NOT `-> main`); "
-                "(4) you open the PR with `gh pr create`. Do not report the task complete until "
-                "the PR URL is returned. (If a post-commit git hook already auto-pushed and "
-                "opened the PR, just confirm the PR URL.)",
+                "(4) you open the MR with `glab mr create`. Do not report the task complete until "
+                "the MR URL is returned. (If a post-commit git hook already auto-pushed and "
+                "opened the MR, just confirm the MR URL.)",
             )
             return 0
     return 0

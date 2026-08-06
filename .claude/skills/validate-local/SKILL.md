@@ -19,7 +19,7 @@ commit round trip (the dominant source of `fix:` churn in this repo's history).
 
 ## When to use
 
-- Before `git push` or `gh pr create`.
+- Before `git push` or `glab mr create`.
 - After finishing a unit of work, to confirm it's CI-clean.
 - When a hook (pre-push) or the user asks "will CI pass?".
 

@@ -2,7 +2,7 @@
 """PreToolUse(Bash) guardrail — git discipline (project-specific wording).
 
 Checks, self-gated against the *actual* command (see _command_utils):
-  1. Block agent-initiated `gh pr merge` — merging is the user's call.
+  1. Block agent-initiated `glab mr merge` — merging is the user's call.
   2. Block `git commit --amend` / `--no-verify` / `-n` — history integrity and
      the governance hash-chain depend on append-only, hook-verified commits
      (governance G2; flags matched on quote-stripped text so commit-message
@@ -31,7 +31,7 @@ from _command_utils import (  # noqa: E402
     strip_quoted_and_heredoc,
 )
 
-_GH_PR_MERGE = re.compile(r"gh\s+pr\s+merge\b")
+_MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
 _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
 _COMMIT_FORBIDDEN = re.compile(r"(?:^|\s)(--no-verify|--amend|-n)(?=\s|$)")
 # Commit-flag ALLOWLIST (CTO finding, G3 review round 2): a denylist of the
@@ -552,10 +552,10 @@ def main() -> int:
     stripped_parts = list(simple_commands(stripped))
 
     for part in parts:
-        if _GH_PR_MERGE.match(part):
+        if _MR_MERGE.match(part):
             emit_deny(
-                "MERGE BLOCKED: `gh pr merge` is the user's action, not the agent's. "
-                "Open the PR, get CI green, and stop — the user merges. "
+                "MERGE BLOCKED: `glab mr merge` is the user's action, not the agent's. "
+                "Open the MR, get CI green, and stop — the user merges. "
                 "(Only proceed if the user explicitly typed 'merge it' in this thread.) "
                 "See docs/working_agreement.md §3."
             )
@@ -637,8 +637,8 @@ def main() -> int:
         if _BRANCH_CREATE.match(part):
             emit_context(
                 "PreToolUse",
-                "BRANCH DISCIPLINE: before branching, run `gh pr list --state open` and ask "
-                "(1) is this a hard dependency of an open PR? (2) does a separate branch buy "
+                "BRANCH DISCIPLINE: before branching, run `glab mr list` and ask "
+                "(1) is this a hard dependency of an open MR? (2) does a separate branch buy "
                 "independent reviewability or an earlier merge path? If hard-dependency AND no "
                 "benefit → commit to that branch instead; otherwise a new branch is fine. "
                 "Branch from `main` (never with origin/main as the tracking target, which sends "
