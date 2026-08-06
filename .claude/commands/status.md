@@ -1,6 +1,6 @@
 ---
-description: Snapshot of where work stands — branch, tree, open PRs + CI, and the active handover.
-allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(gh pr list *), Read(.claude/active_work.md)
+description: Snapshot of where work stands — branch, tree, open MRs + CI, and the active handover.
+allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(glab mr list *), Bash(glab ci list *), Read(.claude/active_work.md)
 ---
 
 Give the user a fast, read-only situational snapshot. Be concise — short sections, no
@@ -11,10 +11,14 @@ preamble — and do NOT start any work.
 - Uncommitted changes: !`git status --short`
 - Recent commits: !`git log --oneline -5`
 
-## Open PRs + CI
-!`gh pr list --state open --json number,title,headRefName,statusCheckRollup --jq '.[] | {pr: .number, branch: .headRefName, title, checks: [.statusCheckRollup[]? | (.conclusion // .status)]}'`
+## Open MRs
+!`glab mr list --output json --jq '.[] | {mr: .iid, branch: .source_branch, title, merge_status: .detailed_merge_status}'`
 
-Summarize each open PR as one line: `#<n> <title> [branch] — CI: <pass/fail/pending rollup>`.
+## Recent pipelines
+!`glab ci list --per-page 10`
+
+Summarize each open MR as one line: `!<n> <title> [branch] — CI: <status of that branch's latest pipeline, or "none" if no pipeline ran>`.
+Match pipelines to MRs by branch name; GitLab reports MR merge status and pipeline status separately.
 
 ## Active handover
 Read `.claude/active_work.md`. Report ONLY: the _Last updated_ line, the **NEXT** actions,

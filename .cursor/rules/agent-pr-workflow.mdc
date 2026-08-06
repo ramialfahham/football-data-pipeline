@@ -1,23 +1,23 @@
 ---
-description: Branch, PR, and post-merge housekeeping when the user requests implementation work.
+description: Branch, MR, and post-merge housekeeping when the user requests implementation work.
 alwaysApply: true
 ---
 
-# PR workflow (implementation tasks)
+# MR workflow (implementation tasks)
 
 When the user asks to **implement**, **fix** (code change), **execute the plan**, or similar **explicit build intent** in this repo:
 
-1. **Start from main**: `git fetch origin`, `git checkout main`, `git pull origin main`.
+1. **Start from main**: `git fetch gitlab`, `git checkout main`, `git pull gitlab main`.
 2. **Branch**: create `feature/<short-kebab-topic>` or `fix/<short-kebab-topic>` from `main`. Do not implement on `main`.
 3. **Work**: make the agreed changes; run project-appropriate checks (e.g. sqlfluff, dbt compile) when edits warrant it.
-4. **Ship**: commit; push with `git push -u origin HEAD`; open a PR with `gh pr create` targeting `main` (use `--body-file` on Windows PowerShell instead of bash heredocs).
-5. **Reply** with the **PR link** and a short summary of what changed.
+4. **Ship**: commit; push with `git push -u gitlab HEAD`; open an MR with `glab mr create` targeting `main` (use `--description` on Windows PowerShell instead of bash heredocs).
+5. **Reply** with the **MR link** and a short summary of what changed.
 
-When the user says the PR is **merged** and asks for **housekeeping** (or equivalent):
+When the user says the MR is **merged** and asks for **housekeeping** (or equivalent):
 
-1. `git fetch origin && git checkout main && git pull origin main`
+1. `git fetch gitlab && git checkout main && git pull gitlab main`
 2. Delete the merged local topic branch: `git branch -d <branch>` when safe
-3. `git remote prune origin`
+3. `git remote prune gitlab`
 4. Optionally note any stale local branches (do not delete worktrees the user did not ask to remove).
 
 This supplements [agent-behavior.mdc](agent-behavior.mdc): exploration and Q&A stay read-only until the user clearly asks for implementation.

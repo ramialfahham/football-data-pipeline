@@ -206,16 +206,16 @@ PYTHONUTF8=1 python scripts/diagnostics/discover_competition.py --audit {LEAGUE_
   `!!!` collision flags. A `---` NAME REVIEW line is acceptable if it is a
   known abbreviation difference; any `!!!` line is a hard stop.
 
-### Step 6 — Commit and PR
+### Step 6 — Commit and MR
 
 ```bash
 git add docs/competition_registry.yml dbt_project/dbt_project.yml site/i18n/
 git commit -m "feat: onboard {LEAGUE_CODE} ({NAME})"
-git push origin feat/onboard-{lc_lower} -u
-gh pr create --base main --head feat/onboard-{lc_lower} --title "feat: onboard {LEAGUE_CODE} ({NAME})" --body "..."
+git push gitlab feat/onboard-{lc_lower} -u
+glab mr create --target-branch main --source-branch feat/onboard-{lc_lower} --title "feat: onboard {LEAGUE_CODE} ({NAME})" --description "..."
 ```
 
-The PR body should record the cost gate answers from Step 0a, the verified
+The MR description should record the cost gate answers from Step 0a, the verified
 `provider_league_id` (with the search command used to find it), and note that
 no SQL files were added (zero-file rule).
 

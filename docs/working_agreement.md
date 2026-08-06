@@ -234,29 +234,29 @@ definition.
 
 ## 3. Branches — always
 
-Every change goes on a **new branch**. Never commit directly to `main`. Never push to `main`. Create a PR and wait for CI and explicit user approval before merging.
+Every change goes on a **new branch**. Never commit directly to `main`. Never push to `main`. Create an MR and wait for CI and explicit user approval before merging.
 
 **Correct process:**
-1. `git checkout -b feature/name` — never with `origin/main` as the tracking target (causes pushes to go directly to main)
+1. `git checkout -b feature/name` — never with `gitlab/main` as the tracking target (causes pushes to go directly to main)
 2. Do the work and commit
-3. `git push origin feature/name` — explicit remote branch name, never rely on implicit tracking
-4. Open a PR; wait for CI and user approval
+3. `git push gitlab feature/name` — explicit remote branch name, never rely on implicit tracking
+4. Open an MR; wait for CI and user approval
 
-**Never run `gh pr merge`** — merging is the user's action, not the agent's. The agent's job ends when the PR is open and CI is green. Running `gh pr merge` for any reason, including `--auto`, is not permitted unless the user explicitly types "merge it" or equivalent in the same message.
+**Never run `glab mr merge`** — merging is the user's action, not the agent's. The agent's job ends when the MR is open and CI is green. Running `glab mr merge` (or its `glab mr accept` alias) for any reason, including `--auto-merge`, is not permitted unless the user explicitly types "merge it" or equivalent in the same message.
 
 ### 3a. Branch consolidation — check before branching
 
 Before creating a new branch, ask: **is this work logically part of something already in flight?**
 
-Run `gh pr list --state open` and consider two questions:
+Run `glab mr list` and consider two questions:
 
-1. **Is the work a hard dependency?** — the open PR cannot pass CI or be correct without it.
-2. **Does separating it buy anything?** — independent reviewability, an earlier merge path, or a meaningfully smaller PR.
+1. **Is the work a hard dependency?** — the open MR cannot pass CI or be correct without it.
+2. **Does separating it buy anything?** — independent reviewability, an earlier merge path, or a meaningfully smaller MR.
 
 | Both questions | Correct action |
 |---|---|
-| Hard dependency AND separation buys nothing | Commit to the existing branch. Do not open a second PR. |
-| Hard dependency BUT can stand alone and merge first | New branch, merge it first, rebase the dependent PR on main. |
+| Hard dependency AND separation buys nothing | Commit to the existing branch. Do not open a second MR. |
+| Hard dependency BUT can stand alone and merge first | New branch, merge it first, rebase the dependent MR on main. |
 | Not a dependency — genuinely independent work | New branch. |
 
 "New ticket = new branch" is only correct when the work is genuinely independent or can stand alone with clear review benefit. Reflexively branching for every adjacent fix creates merge-ordering complexity and splits coherent work for no gain.
