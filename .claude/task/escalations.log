@@ -869,3 +869,119 @@ This entry is the durable record of the metric-definition authority the contract
   `review.md` as `rounds_cap_override`, which is the mechanism the review template provides for
   exactly this. The round 4 diff differs from round 3 by one corrected sentence in `contract.md` and
   nothing else: no code, no test, no behaviour.
+
+================================================================================
+2026-08-06 — GitHub -> GitLab migration: guard status for the CI config
+================================================================================
+
+- (⭐ CPO RULING: .gitlab-ci.yml INHERITS THE GUARD STATUS OF .github/workflows/**)
+  Context brought to the CPO: the GitHub account is suspended, CI has no host, and the six
+  quality-gate workflows were being translated into a single `.gitlab-ci.yml`. The CI config is
+  a guard — `.github/workflows/**` is BOTH a protected path (contract gate: needs
+  `protected_override` + `impact_map`) AND a two-reviewer opus guard path (`cto-reviewer` +
+  `platform-reviewer`). Its replacement matched NEITHER, so moving CI to a new host would have
+  silently dropped two required reviewers and the override requirement from the one file that
+  decides what CI enforces.
+
+  The question was put with both options named: give `.gitlab-ci.yml` the same reviewers
+  `.github/workflows/**` had, or leave it on `scope-auditor` only and accept lighter review on
+  CI config than the GitHub workflows carried.
+
+  CPO ANSWER: "Yes, match the old coverage." The routing row and the `PROTECTED_FILES` entry
+  are that ruling applied to the same file for the same reason.
+
+- (RECURRING COST, declared because widening a platform row is CPO-class) This adds
+  `platform-reviewer` to a third guard path, so an MR touching `.gitlab-ci.yml` now spawns TWO
+  opus specialists where the untranslated state would have spawned none (no routing row at all)
+  and the GitHub equivalent spawned two. Net against the pre-migration baseline: unchanged —
+  this restores the cost `.github/workflows/**` already carried rather than adding a new one.
+  `review_routing.json`'s standing rule ("Do not widen them without a cost approval quoted in
+  `decisions_taken`") is satisfied by the ruling above, quoted there.
+
+- (SCOPE AMENDMENT, declared rather than made quietly) `.claude/task/escalations.log` and
+  `.claude/task/TEMPLATE.md` were added to `scope_paths` AFTER the first review round, on
+  `cto-reviewer`'s FAIL. Both were needed to fix findings that round raised: this file to give
+  the ruling above a durable record, and TEMPLATE.md because it carries a fourth copy of the
+  protected-path list that the change invalidates. The amendment is recorded here because a
+  mid-task scope widening that only the contract mentions is the shape this log exists to catch.
+
+- (round 1 verdicts) `scope-auditor` PASS. `cto-reviewer` FAIL, `platform-reviewer` FAIL — both
+  found real defects, listed in `review.md`. The two FAILs are the reason this file has an entry
+  at all: round 1's `protected_override` cited a CPO approval with no durable record, which
+  `cto-reviewer` checked against this log and found absent.
+
+- (round 2 verdicts, and the SAME pattern twice more) `cto-reviewer` FAIL, `platform-reviewer`
+  FAIL. Both findings were stale RESTATEMENTS, not code defects, and both were in documents the
+  round-1 sweep had declared complete.
+
+  `platform-reviewer` found the contract's own `impact_map` still describing the removed
+  fail-open design ("the data:* jobs are rules-gated on $GCP_SA_KEY … absent rather than failed")
+  while `decisions_taken` #6, added in the same commit, said the opposite. The YAML comment was
+  rewritten; this second copy of the same fact was not.
+
+  `cto-reviewer` found two further guard-path COUNT restatements —
+  `docs/roles/platform_reliability.md` and `docs/north_star.md` — missed because round 2's grep
+  was scoped to the files already open rather than run across the repo.
+
+  ⚠ THE LESSON, now recorded because it has fired three rounds running on one task: this change
+  invalidates sentences on TWO axes (guard-path counts; protected-path enumerations) spread over
+  seven and four files respectively, and each round's sweep was bounded by whatever was already
+  in hand. A count or a list restated in prose has to be re-derived from the ROWS and swept
+  REPO-WIDE. The 12-row CTO figure in this task was re-derived by counting the routing table
+  programmatically rather than copied from the reviewer that reported it — the 2026-07-31 entry
+  above records what taking a reviewer's arithmetic on trust cost last time ("Do not take my
+  number on trust again — that is how one off-by-one became two documents").
+
+- (SCOPE AMENDMENT, third) `docs/roles/platform_reliability.md` and `docs/north_star.md` added to
+  `scope_paths` after round 2, on `cto-reviewer`'s FAIL. Same footing as the previous two: needed
+  to fix findings that round raised, neither is a protected path, and the amendment is recorded
+  here rather than only in the contract.
+
+- (round 3 verdicts) `cto-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` ESCALATE. The
+  two specialist FAILs from rounds 1-2 are cleared: the repo-wide sweep of both restatement axes
+  holds, and the data jobs fail closed. The remaining open item is the scope question below.
+
+- (⭐ CPO RULING: SCOPE AMENDMENT AUTHORITY FOR THE FOUR RESTATEMENT FILES) `scope-auditor`
+  ESCALATED that `scope_paths` was amended four times mid-task — `escalations.log`, `TEMPLATE.md`,
+  `docs/roles/platform_reliability.md`, `docs/north_star.md` — each time on a reviewer's FAIL, and
+  that the three entries above cite that FAIL as the authority. The reviewer is RIGHT on the rule:
+  `working_agreement.md:79` says an amendment records the CPO's authority, and a reviewer FAIL is
+  not a substitute. This is the same line the same reviewer held on 2026-06-23 (entry at :145),
+  where the CPO granted the amendment explicitly rather than letting reviewer-FAIL footing stand.
+
+  Put to the CPO with both paths named: (a) confirm the amendment, or (b) revert the four files out
+  of this branch to a follow-up MR — which would merge `.gitlab-ci.yml` with the guard counts
+  knowingly stale in four documents, one of them `platform_reliability.md`, which is fed to
+  `platform-reviewer` as an Input on every future run. Builder recommended (a) with that reasoning.
+
+  CPO ANSWER (conversation, 2026-08-06): **(a) confirm the amendment.** All four paths are
+  authorized into this task's scope. Every one is the same edit — a sentence saying "eight" now
+  says "nine", or a list gaining `.gitlab-ci.yml`. No logic, no design, nothing that changes what
+  ships. The three SCOPE AMENDMENT entries above are SUPERSEDED as to authority: this ruling is the
+  authority for all four, and the reviewer-FAIL footing they claim was never sufficient.
+
+  ⚠ WHAT THE RULING DOES NOT EXCUSE, stated when granting it: these are not four independent
+  extensions that each happened to be justified. They are ONE sweep that was UNDER-SCOPED WHEN THE
+  CONTRACT WAS FIRST WRITTEN. All eleven restatement sites — seven on the count axis, four on the
+  protected-list axis — were derivable from the routing table before the first edit. Discovering
+  four of them one reviewer-FAIL at a time is the defect; the amendment is granted, the
+  under-scoping is not thereby excused.
+
+- (⭐ ROOT CAUSE, named by the CPO and filed rather than fixed here) The reason this task cost three
+  review rounds is not the CI translation — that was one file and one commit. It is that the guard
+  path COUNT is hand-copied as prose into SEVEN documents, and the protected-path LIST into FOUR,
+  with nothing deriving either from `review_routing.json`. Changing eight to nine therefore means
+  editing eleven sites, and any one missed is a document that misinforms a future reviewer. Filed
+  as GitLab issue #1 (`/-/work_items/1`), which carries the eleven sites and three candidate fixes.
+  Deliberately NOT fixed on this branch: it is a separate mechanism change, and folding it in would
+  repeat the under-scoping this entry records.
+
+- (FIRST PIPELINE, run against `.gitlab-ci.yml` on MR !4, pipeline 2737720717) `validate:governance`,
+  `validate:secrets`, `test:python` and `build:site-v2` PASS. `data:build:mr` FAILS, by design, with
+  the `.gcp_auth` guard: "FATAL: GCP_SA_KEY is not set. The data-quality gate (sqlfluff lint, dbt
+  build, singular DQ tests) cannot run without GCP credentials, and must not be reported as passing."
+  The guard exits 1 BEFORE `dbt deps`, `sqlfluff lint` or `dbt build`, so the unwired DQ suite
+  reddens the pipeline instead of vanishing from it — the round-2 `platform-reviewer` finding,
+  confirmed on a live runner rather than argued. `decisions_reserved` no longer needs to say "no
+  pipeline has executed": one has, and this is what it did. The remedy is the CI/CD variable, never
+  a rules-gate on the variable's absence.

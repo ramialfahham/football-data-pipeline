@@ -15,7 +15,8 @@ scope_paths:
 
 # Only for CPO-approved governance tasks that must edit the guards themselves
 # (.claude/hooks/, .claude/agents/, .claude/commands/, .claude/settings.json,
-# .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/).
+# .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/,
+# .gitlab-ci.yml).
 # Quote the approval. A protected path ALSO requires an impact_map below (2026-07-22):
 # the override answers "may you", the map answers "do you know what breaks".
 # protected_override: >
@@ -25,7 +26,8 @@ scope_paths:
 # (ingestion/**), a dbt model (dbt_project/models/**), consumption
 # (scripts/export_*.py, site*/), or ANY PROTECTED PATH (.claude/hooks/,
 # .claude/agents/, .claude/commands/, .claude/settings.json,
-# .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/ —
+# .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/,
+# .gitlab-ci.yml —
 # added 2026-07-22, because a guard's blast radius is every future task in the
 # repo, wider than most models). The contract gate DENIES the first such edit
 # until this is present.

@@ -69,6 +69,12 @@ PROTECTED_FILES = (
     ".claude/review_routing.json",
     ".mcp.json",
     ".cursor/mcp.json",
+    # Same authority as the ".github/workflows/" prefix above: the file that
+    # decides what CI enforces. Added with the GitHub->GitLab migration
+    # (2026-08) so the CI gate could not change hosts and silently fall out of
+    # the protected set. A single FILE, not a prefix — ".gitlab-ci.yml" is the
+    # entire surface, and a prefix entry would match nothing.
+    ".gitlab-ci.yml",
 )
 
 _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
