@@ -1744,6 +1744,207 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
     assert denied(out) and "impact_map" in out
 
 
+# The `if:` conditions these CI tests know how to reason about, classified by what
+# they evaluate to ON A SCHEDULED PIPELINE (source=schedule, branch=main).
+#
+# An UNRECOGNISED condition is a hard error, never a silent "doesn't match". Treating
+# unknown as false is what makes a guard test quietly stop guarding: someone writes
+# `$CI_COMMIT_BRANCH == "main"` (same meaning, different spelling), the recogniser
+# shrugs, and a job that DOES run on a schedule is reported safe. platform-reviewer
+# flagged that gap once the deploy jobs stopped routing through *not_on_schedule and
+# came to depend entirely on hand-written conditions.
+_SCHEDULE_TRUE = frozenset({
+    '$CI_PIPELINE_SOURCE == "schedule"',
+    "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
+})
+_SCHEDULE_FALSE = frozenset({
+    '$CI_PIPELINE_SOURCE == "merge_request_event"',
+    '$CI_PIPELINE_SOURCE == "web"',
+})
+
+
+def _ci_cond(rule: dict) -> str | None:
+    """Normalise a rule's `if:` — quote style and whitespace only, never semantics."""
+    cond = rule.get("if")
+    if cond is None:
+        return None
+    return " ".join(cond.replace("'", '"').split())
+
+
+def _matches(cond: str | None, truthy: frozenset) -> bool:
+    """Does this condition hold in the modelled context? Unknown conditions RAISE."""
+    if cond is None:
+        return True  # a rule with no `if:` always matches
+    if cond in truthy:
+        return True
+    if cond in (_SCHEDULE_TRUE | _SCHEDULE_FALSE) - truthy:
+        return False
+    raise AssertionError(
+        f"unrecognised CI rule condition {cond!r}. These tests reason about pipeline "
+        f"reachability by classifying conditions, and an unknown one must not be "
+        f"assumed harmless — that is how a guard test stops guarding. Add it to "
+        f"_SCHEDULE_TRUE or _SCHEDULE_FALSE in this file, deciding deliberately "
+        f"whether it holds on a scheduled pipeline (source=schedule, branch=main).")
+
+
+def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
+    """A deploy must not appear as a play button on ordinary MR and push pipelines.
+
+    `deploy-site-v2.yml`'s ONLY GitHub trigger was `workflow_dispatch`, so the workflow
+    never attached to a push or a pull request — reaching it meant deliberately
+    dispatching it. `when: manual` alone does NOT reproduce that: it excludes nothing
+    by source, so an unscoped manual job shows up on every merge request and every
+    push to main, one click from deploying whatever that branch happens to build.
+
+    That shipped in an earlier revision of this branch and `platform-reviewer` caught
+    it. Manual-ness is not the gate; being unreachable except by deliberate dispatch
+    is. Nothing else in the suite checks job REACHABILITY by pipeline source."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    # Sources an ordinary contributor produces without intending to deploy.
+    everyday = ('$CI_PIPELINE_SOURCE == "merge_request_event"',
+                "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
+                '$CI_PIPELINE_SOURCE == "schedule"')
+
+    deploy_jobs = [k for k, v in ci.items()
+                   if not k.startswith(".") and isinstance(v, dict)
+                   and v.get("stage") == "deploy"]
+    assert deploy_jobs, "no deploy-stage jobs found — this test has gone stale"
+
+    for name in deploy_jobs:
+        rules = ci[name].get("rules") or []
+        assert rules, f"deploy job {name!r} has no rules, so every pipeline carries it"
+        for src in everyday:
+            reachable = None
+            for rule in rules:
+                # Only `src` is true in this modelled context; unknown conditions raise
+                # rather than being assumed not to match.
+                if _matches(_ci_cond(rule), frozenset({src})):
+                    reachable = rule.get("when", "on_success") != "never"
+                    break
+            assert not reachable, (
+                f"deploy job {name!r} is reachable on a pipeline where {src} holds. A "
+                f"Firebase deploy would appear as a play button on ordinary merge "
+                f"requests / pushes. Scope it to `if: $CI_PIPELINE_SOURCE == \"web\"` "
+                f"with a `when: never` fallback. rules={rules!r}")
+
+
+def test_every_job_using_gcp_auth_declares_id_tokens():
+    """`*gcp_auth` is useless without `id_tokens:` on the SAME job.
+
+    GitLab populates `$GITLAB_OIDC_TOKEN` only for a job that declares `id_tokens:`
+    itself — it is not inherited from a `default:` block and not implied by expanding
+    the auth anchor. A job that calls `*gcp_auth` without it dies on the third guard
+    ("GITLAB_OIDC_TOKEN is empty") before doing any work.
+
+    This shipped as a real defect and was caught in review, not by any static check:
+    `data:nightly`, `deploy:export` and `deploy:site-v2` were all written with
+    `<<: *python` alone. The nightly would have failed at auth EVERY night once a
+    schedule existed — the pipeline red, prod never built, and the failure looking
+    like a credential problem rather than a missing two-line block.
+
+    The `aud` is asserted too, not just presence: GitLab signs the token with that
+    value and Google rejects the exchange on any mismatch with the provider's
+    allowed audience, which is a silent-until-runtime failure of its own."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    expected_aud = "https://gitlab.com"
+    checked = 0
+    for name, job in ci.items():
+        if name.startswith(".") or not isinstance(job, dict) or "script" not in job:
+            continue
+        # The auth anchor expands inline, so its body is what identifies a consumer —
+        # matching on the anchor NAME would miss it entirely after expansion.
+        if not any("GITLAB_OIDC_TOKEN" in step for step in (job.get("script") or [])):
+            continue
+        checked += 1
+        aud = (job.get("id_tokens") or {}).get("GITLAB_OIDC_TOKEN", {}).get("aud")
+        assert aud, (
+            f"job {name!r} expands *gcp_auth but declares no id_tokens block, so "
+            f"$GITLAB_OIDC_TOKEN will be empty and the job dies at the auth guard. "
+            f"Merge the shared anchor: `<<: [*python, *gcp_job]`.")
+        assert aud == expected_aud, (
+            f"job {name!r} requests an id_token with aud={aud!r}, but the GCP provider "
+            f"allows {expected_aud!r}. Google rejects the token exchange on a mismatch.")
+
+    assert checked >= 3, (
+        f"only {checked} jobs found using *gcp_auth — this test has probably stopped "
+        f"recognising them, which makes it pass vacuously")
+
+
+def test_every_job_except_the_nightly_is_guarded_against_schedules():
+    """A scheduled pipeline must fire the nightly and NOTHING else.
+
+    This is the most expensive mistake available in `.gitlab-ci.yml`, and it fails
+    SILENTLY — no job turns red, the BigQuery bill just doubles. A scheduled pipeline
+    runs with `CI_COMMIT_BRANCH == main`, so it satisfies every
+    `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in the file, including
+    `data:build:main` — a full prod warehouse build. A `changes:` filter does NOT save
+    you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or a
+    merge request, so `data:build:main`'s `*data_paths` does not hold it back.
+
+    Rules are first-match-wins, so the guard is only a guard if it comes FIRST. A later
+    `when: never` can be outvoted by an earlier matching clause, which is exactly the
+    kind of ordering bug a reader skims past."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    nightly = "data:nightly"
+    jobs = {k: v for k, v in ci.items()
+            if not k.startswith(".") and isinstance(v, dict) and "script" in v}
+    assert nightly in jobs, f"{nightly} is missing — the schedule has nothing to run"
+
+    def runs_on_a_schedule(job: dict) -> bool:
+        """Evaluate `rules:` as GitLab would, for a scheduled pipeline on main.
+
+        Deliberately SEMANTIC rather than positional. An earlier version asserted the
+        guard was literally `rules[0]`, which broke as soon as a job became correctly
+        schedule-safe a different way (`if: web` first, `when: never` fallback). What
+        matters is the PROPERTY — can a schedule reach this job — not the spelling.
+
+        Models the two behaviours that make this trap real:
+          · a scheduled pipeline is on main, so `$CI_COMMIT_BRANCH ==
+            $CI_DEFAULT_BRANCH` MATCHES;
+          · `changes:` evaluates TRUE on any non-push/non-MR pipeline, so a path
+            filter does NOT hold a job back — it is ignored here for that reason.
+        """
+        for rule in (job.get("rules") or [{}]):
+            if _matches(_ci_cond(rule), _SCHEDULE_TRUE):
+                # First match wins; absent `when` defaults to on_success.
+                return rule.get("when", "on_success") != "never"
+        return False  # fell off the end: no rule matched, job does not run
+
+    for name, job in jobs.items():
+        if name == nightly:
+            continue
+        assert not runs_on_a_schedule(job), (
+            f"job {name!r} WILL RUN on a scheduled pipeline. Rules are first-match-wins "
+            f"and a schedule is on main, so `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` "
+            f"matches and `changes:` does not filter it. For data:build:main that means "
+            f"a SECOND full prod warehouse build every night, silently. Put "
+            f"`*not_on_schedule` first, or scope the job to an explicit source. "
+            f"rules={job.get('rules')!r}")
+
+    # The other half, or the check above would be trivially satisfiable by guarding
+    # everything and never building anything.
+    assert runs_on_a_schedule(jobs[nightly]), (
+        f"{nightly} does not run on a schedule — the nightly build would never fire")
+
+
 def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
     """dbt and sqlfluff resolve the profile by DIFFERENT means, and CI runs both.
 
