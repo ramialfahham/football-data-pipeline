@@ -1,366 +1,207 @@
-# Task contract — GitLab CI translation + guard parity for the CI config
+# Task contract — GitLab CI Phase 3: the nightly prod build and the site deploy
 
-> Branch `chore/gitlab-ci-pipelines` from `main`. Protected paths ARE in scope
-> (`.claude/review_routing.json`, `.claude/agents/**`, `.claude/hooks/**`,
-> `.gitlab-ci.yml`), so `protected_override` and `impact_map` are both declared
-> below. No `site_v2/src/` path is in scope, so no `acceptance_criteria`.
+> Branch `chore/gitlab-ci-phase3` from `main`. `.gitlab-ci.yml` is a protected path and
+> `ingestion/**` is the structural surface, so `protected_override` and `impact_map` are
+> both declared. No `site_v2/src/` path is in scope, so no `acceptance_criteria`.
 
 objective: >
-  The GitHub account is suspended, so CI has no host. Translate the six quality-gate
-  workflows (`python-ci`, `ci-validate`, `security-secrets`, `ci-ui`, `ci-site-v2`,
-  `ci-data-build`) into a single `.gitlab-ci.yml` so the commit -> pipeline -> MR loop
-  works on GitLab.
+  Finish the GitHub -> GitLab migration. MR !4 moved the six quality gates and proved the
+  keyless WIF credential chain end to end (pipeline 2738001325 green, including the
+  singular DQ suite). What remains is the work that keeps the PROJECT running rather than
+  the CI: the nightly prod warehouse build, and the v2 site deploy.
 
-  Second, closely-coupled objective: the CI config is a GUARD. `.github/workflows/**`
-  is both a protected path (contract gate) and a two-reviewer opus guard path (review
-  routing). Its replacement `.gitlab-ci.yml` matched NEITHER, so migrating the CI gate
-  to a new host would have silently dropped `cto-reviewer` + `platform-reviewer` and
-  the `protected_override` requirement from the one file that decides what CI enforces.
-  That downgrade is repaired here, in the same commit that creates the file — not left
-  as follow-up, because the window between them is exactly when an unreviewed CI edit
-  lands.
+  Two workflows are TRANSLATED (`dbt-scheduled.yml`, `deploy-site-v2.yml`) and three are
+  DELIBERATELY NOT (`pages-match-preview.yml`, `board-request-sync.yml`,
+  `ci-failure-watchdog.yml`). The non-ports are decisions, not omissions, and are argued
+  in `decisions_taken` — porting a workflow whose product was retired would resurrect it.
 
 refs: >
-  Migration MRs already open: !2 (`.githooks/post-commit` -> glab), !3 (agent
-  governance docs -> glab/MR). This is the third. All three were committed while the
-  repo's local hooks were inert (the session's `CLAUDE_PROJECT_DIR` pointed at a
-  different project), which is why review artifacts are being written after the fact
-  rather than at commit time. `check_task_artifacts.py` caught it — the CI backstop
-  did its job.
+  CPO instruction, 2026-08-06: "Finish migration. AGAIN: I must be able to continue with
+  the project." That sentence sets the bar this contract is written against — the nightly
+  build is what makes the data keep flowing, so it is the centre of this task, and
+  anything not required for the CPO to keep working is deferred rather than bundled.
 
-  Phase 3 (dbt-scheduled, deploy-site-v2, pages-match-preview) is deliberately NOT
-  here: those need GCP Workload Identity Federation repointed at GitLab's OIDC issuer,
-  which is a GCP IAM change requiring the CPO's sign-off.
+  `.gitlab-ci.yml`'s guard status (routing + PROTECTED_FILES) was ruled on 2026-08-06 and
+  is recorded in `.claude/task/escalations.log`. That ruling still governs; this task
+  changes the file again under the same authority.
 
 scope_paths:
   - .gitlab-ci.yml
-  - .claude/review_routing.json
-  - .claude/hooks/task_contract_gate.py
-  - .claude/agents/cto-reviewer.md
-  - .claude/agents/platform-reviewer.md
-  - docs/working_agreement.md
-  - docs/agent_guardrails.md
+  - ingestion/api_football/completeness.py
+  - ingestion/api_football/orchestrator.py
   - tests/test_governance_hooks.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
-  # THE FOUR PATHS BELOW WERE ADDED MID-TASK. Authority: CPO ruling of 2026-08-06,
-  # recorded in `.claude/task/escalations.log` under "scope amendment authority for
-  # the four restatement files" — read it there; this is a pointer, not the record.
-  #
-  # `scope-auditor` ESCALATED precisely because the earlier version of these lines
-  # cited a reviewer's FAIL as the authority. A reviewer FAIL is not amendment
-  # authority; `working_agreement.md:79` says an amendment records the CPO's. Same
-  # shape as the 2026-06-23 precedent (`escalations.log:145`), where the same
-  # reviewer held the same line and the CPO granted it explicitly.
-  #
-  # HONEST FRAMING, and the CPO named it when ruling: these are not four independent
-  # extensions that each happened to be justified. They are ONE sweep that was
-  # UNDER-SCOPED WHEN THIS CONTRACT WAS FIRST WRITTEN. All eleven restatement sites
-  # (seven on axis 1, four on axis 2) were knowable from the routing table before the
-  # first edit; listing four of them only after a reviewer pointed at each in turn is
-  # the defect. The amendment is granted; the under-scoping is not excused by it.
-  - .claude/task/escalations.log      # the durable record of the ruling itself
-  - .claude/task/TEMPLATE.md          # carries a 4th copy of the protected-path list
-  - docs/roles/platform_reliability.md   # platform-reviewer.md's third Input
-  - docs/north_star.md                   # CTO row count + Platform's "Wakes on"
+  - .claude/task/escalations.log
 
 protected_override: >
-  CPO ruling of 2026-08-06, recorded durably in `.claude/task/escalations.log` under
-  "GitHub -> GitLab migration: guard status for the CI config" — read it there; this
-  is a pointer, not the record. The question was put with both options named (match
-  `.github/workflows/**`'s reviewers, or leave `.gitlab-ci.yml` on scope-auditor only
-  and accept lighter review on CI config). CPO ANSWER: "Yes, match the old coverage."
+  CPO instruction of 2026-08-06 ("Finish migration"), which cannot be carried out without
+  editing `.gitlab-ci.yml` — the file that holds every job being added. This is the same
+  file, the same migration and the same authority as MR !4, whose guard-status ruling is
+  recorded durably in `.claude/task/escalations.log` under "GitHub -> GitLab migration:
+  guard status for the CI config".
 
-  ROUND 1 FAILED HERE and the correction is the point: that version cited the approval
-  as "approved in-thread" with no entry in escalations.log. `cto-reviewer` grepped the
-  log, found zero occurrences of "gitlab" and nothing dated after 2026-08-03, and
-  failed it — the "does the claimed ruling actually exist" check firing exactly as
-  `review_routing.json` says it has before. A `contract.md` does not survive the next
-  task, so an authority recorded only there disappears with it.
-
-  The protected-path half (contract gate) is the same ruling applied to the same file
-  for the same reason. The CPO ruled on review routing explicitly and on the contract
-  gate by implication; that inference is stated plainly here and in the summary rather
-  than left for a reader to discover.
+  Stated plainly rather than inferred: the CPO has not separately ruled on WHICH workflows
+  get ported. That judgement is the builder's and is argued in `decisions_taken`; the
+  three non-ports are the part most worth challenging, and each cites the record it rests
+  on rather than a preference.
 
 impact_map: >
-  END-TO-END TRACE of each guard edit.
+  END-TO-END TRACE of each change.
 
-  - `.claude/review_routing.json`: adds one row, `.gitlab-ci.yml` -> [cto-reviewer,
-    platform-reviewer]. CONSUMERS: `git_discipline._required_reviewers` (local commit
-    gate) and `check_task_artifacts.py` (CI backstop) both read `paths` and both now
-    demand two specialist verdicts for any MR touching `.gitlab-ci.yml`. Additive:
-    no existing row is narrowed or removed, so no surface loses a reviewer. Verified
-    by `test_real_routing_still_covers_every_pre_existing_surface`, which is
-    parametrised over every pre-existing pin and still passes.
+  - `.gitlab-ci.yml`, `schedule` added to `workflow:rules`. THIS IS THE DANGEROUS EDIT and
+    it is why the previous contract deliberately withheld it. A scheduled pipeline runs
+    with `CI_COMMIT_BRANCH == main`, so it satisfies every existing `if: $CI_COMMIT_BRANCH
+    == $CI_DEFAULT_BRANCH` rule — `validate:ui`, `build:site-v2` and, critically,
+    `data:build:main`. Worse, GitLab evaluates `changes:` as TRUE on any pipeline that is
+    not a push or MR, so `data:build:main`'s `changes: *data_paths` filter does NOT hold
+    it back on a schedule. Admitting schedules naively would therefore run a SECOND full
+    prod warehouse build every night, doubling the most expensive job in the file.
+    MITIGATION: a `.not_on_schedule` anchor (`if: $CI_PIPELINE_SOURCE == "schedule"`,
+    `when: never`) is placed FIRST in the rules of every job except the nightly. Rules are
+    first-match-wins, so the guard cannot be outvoted by a later matching clause. Pinned
+    by a test (below) because the failure is silent and expensive: nothing goes red, the
+    bill just doubles.
 
-  - `.claude/hooks/task_contract_gate.py`: appends `.gitlab-ci.yml` to
-    `PROTECTED_FILES`. CONSUMER: `_is_protected`, reached from the Edit/Write gate and
-    the shell-redirect gate. EFFECT: editing `.gitlab-ci.yml` now denies unless the
-    contract carries `protected_override` AND a non-placeholder `impact_map` — this
-    contract is the first to satisfy it. A FILE entry, not a prefix: `.gitlab-ci.yml`
-    is the whole surface and a prefix would match nothing. RISK CONSIDERED: this makes
-    routine CI edits costlier. Accepted — it is precisely the cost `.github/workflows/`
-    already carried, and the migration should not be a discount on it.
+  - `.gitlab-ci.yml`, new job `data:nightly` (was `dbt-scheduled.yml`). Runs ONLY on
+    `$CI_PIPELINE_SOURCE == "schedule"` plus manual `web`. Joins `resource_group:
+    prod-warehouse-write`, shared with `data:build:main`, so the two prod writers can
+    never MERGE the bare prod tables concurrently (#667) — the same guarantee the GitHub
+    `concurrency: prod-warehouse-write` group gave across workflows.
+    CONSUMER: the warehouse itself. This is the job that keeps `dbt_analytics` current,
+    so its absence is what "I must be able to continue with the project" is about.
 
-  - PROSE RESTATEMENTS, and this is the part the review cycle kept failing. The
-    change invalidates sentences on TWO independent axes, and each axis has its own
-    scattered set of copies:
+  - `ingestion/api_football/completeness.py::write_github_output` -> `write_ci_output`.
+    CONSUMER: exactly one call site, `orchestrator.py:313`, which emits
+    `new_data=true|false` after ingestion. The GitHub workflow gated `dbt deps`, `dbt
+    seed`, both contract checks and `dbt build` on `steps.ingest.outputs.new_data ==
+    'true'` — i.e. a NIGHT WITH NO NEW DATA COSTS NOTHING. GitLab has no step outputs, so
+    the signal must survive as a file the next command reads.
+    WHY NOT just set `GITHUB_OUTPUT` in the GitLab job: it works, and it is a lie in a
+    filename — a GitLab runner writing a variable named for a platform this repo is
+    leaving. The helper now reads `CI_STEP_OUTPUT` first and falls back to
+    `GITHUB_OUTPUT`, so the frozen `.github/workflows/` copies keep working unchanged and
+    neither platform's name is hardcoded into the other's path.
+    BLAST RADIUS: the function is a no-op when neither variable is set, which is every
+    local run and every test. Renaming it cannot change ingestion behaviour; the worst
+    case is the nightly always seeing `new_data` unset and SKIPPING the build, which is
+    the safe direction (no spend, visible as an idle nightly), not a silent overspend.
 
-    AXIS 1 — guard-path COUNTS (eight -> nine, platform's share two -> three), in
-    SEVEN files: `.claude/agents/cto-reviewer.md` (two sites), 
-    `.claude/agents/platform-reviewer.md`, `.claude/review_routing.json` `_doc`,
-    `docs/working_agreement.md`, `docs/agent_guardrails.md`,
-    `docs/roles/platform_reliability.md`, `docs/north_star.md` (CTO row count AND
-    Platform's "Wakes on" list).
+  - `.gitlab-ci.yml`, new job `deploy:site-v2` (was `deploy-site-v2.yml`). BOTH gates the
+    original documents as deliberately closed are preserved: `when: manual` with no
+    schedule and no push trigger (the original's only trigger was `workflow_dispatch`),
+    and no custom-domain step (the deploy targets Firebase `.web.app`; going public is a
+    separate CPO decision, still blocked on the imprint question). It does NOT join
+    `prod-warehouse-write` — the export only SELECTs marts and writes no prod table,
+    which is why the original kept it in its own concurrency group.
 
-    AXIS 2 — PROTECTED-path enumerations, in FOUR files:
-    `.claude/agents/cto-reviewer.md` (hunt item 7), `docs/working_agreement.md`,
-    `docs/agent_guardrails.md`, `.claude/task/TEMPLATE.md`.
-
-    Round 1 swept axis 1 in five files and declared it complete. `cto-reviewer`
-    failed it twice: round 1 for missing axis 2 entirely (the two lists were
-    identical eight-item sets, which is exactly why one grep looked exhaustive), and
-    round 2 for missing two more axis-1 files, because that round's grep was scoped
-    to files already open rather than the repo. The lesson is mechanical, not
-    attitudinal: a count restated in prose must be re-derived from the rows and
-    swept REPO-WIDE, not from the set of files already in hand. `docs/north_star.md`
-    line 118 attaches an explicit duty to keeping its "Wakes on" column honest, and
-    `docs/roles/platform_reliability.md` is `platform-reviewer.md`'s third Input, so
-    a stale count there is fed to the reviewer on every future run.
-
-    The 12-row CTO count was RE-DERIVED by counting the routing table
-    programmatically, not copied from the reviewer that reported it —
-    `escalations.log` records a prior incident where taking a reviewer's arithmetic
-    on trust put an off-by-one into two documents.
-
-    Deliberately LEFT unchanged, each checked: `working_agreement.md` line 157 and
-    `escalations.log` line 327 narrate PAST review rounds and their counts were
-    correct then; `platform-reviewer.md`'s "other six" is still six (nine minus
-    three); `review_routing.json`'s "matches exactly two" is about the dependency
-    threshold, a different subject.
-
-  - `tests/test_governance_hooks.py`: adds two pins for the new routing row (one per
-    conferred reviewer, matching how the `.github/workflows/**` row is pinned) and
-    `.gitlab-ci.yml` to the protected-path parametrisation. NOT cosmetic —
-    `test_every_routing_pattern_is_pinned_by_the_test_above` FAILED on the first run
-    of this task with `unpinned routing patterns: ['.gitlab-ci.yml']`, which is the
-    guard-the-guard test doing its job.
-
-  - `.gitlab-ci.yml` itself: new file, no consumer inside the repo. It becomes live
-    only when GitLab runs a pipeline. Until the WIF provider exists the `data:*`
-    jobs are created, run, and FAIL — `.gcp_auth` exits 1 before `dbt deps`,
-    `sqlfluff lint`, `dbt build` or the singular DQ suite can run, so an unwired
-    data-quality gate reddens the pipeline instead of vanishing from it. Their
-    `rules:` consult path and trigger conditions ONLY; no credential variable is
-    among them. See `decisions_taken` #6 for why the reverse (rules-gating on the
-    variable) was removed as a defect in review round 2 — if you are reading this
-    bullet to decide how to handle red pipelines on an unwired runner, the answer is
-    to finish the GCP setup, never to reinstate that clause. OBSERVED, not predicted:
-    pipeline 2737720717 on MR !4 ran with no credentials configured and did exactly
-    this — `validate:governance`, `validate:secrets`, `test:python` and
-    `build:site-v2` green, `data:build:mr` red on the guard's own message.
-
-  - AUTH SURFACE (`.gcp_auth`, `id_tokens:` on `.data_build_base`). CONSUMERS: every
-    Python process the data jobs start. dbt-bigquery's `method: oauth` resolves through
-    `google.auth.default()`, as do `google-cloud-bigquery` in `scripts/` and the
-    `ingestion.api_football` package, so ALL of them pick up
-    `GOOGLE_APPLICATION_CREDENTIALS` without a line of code changing — which is why
-    `decisions_taken` #4 kept `method: oauth` verbatim. EFFECT: the credential is a
-    short-lived token minted per job, not a stored secret. BLAST RADIUS IF WRONG: the
-    data jobs cannot authenticate and fail closed (loudly), which is the same state
-    they are in today — this cannot silently degrade to a passing DQ gate.
-    NOT CHANGED: the service account, its IAM roles, and the two variable NAMES, all
-    carried over from the GitHub workflows unchanged.
+  - `tests/test_governance_hooks.py`: pins TWO invariants, both verified to fail against
+    the broken form rather than merely to pass against the fixed one.
+    (i) the schedule guard, per the bullet above.
+    (ii) `id_tokens` on every job that expands `*gcp_auth`. GitLab populates
+    `$GITLAB_OIDC_TOKEN` ONLY for a job declaring `id_tokens:` itself — not inherited
+    from `default:`, not implied by the anchor. `data:nightly`, `deploy:export` and
+    `deploy:site-v2` were all written without it and would have died at the auth guard
+    on every run, the nightly never building prod once a schedule existed.
+    `data-engineer-reviewer` caught it; `glab ci lint` passed it, the YAML parsed, and
+    both other tests passed, because the config was well-formed and simply wrong — the
+    same shape as MR !4's profile-location defect. The declaration is now a single
+    `.gcp_job` anchor merged into every consumer, so there is one definition to audit
+    instead of a copy per job.
 
 decisions_taken: >
-  1. NO `gate` jobs. Every GitHub workflow ended in a terminal `gate` job so branch
-     protection had one check name to require even when the real job was
-     path-filter-skipped. GitLab has no per-check requirement — "Pipelines must
-     succeed" gates the whole pipeline, and a rules-skipped job is ABSENT rather than
-     failed. Porting the gate jobs would add nine no-op jobs enforcing nothing.
+  1. PORTED: `dbt-scheduled.yml` -> `data:nightly`. This is the reason the task exists.
 
-  2. Jobs that branched on `github.event_name` inside steps are SPLIT into `:mr` and
-     `:main` variants. GitLab has no step-level `if:`; the alternative was wrapping
-     every command in a shell conditional.
+  2. PORTED: `deploy-site-v2.yml` -> `deploy:site-v2`, manual-only, both gates intact.
 
-  3. The `ingest` path-filter is dropped and `get_new_league_codes.py` runs on every
-     data build. GitLab rules cannot express two independent change-flags for one job.
-     The script is a BigQuery metadata lookup that returns empty — and ingests
-     nothing — whenever every league already has raw tables, so behaviour is preserved
-     at the cost of one cheap query.
+  3. NOT PORTED: `pages-match-preview.yml`. Its product is RETIRED. `docs/north_star.md:37`
+     records the legacy card MVP as taken offline on 2026-07-21, "its Pages deployment
+     deleted, `site/` frozen. There is no parity requirement, no cutover and no restore."
+     Porting it would resurrect a deliberately retired product AND reinstate a daily
+     07:30 UTC build — which `.claude/active_work.md` ranks as #547's open cost item 3
+     ("rebuilds unconditionally, no `new_data` gate", explicitly NEVER MEASURED). Not
+     porting is the only reading consistent with the retirement, and it happens to be the
+     cheaper one. If the CPO wants the MVP back that is a product decision, not a
+     migration step.
 
-  4. `method: oauth` is kept verbatim in the CI profiles. dbt-bigquery's oauth method
-     resolves through `google.auth.default()`, which honours
-     `GOOGLE_APPLICATION_CREDENTIALS`, so the same profile works for a service-account
-     key file now and for WIF/OIDC in Phase 3 with no edit.
+  4. NOT PORTED: `board-request-sync.yml`. It drives a GitHub Projects v2 board over
+     GraphQL. That board died with the account, and the 114-issue tracker did not migrate
+     — GitLab currently holds ONE issue. The CPO has chosen "rewrite against GitLab Issue
+     Boards", but there is no board to sync yet, so building the sync now would be
+     writing an integration against a thing that does not exist. Deferred, not dropped.
+     `project-status-sync.yml` is already in `.github/workflows/_paused/` and inactive, so
+     it is not a migration item at all.
 
-  5. AUTH IS KEYLESS — Workload Identity Federation, NOT a service account key. The
-     four GCP-touching GitHub workflows all used `google-github-actions/auth@v2` with
-     `workload_identity_provider` + `service_account` and `permissions: id-token: write`.
-     NOTHING SECRET WAS EVER STORED: both values are identifiers (a provider resource
-     path and an SA email), and the credential was minted per job from a signed OIDC
-     token. GitLab reaches the same architecture with `id_tokens:` + an `external_account`
-     credential config, so the migration keeps the property rather than trading it away.
+  5. NOT PORTED: `ci-failure-watchdog.yml`. It opened a GitHub Issue when CI failed.
+     GitLab emails the pipeline's author on failure natively, so porting it would rebuild
+     a notification that already exists, and would need the issue tracker that does not.
 
-     This REPLACES an earlier draft of this contract that specified a downloaded
-     `GCP_SA_KEY` JSON. That draft was written without checking what the GitHub
-     workflows did, and it was a real downgrade: a long-lived key does not expire, sits
-     in CI variable storage and must be rotated by hand. `deploy-site-v2.yml:89` states
-     the repo's standing position outright — a key is the FALLBACK, and "raise it, do
-     not adopt it silently". Choosing WIF is therefore not a new mechanism needing
-     approval; it is the status quo, and the key would have been the deviation.
+  6. THE SCHEDULE GUARD IS A `when: never` ANCHOR PLACED FIRST, not a `!=` condition
+     appended to each existing rule. Both work; the anchor is one definition to audit
+     instead of five edited conditions, and first-match-wins means it cannot be defeated
+     by a later clause. The alternative would have required getting five separate boolean
+     expressions right, which is exactly the hand-copied-in-N-places pattern that cost
+     MR !4 three review rounds.
 
-     No `gcloud` install is needed. The data jobs run `python:3.11` and shell out to
-     `gcloud`/`bq` NOWHERE — dbt, `google-cloud-bigquery` and the ingestion package all
-     authenticate through `google.auth.default()`, which handles `type: external_account`
-     natively, performing the STS exchange and SA impersonation itself. VERSIONS, stated
-     with their source because the two disagree and an unqualified number invites a
-     false correction: CI resolved google-auth 2.56.3 (pipeline 2737720717's pip install
-     log); the local `.venv` has 2.49.2. `google-auth` is a TRANSITIVE dependency and is
-     not pinned in `requirements.txt` — true before this branch as well, so it is not a
-     risk this change introduces. Either version works: `external_account` support, and
-     the `credential_source: {file: ...}` text-format default the script relies on,
-     predate both by years. Writing the credential config directly is what
-     `gcloud iam workload-identity-pools create-cred-config` emits anyway, without
-     adding an SDK download to every data job.
+  THRESHOLD DECLARATIONS. NEW MECHANISM: yes, two — a scheduled pipeline trigger (which
+  needs a GitLab pipeline schedule created in the UI or API; see `decisions_reserved`) and
+  a Firebase deploy job. Both are translations of mechanisms that already ran on GitHub,
+  not new capabilities.
 
-     CONTINUITY: `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` keep the
-     GitHub secret NAMES and take the same VALUES, so the existing service account and
-     its IAM roles are untouched. What must be created in GCP is one new OIDC provider
-     in the pool, trusting GitLab's issuer instead of GitHub's.
-
-  6. The data jobs FAIL CLOSED on missing credentials. Round 1 gated them with
-     `rules: when: never` on the variable being absent, reasoning that an unwired
-     credential should not redden every MR. `platform-reviewer` failed it, correctly:
-     a rules-excluded job leaves NO entry in the pipeline UI, so the pipeline went
-     GREEN having run no SQL lint, no dbt build and none of the singular DQ suite —
-     the suite the original annotates "DQ is non-negotiable". The GitHub original
-     could not reach that state (no credential guard: missing secrets errored the
-     auth action and reddened the gate). Red is the signal that the gate is unwired,
-     and the translation must not convert it to silence. Now an explicit check in
-     `.gcp_auth` exits 1 with the remediation. This also removes an assumption
-     nobody could verify — whether GitLab resolves a File-type variable inside
-     `rules:if` at all — since the variable is no longer consulted there.
-
-     Under WIF the guard checks THREE things, because there are three distinct
-     failure modes and they need different remedies: the two identifiers being unset
-     (the CI/CD variables were never added), and `$GITLAB_OIDC_TOKEN` being empty
-     (the job is missing its `id_tokens:` block — a YAML defect, not a config one, and
-     one that would otherwise surface as an opaque STS rejection).
-
-  7. `schedule` is NOT in `workflow:rules`. A schedule created in the UI runs with
-     `CI_COMMIT_BRANCH == main`, which would satisfy `data:build:main`'s rule and fire
-     a full prod warehouse build — work reserved below to Phase 3.
-
-  9. THE dbt PROFILE LIVES AT `~/.dbt`, the default — not a custom directory. An
-     earlier draft wrote it to `$CI_PROJECT_DIR/.dbt-ci` and pointed `DBT_PROFILES_DIR`
-     there. That worked for dbt and BROKE `sqlfluff lint`, because the two resolve the
-     profile differently: dbt honours `DBT_PROFILES_DIR`, while sqlfluff's dbt templater
-     reads `profiles_dir` from `dbt_project/.sqlfluff`, which is committed as `~/.dbt`.
-     So `dbt deps` succeeded and the very next command failed with "Could not find
-     profile named 'football_data_pipeline'".
-
-     The draft's stated reason was FALSE and is corrected rather than left standing: it
-     claimed the runner home directory "does not exist on a GitLab runner image". It
-     does — the jobs run as root on `python:3.11`, so `~` is `/root` and `mkdir -p`
-     creates `/root/.dbt` without complaint. There was never a reason to move the file.
-
-     Writing to the default location means dbt, sqlfluff and the committed `.sqlfluff`
-     all agree with no environment variable coordinating them, and it matches what
-     `ci-data-build.yml` did (`mkdir -p /home/runner/.dbt`, that runner's `~`). The
-     alternative — editing `profiles_dir` in `.sqlfluff` — was rejected: that file is
-     used by local development too, so a CI-shaped path there would break every
-     developer's `sqlfluff lint`.
-
-     FOUND BY A REAL RUN, not by review. Three rounds of review and a YAML parse check
-     all passed over it, because nothing static can see that two tools disagree about
-     where a file lives. Recorded because it bounds what the other `done_when` entries
-     are worth: they establish the config is well-formed, not that it works.
-
-     PINNED BY A TEST, on `platform-reviewer`'s FAIL. The first version of this fix was
-     correct and complete but nothing in the suite would have failed if someone restored
-     the override — a guard-the-guard gap on an opus-routed guard path, for a mistake the
-     YAML's own comment admits is non-obvious and invites under a future "cleanup" edit.
-     `test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it` now asserts (a) no
-     `DBT_PROFILES_DIR` in `variables:`, (b) the directory `.dbt_profile` writes to
-     matches `.sqlfluff`'s `profiles_dir` textually, and (c) EVERY job running dbt or
-     sqlfluff writes the profile first — (c) because a complete-looking fix that leaves
-     one job unpinned fails identically. Textual only: no credentials, no dbt run, so it
-     belongs in the offline suite. VERIFIED AGAINST THE REGRESSION rather than assumed —
-     the test was run against the pre-fix `.gitlab-ci.yml` at HEAD and FAILED with the
-     intended message, then passed once restored. A pinning test that has never been seen
-     to fail pins nothing.
-
-  8. Every job carries `needs: []`. The six GitHub workflows were independent; stages
-     alone would serialise them so a failing lint stops the test suite from ever
-     reporting. Stages are kept only as pipeline-UI grouping.
-
-  THRESHOLD DECLARATIONS. NEW MECHANISM: yes — `.gitlab-ci.yml` is a new CI surface,
-  and `PROTECTED_FILES` gains an entry. Both are declared above with their consumers.
-
-  RECURRING COST, two items, the first added after round 1 because `cto-reviewer`
-  failed its omission:
-  (a) REVIEWER COST. This widens `platform-reviewer` from two guard rows to three, so
-      an MR touching `.gitlab-ci.yml` spawns TWO opus specialists. `review_routing.json`
-      carries a standing rule that widening those rows is CPO-class and needs "a cost
-      approval quoted in decisions_taken" — round 1 quoted the ruling in
-      `protected_override` instead, which is not where the rule says to put it. Quoted
-      here now: CPO, 2026-08-06, "Yes, match the old coverage" (escalations.log).
-      Net against the pre-migration baseline this is ZERO — it restores the cost
-      `.github/workflows/**` already carried rather than creating a new one.
-  (b) QUERY COST. One `get_new_league_codes.py` BigQuery metadata query per data build
-      (decision 3), reading table existence only.
+  RECURRING COST — the honest accounting, and it is a REDUCTION:
+  (a) The nightly prod build is NOT new spend: it is the GitHub nightly moving hosts, and
+      it has been absent since the account was suspended. Restoring it restores the prior
+      baseline. It stays gated on `new_data`, so a night with no new data still costs
+      nothing.
+  (b) NOT porting `pages-match-preview.yml` REMOVES a daily 07:30 UTC unconditional
+      rebuild from the platform's recurring cost. Its size was never measured, so no
+      figure is claimed here.
+  (c) `deploy:site-v2` is manual, so it adds no recurring cost.
+  (d) NO COST FIGURE IS ASSERTED for any of this. The CPO instructed on 2026-08-06 that
+      `report_bq_cost.py` not be run — recorded durably in `.claude/task/escalations.log`
+      under "CPO INSTRUCTION: DO NOT RUN THE COST TOOLING", with the verbatim wording;
+      read it there, this is a pointer and not the record. `scope-auditor` FAILED an
+      earlier version of this contract for citing that instruction with no entry a
+      reviewer could check — the same defect that failed MR !4's round 1, held to
+      correctly a second time. Cost effects are therefore argued from what the workflows
+      DO, never from bytes, and the ranked list in `.claude/active_work.md` is cited
+      as-is where relevant.
 
 decisions_reserved:
-  - Phase 3 (dbt-scheduled, deploy-site-v2, pages-match-preview) is NOT started. Its
-    JOBS are reserved; its AUTH is not — the WIF wiring lands here, so Phase 3 adds
-    workflows against an auth surface that already works rather than doing both at once.
-  - The GCP-side setup (a GitLab OIDC provider in the workload identity pool, plus the
-    `principalSet` binding) is NOT done and CANNOT be done from this repo. It is a
-    change in the CPO's Google Cloud console, handed over as a step list. Until it
-    exists the `data:*` jobs fail closed, which is the designed state, not a defect.
-  - Phase 4 (GitHub Projects board sync, ci-failure-watchdog) is NOT started. The CPO
-    has chosen "rewrite against GitLab Issue Boards"; the design is not written yet.
-  - Whether to DELETE `.github/workflows/` is not decided here. Both rows stay in the
-    routing table and the protected list while the GitHub repo exists as a frozen
-    mirror. The routing `_doc` records that retiring it returns the counts to eight
-    and TWO, in the same commit that deletes the row.
-  - WHAT THE PIPELINE HAS AND HAS NOT PROVEN. Pipeline 2737720717 ran on MR !4: four
-    jobs green, `data:build:mr` red on the credential guard. So the YAML parses on a
-    real runner, the anchors expand, the path rules fire and the fail-closed guard
-    works. NOT proven, because no run has yet reached them: the WIF token exchange,
-    `dbt build`, `sqlfluff lint` and the singular DQ suite. Those stay unexercised
-    until the GCP provider exists, and the review should read every claim about them
-    as static validation only.
+  - The GitLab PIPELINE SCHEDULE ITSELF IS NOT CREATED by this task. A schedule is
+    project configuration, not repository content — it cannot be committed. Creating it
+    starts a recurring prod warehouse build, which is a cost commitment and therefore the
+    CPO's to make, with the cron (04:00 UTC, matching the GitHub original) and target
+    branch stated when they do. Until it exists `data:nightly` simply never fires, which
+    is the safe default.
+  - Phase 4 (board sync) is deferred per `decisions_taken` #4, pending a GitLab board and
+    a migrated tracker.
+  - Whether to DELETE `.github/workflows/` remains undecided, unchanged from MR !4. It is
+    still the reference this task translates FROM, and `review_routing.json` records that
+    retiring it returns the guard counts to eight and TWO.
+  - Going public with the v2 site (custom domain, announcement) is untouched and remains
+    blocked on the imprint question.
+  - The slim MR build path (`dbt build --select state:modified+ --defer --favor-state`)
+    is STILL unexercised on GitLab: MR !4 changed no dbt models, so it reported "Nothing
+    to do". The first MR touching a model remains its real test. Nothing here changes it.
 
 done_when:
-  - `.gitlab-ci.yml` exists and `glab ci lint` reports it valid.
-  - No long-lived credential is required by any job: `.gcp_auth` mints a short-lived
-    token via `id_tokens:` + an `external_account` config, matching the keyless
-    property the four GitHub workflows had. `git grep GCP_SA_KEY` returns hits ONLY
-    inside `.claude/task/**`, where they narrate the rejected design — no executable
-    file references it. (Stated this way deliberately: "no hits anywhere" would be
-    false, and a `done_when` that cannot pass is worse than none.)
-  - `data:build:mr` gets PAST `.gcp_auth` on a live runner — the WIF exchange is
-    exercised, not merely constructed — and `sqlfluff lint`, `dbt build` and the
-    singular DQ suite all run. Nothing short of a green `data:build:mr` demonstrates
-    this: the profile-location defect proved that a well-formed config and a working
-    config are different claims.
-  - The `.gcp_auth` block is verified by PARSING the merged YAML, not by reading it:
-    the heredoc terminator sits at column 0 (otherwise the shell swallows the rest of
-    the script), the body parses as JSON after variable substitution with no
-    unsubstituted `$VAR` left, and both `data:build:mr` and `data:build:main` carry an
-    `id_tokens:` block — without which `$GITLAB_OIDC_TOKEN` is empty and every run
-    dies on the third guard.
-  - The six quality-gate workflows each have a corresponding job, with path filters,
-    MR/main split and resource groups preserved.
-  - `.gitlab-ci.yml` confers `cto-reviewer` + `platform-reviewer` via
-    `review_routing.json` and is in `PROTECTED_FILES`.
-  - Every prose restatement agrees with the rows, on BOTH axes (guard-path counts
-    and protected-path enumerations), verified by a REPO-WIDE grep rather than by
-    re-reading the files already open.
-  - `python -m pytest tests/test_governance_hooks.py` is green, and the profile-location
-    pin has been demonstrated to FAIL against the pre-fix config, not merely to pass
-    against the fixed one.
+  - `glab ci lint` reports the config valid.
+  - `data:nightly` exists, runs only on `schedule`/`web`, and joins
+    `resource_group: prod-warehouse-write`.
+  - The deploy chain requires a human click and cannot run on a schedule or a push.
+    STATED PRECISELY, because an earlier wording named the wrong job: the `when: manual`
+    gate sits on `deploy:export`, and `deploy:site-v2` carries `needs: ["deploy:export"]`
+    — GitLab will not start a `needs:`-dependent job until its manual upstream is
+    triggered, so one click still gates the whole export -> build -> deploy chain, which
+    is what the original single-job `workflow_dispatch` guaranteed. `cto-reviewer` caught
+    the imprecision and correctly judged the guarantee intact.
+  - EVERY job except `data:nightly` carries the `.not_on_schedule` guard as its FIRST
+    rule, verified by parsing the merged YAML rather than by reading it — a scheduled
+    pipeline must not fire `data:build:main`.
+  - The `new_data` signal survives the platform change: `write_ci_output` reads
+    `CI_STEP_OUTPUT` then `GITHUB_OUTPUT`, and the nightly skips the build when it is
+    false.
+  - `python -m pytest tests/test_governance_hooks.py` is green, and the schedule-guard
+    pin has been demonstrated to FAIL against an unguarded job, not merely to pass.

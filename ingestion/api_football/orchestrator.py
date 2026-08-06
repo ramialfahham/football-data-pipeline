@@ -29,7 +29,7 @@ from .completeness import (
     persist_fixture_statistics_missing,
     read_per_team_coverage,
     run_ingest_completeness_checks,
-    write_github_output,
+    write_ci_output,
     write_step_summary_if_configured,
 )
 from .ingestion_lock import (
@@ -310,7 +310,7 @@ def _load_api_football(request):
                 notes.append(f"hard gate incomplete: {f['league_code']} — {eps}")
         markdown = completeness_markdown_summary(report, notes=notes)
         write_step_summary_if_configured(markdown)
-        write_github_output("new_data", "true" if ctx.tables_loaded > 0 else "false")
+        write_ci_output("new_data", "true" if ctx.tables_loaded > 0 else "false")
 
         if outcome["hard_fail"]:
             parts: list[str] = []

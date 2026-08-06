@@ -733,13 +733,21 @@ def completeness_markdown_summary(
     return "\n".join(lines) + "\n"
 
 
-def write_github_output(key: str, value: str) -> bool:
-    """Write a key=value pair to ``$GITHUB_OUTPUT`` when running in GitHub Actions.
+def write_ci_output(key: str, value: str) -> bool:
+    """Write a key=value pair to the CI runner's step-output file, if it has one.
 
-    Returns ``True`` when written, ``False`` when the env var is unset (local runs).
-    No-op outside GitHub Actions; safe to always call.
+    Reads ``$CI_STEP_OUTPUT`` first (set by ``.gitlab-ci.yml``), then ``$GITHUB_OUTPUT``
+    (set by GitHub Actions). Platform-neutral on purpose: the nightly build gates every
+    expensive step on the ``new_data`` signal this writes, so the signal had to survive
+    the move to GitLab. Setting a variable literally named ``GITHUB_OUTPUT`` on a GitLab
+    runner would also have worked and would have been a lie in a filename; the fallback
+    instead keeps the frozen ``.github/workflows/`` copies working unchanged.
+
+    Returns ``True`` when written, ``False`` when neither var is set (local runs).
+    No-op off-CI; safe to always call.
     """
-    path = os.getenv("GITHUB_OUTPUT", "").strip()
+    path = (os.getenv("CI_STEP_OUTPUT", "").strip()
+            or os.getenv("GITHUB_OUTPUT", "").strip())
     if not path:
         return False
     try:

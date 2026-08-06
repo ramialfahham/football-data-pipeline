@@ -1,13 +1,19 @@
 # GitLab CI — translated from .github/workflows/ (migration off GitHub, 2026-08).
 #
-# Covers the six quality-gate workflows: python-ci, ci-validate, security-secrets,
-# ci-ui, ci-site-v2, ci-data-build. The deploy/scheduled workflows (dbt-scheduled,
-# deploy-site-v2, pages-match-preview) are NOT here — those JOBS are Phase 3.
+# TRANSLATED HERE — the six quality gates (python-ci, ci-validate, security-secrets,
+# ci-ui, ci-site-v2, ci-data-build), the nightly prod build (dbt-scheduled) and the
+# v2 site deploy (deploy-site-v2).
 #
-# Their AUTH, however, is here: `.gcp_auth` below already federates GitLab's OIDC
-# issuer to GCP, so Phase 3 adds workflows against a credential path that works
-# rather than building both at once. It needs no further YAML — only the GCP-side
-# provider, which is a change in the CPO's console.
+# DELIBERATELY NOT TRANSLATED, each a decision rather than an omission:
+#   · pages-match-preview.yml — its product is RETIRED. north_star.md:37 records the
+#     legacy card MVP taken offline 2026-07-21, "its Pages deployment deleted,
+#     `site/` frozen … no parity requirement, no cutover and no restore". Porting it
+#     would resurrect a retired product and reinstate a daily 07:30 UTC build.
+#     Bringing the MVP back is a product decision, not a migration step.
+#   · board-request-sync.yml — drives a GitHub Projects v2 board that died with the
+#     account. The issue tracker did not migrate, so there is nothing to sync yet.
+#   · ci-failure-watchdog.yml — opened a GitHub Issue on CI failure; GitLab notifies
+#     on pipeline failure natively.
 #
 # Two structural differences from the GitHub original, both deliberate:
 #
@@ -26,6 +32,7 @@ stages:
   - test
   - build
   - data
+  - deploy
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -39,11 +46,34 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_PIPELINE_SOURCE == "web"
-    # `schedule` is deliberately ABSENT. A schedule created in the UI runs with
-    # CI_COMMIT_BRANCH == main, which would satisfy data:build:main's rule and
-    # fire a full prod warehouse build — work this branch's contract reserves to
-    # Phase 3 and CPO sign-off. Phase 3 adds this line together with the jobs
-    # that are meant to run on it.
+    # Added in Phase 3, together with data:nightly — the job schedules exist FOR.
+    # Read `.not_on_schedule` below before touching this line.
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# ⚠ THE MOST EXPENSIVE LINE IN THIS FILE TO GET WRONG, and it fails SILENTLY —
+# nothing turns red, the BigQuery bill just doubles.
+#
+# A scheduled pipeline runs with CI_COMMIT_BRANCH == main, so it satisfies every
+# `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in this file — including
+# data:build:main, a FULL prod warehouse build. And a `changes:` filter does not
+# save you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push
+# or a merge request, so data:build:main's *data_paths filter does NOT hold it
+# back on a schedule. Admit schedules naively and every nightly runs the prod
+# build TWICE — once as data:nightly, once as data:build:main.
+#
+# So every job that could otherwise match carries this as its FIRST rule — rules are
+# first-match-wins, so a later clause cannot outvote it. The two deploy jobs are
+# schedule-safe a different way: they are scoped to `if: web` with a `when: never`
+# fallback, so no schedule reaches them at all.
+#
+# The pin (test_every_job_except_the_nightly_is_guarded_against_schedules) therefore
+# EVALUATES the rules against a simulated scheduled pipeline rather than checking
+# that this anchor sits at index 0 — the property is "no job but the nightly runs on
+# a schedule", and asserting the spelling instead of the property is how a correct
+# job starts failing a test for no reason.
+.not_on_schedule: &not_on_schedule
+  if: $CI_PIPELINE_SOURCE == "schedule"
+  when: never
 
 # `needs: []` on every job: the six GitHub workflows were INDEPENDENT and ran
 # concurrently. Stages alone would serialise them, so a failing lint would stop
@@ -173,6 +203,27 @@ workflow:
   export GOOGLE_APPLICATION_CREDENTIALS="$CI_PROJECT_DIR/.gcp-credentials.json"
   echo "GCP credentials configured via Workload Identity Federation (keyless)."
 
+# THE OTHER HALF OF *gcp_auth, and it must travel with it. GitLab populates
+# $GITLAB_OIDC_TOKEN only for a job that declares `id_tokens:` ITSELF — it is not
+# inherited from a `default:` block and not implied by using the anchor above. A job
+# that expands *gcp_auth without this dies on the third guard ("GITLAB_OIDC_TOKEN is
+# empty") before it does any work at all.
+#
+# This was a REAL defect, not a hypothetical: data:nightly, deploy:export and
+# deploy:site-v2 were all written with `<<: *python` alone, and every one of them
+# would have failed at auth on every run — the nightly silently never building prod
+# once a schedule existed. `data-engineer-reviewer` caught it before it shipped.
+# Declared ONCE here and merged in, so the pairing cannot be forgotten job by job,
+# and pinned by test_every_job_using_gcp_auth_declares_id_tokens.
+#
+# `aud` must match the provider's allowed audience EXACTLY — GitLab signs the token
+# with this value and Google rejects the exchange on any mismatch. It is the
+# analogue of `permissions: id-token: write` in the GitHub workflows.
+.gcp_job: &gcp_job
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+
 # Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
 # Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
 # edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
@@ -221,6 +272,12 @@ validate:governance:
     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
     - *dbt_profile
     - cd dbt_project && dbt deps && dbt parse
+  # This job had no `rules:` at all, so it ran on every pipeline the workflow
+  # admitted — which after Phase 3 includes schedules. The trailing `when:
+  # on_success` preserves exactly the previous behaviour for every other source.
+  rules:
+    - *not_on_schedule
+    - when: on_success
 
 # was: security-secrets.yml
 validate:secrets:
@@ -233,6 +290,9 @@ validate:secrets:
     GIT_DEPTH: 0
   script:
     - gitleaks detect --source . --redact --verbose
+  rules:
+    - *not_on_schedule
+    - when: on_success
 
 # was: ci-ui.yml
 validate:ui:
@@ -268,6 +328,7 @@ validate:ui:
       done
     - python scripts/check_ui_i18n_metrics.py
   rules:
+    - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *ui_paths
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -284,6 +345,9 @@ test:python:
   stage: test
   script:
     - python -m pytest tests/ -v
+  rules:
+    - *not_on_schedule
+    - when: on_success
 
 # ---------------------------------------------------------------------------
 # build stage
@@ -316,6 +380,7 @@ build:site-v2:
     - test -f dist/en/index.html
     - test -f dist/fi/index.html
   rules:
+    - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *site_v2_paths
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -332,16 +397,8 @@ build:site-v2:
 # ---------------------------------------------------------------------------
 
 .data_build_base: &data_build_base
-  <<: *python
+  <<: [*python, *gcp_job]
   stage: data
-  # GitLab mints a signed OIDC JWT scoped to this job and exposes it as
-  # $GITLAB_OIDC_TOKEN; .gcp_auth trades it for a short-lived GCP access token. The
-  # analogue of `permissions: id-token: write` in the GitHub workflows. `aud` must
-  # match the provider's allowed audience exactly — GitLab signs the token with this
-  # value and Google rejects the exchange on any mismatch.
-  id_tokens:
-    GITLAB_OIDC_TOKEN:
-      aud: https://gitlab.com
   # Serialize warehouse-writing runs. MR builds share ONE physical ci_* dataset
   # (the locked "shared, not per-PR ephemeral" choice), so concurrent incremental
   # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not
@@ -403,13 +460,14 @@ data:build:mr:
       dbt test --select test_type:singular --exclude tag:freshness_check
       --defer --favor-state --state /tmp/main-state --target ci
   rules:
+    - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *data_paths
 
 # main-push / manual full builds keep the FULL build — prod must stay complete
 # and serve as the always-compilable baseline for MR state comparisons. Joins the
-# repo-wide prod-warehouse-write group shared with the Phase 3 scheduled jobs, so
-# prod writers never MERGE the bare prod tables concurrently (#667).
+# repo-wide prod-warehouse-write group it shares with data:nightly, so the two prod
+# writers never MERGE the bare prod tables concurrently (#667).
 data:build:main:
   <<: *data_build_base
   resource_group: prod-warehouse-write
@@ -444,6 +502,152 @@ data:build:main:
     - dbt build --selector downstream --target prod
     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
   rules:
+    # FIRST, and load-bearing. Without it a scheduled pipeline runs this job — it is
+    # on main, and `changes:` evaluates TRUE on non-push pipelines — so every nightly
+    # would build prod twice. See .not_on_schedule.
+    - *not_on_schedule
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes: *data_paths
     - if: $CI_PIPELINE_SOURCE == "web"
+
+# ---------------------------------------------------------------------------
+# nightly — was: dbt-scheduled.yml
+#
+# The job schedules exist for, and the ONLY job that runs on one. Ingests first,
+# then builds prod, so the freshness tests are meaningful — which is why
+# tag:freshness_check is NOT excluded here, unlike every other data job.
+#
+# NOTHING FIRES THIS YET. A GitLab pipeline schedule is project configuration, not
+# repository content, so it cannot be committed; until the CPO creates one
+# (04:00 UTC, branch main, matching the GitHub original) this job simply never
+# runs. That is the safe default: an absent schedule costs nothing, and the job
+# appearing in a pipeline it was not meant to run in is the failure that costs.
+# ---------------------------------------------------------------------------
+
+data:nightly:
+  <<: [*python, *gcp_job]
+  stage: data
+  # Shared with data:build:main so the two prod WRITERS can never MERGE the bare
+  # prod tables concurrently (#667). The GitHub original got this from a
+  # workflow-level `concurrency: prod-warehouse-write` group spanning both files.
+  resource_group: prod-warehouse-write
+  timeout: 3h
+  variables:
+    # How the `new_data` signal survives the platform change. The ingestion writes
+    # `new_data=true|false` here via write_ci_output(); the steps below read it and
+    # skip the expensive work when nothing was ingested — the same saving the
+    # GitHub original got from `if: steps.ingest.outputs.new_data == 'true'`.
+    CI_STEP_OUTPUT: "$CI_PROJECT_DIR/.ci-step-output"
+  script:
+    - *dbt_profile
+    - *gcp_auth
+    - export PYTHONPATH=.
+    - API_FOOTBALL_INCLUDE_IN_PROGRESS=1 python -m ingestion.api_football.main
+    - |
+      NEW_DATA=$(grep -E '^new_data=' "$CI_STEP_OUTPUT" 2>/dev/null | tail -1 | cut -d= -f2)
+      if [ "$NEW_DATA" != "true" ]; then
+        echo "Ingestion reported new_data=${NEW_DATA:-<unset>} — nothing new landed."
+        echo "Skipping deps, seed, contract checks and the prod build, exactly as the"
+        echo "GitHub nightly did. This is a \$0 night, not a failure."
+        exit 0
+      fi
+      echo "new_data=true — proceeding with the full prod build."
+      python scripts/check_layer_contract.py
+      python scripts/check_registry_var_sync.py
+      cd dbt_project
+      # `dbt deps` is INSIDE the gate, as it was on GitHub (dbt-scheduled.yml gated it
+      # on new_data too). Cheap — a package fetch, no BigQuery — but the contract
+      # claims a quiet night runs nothing, and a claim that does not match the code is
+      # the defect regardless of the amount.
+      dbt deps
+      dbt seed --target prod
+      # `dbt build` with no selector = fqn:* (every node). freshness_check is
+      # deliberately NOT excluded: this run ingested first, so freshness is real.
+      dbt build --target prod
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+
+# ---------------------------------------------------------------------------
+# deploy — was: deploy-site-v2.yml
+#
+# BOTH gates the original documents as deliberately closed are preserved:
+#   1. NO recurring run. Manual only — no schedule, no push trigger. The original's
+#      sole trigger was workflow_dispatch, pending the CPO's cost+schedule call.
+#   2. NOT public. Deploys to the Firebase .web.app URL; the custom domain is not
+#      attached here. Going public is a separate CPO decision, still blocked on
+#      the imprint question.
+# Read-only against the warehouse (the export SELECTs marts, writes no prod
+# table), so it does NOT join prod-warehouse-write — its own group, as before.
+# ---------------------------------------------------------------------------
+
+# SPLIT INTO TWO JOBS, because the export needs Python and the build needs Node 22
+# and no single image here is both. GitHub used `ubuntu-latest` with setup-python
+# AND setup-node; GitLab jobs get one image each. The alternative — installing a
+# whole language runtime at job time — is what validate:ui does for a single
+# `node --check`, and is not worth it for a 15k-page build. Artifacts are the
+# normal way to hand work between images.
+deploy:export:
+  <<: [*python, *gcp_job]
+  stage: deploy
+  resource_group: deploy-site-v2
+  timeout: 1h
+  script:
+    - *dbt_profile
+    - *gcp_auth
+    - export PYTHONPATH=.
+    # The --entities list is LOAD-BEARING, not a default worth trusting: it limits
+    # the export to what the built pages actually consume (team + fixture;
+    # competitions.json is always emitted), so we do not scan marts for pages that
+    # have not shipped. Reads marts only; writes no BigQuery table.
+    - python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data
+  artifacts:
+    paths:
+      - site_v2/src/data
+    expire_in: 1 day
+  # `web` ONLY, and that restriction is the whole gate. An earlier revision used a
+  # bare `when: manual`, which excludes schedules but nothing else — so a Deploy to
+  # Firebase play button appeared on EVERY merge-request and push-to-main pipeline,
+  # one click from deploying whatever that branch happened to build. The GitHub
+  # original could not reach that state: `workflow_dispatch` was its only trigger, so
+  # the workflow never attached to a push or a PR at all. `platform-reviewer` caught
+  # it. Manual-ness alone is not the gate; being unreachable except by deliberate
+  # dispatch is.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+    - when: never
+
+deploy:site-v2:
+  <<: *gcp_job
+  image: node:22
+  stage: deploy
+  needs: ["deploy:export"]
+  resource_group: deploy-site-v2
+  timeout: 1h
+  cache:
+    key:
+      files:
+        - site_v2/package-lock.json
+    paths:
+      - .npm
+  script:
+    # .gcp_auth is pure shell (printf/cat), so it works on the Node image too —
+    # firebase-tools reads GOOGLE_APPLICATION_CREDENTIALS like any Google client.
+    - *gcp_auth
+    - cd site_v2
+    - npm ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
+    # The full ~15k-page build OOMs at the default heap (#818 proved this setting).
+    - NODE_OPTIONS="--max-old-space-size=8192" npm run build
+    # Deploys to the project's default Firebase .web.app site. The custom domain is
+    # NOT attached here — going public is a separate CPO decision.
+    - npx --yes firebase-tools@13 deploy --only hosting --project football-data-pipeline-gcp --non-interactive
+  # Same `web`-only restriction as deploy:export. It also `needs:` that job, so it
+  # cannot start until the manual export is triggered — but the scoping is stated
+  # here too rather than inherited by implication, because a `needs:` edit should not
+  # be able to silently widen where a Firebase deploy can appear.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: on_success
+    - when: never

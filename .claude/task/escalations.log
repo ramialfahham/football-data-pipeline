@@ -1002,3 +1002,64 @@ This entry is the durable record of the metric-definition authority the contract
   confirmed on a live runner rather than argued. `decisions_reserved` no longer needs to say "no
   pipeline has executed": one has, and this is what it did. The remedy is the CI/CD variable, never
   a rules-gate on the variable's absence.
+
+================================================================================
+2026-08-06 — GitLab CI Phase 3: the nightly prod build and the site deploy
+================================================================================
+
+- (⭐ CPO INSTRUCTION: DO NOT RUN THE COST TOOLING) Recorded because `scope-auditor` FAILED the
+  contract for declaring cost effects while citing an instruction that existed nowhere a reviewer
+  could check — the same defect that failed MR !4's round 1, and the reviewer was right to hold
+  the line twice.
+
+  CPO, conversation of 2026-08-06, verbatim: **"stop don't measure anything. last time you
+  measured, github susended my account"**. Stated during a `scripts/report_bq_cost.py --days 7`
+  run that had already printed spend by workload and the top prod nodes.
+
+  EFFECT, which is what future tasks need: no contract on this branch quotes a MEASURED cost
+  figure. Cost effects are still declared — the CTO threshold is not waived — but they are argued
+  from what the workflows DO (the nightly is a restoration of an absent GitHub job; the un-ported
+  `pages-match-preview.yml` removes a daily unconditional rebuild; the deploy is manual) rather
+  than from bytes. The ranked list in `.claude/active_work.md` is cited as-is where relevant.
+
+  FOR THE RECORD, said once to the CPO and not pressed: `report_bq_cost.py` queries
+  INFORMATION_SCHEMA metadata inside the GCP project, is read-only, is not billed, and touches
+  nothing on GitHub. The suspension's cause is unknown and is NOT established to be related. The
+  instruction was followed regardless — it is the CPO's call, and a builder does not get to
+  overrule a stop by disagreeing with the reason.
+
+- (⭐ CPO DECISION: DO NOT CREATE THE NIGHTLY SCHEDULE YET) The CPO reasoned it out rather than
+  being asked: **"As long as we show no data, it doesn't make sense to schedule the nightly,
+  right?"** Correct, and the builder confirmed it with one caveat rather than simply agreeing.
+
+  WHY IT HOLDS: nothing reads the data — the legacy MVP is retired and v2 is not public (blocked
+  on the imprint question) — so a standing nightly is daily spend against zero consumption. And
+  almost nothing is lost by waiting: staging reads only the LATEST snapshot per league, there are
+  no dbt snapshots accumulating SCD2 history, and fixtures/results/player stats/transfers are all
+  retrievable from the API for past dates.
+
+  THE ONE CAVEAT, stated so it is not discovered later: SQUADS are not backfillable.
+  `docs/data_contract.md:125` — the endpoint is current-only, so "historical per-edition
+  membership is not reconstructable from it". Every un-run night is a period whose squad
+  membership cannot be recovered. Already a known parked limitation (#477), so nothing currently
+  consumed is lost; it simply does not accrue.
+
+  CONSEQUENCE: `data:nightly` ships INERT. It also accepts a manual `web` trigger, so the CPO can
+  refresh data on demand before working against real numbers — the intended use until the site
+  goes public, at which point creating the schedule is one UI action and no code change.
+
+- (round 1 verdicts) `cto-reviewer` PASS, `scope-auditor` FAIL (the missing cost-instruction
+  record, fixed by the entry above), `data-engineer-reviewer` FAIL.
+
+  ⚠ THE DATA-ENGINEER FINDING IS THE ONE THAT MATTERED, and no static check caught it:
+  `data:nightly`, `deploy:export` and `deploy:site-v2` were all written `<<: *python` and all
+  call `*gcp_auth`, but GitLab populates `$GITLAB_OIDC_TOKEN` ONLY for a job that declares
+  `id_tokens:` itself — it is not inherited from a `default:` block and not implied by expanding
+  the auth anchor. All three would have died on `.gcp_auth`'s third guard before doing any work.
+  The nightly would have failed EVERY night once a schedule existed. `glab ci lint` passed it,
+  the YAML parsed, and both new tests passed — because the config was well-formed and simply
+  wrong, which is the same shape as the profile-location defect on MR !4.
+  FIXED by extracting a `.gcp_job` anchor holding `id_tokens`, merged into every job that expands
+  `*gcp_auth` (including `.data_build_base`, so there is now ONE definition rather than a copy
+  per job), and pinned by `test_every_job_using_gcp_auth_declares_id_tokens`, which was verified
+  to FAIL against the broken form before being accepted.
