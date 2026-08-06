@@ -976,6 +976,23 @@ This entry is the durable record of the metric-definition authority the contract
   Deliberately NOT fixed on this branch: it is a separate mechanism change, and folding it in would
   repeat the under-scoping this entry records.
 
+- (⭐ GREEN, pipeline 2738001325 on MR !4 — the migration's CI half is PROVEN, with one
+  named gap) All five jobs succeeded. What the run actually exercised, in order:
+  WIF token exchange ("GCP credentials configured via Workload Identity Federation
+  (keyless)") · `dbt deps` · `sqlfluff lint models` -> "All Finished!" (the exact command
+  the profile defect killed) · `dbt seed --target ci` -> PASS=6, the first BigQuery WRITE
+  this pipeline has ever made from GitLab · the prod-target state compile · `dbt test
+  --select test_type:singular` -> **PASS=28 WARN=0 ERROR=0 SKIP=0**, the full singular DQ
+  suite green.
+
+  ⚠ STILL UNEXERCISED, and do not let the green mislead the next reader: `dbt build
+  --select state:modified+` reported "Nothing to do". That is CORRECT — this MR changes
+  no dbt models, and the contract anticipated it ("an empty selection is a no-op
+  success") — but it means the slim-build path, `--defer --favor-state` resolution
+  against the prod baseline, and any incremental MERGE behaviour have NOT run on GitLab.
+  The first MR that touches a model is the real test of that path. The DQ suite and the
+  credential chain ARE proven; the model build is not.
+
 - (FIRST PIPELINE, run against `.gitlab-ci.yml` on MR !4, pipeline 2737720717) `validate:governance`,
   `validate:secrets`, `test:python` and `build:site-v2` PASS. `data:build:mr` FAILS, by design, with
   the `.gcp_auth` guard: "FATAL: GCP_SA_KEY is not set. The data-quality gate (sqlfluff lint, dbt
