@@ -1,0 +1,449 @@
+# GitLab CI — translated from .github/workflows/ (migration off GitHub, 2026-08).
+#
+# Covers the six quality-gate workflows: python-ci, ci-validate, security-secrets,
+# ci-ui, ci-site-v2, ci-data-build. The deploy/scheduled workflows (dbt-scheduled,
+# deploy-site-v2, pages-match-preview) are NOT here — those JOBS are Phase 3.
+#
+# Their AUTH, however, is here: `.gcp_auth` below already federates GitLab's OIDC
+# issuer to GCP, so Phase 3 adds workflows against a credential path that works
+# rather than building both at once. It needs no further YAML — only the GCP-side
+# provider, which is a change in the CPO's console.
+#
+# Two structural differences from the GitHub original, both deliberate:
+#
+#   1. NO `gate` jobs. Every GitHub workflow ended with a terminal `gate` job so
+#      branch protection had one consistent check name to require even when the
+#      real job was path-filter-skipped. GitLab has no per-check requirement —
+#      "Pipelines must succeed" gates the whole pipeline, and a rules-skipped job
+#      is absent rather than failed. The gate jobs would be pure overhead here.
+#
+#   2. Jobs that branched on `github.event_name` inside steps are SPLIT into
+#      separate `:mr` / `:main` jobs. GitLab has no step-level `if:`, and a job
+#      per path is clearer than shell conditionals wrapping every command.
+
+stages:
+  - validate
+  - test
+  - build
+  - data
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # NO DBT_PROFILES_DIR. The profile goes to the DEFAULT ~/.dbt — see .dbt_profile
+  # below for why moving it breaks sqlfluff.
+
+# Run on merge requests, on main, and on manual/scheduled triggers — but never
+# produce a duplicate branch pipeline alongside an MR pipeline.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+    # `schedule` is deliberately ABSENT. A schedule created in the UI runs with
+    # CI_COMMIT_BRANCH == main, which would satisfy data:build:main's rule and
+    # fire a full prod warehouse build — work this branch's contract reserves to
+    # Phase 3 and CPO sign-off. Phase 3 adds this line together with the jobs
+    # that are meant to run on it.
+
+# `needs: []` on every job: the six GitHub workflows were INDEPENDENT and ran
+# concurrently. Stages alone would serialise them, so a failing lint would stop
+# the test suite from ever reporting — a feedback loss the original did not have.
+# The stages are kept purely as pipeline-UI grouping.
+.python: &python
+  image: python:3.11
+  needs: []
+  cache:
+    key:
+      files:
+        - requirements.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+
+# Writes the dbt profile. Identical content to the GitHub original, including
+# `method: oauth` — dbt-bigquery's oauth method resolves credentials through
+# google.auth.default(), which honours GOOGLE_APPLICATION_CREDENTIALS and handles
+# the `external_account` config .gcp_auth writes. That is why migrating hosts, and
+# then swapping the whole credential mechanism, needed no edit here at all.
+#
+# ~/.dbt IS LOAD-BEARING — do not "tidy" this into a project-local directory.
+# dbt and sqlfluff resolve the profile by DIFFERENT means: dbt honours
+# DBT_PROFILES_DIR, but sqlfluff's dbt templater reads `profiles_dir` from the
+# COMMITTED dbt_project/.sqlfluff, which says `~/.dbt`. Point dbt somewhere else and
+# `dbt deps` still passes while the next command, `sqlfluff lint`, dies with
+# "Could not find profile named 'football_data_pipeline'". That is exactly what an
+# earlier revision of this file did, and no amount of static validation caught it.
+# Editing .sqlfluff instead is not an option: local development uses that file too.
+# ci-data-build.yml did the same thing (mkdir -p /home/runner/.dbt — that runner's ~).
+.dbt_profile: &dbt_profile |
+  mkdir -p ~/.dbt
+  cat > ~/.dbt/profiles.yml <<'EOF'
+  football_data_pipeline:
+    target: ci
+    outputs:
+      # PR builds — slim + deferred to prod. Writes ci_* datasets (isolated from prod).
+      ci:
+        type: bigquery
+        method: oauth
+        project: football-data-pipeline-gcp
+        dataset: ci_analytics
+        threads: 4
+        timeout_seconds: 300
+        location: EU
+        priority: interactive
+      # main-push / manual full builds. Writes the canonical bare datasets the site reads.
+      prod:
+        type: bigquery
+        method: oauth
+        project: football-data-pipeline-gcp
+        dataset: dbt_analytics
+        threads: 4
+        timeout_seconds: 300
+        location: EU
+        priority: interactive
+  EOF
+
+# KEYLESS AUTH — Workload Identity Federation, the same property the GitHub
+# workflows had. All four GCP-touching workflows used google-github-actions/auth@v2
+# with `workload_identity_provider` + `service_account` and `id-token: write`;
+# NEITHER value is a secret (a provider resource path and an SA email), and the
+# credential was minted per job from a signed OIDC token. Both CI/CD variables here
+# keep the GitHub secret NAMES and take the same VALUES, so the service account and
+# its IAM roles carry over untouched — only the OIDC provider is new.
+#
+# A downloaded service account key was considered and REJECTED: it never expires,
+# lives in CI variable storage and must be rotated by hand. deploy-site-v2.yml:89
+# already recorded the repo's position — a key is the fallback, "raise it, do not
+# adopt it silently".
+#
+# No gcloud SDK install. The data jobs run python:3.11 and shell out to gcloud/bq
+# NOWHERE; dbt-bigquery (method: oauth), google-cloud-bigquery and the ingestion
+# package all resolve credentials through google.auth.default(), which handles
+# `type: external_account` natively — performing the STS exchange and the service
+# account impersonation itself. The JSON below is exactly what
+# `gcloud iam workload-identity-pools create-cred-config` emits, minus the download.
+#
+# FAILS CLOSED, and the loud message is the point. An earlier draft skipped the
+# whole data stage via `rules: ... when: never` when the credential was absent. That
+# was backwards: a rules-excluded job leaves NO entry in the pipeline UI, so the
+# pipeline went GREEN having run no SQL lint, no dbt build and none of the singular
+# data-quality suite — the suite ci-data-build.yml annotates "DQ is non-negotiable
+# and the full singular suite always runs". The GitHub original could not reach that
+# state: it had no credential guard, so missing WIF secrets errored the auth action
+# and reddened the gate. A missing credential must stay a RED pipeline, because red
+# is the signal that the gate is not wired up yet.
+#
+# Three checks, because there are three distinct failure modes wanting three
+# different fixes — and the third would otherwise surface as an opaque STS rejection.
+.gcp_auth: &gcp_auth |
+  if [ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] || [ -z "$GCP_SERVICE_ACCOUNT" ]; then
+    echo "FATAL: GCP_WORKLOAD_IDENTITY_PROVIDER and/or GCP_SERVICE_ACCOUNT are not set." >&2
+    echo "The data-quality gate (sqlfluff lint, dbt build, singular DQ tests) cannot run" >&2
+    echo "without GCP credentials, and must not be reported as passing." >&2
+    echo "Fix: Settings -> CI/CD -> Variables. Add both (neither is secret, so leave" >&2
+    echo "Masked off; leave Protected off unless the branch is protected):" >&2
+    echo "  GCP_WORKLOAD_IDENTITY_PROVIDER = projects/<NUMBER>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>" >&2
+    echo "  GCP_SERVICE_ACCOUNT            = <name>@<project>.iam.gserviceaccount.com" >&2
+    exit 1
+  fi
+  if [ -z "$GITLAB_OIDC_TOKEN" ]; then
+    echo "FATAL: GITLAB_OIDC_TOKEN is empty." >&2
+    echo "This is a YAML defect, not a configuration one: the job is missing its" >&2
+    echo "'id_tokens:' block. See .data_build_base." >&2
+    exit 1
+  fi
+  # The JWT goes to a file rather than through an argument or an env var read by a
+  # subprocess, so it cannot land in a job log or a process list. Short-lived and
+  # job-scoped; nothing here is cached or published as an artifact.
+  printf '%s' "$GITLAB_OIDC_TOKEN" > "$CI_PROJECT_DIR/.gcp-oidc-token"
+  cat > "$CI_PROJECT_DIR/.gcp-credentials.json" <<GCPCRED
+  {
+    "type": "external_account",
+    "audience": "//iam.googleapis.com/$GCP_WORKLOAD_IDENTITY_PROVIDER",
+    "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+    "token_url": "https://sts.googleapis.com/v1/token",
+    "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/$GCP_SERVICE_ACCOUNT:generateAccessToken",
+    "credential_source": {
+      "file": "$CI_PROJECT_DIR/.gcp-oidc-token"
+    }
+  }
+  GCPCRED
+  export GOOGLE_APPLICATION_CREDENTIALS="$CI_PROJECT_DIR/.gcp-credentials.json"
+  echo "GCP credentials configured via Workload Identity Federation (keyless)."
+
+# Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
+# Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
+# edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
+.data_paths: &data_paths
+  - dbt_project/models/**/*
+  - dbt_project/macros/**/*
+  - dbt_project/seeds/**/*
+  - dbt_project/snapshots/**/*
+  - dbt_project/tests/**/*
+  - dbt_project/*.yml
+  - dbt_project/.sqlfluff
+  - ingestion/**/*
+  - docs/competition_registry.yml
+  - scripts/check_*.py
+  - scripts/data_trust_*.py
+  - requirements.txt
+  - .gitlab-ci.yml
+
+.ui_paths: &ui_paths
+  - site/**/*
+  - scripts/build_match_preview_site.sh
+  - scripts/build_match_preview_site.ps1
+  - scripts/export_pages_data.py
+  - scripts/check_ui_i18n_metrics.py
+
+.site_v2_paths: &site_v2_paths
+  - site_v2/**/*
+  - .gitlab-ci.yml
+
+# ---------------------------------------------------------------------------
+# validate stage
+# ---------------------------------------------------------------------------
+
+# was: ci-validate.yml
+validate:governance:
+  <<: *python
+  stage: validate
+  variables:
+    # The governance artifact check diffs against the base branch, so the shallow
+    # default clone is not enough (GitHub used fetch-depth: 0).
+    GIT_DEPTH: 0
+  script:
+    - python scripts/check_layer_contract.py
+    - python scripts/check_registry_var_sync.py
+    - python scripts/check_competition_type_seed.py
+    - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    - *dbt_profile
+    - cd dbt_project && dbt deps && dbt parse
+
+# was: security-secrets.yml
+validate:secrets:
+  stage: validate
+  needs: []
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - gitleaks detect --source . --redact --verbose
+
+# was: ci-ui.yml
+validate:ui:
+  <<: *python
+  stage: validate
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    # node is needed only for `node --check`; the distro build is recent enough
+    # to parse the syntax used in the match-preview page.
+    - apt-get update -qq && apt-get install -y -qq nodejs
+  script:
+    - python -m json.tool site/i18n/en.json > /dev/null
+    - python -m json.tool site/i18n/de.json > /dev/null
+    - python -m json.tool site/i18n/fi.json > /dev/null
+    - python -m json.tool site/match-preview/metric_manifest.json > /dev/null
+    - python -m json.tool site/match-preview/metric_definitions.json > /dev/null
+    - |
+      python3 -c "
+      import re, sys
+      html = open('site/match-preview/index.html', encoding='utf-8').read()
+      scripts = re.findall(r'<script>(.*?)</script>', html, re.DOTALL)
+      if not scripts:
+          print('ERROR: no <script> block found in index.html', file=sys.stderr)
+          sys.exit(1)
+      for i, js in enumerate(scripts):
+          open(f'/tmp/ci_check_{i}.js', 'w', encoding='utf-8').write(js)
+      print(f'Extracted {len(scripts)} script block(s)')
+      "
+    - |
+      for f in /tmp/ci_check_*.js; do
+        node --check "$f" && echo "SYNTAX OK: $f" || { echo "SYNTAX ERROR in $f"; exit 1; }
+      done
+    - python scripts/check_ui_i18n_metrics.py
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *ui_paths
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: *ui_paths
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+# ---------------------------------------------------------------------------
+# test stage
+# ---------------------------------------------------------------------------
+
+# was: python-ci.yml
+test:python:
+  <<: *python
+  stage: test
+  script:
+    - python -m pytest tests/ -v
+
+# ---------------------------------------------------------------------------
+# build stage
+# ---------------------------------------------------------------------------
+
+# was: ci-site-v2.yml — build check only, NO deploy. The live Pages URL keeps
+# serving the current MVP until the parity cutover (#377); a v2 preview deploy
+# is a separate, deliberately-reviewed change.
+build:site-v2:
+  stage: build
+  needs: []
+  image: node:22
+  # Cache npm's download cache, NOT site_v2/node_modules: `npm ci` deletes
+  # node_modules before installing, so a restored node_modules cache is
+  # discarded every run and re-uploaded for nothing.
+  variables:
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  cache:
+    key:
+      files:
+        - site_v2/package-lock.json
+    paths:
+      - .npm
+  script:
+    - cd site_v2
+    - npm ci
+    - npm run build
+    - test -f dist/index.html
+    - test -f dist/de/index.html
+    - test -f dist/en/index.html
+    - test -f dist/fi/index.html
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *site_v2_paths
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: *site_v2_paths
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+# ---------------------------------------------------------------------------
+# data stage — was: ci-data-build.yml
+#
+# These jobs run whenever the data paths change, exactly as the GitHub original
+# did. If the WIF configuration is missing they FAIL LOUDLY (see .gcp_auth) rather
+# than being skipped — an unwired data-quality gate must be red, never
+# green-and-absent.
+# ---------------------------------------------------------------------------
+
+.data_build_base: &data_build_base
+  <<: *python
+  stage: data
+  # GitLab mints a signed OIDC JWT scoped to this job and exposes it as
+  # $GITLAB_OIDC_TOKEN; .gcp_auth trades it for a short-lived GCP access token. The
+  # analogue of `permissions: id-token: write` in the GitHub workflows. `aud` must
+  # match the provider's allowed audience exactly — GitLab signs the token with this
+  # value and Google rejects the exchange on any mismatch.
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  # Serialize warehouse-writing runs. MR builds share ONE physical ci_* dataset
+  # (the locked "shared, not per-PR ephemeral" choice), so concurrent incremental
+  # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not
+  # serialize access". GitLab's resource_group is the concurrency-group analogue
+  # and never drops an in-flight job.
+  timeout: 2h
+
+# MR builds: only what the MR changed + downstream children + tests
+# (dbt state:modified+), diffed against a baseline manifest compiled from the
+# target branch at MR time (Option 2 — no stored state, no BigQuery scan;
+# CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt — their ref()s
+# resolve to the tables already in the shared datasets, so no --defer is needed
+# for them.
+data:build:mr:
+  <<: *data_build_base
+  resource_group: ci-data-build-write-ci
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - *dbt_profile
+    - *gcp_auth
+    - cd dbt_project && dbt deps
+    - sqlfluff lint models
+    - dbt seed --target ci
+    - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
+    # The GitHub original gated this on a separate `ingest` path filter. GitLab
+    # rules cannot express two independent change-flags for one job, so the
+    # check always runs: it is a cheap BigQuery metadata lookup that returns
+    # empty (and ingests nothing) whenever every league already has raw tables.
+    - NEW_CODES=$(python scripts/get_new_league_codes.py)
+    - |
+      if [ -n "$NEW_CODES" ]; then
+        echo "Leagues needing bootstrap: $NEW_CODES"
+        API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
+        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+        python -m ingestion.api_football.main
+      else
+        echo "All leagues already have raw tables — skipping bootstrap ingest."
+      fi
+    # Compile the target branch's project into a state dir (manifest only — no
+    # model execution). PROD target so deferred refs resolve to prod's bare
+    # datasets, not ci_*.
+    - git fetch --no-tags --depth=1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    - git worktree add --detach /tmp/main-src FETCH_HEAD
+    - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
+    # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
+    # prod (never a stale ci_ copy left by a prior MR). An empty selection (an MR
+    # that changes no models) is a no-op success.
+    - cd dbt_project
+    - >-
+      dbt build --select state:modified+ --exclude tag:freshness_check
+      --defer --favor-state --state /tmp/main-state --target ci
+    # DQ is non-negotiable and the full singular suite always runs. On an MR it
+    # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
+    # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
+    # only, never to the DQ gate.
+    - >-
+      dbt test --select test_type:singular --exclude tag:freshness_check
+      --defer --favor-state --state /tmp/main-state --target ci
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *data_paths
+
+# main-push / manual full builds keep the FULL build — prod must stay complete
+# and serve as the always-compilable baseline for MR state comparisons. Joins the
+# repo-wide prod-warehouse-write group shared with the Phase 3 scheduled jobs, so
+# prod writers never MERGE the bare prod tables concurrently (#667).
+data:build:main:
+  <<: *data_build_base
+  resource_group: prod-warehouse-write
+  script:
+    - *dbt_profile
+    - *gcp_auth
+    - cd dbt_project && dbt deps
+    - sqlfluff lint models
+    - dbt seed --target prod
+    - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
+    - NEW_CODES=$(python scripts/get_new_league_codes.py)
+    - |
+      if [ "$RUN_INGEST" = "true" ]; then
+        echo "RUN_INGEST set — forcing full re-ingest of all active leagues."
+        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+        API_FOOTBALL_INGEST_FORCE_FULL=1 \
+        python -m ingestion.api_football.main
+      elif [ -n "$NEW_CODES" ]; then
+        echo "Leagues needing bootstrap: $NEW_CODES"
+        API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
+        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+        python -m ingestion.api_football.main
+      else
+        echo "All leagues already have raw tables — skipping bootstrap ingest."
+      fi
+    - cd dbt_project
+    # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
+    # dbt ignores a CLI --exclude when --selector is supplied.
+    - dbt build --selector staging --target prod
+    - dbt build --selector downstream --target prod
+    - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: *data_paths
+    - if: $CI_PIPELINE_SOURCE == "web"

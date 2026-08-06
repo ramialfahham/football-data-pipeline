@@ -1,265 +1,1332 @@
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index 9d0a4ec..0f71a0b 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -27,13 +27,13 @@ your finding is "this code is wrong", it belongs to Platform. Yours is "this
+ should not exist, or not without an approval that is missing".
+ 
+ > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
+-> to `opus` at spawn time on any of the eight guard paths (`.claude/hooks/**`,
++> to `opus` at spawn time on any of the nine guard paths (`.claude/hooks/**`,
+ > `.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
+ > `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
+-> `.github/workflows/**`) — guard bypasses are the highest-stakes findings (the G3
++> `.github/workflows/**`, `.gitlab-ci.yml`) — guard bypasses are the highest-stakes findings (the G3
+ > commit-gate bypasses were caught only at that depth, rounds 2-5).
+-> `platform-reviewer` is routed alongside you, also at opus, on exactly TWO of
+-> them: `.claude/hooks/**` and `.github/workflows/**`. **On the other six you are
++> `platform-reviewer` is routed alongside you, also at opus, on exactly THREE of
++> them: `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`. **On the other six you are
+ > the only required specialist**, with just the always-on `scope-auditor` beside
+ > you — including on `.claude/agents/**`, where the file under edit may be THIS
+ > ONE, and you are therefore the whole specialist guard against a builder
+@@ -74,7 +74,7 @@ should not exist, or not without an approval that is missing".
+    credential in the diff, or a workflow permission widening → FAIL. You keep
+    this **in addition to** `platform-reviewer` and `scope-auditor`, on the CPO's
+    ruling of 2026-07-31 ("yes" to putting it back on you as well). The reason is
+-   coverage at depth: you are the only reviewer spawned at opus on all eight
++   coverage at depth: you are the only reviewer spawned at opus on all nine
+    guard paths, and `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
+    are precisely the file class that carries env blocks and tokens. The first
+    version of the split moved this item away from you, which left a secret in
+@@ -93,7 +93,7 @@ should not exist, or not without an approval that is missing".
+    the shape of that error: check the workflow, do not infer the coverage.
+ 7. **Guard authority**: any change under `.claude/hooks/`, `.claude/agents/`,
+    `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
+-   `.mcp.json`, `.cursor/mcp.json` or `.github/workflows/` — does the contract
++   `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/` or `.gitlab-ci.yml` — does the contract
+    carry `protected_override` naming a real CPO approval, and does it also carry
+    a non-placeholder `impact_map`? Either missing → FAIL.
+ 8. **Undeclared thresholds** (2026-07-31, #868): a new mechanism and a recurring
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+index 927f58d..e25ecaf 100644
+--- a/.claude/agents/platform-reviewer.md
++++ b/.claude/agents/platform-reviewer.md
+@@ -27,8 +27,8 @@ page displays (`bi-analyst-reviewer`), what a number means
+ (`football-analytics-expert-reviewer`).
+ 
+ > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
+-> to `opus` at spawn time on the TWO guard paths you are routed to:
+-> `.claude/hooks/**` and `.github/workflows/**`. Guard bypasses are the
++> to `opus` at spawn time on the THREE guard paths you are routed to:
++> `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`. Guard bypasses are the
+ > highest-stakes findings (the G3 commit-gate bypasses were caught only at that
+ > depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
+ > YOUR items — that is why you are there at all.
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 3718631..4d831e5 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -69,6 +69,12 @@ PROTECTED_FILES = (
+     ".claude/review_routing.json",
+     ".mcp.json",
+     ".cursor/mcp.json",
++    # Same authority as the ".github/workflows/" prefix above: the file that
++    # decides what CI enforces. Added with the GitHub->GitLab migration
++    # (2026-08) so the CI gate could not change hosts and silently fall out of
++    # the protected set. A single FILE, not a prefix — ".gitlab-ci.yml" is the
++    # entire surface, and a prefix entry would match nothing.
++    ".gitlab-ci.yml",
+ )
+ 
+ _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index b7dbc4d..706fb65 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -92,22 +92,37 @@
+     "detects it. A test now asserts every pattern string appears exactly once in",
+     "the raw file text. Found by the pre-CPO plan challenge, not in review.",
+     "",
+-    "GUARD PATHS: platform-reviewer joins cto-reviewer on exactly TWO of the eight",
+-    "— .claude/hooks/** and .github/workflows/** — and the docs must say TWO. The",
++    "GUARD PATHS: platform-reviewer joins cto-reviewer on exactly THREE of the",
++    "nine — .claude/hooks/**, .github/workflows/** and .gitlab-ci.yml — and the",
++    "docs must say THREE. The",
+     "CTO rules on authority (is protected_override present, is this a new",
+     "mechanism, may this guard weaken); platform reviews the implementation (does",
+     "it fail open, do the tests cover it, is it re-run safe). Both carry the opus",
+-    "floor on those two. The other six go to cto-reviewer ALONE plus the always-on",
+-    "scope-auditor.",
++    "floor on those three. The other six go to cto-reviewer ALONE plus the",
++    "always-on scope-auditor.",
++    "",
++    ".gitlab-ci.yml joined on the GitHub->GitLab migration (2026-08). It is the",
++    "SAME authority .github/workflows/** carried — the file that decides what CI",
++    "enforces — so it inherits the same two reviewers and the same opus floor;",
++    "letting the CI gate move hosts and quietly lose two required reviewers is",
++    "exactly the silent-downgrade this file exists to prevent. Both rows are kept",
++    "while the GitHub repo still exists as a frozen mirror. When it is retired and",
++    ".github/workflows/** is deleted, this returns to eight paths and TWO — update",
++    "these counts in the same commit that deletes the row.",
+     "This was churned once and the churn is worth recording. Review round 1 caught",
+     "three documents claiming BOTH reviewers on all EIGHT guard paths while routing",
+     "gave platform two. There were two ways to fix that: widen the rows, or correct",
+     "the prose. Round 2 widened the rows to six, and review round 2 correctly",
+     "failed it — two opus specialists where one ran before is a RECURRING COST, and",
+     "cost is CPO-class, so the cheap fix (correct the prose) was the right one and",
+-    "the rows are back to two. Do not widen them without a cost approval quoted in",
++    "the rows went back to two. Do not widen them without a cost approval quoted in",
+     "decisions_taken. A doc/row mismatch is fixed by editing whichever side is",
+     "wrong, and the wrong side is almost always the prose.",
++    "They stand at THREE since 2026-08 — .gitlab-ci.yml, widened WITH the cost",
++    "approval the sentence above demands (CPO 2026-08-06, quoted in that task's",
++    "decisions_taken under RECURRING COST and recorded in escalations.log). Net",
++    "against the pre-migration baseline that widening is zero: it restores what",
++    ".github/workflows/** already carried onto the file that replaced it.",
+     "Platform is deliberately absent from .claude/agents/** — a reviewer brief is a",
+     "prompt, not machinery, so none of its hunt items apply and its verdict would",
+     "be a rubber stamp, which is worse than absent. On that path the CTO is the",
+@@ -158,6 +173,7 @@
+     "*requirements*.txt": ["cto-reviewer", "platform-reviewer"],
+     ".claude/hooks/**": ["cto-reviewer", "platform-reviewer"],
+     ".github/workflows/**": ["cto-reviewer", "platform-reviewer"],
++    ".gitlab-ci.yml": ["cto-reviewer", "platform-reviewer"],
+     ".claude/agents/**": ["cto-reviewer"],
+     ".claude/commands/**": ["cto-reviewer"],
+     ".claude/settings.json": ["cto-reviewer"],
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6eb3fee..6a7c91b 100644
+index 6a7c91b..f517f9b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,213 +1,66 @@
--# Task contract — cause 3: the per-team endpoints get a completeness check
-+# Task contract — handover: the ingest silent-failure cluster is closed, cost is next
+@@ -1,66 +1,366 @@
+-# Task contract — handover: the ingest silent-failure cluster is closed, cost is next
++# Task contract — GitLab CI translation + guard parity for the CI config
  
- > Written on a clean tree before any file was touched. Branch
--> `feat/898-cause3-per-team-completeness` from `main` at `e7758a6`. No protected path in scope, so
--> no `protected_override`. No `site_v2/src/` path, so no `acceptance_criteria`.
--> `completeness.py` WRITES a raw table, so `impact_map:` below is required and is evidenced.
--
--impact_map: >
--  Written with the lesson from the two preceding tasks applied: BOTH failed review round 1 because
--  the map traced the one table the task was about and stopped, while the diff touched something
--  shared. Every caller of every function this diff changes is enumerated below by reading the call
--  sites, not by counting grep hits.
--
--  ⚠ THIS SECTION COUNTS PRODUCTION CALL SITES ONLY, and that is a deliberate correction rather than
--  a narrowing. Earlier versions enumerated per-test-file call-site counts, and reviewers found a
--  wrong number in FIVE separate rounds. The counts were wrong because they are brittle by nature:
--  every test I add changes them, so a number written when the section was drafted is stale by the
--  time the tests are finished. They also carry no blast radius — a test calling a function is not a
--  consumer that can break in production. What matters for blast radius is the production callers,
--  plus any test whose ASSERTION SHAPE breaks, which is called out by name below. Every count here
--  was produced by grep at the final revision, not from memory.
--
--  FUNCTION 1 — `evaluate_completeness_outcome` gains TWO optional keyword arguments
--  (`per_team_missing`, `prior_per_team_missing`, both defaulting to None) and one new key in its
--  returned dict (`stagnant_per_team_gaps`). Counted off the signature.
--    - PRODUCTION CALLERS: exactly one, `orchestrator.py`. Updated here.
--    - Both new arguments default to None and the added key is additive, so every caller that does
--      not pass them is unaffected — with ONE exception, which is the only test fact that matters:
--      `tests/test_completeness_outcome_and_summary.py::test_skipped_report_returns_no_failures`
--      asserts the returned dict by EXACT EQUALITY and therefore breaks. That file is in
--      `scope_paths` FROM THE START for this reason. The literal is EXTENDED with the new key, never
--      relaxed to a subset. No other assertion anywhere compares the outcome dict whole, verified by
--      `grep -n "outcome ==\|out ==" tests/`.
--
--  FUNCTION 2 — `persist_fixture_statistics_missing` gains one optional keyword argument.
--  PRODUCTION CALLERS: exactly one, `orchestrator.py`. No test calls it.
--
--  FUNCTION 3 — `completeness_markdown_summary` is NOT changed. The orchestrator passes it more
--  `notes` entries, which is data, not signature. No caller is affected.
--
--  NEW FUNCTIONS, none with existing callers by definition. Production call sites:
--    - `read_per_team_coverage` — one, `orchestrator.py`.
--    - `per_team_expectations_from_results` — one, `orchestrator.py`. Extracted from an inline
--      comprehension after `platform-reviewer` observed the expected-set fix lived in untested
--      orchestrator code, so a regression back to `selected_competitions()` would not be caught.
--      Covered by `TestExpectationsComeFromTheRunNotBigQuery`.
--    - `_raw_table_exists`, `_latest_snapshot_timestamps`, `detect_stagnant_per_team_gaps`,
--      `load_prior_per_team_missing`, `per_team_missing_by_league_entity` — module-local, each
--      reached from `read_per_team_coverage`, `evaluate_completeness_outcome` or `orchestrator.py`.
--
--  FIRST-RUN SAFETY, stated precisely because round 1 caught the first version overclaiming it. ALL
--  FOUR tables are existence-checked before being queried: SQUADS, TRANSFERS and COACHES via
--  `_latest_snapshot_timestamps`'s `get_table`/`NotFound`, and PLAYERS via `_raw_table_exists`.
--  PLAYERS needed its own check because it has no maxima step and so did not get one for free; both
--  reviewers found that independently. When no block survives, the query is skipped entirely rather
--  than rendering an invalid `FROM ()`. An absent table degrades to "no coverage" for that entity,
--  never an exception.
--
--  WRITER AND READERS OF THE AFFECTED TABLE — `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT`, from
--  `grep -n "COMPLETENESS_SNAPSHOT_TABLE" completeness.py` at the final revision: ONE writer,
--  `persist_fixture_statistics_missing`, and THREE readers,
--  `load_prior_fixture_statistics_missing`, `load_prior_dropped_calls` and
--  `load_prior_per_team_missing` — the third added by THIS diff. All four in `completeness.py`. The
--  payload gains one key. An earlier version of this section named only two readers, having described
--  the state before this diff rather than after it.
--
--  DOWNSTREAM LINEAGE: NONE, checked rather than assumed.
--  `grep -rn "INGEST_COMPLETENESS_SNAPSHOT" dbt_project/ scripts/` returns nothing and no dbt source
--  or model references it. It is internal run state, not warehouse data.
--
--  TABLES READ, none written: `RAW_APIF_PLAYERS` (22,589 rows / 0.55 GiB), `RAW_APIF_SQUADS`
--  (1,161 / 0.25), `RAW_APIF_COACHES` (1,591 / 0.21), `RAW_APIF_TRANSFERS` (1,143 / 6.99).
--  `RAW_APIF_TEAMS` is NOT read: expected teams come from the run's in-memory
--  `CompetitionRunResult` list, so the table appears in this module only inside comments describing
--  the rejected design. An earlier version of this contract listed it as read, which was stale copy
--  from that design. Read-only overall: this diff issues SELECTs and writes no raw entity table.
--
--  CI LAYER RULES. None engaged: no model, schema, seed or SQL file is touched.
--
--  SHARED-WAREHOUSE DEPLOY ORDERING. Not engaged; nothing is built or deployed.
--
--  BLAST RADIUS ON NUMBERS: none. No mart value can change. No fact is derived, no grain moves, no
--  entity table gains or loses a row. The diff changes what a run REPORTS and, on a repeated
--  regression, whether it exits nonzero.
-+> `chore/handover-ingest-cluster-complete` from `main` at `c3e23f3`. No protected path in scope, so
-+> no `protected_override`. No structural path in scope, so no `impact_map`. No `site_v2/src/` path,
-+> so no `acceptance_criteria`.
+-> Written on a clean tree before any file was touched. Branch
+-> `chore/handover-ingest-cluster-complete` from `main` at `c3e23f3`. No protected path in scope, so
+-> no `protected_override`. No structural path in scope, so no `impact_map`. No `site_v2/src/` path,
+-> so no `acceptance_criteria`.
++> Branch `chore/gitlab-ci-pipelines` from `main`. Protected paths ARE in scope
++> (`.claude/review_routing.json`, `.claude/agents/**`, `.claude/hooks/**`,
++> `.gitlab-ci.yml`), so `protected_override` and `impact_map` are both declared
++> below. No `site_v2/src/` path is in scope, so no `acceptance_criteria`.
  
  objective: >
--  `completeness.py`'s `FANOUT_ENTITIES` covers four fixture-level entities only, so `coaches`,
--  `players`, `player_squads` and `transfers` have NO completeness check at all. This is cause 3 of
--  #898, reserved there. #898 reports when the provider REJECTED a call, which is not the same as
--  knowing the data is whole.
-+  Bring `.claude/active_work.md` up to date so a cold chat continues with zero re-investigation. It
-+  is currently four PRs stale: it states that nothing is in flight and that #896, #897 and #898 are
-+  open and unstarted. All three are merged, and cause 3 of #898 is merged on top. A fresh session
-+  reading it today would redo work that is already live.
+-  Bring `.claude/active_work.md` up to date so a cold chat continues with zero re-investigation. It
+-  is currently four PRs stale: it states that nothing is in flight and that #896, #897 and #898 are
+-  open and unstarted. All three are merged, and cause 3 of #898 is merged on top. A fresh session
+-  reading it today would redo work that is already live.
++  The GitHub account is suspended, so CI has no host. Translate the six quality-gate
++  workflows (`python-ci`, `ci-validate`, `security-secrets`, `ci-ui`, `ci-site-v2`,
++  `ci-data-build`) into a single `.gitlab-ci.yml` so the commit -> pipeline -> MR loop
++  works on GitLab.
  
--  It matters because #896 proved this loss class is invisible to every existing test: the table GREW
--  while data was destroyed, so row-count, freshness and not-null checks all passed.
--
--  MEASURED FIRST, and it changes what this task is. Today: transfers 0 teams missing, player_squads
--  0, players 0 once each competition's own reference season is used, coaches 22-26 of 1,265 and
--  STABLE across five days. The per-team data is COMPLETE. This is regression insurance, not repair,
--  and the CPO approved it on exactly that basis: a gate introduced while the metric reads 0 starts
--  green and can only ever fire on a regression.
-+  It also carries one item that this session RESOLVED and must not be left as open: transfers
-+  healing was recorded as INFERRED and NOT OBSERVED. It is now observed.
+-  It also carries one item that this session RESOLVED and must not be left as open: transfers
+-  healing was recorded as INFERRED and NOT OBSERVED. It is now observed.
++  Second, closely-coupled objective: the CI config is a GUARD. `.github/workflows/**`
++  is both a protected path (contract gate) and a two-reviewer opus guard path (review
++  routing). Its replacement `.gitlab-ci.yml` matched NEITHER, so migrating the CI gate
++  to a new host would have silently dropped `cto-reviewer` + `platform-reviewer` and
++  the `protected_override` requirement from the one file that decides what CI enforces.
++  That downgrade is repaired here, in the same commit that creates the file — not left
++  as follow-up, because the window between them is exactly when an unreviewed CI edit
++  lands.
  
  refs: >
--  Cause 3 of #898. #897 (`d2b5789`), #896 (`0a4f636`) and #898 (`e7758a6`) are all merged. #900 is
--  the stale blueprint cost model. Cost (#547) resumes after this.
-+  #897 merged (`d2b5789`), #896 merged (`0a4f636`), #898 merged (`e7758a6`), cause 3 merged
-+  (`c3e23f3`). Filed this session and still open: #900 (stale blueprint cost model), #904 (contract
-+  claims are unverified). Cost programme is #547, with #895, #892 and #890 as its ranked items.
+-  #897 merged (`d2b5789`), #896 merged (`0a4f636`), #898 merged (`e7758a6`), cause 3 merged
+-  (`c3e23f3`). Filed this session and still open: #900 (stale blueprint cost model), #904 (contract
+-  claims are unverified). Cost programme is #547, with #895, #892 and #890 as its ranked items.
++  Migration MRs already open: !2 (`.githooks/post-commit` -> glab), !3 (agent
++  governance docs -> glab/MR). This is the third. All three were committed while the
++  repo's local hooks were inert (the session's `CLAUDE_PROJECT_DIR` pointed at a
++  different project), which is why review artifacts are being written after the fact
++  rather than at commit time. `check_task_artifacts.py` caught it — the CI backstop
++  did its job.
++
++  Phase 3 (dbt-scheduled, deploy-site-v2, pages-match-preview) is deliberately NOT
++  here: those need GCP Workload Identity Federation repointed at GitLab's OIDC issuer,
++  which is a GCP IAM change requiring the CPO's sign-off.
  
  scope_paths:
--  - ingestion/api_football/completeness.py
--  - ingestion/api_football/orchestrator.py
--  - tests/test_per_team_completeness.py
--  - tests/test_completeness_outcome_and_summary.py
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - .gitlab-ci.yml
++  - .claude/review_routing.json
++  - .claude/hooks/task_contract_gate.py
++  - .claude/agents/cto-reviewer.md
++  - .claude/agents/platform-reviewer.md
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
++  - tests/test_governance_hooks.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/escalations.log
+-  - .claude/task/escalations.log
++  # THE FOUR PATHS BELOW WERE ADDED MID-TASK. Authority: CPO ruling of 2026-08-06,
++  # recorded in `.claude/task/escalations.log` under "scope amendment authority for
++  # the four restatement files" — read it there; this is a pointer, not the record.
++  #
++  # `scope-auditor` ESCALATED precisely because the earlier version of these lines
++  # cited a reviewer's FAIL as the authority. A reviewer FAIL is not amendment
++  # authority; `working_agreement.md:79` says an amendment records the CPO's. Same
++  # shape as the 2026-06-23 precedent (`escalations.log:145`), where the same
++  # reviewer held the same line and the CPO granted it explicitly.
++  #
++  # HONEST FRAMING, and the CPO named it when ruling: these are not four independent
++  # extensions that each happened to be justified. They are ONE sweep that was
++  # UNDER-SCOPED WHEN THIS CONTRACT WAS FIRST WRITTEN. All eleven restatement sites
++  # (seven on axis 1, four on axis 2) were knowable from the routing table before the
++  # first edit; listing four of them only after a reviewer pointed at each in turn is
++  # the defect. The amendment is granted; the under-scoping is not excused by it.
++  - .claude/task/escalations.log      # the durable record of the ruling itself
++  - .claude/task/TEMPLATE.md          # carries a 4th copy of the protected-path list
++  - docs/roles/platform_reliability.md   # platform-reviewer.md's third Input
++  - docs/north_star.md                   # CTO row count + Platform's "Wakes on"
++
++protected_override: >
++  CPO ruling of 2026-08-06, recorded durably in `.claude/task/escalations.log` under
++  "GitHub -> GitLab migration: guard status for the CI config" — read it there; this
++  is a pointer, not the record. The question was put with both options named (match
++  `.github/workflows/**`'s reviewers, or leave `.gitlab-ci.yml` on scope-auditor only
++  and accept lighter review on CI config). CPO ANSWER: "Yes, match the old coverage."
++
++  ROUND 1 FAILED HERE and the correction is the point: that version cited the approval
++  as "approved in-thread" with no entry in escalations.log. `cto-reviewer` grepped the
++  log, found zero occurrences of "gitlab" and nothing dated after 2026-08-03, and
++  failed it — the "does the claimed ruling actually exist" check firing exactly as
++  `review_routing.json` says it has before. A `contract.md` does not survive the next
++  task, so an authority recorded only there disappears with it.
++
++  The protected-path half (contract gate) is the same ruling applied to the same file
++  for the same reason. The CPO ruled on review routing explicitly and on the contract
++  gate by implication; that inference is stated plainly here and in the summary rather
++  than left for a reader to discover.
++
++impact_map: >
++  END-TO-END TRACE of each guard edit.
++
++  - `.claude/review_routing.json`: adds one row, `.gitlab-ci.yml` -> [cto-reviewer,
++    platform-reviewer]. CONSUMERS: `git_discipline._required_reviewers` (local commit
++    gate) and `check_task_artifacts.py` (CI backstop) both read `paths` and both now
++    demand two specialist verdicts for any MR touching `.gitlab-ci.yml`. Additive:
++    no existing row is narrowed or removed, so no surface loses a reviewer. Verified
++    by `test_real_routing_still_covers_every_pre_existing_surface`, which is
++    parametrised over every pre-existing pin and still passes.
++
++  - `.claude/hooks/task_contract_gate.py`: appends `.gitlab-ci.yml` to
++    `PROTECTED_FILES`. CONSUMER: `_is_protected`, reached from the Edit/Write gate and
++    the shell-redirect gate. EFFECT: editing `.gitlab-ci.yml` now denies unless the
++    contract carries `protected_override` AND a non-placeholder `impact_map` — this
++    contract is the first to satisfy it. A FILE entry, not a prefix: `.gitlab-ci.yml`
++    is the whole surface and a prefix would match nothing. RISK CONSIDERED: this makes
++    routine CI edits costlier. Accepted — it is precisely the cost `.github/workflows/`
++    already carried, and the migration should not be a discount on it.
++
++  - PROSE RESTATEMENTS, and this is the part the review cycle kept failing. The
++    change invalidates sentences on TWO independent axes, and each axis has its own
++    scattered set of copies:
++
++    AXIS 1 — guard-path COUNTS (eight -> nine, platform's share two -> three), in
++    SEVEN files: `.claude/agents/cto-reviewer.md` (two sites), 
++    `.claude/agents/platform-reviewer.md`, `.claude/review_routing.json` `_doc`,
++    `docs/working_agreement.md`, `docs/agent_guardrails.md`,
++    `docs/roles/platform_reliability.md`, `docs/north_star.md` (CTO row count AND
++    Platform's "Wakes on" list).
++
++    AXIS 2 — PROTECTED-path enumerations, in FOUR files:
++    `.claude/agents/cto-reviewer.md` (hunt item 7), `docs/working_agreement.md`,
++    `docs/agent_guardrails.md`, `.claude/task/TEMPLATE.md`.
++
++    Round 1 swept axis 1 in five files and declared it complete. `cto-reviewer`
++    failed it twice: round 1 for missing axis 2 entirely (the two lists were
++    identical eight-item sets, which is exactly why one grep looked exhaustive), and
++    round 2 for missing two more axis-1 files, because that round's grep was scoped
++    to files already open rather than the repo. The lesson is mechanical, not
++    attitudinal: a count restated in prose must be re-derived from the rows and
++    swept REPO-WIDE, not from the set of files already in hand. `docs/north_star.md`
++    line 118 attaches an explicit duty to keeping its "Wakes on" column honest, and
++    `docs/roles/platform_reliability.md` is `platform-reviewer.md`'s third Input, so
++    a stale count there is fed to the reviewer on every future run.
++
++    The 12-row CTO count was RE-DERIVED by counting the routing table
++    programmatically, not copied from the reviewer that reported it —
++    `escalations.log` records a prior incident where taking a reviewer's arithmetic
++    on trust put an off-by-one into two documents.
++
++    Deliberately LEFT unchanged, each checked: `working_agreement.md` line 157 and
++    `escalations.log` line 327 narrate PAST review rounds and their counts were
++    correct then; `platform-reviewer.md`'s "other six" is still six (nine minus
++    three); `review_routing.json`'s "matches exactly two" is about the dependency
++    threshold, a different subject.
++
++  - `tests/test_governance_hooks.py`: adds two pins for the new routing row (one per
++    conferred reviewer, matching how the `.github/workflows/**` row is pinned) and
++    `.gitlab-ci.yml` to the protected-path parametrisation. NOT cosmetic —
++    `test_every_routing_pattern_is_pinned_by_the_test_above` FAILED on the first run
++    of this task with `unpinned routing patterns: ['.gitlab-ci.yml']`, which is the
++    guard-the-guard test doing its job.
++
++  - `.gitlab-ci.yml` itself: new file, no consumer inside the repo. It becomes live
++    only when GitLab runs a pipeline. Until the WIF provider exists the `data:*`
++    jobs are created, run, and FAIL — `.gcp_auth` exits 1 before `dbt deps`,
++    `sqlfluff lint`, `dbt build` or the singular DQ suite can run, so an unwired
++    data-quality gate reddens the pipeline instead of vanishing from it. Their
++    `rules:` consult path and trigger conditions ONLY; no credential variable is
++    among them. See `decisions_taken` #6 for why the reverse (rules-gating on the
++    variable) was removed as a defect in review round 2 — if you are reading this
++    bullet to decide how to handle red pipelines on an unwired runner, the answer is
++    to finish the GCP setup, never to reinstate that clause. OBSERVED, not predicted:
++    pipeline 2737720717 on MR !4 ran with no credentials configured and did exactly
++    this — `validate:governance`, `validate:secrets`, `test:python` and
++    `build:site-v2` green, `data:build:mr` red on the guard's own message.
++
++  - AUTH SURFACE (`.gcp_auth`, `id_tokens:` on `.data_build_base`). CONSUMERS: every
++    Python process the data jobs start. dbt-bigquery's `method: oauth` resolves through
++    `google.auth.default()`, as do `google-cloud-bigquery` in `scripts/` and the
++    `ingestion.api_football` package, so ALL of them pick up
++    `GOOGLE_APPLICATION_CREDENTIALS` without a line of code changing — which is why
++    `decisions_taken` #4 kept `method: oauth` verbatim. EFFECT: the credential is a
++    short-lived token minted per job, not a stored secret. BLAST RADIUS IF WRONG: the
++    data jobs cannot authenticate and fail closed (loudly), which is the same state
++    they are in today — this cannot silently degrade to a passing DQ gate.
++    NOT CHANGED: the service account, its IAM roles, and the two variable NAMES, all
++    carried over from the GitHub workflows unchanged.
  
  decisions_taken: >
--  CPO, 2026-08-03, asked as one batch with the measurements in hand, before any file was touched:
+-  None. This records state that already exists and decides nothing. Every ruling it references is
+-  already in `escalations.log` or on a GitHub issue with its authority.
 -
--  1. BUILD IT NOW, as regression insurance, precisely because the metric reads 0 today.
--  2. GATE `players`, `transfers`, `player_squads`. REPORT ONLY for `coaches`. Coaches sits at a
--     stable ~23 missing because the provider genuinely has no coach for those teams; gating it would
--     be permanently red, and a permanently-red gate trains everyone to ignore the alarm, which is
--     the failure mode that made ten green runs meaningless.
--  3. EXPECTED IS PER-COMPETITION, never a global year. The builder's first measurement flagged ACN
--     as 24/24 missing because it hardcoded season 2026; ACN is on 2027 and so is J1. A gate
--     repeating that assumption would be permanently red on every tournament.
+-  `.claude/active_work.md` is in `scope_paths` from the start, declared here on a clean tree rather
+-  than amended in later. VERIFIABLE PRECEDENT rather than an assertion: the merged #899 handover
+-  contract listed exactly this path first in its own `scope_paths`. Check it with
+-  `git show 36b5f98:.claude/task/contract.md`. The failure recorded in `escalations.log` was adding
+-  this path MID-TASK to a CODE branch while citing a rule that did not exist, which is a different
+-  thing from declaring it up front on a dedicated handover branch.
 -
--  DERIVED BY RULE, not escalated: failing follows #898's ruling rather than inventing a second
--  policy. Report every run, fail only when the same (league, entity) is STILL missing on the next
--  run. The CPO's stated reason for #898 applies unchanged: a hard fail skips `dbt build` and costs
--  daily freshness, so a transient must not trigger it. A brand-new team whose first fetch fails would
--  otherwise fail the run on the day it appears.
+-  ⚠ REVIEWER NOTE, because this already produced one false FAIL on this task.
+-  `.claude/active_work.md` is listed in `review_exclude_paths` in `.claude/review_routing.json`, so
+-  `git_discipline.py --review-patch` OMITS it from `review_input.patch` BY DESIGN. Its absence from
+-  the patch is NOT evidence that it was not modified. It is modified: 62 insertions, 38 deletions
+-  per `git diff --cached --stat`. READ IT FROM THE WORKING TREE. A previous scope audit of the #899
+-  handover did exactly that and recorded the reasoning.
 -
--  THRESHOLD DECLARATIONS.
--
--  NEW MECHANISM: declared rather than argued away. This adds a NEW CHECK, and its gate is a new
--  trigger on the existing exit path. It reuses the existing gate, exit code, snapshot table,
--  `evaluate_completeness_outcome`, both operator kill-switches and the markdown summary, so it is an
--  extension in the same sense #898's was. The CPO approved building it in this session with the
--  measurements in hand; that approval is the authority, recorded in `escalations.log`.
--
--  RECURRING COST: measured by dry-running THE QUERIES THE SHIPPED CODE ACTUALLY ISSUES, not the
--  query shapes an earlier design would have issued. Four queries per run:
--    - three `MAX(ingested_at)` maxima reads: 15,021 + 14,757 + 20,678 bytes, about 50 KB total
--    - one coverage query: 999,200,648 bytes
--    - TOTAL 999,251,104 bytes = **0.931 GiB per run**, about **$0.0045 per run and $1.66 a year**
--      at $5/TiB.
--  An earlier version of this contract derived ~1.0 GiB from shapes that included a
--  `RAW_APIF_TEAMS` scan the shipped code does not perform. The figure was close but the derivation
--  was wrong; this one is measured against the real code. No additional API calls, no change to the
--  daily quota draw, and no change to pacing or run duration beyond those four queries.
-+  None. This records state that already exists and decides nothing. Every ruling it references is
-+  already in `escalations.log` or on a GitHub issue with its authority.
+-  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none, and this is the one case where
+-  "none" is safe without a figure, because the diff contains no executable line.
++  1. NO `gate` jobs. Every GitHub workflow ended in a terminal `gate` job so branch
++     protection had one check name to require even when the real job was
++     path-filter-skipped. GitLab has no per-check requirement — "Pipelines must
++     succeed" gates the whole pipeline, and a rules-skipped job is ABSENT rather than
++     failed. Porting the gate jobs would add nine no-op jobs enforcing nothing.
 +
-+  `.claude/active_work.md` is in `scope_paths` from the start, declared here on a clean tree rather
-+  than amended in later. VERIFIABLE PRECEDENT rather than an assertion: the merged #899 handover
-+  contract listed exactly this path first in its own `scope_paths`. Check it with
-+  `git show 36b5f98:.claude/task/contract.md`. The failure recorded in `escalations.log` was adding
-+  this path MID-TASK to a CODE branch while citing a rule that did not exist, which is a different
-+  thing from declaring it up front on a dedicated handover branch.
++  2. Jobs that branched on `github.event_name` inside steps are SPLIT into `:mr` and
++     `:main` variants. GitLab has no step-level `if:`; the alternative was wrapping
++     every command in a shell conditional.
 +
-+  ⚠ REVIEWER NOTE, because this already produced one false FAIL on this task.
-+  `.claude/active_work.md` is listed in `review_exclude_paths` in `.claude/review_routing.json`, so
-+  `git_discipline.py --review-patch` OMITS it from `review_input.patch` BY DESIGN. Its absence from
-+  the patch is NOT evidence that it was not modified. It is modified: 62 insertions, 38 deletions
-+  per `git diff --cached --stat`. READ IT FROM THE WORKING TREE. A previous scope audit of the #899
-+  handover did exactly that and recorded the reasoning.
++  3. The `ingest` path-filter is dropped and `get_new_league_codes.py` runs on every
++     data build. GitLab rules cannot express two independent change-flags for one job.
++     The script is a BigQuery metadata lookup that returns empty — and ingests
++     nothing — whenever every league already has raw tables, so behaviour is preserved
++     at the cost of one cheap query.
 +
-+  THRESHOLD DECLARATIONS. NEW MECHANISM: none. RECURRING COST: none, and this is the one case where
-+  "none" is safe without a figure, because the diff contains no executable line.
++  4. `method: oauth` is kept verbatim in the CI profiles. dbt-bigquery's oauth method
++     resolves through `google.auth.default()`, which honours
++     `GOOGLE_APPLICATION_CREDENTIALS`, so the same profile works for a service-account
++     key file now and for WIF/OIDC in Phase 3 with no edit.
++
++  5. AUTH IS KEYLESS — Workload Identity Federation, NOT a service account key. The
++     four GCP-touching GitHub workflows all used `google-github-actions/auth@v2` with
++     `workload_identity_provider` + `service_account` and `permissions: id-token: write`.
++     NOTHING SECRET WAS EVER STORED: both values are identifiers (a provider resource
++     path and an SA email), and the credential was minted per job from a signed OIDC
++     token. GitLab reaches the same architecture with `id_tokens:` + an `external_account`
++     credential config, so the migration keeps the property rather than trading it away.
++
++     This REPLACES an earlier draft of this contract that specified a downloaded
++     `GCP_SA_KEY` JSON. That draft was written without checking what the GitHub
++     workflows did, and it was a real downgrade: a long-lived key does not expire, sits
++     in CI variable storage and must be rotated by hand. `deploy-site-v2.yml:89` states
++     the repo's standing position outright — a key is the FALLBACK, and "raise it, do
++     not adopt it silently". Choosing WIF is therefore not a new mechanism needing
++     approval; it is the status quo, and the key would have been the deviation.
++
++     No `gcloud` install is needed. The data jobs run `python:3.11` and shell out to
++     `gcloud`/`bq` NOWHERE — dbt, `google-cloud-bigquery` and the ingestion package all
++     authenticate through `google.auth.default()`, which handles `type: external_account`
++     natively, performing the STS exchange and SA impersonation itself. VERSIONS, stated
++     with their source because the two disagree and an unqualified number invites a
++     false correction: CI resolved google-auth 2.56.3 (pipeline 2737720717's pip install
++     log); the local `.venv` has 2.49.2. `google-auth` is a TRANSITIVE dependency and is
++     not pinned in `requirements.txt` — true before this branch as well, so it is not a
++     risk this change introduces. Either version works: `external_account` support, and
++     the `credential_source: {file: ...}` text-format default the script relies on,
++     predate both by years. Writing the credential config directly is what
++     `gcloud iam workload-identity-pools create-cred-config` emits anyway, without
++     adding an SDK download to every data job.
++
++     CONTINUITY: `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` keep the
++     GitHub secret NAMES and take the same VALUES, so the existing service account and
++     its IAM roles are untouched. What must be created in GCP is one new OIDC provider
++     in the pool, trusting GitLab's issuer instead of GitHub's.
++
++  6. The data jobs FAIL CLOSED on missing credentials. Round 1 gated them with
++     `rules: when: never` on the variable being absent, reasoning that an unwired
++     credential should not redden every MR. `platform-reviewer` failed it, correctly:
++     a rules-excluded job leaves NO entry in the pipeline UI, so the pipeline went
++     GREEN having run no SQL lint, no dbt build and none of the singular DQ suite —
++     the suite the original annotates "DQ is non-negotiable". The GitHub original
++     could not reach that state (no credential guard: missing secrets errored the
++     auth action and reddened the gate). Red is the signal that the gate is unwired,
++     and the translation must not convert it to silence. Now an explicit check in
++     `.gcp_auth` exits 1 with the remediation. This also removes an assumption
++     nobody could verify — whether GitLab resolves a File-type variable inside
++     `rules:if` at all — since the variable is no longer consulted there.
++
++     Under WIF the guard checks THREE things, because there are three distinct
++     failure modes and they need different remedies: the two identifiers being unset
++     (the CI/CD variables were never added), and `$GITLAB_OIDC_TOKEN` being empty
++     (the job is missing its `id_tokens:` block — a YAML defect, not a config one, and
++     one that would otherwise surface as an opaque STS rejection).
++
++  7. `schedule` is NOT in `workflow:rules`. A schedule created in the UI runs with
++     `CI_COMMIT_BRANCH == main`, which would satisfy `data:build:main`'s rule and fire
++     a full prod warehouse build — work reserved below to Phase 3.
++
++  9. THE dbt PROFILE LIVES AT `~/.dbt`, the default — not a custom directory. An
++     earlier draft wrote it to `$CI_PROJECT_DIR/.dbt-ci` and pointed `DBT_PROFILES_DIR`
++     there. That worked for dbt and BROKE `sqlfluff lint`, because the two resolve the
++     profile differently: dbt honours `DBT_PROFILES_DIR`, while sqlfluff's dbt templater
++     reads `profiles_dir` from `dbt_project/.sqlfluff`, which is committed as `~/.dbt`.
++     So `dbt deps` succeeded and the very next command failed with "Could not find
++     profile named 'football_data_pipeline'".
++
++     The draft's stated reason was FALSE and is corrected rather than left standing: it
++     claimed the runner home directory "does not exist on a GitLab runner image". It
++     does — the jobs run as root on `python:3.11`, so `~` is `/root` and `mkdir -p`
++     creates `/root/.dbt` without complaint. There was never a reason to move the file.
++
++     Writing to the default location means dbt, sqlfluff and the committed `.sqlfluff`
++     all agree with no environment variable coordinating them, and it matches what
++     `ci-data-build.yml` did (`mkdir -p /home/runner/.dbt`, that runner's `~`). The
++     alternative — editing `profiles_dir` in `.sqlfluff` — was rejected: that file is
++     used by local development too, so a CI-shaped path there would break every
++     developer's `sqlfluff lint`.
++
++     FOUND BY A REAL RUN, not by review. Three rounds of review and a YAML parse check
++     all passed over it, because nothing static can see that two tools disagree about
++     where a file lives. Recorded because it bounds what the other `done_when` entries
++     are worth: they establish the config is well-formed, not that it works.
++
++     PINNED BY A TEST, on `platform-reviewer`'s FAIL. The first version of this fix was
++     correct and complete but nothing in the suite would have failed if someone restored
++     the override — a guard-the-guard gap on an opus-routed guard path, for a mistake the
++     YAML's own comment admits is non-obvious and invites under a future "cleanup" edit.
++     `test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it` now asserts (a) no
++     `DBT_PROFILES_DIR` in `variables:`, (b) the directory `.dbt_profile` writes to
++     matches `.sqlfluff`'s `profiles_dir` textually, and (c) EVERY job running dbt or
++     sqlfluff writes the profile first — (c) because a complete-looking fix that leaves
++     one job unpinned fails identically. Textual only: no credentials, no dbt run, so it
++     belongs in the offline suite. VERIFIED AGAINST THE REGRESSION rather than assumed —
++     the test was run against the pre-fix `.gitlab-ci.yml` at HEAD and FAILED with the
++     intended message, then passed once restored. A pinning test that has never been seen
++     to fail pins nothing.
++
++  8. Every job carries `needs: []`. The six GitHub workflows were independent; stages
++     alone would serialise them so a failing lint stops the test suite from ever
++     reporting. Stages are kept only as pipeline-UI grouping.
++
++  THRESHOLD DECLARATIONS. NEW MECHANISM: yes — `.gitlab-ci.yml` is a new CI surface,
++  and `PROTECTED_FILES` gains an entry. Both are declared above with their consumers.
++
++  RECURRING COST, two items, the first added after round 1 because `cto-reviewer`
++  failed its omission:
++  (a) REVIEWER COST. This widens `platform-reviewer` from two guard rows to three, so
++      an MR touching `.gitlab-ci.yml` spawns TWO opus specialists. `review_routing.json`
++      carries a standing rule that widening those rows is CPO-class and needs "a cost
++      approval quoted in decisions_taken" — round 1 quoted the ruling in
++      `protected_override` instead, which is not where the rule says to put it. Quoted
++      here now: CPO, 2026-08-06, "Yes, match the old coverage" (escalations.log).
++      Net against the pre-migration baseline this is ZERO — it restores the cost
++      `.github/workflows/**` already carried rather than creating a new one.
++  (b) QUERY COST. One `get_new_league_codes.py` BigQuery metadata query per data build
++      (decision 3), reading table existence only.
  
  decisions_reserved:
--  - `FANOUT_ENTITIES` itself is NOT widened. That gate is deliberate and registry-configurable.
--  - The coaches tolerance question (what number of genuine absences is acceptable, and whether it
--    should ever gate) is NOT decided. Coaches reports only.
--  - Cost (#547) is out of scope and resumes after this.
--  - `.claude/active_work.md` is deliberately NOT in `scope_paths`. The handover goes in its own
--    commit on its own branch after this merges, per the standing lesson that widening a contract to
--    admit it is the wrong move.
-+  - The cost work itself (#547) is NOT started here. This task only points at it.
-+  - #904's lint is filed, not built.
-+  - Nothing about tomorrow's nightly is asserted. No paced run has happened yet, so the handover
-+    must record the fixes as merged but UNVERIFIED in production, not as proven.
+-  - The cost work itself (#547) is NOT started here. This task only points at it.
+-  - #904's lint is filed, not built.
+-  - Nothing about tomorrow's nightly is asserted. No paced run has happened yet, so the handover
+-    must record the fixes as merged but UNVERIFIED in production, not as proven.
++  - Phase 3 (dbt-scheduled, deploy-site-v2, pages-match-preview) is NOT started. Its
++    JOBS are reserved; its AUTH is not — the WIF wiring lands here, so Phase 3 adds
++    workflows against an auth surface that already works rather than doing both at once.
++  - The GCP-side setup (a GitLab OIDC provider in the workload identity pool, plus the
++    `principalSet` binding) is NOT done and CANNOT be done from this repo. It is a
++    change in the CPO's Google Cloud console, handed over as a step list. Until it
++    exists the `data:*` jobs fail closed, which is the designed state, not a defect.
++  - Phase 4 (GitHub Projects board sync, ci-failure-watchdog) is NOT started. The CPO
++    has chosen "rewrite against GitLab Issue Boards"; the design is not written yet.
++  - Whether to DELETE `.github/workflows/` is not decided here. Both rows stay in the
++    routing table and the protected list while the GitHub repo exists as a frozen
++    mirror. The routing `_doc` records that retiring it returns the counts to eight
++    and TWO, in the same commit that deletes the row.
++  - WHAT THE PIPELINE HAS AND HAS NOT PROVEN. Pipeline 2737720717 ran on MR !4: four
++    jobs green, `data:build:mr` red on the credential guard. So the YAML parses on a
++    real runner, the anchors expand, the path rules fire and the fail-closed guard
++    works. NOT proven, because no run has yet reached them: the WIF token exchange,
++    `dbt build`, `sqlfluff lint` and the singular DQ suite. Those stay unexercised
++    until the GCP provider exists, and the review should read every claim about them
++    as static validation only.
  
  done_when:
--  - Per-league, per-entity expected and missing counts appear in the job summary on EVERY run.
--  - `players` uses each competition's own reference season, and ACN resolves to 2027 rather than
--    being reported as 24/24 missing.
--  - `coaches` is reported and NEVER gates.
--  - A first observation of a miss does not fail; the same (league, entity) missing on the next run
--    does.
--  - The gate is evaluated inside `evaluate_completeness_outcome`, so both `report["skipped"]` and
--    `fail_on_incomplete()` suppress the FAILURE while the REPORTING survives.
--  - Against production the check reports 0 missing for players, transfers and squads and ~23 for
--    coaches. Anything else means the expected set is wrong, not the data.
--  - Tests pin each of the above and fail against the pre-fix code. `python -m pytest tests/ -q`
--    passes.
+-  - `.claude/active_work.md` is under 16,000 CHARACTERS (it is 12,602 before this edit).
+-  - It names, for a cold reader: current main, that the ingest cluster is closed, that cost is next
+-    with its ranked list, and that no production run has yet exercised any of the four fixes.
+-  - The transfers-healing item is stated as OBSERVED with its evidence, not as unverified.
+-  - Every claim that was corrected this session appears in corrected form only, with no "this used
+-    to say" narration, per the standing correction-replaces rule.
+-  - The commit touches only artifact paths. It still requires a scope audit, because `contract.md`
+-    is never artifact-exempt (F10/#409).
 -
--amendments:
--  - ROUND 2, after both specialist reviewers FAILED round 1. Authority: the CPO's approval of this
--    task, recorded in `escalations.log`. No permission is widened, no `scope_paths` entry is added,
--    and no decision is taken. The `impact_map` is CORRECTED, because its first version claimed a
--    `NotFound` guard that existed for three of the four tables and not for PLAYERS, and it did not
--    name the second new function. Both statements now match the code.
--  - The RECURRING COST figure is unchanged and still measured: the round 2 fix pairs each league
--    with its own snapshot timestamp, and that was dry-run to confirm partition pruning survives.
--    `RAW_APIF_TRANSFERS` reads 383,545,007 bytes either way, byte-identical, so correctness cost
--    nothing.
--  - ROUND 3, after both specialists FAILED round 2 on the same finding. Authority: the CPO's
--    approval of this task. No permission widened, no `scope_paths` entry added, no decision taken.
--    THREE inaccurate statements in this contract are corrected, and the pattern behind them is worth
--    naming rather than hiding: each was written in the same edit as the fix it described, so the
--    claim ran ahead of the code.
--      1. "Now tested directly" for `per_team_expectations_from_results` was FALSE — the extraction
--         happened in round 2 and the tests did not. Seven tests now cover it, including that a
--         poll-mode competition cannot appear and that the reference season is `max(seasons_list)`.
--      2. `_ts_in_list` was listed as a module-local function "with one call site". It had NONE: it
--         was dead code left from the rejected unpaired-timestamp design. Deleted.
--      3. `RAW_APIF_TEAMS` was listed under TABLES READ and used in the cost derivation. The shipped
--         code never queries it. Both statements corrected, and the cost re-measured against the
--         queries the code actually issues.
--  - ROUND 4, on the CPO's explicit override of the 3-round cap (recorded as `rounds_cap_override`
--    in `review.md`). `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
--    on a FIFTH instance: the snapshot table was described as having two readers when this diff adds
--    a third. A self-sweep prompted by that finding then found two MORE wrong numbers in the same
--    section, both call-site counts.
--    THE ROOT CAUSE, finally identified rather than patched again: the `impact_map` enumerated
--    per-test-file CALL-SITE COUNTS. Those are brittle by construction — every test added changes
--    them, so a number written while drafting is stale by the time the tests are done — and they
--    carry no blast radius, because a test calling a function is not a production consumer that can
--    break. The section now counts PRODUCTION call sites only and names the one test whose assertion
--    SHAPE breaks. That removes the class, not the instance. No code changed.
--  - ROUND 3 verdicts: `data-engineer-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` FAIL
--    on a FOURTH instance of the same pattern, found inside the amendment that documents the pattern:
--    `evaluate_completeness_outcome` was described as gaining "one optional keyword argument" when it
--    gains two. Corrected by counting off the signature. No code change. THE ROUND CAP OF 3 IS NOW
--    REACHED, so this is brought to the CPO rather than looped into a fourth round.
-+  - `.claude/active_work.md` is under 16,000 CHARACTERS (it is 12,602 before this edit).
-+  - It names, for a cold reader: current main, that the ingest cluster is closed, that cost is next
-+    with its ranked list, and that no production run has yet exercised any of the four fixes.
-+  - The transfers-healing item is stated as OBSERVED with its evidence, not as unverified.
-+  - Every claim that was corrected this session appears in corrected form only, with no "this used
-+    to say" narration, per the standing correction-replaces rule.
-+  - The commit touches only artifact paths. It still requires a scope audit, because `contract.md`
-+    is never artifact-exempt (F10/#409).
+-amendments: (none)
++  - `.gitlab-ci.yml` exists and `glab ci lint` reports it valid.
++  - No long-lived credential is required by any job: `.gcp_auth` mints a short-lived
++    token via `id_tokens:` + an `external_account` config, matching the keyless
++    property the four GitHub workflows had. `git grep GCP_SA_KEY` returns hits ONLY
++    inside `.claude/task/**`, where they narrate the rejected design — no executable
++    file references it. (Stated this way deliberately: "no hits anywhere" would be
++    false, and a `done_when` that cannot pass is worse than none.)
++  - `data:build:mr` gets PAST `.gcp_auth` on a live runner — the WIF exchange is
++    exercised, not merely constructed — and `sqlfluff lint`, `dbt build` and the
++    singular DQ suite all run. Nothing short of a green `data:build:mr` demonstrates
++    this: the profile-location defect proved that a well-formed config and a working
++    config are different claims.
++  - The `.gcp_auth` block is verified by PARSING the merged YAML, not by reading it:
++    the heredoc terminator sits at column 0 (otherwise the shell swallows the rest of
++    the script), the body parses as JSON after variable substitution with no
++    unsubstituted `$VAR` left, and both `data:build:mr` and `data:build:main` carry an
++    `id_tokens:` block — without which `$GITLAB_OIDC_TOKEN` is empty and every run
++    dies on the third guard.
++  - The six quality-gate workflows each have a corresponding job, with path filters,
++    MR/main split and resource groups preserved.
++  - `.gitlab-ci.yml` confers `cto-reviewer` + `platform-reviewer` via
++    `review_routing.json` and is in `PROTECTED_FILES`.
++  - Every prose restatement agrees with the rows, on BOTH axes (guard-path counts
++    and protected-path enumerations), verified by a REPO-WIDE grep rather than by
++    re-reading the files already open.
++  - `python -m pytest tests/test_governance_hooks.py` is green, and the profile-location
++    pin has been demonstrated to FAIL against the pre-fix config, not merely to pass
++    against the fixed one.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index e6fc314..54cfdf7 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -869,3 +869,119 @@ This entry is the durable record of the metric-definition authority the contract
+   `review.md` as `rounds_cap_override`, which is the mechanism the review template provides for
+   exactly this. The round 4 diff differs from round 3 by one corrected sentence in `contract.md` and
+   nothing else: no code, no test, no behaviour.
 +
-+amendments: (none)
++================================================================================
++2026-08-06 — GitHub -> GitLab migration: guard status for the CI config
++================================================================================
++
++- (⭐ CPO RULING: .gitlab-ci.yml INHERITS THE GUARD STATUS OF .github/workflows/**)
++  Context brought to the CPO: the GitHub account is suspended, CI has no host, and the six
++  quality-gate workflows were being translated into a single `.gitlab-ci.yml`. The CI config is
++  a guard — `.github/workflows/**` is BOTH a protected path (contract gate: needs
++  `protected_override` + `impact_map`) AND a two-reviewer opus guard path (`cto-reviewer` +
++  `platform-reviewer`). Its replacement matched NEITHER, so moving CI to a new host would have
++  silently dropped two required reviewers and the override requirement from the one file that
++  decides what CI enforces.
++
++  The question was put with both options named: give `.gitlab-ci.yml` the same reviewers
++  `.github/workflows/**` had, or leave it on `scope-auditor` only and accept lighter review on
++  CI config than the GitHub workflows carried.
++
++  CPO ANSWER: "Yes, match the old coverage." The routing row and the `PROTECTED_FILES` entry
++  are that ruling applied to the same file for the same reason.
++
++- (RECURRING COST, declared because widening a platform row is CPO-class) This adds
++  `platform-reviewer` to a third guard path, so an MR touching `.gitlab-ci.yml` now spawns TWO
++  opus specialists where the untranslated state would have spawned none (no routing row at all)
++  and the GitHub equivalent spawned two. Net against the pre-migration baseline: unchanged —
++  this restores the cost `.github/workflows/**` already carried rather than adding a new one.
++  `review_routing.json`'s standing rule ("Do not widen them without a cost approval quoted in
++  `decisions_taken`") is satisfied by the ruling above, quoted there.
++
++- (SCOPE AMENDMENT, declared rather than made quietly) `.claude/task/escalations.log` and
++  `.claude/task/TEMPLATE.md` were added to `scope_paths` AFTER the first review round, on
++  `cto-reviewer`'s FAIL. Both were needed to fix findings that round raised: this file to give
++  the ruling above a durable record, and TEMPLATE.md because it carries a fourth copy of the
++  protected-path list that the change invalidates. The amendment is recorded here because a
++  mid-task scope widening that only the contract mentions is the shape this log exists to catch.
++
++- (round 1 verdicts) `scope-auditor` PASS. `cto-reviewer` FAIL, `platform-reviewer` FAIL — both
++  found real defects, listed in `review.md`. The two FAILs are the reason this file has an entry
++  at all: round 1's `protected_override` cited a CPO approval with no durable record, which
++  `cto-reviewer` checked against this log and found absent.
++
++- (round 2 verdicts, and the SAME pattern twice more) `cto-reviewer` FAIL, `platform-reviewer`
++  FAIL. Both findings were stale RESTATEMENTS, not code defects, and both were in documents the
++  round-1 sweep had declared complete.
++
++  `platform-reviewer` found the contract's own `impact_map` still describing the removed
++  fail-open design ("the data:* jobs are rules-gated on $GCP_SA_KEY … absent rather than failed")
++  while `decisions_taken` #6, added in the same commit, said the opposite. The YAML comment was
++  rewritten; this second copy of the same fact was not.
++
++  `cto-reviewer` found two further guard-path COUNT restatements —
++  `docs/roles/platform_reliability.md` and `docs/north_star.md` — missed because round 2's grep
++  was scoped to the files already open rather than run across the repo.
++
++  ⚠ THE LESSON, now recorded because it has fired three rounds running on one task: this change
++  invalidates sentences on TWO axes (guard-path counts; protected-path enumerations) spread over
++  seven and four files respectively, and each round's sweep was bounded by whatever was already
++  in hand. A count or a list restated in prose has to be re-derived from the ROWS and swept
++  REPO-WIDE. The 12-row CTO figure in this task was re-derived by counting the routing table
++  programmatically rather than copied from the reviewer that reported it — the 2026-07-31 entry
++  above records what taking a reviewer's arithmetic on trust cost last time ("Do not take my
++  number on trust again — that is how one off-by-one became two documents").
++
++- (SCOPE AMENDMENT, third) `docs/roles/platform_reliability.md` and `docs/north_star.md` added to
++  `scope_paths` after round 2, on `cto-reviewer`'s FAIL. Same footing as the previous two: needed
++  to fix findings that round raised, neither is a protected path, and the amendment is recorded
++  here rather than only in the contract.
++
++- (round 3 verdicts) `cto-reviewer` PASS, `platform-reviewer` PASS, `scope-auditor` ESCALATE. The
++  two specialist FAILs from rounds 1-2 are cleared: the repo-wide sweep of both restatement axes
++  holds, and the data jobs fail closed. The remaining open item is the scope question below.
++
++- (⭐ CPO RULING: SCOPE AMENDMENT AUTHORITY FOR THE FOUR RESTATEMENT FILES) `scope-auditor`
++  ESCALATED that `scope_paths` was amended four times mid-task — `escalations.log`, `TEMPLATE.md`,
++  `docs/roles/platform_reliability.md`, `docs/north_star.md` — each time on a reviewer's FAIL, and
++  that the three entries above cite that FAIL as the authority. The reviewer is RIGHT on the rule:
++  `working_agreement.md:79` says an amendment records the CPO's authority, and a reviewer FAIL is
++  not a substitute. This is the same line the same reviewer held on 2026-06-23 (entry at :145),
++  where the CPO granted the amendment explicitly rather than letting reviewer-FAIL footing stand.
++
++  Put to the CPO with both paths named: (a) confirm the amendment, or (b) revert the four files out
++  of this branch to a follow-up MR — which would merge `.gitlab-ci.yml` with the guard counts
++  knowingly stale in four documents, one of them `platform_reliability.md`, which is fed to
++  `platform-reviewer` as an Input on every future run. Builder recommended (a) with that reasoning.
++
++  CPO ANSWER (conversation, 2026-08-06): **(a) confirm the amendment.** All four paths are
++  authorized into this task's scope. Every one is the same edit — a sentence saying "eight" now
++  says "nine", or a list gaining `.gitlab-ci.yml`. No logic, no design, nothing that changes what
++  ships. The three SCOPE AMENDMENT entries above are SUPERSEDED as to authority: this ruling is the
++  authority for all four, and the reviewer-FAIL footing they claim was never sufficient.
++
++  ⚠ WHAT THE RULING DOES NOT EXCUSE, stated when granting it: these are not four independent
++  extensions that each happened to be justified. They are ONE sweep that was UNDER-SCOPED WHEN THE
++  CONTRACT WAS FIRST WRITTEN. All eleven restatement sites — seven on the count axis, four on the
++  protected-list axis — were derivable from the routing table before the first edit. Discovering
++  four of them one reviewer-FAIL at a time is the defect; the amendment is granted, the
++  under-scoping is not thereby excused.
++
++- (⭐ ROOT CAUSE, named by the CPO and filed rather than fixed here) The reason this task cost three
++  review rounds is not the CI translation — that was one file and one commit. It is that the guard
++  path COUNT is hand-copied as prose into SEVEN documents, and the protected-path LIST into FOUR,
++  with nothing deriving either from `review_routing.json`. Changing eight to nine therefore means
++  editing eleven sites, and any one missed is a document that misinforms a future reviewer. Filed
++  as GitLab issue #1 (`/-/work_items/1`), which carries the eleven sites and three candidate fixes.
++  Deliberately NOT fixed on this branch: it is a separate mechanism change, and folding it in would
++  repeat the under-scoping this entry records.
++
++- (FIRST PIPELINE, run against `.gitlab-ci.yml` on MR !4, pipeline 2737720717) `validate:governance`,
++  `validate:secrets`, `test:python` and `build:site-v2` PASS. `data:build:mr` FAILS, by design, with
++  the `.gcp_auth` guard: "FATAL: GCP_SA_KEY is not set. The data-quality gate (sqlfluff lint, dbt
++  build, singular DQ tests) cannot run without GCP credentials, and must not be reported as passing."
++  The guard exits 1 BEFORE `dbt deps`, `sqlfluff lint` or `dbt build`, so the unwired DQ suite
++  reddens the pipeline instead of vanishing from it — the round-2 `platform-reviewer` finding,
++  confirmed on a live runner rather than argued. `decisions_reserved` no longer needs to say "no
++  pipeline has executed": one has, and this is what it did. The remedy is the CI/CD variable, never
++  a rules-gate on the variable's absence.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+new file mode 100644
+index 0000000..159b9e2
+--- /dev/null
++++ b/.gitlab-ci.yml
+@@ -0,0 +1,449 @@
++# GitLab CI — translated from .github/workflows/ (migration off GitHub, 2026-08).
++#
++# Covers the six quality-gate workflows: python-ci, ci-validate, security-secrets,
++# ci-ui, ci-site-v2, ci-data-build. The deploy/scheduled workflows (dbt-scheduled,
++# deploy-site-v2, pages-match-preview) are NOT here — those JOBS are Phase 3.
++#
++# Their AUTH, however, is here: `.gcp_auth` below already federates GitLab's OIDC
++# issuer to GCP, so Phase 3 adds workflows against a credential path that works
++# rather than building both at once. It needs no further YAML — only the GCP-side
++# provider, which is a change in the CPO's console.
++#
++# Two structural differences from the GitHub original, both deliberate:
++#
++#   1. NO `gate` jobs. Every GitHub workflow ended with a terminal `gate` job so
++#      branch protection had one consistent check name to require even when the
++#      real job was path-filter-skipped. GitLab has no per-check requirement —
++#      "Pipelines must succeed" gates the whole pipeline, and a rules-skipped job
++#      is absent rather than failed. The gate jobs would be pure overhead here.
++#
++#   2. Jobs that branched on `github.event_name` inside steps are SPLIT into
++#      separate `:mr` / `:main` jobs. GitLab has no step-level `if:`, and a job
++#      per path is clearer than shell conditionals wrapping every command.
++
++stages:
++  - validate
++  - test
++  - build
++  - data
++
++variables:
++  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
++  # NO DBT_PROFILES_DIR. The profile goes to the DEFAULT ~/.dbt — see .dbt_profile
++  # below for why moving it breaks sqlfluff.
++
++# Run on merge requests, on main, and on manual/scheduled triggers — but never
++# produce a duplicate branch pipeline alongside an MR pipeline.
++workflow:
++  rules:
++    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
++    - if: $CI_PIPELINE_SOURCE == "web"
++    # `schedule` is deliberately ABSENT. A schedule created in the UI runs with
++    # CI_COMMIT_BRANCH == main, which would satisfy data:build:main's rule and
++    # fire a full prod warehouse build — work this branch's contract reserves to
++    # Phase 3 and CPO sign-off. Phase 3 adds this line together with the jobs
++    # that are meant to run on it.
++
++# `needs: []` on every job: the six GitHub workflows were INDEPENDENT and ran
++# concurrently. Stages alone would serialise them, so a failing lint would stop
++# the test suite from ever reporting — a feedback loss the original did not have.
++# The stages are kept purely as pipeline-UI grouping.
++.python: &python
++  image: python:3.11
++  needs: []
++  cache:
++    key:
++      files:
++        - requirements.txt
++    paths:
++      - .cache/pip
++  before_script:
++    - python -m pip install --upgrade pip
++    - pip install -r requirements.txt
++
++# Writes the dbt profile. Identical content to the GitHub original, including
++# `method: oauth` — dbt-bigquery's oauth method resolves credentials through
++# google.auth.default(), which honours GOOGLE_APPLICATION_CREDENTIALS and handles
++# the `external_account` config .gcp_auth writes. That is why migrating hosts, and
++# then swapping the whole credential mechanism, needed no edit here at all.
++#
++# ~/.dbt IS LOAD-BEARING — do not "tidy" this into a project-local directory.
++# dbt and sqlfluff resolve the profile by DIFFERENT means: dbt honours
++# DBT_PROFILES_DIR, but sqlfluff's dbt templater reads `profiles_dir` from the
++# COMMITTED dbt_project/.sqlfluff, which says `~/.dbt`. Point dbt somewhere else and
++# `dbt deps` still passes while the next command, `sqlfluff lint`, dies with
++# "Could not find profile named 'football_data_pipeline'". That is exactly what an
++# earlier revision of this file did, and no amount of static validation caught it.
++# Editing .sqlfluff instead is not an option: local development uses that file too.
++# ci-data-build.yml did the same thing (mkdir -p /home/runner/.dbt — that runner's ~).
++.dbt_profile: &dbt_profile |
++  mkdir -p ~/.dbt
++  cat > ~/.dbt/profiles.yml <<'EOF'
++  football_data_pipeline:
++    target: ci
++    outputs:
++      # PR builds — slim + deferred to prod. Writes ci_* datasets (isolated from prod).
++      ci:
++        type: bigquery
++        method: oauth
++        project: football-data-pipeline-gcp
++        dataset: ci_analytics
++        threads: 4
++        timeout_seconds: 300
++        location: EU
++        priority: interactive
++      # main-push / manual full builds. Writes the canonical bare datasets the site reads.
++      prod:
++        type: bigquery
++        method: oauth
++        project: football-data-pipeline-gcp
++        dataset: dbt_analytics
++        threads: 4
++        timeout_seconds: 300
++        location: EU
++        priority: interactive
++  EOF
++
++# KEYLESS AUTH — Workload Identity Federation, the same property the GitHub
++# workflows had. All four GCP-touching workflows used google-github-actions/auth@v2
++# with `workload_identity_provider` + `service_account` and `id-token: write`;
++# NEITHER value is a secret (a provider resource path and an SA email), and the
++# credential was minted per job from a signed OIDC token. Both CI/CD variables here
++# keep the GitHub secret NAMES and take the same VALUES, so the service account and
++# its IAM roles carry over untouched — only the OIDC provider is new.
++#
++# A downloaded service account key was considered and REJECTED: it never expires,
++# lives in CI variable storage and must be rotated by hand. deploy-site-v2.yml:89
++# already recorded the repo's position — a key is the fallback, "raise it, do not
++# adopt it silently".
++#
++# No gcloud SDK install. The data jobs run python:3.11 and shell out to gcloud/bq
++# NOWHERE; dbt-bigquery (method: oauth), google-cloud-bigquery and the ingestion
++# package all resolve credentials through google.auth.default(), which handles
++# `type: external_account` natively — performing the STS exchange and the service
++# account impersonation itself. The JSON below is exactly what
++# `gcloud iam workload-identity-pools create-cred-config` emits, minus the download.
++#
++# FAILS CLOSED, and the loud message is the point. An earlier draft skipped the
++# whole data stage via `rules: ... when: never` when the credential was absent. That
++# was backwards: a rules-excluded job leaves NO entry in the pipeline UI, so the
++# pipeline went GREEN having run no SQL lint, no dbt build and none of the singular
++# data-quality suite — the suite ci-data-build.yml annotates "DQ is non-negotiable
++# and the full singular suite always runs". The GitHub original could not reach that
++# state: it had no credential guard, so missing WIF secrets errored the auth action
++# and reddened the gate. A missing credential must stay a RED pipeline, because red
++# is the signal that the gate is not wired up yet.
++#
++# Three checks, because there are three distinct failure modes wanting three
++# different fixes — and the third would otherwise surface as an opaque STS rejection.
++.gcp_auth: &gcp_auth |
++  if [ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] || [ -z "$GCP_SERVICE_ACCOUNT" ]; then
++    echo "FATAL: GCP_WORKLOAD_IDENTITY_PROVIDER and/or GCP_SERVICE_ACCOUNT are not set." >&2
++    echo "The data-quality gate (sqlfluff lint, dbt build, singular DQ tests) cannot run" >&2
++    echo "without GCP credentials, and must not be reported as passing." >&2
++    echo "Fix: Settings -> CI/CD -> Variables. Add both (neither is secret, so leave" >&2
++    echo "Masked off; leave Protected off unless the branch is protected):" >&2
++    echo "  GCP_WORKLOAD_IDENTITY_PROVIDER = projects/<NUMBER>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>" >&2
++    echo "  GCP_SERVICE_ACCOUNT            = <name>@<project>.iam.gserviceaccount.com" >&2
++    exit 1
++  fi
++  if [ -z "$GITLAB_OIDC_TOKEN" ]; then
++    echo "FATAL: GITLAB_OIDC_TOKEN is empty." >&2
++    echo "This is a YAML defect, not a configuration one: the job is missing its" >&2
++    echo "'id_tokens:' block. See .data_build_base." >&2
++    exit 1
++  fi
++  # The JWT goes to a file rather than through an argument or an env var read by a
++  # subprocess, so it cannot land in a job log or a process list. Short-lived and
++  # job-scoped; nothing here is cached or published as an artifact.
++  printf '%s' "$GITLAB_OIDC_TOKEN" > "$CI_PROJECT_DIR/.gcp-oidc-token"
++  cat > "$CI_PROJECT_DIR/.gcp-credentials.json" <<GCPCRED
++  {
++    "type": "external_account",
++    "audience": "//iam.googleapis.com/$GCP_WORKLOAD_IDENTITY_PROVIDER",
++    "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
++    "token_url": "https://sts.googleapis.com/v1/token",
++    "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/$GCP_SERVICE_ACCOUNT:generateAccessToken",
++    "credential_source": {
++      "file": "$CI_PROJECT_DIR/.gcp-oidc-token"
++    }
++  }
++  GCPCRED
++  export GOOGLE_APPLICATION_CREDENTIALS="$CI_PROJECT_DIR/.gcp-credentials.json"
++  echo "GCP credentials configured via Workload Identity Federation (keyless)."
++
++# Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
++# Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
++# edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
++.data_paths: &data_paths
++  - dbt_project/models/**/*
++  - dbt_project/macros/**/*
++  - dbt_project/seeds/**/*
++  - dbt_project/snapshots/**/*
++  - dbt_project/tests/**/*
++  - dbt_project/*.yml
++  - dbt_project/.sqlfluff
++  - ingestion/**/*
++  - docs/competition_registry.yml
++  - scripts/check_*.py
++  - scripts/data_trust_*.py
++  - requirements.txt
++  - .gitlab-ci.yml
++
++.ui_paths: &ui_paths
++  - site/**/*
++  - scripts/build_match_preview_site.sh
++  - scripts/build_match_preview_site.ps1
++  - scripts/export_pages_data.py
++  - scripts/check_ui_i18n_metrics.py
++
++.site_v2_paths: &site_v2_paths
++  - site_v2/**/*
++  - .gitlab-ci.yml
++
++# ---------------------------------------------------------------------------
++# validate stage
++# ---------------------------------------------------------------------------
++
++# was: ci-validate.yml
++validate:governance:
++  <<: *python
++  stage: validate
++  variables:
++    # The governance artifact check diffs against the base branch, so the shallow
++    # default clone is not enough (GitHub used fetch-depth: 0).
++    GIT_DEPTH: 0
++  script:
++    - python scripts/check_layer_contract.py
++    - python scripts/check_registry_var_sync.py
++    - python scripts/check_competition_type_seed.py
++    - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
++    - *dbt_profile
++    - cd dbt_project && dbt deps && dbt parse
++
++# was: security-secrets.yml
++validate:secrets:
++  stage: validate
++  needs: []
++  image:
++    name: zricethezav/gitleaks:latest
++    entrypoint: [""]
++  variables:
++    GIT_DEPTH: 0
++  script:
++    - gitleaks detect --source . --redact --verbose
++
++# was: ci-ui.yml
++validate:ui:
++  <<: *python
++  stage: validate
++  before_script:
++    - python -m pip install --upgrade pip
++    - pip install -r requirements.txt
++    # node is needed only for `node --check`; the distro build is recent enough
++    # to parse the syntax used in the match-preview page.
++    - apt-get update -qq && apt-get install -y -qq nodejs
++  script:
++    - python -m json.tool site/i18n/en.json > /dev/null
++    - python -m json.tool site/i18n/de.json > /dev/null
++    - python -m json.tool site/i18n/fi.json > /dev/null
++    - python -m json.tool site/match-preview/metric_manifest.json > /dev/null
++    - python -m json.tool site/match-preview/metric_definitions.json > /dev/null
++    - |
++      python3 -c "
++      import re, sys
++      html = open('site/match-preview/index.html', encoding='utf-8').read()
++      scripts = re.findall(r'<script>(.*?)</script>', html, re.DOTALL)
++      if not scripts:
++          print('ERROR: no <script> block found in index.html', file=sys.stderr)
++          sys.exit(1)
++      for i, js in enumerate(scripts):
++          open(f'/tmp/ci_check_{i}.js', 'w', encoding='utf-8').write(js)
++      print(f'Extracted {len(scripts)} script block(s)')
++      "
++    - |
++      for f in /tmp/ci_check_*.js; do
++        node --check "$f" && echo "SYNTAX OK: $f" || { echo "SYNTAX ERROR in $f"; exit 1; }
++      done
++    - python scripts/check_ui_i18n_metrics.py
++  rules:
++    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++      changes: *ui_paths
++    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
++      changes: *ui_paths
++    - if: $CI_PIPELINE_SOURCE == "web"
++
++# ---------------------------------------------------------------------------
++# test stage
++# ---------------------------------------------------------------------------
++
++# was: python-ci.yml
++test:python:
++  <<: *python
++  stage: test
++  script:
++    - python -m pytest tests/ -v
++
++# ---------------------------------------------------------------------------
++# build stage
++# ---------------------------------------------------------------------------
++
++# was: ci-site-v2.yml — build check only, NO deploy. The live Pages URL keeps
++# serving the current MVP until the parity cutover (#377); a v2 preview deploy
++# is a separate, deliberately-reviewed change.
++build:site-v2:
++  stage: build
++  needs: []
++  image: node:22
++  # Cache npm's download cache, NOT site_v2/node_modules: `npm ci` deletes
++  # node_modules before installing, so a restored node_modules cache is
++  # discarded every run and re-uploaded for nothing.
++  variables:
++    npm_config_cache: "$CI_PROJECT_DIR/.npm"
++  cache:
++    key:
++      files:
++        - site_v2/package-lock.json
++    paths:
++      - .npm
++  script:
++    - cd site_v2
++    - npm ci
++    - npm run build
++    - test -f dist/index.html
++    - test -f dist/de/index.html
++    - test -f dist/en/index.html
++    - test -f dist/fi/index.html
++  rules:
++    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++      changes: *site_v2_paths
++    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
++      changes: *site_v2_paths
++    - if: $CI_PIPELINE_SOURCE == "web"
++
++# ---------------------------------------------------------------------------
++# data stage — was: ci-data-build.yml
++#
++# These jobs run whenever the data paths change, exactly as the GitHub original
++# did. If the WIF configuration is missing they FAIL LOUDLY (see .gcp_auth) rather
++# than being skipped — an unwired data-quality gate must be red, never
++# green-and-absent.
++# ---------------------------------------------------------------------------
++
++.data_build_base: &data_build_base
++  <<: *python
++  stage: data
++  # GitLab mints a signed OIDC JWT scoped to this job and exposes it as
++  # $GITLAB_OIDC_TOKEN; .gcp_auth trades it for a short-lived GCP access token. The
++  # analogue of `permissions: id-token: write` in the GitHub workflows. `aud` must
++  # match the provider's allowed audience exactly — GitLab signs the token with this
++  # value and Google rejects the exchange on any mismatch.
++  id_tokens:
++    GITLAB_OIDC_TOKEN:
++      aud: https://gitlab.com
++  # Serialize warehouse-writing runs. MR builds share ONE physical ci_* dataset
++  # (the locked "shared, not per-PR ephemeral" choice), so concurrent incremental
++  # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not
++  # serialize access". GitLab's resource_group is the concurrency-group analogue
++  # and never drops an in-flight job.
++  timeout: 2h
++
++# MR builds: only what the MR changed + downstream children + tests
++# (dbt state:modified+), diffed against a baseline manifest compiled from the
++# target branch at MR time (Option 2 — no stored state, no BigQuery scan;
++# CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt — their ref()s
++# resolve to the tables already in the shared datasets, so no --defer is needed
++# for them.
++data:build:mr:
++  <<: *data_build_base
++  resource_group: ci-data-build-write-ci
++  variables:
++    GIT_DEPTH: 0
++  script:
++    - *dbt_profile
++    - *gcp_auth
++    - cd dbt_project && dbt deps
++    - sqlfluff lint models
++    - dbt seed --target ci
++    - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
++    # The GitHub original gated this on a separate `ingest` path filter. GitLab
++    # rules cannot express two independent change-flags for one job, so the
++    # check always runs: it is a cheap BigQuery metadata lookup that returns
++    # empty (and ingests nothing) whenever every league already has raw tables.
++    - NEW_CODES=$(python scripts/get_new_league_codes.py)
++    - |
++      if [ -n "$NEW_CODES" ]; then
++        echo "Leagues needing bootstrap: $NEW_CODES"
++        API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
++        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
++        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
++        python -m ingestion.api_football.main
++      else
++        echo "All leagues already have raw tables — skipping bootstrap ingest."
++      fi
++    # Compile the target branch's project into a state dir (manifest only — no
++    # model execution). PROD target so deferred refs resolve to prod's bare
++    # datasets, not ci_*.
++    - git fetch --no-tags --depth=1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
++    - git worktree add --detach /tmp/main-src FETCH_HEAD
++    - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
++    # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
++    # prod (never a stale ci_ copy left by a prior MR). An empty selection (an MR
++    # that changes no models) is a no-op success.
++    - cd dbt_project
++    - >-
++      dbt build --select state:modified+ --exclude tag:freshness_check
++      --defer --favor-state --state /tmp/main-state --target ci
++    # DQ is non-negotiable and the full singular suite always runs. On an MR it
++    # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
++    # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
++    # only, never to the DQ gate.
++    - >-
++      dbt test --select test_type:singular --exclude tag:freshness_check
++      --defer --favor-state --state /tmp/main-state --target ci
++  rules:
++    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++      changes: *data_paths
++
++# main-push / manual full builds keep the FULL build — prod must stay complete
++# and serve as the always-compilable baseline for MR state comparisons. Joins the
++# repo-wide prod-warehouse-write group shared with the Phase 3 scheduled jobs, so
++# prod writers never MERGE the bare prod tables concurrently (#667).
++data:build:main:
++  <<: *data_build_base
++  resource_group: prod-warehouse-write
++  script:
++    - *dbt_profile
++    - *gcp_auth
++    - cd dbt_project && dbt deps
++    - sqlfluff lint models
++    - dbt seed --target prod
++    - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
++    - NEW_CODES=$(python scripts/get_new_league_codes.py)
++    - |
++      if [ "$RUN_INGEST" = "true" ]; then
++        echo "RUN_INGEST set — forcing full re-ingest of all active leagues."
++        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
++        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
++        API_FOOTBALL_INGEST_FORCE_FULL=1 \
++        python -m ingestion.api_football.main
++      elif [ -n "$NEW_CODES" ]; then
++        echo "Leagues needing bootstrap: $NEW_CODES"
++        API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
++        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
++        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
++        python -m ingestion.api_football.main
++      else
++        echo "All leagues already have raw tables — skipping bootstrap ingest."
++      fi
++    - cd dbt_project
++    # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
++    # dbt ignores a CLI --exclude when --selector is supplied.
++    - dbt build --selector staging --target prod
++    - dbt build --selector downstream --target prod
++    - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
++  rules:
++    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
++      changes: *data_paths
++    - if: $CI_PIPELINE_SOURCE == "web"
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index ef05de3..0ebc137 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -51,7 +51,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `glab mr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open MR; not done until the MR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+@@ -94,12 +94,12 @@ not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
+ **sonnet**. The pin is a floor — on a guard path (`.claude/hooks/**`,
+ `.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
+ `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
+-`.github/workflows/**`) every **specialist** routing requires is spawned on **opus**
++`.github/workflows/**`, `.gitlab-ci.yml`) every **specialist** routing requires is spawned on **opus**
+ (a procedural override, not hook-enforced), because guard bypasses are the costliest
+ misses. `scope-auditor` is exempt and stays haiku — it sits in `always`, so "every
+ reviewer" would promote it on every governance commit. That means `cto-reviewer` on
+-all eight, **plus `platform-reviewer` on exactly two**, `.claude/hooks/**` and
+-`.github/workflows/**`: the CTO rules on authority, Platform on the implementation,
++all nine, **plus `platform-reviewer` on exactly three**, `.claude/hooks/**`,
++`.github/workflows/**` and `.gitlab-ci.yml`: the CTO rules on authority, Platform on the implementation,
+ and the G3 bypasses were fail-open and test-coverage findings, which are Platform's.
+ Platform is absent from the other six by design — a brief is a prompt, not
+ machinery, so its verdict there would be a rubber stamp. **Check this against the
+diff --git a/docs/north_star.md b/docs/north_star.md
+index b9dc20f..021a9a8 100644
+--- a/docs/north_star.md
++++ b/docs/north_star.md
+@@ -121,8 +121,8 @@ wakes is the defect the 2026-07-31 org exercise existed to fix.
+ | Role | Responsibility | Wakes on |
+ |------|----------------|----------|
+ | CPO | Product, copy, naming, cost, anything permanent. Merges. | every §10 class |
+-| [CTO / Tech Strategist](roles/cto.md) | **Authority only, since the 2026-07-31 split.** New mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a PROPERTY of the change. **11 rows**: the 8 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
+-| [Platform and Reliability](roles/platform_reliability.md) | The machinery the CTO used to carry: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, the site build + hosting config |
++| [CTO / Tech Strategist](roles/cto.md) | **Authority only, since the 2026-07-31 split.** New mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a PROPERTY of the change. **12 rows**: the 9 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
++| [Platform and Reliability](roles/platform_reliability.md) | The machinery the CTO used to carry: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, the site build + hosting config |
+ | [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
+ | [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
+ | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | `metric_catalogue.csv` |
+diff --git a/docs/roles/platform_reliability.md b/docs/roles/platform_reliability.md
+index 86f2e9f..16ae0c4 100644
+--- a/docs/roles/platform_reliability.md
++++ b/docs/roles/platform_reliability.md
+@@ -64,7 +64,8 @@ that carries it from a commit to a served page without anyone having to remember
+ recurring cost is *allowed* is the CTO's ruling. This role reviews the implementation of what was
+ allowed.
+ 
+-**On exactly two of the eight guard paths** — `.claude/hooks/**` and `.github/workflows/**` — this
++**On exactly three of the nine guard paths** — `.claude/hooks/**`, `.github/workflows/**` and
++`.gitlab-ci.yml` — this
+ role and the CTO review the same diff for different things, both at the opus floor, because the G3
+ commit-gate bypasses were fail-open and test-coverage findings and those are this role's items. **On
+ the other six it is not routed at all** (`.claude/agents/**`, `.claude/commands/**`,
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index c9e4875..decdeae 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -100,7 +100,7 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+   outside the repo. Publishing is gated; drafting is not.
+ - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
+   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
+-  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
++  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) are never editable
+   except in a dedicated CPO-approved governance task whose contract carries
+   `protected_override` **and a non-placeholder `impact_map`** — both, since
+   2026-07-22. They are two different questions: the override answers "may you",
+@@ -138,15 +138,15 @@ serialized four steps; the commit gate enforces them mechanically:
+    pinned model is a floor — when the staged diff touches a guard path
+    (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
+-   `.cursor/mcp.json`, `.github/workflows/**`), every **specialist** routing
++   `.cursor/mcp.json`, `.github/workflows/**`, `.gitlab-ci.yml`), every **specialist** routing
+    requires for it is spawned at **opus**, because guard bypasses are the
+    highest-stakes findings (the G3 commit-gate bypasses were caught only at that
+    depth). `scope-auditor` is exempt and stays on haiku: it is in `always`, so
+    "every reviewer routing requires" would silently promote it on every
+    governance commit.
+-   In practice that means `cto-reviewer` on all eight, **plus
+-   `platform-reviewer` on exactly two of them, `.claude/hooks/**` and
+-   `.github/workflows/**`** — the CTO rules on authority, Platform on the
++   In practice that means `cto-reviewer` on all nine, **plus
++   `platform-reviewer` on exactly three of them, `.claude/hooks/**`,
++   `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority, Platform on the
+    implementation, and the G3 bypasses were fail-open and test-coverage
+    findings, which are Platform's items. Platform is deliberately absent from
+    the other six, `.claude/agents/**` above all: a reviewer brief is a prompt,
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index acef135..098c118 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -626,6 +626,11 @@ PINNED_CASES = [
+     (".cursor/mcp.json", "cto-reviewer"),
+     (".github/workflows/ci-data-build.yml", "cto-reviewer"),
+     (".github/workflows/ci-validate.yml", "platform-reviewer"),
++    # The GitLab twin of the two rows above — pinned per reviewer for the same
++    # reason: an exact-match pattern needs a case asserting EACH reviewer it
++    # confers, or dropping one from the row leaves the suite green.
++    (".gitlab-ci.yml", "cto-reviewer"),
++    (".gitlab-ci.yml", "platform-reviewer"),
+     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
+     ("site/i18n/de.json", "bi-analyst-reviewer"),
+     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
+@@ -1729,7 +1734,7 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
+     # covers both tuples, and `.claude/settings.json` is edited by this very
+     # diff (cto-reviewer, 2026-07-22).
+     ".claude/settings.json", ".claude/review_routing.json",
+-    ".mcp.json", ".cursor/mcp.json",
++    ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
+ ])
+ def test_every_protected_path_needs_an_impact_map(repo, rel):
+     scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
+@@ -1739,6 +1744,89 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
+     assert denied(out) and "impact_map" in out
+ 
+ 
++def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
++    """dbt and sqlfluff resolve the profile by DIFFERENT means, and CI runs both.
++
++    dbt honours `DBT_PROFILES_DIR`; sqlfluff's dbt templater reads `profiles_dir` from
++    the COMMITTED `dbt_project/.sqlfluff`. Point dbt at a project-local directory and
++    `dbt deps` still passes while the very next command, `sqlfluff lint`, dies with
++    "Could not find profile named 'football_data_pipeline'".
++
++    That is not hypothetical: it is what GitLab job 15752046768 did. Three adversarial
++    review rounds, a YAML parse check and `glab ci lint` all passed over it, because
++    nothing static sees that two tools disagree about where a file lives unless it is
++    told to compare them. This test is that comparison, and it is deliberately TEXTUAL
++    (no GCP credentials, no dbt invocation) so it runs in the offline suite.
++
++    `.gitlab-ci.yml:71` warns the next reader not to "tidy" the path into a project-local
++    directory. A comment is not a guard — this is."""
++    import configparser
++    import pathlib
++    import re as _re
++
++    import yaml
++
++    root = pathlib.Path(__file__).resolve().parents[1]
++    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
++
++    # 1. The override that caused the incident must not come back.
++    assert "DBT_PROFILES_DIR" not in (ci.get("variables") or {}), (
++        "DBT_PROFILES_DIR is set again in .gitlab-ci.yml `variables:`. It moves dbt "
++        "WITHOUT moving sqlfluff, whose profiles_dir is pinned in dbt_project/.sqlfluff. "
++        "Write the profile to the default ~/.dbt instead.")
++
++    # 2. Where the CI actually writes the profile.
++    written = _re.search(r"cat\s*>\s*(\S+)/profiles\.yml", ci[".dbt_profile"])
++    assert written, ".dbt_profile no longer writes a profiles.yml — this test is stale"
++    ci_dir = written.group(1).rstrip("/")
++
++    # 3. Where sqlfluff will look for it. Read as config, not grepped, so a moved
++    #    key or a changed section is a failure rather than a silent pass.
++    cfg = configparser.ConfigParser()
++    cfg.read(root / "dbt_project" / ".sqlfluff", encoding="utf-8")
++    lint_dir = cfg["sqlfluff:templater:dbt"]["profiles_dir"].strip().rstrip("/")
++
++    assert ci_dir == lint_dir, (
++        f"CI writes the dbt profile to {ci_dir!r} but dbt_project/.sqlfluff tells "
++        f"sqlfluff to read it from {lint_dir!r}. `dbt deps` will pass and `sqlfluff "
++        f"lint` will fail. Change the CI path, NOT .sqlfluff — local development reads "
++        f"that file too.")
++
++    # 4. COMPLETENESS *AND ORDER*, pinned per consumer rather than on the anchor alone.
++    #    GitLab runs a job's `script:` items strictly in list order, so writing the
++    #    profile AFTER the command that needs it reproduces the original failure exactly.
++    #    An earlier version of this test asserted only that the marker appeared SOMEWHERE
++    #    in the job — presence, not position — while its comment and the contract both
++    #    promised "first". Reordering a job would have broken CI with this test still
++    #    green (platform-reviewer). A guard that looks like an order check but is not is
++    #    worse than none, so the index comparison below is the point of this block.
++    #    `\(?` matters: `data:build:mr` invokes dbt inside a SUBSHELL
++    #    (`(cd /tmp/main-src/dbt_project && dbt deps && dbt compile ...)`) and a regex
++    #    anchored on the tool name or a bare `cd ... &&` misses it entirely. That was a
++    #    non-live blind spot when platform-reviewer found it — the same job's plainly
++    #    formatted `cd dbt_project && dbt deps` anchored the check correctly — but a
++    #    future edit that removed the plain line would have exempted the job silently,
++    #    which is the vacuous-pass shape this block exists to avoid.
++    marker = f"cat > {ci_dir}/profiles.yml"
++    runs_tool = _re.compile(r"(?m)^\s*\(?\s*(cd \S+ && )?(dbt|sqlfluff)\s")
++    for name, job in ci.items():
++        if name.startswith(".") or not isinstance(job, dict):
++            continue
++        script = job.get("script") or []
++        tool_at = next((i for i, s in enumerate(script) if runs_tool.search(s)), None)
++        if tool_at is None:
++            continue
++        profile_at = next((i for i, s in enumerate(script) if marker in s), None)
++        assert profile_at is not None, (
++            f"job {name!r} runs dbt/sqlfluff but never writes the profile — it is "
++            f"missing the *dbt_profile anchor")
++        assert profile_at < tool_at, (
++            f"job {name!r} writes the dbt profile at script step {profile_at} but "
++            f"already invokes dbt/sqlfluff at step {tool_at}. GitLab runs script items "
++            f"in order, so the profile must be written first or the run fails with "
++            f"\"Could not find profile named 'football_data_pipeline'\".")
++
++
+ def test_shell_redirect_to_protected_path_needs_an_impact_map(repo):
+     """The gate was enforced on the Edit path only, so a redirect reached a
+     protected file with no trace, and neither the post-command check nor the

@@ -626,6 +626,11 @@ PINNED_CASES = [
     (".cursor/mcp.json", "cto-reviewer"),
     (".github/workflows/ci-data-build.yml", "cto-reviewer"),
     (".github/workflows/ci-validate.yml", "platform-reviewer"),
+    # The GitLab twin of the two rows above — pinned per reviewer for the same
+    # reason: an exact-match pattern needs a case asserting EACH reviewer it
+    # confers, or dropping one from the row leaves the suite green.
+    (".gitlab-ci.yml", "cto-reviewer"),
+    (".gitlab-ci.yml", "platform-reviewer"),
     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
     ("site/i18n/de.json", "bi-analyst-reviewer"),
     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
@@ -1729,7 +1734,7 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
     # covers both tuples, and `.claude/settings.json` is edited by this very
     # diff (cto-reviewer, 2026-07-22).
     ".claude/settings.json", ".claude/review_routing.json",
-    ".mcp.json", ".cursor/mcp.json",
+    ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
 ])
 def test_every_protected_path_needs_an_impact_map(repo, rel):
     scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
@@ -1737,6 +1742,89 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
     write_contract(repo, scoped)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
     assert denied(out) and "impact_map" in out
+
+
+def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
+    """dbt and sqlfluff resolve the profile by DIFFERENT means, and CI runs both.
+
+    dbt honours `DBT_PROFILES_DIR`; sqlfluff's dbt templater reads `profiles_dir` from
+    the COMMITTED `dbt_project/.sqlfluff`. Point dbt at a project-local directory and
+    `dbt deps` still passes while the very next command, `sqlfluff lint`, dies with
+    "Could not find profile named 'football_data_pipeline'".
+
+    That is not hypothetical: it is what GitLab job 15752046768 did. Three adversarial
+    review rounds, a YAML parse check and `glab ci lint` all passed over it, because
+    nothing static sees that two tools disagree about where a file lives unless it is
+    told to compare them. This test is that comparison, and it is deliberately TEXTUAL
+    (no GCP credentials, no dbt invocation) so it runs in the offline suite.
+
+    `.gitlab-ci.yml:71` warns the next reader not to "tidy" the path into a project-local
+    directory. A comment is not a guard — this is."""
+    import configparser
+    import pathlib
+    import re as _re
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    # 1. The override that caused the incident must not come back.
+    assert "DBT_PROFILES_DIR" not in (ci.get("variables") or {}), (
+        "DBT_PROFILES_DIR is set again in .gitlab-ci.yml `variables:`. It moves dbt "
+        "WITHOUT moving sqlfluff, whose profiles_dir is pinned in dbt_project/.sqlfluff. "
+        "Write the profile to the default ~/.dbt instead.")
+
+    # 2. Where the CI actually writes the profile.
+    written = _re.search(r"cat\s*>\s*(\S+)/profiles\.yml", ci[".dbt_profile"])
+    assert written, ".dbt_profile no longer writes a profiles.yml — this test is stale"
+    ci_dir = written.group(1).rstrip("/")
+
+    # 3. Where sqlfluff will look for it. Read as config, not grepped, so a moved
+    #    key or a changed section is a failure rather than a silent pass.
+    cfg = configparser.ConfigParser()
+    cfg.read(root / "dbt_project" / ".sqlfluff", encoding="utf-8")
+    lint_dir = cfg["sqlfluff:templater:dbt"]["profiles_dir"].strip().rstrip("/")
+
+    assert ci_dir == lint_dir, (
+        f"CI writes the dbt profile to {ci_dir!r} but dbt_project/.sqlfluff tells "
+        f"sqlfluff to read it from {lint_dir!r}. `dbt deps` will pass and `sqlfluff "
+        f"lint` will fail. Change the CI path, NOT .sqlfluff — local development reads "
+        f"that file too.")
+
+    # 4. COMPLETENESS *AND ORDER*, pinned per consumer rather than on the anchor alone.
+    #    GitLab runs a job's `script:` items strictly in list order, so writing the
+    #    profile AFTER the command that needs it reproduces the original failure exactly.
+    #    An earlier version of this test asserted only that the marker appeared SOMEWHERE
+    #    in the job — presence, not position — while its comment and the contract both
+    #    promised "first". Reordering a job would have broken CI with this test still
+    #    green (platform-reviewer). A guard that looks like an order check but is not is
+    #    worse than none, so the index comparison below is the point of this block.
+    #    `\(?` matters: `data:build:mr` invokes dbt inside a SUBSHELL
+    #    (`(cd /tmp/main-src/dbt_project && dbt deps && dbt compile ...)`) and a regex
+    #    anchored on the tool name or a bare `cd ... &&` misses it entirely. That was a
+    #    non-live blind spot when platform-reviewer found it — the same job's plainly
+    #    formatted `cd dbt_project && dbt deps` anchored the check correctly — but a
+    #    future edit that removed the plain line would have exempted the job silently,
+    #    which is the vacuous-pass shape this block exists to avoid.
+    marker = f"cat > {ci_dir}/profiles.yml"
+    runs_tool = _re.compile(r"(?m)^\s*\(?\s*(cd \S+ && )?(dbt|sqlfluff)\s")
+    for name, job in ci.items():
+        if name.startswith(".") or not isinstance(job, dict):
+            continue
+        script = job.get("script") or []
+        tool_at = next((i for i, s in enumerate(script) if runs_tool.search(s)), None)
+        if tool_at is None:
+            continue
+        profile_at = next((i for i, s in enumerate(script) if marker in s), None)
+        assert profile_at is not None, (
+            f"job {name!r} runs dbt/sqlfluff but never writes the profile — it is "
+            f"missing the *dbt_profile anchor")
+        assert profile_at < tool_at, (
+            f"job {name!r} writes the dbt profile at script step {profile_at} but "
+            f"already invokes dbt/sqlfluff at step {tool_at}. GitLab runs script items "
+            f"in order, so the profile must be written first or the run fails with "
+            f"\"Could not find profile named 'football_data_pipeline'\".")
 
 
 def test_shell_redirect_to_protected_path_needs_an_impact_map(repo):

@@ -100,7 +100,7 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
   outside the repo. Publishing is gated; drafting is not.
 - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
-  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
+  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) are never editable
   except in a dedicated CPO-approved governance task whose contract carries
   `protected_override` **and a non-placeholder `impact_map`** — both, since
   2026-07-22. They are two different questions: the override answers "may you",
@@ -138,15 +138,15 @@ serialized four steps; the commit gate enforces them mechanically:
    pinned model is a floor — when the staged diff touches a guard path
    (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
-   `.cursor/mcp.json`, `.github/workflows/**`), every **specialist** routing
+   `.cursor/mcp.json`, `.github/workflows/**`, `.gitlab-ci.yml`), every **specialist** routing
    requires for it is spawned at **opus**, because guard bypasses are the
    highest-stakes findings (the G3 commit-gate bypasses were caught only at that
    depth). `scope-auditor` is exempt and stays on haiku: it is in `always`, so
    "every reviewer routing requires" would silently promote it on every
    governance commit.
-   In practice that means `cto-reviewer` on all eight, **plus
-   `platform-reviewer` on exactly two of them, `.claude/hooks/**` and
-   `.github/workflows/**`** — the CTO rules on authority, Platform on the
+   In practice that means `cto-reviewer` on all nine, **plus
+   `platform-reviewer` on exactly three of them, `.claude/hooks/**`,
+   `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority, Platform on the
    implementation, and the G3 bypasses were fail-open and test-coverage
    findings, which are Platform's items. Platform is deliberately absent from
    the other six, `.claude/agents/**` above all: a reviewer brief is a prompt,

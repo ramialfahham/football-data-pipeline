@@ -121,8 +121,8 @@ wakes is the defect the 2026-07-31 org exercise existed to fix.
 | Role | Responsibility | Wakes on |
 |------|----------------|----------|
 | CPO | Product, copy, naming, cost, anything permanent. Merges. | every §10 class |
-| [CTO / Tech Strategist](roles/cto.md) | **Authority only, since the 2026-07-31 split.** New mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a PROPERTY of the change. **11 rows**: the 8 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
-| [Platform and Reliability](roles/platform_reliability.md) | The machinery the CTO used to carry: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, the site build + hosting config |
+| [CTO / Tech Strategist](roles/cto.md) | **Authority only, since the 2026-07-31 split.** New mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a PROPERTY of the change. **12 rows**: the 9 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
+| [Platform and Reliability](roles/platform_reliability.md) | The machinery the CTO used to carry: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, the site build + hosting config |
 | [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
 | [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
 | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | `metric_catalogue.csv` |

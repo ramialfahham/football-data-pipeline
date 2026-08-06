@@ -1,47 +1,135 @@
-# Review — chore/handover-ingest-cluster-complete — 2026-08-03
+# Review — chore/gitlab-ci-pipelines — 2026-08-06
 
-branch: chore/handover-ingest-cluster-complete
-diff_sha256: ff4349e50fdd5053f6c15d28ec289be8170b3407c35d31b235d65e7c597ed3e6
+branch: chore/gitlab-ci-pipelines
+diff_sha256: 5209163cddbee50624a950c2aeffa004a6403646b9821934dbfe01463a816392
 
-rounds: 2
-# Only `scope-auditor` is required: no routing row in `.claude/review_routing.json` matches
-# `.claude/active_work.md` or `.claude/task/contract.md`, and it is always-on. The commit is NOT
-# artifact-exempt, because `contract.md` is never artifact-exempt (F10/#409).
-#
-# ROUND 1 FAILED with two findings. Both were verified before responding, and they landed
-# differently:
-#  1. FALSE POSITIVE, pushed back with evidence. The reviewer reported `.claude/active_work.md`
-#     missing from `review_input.patch` and concluded it was unmodified or the patch incomplete.
-#     The file is modified (62 insertions, 38 deletions) and is omitted from the patch BY DESIGN,
-#     because it sits in `review_exclude_paths`. It must be read from the working tree, which a
-#     previous audit of the #899 handover did correctly. Round 2 confirmed this.
-#  2. FAIR, and fixed. The contract cited the #899 handover as precedent without a pointer the
-#     reviewer could check. It now carries `git show 36b5f98:.claude/task/contract.md`, which the
-#     reviewer ran.
-#
-# A reviewer FAIL is not automatically correct. Finding 1 was wrong on the facts and accepting it
-# would have meant weakening something that was right.
+rounds: 7
+rounds_cap_override: >
+  The cap stops LOOPING on unresolved findings. These rounds are not a loop — each
+  reviewed material that did not exist when the previous one ran. R1-R3: the CI
+  translation and the guard-parity sweep (two specialist FAILs, fixed). R4: a confirming
+  pass on the CPO-ruled scope remedy. R5: the credential mechanism, replaced after
+  reading what the GitHub workflows actually did. R6-R7: a defect a LIVE CI RUN found
+  that no static check could, plus the test pinning it. Shipping any of this on verdicts
+  that predate it would be the real defect.
+
+> WHAT A LIVE RUN FOUND THAT SEVEN ROUNDS OF STATIC REVIEW DID NOT. Job 15752046768
+> reached `sqlfluff lint` and died: "Could not find profile named
+> 'football_data_pipeline'". `.gitlab-ci.yml` had set `DBT_PROFILES_DIR` to a
+> project-local directory, but `dbt_project/.sqlfluff` pins `profiles_dir = ~/.dbt`, and
+> dbt and sqlfluff resolve the profile by DIFFERENT means — so `dbt deps` passed and the
+> next command failed. Three review rounds, a YAML parse check and `glab ci lint` all
+> passed over it, because the config was well-formed; it merely disagreed with a file
+> none of them cross-referenced. This bounds what every earlier green check was worth:
+> they established the config parses, never that it runs.
+>
+> The contract's stated reason for moving the profile was also FALSE — it claimed the
+> runner home directory "does not exist on a GitLab runner image". It does; jobs run as
+> root and `~` is `/root`. That claim is replaced, not annotated.
+
+> WHAT IS AND IS NOT PROVEN AT THIS HASH. PROVEN on a live runner: the YAML parses,
+> anchors expand, path rules fire, all three credential guards work, and — the headline —
+> the WIF exchange SUCCEEDS ("GCP credentials configured via Workload Identity Federation
+> (keyless)"), with `dbt deps` then authenticating and installing packages. NOT PROVEN:
+> `sqlfluff lint`, `dbt build` and the singular DQ suite have never completed, because
+> the profile defect stopped them and the fix has not yet been exercised by a run.
+> `done_when` requires a green `data:build:mr` for exactly this reason.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Nothing is stated as verified beyond its evidence. The four merged fixes are recorded as merged
-  but NOT yet exercised by any production run, which is accurate: the last nightly ran before #897
-  merged, and the 08-04 04:00 UTC run is the first paced one.
-- Transfers healing is stated as OBSERVED with its specific evidence (UEL team 376 across three
-  days) and its mechanism (append-only, no delete), not asserted from memory.
-- `decisions_taken: None` is accurate. The handover records existing state and routes to decisions
-  already held in `escalations.log` and on issues; it takes none.
-- Factual claims checked against the tree rather than accepted: the Ultra plan tier and its
-  450/min and 75,000/day figures against `docs/api_football_ingestion_blueprint.md`, the four merged
-  commit hashes, and the existence of `scripts/report_bq_cost.py`.
-- The correction-replaces rule is honoured: no "this used to say X" narration anywhere; corrections
-  appear in corrected form only.
-- Scope: only `contract.md` appears in the patch and `.claude/active_work.md` is correctly excluded
-  by `review_exclude_paths` and read from the working tree. No path outside `scope_paths` is
-  touched.
-- Threshold declarations: no new mechanism, and "none" for recurring cost is safe here because the
-  diff contains no executable line, which is the documented exception.
+- The profile fix touches only `.gitlab-ci.yml` and `.claude/task/contract.md`, both
+  already in `scope_paths`. No amendment was needed and none was made — the discipline
+  this task was ruled on earlier.
+- `dbt_project/.sqlfluff` was deliberately NOT edited, and that is the right call: local
+  development reads the same file, so a CI-shaped path there would break every
+  developer's `sqlfluff lint`. The fix belongs in CI, which is what moved.
+- "Corrections replace, never accumulate": the false home-directory claim is replaced by
+  the corrected account rather than sitting alongside it.
+- Nothing is asserted beyond its evidence. Neither `contract.md` nor this file claims the
+  profile fix has been exercised by CI, because at this hash it has not.
+- §10: no product, naming, cost or permanence decision was taken; a profile path is an
+  implementation detail of the machinery.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- (round 5) New-mechanism classification, verified against the four GitHub originals
+  rather than the contract's paraphrase: all already used WIF, none a stored key, so the
+  GitLab `id_tokens:` + `external_account` construction restores an approved architecture
+  rather than introducing one. The service-account key was the deviation.
+- (round 5) Secrets: no long-lived credential is introduced or required. The OIDC JWT and
+  credential config are written to job-local files, never to a log, an `echo`, a process
+  argument, a cache path or an artifact.
+- (round 5) Recurring cost: none. No new dependency, job or schedule.
+- (round 5) Guard invariant: both data jobs run `*gcp_auth` before any dbt/sqlfluff
+  command, and no job's `rules:` consults a credential variable, so the fail-closed guard
+  cannot be bypassed by a rules-skip.
+- NOT RE-RUN for rounds 6-7, deliberately. Those changed a filesystem path and added a
+  test — no mechanism, dependency, cost, secret or guard invariant moved, which is this
+  role's entire remit. Recorded rather than silently skipped; a reader who disagrees can
+  re-run it against this hash.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Diagnosis confirmed from the files: `.sqlfluff:10` pins `profiles_dir = ~/.dbt`, dbt
+  and sqlfluff genuinely resolve the profile differently, and the GitHub original wrote
+  to that runner's `~` with no `DBT_PROFILES_DIR` anywhere.
+- Completeness: every consumer (`validate:governance`, `data:build:mr`,
+  `data:build:main`) expands `*dbt_profile` before touching dbt or sqlfluff; no stale
+  executable reference to the removed variable survives.
+- Heredoc mechanics re-traced after the path edit for BOTH block scalars: `<<'EOF'`
+  correctly quoted (static body), `<<GCPCRED` correctly unquoted (must expand two
+  variables), both terminators at column 0 after YAML indentation stripping.
+- `~/.dbt` side effects: all profile-writing jobs share `image: python:3.11` running as
+  root, so `~` is `/root` and `mkdir -p` cannot hit a permissions wall; no cache path
+  touches it; containers are fresh, so no cross-job contamination.
+- FAIL 1, fixed: the fix was correct and complete but NOTHING PINNED IT — reverting it
+  would not have failed a single test, a guard-the-guard gap on an opus-routed guard
+  path, for a mistake the YAML's own comment admits invites a future "cleanup". Now
+  pinned by `test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it`, which is
+  textual (no credentials, no dbt run) and was VERIFIED AGAINST THE REGRESSION: run
+  against the pre-fix `.gitlab-ci.yml` at HEAD it failed with the intended message, then
+  passed once restored. A pin never seen to fail pins nothing.
+- FAIL 2, fixed, and the more instructive one: the completeness check asserted `marker in
+  script` — PRESENCE — while its comment and the contract both promised the profile is
+  written FIRST. GitLab runs `script:` in list order, so grouping the anchors during a
+  tidy-up would break CI with the test still green. Fixed by comparing list INDICES
+  (`profile_at < tool_at`) rather than by weakening the claim, since order is the
+  guarantee that matters. Verified by mutation: moving `*dbt_profile` below `sqlfluff
+  lint models` in `data:build:mr` produced "writes the dbt profile at script step 3 but
+  already invokes dbt/sqlfluff at step 1"; the file was restored from the index.
+- BLIND SPOT NAMED AT PASS AND THEN CLOSED, recorded because it changed the diff after
+  the verdict. The reviewer noted `runs_tool` did not match a parenthesized subshell —
+  `.gitlab-ci.yml:390`'s `(cd /tmp/main-src/dbt_project && dbt deps && ...)` — and judged
+  it non-live, since the same job's plain `cd dbt_project && dbt deps` anchors the check
+  correctly today. It would have become live had a future edit removed that line,
+  silently exempting the job. The regex now admits an optional leading `(`; the subshell
+  is detected, and enumerating every match across the file confirms no false positive
+  (no `echo` line matches). Strictly a tightening of the check the reviewer analysed.
+- Translation fidelity re-checked for all five non-data jobs against their GitHub
+  originals. 262 tests pass.
 
 ## escalations
-(none)
+- question: >
+    `scope_paths` was amended four times mid-task — `.claude/task/escalations.log`,
+    `.claude/task/TEMPLATE.md`, `docs/roles/platform_reliability.md`,
+    `docs/north_star.md` — each amendment citing a reviewer's FAIL as its authority.
+    `working_agreement.md:79` says an amendment records the CPO's authority, and the
+    2026-06-23 precedent (`escalations.log:145`) had the same reviewer hold the same
+    line until the CPO granted it explicitly. Two paths were put to the CPO: (a) confirm
+    the amendment, or (b) revert the four files to a follow-up MR — which would merge
+    `.gitlab-ci.yml` with the guard counts knowingly stale in four documents, one of them
+    `docs/roles/platform_reliability.md`, which is fed to `platform-reviewer` as an Input
+    on every future run. Builder recommended (a) with that reasoning stated.
+  CPO ANSWER: >
+    (a) confirm the amendment — CPO, conversation of 2026-08-06, recorded durably in
+    `.claude/task/escalations.log` under "SCOPE AMENDMENT AUTHORITY FOR THE FOUR
+    RESTATEMENT FILES". All four paths are authorized into this task's scope; every one
+    is the same edit, a count or a list restatement, with no logic or design change. The
+    ruling explicitly does NOT excuse the under-scoping: these are one sweep that was
+    under-scoped when the contract was first written, not four independently justified
+    extensions, since all eleven restatement sites were derivable from the routing table
+    before the first edit. The three earlier SCOPE AMENDMENT entries in the log are
+    superseded as to authority.

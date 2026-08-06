@@ -27,8 +27,8 @@ page displays (`bi-analyst-reviewer`), what a number means
 (`football-analytics-expert-reviewer`).
 
 > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
-> to `opus` at spawn time on the TWO guard paths you are routed to:
-> `.claude/hooks/**` and `.github/workflows/**`. Guard bypasses are the
+> to `opus` at spawn time on the THREE guard paths you are routed to:
+> `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`. Guard bypasses are the
 > highest-stakes findings (the G3 commit-gate bypasses were caught only at that
 > depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
 > YOUR items — that is why you are there at all.
