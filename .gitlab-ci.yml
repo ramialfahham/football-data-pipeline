@@ -501,14 +501,28 @@ data:build:main:
     - dbt build --selector staging --target prod
     - dbt build --selector downstream --target prod
     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
+  # THE ONLY AUTOMATIC PATH IS A PUSH TO MAIN. Everything else that can reach this job
+  # asks first, because it is the most expensive job in the file.
+  #
+  # `$CI_PIPELINE_SOURCE == "push"` on the branch clause is not redundant with
+  # *not_on_schedule — it is what stops a WEB dispatch matching here. Rules are
+  # first-match-wins, and a web pipeline on main satisfies `$CI_COMMIT_BRANCH ==
+  # $CI_DEFAULT_BRANCH` while `changes:` evaluates TRUE on any non-push pipeline. So
+  # without it this clause matches first and runs on_success, and the `when: manual`
+  # below is never reached — the fix would look right and change nothing.
+  #
+  # Why it matters now: data:nightly is reachable ONLY by web dispatch (no schedule
+  # exists yet), so asking for a nightly used to silently auto-start a full prod
+  # warehouse build alongside it.
   rules:
-    # FIRST, and load-bearing. Without it a scheduled pipeline runs this job — it is
-    # on main, and `changes:` evaluates TRUE on non-push pipelines — so every nightly
-    # would build prod twice. See .not_on_schedule.
     - *not_on_schedule
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
       changes: *data_paths
+    # Deliberate full prod builds stay possible — as a BUTTON. MR !4 added this clause
+    # meaning "I want a full prod build now", which is still valid; the defect was that
+    # it started without being asked.
     - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
 
 # ---------------------------------------------------------------------------
 # nightly — was: dbt-scheduled.yml
