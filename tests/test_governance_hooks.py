@@ -1753,14 +1753,24 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
 # shrugs, and a job that DOES run on a schedule is reported safe. platform-reviewer
 # flagged that gap once the deploy jobs stopped routing through *not_on_schedule and
 # came to depend entirely on hand-written conditions.
-_SCHEDULE_TRUE = frozenset({
-    '$CI_PIPELINE_SOURCE == "schedule"',
-    "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
-})
-_SCHEDULE_FALSE = frozenset({
-    '$CI_PIPELINE_SOURCE == "merge_request_event"',
-    '$CI_PIPELINE_SOURCE == "web"',
-})
+# Each `if:` condition mapped to the PIPELINE CONTEXTS in which it holds. Contexts:
+#   schedule  — a scheduled pipeline (runs on main)
+#   web       — a manual dispatch from the UI (runs on main)
+#   mr        — a merge-request pipeline (CI_COMMIT_BRANCH is unset)
+#   push_main — an ordinary push to main
+#
+# Note `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` is true in THREE of them — that single
+# fact is what makes both the schedule trap and the web trap possible, and why a
+# `changes:` filter saves neither (GitLab evaluates `changes:` as TRUE on any pipeline
+# that is not a push or an MR, so it is ignored throughout these tests).
+_CONDITION_TRUTH = {
+    '$CI_PIPELINE_SOURCE == "schedule"': {"schedule"},
+    '$CI_PIPELINE_SOURCE == "web"': {"web"},
+    '$CI_PIPELINE_SOURCE == "merge_request_event"': {"mr"},
+    "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH": {"schedule", "web", "push_main"},
+    '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"':
+        {"push_main"},
+}
 
 
 def _ci_cond(rule: dict) -> str | None:
@@ -1771,20 +1781,96 @@ def _ci_cond(rule: dict) -> str | None:
     return " ".join(cond.replace("'", '"').split())
 
 
-def _matches(cond: str | None, truthy: frozenset) -> bool:
-    """Does this condition hold in the modelled context? Unknown conditions RAISE."""
+def _matches(cond: str | None, context: str) -> bool:
+    """Does this condition hold in `context`? An UNRECOGNISED condition RAISES.
+
+    Never assume an unknown condition is false. Treating unknown as "does not match" is
+    how a guard test quietly stops guarding: someone writes an equivalent condition a
+    different way, the recogniser shrugs, and a job that DOES run is reported safe.
+    """
     if cond is None:
         return True  # a rule with no `if:` always matches
-    if cond in truthy:
-        return True
-    if cond in (_SCHEDULE_TRUE | _SCHEDULE_FALSE) - truthy:
-        return False
+    if cond in _CONDITION_TRUTH:
+        return context in _CONDITION_TRUTH[cond]
     raise AssertionError(
         f"unrecognised CI rule condition {cond!r}. These tests reason about pipeline "
         f"reachability by classifying conditions, and an unknown one must not be "
-        f"assumed harmless — that is how a guard test stops guarding. Add it to "
-        f"_SCHEDULE_TRUE or _SCHEDULE_FALSE in this file, deciding deliberately "
-        f"whether it holds on a scheduled pipeline (source=schedule, branch=main).")
+        f"assumed harmless. Add it to _CONDITION_TRUTH in this file, deciding "
+        f"deliberately which of schedule/web/mr/push_main it holds in.")
+
+
+def _when_in(job: dict, context: str) -> str:
+    """The effective `when:` for `job` in `context` — first match wins, else never."""
+    for rule in (job.get("rules") or [{}]):
+        if _matches(_ci_cond(rule), context):
+            return rule.get("when", "on_success")
+    return "never"
+
+
+def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
+    """Asking for one manual job must not silently start an expensive one.
+
+    `data:nightly` is reachable ONLY by web dispatch (no schedule exists yet — the CPO
+    deferred creating one while nothing reads the data). But `data:build:main` is also on
+    main, and `changes:` evaluates TRUE on any non-push pipeline, so before this pin it
+    matched on a web dispatch and ran `on_success` — AUTOMATICALLY. Clicking "run
+    pipeline" to get a nightly therefore also started a full prod warehouse build.
+
+    That is the same mechanic as the schedule trap, on a source nobody re-checked when
+    `data:nightly` gave web dispatch a second purpose. It was caught by evaluating the
+    rules before triggering the run, rather than by reading the bill afterwards.
+
+    A web dispatch may OFFER expensive work as a button. It may not start it."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    # Jobs that write to or scan the warehouse. Identified by what they RUN, so a new
+    # job cannot dodge this by not being in the list.
+    #
+    # Anchored to the START of a line, NOT a substring search. The first version of this
+    # matched `"dbt build" in script` and flagged deploy:site-v2 — which runs npm and
+    # firebase and no dbt at all — because `.gcp_auth`'s echo says "sqlfluff lint, dbt
+    # build, singular DQ tests" in its error message. A detector that reads prose as
+    # commands produces false positives that get "fixed" by weakening the real config.
+    # Matches a dbt invocation in COMMAND POSITION — at the start of a line or after a
+    # shell separator — so a chained `cd x && dbt deps && dbt build` is caught too, and
+    # `run`/`snapshot` are included because they write to the warehouse just as `build`
+    # does. `deps`, `parse` and `compile` are deliberately absent: they touch no data.
+    import re as _re
+    _dbt_cmd = _re.compile(
+        r"(?m)(?:^|&&|;|\|)\s*\(?\s*(?:cd \S+\s*&&\s*)*"
+        r"dbt\s+(build|test|seed|run|snapshot)\b")
+
+    def spends_warehouse_money(job: dict) -> bool:
+        return any(_dbt_cmd.search(step) for step in (job.get("script") or []))
+
+    checked = 0
+    for name, job in ci.items():
+        if name.startswith(".") or not isinstance(job, dict) or "script" not in job:
+            continue
+        if not spends_warehouse_money(job):
+            continue
+        checked += 1
+        assert _when_in(job, "web") in ("manual", "never"), (
+            f"job {name!r} AUTO-STARTS on a web dispatch and spends warehouse money "
+            f"(when={_when_in(job, 'web')!r}). A manual pipeline must not begin an "
+            f"expensive build the user did not ask for — make it `when: manual`. "
+            f"rules={job.get('rules')!r}")
+
+    assert checked >= 3, (
+        f"only {checked} warehouse-spending jobs recognised — this test has probably "
+        f"stopped seeing them, which makes it pass vacuously")
+
+    # And the other direction: narrowing the web path must NOT have disabled the
+    # automatic prod build on an ordinary push to main.
+    assert _when_in(ci["data:build:main"], "push_main") == "on_success", (
+        "data:build:main no longer runs automatically on a push to main. The fix was "
+        "meant to narrow WEB dispatches only — prod must still rebuild on merge, or it "
+        "silently goes stale and every MR's state:modified+ baseline drifts.")
 
 
 def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
@@ -1806,10 +1892,8 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
     root = pathlib.Path(__file__).resolve().parents[1]
     ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
-    # Sources an ordinary contributor produces without intending to deploy.
-    everyday = ('$CI_PIPELINE_SOURCE == "merge_request_event"',
-                "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
-                '$CI_PIPELINE_SOURCE == "schedule"')
+    # Contexts an ordinary contributor produces without intending to deploy.
+    everyday = ("mr", "push_main", "schedule")
 
     deploy_jobs = [k for k, v in ci.items()
                    if not k.startswith(".") and isinstance(v, dict)
@@ -1819,19 +1903,12 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
     for name in deploy_jobs:
         rules = ci[name].get("rules") or []
         assert rules, f"deploy job {name!r} has no rules, so every pipeline carries it"
-        for src in everyday:
-            reachable = None
-            for rule in rules:
-                # Only `src` is true in this modelled context; unknown conditions raise
-                # rather than being assumed not to match.
-                if _matches(_ci_cond(rule), frozenset({src})):
-                    reachable = rule.get("when", "on_success") != "never"
-                    break
-            assert not reachable, (
-                f"deploy job {name!r} is reachable on a pipeline where {src} holds. A "
-                f"Firebase deploy would appear as a play button on ordinary merge "
-                f"requests / pushes. Scope it to `if: $CI_PIPELINE_SOURCE == \"web\"` "
-                f"with a `when: never` fallback. rules={rules!r}")
+        for context in everyday:
+            assert _when_in(ci[name], context) == "never", (
+                f"deploy job {name!r} is reachable on a {context} pipeline. A Firebase "
+                f"deploy would appear as a play button on ordinary merge requests / "
+                f"pushes. Scope it to `if: $CI_PIPELINE_SOURCE == \"web\"` with a "
+                f"`when: never` fallback. rules={rules!r}")
 
 
 def test_every_job_using_gcp_auth_declares_id_tokens():
@@ -1922,11 +1999,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
           · `changes:` evaluates TRUE on any non-push/non-MR pipeline, so a path
             filter does NOT hold a job back — it is ignored here for that reason.
         """
-        for rule in (job.get("rules") or [{}]):
-            if _matches(_ci_cond(rule), _SCHEDULE_TRUE):
-                # First match wins; absent `when` defaults to on_success.
-                return rule.get("when", "on_success") != "never"
-        return False  # fell off the end: no rule matched, job does not run
+        return _when_in(job, "schedule") != "never"
 
     for name, job in jobs.items():
         if name == nightly:
