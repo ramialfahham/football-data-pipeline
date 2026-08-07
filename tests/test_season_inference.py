@@ -6,7 +6,6 @@ the previous season instead of the current one. This has caused real bugs.
 
 from datetime import datetime
 
-import pytest
 from ingestion.api_football.season_inference import (
     _infer_competition_season_start_year,
     effective_season_max,

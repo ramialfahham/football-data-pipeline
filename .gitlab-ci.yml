@@ -346,6 +346,47 @@ validate:ui:
 # test stage
 # ---------------------------------------------------------------------------
 
+# Correctness-only Python lint (ruff; ruleset in .ruff-ci.toml).
+#
+# WHY IT EXISTS: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
+# duplicate module-level function name, and three of the four defects across that MR's three
+# review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
+# belong on judgement, not on facts a tool settles for free.
+#
+# ruff was NOT new to the repo — `.pre-commit-config.yaml` has run it locally for a long time. What
+# was missing is a CI BACKSTOP: that hook is local-only, so it binds one machine and can be skipped,
+# and its `files:` regex excludes `.claude/hooks/` entirely. Nine F401s inside its own file pattern
+# had survived it, on a hook whose args are `--fix, --exit-non-zero-on-fix` — evidence it was not
+# being run.
+#
+# ⚠ `--config .ruff-ci.toml` IS REQUIRED, not decoration. Ruff auto-discovers only `ruff.toml`,
+# `.ruff.toml` and `pyproject.toml`; the config is deliberately named outside that set so the
+# pre-commit hook never adopts it, which keeps the two enforcement points independent and means no
+# ruff version alignment is owed (aligning would drag `ruff-format` and reformat 75 files).
+# Do NOT add `--select` here: a CLI `--select` OVERRIDES the config file wholesale, so the job
+# would silently stop enforcing what `.ruff-ci.toml` sets. `tests/test_lint_config.py` pins both.
+#
+# It deliberately does NOT use the `*python` anchor: linting imports nothing, so installing the
+# runtime dependencies would add minutes for no benefit. Its cache key is requirements-dev.txt.
+lint:python:
+  image: python:3.11
+  needs: []
+  stage: test
+  cache:
+    key:
+      files:
+        - requirements-dev.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements-dev.txt
+  script:
+    - ruff check . --config .ruff-ci.toml
+  rules:
+    - *not_on_schedule
+    - when: on_success
+
 # was: python-ci.yml
 test:python:
   <<: *python

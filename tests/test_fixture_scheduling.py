@@ -1,6 +1,5 @@
 """Tests for fixture_scheduling.py — coverage flags and the fanout gate."""
 
-import pytest
 from datetime import date
 from ingestion.api_football.fixture_scheduling import (
     _coverage_for_season,

@@ -5,9 +5,7 @@ All BigQuery and HTTP interactions are mocked — no live GCP connection require
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from ingestion.api_football.loads.injuries import load_injuries
 from ingestion.api_football.loads.coaches import load_coaches

@@ -6,15 +6,13 @@ All BigQuery and HTTP interactions are mocked — no live GCP connection require
 from __future__ import annotations
 
 from datetime import date, timedelta
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 from google.cloud.exceptions import NotFound
 
 from ingestion.api_football.loads.batch_fixtures import (
     _BATCH_SIZE,
     _STATS_RETRY_DAYS,
-    _fetch_and_persist_batch,
     _finished_fixture_ids,
     _needs_fetch,
     _read_fetched_coverage,

@@ -1458,3 +1458,122 @@ times.
   yet the trailer still raises, for a different reason: an absent trailer is ambiguous between "no
   excluded file changed" and "the trailer broke", and that ambiguity is precisely the defect #25
   exists to remove. A trailer that can silently not appear re-creates it unpredictably.
+
+## 2026-08-07 chore/add-python-linter — a linter, so reviewers stop finding what a machine finds free
+
+  PROTECTED-PATH AUTHORITY. Two protected paths are edited: `.gitlab-ci.yml` (a PROTECTED_FILE and
+  one of the three guard paths, `task_contract_gate.py:77`) and `.claude/hooks/git_discipline.py`
+  (PROTECTED prefix). Both carry the opus floor.
+
+  CPO INSTRUCTION (conversation, 2026-08-07): **"ok, do it"**, approving a plan that named the
+  dependency, the `F`/`E9` ruleset, the `.gitlab-ci.yml` step and the opus floor explicitly. It
+  followed his question *"What would an experienced software developer who has defined 100 AI
+  guardrails do in this situation?"* and a stated recommendation to push checks down the cost curve
+  rather than add more review. This entry and the contract's `protected_override` were written in
+  the SAME action (#28's class fix).
+
+  ⭐ THE ARGUMENT, WITH THE MEASUREMENT THAT MAKES IT. The CPO's constraint was explicit: mechanisms
+  that build trust, WITHOUT red tape that slows work and burns tokens. The answer offered was that
+  the guards are not the red tape — spending the most expensive check on facts a cheap one settles
+  is. Measured on #25 the same day: `platform-reviewer` at opus spent ~125k tokens finding a
+  duplicate module-level function name. That is pyflakes **F811**, reported in milliseconds. Three
+  of the four defects found across #25's three rounds were mechanically decidable.
+
+  MEASURED BEFORE THE RULESET WAS LOCKED, which the plan required so the rules could not be chosen
+  to flatter the number: `ruff check . --select F,E9` reports **12** violations — 10 × F401 unused
+  import, 1 × F811, 1 × F841. Small enough to fix here rather than bring back as a count.
+
+  ⭐ THE FINDING THAT SETTLES IT. One of the 12 is `.claude/hooks/git_discipline.py:197`, an unused
+  `import subprocess` **introduced by !19 earlier the same day**, when the git call moved into
+  `_staged_stat`. It passed THREE review rounds and TWO opus reviewers and reached `main`. The
+  linter finds it instantly. That is the case for this change stated as evidence rather than as
+  argument.
+
+  ⚠ AND THE PREMISE FAILED ITS OWN VERIFICATION, WHICH IS THE PART WORTH KEEPING. The plan's first
+  acceptance criterion was "show ruff reporting F811 for the exact duplicate `_review_patch` that
+  cost #25 a round; if it does not catch that, the linter is not worth adding." Run rather than
+  assumed, DEFAULT ruff does NOT catch it: `dummy-variable-rgx` exempts underscore-prefixed names,
+  so `f` and `review_patch` are flagged while `_f`, `_review_patch` and `__x` pass silently. Every
+  test helper here is underscore-prefixed by convention, so the linter would have shipped INERT
+  against the very class that justified it, and the MR would have read as a success.
+
+  FIXED BY ONE SETTING, and the cost was measured rather than hoped: `dummy-variable-rgx = "^_+$"`
+  restricts the exemption to bare underscores. `_review_patch` is then flagged; `for _ in range(3)`
+  and `a, _ = (1, 2)` still pass; the repo-wide count stays at 12, so it adds no noise. Recorded
+  because the reusable lesson is not about ruff: an acceptance criterion that is actually RUN can
+  reject the premise of its own task, and this one did.
+
+  NEW DEPENDENCY — DECLARED, and it is a CTO threshold in its own right. `ruff`, pinned in a NEW
+  `requirements-dev.txt` so it cannot enter the runtime image.
+
+  RECURRING COST — YES, DECLARED: one extra CI step per MR, seconds, no new service and no
+  schedule. Set against three review rounds on #25 alone.
+
+  BOUNDED: correctness rules only (`F` + `E9`). NO style, import-sorting or formatting rules — on
+  an existing codebase those produce a large mechanical diff nobody can review, and they would turn
+  a cheap win into churn. Widening the ruleset later is a fresh decision.
+
+  ⚠ ROUND 1: THE PREMISE WAS FALSE, AND THE CHANGE WOULD HAVE LOOSENED A GUARD. `cto-reviewer` and
+  `platform-reviewer`, independently at opus, both FAILed on the same thing: this repo ALREADY has
+  ruff. `.pre-commit-config.yaml` configures `astral-sh/ruff-pre-commit` `rev: v0.7.4` over
+  `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, `.git/hooks/pre-commit` is
+  installed, and `README.md` documents it. The contract's "This repo has NO linter and none pinned"
+  came from grepping `requirements*.txt` alone and reporting that scoped result as general — the
+  #904 class, third instance from this builder in two days.
+
+  THE CONSEQUENCE, MEASURED rather than argued: ruff walks up for config, so the NEW root
+  `ruff.toml` is read by the pre-commit hook too. Over that hook's file set, ruff's defaults
+  (`E4,E7,E9,F`) report **10** violations, all E402; the approved `select = ["F","E9"]` reports
+  **0**. The MR would have silently stopped E4 and E7 being enforced on every local commit — a
+  never-loosen-a-guard failure inside an MR whose entire justification was strengthening guards.
+
+  CPO ANSWER (conversation, 2026-08-07): **"do it"**, against a recommendation to set `select` to
+  ruff's DEFAULT `["E4","E7","E9","F"]` so nothing narrows anywhere, declare the 10 E402s in
+  `per-file-ignores` (all four files use the deliberate `sys.path.insert`-then-import shim), align
+  the pre-commit `rev` to the pinned `0.16.2` since both now read one config, and add a test pinning
+  the load-bearing settings. The recommendation stated plainly that `.pre-commit-config.yaml` was
+  outside the approved scope.
+
+  ONE ROUND-1 FINDING REJECTED, with evidence. `scope-auditor` FAILed on the "12 violations" figure,
+  arguing no live F811 existed. It did: `tests/test_batch_fixtures.py:464 F811 Redefinition of
+  unused 'call' from line 9`. Removing `call` from the line-9 import cleared BOTH that F811 and its
+  F401 in one edit, so the branch shows 11 edits for 12 violations. It counted edits, not
+  violations.
+
+  ⭐ THE REUSABLE LESSON, which is not about ruff. Two of the three round-1 FAILs trace to one
+  habit: a grep scoped to where I expected the answer, reported as though it were exhaustive. The
+  fix is not "grep harder" — it is that a claim of ABSENCE ("no linter exists", "nothing imports
+  this") must name where it looked, so a reviewer can see the boundary and test it.
+
+  ⚠ ROUND 2: THE TWO FAILS PULLED IN OPPOSITE DIRECTIONS, AND THE FIX DISSOLVED BOTH.
+  `cto-reviewer` FAILed the `.pre-commit-config.yaml` `rev` bump that round 1's own fix introduced:
+  that `rev` also governs `ruff-format`, which rewrites files on every local commit, and across
+  v0.7.4 to v0.16.2 **75 files would be reformatted** (measured with `ruff format --diff`). That is
+  precisely the unreviewable mechanical diff this change argues against. But NOT aligning the
+  versions is `platform-reviewer`'s round-1 finding — two ruff versions reading one config, one of
+  them running `--fix`. Both moves lose.
+
+  RESOLVED STRUCTURALLY. Ruff auto-discovers only `ruff.toml`, `.ruff.toml` and `pyproject.toml`.
+  Naming the file `.ruff-ci.toml` and passing `--config` from CI means the pre-commit hook never
+  reads it: no shared config, no alignment owed, `ruff-format` never moves, and neither enforcement
+  point can silently change the other. VERIFIED both ways before adopting. `.pre-commit-config.yaml`
+  is now byte-identical to `main` and left `scope_paths`. **The round-3 change touches strictly LESS
+  than round 2 did** — the amendment narrows the task rather than widening it.
+
+  ⚠ AND THE CORRECTION ITSELF FAILED THE SAME WAY TWICE MORE, which is the part worth keeping.
+  `cto-reviewer`: round 2 corrected the false "no linter" premise in `contract.md` but left it
+  standing VERBATIM in `.gitlab-ci.yml` and the config's own header — the two PERMANENT artifacts,
+  where a comment is all a future engineer reads, and one of them then argued against itself
+  eighteen lines later. `feedback_corrections_replace.md` is exactly this: corrections replace, they
+  do not accumulate. `platform-reviewer`: `done_when` still named `ruff check . --select F,E9` as
+  the acceptance command, and a CLI `--select` OVERRIDES the config file — so the stated
+  verification bypassed the thing it verified and would have passed on a tree where the config
+  failed to load. `scope-auditor`: "ten F401s survived the hook" contradicted its own sentence,
+  since one of the ten is in `.claude/hooks/`, which the same sentence says the hook does not cover.
+
+  ⭐ FOUR #904-CLASS CLAIMS IN TWO DAYS, THE LAST ONE INSIDE THE FIX FOR THE THIRD. Counted so the
+  pattern is visible rather than reading as four unrelated slips: the false `impact_map` import
+  claim (!19), the stale `done_when` test count (!19), "this repo has NO linter" (here, round 1),
+  and "ten F401s" (here, round 2, written while correcting the third). Prose has not fixed it. The
+  only thing that has caught every instance is a reviewer running the command — which is the
+  argument for this MR, turned on its author.

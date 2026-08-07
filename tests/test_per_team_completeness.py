@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import types
 
-import pytest
-
 from ingestion.api_football.completeness import (
     PER_TEAM_ENTITIES,
     PER_TEAM_GATED,

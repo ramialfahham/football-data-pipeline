@@ -1,180 +1,247 @@
-# Task contract — #25: name the excluded files instead of hiding them without trace
+# Task contract — a Python linter, so reviewers stop finding what a machine finds free
 
-> Branch `fix/25-review-exclude-trailer` from `main` (`c5d6088`). PROTECTED + guard path, so
-> `protected_override` AND `impact_map` are both present below, and `cto-reviewer` +
-> `platform-reviewer` run at an OPUS floor. No `site_v2/src/` path, so no `acceptance_criteria`.
-> A commit touching `contract.md` is NEVER artifact-exempt.
+> Branch `chore/add-python-linter` from `main` (`ddf8010`). TWO protected paths, so
+> `protected_override` AND `impact_map` are present, and `.gitlab-ci.yml` carries the OPUS floor.
+> `ingestion/**` is on the structural surface, which also requires the `impact_map`. No
+> `site_v2/src/` path, so no `acceptance_criteria`.
 
 objective: >
-  Make `git_discipline.py --review-patch` announce, by name and line count, any
-  `review_exclude_paths` file that IS edited on the branch, instead of removing it from the patch
-  with nothing said.
+  Add `ruff` with a correctness-only ruleset, wire it into CI, and fix the 12 violations it
+  reports, so mechanically-decidable defects stop consuming adversarial review rounds.
 
-  THE DEFECT. Exclusion deletes the file entirely, so a reviewer cannot tell a file that was never
-  edited from one that was edited and deliberately hidden. Both look identical: absent. A reviewer
-  that sees a path in `scope_paths` and not in the patch reasonably concludes the scope is wrong or
-  an edit is missing. Both conclusions are false and both cost a round.
+  ⚠ THE PROBLEM, CORRECTED IN ROUND 1 AFTER THIS FIELD GOT IT WRONG. It first read "This repo has
+  NO linter and none pinned", from grepping `requirements*.txt` alone. FALSE: `.pre-commit-config.yaml`
+  configures ruff `v0.7.4` over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
+  the hook is installed. What is actually true, and is a STRONGER argument: that hook is LOCAL-only
+  with no CI backstop, it does not cover `.claude/hooks/` at all, and NINE F401s inside its own
+  file pattern survived it (the tenth, `git_discipline.py:197`, was never in its jurisdiction) — a
+  hook whose own args are `--fix, --exit-non-zero-on-fix`, so it evidently is not being run. On #25
+  the same day, `platform-reviewer` at opus spent
+  ~125k tokens finding a duplicate module-level function name — pyflakes F811, reported in
+  milliseconds — and three of the four defects across #25's three rounds were mechanically
+  decidable.
 
-  IT HAS FIRED THREE TIMES, and each time the reviewer was reasoning correctly from what it was
-  given: 2026-08-03 `.claude/active_work.md` ("scope names an unedited file"), 2026-08-06
-  `.claude/task/TEMPLATE.md` ("a required edit is missing" — it was edited at both sites), and
-  2026-08-07 `.claude/active_work.md` (*"the diff I was handed does not contain the change the
-  entire task is about"*). All three withdrawn on the evidence. Three occurrences is a missing
-  affordance, not reviewer carelessness.
+  THE ONE THAT SETTLES IT. `ruff` finds an unused `import subprocess` at
+  `.claude/hooks/git_discipline.py:197` that **!19 introduced earlier the same day**, when the git
+  call moved into `_staged_stat`. It survived three review rounds and two opus reviewers and is on
+  `main` now.
 
-  THE REPO ALREADY SOLVED THIS FOR THE SIBLING LIST. `review_summarise_paths` (2026-08-06) does not
-  hide content; it substitutes a MANIFEST naming the files and their counts. `review_exclude_paths`
-  predates that mechanism and never got it. The reasoning in its `_doc` transfers unchanged:
-  hiding outright *"would silently delete that check — trading payload for coverage, which is the
-  'never loosen a guard' failure."*
+  ⚠ THE PREMISE WAS WRONG ON DEFAULT SETTINGS, AND THE VERIFICATION IS WHAT CAUGHT IT. This
+  contract first claimed F811 would have caught #25's duplicate `_review_patch`. Run before being
+  believed, it does NOT: ruff exempts underscore-prefixed names via `dummy-variable-rgx`, so `f`
+  and `review_patch` are flagged while `_f`, `_review_patch` and `__x` pass silently. Every test
+  helper in this repo is underscore-prefixed by convention, so on defaults the linter would have
+  been inert against the exact class that justified it — a guard that looks strong and is nearly
+  inert, which is the failure `tests/test_materialisation_policy.py` already records.
+
+  THE FIX, MEASURED: `dummy-variable-rgx = "^_+$"` narrows the exemption to BARE underscores.
+  `_review_patch` redefinition is then flagged, `for _ in range(3)` and `a, _ = (1, 2)` still pass,
+  and the repo-wide count is UNCHANGED at 12 — the setting adds no noise. Verified all three ways
+  before this contract was updated.
+
+  THE PRINCIPLE. LLM reviewers are the most expensive check available and should be spent on
+  judgement, not on facts a grep settles. This pays the review ceremony ONCE and removes the class.
 
 refs: >
-  GitLab #25. Second item of the AI-collaboration audit stream (handover `NEXT` step 1). Order set
-  by the CPO this session: #29 (merged as !18), then #25, then #21 brought as a recipe. Cost is a
-  SEPARATE stream and explicitly out of this session.
+  Follows !18 (#29) and !19 (#25), both merged 2026-08-07. Arises from the CPO's question, *"What
+  would an experienced software developer who has defined 100 AI guardrails do in this situation?"*,
+  under his stated constraint: pragmatic mechanisms that improve collaboration WITHOUT red tape that
+  slows work and burns tokens. Not a numbered issue — it is the answer to that question.
 
 scope_paths:
+  - requirements-dev.txt
+  - .ruff-ci.toml
+  - tests/test_lint_config.py
+  - .gitlab-ci.yml
   - .claude/hooks/git_discipline.py
-  - tests/test_governance_hooks.py
+  - ingestion/api_football/seasons.py
+  - tests/test_batch_fixtures.py
+  - tests/test_fixture_scheduling.py
+  - tests/test_fixtures_cache_skip.py
+  - tests/test_injuries_coaches.py
+  - tests/test_per_team_completeness.py
+  - tests/test_season_inference.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/escalations.log
 
 protected_override: >
-  CPO instruction, conversation 2026-08-07: **"start #25"**, following **"yes, that order. start
-  with #29"** against a recommended order of #29, then #25, then #21 as a recipe. GitLab #25's own
-  closing paragraph states that the fix requires a governance task carrying `protected_override`
-  and an `impact_map` with `cto-reviewer` and `platform-reviewer` at opus, so instructing the work
-  to start authorises the protected edit the work requires.
+  CPO instruction, conversation 2026-08-07: **"ok, do it"**, approving a plan that named the new
+  dependency, the `F`/`E9` ruleset, the `.gitlab-ci.yml` step and the opus floor explicitly.
 
   RECORDED IN FULL at `.claude/task/escalations.log`, entry
-  `## 2026-08-07 fix/25-review-exclude-trailer`. That entry and this field were written in the SAME
+  `## 2026-08-07 chore/add-python-linter`. That entry and this field were written in the SAME
   action, which is GitLab #28's class fix.
 
-  THE AUTHORITY IS FOR THIS CHANGE, NOT A STANDING ONE. It covers ONE protected file,
-  `.claude/hooks/git_discipline.py`, for the one purpose in `objective:`. It does NOT authorise
-  editing `.claude/review_routing.json`, the reviewer briefs under `.claude/agents/`,
-  `docs/working_agreement.md`, or `hash_exclude_paths`. Naming the file literally rather than
-  pointing at `scope_paths` is deliberate: GitLab #18 is open on exactly that self-reference,
-  where an override that defines its reach as "the paths in scope_paths" grows whenever an
-  amendment adds one.
+  THE AUTHORITY IS FOR THESE TWO FILES, NOT A STANDING ONE. It covers `.gitlab-ci.yml` (adding one
+  lint step) and `.claude/hooks/git_discipline.py` (deleting one dead import). It does NOT
+  authorise editing `.claude/review_routing.json`, `.claude/settings.json`, the reviewer briefs, or
+  any guard's logic. Naming the files literally rather than pointing at `scope_paths` is deliberate:
+  GitLab #18 is open on exactly that self-reference.
 
 impact_map: >
-  writers: not applicable — no table, no model. The edited unit is one PROTECTED guard script, so
-  this traces what depends on the guard, per the TEMPLATE instruction for protected paths.
+  writers: none. No raw table, no dbt model, no mart. `ingestion/api_football/seasons.py` is in
+  scope for a ONE-LINE deletion of an unused import (`effective_season_max`, F401) — no call site,
+  no behaviour, no column, no payload.
 
-  events that fire it: `PreToolUse` with matcher `Bash` on EVERY Bash tool call
-  (`.claude/settings.json`, verified by parsing the file). Plus two hand-invoked CLI modes,
-  `--review-patch` and `--staged-hash`.
+  events that fire the protected files: `.claude/hooks/git_discipline.py` runs as PreToolUse on
+  EVERY Bash tool call (`.claude/settings.json`, matcher `Bash`) plus two CLI modes.
+  `.gitlab-ci.yml` decides what CI enforces on every push and MR.
 
-  what imports it: TWO files, measured with
-  `grep -rln "import git_discipline" --include="*.py"` rather than asserted.
-    1. `scripts/check_task_artifacts.py:52` (`import git_discipline as _gd`), the CI backstop that
-       runs in `validate:governance`. It uses exactly ONE symbol, `_gd._rounds_gate` (line 58) —
-       `grep -n "_gd\." scripts/check_task_artifacts.py` returns that single line.
-    2. `tests/test_governance_hooks.py`, at TWO sites, `:438` and `:2798`, which import the module
-       and call internals directly. That is real code coupling, and this task adds a third such
-       call site, so a change to these internals breaks tests rather than only behaviour.
+  what changes in them: `git_discipline.py` loses ONE dead `import subprocess` inside
+  `_review_patch_bytes`. The module's other `import subprocess` statements, inside `_staged_stat`,
+  `_staged_paths` and `_cumulative_diff`, are untouched and are the ones actually used — verified by
+  `ruff` flagging only line 197. No guard logic, no predicate, no message changes.
+  `.gitlab-ci.yml` GAINS one `lint:python` job in the existing `test` stage and changes nothing
+  existing.
 
-  ⚠ THIS FIELD PREVIOUSLY CLAIMED *"Nothing else in the tree imports the module; the remaining
-  references ... are prose in five docs plus the settings wiring."* FALSE, and `scope-auditor`
-  FAILed round 1 on it. The two test imports are code, not prose; `.claude/review_routing.json` is
-  config, not a doc; and the reference count is 14 files, not seven. Corrected against the grep
-  rather than reworded. Recorded rather than quietly replaced because of what it is: the #904
-  class — a contract claim about the code, written before the code and never re-read against the
-  finished tree — occurring inside the very `impact_map` whose job is to prevent it.
+  what stops being enforced if it is wrong: nothing. A wrong lint config fails the new job loudly
+  and blocks the MR. ⚠ THIS FIELD CLAIMED A LINT CONFIG "cannot weaken an existing gate" AND THAT
+  WAS FALSE — round 1 disproved it: an auto-discoverable root config IS adopted by the pre-commit
+  hook, and the first version of this branch would have switched E4/E7 off there. Round 3 removes
+  the mechanism rather than the wording: the config is named `.ruff-ci.toml`, which ruff does not
+  auto-discover, and CI passes it with `--config`. Deleting the dead import cannot change
+  behaviour, and the 660-test suite covers the module.
 
-  reference-only, no import (12 files, none edited here): `.claude/settings.json` (the PreToolUse
-  wiring), `.claude/review_routing.json`, `.claude/agents/platform-reviewer.md`,
-  `.claude/active_work.md`, `.claude/task/TEMPLATE.md`, `.claude/task/REVIEW_TEMPLATE.md`,
-  `.claude/task/contract.md`, `docs/agent_guardrails.md`, `docs/north_star.md`,
-  `docs/roles/platform_reliability.md`, `docs/working_agreement.md`,
-  `tests/test_governance_doc_parity.py`.
+  blast radius: `ruff` is dev-only, pinned in a NEW `requirements-dev.txt`, and is NOT added to
+  `requirements.txt`, so it cannot reach the runtime image or the ingestion container.
 
-  what stops being enforced if it is wrong: nothing. The change is confined to the `--review-patch`
-  CLI product. `_commit_gate`, the commit-flag allowlist, the push checks, `_rounds_gate` and the
-  hash are all on code paths this does not modify.
-
-  blast radius on the review hash: NONE, verified rather than assumed. `--staged-hash` calls
-  `_staged_diff_bytes` (`main()`, line 643) which resolves `hash_exclude_paths`; the trailer joins
-  `_review_patch_bytes`, which resolves `review_exclude_paths`. Different function, different list.
-  A test in `done_when` pins it.
-
-  deploy_order: not applicable. No warehouse object, nothing sequenced around the 04:00 nightly,
-  and `.claude/hooks/**` is absent from `data_paths` so no prod build is triggered.
-
-  on failure: `--review-patch` exits non-zero and `review_input.patch` is not produced, stalling
-  the review cycle loudly rather than emitting a patch that under-reports.
+  deploy_order: not applicable. No warehouse object. `requirements-dev.txt`, `.ruff-ci.toml` and the
+  test files are absent from `data_paths`; `.gitlab-ci.yml` IS in `data_paths` (GitLab #2), so
+  MERGING THIS WILL TRIGGER `data:build:main`. Stated rather than discovered, per the handover's
+  standing warning.
 
 decisions_taken: >
   THRESHOLD DECLARATIONS, stated because no gate parses this field.
 
-  ⭐ NEW MECHANISM — YES. RECLASSIFIED BY THE BUILDER BEFORE BUILDING, and this is the honest
-  declaration rather than the convenient one. The approved plan framed this as applying an existing
-  pattern to a sibling list. `escalations.log:1106` shows that is wrong:
-  `review_summarise_paths` counted as a NEW MECHANISM partly because it added *"a manifest emitter
-  in `git_discipline.py`, which changes what every reviewer is handed in every future task"*
-  (:1117). This trailer is the same emitter, in the same file, with the same reach.
+  NEW DEPENDENCY — YES. `ruff`, pinned, dev-only. A CTO threshold in its own right.
 
-  Per `escalations.log:1108`, declaring a crossing to a REVIEWER is not approval and a reviewer
-  cannot convert one into the other, so this is not a request for `cto-reviewer` to rule. The
-  approval is the CPO's own, given at plan time on a plan that described the emitter, its wording
-  and its raise-don't-degrade behaviour. Recorded at `escalations.log`, entry
-  `## 2026-08-07 fix/25-review-exclude-trailer`, and surfaced to him in the turn the
-  reclassification was made so he can reject it.
+  RECURRING COST — YES. One extra CI step per MR, seconds, no new service and no schedule. Set
+  against three review rounds on #25 alone. Note separately that merging this fires
+  `data:build:main` once, via `data_paths`.
 
-  WHAT IS GENUINELY NARROWER than the 2026-08-06 precedent, so this is not read as equivalent: no
-  new routing key, no content removed from the patch body, no verdict rule changed, no hash effect.
-  The trailer only annotates what is already absent.
+  NEW MECHANISM — NO. A linter is a standard tool in an existing CI stage, not a governance
+  mechanism: it grants no authority, gates no decision and changes no verdict rule.
 
-  RECURRING COST — NO. One extra `git diff --staged --stat` per `--review-patch` invocation, which
-  is a local, hand-invoked command run a few times per task. No new reviewer, no model change, no
-  service, no schedule. It should REDUCE cost: the measured price of the defect is one wasted
-  review round per occurrence, three so far and accelerating.
+  GUARD INVARIANT — UNCHANGED, and round 3 is what makes that true rather than merely asserted.
+  No guard's logic is edited; `git_discipline.py` loses a dead import only. The pre-commit hook is
+  NOT touched at all — `.pre-commit-config.yaml` is byte-identical to `main`, so neither its ruff
+  `rev` nor `ruff-format` moves. ⚠ ROUND 2 BRIEFLY BUMPED THAT `rev` to align versions, and
+  `cto-reviewer` FAILed it: the same `rev` governs `ruff-format`, which rewrites files on every
+  local commit, and across v0.7.4 to v0.16.2 **75 files would be reformatted**. Measured, not
+  estimated.
 
-  NEW EXTERNAL SURFACE — NO.
+  RULESET CHOSEN BEFORE THE COUNT WAS KNOWN, deliberately, so the rules could not be picked to
+  flatter the number. The measurement came second: 12 violations. ⚠ THE RULESET ITSELF CHANGED IN
+  ROUND 1, from `F` + `E9` to ruff's exact default `["E4","E7","E9","F"]`, because the narrower set
+  would have switched E4/E7 off in the pre-existing pre-commit hook. It is now the DEFAULT set and
+  not one rule more.
 
-  GUARD INVARIANT — STRENGTHENED, never loosened, and the direction matters. This ADDS information
-  to what reviewers are handed and removes none. It does not touch `hash_exclude_paths`, so nothing
-  that invalidated a verdict before stops doing so. It cannot hide anything that is visible today,
-  because it only emits for paths that are ALREADY excluded.
-
-  WHY IT RAISES RATHER THAN DEGRADING QUIETLY. `_summary_manifest` raises because silence there is
-  a coverage loss. Silence here is not, and the trailer still raises for a different reason: an
-  absent trailer is ambiguous between "no excluded file changed" and "the trailer broke", and that
-  ambiguity is the exact defect #25 exists to remove.
+  WHY NO STYLE RULES. On an existing codebase, style and import-sorting rules produce a large
+  mechanical diff that no reviewer can meaningfully read, which is the opposite of the point.
 
 decisions_reserved:
-  - "Whether `.claude/active_work.md` belongs in `review_exclude_paths` at all. Occurrence 3 was a
-    handover task, where the reviewer legitimately could not judge the work with the handover
-    hidden. The trailer removes the false inference but does not answer that question, and moving a
-    path between the two lists is a §10 decision on the same reasoning as
-    `escalations.log:1138`. NOT decided here and NOT in scope."
+  - "⚠ REWRITTEN IN ROUND 3; this bullet reserved widening beyond `F`/`E9` while the branch had
+    already widened to ruff's default set, which is the opposite of what shipped. What IS reserved:
+    widening beyond ruff's DEFAULT `[\"E4\",\"E7\",\"E9\",\"F\"]` — style, import order, complexity,
+    type-checking. Each is a new class of enforced opinion across the whole tree and a fresh
+    decision. Narrowing below the default is equally reserved, because it would enforce less in CI
+    than the local pre-commit hook already does."
+  - "Whether SQLFluff and `ruff` should share one `lint:` stage rather than `ruff` joining `test`.
+    Left alone: moving an existing job is a CI-topology change beyond this objective."
 
 done_when:
-  - "FIVE new tests ship in `tests/test_governance_hooks.py`, and the red/green claim is stated per
-    test rather than as one number. MEASURED against the unfixed `git_discipline.py`: THREE of the
-    first four go red (`..._are_named`, `..._without_pasting_them`,
-    `..._does_not_reach_the_review_hash`); `test_no_trailer_when_no_excluded_path_changed` cannot,
-    because it asserts the trailer is ABSENT; and the fifth,
-    `test_excluded_trailer_failure_is_loud_not_silent`, cannot either, because `_excluded_trailer`
-    does not exist in the unfixed file. Both runs pasted — a test never seen red is decoration
-    (`feedback_verify_the_test_fails.md`)."
-  - "⚠ THIS CRITERION SAID 'the four new tests' UNTIL ROUND 3, when a fifth had been added on a
-    `platform-reviewer` finding and the count was not updated with it. `cto-reviewer` caught it.
-    Recorded rather than silently renumbered, because of where it happened: it is the #904 class —
-    a contract claim that drifted from the tree — inside the same contract that cites #904 two
-    fields above. The reusable lesson is that a numeric claim must be re-read after EVERY round,
-    not written once and trusted."
-  - "The tests pin all four properties: an edited excluded file is NAMED in the trailer; its
-    CONTENT is still not pasted; NO trailer is emitted when no excluded path changed; and
-    `--staged-hash` is byte-identical with and without the trailer."
-  - "`python -m pytest tests/ -q` is clean and the collected count is MEASURED with
-    `pytest --collect-only -q`, never predicted (#904)."
-  - "The five offline gates pass, and `check_task_artifacts.py` is run BARE."
-  - "END-TO-END on this branch's own review: this task edits `contract.md` and `review.md`, so its
-    real `review_input.patch` must carry the trailer naming the excluded files it edited. The
-    trailer pasted from the real patch, not from a test fixture."
+  - "`ruff check . --config .ruff-ci.toml` exits 0 on the final tree, output pasted. ⚠ THIS
+    CRITERION READ `ruff check . --select F,E9` UNTIL ROUND 3, which was worse than stale: a CLI
+    `--select` OVERRIDES the config file, so the named acceptance command bypassed the very config
+    it was meant to verify, and would have passed on a tree where E4/E7 were red or where the
+    config failed to load at all. Caught by `platform-reviewer` at opus. The command here is now
+    the same one CI runs."
+  - "RED BEFORE GREEN on the real defect: `ruff` demonstrably reports F811 for the exact duplicate
+    `_review_patch` definition that cost #25 a review round. If it does not catch that, the linter
+    is not worth adding (`feedback_verify_the_test_fails.md`)."
+  - "All 12 violations fixed, none suppressed: no `# noqa` added, and no rule removed from `select`
+    to make the build pass — that would be the never-loosen-a-guard failure applied to a guard on
+    its first day. ⚠ THIS CRITERION ALSO FORBADE `per-file-ignores` UNTIL ROUND 3, while the branch
+    ships four. The bar it should have stated, and now does: E402 in the four `sys.path`-shim
+    scripts is DECLARED per file in one auditable table, which is narrower and more visible than
+    scattered `# noqa: E402` and far narrower than dropping E402 from `select`. Every other shim
+    site in the tree already carries a pre-existing `# noqa: E402`, so the list is complete at four
+    (counted independently by `platform-reviewer`). Left as written, the criterion would have told
+    a future maintainer that per-file-ignores are banned, whose cheapest reconciliation with the
+    tree is dropping E402 repo-wide — the exact loosening this branch exists to prevent."
+  - "`python -m pytest tests/ -q` clean, collected count MEASURED with `pytest --collect-only -q`,
+    and pytest's OWN exit code read directly rather than through a pipe — piping through `tail`
+    masked a 4-test failure earlier today."
+  - "The five offline gates pass, and `check_task_artifacts.py` runs BARE."
+  - "CI green with `lint:python` visible in the job list."
 
-amendments: (none)
+amendments: >
+  ONE amendment, 2026-08-07, after review round 1. TWO PATHS ADDED: `.pre-commit-config.yaml` and
+  `tests/test_lint_config.py`.
+
+  AUTHORITY: CPO instruction **"do it"**, conversation 2026-08-07, against a stated recommendation
+  naming the ruleset change, the `per-file-ignores`, the pre-commit version alignment and the fact
+  that `.pre-commit-config.yaml` sits outside the approved scope. Recorded at
+  `.claude/task/escalations.log`, same entry, block `⚠ ROUND 1: THE PREMISE WAS FALSE`. That block
+  and this amendment were written in the SAME action.
+
+  ⚠ WHY IT WIDENED — THE OBJECTIVE'S PREMISE WAS FALSE. This contract claimed "This repo has NO
+  linter and none pinned". `.pre-commit-config.yaml` has configured `astral-sh/ruff-pre-commit`
+  `rev: v0.7.4` all along, over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
+  `.git/hooks/pre-commit` is installed, so it fires on every local commit. The claim came from
+  grepping `requirements*.txt` only and reporting that scoped result as a general one — the #904
+  class, and the THIRD instance from this builder in two days. Found by `cto-reviewer` and
+  `platform-reviewer` independently, at opus.
+
+  ⚠ AND THE CHANGE AS APPROVED WOULD HAVE LOOSENED AN EXISTING GUARD. Ruff walks up for config, so
+  a NEW root `ruff.toml` is read by the pre-commit hook too. MEASURED over that hook's own file
+  set: ruff's defaults (`E4,E7,E9,F`) report **10** violations, all E402; the approved
+  `select = ["F","E9"]` reports **0**. Shipping it would have silently stopped E4 and E7 being
+  enforced on every local commit — never-loosen-a-guard, committed inside an MR justified as
+  strengthening guards.
+
+  WHAT CHANGES. `select` becomes `["E4","E7","E9","F"]`, ruff's default, so NOTHING is narrowed
+  anywhere. The 10 E402s are declared in `per-file-ignores` rather than fixed: all four files use
+  the deliberate `sys.path.insert(...)`-then-import shim, where the import genuinely must follow the
+  path setup. `.pre-commit-config.yaml`'s `rev` moves to `v0.16.2` to match the pinned CI version,
+  because both now read the same `ruff.toml` and every measurement here was taken on 0.16.2.
+  `tests/test_lint_config.py` pins `select` and `dummy-variable-rgx`, closing `platform-reviewer`'s
+  finding that the load-bearing setting had nothing stopping its removal.
+
+  BOUNDED: this does NOT change what CI runs beyond the ruleset, does not touch SQLFluff's
+  pre-commit entry, and adopts no style, import-sorting or formatting rules. `select` is now exactly
+  ruff's default and not one rule more.
+
+  SECOND AMENDMENT, 2026-08-07, after review round 2. NET EFFECT: ONE PATH ADDED (`.ruff-ci.toml`),
+  TWO REMOVED (`ruff.toml`, `.pre-commit-config.yaml`). Written in the SAME action as its
+  `escalations.log` block.
+
+  AUTHORITY: the same CPO instruction **"do it"** (2026-08-07). This amendment does not widen the
+  task — it NARROWS it, giving back a path the first amendment took. Both round-2 FAILs are fixed
+  by touching strictly less than round 2 did.
+
+  ⚠ WHY: the two round-2 FAILs pulled in OPPOSITE directions. `cto-reviewer` FAILed the
+  `.pre-commit-config.yaml` `rev` bump, because the same `rev` governs `ruff-format` and across
+  v0.7.4 to v0.16.2 **75 files would be reformatted** — measured, and exactly the unreviewable
+  mechanical diff this branch argues against. But NOT aligning the versions leaves two ruff versions
+  reading one config, which was `platform-reviewer`'s round-1 finding. Aligning or not aligning both
+  lose.
+
+  THE FIX DISSOLVES BOTH RATHER THAN TRADING THEM. Ruff auto-discovers only `ruff.toml`,
+  `.ruff.toml` and `pyproject.toml`. Naming the file `.ruff-ci.toml` and passing `--config` in CI
+  means the pre-commit hook never reads it: no shared config, so no version alignment is owed, so
+  `ruff-format` never moves. VERIFIED both ways before adopting: with the file present and no
+  `--config`, a redefined `_f` is NOT flagged (config not discovered); with `--config .ruff-ci.toml`
+  it IS.
+
+  `.pre-commit-config.yaml` is therefore byte-identical to `main` and leaves `scope_paths`.
+
+  ALSO IN ROUND 3, all text-only and all found by review: the false "no linter" premise removed from
+  `.gitlab-ci.yml` and the config's own comments (it survived round 2 verbatim in both PERMANENT
+  artifacts while only the contract was corrected — corrections must replace, not accumulate); the
+  `done_when` command that bypassed its own config; the `done_when` bar that forbade the
+  `per-file-ignores` the branch ships; `decisions_reserved` reserving a widening already taken; the
+  `impact_map`'s disproved "cannot weaken an existing gate"; and "ten F401s" corrected to NINE
+  inside the hook's file pattern.

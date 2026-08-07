@@ -1,0 +1,83 @@
+# Python lint config for the CI `lint:python` job. CORRECTNESS ONLY.
+#
+# ⚠ THE FILENAME IS LOAD-BEARING. Do NOT rename this to `ruff.toml` or `.ruff.toml`, and do not
+# move these settings into a root `pyproject.toml`.
+#
+# Ruff auto-discovers exactly those three names by walking UP from each linted file. This repo has
+# run ruff on every local commit since long before this file existed — `.pre-commit-config.yaml`
+# (`rev: v0.7.4`, `args: [--fix, --exit-non-zero-on-fix]`) over
+# `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, passing no `--config`, so it uses
+# ruff's DEFAULTS. An auto-discoverable config at the root is silently adopted by that hook too,
+# and then both ways of proceeding lose:
+#
+#   · Narrowing `select` here switches rules off on every local commit. Measured over the hook's
+#     own file set: ruff's defaults report 10 violations (all E402); `["F","E9"]` reports 0. The
+#     first version of this file shipped `["F","E9"]` and would have done exactly that — a guard
+#     loosened as a side effect of adding a file.
+#   · "Just align the two ruff versions" is not a fix either: the pre-commit `rev` also governs
+#     `ruff-format`, which rewrites files on commit. Measured across v0.7.4 -> v0.16.2 with
+#     `ruff format --diff`: **75 files would be reformatted** — the unreviewable mechanical diff
+#     this whole change argues against.
+#
+# So CI passes `--config .ruff-ci.toml` explicitly and the local hook keeps its own defaults. The
+# two enforcement points stay independent: no shared config, no version alignment owed, and neither
+# can silently change the other. `tests/test_lint_config.py` fails if an auto-discoverable config
+# appears at the root, or if the CI job stops passing `--config`.
+
+target-version = "py311"
+
+extend-exclude = [".venv", "site_v2/node_modules", "site_v2/dist", "dbt_project/target"]
+
+[lint]
+# EXACTLY RUFF'S DEFAULT SET. Not one rule more, not one fewer.
+#   E4  imports (E401 multiple-on-one-line, E402 module-import-not-at-top)
+#   E7  statement-level errors (E711/E712 comparison-to-None/True, E722 bare except, E731 lambda…)
+#   E9  syntax and IO errors
+#   F   pyflakes — undefined names, unused imports, redefinitions, unused locals
+#
+# Matching the default is deliberate in BOTH directions. Narrower would enforce less in CI than the
+# local hook already does, which is a backstop that backs nothing. Wider would adopt a new class of
+# enforced opinion across the whole tree — style, import order, complexity — producing a large
+# mechanical diff no reviewer can meaningfully read. Moving this list either way is a decision.
+select = ["E4", "E7", "E9", "F"]
+
+# ⚠ LOAD-BEARING, and its removal is INVISIBLE — the violation count does not change.
+#
+# MUST STAY IN `[lint]`, ABOVE the `[lint.per-file-ignores]` header below: TOML keys belong to the
+# last table declared, so moving this line under that header reparents it and ruff dies with
+# "invalid type: string, expected a sequence". `tests/test_lint_config.py` caught exactly that
+# within a minute of it happening.
+#
+# Ruff's default treats ANY underscore-prefixed name as an intentional throwaway and exempts it
+# from F811 (redefinition) and F841 (unused local). Measured: `f` and `review_patch` are flagged;
+# `_f`, `_review_patch` and `__x` are not. Every test helper in this repo is underscore-prefixed by
+# convention, and the defect that motivated this whole change was a redefined `_review_patch` that
+# broke four tests and cost an opus review round. On the default this linter would have shipped
+# INERT against the exact class that justified it, while looking like it worked.
+#
+# `^_+$` narrows the exemption to BARE underscores, so `for _ in range(3)` and `a, _ = (1, 2)`
+# still pass and named helpers do not. Measured: repo-wide violation count unchanged, so the
+# coverage costs no noise.
+dummy-variable-rgx = "^_+$"
+
+[lint.per-file-ignores]
+# E402 (module import not at top of file) is CORRECT in these four and they are not defects. Each
+# script is executed directly rather than imported, and must put the repo (or its own directory) on
+# `sys.path` BEFORE importing from it. What trips E402 is the assignment above the insert, not the
+# insert itself — ruff exempts `sys.path` modification, but not the line that computes the path:
+#
+#     _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))   # <- non-import code
+#     if _ROOT not in sys.path:
+#         sys.path.insert(0, _ROOT)
+#     from ingestion.api_football.settings import GCP_PROJECT_ID               # <- E402
+#
+# Declared per file in one auditable table rather than as scattered `# noqa: E402`: adding a file
+# here is a visible diff. Dropping E402 from `select` instead would disable it repo-wide, which is
+# the never-loosen-a-guard failure this file already warns about twice.
+#
+# Every OTHER shim site in the tree already carries a pre-existing `# noqa: E402`, so this list is
+# complete at four — counted independently by platform-reviewer at opus.
+"scripts/clear_apif_ingest_lock.py" = ["E402"]
+"scripts/compare_fixture_statistics_live.py" = ["E402"]
+"scripts/export_matchday_json.py" = ["E402"]
+"scripts/export_team_season_json.py" = ["E402"]
