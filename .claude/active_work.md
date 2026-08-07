@@ -5,10 +5,16 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-06**. main GREEN at **cbd81aa**. The product is **Matchday Pilot**.
+_Last updated **2026-08-06**. main GREEN at **b5ba63a**. The product is **Matchday Pilot**.
 **The repo is on GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — its
-Actions run nothing and its 114 issues are unreachable. Merged today: **MR !6** (web dispatch
-must not auto-start a prod build), **MR !7** (`4844c32`, the copy gate's 16 findings cleared).
+Actions run nothing and its 114 issues are unreachable; `.github/workflows/README.md` says so at
+the tree. Merged today: **!6** (web dispatch must not auto-start a prod build), **!7** (`4844c32`,
+the copy gate's 16 findings cleared), **!8** (`b1cd6fe`, six unwired guards connected).
+
+**⚠ THE GUARDS CHANGED TODAY (!8).** Stop hook runs 5 offline gates (~2.9s), blocks once on
+failure · copy gate runs in CI · 5 USER-LEVEL hooks now registered in `~/.claude/settings.json`
+(hard deny on pushing `main`; plan-back prompt on your first code edit) · `scope-auditor` on
+sonnet · reviewers get a MANIFEST for `site_v2/src/data/**`, not the inline diff._
 
 **FIRST ACTIONS: run `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX —
 the indices move every time anything is stashed, and on 2026-08-06 this file still pointed at
@@ -124,8 +130,6 @@ slot. Never design the canonical page around an edge case. Build ONE tab at a ti
 - **No gate records when it fires** — ~2,500 lines of enforcement, near-zero telemetry. Highest-value
   follow-up in the repo. Partly addressed 2026-08-06: the commit gate and routing loader now emit a
   CANARY when they fail open, so a dead gate is no longer silent. Nothing else is instrumented.
-- ~~The copy gate is wired to nothing~~ **DONE 2026-08-06.** MR !7 cleared its 16 findings, then it
-  was wired into `validate:governance` + `validate-local` + the Stop hook.
 - Delete or rewrite `macros/apif_latest_source_partition.sql` — zero callers and it never pruned.
 - A metric-change skill · mirror the crests · reviewers as peers (#822 shipped only the model half).
 - **#904: contract claims about the code are unverified.** SEVEN false factual statements in one
@@ -149,12 +153,15 @@ slot. Never design the canonical page around an edge case. Build ONE tab at a ti
    CPO-class. What IS unblocked: **measure a QUIET day** (08-03 ran every node 7x because four PRs
    merged, so its $2.73 overstates a normal day).
 4. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
-5. Follow-ups: **#875** metric GROUP headings in English on DE/FI, needs a CPO ruling on where a group
-   name lives · **#877** `GD`, `W/D/L`, `T·I·B` need the DE/FI words · **#876** rows break mid-word ·
-   **#863** PROTECTED path editable with no `protected_override` · **#866** `Regular Season - 20`
-   untranslated · **#873** routing matcher hand-copied, no parity test · route `seo-expert-reviewer`
-   (the only reviewer with no routing row) · **#887** the PR-time DQ step cannot see the PR's own
-   models · **#883** blank `competition_type` skipped by all three guards.
+5. Follow-ups. ⚠ **GITHUB numbers — bodies UNREACHABLE.** The line here is all that survives:
+   re-derive from code, and re-file on GitLab as you pick each up. **#875** metric GROUP headings
+   English on DE/FI (needs a CPO ruling on where a group name lives) · **#877** `GD`, `W/D/L`,
+   `T·I·B` need DE/FI words · **#876** rows break mid-word · **#863** PROTECTED path editable with
+   no `protected_override` · **#866** `Regular Season - 20` untranslated — NOT caught by the copy
+   gate, which reads `strings.ts` while this is provider text · **#873** routing matcher
+   hand-copied, no parity test · route `seo-expert-reviewer`, still the only unrouted reviewer ·
+   **#887** MR-time DQ cannot see the MR's own models · **#883** blank `competition_type` skipped
+   by all three guards. **The live backlog is `glab issue list`.**
 
 ## OPEN — the CPO's alone
 **Imprint operator + address** (#799), blocks publication, never conclude it · hosting recurring run ·
@@ -171,32 +178,13 @@ DECIDED and shipped: visible always, fail only on stagnation.)
 - Do NOT ask him to adjudicate what a rule can settle. **But copy is ALWAYS his (§10).**
 - Do NOT bring him a fix for a defect he did not ask about. Fix it and move on.
 
-## Operational notes
-- **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 + bigquery
-  1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`, `ls`,
-  `ls --select <model>+` all work. Use it for `impact_map` lineage. **Never run `dbt build`** (shared
-  prod dataset).
-- **SQLFluff: lint from the REPO ROOT** (root `.sqlfluff` has the jinja macro path):
-  `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set. `dbt_utils`
-  is unresolvable under the jinja templater, so `mart_player_profile` reports pre-existing TMP/PRS
-  noise — check against main before believing it. BigQuery rejects a FROM-less WHERE.
-- **Commit mechanics:** `git commit` runs alone (no chaining, no leading `cd`); `--amend`
-  gate-blocked. Use `git commit -F <file>`. Write messages to the scratchpad. A post-commit hook
-  auto-pushes and opens the **MR**. `review.md` must be COMMITTED, with `## <reviewer-name>`
-  section headers — the gate parses those exactly, a `verdicts:` block alone does NOT satisfy it.
-- **⚠ The Stop hook now runs the five offline gates** (~2.9s) when the tree is dirty and in scope,
-  and BLOCKS the turn once if any fails. Expect it; do not end a turn on a red gate silently.
-- **⚠ ON A SECOND COMMIT `--staged-hash` IS THE WRONG NUMBER** — it covers only the increment; CI
-  recomputes over the whole branch. Use `check_task_artifacts.py --base origin/main`. A
-  `review.md`-only commit is artifact-exempt, so rebinding is free.
-- **Contract edits need a CLEAN tree** — stash-dance with explicit paths, then check `git stash list`.
-- **⚠ CWD PERSISTS between Bash calls.** **⚠ `fnmatch`'s `*` CROSSES `/`**, and `scope_paths`'
-  `[lang]`/`[team]` are CHARACTER CLASSES — use `site_v2/src/pages/*/teams/*.astro`.
-- **⚠ Heredocs are blocked for file writes** — use Edit/Write, including for scratchpad files.
-- **⚠ A line-based grep misses a phrase straddling a line break.** Sweep whitespace-collapsed.
-- **Frontend:** `deploy-site-v2.yml` is manual-only. The Browser pane drives the dev server
-  (`preview_start` name `v2`); accessibility tree, geometry and console work, `screenshot` fails.
-  `astro build` OOMs at full scale; `git clean -fX site_v2/src/data` before a local dev build.
+## Operational notes → MOVED to `CLAUDE.md` (2026-08-06)
+
+The dbt CLI path, SQLFluff invocation, commit mechanics, stash-dance, CWD/fnmatch/heredoc/grep
+traps and the frontend notes now live under **"Operational notes" in `CLAUDE.md`**, which is
+always loaded and never truncated. They are permanent knowledge and this file is capped at 16,000
+characters and drops its tail when it overflows — which is how the most durable content ended up
+in the most volatile place. **Do not copy them back here.**
 
 ## Verified state reference
 - **No PUBLIC site.** v2 is unlisted on `football-data-pipeline-gcp.web.app`, every page `noindex`.

@@ -1,165 +1,154 @@
-# Review — chore/wire-the-unwired-guards — 2026-08-06
+# Review — chore/mark-github-dormant — 2026-08-06
 
-branch: chore/wire-the-unwired-guards
-diff_sha256: 5ad02d737544e88a0f2da6267415ffc47ef874193b2cdababc74cac4f4b74a2c
+branch: chore/mark-github-dormant
+diff_sha256: 55126e3e72b158ad33f4e9b585a4e9c73d002ec17aac4f8e2efb0dd740065a0a
 
-rounds: 3
+rounds: 2
 
-> Connects the guards this repo already owned and did not run. Six items; the audit found three
-> separately-built, correct guards invoked by nothing, and `inventory.py` reproduces the list
-> mechanically.
+> Marks the dormant GitHub Actions tree as dormant WITHOUT touching it, corrects `CLAUDE.md`, and
+> moves the operational notes out of the 16,000-char-capped handover into a file that is always
+> loaded and never truncated.
 >
-> EIGHT FINDINGS ACROSS TWO REVIEWERS, NO FALSE POSITIVES. Two were real bugs in code written
-> this task, two were tests weaker than the guarantee they advertised, one was a false cost
-> declaration, one a false claim in the contract, one an unapproved new mechanism, one a pair of
-> documents each naming the other as source of truth. Every one is fixed or withdrawn.
+> THREE FINDINGS, ALL IN THE PROSE, AND THE FIRST TWO WERE IN THE ONE PART THAT MATTERS.
+> `.github/workflows/README.md` exists to stop a costly mistake, and its first version got the
+> mistake wrong in both directions: it under-counted the production BigQuery writers, and it told
+> the reader re-activation is a deliberate act when an ordinary push re-arms it. A warning
+> document that is wrong is worse than none, because it is believed.
 
 routing:
   - scope-auditor — `always`
-  - cto-reviewer — `.gitlab-ci.yml`, `.claude/hooks/**`, `.claude/agents/**`,
-    `.claude/review_routing.json` (four guard paths → OPUS floor)
-  - platform-reviewer — `.gitlab-ci.yml`, `.claude/hooks/**` (→ OPUS floor), plus `scripts/**`
-    and `tests/**`
+  - cto-reviewer + platform-reviewer — `.github/workflows/**` (guard path → OPUS floor)
+
+  `.github/workflows/README.md` matches `.github/workflows/**` because `fnmatch`'s `*` crosses
+  `/`. That is why a markdown file drew two opus specialists, and it is the correct outcome:
+  the prefix is a PATH rule, not a judgement about whether a given file executes.
 
 ## scope-auditor
 
 VERDICT: PASS
 
-rounds: PASS (1, full — 18 tool calls)
+rounds: PASS (1, full — 19 tool calls)
 
 risks_checked:
-- Scope — every file in the diff is listed in `scope_paths`; nothing outside it.
-- `protected_override` — the six touched protected files checked against the working agreement's
-  protected-path list; the claimed count and category coverage hold. The NARROWING claim (a
-  planned push-to-main hook dropped because `~/.claude/hooks/branch_discipline.py` already
-  implements it) is consistent with the diff.
-- `review_summarise_paths` — read `escalations.log:1106-1154` directly. The entry exists, is
-  dated, records `cto-reviewer` correctly refusing to rule on a §10 mechanism, carries the CPO's
-  actual instruction, and bounds the approval to `site_v2/src/data/**`. Matches the contract's
-  account exactly.
-- Withdrawn mechanism cleanup — grepped `check_copy_gate.py`: only the comment explaining the
-  removal remains; no orphaned parser or marker check.
-- Recurring cost — confirmed `"always": ["scope-auditor"]` in the routing file, so the tier move
-  is correctly declared as permanent per-commit spend.
-- Doc-sync — both authoritative guardrail docs updated; no stale live assertion of haiku. The
-  dated June audit record is correctly untouched.
-- Credentials, `impact_map` evidence, and test-to-implementation correspondence all checked.
+- `.github/` diff scope — confirmed only the new `README.md`; grepped the eleven `*.yml` and the
+  three in `_paused/` on disk to verify none was touched, matching `protected_override`'s narrow
+  "one non-executing file" authority and `done_when` item 1.
+- README factual accuracy, re-derived rather than read: 11 workflows + 3 paused, exactly the 7
+  named carrying `push: branches: [main]`, the 3 prod-writers, both cron times, and the `#667`
+  concurrency comment quoted verbatim from `ci-data-build.yml:57-61`.
+- `decisions_reserved` honoured — the README states dormancy and gives pre-reactivation safety
+  instructions but proposes no archiving, mirroring, deletion or future use, and does not merge
+  the two dormancy categories.
+- Amendment honesty — verified `handover_in.py:46` `MAX_CHARS = 16000` matches the stated cap, and
+  that the handover's pointer names the same items now present under `CLAUDE.md`'s new section, so
+  nothing was dropped in the move.
+- Thresholds — no hook, CI, script or config file added or modified outside the declared files.
+- Credentials — only prose references to the `validate:secrets` job name.
 
 ## cto-reviewer
 
 VERDICT: PASS
 
-rounds: FAIL (1, full) · PASS (2, full re-read) · PASS (3, delta)
+rounds: FAIL (1, full) · PASS (2, full re-read)
 
-Round 2 REFUSED the delta framing and re-read all 1,326 lines, correctly noting that a delta is
-available only on top of an earlier PASS and its round-1 verdict was FAIL. Round 3 accepted a
-delta because round 2 was a PASS on the same branch.
+Round 2 REFUSED the delta framing — its brief sanctions a delta only after a prior PASS, and
+round 1 was a FAIL — and re-read all 605 lines rather than judging through a keyhole.
 
 risks_checked:
-- **R1 FINDING — `review_summarise_paths` had no CPO authority.** Correct and the most important
-  finding of the task: the approved plan said "add a path to `review_exclude_paths`", what was
-  built is a third routing key plus a manifest emitter, and the contract asked a REVIEWER to rule
-  on it. §10 reserves new mechanisms to the CPO and §2 step 3 says a reviewer never approves a
-  §10 decision. FIXED by taking it to the CPO in plain language; ruling recorded in
-  `escalations.log`, bounded to `site_v2/src/data/**`, with any added path a fresh decision.
-- **R1 FINDING — the `i18n:same-as-en` exemption marker.** WITHDRAWN, not approved. The reviewer
-  showed the case it existed for is already exempt (check 4 skips values with no `[a-z]{3,}` word
-  and single capitalised tokens), the repo has zero instances, and the one historical case was
-  settled by the CPO TRANSLATING with no exemption available. A self-serve comment would have let
-  a future agent green a §10 copy check on its own authority. Marker, parser and the dead
-  `_dict_blocks` helper all deleted.
-- **R1 FINDING — "RECURRING COST — NO" was false.** Moving `scope-auditor` haiku → sonnet is a
-  permanent per-commit increase; the precedent is quoted inside the very file the task edits. The
-  approval existed, the DECLARATION was wrong, and that field is the only place a cost crossing is
-  visible because no gate parses it. Corrected to YES with the approval named.
-- **R1 FINDING — a coverage claim overstated.** The working agreement said scope-auditor holds the
-  sole enforcement for thresholds AND secrets; secrets are also hunted by cto-reviewer,
-  platform-reviewer and `validate:secrets`. Rewritten to "the only reviewer on EVERY diff".
-- Guard invariants — commit gate still returns 0 on the exception path and only emits;
-  `hash_exclude_paths` byte-unchanged; `validate:governance` remains blocking. Hooks open, CI
-  closed, both in the right direction.
-- Its own brief (`.claude/agents/cto-reviewer.md`), the path where it is the only specialist —
-  read line by line across two rounds. Two factual corrections, no hunt item, verdict rule or
-  model pin weakened. In round 3 it verified the `validate:secrets` correction against
-  `.gitlab-ci.yml:300-302` and noted that its OWN round-1 report had repeated the wording error
-  being fixed.
+- **R1 FINDING — the README named TWO production BigQuery writers when there are THREE.**
+  `ci-data-build.yml` was missing, and it is the most expensive of them: `dbt seed` +
+  `dbt build --selector staging` + `--selector downstream` + `dbt test --target prod` on any
+  non-`pull_request` event, plus a bootstrap ingest that spends API-Football calls. The file's own
+  comment names the count — *"the three prod-writers never MERGE the bare prod tables
+  concurrently (#667)"*. A reader working the checklist would have concluded `ci-data-build.yml`
+  was not a cost surface. FIXED; the table now has three rows and distinguishes profile-level
+  `target: prod` from the CLI `--target prod` whose profile default is `ci`.
+- **R1 FINDING — "treat re-activation as something you do, not something that happens" was
+  FALSE**, and the reasoning inverted. SEVEN of the eleven trigger on `push: branches: [main]`, so
+  the first ordinary sync push to a reactivated remote re-arms them — running a full prod
+  warehouse build and republishing the product retired 2026-07-21. Two crons are still in the
+  files, untouched. FIXED: the section is rebuilt around "dormant, not disabled", lists the seven
+  and both cron times, states that GitHub's concurrency group does not protect across platforms,
+  and ends with a prescribed action.
+- Round 2 verified the correction UPWARD — the builder found seven where the reviewer had said
+  six, and the reviewer re-counted the `on:` blocks itself and confirmed seven, recording its own
+  round-1 undercount.
+- The prescribed mitigation was checked rather than assumed: moving a workflow to `_paused/`
+  disables it only because GitHub Actions does not scan subdirectories, which the repo already
+  relies on for three files — so the advice uses an existing convention, not a new mechanism.
+- The override judged correct rather than generous: `PROTECTED_PREFIXES` is a path prefix, so the
+  gate would refuse the write regardless of the file being inert, and parking it one level up in
+  `.github/` to evade the prefix would have moved the marker away from what it marks.
+- `done_when` item 1 verified against the patch, not trusted. `.github/workflows/**` is in neither
+  `review_exclude_paths` nor `review_summarise_paths`, so a workflow edit could not have been
+  hidden from review.
+- The operational-notes move verified bullet by bullet — every one restates an existing mechanic
+  with a source; no new rule written under cover of a move.
+- Thresholds: no new mechanism, dependency, external surface, credential or guard edit. The
+  README itself cannot trigger the data build — `ci-data-build.yml`'s path filter is
+  `.github/workflows/ci-*.yml`.
 
 ## platform-reviewer
 
 VERDICT: PASS
 
-rounds: FAIL (1, full) · FAIL (2, full re-read) · PASS (3, delta)
+rounds: FAIL (1, full) · PASS (2, full re-read)
 
-Round 2 also declined to judge through a keyhole and re-read the full 1,325 lines rather than
-refusing on the technicality.
+Round 2 also declined the delta framing on the same grounds and re-read all 605 lines.
 
 risks_checked:
-- **R1 FINDING — two files each named the other as source of truth, while disagreeing.**
-  `validate-local` claimed "the first five" run at turn end, which INCLUDED
-  `check_task_artifacts.py` (which must not — it needs a fetched `origin/main` and hard-fails on
-  a missing or stale `review.md`, so it would block every turn during the build phase) and OMITTED
-  `check_ui_i18n_metrics.py` (which does run). FIXED: `stop_gate.py`'s `FAST_GATES` is the single
-  source of truth, the five are named explicitly, the exclusion is stated in both places with its
-  reason, and a test pins them.
-- **R1 FINDING — `test_manifest_failure_is_loud_not_silent` was VACUOUS.** It asserted
-  `"raise" in inspect.getsource(...)`, and the word appears in the target function's own comment,
-  so swapping the raise for `return b""` left it green; it never called the function at all.
-  REWRITTEN to drive the real branch with a malformed pathspec under `pytest.raises`, and verified
-  FAILING against the broken form before acceptance.
-- **R1 FINDING — `docs/agent_guardrails.md` still asserted haiku.** It also exposed that the
-  contract's claim of a "repo-wide" grep was FALSE — a three-file grep. A real `git grep` found a
-  FOURTH site the reviewer had not flagged, `.claude/agents/cto-reviewer.md:81`. Both corrected;
-  the false claim recorded in `amendments:` rather than quietly rewritten.
-- **R2 FINDING — the parity test repeated the R1 defect class.** It asserted each name appeared
-  *somewhere* in `SKILL.md`, where each appears three times over, so it stayed green when the
-  turn-end list was deleted AND against the broken form it was written to catch. REWRITTEN to
-  assert SET EQUALITY over an explicitly marked region. Round 3 re-derived the failure modes
-  independently and confirmed a further direction the original never covered: removing a gate from
-  `FAST_GATES` without touching the skill now fails too.
-- Re-run safety and failure modes of the Stop hook — `stop_hook_active` bound intact; all five
-  gates verified read-only, so a hook killed halfway leaves no partial state; `sys.executable`
-  correct; output captured as bytes and decoded with `replace`, right on a cp1252 box;
-  per-gate fail-open on timeout or spawn failure.
-- Fail-open vs fail-closed traced per changed path — correct on every one, nothing inverted.
-- The delta was verified by BLOB INDEX rather than memory, confirming the machinery cleared in
-  earlier rounds was byte-identical and did not need re-auditing.
-- `SKILL.md`'s CI mapping table spot-verified job-by-job against `.gitlab-ci.yml` line numbers.
-- Credentials, permissions, dependencies, build health and hosting re-checked over each delta.
+- **R1 FINDING — `CLAUDE.md:11` told every session to run `gh pr list --state open` as session-start
+  step 5**, against a suspended account, citing `working_agreement.md` §3a which already said
+  `glab mr list`. The sharpest part: THIS DIFF CREATED THE CONTRADICTION. The file was uniformly
+  (if wrongly) GitHub before; adding "use `glab`, open MRs not PRs" 146 lines below left a
+  session's FIRST executed instruction contradicting the file's own stack section, and defeated
+  the contract's own `done_when` ("so a session cannot infer either one wrongly"). FIXED at both
+  sites — step 3 also listed `gh`. Swept repo-wide afterwards; the only surviving hit is the
+  removed line inside this diff.
+- The new cross-file claim ("§3a says the same") was CHECKED rather than accepted: same command,
+  same two questions, same order at `working_agreement.md:261-264`. It is now verifiable in both
+  directions instead of divergeable.
+- Every factual claim in the rewritten warning section independently re-derived: the seven
+  push-triggered workflows by name and line, both crons, the three prod writers and their two
+  different mechanisms, and that GitHub's `concurrency:` groups are repository-scoped so two
+  independent queues sit over one BigQuery dataset.
+- The GitLab equivalence table checked row by row against `.gitlab-ci.yml`'s own `# was:` comments
+  — all eight mappings and all three "none" rows hold; eleven rows for eleven workflows.
+- The two precision edits verified: the `needs.changes.outputs.data` gate at
+  `ci-data-build.yml:63-65`, and all three paths named in the caveat genuinely present in the
+  filter.
+- Re-run safety, tests owed, dependencies, credentials, permissions, build size, duplicated
+  enforcement — none engaged; nothing in the diff executes.
 
 ## escalations
 
-none. No reviewer returned an ESCALATE in any round.
+none.
 
 ## Known and deliberately not fixed
 
-1. **`test_fast_gates_and_validate_local_agree` takes the `repo` fixture and never uses it** —
-   it reads the real tree. Costs one `shutil.copytree` per run and changes no assertion.
-   `platform-reviewer` explicitly said to drop the parameter next time the file is open and NOT
-   to open a round for it. Fixing it would void three PASS verdicts over a cosmetic.
+1. **`contract.md`'s `decisions_reserved` bullets under-describe the artifact.** Bullet 1 says the
+   README "says nothing about … re-activating", but the round-2 README does prescribe an action at
+   re-activation, including conditionally moving workflows to `_paused/`. `cto-reviewer` raised it
+   as an ADVISORY and explicitly declined to fail it: in substance the reservation holds — the
+   README takes no position on what GitHub is FOR, and its advice is conditional on an event that
+   cannot occur while the account is suspended. It applied the precedent it set on the previous
+   task (a contract edit voids every verdict for a round) rather than inventing an exception.
+   Correct if the contract is opened for any other reason.
 
-2. **`protected_override` defines its own reach as "the paths in `scope_paths:`", which is
-   self-referential** — an amendment can widen the override it is bounded by. Raised by
-   `cto-reviewer`, which passed the specific case (a stale-fact correction with zero weakening)
-   and flagged the general one. NOT fixed here: tightening the override mechanism under the
-   authority it would constrain is the circularity itself. Filed as GitLab #18.
-
-3. **`GATE_TIMEOUT_S = 90` is unreachable** — no `timeout` is set on the Stop hook, so the
-   harness's 60s default bounds the whole hook first. Both fail open, so the outcome is identical.
-   `platform-reviewer` noted that if a Stop-hook timeout is ever configured, 5 × 90s is 7.5
-   minutes, past the "five minutes is unusable" line this hook draws for itself, and a total
-   wall-clock budget is the shape that holds. Recorded, not acted on.
+2. **"the eleven `.yml` files here were last edited 2026-07-28"** — neither opus reviewer had shell
+   access to verify it, and both said so rather than counting it as evidence. Builder-verified:
+   `git log -1 --format=%ad --date=short -- .github/workflows/` → `2026-07-28`. Recorded here so
+   the claim's provenance is visible rather than implied.
 
 ## Process note
 
-Two reviewers were sent a delta brief after a FAIL and both refused the framing, re-reading the
-full patch instead — the refusal condition their briefs carry, exercised correctly:
+Both opus reviewers were sent a delta brief after a FAIL and both refused the framing, on the
+correct ground that a delta is sanctioned only after a prior PASS. Neither refused the ROUND —
+each re-read the full patch and said so explicitly. That is the third and fourth time in this
+session's work that the keyhole condition has been exercised, against one earlier instance where
+a delta was accepted with zero tool calls and certified the builder's summary instead of the
+change.
 
-> a delta brief is a cost saving, never a way to move a change past you while you look through a
-> keyhole.
-
-Set against the same rule failing earlier in this session — a delta re-review on the previous
-branch completed with ZERO tool calls and certified the builder's summary rather than the change —
-this task's rounds used 5–24 tool calls each and verified claims by blob index, line number and
-direct file read. `scope-auditor`'s own review here ran at sonnet (the change this task makes) and
-used 18 tool calls against that earlier zero. One data point, not proof, and recorded on GitLab
-#10 as such.
+Worth recording about this task specifically: the two most consequential findings were in PROSE,
+in a documentation file, on a branch that changes no executable line. The reviewers' value here
+was not code review — it was checking a warning against the thing it warns about.
