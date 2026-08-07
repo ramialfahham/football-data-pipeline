@@ -1,605 +1,830 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index ac1b33e..0c607fd 100644
+index 0c607fd..2967c7d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,57 +1,71 @@
--# Task contract — connect the guards that were built and never wired
-+# Task contract — mark the GitHub tree dormant, without touching it
+@@ -1,155 +1,88 @@
+-# Task contract — mark the GitHub tree dormant, without touching it
++# Task contract — derive the guard-path counts and protected-path list, and test the prose against them
  
--> Branch `chore/wire-the-unwired-guards` from `main` (`cbd81aa`). Six PROTECTED paths, so
--> `protected_override` and `impact_map` are both declared. No `site_v2/src/` path is in scope,
--> so no `acceptance_criteria`.
-+> Branch `chore/mark-github-dormant` from `main` (`b5ba63a`). One PROTECTED path
-+> (`.github/workflows/`), so `protected_override` and `impact_map` are both declared. No
-+> `site_v2/src/` path is in scope, so no `acceptance_criteria`.
+-> Branch `chore/mark-github-dormant` from `main` (`b5ba63a`). One PROTECTED path
+-> (`.github/workflows/`), so `protected_override` and `impact_map` are both declared. No
+-> `site_v2/src/` path is in scope, so no `acceptance_criteria`.
++> Branch `test/1-guard-path-doc-parity` from `main` (`9987184`). NO protected path is in scope, so
++> no `protected_override`. `tests/` is not on the structural surface
++> (`task_contract_gate.py:94` — `ingestion/`, `dbt_project/models/`, `site/`, `site_v2/`), so no
++> `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`.
  
  objective: >
--  Wire the guards this repo already owns and does not run, and make the two that fail silently
--  say so.
+-  Make it impossible for a session to mistake the dormant GitHub Actions tree for the live
+-  pipeline, WITHOUT deleting, moving or re-pointing anything in it.
 -
--  THE PATTERN, from the collaboration audit. Every item here is the same defect wearing
--  different clothes: the guard was BUILT, is CORRECT, and is invoked by NOTHING. The audit found
--  three separately-built working guards connected to nothing; `inventory.py` reproduces the list
--  mechanically. This is the cheapest class of fix in the repo — the engineering is already done.
+-  THE PROBLEM. Eleven workflow files sit at `.github/workflows/*.yml` looking exactly as they did
+-  when they ran. GitHub Actions execute none of them — the account is suspended and CI moved to
+-  `.gitlab-ci.yml` in the 2026-08 migration. Nothing in the tree says so. The repo already has the
+-  convention for a retired workflow (`_paused/`, holding three), so the ABSENCE of a marker on
+-  these eleven positively reads as "current".
 -
--  SIX ITEMS:
--  1. `check_copy_gate.py` runs in no CI job and no skill. Wire it into `.gitlab-ci.yml`
--     `validate:governance` and into the `validate-local` skill. Its 16 findings on `main` were
--     cleared in PR !7, so this cannot redden the default branch — verified: the gate exits 0 on
--     `cbd81aa`.
--  2. The same gate ADVERTISES an exemption it never implemented: its message offers "the value
--     needs a comment saying so", but check 4 parses no comment. Found in PR !7 when a CPO ruling
--     that relied on it proved impossible to satisfy. A gate that promises an escape hatch it
--     does not have will be worked around by changing the copy instead — which is how a
--     legitimate identical string gets mistranslated to please a checker.
--  3. `stop_gate.py` asks only "is the tree in scope?" — a governance question. Nothing verifies
--     CORRECTNESS at turn end. Add the fast offline gates. Measured at 2.9s for all five, against
--     5m07s for `tests/test_governance_hooks.py`, which is why the full suite is NOT used.
--  4. Reviewers are handed a patch that is ~89% generated JSON. `review_exclude_paths` already
--     exists and simply does not cover `site_v2/src/data/**`.
--  5. `scope-auditor` runs `haiku`/`medium` while reviewing every diff and holding the sole
--     enforcement for undeclared thresholds and secrets. Move to `sonnet`.
--  6. The commit gate fails open SILENTLY. Keep the house rule, add a canary so a dead gate is
--     visible instead of indistinguishable from a satisfied one.
-+  Make it impossible for a session to mistake the dormant GitHub Actions tree for the live
-+  pipeline, WITHOUT deleting, moving or re-pointing anything in it.
+-  `CLAUDE.md` makes it worse, because it is loaded into every session before anything else and
+-  still says "GitHub Actions for CI (`ci-validate.yml`, `ci-data-build.yml`, `ci-ui.yml`) and
+-  scheduled runs (`dbt-scheduled.yml`)" and "GitHub Pages for the match preview UI". Both name a
+-  pipeline that does not run, and neither names the one that does.
+-
+-  WHY NOT DELETE OR MOVE. The CPO ruled on 2026-08-06 that the GitHub repo is KEPT and how it gets
+-  used is decided once account access returns. So the defect to fix is that a dormant thing is
+-  indistinguishable from a live one — NOT that the dormant thing exists. Nothing here edits,
+-  moves or deletes a single workflow file; re-activating stays a decision rather than a
+-  reconstruction.
+-
+-  This is the last item of the collaboration-audit work. It is the "add and never retire" pattern
+-  in its third medium: the audit found it in rules (MR !8), in knowledge (`MEMORY.md`, Phase 2),
+-  and here in machinery.
+-
+-amendments: >
+-  ONE amendment, 2026-08-06, on a clean tree, with the CPO ruling in the same conversation.
+-
+-  SCOPE WIDENED to move the `## Operational notes` section (~2,300 chars) OUT of
+-  `.claude/active_work.md` and into `CLAUDE.md`. Both files were already in `scope_paths` for the
+-  original objective, so no path is added — what widens is the OBJECTIVE, from "mark the GitHub
+-  tree dormant" to "…and stop the handover overflowing".
+-
+-  WHY IT CAME UP MID-TASK. Recording today's guard changes pushed `active_work.md` to 16,304
+-  characters against a hard cap of 16,000 (`handover_in.py:46`). I trimmed three times and was
+-  still 304 over, at which point the problem was clearly structural rather than a wording issue.
+-
+-  THE ACTUAL DEFECT, which is the collaboration audit's S1-F7: the handover's own header says
+-  "CURRENT STATE ONLY — history belongs in git", yet its largest section is the most DURABLE
+-  content in the repo — the dbt CLI path, commit mechanics, the SQLFluff invocation, the
+-  heredoc/CWD/fnmatch traps. None of that is current state. All of it is permanent, hard-won, and
+-  sitting in the one file whose job is to be rewritten and which DELETES ITS TAIL when it
+-  overflows. So every session that learns something must delete something, and the section most
+-  likely to be cut is the one worth keeping.
+-
+-  CPO RULING: move them. Put to him with the alternatives (keep trimming; trim now and file an
+-  issue) and the recommendation that trimming leaves the next session at the same wall.
+-
+-  BOUNDED: this moves EXISTING text between two in-scope files and adds a pointer. It writes no
+-  new operational rule, and it deletes none — every note that leaves the handover arrives in
+-  `CLAUDE.md`, which is always loaded and never truncated.
++  Make it impossible for a hand-copied guard-path count or protected-path list to drift from the
++  source without a test failing.
 +
-+  THE PROBLEM. Eleven workflow files sit at `.github/workflows/*.yml` looking exactly as they did
-+  when they ran. GitHub Actions execute none of them — the account is suspended and CI moved to
-+  `.gitlab-ci.yml` in the 2026-08 migration. Nothing in the tree says so. The repo already has the
-+  convention for a retired workflow (`_paused/`, holding three), so the ABSENCE of a marker on
-+  these eleven positively reads as "current".
++  THE PROBLEM. `.claude/review_routing.json` is the source of truth for which paths confer which
++  reviewers, and `task_contract_gate.py` for which paths are protected. Neither the count nor the
++  list is derived anywhere. Both are restated as English prose, by hand, across eleven sites. MR !4
++  added exactly one routing row and that one-line change cost eleven prose edits and three review
++  rounds. The failure mode is not carelessness: nothing can tell you a hand-copied list is
++  incomplete, because a stale "eight" is valid prose.
 +
-+  `CLAUDE.md` makes it worse, because it is loaded into every session before anything else and
-+  still says "GitHub Actions for CI (`ci-validate.yml`, `ci-data-build.yml`, `ci-ui.yml`) and
-+  scheduled runs (`dbt-scheduled.yml`)" and "GitHub Pages for the match preview UI". Both name a
-+  pipeline that does not run, and neither names the one that does.
-+
-+  WHY NOT DELETE OR MOVE. The CPO ruled on 2026-08-06 that the GitHub repo is KEPT and how it gets
-+  used is decided once account access returns. So the defect to fix is that a dormant thing is
-+  indistinguishable from a live one — NOT that the dormant thing exists. Nothing here edits,
-+  moves or deletes a single workflow file; re-activating stays a decision rather than a
-+  reconstruction.
-+
-+  This is the last item of the collaboration-audit work. It is the "add and never retire" pattern
-+  in its third medium: the audit found it in rules (MR !8), in knowledge (`MEMORY.md`, Phase 2),
-+  and here in machinery.
-+
-+amendments: >
-+  ONE amendment, 2026-08-06, on a clean tree, with the CPO ruling in the same conversation.
-+
-+  SCOPE WIDENED to move the `## Operational notes` section (~2,300 chars) OUT of
-+  `.claude/active_work.md` and into `CLAUDE.md`. Both files were already in `scope_paths` for the
-+  original objective, so no path is added — what widens is the OBJECTIVE, from "mark the GitHub
-+  tree dormant" to "…and stop the handover overflowing".
-+
-+  WHY IT CAME UP MID-TASK. Recording today's guard changes pushed `active_work.md` to 16,304
-+  characters against a hard cap of 16,000 (`handover_in.py:46`). I trimmed three times and was
-+  still 304 over, at which point the problem was clearly structural rather than a wording issue.
-+
-+  THE ACTUAL DEFECT, which is the collaboration audit's S1-F7: the handover's own header says
-+  "CURRENT STATE ONLY — history belongs in git", yet its largest section is the most DURABLE
-+  content in the repo — the dbt CLI path, commit mechanics, the SQLFluff invocation, the
-+  heredoc/CWD/fnmatch traps. None of that is current state. All of it is permanent, hard-won, and
-+  sitting in the one file whose job is to be rewritten and which DELETES ITS TAIL when it
-+  overflows. So every session that learns something must delete something, and the section most
-+  likely to be cut is the one worth keeping.
-+
-+  CPO RULING: move them. Put to him with the alternatives (keep trimming; trim now and file an
-+  issue) and the recommendation that trimming leaves the next session at the same wall.
-+
-+  BOUNDED: this moves EXISTING text between two in-scope files and adds a pointer. It writes no
-+  new operational rule, and it deletes none — every note that leaves the handover arrives in
-+  `CLAUDE.md`, which is always loaded and never truncated.
++  WHAT THIS TASK IS NOT. #1's body describes the prose as saying "eight guard paths" / "two of the
++  eight". That was the pre-migration state. All eleven sites were corrected during !4 and are
++  consistent with the source today (nine, three, six), verified site by site while planning. So
++  this task edits NO prose and NO guard. It is purely additive: it adds the test that catches the
++  next drift.
  
  refs: >
--  GitLab issues #5 (Confirm step), #7 (copy gate — CLOSED by PR !7, this wires it), #8 (turn-end
--  correctness), #9 (review payload), #10 (scope-auditor model), #11 (fail-open canary).
--  PR !7 (`4844c32`) cleared the copy gate's findings and is the precondition for item 1.
--  Item 2 was recorded as a follow-up in PR !7's `review.md` under "builder findings, not fixed
--  here", and in that contract's `amendments:`.
-+  GitLab issue #12 ("Post-migration residue: dormant GitHub workflows read as live, CLAUDE.md
-+  names the wrong CI"). Its third instance — `validate-local` still validating the retired MVP and
-+  mapping to GitHub job names — was already fixed in MR !8 (`b1cd6fe`), so this task covers the
-+  remaining two. CPO ruling of 2026-08-06 that the GitHub repo is kept and its future use
-+  undecided, quoted under `protected_override`.
+-  GitLab issue #12 ("Post-migration residue: dormant GitHub workflows read as live, CLAUDE.md
+-  names the wrong CI"). Its third instance — `validate-local` still validating the retired MVP and
+-  mapping to GitHub job names — was already fixed in MR !8 (`b1cd6fe`), so this task covers the
+-  remaining two. CPO ruling of 2026-08-06 that the GitHub repo is kept and its future use
+-  undecided, quoted under `protected_override`.
++  GitLab issue #1 ("Guard-path count and protected-path list are hand-copied into 11 prose sites").
++
++  AUTHORITY: `.claude/task/escalations.log`, entry `2026-08-07 test/1-guard-path-doc-parity`, which
++  records the CPO's up-front instruction verbatim and the ruling on the incomplete list the test
++  found. Logged there rather than only quoted here, per the CPO ruling at `escalations.log:112`
++  (2026-06-17): *"Path A — LOG IT ... the contract's decisions_taken is not, by itself, the sole
++  record."* `scope-auditor` FAILed round 1 because that entry was missing; it was right.
++
++  Plan approved in plan mode 2026-08-07 (`~/.claude/plans/splendid-tickling-bumblebee.md`).
++  Follow-ups filed: GitLab #22 (the incomplete list), #23 (a stale claim in `.gitlab-ci.yml`).
  
  scope_paths:
--  - .gitlab-ci.yml
--  - scripts/check_copy_gate.py
--  - .claude/hooks/stop_gate.py
--  - .claude/hooks/git_discipline.py
--  - .claude/review_routing.json
--  - .claude/agents/scope-auditor.md
--  - .claude/skills/validate-local/SKILL.md
--  - docs/working_agreement.md
--  - docs/agent_guardrails.md
--  - .claude/agents/cto-reviewer.md
--  - tests/test_governance_hooks.py
-+  - .github/workflows/README.md
-+  - CLAUDE.md
-   - .claude/active_work.md
+-  - .github/workflows/README.md
+-  - CLAUDE.md
+-  - .claude/active_work.md
++  - tests/test_governance_doc_parity.py
    - .claude/task/contract.md
    - .claude/task/review.md
-@@ -59,203 +73,83 @@ scope_paths:
+   - .claude/task/review_input.patch
    - .claude/task/escalations.log
  
- protected_override: >
--  CPO approval of 2026-08-06, in this session, for the plan titled "Apply the collaboration-audit
--  fixes, on GitLab" — approved via plan mode after a written plan-back that named every item
--  below and stated outright that the work touches protected paths and would need
--  `protected_override`, an `impact_map`, and cto+platform review at the opus floor.
+-protected_override: >
+-  CPO instruction of 2026-08-06, in this session, in his words: *"i willkeep my githup repo and
+-  we'll decide how we use it once i have access again. but to move forward we are on gitlab now"*.
 -
--  THE AUTHORITY IS FOR THIS SET, NOT A STANDING ONE. It covers exactly the six items in
--  `objective:` and the paths in `scope_paths:`. It does not authorise any further guard change.
+-  That is the ruling this task implements literally — KEEP the tree, make the state legible, decide
+-  its use later. The approved plan ("Apply the collaboration-audit fixes, on GitLab", approved in
+-  plan mode 2026-08-06) was amended on the strength of that instruction, from "delete or archive
+-  `.github/workflows/`" to "mark, don't remove", and the amended wording is explicit: *"Files stay
+-  exactly where they are, unedited, so re-activating is a decision and not a reconstruction."*
 -
--  THE SCOPE NARROWED SINCE APPROVAL, and narrowing is reported rather than assumed: the approved
--  plan's item 1 was a NEW push-to-main hook in `.claude/hooks/`. That is no longer needed and is
--  NOT in this contract — `~/.claude/hooks/branch_discipline.py` already implements it, verified
--  by execution (denies `git push gitlab main` and `HEAD:main`, allows a feature-branch push), and
--  it was registered in the user-level settings instead. A protected-path edit was avoided
--  entirely.
+-  THE AUTHORITY IS NARROW AND THIS CONTRACT CLAIMS NO MORE. It covers ADDING ONE NON-EXECUTING
+-  FILE to `.github/workflows/`. It does not authorise editing, moving, deleting or re-pointing any
+-  workflow, and none is touched — `git diff --stat .github/` must show only the new README, which
+-  is an acceptance check stated in `done_when`.
 -
--  The CPO separately chose, in the same session, to keep the GitHub repo and leave its dormant
--  workflows untouched. `.github/workflows/**` is therefore NOT in scope here.
-+  CPO instruction of 2026-08-06, in this session, in his words: *"i willkeep my githup repo and
-+  we'll decide how we use it once i have access again. but to move forward we are on gitlab now"*.
-+
-+  That is the ruling this task implements literally — KEEP the tree, make the state legible, decide
-+  its use later. The approved plan ("Apply the collaboration-audit fixes, on GitLab", approved in
-+  plan mode 2026-08-06) was amended on the strength of that instruction, from "delete or archive
-+  `.github/workflows/`" to "mark, don't remove", and the amended wording is explicit: *"Files stay
-+  exactly where they are, unedited, so re-activating is a decision and not a reconstruction."*
-+
-+  THE AUTHORITY IS NARROW AND THIS CONTRACT CLAIMS NO MORE. It covers ADDING ONE NON-EXECUTING
-+  FILE to `.github/workflows/`. It does not authorise editing, moving, deleting or re-pointing any
-+  workflow, and none is touched — `git diff --stat .github/` must show only the new README, which
-+  is an acceptance check stated in `done_when`.
-+
-+  ON WHY THIS NEEDS AN OVERRIDE AT ALL, stated rather than assumed: a `README.md` does not execute,
-+  and `.github/workflows/` is protected because the files there decide what CI enforces. It would
-+  be easy to argue the guard does not really apply. That argument is declined. `PROTECTED_PREFIXES`
-+  in `task_contract_gate.py:66` is a PATH prefix, not a judgement, and `cto-reviewer` has already
-+  failed one task for reasoning its way out of a path-based routing requirement ("routing is
-+  PATH-based, not judgement-based, and the builder's reasoning was the kind that sounds sensible
-+  and quietly drops a required reviewer"). Putting the file one directory up in `.github/` to dodge
-+  the prefix was also considered and rejected: it would be a workaround, and the file belongs next
-+  to what it describes.
- 
- impact_map: >
--  This is a GUARD change, so the trace is what depends on the guards rather than table lineage,
--  per TEMPLATE.md. Evidence gathered by running the commands, not from memory.
+-  ON WHY THIS NEEDS AN OVERRIDE AT ALL, stated rather than assumed: a `README.md` does not execute,
+-  and `.github/workflows/` is protected because the files there decide what CI enforces. It would
+-  be easy to argue the guard does not really apply. That argument is declined. `PROTECTED_PREFIXES`
+-  in `task_contract_gate.py:66` is a PATH prefix, not a judgement, and `cto-reviewer` has already
+-  failed one task for reasoning its way out of a path-based routing requirement ("routing is
+-  PATH-based, not judgement-based, and the builder's reasoning was the kind that sounds sensible
+-  and quietly drops a required reviewer"). Putting the file one directory up in `.github/` to dodge
+-  the prefix was also considered and rejected: it would be a workaround, and the file belongs next
+-  to what it describes.
 -
--  which events fire them:
--    `.claude/settings.json` — `git_discipline.py` on PreToolUse(Bash); `stop_gate.py` on Stop
--    with no matcher (so it fires on every turn end, including after `/compact`).
--    `.gitlab-ci.yml` — `validate:governance` runs on every pipeline except schedules.
-+  writers: none. `.github/workflows/README.md` is a new, hand-authored, non-executing file. No
-+    loader, model, script or workflow writes it.
- 
--  what imports from them (`grep -rn "from .* import" .claude/hooks/`):
--    `stop_gate.py` imports `_dirty_outside_task_dir`, `_is_protected`, `_matches_scope`,
--      `_read_contract`, `_repo_root` FROM `task_contract_gate.py`, plus `read_event` from
--      `_command_utils`. So a change to stop_gate cannot break task_contract_gate, but the
--      reverse is true — and task_contract_gate is NOT in scope here.
--    `git_discipline.py`, `git_workflow.py`, `dbt_layer_gate.py`, `task_contract_gate.py` all
--      import from `_command_utils.py`, which is NOT in scope here.
--    Nothing imports from `stop_gate.py`.
-+  downstream: NOTHING READS IT. Evidence, run rather than assumed:
-+    `grep -rn "workflows/.*\.md\|workflows/README" --include=*.py --include=*.yml --include=*.mjs .`
-+      -> no matches.
-+    GitHub Actions only parses `.yml`/`.yaml` in this directory, so a `.md` file is inert to the
-+      platform even if the account is reactivated.
-+    The only code that knows the path at all is `task_contract_gate.py:66`'s `PROTECTED_PREFIXES`,
-+      which treats it as a protected path — which is why this contract carries an override.
- 
--  what stops being enforced if each is wrong:
--    `git_discipline.py` — the commit gate. If broken, commits proceed with no review
--      verification. This is the single most load-bearing guard in the repo, which is why the
--      change to it is additive only: the canary adds output on the EXISTING exception path and
--      alters no decision. `git_discipline` carries 53 test references today.
--    `stop_gate.py` — the turn-end net. If broken, an out-of-scope tree survives a turn. Only 5
--      test references today, the weakest coverage of any gate being touched; new tests are in
--      scope for that reason.
--    `review_routing.json` — if unparseable, `_load_routing` returns None and the review
--      requirement is disabled ENTIRELY (fail open). A JSON syntax error here silently switches
--      off the blinded review cycle, so the edit is one array entry and is validated by
--      `json.load` before commit.
--    `scope-auditor.md` — frontmatter only. A malformed `model:` value would fail the spawn.
--    `check_copy_gate.py` — currently enforces nothing anywhere; after this it gates CI.
-+  layer_rules: none apply. `check_layer_contract.py` governs `dbt_project/models/**`; this diff
-+    touches no dbt model, seed or raw table. Verified: `python scripts/check_layer_contract.py` ->
-+    "Layer contract checks passed."
- 
--  what happens on failure:
--    Every hook here fails OPEN by house rule (`_command_utils.py`). That is the defect item 6
--    addresses for the commit gate, not one it introduces.
--    `validate:governance` is a blocking CI job, so a copy-gate false positive blocks every MR.
--    Mitigated by the gate having run clean on `main` at `cbd81aa` (`exit=0`, 354 strings) before
--    being wired.
-+  deploy_order: none. No warehouse object, no CI job, no schedule. Nothing sequences around the
-+    nightly. The GitLab pipeline is unchanged — `.gitlab-ci.yml` is not in scope.
- 
--  CI-side recheck: `scripts/check_task_artifacts.py` recomputes the review hash on every MR
--    (`.gitlab-ci.yml:272`), so a locally-bypassed commit gate is still caught there.
+-impact_map: >
+-  writers: none. `.github/workflows/README.md` is a new, hand-authored, non-executing file. No
+-    loader, model, script or workflow writes it.
 -
--  blast_radius: no warehouse object, no dbt model, no mart, no user-visible string, no URL.
--    `python scripts/check_layer_contract.py` -> "Layer contract checks passed." No number a
--    reader sees changes. The reach is entirely over future TASKS in this repo, which is wider
--    than most model changes and is why these paths are protected.
-+  blast_radius: documentation only. No workflow file is edited, so GitHub Actions behaviour is
-+    byte-for-byte unchanged if the account is ever reactivated. `CLAUDE.md` changes what a session
-+    READS at startup, which is the point — its reach is every future session, and that is why it
-+    is worth getting exactly right rather than approximately.
- 
+-  downstream: NOTHING READS IT. Evidence, run rather than assumed:
+-    `grep -rn "workflows/.*\.md\|workflows/README" --include=*.py --include=*.yml --include=*.mjs .`
+-      -> no matches.
+-    GitHub Actions only parses `.yml`/`.yaml` in this directory, so a `.md` file is inert to the
+-      platform even if the account is reactivated.
+-    The only code that knows the path at all is `task_contract_gate.py:66`'s `PROTECTED_PREFIXES`,
+-      which treats it as a protected path — which is why this contract carries an override.
+-
+-  layer_rules: none apply. `check_layer_contract.py` governs `dbt_project/models/**`; this diff
+-    touches no dbt model, seed or raw table. Verified: `python scripts/check_layer_contract.py` ->
+-    "Layer contract checks passed."
+-
+-  deploy_order: none. No warehouse object, no CI job, no schedule. Nothing sequences around the
+-    nightly. The GitLab pipeline is unchanged — `.gitlab-ci.yml` is not in scope.
+-
+-  blast_radius: documentation only. No workflow file is edited, so GitHub Actions behaviour is
+-    byte-for-byte unchanged if the account is ever reactivated. `CLAUDE.md` changes what a session
+-    READS at startup, which is the point — its reach is every future session, and that is why it
+-    is worth getting exactly right rather than approximately.
+-
  decisions_taken: >
--  THRESHOLD DECLARATIONS, stated because no gate parses this field and `scope-auditor` FAILs an
--  undeclared crossing.
--
--  NEW MECHANISM — YES, ONE. The first version declared TWO; the second was WITHDRAWN in review,
--  not approved (see (B)).
--
--  (A) A SECOND ROUTING KEY, `review_summarise_paths`, for item 4. CPO-APPROVED 2026-08-06, in
--  this session, AFTER `cto-reviewer` at opus correctly refused to rule on it — §10 reserves new
--  mechanisms to the CPO, and §2 step 3 says a reviewer never approves a §10 decision, so asking
--  the reviewer to bless it (as the first version of this contract did) was asking the wrong party.
--  The ruling is recorded durably in `.claude/task/escalations.log`; this is a pointer, not the
--  record.
--
--  WHAT THE CPO WAS TOLD, in plain terms, before ruling: reviewers are handed a file of which ~9
--  lines in 10 are machine-generated sample data nobody reads; the approved plan said DELETE those
--  lines; deleting them outright would also stop `bi-analyst-reviewer` knowing the data changed,
--  which silently breaks its check that a displayed field exists in the exported sample; so the
--  built version deletes them AND leaves a manifest naming the changed files. He approved the
--  manifest version, on the stated reasoning that the alternative is "cheaper to approve and
--  strictly worse".
--
--  The obvious implementation —
--  adding `site_v2/src/data/**` to the existing `review_exclude_paths` — is WRONG, and the reason
--  matters. That list means "the review's own paperwork, which reviewers must never judge". Sample
--  data is not paperwork: it is reviewed CONTENT that merely should not be PASTED. Hiding it
--  outright would silently remove `bi-analyst-reviewer`'s core hunt item, which is whether a
--  displayed field actually exists in the exported sample — trading a payload saving for a real
--  loss of coverage, which is the "never loosen a guard" failure.
--
--  So the new key excludes those paths from the patch BODY and substitutes a MANIFEST — the file
--  list with +/- line counts — telling reviewers exactly what changed and to grep it directly.
--  Reviewers have `Read` and `Grep`, so the check survives; only the paste goes away. Two keys
--  with two meanings, rather than one key doing two jobs badly.
--
--  (B) WITHDRAWN, NOT APPROVED — an `i18n:same-as-en` exemption marker for `check_copy_gate.py`.
--  It was built, then REMOVED after `cto-reviewer` at opus argued it down. Recorded because a
--  withdrawn mechanism is as much part of the audit trail as an approved one, and because the
--  argument is the reusable part:
--
--    · The case it existed for is ALREADY exempt. Check 4 skips any value with no `[a-z]{3,}` word
--      (numbers, symbols, abbreviations) and any single capitalised token (brand names). The
--      residual case is a multi-word English string deliberately kept in de/fi — of which this
--      repo has ZERO; the gate exits 0 on `cbd81aa`.
--    · The one historical instance, `fi.footerDataSource`, was ruled on by the CPO by TRANSLATING
--      it, in a decision taken with no exemption available.
--    · Translation is §10. A self-serve comment would let any future agent whose change reddens
--      check 4 go green on its own authority — a guard bypass added ahead of demonstrated need, in
--      the direction the last real ruling went against.
--
--  Item 2 is therefore delivered as the builder's own stated FALLBACK, which needs no new
--  authority because it removes a capability rather than adding one: check 4's message no longer
--  advertises an exemption that does not exist, and points at the CPO instead. The dead helper and
--  its parser were deleted with it, rather than left orphaned.
--
--  RECURRING COST — YES, ONE. The first version of this contract declared "NO". That was FALSE and
--  `cto-reviewer` at opus caught it.
--
--  ITEM 5 IS A RECURRING COST. `scope-auditor` is in `always`, so moving it haiku -> sonnet is a
--  permanent per-review spend increase on every substantive commit in every future task. The
--  precedent is quoted verbatim inside the very file item 4 edits (`review_routing.json`): "two
--  opus specialists where one ran before is a RECURRING COST, and cost is CPO-class ... Do not
--  widen them without a cost approval quoted in `decisions_taken`."
--
--  THE APPROVAL EXISTS — the 2026-08-06 plan named the model change explicitly and was approved in
--  plan mode. What was wrong was the DECLARATION, and this field is the only place a cost crossing
--  is visible because no gate parses it.
--
--  Partly offset, but NOT claimed as netting to zero (the two are not measured on the same axis):
--  item 4 removes ~89% of the review payload — measured at 30,480 of 34,074 lines — which lowers
--  per-review tokens for every reviewer, including this one.
--
--  No other item adds recurring cost. Item 1 adds one offline Python invocation to an existing CI
--  job: no BigQuery read, no API call, no new job. Item 3 adds ~2.9s at turn end, locally, and only
--  on a dirty in-scope tree. Neither is warehouse or provider spend.
--
--  NEW EXTERNAL SURFACE — NO. Nothing is published, exposed or deployed.
--
--  GUARD INVARIANT WEAKENED — NO, and this is the claim most worth checking. Item 6 changes no
--  decision: the exception path still returns 0, exactly as the house rule requires, and only
--  gains output. Item 4 removes files from what reviewers are HANDED, never from what the commit
--  hash COVERS — `hash_exclude_paths` and `review_exclude_paths` are separate lists for precisely
--  this reason, and NEITHER changes; a third key is added instead. Item 5 raises a model tier and
--  lowers nothing.
--
--  AMENDMENT 2026-08-06 — `docs/working_agreement.md` ADDED to `scope_paths`, on a clean tree,
--  under the same CPO plan approval. It is not a new decision; it is the doc-sync obligation
--  below applied to a second file that the original list missed.
-+  THRESHOLD DECLARATIONS, stated because no gate parses this field.
+   THRESHOLD DECLARATIONS, stated because no gate parses this field.
  
--  WHY: §2 states the model pinning in prose — "`scope-auditor` runs on **haiku**" (line 137) and
--  "`scope-auditor` is exempt and stays on haiku" (line 144). Item 5 moves it to sonnet. Landing
--  the code change without the doc would leave the working agreement asserting a model the repo
--  no longer uses, which is the same "hand-copied prose disagrees with the source of truth"
--  defect already filed as GitLab #1 — where one routing-row change cost eleven prose edits and
--  three review rounds.
-+  NEW MECHANISM — NO. A markdown file in a directory that already contains files. No hook, script,
-+  workflow, job, dependency or config surface is added. The `_paused/` convention it points at
-+  already exists.
+-  NEW MECHANISM — NO. A markdown file in a directory that already contains files. No hook, script,
+-  workflow, job, dependency or config surface is added. The `_paused/` convention it points at
+-  already exists.
++  NEW MECHANISM — YES. It introduces a class of enforcement the repo does not have: PROSE must
++  agree with CODE. Declared as a mechanism rather than argued down to "just another test".
++  AUTHORITY IS LOGGED, NOT ASSERTED HERE: `.claude/task/escalations.log`, entry `2026-08-07
++  test/1-guard-path-doc-parity`, carries the CPO's instruction verbatim and the plan-mode approval
++  that preceded any file being written. This contract cites a locatable ruling; it is not itself
++  the record.
++
++  RECURRING COST — NO NEW JOB. The tests run inside the existing `test:python` CI job and the
++  existing local pytest suite. No new job, stage, runner, schedule, dependency or external service.
++  The added cost is the runtime of four offline tests that read files already in the repo.
  
--  ⚠ THAT SENTENCE ORIGINALLY CLAIMED the sites were "found by grepping for `haiku` repo-wide".
--  THAT WAS FALSE. The grep covered three named files, not the repo. `platform-reviewer` at opus
--  found `docs/agent_guardrails.md:93,99` still asserting haiku — the other authoritative guardrail
--  doc, named in CLAUDE.md's own table. A real `git grep -i haiku` then surfaced a fourth site the
--  reviewer had not flagged: `.claude/agents/cto-reviewer.md:81` ("those files hunted only at
--  haiku"). Both are now in `scope_paths` and corrected.
-+  RECURRING COST — NO. Nothing executes. No CI job, no runner minute, no BigQuery byte, no API
-+  call. `CLAUDE.md` grows by a few hundred characters, which is startup context, not spend.
+-  RECURRING COST — NO. Nothing executes. No CI job, no runner minute, no BigQuery byte, no API
+-  call. `CLAUDE.md` grows by a few hundred characters, which is startup context, not spend.
++  NEW EXTERNAL SURFACE — NO. Nothing is published, deployed or exposed.
  
--  This is the contract-claims-are-unverified failure the handover already records as #904 —
--  a claim written BEFORE the work, never re-checked against the finished tree. The correction is
--  recorded rather than the sentence quietly rewritten, because a contract that silently repairs
--  its own false claims is worth less than one that shows them.
-+  NEW EXTERNAL SURFACE — NO. Nothing is published or deployed. The README is visible to anyone who
-+  can already read the repo.
+-  NEW EXTERNAL SURFACE — NO. Nothing is published or deployed. The README is visible to anyone who
+-  can already read the repo.
++  GUARD INVARIANT — UNCHANGED, AND NONE IS LOOSENED. No hook, agent brief, routing row or
++  protected-path list is edited. `task_contract_gate.py` and `.claude/review_routing.json` are READ
++  by the new test and not modified; neither appears in `scope_paths`.
  
--  DOC-SYNC OBLIGATION, recorded because this task would otherwise commit the exact defect it
--  exists to fix. `scripts/check_copy_gate.py`'s module docstring currently states, in bold,
--  "DELIBERATELY NOT WIRED INTO CI YET, and that is a decision, not an oversight", and lists the
--  16 findings as still live. Wiring the gate without rewriting that paragraph would leave a file
--  whose header contradicts its own behaviour — "add and never retire" in a third medium. The
--  docstring is updated in the same commit.
-+  GUARD INVARIANT — UNCHANGED. No guard is edited. The one guard that touches this path
-+  (`task_contract_gate.py`'s protected-prefix check) is not modified; it is OBEYED, by carrying
-+  this override.
+-  GUARD INVARIANT — UNCHANGED. No guard is edited. The one guard that touches this path
+-  (`task_contract_gate.py`'s protected-prefix check) is not modified; it is OBEYED, by carrying
+-  this override.
++  COUNTS STAY IN PROSE. #1 offered replacing every count with a pointer to `review_routing.json`
++  (its option 2). The approved plan keeps the counts and tests them instead, and the CPO approved
++  that plan with the alternative stated in it explicitly.
  
  decisions_reserved:
--  - CLOSED — the exemption-marker SHAPE for item 2 (`i18n:same-as-en`). This bullet used to read
--    that the marker was "implemented ... so `cto-reviewer` rules on it", which `decisions_taken`
--    (B) has contradicted since the marker was withdrawn. `cto-reviewer` at opus spotted the
--    contradiction in round 2 and deliberately did NOT spend a round on it — it changes no
--    authority conclusion, the durable record in `escalations.log` is correct, and a contract edit
--    voids every verdict — advising instead that it be corrected if the contract were touched for
--    any other reason. It was (the round-3 test fix voided the hash anyway), so it is corrected
--    here. RESOLUTION: the marker was withdrawn; the fallback named in the old text — delete the
--    promise from the gate's message — is what shipped.
--  - Whether `stop_gate.py` should run the copy gate at all, or only the four structural gates.
--    The copy gate is the slowest of the five and the only one whose failure is a §10 wording
--    question the agent cannot fix alone. Implemented as INCLUDED, because a turn that leaves
--    shipped copy defective should not end silently; open to a reviewer arguing it belongs only
--    in CI.
--  - `.claude/skills/` is not a protected path, but a skill folder can carry executable scripts,
--    while `.claude/commands/` IS protected precisely because a command can embed shell. Same
--    class, different treatment. Noted, NOT changed here — amending the protected-path list is a
--    separate governance event and is not covered by this contract's authority.
-+  - What GitHub is actually FOR now. Explicitly NOT decided here and explicitly not implied by
-+    this task: the README says the tree is dormant and the decision is open, and says nothing
-+    about mirroring, archiving, re-activating or deleting. That is the CPO's call when access
-+    returns, and writing a recommendation into a file that will be read as current state is how a
-+    provisional note becomes a decision nobody made.
-+  - Whether the three workflows already in `_paused/` should be treated differently from the
-+    eleven dormant-by-platform ones. They are dormant for DIFFERENT reasons — one by decision, one
-+    by the account — and the README states both without proposing a merge of the two categories.
+-  - What GitHub is actually FOR now. Explicitly NOT decided here and explicitly not implied by
+-    this task: the README says the tree is dormant and the decision is open, and says nothing
+-    about mirroring, archiving, re-activating or deleting. That is the CPO's call when access
+-    returns, and writing a recommendation into a file that will be read as current state is how a
+-    provisional note becomes a decision nobody made.
+-  - Whether the three workflows already in `_paused/` should be treated differently from the
+-    eleven dormant-by-platform ones. They are dormant for DIFFERENT reasons — one by decision, one
+-    by the account — and the README states both without proposing a merge of the two categories.
++  - Whether this same derive-and-test pattern is extended to the rest of the hand-copied facts in
++    the repo (#19, "compile, don't append"). Deliberately NOT started here. #19 is a compression
++    pass over every governing artifact and is its own session; folding it in would make this diff
++    unreviewable and would be scope drift.
++  - Whether a future guard path that is protected but deliberately unrouted (or routed but
++    deliberately unprotected) is legitimate. `test_the_guard_path_set_is_exactly_the_protected_path_set`
++    asserts the two sets are identical, which is true today for all nine. If a real case ever needs
++    them to differ, that is a §10 call about the governance model and not a licence to widen the
++    test — the test should be narrowed to where it still holds, with the exception named.
+ 
+ done_when:
+-  - "`git diff --stat .github/` shows exactly one file, the new README, and no workflow file."
+-  - "`CLAUDE.md` names `.gitlab-ci.yml` as the live pipeline AND records that GitHub is retained
+-    and dormant — both, so a session cannot infer either one wrongly."
+-  - "`python scripts/check_layer_contract.py` and the other four fast gates still pass."
++  - "Every one of the four tests has been made to FAIL against a deliberately broken source, with
++    the red pytest output pasted, and every break reverted. A passing test proves nothing."
++  - "`.venv/Scripts/python.exe -m pytest tests/ -q` is green, with no reduction in the pre-existing
++    test count."
++  - "`git diff --stat main...HEAD` shows exactly one non-artifact file,
++    `tests/test_governance_doc_parity.py`."
++  - "The five fast offline gates pass (the Stop hook runs them)."
 +
-+done_when:
-+  - "`git diff --stat .github/` shows exactly one file, the new README, and no workflow file."
-+  - "`CLAUDE.md` names `.gitlab-ci.yml` as the live pipeline AND records that GitHub is retained
-+    and dormant — both, so a session cannot infer either one wrongly."
-+  - "`python scripts/check_layer_contract.py` and the other four fast gates still pass."
-diff --git a/.github/workflows/README.md b/.github/workflows/README.md
++amendments: (none)
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 3a32609..2ce08b6 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -1152,3 +1152,58 @@ This entry is the durable record of the metric-definition authority the contract
+   (the approval existed; the declaration was false); and the new fail-open canary printed its
+   JSON to stdout in CLI mode, appending a blob into `review_input.patch` itself. The second was
+   reproduced before being fixed.
++
++2026-08-07 test/1-guard-path-doc-parity — GitLab #1: derive the guard-path count and the
++protected-path list from their sources, and test the eleven prose restatements against them.
++LOGGED HERE PER THE 2026-06-17 RULING AT :112 — *"Path A — LOG IT. Up-front CPO design approvals
++are recorded in escalations.log alongside review-time rulings; the contract's decisions_taken is
++not, by itself, the sole record."* `scope-auditor` FAILed round 1 for exactly that omission: the
++contract declared a NEW MECHANISM citing only a quoted instruction, with no entry here. The
++reviewer was right, its citation was checked against :112 before being accepted, and this entry
++is the fix.
++
++- (⭐ NEW MECHANISM — prose must agree with the code it describes) The repo enforces a great deal
++  over code and nothing over the PROSE describing it. `.claude/review_routing.json` and
++  `task_contract_gate.py` are the sources for the guard-path count and the protected-path list;
++  both are restated by hand across eleven sites. MR !4 added ONE routing row and that one-line
++  change cost eleven prose edits and three review rounds, because nothing can tell you a
++  hand-copied list is incomplete — a stale "eight" is valid prose.
++
++  CPO INSTRUCTION (task prompt carried into this session, 2026-08-07), verbatim: *"Do #1 first and
++  mechanically: derive the counts/lists from .claude/review_routing.json and
++  task_contract_gate.py:PROTECTED_FILES, and add a test that fails when a prose site disagrees
++  with the source. That is the pattern worth establishing; #19's full compression pass is its own
++  session afterwards."* And, on the evidence bar: *"Verify the test FAILS against the broken form
++  before accepting it — I shipped two vacuous tests in one MR yesterday and reviewers caught
++  both."* Seven deliberate breaks were run and every one produced a red test.
++
++  The plan implementing it was stated back and approved in plan mode before any file was written.
++
++  BOUNDED: this authorises the parity TEST and nothing else. It edits no prose, no guard and no
++  routing row, and adds no CI job. #19's compression pass is a separate session by the same
++  instruction.
++
++- (⭐ CPO RULING: the incomplete list the new test found is NOT fixed in this task) On its first
++  run the test found that `.claude/agents/platform-reviewer.md:13-16` states that reviewer's
++  territory and omits `.gitlab-ci.yml`, which routing DOES give it and which line 31 of the same
++  brief lists. The 2026-08 migration updated the model-tier blockquote and missed the territory
++  sentence six lines above. It is a TWELFTH restatement site; GitLab #1 counted eleven.
++
++  Put to the CPO with both paths named: (a) fix the line here under a `protected_override`, which
++  converts a tests-only diff into a governance change needing an `impact_map` and `cto-reviewer` at
++  opus; or (b) record it, file it, and fix it in its own task. Builder recommended (b), on the
++  reasoning that routing already summons the reviewer, so the ENFORCEMENT is correct and only the
++  wording is wrong.
++
++  CPO ANSWER (conversation, 2026-08-07): **(b)** — *"go ahead as recommended"*. Filed as GitLab
++  #22. Pinned in the test as a `KNOWN_INCOMPLETE` entry paired with
++  `test_known_incomplete_lists_have_not_been_fixed`, which goes RED the moment the prose is
++  corrected, so the exemption cannot outlive the defect it excuses.
++
++- ALSO FILED, incidental and out of scope: GitLab #23 — `.gitlab-ci.yml:363` still says Pages
++  serves the MVP "until the parity cutover (#377)". That product was retired 2026-07-21 and there
++  is no cutover. Same class as #1, on a protected path, so it needs its own governance task.
++
++- REVIEWERS: `platform-reviewer` PASS round 1 — it re-derived all four counts independently from
++  both sources and hit the same line-break trap the test's own docstring names, which is the check
++  landing rather than a courtesy. `scope-auditor` FAIL round 1 on the missing entry above.
+diff --git a/tests/test_governance_doc_parity.py b/tests/test_governance_doc_parity.py
 new file mode 100644
-index 0000000..7b5f7c1
+index 0000000..38809ae
 --- /dev/null
-+++ b/.github/workflows/README.md
-@@ -0,0 +1,98 @@
-+# These workflows are DORMANT. Nothing here runs.
++++ b/tests/test_governance_doc_parity.py
+@@ -0,0 +1,535 @@
++"""Prose must agree with the guards it describes.
 +
-+**Status as of 2026-08-06.** CI for this repository is `.gitlab-ci.yml` at the repo root.
-+Every workflow in this directory is inert: GitHub Actions execute none of them.
++`.claude/review_routing.json` is the source of truth for which paths confer which
++reviewers, and `task_contract_gate.py` for which paths are protected. Neither the
++COUNT nor the LIST is derived anywhere: both are restated as English prose, by
++hand, across eleven sites. MR !4 added exactly ONE routing row, and that one-line
++change cost eleven prose edits and three review rounds (GitLab #1).
 +
-+This file exists because a dormant workflow and a live one look identical, and the eleven `.yml`
-+files here were last edited 2026-07-28, while they were still running. Nothing in the tree said
-+they had stopped.
++The failure mode is not carelessness. It is that nothing can tell you a
++hand-copied list is incomplete — a stale "eight" is valid prose, and round 1 of
++that review missed the protected-path axis entirely because both lists happened
++to be identical eight-item sets, so one grep looked exhaustive.
 +
-+## Why
++So these tests derive every number and every list from the two sources and check
++the prose against them.
 +
-+The project migrated from GitHub to GitLab in 2026-08, after the GitHub account was suspended.
-+The six quality gates, the nightly production build and the v2 site deploy were translated into
-+`.gitlab-ci.yml` and run there.
++THREE TRAPS THESE TESTS ARE BUILT AROUND, each of which has already cost this repo
++a round:
 +
-+**The GitHub repository is deliberately KEPT.** CPO ruling, 2026-08-06: the repo stays, and how it
-+gets used is decided once account access returns. So these files are **not deleted, not moved and
-+not edited** — re-activating any of them should be a decision, not a reconstruction.
++1. A LINE-BASED GREP MISSES A PHRASE STRADDLING A LINE BREAK. Four of the eleven
++   sites wrap mid-claim (`cto-reviewer.md` breaks between "all nine" and "guard
++   paths"; `working_agreement.md` and `agent_guardrails.md` break inside "on all
++   nine, plus platform-reviewer on exactly three"). A first sweep while writing
++   this found seven of eleven for exactly that reason. Everything here reads whole
++   files and normalises: blockquote markers stripped, then all whitespace collapsed.
 +
-+## What is here
++2. HISTORICAL NARRATIVE LIVES INSIDE LIVE FILES. `review_routing.json` and
++   `working_agreement.md` both quote the superseded "eight"/"two" claim on
++   purpose, as the record of a churn worth remembering, and `.claude/task/
++   escalations.log` is an append-only log full of them. A blanket word search
++   calls all of those drift. They are classified explicitly in `HISTORICAL`, by
++   exact snippet, so a real regression cannot hide behind the same excuse.
 +
-+**Dormant because the platform is dormant** — these ran until the migration:
++3. CLASSIFY BY CONTENT, NOT BY PHRASING. The enumeration test does not carry a
++   list of sites. It finds every RUN of adjacent protected-path tokens anywhere in
++   the covered files and asserts each run is one of the derived sets. A partial
++   list — the exact round-1 defect — fails on contents, no matter how it is worded
++   or where it is added.
 +
-+| Workflow | GitLab equivalent |
-+|---|---|
-+| `ci-validate.yml` | `validate:governance` |
-+| `python-ci.yml` | `test:python` |
-+| `security-secrets.yml` | `validate:secrets` |
-+| `ci-ui.yml` | `validate:ui` |
-+| `ci-site-v2.yml` | `build:site-v2` |
-+| `ci-data-build.yml` | `data:build:mr` / `data:build:main` |
-+| `dbt-scheduled.yml` | `data:nightly` |
-+| `deploy-site-v2.yml` | `deploy:export` + `deploy:site-v2` |
-+| `board-request-sync.yml` | **none** — drove a GitHub Projects board that did not migrate |
-+| `ci-failure-watchdog.yml` | **none** — GitLab notifies on pipeline failure natively |
-+| `pages-match-preview.yml` | **none, deliberately** — see below |
++KNOWN HOLE, stated rather than left implicit. The COUNT test anchors on the
++phrasings that exist today, and `test_no_unclassified_count_claim` sweeps for the
++established claim SHAPES. A count written in a genuinely new sentence form ("the
++CTO covers a dozen paths") is not caught. The enumeration axis has no such hole,
++because it matches on paths rather than words. Closing the count hole means either
++dropping the counts from prose entirely (GitLab #1's option 2) or generating them,
++both of which are CPO calls that were considered and not taken.
++"""
 +
-+`pages-match-preview.yml` is the one worth knowing about. It carried a daily `cron` that ran a
-+**production BigQuery build** and deployed the legacy card MVP. That product was **retired on
-+2026-07-21** — taken offline, its Pages deployment deleted, `site/` frozen — and this workflow was
-+never touched at retirement. It was dormant-by-decision before it was dormant-by-platform, and it
-+was deliberately not translated: porting it would have resurrected a retired product and
-+reinstated a recurring cost.
++from __future__ import annotations
 +
-+**Dormant by decision, before the migration** — `_paused/`:
++import json
++import os
++import re
++import sys
 +
-+- `cursor-dispatch.yml`
-+- `pr-autopilot.yml`
-+- `project-status-sync.yml`
++import pytest
 +
-+Those two categories are not the same thing and are not merged here. One stopped because someone
-+decided it should; the other stopped because the platform did.
++from test_governance_hooks import real_routing
 +
-+## ⚠ If GitHub comes back — READ THIS BEFORE PUSHING ANYTHING
++REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 +
-+**These workflows are dormant, not disabled.** Nothing was turned off; the platform stopped
-+running. So re-activation is NOT an act of enabling — **the first ordinary push to the GitHub
-+`main` re-arms it.** Seven of the eleven trigger on `push: branches: [main]`:
 +
-+`ci-data-build.yml` · `ci-site-v2.yml` · `ci-ui.yml` · `ci-validate.yml` ·
-+`pages-match-preview.yml` · `python-ci.yml` · `security-secrets.yml`
++# --------------------------------------------------------------------------- #
++# The two sources of truth. Read from the real files; never retyped here.
++# --------------------------------------------------------------------------- #
++def _contract_gate():
++    """The hook module. Its `main()` is `__main__`-guarded, so importing is
++    side-effect free — the same pattern `test_governance_hooks._gd()` uses for
++    `git_discipline`."""
++    sys.path.insert(0, os.path.join(REPO, ".claude", "hooks"))
++    import task_contract_gate
 +
-+And two crons are still in the files, untouched: `dbt-scheduled.yml` (04:00 UTC) and
-+`pages-match-preview.yml` (07:30 UTC).
++    return task_contract_gate
 +
-+**THREE of these write PRODUCTION BigQuery** — `dbt-scheduled` and `pages-match-preview` via
-+`target: prod` in the profile, `ci-data-build` via `--target prod` on the CLI (its profile default
-+is `ci`):
 +
-+| Workflow | What it does to prod |
-+|---|---|
-+| `ci-data-build.yml` | `dbt seed` + `dbt build --selector staging` + `--selector downstream` + `dbt test`, on any non-`pull_request` event — **so a push to `main` runs it**, plus a bootstrap ingest that spends API-Football calls. Additionally gated on `needs.changes.outputs.data`, so a docs-only push does not fire it — do not rely on that, since the path set includes `ingestion/**`, `scripts/check_*.py` and `dbt_project/*.yml` |
-+| `dbt-scheduled.yml` | the full nightly: ingest, seed, `dbt build` |
-+| `pages-match-preview.yml` | a prod dbt build **with no `new_data` gate**, so it rebuilds unconditionally — then deploys the MVP **retired 2026-07-21** back to Pages |
++def protected_paths() -> set[str]:
++    """The protected set, normalised to the glob spelling routing uses.
 +
-+`ci-data-build.yml`'s own comment names the count: the prod arm joins `prod-warehouse-write`,
-+*"shared with dbt-scheduled + pages, so the three prod-writers never MERGE the bare prod tables
-+concurrently (#667)"*.
++    The gate stores directories as PREFIXES (`.claude/hooks/`) and single files
++    verbatim; routing spells the same directories as globs (`.claude/hooks/**`).
++    Same nine paths, two notations, which is precisely why a human restating
++    either one gets it wrong."""
++    gate = _contract_gate()
++    return {p.rstrip("/") + "/**" for p in gate.PROTECTED_PREFIXES} | set(gate.PROTECTED_FILES)
 +
-+**The concurrency group does not protect you across platforms.** `.gitlab-ci.yml` serialises its
-+prod writers through `resource_group: prod-warehouse-write`; a GitHub job writing prod is outside
-+that group entirely, so it can merge the bare prod tables while GitLab is mid-build.
 +
-+So a single catch-up push to a reactivated GitHub remote can, with nothing else done: run a full
-+prod warehouse build concurrently with GitLab's, spend API quota, and republish a retired product.
++def _routing_paths() -> dict:
++    return real_routing()["paths"]
 +
-+**Before any push to a reactivated GitHub remote**, disable the workflows in the repository
-+settings or move them into `_paused/` FIRST. Cost is a CPO decision (`CLAUDE.md`, "Cost is
-+non-negotiable"), and two schedulers writing one warehouse is a cost change and a correctness
-+hazard, not just a duplicate bill.
 +
-+## Do not
++def shared_guard_paths() -> set[str]:
++    """Guard paths where `platform-reviewer` is routed alongside the CTO."""
++    rows = _routing_paths()
++    return {p for p in protected_paths() if "platform-reviewer" in rows.get(p, [])}
 +
-+- **Do not treat this directory as the CI reference.** Read `.gitlab-ci.yml`.
-+- **Do not "tidy" it** by deleting workflows or merging `_paused/` into the top level. The tree is
-+  kept in the state it stopped in, on purpose.
-+- **Do not edit a workflow to "keep it in sync"** with a GitLab change. They are a snapshot of what
-+  ran on GitHub, not a second copy to maintain. Divergence is expected.
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 8609d22..65ce997 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -6,9 +6,9 @@ Read this at the start of every session before doing anything else.
- 
- 1. Run `git branch --show-current` via **Bash** to confirm the active branch.
- 2. If the branch doesn't match the task, switch now **before writing any files**: `git checkout <target-branch>` or `git checkout -b <new-branch>`.
--3. **Use Bash for all commands** — git, bq, gh, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion.
-+3. **Use Bash for all commands** — git, bq, `glab`, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion. (`gh` is dead — the GitHub account is suspended. Use `glab`.)
- 4. If unsure which branch to use, ask the user before touching any file.
--5. **Before creating a new branch**, run `gh pr list --state open` and ask two questions: (a) is this work a hard dependency for an open PR? (b) does separating it into its own PR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a.
-+5. **Before creating a new branch**, run `glab mr list` and ask two questions: (a) is this work a hard dependency for an open MR? (b) does separating it into its own MR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a, which says the same.
- 
- ## Working agreement
- 
-@@ -24,7 +24,9 @@ Pay particular attention to **§10 Decision rights** (the CPO-only decision clas
- 
- ## What this project is
- 
--A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → GitHub Pages match preview UI.
-+A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → the **Matchday Pilot** v2 site (`site_v2/`, Astro, deployed to Firebase).
 +
-+The legacy GitHub Pages match-preview UI it used to end in was **retired 2026-07-21** — offline, `site/` frozen. There is no public site today.
- 
- Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL2, PL, PD, SA, L1, VL, WC (2026), WCQ*, LMX, LP, MLS, SPL, ED.
- Next: player insights chain (#153 → #156).
-@@ -41,7 +43,13 @@ Next: player insights chain (#153 → #156).
- | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
- | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
- | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
--| GitHub Pages match preview plan | `C:\Users\Rami\.cursor\plans\gh_pages_match_preview_bce3ad94.plan.md` |
-+| v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
-+| GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
++def cto_alone_guard_paths() -> set[str]:
++    return protected_paths() - shared_guard_paths()
 +
-+> The old `gh_pages_match_preview_*.plan.md` row was removed 2026-08-06. The file still exists on
-+> disk, but it plans the **retired** MVP, and an always-loaded table listing it as authoritative is
-+> how a session ends up building against a dead product. Same defect as the
-+> `pipeline_architecture_plan.md` pointer removed from `MEMORY.md` the same day.
- 
- ## Architecture decisions (non-negotiable)
- 
-@@ -84,6 +92,45 @@ with src as (
- 
- Base models read directly from the generic staging model. The `league_code` column flows through from the raw table — no UNION ALL loop, no per-competition `ref()` calls.
- 
-+## Operational notes — the traps, in the file that is always loaded
 +
-+Moved here from `.claude/active_work.md` on 2026-08-06. They lived in a file hard-capped at
-+16,000 characters whose own header says "CURRENT STATE ONLY", and which silently drops its tail
-+when it overflows — so the most durable knowledge in the repo sat in the most volatile place, and
-+every session that learned something had to delete something. None of this is current state.
++def cto_routing_rows() -> set[str]:
++    """Every routing row requiring the CTO. Wider than the guard set: it also
++    carries the DEPENDENCY class (`*requirements*.txt`, the two site_v2 package
++    files), which `north_star.md` counts alongside the guard paths."""
++    return {p for p, revs in _routing_paths().items() if "cto-reviewer" in revs}
 +
-+- **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
-+  bigquery 1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`,
-+  `ls`, `ls --select <model>+` all work. Use it for `impact_map` lineage.
-+  **Never run `dbt build`** — the CI and prod datasets are shared, so a local build clobbers prod.
-+- **SQLFluff: lint from the REPO ROOT** (the root `.sqlfluff` carries the jinja macro path):
-+  `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set.
-+  `dbt_utils` is unresolvable under the jinja templater, so `mart_player_profile` reports
-+  pre-existing TMP/PRS noise — check against main before believing it. BigQuery rejects a
-+  FROM-less WHERE.
-+- **Commit mechanics.** `git commit` must be the SOLE command in a Bash call — no chaining, no
-+  leading `cd`. `--amend`, `--no-verify` and self-staging flags are gate-blocked. Use
-+  `git commit -F <file>` and write the message to the scratchpad; an apostrophe can break the form
-+  gate. A post-commit hook auto-pushes and opens the **MR**. `review.md` must be COMMITTED, and
-+  its reviewer sections must be `## <exact-routing-key>` headers — the gate parses those
-+  literally, and a `verdicts:` block alone does NOT satisfy it.
-+- **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
-+  blocks the turn once if any fails. Do not end a turn on a red gate silently.
-+- **⚠ On a SECOND commit, `--staged-hash` is the WRONG number** — it covers only the increment,
-+  while CI recomputes over the whole branch. Use `check_task_artifacts.py --base origin/main`. A
-+  `review.md`-only commit is artifact-exempt, so rebinding the hash is free.
-+- **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
-+  the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
-+  LIFO and load-bearing WIP lives in it.
-+- **⚠ CWD persists between Bash calls.** **⚠ `fnmatch`'s `*` CROSSES `/`**, and `scope_paths`'
-+  `[lang]`/`[team]` are CHARACTER CLASSES — write `site_v2/src/pages/*/teams/*.astro`.
-+- **⚠ Heredocs are blocked for file writes** — use Edit/Write, including for scratchpad files.
-+- **⚠ A line-based grep misses a phrase straddling a line break**, and Astro splits interpolated
-+  text with `<!-- -->`. Sweep whitespace-collapsed with comments stripped.
-+- **Frontend.** `deploy:site-v2` is manual-only. The Browser pane drives the dev server
-+  (`preview_start` name `v2`); accessibility tree, geometry and console work, `screenshot` fails.
-+  `astro build` OOMs at full scale; `git clean -fX site_v2/src/data` before a local dev build.
 +
- ## Memory files
- 
- Claude memory for this project lives at:
-@@ -105,5 +152,17 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
- - BigQuery (GCP project `football-data-pipeline-gcp`)
- - dbt (project in `dbt_project/`)
- - SQLFluff for SQL linting
--- GitHub Actions for CI (`ci-validate.yml`, `ci-data-build.yml`, `ci-ui.yml`) and scheduled runs (`dbt-scheduled.yml`)
--- GitHub Pages for the match preview UI (`pages-match-preview.yml`)
-+- **CI is GitLab, in `.gitlab-ci.yml`** (one file, 5 stages). Jobs: `validate:governance`,
-+  `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
-+  `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
-+  **MRs**, not PRs.
-+- **GitHub is RETAINED but DORMANT.** Its Actions run nothing; `.github/workflows/` is a snapshot
-+  of what ran before the 2026-08 migration and is deliberately kept unedited — see
-+  `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
-+  returns. Do not read that directory as the CI reference, and do not edit a workflow there to
-+  "keep it in sync".
-+- **⚠ No nightly SCHEDULE exists on GitLab yet.** `data:nightly` is written and reachable only by
-+  a manual web dispatch, so nothing refreshes the data on a timer right now. Creating a schedule
-+  is a recurring-cost decision and therefore the CPO's.
-+- Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
-+  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
++# --------------------------------------------------------------------------- #
++# Text normalisation. See trap 1 in the module docstring.
++# --------------------------------------------------------------------------- #
++_BLOCKQUOTE = re.compile(r"^[>\s]*>\s?")
++
++# Prose files whose text restates these facts. `test_every_file_stating_the_facts
++# _is_covered` stops this list decaying as documents are added.
++COVERED_FILES = (
++    ".claude/agents/cto-reviewer.md",
++    ".claude/agents/platform-reviewer.md",
++    ".claude/review_routing.json",
++    ".claude/task/TEMPLATE.md",
++    "docs/working_agreement.md",
++    "docs/agent_guardrails.md",
++    "docs/roles/platform_reliability.md",
++    "docs/north_star.md",
++)
++
++# Files that RECORD rather than GOVERN. A superseded number in one of these is the
++# point of the file, not drift in it, and none of them is a rule anybody follows.
++#   .claude/task/       per-task paperwork, replaced every task, including the
++#                       append-only escalations.log of past CPO rulings
++#   .claude/active_work.md  the handover, rewritten every session (routing files it
++#                       under `artifact_only` for the same reason)
++#   docs/audits/        dated snapshots of what was true on the day
++#   tests/              this file, which quotes every claim shape it checks
++SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/audits/", "tests/")
++
++
++def normalise(rel: str) -> str:
++    """Whole-file text with blockquote markers stripped and whitespace collapsed.
++
++    For JSON, only the `_doc*` narrative keys are read. The `paths` object is
++    data, not prose — flattening it would hand the enumeration test a 30-entry
++    "run" that is the routing table itself."""
++    with open(os.path.join(REPO, rel), encoding="utf-8") as fh:
++        raw = fh.read()
++    if rel.endswith(".json"):
++        doc = json.loads(raw)
++        parts: list[str] = []
++        for key, value in doc.items():
++            if key.startswith("_doc"):
++                parts.extend(value if isinstance(value, list) else [value])
++        raw = " ".join(parts)
++    lines = [_BLOCKQUOTE.sub("", ln).strip() for ln in raw.splitlines()]
++    return re.sub(r"\s+", " ", " ".join(lines))
++
++
++NUMBER_WORD = {
++    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
++    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
++}
++
++
++def _as_int(token: str) -> int | None:
++    token = token.strip().lower()
++    if token.isdigit():
++        return int(token)
++    return NUMBER_WORD.get(token)
++
++
++# --------------------------------------------------------------------------- #
++# Test 1 — the identity every "nine" depends on.
++# --------------------------------------------------------------------------- #
++def test_every_protected_path_is_routed_to_the_cto():
++    """A guard path is a PROTECTED path that routes to `cto-reviewer`, and the
++    docs use the two terms interchangeably. That only holds while the sets agree.
++
++    Add a protected path and forget its routing row and the prose "nine" silently
++    means two different things in two places: nine files the gate blocks, eight
++    the CTO reviews. This is the invariant the count tests below rest on, so it
++    is asserted before them."""
++    rows = _routing_paths()
++    missing = sorted(p for p in protected_paths() if "cto-reviewer" not in rows.get(p, []))
++    assert not missing, (
++        "PROTECTED paths with no `cto-reviewer` routing row: "
++        f"{missing}. Every protected path must confer the CTO, or 'the nine guard "
++        "paths' stops meaning one thing. Add the row to .claude/review_routing.json "
++        "or remove the path from task_contract_gate.py."
++    )
++
++
++def test_the_guard_path_counts_are_what_the_docs_claim():
++    """Pins the three derived numbers, so a change to either source shows up as a
++    failure here naming the new value, not as eleven quietly stale documents."""
++    assert len(protected_paths()) == 9, (
++        f"The guard set is now {sorted(protected_paths())}. Every prose site saying "
++        "'nine' is stale; the count tests below name each one.")
++    assert len(shared_guard_paths()) == 3, (
++        f"platform-reviewer now shares {sorted(shared_guard_paths())} with the CTO.")
++    assert len(cto_alone_guard_paths()) == 6, (
++        f"The CTO now reviews {sorted(cto_alone_guard_paths())} alone.")
++    assert len(cto_routing_rows()) == 12, (
++        f"The CTO now has {len(cto_routing_rows())} routing rows, which is what "
++        "north_star.md's role table counts.")
++    assert shared_guard_paths() == {
++        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml"}, (
++        "The set platform-reviewer shares with the CTO changed. Widening it is a "
++        "RECURRING COST (a second opus specialist on every commit touching those "
++        "paths) and therefore CPO-class — .claude/review_routing.json's own _doc "
++        "records a review round that failed for widening it without a cost approval."
++    )
++
++
++# --------------------------------------------------------------------------- #
++# Test 2 — every prose COUNT, anchored.
++# --------------------------------------------------------------------------- #
++def _guard_total() -> int:
++    return len(protected_paths())
++
++
++def _shared() -> int:
++    return len(shared_guard_paths())
++
++
++def _cto_alone() -> int:
++    return len(cto_alone_guard_paths())
++
++
++def _cto_rows() -> int:
++    return len(cto_routing_rows())
++
++
++# (file, anchor, [expected-count callables, one per capture group]).
++# Each anchor must match EXACTLY ONCE. That is the load-bearing half: reword the
++# sentence and the test fails loudly with "matched 0 times" instead of silently
++# checking nothing.
++COUNT_SITES = (
++    (".claude/agents/cto-reviewer.md",
++     r"on any of the (\w+) guard paths", [_guard_total]),
++    (".claude/agents/cto-reviewer.md",
++     r"routed alongside you, also at opus, on exactly (\w+) of them", [_shared]),
++    (".claude/agents/cto-reviewer.md",
++     r"On the other (\w+) you are the only", [_cto_alone]),
++    (".claude/agents/cto-reviewer.md",
++     r"spawned at opus on all (\w+) guard paths", [_guard_total]),
++
++    (".claude/agents/platform-reviewer.md",
++     r"on the (\w+) guard paths you are routed to", [_shared]),
++    (".claude/agents/platform-reviewer.md",
++     r"NOT routed to the other (\w+) guard paths", [_cto_alone]),
++
++    (".claude/review_routing.json",
++     r"joins cto-reviewer on exactly (\w+) of the (\w+)", [_shared, _guard_total]),
++    (".claude/review_routing.json", r"docs must say (\w+)", [_shared]),
++    (".claude/review_routing.json", r"floor on those (\w+)", [_shared]),
++    (".claude/review_routing.json",
++     r"The other (\w+) go to cto-reviewer ALONE", [_cto_alone]),
++
++    ("docs/working_agreement.md",
++     r"means `cto-reviewer` on all (\w+),", [_guard_total]),
++    ("docs/working_agreement.md",
++     r"`platform-reviewer` on exactly (\w+) of them", [_shared]),
++    ("docs/working_agreement.md",
++     r"deliberately absent from the other (\w+),", [_cto_alone]),
++
++    ("docs/agent_guardrails.md",
++     r"That means `cto-reviewer` on all (\w+),", [_guard_total]),
++    ("docs/agent_guardrails.md",
++     r"plus `platform-reviewer` on exactly (\w+)\*\*", [_shared]),
++    ("docs/agent_guardrails.md",
++     r"Platform is absent from the other (\w+) by design", [_cto_alone]),
++
++    ("docs/roles/platform_reliability.md",
++     r"On exactly (\w+) of the (\w+) guard paths", [_shared, _guard_total]),
++    ("docs/roles/platform_reliability.md",
++     r"the other (\w+) it is not routed at all", [_cto_alone]),
++
++    ("docs/north_star.md",
++     r"\*\*(\d+) rows\*\*: the (\d+) guard paths", [_cto_rows, _guard_total]),
++)
++
++
++@pytest.mark.parametrize(
++    "rel,anchor,expected", COUNT_SITES,
++    ids=[f"{r}::{a[:34]}" for r, a, _ in COUNT_SITES])
++def test_every_prose_count_matches_the_derived_value(rel, anchor, expected):
++    text = normalise(rel)
++    found = re.findall(anchor, text)
++    assert len(found) == 1, (
++        f"{rel}: the anchor {anchor!r} matched {len(found)} times, expected exactly 1. "
++        "Either the sentence was reworded (update the anchor in COUNT_SITES, and check "
++        "the number while you are there) or a second site now says the same thing "
++        "(give it its own COUNT_SITES row)."
++    )
++    groups = found[0] if isinstance(found[0], tuple) else (found[0],)
++    for token, want in zip(groups, expected):
++        got, target = _as_int(token), want()
++        assert got == target, (
++            f"{rel} says {token!r} where the source gives {target}. "
++            "The source is .claude/review_routing.json + task_contract_gate.py. "
++            "Fix the prose, not the test — .claude/review_routing.json's _doc records "
++            "a round that failed for widening the rows to match the prose instead."
++        )
++
++
++# --------------------------------------------------------------------------- #
++# Test 3 — every prose LIST, matched on contents rather than phrasing.
++# --------------------------------------------------------------------------- #
++def _path_tokens() -> list[str]:
++    """Both spellings of every protected path, longest first so `.claude/hooks/**`
++    is consumed before the `.claude/hooks/` prefix inside it."""
++    tokens = set()
++    for glob in protected_paths():
++        tokens.add(glob)
++        if glob.endswith("/**"):
++            tokens.add(glob[:-2])
++    return sorted(tokens, key=len, reverse=True)
++
++
++# A gap wider than this ends a list. Sized against the real files: the widest
++# real separator is "`, `.claude/review_routing.json`, `" plus a stray "and".
++_RUN_GAP = 42
++
++
++def _runs(text: str) -> list[tuple[int, frozenset]]:
++    """Every maximal run of adjacent protected-path mentions, as path SETS."""
++    hits = []
++    for token in _path_tokens():
++        for m in re.finditer(re.escape(token), text):
++            hits.append((m.start(), m.end(), token))
++    hits.sort()
++    kept: list[tuple[int, int, str]] = []
++    for start, end, token in hits:
++        if kept and start < kept[-1][1]:
++            continue  # inside a longer token already taken
++        kept.append((start, end, token))
++
++    runs, current, start_at, last_end = [], set(), None, None
++    for start, end, token in kept:
++        canonical = token if token in protected_paths() else token + "**"
++        if last_end is not None and start - last_end > _RUN_GAP:
++            if len(current) > 1:
++                runs.append((start_at, frozenset(current)))
++            current, start_at = set(), None
++        if start_at is None:
++            start_at = start
++        current.add(canonical)
++        last_end = end
++    if len(current) > 1:
++        runs.append((start_at, frozenset(current)))
++    return runs
++
++
++# Runs that are prose ARGUMENTS rather than enumerations of the guard set. Scoped
++# to the file that makes the argument, so the same subset staying legitimate in one
++# document does not quietly excuse it appearing in another.
++PROSE_SUBSETS = {
++    ".claude/agents/cto-reviewer.md": {
++        frozenset({".claude/settings.json", ".mcp.json", ".cursor/mcp.json"}):
++            "the config trio that carries env blocks and tokens",
++    },
++    ".claude/review_routing.json": {
++        frozenset({".mcp.json", ".cursor/mcp.json"}):
++            "the two MCP entry points, ruled command-class together (CPO 2026-06-18)",
++        frozenset({".claude/commands/**", ".mcp.json", ".cursor/mcp.json"}):
++            "the same ruling, cited by the paths it covers",
++        frozenset({".github/workflows/**", ".gitlab-ci.yml"}):
++            "the CI pair either side of the 2026-08 migration",
++        frozenset({".claude/settings.json", ".mcp.json", ".cursor/mcp.json"}):
++            "the config trio, on why settings.json was already protected",
++    },
++    "docs/working_agreement.md": {
++        frozenset({".claude/settings.json", ".mcp.json", ".cursor/mcp.json"}):
++            "the config trio, on why an mcpServers block is command-class",
++    },
++    "docs/agent_guardrails.md": {
++        frozenset({".claude/commands/**", ".mcp.json"}):
++            "two CPO rulings cited by the paths they were about",
++        frozenset({".claude/hooks/**", ".claude/settings.json"}):
++            "where a project hook lives and where it is wired",
++    },
++    "docs/roles/platform_reliability.md": {
++        frozenset({".claude/hooks/**", ".github/workflows/**"}):
++            "the CTO's PRE-split routing, described in the past tense",
++    },
++}
++
++# Real incomplete lists that cannot be fixed from here. `.claude/agents/**` is a
++# PROTECTED path: correcting one needs a CPO-approved governance task carrying
++# `protected_override`, which this task does not have. Recorded rather than
++# exempted, and `test_known_incomplete_lists_have_not_been_fixed` fails the moment
++# one is corrected, so an entry cannot outlive its defect.
++KNOWN_INCOMPLETE = {
++    (".claude/agents/platform-reviewer.md",
++     frozenset({".claude/hooks/**", ".github/workflows/**"})):
++        "GitLab #1: the 'Your territory is' sentence omits `.gitlab-ci.yml`, which "
++        "routing DOES give platform-reviewer and which line 31 of the same brief "
++        "lists. The 2026-08 migration updated the model-tier blockquote and missed "
++        "the territory sentence.",
++}
++
++
++def _allowed_runs(rel: str) -> dict:
++    """Every path set a run in this file may legitimately be. A run that is none of
++    them is a partial or drifted list."""
++    allowed = {
++        frozenset(protected_paths()): "all nine guard paths",
++        frozenset(cto_alone_guard_paths()): "the six the CTO reviews alone",
++        frozenset(shared_guard_paths()): "the three platform shares",
++    }
++    allowed.update(PROSE_SUBSETS.get(rel, {}))
++    return allowed
++
++
++@pytest.mark.parametrize("rel", COVERED_FILES)
++def test_every_protected_path_list_is_complete(rel):
++    """Catches the round-1 defect directly: a list that dropped a path.
++
++    Deliberately NOT a table of known sites. It reads whatever lists are actually
++    in the file, so a new list added anywhere in a covered document is checked the
++    moment it appears, and no site table can go stale."""
++    text = normalise(rel)
++    allowed = _allowed_runs(rel)
++    for position, run in _runs(text):
++        if (rel, run) in KNOWN_INCOMPLETE:
++            continue
++        assert run in allowed, (
++            f"{rel}: a list of protected paths near {text[max(0, position - 70):position + 190]!r}\n"
++            f"  holds {sorted(run)}\n"
++            f"  which is no derived set. Missing from the full nine: "
++            f"{sorted(protected_paths() - run) or 'nothing'}. "
++            "Complete the list, or add it to PROSE_SUBSETS with the reason it is "
++            "legitimately a subset."
++        )
++
++
++@pytest.mark.parametrize("key", sorted(KNOWN_INCOMPLETE, key=str),
++                         ids=[k[0] for k in sorted(KNOWN_INCOMPLETE, key=str)])
++def test_known_incomplete_lists_have_not_been_fixed(key):
++    """The other direction, so a recorded defect cannot outlive itself.
++
++    An exemption that survives the thing it excuses is how a list of known issues
++    becomes a list of silently-allowed ones. When the prose is corrected this test
++    goes red and says to delete the entry."""
++    rel, run = key
++    assert any(r == run for _, r in _runs(normalise(rel))), (
++        f"{rel} no longer contains the incomplete list {sorted(run)}. If it was "
++        f"fixed, delete this entry from KNOWN_INCOMPLETE.\n  Recorded reason: "
++        f"{KNOWN_INCOMPLETE[key]}"
++    )
++
++
++def test_the_platform_role_row_names_only_the_shared_guard_paths():
++    """`north_star.md`'s "Wakes on" column is read as the authority on what routes
++    a role, and its own preamble attaches a duty to keeping it honest. A guard path
++    listed there that platform is not routed to would over-state its surface."""
++    text = normalise("docs/north_star.md")
++    row = re.search(r"\| \[Platform and Reliability\][^|]*\|[^|]*\|([^|]*)\|", text)
++    assert row, "The Platform and Reliability row is no longer parseable in north_star.md."
++    named = {p for p in protected_paths() if p in row.group(1)}
++    assert named == shared_guard_paths(), (
++        f"north_star.md's Platform row names guard paths {sorted(named)}, "
++        f"but routing gives it {sorted(shared_guard_paths())}."
++    )
++
++
++# --------------------------------------------------------------------------- #
++# Test 4 — nothing states these facts outside the checks above.
++# --------------------------------------------------------------------------- #
++# The claim SHAPES in use. Every match must be covered by COUNT_SITES or listed
++# in HISTORICAL. See the known hole in the module docstring.
++CLAIM_SHAPES = (
++    r"\b(\w+) guard paths?\b",
++    r"`cto-reviewer` on all (\w+)",
++    r"`platform-reviewer` on exactly (\w+)",
++    r"on exactly (\w+) of them",
++    r"other (\w+) go to cto-reviewer",
++)
++
++# Superseded numbers quoted ON PURPOSE, as the record of a churn worth keeping.
++# Exact snippets: a real regression cannot hide behind a loose pattern.
++HISTORICAL = (
++    "three documents claiming BOTH reviewers on all EIGHT guard paths",
++    'three documents claiming "both on all eight"',
++    "this returns to eight paths and TWO",
++    "platform is routed to only two of the eight guard paths",
++    "spawned at **opus** on all eight",
++)
++
++
++@pytest.mark.parametrize("rel", COVERED_FILES)
++def test_no_unclassified_count_claim(rel):
++    text = normalise(rel)
++    anchored = {a for r, a, _ in COUNT_SITES if r == rel}
++    covered = []
++    for anchor in anchored:
++        covered.extend((m.start(), m.end()) for m in re.finditer(anchor, text))
++    for snippet in HISTORICAL:
++        covered.extend((m.start(), m.end()) for m in re.finditer(re.escape(snippet), text))
++
++    for shape in CLAIM_SHAPES:
++        for m in re.finditer(shape, text):
++            if _as_int(m.group(1)) is None:
++                continue  # "the guard paths", "those guard paths" — no number claimed
++            if any(lo <= m.start() and m.end() <= hi for lo, hi in covered):
++                continue
++            pytest.fail(
++                f"{rel}: unclassified count claim {m.group(0)!r} at {m.start()}\n"
++                f"  context: ...{text[max(0, m.start() - 90):m.end() + 90]}...\n"
++                "  Add a COUNT_SITES row if it is a live claim, or a HISTORICAL entry "
++                "if it deliberately quotes a superseded number."
++            )
++
++
++def test_every_file_stating_the_facts_is_covered():
++    """Stops COVERED_FILES decaying. A document added tomorrow that restates the
++    guard-path facts joins the checks above automatically, instead of becoming a
++    twelfth unchecked site."""
++    import subprocess
++
++    out = subprocess.run(
++        ["git", "grep", "-l", "-i", "-e", "guard path", "-e", "protected path", "--", "."],
++        capture_output=True, text=True, cwd=REPO)
++    assert out.returncode in (0, 1), f"git grep failed: {out.stderr}"
++    found = {p.replace("\\", "/") for p in out.stdout.split() if p}
++    uncovered = sorted(
++        p for p in found
++        if p not in COVERED_FILES
++        and not any(p.startswith(x) for x in SWEEP_EXEMPT)
++        and not p.startswith(".claude/hooks/")  # the gates themselves; code, not prose
++        and p != "CLAUDE.md"                    # orientation; states no count
++    )
++    assert not uncovered, (
++        f"These files mention guard/protected paths but are not in COVERED_FILES: "
++        f"{uncovered}. Add them so their claims are checked, or add them to "
++        "SWEEP_EXEMPT with the reason."
++    )

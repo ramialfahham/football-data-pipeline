@@ -1152,3 +1152,58 @@ This entry is the durable record of the metric-definition authority the contract
   (the approval existed; the declaration was false); and the new fail-open canary printed its
   JSON to stdout in CLI mode, appending a blob into `review_input.patch` itself. The second was
   reproduced before being fixed.
+
+2026-08-07 test/1-guard-path-doc-parity — GitLab #1: derive the guard-path count and the
+protected-path list from their sources, and test the eleven prose restatements against them.
+LOGGED HERE PER THE 2026-06-17 RULING AT :112 — *"Path A — LOG IT. Up-front CPO design approvals
+are recorded in escalations.log alongside review-time rulings; the contract's decisions_taken is
+not, by itself, the sole record."* `scope-auditor` FAILed round 1 for exactly that omission: the
+contract declared a NEW MECHANISM citing only a quoted instruction, with no entry here. The
+reviewer was right, its citation was checked against :112 before being accepted, and this entry
+is the fix.
+
+- (⭐ NEW MECHANISM — prose must agree with the code it describes) The repo enforces a great deal
+  over code and nothing over the PROSE describing it. `.claude/review_routing.json` and
+  `task_contract_gate.py` are the sources for the guard-path count and the protected-path list;
+  both are restated by hand across eleven sites. MR !4 added ONE routing row and that one-line
+  change cost eleven prose edits and three review rounds, because nothing can tell you a
+  hand-copied list is incomplete — a stale "eight" is valid prose.
+
+  CPO INSTRUCTION (task prompt carried into this session, 2026-08-07), verbatim: *"Do #1 first and
+  mechanically: derive the counts/lists from .claude/review_routing.json and
+  task_contract_gate.py:PROTECTED_FILES, and add a test that fails when a prose site disagrees
+  with the source. That is the pattern worth establishing; #19's full compression pass is its own
+  session afterwards."* And, on the evidence bar: *"Verify the test FAILS against the broken form
+  before accepting it — I shipped two vacuous tests in one MR yesterday and reviewers caught
+  both."* Seven deliberate breaks were run and every one produced a red test.
+
+  The plan implementing it was stated back and approved in plan mode before any file was written.
+
+  BOUNDED: this authorises the parity TEST and nothing else. It edits no prose, no guard and no
+  routing row, and adds no CI job. #19's compression pass is a separate session by the same
+  instruction.
+
+- (⭐ CPO RULING: the incomplete list the new test found is NOT fixed in this task) On its first
+  run the test found that `.claude/agents/platform-reviewer.md:13-16` states that reviewer's
+  territory and omits `.gitlab-ci.yml`, which routing DOES give it and which line 31 of the same
+  brief lists. The 2026-08 migration updated the model-tier blockquote and missed the territory
+  sentence six lines above. It is a TWELFTH restatement site; GitLab #1 counted eleven.
+
+  Put to the CPO with both paths named: (a) fix the line here under a `protected_override`, which
+  converts a tests-only diff into a governance change needing an `impact_map` and `cto-reviewer` at
+  opus; or (b) record it, file it, and fix it in its own task. Builder recommended (b), on the
+  reasoning that routing already summons the reviewer, so the ENFORCEMENT is correct and only the
+  wording is wrong.
+
+  CPO ANSWER (conversation, 2026-08-07): **(b)** — *"go ahead as recommended"*. Filed as GitLab
+  #22. Pinned in the test as a `KNOWN_INCOMPLETE` entry paired with
+  `test_known_incomplete_lists_have_not_been_fixed`, which goes RED the moment the prose is
+  corrected, so the exemption cannot outlive the defect it excuses.
+
+- ALSO FILED, incidental and out of scope: GitLab #23 — `.gitlab-ci.yml:363` still says Pages
+  serves the MVP "until the parity cutover (#377)". That product was retired 2026-07-21 and there
+  is no cutover. Same class as #1, on a protected path, so it needs its own governance task.
+
+- REVIEWERS: `platform-reviewer` PASS round 1 — it re-derived all four counts independently from
+  both sources and hit the same line-break trap the test's own docstring names, which is the check
+  landing rather than a courtesy. `scope-auditor` FAIL round 1 on the missing entry above.
