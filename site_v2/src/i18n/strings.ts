@@ -54,7 +54,7 @@ const EN: Dict = {
   topScorers: "Top scorers",
   fullH2H: "Full head-to-head",
   footnote: "Sample data · v2 preview ({brand})",
-  aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times — {record}.",
+  aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times: {record}.",
   aboutNoH2h: "{home} vs {away} · {round}.",
   posF: "Forward", posM: "Midfield", posD: "Defence", posG: "Goalkeeper",
   // --- team page (Overview) ---
@@ -67,8 +67,8 @@ const EN: Dict = {
   tabPerformance: "Performance",
   tabSquad: "Squad",
   comingTitle: "Coming soon",
-  comingPerformance: "Every metric ranked against the league and against last season — landing with the next release.",
-  comingSquad: "The full squad with per-player minutes and output — landing with the next release.",
+  comingPerformance: "Every metric ranked against the league and against last season. Landing with the next release.",
+  comingSquad: "The full squad with per-player minutes and output. Landing with the next release.",
   // squad tab
   squadGk: "Goalkeepers", squadDef: "Defenders", squadMid: "Midfielders", squadFwd: "Forwards", squadOther: "Other",
   seasonToDate: "season to date",
@@ -91,8 +91,8 @@ const EN: Dict = {
   // heroSotFor / heroSotAgainst / heroSotDiff removed (#370): they were a THIRD hand-written copy of
   // three metric names that the catalogue already identifies. The hero tiles now read them from
   // METRIC_LABELS below, like every other metric name on the site.
-  heroVerdictUnder: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They finished {gap} short of what they created.",
-  heroVerdictOver: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They took {gap} more than they created.",
+  heroVerdictUnder: "Play like {team}'s, a shots-on-target difference of {sotd} per match, usually earns about {deserved} points. They finished {gap} short of what they created.",
+  heroVerdictOver: "Play like {team}'s, a shots-on-target difference of {sotd} per match, usually earns about {deserved} points. They took {gap} more than they created.",
   heroCaption: "Every dot is a {competition} team, placed by shots-on-target difference per match (left to right) against points won (up = more). The dashed line is the points that level of play usually earns.",
   heroNoData: "A deserved-vs-actual read needs a single league table, so it is shown for domestic leagues only.",
   axPoints: "Points won",
@@ -205,7 +205,7 @@ const DE: Dict = {
   topScorers: "Torjäger",
   fullH2H: "Kompletter Vergleich",
   footnote: "Beispieldaten · v2-Vorschau ({brand})",
-  aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander — {record}.",
+  aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander: {record}.",
   aboutNoH2h: "{home} gegen {away} · {round}.",
   posF: "Angriff", posM: "Mittelfeld", posD: "Abwehr", posG: "Tor",
   // --- team page (Overview) ---
@@ -218,8 +218,13 @@ const DE: Dict = {
   tabPerformance: "Leistung",
   tabSquad: "Kader",
   comingTitle: "Demnächst",
-  comingPerformance: "Jede Kennzahl im Vergleich zur Liga und zur Vorsaison — kommt mit dem nächsten Release.",
-  comingSquad: "Der komplette Kader mit Einsatzminuten und Scorerwerten je Spieler — kommt mit dem nächsten Release.",
+  // German keeps ONE sentence where EN and FI take two. The em dash here was a stylistic pause
+  // between a subject and its only finite verb, not a clause break: splitting it leaves "Kommt
+  // mit dem nächsten Release." — a finite verb with no subject, which German reads as an
+  // imperative. EN "Landing…" and FI "Tulossa…" are non-finite fragments and split safely.
+  // bi-analyst-reviewer FAIL, round 1; CPO ruling 2026-08-06.
+  comingPerformance: "Jede Kennzahl im Vergleich zur Liga und zur Vorsaison kommt mit dem nächsten Release.",
+  comingSquad: "Der komplette Kader mit Einsatzminuten und Scorerwerten je Spieler kommt mit dem nächsten Release.",
   // squad tab
   squadGk: "Torhüter", squadDef: "Abwehr", squadMid: "Mittelfeld", squadFwd: "Angriff", squadOther: "Sonstige",
   seasonToDate: "Saison bis dato",
@@ -244,8 +249,8 @@ const DE: Dict = {
   // tile label in METRIC_LABELS_DE, the axis (`axPlay`) and the caption (`heroCaption`). Nothing binds
   // them, so revising one silently leaves three disagreeing. Change them together or not at all.
   // Wording is the CPO's (§10); `Torschussdifferenz` and `pro Spiel` are both his.
-  heroVerdictUnder: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
-  heroVerdictOver: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
+  heroVerdictUnder: "Ein Spiel wie das von {team}, eine Torschussdifferenz von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
+  heroVerdictOver: "Ein Spiel wie das von {team}, eine Torschussdifferenz von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
   heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Torschussdifferenz pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
   heroNoData: "Eine Verdient-vs.-tatsächlich-Einordnung braucht eine einzige Ligatabelle und wird daher nur für Ligen gezeigt.",
   axPoints: "Geholte Punkte",
@@ -307,7 +312,11 @@ const FI: Dict = {
   crumbHome: "Etusivu",
   crumbMatches: "Ottelut",
   eyebrowPreview: "Otteluennakko",
-  secForm: "Muotovertailu",
+  // "kunto", not "muoto": muoto is shape/format, and the football sense of form is kunto —
+  // corroborated by the MVP corpus, which renders "form window" as `kuntojakso`
+  // (site/i18n/fi.json). CPO correction #867, extended to this key by CPO ruling 2026-08-06;
+  // the deferral noted at seoTeamTitle below is now closed.
+  secForm: "Kuntovertailu",
   secRecent: "Viimeisimmät ottelut",
   secPlayers: "Seurattavat pelaajat",
   secH2H: "Keskinäiset ottelut",
@@ -362,8 +371,8 @@ const FI: Dict = {
   tabPerformance: "Suoritus",
   tabSquad: "Kokoonpano",
   comingTitle: "Tulossa",
-  comingPerformance: "Jokainen tunnusluku sarjaan ja viime kauteen verrattuna — tulossa seuraavassa julkaisussa.",
-  comingSquad: "Koko kokoonpano pelaajakohtaisine peliminuutteineen ja tehopisteineen — tulossa seuraavassa julkaisussa.",
+  comingPerformance: "Jokainen tunnusluku sarjaan ja viime kauteen verrattuna. Tulossa seuraavassa julkaisussa.",
+  comingSquad: "Koko kokoonpano pelaajakohtaisine peliminuutteineen ja tehopisteineen. Tulossa seuraavassa julkaisussa.",
   // squad tab
   squadGk: "Maalivahdit", squadDef: "Puolustajat", squadMid: "Keskikenttäpelaajat", squadFwd: "Hyökkääjät", squadOther: "Muut",
   seasonToDate: "kausi tähän mennessä",
@@ -387,8 +396,8 @@ const FI: Dict = {
   // ⚠ Same four-string trap as the German block above — these two sentences, the tile label, `axPlay`
   // and `heroCaption` all name this metric and nothing binds them. Change them together or not at all.
   // Wording is the CPO's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
-  heroVerdictUnder: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
-  heroVerdictOver: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
+  heroVerdictUnder: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
+  heroVerdictOver: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
   // ⚠ `eron` is a GENITIVE ending I inferred, not the CPO's word — his noun is `maalilaukauksien ero`.
   // The case is governed by the later `mukaan`. Finnish inflection is where #867 went wrong four times,
   // so this is unverified against a Finnish source; the CPO approved it knowing that.
@@ -414,8 +423,8 @@ const FI: Dict = {
   // for every club name.
   // CPO-supplied, 2026-07-28 (§10 — user-visible copy is his call). "kunto", not "muoto": muoto is
   // shape/format, and the football sense of form is kunto — corroborated by the MVP corpus, which
-  // renders "form window" as `kuntojakso` (site/i18n/fi.json). ⚠ `secForm: "Muotovertailu"` above
-  // carries the same error and is NOT corrected here — it is shipped copy he has not ruled on.
+  // renders "form window" as `kuntojakso` (site/i18n/fi.json). `secForm` above carried the same
+  // error; the CPO ruled on it 2026-08-06 and it is now `Kuntovertailu`, so that deferral is closed.
   // "ja" in the team title and "&" in the fixture title are both the CPO's own choices, kept as he
   // wrote them; only the length changed.
   seoTeamTitle: "{team}: tilastot, kunto, kokoonpano ja ottelut",
@@ -441,7 +450,10 @@ const FI: Dict = {
   menuAria: "Valikko",
   footerAbout: "Tietoa",
   footerImprintPending: "Vastuutiedot (tulossa)",
-  footerDataSource: "Data: API-Football",
+  // `Tietolähde` is the validated corpus's own term for "data source" ("Tietolähde ei
+  // toimittanut tätä arvoa", site/i18n/fi.json), so this is a real translation rather than the
+  // English string left in place. CPO ruling 2026-08-06.
+  footerDataSource: "Tietolähde: API-Football",
 };
 
 const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };

@@ -1,122 +1,154 @@
-# Task contract — a web dispatch must not auto-start the full prod build
+# Task contract — clear the copy gate's 16 findings on `main`
 
-> Branch `chore/gitlab-ci-manual-prod-build` from `main`. `.gitlab-ci.yml` is a protected
-> path, so `protected_override` and `impact_map` are both declared. No `site_v2/src/` path
-> is in scope, so no `acceptance_criteria`.
+> Branch `fix/i18n-copy-gate-defects` from `main` (`c701ecc`). Touches `site_v2/src/`, so
+> `acceptance_criteria` is present and LOCKED by CPO approval of 2026-08-06. No protected path
+> is in scope, so no `protected_override`.
 
 objective: >
-  Make `data:build:main` MANUAL on a web-dispatched pipeline, leaving it automatic on a
-  push to main. One line of `rules:`, plus the test that pins it.
+  Remove every defect `scripts/check_copy_gate.py` reports on `main`, so the gate can be wired
+  into CI in the following MR without turning the default branch red.
 
-  THE PROBLEM, found by evaluating the rules before triggering anything rather than after
-  paying for it. `data:nightly` is reachable only from a web dispatch (by design — no
-  schedule exists, per the CPO's decision to defer it). But on that same web pipeline
-  `data:build:main` matches `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and runs
-  `when: on_success`, i.e. AUTOMATICALLY. Its `changes: *data_paths` filter does not hold
-  it back: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or an
-  MR — the same mechanic this file already guards against for schedules.
+  THE PROBLEM. `scripts/check_copy_gate.py` exits 1 on `main` with 16 findings: 14 em dashes
+  across all three locales, `fi.secForm` using `muoto` where football Finnish uses `kunto`, and
+  `fi.footerDataSource` byte-identical to English. Every one is a defect against a standing rule
+  — `.claude/active_work.md`'s DO-NOT list says "no em dashes", and the `muoto`/`kunto` error is
+  a recorded CPO correction (#867). The gate has existed and been correct this whole time; it is
+  invoked by no CI job and no skill, so nothing ever surfaced them.
 
-  So asking for a manual nightly silently also starts a FULL PROD WAREHOUSE BUILD. The CPO
-  asked for the nightly to be run; carrying that out as the file stands would have spent a
-  prod build they did not ask for, on a day that already had two.
+  THIS IS PR 1 OF 2. PR 2 wires the gate (`.gitlab-ci.yml`, a protected path) together with the
+  other unwired guards. Fixing first and wiring second is what keeps `main` green: the reverse
+  order lands a gate that fails on the branch it guards.
+
+  MEASUREMENT DISCIPLINE, recorded because it already bit once here. The GitLab issue was first
+  filed claiming 10 findings and 8 em dashes, confined to `de`/`fi`. That was wrong: the count
+  came from output truncated by `tail -12`. The real figure is 16 and 14, and `en` is affected
+  too. `LOCALES = ("en", "de", "fi")` and the module docstring stated 16 all along. The
+  correction is recorded on the issue rather than silently edited. A6, again.
 
 refs: >
-  Phase 3 (MR !5, merged `636f4ab`) added `data:nightly` and admitted `schedule` into
-  `workflow:rules`, guarding every other job against schedules. It did NOT consider the
-  same mechanic on `web`, because `data:build:main`'s `if: web` rule predates it — MR !4
-  added it meaning "I deliberately want a full prod build now", which was reasonable when
-  web dispatch had no other purpose. Phase 3 gave web a second purpose and conflated the
-  two intentions. This is the correction.
+  GitLab issue #7 ("check_copy_gate.py is wired into nothing, and main ships 16 defects"),
+  including the correction note. CPO correction #867 (`muoto` -> `kunto`), cited in
+  `site_v2/src/i18n/strings.ts:415-418`, which flags `secForm` as carrying the same error and
+  explicitly defers it as "shipped copy he has not ruled on". This contract carries that ruling.
 
 scope_paths:
-  - .gitlab-ci.yml
-  - tests/test_governance_hooks.py
+  - site_v2/src/i18n/strings.ts
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
+  - .claude/task/acceptance_evidence.md
   - .claude/task/escalations.log
 
-protected_override: >
-  CPO instruction of 2026-08-06, recorded durably in `.claude/task/escalations.log` under
-  "CPO INSTRUCTION: RUN THE NIGHTLY — and what it cost to carry out". Read it there; this
-  is a pointer, not the record. `platform-reviewer` flagged an earlier version of this
-  field for quoting CPO dialogue that appeared nowhere a reviewer could check — the same
-  failure class `scope-auditor` failed the Phase 3 contract on, and worth heeding the
-  moment it is named rather than after a second FAIL.
-
-  THE AUTHORITY IS NARROW AND THIS CONTRACT DOES NOT CLAIM MORE. "ok do it" authorised
-  RUNNING THE NIGHTLY; it did not authorise this edit. The justification is that the edit
-  is a PRECONDITION to executing that instruction without unrequested spend — carrying it
-  out as the file stood would have started a third full prod build that day, immediately
-  after the CPO twice objected to that spend.
-
-  Same file, same migration and same authority as MR !4 and !5, whose guard-status ruling
-  is recorded in `.claude/task/escalations.log` under "GitHub -> GitLab migration: guard
-  status for the CI config".
-
-  CLASSIFICATION, stated rather than assumed: this is NOT a §10 decision. It removes no
-  capability — `data:build:main` remains available on a web dispatch, as a button instead
-  of an automatic start — and changes nothing about pushes to main. "An expensive job
-  should not auto-start on a manual dispatch" is an implementation judgement aligned with
-  a cost position the CPO has stated repeatedly.
-
 impact_map: >
-  - `.gitlab-ci.yml`, `data:build:main` rules. The `if: $CI_PIPELINE_SOURCE == "web"`
-    clause gains `when: manual`, and the branch clause gains an explicit
-    `$CI_PIPELINE_SOURCE == "push"` guard so a web dispatch cannot satisfy it.
-    CONSUMERS: nobody in-repo; it takes effect when GitLab builds a pipeline.
-    EFFECT BY SOURCE, which is the whole point:
-      · push to main  -> UNCHANGED, still automatic on a data-path change.
-      · web dispatch  -> becomes a BUTTON. Previously auto-started.
-      · schedule      -> unchanged, still excluded by `*not_on_schedule`.
-      · merge request -> unchanged, still never (that is `data:build:mr`).
-    BLAST RADIUS IF WRONG: the failure direction is safe. A mistake here means prod is
-    not rebuilt when someone expected it — visible, recoverable with one click, and
-    costing nothing. The direction being prevented is the expensive one: spending a full
-    prod build nobody asked for.
-    NOT CHANGED: `resource_group: prod-warehouse-write`, so `data:build:main` and
-    `data:nightly` still cannot MERGE the bare prod tables concurrently (#667) even when
-    both are started from the same pipeline.
+  writers: none. `site_v2/src/i18n/strings.ts` is a leaf source module — it is authored by hand
+    and written by no loader, no dbt model and no export script. `grep -rn "strings.ts"
+    scripts/ ingestion/ dbt_project/` returns nothing.
 
-  - `tests/test_governance_hooks.py`: extends the CI-reachability pins to model a WEB
-    pipeline as well as a scheduled one, asserting that no job costing warehouse spend
-    auto-starts on a manual dispatch. The existing recogniser is reused, which already
-    RAISES on an unrecognised condition rather than assuming it harmless — `push` is added
-    to its classified set deliberately, not silently.
+  downstream: 23 files import it. Evidence — `grep -rlE "i18n/strings" site_v2/src` returns 23
+    paths, including every consumer of the six changed keys:
+      aboutWithH2h      -> components/fixture/NarrativeSlot.astro, Masthead.astro
+      comingPerformance -> components/team/TeamPerformance.astro
+      comingSquad       -> components/team/TeamSquad.astro
+      heroVerdict*      -> components/team/DeservedHero.astro
+      secForm           -> components/fixture/FormSegment.astro
+      footerDataSource  -> components/chrome/SiteFooter.astro
+    All consumption is through `t(lang, key, params)` (strings.ts:450). No component reads a
+    dictionary directly, so no call site changes.
+
+  layer_rules: none apply. `check_layer_contract.py` governs `dbt_project/models/**`; this diff
+    touches no dbt model, no seed and no raw table. Verified: `python
+    scripts/check_layer_contract.py` -> "Layer contract checks passed." both before and after.
+
+  deploy_order: none. No warehouse object changes, so nothing is sequenced around the 04:00
+    nightly and nothing breaks between merge and deploy. `deploy:site-v2` is manual-only and
+    read-only against the warehouse.
+
+  blast_radius: display text only, in three locales, on the fixture and team pages. No number,
+    no metric, no query and no URL changes. Placeholder tokens are preserved exactly, which
+    acceptance criterion 3 checks mechanically — a dropped `{sotd}` would render a literal brace
+    to a user, and that is the only way a pure copy edit can break a page.
+
+# The four criteria below were CPO-approved 2026-08-06 and are LOCKED — only the CPO may move
+# them. This line is a NOTE and deliberately NOT a list item: the acceptance gate counts the
+# bullets under `acceptance_criteria:` and demands one evidence entry each, so a note formatted
+# as a bullet reads as a fifth, undemonstrated criterion. It was, and the gate caught it —
+# "5 acceptance criteria declared, 4 demonstrated". Correcting the FORMAT, not the criteria.
+acceptance_criteria:
+  - "1. `python scripts/check_copy_gate.py` exits 0 and prints no findings."
+  - "2. AMENDED 2026-08-06 — see `amendments:`. Zero U+2014 EM DASH characters in shipped string
+    VALUES, which is the gate's own scope. Code comments are not shipped copy and are out of
+    scope."
+  - "3. Every changed string keeps its placeholder tokens exactly — the multiset of `{...}`
+    tokens per key is identical before and after, shown by a diff of extracted tokens."
+  - "4. `fi.secForm` uses the `kunto` root, matching the validated corpus (`kuntojakso` in
+    site/i18n/fi.json)."
 
 decisions_taken: >
-  1. `when: manual` on the web clause, NOT removal of the clause. Deliberate full prod
-     builds must stay possible — that is what MR !4 added it for. The defect is that it
-     was automatic, not that it existed.
+  CPO approval of 2026-08-06, in this session, for all 16 fixes and for the four acceptance
+  criteria above, given after the pattern and both judgement calls were put to him with their
+  corpus evidence. Quoting the approved proposal:
 
-  2. The branch clause is additionally pinned to `$CI_PIPELINE_SOURCE == "push"`. Without
-     that, a web pipeline on main still matches `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH`
-     FIRST (rules are first-match-wins) and runs on_success — the `when: manual` on a
-     later clause would never be reached. Fixing only the web clause would have LOOKED
-     right and changed nothing, which is the failure mode this task exists to correct.
+  - The 14 em dashes are RESTRUCTURED, never swapped for an en dash: a trailing clause becomes a
+    full stop, a parenthetical becomes appositive commas, and `aboutWithH2h` takes a colon. The
+    shape is copied from `fi.aboutWithH2h`, which already uses a colon and is the one clean
+    string of the set. An en-dash substitution would read identically and merely evade the
+    check, which is the "never loosen a guard" failure in a different costume.
+  - `fi.secForm: "Muotovertailu"` -> `"Kuntovertailu"`. This closes the deferral recorded at
+    strings.ts:417-418.
+  - `fi.footerDataSource` KEEPS the value `"Data: API-Football"` and gains a comment recording
+    why identical-to-English is correct here. Evidence: the validated corpus uses `Data` as a
+    Finnish word (`"Data julkaistaan kauden paatyttya."`, `"Datan lataaminen epaonnistui:"` in
+    site/i18n/fi.json). The gate asks for exactly this — a comment when sameness is deliberate.
 
-  3. NOT applied to `deploy:export` / `deploy:site-v2`: they are already `manual` and
-     `web`-scoped, and `deploy:site-v2` cannot start until the manual export is triggered.
+  NO THRESHOLD IS CROSSED. No new mechanism: this adds no hook, no script, no dependency and no
+  CI job — the gate it satisfies already exists and stays unwired until PR 2. No recurring cost:
+  no warehouse read or write, no scheduled job, no API call. No new external surface. Declared
+  here because `scope-auditor` FAILs an undeclared crossing and no gate parses this field.
 
-  THRESHOLD DECLARATIONS. NEW MECHANISM: no — an existing job's trigger condition is
-  narrowed. RECURRING COST: a REDUCTION, and no figure is asserted. Per the CPO
-  instruction of 2026-08-06 recorded in `.claude/task/escalations.log`,
-  `report_bq_cost.py` has not been run; the saving is argued from what the job does (one
-  full prod build per unintended web dispatch) rather than from measured bytes.
+amendments: >
+  A THIRD entry, recorded for completeness but NOT an amendment to any criterion: the
+  `acceptance_criteria:` list originally carried a leading bullet reading "CPO-approved
+  2026-08-06 and LOCKED", which was a NOTE, not a criterion. The acceptance gate counts bullets
+  and correctly refused the commit — "5 acceptance criteria declared, 4 demonstrated". The note
+  moved above the key as a comment. No criterion was added, removed, reworded or softened; the
+  four are byte-identical. Recorded here rather than fixed silently because a change to the
+  acceptance block is exactly what a reviewer must be able to audit.
+
+  TWO amendments, both on 2026-08-06, both with the CPO ruling in the same conversation, both
+  made on a clean tree as §2 requires.
+
+  1. ACCEPTANCE CRITERION 2, reworded. Was: "`site_v2/src/i18n/strings.ts` contains zero U+2014
+     EM DASH characters." Now scoped to shipped string VALUES.
+
+     WHY, stated plainly because a loosened criterion is the thing reviewers must hunt: the
+     original wording was MY drafting error, not a bar that turned out to be too high. It
+     counted em dashes in CODE COMMENTS — 23 of them, in prose explaining past CPO rulings —
+     which are not user-visible copy and which `check_copy_gate.py` correctly ignores (it reads
+     dictionary values only, via `_ENTRY_RE`). Honouring the literal wording would have meant
+     rewriting ~20 unrelated comment lines for no guard benefit and real diff noise.
+
+     THE BAR DID NOT MOVE: the measured result is 0 em dashes in shipped values both before and
+     after this amendment. Nothing that was failing now passes.
+
+  2. `fi.footerDataSource`, reversing the ruling recorded under `decisions_taken`. The CPO first
+     approved KEEPING "Data: API-Football" with an explanatory comment, on my recommendation.
+     That recommendation was wrong on a checkable fact: `check_copy_gate.py`'s message promises
+     that "the value needs a comment saying so", but its code (check 4, `untranslated values`)
+     implements NO comment exemption, so the approved option could never pass. I also
+     under-researched the corpus — it carries `Tietolähde` for exactly "data source"
+     ("Tietolähde ei toimittanut tätä arvoa", site/i18n/fi.json).
+
+     The CPO ruled on the corrected options: translate it to "Tietolähde: API-Football". This
+     needs no change to the gate, which was the alternative and would have meant editing a guard
+     so my own change could pass.
+
+     NOTE FOR A FOLLOW-UP, deliberately NOT fixed here: the gate advertises an exemption it does
+     not implement. That is a defect in `scripts/check_copy_gate.py` and belongs in the MR that
+     wires it, not in this one.
 
 decisions_reserved:
-  - Whether merge-to-main should trigger a full prod build AT ALL is NOT decided here.
-    That is GitLab issue #2, filed as an observation with evidence for the CPO's cost
-    work, and this task deliberately leaves the push path untouched.
-  - The nightly SCHEDULE is still not created, per the CPO's decision that scheduling
-    makes no sense while nothing reads the data.
-
-done_when:
-  - `glab ci lint` reports the config valid.
-  - On a WEB pipeline, no job that spends warehouse money auto-starts: `data:build:main`
-    is `manual`, verified by parsing the merged YAML rather than by reading it.
-  - On a PUSH to main with a data-path change, `data:build:main` still runs automatically
-    — the fix must not silently disable prod builds.
-  - `python -m pytest tests/test_governance_hooks.py` is green, and the new pin has been
-    demonstrated to FAIL against the pre-fix rules, not merely to pass against the fixed
-    ones.
+  - none for this task. Copy wording is a §10 CPO class and every string changed here was put to
+    the CPO with its evidence and approved before any edit; the two genuine judgement calls
+    (`secForm`, `footerDataSource`) were named as such and ruled on individually. If a reviewer
+    finds a string whose new wording changes MEANING rather than punctuation, that is a §10
+    question and goes back to the CPO rather than being re-worded in review.

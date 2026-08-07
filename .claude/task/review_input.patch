@@ -1,591 +1,393 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 33124cd..74e091a 100644
+index 74e091a..0786bed 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,34 +1,35 @@
--# Task contract — GitLab CI Phase 3: the nightly prod build and the site deploy
-+# Task contract — a web dispatch must not auto-start the full prod build
+@@ -1,122 +1,154 @@
+-# Task contract — a web dispatch must not auto-start the full prod build
++# Task contract — clear the copy gate's 16 findings on `main`
  
--> Branch `chore/gitlab-ci-phase3` from `main`. `.gitlab-ci.yml` is a protected path and
--> `ingestion/**` is the structural surface, so `protected_override` and `impact_map` are
--> both declared. No `site_v2/src/` path is in scope, so no `acceptance_criteria`.
-+> Branch `chore/gitlab-ci-manual-prod-build` from `main`. `.gitlab-ci.yml` is a protected
-+> path, so `protected_override` and `impact_map` are both declared. No `site_v2/src/` path
-+> is in scope, so no `acceptance_criteria`.
+-> Branch `chore/gitlab-ci-manual-prod-build` from `main`. `.gitlab-ci.yml` is a protected
+-> path, so `protected_override` and `impact_map` are both declared. No `site_v2/src/` path
+-> is in scope, so no `acceptance_criteria`.
++> Branch `fix/i18n-copy-gate-defects` from `main` (`c701ecc`). Touches `site_v2/src/`, so
++> `acceptance_criteria` is present and LOCKED by CPO approval of 2026-08-06. No protected path
++> is in scope, so no `protected_override`.
  
  objective: >
--  Finish the GitHub -> GitLab migration. MR !4 moved the six quality gates and proved the
--  keyless WIF credential chain end to end (pipeline 2738001325 green, including the
--  singular DQ suite). What remains is the work that keeps the PROJECT running rather than
--  the CI: the nightly prod warehouse build, and the v2 site deploy.
-+  Make `data:build:main` MANUAL on a web-dispatched pipeline, leaving it automatic on a
-+  push to main. One line of `rules:`, plus the test that pins it.
+-  Make `data:build:main` MANUAL on a web-dispatched pipeline, leaving it automatic on a
+-  push to main. One line of `rules:`, plus the test that pins it.
+-
+-  THE PROBLEM, found by evaluating the rules before triggering anything rather than after
+-  paying for it. `data:nightly` is reachable only from a web dispatch (by design — no
+-  schedule exists, per the CPO's decision to defer it). But on that same web pipeline
+-  `data:build:main` matches `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and runs
+-  `when: on_success`, i.e. AUTOMATICALLY. Its `changes: *data_paths` filter does not hold
+-  it back: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or an
+-  MR — the same mechanic this file already guards against for schedules.
+-
+-  So asking for a manual nightly silently also starts a FULL PROD WAREHOUSE BUILD. The CPO
+-  asked for the nightly to be run; carrying that out as the file stands would have spent a
+-  prod build they did not ask for, on a day that already had two.
++  Remove every defect `scripts/check_copy_gate.py` reports on `main`, so the gate can be wired
++  into CI in the following MR without turning the default branch red.
++
++  THE PROBLEM. `scripts/check_copy_gate.py` exits 1 on `main` with 16 findings: 14 em dashes
++  across all three locales, `fi.secForm` using `muoto` where football Finnish uses `kunto`, and
++  `fi.footerDataSource` byte-identical to English. Every one is a defect against a standing rule
++  — `.claude/active_work.md`'s DO-NOT list says "no em dashes", and the `muoto`/`kunto` error is
++  a recorded CPO correction (#867). The gate has existed and been correct this whole time; it is
++  invoked by no CI job and no skill, so nothing ever surfaced them.
++
++  THIS IS PR 1 OF 2. PR 2 wires the gate (`.gitlab-ci.yml`, a protected path) together with the
++  other unwired guards. Fixing first and wiring second is what keeps `main` green: the reverse
++  order lands a gate that fails on the branch it guards.
++
++  MEASUREMENT DISCIPLINE, recorded because it already bit once here. The GitLab issue was first
++  filed claiming 10 findings and 8 em dashes, confined to `de`/`fi`. That was wrong: the count
++  came from output truncated by `tail -12`. The real figure is 16 and 14, and `en` is affected
++  too. `LOCALES = ("en", "de", "fi")` and the module docstring stated 16 all along. The
++  correction is recorded on the issue rather than silently edited. A6, again.
  
--  Two workflows are TRANSLATED (`dbt-scheduled.yml`, `deploy-site-v2.yml`) and three are
--  DELIBERATELY NOT (`pages-match-preview.yml`, `board-request-sync.yml`,
--  `ci-failure-watchdog.yml`). The non-ports are decisions, not omissions, and are argued
--  in `decisions_taken` — porting a workflow whose product was retired would resurrect it.
-+  THE PROBLEM, found by evaluating the rules before triggering anything rather than after
-+  paying for it. `data:nightly` is reachable only from a web dispatch (by design — no
-+  schedule exists, per the CPO's decision to defer it). But on that same web pipeline
-+  `data:build:main` matches `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and runs
-+  `when: on_success`, i.e. AUTOMATICALLY. Its `changes: *data_paths` filter does not hold
-+  it back: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or an
-+  MR — the same mechanic this file already guards against for schedules.
- 
--refs: >
--  CPO instruction, 2026-08-06: "Finish migration. AGAIN: I must be able to continue with
--  the project." That sentence sets the bar this contract is written against — the nightly
--  build is what makes the data keep flowing, so it is the centre of this task, and
--  anything not required for the CPO to keep working is deferred rather than bundled.
-+  So asking for a manual nightly silently also starts a FULL PROD WAREHOUSE BUILD. The CPO
-+  asked for the nightly to be run; carrying that out as the file stands would have spent a
-+  prod build they did not ask for, on a day that already had two.
- 
--  `.gitlab-ci.yml`'s guard status (routing + PROTECTED_FILES) was ruled on 2026-08-06 and
--  is recorded in `.claude/task/escalations.log`. That ruling still governs; this task
--  changes the file again under the same authority.
-+refs: >
-+  Phase 3 (MR !5, merged `636f4ab`) added `data:nightly` and admitted `schedule` into
-+  `workflow:rules`, guarding every other job against schedules. It did NOT consider the
-+  same mechanic on `web`, because `data:build:main`'s `if: web` rule predates it — MR !4
-+  added it meaning "I deliberately want a full prod build now", which was reasonable when
-+  web dispatch had no other purpose. Phase 3 gave web a second purpose and conflated the
-+  two intentions. This is the correction.
+ refs: >
+-  Phase 3 (MR !5, merged `636f4ab`) added `data:nightly` and admitted `schedule` into
+-  `workflow:rules`, guarding every other job against schedules. It did NOT consider the
+-  same mechanic on `web`, because `data:build:main`'s `if: web` rule predates it — MR !4
+-  added it meaning "I deliberately want a full prod build now", which was reasonable when
+-  web dispatch had no other purpose. Phase 3 gave web a second purpose and conflated the
+-  two intentions. This is the correction.
++  GitLab issue #7 ("check_copy_gate.py is wired into nothing, and main ships 16 defects"),
++  including the correction note. CPO correction #867 (`muoto` -> `kunto`), cited in
++  `site_v2/src/i18n/strings.ts:415-418`, which flags `secForm` as carrying the same error and
++  explicitly defers it as "shipped copy he has not ruled on". This contract carries that ruling.
  
  scope_paths:
-   - .gitlab-ci.yml
--  - ingestion/api_football/completeness.py
--  - ingestion/api_football/orchestrator.py
-   - tests/test_governance_hooks.py
+-  - .gitlab-ci.yml
+-  - tests/test_governance_hooks.py
++  - site_v2/src/i18n/strings.ts
    - .claude/task/contract.md
    - .claude/task/review.md
-@@ -36,172 +37,86 @@ scope_paths:
+   - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
    - .claude/task/escalations.log
  
- protected_override: >
--  CPO instruction of 2026-08-06 ("Finish migration"), which cannot be carried out without
--  editing `.gitlab-ci.yml` — the file that holds every job being added. This is the same
--  file, the same migration and the same authority as MR !4, whose guard-status ruling is
--  recorded durably in `.claude/task/escalations.log` under "GitHub -> GitLab migration:
--  guard status for the CI config".
+-protected_override: >
+-  CPO instruction of 2026-08-06, recorded durably in `.claude/task/escalations.log` under
+-  "CPO INSTRUCTION: RUN THE NIGHTLY — and what it cost to carry out". Read it there; this
+-  is a pointer, not the record. `platform-reviewer` flagged an earlier version of this
+-  field for quoting CPO dialogue that appeared nowhere a reviewer could check — the same
+-  failure class `scope-auditor` failed the Phase 3 contract on, and worth heeding the
+-  moment it is named rather than after a second FAIL.
 -
--  Stated plainly rather than inferred: the CPO has not separately ruled on WHICH workflows
--  get ported. That judgement is the builder's and is argued in `decisions_taken`; the
--  three non-ports are the part most worth challenging, and each cites the record it rests
--  on rather than a preference.
-+  CPO instruction of 2026-08-06, recorded durably in `.claude/task/escalations.log` under
-+  "CPO INSTRUCTION: RUN THE NIGHTLY — and what it cost to carry out". Read it there; this
-+  is a pointer, not the record. `platform-reviewer` flagged an earlier version of this
-+  field for quoting CPO dialogue that appeared nowhere a reviewer could check — the same
-+  failure class `scope-auditor` failed the Phase 3 contract on, and worth heeding the
-+  moment it is named rather than after a second FAIL.
-+
-+  THE AUTHORITY IS NARROW AND THIS CONTRACT DOES NOT CLAIM MORE. "ok do it" authorised
-+  RUNNING THE NIGHTLY; it did not authorise this edit. The justification is that the edit
-+  is a PRECONDITION to executing that instruction without unrequested spend — carrying it
-+  out as the file stood would have started a third full prod build that day, immediately
-+  after the CPO twice objected to that spend.
-+
-+  Same file, same migration and same authority as MR !4 and !5, whose guard-status ruling
-+  is recorded in `.claude/task/escalations.log` under "GitHub -> GitLab migration: guard
-+  status for the CI config".
-+
-+  CLASSIFICATION, stated rather than assumed: this is NOT a §10 decision. It removes no
-+  capability — `data:build:main` remains available on a web dispatch, as a button instead
-+  of an automatic start — and changes nothing about pushes to main. "An expensive job
-+  should not auto-start on a manual dispatch" is an implementation judgement aligned with
-+  a cost position the CPO has stated repeatedly.
- 
+-  THE AUTHORITY IS NARROW AND THIS CONTRACT DOES NOT CLAIM MORE. "ok do it" authorised
+-  RUNNING THE NIGHTLY; it did not authorise this edit. The justification is that the edit
+-  is a PRECONDITION to executing that instruction without unrequested spend — carrying it
+-  out as the file stood would have started a third full prod build that day, immediately
+-  after the CPO twice objected to that spend.
+-
+-  Same file, same migration and same authority as MR !4 and !5, whose guard-status ruling
+-  is recorded in `.claude/task/escalations.log` under "GitHub -> GitLab migration: guard
+-  status for the CI config".
+-
+-  CLASSIFICATION, stated rather than assumed: this is NOT a §10 decision. It removes no
+-  capability — `data:build:main` remains available on a web dispatch, as a button instead
+-  of an automatic start — and changes nothing about pushes to main. "An expensive job
+-  should not auto-start on a manual dispatch" is an implementation judgement aligned with
+-  a cost position the CPO has stated repeatedly.
+-
  impact_map: >
--  END-TO-END TRACE of each change.
+-  - `.gitlab-ci.yml`, `data:build:main` rules. The `if: $CI_PIPELINE_SOURCE == "web"`
+-    clause gains `when: manual`, and the branch clause gains an explicit
+-    `$CI_PIPELINE_SOURCE == "push"` guard so a web dispatch cannot satisfy it.
+-    CONSUMERS: nobody in-repo; it takes effect when GitLab builds a pipeline.
+-    EFFECT BY SOURCE, which is the whole point:
+-      · push to main  -> UNCHANGED, still automatic on a data-path change.
+-      · web dispatch  -> becomes a BUTTON. Previously auto-started.
+-      · schedule      -> unchanged, still excluded by `*not_on_schedule`.
+-      · merge request -> unchanged, still never (that is `data:build:mr`).
+-    BLAST RADIUS IF WRONG: the failure direction is safe. A mistake here means prod is
+-    not rebuilt when someone expected it — visible, recoverable with one click, and
+-    costing nothing. The direction being prevented is the expensive one: spending a full
+-    prod build nobody asked for.
+-    NOT CHANGED: `resource_group: prod-warehouse-write`, so `data:build:main` and
+-    `data:nightly` still cannot MERGE the bare prod tables concurrently (#667) even when
+-    both are started from the same pipeline.
 -
--  - `.gitlab-ci.yml`, `schedule` added to `workflow:rules`. THIS IS THE DANGEROUS EDIT and
--    it is why the previous contract deliberately withheld it. A scheduled pipeline runs
--    with `CI_COMMIT_BRANCH == main`, so it satisfies every existing `if: $CI_COMMIT_BRANCH
--    == $CI_DEFAULT_BRANCH` rule — `validate:ui`, `build:site-v2` and, critically,
--    `data:build:main`. Worse, GitLab evaluates `changes:` as TRUE on any pipeline that is
--    not a push or MR, so `data:build:main`'s `changes: *data_paths` filter does NOT hold
--    it back on a schedule. Admitting schedules naively would therefore run a SECOND full
--    prod warehouse build every night, doubling the most expensive job in the file.
--    MITIGATION: a `.not_on_schedule` anchor (`if: $CI_PIPELINE_SOURCE == "schedule"`,
--    `when: never`) is placed FIRST in the rules of every job except the nightly. Rules are
--    first-match-wins, so the guard cannot be outvoted by a later matching clause. Pinned
--    by a test (below) because the failure is silent and expensive: nothing goes red, the
--    bill just doubles.
--
--  - `.gitlab-ci.yml`, new job `data:nightly` (was `dbt-scheduled.yml`). Runs ONLY on
--    `$CI_PIPELINE_SOURCE == "schedule"` plus manual `web`. Joins `resource_group:
--    prod-warehouse-write`, shared with `data:build:main`, so the two prod writers can
--    never MERGE the bare prod tables concurrently (#667) — the same guarantee the GitHub
--    `concurrency: prod-warehouse-write` group gave across workflows.
--    CONSUMER: the warehouse itself. This is the job that keeps `dbt_analytics` current,
--    so its absence is what "I must be able to continue with the project" is about.
--
--  - `ingestion/api_football/completeness.py::write_github_output` -> `write_ci_output`.
--    CONSUMER: exactly one call site, `orchestrator.py:313`, which emits
--    `new_data=true|false` after ingestion. The GitHub workflow gated `dbt deps`, `dbt
--    seed`, both contract checks and `dbt build` on `steps.ingest.outputs.new_data ==
--    'true'` — i.e. a NIGHT WITH NO NEW DATA COSTS NOTHING. GitLab has no step outputs, so
--    the signal must survive as a file the next command reads.
--    WHY NOT just set `GITHUB_OUTPUT` in the GitLab job: it works, and it is a lie in a
--    filename — a GitLab runner writing a variable named for a platform this repo is
--    leaving. The helper now reads `CI_STEP_OUTPUT` first and falls back to
--    `GITHUB_OUTPUT`, so the frozen `.github/workflows/` copies keep working unchanged and
--    neither platform's name is hardcoded into the other's path.
--    BLAST RADIUS: the function is a no-op when neither variable is set, which is every
--    local run and every test. Renaming it cannot change ingestion behaviour; the worst
--    case is the nightly always seeing `new_data` unset and SKIPPING the build, which is
--    the safe direction (no spend, visible as an idle nightly), not a silent overspend.
--
--  - `.gitlab-ci.yml`, new job `deploy:site-v2` (was `deploy-site-v2.yml`). BOTH gates the
--    original documents as deliberately closed are preserved: `when: manual` with no
--    schedule and no push trigger (the original's only trigger was `workflow_dispatch`),
--    and no custom-domain step (the deploy targets Firebase `.web.app`; going public is a
--    separate CPO decision, still blocked on the imprint question). It does NOT join
--    `prod-warehouse-write` — the export only SELECTs marts and writes no prod table,
--    which is why the original kept it in its own concurrency group.
--
--  - `tests/test_governance_hooks.py`: pins TWO invariants, both verified to fail against
--    the broken form rather than merely to pass against the fixed one.
--    (i) the schedule guard, per the bullet above.
--    (ii) `id_tokens` on every job that expands `*gcp_auth`. GitLab populates
--    `$GITLAB_OIDC_TOKEN` ONLY for a job declaring `id_tokens:` itself — not inherited
--    from `default:`, not implied by the anchor. `data:nightly`, `deploy:export` and
--    `deploy:site-v2` were all written without it and would have died at the auth guard
--    on every run, the nightly never building prod once a schedule existed.
--    `data-engineer-reviewer` caught it; `glab ci lint` passed it, the YAML parsed, and
--    both other tests passed, because the config was well-formed and simply wrong — the
--    same shape as MR !4's profile-location defect. The declaration is now a single
--    `.gcp_job` anchor merged into every consumer, so there is one definition to audit
--    instead of a copy per job.
-+  - `.gitlab-ci.yml`, `data:build:main` rules. The `if: $CI_PIPELINE_SOURCE == "web"`
-+    clause gains `when: manual`, and the branch clause gains an explicit
-+    `$CI_PIPELINE_SOURCE == "push"` guard so a web dispatch cannot satisfy it.
-+    CONSUMERS: nobody in-repo; it takes effect when GitLab builds a pipeline.
-+    EFFECT BY SOURCE, which is the whole point:
-+      · push to main  -> UNCHANGED, still automatic on a data-path change.
-+      · web dispatch  -> becomes a BUTTON. Previously auto-started.
-+      · schedule      -> unchanged, still excluded by `*not_on_schedule`.
-+      · merge request -> unchanged, still never (that is `data:build:mr`).
-+    BLAST RADIUS IF WRONG: the failure direction is safe. A mistake here means prod is
-+    not rebuilt when someone expected it — visible, recoverable with one click, and
-+    costing nothing. The direction being prevented is the expensive one: spending a full
-+    prod build nobody asked for.
-+    NOT CHANGED: `resource_group: prod-warehouse-write`, so `data:build:main` and
-+    `data:nightly` still cannot MERGE the bare prod tables concurrently (#667) even when
-+    both are started from the same pipeline.
+-  - `tests/test_governance_hooks.py`: extends the CI-reachability pins to model a WEB
+-    pipeline as well as a scheduled one, asserting that no job costing warehouse spend
+-    auto-starts on a manual dispatch. The existing recogniser is reused, which already
+-    RAISES on an unrecognised condition rather than assuming it harmless — `push` is added
+-    to its classified set deliberately, not silently.
++  writers: none. `site_v2/src/i18n/strings.ts` is a leaf source module — it is authored by hand
++    and written by no loader, no dbt model and no export script. `grep -rn "strings.ts"
++    scripts/ ingestion/ dbt_project/` returns nothing.
 +
-+  - `tests/test_governance_hooks.py`: extends the CI-reachability pins to model a WEB
-+    pipeline as well as a scheduled one, asserting that no job costing warehouse spend
-+    auto-starts on a manual dispatch. The existing recogniser is reused, which already
-+    RAISES on an unrecognised condition rather than assuming it harmless — `push` is added
-+    to its classified set deliberately, not silently.
++  downstream: 23 files import it. Evidence — `grep -rlE "i18n/strings" site_v2/src` returns 23
++    paths, including every consumer of the six changed keys:
++      aboutWithH2h      -> components/fixture/NarrativeSlot.astro, Masthead.astro
++      comingPerformance -> components/team/TeamPerformance.astro
++      comingSquad       -> components/team/TeamSquad.astro
++      heroVerdict*      -> components/team/DeservedHero.astro
++      secForm           -> components/fixture/FormSegment.astro
++      footerDataSource  -> components/chrome/SiteFooter.astro
++    All consumption is through `t(lang, key, params)` (strings.ts:450). No component reads a
++    dictionary directly, so no call site changes.
++
++  layer_rules: none apply. `check_layer_contract.py` governs `dbt_project/models/**`; this diff
++    touches no dbt model, no seed and no raw table. Verified: `python
++    scripts/check_layer_contract.py` -> "Layer contract checks passed." both before and after.
++
++  deploy_order: none. No warehouse object changes, so nothing is sequenced around the 04:00
++    nightly and nothing breaks between merge and deploy. `deploy:site-v2` is manual-only and
++    read-only against the warehouse.
++
++  blast_radius: display text only, in three locales, on the fixture and team pages. No number,
++    no metric, no query and no URL changes. Placeholder tokens are preserved exactly, which
++    acceptance criterion 3 checks mechanically — a dropped `{sotd}` would render a literal brace
++    to a user, and that is the only way a pure copy edit can break a page.
++
++# The four criteria below were CPO-approved 2026-08-06 and are LOCKED — only the CPO may move
++# them. This line is a NOTE and deliberately NOT a list item: the acceptance gate counts the
++# bullets under `acceptance_criteria:` and demands one evidence entry each, so a note formatted
++# as a bullet reads as a fifth, undemonstrated criterion. It was, and the gate caught it —
++# "5 acceptance criteria declared, 4 demonstrated". Correcting the FORMAT, not the criteria.
++acceptance_criteria:
++  - "1. `python scripts/check_copy_gate.py` exits 0 and prints no findings."
++  - "2. AMENDED 2026-08-06 — see `amendments:`. Zero U+2014 EM DASH characters in shipped string
++    VALUES, which is the gate's own scope. Code comments are not shipped copy and are out of
++    scope."
++  - "3. Every changed string keeps its placeholder tokens exactly — the multiset of `{...}`
++    tokens per key is identical before and after, shown by a diff of extracted tokens."
++  - "4. `fi.secForm` uses the `kunto` root, matching the validated corpus (`kuntojakso` in
++    site/i18n/fi.json)."
  
  decisions_taken: >
--  1. PORTED: `dbt-scheduled.yml` -> `data:nightly`. This is the reason the task exists.
+-  1. `when: manual` on the web clause, NOT removal of the clause. Deliberate full prod
+-     builds must stay possible — that is what MR !4 added it for. The defect is that it
+-     was automatic, not that it existed.
 -
--  2. PORTED: `deploy-site-v2.yml` -> `deploy:site-v2`, manual-only, both gates intact.
+-  2. The branch clause is additionally pinned to `$CI_PIPELINE_SOURCE == "push"`. Without
+-     that, a web pipeline on main still matches `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH`
+-     FIRST (rules are first-match-wins) and runs on_success — the `when: manual` on a
+-     later clause would never be reached. Fixing only the web clause would have LOOKED
+-     right and changed nothing, which is the failure mode this task exists to correct.
 -
--  3. NOT PORTED: `pages-match-preview.yml`. Its product is RETIRED. `docs/north_star.md:37`
--     records the legacy card MVP as taken offline on 2026-07-21, "its Pages deployment
--     deleted, `site/` frozen. There is no parity requirement, no cutover and no restore."
--     Porting it would resurrect a deliberately retired product AND reinstate a daily
--     07:30 UTC build — which `.claude/active_work.md` ranks as #547's open cost item 3
--     ("rebuilds unconditionally, no `new_data` gate", explicitly NEVER MEASURED). Not
--     porting is the only reading consistent with the retirement, and it happens to be the
--     cheaper one. If the CPO wants the MVP back that is a product decision, not a
--     migration step.
+-  3. NOT applied to `deploy:export` / `deploy:site-v2`: they are already `manual` and
+-     `web`-scoped, and `deploy:site-v2` cannot start until the manual export is triggered.
 -
--  4. NOT PORTED: `board-request-sync.yml`. It drives a GitHub Projects v2 board over
--     GraphQL. That board died with the account, and the 114-issue tracker did not migrate
--     — GitLab currently holds ONE issue. The CPO has chosen "rewrite against GitLab Issue
--     Boards", but there is no board to sync yet, so building the sync now would be
--     writing an integration against a thing that does not exist. Deferred, not dropped.
--     `project-status-sync.yml` is already in `.github/workflows/_paused/` and inactive, so
--     it is not a migration item at all.
--
--  5. NOT PORTED: `ci-failure-watchdog.yml`. It opened a GitHub Issue when CI failed.
--     GitLab emails the pipeline's author on failure natively, so porting it would rebuild
--     a notification that already exists, and would need the issue tracker that does not.
--
--  6. THE SCHEDULE GUARD IS A `when: never` ANCHOR PLACED FIRST, not a `!=` condition
--     appended to each existing rule. Both work; the anchor is one definition to audit
--     instead of five edited conditions, and first-match-wins means it cannot be defeated
--     by a later clause. The alternative would have required getting five separate boolean
--     expressions right, which is exactly the hand-copied-in-N-places pattern that cost
--     MR !4 three review rounds.
--
--  THRESHOLD DECLARATIONS. NEW MECHANISM: yes, two — a scheduled pipeline trigger (which
--  needs a GitLab pipeline schedule created in the UI or API; see `decisions_reserved`) and
--  a Firebase deploy job. Both are translations of mechanisms that already ran on GitHub,
--  not new capabilities.
--
--  RECURRING COST — the honest accounting, and it is a REDUCTION:
--  (a) The nightly prod build is NOT new spend: it is the GitHub nightly moving hosts, and
--      it has been absent since the account was suspended. Restoring it restores the prior
--      baseline. It stays gated on `new_data`, so a night with no new data still costs
--      nothing.
--  (b) NOT porting `pages-match-preview.yml` REMOVES a daily 07:30 UTC unconditional
--      rebuild from the platform's recurring cost. Its size was never measured, so no
--      figure is claimed here.
--  (c) `deploy:site-v2` is manual, so it adds no recurring cost.
--  (d) NO COST FIGURE IS ASSERTED for any of this. The CPO instructed on 2026-08-06 that
--      `report_bq_cost.py` not be run — recorded durably in `.claude/task/escalations.log`
--      under "CPO INSTRUCTION: DO NOT RUN THE COST TOOLING", with the verbatim wording;
--      read it there, this is a pointer and not the record. `scope-auditor` FAILED an
--      earlier version of this contract for citing that instruction with no entry a
--      reviewer could check — the same defect that failed MR !4's round 1, held to
--      correctly a second time. Cost effects are therefore argued from what the workflows
--      DO, never from bytes, and the ranked list in `.claude/active_work.md` is cited
--      as-is where relevant.
-+  1. `when: manual` on the web clause, NOT removal of the clause. Deliberate full prod
-+     builds must stay possible — that is what MR !4 added it for. The defect is that it
-+     was automatic, not that it existed.
+-  THRESHOLD DECLARATIONS. NEW MECHANISM: no — an existing job's trigger condition is
+-  narrowed. RECURRING COST: a REDUCTION, and no figure is asserted. Per the CPO
+-  instruction of 2026-08-06 recorded in `.claude/task/escalations.log`,
+-  `report_bq_cost.py` has not been run; the saving is argued from what the job does (one
+-  full prod build per unintended web dispatch) rather than from measured bytes.
++  CPO approval of 2026-08-06, in this session, for all 16 fixes and for the four acceptance
++  criteria above, given after the pattern and both judgement calls were put to him with their
++  corpus evidence. Quoting the approved proposal:
 +
-+  2. The branch clause is additionally pinned to `$CI_PIPELINE_SOURCE == "push"`. Without
-+     that, a web pipeline on main still matches `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH`
-+     FIRST (rules are first-match-wins) and runs on_success — the `when: manual` on a
-+     later clause would never be reached. Fixing only the web clause would have LOOKED
-+     right and changed nothing, which is the failure mode this task exists to correct.
++  - The 14 em dashes are RESTRUCTURED, never swapped for an en dash: a trailing clause becomes a
++    full stop, a parenthetical becomes appositive commas, and `aboutWithH2h` takes a colon. The
++    shape is copied from `fi.aboutWithH2h`, which already uses a colon and is the one clean
++    string of the set. An en-dash substitution would read identically and merely evade the
++    check, which is the "never loosen a guard" failure in a different costume.
++  - `fi.secForm: "Muotovertailu"` -> `"Kuntovertailu"`. This closes the deferral recorded at
++    strings.ts:417-418.
++  - `fi.footerDataSource` KEEPS the value `"Data: API-Football"` and gains a comment recording
++    why identical-to-English is correct here. Evidence: the validated corpus uses `Data` as a
++    Finnish word (`"Data julkaistaan kauden paatyttya."`, `"Datan lataaminen epaonnistui:"` in
++    site/i18n/fi.json). The gate asks for exactly this — a comment when sameness is deliberate.
 +
-+  3. NOT applied to `deploy:export` / `deploy:site-v2`: they are already `manual` and
-+     `web`-scoped, and `deploy:site-v2` cannot start until the manual export is triggered.
++  NO THRESHOLD IS CROSSED. No new mechanism: this adds no hook, no script, no dependency and no
++  CI job — the gate it satisfies already exists and stays unwired until PR 2. No recurring cost:
++  no warehouse read or write, no scheduled job, no API call. No new external surface. Declared
++  here because `scope-auditor` FAILs an undeclared crossing and no gate parses this field.
 +
-+  THRESHOLD DECLARATIONS. NEW MECHANISM: no — an existing job's trigger condition is
-+  narrowed. RECURRING COST: a REDUCTION, and no figure is asserted. Per the CPO
-+  instruction of 2026-08-06 recorded in `.claude/task/escalations.log`,
-+  `report_bq_cost.py` has not been run; the saving is argued from what the job does (one
-+  full prod build per unintended web dispatch) rather than from measured bytes.
++amendments: >
++  A THIRD entry, recorded for completeness but NOT an amendment to any criterion: the
++  `acceptance_criteria:` list originally carried a leading bullet reading "CPO-approved
++  2026-08-06 and LOCKED", which was a NOTE, not a criterion. The acceptance gate counts bullets
++  and correctly refused the commit — "5 acceptance criteria declared, 4 demonstrated". The note
++  moved above the key as a comment. No criterion was added, removed, reworded or softened; the
++  four are byte-identical. Recorded here rather than fixed silently because a change to the
++  acceptance block is exactly what a reviewer must be able to audit.
++
++  TWO amendments, both on 2026-08-06, both with the CPO ruling in the same conversation, both
++  made on a clean tree as §2 requires.
++
++  1. ACCEPTANCE CRITERION 2, reworded. Was: "`site_v2/src/i18n/strings.ts` contains zero U+2014
++     EM DASH characters." Now scoped to shipped string VALUES.
++
++     WHY, stated plainly because a loosened criterion is the thing reviewers must hunt: the
++     original wording was MY drafting error, not a bar that turned out to be too high. It
++     counted em dashes in CODE COMMENTS — 23 of them, in prose explaining past CPO rulings —
++     which are not user-visible copy and which `check_copy_gate.py` correctly ignores (it reads
++     dictionary values only, via `_ENTRY_RE`). Honouring the literal wording would have meant
++     rewriting ~20 unrelated comment lines for no guard benefit and real diff noise.
++
++     THE BAR DID NOT MOVE: the measured result is 0 em dashes in shipped values both before and
++     after this amendment. Nothing that was failing now passes.
++
++  2. `fi.footerDataSource`, reversing the ruling recorded under `decisions_taken`. The CPO first
++     approved KEEPING "Data: API-Football" with an explanatory comment, on my recommendation.
++     That recommendation was wrong on a checkable fact: `check_copy_gate.py`'s message promises
++     that "the value needs a comment saying so", but its code (check 4, `untranslated values`)
++     implements NO comment exemption, so the approved option could never pass. I also
++     under-researched the corpus — it carries `Tietolähde` for exactly "data source"
++     ("Tietolähde ei toimittanut tätä arvoa", site/i18n/fi.json).
++
++     The CPO ruled on the corrected options: translate it to "Tietolähde: API-Football". This
++     needs no change to the gate, which was the alternative and would have meant editing a guard
++     so my own change could pass.
++
++     NOTE FOR A FOLLOW-UP, deliberately NOT fixed here: the gate advertises an exemption it does
++     not implement. That is a defect in `scripts/check_copy_gate.py` and belongs in the MR that
++     wires it, not in this one.
  
  decisions_reserved:
--  - The GitLab PIPELINE SCHEDULE ITSELF IS NOT CREATED by this task. A schedule is
--    project configuration, not repository content — it cannot be committed. Creating it
--    starts a recurring prod warehouse build, which is a cost commitment and therefore the
--    CPO's to make, with the cron (04:00 UTC, matching the GitHub original) and target
--    branch stated when they do. Until it exists `data:nightly` simply never fires, which
--    is the safe default.
--  - Phase 4 (board sync) is deferred per `decisions_taken` #4, pending a GitLab board and
--    a migrated tracker.
--  - Whether to DELETE `.github/workflows/` remains undecided, unchanged from MR !4. It is
--    still the reference this task translates FROM, and `review_routing.json` records that
--    retiring it returns the guard counts to eight and TWO.
--  - Going public with the v2 site (custom domain, announcement) is untouched and remains
--    blocked on the imprint question.
--  - The slim MR build path (`dbt build --select state:modified+ --defer --favor-state`)
--    is STILL unexercised on GitLab: MR !4 changed no dbt models, so it reported "Nothing
--    to do". The first MR touching a model remains its real test. Nothing here changes it.
-+  - Whether merge-to-main should trigger a full prod build AT ALL is NOT decided here.
-+    That is GitLab issue #2, filed as an observation with evidence for the CPO's cost
-+    work, and this task deliberately leaves the push path untouched.
-+  - The nightly SCHEDULE is still not created, per the CPO's decision that scheduling
-+    makes no sense while nothing reads the data.
+-  - Whether merge-to-main should trigger a full prod build AT ALL is NOT decided here.
+-    That is GitLab issue #2, filed as an observation with evidence for the CPO's cost
+-    work, and this task deliberately leaves the push path untouched.
+-  - The nightly SCHEDULE is still not created, per the CPO's decision that scheduling
+-    makes no sense while nothing reads the data.
+-
+-done_when:
+-  - `glab ci lint` reports the config valid.
+-  - On a WEB pipeline, no job that spends warehouse money auto-starts: `data:build:main`
+-    is `manual`, verified by parsing the merged YAML rather than by reading it.
+-  - On a PUSH to main with a data-path change, `data:build:main` still runs automatically
+-    — the fix must not silently disable prod builds.
+-  - `python -m pytest tests/test_governance_hooks.py` is green, and the new pin has been
+-    demonstrated to FAIL against the pre-fix rules, not merely to pass against the fixed
+-    ones.
++  - none for this task. Copy wording is a §10 CPO class and every string changed here was put to
++    the CPO with its evidence and approved before any edit; the two genuine judgement calls
++    (`secForm`, `footerDataSource`) were named as such and ruled on individually. If a reviewer
++    finds a string whose new wording changes MEANING rather than punctuation, that is a §10
++    question and goes back to the CPO rather than being re-worded in review.
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index d8ec516..a6e6a21 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -54,7 +54,7 @@ const EN: Dict = {
+   topScorers: "Top scorers",
+   fullH2H: "Full head-to-head",
+   footnote: "Sample data · v2 preview ({brand})",
+-  aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times — {record}.",
++  aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times: {record}.",
+   aboutNoH2h: "{home} vs {away} · {round}.",
+   posF: "Forward", posM: "Midfield", posD: "Defence", posG: "Goalkeeper",
+   // --- team page (Overview) ---
+@@ -67,8 +67,8 @@ const EN: Dict = {
+   tabPerformance: "Performance",
+   tabSquad: "Squad",
+   comingTitle: "Coming soon",
+-  comingPerformance: "Every metric ranked against the league and against last season — landing with the next release.",
+-  comingSquad: "The full squad with per-player minutes and output — landing with the next release.",
++  comingPerformance: "Every metric ranked against the league and against last season. Landing with the next release.",
++  comingSquad: "The full squad with per-player minutes and output. Landing with the next release.",
+   // squad tab
+   squadGk: "Goalkeepers", squadDef: "Defenders", squadMid: "Midfielders", squadFwd: "Forwards", squadOther: "Other",
+   seasonToDate: "season to date",
+@@ -91,8 +91,8 @@ const EN: Dict = {
+   // heroSotFor / heroSotAgainst / heroSotDiff removed (#370): they were a THIRD hand-written copy of
+   // three metric names that the catalogue already identifies. The hero tiles now read them from
+   // METRIC_LABELS below, like every other metric name on the site.
+-  heroVerdictUnder: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They finished {gap} short of what they created.",
+-  heroVerdictOver: "Play like {team}'s — a shots-on-target difference of {sotd} per match — usually earns about {deserved} points. They took {gap} more than they created.",
++  heroVerdictUnder: "Play like {team}'s, a shots-on-target difference of {sotd} per match, usually earns about {deserved} points. They finished {gap} short of what they created.",
++  heroVerdictOver: "Play like {team}'s, a shots-on-target difference of {sotd} per match, usually earns about {deserved} points. They took {gap} more than they created.",
+   heroCaption: "Every dot is a {competition} team, placed by shots-on-target difference per match (left to right) against points won (up = more). The dashed line is the points that level of play usually earns.",
+   heroNoData: "A deserved-vs-actual read needs a single league table, so it is shown for domestic leagues only.",
+   axPoints: "Points won",
+@@ -205,7 +205,7 @@ const DE: Dict = {
+   topScorers: "Torjäger",
+   fullH2H: "Kompletter Vergleich",
+   footnote: "Beispieldaten · v2-Vorschau ({brand})",
+-  aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander — {record}.",
++  aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander: {record}.",
+   aboutNoH2h: "{home} gegen {away} · {round}.",
+   posF: "Angriff", posM: "Mittelfeld", posD: "Abwehr", posG: "Tor",
+   // --- team page (Overview) ---
+@@ -218,8 +218,13 @@ const DE: Dict = {
+   tabPerformance: "Leistung",
+   tabSquad: "Kader",
+   comingTitle: "Demnächst",
+-  comingPerformance: "Jede Kennzahl im Vergleich zur Liga und zur Vorsaison — kommt mit dem nächsten Release.",
+-  comingSquad: "Der komplette Kader mit Einsatzminuten und Scorerwerten je Spieler — kommt mit dem nächsten Release.",
++  // German keeps ONE sentence where EN and FI take two. The em dash here was a stylistic pause
++  // between a subject and its only finite verb, not a clause break: splitting it leaves "Kommt
++  // mit dem nächsten Release." — a finite verb with no subject, which German reads as an
++  // imperative. EN "Landing…" and FI "Tulossa…" are non-finite fragments and split safely.
++  // bi-analyst-reviewer FAIL, round 1; CPO ruling 2026-08-06.
++  comingPerformance: "Jede Kennzahl im Vergleich zur Liga und zur Vorsaison kommt mit dem nächsten Release.",
++  comingSquad: "Der komplette Kader mit Einsatzminuten und Scorerwerten je Spieler kommt mit dem nächsten Release.",
+   // squad tab
+   squadGk: "Torhüter", squadDef: "Abwehr", squadMid: "Mittelfeld", squadFwd: "Angriff", squadOther: "Sonstige",
+   seasonToDate: "Saison bis dato",
+@@ -244,8 +249,8 @@ const DE: Dict = {
+   // tile label in METRIC_LABELS_DE, the axis (`axPlay`) and the caption (`heroCaption`). Nothing binds
+   // them, so revising one silently leaves three disagreeing. Change them together or not at all.
+   // Wording is the CPO's (§10); `Torschussdifferenz` and `pro Spiel` are both his.
+-  heroVerdictUnder: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
+-  heroVerdictOver: "Ein Spiel wie das von {team} — eine Torschussdifferenz von {sotd} pro Spiel — bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
++  heroVerdictUnder: "Ein Spiel wie das von {team}, eine Torschussdifferenz von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
++  heroVerdictOver: "Ein Spiel wie das von {team}, eine Torschussdifferenz von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
+   heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Torschussdifferenz pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
+   heroNoData: "Eine Verdient-vs.-tatsächlich-Einordnung braucht eine einzige Ligatabelle und wird daher nur für Ligen gezeigt.",
+   axPoints: "Geholte Punkte",
+@@ -307,7 +312,11 @@ const FI: Dict = {
+   crumbHome: "Etusivu",
+   crumbMatches: "Ottelut",
+   eyebrowPreview: "Otteluennakko",
+-  secForm: "Muotovertailu",
++  // "kunto", not "muoto": muoto is shape/format, and the football sense of form is kunto —
++  // corroborated by the MVP corpus, which renders "form window" as `kuntojakso`
++  // (site/i18n/fi.json). CPO correction #867, extended to this key by CPO ruling 2026-08-06;
++  // the deferral noted at seoTeamTitle below is now closed.
++  secForm: "Kuntovertailu",
+   secRecent: "Viimeisimmät ottelut",
+   secPlayers: "Seurattavat pelaajat",
+   secH2H: "Keskinäiset ottelut",
+@@ -362,8 +371,8 @@ const FI: Dict = {
+   tabPerformance: "Suoritus",
+   tabSquad: "Kokoonpano",
+   comingTitle: "Tulossa",
+-  comingPerformance: "Jokainen tunnusluku sarjaan ja viime kauteen verrattuna — tulossa seuraavassa julkaisussa.",
+-  comingSquad: "Koko kokoonpano pelaajakohtaisine peliminuutteineen ja tehopisteineen — tulossa seuraavassa julkaisussa.",
++  comingPerformance: "Jokainen tunnusluku sarjaan ja viime kauteen verrattuna. Tulossa seuraavassa julkaisussa.",
++  comingSquad: "Koko kokoonpano pelaajakohtaisine peliminuutteineen ja tehopisteineen. Tulossa seuraavassa julkaisussa.",
+   // squad tab
+   squadGk: "Maalivahdit", squadDef: "Puolustajat", squadMid: "Keskikenttäpelaajat", squadFwd: "Hyökkääjät", squadOther: "Muut",
+   seasonToDate: "kausi tähän mennessä",
+@@ -387,8 +396,8 @@ const FI: Dict = {
+   // ⚠ Same four-string trap as the German block above — these two sentences, the tile label, `axPlay`
+   // and `heroCaption` all name this metric and nothing binds them. Change them together or not at all.
+   // Wording is the CPO's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
+-  heroVerdictUnder: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
+-  heroVerdictOver: "Tällainen peli — maalilaukauksien ero {sotd} ottelua kohden — tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
++  heroVerdictUnder: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
++  heroVerdictOver: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
+   // ⚠ `eron` is a GENITIVE ending I inferred, not the CPO's word — his noun is `maalilaukauksien ero`.
+   // The case is governed by the later `mukaan`. Finnish inflection is where #867 went wrong four times,
+   // so this is unverified against a Finnish source; the CPO approved it knowing that.
+@@ -414,8 +423,8 @@ const FI: Dict = {
+   // for every club name.
+   // CPO-supplied, 2026-07-28 (§10 — user-visible copy is his call). "kunto", not "muoto": muoto is
+   // shape/format, and the football sense of form is kunto — corroborated by the MVP corpus, which
+-  // renders "form window" as `kuntojakso` (site/i18n/fi.json). ⚠ `secForm: "Muotovertailu"` above
+-  // carries the same error and is NOT corrected here — it is shipped copy he has not ruled on.
++  // renders "form window" as `kuntojakso` (site/i18n/fi.json). `secForm` above carried the same
++  // error; the CPO ruled on it 2026-08-06 and it is now `Kuntovertailu`, so that deferral is closed.
+   // "ja" in the team title and "&" in the fixture title are both the CPO's own choices, kept as he
+   // wrote them; only the length changed.
+   seoTeamTitle: "{team}: tilastot, kunto, kokoonpano ja ottelut",
+@@ -441,7 +450,10 @@ const FI: Dict = {
+   menuAria: "Valikko",
+   footerAbout: "Tietoa",
+   footerImprintPending: "Vastuutiedot (tulossa)",
+-  footerDataSource: "Data: API-Football",
++  // `Tietolähde` is the validated corpus's own term for "data source" ("Tietolähde ei
++  // toimittanut tätä arvoa", site/i18n/fi.json), so this is a real translation rather than the
++  // English string left in place. CPO ruling 2026-08-06.
++  footerDataSource: "Tietolähde: API-Football",
+ };
  
- done_when:
-   - `glab ci lint` reports the config valid.
--  - `data:nightly` exists, runs only on `schedule`/`web`, and joins
--    `resource_group: prod-warehouse-write`.
--  - The deploy chain requires a human click and cannot run on a schedule or a push.
--    STATED PRECISELY, because an earlier wording named the wrong job: the `when: manual`
--    gate sits on `deploy:export`, and `deploy:site-v2` carries `needs: ["deploy:export"]`
--    — GitLab will not start a `needs:`-dependent job until its manual upstream is
--    triggered, so one click still gates the whole export -> build -> deploy chain, which
--    is what the original single-job `workflow_dispatch` guaranteed. `cto-reviewer` caught
--    the imprecision and correctly judged the guarantee intact.
--  - EVERY job except `data:nightly` carries the `.not_on_schedule` guard as its FIRST
--    rule, verified by parsing the merged YAML rather than by reading it — a scheduled
--    pipeline must not fire `data:build:main`.
--  - The `new_data` signal survives the platform change: `write_ci_output` reads
--    `CI_STEP_OUTPUT` then `GITHUB_OUTPUT`, and the nightly skips the build when it is
--    false.
--  - `python -m pytest tests/test_governance_hooks.py` is green, and the schedule-guard
--    pin has been demonstrated to FAIL against an unguarded job, not merely to pass.
-+  - On a WEB pipeline, no job that spends warehouse money auto-starts: `data:build:main`
-+    is `manual`, verified by parsing the merged YAML rather than by reading it.
-+  - On a PUSH to main with a data-path change, `data:build:main` still runs automatically
-+    — the fix must not silently disable prod builds.
-+  - `python -m pytest tests/test_governance_hooks.py` is green, and the new pin has been
-+    demonstrated to FAIL against the pre-fix rules, not merely to pass against the fixed
-+    ones.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 7007d5d..42f1d57 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -1048,6 +1048,45 @@ This entry is the durable record of the metric-definition authority the contract
-   refresh data on demand before working against real numbers — the intended use until the site
-   goes public, at which point creating the schedule is one UI action and no code change.
- 
-+- (⭐ CPO INSTRUCTION: RUN THE NIGHTLY — and what it cost to carry out) After Phase 3 merged,
-+  the builder proposed manually triggering `data:nightly` as the next step, since it was built
-+  and reviewed but never exercised. CPO, 2026-08-06: **"ok do it"**, and when told a blocking
-+  defect had been found first, **"you need something from me?"** — i.e. no blocking input
-+  required, proceed.
-+
-+  Recorded because the instruction could NOT be carried out as the file stood, and the fix
-+  was a change to a protected file. `data:nightly` is reachable only by web dispatch (no
-+  schedule exists). On that same dispatch `data:build:main` matched `$CI_COMMIT_BRANCH ==
-+  $CI_DEFAULT_BRANCH` and ran `when: on_success` — automatically — because GitLab evaluates
-+  `changes:` as TRUE on non-push pipelines. So clicking "run pipeline" for a nightly would
-+  ALSO have started a full prod warehouse build, the third that day, immediately after the
-+  CPO had twice objected to that exact spend ("full prod warehouse build? this is
-+  expensive"). Branch `chore/gitlab-ci-manual-prod-build` fixes it: `data:build:main` becomes
-+  a BUTTON on a web dispatch and stays automatic on a push to main.
-+
-+  ⚠ THE AUTHORITY IS NARROW AND SHOULD NOT BE READ WIDER. "ok do it" authorised RUNNING THE
-+  NIGHTLY. It did not authorise this specific edit. The edit's justification is that it is a
-+  precondition to executing that instruction without unrequested spend — not that the CPO
-+  approved it. Stated here because an over-broad reading of a CPO utterance is exactly what
-+  `scope-auditor` has failed twice on this migration.
-+
-+- (⭐ §10 CLASSIFICATION, escalated by `scope-auditor` and RESOLVED WITHOUT THE CPO) The
-+  reviewer ESCALATED on whether narrowing when an expensive warehouse job auto-runs is a
-+  §10 cost decision reserved to the CPO, invoking the meta-rule that an ambiguous
-+  classification is itself the CPO's call. The builder CHALLENGED rather than forwarding,
-+  on one argument the escalation had not addressed: **§10's cost reservation is directional**
-+  — it exists to stop a builder COMMITTING the CPO to unapproved spend. This change cannot
-+  increase spend in any context (push identical, schedule unchanged, web auto -> button) and
-+  removes no capability. If §10 also covered changes that only ever REDUCE unrequested
-+  spend, the reservation would protect the outcome it exists to prevent, and fixing a
-+  money-wasting bug would need a ruling before it could be fixed.
-+
-+  `scope-auditor` accepted the argument and re-issued PASS. NO CPO ATTENTION WAS SPENT.
-+  Recorded because the repo logs "premature §10 escalation" as its own anti-pattern, and
-+  because this CPO has twice said explicitly they do not want decisions of this size brought
-+  to them — which is a reason to be SURE a call is genuinely §10 before escalating, never a
-+  reason to hide one that is.
-+
- - (round 1 verdicts) `cto-reviewer` PASS, `scope-auditor` FAIL (the missing cost-instruction
-   record, fixed by the entry above), `data-engineer-reviewer` FAIL.
- 
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index c490c9e..06b469f 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -501,14 +501,28 @@ data:build:main:
-     - dbt build --selector staging --target prod
-     - dbt build --selector downstream --target prod
-     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
-+  # THE ONLY AUTOMATIC PATH IS A PUSH TO MAIN. Everything else that can reach this job
-+  # asks first, because it is the most expensive job in the file.
-+  #
-+  # `$CI_PIPELINE_SOURCE == "push"` on the branch clause is not redundant with
-+  # *not_on_schedule — it is what stops a WEB dispatch matching here. Rules are
-+  # first-match-wins, and a web pipeline on main satisfies `$CI_COMMIT_BRANCH ==
-+  # $CI_DEFAULT_BRANCH` while `changes:` evaluates TRUE on any non-push pipeline. So
-+  # without it this clause matches first and runs on_success, and the `when: manual`
-+  # below is never reached — the fix would look right and change nothing.
-+  #
-+  # Why it matters now: data:nightly is reachable ONLY by web dispatch (no schedule
-+  # exists yet), so asking for a nightly used to silently auto-start a full prod
-+  # warehouse build alongside it.
-   rules:
--    # FIRST, and load-bearing. Without it a scheduled pipeline runs this job — it is
--    # on main, and `changes:` evaluates TRUE on non-push pipelines — so every nightly
--    # would build prod twice. See .not_on_schedule.
-     - *not_on_schedule
--    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
-       changes: *data_paths
-+    # Deliberate full prod builds stay possible — as a BUTTON. MR !4 added this clause
-+    # meaning "I want a full prod build now", which is still valid; the defect was that
-+    # it started without being asked.
-     - if: $CI_PIPELINE_SOURCE == "web"
-+      when: manual
- 
- # ---------------------------------------------------------------------------
- # nightly — was: dbt-scheduled.yml
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index fc65d0e..bdfa0e0 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -1753,14 +1753,24 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
- # shrugs, and a job that DOES run on a schedule is reported safe. platform-reviewer
- # flagged that gap once the deploy jobs stopped routing through *not_on_schedule and
- # came to depend entirely on hand-written conditions.
--_SCHEDULE_TRUE = frozenset({
--    '$CI_PIPELINE_SOURCE == "schedule"',
--    "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
--})
--_SCHEDULE_FALSE = frozenset({
--    '$CI_PIPELINE_SOURCE == "merge_request_event"',
--    '$CI_PIPELINE_SOURCE == "web"',
--})
-+# Each `if:` condition mapped to the PIPELINE CONTEXTS in which it holds. Contexts:
-+#   schedule  — a scheduled pipeline (runs on main)
-+#   web       — a manual dispatch from the UI (runs on main)
-+#   mr        — a merge-request pipeline (CI_COMMIT_BRANCH is unset)
-+#   push_main — an ordinary push to main
-+#
-+# Note `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` is true in THREE of them — that single
-+# fact is what makes both the schedule trap and the web trap possible, and why a
-+# `changes:` filter saves neither (GitLab evaluates `changes:` as TRUE on any pipeline
-+# that is not a push or an MR, so it is ignored throughout these tests).
-+_CONDITION_TRUTH = {
-+    '$CI_PIPELINE_SOURCE == "schedule"': {"schedule"},
-+    '$CI_PIPELINE_SOURCE == "web"': {"web"},
-+    '$CI_PIPELINE_SOURCE == "merge_request_event"': {"mr"},
-+    "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH": {"schedule", "web", "push_main"},
-+    '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"':
-+        {"push_main"},
-+}
- 
- 
- def _ci_cond(rule: dict) -> str | None:
-@@ -1771,20 +1781,96 @@ def _ci_cond(rule: dict) -> str | None:
-     return " ".join(cond.replace("'", '"').split())
- 
- 
--def _matches(cond: str | None, truthy: frozenset) -> bool:
--    """Does this condition hold in the modelled context? Unknown conditions RAISE."""
-+def _matches(cond: str | None, context: str) -> bool:
-+    """Does this condition hold in `context`? An UNRECOGNISED condition RAISES.
-+
-+    Never assume an unknown condition is false. Treating unknown as "does not match" is
-+    how a guard test quietly stops guarding: someone writes an equivalent condition a
-+    different way, the recogniser shrugs, and a job that DOES run is reported safe.
-+    """
-     if cond is None:
-         return True  # a rule with no `if:` always matches
--    if cond in truthy:
--        return True
--    if cond in (_SCHEDULE_TRUE | _SCHEDULE_FALSE) - truthy:
--        return False
-+    if cond in _CONDITION_TRUTH:
-+        return context in _CONDITION_TRUTH[cond]
-     raise AssertionError(
-         f"unrecognised CI rule condition {cond!r}. These tests reason about pipeline "
-         f"reachability by classifying conditions, and an unknown one must not be "
--        f"assumed harmless — that is how a guard test stops guarding. Add it to "
--        f"_SCHEDULE_TRUE or _SCHEDULE_FALSE in this file, deciding deliberately "
--        f"whether it holds on a scheduled pipeline (source=schedule, branch=main).")
-+        f"assumed harmless. Add it to _CONDITION_TRUTH in this file, deciding "
-+        f"deliberately which of schedule/web/mr/push_main it holds in.")
-+
-+
-+def _when_in(job: dict, context: str) -> str:
-+    """The effective `when:` for `job` in `context` — first match wins, else never."""
-+    for rule in (job.get("rules") or [{}]):
-+        if _matches(_ci_cond(rule), context):
-+            return rule.get("when", "on_success")
-+    return "never"
-+
-+
-+def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
-+    """Asking for one manual job must not silently start an expensive one.
-+
-+    `data:nightly` is reachable ONLY by web dispatch (no schedule exists yet — the CPO
-+    deferred creating one while nothing reads the data). But `data:build:main` is also on
-+    main, and `changes:` evaluates TRUE on any non-push pipeline, so before this pin it
-+    matched on a web dispatch and ran `on_success` — AUTOMATICALLY. Clicking "run
-+    pipeline" to get a nightly therefore also started a full prod warehouse build.
-+
-+    That is the same mechanic as the schedule trap, on a source nobody re-checked when
-+    `data:nightly` gave web dispatch a second purpose. It was caught by evaluating the
-+    rules before triggering the run, rather than by reading the bill afterwards.
-+
-+    A web dispatch may OFFER expensive work as a button. It may not start it."""
-+    import pathlib
-+
-+    import yaml
-+
-+    root = pathlib.Path(__file__).resolve().parents[1]
-+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-+
-+    # Jobs that write to or scan the warehouse. Identified by what they RUN, so a new
-+    # job cannot dodge this by not being in the list.
-+    #
-+    # Anchored to the START of a line, NOT a substring search. The first version of this
-+    # matched `"dbt build" in script` and flagged deploy:site-v2 — which runs npm and
-+    # firebase and no dbt at all — because `.gcp_auth`'s echo says "sqlfluff lint, dbt
-+    # build, singular DQ tests" in its error message. A detector that reads prose as
-+    # commands produces false positives that get "fixed" by weakening the real config.
-+    # Matches a dbt invocation in COMMAND POSITION — at the start of a line or after a
-+    # shell separator — so a chained `cd x && dbt deps && dbt build` is caught too, and
-+    # `run`/`snapshot` are included because they write to the warehouse just as `build`
-+    # does. `deps`, `parse` and `compile` are deliberately absent: they touch no data.
-+    import re as _re
-+    _dbt_cmd = _re.compile(
-+        r"(?m)(?:^|&&|;|\|)\s*\(?\s*(?:cd \S+\s*&&\s*)*"
-+        r"dbt\s+(build|test|seed|run|snapshot)\b")
-+
-+    def spends_warehouse_money(job: dict) -> bool:
-+        return any(_dbt_cmd.search(step) for step in (job.get("script") or []))
-+
-+    checked = 0
-+    for name, job in ci.items():
-+        if name.startswith(".") or not isinstance(job, dict) or "script" not in job:
-+            continue
-+        if not spends_warehouse_money(job):
-+            continue
-+        checked += 1
-+        assert _when_in(job, "web") in ("manual", "never"), (
-+            f"job {name!r} AUTO-STARTS on a web dispatch and spends warehouse money "
-+            f"(when={_when_in(job, 'web')!r}). A manual pipeline must not begin an "
-+            f"expensive build the user did not ask for — make it `when: manual`. "
-+            f"rules={job.get('rules')!r}")
-+
-+    assert checked >= 3, (
-+        f"only {checked} warehouse-spending jobs recognised — this test has probably "
-+        f"stopped seeing them, which makes it pass vacuously")
-+
-+    # And the other direction: narrowing the web path must NOT have disabled the
-+    # automatic prod build on an ordinary push to main.
-+    assert _when_in(ci["data:build:main"], "push_main") == "on_success", (
-+        "data:build:main no longer runs automatically on a push to main. The fix was "
-+        "meant to narrow WEB dispatches only — prod must still rebuild on merge, or it "
-+        "silently goes stale and every MR's state:modified+ baseline drifts.")
- 
- 
- def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
-@@ -1806,10 +1892,8 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
-     root = pathlib.Path(__file__).resolve().parents[1]
-     ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
- 
--    # Sources an ordinary contributor produces without intending to deploy.
--    everyday = ('$CI_PIPELINE_SOURCE == "merge_request_event"',
--                "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
--                '$CI_PIPELINE_SOURCE == "schedule"')
-+    # Contexts an ordinary contributor produces without intending to deploy.
-+    everyday = ("mr", "push_main", "schedule")
- 
-     deploy_jobs = [k for k, v in ci.items()
-                    if not k.startswith(".") and isinstance(v, dict)
-@@ -1819,19 +1903,12 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
-     for name in deploy_jobs:
-         rules = ci[name].get("rules") or []
-         assert rules, f"deploy job {name!r} has no rules, so every pipeline carries it"
--        for src in everyday:
--            reachable = None
--            for rule in rules:
--                # Only `src` is true in this modelled context; unknown conditions raise
--                # rather than being assumed not to match.
--                if _matches(_ci_cond(rule), frozenset({src})):
--                    reachable = rule.get("when", "on_success") != "never"
--                    break
--            assert not reachable, (
--                f"deploy job {name!r} is reachable on a pipeline where {src} holds. A "
--                f"Firebase deploy would appear as a play button on ordinary merge "
--                f"requests / pushes. Scope it to `if: $CI_PIPELINE_SOURCE == \"web\"` "
--                f"with a `when: never` fallback. rules={rules!r}")
-+        for context in everyday:
-+            assert _when_in(ci[name], context) == "never", (
-+                f"deploy job {name!r} is reachable on a {context} pipeline. A Firebase "
-+                f"deploy would appear as a play button on ordinary merge requests / "
-+                f"pushes. Scope it to `if: $CI_PIPELINE_SOURCE == \"web\"` with a "
-+                f"`when: never` fallback. rules={rules!r}")
- 
- 
- def test_every_job_using_gcp_auth_declares_id_tokens():
-@@ -1922,11 +1999,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
-           · `changes:` evaluates TRUE on any non-push/non-MR pipeline, so a path
-             filter does NOT hold a job back — it is ignored here for that reason.
-         """
--        for rule in (job.get("rules") or [{}]):
--            if _matches(_ci_cond(rule), _SCHEDULE_TRUE):
--                # First match wins; absent `when` defaults to on_success.
--                return rule.get("when", "on_success") != "never"
--        return False  # fell off the end: no rule matched, job does not run
-+        return _when_in(job, "schedule") != "never"
- 
-     for name, job in jobs.items():
-         if name == nightly:
+ const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
