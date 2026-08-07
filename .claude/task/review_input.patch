@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d67d19c..0e5ca2f 100644
+index d67d19c..7a1fc1c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,211 +1,104 @@
+@@ -1,211 +1,120 @@
 -# Task contract — #22 + #23 + #24: three facts the August migration broke
 +# Task contract — handover after !15: five issues closed, four filed, one trap retired
  
@@ -292,11 +292,27 @@ index d67d19c..0e5ca2f 100644
 +  FAILed round 2 because the widening happened before either existed — the fifth instance. It was
 +  right every time, and the count is the point: four fixes that each added one missing entry did not
 +  change the behaviour, and only writing them together does.
++
++  SECOND AMENDMENT, 2026-08-07, same procedure: the `escalations.log` blocks and this block were
++  written together, before the handover edit they authorise. NO PATH IS ADDED.
++
++  AUTHORITY: `.claude/task/escalations.log`, same entry, blocks `⭐ CPO RULING: TWO STREAMS, AND
++  THEIR ORDER`, `⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED` and `⭐ CPO CORRECTION: FILING TO
++  THE TRACKER IS STANDING PRACTICE`.
++
++  WHAT WIDENED. The CPO ruled at the end of the session that the AI-collaboration audit stream is
++  NOT finished and is to be completed in a new chat BEFORE the cost work, and separately lifted the
++  2026-08-06 measurement stop for that cost work. The handover's `NEXT` section is rewritten to
++  carry both, because a ruling about what to do next that does not reach the handover does not
++  reach the next session — which is the continuity failure this repo keeps having.
++
++  BOUNDED: it records the order and the lifted stop. It starts neither stream, runs no measurement
++  (the CPO stopped the run and deferred it), and decides nothing about cost.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index e8fb1a3..e3ac241 100644
+index e8fb1a3..0a50f83 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1340,3 +1340,35 @@ one act, and treating them as two is what produced four failures.
+@@ -1340,3 +1340,69 @@ one act, and treating them as two is what produced four failures.
    pre-migration snapshot. **GitHub is DORMANT, NOT RETIRED** — the repo is kept and how it is used
    is decided when access returns. Nothing in this task forecloses that: `.github/` is untouched,
    the resolver's fallback stays `origin/main`, and `GOVERNANCE_BASE` still overrides everything.
@@ -326,9 +342,43 @@ index e8fb1a3..e3ac241 100644
 +  because a session that does not know this will repeat it — !15 was a governance MR and it rebuilt
 +  prod. Recorded, not decided: what to DO about #2 is the next task and is not authorised here.
 +
-+- (⚠ STANDING INSTRUCTION RESTATED, because it now constrains the cost work) The CPO instructed on
++- (⚠ STANDING INSTRUCTION RESTATED, because it constrained this task) The CPO instructed on
 +  2026-08-06: *"stop don't measure anything. last time you measured, github susended my account"*.
-+  It remains in force. No cost figure in this task is newly measured; the incident above is argued
-+  from what the CI rules DO (`changes: *data_paths` versus the files in the diff) and from which
-+  jobs appeared in which pipeline, not from bytes or dollars. The tension between that instruction
-+  and "tackle cost instantly" was put to the CPO plainly rather than resolved by the builder.
++  No cost figure in this task is newly measured; the incident above is argued from what the CI
++  rules DO (`changes: *data_paths` versus the files in the diff) and from which jobs appeared in
++  which pipeline, not from bytes or dollars. The tension between that instruction and "tackle cost
++  instantly" was put to the CPO plainly rather than resolved by the builder. **It was then lifted
++  — see the next block.**
++
++- (⭐ CPO RULING: TWO STREAMS, AND THEIR ORDER) The CPO corrected a conflation the builder had made.
++  They are SEPARATE bodies of work and must not be mixed again:
++
++  **STREAM 1 — the AI-collaboration audit.** Its purpose, in his words: the recommendations came
++  from Anthropic on how best to work with Claude Code, and the audit existed *"to align us as
++  closely as possible with best practices"*. The derived tasks are the work. **NOT FINISHED.**
++  Open: **#5** (the audit's TOP-RANKED finding, Confirm is unenforced), #14, #18, #20, #25, #26,
++  #28, plus four that are the CPO's alone: #15, #16, #21, #27. Closed: #1, #6-#13, #19, #22-#24.
++  (#17, three dead i18n keys, came out of the sweep but is ordinary dead code, not alignment.)
++
++  **STREAM 2 — cost.** Urgent, and to be done **SYSTEMATICALLY across the whole pipeline INCLUDING
++  CI/CD — what gets triggered, when, and where** — explicitly NOT ad hoc, one fix at a time as they
++  are tripped over. The builder proposed narrowing `data_paths` and the CPO challenged it: *"Is
++  this a well-researched and well-designed plan... Or are you quickly suggesting something ad-hoc
++  because I'm annoyed?"* It was ad hoc. Checked against the recovered figures in GitLab #3, it
++  ranks roughly FOURTH by size; the largest live item is that **staging is still a view, so tests
++  re-scan raw** (one test at $0.30/day), which is the same defect fixed one layer down for base
++  models on 2026-08-02.
++
++  CPO RULING (conversation, 2026-08-07): **finish STREAM 1 first, in a new chat. Cost comes after.**
++
++- (⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED, for the cost work) Asked what was needed, in plain
++  words, to do cost properly. Answer given: permission to run `scripts/report_bq_cost.py`, which
++  reads Google's billing metadata inside the GCP project, runs no query on the data, costs nothing,
++  and never touches GitHub. CPO ANSWER (conversation, 2026-08-07): **"do it"**. The 2026-08-06 stop
++  is therefore SUPERSEDED for the cost work. It was NOT exercised in this session: the CPO stopped
++  the run and deferred it to the cost task, so the first measurement belongs there.
++
++- (⭐ CPO CORRECTION: FILING TO THE TRACKER IS STANDING PRACTICE, NOT A QUESTION) The builder asked
++  where the cost map should live. CPO: *"That should be standard procedure without me reminding you
++  of it."* A GitLab issue, never a planning document. Asking spent his attention on something the
++  existing rule already settles.
