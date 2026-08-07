@@ -1406,3 +1406,55 @@ times.
   where the cost map should live. CPO: *"That should be standard procedure without me reminding you
   of it."* A GitLab issue, never a planning document. Asking spent his attention on something the
   existing rule already settles.
+
+## 2026-08-07 fix/25-review-exclude-trailer — GitLab #25: a trailer that names the excluded files
+
+  PROTECTED-PATH AUTHORITY. `.claude/hooks/git_discipline.py` is a PROTECTED path
+  (`task_contract_gate.py:66`, prefix `.claude/hooks/`) and one of the three guard paths, so the
+  edit needs `protected_override` + `impact_map` + `cto-reviewer` and `platform-reviewer` at an
+  opus floor. GitLab #25's own closing paragraph states that requirement.
+
+  CPO INSTRUCTION (conversation, 2026-08-07): **"start #25"**, following **"yes, that order.
+  start with #29"** against a recommended order of #29, then #25, then bringing #21 as a recipe.
+  The session brief he opened with lists #25 among the open audit-stream items with its summary
+  (*"review_exclude_paths hides edited files with no trace. Fired 3x."*). Instructing the work to
+  start authorises the protected edit that the work requires, and nothing wider: `git_discipline.py`
+  and its tests. It does NOT authorise editing `review_routing.json`, the reviewer briefs, the
+  working agreement, or `hash_exclude_paths`.
+
+  Logged per the 2026-06-17 ruling at :112 — *"Path A — LOG IT. Up-front CPO design approvals are
+  recorded in escalations.log alongside review-time rulings; the contract's decisions_taken is not,
+  by itself, the sole record."* This entry and the contract's `protected_override` were written in
+  the SAME action, which is the class fix GitLab #28 exists for: four contracts in the 2026-08-07
+  session shipped a `protected_override` with no matching entry, each fixed by adding the one
+  missing entry, and none of those fixes changed the behaviour that produced the next one.
+
+  ⭐ NEW MECHANISM — DECLARED YES, AND RECLASSIFIED BY THE BUILDER BEFORE BUILDING. The approved
+  plan framed this as applying an existing pattern to a sibling list. Checking the precedent at
+  :1106 before writing any code shows that is the wrong classification: `review_summarise_paths`
+  counted as a NEW MECHANISM in part because it added *"a manifest emitter in `git_discipline.py`,
+  which changes what every reviewer is handed in every future task"* (:1117). This trailer is
+  structurally the same emitter in the same file with the same reach, so it is declared a NEW
+  MECHANISM rather than argued down to a pattern reuse.
+
+  WHAT IS GENUINELY NARROWER than :1106, stated so the classification is not read as equivalent:
+  no new routing key (it consumes the existing `review_exclude_paths`), no content removed from the
+  patch body, no verdict rule changed, and no effect on the review hash — `--staged-hash` runs
+  through `_staged_diff_bytes` and `hash_exclude_paths`, a different function and a different list.
+  The trailer only annotates what is already absent.
+
+  CPO APPROVAL: the plan describing this mechanism concretely — the emitter, its wording, and the
+  decision that it RAISES rather than degrading quietly — was put to the CPO and approved before
+  any file was touched. Per :1108, declaring a crossing to a reviewer is not approval and a reviewer
+  cannot convert one into the other; the approval recorded here is the CPO's own, at plan time. The
+  reclassification was surfaced to him in the same turn it was made, so it is his to reject.
+
+  BOUNDED: this approves ONE trailer, emitted for paths already in `review_exclude_paths`, and
+  nothing else. Adding a path to `review_exclude_paths` remains a fresh decision, on the same
+  reasoning as :1138 — it removes content from what reviewers read.
+
+  WHY IT RAISES INSTEAD OF DEGRADING QUIETLY (design call, recorded because it is the non-obvious
+  one). `_summary_manifest` raises because silence there is a coverage loss. Silence here is not,
+  yet the trailer still raises, for a different reason: an absent trailer is ambiguous between "no
+  excluded file changed" and "the trailer broke", and that ambiguity is precisely the defect #25
+  exists to remove. A trailer that can silently not appear re-creates it unpredictably.

@@ -2949,6 +2949,131 @@ def test_summarised_paths_still_bind_the_review_hash(repo):
     )
 
 
+# --------------------------------------------------------------------------- #
+# review_exclude_paths — hidden, but ANNOUNCED (GitLab #25)
+# --------------------------------------------------------------------------- #
+# Exclusion deletes the file from the patch, so a reviewer cannot tell a file that was
+# never edited from one edited and deliberately hidden. Both look identical: absent.
+# Reviewers drew the false inference three times (2026-08-03 active_work.md, 2026-08-06
+# TEMPLATE.md, 2026-08-07 active_work.md), each costing a round, each withdrawn on the
+# evidence. They were reasoning correctly from what they were given.
+#
+# MEASURED against the pre-#25 hook, not predicted: THREE of the four go red
+# (`..._are_named`, `..._without_pasting_them`, `..._does_not_reach_the_review_hash`).
+# The last two fail on their trailer precondition rather than on their own assertion,
+# which is deliberate — each would otherwise pass by the trailer simply being absent,
+# and a test that green-lights the absence of the thing it exists to check is decoration.
+# `test_no_trailer_when_no_excluded_path_changed` is the one that cannot go red before the
+# fix, because it asserts the trailer is missing; it guards the new code against emitting
+# an empty section, which only becomes possible once the trailer exists.
+def _stage_excluded_edit(repo, body: str = "handover body\n") -> None:
+    """Stage a change to a `review_exclude_paths` member, plus real code alongside it."""
+    (repo / ".claude" / "active_work.md").write_text(body)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 42\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+
+
+def _commit_routing(repo) -> None:
+    (repo / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "routing"], cwd=repo, check=True)
+
+
+def test_excluded_paths_that_changed_are_named(repo):
+    """The #25 defect. An excluded file that IS edited must be announced, not vanish.
+
+    Absence has to stop being ambiguous: a reviewer seeing a path in `scope_paths` and not
+    in the patch must be able to tell "hidden on purpose" from "never touched".
+    """
+    _commit_routing(repo)
+    _stage_excluded_edit(repo)
+    patch = _review_patch(repo)
+
+    assert "NOT SHOWN (review_exclude_paths)" in patch, (
+        "an edited excluded file was removed from the patch with nothing said, which is the "
+        "inference that cost three review rounds"
+    )
+    assert ".claude/active_work.md" in patch, "the trailer must name the file"
+    assert "select 42" in patch, "announcing excluded files must not drop real code"
+
+
+def test_the_trailer_names_files_without_pasting_them(repo):
+    """Announcing is not un-excluding. The CPO ruling that reviewers never judge the
+    review's own paperwork (2026-08-01) has to survive this change, so the trailer carries
+    names and counts and no content."""
+    _commit_routing(repo)
+    _stage_excluded_edit(repo, "UNIQUE_MARKER_INSIDE_EXCLUDED_FILE\n")
+    patch = _review_patch(repo)
+
+    assert "NOT SHOWN (review_exclude_paths)" in patch, patch
+    assert "UNIQUE_MARKER_INSIDE_EXCLUDED_FILE" not in patch, (
+        "the trailer pasted the excluded file's CONTENT — it may name files, never quote them"
+    )
+
+
+def test_no_trailer_when_no_excluded_path_changed(repo):
+    """An empty section every time trains the reader to skip the header, and then a real
+    one gets skipped too. Same rule `_summary_manifest` already follows."""
+    _commit_routing(repo)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+
+    assert "NOT SHOWN (review_exclude_paths)" not in _review_patch(repo)
+
+
+def test_the_trailer_does_not_reach_the_review_hash(repo):
+    """`--review-patch` and `--staged-hash` must stay separate products.
+
+    They resolve different lists through different functions (`review_exclude_paths` via
+    `_review_patch_bytes`, `hash_exclude_paths` via `_staged_diff_bytes`). If the trailer
+    ever fed the hash, every verdict would be invalidated by a handover edit reviewers are
+    not even shown. Asserted with a trailer demonstrably present, so it cannot pass by the
+    trailer simply being absent.
+    """
+    _commit_routing(repo)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 42\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    without_trailer = staged_hash(repo)
+
+    _stage_excluded_edit(repo)
+    with_trailer = staged_hash(repo)
+
+    assert "NOT SHOWN (review_exclude_paths)" in _review_patch(repo), (
+        "precondition: this test is meaningless unless a trailer is actually emitted"
+    )
+    assert without_trailer and with_trailer
+    assert without_trailer == with_trailer, (
+        "the trailer changed the review hash. It annotates what reviewers READ; the hash "
+        "answers what BINDS a verdict, and conflating them is what made a typo cost a round"
+    )
+
+
+def test_excluded_trailer_failure_is_loud_not_silent(repo):
+    """A trailer that can silently not appear re-creates the ambiguity it exists to remove.
+
+    The sibling has this test (`test_manifest_failure_is_loud_not_silent`) because an
+    earlier version of it was VACUOUS — it asserted `"raise" in inspect.getsource(...)`,
+    which the function's own comment satisfied. This one drives the real failure branch, so
+    wrapping the `_staged_stat` call in `try/except: return b""` goes red here.
+
+    It asserts on the STRUCTURAL `section` token in the message, not on the prose reason,
+    so rewording the explanation cannot silently unpin it (platform-reviewer at opus).
+    """
+    setup_review_repo(repo)
+    sys.path.insert(0, HOOKS)
+    import git_discipline  # noqa: E402
+    # Malformed pathspec magic — `git diff --stat` exits non-zero on it, which is the
+    # branch under test. Nothing else in the call can fail this way.
+    with pytest.raises(Exception) as exc:
+        git_discipline._excluded_trailer(str(repo), [":(attr:!!bad)x"])
+    # The FULL section phrase, not the bare word: the trailer's own reason string ends
+    # "…which is the defect this trailer exists to remove", so asserting on `"trailer"`
+    # alone would survive `section` being emptied and quietly stop pinning anything
+    # (platform-reviewer at opus, round 2). Its manifest twin has no such overlap.
+    assert "review patch trailer" in str(exc.value).lower(), (
+        f"raised, but not identified as the trailer section: {exc.value}")
+
+
 def _install_fast_gate(repo, body: str) -> None:
     """Write a stub fast gate and COMMIT it, then write the contract.
 
