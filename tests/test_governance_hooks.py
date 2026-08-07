@@ -1531,6 +1531,74 @@ def test_untracked_dir_files_out_of_scope_flagged_by_file(repo):
 SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
 
 
+def _ci_module():
+    """The real script, imported. Same pattern as
+    `test_ci_backstop_reuses_the_canonical_hook_logic` above."""
+    import importlib
+
+    sys.path.insert(0, SCRIPTS)
+    return importlib.import_module("check_task_artifacts")
+
+
+# --------------------------------------------------------------------------- #
+# `default_base()` — which remote the bare command diffs against (GitLab #24).
+#
+# `origin` names two different repositories. Inside GitLab CI it is the GitLab
+# project, which is why `.gitlab-ci.yml` passes `--base origin/...` and is right
+# to. On a working copy here it is the GitHub remote, dormant while account
+# access is unavailable, and 27 commits behind `gitlab/main` on 2026-08-07 — so
+# the bare command diffed against a stale tree and reported four required
+# reviewers that were not required at all.
+#
+# These pin the resolution rather than the literal string, so the day `origin`
+# becomes live again the behaviour is a one-line change with a test that says
+# what it guarantees.
+# --------------------------------------------------------------------------- #
+def _add_remote(repo, name: str) -> None:
+    subprocess.run(["git", "remote", "add", name, f"https://example.invalid/{name}.git"],
+                   cwd=repo, check=True)
+
+
+def test_default_base_prefers_the_live_remote_over_a_dormant_origin(repo, monkeypatch):
+    ci = _ci_module()
+    monkeypatch.chdir(repo)
+    monkeypatch.delenv("GOVERNANCE_BASE", raising=False)
+
+    _add_remote(repo, "origin")
+    assert ci.default_base() == "origin/main", (
+        "with no `gitlab` remote the historical default must be unchanged — this is "
+        "the GitHub-primary case, which is not retired and may return")
+
+    _add_remote(repo, "gitlab")
+    assert ci.default_base() == "gitlab/main", (
+        "with a `gitlab` remote present the bare command must diff against it, not "
+        "against the dormant `origin`")
+
+
+def test_governance_base_env_still_overrides_everything(repo, monkeypatch):
+    """The documented escape hatch. It is what makes the preference reversible
+    without a code change if `origin` becomes the live remote again."""
+    ci = _ci_module()
+    monkeypatch.chdir(repo)
+    _add_remote(repo, "gitlab")
+    monkeypatch.setenv("GOVERNANCE_BASE", "upstream/release")
+    assert ci.default_base() == "upstream/release"
+
+
+def test_default_base_falls_back_when_git_cannot_be_queried(repo, monkeypatch):
+    """Fail-safe, not fail-open-to-nothing: an unreadable remote list returns the
+    historical default rather than raising inside a CI gate."""
+    ci = _ci_module()
+    monkeypatch.chdir(repo)
+    monkeypatch.delenv("GOVERNANCE_BASE", raising=False)
+
+    def _boom(*a, **k):
+        raise OSError("git unavailable")
+
+    monkeypatch.setattr(ci.subprocess, "run", _boom)
+    assert ci.default_base() == "origin/main"
+
+
 def run_ci_check(repo) -> tuple[int, str]:
     r = subprocess.run(
         [sys.executable, os.path.join(SCRIPTS, "check_task_artifacts.py"), "--base", "main"],

@@ -1288,3 +1288,55 @@ which were already recorded and so were simply dropped.
   this ruling in contract prose with nothing in this log — the SAME defect it failed round 1 for on
   the first amendment. The round-1 fix was applied to that amendment only and not to the class. It
   was right both times.
+
+2026-08-07 fix/22-23-24-migration-residue — GitLab #22, #23, #24. A CPO-approved GOVERNANCE task
+editing TWO protected paths. This entry is the durable authority that `contract.md`'s
+`protected_override` and `amendments` cite.
+
+⚠ THIS IS THE FOURTH INSTANCE OF THE SAME DEFECT IN ONE SESSION, and it is logged as a failure
+before it is logged as a ruling. `cto-reviewer` and `scope-auditor` BOTH FAILed round 1 because the
+contract claimed CPO authority with nothing here. The three prior instances are in this file at
+:1156 (test/1), :1238 (docs/19 amendment 1) and :1287 (docs/19 amendment 2). Each was fixed by
+adding an entry; none changed the HABIT that produced it. The governing ruling is :112 (2026-06-17)
+— *"Path A — LOG IT ... the contract's decisions_taken is not, by itself, the sole record."*
+THE CLASS FIX, not another instance fix: the log entry is written in the SAME action as the
+`protected_override`, never after it. A contract that claims authority and a log that records it are
+one act, and treating them as two is what produced four failures.
+
+- (⭐ CPO RULING: PROTECTED_OVERRIDE for #22 and #23) CPO instruction, verbatim: *"merged, now do
+  #22, #23 and #24 together"*. Each of the three issues states in its own text that it needs a
+  governance task carrying an override; the instruction to do them is the approval to carry one.
+  Two prior rulings in this file are the anchors this builds on and they are cited rather than
+  restated: :1186 records the CPO answering **(b)** *"record it, file it, and fix it in its own
+  task"* for the `platform-reviewer.md` territory omission, filed as #22 — THIS is that task.
+  :1203 records #23 as needing its own governance task for the same reason.
+
+  REACH, narrow and stated: on `.claude/agents/platform-reviewer.md` it covers ADDING
+  `.gitlab-ci.yml` to one sentence — no hunt item, no model pin, no verdict rule. On
+  `.gitlab-ci.yml` it covers REWRITING ONE COMMENT BLOCK — no job, rule, anchor, script or
+  variable. NOT authorised: `.github/workflows/` (dormant and correct as written), the routing
+  table, the protected list, or `.claude/hooks/stop_gate.py:53`, which carries the same stale
+  spelling on a protected path and is deliberately left alone because this override does not
+  reach it.
+
+- (⭐ CPO RULING: SCOPE WIDENED from three sites to six) The approved plan named three #24 sites,
+  taken from the issue text. A `git grep` sweep of the whole tree found SIX. The three extra are
+  in `.claude/skills/**`, which is neither protected nor routed, so the widening adds no protected
+  surface.
+
+  THE WORST WAS NOT IN THE ISSUE: `.claude/skills/onboard-competition/SKILL.md:137` ran
+  `git checkout -B feat/onboard-{league} origin/main`, starting a new competition on a tree 27
+  commits behind. A different symptom of the same root cause and more damaging than the false-FAIL
+  the issue was filed about.
+
+  Put to the CPO with the finding and a recommendation to widen, on the ground that fixing only
+  the sites already written down is the instance-not-class failure that had already cost two
+  review rounds earlier in the session. CPO ANSWER (conversation, 2026-08-07): *"fix all six, and
+  file the skills gap"*. Filed as **#27**.
+
+- (MEASURED, because two earlier characterisations were wrong and the CPO corrected both) The
+  GitHub remote is at `1f459a3` (2026-08-03); `gitlab/main` at `930fe26` (2026-08-07); the gap is
+  27 commits spanning 08-06 to 08-07. FOUR DAYS and this week's work, not months, and not a
+  pre-migration snapshot. **GitHub is DORMANT, NOT RETIRED** — the repo is kept and how it is used
+  is decided when access returns. Nothing in this task forecloses that: `.github/` is untouched,
+  the resolver's fallback stays `origin/main`, and `GOVERNANCE_BASE` still overrides everything.

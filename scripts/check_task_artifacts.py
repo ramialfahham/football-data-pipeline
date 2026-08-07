@@ -21,7 +21,10 @@ branch and the base, it verifies:
 
 Fails CLOSED (non-zero exit) — this is CI, not a guardrail hook.
 
-Usage: python scripts/check_task_artifacts.py [--base origin/main]
+Usage: python scripts/check_task_artifacts.py [--base <ref>]
+
+The base defaults to the LIVE remote rather than a hardcoded `origin` — see
+`default_base()` for why that distinction is not cosmetic.
 """
 
 from __future__ import annotations
@@ -81,10 +84,43 @@ def review_sections(text: str) -> dict[str, str]:
     return sections
 
 
+def default_base() -> str:
+    """The ref to diff against when no `--base` is given.
+
+    `origin` names two different repositories. Inside GitLab CI the clone sets it
+    to the GitLab project, which is why `.gitlab-ci.yml` passes `--base origin/...`
+    explicitly and is CORRECT to do so. On a working copy here, `origin` is the
+    GitHub remote — dormant while account access is unavailable — and it sat 27
+    commits behind `gitlab/main` on 2026-08-07. So the bare command diffed against a
+    stale tree and reported required reviewers that were not required at all
+    (GitLab #24).
+
+    This is a PREFERENCE, not a retirement. GitHub is kept, and how it is used is
+    decided when access returns. `GOVERNANCE_BASE` still overrides everything, and
+    if `origin` becomes the live remote again this returns to `origin/main` with no
+    code change — either by unsetting the `gitlab` remote or by setting the env var.
+
+    Resolved AFTER parsing, so the subprocess call never runs on the CI path where
+    `--base` is passed explicitly.
+    """
+    env = os.environ.get("GOVERNANCE_BASE")
+    if env:
+        return env
+    try:
+        remotes = subprocess.run(
+            ["git", "remote"], capture_output=True, text=True, timeout=10,
+        ).stdout.split()
+    except Exception:
+        return "origin/main"
+    return "gitlab/main" if "gitlab" in remotes else "origin/main"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default=os.environ.get("GOVERNANCE_BASE", "origin/main"))
+    ap.add_argument("--base", default=None)
     args = ap.parse_args()
+    if args.base is None:
+        args.base = default_base()
 
     paths = changed_paths(args.base)
     if not paths:

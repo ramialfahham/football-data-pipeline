@@ -1,82 +1,108 @@
-# Review — docs/19-compile-dont-append — 2026-08-07
+# Review — fix/22-23-24-migration-residue — 2026-08-07
 
-diff_sha256: 2a52a4513de464925e652e6061378fc4ef4fd651501b2f1094c7f8e7b925a4dd
+diff_sha256: 805a595f970949af20b75a97d2f1b15fc709fece2fd37ac4e9e9684d3abce029
 
-rounds: 6
+rounds: 2
 
-rounds_cap_override: >
-  The cap WORKED and was not bypassed. Round 3 was the cap, and the builder STOPPED there and took
-  the open findings to the CPO rather than patching a fourth time, which is what §2 requires. The
-  CPO resolved them by WITHDRAWING the narrative test and shipping the compression alone. Rounds 4
-  and 5 exist because that decision CHANGED THE DIFF — the test was reverted, `tests/` left
-  `scope_paths`, and `contract.md`'s NEW MECHANISM declaration inverted — and an unreviewed diff
-  cannot merge on a verdict given against a different one. Round 4 FAILed (the second amendment
-  claimed CPO authority with nothing in `escalations.log`), round 5 PASSed after that record was
-  written. Authority: `.claude/task/escalations.log`, `⭐ CPO RULING: THE NARRATIVE TEST IS
-  WITHDRAWN`.
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 was a FAIL: `protected_override` and `amendments` claimed CPO authority with NO entry in
+  `escalations.log`. Round 2 confirms the citations now resolve exactly — the log gains a pure
+  append at the tail (`@@ -1288,3 +1288,55 @@`, no prior line modified, so it stays append-only per
+  §2) headed `2026-08-07 fix/22-23-24-migration-residue`, and the contract cites its two block
+  titles verbatim.
+- The two cited anchors say what the entry claims: `escalations.log:1186` is the CPO answering (b)
+  "record it, file it, and fix it in its own task" for the territory omission, filed as #22 — this
+  task; `:1203` files #23 likewise. Citing rather than restating them is correct, and the override
+  is anchored by two rulings that predate this branch.
+- The class fix rather than a fourth instance fix: the entry logs the failure before the ruling,
+  names all four instances by line (`:1156`, `:1238`, `:1287`, this one), cites the governing
+  ruling at `:112`, and states the habit change — the log entry and the `protected_override` are
+  ONE action. The three prior fixes each corrected an instance, which is why four were countable.
+- Override reach versus the diff: `.claude/agents/platform-reviewer.md` changes only the territory
+  sentence; `.gitlab-ci.yml` only `#` lines. `.github/workflows/**`, `.claude/review_routing.json`,
+  the protected list in `task_contract_gate.py` and `.claude/hooks/stop_gate.py` are all absent
+  from the patch. The diff stays inside the stated reach.
+- The guard was SATISFIED, not loosened. The corrected sentence's path run equals
+  `shared_guard_paths()`, which `_allowed_runs` already admits, so `KNOWN_INCOMPLETE` empties
+  because the prose became correct. Emptying it REMOVES an exemption, which is a strengthening.
+- `check_task_artifacts.py`: `.gitlab-ci.yml:279` passes `--base` explicitly, so `default_base()`
+  is never reached in CI and CI behaviour is unchanged. `GOVERNANCE_BASE` is consulted first and is
+  pinned by a test. No check removed; the error direction moves from a stale base to the live one.
+  The NARROWING classification is agreed.
+- GitHub dormancy: nothing forecloses a return. The fallback stays `origin/main` and is pinned by a
+  test, the territory sentence keeps `.github/workflows/`, and `CLAUDE.md` says dormant, not
+  retired.
+- Delta basis, stated rather than assumed: every non-artifact hunk carries the same pre- and
+  post-image blob hashes as round 1, so only `contract.md` and `escalations.log` moved and round 1's
+  full audit still holds. Procedural note from the reviewer, recorded because it is correct: its
+  round 1 was a FAIL, so this is strictly a re-review rather than the post-PASS delta its brief
+  defines, and it accepted the narrowed scope only because the unchanged blob hashes prove it.
 
-  ROUND 6 was opened by the BUILDER, not by a reviewer finding. The suite reported 645 where
-  `done_when` predicted 646, so the contract carried a false factual claim about the code —
-  #904's class, a prediction never re-checked against the finished tree. Five rounds had missed
-  it; the measurement caught it. Corrected, re-reviewed, PASS. The three character-count figures
-  the reviewer then flagged as unverified-by-review were measured afterwards and are exact:
-  §2 = 14,448 of 26,374 (54.8%), 6.07x the next largest section, 12.2% compression. No further
-  round was opened, because nothing was found to be wrong.
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- `default_base()` reach, verified from code not the contract: `--base` defaults to `None` and the
+  resolver is called only then, so the subprocess never runs when a base is passed. Both real
+  callers pass one. CI behaviour is byte-identical; only a bare local run changes.
+- Failure and re-run modes: read-only and idempotent. No `check=True`, so a non-zero `git remote`
+  yields empty stdout and the `origin/main` fallback; `timeout=10` raises `TimeoutExpired`, caught
+  by `except Exception`; membership is exact, so a remote named `gitlab-mirror` does not match.
+  Noted improvement the builder had not claimed: `GOVERNANCE_BASE=""` now falls through to
+  detection instead of producing the empty base the old default produced.
+- Fail-closed direction: no new exit-0 path. Every error branch still returns 1.
+- Test discrimination, answered precisely: `test_default_base_falls_back_when_git_cannot_be_queried`
+  does NOT discriminate against the old hardcoded default, because it asserts `origin/main`, which
+  is what the old code returned. That is CORRECT rather than a defect — it pins the `try/except`
+  and reds if the handler is removed. The preference is pinned by the second assert of
+  `test_default_base_prefers_the_live_remote_over_a_dormant_origin`, which reds against the old
+  default. Residual recorded, not failed: nothing pins `main()`'s two-line wiring, so a partial
+  revert keeping the function but restoring the argparse default would stay green.
+- `.gitlab-ci.yml` comment-only claim, checked against the patch: one hunk, three `#` lines out and
+  four in. The job's `variables`/`cache`/`script`/`rules`, the `*not_on_schedule` and
+  `*site_v2_paths` anchors and the `.gcp_job` `id_tokens` block are untouched. The new comment's own
+  claim also holds: `deploy:site-v2`'s only rule is `$CI_PIPELINE_SOURCE == "web"`, so manual-only
+  is accurate.
+- Empty `KNOWN_INCOMPLETE`: no repo pytest config, so `empty_parameter_set_mark` defaults to skip —
+  one collected, skipped item, suite green. Empty makes `test_every_protected_path_list_is_complete`
+  strictly stronger, and adding an entry re-arms the pairing test automatically. Correct steady
+  state, not a silent hole.
+- Duplicated enforcement: the hand-copied reviewer loop, the round-cap import and the hash-exclude
+  pathspec are unchanged in both twins, so nothing was fixed in one copy only.
+  `git_discipline._base_commit` is a separate resolution and is untouched.
+- The skill edits are as re-runnable as the form they replace, and a machine without a `gitlab`
+  remote now fails loudly at fetch rather than silently branching from a stale ref. The edited
+  sentence sits OUTSIDE the `FAST_GATES` markers, so `test_fast_gates_and_validate_local_agree` is
+  unaffected.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The `done_when` test-count correction (round 6, 645 not 646): re-derived the arithmetic
-  independently from the withdrawn test's actual definition — a single-element `parametrize` tuple
-  adds exactly one case — rather than accepting the restated number, and confirmed the correction
-  states plainly that it was wrong instead of erasing the history.
-- Swept `contract.md` for other unverified factual claims: found three character-count figures
-  outside `done_when` and flagged them as unverified rather than treating "not contradicted" as
-  checked. Measured afterwards by the builder and exact; recorded under `rounds_cap_override`.
-- Second amendment's CPO authority (the round-4 finding): `escalations.log` now carries a
-  `⭐ CPO RULING: THE NARRATIVE TEST IS WITHDRAWN` block naming all six marker/rule collisions with
-  the rule sentence each would have rejected, the root cause, both paths as put, the corrected
-  recommendation and the CPO's answer; `contract.md` cites it by name as AUTHORITY. Confirmed
-  present and adequate, matching the standard applied to the first amendment in round 2.
-- First amendment's CPO authority (the round-1 finding): fixed in round 2 and re-confirmed. The
-  cited `escalations.log` block states the actual fork put to the CPO and his answer to it, rather
-  than recording that something happened.
-- §2 rule preservation across all eleven touched passages, traced against the pre-change file. No
-  rule lost; only narrative trimmed or relocated. Eight compressed passages each had a located
-  counterpart in `escalations.log` or `review_routing.json`'s `_doc`; three moved passages were
-  each verified counterpart-ABSENT before being moved, and are present verbatim in substance in
-  the log.
-- Clean withdrawal of the narrative test: `test_rule_documents_carry_no_narrative`,
-  `NARRATIVE_MARKERS` and `RULE_DOCUMENTS` are absent from the tree, and the remaining tests in
-  `tests/test_governance_doc_parity.py` are GitLab #1's pre-existing suite. Verified rather than
-  accepted from the contract.
-- The surviving reference at `docs/working_agreement.md:157` ("`tests/test_governance_doc_parity.py`
-  now checks both claims mechanically") is HONEST: it sits directly after the doc/row-mismatch and
-  guard-path-count rules, which are exactly what `test_the_guard_path_counts_are_what_the_docs_claim`
-  and `test_every_prose_count_matches_the_derived_value` check, and both still exist on `main`. No
-  stranded reference to the withdrawn test.
-- Scope: every changed file is in `scope_paths`; no protected path touched; `tests/` correctly
-  removed from scope once the test was withdrawn.
-- `decisions_taken` thresholds against the final diff: NEW MECHANISM inverted to NO and now true,
-  since the diff is prose plus task artifacts only. No recurring cost, no external surface, no
-  guard invariant changed.
+- Round 1 was a FAIL on the scope-widening amendment citing a CPO quote with no `escalations.log`
+  entry — the identical defect this reviewer failed the sibling branch for twice in the same
+  session. Round 2 confirms the entry exists, that every quote and cited line number resolves to a
+  real prior ruling rather than an invented one, and that both contract blocks now cite it.
+- Threshold-declaration accuracy: counted the actual new test functions in the diff (three) against
+  the corrected `decisions_taken` ("THREE added unit tests") and the corrected `done_when` (648
+  collected, not 646). Both now match the diff rather than an unverified prediction.
+- Scope containment: every changed file is in `scope_paths`; `.github/workflows/`, the routing
+  table, the protected list and `stop_gate.py:53` are untouched, matching the override's explicit
+  disclaimers.
+- Credentials and permissions: swept the full diff. Nothing credential-shaped, no permission
+  widening, `id_tokens` and `rules:` untouched.
 
 ## escalations
-- question: Three passages of RECORD had no counterpart anywhere, so under the approved method they
-  would stay in §2, leaving the rule document as the only copy of three incidents. Move them into
-  `escalations.log` and cite them, or leave them?
-  CPO ANSWER: "go ahead as recommended" (conversation, 2026-08-07) — move them. Recorded in
-  `escalations.log` under `⭐ CPO RULING: AUTHORITY FOR THE METHOD CHANGE`.
-- question: The narrative test was FAILed by `platform-reviewer` in three consecutive rounds, each
-  time with a legitimate RULE sentence it would wrongly reject. Round 3 hit the cap. Ship it with
-  the two contested markers dropped, or withdraw it and ship the compression alone?
-  CPO ANSWER: "B" (conversation, 2026-08-07) — withdraw it. Recorded in `escalations.log` under
-  `⭐ CPO RULING: THE NARRATIVE TEST IS WITHDRAWN`. Filed as GitLab #26.
+- question: The sweep found SIX sites carrying the stale governance base where GitLab #24 listed
+  three, the worst being `onboard-competition/SKILL.md`, which branched new work from a tree 27
+  commits behind. Fix only the three the issue named, or all six?
+  CPO ANSWER: "fix all six, and file the skills gap" (conversation, 2026-08-07). Recorded in
+  `escalations.log` under `⭐ CPO RULING: SCOPE WIDENED from three sites to six`; the skills gap is
+  filed as GitLab #27.
 
-## Note on `platform-reviewer`, stated rather than left to inference
-It reviewed rounds 1-3, when `tests/**` was in the diff, and FAILed all three — every finding
-correct, and its round-2 observation that the round-1 fix had patched named instances rather than
-the class is what eventually surfaced the design flaw. Those findings are why the test was
-withdrawn. It carries NO verdict section here because it is no longer a REQUIRED reviewer: `tests/`
-left the diff with the test, and `docs/working_agreement.md` confers no routing row. Its full
-finding history is in `escalations.log` and in GitLab #26, not discarded.
+## Note on the round-1 failure, recorded rather than left in the diff
+Two of three reviewers FAILed round 1 on the same finding: the contract claimed CPO authority that
+no durable record carried. `cto-reviewer` counted it as the FOURTH occurrence in one session
+(`escalations.log:1156`, `:1238`, `:1287`, and this task). Each earlier one was fixed by adding the
+one missing entry, and none changed the habit that produced it. The class fix is recorded in the log
+entry: the `escalations.log` entry and the `protected_override` are written in the SAME action.

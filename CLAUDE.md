@@ -117,7 +117,8 @@ every session that learned something had to delete something. None of this is cu
 - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
   blocks the turn once if any fails. Do not end a turn on a red gate silently.
 - **⚠ On a SECOND commit, `--staged-hash` is the WRONG number** — it covers only the increment,
-  while CI recomputes over the whole branch. Use `check_task_artifacts.py --base origin/main`. A
+  while CI recomputes over the whole branch. Use `check_task_artifacts.py` (its default now
+  resolves the LIVE remote; `origin` is GitLab in CI but the dormant GitHub one here). A
   `review.md`-only commit is artifact-exempt, so rebinding the hash is free.
 - **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
   the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is

@@ -383,19 +383,20 @@ PROSE_SUBSETS = {
     },
 }
 
-# Real incomplete lists that cannot be fixed from here. `.claude/agents/**` is a
-# PROTECTED path: correcting one needs a CPO-approved governance task carrying
-# `protected_override`, which this task does not have. Recorded rather than
+# Real incomplete lists that cannot be fixed from the task that finds them —
+# typically because they sit on a PROTECTED path and correcting one needs a
+# CPO-approved governance task carrying `protected_override`. Recorded rather than
 # exempted, and `test_known_incomplete_lists_have_not_been_fixed` fails the moment
-# one is corrected, so an entry cannot outlive its defect.
-KNOWN_INCOMPLETE = {
-    (".claude/agents/platform-reviewer.md",
-     frozenset({".claude/hooks/**", ".github/workflows/**"})):
-        "GitLab #1: the 'Your territory is' sentence omits `.gitlab-ci.yml`, which "
-        "routing DOES give platform-reviewer and which line 31 of the same brief "
-        "lists. The 2026-08 migration updated the model-tier blockquote and missed "
-        "the territory sentence.",
-}
+# one IS corrected, so an entry cannot outlive its defect.
+#
+# EMPTY IS THE CORRECT STEADY STATE, and it got here the intended way. The single
+# entry recorded the `platform-reviewer.md` territory sentence omitting
+# `.gitlab-ci.yml` (GitLab #22, found by this file on its first run in #1). When
+# that sentence was fixed under an override, the paired test went RED and named
+# the entry to delete — the exemption could not outlive the defect, which is the
+# whole point of the pair. Add an entry only when a real incomplete list genuinely
+# cannot be fixed in the same task, and expect the pair to retire it for you.
+KNOWN_INCOMPLETE: dict = {}
 
 
 def _allowed_runs(rel: str) -> dict:

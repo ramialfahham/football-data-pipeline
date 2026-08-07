@@ -55,7 +55,7 @@ green against the broken form it was written to catch (platform-reviewer, opus).
 <!-- FAST_GATES:END -->
 
 **`check_task_artifacts.py` is deliberately NOT one of them.** It needs a fetched
-`origin/main` (the CI job sets `GIT_DEPTH: 0` for exactly that) and it hard-fails on
+base branch (the CI job sets `GIT_DEPTH: 0` for exactly that) and it hard-fails on
 a missing or stale `review.md` — so at turn end it would block every turn during the
 build phase, before the review cycle has even run. It belongs here and in CI, not in
 the hook.
@@ -68,7 +68,7 @@ python scripts/check_layer_contract.py
 python scripts/check_registry_var_sync.py
 python scripts/check_competition_type_seed.py
 python scripts/check_copy_gate.py
-python scripts/check_task_artifacts.py --base origin/main
+python scripts/check_task_artifacts.py
 python scripts/check_ui_i18n_metrics.py
 python -m json.tool site/i18n/en.json > /dev/null
 python -m json.tool site/i18n/de.json > /dev/null
