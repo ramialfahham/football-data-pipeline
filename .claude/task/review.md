@@ -1,115 +1,164 @@
-# Review — chore/gitlab-ci-manual-prod-build — 2026-08-06
+# Review — fix/i18n-copy-gate-defects — 2026-08-06
 
-branch: chore/gitlab-ci-manual-prod-build
-diff_sha256: 90027a64f2122ebfbdea5a71a84ec5585681f5c65387739a503bc94a0547a64f
+branch: fix/i18n-copy-gate-defects
+diff_sha256: fb1fe69bb436062a8de93bc03956e97a29c656ce42350c968c59fe82163158df
 
-rounds: 2
+rounds: 3
 
-> FOUND BEFORE IT COST ANYTHING, which is the only reason this branch exists. The CPO
-> asked for `data:nightly` to be run manually. Evaluating the rules before triggering —
-> rather than reading the bill afterwards — showed that a web dispatch also auto-started
-> `data:build:main`, a full prod warehouse build, because a web pipeline is on main and
-> GitLab evaluates `changes:` as TRUE on any non-push pipeline. Asking for a nightly would
-> silently have bought a third prod build that day, right after the CPO twice objected to
-> that spend.
+> PR 1 of 2. Clears every defect `scripts/check_copy_gate.py` reports on `main` — 16 findings,
+> 14 of them em dashes across all three locales — so PR 2 can wire the gate into `.gitlab-ci.yml`
+> without turning the default branch red.
 >
-> This is the same mechanic Phase 3 guarded against for SCHEDULES. It was not re-checked
-> for `web`, because `data:build:main`'s `if: web` clause predates it and meant "I want a
-> full prod build now" — reasonable until `data:nightly` gave web dispatch a second
-> purpose and conflated the two intentions.
+> ROUND 1 FOUND A REAL DEFECT. `bi-analyst-reviewer` FAILed the German restructure: splitting
+> `"Jede Kennzahl … zur Vorsaison — kommt mit dem nächsten Release."` at the em dash tore the
+> subject away from its only finite verb, leaving `"Kommt mit dem nächsten Release."` — a
+> subjectless finite verb, which German reads as an imperative. EN `"Landing…"` and FI
+> `"Tulossa…"` are non-finite fragments and split safely; German was the one locale where the
+> dash separated a real subject from a real verb. Fixed in round 2 by deleting the dash.
+>
+> The reviewer's OWN suggested alternative was not taken: it proposed joining with a comma,
+> which is itself a German subject/verb comma error. Round 2 confirmed the shipped fix avoids
+> both traps.
+>
+> ROUND 3 was triggered by a GATE REFUSAL, not a finding — see the scope-auditor section.
+
+routing:
+  - scope-auditor — `always`
+  - bi-analyst-reviewer — `site_v2/src/**`
+
+  cto-reviewer and platform-reviewer were NOT run and are not required: no protected path is in
+  scope. `.gitlab-ci.yml`, `.claude/hooks/**` and `.claude/agents/**` are deliberately held for
+  PR 2, which is where the guard wiring lives.
 
 ## scope-auditor
-VERDICT: PASS
-risks_checked:
-- ESCALATED FIRST, then withdrawn on argument — recorded because the reasoning matters more
-  than the verdict. The reviewer held that classifying this was itself a CPO decision under
-  the §10 meta-rule. The builder challenged rather than forwarding, on one point the
-  escalation had not addressed: §10's cost reservation is DIRECTIONAL. It exists to stop a
-  builder committing the CPO to unapproved spend. This change cannot increase spend in any
-  context (push identical, schedule unchanged, web auto -> button) and removes no
-  capability. If §10 also covered changes that only ever REDUCE unrequested spend, the
-  reservation would protect the outcome it exists to prevent. The reviewer accepted and
-  re-issued PASS. No CPO attention was spent, which was the point — this CPO has twice
-  said they do not want decisions of this size brought to them.
-- Scope: every file in the diff is within `scope_paths`, declared before the edits.
-- Authority: the `protected_override` is narrow and says so — "ok do it" authorised RUNNING
-  the nightly, not this edit; the edit is justified as a precondition to executing that
-  instruction without unrequested spend.
-- Nothing asserted beyond its evidence: no pipeline has run, and no cost figure is quoted
-  (the CPO instructed the cost tooling not be run).
-- `decisions_reserved` correctly keeps the broader question — whether merge-to-main should
-  build prod at all — OUT of this task; it is filed as GitLab issue #2 with evidence.
 
-## platform-reviewer
 VERDICT: PASS
-risks_checked:
-- BOTH HALVES OF THE FIX ARE NECESSARY, traced by hand rather than accepted: before the
-  fix, a web dispatch matched the bare branch clause FIRST and ran `on_success` before the
-  web-scoped clause was ever reached — so adding `when: manual` alone would have looked
-  right and changed nothing. Adding `$CI_PIPELINE_SOURCE == "push"` to the branch clause is
-  what actually closes it.
-- A PUSH to main still auto-builds prod. Verified explicitly, and pinned by an assertion in
-  the new test — a "fix" that silently stopped prod rebuilding would be worse than the
-  defect, since prod is the baseline every MR's `state:modified+` defers to.
-- `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"` is valid rules
-  syntax and `push` is the correct source value for an ordinary push.
-- `_CONDITION_TRUTH` checked entry by entry against real GitLab semantics, including that
-  `CI_COMMIT_BRANCH` is unset on MR pipelines. A wrong entry would silently invalidate
-  every test built on it.
-- FALSE POSITIVE IN MY OWN TEST, caught and fixed before review: the first version of
-  `spends_warehouse_money` substring-matched `"dbt build"` and flagged `deploy:site-v2`,
-  which runs npm and firebase and no dbt — because `.gcp_auth`'s ERROR MESSAGE contains the
-  words "dbt build". A detector that reads prose as commands produces false positives that
-  get "fixed" by weakening the real config.
-- NOTED AT PASS AND THEN CLOSED, recorded because it changed the diff after the verdict:
-  the anchored regex tolerated only a single `cd x && ` prefix and covered only
-  `build|test|seed`, so a chained command or `dbt run`/`dbt snapshot` would have slipped
-  past — while the docstring claimed nothing could dodge it. The regex now matches dbt in
-  COMMAND POSITION (line start or after `&&`/`;`/`|`) and includes `run` and `snapshot`,
-  making the docstring's claim true rather than narrowing it. Verified against nine cases
-  including the chained form and the prose false-positive.
-- ALSO NOTED BY THIS REVIEWER, outside its remit and fixed anyway: `protected_override`
-  quoted CPO dialogue that appeared in no durable record — the exact failure class
-  `scope-auditor` failed the Phase 3 contract on. Now recorded in `escalations.log` with
-  the authority explicitly bounded, and the contract reduced to a pointer.
-- Stale comments swept; no dependency, credential, hooks or hosting change in this diff.
 
-## cto-reviewer
-VERDICT: PASS
+rounds: PASS (1, full) · PASS (2, delta) · PASS (3, delta — contract only)
+
+Round 3 was triggered by the acceptance gate refusing the commit: "5 acceptance criteria
+declared, 4 demonstrated". The `acceptance_criteria:` list carried a leading BULLET that was a
+note about the criteria ("CPO-approved 2026-08-06 and LOCKED"), not a criterion. The gate counts
+bullets. The note moved above the key as a comment; the four criteria are byte-identical.
+
+That edit touched `.claude/task/contract.md`, which is NOT in `hash_exclude_paths`, so the staged
+hash moved from `091c06d7…` to `fb1fe69b…` and the round-2 verdicts no longer covered the tree.
+Re-binding the recorded hash without re-review would have been exactly the keyhole the delta rule
+warns about, so it went back to the reviewer that owns the acceptance block.
+
 risks_checked:
-- REQUIRED BY ROUTING, and this reviewer was initially skipped on the builder's judgement
-  that "no new mechanism means no CTO review". The commit gate refused and was right:
-  routing is PATH-based, not judgement-based, and `.gitlab-ci.yml` is one of exactly three
-  paths carrying both opus specialists. Recorded because the builder's reasoning was the
-  kind that sounds sensible and quietly drops a required reviewer.
-- Rule evaluation traced by hand for all four pipeline sources; both `done_when` claims
-  hold and the push path is genuinely untouched — no regression in the direction that
-  matters, prod going silently stale.
-- The "both halves are needed" claim re-derived independently against first-match-wins
-  semantics rather than accepted from the contract.
-- The load-bearing premise — that GitLab evaluates `changes:` as TRUE on any pipeline that
-  is not a push or an MR — re-derived from documented behaviour rather than taken on faith
-  from the file's own comment, since the whole fix rests on it.
-- The new pin read line by line: it flags exactly the three warehouse-writing jobs and no
-  others (`validate:governance`'s `dbt deps && dbt parse` correctly excluded), so
-  `checked >= 3` is not a vacuous pass, and it would have failed pre-fix.
-- No new mechanism, dependency or secret anywhere in the diff.
-- §10 JUDGED INDEPENDENTLY, having been asked directly whether `scope-auditor` was talked
-  out of a correct position: the directional reading holds on inspection — the change
-  cannot increase spend in any traced context, removes no capability, and is declared
-  openly rather than absorbed silently. Conclusion: the reviewer was not talked out of a
-  correct position.
-- Authority record checked against `escalations.log` directly rather than the contract's
-  paraphrase: the quotes are verbatim, and the contract's disclaimer that this authorises
-  a precondition-fix rather than the edit itself is accurate and not stretched.
-- PRE-EXISTING GAP FOUND, outside this task's scope and NOT introduced by it:
-  `data:build:main`'s `if: $CI_PIPELINE_SOURCE == "web"` clause carries no branch
-  restriction, so a web dispatch from ANY branch can run a prod-target build of that
-  branch's code. It came whole from MR !4 and this diff makes it strictly safer (one
-  manual click instead of automatic). Filed as a follow-up issue rather than widened into
-  this task — fixing it here would be the under-scoping this migration has already been
-  ruled on once.
+- scope_paths boundary — the diff touches only `site_v2/src/i18n/strings.ts` and `.claude/task/**`,
+  both declared before the edits. No protected path, so no `protected_override` is required and
+  none is claimed.
+- §10 silent decisions — every changed string is user-visible copy, a §10 class. All 16 were put
+  to the CPO with their evidence and approved before any edit; the two genuine judgement calls
+  (`fi.secForm`, `fi.footerDataSource`) were named as such and ruled individually; the round-1
+  German fix was ruled separately.
+- amendment honesty, criterion 2 — reworded from "zero U+2014 in strings.ts" to "zero in shipped
+  string VALUES". Verified as a builder DRAFTING error, not a softened bar: the original counted
+  code comments, which `check_copy_gate.py` does not read (`_ENTRY_RE` matches dictionary values
+  only). Measured result is 0 em dashes in shipped values both before and after, so nothing that
+  was failing now passes.
+- amendment honesty, `fi.footerDataSource` — reversed a CPO ruling that proved impossible to
+  satisfy, because the gate advertises a comment exemption its code does not implement. Reason
+  recorded rather than the ruling quietly restated.
+- acceptance-block format correction (round 3) — verified with tools, not from the builder's
+  summary: all four criteria byte-identical against the round-1 baseline, no rewording, no
+  softening, no criterion removed. A note-as-bullet is a plausible way to disguise dropping a
+  criterion under cover of a gate error; confirmed that is not what happened. `scope_paths`,
+  `impact_map`, `decisions_taken`, `decisions_reserved` and the two prior amendments unchanged.
+- impact_map evidence — leaf change. `writers: none`; `downstream: 23 files` from an actual grep;
+  `layer_rules: none` verified by running `check_layer_contract.py`; `blast_radius: display text
+  only`. Short-form evidence appropriate for a leaf.
+- undeclared thresholds — none crossed. No new mechanism, no recurring cost, no new external
+  surface; declared explicitly in `decisions_taken` because no gate parses that field.
+- credentials and secrets — none anywhere in the diff.
+- dead-string finding correctly scoped — `comingTitle`/`comingPerformance`/`comingSquad` having
+  zero consumers was found during verification and filed as GitLab #17 rather than folded in.
+  Deleting user-visible copy definitions is a §10 call. Noting a finding without scope creep is
+  the correct discipline.
+
+## bi-analyst-reviewer
+
+VERDICT: PASS
+
+rounds: FAIL (1, full) · PASS (2, delta)
+
+Not re-run in round 3: no source file changed. `site_v2/src/i18n/strings.ts` is byte-identical to
+what it passed in round 2, and round 3 touched only `.claude/task/contract.md`.
+
+risks_checked:
+- DE `comingPerformance` / `comingSquad` — ROUND 1 FAIL, now fixed. The em-dash-to-full-stop
+  split tore the sentence's subject from its only finite verb, producing a subjectless
+  `"Kommt mit dem nächsten Release."` German requires an explicit subject in a declarative main
+  clause, so the result read as an ungrammatical fragment or a nonsensical second-person-plural
+  imperative. Fixing a typographic tell by introducing a grammar error is a net loss. Round 2
+  verified the fix: plain dash deletion, subject and verb reunited into one correct verb-second
+  sentence, no comma substituted (which would itself be a subject/verb comma error), no dash
+  remaining.
+- EN and FI equivalents checked and found NOT to share the defect — `"Landing…"` and `"Tulossa…"`
+  are non-finite fragments and were fragments before the edit, so splitting does not change their
+  grammatical status. This is why German alone diverges and keeps one sentence.
+- DE and FI appositive commas in `heroVerdictUnder` / `heroVerdictOver` — the highest-risk edit —
+  preserve nominative case agreement in both languages (`Ein Spiel` / `eine Torschussdifferenz`;
+  `Tällainen peli` / `maalilaukauksien ero`). No defect.
+- placeholder tokens — `{home}`, `{away}`, `{meetings}`, `{record}`, `{round}`, `{team}`,
+  `{sotd}`, `{deserved}`, `{gap}` present and unchanged, in identical multisets, in every locale
+  for every changed key.
+- no em dash remains in any shipped dictionary value; all remaining em/en dashes sit inside `//`
+  comments, outside amended criterion 2's scope, confirmed against the gate's own `_ENTRY_RE` /
+  `_DICT_RE`. No en-dash substitution was used to dodge the gate.
+- corpus corroboration checked rather than taken on faith — `fi.secForm: "Kuntovertailu"` and
+  `fi.footerDataSource: "Tietolähde: API-Football"` both verified against real strings in
+  `site/i18n/fi.json` (`kuntojakson`, `"Tietolähde ei toimittanut tätä arvoa"`).
+- dead-string disclosure verified INDEPENDENTLY with Grep rather than from the evidence file's
+  prose: `comingPerformance` / `comingSquad` / `comingTitle` have zero consumers anywhere under
+  `site_v2/src` outside `strings.ts`; `TeamPerformance.astro` branches on `hasBench` and falls
+  back to `notRankable`. The claim checks out and carries no display risk.
+- round-2 patch diffed against round-1 hunk-by-hunk: only the DE hunk changed. Every other hunk —
+  EN/FI/DE `aboutWithH2h`, the hero appositives in all three locales, `fi.secForm`,
+  `fi.footerDataSource` — byte-identical to what was already checked and found clean.
 
 ## escalations
-(none outstanding — the one raised was withdrawn on argument, and is recorded above and in
-`.claude/task/escalations.log` under the §10 CLASSIFICATION entry.)
+
+none. Neither reviewer returned an ESCALATE in any round.
+
+## builder findings, not fixed here
+
+1. **GitLab #17** — `comingTitle`, `comingPerformance` and `comingSquad` are referenced by no
+   component and render on no built page in any locale. Nine grep hits, all definitions, zero
+   consumers. Dead placeholders left behind when the Performance and Squad tabs gained real
+   implementations. Still corrected in this PR because `check_copy_gate.py` reads every
+   dictionary value regardless of use, so criterion 1 cannot pass while they carry em dashes —
+   which means a German grammar defect was found and fixed in copy no user can reach.
+
+2. **For PR 2** — `scripts/check_copy_gate.py` advertises an exemption it does not implement. Its
+   message offers "the value needs a comment saying so", but check 4 (`untranslated values`)
+   parses no comment. Found when the CPO's first ruling on `fi.footerDataSource` proved
+   impossible to satisfy. Belongs to the MR that touches the gate.
+
+## process note — on the guard machinery itself
+
+`scope-auditor`'s round-2 delta re-review completed with **0 tool calls**. It reasoned from the
+builder's written summary without reopening the patch, so that PASS certified the builder's
+description of the change rather than the change.
+
+`bi-analyst-reviewer`'s round-2 delta used 4 tool calls and states explicitly that it checked the
+dead-string claim with Grep "rather than taking the excluded evidence file's prose on faith", and
+diffed the patch hunk-by-hunk against round 1.
+
+Both received the same delta framing. One verified it, one did not. `scope-auditor`'s brief
+carries the refusal condition for exactly this — *"a delta brief is a cost saving, never a way to
+move a change past you while you look through a keyhole"* — and it was not exercised.
+
+In round 3 the same reviewer was told plainly that its round-2 review had used 0 tool calls, was
+pointed at its own refusal condition, and was asked to verify the contract diff with tools. It
+did, and reported the four criteria byte-identical against its round-1 baseline.
+
+So the behaviour is promptable. That is a real mitigation and also the problem: a reviewer that
+verifies only when the builder asks it to is not an independent check, because the builder is the
+party with the incentive not to ask. The fix belongs in routing and model choice, not in the
+builder remembering to say "please actually look". Recorded on GitLab #10.
+
+This does not invalidate the verdicts: `scope-auditor` passed the same contract in round 1 with
+18 tool calls, the round-2 delta changed no field it audits, and round 3 was verified with tools.
