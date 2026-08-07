@@ -5,16 +5,22 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-06**. main GREEN at **b5ba63a**. The product is **Matchday Pilot**.
+_Last updated **2026-08-06**. main GREEN at **bd63ada**. The product is **Matchday Pilot**.
 **The repo is on GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — its
 Actions run nothing and its 114 issues are unreachable; `.github/workflows/README.md` says so at
-the tree. Merged today: **!6** (web dispatch must not auto-start a prod build), **!7** (`4844c32`,
-the copy gate's 16 findings cleared), **!8** (`b1cd6fe`, six unwired guards connected).
+the tree, and says what re-arms it. Merged today: **!6** (web dispatch must not auto-start a prod
+build), **!7** (`4844c32`, the copy gate's 16 findings cleared), **!8** (`b1cd6fe`, six unwired
+guards connected), **!9** (`111ad47`, GitHub tree marked dormant + operational notes moved).
 
 **⚠ THE GUARDS CHANGED TODAY (!8).** Stop hook runs 5 offline gates (~2.9s), blocks once on
 failure · copy gate runs in CI · 5 USER-LEVEL hooks now registered in `~/.claude/settings.json`
 (hard deny on pushing `main`; plan-back prompt on your first code edit) · `scope-auditor` on
-sonnet · reviewers get a MANIFEST for `site_v2/src/data/**`, not the inline diff._
+sonnet · reviewers get a MANIFEST for `site_v2/src/data/**`, not the inline diff.
+
+**⚠ THE OPERATIONAL NOTES MOVED (!9) — they are in `CLAUDE.md` now, not here.** dbt CLI path,
+SQLFluff, commit mechanics, the stash-dance, CWD/fnmatch/heredoc/grep traps, frontend. This file
+is capped at 16,000 chars and drops its tail; `CLAUDE.md` is always loaded and never truncated.
+**Do not copy them back.** Currently ~14.5k with ~1.5k headroom — spend it on CURRENT STATE._
 
 **FIRST ACTIONS: run `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX —
 the indices move every time anything is stashed, and on 2026-08-06 this file still pointed at
