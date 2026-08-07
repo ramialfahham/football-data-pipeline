@@ -1207,3 +1207,84 @@ is the fix.
 - REVIEWERS: `platform-reviewer` PASS round 1 — it re-derived all four counts independently from
   both sources and hit the same line-break trap the test's own docstring names, which is the check
   landing rather than a courtesy. `scope-auditor` FAIL round 1 on the missing entry above.
+
+2026-08-07 docs/19-compile-dont-append — GitLab #19: three passages MOVED here out of
+`docs/working_agreement.md` §2, verbatim in substance, so the rule document states rules and this
+log keeps the record. Nothing is deleted; §2 now carries a citation to this entry in each place.
+These three were the ONLY surviving copy — checked entry by entry against this log and against
+`review_routing.json` before the move, unlike the other five passages compressed in the same task,
+which were already recorded and so were simply dropped.
+
+- (WHY `acceptance_criteria` EXISTS — moved from §2, CPO ruling 2026-07-31, #868) Every reviewer
+  checks that the code is RIGHT, and nothing checked that it does WHAT WAS ASKED. A finished page
+  passed both of its reviewers while opening on the wrong season. The ruling recorded above under
+  the #868 org rulings ("the builder drafts, the CPO approves BEFORE any code") is the answer to
+  that specific failure, and this sentence is the failure it answers.
+
+- (WHY AN `Artifact` PUBLISH IS GATED — moved from §2, 2026-07-22) Design was the only surface in
+  the repo with NO gate at all: three player-page mocks were produced and rejected in a single day
+  without a contract, a routed reviewer, or a commit gate ever seeing them. Every path-keyed check
+  returned early because a mock is written outside the repo. Hence the rule that an `Artifact`
+  publish is denied unless a contract exists carrying a real `decisions_reserved`. The honest limit
+  is stated in §2 and stays there because it is operative: this is keyed on the TOOL NAME, not on
+  the act of designing, so drafting to a scratchpad is still ungated.
+
+- (WHY A PROTECTED PATH NEEDS AN `impact_map` AS WELL AS AN OVERRIDE — moved from §2, 2026-07-22)
+  Until that date only `protected_override` was required. That meant editing a GUARD demanded LESS
+  evidence than a cosmetic label change on a leaf mart, while a guard's blast radius is every
+  future task in the repo. The two answer different questions — the override answers "may you", the
+  map answers "do you know what breaks" — and that half is a rule, so it stays in §2.
+
+- (⭐ CPO RULING: AUTHORITY FOR THE METHOD CHANGE ABOVE) `scope-auditor` FAILED round 1 and was
+  RIGHT. The approved plan's method was "remove a passage only where its counterpart already
+  exists; anything else STAYS". The three moves above extend that to "move it here, then remove",
+  and the builder wrote its own justification into `contract.md` citing the failure message of a
+  test written in the same task. That is circular, and §2 says extending a contract without
+  recorded CPO authority is drift by definition. No amount of good reasoning by the builder
+  substitutes for the ruling.
+
+  Put to the CPO with both paths named: (a) authorise the move — nothing is deleted, §2 keeps a
+  citation at each site, compression stays at 12.2%; or (b) revert it, which returns all three to
+  §2 and then forces a choice between shipping the new test RED or deleting the marker that
+  catches one of them, the second being a guard weakened to fit the builder's own document.
+  Builder recommended (a), on the ground that GitLab #19 itself asked for "nothing deleted, only
+  moved to git + escalations.log" and that the narrowing to removal-only was the BUILDER's, in its
+  plan, not the CPO's.
+
+  CPO ANSWER (conversation, 2026-08-07): **(a) authorise the move** — *"go ahead as recommended"*.
+  This entry is the authority `contract.md`'s `amendments:` block cites; the block previously cited
+  nothing, which is the defect the reviewer named.
+
+- (⭐ CPO RULING: THE NARRATIVE TEST IS WITHDRAWN) The guard this task was planned around was built
+  and then removed. `platform-reviewer` FAILed it in rounds 1, 2 and 3, each round producing a
+  legitimate RULE sentence the test would have wrongly rejected:
+    r1 `was failed`      "a round that was failed on a paperwork-only nit still counts toward the cap"
+    r1 `before that,`    "before that, confirm no artifact-only fix is possible"
+    r2 `it ran on`       "a review's lock is void if it ran on a hash that predates the latest push"
+    r2 `round N of the`  "a FAIL raised in round 2 of the cap must be fixed before round 3 opens"
+    r3 `rounds N found`  "a defect that round 2 found is not re-litigated in round 3"
+    r3 `until that date` "an override may declare an expiry; the edit stays permitted until that date"
+  Six collisions, three rounds. Every fix was correct and every round surfaced more. Round 3 hit
+  ROUND_CAP, so the builder STOPPED and brought the open findings to the CPO, which is what §2
+  requires rather than a fourth patch.
+
+  ROOT CAUSE, recorded so #26 does not restart from the same premise: rules and history are written
+  in the SAME ENGLISH, and the failure is ASYMMETRIC. A missed narrative waits for a reviewer, which
+  is a reviewer's job anyway; a false hit fires on a real RULE, and the cheapest way to green the
+  build is to REWORD THE RULE. A keyword matcher therefore damages the document it protects.
+
+  Put to the CPO as two paths: (A) ship the test with the two contested markers dropped, needing a
+  round-cap override; or (B) ship the compression alone and make the guard its own work. The builder
+  first recommended (A), then CORRECTED itself to (B) before he answered — recorded rather than
+  smoothed over, because the first recommendation was anchored on the work already done rather than
+  on the evidence, and he had asked for a plain-language explanation precisely because the earlier
+  framing was unusable.
+
+  CPO ANSWER (conversation, 2026-08-07): **(B)** — withdraw the test, ship the compression alone.
+  `tests/test_governance_doc_parity.py` is reverted to `main`; `tests/` leaves `scope_paths`. Filed
+  as GitLab #26.
+
+  WHY THIS ENTRY EXISTS AT ALL: `scope-auditor` FAILed round 4 because the second amendment claimed
+  this ruling in contract prose with nothing in this log — the SAME defect it failed round 1 for on
+  the first amendment. The round-1 fix was applied to that amendment only and not to the class. It
+  was right both times.

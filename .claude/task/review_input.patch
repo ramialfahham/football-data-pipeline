@@ -1,148 +1,511 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 2967c7d..4fca1e3 100644
+index 4fca1e3..044833d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,41 +1,45 @@
--# Task contract — derive the guard-path counts and protected-path list, and test the prose against them
-+# Task contract — handover: #1 is done, five new issues, and a wrong stash index
+@@ -1,45 +1,55 @@
+-# Task contract — handover: #1 is done, five new issues, and a wrong stash index
++# Task contract — #19: split the RULE from the RECORD in the working agreement
  
--> Branch `test/1-guard-path-doc-parity` from `main` (`9987184`). NO protected path is in scope, so
--> no `protected_override`. `tests/` is not on the structural surface
--> (`task_contract_gate.py:94` — `ingestion/`, `dbt_project/models/`, `site/`, `site_v2/`), so no
--> `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`.
-+> Branch `chore/handover-1-done` from `main` (`6238dc4`). Bookkeeping. No protected path, so no
-+> `protected_override`. Nothing on the structural surface, so no `impact_map`. No `site_v2/src/`
-+> path, so no `acceptance_criteria`. A commit touching `contract.md` is NEVER artifact-exempt, so
-+> this still takes a scope audit.
+-> Branch `chore/handover-1-done` from `main` (`6238dc4`). Bookkeeping. No protected path, so no
++> Branch `docs/19-compile-dont-append` from `main` (`5dbee13`). No protected path, so no
+ > `protected_override`. Nothing on the structural surface, so no `impact_map`. No `site_v2/src/`
+-> path, so no `acceptance_criteria`. A commit touching `contract.md` is NEVER artifact-exempt, so
+-> this still takes a scope audit.
++> path, so no `acceptance_criteria`.
  
  objective: >
--  Make it impossible for a hand-copied guard-path count or protected-path list to drift from the
--  source without a test failing.
+-  Bring `.claude/active_work.md` back to current state after !11 and !12 merged, and fix one live
+-  defect in it.
 -
--  THE PROBLEM. `.claude/review_routing.json` is the source of truth for which paths confer which
--  reviewers, and `task_contract_gate.py` for which paths are protected. Neither the count nor the
--  list is derived anywhere. Both are restated as English prose, by hand, across eleven sites. MR !4
--  added exactly one routing row and that one-line change cost eleven prose edits and three review
--  rounds. The failure mode is not carelessness: nothing can tell you a hand-copied list is
--  incomplete, because a stale "eight" is valid prose.
+-  WHAT IS STALE. It says main is GREEN at `9987184` with nothing in flight; main is now `6238dc4`
+-  and both MRs merged. It lists #1 as the next thing to pick up; #1 shipped in !12. It knows
+-  nothing of the five issues filed 2026-08-07 (#20-#24). Its test count is `583 python`, measured
+-  2026-08-03; the suite is now 645.
 -
--  WHAT THIS TASK IS NOT. #1's body describes the prose as saying "eight guard paths" / "two of the
--  eight". That was the pre-migration state. All eleven sites were corrected during !4 and are
--  consistent with the source today (nine, three, six), verified site by site while planning. So
--  this task edits NO prose and NO guard. It is purely additive: it adds the test that catches the
--  next drift.
-+  Bring `.claude/active_work.md` back to current state after !11 and !12 merged, and fix one live
-+  defect in it.
+-  THE DEFECT, which is the one this file warns about in its own FIRST ACTIONS block. Line 143 says
+-  the player Overview is "UNCOMMITTED in `stash@{0}`", while lines 48-52 say to MATCH BY MESSAGE,
+-  NEVER BY INDEX, and record that it had already shifted to `{1}`. Verified 2026-08-07: `stash@{0}`
+-  is the 367 landing page and `stash@{1}` is the player Overview. A session trusting line 143 pops
+-  the wrong stash. The file contradicts itself, and the correct half is the half nobody reads
+-  second. Fixed by naming the stash by MESSAGE, so no index can go stale again.
+-
+-  ONE TRAP MOVED IN, because it will bite the next session. The governance base is spelled
+-  `origin/main` everywhere, and `origin` is the DORMANT GITHUB remote locally while it is GitLab in
+-  CI. Running `check_task_artifacts.py` locally therefore FALSE-FAILS, naming three reviewers that
+-  are not required. Observed this session. Filed as #24; the workaround belongs in REVIEW MECHANICS
+-  until it is fixed.
+-
+-  THE CAP IS THE CONSTRAINT. The file is at 15,975 characters against a hard 16,000
+-  (`handover_in.py:46`) that DROPS THE TAIL SILENTLY. Everything added is paid for by compressing
+-  spent history in the same file, never by cutting live state.
++  Stop `docs/working_agreement.md` being half its own changelog, without removing a single rule,
++  and add the guard that stops it re-accumulating.
 +
-+  WHAT IS STALE. It says main is GREEN at `9987184` with nothing in flight; main is now `6238dc4`
-+  and both MRs merged. It lists #1 as the next thing to pick up; #1 shipped in !12. It knows
-+  nothing of the five issues filed 2026-08-07 (#20-#24). Its test count is `583 python`, measured
-+  2026-08-03; the suite is now 645.
++  THE PROBLEM, measured rather than quoted from the issue. §2 is 14,448 characters of a 26,374
++  character document: 55% of it, and six times the next largest section. It interleaves four kinds
++  of text — the operative rule, its rationale, dated corrections, and review archaeology — so an
++  agent reading it under pressure retrieves the narrative, which is memorable, over the rule,
++  which is buried in it.
 +
-+  THE DEFECT, which is the one this file warns about in its own FIRST ACTIONS block. Line 143 says
-+  the player Overview is "UNCOMMITTED in `stash@{0}`", while lines 48-52 say to MATCH BY MESSAGE,
-+  NEVER BY INDEX, and record that it had already shifted to `{1}`. Verified 2026-08-07: `stash@{0}`
-+  is the 367 landing page and `stash@{1}` is the player Overview. A session trusting line 143 pops
-+  the wrong stash. The file contradicts itself, and the correct half is the half nobody reads
-+  second. Fixed by naming the stash by MESSAGE, so no index can go stale again.
++  THE FINDING THAT MAKES THIS SAFE. Every narrative passage proposed for removal was checked
++  against the durable record BEFORE being touched. Seven of eight are already recorded in
++  `.claude/task/escalations.log` or `.claude/review_routing.json`'s `_doc`. So this is
++  DE-DUPLICATION, not deletion of history: the same fact stored in two places with nothing
++  reconciling them, which is GitLab #1's defect class in a different medium. Evidence per passage
++  is under `decisions_taken`.
 +
-+  ONE TRAP MOVED IN, because it will bite the next session. The governance base is spelled
-+  `origin/main` everywhere, and `origin` is the DORMANT GITHUB remote locally while it is GitLab in
-+  CI. Running `check_task_artifacts.py` locally therefore FALSE-FAILS, naming three reviewers that
-+  are not required. Observed this session. Filed as #24; the workaround belongs in REVIEW MECHANICS
-+  until it is fixed.
++  THE ONE THAT STAYS. The delta-re-review rationale ("re-running every reviewer at full depth
++  every round is what made a nine-round PR cost what it did") has NO counterpart: `nine-round` and
++  `delta review` both return zero hits across both record files. It stays in §2 untouched. That is
++  the safety rule doing its job, and it is why the rule is "locate the counterpart first" rather
++  than "delete narrative".
 +
-+  THE CAP IS THE CONSTRAINT. The file is at 15,975 characters against a hard 16,000
-+  (`handover_in.py:46`) that DROPS THE TAIL SILENTLY. Everything added is paid for by compressing
-+  spent history in the same file, never by cutting live state.
++  THE GUARD WAS PLANNED, BUILT, AND WITHDRAWN. #19's reusable conclusion is that when something
++  recurs the answer is a hook, a test or a skill, so this task added a test asserting the rule
++  documents carry no narrative. `platform-reviewer` FAILed it three rounds running, each time with
++  a legitimate RULE sentence the test would wrongly reject, and each fix surfaced more. The CPO
++  withdrew it and shipped the compression alone. Filed as GitLab #26.
++
++  THE REASON IT DOES NOT WORK, recorded so #26 does not restart from the same premise: rules and
++  history are written in the SAME ENGLISH. "A defect that round 2 found is not re-litigated in
++  round 3" is a rule and contains "round 2 found". No word list separates the two, and the failure
++  is ASYMMETRIC — a missed narrative waits for a reviewer, whereas a false hit fires on a real
++  rule, and the cheapest way to green the build is to REWORD THE RULE. The guard would corrupt the
++  document it protects. So this branch ships the de-duplication only.
  
  refs: >
--  GitLab issue #1 ("Guard-path count and protected-path list are hand-copied into 11 prose sites").
--
--  AUTHORITY: `.claude/task/escalations.log`, entry `2026-08-07 test/1-guard-path-doc-parity`, which
--  records the CPO's up-front instruction verbatim and the ruling on the incomplete list the test
--  found. Logged there rather than only quoted here, per the CPO ruling at `escalations.log:112`
--  (2026-06-17): *"Path A — LOG IT ... the contract's decisions_taken is not, by itself, the sole
--  record."* `scope-auditor` FAILed round 1 because that entry was missing; it was right.
--
--  Plan approved in plan mode 2026-08-07 (`~/.claude/plans/splendid-tickling-bumblebee.md`).
--  Follow-ups filed: GitLab #22 (the incomplete list), #23 (a stale claim in `.gitlab-ci.yml`).
-+  Follows MR !12 (GitLab #1) and !11, both merged 2026-08-07. Issues filed this session and
-+  recorded here: #20, #21, #22, #23, #24. CPO instruction in this session: *"go ahead as
-+  recommended"*, against a stated recommendation to update the handover before starting #19,
-+  because #19 is a compression pass across every governing artifact and is the task most likely to
-+  be interrupted mid-way.
+-  Follows MR !12 (GitLab #1) and !11, both merged 2026-08-07. Issues filed this session and
+-  recorded here: #20, #21, #22, #23, #24. CPO instruction in this session: *"go ahead as
+-  recommended"*, against a stated recommendation to update the handover before starting #19,
+-  because #19 is a compression pass across every governing artifact and is the task most likely to
+-  be interrupted mid-way.
++  GitLab issue #19 ("Compile, don't append: every governing artifact is 50-60% its own
++  changelog"). Plan approved in plan mode 2026-08-07
++  (`~/.claude/plans/splendid-tickling-bumblebee.md`), including the guard, which the plan flagged
++  as a NEW MECHANISM and therefore the CPO's; approved with *"start #19"* against a plan
++  recommending it be included. Builds directly on !12 (GitLab #1), whose test already guards the
++  count and enumeration claims inside the section being edited.
  
  scope_paths:
--  - tests/test_governance_doc_parity.py
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - docs/working_agreement.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -44,45 +48,34 @@ scope_paths:
+@@ -48,34 +58,145 @@ scope_paths:
  decisions_taken: >
    THRESHOLD DECLARATIONS, stated because no gate parses this field.
  
--  NEW MECHANISM — YES. It introduces a class of enforcement the repo does not have: PROSE must
--  agree with CODE. Declared as a mechanism rather than argued down to "just another test".
--  AUTHORITY IS LOGGED, NOT ASSERTED HERE: `.claude/task/escalations.log`, entry `2026-08-07
--  test/1-guard-path-doc-parity`, carries the CPO's instruction verbatim and the plan-mode approval
--  that preceded any file being written. This contract cites a locatable ruling; it is not itself
--  the record.
-+  NEW MECHANISM — NO. Prose edits to one handover file. No hook, script, test, job, dependency or
-+  config surface is added or changed.
- 
--  RECURRING COST — NO NEW JOB. The tests run inside the existing `test:python` CI job and the
--  existing local pytest suite. No new job, stage, runner, schedule, dependency or external service.
--  The added cost is the runtime of four offline tests that read files already in the repo.
-+  RECURRING COST — NO. Nothing executes. No CI job, no runner minute, no BigQuery byte, no API
-+  call. The file shrinks rather than grows.
- 
--  NEW EXTERNAL SURFACE — NO. Nothing is published, deployed or exposed.
-+  NEW EXTERNAL SURFACE — NO. Nothing is published or deployed.
- 
--  GUARD INVARIANT — UNCHANGED, AND NONE IS LOOSENED. No hook, agent brief, routing row or
--  protected-path list is edited. `task_contract_gate.py` and `.claude/review_routing.json` are READ
--  by the new test and not modified; neither appears in `scope_paths`.
-+  GUARD INVARIANT — UNCHANGED. No guard is edited. #24 records that a guard's DEFAULT BASE is
-+  wrong locally; this task writes down the workaround and does not touch the guard, because
-+  `scripts/**` and `.gitlab-ci.yml` are not in scope and changing a gate's base is guard-class.
- 
--  COUNTS STAY IN PROSE. #1 offered replacing every count with a pointer to `review_routing.json`
--  (its option 2). The approved plan keeps the counts and tests them instead, and the CPO approved
--  that plan with the alternative stated in it explicitly.
-+  WHAT IS DELETED, stated explicitly because deletion is the risk in a capped file: only history
-+  that is already durable elsewhere. The audit's 12-item plan breakdown (spent, and in `git log` +
-+  the tracker) and the full text of #547's ranked cost list (which the same paragraph already says
-+  lives in GitLab #3). No live state, no trap, no open decision is removed.
+-  NEW MECHANISM — NO. Prose edits to one handover file. No hook, script, test, job, dependency or
+-  config surface is added or changed.
+-
+-  RECURRING COST — NO. Nothing executes. No CI job, no runner minute, no BigQuery byte, no API
+-  call. The file shrinks rather than grows.
+-
+-  NEW EXTERNAL SURFACE — NO. Nothing is published or deployed.
+-
+-  GUARD INVARIANT — UNCHANGED. No guard is edited. #24 records that a guard's DEFAULT BASE is
+-  wrong locally; this task writes down the workaround and does not touch the guard, because
+-  `scripts/**` and `.gitlab-ci.yml` are not in scope and changing a gate's base is guard-class.
+-
+-  WHAT IS DELETED, stated explicitly because deletion is the risk in a capped file: only history
+-  that is already durable elsewhere. The audit's 12-item plan breakdown (spent, and in `git log` +
+-  the tracker) and the full text of #547's ranked cost list (which the same paragraph already says
+-  lives in GitLab #3). No live state, no trap, no open decision is removed.
++  NEW MECHANISM — NO, NOT ANY MORE. This task was planned with one: a test asserting the rule
++  documents carry no NARRATIVE markers. It was built, and the CPO WITHDREW it after three review
++  rounds (see `amendments`). `tests/test_governance_doc_parity.py` is byte-identical to `main` on
++  this branch — verified with `git diff main -- tests/test_governance_doc_parity.py`, which is
++  empty, and `tests/` is no longer in `scope_paths`. This diff adds no test, no hook, no script
++  and no config surface. It is prose only.
++
++  RECURRING COST — NO. Nothing executes that did not execute before.
++
++  NEW EXTERNAL SURFACE — NO.
++
++  GUARD INVARIANT — UNCHANGED. No hook, agent brief, routing row or protected path is edited.
++  §2 DESCRIBES the guards; this task does not touch them. Every rule §2 states still binds after
++  this change, and the diff is reviewable on exactly that question.
++
++  THE COUNTERPART EVIDENCE, per removed passage. Located by proximity inside a single record
++  entry, not by whether a word appears somewhere in a 1,154-line file — the first version of that
++  check asked the looser question and produced four false positives, which is why the evidence
++  below names an entry rather than a file:
++    1. `consulted:` demoted -> escalations.log, "demoting the day-old consulted field to a
++       reviewer habit", under CPO ANSWER "Trim the weak parts, then reframe".
++    2. G3 bypasses at opus depth -> review_routing.json `_doc` lines 143-145, "hollows out the
++       very depth the opus pin exists for, since the G3 commit-gate bypasses WERE fail-open and
++       hook-test-coverage findings".
++    3. scope-auditor haiku -> sonnet -> escalations.log, "moving `scope-auditor` haiku -> sonnet,
++       which is a permanent per-commit increase".
++    4. the split's rounds / "both on all eight" -> review_routing.json `_doc`, "three documents
++       claiming BOTH reviewers on all EIGHT guard paths while routing gave platform two".
++    5. FAIL/PASS rules rewritten -> escalations.log, the CPO quote "the reviewer needs to have the
++       critical attitude but it's allowed to approve and not invent some finding".
++    6. PASS required two named risks / #370 rounds 6-12 -> escalations.log, "every brief required
++       two named risks for a PASS, so on correct code a reviewer was OBLIGED to find something",
++       and separately "rounds 6-12 found nothing a visitor would see".
++    7. delta re-review / nine-round PR -> escalations.log, the `2026-07-22 chore/review-economics`
++       entry: "the guardrails PR cost nine rounds", and the chosen path "delta re-review + round
++       cap + consult first". FOUND ONLY ON THE SECOND ATTEMPT: the first search asked for
++       "nine-round" and "delta review" and got zero, because the log writes "nine rounds" and
++       "delta re-review". Recorded because a literal search returning zero is not evidence of
++       absence, and this is the second time in this task that it read as though it were.
++    8. evidence artifacts / typo voided every PASS -> escalations.log, "two evidence artifacts sat
++       inside `diff_sha256`, so correcting a typo voided every PASS already given".
  
  decisions_reserved:
--  - Whether this same derive-and-test pattern is extended to the rest of the hand-copied facts in
--    the repo (#19, "compile, don't append"). Deliberately NOT started here. #19 is a compression
--    pass over every governing artifact and is its own session; folding it in would make this diff
--    unreviewable and would be scope drift.
--  - Whether a future guard path that is protected but deliberately unrouted (or routed but
--    deliberately unprotected) is legitimate. `test_the_guard_path_set_is_exactly_the_protected_path_set`
--    asserts the two sets are identical, which is true today for all nine. If a real case ever needs
--    them to differ, that is a §10 call about the governance model and not a licence to widen the
--    test — the test should be narrowed to where it still holds, with the exception named.
-+  - Whether the 16,000-character cap is the right mechanism at all. Every session now pays a
-+    compression tax to add a line, and the file has been at 95%+ of cap for three sessions running.
-+    That is adjacent to #19 and is the CPO's, not something to solve by trimming again here.
+-  - Whether the 16,000-character cap is the right mechanism at all. Every session now pays a
+-    compression tax to add a line, and the file has been at 95%+ of cap for three sessions running.
+-    That is adjacent to #19 and is the CPO's, not something to solve by trimming again here.
++  - Whether the same pass is run on `.claude/review_routing.json`'s `_doc`, on `CLAUDE.md`, and on
++    the 88 memory files. All three are excluded here for stated reasons: the routing file is
++    PROTECTED and its `_doc` is read by reviewers rather than by builders, so it is load-bearing
++    differently; `CLAUDE.md` is loaded into every session, so a bad cut costs every future one;
++    the memory files are outside the repo and ungoverned by any gate. Each is its own task, and
++    whether to do them at all is the CPO's.
++  - Whether any RATIONALE compressed to a clause here should have been kept in full. Rationale is
++    what stops a rule being re-litigated, so shortening it is a judgement with a real failure mode.
++    Bias throughout was toward keeping; anything ambiguous stayed. Flagged so a reviewer checks the
++    direction of the error rather than only its presence.
  
  done_when:
--  - "Every one of the four tests has been made to FAIL against a deliberately broken source, with
--    the red pytest output pasted, and every break reverted. A passing test proves nothing."
--  - "`.venv/Scripts/python.exe -m pytest tests/ -q` is green, with no reduction in the pre-existing
--    test count."
--  - "`git diff --stat main...HEAD` shows exactly one non-artifact file,
--    `tests/test_governance_doc_parity.py`."
--  - "The five fast offline gates pass (the Stop hook runs them)."
-+  - "`.claude/active_work.md` is under 16,000 CHARACTERS measured with Python `len()`, not `wc -c`,
-+    and `handover_in.py` injects it with no truncation notice."
-+  - "The player Overview stash is named by MESSAGE, with no bare `stash@{n}` index anywhere that a
-+    session could act on."
-+  - "main `6238dc4`, !11 + !12 merged, #1 DONE, #19 next, and #20-#24 all appear."
-+  - "The five fast offline gates pass, using `--base gitlab/main` for the artifact gate."
- 
- amendments: (none)
+-  - "`.claude/active_work.md` is under 16,000 CHARACTERS measured with Python `len()`, not `wc -c`,
+-    and `handover_in.py` injects it with no truncation notice."
+-  - "The player Overview stash is named by MESSAGE, with no bare `stash@{n}` index anywhere that a
+-    session could act on."
+-  - "main `6238dc4`, !11 + !12 merged, #1 DONE, #19 next, and #20-#24 all appear."
+-  - "The five fast offline gates pass, using `--base gitlab/main` for the artifact gate."
+-
+-amendments: (none)
++  - "Every rule present in §2 before the change is present after it. The diff is reviewable on
++    that single question, and nothing but RECORD text is removed."
++  - "`git diff main -- tests/` is EMPTY. The withdrawn guard leaves no residue, and the diff is
++    prose plus task artifacts only."
++  - "GitLab #1's existing anchors still pass. §2 holds the count and enumeration claims that
++    `test_every_prose_count_matches_the_derived_value` anchors on, so that suite is the mechanical
++    check that this edit did not damage them — and it is the reason the compression could touch
++    those sentences safely at all."
++  - "`.venv/Scripts/python.exe -m pytest tests/ -q` green at 645, the same count as `main`, since
++    no test is added or removed. MEASURED, not predicted: `pytest --collect-only -q` gives 645 for
++    the tree and 40 for `tests/test_governance_doc_parity.py`, which `git diff main --quiet` shows
++    is identical to `main`. This line said 646 until the suite was actually run — a contract claim
++    about the code written as a prediction and not re-checked against the finished tree, which is
++    #904's exact defect class. 646 was the count WITH the withdrawn narrative test, which added one
++    parametrized case. No reviewer caught it; the measurement did."
++  - "Section sizes reported before and after, measured rather than asserted."
++  - "The five offline gates pass, with `--base gitlab/main` for the artifact gate."
++
++amendments: >
++  ONE amendment, 2026-08-07, on a clean tree (doc + test stashed by explicit path, popped
++  immediately). NO PATH IS ADDED — `escalations.log` was already in `scope_paths`. What changes is
++  the METHOD.
++
++  AUTHORITY: `.claude/task/escalations.log`, the `⭐ CPO RULING: AUTHORITY FOR THE METHOD CHANGE`
++  block under the `2026-08-07 docs/19-compile-dont-append` entry. CPO answer, in his words:
++  *"go ahead as recommended"*, to path (a) of two named paths.
++
++  THIS BLOCK PREVIOUSLY CITED NOTHING, and `scope-auditor` FAILED round 1 for exactly that. It was
++  right: the justification below was written by the builder and rested on the failure message of a
++  test the builder wrote in the same task, which is circular. §2 says extending a contract without
++  recorded CPO authority is drift by definition, and it means it. The reasoning that follows is
++  kept because it is the reasoning PUT TO the CPO; it was never the authority.
++
++  APPROVED METHOD: remove a RECORD passage only where its counterpart is already in the durable
++  record; a passage with no counterpart STAYS and is listed here.
++
++  AMENDED METHOD: a passage with no counterpart is MOVED into `escalations.log` and replaced by a
++  citation. Nothing is deleted either way.
++
++  WHY IT CAME UP. Three passages had no counterpart anywhere — the acceptance-criteria failure
++  ("a finished page passed both its reviewers while opening on the wrong season"), the Artifact
++  gate's origin ("three player-page mocks produced and rejected in a single day"), and why a
++  protected path needs an `impact_map` as well as an override. Under the approved method all three
++  stayed, which capped the compression at 12.2% of §2 and, more to the point, left the rule
++  document as the ONLY copy of three incidents. The new narrative test then failed on the third
++  one, and its own failure message says what to do: *"Move each into
++  .claude/task/escalations.log and leave a citation."*
++
++  So the guard written in this task prescribed the method the task should have used. That is also
++  what GitLab #19 asked for in the first place — "nothing deleted, only moved to git +
++  escalations.log" — and the approved plan had narrowed it to removal-only.
++
++  BOUNDED: it moves three passages, verbatim in substance, into a dated `escalations.log` entry
++  that says where each came from. It removes no rule, and each site in §2 keeps a citation
++  pointing at the entry.
++
++  NOT CLAIMED: this does not authorise moving anything whose counterpart was NOT checked. The
++  eight compressed passages were each located first; these three were each verified absent first.
++
++  SECOND AMENDMENT, 2026-08-07, same clean-tree procedure. THE NARRATIVE TEST IS WITHDRAWN and
++  `tests/test_governance_doc_parity.py` is reverted to `main`. `tests/` leaves `scope_paths`.
++
++  AUTHORITY: `.claude/task/escalations.log`, the `⭐ CPO RULING: THE NARRATIVE TEST IS WITHDRAWN`
++  block under the `2026-08-07 docs/19-compile-dont-append` entry — all six collisions with the rule
++  sentence each would have rejected, the root cause, both paths as put, and the answer.
++
++  THIS BLOCK ALSO CITED NOTHING AT FIRST, and `scope-auditor` FAILED round 4 for it — the SAME
++  defect it failed round 1 for on the first amendment. The round-1 fix was applied to that
++  amendment and not to the class, which is the failure mode `platform-reviewer` had already named
++  once in this task. Recorded rather than quietly corrected, because it is the second instance.
++
++  WHY. `platform-reviewer` FAILed it in rounds 1, 2 and 3, each time producing a legitimate RULE
++  sentence the test would wrongly reject: "a round that was failed on a paperwork-only nit still
++  counts", "a review's lock is void if it ran on a hash that predates the latest push", "a FAIL
++  raised in round 2 of the cap must be fixed before round 3 opens", "a defect that round 2 found
++  is not re-litigated in round 3". Six collisions in three rounds. Round 3 hit the ROUND CAP, so
++  the builder stopped and brought the open findings to the CPO rather than patching a fourth time,
++  which is what §2 requires.
++
++  CPO ANSWER (conversation, 2026-08-07): **withdraw the test, ship the compression alone** — "B",
++  against a builder recommendation that had initially been (A) ship it with the two contested
++  markers removed, then was CORRECTED to (B) by the builder before he answered. The correction
++  mattered and is recorded rather than smoothed over: the first recommendation was anchored on the
++  work already done, not on the evidence.
++
++  BOUNDED: nothing about the compression changes. This removes an addition; it restores no removed
++  prose and alters no rule. Filed as GitLab #26.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 2ce08b6..7e7639e 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -1207,3 +1207,84 @@ is the fix.
+ - REVIEWERS: `platform-reviewer` PASS round 1 — it re-derived all four counts independently from
+   both sources and hit the same line-break trap the test's own docstring names, which is the check
+   landing rather than a courtesy. `scope-auditor` FAIL round 1 on the missing entry above.
++
++2026-08-07 docs/19-compile-dont-append — GitLab #19: three passages MOVED here out of
++`docs/working_agreement.md` §2, verbatim in substance, so the rule document states rules and this
++log keeps the record. Nothing is deleted; §2 now carries a citation to this entry in each place.
++These three were the ONLY surviving copy — checked entry by entry against this log and against
++`review_routing.json` before the move, unlike the other five passages compressed in the same task,
++which were already recorded and so were simply dropped.
++
++- (WHY `acceptance_criteria` EXISTS — moved from §2, CPO ruling 2026-07-31, #868) Every reviewer
++  checks that the code is RIGHT, and nothing checked that it does WHAT WAS ASKED. A finished page
++  passed both of its reviewers while opening on the wrong season. The ruling recorded above under
++  the #868 org rulings ("the builder drafts, the CPO approves BEFORE any code") is the answer to
++  that specific failure, and this sentence is the failure it answers.
++
++- (WHY AN `Artifact` PUBLISH IS GATED — moved from §2, 2026-07-22) Design was the only surface in
++  the repo with NO gate at all: three player-page mocks were produced and rejected in a single day
++  without a contract, a routed reviewer, or a commit gate ever seeing them. Every path-keyed check
++  returned early because a mock is written outside the repo. Hence the rule that an `Artifact`
++  publish is denied unless a contract exists carrying a real `decisions_reserved`. The honest limit
++  is stated in §2 and stays there because it is operative: this is keyed on the TOOL NAME, not on
++  the act of designing, so drafting to a scratchpad is still ungated.
++
++- (WHY A PROTECTED PATH NEEDS AN `impact_map` AS WELL AS AN OVERRIDE — moved from §2, 2026-07-22)
++  Until that date only `protected_override` was required. That meant editing a GUARD demanded LESS
++  evidence than a cosmetic label change on a leaf mart, while a guard's blast radius is every
++  future task in the repo. The two answer different questions — the override answers "may you", the
++  map answers "do you know what breaks" — and that half is a rule, so it stays in §2.
++
++- (⭐ CPO RULING: AUTHORITY FOR THE METHOD CHANGE ABOVE) `scope-auditor` FAILED round 1 and was
++  RIGHT. The approved plan's method was "remove a passage only where its counterpart already
++  exists; anything else STAYS". The three moves above extend that to "move it here, then remove",
++  and the builder wrote its own justification into `contract.md` citing the failure message of a
++  test written in the same task. That is circular, and §2 says extending a contract without
++  recorded CPO authority is drift by definition. No amount of good reasoning by the builder
++  substitutes for the ruling.
++
++  Put to the CPO with both paths named: (a) authorise the move — nothing is deleted, §2 keeps a
++  citation at each site, compression stays at 12.2%; or (b) revert it, which returns all three to
++  §2 and then forces a choice between shipping the new test RED or deleting the marker that
++  catches one of them, the second being a guard weakened to fit the builder's own document.
++  Builder recommended (a), on the ground that GitLab #19 itself asked for "nothing deleted, only
++  moved to git + escalations.log" and that the narrowing to removal-only was the BUILDER's, in its
++  plan, not the CPO's.
++
++  CPO ANSWER (conversation, 2026-08-07): **(a) authorise the move** — *"go ahead as recommended"*.
++  This entry is the authority `contract.md`'s `amendments:` block cites; the block previously cited
++  nothing, which is the defect the reviewer named.
++
++- (⭐ CPO RULING: THE NARRATIVE TEST IS WITHDRAWN) The guard this task was planned around was built
++  and then removed. `platform-reviewer` FAILed it in rounds 1, 2 and 3, each round producing a
++  legitimate RULE sentence the test would have wrongly rejected:
++    r1 `was failed`      "a round that was failed on a paperwork-only nit still counts toward the cap"
++    r1 `before that,`    "before that, confirm no artifact-only fix is possible"
++    r2 `it ran on`       "a review's lock is void if it ran on a hash that predates the latest push"
++    r2 `round N of the`  "a FAIL raised in round 2 of the cap must be fixed before round 3 opens"
++    r3 `rounds N found`  "a defect that round 2 found is not re-litigated in round 3"
++    r3 `until that date` "an override may declare an expiry; the edit stays permitted until that date"
++  Six collisions, three rounds. Every fix was correct and every round surfaced more. Round 3 hit
++  ROUND_CAP, so the builder STOPPED and brought the open findings to the CPO, which is what §2
++  requires rather than a fourth patch.
++
++  ROOT CAUSE, recorded so #26 does not restart from the same premise: rules and history are written
++  in the SAME ENGLISH, and the failure is ASYMMETRIC. A missed narrative waits for a reviewer, which
++  is a reviewer's job anyway; a false hit fires on a real RULE, and the cheapest way to green the
++  build is to REWORD THE RULE. A keyword matcher therefore damages the document it protects.
++
++  Put to the CPO as two paths: (A) ship the test with the two contested markers dropped, needing a
++  round-cap override; or (B) ship the compression alone and make the guard its own work. The builder
++  first recommended (A), then CORRECTED itself to (B) before he answered — recorded rather than
++  smoothed over, because the first recommendation was anchored on the work already done rather than
++  on the evidence, and he had asked for a plain-language explanation precisely because the earlier
++  framing was unusable.
++
++  CPO ANSWER (conversation, 2026-08-07): **(B)** — withdraw the test, ship the compression alone.
++  `tests/test_governance_doc_parity.py` is reverted to `main`; `tests/` leaves `scope_paths`. Filed
++  as GitLab #26.
++
++  WHY THIS ENTRY EXISTS AT ALL: `scope-auditor` FAILed round 4 because the second amendment claimed
++  this ruling in contract prose with nothing in this log — the SAME defect it failed round 1 for on
++  the first amendment. The round-1 fix was applied to that amendment only and not to the class. It
++  was right both times.
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index b86de26..2a4ec7e 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -52,10 +52,10 @@ committed with the branch so it is PR-visible:
+   code, and they are LOCKED after that; only the CPO may move them. The commit gate
+   (`git_discipline._acceptance_gate`) denies without them, and denies again unless
+   `.claude/task/acceptance_evidence.md` demonstrates every one under a
+-  `criteria_demonstrated:` marker, read from BUILT output. CPO ruling 2026-07-31
+-  (#868): every reviewer checks that the code is right, and nothing checked that it
+-  does what was asked — a finished page passed both its reviewers while opening on
+-  the wrong season
++  `criteria_demonstrated:` marker, read from BUILT output. Every reviewer checks
++  that the code is RIGHT; this is the only thing that checks it does WHAT WAS
++  ASKED (CPO ruling 2026-07-31, #868; the failure it answers is in
++  `escalations.log`)
+ - **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
+   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, **and
+   every protected path** — see below; added 2026-07-22): the
+@@ -71,10 +71,7 @@ committed with the branch so it is PR-visible:
+   evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
+ - **Consult before building (a NORM, not a gate).** On a structural change, gather
+   the domain knowledge first — a reviewer role, a doc, a data check — rather than
+-  discovering it in review round three. This was briefly a machine-gated `consulted:`
+-  field (review-economics, 2026-07-22) and was demoted to a habit the same week: a
+-  one-day-old field hardened into two enforcement paths did not earn its cost (a
+-  staff-level review of the guardrails). The intent stands; the gate is gone.
++  discovering it in review round three.
+ - **done_when** — mechanical verification steps
+ - **amendments** — scope extensions, written on a CLEAN tree, each recording the
+   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
+@@ -90,9 +87,7 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+   `impact_map` (§2 above / Appendix A6). Enforced on the shell write path too,
+   not only on Edit/Write.
+ - **An `Artifact` publish is denied without a contract carrying a real
+-  `decisions_reserved`** (2026-07-22). Design was the only surface with no gate
+-  at all: three player-page mocks were produced and rejected in a single day
+-  without a contract, a routed reviewer or a commit gate ever seeing them.
++  `decisions_reserved`** (2026-07-22; what it answers is in `escalations.log`).
+   "What does this page show" is a §10 decision, reserved and escalated, never
+   answered by drawing it. **Honest limit:** this is keyed on the `Artifact` tool
+   name, not on the act of designing. Writing an HTML mock to a scratchpad with
+@@ -104,10 +99,9 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+   except in a dedicated CPO-approved governance task whose contract carries
+   `protected_override` **and a non-placeholder `impact_map`** — both, since
+   2026-07-22. They are two different questions: the override answers "may you",
+-  the map answers "do you know what breaks". Until that date only the override
+-  was required, so editing a guard demanded *less* evidence than a cosmetic
+-  label change on a leaf mart, while a guard's blast radius is every future task
+-  in the repo. The reviewer definitions and routing are protected so
++  the map answers "do you know what breaks", and a guard's blast radius is every
++  future task in the repo (why both are required: `escalations.log`).
++  The reviewer definitions and routing are protected so
+   the builder can never weaken its own adversary inside an ordinary task (CPO
+   ruling, G3 escalation 2026-06-12); `.claude/commands/` is protected because
+   custom slash commands can embed shell, so a command file is the same
+@@ -140,48 +134,35 @@ serialized four steps; the commit gate enforces them mechanically:
+    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
+    `.cursor/mcp.json`, `.github/workflows/**`, `.gitlab-ci.yml`), every **specialist** routing
+    requires for it is spawned at **opus**, because guard bypasses are the
+-   highest-stakes findings (the G3 commit-gate bypasses were caught only at that
+-   depth). `scope-auditor` is exempt from the OPUS PROMOTION — it is in `always`,
+-   so "every reviewer routing requires" would silently promote it on every
+-   governance commit. That exemption stands. It ran on **haiku** until
+-   2026-08-06, and the exemption was being used to justify the cheapest tier
+-   rather than merely to withhold the most expensive one: it is the only reviewer
+-   on EVERY diff, and its brief states that for an UNDECLARED THRESHOLD "no gate
+-   parses that field, so this item is the whole enforcement". (Secrets are hunted
+-   by `cto-reviewer` and `platform-reviewer` too, and by `validate:secrets`
+-   gitleaks in CI — scope-auditor is the only one on every diff, not the only one
+-   looking.) The hardest judgement was pinned to the weakest model reading the
+-   largest input. It is now on **sonnet**, the same floor as every other reviewer,
+-   with the opus exemption unchanged. This is a RECURRING COST — it applies to
+-   every substantive commit — and was approved as part of the 2026-08-06 plan.
++   highest-stakes findings. `scope-auditor` is EXEMPT from that opus promotion —
++   it is in `always`, so "every reviewer routing requires" would promote it on
++   every governance commit. **That exemption withholds the most expensive tier; it
++   is not a licence for the cheapest.** It sits on the same **sonnet** floor as
++   every other reviewer, because it is the only reviewer on EVERY diff and its
++   brief states that for an UNDECLARED THRESHOLD "no gate parses that field, so
++   this item is the whole enforcement" (for that threshold specifically — secrets
++   are also hunted by `cto-reviewer`, `platform-reviewer` and CI's
++   `validate:secrets`). Its tier is a RECURRING COST and therefore CPO-class.
+    In practice that means `cto-reviewer` on all nine, **plus
+    `platform-reviewer` on exactly three of them, `.claude/hooks/**`,
+-   `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority, Platform on the
+-   implementation, and the G3 bypasses were fail-open and test-coverage
+-   findings, which are Platform's items. Platform is deliberately absent from
++   `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority,
++   Platform on the implementation. Platform is deliberately absent from
+    the other six, `.claude/agents/**` above all: a reviewer brief is a prompt,
+    not machinery, so its verdict there would be a rubber stamp.
+    This is a procedural rule the orchestrator applies at spawn time, not a
+    hook-enforced one. **Never state it in prose without checking it against the
+-   rows.** Round 1 of the split's own review found three documents claiming
+-   "both on all eight" while routing gave Platform two; round 2 fixed it by
+-   widening the rows to six and was failed again, because two opus specialists
+-   where one ran is a recurring cost and cost is CPO-class. **A doc/row mismatch
+-   is fixed by correcting whichever side is wrong, and that is almost always the
+-   prose.** Before that, the path list itself disagreed across four files
+-   (5 vs 6 vs 8 entries).
+-3. **Cross-Examination** — adversarial verdicts. Three rules, and the first two
+-   were rewritten on 2026-08-01 after they produced a twelve-round PR:
++   rows**, and **a doc/row mismatch is fixed by correcting whichever side is
++   wrong, which is almost always the prose** — widening the rows to match the
++   prose adds a second opus specialist, which is a recurring cost and CPO-class.
++   `tests/test_governance_doc_parity.py` now checks both claims mechanically.
++3. **Cross-Examination** — adversarial verdicts. Three rules:
+    - **A FAIL must name a defect**: file, line, and what goes wrong. No concrete
+      failure, no FAIL.
+    - **A PASS may find nothing.** It records what was EXAMINED under
+      `risks_checked:` — at least one entry, and "checked X against Y, no defect"
+-     is complete. Praise is still banned; so is manufacturing a finding to
+-     justify a pass. *Until 2026-08-01 a PASS required two named risks, which
+-     meant that given correct code a reviewer was obliged to produce findings —
+-     so it produced them about the builder's own paperwork. #370's rounds 6-12
+-     found nothing a visitor would see. CPO: "the reviewer needs to have the
+-     critical attitude but it's allowed to approve and not invent some finding."*
++     is complete. Praise is banned; so is manufacturing a finding to justify a
++     pass. A reviewer keeps the critical attitude and is still allowed to
++     approve (CPO ruling, 2026-08-01).
+    - **Reviewers never see the review's own paperwork.** The task NOTES in
+      `.claude/task/` are excluded from `review_input.patch`
+      (`review_exclude_paths`), which is generated by
+@@ -196,9 +177,8 @@ serialized four steps; the commit gate enforces them mechanically:
+    **A re-review after the first round is a DELTA review** — the
+    reviewer is told only what changed since its own last PASS and judges that
+    plus its prior findings, not the whole diff again, and refuses (FAILs) when
+-   the delta is large enough that its earlier pass no longer stands. Re-running
+-   every reviewer at full depth every round is what made a nine-round PR cost
+-   what it did (CPO 2026-07-22, review-economics).
++   the delta is large enough that its earlier pass no longer stands
++   (CPO 2026-07-22, review-economics).
+ 4. **Lock** — verdicts + the SHA-256 of the staged diff
+    (`python .claude/hooks/git_discipline.py --staged-hash`) + a `rounds:` count
+    written to `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`).
+@@ -206,12 +186,12 @@ serialized four steps; the commit gate enforces them mechanically:
+    the bookkeeping artifacts (`hash_exclude_paths` in review_routing.json), so CI
+    can recompute it from `git diff base...HEAD` and bind the review to the PR's
+    actual code (F11/#409). **The two evidence artifacts are excluded too** (CPO
+-   2026-08-01): while they were hashed, fixing a typo in one voided every PASS
+-   and bought a fresh round. `contract.md` stays IN, because `scope_paths` and
+-   `acceptance_criteria` carry authority and must not move after review — that
+-   is a different question from what a reviewer reads, and conflating the two is
+-   what cost #370 its rounds. `contract.md` is never artifact-exempt, so a contract
+-   change always goes through review (F10/#409). The loop is bounded: **the round
++   2026-08-01): they carry evidence, not authority. `contract.md` stays IN,
++   because `scope_paths` and `acceptance_criteria` carry authority and must not
++   move after review. **What a reviewer READS and what BINDS its verdict are
++   different questions**; conflating them is expensive. `contract.md` is never
++   artifact-exempt, so a contract change always goes through review (F10/#409).
++   The loop is bounded: **the round
+    count is capped at 3**, and past the cap the builder STOPS and brings the open
+    findings to the CPO rather than grinding another round — to continue anyway on
+    the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
