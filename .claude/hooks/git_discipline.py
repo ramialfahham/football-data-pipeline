@@ -213,7 +213,103 @@ def _review_patch_bytes(root: str) -> bytes:
     # is in both exclusion lists. `git diff --staged <base>` is base-to-index, which
     # is what CI recomputes as `git diff base...HEAD` after the commit.
     body = _cumulative_diff(root, spec)
-    return body + _summary_manifest(root, summarise)
+    # TWO different silences, announced differently. `summarise` paths are reviewed content
+    # kept out of the body; `excludes` are the review's own paperwork, which reviewers must
+    # NOT judge — but their ABSENCE was indistinguishable from never having been edited, and
+    # three reviewers drew the false inference (GitLab #25). Naming them removes the
+    # inference without un-excluding anything.
+    return (body
+            + _summary_manifest(root, summarise)
+            + _excluded_trailer(root, excludes))
+
+
+def _staged_stat(root: str, paths: list[str], section: str, why: str) -> str:
+    """`git diff --staged --stat <base> -- <paths>`, or "" when none of them changed.
+
+    Shared by the two announce-what-is-not-pasted sections. Written once rather than twice
+    deliberately: hand-copying a matcher into a second file is an open defect in this repo
+    already (`docs/roles/platform_reliability.md:33`, the reviewer-matching loop duplicated
+    into `check_task_artifacts.py`), and a third copy of the same git call in the same file
+    would be the same mistake with none of its excuse.
+
+    RAISES rather than returning a narrowed result, for the reason `_cumulative_diff` and
+    `_base_commit` do: a quietly shortened patch is worse than no patch.
+
+    `section` names which of the two went missing and is a STRUCTURAL field, not prose:
+    both fail-loud tests assert on it, so the reason text below can be reworded without
+    silently unpinning them. (platform-reviewer at opus: the manifest test's `"manifest" in
+    ...` assertion had come to depend on a `why` string happening to end with that word.)
+    """
+    if not paths:
+        return ""
+    base = _base_commit(root)
+    import subprocess
+    proc = subprocess.run(
+        ["git", "diff", "--staged", "--stat", base, "--"] + list(paths),
+        cwd=root, capture_output=True, timeout=30,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"review patch {section} failed for {paths}: git diff --stat exited "
+            f"{proc.returncode}. {why} Refusing to emit a patch that silently under-reports."
+        )
+    return proc.stdout.decode("utf-8", "replace").strip()
+
+
+def _excluded_trailer(root: str, excludes: list[str]) -> bytes:
+    """Names the `review_exclude_paths` files that ARE edited on this branch (GitLab #25).
+
+    THE DEFECT IT REMOVES. Exclusion deletes a file from the patch outright, so a reviewer
+    cannot tell "never edited" from "edited and deliberately hidden". Both are absence. A
+    reviewer that sees a path in `scope_paths` and not in the patch reasonably concludes the
+    scope is wrong or an edit is missing; both conclusions are false and both cost a round.
+    It fired three times — 2026-08-03 and 2026-08-07 on `.claude/active_work.md`, 2026-08-06
+    on `.claude/task/TEMPLATE.md` — and every one was withdrawn on the evidence. The
+    reviewers were reasoning correctly from what they were given. It is a missing affordance.
+
+    THIS DOES NOT UN-EXCLUDE ANYTHING. Names and line counts only, never content, so the CPO
+    ruling that reviewers do not judge the review's own paperwork (2026-08-01) is untouched.
+    It also cannot move the review hash: that is `_staged_diff_bytes` over
+    `hash_exclude_paths`, a different function over a different list. What a reviewer READS
+    and what BINDS a verdict stay separate questions.
+
+    WHY IT RAISES, when silence here is not a coverage loss the way it is in
+    `_summary_manifest`. An absent trailer is ambiguous between "no excluded file changed"
+    and "the trailer broke" — and that ambiguity is the exact defect this exists to remove.
+    A trailer that can silently not appear re-creates it unpredictably.
+
+    Emits nothing when nothing matched, for the reason the manifest does: an empty section
+    every time trains the reader to skip the header, and then a real one gets skipped too.
+    """
+    # KEYWORDS, not positions: `section` and `why` are adjacent strings, so a positional
+    # swap here would leave both fail-loud tests green while the error text read backwards
+    # (platform-reviewer at opus, round 2).
+    stat = _staged_stat(
+        root, excludes,
+        section="trailer",
+        why="These paths are hidden from the patch body, so continuing would leave a reviewer "
+            "unable to tell an edited file from an untouched one, which is the defect this "
+            "trailer exists to remove.",
+    )
+    if not stat:
+        return b""
+    header = (
+        "\n"
+        "# " + "=" * 76 + "\n"
+        "# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED\n"
+        "# " + "=" * 76 + "\n"
+        "# The files below changed on this branch and are DELIBERATELY kept out of the\n"
+        "# diff: they are the review's own paperwork or the handover, which reviewers do\n"
+        "# not judge (CPO 2026-08-01).\n"
+        "#\n"
+        "# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,\n"
+        "# and a path that appears in `scope_paths` but not in the diff is not, by itself,\n"
+        "# a scope defect. Read them directly with Read/Grep if a claim in contract.md\n"
+        "# depends on one.\n"
+        "#\n"
+    )
+    body = "".join(f"#   {ln}\n" for ln in stat.splitlines())
+    return (header + body + "# " + "=" * 76 + "\n").encode("utf-8")
 
 
 def _summary_manifest(root: str, summarise: list[str]) -> bytes:
@@ -226,29 +322,20 @@ def _summary_manifest(root: str, summarise: list[str]) -> bytes:
     Emits nothing when nothing matched — an empty section trains readers to skip the
     header, and then a real one gets skipped too.
     """
-    if not summarise:
-        return b""
     # FAIL LOUD, not silent. `_cumulative_diff`/`_base_commit` raise rather than return a
     # narrowed diff, for the documented reason that a quietly-shortened patch is worse
     # than no patch. The same logic applies here in the opposite direction: these files
     # were REMOVED from the body on the promise that a manifest would announce them, so
     # swallowing an error here means they are hidden with nothing said — the exact
     # coverage loss `review_summarise_paths` exists to prevent. (cto-reviewer, opus.)
-    base = _base_commit(root)
-    spec = ["--"] + list(summarise)
-    import subprocess
-    proc = subprocess.run(
-        ["git", "diff", "--staged", "--stat", base] + spec,
-        cwd=root, capture_output=True, timeout=30,
+    # The git call itself now lives in `_staged_stat`; the reasoning above is why the
+    # `why` string below is worded as a coverage loss rather than an ambiguity.
+    stat = _staged_stat(
+        root, summarise,
+        section="manifest",
+        why="These paths are excluded from the patch body, so continuing would hide them from "
+            "reviewers with nothing said about them.",
     )
-    if proc.returncode != 0:
-        raise RuntimeError(
-            "review manifest failed for "
-            f"{summarise}: git diff --stat exited {proc.returncode}. These paths are "
-            "excluded from the patch body, so continuing would hide them from reviewers "
-            "with no manifest. Refusing to emit a patch that silently under-reports."
-        )
-    stat = proc.stdout.decode("utf-8", "replace").strip()
     if not stat:
         return b""
     header = (
