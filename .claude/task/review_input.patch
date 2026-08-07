@@ -1,646 +1,181 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index fca2231..6525bc3 100644
+index 6525bc3..c4f75b9 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,247 +1,107 @@
--# Task contract — a Python linter, so reviewers stop finding what a machine finds free
-+# Task contract — delete the stale architecture plan, and the prose that existed to warn about it
+@@ -1,41 +1,41 @@
+-# Task contract — delete the stale architecture plan, and the prose that existed to warn about it
++# Task contract — handover after !18-!21 and the cold audit re-run
  
--> Branch `chore/add-python-linter` from `main` (`ddf8010`). TWO protected paths, so
--> `protected_override` AND `impact_map` are present, and `.gitlab-ci.yml` carries the OPUS floor.
--> `ingestion/**` is on the structural surface, which also requires the `impact_map`. No
--> `site_v2/src/` path, so no `acceptance_criteria`.
-+> Branch `chore/delete-stale-architecture-doc` from `main` (`946dfa5`). No PROTECTED path
-+> (`CLAUDE.md` is absent from both `PROTECTED_PREFIXES` and `PROTECTED_FILES`,
-+> `task_contract_gate.py:66-78`), so no `protected_override`. Nothing on the structural surface, so
-+> no `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`. Reviewers: `scope-auditor`
-+> only — `docs/**` and `CLAUDE.md` match no row in `review_routing.json`.
+-> Branch `chore/delete-stale-architecture-doc` from `main` (`946dfa5`). No PROTECTED path
+-> (`CLAUDE.md` is absent from both `PROTECTED_PREFIXES` and `PROTECTED_FILES`,
+-> `task_contract_gate.py:66-78`), so no `protected_override`. Nothing on the structural surface, so
+-> no `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`. Reviewers: `scope-auditor`
+-> only — `docs/**` and `CLAUDE.md` match no row in `review_routing.json`.
++> Branch `chore/handover-after-audit-rerun` from `main` (`290bac0`). Bookkeeping. No PROTECTED
++> path, so no `protected_override`. Nothing structural, so no `impact_map`. No `site_v2/src/`, so
++> no `acceptance_criteria`. `.claude/active_work.md` is NOT scope-exempt and is listed below. A
++> commit touching `contract.md` is NEVER artifact-exempt, so this still takes a scope audit.
  
  objective: >
--  Add `ruff` with a correctness-only ruleset, wire it into CI, and fix the 12 violations it
--  reports, so mechanically-decidable defects stop consuming adversarial review rounds.
+-  Delete `docs/pipeline_architecture_plan.md`, and remove the always-loaded paragraph in
+-  `CLAUDE.md` whose only purpose is to warn about it.
 -
--  ⚠ THE PROBLEM, CORRECTED IN ROUND 1 AFTER THIS FIELD GOT IT WRONG. It first read "This repo has
--  NO linter and none pinned", from grepping `requirements*.txt` alone. FALSE: `.pre-commit-config.yaml`
--  configures ruff `v0.7.4` over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
--  the hook is installed. What is actually true, and is a STRONGER argument: that hook is LOCAL-only
--  with no CI backstop, it does not cover `.claude/hooks/` at all, and NINE F401s inside its own
--  file pattern survived it (the tenth, `git_discipline.py:197`, was never in its jurisdiction) — a
--  hook whose own args are `--fix, --exit-non-zero-on-fix`, so it evidently is not being run. On #25
--  the same day, `platform-reviewer` at opus spent
--  ~125k tokens finding a duplicate module-level function name — pyflakes F811, reported in
--  milliseconds — and three of the four defects across #25's three rounds were mechanically
--  decidable.
+-  WHY THIS AND NOT A BIGGER SWEEP. A cold re-run of `/audit-agent-setup` on 2026-08-07, given no
+-  knowledge of the earlier audit's findings, recommended DELETION as its first action. The earlier
+-  audit had no subtraction in its vocabulary: it produced 29 issues, all of which add. Same repo,
+-  same skill, opposite first move.
 -
--  THE ONE THAT SETTLES IT. `ruff` finds an unused `import subprocess` at
--  `.claude/hooks/git_discipline.py:197` that **!19 introduced earlier the same day**, when the git
--  call moved into `_staged_stat`. It survived three review rounds and two opus reviewers and is on
--  `main` now.
+-  VERIFIED, not accepted from the audit: the file teaches `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}`
+-  (line 61), per-confederation raw tables (28, 62, 74) and "7 per-confederation staging models"
+-  (122). That is the exact anti-pattern `CLAUDE.md`'s scalability rules and
+-  `scripts/check_layer_contract.py` exist to reject. It was last touched 2026-06-13, flagged for
+-  "wholesale archival, not token-patching" on 2026-05-30, and its `MEMORY.md` pointer was removed
+-  2026-08-06 — but the file itself was never deleted. Decided, never executed.
 -
--  ⚠ THE PREMISE WAS WRONG ON DEFAULT SETTINGS, AND THE VERIFICATION IS WHAT CAUGHT IT. This
--  contract first claimed F811 would have caught #25's duplicate `_review_patch`. Run before being
--  believed, it does NOT: ruff exempts underscore-prefixed names via `dummy-variable-rgx`, so `f`
--  and `review_patch` are flagged while `_f`, `_review_patch` and `__x` pass silently. Every test
--  helper in this repo is underscore-prefixed by convention, so on defaults the linter would have
--  been inert against the exact class that justified it — a guard that looks strong and is nearly
--  inert, which is the failure `tests/test_materialisation_policy.py` already records.
--
--  THE FIX, MEASURED: `dummy-variable-rgx = "^_+$"` narrows the exemption to BARE underscores.
--  `_review_patch` redefinition is then flagged, `for _ in range(3)` and `a, _ = (1, 2)` still pass,
--  and the repo-wide count is UNCHANGED at 12 — the setting adds no noise. Verified all three ways
--  before this contract was updated.
--
--  THE PRINCIPLE. LLM reviewers are the most expensive check available and should be spent on
--  judgement, not on facts a grep settles. This pays the review ceremony ONCE and removes the class.
-+  Delete `docs/pipeline_architecture_plan.md`, and remove the always-loaded paragraph in
-+  `CLAUDE.md` whose only purpose is to warn about it.
+-  THE PARAGRAPH IS STALE IN BOTH DIRECTIONS, which is why it goes with the file. `CLAUDE.md:49-52`
+-  warns that `gh_pages_match_preview_*.plan.md` "still exists on disk" — it does NOT; no file
+-  matching it is present. And it points at the `pipeline_architecture_plan.md` pointer removal,
+-  which this task makes moot by deleting the file. Once the hazard is gone the warning is pure
+-  always-loaded cost.
++  Bring `.claude/active_work.md` to current state after !18, !19, !20 and !21 merged, and record
++  the one thing this session produced that a cold chat cannot re-derive.
 +
-+  WHY THIS AND NOT A BIGGER SWEEP. A cold re-run of `/audit-agent-setup` on 2026-08-07, given no
-+  knowledge of the earlier audit's findings, recommended DELETION as its first action. The earlier
-+  audit had no subtraction in its vocabulary: it produced 29 issues, all of which add. Same repo,
-+  same skill, opposite first move.
++  WHAT IS STALE. main is `290bac0`, not `0394e52`. The merge list stops at !15. It lists #25 and
++  #29 as OPEN when both are merged and closed. Its test count is 648 (now 665). It says the audit
++  stream's open set is #5/#14/#18/#20/#25/#26/#28 when #25 is done. It knows nothing of the linter,
++  of `.ruff-ci.toml`, or of the cold audit.
 +
-+  VERIFIED, not accepted from the audit: the file teaches `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}`
-+  (line 61), per-confederation raw tables (28, 62, 74) and "7 per-confederation staging models"
-+  (122). That is the exact anti-pattern `CLAUDE.md`'s scalability rules and
-+  `scripts/check_layer_contract.py` exist to reject. It was last touched 2026-06-13, flagged for
-+  "wholesale archival, not token-patching" on 2026-05-30, and its `MEMORY.md` pointer was removed
-+  2026-08-06 — but the file itself was never deleted. Decided, never executed.
++  ⭐ THE ONE THAT MATTERS, and the reason this is not routine bookkeeping. The CPO asked whether
++  the audit's findings were replicable or an artifact of one long session. A cold re-run of
++  `/audit-agent-setup`, in a fresh context with no knowledge of the first audit's conclusions,
++  answered it: **the findings replicate, the prioritisation does not.** Six major findings
++  reproduced. The framing did not — the first audit produced 29 issues that all ADD; the cold run's
++  first recommendation was DELETION. Same repo, same skill, opposite first move.
 +
-+  THE PARAGRAPH IS STALE IN BOTH DIRECTIONS, which is why it goes with the file. `CLAUDE.md:49-52`
-+  warns that `gh_pages_match_preview_*.plan.md` "still exists on disk" — it does NOT; no file
-+  matching it is present. And it points at the `pipeline_architecture_plan.md` pointer removal,
-+  which this task makes moot by deleting the file. Once the hazard is gone the warning is pure
-+  always-loaded cost.
++  The operative conclusion, which the handover must carry because acting on the wrong one cost this
++  session hours: **an audit is an instrument for FINDING, not for DECIDING. Its output is a list of
++  leads to verify, never a work list to execute.** Two of the cold run's four deletion targets did
++  not survive checking, and it missed a third stale doc entirely.
++
++  A cold chat reading only the old handover would find "FINISH THE AUDIT STREAM" as NEXT step 1 and
++  grind through thirteen issues. Two are build items. The rest are decisions.
  
  refs: >
--  Follows !18 (#29) and !19 (#25), both merged 2026-08-07. Arises from the CPO's question, *"What
--  would an experienced software developer who has defined 100 AI guardrails do in this situation?"*,
--  under his stated constraint: pragmatic mechanisms that improve collaboration WITHOUT red tape that
--  slows work and burns tokens. Not a numbered issue — it is the answer to that question.
-+  Cold `/audit-agent-setup` re-run, 2026-08-07, run in a fresh context with no knowledge of the
-+  first audit's conclusions, at the CPO's request to test whether the findings are replicable.
-+  CPO instruction after reading it: **"start with the deletions"**. Not a numbered issue.
+-  Cold `/audit-agent-setup` re-run, 2026-08-07, run in a fresh context with no knowledge of the
+-  first audit's conclusions, at the CPO's request to test whether the findings are replicable.
+-  CPO instruction after reading it: **"start with the deletions"**. Not a numbered issue.
++  !18 (#29), !19 (#25), !20 (the CI lint backstop), !21 (delete the stale architecture plan), all
++  merged 2026-08-07. Issues CLOSED: #29, #25. Issue FILED: **#30**, the cold audit re-run in full.
++  CPO instruction: **"update the handover and file the audit report as an issue"**.
  
  scope_paths:
--  - requirements-dev.txt
--  - .ruff-ci.toml
--  - tests/test_lint_config.py
--  - .gitlab-ci.yml
--  - .claude/hooks/git_discipline.py
--  - ingestion/api_football/seasons.py
--  - tests/test_batch_fixtures.py
--  - tests/test_fixture_scheduling.py
--  - tests/test_fixtures_cache_skip.py
--  - tests/test_injuries_coaches.py
--  - tests/test_per_team_completeness.py
--  - tests/test_season_inference.py
-+  - docs/pipeline_architecture_plan.md
-+  - CLAUDE.md
+-  - docs/pipeline_architecture_plan.md
+-  - CLAUDE.md
++  - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - .claude/task/escalations.log
--
--protected_override: >
--  CPO instruction, conversation 2026-08-07: **"ok, do it"**, approving a plan that named the new
--  dependency, the `F`/`E9` ruleset, the `.gitlab-ci.yml` step and the opus floor explicitly.
--
--  RECORDED IN FULL at `.claude/task/escalations.log`, entry
--  `## 2026-08-07 chore/add-python-linter`. That entry and this field were written in the SAME
--  action, which is GitLab #28's class fix.
--
--  THE AUTHORITY IS FOR THESE TWO FILES, NOT A STANDING ONE. It covers `.gitlab-ci.yml` (adding one
--  lint step) and `.claude/hooks/git_discipline.py` (deleting one dead import). It does NOT
--  authorise editing `.claude/review_routing.json`, `.claude/settings.json`, the reviewer briefs, or
--  any guard's logic. Naming the files literally rather than pointing at `scope_paths` is deliberate:
--  GitLab #18 is open on exactly that self-reference.
--
--impact_map: >
--  writers: none. No raw table, no dbt model, no mart. `ingestion/api_football/seasons.py` is in
--  scope for a ONE-LINE deletion of an unused import (`effective_season_max`, F401) — no call site,
--  no behaviour, no column, no payload.
--
--  events that fire the protected files: `.claude/hooks/git_discipline.py` runs as PreToolUse on
--  EVERY Bash tool call (`.claude/settings.json`, matcher `Bash`) plus two CLI modes.
--  `.gitlab-ci.yml` decides what CI enforces on every push and MR.
--
--  what changes in them: `git_discipline.py` loses ONE dead `import subprocess` inside
--  `_review_patch_bytes`. The module's other `import subprocess` statements, inside `_staged_stat`,
--  `_staged_paths` and `_cumulative_diff`, are untouched and are the ones actually used — verified by
--  `ruff` flagging only line 197. No guard logic, no predicate, no message changes.
--  `.gitlab-ci.yml` GAINS one `lint:python` job in the existing `test` stage and changes nothing
--  existing.
--
--  what stops being enforced if it is wrong: nothing. A wrong lint config fails the new job loudly
--  and blocks the MR. ⚠ THIS FIELD CLAIMED A LINT CONFIG "cannot weaken an existing gate" AND THAT
--  WAS FALSE — round 1 disproved it: an auto-discoverable root config IS adopted by the pre-commit
--  hook, and the first version of this branch would have switched E4/E7 off there. Round 3 removes
--  the mechanism rather than the wording: the config is named `.ruff-ci.toml`, which ruff does not
--  auto-discover, and CI passes it with `--config`. Deleting the dead import cannot change
--  behaviour, and the 660-test suite covers the module.
--
--  blast radius: `ruff` is dev-only, pinned in a NEW `requirements-dev.txt`, and is NOT added to
--  `requirements.txt`, so it cannot reach the runtime image or the ingestion container.
--
--  deploy_order: not applicable. No warehouse object. `requirements-dev.txt`, `.ruff-ci.toml` and the
--  test files are absent from `data_paths`; `.gitlab-ci.yml` IS in `data_paths` (GitLab #2), so
--  MERGING THIS WILL TRIGGER `data:build:main`. Stated rather than discovered, per the handover's
--  standing warning.
- 
+@@ -43,65 +43,48 @@ scope_paths:
  decisions_taken: >
    THRESHOLD DECLARATIONS, stated because no gate parses this field.
  
--  NEW DEPENDENCY — YES. `ruff`, pinned, dev-only. A CTO threshold in its own right.
-+  NEW MECHANISM — NO. This removes a file and four lines of prose. Nothing is built.
+-  NEW MECHANISM — NO. This removes a file and four lines of prose. Nothing is built.
++  NEW MECHANISM — NO. Prose edits to one handover file.
  
--  RECURRING COST — YES. One extra CI step per MR, seconds, no new service and no schedule. Set
--  against three review rounds on #25 alone. Note separately that merging this fires
--  `data:build:main` once, via `data_paths`.
-+  RECURRING COST — NO, and it REDUCES the standing one: `CLAUDE.md` is auto-loaded every session,
-+  so the removed paragraph is a per-session token cost paid to warn about a hazard this task
-+  deletes.
+-  RECURRING COST — NO, and it REDUCES the standing one: `CLAUDE.md` is auto-loaded every session,
+-  so the removed paragraph is a per-session token cost paid to warn about a hazard this task
+-  deletes.
+-
+-  GUARD INVARIANT — UNCHANGED. No guard, hook, test or routing row is touched. The rule the doc
+-  contradicts is enforced by `scripts/check_layer_contract.py`, which is not edited and which
+-  keeps working exactly as before. Deleting a document that teaches a banned pattern strengthens
+-  the position; it cannot weaken it.
++  RECURRING COST — NO. Nothing executes. The file must stay under its 16,000-CHARACTER cap, which
++  it currently sits at 2 characters below, so every addition is paid for by a deletion.
  
--  NEW MECHANISM — NO. A linter is a standard tool in an existing CI stage, not a governance
--  mechanism: it grants no authority, gates no decision and changes no verdict rule.
-+  GUARD INVARIANT — UNCHANGED. No guard, hook, test or routing row is touched. The rule the doc
-+  contradicts is enforced by `scripts/check_layer_contract.py`, which is not edited and which
-+  keeps working exactly as before. Deleting a document that teaches a banned pattern strengthens
-+  the position; it cannot weaken it.
+   NEW EXTERNAL SURFACE — NO.
  
--  GUARD INVARIANT — UNCHANGED, and round 3 is what makes that true rather than merely asserted.
--  No guard's logic is edited; `git_discipline.py` loses a dead import only. The pre-commit hook is
--  NOT touched at all — `.pre-commit-config.yaml` is byte-identical to `main`, so neither its ruff
--  `rev` nor `ruff-format` moves. ⚠ ROUND 2 BRIEFLY BUMPED THAT `rev` to align versions, and
--  `cto-reviewer` FAILed it: the same `rev` governs `ruff-format`, which rewrites files on every
--  local commit, and across v0.7.4 to v0.16.2 **75 files would be reformatted**. Measured, not
--  estimated.
-+  NEW EXTERNAL SURFACE — NO.
- 
--  RULESET CHOSEN BEFORE THE COUNT WAS KNOWN, deliberately, so the rules could not be picked to
--  flatter the number. The measurement came second: 12 violations. ⚠ THE RULESET ITSELF CHANGED IN
--  ROUND 1, from `F` + `E9` to ruff's exact default `["E4","E7","E9","F"]`, because the narrower set
--  would have switched E4/E7 off in the pre-existing pre-commit hook. It is now the DEFAULT set and
--  not one rule more.
-+  ⚠ TWO ITEMS ON THE AUDIT'S DELETION LIST ARE DELIBERATELY NOT DONE, because checking them
-+  contradicted it:
- 
--  WHY NO STYLE RULES. On an existing codebase, style and import-sorting rules produce a large
--  mechanical diff that no reviewer can meaningfully read, which is the opposite of the point.
-+  1. `docs/api_football_ingestion_blueprint.md` — the audit said it "has the same problem". It does
-+     NOT. Grepped: it contains no `RAW_APIF_{LEAGUE_CODE}`, no per-confederation table or model
-+     pattern. It was last touched 2026-08-03, and LIVE CODE points at it —
-+     `ingestion/api_football/loads/batch_fixtures.py:24`, "See docs/api_football_ingestion_blueprint.md
-+     for the full API specification." Its only known defect is one stale figure at line 120
-+     ("approximately 20–50 API calls total" against a measured ~8,300), which is already filed as
-+     #900 and is a fix, not a deletion. Deleting it would have destroyed a live API spec and
-+     orphaned a code comment.
-+  2. `~/.claude/hooks/commit_review_gate.py` and `pre_push_gate.py` — unversioned, so deletion has
-+     no undo, and that whole layer is the open subject of GitLab #21. The CPO's call, not a
-+     builder's.
+-  ⚠ TWO ITEMS ON THE AUDIT'S DELETION LIST ARE DELIBERATELY NOT DONE, because checking them
+-  contradicted it:
+-
+-  1. `docs/api_football_ingestion_blueprint.md` — the audit said it "has the same problem". It does
+-     NOT. Grepped: it contains no `RAW_APIF_{LEAGUE_CODE}`, no per-confederation table or model
+-     pattern. It was last touched 2026-08-03, and LIVE CODE points at it —
+-     `ingestion/api_football/loads/batch_fixtures.py:24`, "See docs/api_football_ingestion_blueprint.md
+-     for the full API specification." Its only known defect is one stale figure at line 120
+-     ("approximately 20–50 API calls total" against a measured ~8,300), which is already filed as
+-     #900 and is a fix, not a deletion. Deleting it would have destroyed a live API spec and
+-     orphaned a code comment.
+-  2. `~/.claude/hooks/commit_review_gate.py` and `pre_push_gate.py` — unversioned, so deletion has
+-     no undo, and that whole layer is the open subject of GitLab #21. The CPO's call, not a
+-     builder's.
++  GUARD INVARIANT — UNCHANGED. No guard, hook, test or routing row is touched.
++
++  WHAT IS DELETED, stated because deletion is the risk in a capped file. Only spent content goes:
++  the build detail of #1's parity test and #19's compression percentage (both merged and in git);
++  the per-issue note for #25 (merged); the merge list for !6-!15, collapsed to a range; and the
++  ingest-cluster verification prose, tightened without losing the pacing numbers, the four fixes'
++  gaps or the standing facts. No open decision, no live trap and no CPO ruling is removed.
++
++  ⚠ THAT CLAIM HAS BEEN FALSE BEFORE in this exact file: on 2026-08-07 `scope-auditor` FAILed a
++  handover task because #27 had been cut entirely while trimming to the cap, while the same field
++  claimed nothing open was lost. It is checked against the file this time, not asserted — see
++  `done_when`.
  
  decisions_reserved:
--  - "⚠ REWRITTEN IN ROUND 3; this bullet reserved widening beyond `F`/`E9` while the branch had
--    already widened to ruff's default set, which is the opposite of what shipped. What IS reserved:
--    widening beyond ruff's DEFAULT `[\"E4\",\"E7\",\"E9\",\"F\"]` — style, import order, complexity,
--    type-checking. Each is a new class of enforced opinion across the whole tree and a fresh
--    decision. Narrowing below the default is equally reserved, because it would enforce less in CI
--    than the local pre-commit hook already does."
--  - "Whether SQLFluff and `ruff` should share one `lint:` stage rather than `ruff` joining `test`.
--    Left alone: moving an existing job is a CI-topology change beyond this objective."
-+  - "`docs/match_preview_pages_refinement.md` references the same retired-MVP plan and may be the
-+    same class of stale document. NOT investigated and NOT touched here: it was not on the audit's
-+    list and chasing it mid-task is the drift pattern the CPO corrected twice this session.
-+    Surfaced so it is not lost."
-+  - "Whether `seo-expert-reviewer.md` should be routed or deleted. The audit's point stands — it is
-+    currently neither, which reads as coverage while doing nothing — but routing is a governance
-+    event (§10) and deleting a reviewer is CPO-class. Not decided here."
+-  - "`docs/match_preview_pages_refinement.md` references the same retired-MVP plan and may be the
+-    same class of stale document. NOT investigated and NOT touched here: it was not on the audit's
+-    list and chasing it mid-task is the drift pattern the CPO corrected twice this session.
+-    Surfaced so it is not lost."
+-  - "Whether `seo-expert-reviewer.md` should be routed or deleted. The audit's point stands — it is
+-    currently neither, which reads as coverage while doing nothing — but routing is a governance
+-    event (§10) and deleting a reviewer is CPO-class. Not decided here."
++  - "Whether the 16,000-character cap is the right mechanism. Every session pays a compression tax
++    to add a line, and #30 names it as a MAJOR finding. Raised in two prior handover tasks and
++    still not decided. The CPO's."
++  - "The re-ranking of what remains. #30's evidence says the next build item should be a check that
++    the contract's factual claims hold against the tree, ahead of the hook telemetry it ranked
++    first. NOT decided here — this task records state, it does not re-plan the stream."
  
  done_when:
--  - "`ruff check . --config .ruff-ci.toml` exits 0 on the final tree, output pasted. ⚠ THIS
--    CRITERION READ `ruff check . --select F,E9` UNTIL ROUND 3, which was worse than stale: a CLI
--    `--select` OVERRIDES the config file, so the named acceptance command bypassed the very config
--    it was meant to verify, and would have passed on a tree where E4/E7 were red or where the
--    config failed to load at all. Caught by `platform-reviewer` at opus. The command here is now
--    the same one CI runs."
--  - "RED BEFORE GREEN on the real defect: `ruff` demonstrably reports F811 for the exact duplicate
--    `_review_patch` definition that cost #25 a review round. If it does not catch that, the linter
--    is not worth adding (`feedback_verify_the_test_fails.md`)."
--  - "All 12 violations fixed, none suppressed: no `# noqa` added, and no rule removed from `select`
--    to make the build pass — that would be the never-loosen-a-guard failure applied to a guard on
--    its first day. ⚠ THIS CRITERION ALSO FORBADE `per-file-ignores` UNTIL ROUND 3, while the branch
--    ships four. The bar it should have stated, and now does: E402 in the four `sys.path`-shim
--    scripts is DECLARED per file in one auditable table, which is narrower and more visible than
--    scattered `# noqa: E402` and far narrower than dropping E402 from `select`. Every other shim
--    site in the tree already carries a pre-existing `# noqa: E402`, so the list is complete at four
--    (counted independently by `platform-reviewer`). Left as written, the criterion would have told
--    a future maintainer that per-file-ignores are banned, whose cheapest reconciliation with the
--    tree is dropping E402 repo-wide — the exact loosening this branch exists to prevent."
--  - "`python -m pytest tests/ -q` clean, collected count MEASURED with `pytest --collect-only -q`,
--    and pytest's OWN exit code read directly rather than through a pipe — piping through `tail`
--    masked a 4-test failure earlier today."
-+  - "`docs/pipeline_architecture_plan.md` no longer exists, confirmed with `git status` and a
-+    filesystem check."
-+  - "An UNSCOPED `grep -rn 'pipeline_architecture_plan' .` returns exactly ONE hit outside
-+    `.claude/task/` and git history: `site/fixture-list/index.html:6`. That reference is
-+    DELIBERATELY NOT FIXED — `site/` is the retired legacy MVP, offline since 2026-07-21 with its
-+    Pages deployment deleted, and `CLAUDE.md:29,61` plus the standing DO-NOT list forbid touching
-+    it. A comment inside a frozen, unserved product is not a live pointer, and editing it to tidy
-+    a reference would break a CPO ruling to fix nothing."
-+  - "⚠ THIS CRITERION FIRST CLAIMED the grep 'returns NOTHING outside `.claude/task/` and git
-+    history'. FALSE. The grep behind it was `--include`-limited to `*.md`, `*.py`, `*.yml` and
-+    `*.json`, so it never looked at `.html`, and the result was reported as if it covered the tree.
-+    `scope-auditor` caught it. This is the SIXTH #904-class claim from this builder in two days and
-+    the SECOND with this exact shape — a grep scoped narrower than the sentence it supports, the
-+    same defect as 'this repo has NO linter' earlier today. The rule that would have caught both:
-+    a claim of absence must state where it looked, and the scope must be as wide as the claim."
-+  - "`CLAUDE.md` no longer contains the `gh_pages_match_preview` paragraph, and its false claim
-+    that the file 'still exists on disk' goes with it."
-+  - "`python scripts/check_layer_contract.py` exits 0 — the rule the deleted doc contradicted is
-+    still enforced by the mechanism that actually enforces it."
-+  - "`python -m pytest tests/ -q` clean, collected count MEASURED, and pytest's OWN exit code read
-+    directly rather than through a pipe."
-   - "The five offline gates pass, and `check_task_artifacts.py` runs BARE."
--  - "CI green with `lint:python` visible in the job list."
--
--amendments: >
--  ONE amendment, 2026-08-07, after review round 1. TWO PATHS ADDED: `.pre-commit-config.yaml` and
--  `tests/test_lint_config.py`.
--
--  AUTHORITY: CPO instruction **"do it"**, conversation 2026-08-07, against a stated recommendation
--  naming the ruleset change, the `per-file-ignores`, the pre-commit version alignment and the fact
--  that `.pre-commit-config.yaml` sits outside the approved scope. Recorded at
--  `.claude/task/escalations.log`, same entry, block `⚠ ROUND 1: THE PREMISE WAS FALSE`. That block
--  and this amendment were written in the SAME action.
--
--  ⚠ WHY IT WIDENED — THE OBJECTIVE'S PREMISE WAS FALSE. This contract claimed "This repo has NO
--  linter and none pinned". `.pre-commit-config.yaml` has configured `astral-sh/ruff-pre-commit`
--  `rev: v0.7.4` all along, over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
--  `.git/hooks/pre-commit` is installed, so it fires on every local commit. The claim came from
--  grepping `requirements*.txt` only and reporting that scoped result as a general one — the #904
--  class, and the THIRD instance from this builder in two days. Found by `cto-reviewer` and
--  `platform-reviewer` independently, at opus.
--
--  ⚠ AND THE CHANGE AS APPROVED WOULD HAVE LOOSENED AN EXISTING GUARD. Ruff walks up for config, so
--  a NEW root `ruff.toml` is read by the pre-commit hook too. MEASURED over that hook's own file
--  set: ruff's defaults (`E4,E7,E9,F`) report **10** violations, all E402; the approved
--  `select = ["F","E9"]` reports **0**. Shipping it would have silently stopped E4 and E7 being
--  enforced on every local commit — never-loosen-a-guard, committed inside an MR justified as
--  strengthening guards.
--
--  WHAT CHANGES. `select` becomes `["E4","E7","E9","F"]`, ruff's default, so NOTHING is narrowed
--  anywhere. The 10 E402s are declared in `per-file-ignores` rather than fixed: all four files use
--  the deliberate `sys.path.insert(...)`-then-import shim, where the import genuinely must follow the
--  path setup. `.pre-commit-config.yaml`'s `rev` moves to `v0.16.2` to match the pinned CI version,
--  because both now read the same `ruff.toml` and every measurement here was taken on 0.16.2.
--  `tests/test_lint_config.py` pins `select` and `dummy-variable-rgx`, closing `platform-reviewer`'s
--  finding that the load-bearing setting had nothing stopping its removal.
--
--  BOUNDED: this does NOT change what CI runs beyond the ruleset, does not touch SQLFluff's
--  pre-commit entry, and adopts no style, import-sorting or formatting rules. `select` is now exactly
--  ruff's default and not one rule more.
--
--  SECOND AMENDMENT, 2026-08-07, after review round 2. NET EFFECT: ONE PATH ADDED (`.ruff-ci.toml`),
--  TWO REMOVED (`ruff.toml`, `.pre-commit-config.yaml`). Written in the SAME action as its
--  `escalations.log` block.
--
--  AUTHORITY: the same CPO instruction **"do it"** (2026-08-07). This amendment does not widen the
--  task — it NARROWS it, giving back a path the first amendment took. Both round-2 FAILs are fixed
--  by touching strictly less than round 2 did.
--
--  ⚠ WHY: the two round-2 FAILs pulled in OPPOSITE directions. `cto-reviewer` FAILed the
--  `.pre-commit-config.yaml` `rev` bump, because the same `rev` governs `ruff-format` and across
--  v0.7.4 to v0.16.2 **75 files would be reformatted** — measured, and exactly the unreviewable
--  mechanical diff this branch argues against. But NOT aligning the versions leaves two ruff versions
--  reading one config, which was `platform-reviewer`'s round-1 finding. Aligning or not aligning both
--  lose.
--
--  THE FIX DISSOLVES BOTH RATHER THAN TRADING THEM. Ruff auto-discovers only `ruff.toml`,
--  `.ruff.toml` and `pyproject.toml`. Naming the file `.ruff-ci.toml` and passing `--config` in CI
--  means the pre-commit hook never reads it: no shared config, so no version alignment is owed, so
--  `ruff-format` never moves. VERIFIED both ways before adopting: with the file present and no
--  `--config`, a redefined `_f` is NOT flagged (config not discovered); with `--config .ruff-ci.toml`
--  it IS.
--
--  `.pre-commit-config.yaml` is therefore byte-identical to `main` and leaves `scope_paths`.
--
--  ALSO IN ROUND 3, all text-only and all found by review: the false "no linter" premise removed from
--  `.gitlab-ci.yml` and the config's own comments (it survived round 2 verbatim in both PERMANENT
--  artifacts while only the contract was corrected — corrections must replace, not accumulate); the
--  `done_when` command that bypassed its own config; the `done_when` bar that forbade the
--  `per-file-ignores` the branch ships; `decisions_reserved` reserving a widening already taken; the
--  `impact_map`'s disproved "cannot weaken an existing gate"; and "ten F401s" corrected to NINE
--  inside the hook's file pattern.
-+
-+amendments: (none)
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 9dec7f7..0de3d59 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -46,11 +46,6 @@ Next: player insights chain (#153 → #156).
- | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
- | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+-  - "`docs/pipeline_architecture_plan.md` no longer exists, confirmed with `git status` and a
+-    filesystem check."
+-  - "An UNSCOPED `grep -rn 'pipeline_architecture_plan' .` returns exactly ONE hit outside
+-    `.claude/task/` and git history: `site/fixture-list/index.html:6`. That reference is
+-    DELIBERATELY NOT FIXED — `site/` is the retired legacy MVP, offline since 2026-07-21 with its
+-    Pages deployment deleted, and `CLAUDE.md:29,61` plus the standing DO-NOT list forbid touching
+-    it. A comment inside a frozen, unserved product is not a live pointer, and editing it to tidy
+-    a reference would break a CPO ruling to fix nothing."
+-  - "⚠ THIS CRITERION FIRST CLAIMED the grep 'returns NOTHING outside `.claude/task/` and git
+-    history'. FALSE. The grep behind it was `--include`-limited to `*.md`, `*.py`, `*.yml` and
+-    `*.json`, so it never looked at `.html`, and the result was reported as if it covered the tree.
+-    `scope-auditor` caught it. This is the SIXTH #904-class claim from this builder in two days and
+-    the SECOND with this exact shape — a grep scoped narrower than the sentence it supports, the
+-    same defect as 'this repo has NO linter' earlier today. The rule that would have caught both:
+-    a claim of absence must state where it looked, and the scope must be as wide as the claim."
+-  - "`CLAUDE.md` no longer contains the `gh_pages_match_preview` paragraph, and its false claim
+-    that the file 'still exists on disk' goes with it."
+-  - "`python scripts/check_layer_contract.py` exits 0 — the rule the deleted doc contradicted is
+-    still enforced by the mechanism that actually enforces it."
+-  - "`python -m pytest tests/ -q` clean, collected count MEASURED, and pytest's OWN exit code read
+-    directly rather than through a pipe."
+-  - "The five offline gates pass, and `check_task_artifacts.py` runs BARE."
++  - "`.claude/active_work.md` is under 16,000 CHARACTERS measured with Python `len()`, and
++    `handover_in.py` injects it with no truncation notice."
++  - "main `290bac0`; !18-!21 recorded as merged; #29 and #25 recorded as CLOSED; **#30** present
++    with its one-line conclusion that an audit finds but does not decide."
++  - "The audit stream's remaining set is stated as it actually is: TWO build items, everything else
++    a decision. #25 no longer appears as open."
++  - "Every issue open before this edit is still present after it, VERIFIED by diffing the issue
++    numbers in the file against `glab issue list` — not asserted. This is the check that FAILed on
++    2026-08-07 when #27 was silently dropped."
++  - "The test count is **665**, MEASURED with `pytest --collect-only -q`, never predicted. Three
++    contracts in one day shipped a wrong count (#904), and #904's own recurrence count is updated
++    to SIX with the rule that would have caught them."
++  - "The five offline gates pass, `ruff check . --config .ruff-ci.toml` exits 0, and
++    `check_task_artifacts.py` runs BARE."
  
--> The old `gh_pages_match_preview_*.plan.md` row was removed 2026-08-06. The file still exists on
--> disk, but it plans the **retired** MVP, and an always-loaded table listing it as authoritative is
--> how a session ends up building against a dead product. Same defect as the
--> `pipeline_architecture_plan.md` pointer removed from `MEMORY.md` the same day.
--
- ## Architecture decisions (non-negotiable)
- 
- - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
-diff --git a/docs/pipeline_architecture_plan.md b/docs/pipeline_architecture_plan.md
-deleted file mode 100644
-index d9e3d04..0000000
---- a/docs/pipeline_architecture_plan.md
-+++ /dev/null
-@@ -1,286 +0,0 @@
--# Multi-competition pipeline architecture plan
--
--**Status:** Step 1 complete. Step 2 architecture decided (manual-UNION base + CI guarantee + core source-agnostic); execution split into 6 endpoint-surface PRs (2.1 through 2.6). **Step 3 matchday-form rules are locked** — CPO clarifications **2026-05-15** are recorded under **CPO decisions (recorded)**.
--
--**Last updated:** 2026-05-16
--
--## Goal
--
--Make it easy and straightforward to add any new league/competition. Adding a new competition should require:
--1. One entry in `docs/competition_registry.yml`
--2. One new mart file (`mart_matchday_insights_{league_code}.sql`)
--3. **Registry-driven extensions** to shared **`int_matchday__*`** intermediates where the form/upcoming-round behaviour is shared; **no** ad hoc business logic in `3_core`. (Core schema changes are separate gated PRs when new facts are introduced.)
--
-----
--
--## Ingestion fixes merged (2026-05-05)
--
--- **PR #36**: `current_season` threaded from registry through ingestion — WC uses season 2026 correctly
--- **PR #37**: This architecture plan document
--- **PR #38**: Stats fetch always attempted for finished fixtures; stale staging model reference in CI trust script fixed
--- **PR #39**: All 7 qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC) made first-class competitions — ingested through the standard pipeline, same level of detail as BL1
--- **PR #40**: Fanout gate fixed — finished fixtures always enter the fanout loop for statistics regardless of reference season coverage flags (was silently skipping WC 2022 and WCQEU stats)
--
--## Subsequent architectural changes (2026-05-06 → 2026-05-10)
--
--These changed inputs and constraints to Step 2 and need to be reflected in the plan:
--
--- **PR #48 — Global completeness-driven fanout**: priority queue across all competitions, with `history_seasons` per competition. Combined with PR #39, **each qualifier confederation is now a first-class competition with its own per-confederation raw tables** (`RAW_APIF_WCQEU_*`, `RAW_APIF_WCQAF_*`, etc.). The earlier aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table is no longer written and is stale since 2026-05-05.
--- **PR #49 — Catalog guard**: `/leagues` writes only when the API returns non-empty `response`, preventing daily-quota errors from wiping valid leagues data via WRITE_TRUNCATE.
--- **PR #51 — `mart_team_season` rank fix**: short-term workaround at the mart layer (use latest `snapshot_valid_from` for dedup) so the matchday-preview UI shows correct Tabellenplatz.
--- **PR #52 — Standings snapshot removed**: `snap_apif_d1_standings` deleted. `fct_standings` now sources from unified `base_apif__standings` (regular table dedup across competitions), not from an SCD2 snapshot. There is currently no snapshot anywhere in the project.
--- **PR #53 — Tiered completeness gate + run summary**: scheduled workflow hard-fails only when an `active` competition is incomplete; `in_progress` competitions warn and stay green. Every run renders a per-competition coverage table to `$GITHUB_STEP_SUMMARY`. This is the always-on observability for the pipeline.
--- **PR #56 — Injuries removal**: the entire injury surface (ingestion call, `merge_injuries_envelope`, dbt sources, staging models, `fct_injury` mention in deferred-fact list) is deleted. Injuries are no longer ingested for any competition and the architecture should not reference them.
--- **Diagnostic scripts** added under `scripts/diagnostics/`: `inspect_raw_payload.py`, `probe_time_travel.py`, `restore_from_time_travel.py`. Used today to restore `RAW_APIF_BL1_LEAGUES` from BigQuery time travel after a quota-induced WRITE_TRUNCATE corruption.
--
--## Ingestion status as of 2026-05-10
--
--| Competition | Finished fixtures | Fanout coverage | Notes |
--|---|---|---|---|
--| BL1 | 3,056 / 3,056 | ✅ all 5 endpoints 100% | active |
--| WC | 128 / 128 | ✅ all 5 endpoints 100% | active |
--| WCQEU | 740 / 740 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 99.9% (1 missing) | in_progress |
--| WCQAF | 540 / 540 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~20% (434 missing) | in_progress |
--| WCQCA | 330 / 330 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~55% (148 missing) | in_progress |
--| WCQSA | 269 / 269 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 99.3% (2 missing) | in_progress |
--| WCQAS | 681 / 681 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~45% (372 missing) | in_progress |
--| WCQIP | 4 / 4 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~25% (3 missing) | in_progress |
--| WCQOC | 18 / 18 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 0% (18 missing) | in_progress |
--
--BL1 and WC are fully complete; qualifier statistics will converge to 100% over additional scheduled runs as the global fanout prioritizes missing fixtures. The completeness target is **0% gap** — any qualifier fixture without statistics is treated as incomplete until backfilled.
--
--## Current state
--
--- `mart_matchday_insights_bl1.sql` is BL1-only (`where league_code = 'BL1'`); `mart_matchday_insights.sql` is a thin view for the stable export name — **must not break**
--- Form and matchday spine live in `int_matchday__*` models; the mart joins those intermediates with `mart_team_season`
--- Known gaps vs **Step 3 + CPO decisions** — implementation PR will close:
--  - Matchday-based window vs **games** + **full previous season before current season starts**
--  - `coalesce(stat, 0)` vs **null** numerics + **“Not provided”** copy for optional API gaps (glossary/UI)
--  - WC form dispatch (Group Stage MD1 qualifiers → cumulative WC tournament form) not yet isolated in a WC-specific intermediate model
--- Intermediate: `int_pipeline__raw_ingestion_spread` (ingestion monitoring); `int_matchday__*` (fixture denorm, finished legs + stats, upcoming round, team form metrics). **Rule:** `4_intermediate` models must not `ref()` any `mart_*` model.
--- Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
--- Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
--- No SCD2 snapshots in the project; injuries are not ingested (see PR #52 and PR #56 above)
--- Dims `dim_league`, `dim_competition_season`, and `dim_team` read unified `base_apif__leagues` / `base_apif__teams` (PR #59 — all registry competitions with staging).
--- `fct_fixture` reads `base_apif__fixtures_next` (PR #59). `fct_standings` reads `base_apif__standings` (Step 2.2). Other facts remain BL1-only until their Step 2.x PRs.
--- Per-competition bases for leagues, teams, fixtures, and standings are superseded by unified `base_apif__*` models with explicit `ref()` lists; remaining endpoints follow the same pattern in the plan table.
--
-----
--
--## Execution order
--
--### Step 1 — Verify WC ingestion (prerequisite) — DONE
--
--WC and the 7 qualifier confederations are each first-class competitions in the registry, ingested through the standard pipeline with their own per-confederation raw tables.
--
--Per-competition raw tables (BL1 reference shown for comparison; same endpoint suffixes for all):
--
--| League code | Status | Raw tables produced |
--|---|---|---|
--| `BL1` | active | `RAW_APIF_BL1_FIXTURES_NEXT`, `_LEAGUES`, `_STANDINGS`, `_ROUNDS`, `_TEAMS`, `_TRANSFERS`, `_LINEUPS`, `_FIXTURE_EVENTS`, `_FIXTURE_STATISTICS`, `_FIXTURE_PLAYERS`, `_PREDICTIONS`, `_PLAYERS` |
--| `WC` | active | same set, `WC` prefix |
--| `WCQEU`, `WCQAF`, `WCQCA`, `WCQSA`, `WCQAS`, `WCQIP`, `WCQOC` | in_progress | same set per confederation, `WCQ<XX>` prefix |
--
--Verify with the diagnostic script when needed:
--
--```bash
--python scripts/diagnostics/inspect_raw_payload.py --table RAW_APIF_<league_code>_<entity>
--```
--
--Completeness state for these tables is shown in the **Ingestion status as of 2026-05-10** section above.
--
--The aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table referenced in the original (2026-05-05) plan is **obsolete and stale** since PR #39 / #48 made each qualifier a first-class competition. The dbt source declaration `raw_apif_wc_qualifier_fixtures` and the staging/base models that read it were removed in Step 2.1 (multi-competition foundation PR).
--
--### Step 2 — Expand core layer to full BL1 parity across all competitions
--
--
--**Step 2.1 sequencing correction:** The original plan split fixtures (2.1) from leagues/teams (2.6). `fct_fixture` relationship tests require `dim_competition_season`, `dim_league`, and `dim_team` to already include qualifier rows. PR 2.1 therefore bundles the three unified bases (leagues, teams, fixtures_next) with the dim and fixture refactors in one merge unit so BL1 stays green.
--
--**No mart changes in this step.** Scope is data-flow plumbing only; form-source dispatch (qualifiers → WC group stage) is Step 3.
--
--Goal: every fact in `3_core` covers BL1 + WC + 7 qualifier confederations, sourced by the same shape of base model as BL1 uses today. Every dim covers the same 9 competitions.
--
--#### Layer discipline (re-stated)
--
--- **Staging is 1:1 with raw.** One staging model per raw table — JSON unnesting, casting, no UNION ALL, no business logic.
--- **Base is the unification point.** UNION ALL across competitions + dedup happens here. **Each endpoint gets exactly one base model** that unions every per-competition staging via explicit `ref()` calls. No per-competition base models.
--- **Core consumes base only.** Facts and dims read from a single base per endpoint and never UNION across competitions. Core is source-agnostic.
--
--#### Architectural decision — manual UNION list + CI guarantee (not auto-discovery)
--
--The technical north star (`docs/north_star.md`) documents ingestion + staging + mechanical base `ref()` lines, with no core/mart edits per competition once bases exist for an endpoint. The literal "staging only" reading would force auto-discovery in base (Jinja over `graph.nodes`). I'm deliberately not going that route. Decision and rationale, as senior analytics engineer:
--
--- Each base model lists its component stagings explicitly with `ref()`. Adding a competition means adding one `ref()` line per base — mechanical, ~10 lines total across all bases.
--- Singular tests (`assert_base_*_covers_active_competition_var.sql`, see test table below) fail if any `league_code` in `vars.active_competition_league_codes` is missing from a unified base; `scripts/check_registry_var_sync.py` keeps that var aligned with the registry (`active` / `in_progress`).
--- **Why not auto-discovery**: dbt's strength is explicit `ref()` lineage — visible in `dbt docs`, the lineage graph, and `dbt --select +model` selectors. `graph.nodes` enumeration hides those edges from dbt's graph and is a rare pattern that's harder for future contributors to read. Adding a competition is quarterly cadence, not daily — the cost of editing ~10 mechanical `ref()` lines is negligible compared to the cost of debugging Jinja-graph magic the one time it goes wrong.
--- **The north star's spirit is preserved**: zero changes to **core, intermediate, or marts** when adding a competition once unified bases cover that endpoint. Base edits remain mechanical and CI-guaranteed.
--
--For each endpoint surface listed below, the work pattern is identical:
--
--1. Declare per-confederation raw sources in `sources.yml` (21 table entries for leagues, teams, fixtures_next per WCQ code)
--2. Add a WC staging model if missing (`stg_apif__wc_<endpoint>`)
--3. Add 7 per-confederation staging models (`stg_apif__wcqeu_<endpoint>`, etc.)
--4. Add or extend the base model so it UNION ALLs BL1 + WC + 7 qualifiers and dedupes
--5. Expand the corresponding fact (drop BL1-only references)
--6. Add the active-competitions presence test for that fact
--
--#### Per-endpoint scope
--
--| Endpoint surface | Stagings (9 total per endpoint when complete) | Base model | Core consumers (refactored to read single base) |
--|---|---|---|---|
--| Fixtures | BL1 ✓, WC ✓, 7 qualifiers (new) | `base_apif__fixtures_next` (replaces per-competition bases) | `fct_fixture` |
--| Standings | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__standings` (replaces `base_apif__bl1_standings`) | `fct_standings` |
--| Fixture statistics | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__fixture_statistics` (new) | `fct_fixture_team_stats` |
--| Fixture events | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__fixture_events` (new) | `fct_fixture_event` |
--| Fixture players | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__fixture_players` (new) | `fct_fixture_player_stats` |
--| Teams | BL1 ✓, WC ✓, 7 qualifiers (new) | `base_apif__teams` (replaces per-competition bases) | `dim_team` |
--| Players | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__players` (new) | `dim_player` |
--| Transfers | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__transfers` (new) | `fct_transfer` |
--| Leagues | BL1 ✓, WC ✓, 7 qualifiers (new) | `base_apif__leagues` (replaces per-competition bases) | `dim_league`, `dim_competition_season` |
--| Lineups | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__lineups` (new) | (no fact yet — feeds Step 3 form computation) |
--| Predictions | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__predictions` (new) | (no fact yet — feeds Step 3) |
--
--Total work for Step 2:
--- ~63 new per-confederation staging models (7 qualifiers × 9 endpoints, minus those already existing)
--- ~8 new WC stagings (endpoints WC doesn't have yet)
--- 11 single-union base models (replace existing per-competition bases; add new for endpoints without bases)
--- 6 fact and 3 dim refactors — each reads exactly one base, no UNION in core
--- The CI tests below
--
--**Core source-agnosticism**: after Step 2, every model in `3_core/` reads from a single `base_apif__<endpoint>` and contains zero `union_all` macros or per-competition `ref()` calls. This is the test of whether the principle is met.
--
--#### Cleanup tasks (part of Step 2)
--
--- [x] Remove `raw_apif_wc_qualifier_fixtures` from `sources.yml` (no longer written)
--- [x] Delete `stg_apif__wc_qualifier_fixtures.sql` and `base_apif__wc_qualifier_fixtures.sql`
--- [x] Drop the BQ table `RAW_APIF_WC_QUALIFIER_FIXTURES` via `scripts/drop_raw_apif_wc_qualifier_fixtures.py` (run `--apply` after merge)
--- [x] Drop the `--exclude stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures` flags from both workflow files
--
--#### Tests required for Step 2 (added in CI)
--
--| Test | Assertion |
--|---|---|
--| `assert_base_leagues_covers_active_competition_var.sql` (and teams / fixtures_next variants) | Every `league_code` in `vars.active_competition_league_codes` has ≥ 1 row in the unified base (must match registry; enforced by `check_registry_var_sync.py`). **Manual-UNION guarantee.** |
--| `check_layer_contract.py` | Fails if any `3_core/*.sql` contains `union_all(` — core reads a single base per endpoint. |
--| `assert_fct_fixture_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_fixture` |
--| `assert_base_fixture_statistics_covers_active_competition_var.sql` | Every var `league_code` with fixture-statistics coverage has ≥ 1 row in `base_apif__fixture_statistics` |
--| `assert_fct_standings_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_standings` |
--| `assert_fct_fixture_team_stats_covers_active_competition_var.sql` | Every var `league_code` with fixture-statistics coverage has ≥ 1 row in `fct_fixture_team_stats` |
--| `assert_fct_fixture_event_all_active_competitions_present.sql` | Same shape, for events |
--| `assert_fct_fixture_player_stats_all_active_competitions_present.sql` | Same shape, for player stats |
--| `assert_dim_team_all_active_competitions_present.sql` | Every team appearing in any fact has a `dim_team` row |
--| `assert_dim_player_all_active_competitions_present.sql` | Same shape, for players |
--| `assert_dim_league_all_active_competitions_present.sql` | Every `league_code` in registry → row in `dim_league` |
--
--> **Risk:** Expanding the facts touches the BL1 data path. After each endpoint surface PR, re-run the existing BL1 trust diagnostics (`assert_fct_fixture_finished_goals_not_null`, `assert_fct_fixture_goals_plausible`, `data_trust_fixture_stats.py`) and verify the matchday-preview JSON export for BL1 is unchanged before merging.
--
--> **Completeness gating:** Qualifier statistics are still backfilling (see ingestion status table). The tiered completeness gate (PR #53) keeps the scheduled workflow green while backfill converges. Step 2 fact expansions surface the partial data, but the matchday-preview UI will not consume WC / qualifier facts until Steps 5+ wire them in.
--
--### Step 3 — Matchday form & fixture spine (intermediate; design locked)
--
--> **Status: LOCKED — product rules in “Locked rules (CPO-aligned)” + “CPO decisions (recorded)”.** Implement in `dbt_project/models/4_intermediate/matchday/` by evolving **`int_matchday__team_form_metrics`** (and related ints). Older drafts in this file referred to `int_apif__team_form` / `int_apif__fixture_enriched`; those map to **`int_matchday__team_form_metrics`** and **`int_matchday__fixture_denormalized`** (already one row per fixture with core dims).
--
--#### Locked rules (CPO-aligned)
--
--> Classification is by the **competition_types taxonomy** (`competition_type` → `entity_type`). The per-competition `form_source` field and the `supporting_leagues` enumeration were retired (PR #429); the rules below are unchanged — only the mechanism that selects which rule applies (taxonomy + competition phase) is restated.
--
--1. **Domestic leagues (club `entity_type`, e.g. BL1)**  
--   - **Before the competition has started** (no finished league match yet in the **current** `season_api_year` for that `league_code`): compute form from the **entire previous season** — all finished matches for that team in the same `league_code` with the prior season year (`season_type` / split-year rules from `dim_competition_season`).  
--   - **After the first finished match of the current season:** use **only** the **current** competition. Rolling window = the **last five finished matches** in that `league_code` + current `season_api_year`, ordered by kickoff (deterministic tie-break). **Until five such matches exist**, include **every** finished match played so far (matchday 1 → one game, matchday 3 → up to three games, etc.). **Never** use `dense_rank()` on `round_order` to fake five slots when postponements leave gaps — the window is **games**, not **matchdays**.
--
--2. **WC (national `entity_type`)**  
--   - **Through Group Stage Matchday 1:** form uses **all** finished qualifier legs for that team across its national competitions (legs with `entity_type = 'national'`, selected by recency rather than an enumerated supporting-league list) — no cap.  
--   - **From Group Stage Matchday 2 onward (including knockout):** use **only** finished `league_code = 'WC'` tournament legs before kickoff — cumulative tournament-to-date (no five-game cap).
--
--3. **Season boundaries**  
--   Do not mix legs across the wrong season year for the path above. `season_type` from `dim_competition_season` / registry drives which `season_api_year` counts as “previous” for split-year leagues.
--
--4. **Missing data — contract vs copy**  
--   - **Integrity / must-not-lie:** If the warehouse says a match is finished but **required** facts are missing (e.g. both goals null), **CI must stay red** (existing singular tests; extend only when product defines new hard requirements).  
--   - **Optional provider gaps:** When API-Football simply **does not supply** a stat for a leg, **do not** coerce to `0` in rates. Expose **null** in numeric columns and document in **`metric_glossary`** / UI that the rendered label is **`Not provided`** (or equivalent plain language), **not** a numeric zero. The app should not show a bare em dash that reads like “zero”.
--
--5. **Marts stay thin**  
--   `mart_matchday_insights_bl1`, future `mart_matchday_insights_wc`, and the **`mart_matchday_insights`** shim: filters, column order, display names only — **no** window or dispatch logic here.
--
--#### Implementation defaults (analytics engineering; revise only via this doc)
--
--- **“Competition started” for domestic** = exists at least one **finished** (FT/AET/PEN) fixture in `fct_fixture` for that `league_code` + current `season_api_year` (with non-null goals per finished-leg int).  
--- **First WC tournament match for dispatch** = earliest finished WC leg for the team with `kickoff_datetime <` the reference upcoming fixture kickoff.  
--- **Qualifier set for a national team** = its finished legs with `entity_type = 'national'` (selected by recency / season-to-date across the team’s national competitions), not an enumerated registry list. An explicit WC↔qualifier parent link is reserved for GAP-18 (`parent_competition`).
--
--### Step 4 — Intermediate-layer tests
--
--Add or extend before shipping changed JSON to fans:
--
--| Test | Assertion |
--|---|---|
--| `assert_team_form_max_5_games.sql` | After domestic “competition started”: at most **5** current-season legs in the window per `(fixture_sk, team_sk)`; before start, previous-season path may exceed 5 |
--| `assert_team_form_same_season_only.sql` | Legs obey the season / dispatch rule for that path (not a blind `season_api_year = ref.season_api_year` if the spec says otherwise) |
--| `assert_team_form_no_zero_avg_when_no_stats.sql` | Rates are **null** when inputs missing — never silent numeric zero; UI/glossary maps optional gaps to **“Not provided”** |
--| Fixture grain | Extend existing tests on **`int_matchday__fixture_denormalized`** if new columns are added |
--
--**Seed / scenario test:** six finished games in sequence → only the **five** most recent by kickoff enter the capped window.
--
--### Step 5 — WC mart (new file; does not change BL1)
--
--`mart_matchday_insights_wc.sql`:
--
--- Thin mart: `league_code = 'WC'` on the same upcoming-round + form spine as BL1.
--- **Identical column contract to `mart_matchday_insights_bl1`** for the web renderer.
--- Singular test: **`assert_mart_wc_column_contract_matches_bl1.sql`**.
--
--### Step 6 — Wire WC to the web app
--
--- Selector (BL1 vs WC) and/or second export; BL1 regression required.
--
--### Step 7 — BL1 behaviour vs legacy numbers
--
--`mart_matchday_insights_bl1` is already structurally thin. After **`int_matchday__team_form_metrics`** matches Step 3, run **full regression** on exported JSON (or document every intentional delta in the PR).
--
--### Step 8 — New competition (repeatable)
--
--1. Registry → ingestion → staging → base `ref()` + coverage tests  
--2. `mart_matchday_insights_<league_code>.sql` thin mart
--
--**Scope discipline:** Steps 3–4 touch **`4_intermediate`** and **tests**. **No `3_core` changes** as part of form dispatch. Step 5 **adds** a mart. **`mart_matchday_insights` (shim)** keeps the stable BigQuery name for the exporter.
--
-----
--
--## Open questions (narrow)
--
--- **Optional hard calendar for qualifier form (what it is for):** Today we trust **whatever finished qualifier matches are already in the warehouse** for the WC-linked `league_code`s (registry seasons / ingestion scope). A **“hard calendar”** would mean **extra** explicit rules like “only matches with `kickoff_datetime` between date A and date B count toward pre-WC form” — for example to drop **friendlies**, **old-cycle** games, or anything outside a legal/product definition of “this World Cup’s qualification story.” **Default stays: no extra cut-out** unless you later decide you need one. If you never need it, this item stays open as “not doing” and implementation ignores it.
--- **Step 6 UX** lives in product / site repos.
--
--**Already locked:** dispatch rules; “all qualifiers pre-WC”; rolling five in-season; display policy for optional API gaps.
--
-----
--
--## CPO decisions (recorded)
--
--**Source:** Product clarification (conversation, **2026-05-15**). Supersedes the earlier four-question checklist; no further template reply required.
--
--| Topic | Decision |
--|-------|----------|
--| **Domestic form windows** | Before any finished match in the **current** league season → form from **full previous season** for that team/league. After play starts → **current season only**, **up to the last five finished matches** (fewer early in the season: MD1 → one game, MD3 → up to three, etc.). |
--| **WC pre-tournament** | **All** finished qualifier matches for that team across WC-linked qualifier competitions — **not** capped at five. |
--| **Missing / optional stats** | **Integrity failures** (e.g. impossible finished row) → **fail pipeline / tests**. **API omitted optional stat** → keep **null** in numeric marts; user-facing copy **`Not provided`** (or equivalent) via **glossary + UI**, not a fake zero. |
--| **Sign-off** | The table above is the authoritative Step 3 product contract for implementation PRs. |
--
-----
--
--## Branch / PR plan
--
--Step 2 is too large for one PR. Split by endpoint surface so each PR's blast radius is bounded and the BL1 data path is regression-tested incrementally:
--
--| Step | Branch name | Scope |
--|---|---|---|
--| 2.1 | `feature/core-multi-competition-foundation` | Fixtures plus dim foundation (bundled): unified bases leagues/teams/fixtures_next, core single-base refs, WCQ stagings and sources, qualifier aggregate removal, registry/var sync and singular tests. |
--| 2.2 | `feature/core-standings-multi-competition` | Standings: WC + 7 qualifier stagings + union base + `fct_standings` expansion + test |
--| 2.3 | `feature/core-fixture-stats-multi-competition` | Fixture statistics: same shape |
--| 2.4 | `feature/core-fixture-events-multi-competition` | Fixture events: same shape |
--| 2.5 | `feature/core-fixture-players-multi-competition` | Fixture players + `dim_player` expansion |
--| 2.6 | `feature/core-transfers-lineups-predictions-multi-competition` | Transfers, lineups, predictions (teams/leagues/fixtures covered in 2.1). |
--| 3–4 | `feature/intermediate-team-form` | Implement **locked Step 3** in `int_matchday__*` + tests (per **CPO decisions (recorded)**) |
--| 5 | `feature/mart-wc-matchday-insights` | Per Step 5 below — needs Step 2–4 complete |
--| 6 | `feature/web-app-competition-selector` | Per Step 6 below |
--| 7 | `refactor/bl1-mart-use-intermediate` | Per Step 7 below — only after Step 5 is live and validated |
+ amendments: (none)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -654,6 +189,6 @@ index d9e3d04..0000000
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 1556 +++++++++++++++------------------------
-#    1 file changed, 606 insertions(+), 950 deletions(-)
+#   .claude/active_work.md | 217 ++++++++++++++++++++++++-------------------------
+#    1 file changed, 106 insertions(+), 111 deletions(-)
 # ============================================================================

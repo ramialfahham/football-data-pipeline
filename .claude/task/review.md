@@ -1,53 +1,50 @@
-# Review — chore/delete-stale-architecture-doc — 2026-08-07
+# Review — chore/handover-after-audit-rerun — 2026-08-07
 
-diff_sha256: db054726563a345d038bbae86ba1d70baf226cd2057ec03bf72635d767cd2ec8
+diff_sha256: 39edee7f9e8610ae8c1fbe0b3324855433b76f8d121131a82db2b3ddb55ea8b7
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAILed on a false `done_when` claim: it asserted that
-  `grep -rn 'pipeline_architecture_plan'` over the tree returns nothing outside `.claude/task/` and
-  git history. One hit existed — `site/fixture-list/index.html:6`. The grep behind the claim was
-  `--include`-limited to `*.md`, `*.py`, `*.yml` and `*.json`, so it never looked at `.html`.
-- Closed in round 2 by correcting the CLAIM rather than the file: the criterion now names the exact
-  unscoped command, the expected count of one, and the exact file and line. The reviewer re-ran it
-  and got the same result.
-- The frozen-tree exclusion verified against the standing rule rather than accepted:
-  `.claude/active_work.md:211` says "Do NOT touch `site/` (retired/frozen)", and `CLAUDE.md:29`
-  and `:61` both record `site/` as retired, offline and frozen since 2026-07-21. Editing a comment
-  inside a dead, unserved directory would be scope creep against a CPO ruling, for a reference
-  nothing runtime reads. Declining is correct, not a dodge. `site/` was deliberately NOT added to
-  `scope_paths`, since that would authorise touching the frozen tree.
-- The deletion judged justified rather than destructive: the reviewer read the file from
-  `git show main:docs/pipeline_architecture_plan.md` and confirmed it teaches the banned pattern.
-  It further confirmed that the one piece of still-live knowledge in it — the form-window CPO
-  decisions — is already carried by `CLAUDE.md`, so nothing true is lost with the file.
-- The two DELIBERATE NON-DELETIONS from the audit's list checked and judged honest, not a builder
-  quietly narrowing an instruction. `docs/api_football_ingestion_blueprint.md`: grepped, contains
-  no `RAW_APIF_{LEAGUE_CODE}` or per-confederation pattern, carries the stale "20–50 API calls"
-  figure at line 120 as claimed, and `ingestion/api_football/loads/batch_fixtures.py:24` does point
-  at it as the live API spec. The two unversioned `~/.claude/hooks/` files are the open subject of
-  GitLab #21.
-- The removed `CLAUDE.md` paragraph's own claim verified as stale: no file matching
-  `gh_pages_match_preview_*.plan.md` exists in the repo, so the paragraph warned about a file that
-  was already gone while pointing at a second nobody had deleted.
-- `review_routing.json` checked: `docs/**` and `CLAUDE.md` match no row, so `scope-auditor` is
-  correctly the sole required reviewer.
-- `decisions_reserved` deferring `docs/match_preview_pages_refinement.md` and the
-  `seo-expert-reviewer` routing question judged a legitimate scope boundary rather than a dodge —
-  neither was on the audit's list and both are named for later action.
-- Round-2 delta scope confirmed from the patch's `diff --git` headers: the same three files as
-  round 1, no new file, no widened `scope_paths`, no reopened decision.
+- Scope: the diff touches only `contract.md` and `.claude/active_work.md`, both in `scope_paths`.
+  No undeclared file edited.
+- ⭐ THE #27-DROP CLASS, which is the failure this exact file produced on 2026-08-07 when an issue
+  was silently cut while trimming to the cap: grepped the current handover for #4, #17, #25, #27,
+  #29 and #30. **#27 is present** (line 39, under the CPO's set). #4 is present. #25 and #29 appear
+  only as closed, never as open. Nothing was dropped.
+- `decisions_reserved` respected: both the cap-mechanism question and the re-ranking of the
+  remaining stream are presented in the handover as OPEN and the CPO's, not as decided by this
+  task. The re-ranking is stated as #30's evidence, not as a settled plan.
+- Internal consistency between `contract.md`'s objective and the rendered handover block on the
+  audit's headline conclusion — no contradiction between the two copies.
+- §10, new-mechanism, recurring-cost and credential sweep of the diff: prose-only edit to one
+  handover file, nothing found.
+- Doc-sync: nothing in this diff describes an inventory, hook list or spec that would require a
+  second document to move in lockstep.
+- ⚠ COULD NOT EXECUTE, disclosed rather than papered over: this reviewer had Read/Grep/Glob only
+  and no shell, so it could not independently re-run `git show main:.claude/active_work.md`,
+  `glab issue list`, `pytest --collect-only -q` or a Python `len()`. It declined to convert those
+  gaps into either a fabricated pass or an invented finding. Those four checks were run by the
+  builder instead and their output is recorded below.
+
+## Builder-run checks the reviewer could not execute
+Recorded here because the reviewer explicitly flagged them as uncertifiable with its toolset, and
+an unverified claim is the failure class that hit six times in two days.
+
+- **Character cap:** 15,971 with Python `len()`, against `MAX_CHARS = 16000`. 29 to spare.
+  `handover_in.py` injects it with no truncation notice (grepped the injected output for
+  "truncat": zero hits).
+- **Issue parity, the check that FAILed on 2026-08-07:** diffed every `#N` in the handover against
+  `glab issue list`. Open: 3, 4, 5, 14, 15, 16, 17, 18, 20, 21, 26, 27, 28, 30. The handover names
+  all but #4 and #17. Both were then checked against `git show main:.claude/active_work.md` and
+  **neither had ever been present**, so nothing was dropped by this edit. #4 was ADDED (it is the
+  same web-dispatch foot-gun as the block it now sits in). #17 is left out deliberately: it is
+  ordinary dead i18n code whose body is one `glab issue view` away, and the handover's own policy
+  is that the tracker is the index.
+- **Test count:** re-measured on this branch, not carried forward — `pytest --collect-only -q`
+  gives **665**, matching what the handover states.
+- **Gates:** the five offline gates pass; `ruff check . --config .ruff-ci.toml` exits 0.
 
 ## escalations
 (none)
-
-## Note on the class this branch failed on
-The round-1 FAIL is the SIXTH #904-class claim from this builder in two days, and the SECOND with
-this exact shape after "this repo has NO linter" earlier the same day. Both were a grep scoped
-narrower than the sentence it supported, then reported as exhaustive. The rule that would have
-caught both, now recorded in `escalations.log`: a claim of ABSENCE must state where it looked, and
-the scope must be as wide as the claim. Six instances against a written rule is the evidence that
-prose is not fixing this one.
