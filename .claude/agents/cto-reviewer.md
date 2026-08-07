@@ -78,12 +78,19 @@ should not exist, or not without an approval that is missing".
    guard paths, and `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
    are precisely the file class that carries env blocks and tokens. The first
    version of the split moved this item away from you, which left a secret in
-   those files hunted only at haiku. Triple coverage costs nothing here — you
-   are already spawned on those paths.
+   those files hunted only by `scope-auditor` — then pinned to haiku, the
+   cheapest tier in the fleet (it moved to sonnet on 2026-08-06, which narrows
+   that gap but does not close it: one reviewer is still one reviewer). Triple
+   coverage costs nothing here — you are already spawned on those paths.
    What the machine already does, verified rather than assumed:
-   `.github/workflows/security-secrets.yml` runs `gitleaks-action@v2` on **every**
-   `pull_request` and on push to `main`, with a terminal gate that exits 1 — so CI
-   scanning exists and fails CLOSED. `check_no_secrets.py` and
+   `.gitlab-ci.yml`'s `validate:secrets` job runs `gitleaks detect --source .` on
+   the `zricethezav/gitleaks` image with `GIT_DEPTH: 0` — a non-zero exit reddens the
+   job, so CI scanning exists and fails CLOSED. It carries `*not_on_schedule` first,
+   so it runs on every MR and main pipeline but NOT on a scheduled one; a scheduled
+   pipeline builds already-reviewed code, so that is the intended scope rather than a
+   hole — but do not describe it as "every pipeline" (platform-reviewer, 2026-08-06). (It was `.github/workflows/security-secrets.yml` with `gitleaks-action@v2`
+   until the 2026-08 GitLab migration; GitHub Actions now run nothing, so citing that
+   workflow as live cover would be false — corrected 2026-08-06.) `check_no_secrets.py` and
    `detect-private-key` are a LOCAL-ONLY second layer via
    `.pre-commit-config.yaml`, which no workflow invokes. You are the third layer,
    and your value is what a pattern matcher cannot see: a credential that is not

@@ -134,16 +134,26 @@ serialized four steps; the commit gate enforces them mechanically:
    specialists) are spawned cold: read-only tools, no builder context, judging
    the CUMULATIVE branch diff (written to `.claude/task/review_input.patch`).
    Reviewer models are pinned in each agent definition for economy:
-   `scope-auditor` runs on **haiku**, the six specialists on **sonnet**. The
+   `scope-auditor` and the six specialists all run on **sonnet**. The
    pinned model is a floor — when the staged diff touches a guard path
    (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
    `.cursor/mcp.json`, `.github/workflows/**`, `.gitlab-ci.yml`), every **specialist** routing
    requires for it is spawned at **opus**, because guard bypasses are the
    highest-stakes findings (the G3 commit-gate bypasses were caught only at that
-   depth). `scope-auditor` is exempt and stays on haiku: it is in `always`, so
-   "every reviewer routing requires" would silently promote it on every
-   governance commit.
+   depth). `scope-auditor` is exempt from the OPUS PROMOTION — it is in `always`,
+   so "every reviewer routing requires" would silently promote it on every
+   governance commit. That exemption stands. It ran on **haiku** until
+   2026-08-06, and the exemption was being used to justify the cheapest tier
+   rather than merely to withhold the most expensive one: it is the only reviewer
+   on EVERY diff, and its brief states that for an UNDECLARED THRESHOLD "no gate
+   parses that field, so this item is the whole enforcement". (Secrets are hunted
+   by `cto-reviewer` and `platform-reviewer` too, and by `validate:secrets`
+   gitleaks in CI — scope-auditor is the only one on every diff, not the only one
+   looking.) The hardest judgement was pinned to the weakest model reading the
+   largest input. It is now on **sonnet**, the same floor as every other reviewer,
+   with the opus exemption unchanged. This is a RECURRING COST — it applies to
+   every substantive commit — and was approved as part of the 2026-08-06 plan.
    In practice that means `cto-reviewer` on all nine, **plus
    `platform-reviewer` on exactly three of them, `.claude/hooks/**`,
    `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority, Platform on the

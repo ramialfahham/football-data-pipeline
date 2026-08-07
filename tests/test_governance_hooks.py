@@ -9,6 +9,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -2649,3 +2650,295 @@ def test_review_patch_refuses_a_base_that_shares_no_history(tmp_path, _repo_temp
     )
     assert r.returncode != 0, "unrelated histories produced a patch instead of refusing"
     assert "common ancestor" in r.stderr, r.stderr
+
+
+# --------------------------------------------------------------------------- #
+# Wiring the unwired guards (2026-08-06)
+#
+# Every test below pins a behaviour that was ADDED because its absence was
+# invisible. That is the whole class: a guard that silently does nothing looks
+# exactly like a guard that is satisfied, so only a test can tell them apart.
+# --------------------------------------------------------------------------- #
+def _routing_with(**extra) -> dict:
+    r = json.loads(json.dumps(ROUTING))
+    r.update(extra)
+    return r
+
+
+def test_unparseable_routing_announces_itself_instead_of_silently_disabling_review(repo):
+    """A stray comma in review_routing.json switches the review requirement OFF.
+
+    `_load_routing` returns None on any parse error, and None means "gate not active"
+    in `_commit_gate`. Before this, that happened in total silence — the most
+    consequential quiet failure in the file, because the symptom is the ABSENCE of a
+    message nobody was watching for.
+    """
+    # Something must be STAGED: `_commit_gate` returns before reading routing when the
+    # index is empty ("nothing staged: let git complain"), so an unstaged test would
+    # pass for the wrong reason.
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    (repo / ".claude" / "review_routing.json").write_text('{"always": ["x",]}')  # trailing comma
+    out, _ = run_hook("git_discipline.py", bash_event('git commit -m "x"'), repo)
+    assert "REVIEW ROUTING UNREADABLE" in out, out
+    assert "DISABLED" in out
+    # Still fails OPEN: it warns, it does not block.
+    assert not denied(out), "the canary must not turn a parse error into a hard block"
+
+
+def test_routing_canary_never_pollutes_cli_stdout(repo):
+    """STDOUT IS TWO CHANNELS and conflating them corrupts an artifact.
+
+    As a hook, stdout carries the JSON protocol and a canary belongs there. As a CLI
+    (`--review-patch`, `--staged-hash`), stdout IS the product — the patch reviewers read
+    and that gets committed. The first version of the canary printed in both, appending a
+    JSON blob to `review_input.patch`. Found by cto-reviewer at opus, reproduced, fixed.
+    """
+    setup_review_repo(repo)
+    (repo / ".claude" / "review_routing.json").write_text('{"always": ["x",]}')
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    for flag, must_start in (("--review-patch", "diff --git"), ("--staged-hash", "")):
+        r = subprocess.run(
+            [sys.executable, os.path.join(HOOKS, "git_discipline.py"), flag],
+            cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+        )
+        assert "hookSpecificOutput" not in r.stdout, (
+            f"{flag} emitted hook JSON into its product: {r.stdout[:200]}")
+        assert "REVIEW ROUTING UNREADABLE" not in r.stdout, r.stdout[:200]
+    # The warning is not swallowed — it goes to stderr, where it cannot corrupt the patch.
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert "did not parse" in r.stderr, r.stderr
+
+
+def test_manifest_failure_is_loud_not_silent(repo):
+    """Summarised paths are removed from the body ON THE PROMISE of a manifest.
+
+    Swallowing an error here hides them with nothing said — the exact coverage loss the
+    key exists to prevent. `_base_commit` already refuses rather than narrowing a diff;
+    this must refuse too. (cto-reviewer, opus.)
+
+    An earlier version of this test asserted `"raise" in inspect.getsource(...)` and was
+    VACUOUS: the word appears in the function's own comment, so swapping the raise for a
+    `return b""` left it green, and it never called the function at all
+    (platform-reviewer at opus). This one drives the real failure branch.
+    """
+    setup_review_repo(repo)
+    sys.path.insert(0, HOOKS)
+    import git_discipline  # noqa: E402
+    # Malformed pathspec magic — `git diff --stat` exits non-zero on it, which is the
+    # branch under test. Nothing else in the call can fail this way.
+    with pytest.raises(Exception) as exc:
+        git_discipline._summary_manifest(str(repo), [":(attr:!!bad)x"])
+    assert "manifest" in str(exc.value).lower(), (
+        f"raised, but not with the manifest explanation: {exc.value}")
+
+
+def test_fast_gates_and_validate_local_agree(repo):
+    """Two files described the same set and disagreed, each naming the other as source.
+
+    `validate-local` claimed "the first five" of its block run at turn end — which
+    included `check_task_artifacts.py` (which must NOT, it needs a fetched origin/main
+    and a current review.md) and omitted `check_ui_i18n_metrics.py` (which does).
+    Found by platform-reviewer at opus. Prose cannot hold this; a test can.
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    sys.path.insert(0, HOOKS)
+    import stop_gate  # noqa: E402
+    skill = open(os.path.join(root, ".claude", "skills", "validate-local", "SKILL.md"),
+                 encoding="utf-8").read()
+
+    # SET EQUALITY over the MARKED region, not membership over the whole file. The first
+    # version of this test asserted each name appeared somewhere in SKILL.md — and each
+    # appears three times (the bash block, this list, the CI mapping table), so deleting
+    # the turn-end sentence outright left it green, as did the broken form it was written
+    # to catch. Membership over a file that repeats the names is close to no assertion.
+    block = re.search(r"<!-- FAST_GATES:START -->(.*?)<!-- FAST_GATES:END -->",
+                      skill, re.S)
+    assert block, (
+        "the FAST_GATES markers are gone from validate-local's SKILL.md; without them "
+        "nothing states which gates run at turn end and this test cannot check anything"
+    )
+    documented = set(re.findall(r"`([A-Za-z0-9_]+)`", block.group(1)))
+    actual = {os.path.basename(g)[: -len(".py")] for g in stop_gate.FAST_GATES}
+    assert documented == actual, (
+        f"validate-local documents {sorted(documented)} as the turn-end set but "
+        f"FAST_GATES is {sorted(actual)}"
+    )
+
+    for rel in stop_gate.FAST_GATES:
+        assert os.path.isfile(os.path.join(root, rel)), f"{rel} does not exist"
+
+    # The one that must stay out, pinned by name so a future edit cannot quietly add it.
+    assert not any("check_task_artifacts" in g for g in stop_gate.FAST_GATES), (
+        "check_task_artifacts needs a fetched origin/main and a current review.md; in "
+        "FAST_GATES it would block every turn end during the build phase"
+    )
+
+
+def test_missing_routing_file_stays_silent(repo):
+    """A MISSING routing file is a legitimate state — another repo, no governance.
+
+    Only a file that EXISTS and will not parse is a defect. Warning on absence would
+    fire in every repo without this system, which is the cry-wolf failure that teaches
+    an agent to ignore the guardrail.
+    """
+    path = repo / ".claude" / "review_routing.json"
+    if path.exists():
+        path.unlink()
+    out, _ = run_hook("git_discipline.py", bash_event('git commit -m "x"'), repo)
+    assert "REVIEW ROUTING UNREADABLE" not in out, out
+
+
+def test_review_patch_excludes_summarise_paths_from_the_body(repo):
+    """`review_summarise_paths` keeps generated data OUT of the pasted diff.
+
+    Measured motivation: 30,480 of 34,074 patch lines (89%) were committed sample JSON.
+    """
+    (repo / ".claude" / "review_routing.json").write_text(
+        json.dumps(_routing_with(review_summarise_paths=["data/**"])))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "routing"], cwd=repo, check=True)
+    (repo / "data").mkdir(exist_ok=True)
+    (repo / "data" / "sample.json").write_text('{"UNIQUE_MARKER_IN_BODY": 1}\n')
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 42\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "UNIQUE_MARKER_IN_BODY" not in r.stdout, "sample data was pasted into the body"
+    # Real code is still pasted.
+    assert "select 42" in r.stdout, "excluding sample data must not drop real code"
+
+
+def test_summarised_paths_are_announced_not_hidden(repo):
+    """Excluding the body must NOT hide that the files changed.
+
+    Silence here would quietly delete bi-analyst-reviewer's core hunt item — whether a
+    displayed field exists in the exported sample — trading payload for coverage. That
+    is the difference between `review_summarise_paths` and `review_exclude_paths`.
+    """
+    (repo / ".claude" / "review_routing.json").write_text(
+        json.dumps(_routing_with(review_summarise_paths=["data/**"])))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "routing"], cwd=repo, check=True)
+    (repo / "data").mkdir(exist_ok=True)
+    (repo / "data" / "sample.json").write_text('{"a": 1}\n')
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "NOT PASTED ABOVE" in r.stdout, "changed sample data was hidden with no manifest"
+    assert "data/sample.json" in r.stdout, "the manifest must name the changed files"
+
+
+def test_no_manifest_when_no_summarised_path_changed(repo):
+    """An empty section every time trains the reader to skip the header."""
+    (repo / ".claude" / "review_routing.json").write_text(
+        json.dumps(_routing_with(review_summarise_paths=["data/**"])))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "routing"], cwd=repo, check=True)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert "NOT PASTED ABOVE" not in r.stdout, r.stdout
+
+
+def test_summarised_paths_still_bind_the_review_hash(repo):
+    """Not pasting a file must not stop it invalidating a reviewer's verdict.
+
+    `review_summarise_paths` answers "what is READ"; `hash_exclude_paths` answers "what
+    BINDS the verdict". Conflating them would let sample data change after review with
+    the recorded hash still matching — reviewer-unseen content reaching a commit, which
+    is exactly what the hash exists to prevent.
+    """
+    (repo / ".claude" / "review_routing.json").write_text(
+        json.dumps(_routing_with(review_summarise_paths=["data/**"])))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "routing"], cwd=repo, check=True)
+    (repo / "data").mkdir(exist_ok=True)
+    (repo / "data" / "sample.json").write_text('{"a": 1}\n')
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    before = staged_hash(repo)
+    (repo / "data" / "sample.json").write_text('{"a": 2}\n')
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    after = staged_hash(repo)
+    assert before and after and before != after, (
+        "changing a summarised file left the review hash unchanged — it would pass "
+        "review verification without any reviewer having seen the new content"
+    )
+
+
+def _install_fast_gate(repo, body: str) -> None:
+    """Write a stub fast gate and COMMIT it, then write the contract.
+
+    Committing matters: the stop gate checks scope FIRST, so an uncommitted stub under
+    `scripts/` is itself an out-of-scope dirty file and the scope check fires before
+    correctness is ever reached. That is correct behaviour — it just makes an
+    uncommitted stub test the wrong thing.
+    """
+    scripts = repo / "scripts"
+    scripts.mkdir(exist_ok=True)
+    (scripts / "check_layer_contract.py").write_text(body)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "fast gate stub"], cwd=repo, check=True)
+    write_contract(repo)
+
+
+def test_stop_gate_blocks_on_a_failing_fast_gate(repo):
+    """Turn-end correctness. Before this, nothing verified that anything WORKS."""
+    _install_fast_gate(repo, "import sys\nprint('- deliberate failure for the test')\nsys.exit(1)\n")
+    # Dirty an IN-SCOPE file: correctness is only reached once the scope check passes.
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 5\n")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert '"decision": "block"' in out, out
+    assert "correctness" in out
+    assert "check_layer_contract.py" in out
+
+
+def test_stop_gate_passes_when_fast_gates_pass(repo):
+    _install_fast_gate(repo, "print('ok')\n")
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 6\n")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert out.strip() == "", out
+
+
+def test_stop_gate_skips_correctness_on_a_clean_tree(repo):
+    """A conversational turn must not pay ~3s, and a clean tree cannot have broken
+    a gate that was already passing."""
+    _install_fast_gate(repo, "import sys\nprint('would fail')\nsys.exit(1)\n")
+    # Tree left CLEAN: nothing modified after the contract commit.
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert out.strip() == "", "correctness ran on a clean tree"
+
+
+def test_stop_gate_ignores_absent_fast_gates(repo):
+    """Missing checker scripts are legitimate (other branches, worktrees). Reporting
+    them would be the cry-wolf failure the hook house-rules warn about."""
+    write_contract(repo)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 8\n")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert out.strip() == "", out
+
+
+def test_stop_gate_reports_scope_violation_before_correctness(repo):
+    """An out-of-scope tree is the more actionable failure and must be reported first;
+    reporting both at once buries it."""
+    _install_fast_gate(repo, "import sys\nsys.exit(1)\n")
+    (repo / "stray.txt").write_text("out of scope\n")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert '"decision": "block"' in out
+    assert "does not match the task contract" in out
+    assert "correctness" not in out

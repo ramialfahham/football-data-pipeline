@@ -120,12 +120,49 @@ def _staged_paths(root: str) -> list[str]:
     return [p.replace("\\", "/") for p in out.split("\0") if p]
 
 
+# STDOUT IS TWO DIFFERENT CHANNELS in this file, and conflating them corrupts an
+# artifact. As a HOOK, stdout carries the JSON protocol and a canary belongs there. As a
+# CLI (`--review-patch`, `--staged-hash`), stdout IS the product — the patch reviewers
+# read and that gets committed. Printing a canary in CLI mode appends a JSON blob to
+# `review_input.patch`. Verified by running it: the blob landed at the end of the patch,
+# after the last hunk, because `print()` buffers while `sys.stdout.buffer.write()` does
+# not. Found by cto-reviewer at opus, routed to platform; reproduced before fixing.
+_CLI_MODE = False
+
+
 def _load_routing(root: str) -> dict | None:
+    """The routing config, or None when it cannot be read.
+
+    None disables the review requirement ENTIRELY (see `_commit_gate`), so the quiet
+    failure here is the most consequential in the file: a stray comma in
+    `review_routing.json` switches off the blinded review cycle and nothing says so.
+    A MISSING file is a legitimate state (another repo, no governance) and stays silent;
+    a file that EXISTS and will not parse is a defect and announces itself — but only in
+    hook mode, see `_CLI_MODE`.
+    """
     import json
+    path = os.path.join(root, ROUTING_REL)
     try:
-        with open(os.path.join(root, ROUTING_REL), encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except FileNotFoundError:
+        return None
+    except Exception as exc:
+        if _CLI_MODE:
+            print(
+                f"WARNING: {ROUTING_REL} did not parse ({type(exc).__name__}: {exc}); "
+                "review exclusions were NOT applied to this patch.",
+                file=sys.stderr,
+            )
+            return None
+        emit_context(
+            "PreToolUse",
+            f"⚠ REVIEW ROUTING UNREADABLE — {ROUTING_REL} exists but did not parse "
+            f"({type(exc).__name__}: {exc}). The review requirement is DISABLED while this "
+            "holds: no reviewer is required, no verdict is checked, and commits pass the "
+            "review gate unverified. Fix the file before committing anything you expect to "
+            "have been reviewed."
+        )
         return None
 
 
@@ -158,8 +195,14 @@ def _review_patch_bytes(root: str) -> bytes:
     Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
     generated; generating it by hand is how it came to re-embed its own history."""
     import subprocess
-    excludes = (_load_routing(root) or {}).get("review_exclude_paths") or []
-    spec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
+    routing = _load_routing(root) or {}
+    excludes = routing.get("review_exclude_paths") or []
+    # Reviewed CONTENT that is not pasted. Excluded from the body like `excludes`, but
+    # ANNOUNCED in a manifest, because hiding it outright would silently delete
+    # bi-analyst-reviewer's field-existence hunt item. See `_doc_review_summarise_paths`.
+    summarise = routing.get("review_summarise_paths") or []
+    all_excluded = list(excludes) + list(summarise)
+    spec = (["--", "."] + [f":(exclude){p}" for p in all_excluded]) if all_excluded else []
     # CUMULATIVE vs the base branch, not just the staged increment. Every brief's
     # first input line, working_agreement §2 and agent_guardrails all promise the
     # reviewers "the cumulative branch diff vs main", and two individually clean
@@ -169,7 +212,61 @@ def _review_patch_bytes(root: str) -> bytes:
     # only the last increment, and nothing could detect it because review_input.patch
     # is in both exclusion lists. `git diff --staged <base>` is base-to-index, which
     # is what CI recomputes as `git diff base...HEAD` after the commit.
-    return _cumulative_diff(root, spec)
+    body = _cumulative_diff(root, spec)
+    return body + _summary_manifest(root, summarise)
+
+
+def _summary_manifest(root: str, summarise: list[str]) -> bytes:
+    """A stat-only header for paths kept OUT of the patch body but still reviewed.
+
+    Silence would be the dangerous outcome here: a reviewer who is never told the sample
+    data changed cannot know to check it, so the payload saving would quietly cost the
+    field-existence check. This says what changed, by how much, and how to read it.
+
+    Emits nothing when nothing matched — an empty section trains readers to skip the
+    header, and then a real one gets skipped too.
+    """
+    if not summarise:
+        return b""
+    # FAIL LOUD, not silent. `_cumulative_diff`/`_base_commit` raise rather than return a
+    # narrowed diff, for the documented reason that a quietly-shortened patch is worse
+    # than no patch. The same logic applies here in the opposite direction: these files
+    # were REMOVED from the body on the promise that a manifest would announce them, so
+    # swallowing an error here means they are hidden with nothing said — the exact
+    # coverage loss `review_summarise_paths` exists to prevent. (cto-reviewer, opus.)
+    base = _base_commit(root)
+    spec = ["--"] + list(summarise)
+    import subprocess
+    proc = subprocess.run(
+        ["git", "diff", "--staged", "--stat", base] + spec,
+        cwd=root, capture_output=True, timeout=30,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            "review manifest failed for "
+            f"{summarise}: git diff --stat exited {proc.returncode}. These paths are "
+            "excluded from the patch body, so continuing would hide them from reviewers "
+            "with no manifest. Refusing to emit a patch that silently under-reports."
+        )
+    stat = proc.stdout.decode("utf-8", "replace").strip()
+    if not stat:
+        return b""
+    header = (
+        "\n"
+        "# " + "=" * 76 + "\n"
+        "# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW\n"
+        "# " + "=" * 76 + "\n"
+        "# The files below changed and are DELIBERATELY excluded from the diff body:\n"
+        "# they are generated/sample data, and pasting them has measured at ~89% of the\n"
+        "# review payload. They are still reviewed content and still bind your verdict.\n"
+        "#\n"
+        "# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In\n"
+        "# particular: whether a field displayed by a component actually EXISTS in the\n"
+        "# exported sample is checked by opening these files, not by reading a diff.\n"
+        "#\n"
+    )
+    body = "".join(f"#   {ln}\n" for ln in stat.splitlines())
+    return (header + body + "# " + "=" * 76 + "\n").encode("utf-8")
 
 
 def _base_commit(root: str) -> str:
@@ -537,6 +634,10 @@ def _commit_gate(root: str) -> str | None:
 
 
 def main() -> int:
+    global _CLI_MODE
+    # Set BEFORE any branch that can reach `_load_routing`, so stdout stays pure for
+    # whichever CLI product follows.
+    _CLI_MODE = "--staged-hash" in sys.argv or "--review-patch" in sys.argv
     if "--staged-hash" in sys.argv:
         import hashlib
         print(hashlib.sha256(_staged_diff_bytes(_repo_root())).hexdigest())
@@ -621,8 +722,31 @@ def main() -> int:
                 return 0
             try:
                 reason = _commit_gate(_repo_root())
-            except Exception:
-                reason = None            # fail open (house rule)
+            except Exception as exc:
+                # STILL FAILS OPEN — the house rule is unchanged and deliberate: a hook
+                # bug must never block the user's workflow.
+                #
+                # What changes is the SILENCE. Before this, an exception here let the
+                # commit through with NO review verification and produced a session that
+                # looked completely normal — the gate's evidence is "it blocked
+                # something", so a dead gate and a satisfied gate are indistinguishable.
+                # Enforcement could be off for weeks and the only symptom would be the
+                # absence of a message nobody was watching for.
+                #
+                # The risk is not hypothetical on this repo: it runs on Windows with a
+                # cp1252 console default over copy full of multi-byte characters, and
+                # `_load_routing` returning None on a JSON syntax error disables the
+                # review requirement outright.
+                reason = None
+                emit_context(
+                    "PreToolUse",
+                    "⚠ COMMIT GATE ERRORED — THIS COMMIT WAS NOT REVIEW-VERIFIED. "
+                    f"{type(exc).__name__}: {exc}. The gate failed OPEN by design, so the "
+                    "commit proceeds, but NOTHING checked the reviewer verdicts or the "
+                    "staged-diff hash. Do not treat this commit as reviewed. Fix the hook, "
+                    "then re-run the review cycle and re-commit. CI still recomputes the "
+                    "hash (scripts/check_task_artifacts.py), so this is caught on the MR."
+                )
             if reason:
                 emit_deny(reason)
                 return 0

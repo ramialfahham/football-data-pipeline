@@ -269,6 +269,13 @@ validate:governance:
     - python scripts/check_layer_contract.py
     - python scripts/check_registry_var_sync.py
     - python scripts/check_competition_type_seed.py
+    # Editorial/localisation gate. Existed and was invoked by NOTHING — not by a GitHub
+    # workflow before the migration, not here after it, and not by the validate-local skill.
+    # It exited 1 on main with 16 real findings (14 em dashes across all three locales, a
+    # recorded CPO terminology correction, an untranslated string) that no reviewer caught,
+    # because it is a script and not a reviewer. Cleared in MR !7; wired here so it cannot
+    # silently stop mattering again. Offline, reads two files, well under a second.
+    - python scripts/check_copy_gate.py
     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
     - *dbt_profile
     - cd dbt_project && dbt deps && dbt parse
