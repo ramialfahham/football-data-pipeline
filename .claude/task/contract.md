@@ -102,3 +102,19 @@ amendments: >
   FAILed round 2 because the widening happened before either existed — the fifth instance. It was
   right every time, and the count is the point: four fixes that each added one missing entry did not
   change the behaviour, and only writing them together does.
+
+  SECOND AMENDMENT, 2026-08-07, same procedure: the `escalations.log` blocks and this block were
+  written together, before the handover edit they authorise. NO PATH IS ADDED.
+
+  AUTHORITY: `.claude/task/escalations.log`, same entry, blocks `⭐ CPO RULING: TWO STREAMS, AND
+  THEIR ORDER`, `⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED` and `⭐ CPO CORRECTION: FILING TO
+  THE TRACKER IS STANDING PRACTICE`.
+
+  WHAT WIDENED. The CPO ruled at the end of the session that the AI-collaboration audit stream is
+  NOT finished and is to be completed in a new chat BEFORE the cost work, and separately lifted the
+  2026-08-06 measurement stop for that cost work. The handover's `NEXT` section is rewritten to
+  carry both, because a ruling about what to do next that does not reach the handover does not
+  reach the next session — which is the continuity failure this repo keeps having.
+
+  BOUNDED: it records the order and the lifted stop. It starts neither stream, runs no measurement
+  (the CPO stopped the run and deferred it), and decides nothing about cost.

@@ -1366,9 +1366,43 @@ times.
   because a session that does not know this will repeat it — !15 was a governance MR and it rebuilt
   prod. Recorded, not decided: what to DO about #2 is the next task and is not authorised here.
 
-- (⚠ STANDING INSTRUCTION RESTATED, because it now constrains the cost work) The CPO instructed on
+- (⚠ STANDING INSTRUCTION RESTATED, because it constrained this task) The CPO instructed on
   2026-08-06: *"stop don't measure anything. last time you measured, github susended my account"*.
-  It remains in force. No cost figure in this task is newly measured; the incident above is argued
-  from what the CI rules DO (`changes: *data_paths` versus the files in the diff) and from which
-  jobs appeared in which pipeline, not from bytes or dollars. The tension between that instruction
-  and "tackle cost instantly" was put to the CPO plainly rather than resolved by the builder.
+  No cost figure in this task is newly measured; the incident above is argued from what the CI
+  rules DO (`changes: *data_paths` versus the files in the diff) and from which jobs appeared in
+  which pipeline, not from bytes or dollars. The tension between that instruction and "tackle cost
+  instantly" was put to the CPO plainly rather than resolved by the builder. **It was then lifted
+  — see the next block.**
+
+- (⭐ CPO RULING: TWO STREAMS, AND THEIR ORDER) The CPO corrected a conflation the builder had made.
+  They are SEPARATE bodies of work and must not be mixed again:
+
+  **STREAM 1 — the AI-collaboration audit.** Its purpose, in his words: the recommendations came
+  from Anthropic on how best to work with Claude Code, and the audit existed *"to align us as
+  closely as possible with best practices"*. The derived tasks are the work. **NOT FINISHED.**
+  Open: **#5** (the audit's TOP-RANKED finding, Confirm is unenforced), #14, #18, #20, #25, #26,
+  #28, plus four that are the CPO's alone: #15, #16, #21, #27. Closed: #1, #6-#13, #19, #22-#24.
+  (#17, three dead i18n keys, came out of the sweep but is ordinary dead code, not alignment.)
+
+  **STREAM 2 — cost.** Urgent, and to be done **SYSTEMATICALLY across the whole pipeline INCLUDING
+  CI/CD — what gets triggered, when, and where** — explicitly NOT ad hoc, one fix at a time as they
+  are tripped over. The builder proposed narrowing `data_paths` and the CPO challenged it: *"Is
+  this a well-researched and well-designed plan... Or are you quickly suggesting something ad-hoc
+  because I'm annoyed?"* It was ad hoc. Checked against the recovered figures in GitLab #3, it
+  ranks roughly FOURTH by size; the largest live item is that **staging is still a view, so tests
+  re-scan raw** (one test at $0.30/day), which is the same defect fixed one layer down for base
+  models on 2026-08-02.
+
+  CPO RULING (conversation, 2026-08-07): **finish STREAM 1 first, in a new chat. Cost comes after.**
+
+- (⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED, for the cost work) Asked what was needed, in plain
+  words, to do cost properly. Answer given: permission to run `scripts/report_bq_cost.py`, which
+  reads Google's billing metadata inside the GCP project, runs no query on the data, costs nothing,
+  and never touches GitHub. CPO ANSWER (conversation, 2026-08-07): **"do it"**. The 2026-08-06 stop
+  is therefore SUPERSEDED for the cost work. It was NOT exercised in this session: the CPO stopped
+  the run and deferred it to the cost task, so the first measurement belongs there.
+
+- (⭐ CPO CORRECTION: FILING TO THE TRACKER IS STANDING PRACTICE, NOT A QUESTION) The builder asked
+  where the cost map should live. CPO: *"That should be standard procedure without me reminding you
+  of it."* A GitLab issue, never a planning document. Asking spent his attention on something the
+  existing rule already settles.

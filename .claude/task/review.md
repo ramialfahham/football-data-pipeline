@@ -1,8 +1,20 @@
 # Review — chore/handover-after-22-23-24 — 2026-08-07
 
-diff_sha256: 6a79e526c23b57bc02d3fae5313ce78ef4ab8e961af9c798db075422d8ad34dd
+diff_sha256: 14cac76a5f85c5ad63d83517b15c3165426cb8e5a65931637b67f6d63fea5f4b
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: >
+  Round 4 exists because the CPO issued THREE new rulings at the end of the session, after round 3
+  had passed: the AI-collaboration audit stream is NOT finished and is to be completed in a new
+  chat BEFORE cost; the 2026-08-06 measurement stop is LIFTED for the cost work; and filing to the
+  tracker is standing practice rather than something to ask about. A ruling about what to do next
+  that does not reach the handover does not reach the next session, which is the continuity failure
+  this repo keeps having — so the rulings were logged and `NEXT` rewritten rather than deferred.
+  That changed `contract.md`, which is hashed, so the prior verdict no longer bound. Authority:
+  `.claude/task/escalations.log`, blocks `⭐ CPO RULING: TWO STREAMS, AND THEIR ORDER`,
+  `⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED` and `⭐ CPO CORRECTION: FILING TO THE TRACKER IS
+  STANDING PRACTICE`.
 
 ## scope-auditor
 VERDICT: PASS
