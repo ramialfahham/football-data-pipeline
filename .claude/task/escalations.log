@@ -1340,3 +1340,35 @@ one act, and treating them as two is what produced four failures.
   pre-migration snapshot. **GitHub is DORMANT, NOT RETIRED** — the repo is kept and how it is used
   is decided when access returns. Nothing in this task forecloses that: `.github/` is untouched,
   the resolver's fallback stays `origin/main`, and `GOVERNANCE_BASE` still overrides everything.
+
+2026-08-07 chore/handover-after-22-23-24 — handover bookkeeping, plus ONE scope addition recorded
+here BEFORE the contract amendment that cites it. Fifth instance of the unlogged-authority class,
+and the first where the log entry and the amendment were written as one action rather than one
+after the other. `scope-auditor` FAILed round 2 to get here; it was right, as it was the other four
+times.
+
+- (⭐ CPO ESCALATION AND INSTRUCTION: THE COST INCIDENT GOES IN THE HANDOVER) Mid-task the CPO
+  asked *"did we rebuild the entire warehouse again?"*. Investigated and answered with evidence:
+  YES, once. Merging **!15** fired `data:build:main`, a full prod warehouse rebuild, because
+  `data_paths` (`.gitlab-ci.yml:230`) includes BOTH `.gitlab-ci.yml` and `scripts/check_*.py` —
+  and !15 changed a COMMENT in the former and `check_task_artifacts.py` in the latter. Neither
+  touches a data model. Verified the other four merges (!11-!14) did NOT trigger it. This is
+  GitLab **#2** ("CI-config-only changes trigger a full prod warehouse build") firing in
+  production.
+
+  CPO RESPONSE (conversation, 2026-08-07), verbatim: *"Finish the handover but we must tackle the
+  cost topic instantly. We are in a bad situation. I've brought up the cost issue a thousand times,
+  nothing has ever been done about it, and now I see this."*
+
+  EFFECT ON THIS TASK, which is why it is logged rather than absorbed: the contract's objective was
+  bookkeeping, and a live cost incident is not bookkeeping. The handover gains a
+  `⚠ #2 IS LIVE AND IT FIRED ON 2026-08-07` block naming the mechanism and `.gitlab-ci.yml:230`,
+  because a session that does not know this will repeat it — !15 was a governance MR and it rebuilt
+  prod. Recorded, not decided: what to DO about #2 is the next task and is not authorised here.
+
+- (⚠ STANDING INSTRUCTION RESTATED, because it now constrains the cost work) The CPO instructed on
+  2026-08-06: *"stop don't measure anything. last time you measured, github susended my account"*.
+  It remains in force. No cost figure in this task is newly measured; the incident above is argued
+  from what the CI rules DO (`changes: *data_paths` versus the files in the diff) and from which
+  jobs appeared in which pipeline, not from bytes or dollars. The tension between that instruction
+  and "tackle cost instantly" was put to the CPO plainly rather than resolved by the builder.
