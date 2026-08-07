@@ -360,9 +360,10 @@ test:python:
 # build stage
 # ---------------------------------------------------------------------------
 
-# was: ci-site-v2.yml — build check only, NO deploy. The live Pages URL keeps
-# serving the current MVP until the parity cutover (#377); a v2 preview deploy
-# is a separate, deliberately-reviewed change.
+# was: ci-site-v2.yml — build check only, NO deploy. There is NO public site: the
+# legacy Pages MVP was retired 2026-07-21 (offline, `site/` frozen), so there is no
+# parity requirement and no cutover, and #377 is v2's own go-live rather than a
+# switchover. Publishing is `deploy:site-v2`, which is manual-only by design.
 build:site-v2:
   stage: build
   needs: []

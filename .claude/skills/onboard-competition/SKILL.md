@@ -130,12 +130,16 @@ From the results:
 
 Also confirm `league_code` does NOT already appear in `docs/competition_registry.yml`.
 
-### Step 1 — Branch from origin/main
+### Step 1 — Branch from the live remote
 
 ```bash
-git fetch origin main --quiet
-git checkout -B feat/onboard-{league_code_lower} origin/main
+git fetch gitlab main --quiet
+git checkout -B feat/onboard-{league_code_lower} gitlab/main
 ```
+
+`gitlab`, not `origin`. `origin` is the GitHub remote, dormant while account access
+is unavailable, and branching from it starts the work on a stale tree — it was 27
+commits behind on 2026-08-07 (GitLab #24).
 
 ### Step 2 — Registry entry
 

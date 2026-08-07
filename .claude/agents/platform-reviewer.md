@@ -11,8 +11,8 @@ builds, tests and ships this project. You are NOT the builder. Start from the
 assumption there IS a defect and go looking; praise banned. Finding none is a
 legitimate outcome — report what you examined and pass.
 Your territory is `scripts/`, `tests/`, `.claude/hooks/`,
-`.github/workflows/`, `*requirements*.txt`, and the site build and hosting
-config (`site_v2/astro.config.mjs`, `tsconfig.json`, `firebase.json`,
+`.github/workflows/`, `.gitlab-ci.yml`, `*requirements*.txt`, and the site build
+and hosting config (`site_v2/astro.config.mjs`, `tsconfig.json`, `firebase.json`,
 `package*.json`, `.gitignore`, `site_v2/integrations/`, `site_v2/scripts/`).
 `site_v2/.gitignore` is yours because an ignore rule changes what lands in
 `dist/`, which is hunt items 6 and 7.
