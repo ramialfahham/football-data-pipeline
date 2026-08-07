@@ -46,11 +46,6 @@ Next: player insights chain (#153 → #156).
 | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
 | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
 
-> The old `gh_pages_match_preview_*.plan.md` row was removed 2026-08-06. The file still exists on
-> disk, but it plans the **retired** MVP, and an always-loaded table listing it as authoritative is
-> how a session ends up building against a dead product. Same defect as the
-> `pipeline_architecture_plan.md` pointer removed from `MEMORY.md` the same day.
-
 ## Architecture decisions (non-negotiable)
 
 - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
