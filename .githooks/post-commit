@@ -19,13 +19,18 @@ if [ $PUSH_EXIT -ne 0 ]; then
 fi
 
 echo ""
-echo "==> [post-commit] Checking for existing MR..."
-MR_URL=$(glab mr view "$BRANCH" --output json --jq '.web_url' 2>/dev/null)
-VIEW_EXIT=$?
+echo "==> [post-commit] Checking for an OPEN MR..."
+# `mr list --source-branch` defaults to OPEN merge requests and returns [] when there are none.
+# `mr view` was wrong twice: it resolves a MERGED MR and reports it as open (GitLab #29), and it
+# cannot resolve a branch carrying more than one MR at all. Ask the question directly.
+MR_URL=$(glab mr list --source-branch "$BRANCH" --output json --jq '.[0].web_url // empty' 2>/dev/null)
+LIST_EXIT=$?
 
-if [ $VIEW_EXIT -eq 0 ] && [ -n "$MR_URL" ]; then
+if [ $LIST_EXIT -eq 0 ] && [ -n "$MR_URL" ]; then
   echo "==> [post-commit] MR already open: $MR_URL"
 else
-  echo "==> [post-commit] Opening MR..."
+  # Every other outcome — no MR, only merged/closed ones, or the lookup failing — opens one.
+  # A duplicate MR is visible and cheap; a false "already open" is neither.
+  echo "==> [post-commit] No open MR for $BRANCH. Opening one..."
   glab mr create --target-branch main --fill --yes
 fi

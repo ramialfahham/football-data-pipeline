@@ -1,58 +1,66 @@
-# Review — chore/handover-after-22-23-24 — 2026-08-07
+# Review — fix/29-post-commit-mr-state — 2026-08-07
 
-diff_sha256: 14cac76a5f85c5ad63d83517b15c3165426cb8e5a65931637b67f6d63fea5f4b
+diff_sha256: 77505807b41b8277dd9e14fbe001eaa31f4c788a1266e062603186e4fb67d679
 
-rounds: 4
-
-rounds_cap_override: >
-  Round 4 exists because the CPO issued THREE new rulings at the end of the session, after round 3
-  had passed: the AI-collaboration audit stream is NOT finished and is to be completed in a new
-  chat BEFORE cost; the 2026-08-06 measurement stop is LIFTED for the cost work; and filing to the
-  tracker is standing practice rather than something to ask about. A ruling about what to do next
-  that does not reach the handover does not reach the next session, which is the continuity failure
-  this repo keeps having — so the rulings were logged and `NEXT` rewritten rather than deferred.
-  That changed `contract.md`, which is hashed, so the prior verdict no longer bound. Authority:
-  `.claude/task/escalations.log`, blocks `⭐ CPO RULING: TWO STREAMS, AND THEIR ORDER`,
-  `⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED` and `⭐ CPO CORRECTION: FILING TO THE TRACKER IS
-  STANDING PRACTICE`.
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAILed because GitLab **#27 was absent entirely** from the handover while `done_when`
-  required it and `decisions_taken` claimed no open decision had been removed. It had been cut
-  while trimming to the 16,000-character cap — the exact risk the criterion existed to catch.
-  Round 3 confirms #27 is present at `active_work.md:39` and marked as the CPO's.
-- Round 2 FAILed because the `⚠ #2 IS LIVE` cost-incident block was scope growth beyond the
-  contract's objective, with `amendments:` reading `(none)` and no `escalations.log` entry.
-  Round 3 confirms the amendment now cites a locatable entry, added in the SAME diff, carrying the
-  CPO's verbatim question, the evidenced answer and his instruction.
-- The amendment's bounds match the log entry's bounds exactly: it RECORDS the incident, explicitly
-  disclaims fixing #2 or touching `data_paths`, and defers deciding what to do to the next task.
-- The compression that paid for #27 removed only spent content: the #14-#18 issue TITLES now point
-  at `glab issue list`, which is this file's own stated policy, and the ingest and cost prose was
-  tightened with the same facts intact — pacing numbers, the four fixes' gaps, the #892 and
-  quota-claim traps, and the measured 08-03 breakdown all still present.
-- The retired instruction: `active_work.md:124` now states the artifact gate takes no `--base`,
-  `GOVERNANCE_BASE` is named as the only override, and `--base` appears exactly once, in the
-  instruction NOT to use it. Matches what !15 shipped.
-- `decisions_taken` now discloses that its own "no live state removed" claim was FALSE in round 1
-  rather than silently reading as though it had always been true.
-- Scope: no `scope_paths` entry was added; `.claude/active_work.md` and `escalations.log` were both
-  already listed, consistent with the amendment's "NO PATH IS ADDED".
+- Scope: diffed file list (`.claude/task/contract.md`, `.githooks/post-commit`,
+  `tests/test_post_commit_hook.py`) against `scope_paths` in contract.md. Exact match, nothing
+  touched outside it.
+- `protected_override` necessity: read `PROTECTED_PREFIXES`/`PROTECTED_FILES` in
+  `.claude/hooks/task_contract_gate.py:66-78` directly rather than accepting the contract's claim.
+  `.githooks/` is absent. No override needed.
+- `decisions_reserved` on `.githooks/**` joining the PROTECTED set: confirmed the diff makes zero
+  edits to `task_contract_gate.py` or any protected-set definition, so the §10 question is
+  genuinely left open rather than decided in code under cover of the hook fix.
+- The "first test in this suite to shell out to bash" claim, which the NEW MECHANISM declaration
+  rests on: traced `run_hook()` in `tests/test_governance_hooks.py:73-80` (it invokes
+  `sys.executable`, not bash; its `bash_event()` helper only builds a JSON event payload and never
+  shells out) and grepped all of `tests/` for any bash subprocess invocation. Only the new file
+  does it. The claim is true and the classification is declared, not smuggled.
+- Threshold declarations against the actual diff: the call structure is a like-for-like swap
+  (`mr view` to `mr list`), same one-lookup-plus-conditional-create shape. No new external
+  surface, no schedule, no service, so NEW MECHANISM and RECURRING COST read correctly as NO.
+- The guard-invariant claim that every failure path now falls to CREATE: read the final hook
+  logic and confirmed no input returns a false "already open".
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Fail-open trace across all four paths of the new conditional (`.githooks/post-commit:26-36`):
+  success with a URL prints "already open"; success with empty output falls through and opens;
+  a non-zero exit short-circuits `[ $LIST_EXIT -eq 0 ]` regardless of `$MR_URL` content and opens;
+  `glab` missing from PATH gives exit 127 and opens. Every failure mode routes to CREATE, never to
+  a false "already open". Matches the contract's claim.
+- Shell correctness: `LIST_EXIT=$?` is read immediately after the `MR_URL=$(...)` assignment, the
+  same idiom the old code used; `"$BRANCH"` is quoted; `// empty` is a correct jq null-coalesce for
+  the array-may-be-empty case. No defect found.
+- Regression validity of `test_merged_mr_is_not_treated_as_open`: manually traced BOTH hooks
+  against the `merged_only` stub payload. The old hook calls `mr view`, gets exit 0 and a non-empty
+  URL, prints "already open" and never calls create, so the assertion goes red. A real
+  discriminator, not decoration. The other four scenarios trace as already-correct under both old
+  and new code and are non-regressing coverage, which is what the file's docstring claims.
+- CRLF on `.githooks/post-commit`: 36 CRLF-terminated lines in the working tree, but zero `\r` in
+  the git-diff output covering the identical hunk, and `.git/config` has `autocrlf = true` with no
+  `.gitattributes`. The committed blob is LF-only and the CRLF is local Windows checkout noise.
+  CI's `test:python` runs `image: python:3.11` (Linux, no autocrlf) and executes the LF blob.
+- The bash skip is not a hole: CI's `test:python` uses the full `python:3.11` Debian image, not
+  `-slim` or `-alpine`, so `/bin/bash` is present, `shutil.which("bash")` resolves and the skip
+  never fires in the pipeline that matters.
+- Duplicated enforcement: grepped the repo for `glab mr` / `mr view` / `mr list` / `post-commit`
+  outside the three changed files. `.claude/hooks/git_discipline.py` and `git_workflow.py` carry
+  MR text only as human-facing reminder strings; neither executes an is-this-MR-open predicate.
+  No second implementation exists in `.gitlab-ci.yml` or `scripts/` to fall out of sync.
+- Dependency hygiene, credentials, build health and hosting: not applicable. No
+  `*requirements*.txt` or `package*.json` change, no credential pattern (the `OPEN_URL` constant is
+  a non-secret GitLab URL used only as a fixture), no site/build/CI-config surface touched.
+- Coverage gaps, noted and not fail-worthy: the stub does not assert that the hook passes
+  `--source-branch "$BRANCH"`, which is deliberate per the docstring (it tests the MR-state
+  OUTCOME, not which CLI call produced it). The pre-existing `git push` failure path
+  (`PUSH_EXIT -ne 0`) remains untested, but it is untouched by this diff.
 
 ## escalations
-- question: Mid-task the CPO asked whether the warehouse had been rebuilt again. It had: merging
-  !15 fired `data:build:main` because `data_paths` includes `.gitlab-ci.yml` and
-  `scripts/check_*.py`, both touched by !15 for a comment and a governance script. Does a live cost
-  incident belong in a bookkeeping handover task, or in the next one?
-  CPO ANSWER: "Finish the handover but we must tackle the cost topic instantly" (conversation,
-  2026-08-07). Recorded in `escalations.log` under `⭐ CPO ESCALATION AND INSTRUCTION: THE COST
-  INCIDENT GOES IN THE HANDOVER`. The handover RECORDS it; fixing #2 is the next task.
-
-## Note on the class this branch failed twice
-`scope-auditor` FAILed rounds 1 and 2 on two different defects that share a root: content changed
-without the contract keeping up. The second was the FIFTH instance in this session of a widening
-whose authority was not logged. The four prior fixes each added the one missing entry and none
-changed the behaviour; this is the first where the `escalations.log` entry and the contract
-amendment were written as a SINGLE action, which is the class fix rather than a fifth instance fix.
+(none)

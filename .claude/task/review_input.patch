@@ -1,384 +1,460 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d67d19c..7a1fc1c 100644
+index 7a1fc1c..b190c88 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,211 +1,120 @@
--# Task contract — #22 + #23 + #24: three facts the August migration broke
-+# Task contract — handover after !15: five issues closed, four filed, one trap retired
+@@ -1,36 +1,43 @@
+-# Task contract — handover after !15: five issues closed, four filed, one trap retired
++# Task contract — #29: the post-commit hook must check whether the MR is OPEN, not whether one exists
  
--> Branch `fix/22-23-24-migration-residue` from `main` (`930fe26`). TWO protected paths
--> (`.claude/agents/platform-reviewer.md`, `.gitlab-ci.yml`), so `protected_override` AND a
--> non-placeholder `impact_map` are both required and both present. Both are GUARD paths, so
--> `cto-reviewer` and `platform-reviewer` are required at the **opus** floor. No `site_v2/src/`
--> path, so no `acceptance_criteria`.
-+> Branch `chore/handover-after-22-23-24` from `main` (`0394e52`). Bookkeeping. No protected path,
-+> so no `protected_override`. Nothing on the structural surface, so no `impact_map`. No
-+> `site_v2/src/` path, so no `acceptance_criteria`. A commit touching `contract.md` is NEVER
-+> artifact-exempt, so this still takes a scope audit.
+-> Branch `chore/handover-after-22-23-24` from `main` (`0394e52`). Bookkeeping. No protected path,
+-> so no `protected_override`. Nothing on the structural surface, so no `impact_map`. No
+-> `site_v2/src/` path, so no `acceptance_criteria`. A commit touching `contract.md` is NEVER
+-> artifact-exempt, so this still takes a scope audit.
++> Branch `fix/29-post-commit-mr-state` from `main` (`c5d6088`). Neither scope path is PROTECTED
++> (`.githooks/` is absent from `PROTECTED_PREFIXES`, `task_contract_gate.py:66`) and neither is on
++> the structural surface, so no `protected_override` and no `impact_map`. No `site_v2/src/` path,
++> so no `acceptance_criteria`. A commit touching `contract.md` is NEVER artifact-exempt, so this
++> still takes a scope audit.
  
  objective: >
--  Correct three statements that stopped being true at the 2026-08 GitHub-to-GitLab migration and
--  that nothing reconciles against reality.
+-  Bring `.claude/active_work.md` back to current state after !12, !13, !14 and !15 merged, and
+-  retire one instruction in it that is now actively wrong.
 -
--  #22 — `.claude/agents/platform-reviewer.md` states that reviewer's territory and omits
--  `.gitlab-ci.yml`. Routing DOES give platform that file, and line 31 of the same brief lists it.
--  The migration updated the model-tier blockquote and missed the sentence six lines above. The
--  brief is the prompt that reviewer reads, so a CI-config diff can reach a reviewer whose own
--  remit statement excludes it.
+-  WHAT IS STALE. It says main is green at `9987184` (now `0394e52`); its merge list stops at !12;
+-  it says "#1 is DONE, #19 IS NEXT" when both are done and closed; its test count is 645 (now 648);
+-  and it knows nothing of #25 through #28.
 -
--  #23 — `.gitlab-ci.yml` says above `build:site-v2` that the live Pages URL keeps serving the MVP
--  "until the parity cutover (#377)". That product was RETIRED 2026-07-21; there is no cutover; and
--  #377 points at the GitHub tracker, which is unreachable. COMMENT LINES ONLY.
+-  THE ONE THAT MATTERS. Its REVIEW MECHANICS section carries a trap I added yesterday:
+-  "⚠ LOCALLY THE ARTIFACT GATE NEEDS `--base gitlab/main`". That was true when written and !15
+-  fixed it — `check_task_artifacts.py` now resolves the live remote by itself. Leaving it would
+-  teach every future session to work around a defect that no longer exists, which is the same
+-  add-and-never-retire pattern the audit found in three other media. Retiring it also pays for the
+-  additions, since the file has 76 characters of headroom.
 -
--  #24 — the governance base is spelled `origin/main` in six places. `origin` is the GitHub remote,
--  which is DORMANT, and `gitlab` is live. Running `check_task_artifacts.py` locally with no
--  `--base` therefore diffs against a stale tree and FALSE-FAILS, naming reviewers that are not
--  required. Reproduced on this branch before any edit, with zero commits on it:
--    check_task_artifacts: FAIL
--      - review.md diff_sha256 does not match this PR's code+contract diff ...
--      - required reviewer `bi-analyst-reviewer` has no verdict section
--      - required reviewer `cto-reviewer` has no verdict section
--      - required reviewer `data-engineer-reviewer` has no verdict section
--      - required reviewer `platform-reviewer` has no verdict section
--  None of those four is required for an empty diff.
--
--  MEASURED, because two earlier characterisations of this were wrong and the CPO corrected them:
--  `origin/main` is `1f459a3` (2026-08-03), `gitlab/main` is `930fe26` (2026-08-07), and the gap is
--  **27 commits spanning 2026-08-06 to 08-07**. Four days and this week's work, NOT months, and NOT
--  a pre-migration snapshot. GitLab issue #24's own text carried the wrong claim and has been
--  corrected on the issue.
--
--  ⚠ GITHUB IS DORMANT, NOT RETIRED, and this contract is written to keep it that way. The CPO's
--  standing position is that the repo is KEPT and how it is used is decided when account access
--  returns. So: nothing here is worded as retirement; `.github/workflows/` is NOT touched (its
--  `origin/main` is CORRECT inside GitHub Actions, and !9 ruled the tree stays unedited so
--  re-activating is a decision rather than a reconstruction); and the fix is a reversible RUNTIME
--  PREFERENCE, overridable by the `GOVERNANCE_BASE` environment variable that already exists.
-+  Bring `.claude/active_work.md` back to current state after !12, !13, !14 and !15 merged, and
-+  retire one instruction in it that is now actively wrong.
+-  ⚠ GITHUB IS DORMANT, NOT RETIRED. The replacement wording keeps that distinction rather than
+-  implying `origin` is gone.
++  Make `.githooks/post-commit` open a merge request when the branch has no OPEN one, instead of
++  reporting success because some MR exists.
 +
-+  WHAT IS STALE. It says main is green at `9987184` (now `0394e52`); its merge list stops at !12;
-+  it says "#1 is DONE, #19 IS NEXT" when both are done and closed; its test count is 645 (now 648);
-+  and it knows nothing of #25 through #28.
++  THE DEFECT. The hook resolves an MR for the branch and prints "MR already open" whenever it
++  finds one, never checking its state. On 2026-08-07 it printed `MR already open: !16` while !16
++  was `state: merged`. Two commits carrying three CPO rulings then sat on the branch with no MR,
++  and `main` kept a handover the CPO had already corrected. It was caught by a CI timestamp
++  reading as older than the commits, which is luck, not a check.
 +
-+  THE ONE THAT MATTERS. Its REVIEW MECHANICS section carries a trap I added yesterday:
-+  "⚠ LOCALLY THE ARTIFACT GATE NEEDS `--base gitlab/main`". That was true when written and !15
-+  fixed it — `check_task_artifacts.py` now resolves the live remote by itself. Leaving it would
-+  teach every future session to work around a defect that no longer exists, which is the same
-+  add-and-never-retire pattern the audit found in three other media. Retiring it also pays for the
-+  additions, since the file has 76 characters of headroom.
++  WHY IT IS WORSE THAN "NO MR OPENS". The hook exists so that working agreement §3 ("the task is
++  not done until you open the MR") cannot be forgotten. A hook that reports a URL when nothing is
++  open makes the builder believe step 4 is done and stop looking. That is the fail-open class the
++  collaboration audit collected, not a missing feature.
 +
-+  ⚠ GITHUB IS DORMANT, NOT RETIRED. The replacement wording keeps that distinction rather than
-+  implying `origin` is gone.
++  WHY THE MECHANISM DIFFERS FROM THE ONE #29 PROPOSED. #29 suggested checking `.state` on
++  `glab mr view`. Measured against the live project first: `glab mr view <branch>` cannot answer
++  at all when a branch carries more than one MR (exit 1, and a JSON error object written to
++  STDOUT, not stderr, so `2>/dev/null` does not suppress it and a `-n` test passes on a failure).
++  That is not hypothetical — `chore/handover-after-22-23-24` is in that state right now.
++  `glab mr list --source-branch` DEFAULTS to open MRs, returns `[]` with exit 0 when there are
++  none, and is unaffected by how many merged MRs the branch carries. It answers the question
++  directly rather than inferring it. The CPO approved the deviation at plan time.
  
  refs: >
--  GitLab issues #22, #23, #24. Plan approved in plan mode 2026-08-07
--  (`~/.claude/plans/splendid-tickling-bumblebee.md`), then WIDENED with CPO approval (see
--  `amendments`). Filed from this task and deliberately not fixed in it: #27 (`.claude/skills/**`
--  carries shell but is neither protected nor routed, unlike `.claude/commands/**`).
-+  Follows !12 (#1), !13 (handover), !14 (#19) and !15 (#22/#23/#24), all merged 2026-08-07.
-+  Issues CLOSED on the CPO's instruction *"merged, close #1 and #19 and update the handover"*:
-+  #1, #19, and — on the same rule, their fix having merged in !15 — #22, #23, #24. Issues FILED
-+  and still open: #25, #26, #27, #28.
+-  Follows !12 (#1), !13 (handover), !14 (#19) and !15 (#22/#23/#24), all merged 2026-08-07.
+-  Issues CLOSED on the CPO's instruction *"merged, close #1 and #19 and update the handover"*:
+-  #1, #19, and — on the same rule, their fix having merged in !15 — #22, #23, #24. Issues FILED
+-  and still open: #25, #26, #27, #28.
++  GitLab #29. First item of the AI-collaboration audit stream (handover `NEXT` step 1, CPO ruling
++  2026-08-07). Order confirmed by the CPO this session: #29, then #25, then #21 brought as a
++  recipe. Cost is a SEPARATE stream and is explicitly out of this session.
  
  scope_paths:
--  - .claude/agents/platform-reviewer.md
--  - .gitlab-ci.yml
--  - CLAUDE.md
--  - scripts/check_task_artifacts.py
--  - .claude/skills/validate-local/SKILL.md
--  - .claude/skills/onboard-competition/SKILL.md
--  - tests/test_governance_hooks.py
--  - tests/test_governance_doc_parity.py
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - .githooks/post-commit
++  - tests/test_post_commit_hook.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/escalations.log
- 
--protected_override: >
--  AUTHORITY: `.claude/task/escalations.log`, the `2026-08-07 fix/22-23-24-migration-residue` entry,
--  block `⭐ CPO RULING: PROTECTED_OVERRIDE for #22 and #23`. It records the CPO instruction verbatim
--  — *"merged, now do #22, #23 and #24 together"* — and cites the two earlier rulings it builds on,
--  at `escalations.log:1186` (#22 ruled into its own task) and `:1203` (#23 likewise).
--
--  ⚠ THIS BLOCK CITED NOTHING AT FIRST, and BOTH `cto-reviewer` and `scope-auditor` FAILed round 1
--  for it. It is the FOURTH instance of that defect in one session (:1156, :1238, :1287 are the
--  others). Each earlier one was fixed by adding an entry, and none changed the habit. The class fix
--  is recorded in the log entry itself: the log entry and the `protected_override` are written in
--  the SAME action, never one after the other.
--
--  THE AUTHORITY IS NARROW AND THIS CONTRACT CLAIMS NO MORE. On `.claude/agents/platform-reviewer.md`
--  it covers ADDING `.gitlab-ci.yml` to one sentence — no hunt item, no model pin, no verdict rule.
--  On `.gitlab-ci.yml` it covers REWRITING ONE COMMENT BLOCK — no job, rule, anchor, script or
--  variable. `git diff .gitlab-ci.yml` showing only `#` lines is an acceptance check in `done_when`,
--  not an intention.
--
--  IT DOES NOT AUTHORISE: any edit to `.github/workflows/` (dormant, and correct as written); any
--  change to the protected list or the routing table (that is #27, filed not fixed); or the
--  `.claude/hooks/stop_gate.py:53` comment, which repeats the same stale spelling on a PROTECTED
--  path and is left alone precisely because this override does not reach it.
--
--impact_map: >
--  Two protected paths, traced as guards rather than as table lineage.
--
--  === .claude/agents/platform-reviewer.md ===
--  fired_by: the orchestrator at review time, for any staged diff matching `platform-reviewer`'s
--    routing rows. Verified against the live table: `scripts/**`, `scripts/export_*.py`, `tests/**`,
--    `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
--    `site_v2/package.json`, `site_v2/package-lock.json`, `site_v2/astro.config.mjs`,
--    `site_v2/tsconfig.json`, `site_v2/firebase.json`, `site_v2/.gitignore`,
--    `site_v2/integrations/**`, `site_v2/scripts/**`.
--  imports: the brief names `docs/roles/platform_reliability.md`, `docs/agent_guardrails.md` and
--    `docs/working_agreement.md` as its Inputs. None is edited here.
--  what_stops_being_enforced_if_wrong: nothing mechanically — a brief is a prompt, it executes
--    nothing. The failure is judgement: a reviewer handed a `.gitlab-ci.yml` diff while its own
--    territory sentence omits that file can treat it as out of remit and pass without working its
--    hunt list. `.gitlab-ci.yml` is the file that decides what CI enforces, so that is the expensive
--    place for a shallow review.
--  downstream_in_code: `tests/test_governance_doc_parity.py` keys a `KNOWN_INCOMPLETE` entry on the
--    EXACT path set in that sentence, paired with `test_known_incomplete_lists_have_not_been_fixed`,
--    which goes RED the moment the prose is corrected. So this edit FORCES that entry's deletion.
--    That is the self-retiring guard from #1 working, and it is why `tests/` is in scope.
--  on_failure: no runtime failure mode. A malformed brief degrades a review; it cannot break a build.
--
--  === .gitlab-ci.yml ===
--  fired_by: every GitLab pipeline. It is the CI definition.
--  what_is_changed: a `#` comment block above `build:site-v2`. Comments are inert to the YAML parser.
--  what_stops_being_enforced_if_wrong: nothing, PROVIDED only comment lines change. The real risk is
--    an accidental edit to an adjacent job, rule, anchor or `id_tokens` block, which is why
--    `done_when` asserts the diff is `#` lines only rather than trusting care.
--  on_failure: a YAML syntax error would fail every job at parse time. Mitigated by the comment-only
--    constraint and by the pipeline itself, which runs on the MR.
--
--  === scripts/check_task_artifacts.py (not protected; traced because it is a GUARD) ===
--  callers, enumerated with `grep -rn` rather than recalled:
--    - `.gitlab-ci.yml:279` — `validate:governance`, passes `--base` EXPLICITLY. UNAFFECTED by a
--      default change, and `origin` is the GitLab project inside CI, so that line stays as it is.
--    - `.claude/skills/validate-local/SKILL.md:71` — local, currently passes the stale base. IN SCOPE.
--    - `.github/workflows/ci-validate.yml:38` — dormant tree. NOT TOUCHED; `origin` is correct there.
--    - `.claude/hooks/stop_gate.py:53` — a comment stating this script is deliberately NOT in the
--      stop gate. It is not a caller. Not touched (protected, and outside the override).
--  blast_radius: the default is consulted ONLY when no `--base` argument and no `GOVERNANCE_BASE`
--    are given, i.e. a bare local run. Every CI invocation passes `--base`, so CI behaviour is
--    byte-for-byte unchanged. Reversible: `GOVERNANCE_BASE` overrides it, and the preference is one
--    function.
--
+@@ -39,82 +46,57 @@ scope_paths:
  decisions_taken: >
    THRESHOLD DECLARATIONS, stated because no gate parses this field.
  
--  NEW MECHANISM — NO. No new hook, job, stage, agent, routing row, skill or dependency. One
--  existing script's DEFAULT becomes computed instead of hardcoded, using `subprocess`, which the
--  file already imports (`:35`).
-+  NEW MECHANISM — NO. Prose edits to one handover file.
+-  NEW MECHANISM — NO. Prose edits to one handover file.
+-
+-  RECURRING COST — NO. Nothing executes. The file shrinks.
++  NEW MECHANISM — NO, with one thing named rather than left implicit. The hook already existed and
++  already decided whether to open an MR; this corrects the predicate it decides on. What IS new is
++  that `tests/test_post_commit_hook.py` is the FIRST test in this suite to shell out to `bash`.
++  That is coverage for existing machinery, not a new guard, and it was declared in the plan and
++  approved by the CPO before any file was touched. Naming it here so `cto-reviewer` rules on the
++  classification rather than discovering it.
  
--  RECURRING COST — NO. Nothing new executes. THREE added unit tests in the existing suite and job
--  (`default_base` preference, the `GOVERNANCE_BASE` override, and the git-unavailable fallback).
--  This said "one" until both reviewers counted; corrected against the diff, not from memory.
-+  RECURRING COST — NO. Nothing executes. The file shrinks.
+-  NEW EXTERNAL SURFACE — NO.
++  RECURRING COST — NO. The hook makes one `glab` API call per commit before and after. The test
++  adds four `bash` subprocess spawns per CI test run, no network (both `git` and `glab` are
++  stubbed), sub-second. No new service, no new infrastructure, no schedule.
  
-   NEW EXTERNAL SURFACE — NO.
+-  GUARD INVARIANT — UNCHANGED. No guard is edited. One INSTRUCTION about a guard is retired
+-  because !15 made it false; the guard itself is not touched and is not in `scope_paths`.
++  NEW EXTERNAL SURFACE — NO. Same CLI, same project, same single call.
  
--  GUARD INVARIANT — CHANGED, DECLARED, AND NARROWED RATHER THAN LOOSENED. `check_task_artifacts.py`
--  is a guard, and its default base changes. It is a NARROWING: today the bare command compares
--  against a 27-commit-stale tree and returns a WRONG answer; after this it compares against the
--  live one. No check is removed, no threshold relaxed, and a test pins the new resolution. The
--  `GOVERNANCE_BASE` escape hatch is unchanged.
-+  GUARD INVARIANT — UNCHANGED. No guard is edited. One INSTRUCTION about a guard is retired
-+  because !15 made it false; the guard itself is not touched and is not in `scope_paths`.
-+
-+  WHAT IS DELETED, stated because deletion is the risk in a capped file: the `--base gitlab/main`
-+  workaround, which !15 made unnecessary; merge/issue lines superseded by their own closure; and
-+  the #14-#18 issue TITLES, which are one `glab issue list` away and which this file's own policy
-+  says belong on the tracker. No open decision, no trap that still holds, and no live state is
-+  removed.
+-  WHAT IS DELETED, stated because deletion is the risk in a capped file: the `--base gitlab/main`
+-  workaround, which !15 made unnecessary; merge/issue lines superseded by their own closure; and
+-  the #14-#18 issue TITLES, which are one `glab issue list` away and which this file's own policy
+-  says belong on the tracker. No open decision, no trap that still holds, and no live state is
+-  removed.
++  GUARD INVARIANT — STRENGTHENED, never loosened. The hook's old predicate returns a confident
++  wrong answer ("already open") on a merged MR. The new one can only be wrong in the direction of
++  attempting `glab mr create` when an MR is in fact open, which fails loudly and visibly. Every
++  failure path — list call errors, empty result, unparseable output — now falls to CREATE. There is
++  no input for which the new code claims an MR is open and none is.
  
--  THE GITHUB POSITION IS NOT CHANGED BY THIS TASK. GitHub stays dormant-not-retired. Nothing here
--  decides its future, and `.github/` is untouched.
-+  ⚠ THAT CLAIM WAS FALSE ONCE ALREADY IN THIS TASK. `scope-auditor` FAILed round 1 because #27 had
-+  been cut entirely while trimming to the cap, while this very field claimed nothing open was lost.
-+  Restored. The claim above is now checked against the file rather than asserted, which is what
-+  `done_when`'s "#25-#28 present" line exists to force.
+-  ⚠ THAT CLAIM WAS FALSE ONCE ALREADY IN THIS TASK. `scope-auditor` FAILed round 1 because #27 had
+-  been cut entirely while trimming to the cap, while this very field claimed nothing open was lost.
+-  Restored. The claim above is now checked against the file rather than asserted, which is what
+-  `done_when`'s "#25-#28 present" line exists to force.
++  WHY A BEHAVIOURAL TEST AND NOT A TEXT ASSERTION. `tests/test_materialisation_policy.py` records
++  the lesson directly: a guard that names its targets in prose is nearly inert, because a reword
++  silently defeats it. This test runs the hook and asserts whether `glab mr create` was reached.
  
  decisions_reserved:
--  - Whether `.claude/skills/**` should be protected and/or routed, given that all four skills carry
--    shell and `.claude/commands/**` is protected for exactly that reason. Filed as #27 and
--    deliberately NOT decided here: it is a rule extension and a recurring cost, two of the CTO's
--    four thresholds. This branch touches no routing row and no protected list.
--  - Whether `.claude/hooks/stop_gate.py:53`'s stale `origin/main` mention should be corrected. It
--    is prose on a PROTECTED path, outside this override's stated reach. Left alone rather than
--    swept in, because widening an override by judgement is the defect #18 describes.
-+  - Whether the 16,000-character cap is the right mechanism. Every session now pays a compression
-+    tax to add a line, and the file has sat above 95% of cap for four sessions. Raised in the
-+    previous handover task and still not decided; it is adjacent to #26 and is the CPO's.
+-  - Whether the 16,000-character cap is the right mechanism. Every session now pays a compression
+-    tax to add a line, and the file has sat above 95% of cap for four sessions. Raised in the
+-    previous handover task and still not decided; it is adjacent to #26 and is the CPO's.
++  - "`.githooks/**` is neither a PROTECTED path nor routed to any reviewer, while
++    `.claude/commands/**` is PROTECTED + routed on the CPO's reasoning (2026-06-14) that anything
++    auto-launching a command is command-class. A git hook auto-launches a command on EVERY commit
++    and pushes to the remote. Whether the protected set should cover it is §10 (the protected set
++    is a guard invariant and a recurring review cost). This is the same finding as GitLab #27
++    (`.claude/skills/**`), so it is going there as a comment rather than being built here or filed
++    twice. NOT decided in this task and NOT in scope."
++  - "Whether pushing new commits to a branch whose MR already MERGED should warn at all. #29 calls
++    this a separate call. It costs an extra API call per commit, which is a cost question. Not
++    done here."
  
  done_when:
--  - "`git diff main -- .gitlab-ci.yml` shows ONLY comment lines. No job, rule, anchor, script or
--    variable is altered."
--  - "The bare `python scripts/check_task_artifacts.py`, with no `--base`, is run BEFORE and AFTER
--    and both outputs pasted. Before: FAIL naming four reviewers that are not required. After: the
--    correct result for the branch."
--  - "The new default-resolution test is made to FAIL against the hardcoded default first, red
--    output pasted, then passes. A passing test proves nothing."
--  - "`test_known_incomplete_lists_have_not_been_fixed` is observed going RED after the #22 fix and
--    BEFORE its entry is removed, pasted as evidence the paired guard fired."
--  - "`git grep -n 'origin/main'` shows the remaining hits are only: `git_discipline.py` (its base
--    fallback tries local `main` FIRST, so it is already correct), `stop_gate.py:53` (out of this
--    override's reach, recorded under `decisions_reserved`), `check_task_artifacts.py` (the new
--    resolver's own GitHub-primary fallback), and records describing the defect.
--    ⚠ `.gitlab-ci.yml` and `.github/workflows/` do NOT appear in that grep, and an earlier draft of
--    this line wrongly predicted they would. They interpolate the branch
--    (`origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}`) rather than writing the literal string.
--    Both are still correct as they stand and neither is touched; the expectation was wrong, not
--    the tree. Corrected after running the sweep rather than before."
--  - "Full suite green at 648 collected: 645 on `main`, plus THREE new tests, and the
--    `KNOWN_INCOMPLETE` parametrisation goes from one case to a skip when the dict empties (net
--    +3). MEASURED with `pytest --collect-only -q`, not predicted. This line said '645 plus the one
--    new test' until the count was actually run — the same #904 class the previous task flagged
--    against itself, repeated here."
--  - "The five offline gates pass."
-+  - "`.claude/active_work.md` is under 16,000 CHARACTERS measured with Python `len()`, and
-+    `handover_in.py` injects it with no truncation notice."
-+  - "No instruction to pass `--base` by hand survives anywhere in the file."
-+  - "main `0394e52`; !12-!15 merged; #1/#19/#22/#23/#24 closed; #25-#28 present with #21, #27 and
-+    #28 marked as the CPO's."
-+  - "The test count is 648, MEASURED with `pytest --collect-only -q`, not predicted. The previous
-+    two contracts each shipped a wrong predicted count."
-+  - "The five offline gates pass, the artifact gate run BARE to exercise !15's fix."
+-  - "`.claude/active_work.md` is under 16,000 CHARACTERS measured with Python `len()`, and
+-    `handover_in.py` injects it with no truncation notice."
+-  - "No instruction to pass `--base` by hand survives anywhere in the file."
+-  - "main `0394e52`; !12-!15 merged; #1/#19/#22/#23/#24 closed; #25-#28 present with #21, #27 and
+-    #28 marked as the CPO's."
+-  - "The test count is 648, MEASURED with `pytest --collect-only -q`, not predicted. The previous
+-    two contracts each shipped a wrong predicted count."
+-  - "The five offline gates pass, the artifact gate run BARE to exercise !15's fix."
+-
+-amendments: >
+-  ONE amendment, 2026-08-07. NO PATH IS ADDED — `.claude/active_work.md` and `escalations.log` were
+-  already in `scope_paths`. What widens is the OBJECTIVE, from bookkeeping to bookkeeping plus one
+-  live cost incident.
+-
+-  AUTHORITY: `.claude/task/escalations.log`, entry `2026-08-07 chore/handover-after-22-23-24`,
+-  block `⭐ CPO ESCALATION AND INSTRUCTION: THE COST INCIDENT GOES IN THE HANDOVER`. It records the
+-  CPO's question, the evidenced answer, and his instruction verbatim.
+-
+-  WHAT WIDENED. Mid-task the CPO asked whether the warehouse had been rebuilt again. It had:
+-  merging !15 fired `data:build:main` because `data_paths` includes `.gitlab-ci.yml` and
+-  `scripts/check_*.py`, both of which !15 touched for a comment and a governance script. That is
+-  GitLab #2 firing in production. The handover gains a `⚠ #2 IS LIVE` block naming the mechanism
+-  and the file:line.
+-
+-  WHY IT BELONGS HERE RATHER THAN IN THE NEXT TASK. It is CURRENT STATE, which is this file's whole
+-  job, and a session that does not know it will repeat it — !15 was a governance MR and it rebuilt
+-  prod. Leaving it out and fixing it later would mean the next governance MR does the same thing in
+-  the meantime.
+-
+-  BOUNDED: this RECORDS the incident. It does not fix #2, does not touch `data_paths`, and does not
+-  decide what to do about it. That is the next task and is not authorised by this amendment.
+-
+-  ⚠ THE PROCEDURE, not just the content: this entry and this block were written in the SAME action,
+-  which is the class fix recorded at `escalations.log` for the four prior instances. `scope-auditor`
+-  FAILed round 2 because the widening happened before either existed — the fifth instance. It was
+-  right every time, and the count is the point: four fixes that each added one missing entry did not
+-  change the behaviour, and only writing them together does.
+-
+-  SECOND AMENDMENT, 2026-08-07, same procedure: the `escalations.log` blocks and this block were
+-  written together, before the handover edit they authorise. NO PATH IS ADDED.
+-
+-  AUTHORITY: `.claude/task/escalations.log`, same entry, blocks `⭐ CPO RULING: TWO STREAMS, AND
+-  THEIR ORDER`, `⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED` and `⭐ CPO CORRECTION: FILING TO
+-  THE TRACKER IS STANDING PRACTICE`.
+-
+-  WHAT WIDENED. The CPO ruled at the end of the session that the AI-collaboration audit stream is
+-  NOT finished and is to be completed in a new chat BEFORE the cost work, and separately lifted the
+-  2026-08-06 measurement stop for that cost work. The handover's `NEXT` section is rewritten to
+-  carry both, because a ruling about what to do next that does not reach the handover does not
+-  reach the next session — which is the continuity failure this repo keeps having.
+-
+-  BOUNDED: it records the order and the lifted stop. It starts neither stream, runs no measurement
+-  (the CPO stopped the run and deferred it), and decides nothing about cost.
++  - "`tests/test_post_commit_hook.py` FAILS against the unfixed `.githooks/post-commit` and PASSES
++    against the fixed one. BOTH runs pasted — a test that was never seen red is decoration
++    (`feedback_verify_the_test_fails.md`)."
++  - "The test covers four cases driven by payloads measured from the live API, not invented: an
++    OPEN MR (create must NOT run), a branch whose only MR is merged (create MUST run), a branch
++    with no MR at all (create MUST run), and the list call failing (create MUST run)."
++  - "`python -m pytest tests/ -q` is clean and the collected count is MEASURED with
++    `pytest --collect-only -q`, never predicted (#904; three contracts in one day shipped a wrong
++    predicted count)."
++  - "The five offline gates pass, and `check_task_artifacts.py` is run BARE (it resolves the live
++    remote itself since !15; passing `--base` by hand is the retired workaround)."
++  - "LIVE, on this branch's own commits: commit 1 fires the hook with no MR on the branch and must
++    OPEN one; commit 2 fires it with that MR now open and must print `MR already open` with the
++    real URL. Both hook outputs pasted. The merged-MR path stays covered by the TEST, not live,
++    because reproducing it live means pushing to a merged branch — stated rather than claimed as
++    end-to-end."
++
++amendments: (none)
+diff --git a/.githooks/post-commit b/.githooks/post-commit
+index 59b4cc2..b56ea19 100644
+--- a/.githooks/post-commit
++++ b/.githooks/post-commit
+@@ -19,13 +19,18 @@ if [ $PUSH_EXIT -ne 0 ]; then
+ fi
  
- amendments: >
--  ONE amendment, 2026-08-07, taken BEFORE any file was edited, so the tree was clean by
--  construction. SCOPE WIDENED by three paths: `.claude/skills/validate-local/SKILL.md`,
--  `.claude/skills/onboard-competition/SKILL.md`, and (already implied by #22) the two test files.
--
--  WHY. The approved plan named three #24 sites, taken from the issue text. A `git grep` sweep of
--  the whole tree found SIX. The three extra are in `.claude/skills/**`, which is NOT protected, so
--  this widens the task by ordinary text files and adds no protected surface.
--
--  THE WORST OF THEM WAS NOT IN THE ISSUE: `.claude/skills/onboard-competition/SKILL.md:137` runs
--  `git checkout -B feat/onboard-{league} origin/main`, which starts a new competition on a tree 27
--  commits behind. A different symptom of the same root cause, and more damaging than the false-FAIL
--  the issue was filed about.
--
--  AUTHORITY: `.claude/task/escalations.log`, same entry, block `⭐ CPO RULING: SCOPE WIDENED from
--  three sites to six`. It records the finding, the recommendation as put, and the CPO's answer —
--  *"fix all six, and file the skills gap"* — plus the measured 27-commit gap and the
--  dormant-not-retired position. The skills gap is filed as #27. This block, like the override
--  above, cited nothing until both reviewers failed it.
-+  ONE amendment, 2026-08-07. NO PATH IS ADDED — `.claude/active_work.md` and `escalations.log` were
-+  already in `scope_paths`. What widens is the OBJECTIVE, from bookkeeping to bookkeeping plus one
-+  live cost incident.
+ echo ""
+-echo "==> [post-commit] Checking for existing MR..."
+-MR_URL=$(glab mr view "$BRANCH" --output json --jq '.web_url' 2>/dev/null)
+-VIEW_EXIT=$?
++echo "==> [post-commit] Checking for an OPEN MR..."
++# `mr list --source-branch` defaults to OPEN merge requests and returns [] when there are none.
++# `mr view` was wrong twice: it resolves a MERGED MR and reports it as open (GitLab #29), and it
++# cannot resolve a branch carrying more than one MR at all. Ask the question directly.
++MR_URL=$(glab mr list --source-branch "$BRANCH" --output json --jq '.[0].web_url // empty' 2>/dev/null)
++LIST_EXIT=$?
+ 
+-if [ $VIEW_EXIT -eq 0 ] && [ -n "$MR_URL" ]; then
++if [ $LIST_EXIT -eq 0 ] && [ -n "$MR_URL" ]; then
+   echo "==> [post-commit] MR already open: $MR_URL"
+ else
+-  echo "==> [post-commit] Opening MR..."
++  # Every other outcome — no MR, only merged/closed ones, or the lookup failing — opens one.
++  # A duplicate MR is visible and cheap; a false "already open" is neither.
++  echo "==> [post-commit] No open MR for $BRANCH. Opening one..."
+   glab mr create --target-branch main --fill --yes
+ fi
+diff --git a/tests/test_post_commit_hook.py b/tests/test_post_commit_hook.py
+new file mode 100644
+index 0000000..f67591e
+--- /dev/null
++++ b/tests/test_post_commit_hook.py
+@@ -0,0 +1,223 @@
++"""Pin what `.githooks/post-commit` decides: open an MR unless one is already OPEN (GitLab #29).
 +
-+  AUTHORITY: `.claude/task/escalations.log`, entry `2026-08-07 chore/handover-after-22-23-24`,
-+  block `⭐ CPO ESCALATION AND INSTRUCTION: THE COST INCIDENT GOES IN THE HANDOVER`. It records the
-+  CPO's question, the evidenced answer, and his instruction verbatim.
++WHY THIS EXISTS
++---------------
++The hook auto-pushes and opens a merge request so that working agreement section 3 ("the task is
++not done until you open the MR") cannot be forgotten. It asked whether an MR *existed* for the
++branch and never whether it was still *open*. On 2026-08-07 it printed `MR already open: !16`
++while !16 was `state: merged`; two commits carrying three CPO rulings then sat on the branch with
++no MR, and `main` kept a handover the CPO had already corrected. It was noticed because a CI
++timestamp read as older than the commits, which is luck rather than a check.
 +
-+  WHAT WIDENED. Mid-task the CPO asked whether the warehouse had been rebuilt again. It had:
-+  merging !15 fired `data:build:main` because `data_paths` includes `.gitlab-ci.yml` and
-+  `scripts/check_*.py`, both of which !15 touched for a comment and a governance script. That is
-+  GitLab #2 firing in production. The handover gains a `⚠ #2 IS LIVE` block naming the mechanism
-+  and the file:line.
++The failure mode is not "no MR opens". It is "the tooling reports one is open when it is not", so
++the builder reads a URL, believes step 4 is done, and stops looking. Until this file the hook had
++no test of any kind.
 +
-+  WHY IT BELONGS HERE RATHER THAN IN THE NEXT TASK. It is CURRENT STATE, which is this file's whole
-+  job, and a session that does not know it will repeat it — !15 was a governance MR and it rebuilt
-+  prod. Leaving it out and fixing it later would mean the next governance MR does the same thing in
-+  the meantime.
++WHY THE STUB MODELS THE API AND NOT THE IMPLEMENTATION
++------------------------------------------------------
++`tests/test_materialisation_policy.py` records the lesson: a guard that names its targets in prose
++is nearly inert, because a reword defeats it silently. So this does not assert on the hook's text.
++It puts stub `git` and `glab` executables on PATH, runs the hook under bash, and asserts on the
++OUTCOME — was `glab mr create` reached.
 +
-+  BOUNDED: this RECORDS the incident. It does not fix #2, does not touch `data_paths`, and does not
-+  decide what to do about it. That is the next task and is not authorised by this amendment.
++The stub answers whichever lookup the hook chooses to make, `mr view` or `mr list`, with what the
++REAL `glab` returns for that scenario. That is deliberate: the test states a requirement about the
++branch's MR state, not about which CLI call satisfies it, so a future reimplementation that asks
++correctly by some third route still passes.
 +
-+  ⚠ THE PROCEDURE, not just the content: this entry and this block were written in the SAME action,
-+  which is the class fix recorded at `escalations.log` for the four prior instances. `scope-auditor`
-+  FAILed round 2 because the widening happened before either existed — the fifth instance. It was
-+  right every time, and the count is the point: four fixes that each added one missing entry did not
-+  change the behaviour, and only writing them together does.
++MEASURED, against the live project on 2026-08-07, not invented. Each cell is post-`--jq` stdout
++and the process exit code:
 +
-+  SECOND AMENDMENT, 2026-08-07, same procedure: the `escalations.log` blocks and this block were
-+  written together, before the handover edit they authorise. NO PATH IS ADDED.
++  scenario                     `mr view <branch> --jq .web_url`   `mr list -s <branch> --jq .[0].web_url // empty`
++  only a MERGED MR             exit 0, the real URL   <-- trap    exit 0, empty
++  two MRs, both merged         exit 1, JSON error on STDOUT       exit 0, empty
++  no MR at all                 exit 1, JSON error on STDOUT       exit 0, empty
++  an OPEN MR                   exit 0, the real URL               exit 0, the real URL
 +
-+  AUTHORITY: `.claude/task/escalations.log`, same entry, blocks `⭐ CPO RULING: TWO STREAMS, AND
-+  THEIR ORDER`, `⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED` and `⭐ CPO CORRECTION: FILING TO
-+  THE TRACKER IS STANDING PRACTICE`.
++Note the second column's error object goes to STDOUT, so a `2>/dev/null` redirect does not hide it
++and a `-n "$OUT"` test passes on a failure. Only the exit code separated those rows.
 +
-+  WHAT WIDENED. The CPO ruled at the end of the session that the AI-collaboration audit stream is
-+  NOT finished and is to be completed in a new chat BEFORE the cost work, and separately lifted the
-+  2026-08-06 measurement stop for that cost work. The handover's `NEXT` section is rewritten to
-+  carry both, because a ruling about what to do next that does not reach the handover does not
-+  reach the next session — which is the continuity failure this repo keeps having.
++WHICH CASE ACTUALLY DISCRIMINATES
++---------------------------------
++`test_merged_mr_is_not_treated_as_open` is the one that goes RED against the pre-#29 hook. The
++others were already correct and are here so they stay correct; `test_main_branch_is_skipped_
++entirely` pins the most expensive possible regression, a hook that pushes main.
 +
-+  BOUNDED: it records the order and the lifted stop. It starts neither stream, runs no measurement
-+  (the CPO stopped the run and deferred it), and decides nothing about cost.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index e8fb1a3..0a50f83 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -1340,3 +1340,69 @@ one act, and treating them as two is what produced four failures.
-   pre-migration snapshot. **GitHub is DORMANT, NOT RETIRED** — the repo is kept and how it is used
-   is decided when access returns. Nothing in this task forecloses that: `.github/` is untouched,
-   the resolver's fallback stays `origin/main`, and `GOVERNANCE_BASE` still overrides everything.
++`bash` is required. It is present in CI (`.gitlab-ci.yml` runs `python -m pytest tests/ -v` on
++Linux), so the skip below never fires there.
++"""
 +
-+2026-08-07 chore/handover-after-22-23-24 — handover bookkeeping, plus ONE scope addition recorded
-+here BEFORE the contract amendment that cites it. Fifth instance of the unlogged-authority class,
-+and the first where the log entry and the amendment were written as one action rather than one
-+after the other. `scope-auditor` FAILed round 2 to get here; it was right, as it was the other four
-+times.
++from __future__ import annotations
 +
-+- (⭐ CPO ESCALATION AND INSTRUCTION: THE COST INCIDENT GOES IN THE HANDOVER) Mid-task the CPO
-+  asked *"did we rebuild the entire warehouse again?"*. Investigated and answered with evidence:
-+  YES, once. Merging **!15** fired `data:build:main`, a full prod warehouse rebuild, because
-+  `data_paths` (`.gitlab-ci.yml:230`) includes BOTH `.gitlab-ci.yml` and `scripts/check_*.py` —
-+  and !15 changed a COMMENT in the former and `check_task_artifacts.py` in the latter. Neither
-+  touches a data model. Verified the other four merges (!11-!14) did NOT trigger it. This is
-+  GitLab **#2** ("CI-config-only changes trigger a full prod warehouse build") firing in
-+  production.
++import os
++import pathlib
++import shutil
++import subprocess
 +
-+  CPO RESPONSE (conversation, 2026-08-07), verbatim: *"Finish the handover but we must tackle the
-+  cost topic instantly. We are in a bad situation. I've brought up the cost issue a thousand times,
-+  nothing has ever been done about it, and now I see this."*
++import pytest
 +
-+  EFFECT ON THIS TASK, which is why it is logged rather than absorbed: the contract's objective was
-+  bookkeeping, and a live cost incident is not bookkeeping. The handover gains a
-+  `⚠ #2 IS LIVE AND IT FIRED ON 2026-08-07` block naming the mechanism and `.gitlab-ci.yml:230`,
-+  because a session that does not know this will repeat it — !15 was a governance MR and it rebuilt
-+  prod. Recorded, not decided: what to DO about #2 is the next task and is not authorised here.
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++HOOK = ROOT / ".githooks" / "post-commit"
 +
-+- (⚠ STANDING INSTRUCTION RESTATED, because it constrained this task) The CPO instructed on
-+  2026-08-06: *"stop don't measure anything. last time you measured, github susended my account"*.
-+  No cost figure in this task is newly measured; the incident above is argued from what the CI
-+  rules DO (`changes: *data_paths` versus the files in the diff) and from which jobs appeared in
-+  which pipeline, not from bytes or dollars. The tension between that instruction and "tackle cost
-+  instantly" was put to the CPO plainly rather than resolved by the builder. **It was then lifted
-+  — see the next block.**
++BASH = shutil.which("bash")
 +
-+- (⭐ CPO RULING: TWO STREAMS, AND THEIR ORDER) The CPO corrected a conflation the builder had made.
-+  They are SEPARATE bodies of work and must not be mixed again:
++pytestmark = pytest.mark.skipif(BASH is None, reason="post-commit is a bash hook and bash is absent")
 +
-+  **STREAM 1 — the AI-collaboration audit.** Its purpose, in his words: the recommendations came
-+  from Anthropic on how best to work with Claude Code, and the audit existed *"to align us as
-+  closely as possible with best practices"*. The derived tasks are the work. **NOT FINISHED.**
-+  Open: **#5** (the audit's TOP-RANKED finding, Confirm is unenforced), #14, #18, #20, #25, #26,
-+  #28, plus four that are the CPO's alone: #15, #16, #21, #27. Closed: #1, #6-#13, #19, #22-#24.
-+  (#17, three dead i18n keys, came out of the sweep but is ordinary dead code, not alignment.)
++OPEN_URL = "https://gitlab.com/rami.al-fahham/football-data-pipeline/-/merge_requests/99"
 +
-+  **STREAM 2 — cost.** Urgent, and to be done **SYSTEMATICALLY across the whole pipeline INCLUDING
-+  CI/CD — what gets triggered, when, and where** — explicitly NOT ad hoc, one fix at a time as they
-+  are tripped over. The builder proposed narrowing `data_paths` and the CPO challenged it: *"Is
-+  this a well-researched and well-designed plan... Or are you quickly suggesting something ad-hoc
-+  because I'm annoyed?"* It was ad hoc. Checked against the recovered figures in GitLab #3, it
-+  ranks roughly FOURTH by size; the largest live item is that **staging is still a view, so tests
-+  re-scan raw** (one test at $0.30/day), which is the same defect fixed one layer down for base
-+  models on 2026-08-02.
++# The JSON error object glab writes to STDOUT when it cannot resolve a single MR for a branch.
++VIEW_ERROR = '{"error":{"message":"no open merge request available for \\"x\\""}}'
 +
-+  CPO RULING (conversation, 2026-08-07): **finish STREAM 1 first, in a new chat. Cost comes after.**
++# scenario -> (mr view stdout, mr view exit, mr list stdout, mr list exit)
++SCENARIOS = {
++    "merged_only": (OPEN_URL, 0, "", 0),
++    "two_merged": (VIEW_ERROR, 1, "", 0),
++    "no_mr": (VIEW_ERROR, 1, "", 0),
++    "open_mr": (OPEN_URL, 0, OPEN_URL, 0),
++    "lookup_fails": ("", 1, "", 1),
++}
 +
-+- (⭐ CPO RULING: THE MEASUREMENT STOP IS LIFTED, for the cost work) Asked what was needed, in plain
-+  words, to do cost properly. Answer given: permission to run `scripts/report_bq_cost.py`, which
-+  reads Google's billing metadata inside the GCP project, runs no query on the data, costs nothing,
-+  and never touches GitHub. CPO ANSWER (conversation, 2026-08-07): **"do it"**. The 2026-08-06 stop
-+  is therefore SUPERSEDED for the cost work. It was NOT exercised in this session: the CPO stopped
-+  the run and deferred it to the cost task, so the first measurement belongs there.
++GIT_STUB = """#!/bin/sh
++if [ "$1" = "rev-parse" ]; then
++  printf '%s\\n' "$STUB_BRANCH"
++  exit 0
++fi
++if [ "$1" = "push" ]; then
++  printf 'push %s\\n' "$*" > "$STUB_DIR/git_push_called"
++  exit 0
++fi
++exit 0
++"""
 +
-+- (⭐ CPO CORRECTION: FILING TO THE TRACKER IS STANDING PRACTICE, NOT A QUESTION) The builder asked
-+  where the cost map should live. CPO: *"That should be standard procedure without me reminding you
-+  of it."* A GitLab issue, never a planning document. Asking spent his attention on something the
-+  existing rule already settles.
++# Reproduces glab's post---jq stdout and exit code. It does NOT evaluate the jq expression: the
++# hook only ever asks for the web_url, and no jq binary exists on this machine to evaluate one.
++GLAB_STUB = """#!/bin/sh
++if [ "$1" = "mr" ] && [ "$2" = "create" ]; then
++  printf 'create %s\\n' "$*" > "$STUB_DIR/mr_create_called"
++  exit 0
++fi
++if [ "$1" = "mr" ] && [ "$2" = "view" ]; then
++  cat "$STUB_DIR/view_stdout"
++  exit "$(cat "$STUB_DIR/view_exit")"
++fi
++if [ "$1" = "mr" ] && [ "$2" = "list" ]; then
++  cat "$STUB_DIR/list_stdout"
++  exit "$(cat "$STUB_DIR/list_exit")"
++fi
++exit 0
++"""
++
++
++def _write(path: pathlib.Path, text: str) -> None:
++    """Write with LF endings. CRLF in a stub makes bash report `\\r: command not found`."""
++    path.write_text(text, encoding="utf-8", newline="\n")
++    path.chmod(0o755)
++
++
++class HookRun:
++    def __init__(self, proc: subprocess.CompletedProcess, stub: pathlib.Path):
++        self.proc = proc
++        self.stub = stub
++
++    @property
++    def stdout(self) -> str:
++        return self.proc.stdout
++
++    @property
++    def created_mr(self) -> bool:
++        return (self.stub / "mr_create_called").exists()
++
++    @property
++    def pushed(self) -> bool:
++        return (self.stub / "git_push_called").exists()
++
++
++def _run_hook(tmp_path: pathlib.Path, scenario: str, branch: str = "feat/example") -> HookRun:
++    view_out, view_exit, list_out, list_exit = SCENARIOS[scenario]
++
++    stub = tmp_path / "stub"
++    stub.mkdir()
++    _write(stub / "git", GIT_STUB)
++    _write(stub / "glab", GLAB_STUB)
++    for name, value in (
++        ("view_stdout", view_out),
++        ("view_exit", str(view_exit)),
++        ("list_stdout", list_out),
++        ("list_exit", str(list_exit)),
++    ):
++        (stub / name).write_text(value, encoding="utf-8", newline="\n")
++
++    env = dict(os.environ)
++    env["PATH"] = str(stub) + os.pathsep + env["PATH"]
++    # POSIX form: a backslash in a Windows path is an escape character to sh.
++    env["STUB_DIR"] = stub.as_posix()
++    env["STUB_BRANCH"] = branch
++
++    proc = subprocess.run(
++        [BASH, HOOK.as_posix()],
++        env=env,
++        cwd=str(tmp_path),
++        capture_output=True,
++        text=True,
++        timeout=60,
++    )
++    return HookRun(proc, stub)
++
++
++def test_merged_mr_is_not_treated_as_open(tmp_path):
++    """GitLab #29 itself. The branch's only MR is merged, so the hook must open a new one.
++
++    This is the case that goes RED against the pre-#29 hook, which printed the merged MR's URL
++    under `MR already open` and opened nothing.
++    """
++    run = _run_hook(tmp_path, "merged_only")
++
++    assert run.created_mr, (
++        "the branch's only MR is MERGED, so the hook must open a new one. stdout:\n" + run.stdout
++    )
++    assert "already open" not in run.stdout.lower(), (
++        "the hook reported an MR as open when none is. stdout:\n" + run.stdout
++    )
++
++
++def test_open_mr_is_left_alone(tmp_path):
++    """The whole point of the check: do not open a second MR when one is already open."""
++    run = _run_hook(tmp_path, "open_mr")
++
++    assert not run.created_mr, "an MR is already open; the hook must not open another"
++    assert OPEN_URL in run.stdout, "the open MR's URL must be reported. stdout:\n" + run.stdout
++
++
++def test_branch_with_no_mr_gets_one(tmp_path):
++    run = _run_hook(tmp_path, "no_mr")
++    assert run.created_mr, "no MR exists for the branch; the hook must open one"
++
++
++def test_two_merged_mrs_still_opens_one(tmp_path):
++    """`glab mr view` cannot resolve a branch carrying more than one MR and errors instead.
++
++    Real state of `chore/handover-after-22-23-24` when #29 was written. Whatever the lookup does,
++    none of those MRs is open, so the hook must open one.
++    """
++    run = _run_hook(tmp_path, "two_merged")
++    assert run.created_mr, "no OPEN MR exists among the branch's MRs; the hook must open one"
++
++
++def test_lookup_failure_opens_rather_than_claiming_open(tmp_path):
++    """Fail toward opening. A duplicate MR is visible and cheap; a false 'already open' is neither."""
++    run = _run_hook(tmp_path, "lookup_fails")
++
++    assert run.created_mr, "the lookup failed, so the hook must not conclude an MR is open"
++    assert "already open" not in run.stdout.lower(), (
++        "a failed lookup must never be reported as an open MR. stdout:\n" + run.stdout
++    )
++
++
++@pytest.mark.parametrize("branch", ["main", "master"])
++def test_main_branch_is_skipped_entirely(tmp_path, branch):
++    """The most expensive regression this file can catch: a hook that pushes main."""
++    run = _run_hook(tmp_path, "no_mr", branch=branch)
++
++    assert not run.pushed, f"the hook must never push {branch}"
++    assert not run.created_mr, f"the hook must never open an MR from {branch}"
++    assert run.proc.returncode == 0
