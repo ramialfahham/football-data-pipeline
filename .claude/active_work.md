@@ -5,22 +5,45 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-06**. main GREEN at **bd63ada**. The product is **Matchday Pilot**.
-**The repo is on GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — its
-Actions run nothing and its 114 issues are unreachable; `.github/workflows/README.md` says so at
-the tree, and says what re-arms it. Merged today: **!6** (web dispatch must not auto-start a prod
-build), **!7** (`4844c32`, the copy gate's 16 findings cleared), **!8** (`b1cd6fe`, six unwired
-guards connected), **!9** (`111ad47`, GitHub tree marked dormant + operational notes moved).
+_Last updated **2026-08-07**. main GREEN at **9987184**. **NOTHING IN FLIGHT — no open MRs.**
+The product is **Matchday Pilot**. **The repo is on GITLAB** (`glab`, MRs, `.gitlab-ci.yml`).
+GitHub is KEPT but dormant — its Actions run nothing and its 114 issues are unreachable;
+`.github/workflows/README.md` says so at the tree, and says what re-arms it.
 
-**⚠ THE GUARDS CHANGED TODAY (!8).** Stop hook runs 5 offline gates (~2.9s), blocks once on
-failure · copy gate runs in CI · 5 USER-LEVEL hooks now registered in `~/.claude/settings.json`
-(hard deny on pushing `main`; plan-back prompt on your first code edit) · `scope-auditor` on
-sonnet · reviewers get a MANIFEST for `site_v2/src/data/**`, not the inline diff.
+Merged 2026-08-06/07 (`git log` for detail): **!6** web dispatch, **!7** copy-gate defects, **!8**
+six guards wired, **!9** GitHub marked dormant, **!10** handover.
 
-**⚠ THE OPERATIONAL NOTES MOVED (!9) — they are in `CLAUDE.md` now, not here.** dbt CLI path,
-SQLFluff, commit mechanics, the stash-dance, CWD/fnmatch/heredoc/grep traps, frontend. This file
-is capped at 16,000 chars and drops its tail; `CLAUDE.md` is always loaded and never truncated.
-**Do not copy them back.** Currently ~14.5k with ~1.5k headroom — spend it on CURRENT STATE._
+## ⭐ THE COLLABORATION AUDIT IS CLOSED OUT — its follow-ups are ISSUES, not this file
+
+A 59-finding audit of the agent setup ran 2026-08-05/06 and a 12-item plan came out of it. **Eight
+executed (!7–!10), three filed as issues needing the CPO, one dropped** (Cloud Scheduler — the
+GitLab migration already solved it). Do NOT re-derive the plan; it is spent.
+
+**What remains is on the tracker — `glab issue list`.** The instruction/knowledge half was left
+deliberately: each item needs a judgement about what a rule should SAY, not where to plug it in.
+
+- **#1 + #19 are the class that bit this work** — a fact hand-copied into several places with
+  nothing checking they agree (#1 cost three review rounds once; #19 is "compile, don't append",
+  every governing artifact 50-60% its own changelog). **Smallest useful next step, and
+  mechanical.** #19 is its own session: nothing deleted, only moved to git + `escalations.log`.
+- **#5** Confirm still has no real enforcement — the installed hook is an ADVISORY, it cannot
+  deny. Related and unfiled: `docs/working_agreement.md` is **opt-in**, 26KB of "non-negotiable"
+  rules with zero `@` imports. That was the audit's top-ranked finding.
+- **#14** plugin injects 10 unpinned MCP servers · **#15** escalation default · **#16 + #18** the
+  two ways the scope boundary bounds itself · **#17** three dead i18n keys.
+
+**Why mechanism beats wording:** every WIRED guard held (gates blocked ~8 real mistakes; reviewers
+found 11 defects, no false positives). The only thing that failed was a commitment left in PROSE.
+`/audit-agent-setup` at user level re-runs this audit on any project.
+
+**⚠ THE GUARDS CHANGED (!8) — expect different behaviour.** Stop hook runs 5 offline gates
+(~2.9s), blocks once on failure · copy gate runs in CI · 5 USER-LEVEL hooks now in
+`~/.claude/settings.json` (hard deny on pushing `main`; plan-back prompt on your first code edit)
+· `scope-auditor` on sonnet · reviewers get a MANIFEST for `site_v2/src/data/**`, not the diff.
+
+**⚠ OPERATIONAL NOTES ARE IN `CLAUDE.md` NOW (!9), not here** — dbt CLI, SQLFluff, commit
+mechanics, stash-dance, CWD/fnmatch/heredoc/grep traps, frontend. This file is capped at 16,000
+chars and DROPS ITS TAIL; `CLAUDE.md` is never truncated. **Do not copy them back.**_
 
 **FIRST ACTIONS: run `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX —
 the indices move every time anything is stashed, and on 2026-08-06 this file still pointed at
@@ -183,14 +206,6 @@ DECIDED and shipped: visible always, fail only on stagnation.)
 - Plain language, lead with the decision, **no em dashes**, no walls of text.
 - Do NOT ask him to adjudicate what a rule can settle. **But copy is ALWAYS his (§10).**
 - Do NOT bring him a fix for a defect he did not ask about. Fix it and move on.
-
-## Operational notes → MOVED to `CLAUDE.md` (2026-08-06)
-
-The dbt CLI path, SQLFluff invocation, commit mechanics, stash-dance, CWD/fnmatch/heredoc/grep
-traps and the frontend notes now live under **"Operational notes" in `CLAUDE.md`**, which is
-always loaded and never truncated. They are permanent knowledge and this file is capped at 16,000
-characters and drops its tail when it overflows — which is how the most durable content ended up
-in the most volatile place. **Do not copy them back here.**
 
 ## Verified state reference
 - **No PUBLIC site.** v2 is unlisted on `football-data-pipeline-gcp.web.app`, every page `noindex`.
