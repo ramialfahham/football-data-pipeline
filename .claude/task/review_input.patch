@@ -1,964 +1,646 @@
-diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
-index c14e300..8f171ca 100644
---- a/.claude/hooks/git_discipline.py
-+++ b/.claude/hooks/git_discipline.py
-@@ -194,7 +194,6 @@ def _review_patch_bytes(root: str) -> bytes:
-     different questions, and conflating them is what made a typo fix cost a full round.
-     Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
-     generated; generating it by hand is how it came to re-embed its own history."""
--    import subprocess
-     routing = _load_routing(root) or {}
-     excludes = routing.get("review_exclude_paths") or []
-     # Reviewed CONTENT that is not pasted. Excluded from the body like `excludes`, but
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 27bb76e..fca2231 100644
+index fca2231..6525bc3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,180 +1,247 @@
--# Task contract — #25: name the excluded files instead of hiding them without trace
-+# Task contract — a Python linter, so reviewers stop finding what a machine finds free
+@@ -1,247 +1,107 @@
+-# Task contract — a Python linter, so reviewers stop finding what a machine finds free
++# Task contract — delete the stale architecture plan, and the prose that existed to warn about it
  
--> Branch `fix/25-review-exclude-trailer` from `main` (`c5d6088`). PROTECTED + guard path, so
--> `protected_override` AND `impact_map` are both present below, and `cto-reviewer` +
--> `platform-reviewer` run at an OPUS floor. No `site_v2/src/` path, so no `acceptance_criteria`.
--> A commit touching `contract.md` is NEVER artifact-exempt.
-+> Branch `chore/add-python-linter` from `main` (`ddf8010`). TWO protected paths, so
-+> `protected_override` AND `impact_map` are present, and `.gitlab-ci.yml` carries the OPUS floor.
-+> `ingestion/**` is on the structural surface, which also requires the `impact_map`. No
-+> `site_v2/src/` path, so no `acceptance_criteria`.
+-> Branch `chore/add-python-linter` from `main` (`ddf8010`). TWO protected paths, so
+-> `protected_override` AND `impact_map` are present, and `.gitlab-ci.yml` carries the OPUS floor.
+-> `ingestion/**` is on the structural surface, which also requires the `impact_map`. No
+-> `site_v2/src/` path, so no `acceptance_criteria`.
++> Branch `chore/delete-stale-architecture-doc` from `main` (`946dfa5`). No PROTECTED path
++> (`CLAUDE.md` is absent from both `PROTECTED_PREFIXES` and `PROTECTED_FILES`,
++> `task_contract_gate.py:66-78`), so no `protected_override`. Nothing on the structural surface, so
++> no `impact_map`. No `site_v2/src/` path, so no `acceptance_criteria`. Reviewers: `scope-auditor`
++> only — `docs/**` and `CLAUDE.md` match no row in `review_routing.json`.
  
  objective: >
--  Make `git_discipline.py --review-patch` announce, by name and line count, any
--  `review_exclude_paths` file that IS edited on the branch, instead of removing it from the patch
--  with nothing said.
+-  Add `ruff` with a correctness-only ruleset, wire it into CI, and fix the 12 violations it
+-  reports, so mechanically-decidable defects stop consuming adversarial review rounds.
 -
--  THE DEFECT. Exclusion deletes the file entirely, so a reviewer cannot tell a file that was never
--  edited from one that was edited and deliberately hidden. Both look identical: absent. A reviewer
--  that sees a path in `scope_paths` and not in the patch reasonably concludes the scope is wrong or
--  an edit is missing. Both conclusions are false and both cost a round.
+-  ⚠ THE PROBLEM, CORRECTED IN ROUND 1 AFTER THIS FIELD GOT IT WRONG. It first read "This repo has
+-  NO linter and none pinned", from grepping `requirements*.txt` alone. FALSE: `.pre-commit-config.yaml`
+-  configures ruff `v0.7.4` over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
+-  the hook is installed. What is actually true, and is a STRONGER argument: that hook is LOCAL-only
+-  with no CI backstop, it does not cover `.claude/hooks/` at all, and NINE F401s inside its own
+-  file pattern survived it (the tenth, `git_discipline.py:197`, was never in its jurisdiction) — a
+-  hook whose own args are `--fix, --exit-non-zero-on-fix`, so it evidently is not being run. On #25
+-  the same day, `platform-reviewer` at opus spent
+-  ~125k tokens finding a duplicate module-level function name — pyflakes F811, reported in
+-  milliseconds — and three of the four defects across #25's three rounds were mechanically
+-  decidable.
 -
--  IT HAS FIRED THREE TIMES, and each time the reviewer was reasoning correctly from what it was
--  given: 2026-08-03 `.claude/active_work.md` ("scope names an unedited file"), 2026-08-06
--  `.claude/task/TEMPLATE.md` ("a required edit is missing" — it was edited at both sites), and
--  2026-08-07 `.claude/active_work.md` (*"the diff I was handed does not contain the change the
--  entire task is about"*). All three withdrawn on the evidence. Three occurrences is a missing
--  affordance, not reviewer carelessness.
+-  THE ONE THAT SETTLES IT. `ruff` finds an unused `import subprocess` at
+-  `.claude/hooks/git_discipline.py:197` that **!19 introduced earlier the same day**, when the git
+-  call moved into `_staged_stat`. It survived three review rounds and two opus reviewers and is on
+-  `main` now.
 -
--  THE REPO ALREADY SOLVED THIS FOR THE SIBLING LIST. `review_summarise_paths` (2026-08-06) does not
--  hide content; it substitutes a MANIFEST naming the files and their counts. `review_exclude_paths`
--  predates that mechanism and never got it. The reasoning in its `_doc` transfers unchanged:
--  hiding outright *"would silently delete that check — trading payload for coverage, which is the
--  'never loosen a guard' failure."*
-+  Add `ruff` with a correctness-only ruleset, wire it into CI, and fix the 12 violations it
-+  reports, so mechanically-decidable defects stop consuming adversarial review rounds.
+-  ⚠ THE PREMISE WAS WRONG ON DEFAULT SETTINGS, AND THE VERIFICATION IS WHAT CAUGHT IT. This
+-  contract first claimed F811 would have caught #25's duplicate `_review_patch`. Run before being
+-  believed, it does NOT: ruff exempts underscore-prefixed names via `dummy-variable-rgx`, so `f`
+-  and `review_patch` are flagged while `_f`, `_review_patch` and `__x` pass silently. Every test
+-  helper in this repo is underscore-prefixed by convention, so on defaults the linter would have
+-  been inert against the exact class that justified it — a guard that looks strong and is nearly
+-  inert, which is the failure `tests/test_materialisation_policy.py` already records.
+-
+-  THE FIX, MEASURED: `dummy-variable-rgx = "^_+$"` narrows the exemption to BARE underscores.
+-  `_review_patch` redefinition is then flagged, `for _ in range(3)` and `a, _ = (1, 2)` still pass,
+-  and the repo-wide count is UNCHANGED at 12 — the setting adds no noise. Verified all three ways
+-  before this contract was updated.
+-
+-  THE PRINCIPLE. LLM reviewers are the most expensive check available and should be spent on
+-  judgement, not on facts a grep settles. This pays the review ceremony ONCE and removes the class.
++  Delete `docs/pipeline_architecture_plan.md`, and remove the always-loaded paragraph in
++  `CLAUDE.md` whose only purpose is to warn about it.
 +
-+  ⚠ THE PROBLEM, CORRECTED IN ROUND 1 AFTER THIS FIELD GOT IT WRONG. It first read "This repo has
-+  NO linter and none pinned", from grepping `requirements*.txt` alone. FALSE: `.pre-commit-config.yaml`
-+  configures ruff `v0.7.4` over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
-+  the hook is installed. What is actually true, and is a STRONGER argument: that hook is LOCAL-only
-+  with no CI backstop, it does not cover `.claude/hooks/` at all, and NINE F401s inside its own
-+  file pattern survived it (the tenth, `git_discipline.py:197`, was never in its jurisdiction) — a
-+  hook whose own args are `--fix, --exit-non-zero-on-fix`, so it evidently is not being run. On #25
-+  the same day, `platform-reviewer` at opus spent
-+  ~125k tokens finding a duplicate module-level function name — pyflakes F811, reported in
-+  milliseconds — and three of the four defects across #25's three rounds were mechanically
-+  decidable.
++  WHY THIS AND NOT A BIGGER SWEEP. A cold re-run of `/audit-agent-setup` on 2026-08-07, given no
++  knowledge of the earlier audit's findings, recommended DELETION as its first action. The earlier
++  audit had no subtraction in its vocabulary: it produced 29 issues, all of which add. Same repo,
++  same skill, opposite first move.
 +
-+  THE ONE THAT SETTLES IT. `ruff` finds an unused `import subprocess` at
-+  `.claude/hooks/git_discipline.py:197` that **!19 introduced earlier the same day**, when the git
-+  call moved into `_staged_stat`. It survived three review rounds and two opus reviewers and is on
-+  `main` now.
++  VERIFIED, not accepted from the audit: the file teaches `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}`
++  (line 61), per-confederation raw tables (28, 62, 74) and "7 per-confederation staging models"
++  (122). That is the exact anti-pattern `CLAUDE.md`'s scalability rules and
++  `scripts/check_layer_contract.py` exist to reject. It was last touched 2026-06-13, flagged for
++  "wholesale archival, not token-patching" on 2026-05-30, and its `MEMORY.md` pointer was removed
++  2026-08-06 — but the file itself was never deleted. Decided, never executed.
 +
-+  ⚠ THE PREMISE WAS WRONG ON DEFAULT SETTINGS, AND THE VERIFICATION IS WHAT CAUGHT IT. This
-+  contract first claimed F811 would have caught #25's duplicate `_review_patch`. Run before being
-+  believed, it does NOT: ruff exempts underscore-prefixed names via `dummy-variable-rgx`, so `f`
-+  and `review_patch` are flagged while `_f`, `_review_patch` and `__x` pass silently. Every test
-+  helper in this repo is underscore-prefixed by convention, so on defaults the linter would have
-+  been inert against the exact class that justified it — a guard that looks strong and is nearly
-+  inert, which is the failure `tests/test_materialisation_policy.py` already records.
-+
-+  THE FIX, MEASURED: `dummy-variable-rgx = "^_+$"` narrows the exemption to BARE underscores.
-+  `_review_patch` redefinition is then flagged, `for _ in range(3)` and `a, _ = (1, 2)` still pass,
-+  and the repo-wide count is UNCHANGED at 12 — the setting adds no noise. Verified all three ways
-+  before this contract was updated.
-+
-+  THE PRINCIPLE. LLM reviewers are the most expensive check available and should be spent on
-+  judgement, not on facts a grep settles. This pays the review ceremony ONCE and removes the class.
++  THE PARAGRAPH IS STALE IN BOTH DIRECTIONS, which is why it goes with the file. `CLAUDE.md:49-52`
++  warns that `gh_pages_match_preview_*.plan.md` "still exists on disk" — it does NOT; no file
++  matching it is present. And it points at the `pipeline_architecture_plan.md` pointer removal,
++  which this task makes moot by deleting the file. Once the hazard is gone the warning is pure
++  always-loaded cost.
  
  refs: >
--  GitLab #25. Second item of the AI-collaboration audit stream (handover `NEXT` step 1). Order set
--  by the CPO this session: #29 (merged as !18), then #25, then #21 brought as a recipe. Cost is a
--  SEPARATE stream and explicitly out of this session.
-+  Follows !18 (#29) and !19 (#25), both merged 2026-08-07. Arises from the CPO's question, *"What
-+  would an experienced software developer who has defined 100 AI guardrails do in this situation?"*,
-+  under his stated constraint: pragmatic mechanisms that improve collaboration WITHOUT red tape that
-+  slows work and burns tokens. Not a numbered issue — it is the answer to that question.
+-  Follows !18 (#29) and !19 (#25), both merged 2026-08-07. Arises from the CPO's question, *"What
+-  would an experienced software developer who has defined 100 AI guardrails do in this situation?"*,
+-  under his stated constraint: pragmatic mechanisms that improve collaboration WITHOUT red tape that
+-  slows work and burns tokens. Not a numbered issue — it is the answer to that question.
++  Cold `/audit-agent-setup` re-run, 2026-08-07, run in a fresh context with no knowledge of the
++  first audit's conclusions, at the CPO's request to test whether the findings are replicable.
++  CPO instruction after reading it: **"start with the deletions"**. Not a numbered issue.
  
  scope_paths:
-+  - requirements-dev.txt
-+  - .ruff-ci.toml
-+  - tests/test_lint_config.py
-+  - .gitlab-ci.yml
-   - .claude/hooks/git_discipline.py
--  - tests/test_governance_hooks.py
-+  - ingestion/api_football/seasons.py
-+  - tests/test_batch_fixtures.py
-+  - tests/test_fixture_scheduling.py
-+  - tests/test_fixtures_cache_skip.py
-+  - tests/test_injuries_coaches.py
-+  - tests/test_per_team_completeness.py
-+  - tests/test_season_inference.py
+-  - requirements-dev.txt
+-  - .ruff-ci.toml
+-  - tests/test_lint_config.py
+-  - .gitlab-ci.yml
+-  - .claude/hooks/git_discipline.py
+-  - ingestion/api_football/seasons.py
+-  - tests/test_batch_fixtures.py
+-  - tests/test_fixture_scheduling.py
+-  - tests/test_fixtures_cache_skip.py
+-  - tests/test_injuries_coaches.py
+-  - tests/test_per_team_completeness.py
+-  - tests/test_season_inference.py
++  - docs/pipeline_architecture_plan.md
++  - CLAUDE.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/escalations.log
- 
- protected_override: >
--  CPO instruction, conversation 2026-08-07: **"start #25"**, following **"yes, that order. start
--  with #29"** against a recommended order of #29, then #25, then #21 as a recipe. GitLab #25's own
--  closing paragraph states that the fix requires a governance task carrying `protected_override`
--  and an `impact_map` with `cto-reviewer` and `platform-reviewer` at opus, so instructing the work
--  to start authorises the protected edit the work requires.
-+  CPO instruction, conversation 2026-08-07: **"ok, do it"**, approving a plan that named the new
-+  dependency, the `F`/`E9` ruleset, the `.gitlab-ci.yml` step and the opus floor explicitly.
- 
-   RECORDED IN FULL at `.claude/task/escalations.log`, entry
--  `## 2026-08-07 fix/25-review-exclude-trailer`. That entry and this field were written in the SAME
-+  `## 2026-08-07 chore/add-python-linter`. That entry and this field were written in the SAME
-   action, which is GitLab #28's class fix.
- 
--  THE AUTHORITY IS FOR THIS CHANGE, NOT A STANDING ONE. It covers ONE protected file,
--  `.claude/hooks/git_discipline.py`, for the one purpose in `objective:`. It does NOT authorise
--  editing `.claude/review_routing.json`, the reviewer briefs under `.claude/agents/`,
--  `docs/working_agreement.md`, or `hash_exclude_paths`. Naming the file literally rather than
--  pointing at `scope_paths` is deliberate: GitLab #18 is open on exactly that self-reference,
--  where an override that defines its reach as "the paths in scope_paths" grows whenever an
--  amendment adds one.
-+  THE AUTHORITY IS FOR THESE TWO FILES, NOT A STANDING ONE. It covers `.gitlab-ci.yml` (adding one
-+  lint step) and `.claude/hooks/git_discipline.py` (deleting one dead import). It does NOT
-+  authorise editing `.claude/review_routing.json`, `.claude/settings.json`, the reviewer briefs, or
-+  any guard's logic. Naming the files literally rather than pointing at `scope_paths` is deliberate:
-+  GitLab #18 is open on exactly that self-reference.
- 
- impact_map: >
--  writers: not applicable — no table, no model. The edited unit is one PROTECTED guard script, so
--  this traces what depends on the guard, per the TEMPLATE instruction for protected paths.
+-  - .claude/task/escalations.log
 -
--  events that fire it: `PreToolUse` with matcher `Bash` on EVERY Bash tool call
--  (`.claude/settings.json`, verified by parsing the file). Plus two hand-invoked CLI modes,
--  `--review-patch` and `--staged-hash`.
+-protected_override: >
+-  CPO instruction, conversation 2026-08-07: **"ok, do it"**, approving a plan that named the new
+-  dependency, the `F`/`E9` ruleset, the `.gitlab-ci.yml` step and the opus floor explicitly.
 -
--  what imports it: TWO files, measured with
--  `grep -rln "import git_discipline" --include="*.py"` rather than asserted.
--    1. `scripts/check_task_artifacts.py:52` (`import git_discipline as _gd`), the CI backstop that
--       runs in `validate:governance`. It uses exactly ONE symbol, `_gd._rounds_gate` (line 58) —
--       `grep -n "_gd\." scripts/check_task_artifacts.py` returns that single line.
--    2. `tests/test_governance_hooks.py`, at TWO sites, `:438` and `:2798`, which import the module
--       and call internals directly. That is real code coupling, and this task adds a third such
--       call site, so a change to these internals breaks tests rather than only behaviour.
+-  RECORDED IN FULL at `.claude/task/escalations.log`, entry
+-  `## 2026-08-07 chore/add-python-linter`. That entry and this field were written in the SAME
+-  action, which is GitLab #28's class fix.
 -
--  ⚠ THIS FIELD PREVIOUSLY CLAIMED *"Nothing else in the tree imports the module; the remaining
--  references ... are prose in five docs plus the settings wiring."* FALSE, and `scope-auditor`
--  FAILed round 1 on it. The two test imports are code, not prose; `.claude/review_routing.json` is
--  config, not a doc; and the reference count is 14 files, not seven. Corrected against the grep
--  rather than reworded. Recorded rather than quietly replaced because of what it is: the #904
--  class — a contract claim about the code, written before the code and never re-read against the
--  finished tree — occurring inside the very `impact_map` whose job is to prevent it.
+-  THE AUTHORITY IS FOR THESE TWO FILES, NOT A STANDING ONE. It covers `.gitlab-ci.yml` (adding one
+-  lint step) and `.claude/hooks/git_discipline.py` (deleting one dead import). It does NOT
+-  authorise editing `.claude/review_routing.json`, `.claude/settings.json`, the reviewer briefs, or
+-  any guard's logic. Naming the files literally rather than pointing at `scope_paths` is deliberate:
+-  GitLab #18 is open on exactly that self-reference.
 -
--  reference-only, no import (12 files, none edited here): `.claude/settings.json` (the PreToolUse
--  wiring), `.claude/review_routing.json`, `.claude/agents/platform-reviewer.md`,
--  `.claude/active_work.md`, `.claude/task/TEMPLATE.md`, `.claude/task/REVIEW_TEMPLATE.md`,
--  `.claude/task/contract.md`, `docs/agent_guardrails.md`, `docs/north_star.md`,
--  `docs/roles/platform_reliability.md`, `docs/working_agreement.md`,
--  `tests/test_governance_doc_parity.py`.
+-impact_map: >
+-  writers: none. No raw table, no dbt model, no mart. `ingestion/api_football/seasons.py` is in
+-  scope for a ONE-LINE deletion of an unused import (`effective_season_max`, F401) — no call site,
+-  no behaviour, no column, no payload.
 -
--  what stops being enforced if it is wrong: nothing. The change is confined to the `--review-patch`
--  CLI product. `_commit_gate`, the commit-flag allowlist, the push checks, `_rounds_gate` and the
--  hash are all on code paths this does not modify.
+-  events that fire the protected files: `.claude/hooks/git_discipline.py` runs as PreToolUse on
+-  EVERY Bash tool call (`.claude/settings.json`, matcher `Bash`) plus two CLI modes.
+-  `.gitlab-ci.yml` decides what CI enforces on every push and MR.
 -
--  blast radius on the review hash: NONE, verified rather than assumed. `--staged-hash` calls
--  `_staged_diff_bytes` (`main()`, line 643) which resolves `hash_exclude_paths`; the trailer joins
--  `_review_patch_bytes`, which resolves `review_exclude_paths`. Different function, different list.
--  A test in `done_when` pins it.
+-  what changes in them: `git_discipline.py` loses ONE dead `import subprocess` inside
+-  `_review_patch_bytes`. The module's other `import subprocess` statements, inside `_staged_stat`,
+-  `_staged_paths` and `_cumulative_diff`, are untouched and are the ones actually used — verified by
+-  `ruff` flagging only line 197. No guard logic, no predicate, no message changes.
+-  `.gitlab-ci.yml` GAINS one `lint:python` job in the existing `test` stage and changes nothing
+-  existing.
 -
--  deploy_order: not applicable. No warehouse object, nothing sequenced around the 04:00 nightly,
--  and `.claude/hooks/**` is absent from `data_paths` so no prod build is triggered.
+-  what stops being enforced if it is wrong: nothing. A wrong lint config fails the new job loudly
+-  and blocks the MR. ⚠ THIS FIELD CLAIMED A LINT CONFIG "cannot weaken an existing gate" AND THAT
+-  WAS FALSE — round 1 disproved it: an auto-discoverable root config IS adopted by the pre-commit
+-  hook, and the first version of this branch would have switched E4/E7 off there. Round 3 removes
+-  the mechanism rather than the wording: the config is named `.ruff-ci.toml`, which ruff does not
+-  auto-discover, and CI passes it with `--config`. Deleting the dead import cannot change
+-  behaviour, and the 660-test suite covers the module.
 -
--  on failure: `--review-patch` exits non-zero and `review_input.patch` is not produced, stalling
--  the review cycle loudly rather than emitting a patch that under-reports.
-+  writers: none. No raw table, no dbt model, no mart. `ingestion/api_football/seasons.py` is in
-+  scope for a ONE-LINE deletion of an unused import (`effective_season_max`, F401) — no call site,
-+  no behaviour, no column, no payload.
-+
-+  events that fire the protected files: `.claude/hooks/git_discipline.py` runs as PreToolUse on
-+  EVERY Bash tool call (`.claude/settings.json`, matcher `Bash`) plus two CLI modes.
-+  `.gitlab-ci.yml` decides what CI enforces on every push and MR.
-+
-+  what changes in them: `git_discipline.py` loses ONE dead `import subprocess` inside
-+  `_review_patch_bytes`. The module's other `import subprocess` statements, inside `_staged_stat`,
-+  `_staged_paths` and `_cumulative_diff`, are untouched and are the ones actually used — verified by
-+  `ruff` flagging only line 197. No guard logic, no predicate, no message changes.
-+  `.gitlab-ci.yml` GAINS one `lint:python` job in the existing `test` stage and changes nothing
-+  existing.
-+
-+  what stops being enforced if it is wrong: nothing. A wrong lint config fails the new job loudly
-+  and blocks the MR. ⚠ THIS FIELD CLAIMED A LINT CONFIG "cannot weaken an existing gate" AND THAT
-+  WAS FALSE — round 1 disproved it: an auto-discoverable root config IS adopted by the pre-commit
-+  hook, and the first version of this branch would have switched E4/E7 off there. Round 3 removes
-+  the mechanism rather than the wording: the config is named `.ruff-ci.toml`, which ruff does not
-+  auto-discover, and CI passes it with `--config`. Deleting the dead import cannot change
-+  behaviour, and the 660-test suite covers the module.
-+
-+  blast radius: `ruff` is dev-only, pinned in a NEW `requirements-dev.txt`, and is NOT added to
-+  `requirements.txt`, so it cannot reach the runtime image or the ingestion container.
-+
-+  deploy_order: not applicable. No warehouse object. `requirements-dev.txt`, `.ruff-ci.toml` and the
-+  test files are absent from `data_paths`; `.gitlab-ci.yml` IS in `data_paths` (GitLab #2), so
-+  MERGING THIS WILL TRIGGER `data:build:main`. Stated rather than discovered, per the handover's
-+  standing warning.
+-  blast radius: `ruff` is dev-only, pinned in a NEW `requirements-dev.txt`, and is NOT added to
+-  `requirements.txt`, so it cannot reach the runtime image or the ingestion container.
+-
+-  deploy_order: not applicable. No warehouse object. `requirements-dev.txt`, `.ruff-ci.toml` and the
+-  test files are absent from `data_paths`; `.gitlab-ci.yml` IS in `data_paths` (GitLab #2), so
+-  MERGING THIS WILL TRIGGER `data:build:main`. Stated rather than discovered, per the handover's
+-  standing warning.
  
  decisions_taken: >
    THRESHOLD DECLARATIONS, stated because no gate parses this field.
  
--  ⭐ NEW MECHANISM — YES. RECLASSIFIED BY THE BUILDER BEFORE BUILDING, and this is the honest
--  declaration rather than the convenient one. The approved plan framed this as applying an existing
--  pattern to a sibling list. `escalations.log:1106` shows that is wrong:
--  `review_summarise_paths` counted as a NEW MECHANISM partly because it added *"a manifest emitter
--  in `git_discipline.py`, which changes what every reviewer is handed in every future task"*
--  (:1117). This trailer is the same emitter, in the same file, with the same reach.
--
--  Per `escalations.log:1108`, declaring a crossing to a REVIEWER is not approval and a reviewer
--  cannot convert one into the other, so this is not a request for `cto-reviewer` to rule. The
--  approval is the CPO's own, given at plan time on a plan that described the emitter, its wording
--  and its raise-don't-degrade behaviour. Recorded at `escalations.log`, entry
--  `## 2026-08-07 fix/25-review-exclude-trailer`, and surfaced to him in the turn the
--  reclassification was made so he can reject it.
--
--  WHAT IS GENUINELY NARROWER than the 2026-08-06 precedent, so this is not read as equivalent: no
--  new routing key, no content removed from the patch body, no verdict rule changed, no hash effect.
--  The trailer only annotates what is already absent.
--
--  RECURRING COST — NO. One extra `git diff --staged --stat` per `--review-patch` invocation, which
--  is a local, hand-invoked command run a few times per task. No new reviewer, no model change, no
--  service, no schedule. It should REDUCE cost: the measured price of the defect is one wasted
--  review round per occurrence, three so far and accelerating.
--
--  NEW EXTERNAL SURFACE — NO.
--
--  GUARD INVARIANT — STRENGTHENED, never loosened, and the direction matters. This ADDS information
--  to what reviewers are handed and removes none. It does not touch `hash_exclude_paths`, so nothing
--  that invalidated a verdict before stops doing so. It cannot hide anything that is visible today,
--  because it only emits for paths that are ALREADY excluded.
--
--  WHY IT RAISES RATHER THAN DEGRADING QUIETLY. `_summary_manifest` raises because silence there is
--  a coverage loss. Silence here is not, and the trailer still raises for a different reason: an
--  absent trailer is ambiguous between "no excluded file changed" and "the trailer broke", and that
--  ambiguity is the exact defect #25 exists to remove.
-+  NEW DEPENDENCY — YES. `ruff`, pinned, dev-only. A CTO threshold in its own right.
-+
-+  RECURRING COST — YES. One extra CI step per MR, seconds, no new service and no schedule. Set
-+  against three review rounds on #25 alone. Note separately that merging this fires
-+  `data:build:main` once, via `data_paths`.
-+
-+  NEW MECHANISM — NO. A linter is a standard tool in an existing CI stage, not a governance
-+  mechanism: it grants no authority, gates no decision and changes no verdict rule.
-+
-+  GUARD INVARIANT — UNCHANGED, and round 3 is what makes that true rather than merely asserted.
-+  No guard's logic is edited; `git_discipline.py` loses a dead import only. The pre-commit hook is
-+  NOT touched at all — `.pre-commit-config.yaml` is byte-identical to `main`, so neither its ruff
-+  `rev` nor `ruff-format` moves. ⚠ ROUND 2 BRIEFLY BUMPED THAT `rev` to align versions, and
-+  `cto-reviewer` FAILed it: the same `rev` governs `ruff-format`, which rewrites files on every
-+  local commit, and across v0.7.4 to v0.16.2 **75 files would be reformatted**. Measured, not
-+  estimated.
-+
-+  RULESET CHOSEN BEFORE THE COUNT WAS KNOWN, deliberately, so the rules could not be picked to
-+  flatter the number. The measurement came second: 12 violations. ⚠ THE RULESET ITSELF CHANGED IN
-+  ROUND 1, from `F` + `E9` to ruff's exact default `["E4","E7","E9","F"]`, because the narrower set
-+  would have switched E4/E7 off in the pre-existing pre-commit hook. It is now the DEFAULT set and
-+  not one rule more.
-+
-+  WHY NO STYLE RULES. On an existing codebase, style and import-sorting rules produce a large
-+  mechanical diff that no reviewer can meaningfully read, which is the opposite of the point.
+-  NEW DEPENDENCY — YES. `ruff`, pinned, dev-only. A CTO threshold in its own right.
++  NEW MECHANISM — NO. This removes a file and four lines of prose. Nothing is built.
+ 
+-  RECURRING COST — YES. One extra CI step per MR, seconds, no new service and no schedule. Set
+-  against three review rounds on #25 alone. Note separately that merging this fires
+-  `data:build:main` once, via `data_paths`.
++  RECURRING COST — NO, and it REDUCES the standing one: `CLAUDE.md` is auto-loaded every session,
++  so the removed paragraph is a per-session token cost paid to warn about a hazard this task
++  deletes.
+ 
+-  NEW MECHANISM — NO. A linter is a standard tool in an existing CI stage, not a governance
+-  mechanism: it grants no authority, gates no decision and changes no verdict rule.
++  GUARD INVARIANT — UNCHANGED. No guard, hook, test or routing row is touched. The rule the doc
++  contradicts is enforced by `scripts/check_layer_contract.py`, which is not edited and which
++  keeps working exactly as before. Deleting a document that teaches a banned pattern strengthens
++  the position; it cannot weaken it.
+ 
+-  GUARD INVARIANT — UNCHANGED, and round 3 is what makes that true rather than merely asserted.
+-  No guard's logic is edited; `git_discipline.py` loses a dead import only. The pre-commit hook is
+-  NOT touched at all — `.pre-commit-config.yaml` is byte-identical to `main`, so neither its ruff
+-  `rev` nor `ruff-format` moves. ⚠ ROUND 2 BRIEFLY BUMPED THAT `rev` to align versions, and
+-  `cto-reviewer` FAILed it: the same `rev` governs `ruff-format`, which rewrites files on every
+-  local commit, and across v0.7.4 to v0.16.2 **75 files would be reformatted**. Measured, not
+-  estimated.
++  NEW EXTERNAL SURFACE — NO.
+ 
+-  RULESET CHOSEN BEFORE THE COUNT WAS KNOWN, deliberately, so the rules could not be picked to
+-  flatter the number. The measurement came second: 12 violations. ⚠ THE RULESET ITSELF CHANGED IN
+-  ROUND 1, from `F` + `E9` to ruff's exact default `["E4","E7","E9","F"]`, because the narrower set
+-  would have switched E4/E7 off in the pre-existing pre-commit hook. It is now the DEFAULT set and
+-  not one rule more.
++  ⚠ TWO ITEMS ON THE AUDIT'S DELETION LIST ARE DELIBERATELY NOT DONE, because checking them
++  contradicted it:
+ 
+-  WHY NO STYLE RULES. On an existing codebase, style and import-sorting rules produce a large
+-  mechanical diff that no reviewer can meaningfully read, which is the opposite of the point.
++  1. `docs/api_football_ingestion_blueprint.md` — the audit said it "has the same problem". It does
++     NOT. Grepped: it contains no `RAW_APIF_{LEAGUE_CODE}`, no per-confederation table or model
++     pattern. It was last touched 2026-08-03, and LIVE CODE points at it —
++     `ingestion/api_football/loads/batch_fixtures.py:24`, "See docs/api_football_ingestion_blueprint.md
++     for the full API specification." Its only known defect is one stale figure at line 120
++     ("approximately 20–50 API calls total" against a measured ~8,300), which is already filed as
++     #900 and is a fix, not a deletion. Deleting it would have destroyed a live API spec and
++     orphaned a code comment.
++  2. `~/.claude/hooks/commit_review_gate.py` and `pre_push_gate.py` — unversioned, so deletion has
++     no undo, and that whole layer is the open subject of GitLab #21. The CPO's call, not a
++     builder's.
  
  decisions_reserved:
--  - "Whether `.claude/active_work.md` belongs in `review_exclude_paths` at all. Occurrence 3 was a
--    handover task, where the reviewer legitimately could not judge the work with the handover
--    hidden. The trailer removes the false inference but does not answer that question, and moving a
--    path between the two lists is a §10 decision on the same reasoning as
--    `escalations.log:1138`. NOT decided here and NOT in scope."
-+  - "⚠ REWRITTEN IN ROUND 3; this bullet reserved widening beyond `F`/`E9` while the branch had
-+    already widened to ruff's default set, which is the opposite of what shipped. What IS reserved:
-+    widening beyond ruff's DEFAULT `[\"E4\",\"E7\",\"E9\",\"F\"]` — style, import order, complexity,
-+    type-checking. Each is a new class of enforced opinion across the whole tree and a fresh
-+    decision. Narrowing below the default is equally reserved, because it would enforce less in CI
-+    than the local pre-commit hook already does."
-+  - "Whether SQLFluff and `ruff` should share one `lint:` stage rather than `ruff` joining `test`.
-+    Left alone: moving an existing job is a CI-topology change beyond this objective."
+-  - "⚠ REWRITTEN IN ROUND 3; this bullet reserved widening beyond `F`/`E9` while the branch had
+-    already widened to ruff's default set, which is the opposite of what shipped. What IS reserved:
+-    widening beyond ruff's DEFAULT `[\"E4\",\"E7\",\"E9\",\"F\"]` — style, import order, complexity,
+-    type-checking. Each is a new class of enforced opinion across the whole tree and a fresh
+-    decision. Narrowing below the default is equally reserved, because it would enforce less in CI
+-    than the local pre-commit hook already does."
+-  - "Whether SQLFluff and `ruff` should share one `lint:` stage rather than `ruff` joining `test`.
+-    Left alone: moving an existing job is a CI-topology change beyond this objective."
++  - "`docs/match_preview_pages_refinement.md` references the same retired-MVP plan and may be the
++    same class of stale document. NOT investigated and NOT touched here: it was not on the audit's
++    list and chasing it mid-task is the drift pattern the CPO corrected twice this session.
++    Surfaced so it is not lost."
++  - "Whether `seo-expert-reviewer.md` should be routed or deleted. The audit's point stands — it is
++    currently neither, which reads as coverage while doing nothing — but routing is a governance
++    event (§10) and deleting a reviewer is CPO-class. Not decided here."
  
  done_when:
--  - "FIVE new tests ship in `tests/test_governance_hooks.py`, and the red/green claim is stated per
--    test rather than as one number. MEASURED against the unfixed `git_discipline.py`: THREE of the
--    first four go red (`..._are_named`, `..._without_pasting_them`,
--    `..._does_not_reach_the_review_hash`); `test_no_trailer_when_no_excluded_path_changed` cannot,
--    because it asserts the trailer is ABSENT; and the fifth,
--    `test_excluded_trailer_failure_is_loud_not_silent`, cannot either, because `_excluded_trailer`
--    does not exist in the unfixed file. Both runs pasted — a test never seen red is decoration
--    (`feedback_verify_the_test_fails.md`)."
--  - "⚠ THIS CRITERION SAID 'the four new tests' UNTIL ROUND 3, when a fifth had been added on a
--    `platform-reviewer` finding and the count was not updated with it. `cto-reviewer` caught it.
--    Recorded rather than silently renumbered, because of where it happened: it is the #904 class —
--    a contract claim that drifted from the tree — inside the same contract that cites #904 two
--    fields above. The reusable lesson is that a numeric claim must be re-read after EVERY round,
--    not written once and trusted."
--  - "The tests pin all four properties: an edited excluded file is NAMED in the trailer; its
--    CONTENT is still not pasted; NO trailer is emitted when no excluded path changed; and
--    `--staged-hash` is byte-identical with and without the trailer."
--  - "`python -m pytest tests/ -q` is clean and the collected count is MEASURED with
--    `pytest --collect-only -q`, never predicted (#904)."
--  - "The five offline gates pass, and `check_task_artifacts.py` is run BARE."
--  - "END-TO-END on this branch's own review: this task edits `contract.md` and `review.md`, so its
--    real `review_input.patch` must carry the trailer naming the excluded files it edited. The
--    trailer pasted from the real patch, not from a test fixture."
+-  - "`ruff check . --config .ruff-ci.toml` exits 0 on the final tree, output pasted. ⚠ THIS
+-    CRITERION READ `ruff check . --select F,E9` UNTIL ROUND 3, which was worse than stale: a CLI
+-    `--select` OVERRIDES the config file, so the named acceptance command bypassed the very config
+-    it was meant to verify, and would have passed on a tree where E4/E7 were red or where the
+-    config failed to load at all. Caught by `platform-reviewer` at opus. The command here is now
+-    the same one CI runs."
+-  - "RED BEFORE GREEN on the real defect: `ruff` demonstrably reports F811 for the exact duplicate
+-    `_review_patch` definition that cost #25 a review round. If it does not catch that, the linter
+-    is not worth adding (`feedback_verify_the_test_fails.md`)."
+-  - "All 12 violations fixed, none suppressed: no `# noqa` added, and no rule removed from `select`
+-    to make the build pass — that would be the never-loosen-a-guard failure applied to a guard on
+-    its first day. ⚠ THIS CRITERION ALSO FORBADE `per-file-ignores` UNTIL ROUND 3, while the branch
+-    ships four. The bar it should have stated, and now does: E402 in the four `sys.path`-shim
+-    scripts is DECLARED per file in one auditable table, which is narrower and more visible than
+-    scattered `# noqa: E402` and far narrower than dropping E402 from `select`. Every other shim
+-    site in the tree already carries a pre-existing `# noqa: E402`, so the list is complete at four
+-    (counted independently by `platform-reviewer`). Left as written, the criterion would have told
+-    a future maintainer that per-file-ignores are banned, whose cheapest reconciliation with the
+-    tree is dropping E402 repo-wide — the exact loosening this branch exists to prevent."
+-  - "`python -m pytest tests/ -q` clean, collected count MEASURED with `pytest --collect-only -q`,
+-    and pytest's OWN exit code read directly rather than through a pipe — piping through `tail`
+-    masked a 4-test failure earlier today."
++  - "`docs/pipeline_architecture_plan.md` no longer exists, confirmed with `git status` and a
++    filesystem check."
++  - "An UNSCOPED `grep -rn 'pipeline_architecture_plan' .` returns exactly ONE hit outside
++    `.claude/task/` and git history: `site/fixture-list/index.html:6`. That reference is
++    DELIBERATELY NOT FIXED — `site/` is the retired legacy MVP, offline since 2026-07-21 with its
++    Pages deployment deleted, and `CLAUDE.md:29,61` plus the standing DO-NOT list forbid touching
++    it. A comment inside a frozen, unserved product is not a live pointer, and editing it to tidy
++    a reference would break a CPO ruling to fix nothing."
++  - "⚠ THIS CRITERION FIRST CLAIMED the grep 'returns NOTHING outside `.claude/task/` and git
++    history'. FALSE. The grep behind it was `--include`-limited to `*.md`, `*.py`, `*.yml` and
++    `*.json`, so it never looked at `.html`, and the result was reported as if it covered the tree.
++    `scope-auditor` caught it. This is the SIXTH #904-class claim from this builder in two days and
++    the SECOND with this exact shape — a grep scoped narrower than the sentence it supports, the
++    same defect as 'this repo has NO linter' earlier today. The rule that would have caught both:
++    a claim of absence must state where it looked, and the scope must be as wide as the claim."
++  - "`CLAUDE.md` no longer contains the `gh_pages_match_preview` paragraph, and its false claim
++    that the file 'still exists on disk' goes with it."
++  - "`python scripts/check_layer_contract.py` exits 0 — the rule the deleted doc contradicted is
++    still enforced by the mechanism that actually enforces it."
++  - "`python -m pytest tests/ -q` clean, collected count MEASURED, and pytest's OWN exit code read
++    directly rather than through a pipe."
+   - "The five offline gates pass, and `check_task_artifacts.py` runs BARE."
+-  - "CI green with `lint:python` visible in the job list."
 -
--amendments: (none)
-+  - "`ruff check . --config .ruff-ci.toml` exits 0 on the final tree, output pasted. ⚠ THIS
-+    CRITERION READ `ruff check . --select F,E9` UNTIL ROUND 3, which was worse than stale: a CLI
-+    `--select` OVERRIDES the config file, so the named acceptance command bypassed the very config
-+    it was meant to verify, and would have passed on a tree where E4/E7 were red or where the
-+    config failed to load at all. Caught by `platform-reviewer` at opus. The command here is now
-+    the same one CI runs."
-+  - "RED BEFORE GREEN on the real defect: `ruff` demonstrably reports F811 for the exact duplicate
-+    `_review_patch` definition that cost #25 a review round. If it does not catch that, the linter
-+    is not worth adding (`feedback_verify_the_test_fails.md`)."
-+  - "All 12 violations fixed, none suppressed: no `# noqa` added, and no rule removed from `select`
-+    to make the build pass — that would be the never-loosen-a-guard failure applied to a guard on
-+    its first day. ⚠ THIS CRITERION ALSO FORBADE `per-file-ignores` UNTIL ROUND 3, while the branch
-+    ships four. The bar it should have stated, and now does: E402 in the four `sys.path`-shim
-+    scripts is DECLARED per file in one auditable table, which is narrower and more visible than
-+    scattered `# noqa: E402` and far narrower than dropping E402 from `select`. Every other shim
-+    site in the tree already carries a pre-existing `# noqa: E402`, so the list is complete at four
-+    (counted independently by `platform-reviewer`). Left as written, the criterion would have told
-+    a future maintainer that per-file-ignores are banned, whose cheapest reconciliation with the
-+    tree is dropping E402 repo-wide — the exact loosening this branch exists to prevent."
-+  - "`python -m pytest tests/ -q` clean, collected count MEASURED with `pytest --collect-only -q`,
-+    and pytest's OWN exit code read directly rather than through a pipe — piping through `tail`
-+    masked a 4-test failure earlier today."
-+  - "The five offline gates pass, and `check_task_artifacts.py` runs BARE."
-+  - "CI green with `lint:python` visible in the job list."
-+
-+amendments: >
-+  ONE amendment, 2026-08-07, after review round 1. TWO PATHS ADDED: `.pre-commit-config.yaml` and
-+  `tests/test_lint_config.py`.
-+
-+  AUTHORITY: CPO instruction **"do it"**, conversation 2026-08-07, against a stated recommendation
-+  naming the ruleset change, the `per-file-ignores`, the pre-commit version alignment and the fact
-+  that `.pre-commit-config.yaml` sits outside the approved scope. Recorded at
-+  `.claude/task/escalations.log`, same entry, block `⚠ ROUND 1: THE PREMISE WAS FALSE`. That block
-+  and this amendment were written in the SAME action.
-+
-+  ⚠ WHY IT WIDENED — THE OBJECTIVE'S PREMISE WAS FALSE. This contract claimed "This repo has NO
-+  linter and none pinned". `.pre-commit-config.yaml` has configured `astral-sh/ruff-pre-commit`
-+  `rev: v0.7.4` all along, over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
-+  `.git/hooks/pre-commit` is installed, so it fires on every local commit. The claim came from
-+  grepping `requirements*.txt` only and reporting that scoped result as a general one — the #904
-+  class, and the THIRD instance from this builder in two days. Found by `cto-reviewer` and
-+  `platform-reviewer` independently, at opus.
-+
-+  ⚠ AND THE CHANGE AS APPROVED WOULD HAVE LOOSENED AN EXISTING GUARD. Ruff walks up for config, so
-+  a NEW root `ruff.toml` is read by the pre-commit hook too. MEASURED over that hook's own file
-+  set: ruff's defaults (`E4,E7,E9,F`) report **10** violations, all E402; the approved
-+  `select = ["F","E9"]` reports **0**. Shipping it would have silently stopped E4 and E7 being
-+  enforced on every local commit — never-loosen-a-guard, committed inside an MR justified as
-+  strengthening guards.
-+
-+  WHAT CHANGES. `select` becomes `["E4","E7","E9","F"]`, ruff's default, so NOTHING is narrowed
-+  anywhere. The 10 E402s are declared in `per-file-ignores` rather than fixed: all four files use
-+  the deliberate `sys.path.insert(...)`-then-import shim, where the import genuinely must follow the
-+  path setup. `.pre-commit-config.yaml`'s `rev` moves to `v0.16.2` to match the pinned CI version,
-+  because both now read the same `ruff.toml` and every measurement here was taken on 0.16.2.
-+  `tests/test_lint_config.py` pins `select` and `dummy-variable-rgx`, closing `platform-reviewer`'s
-+  finding that the load-bearing setting had nothing stopping its removal.
-+
-+  BOUNDED: this does NOT change what CI runs beyond the ruleset, does not touch SQLFluff's
-+  pre-commit entry, and adopts no style, import-sorting or formatting rules. `select` is now exactly
-+  ruff's default and not one rule more.
-+
-+  SECOND AMENDMENT, 2026-08-07, after review round 2. NET EFFECT: ONE PATH ADDED (`.ruff-ci.toml`),
-+  TWO REMOVED (`ruff.toml`, `.pre-commit-config.yaml`). Written in the SAME action as its
-+  `escalations.log` block.
-+
-+  AUTHORITY: the same CPO instruction **"do it"** (2026-08-07). This amendment does not widen the
-+  task — it NARROWS it, giving back a path the first amendment took. Both round-2 FAILs are fixed
-+  by touching strictly less than round 2 did.
-+
-+  ⚠ WHY: the two round-2 FAILs pulled in OPPOSITE directions. `cto-reviewer` FAILed the
-+  `.pre-commit-config.yaml` `rev` bump, because the same `rev` governs `ruff-format` and across
-+  v0.7.4 to v0.16.2 **75 files would be reformatted** — measured, and exactly the unreviewable
-+  mechanical diff this branch argues against. But NOT aligning the versions leaves two ruff versions
-+  reading one config, which was `platform-reviewer`'s round-1 finding. Aligning or not aligning both
-+  lose.
-+
-+  THE FIX DISSOLVES BOTH RATHER THAN TRADING THEM. Ruff auto-discovers only `ruff.toml`,
-+  `.ruff.toml` and `pyproject.toml`. Naming the file `.ruff-ci.toml` and passing `--config` in CI
-+  means the pre-commit hook never reads it: no shared config, so no version alignment is owed, so
-+  `ruff-format` never moves. VERIFIED both ways before adopting: with the file present and no
-+  `--config`, a redefined `_f` is NOT flagged (config not discovered); with `--config .ruff-ci.toml`
-+  it IS.
-+
-+  `.pre-commit-config.yaml` is therefore byte-identical to `main` and leaves `scope_paths`.
-+
-+  ALSO IN ROUND 3, all text-only and all found by review: the false "no linter" premise removed from
-+  `.gitlab-ci.yml` and the config's own comments (it survived round 2 verbatim in both PERMANENT
-+  artifacts while only the contract was corrected — corrections must replace, not accumulate); the
-+  `done_when` command that bypassed its own config; the `done_when` bar that forbade the
-+  `per-file-ignores` the branch ships; `decisions_reserved` reserving a widening already taken; the
-+  `impact_map`'s disproved "cannot weaken an existing gate"; and "ten F401s" corrected to NINE
-+  inside the hook's file pattern.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 3496258..f9f44f1 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -1458,3 +1458,122 @@ times.
-   yet the trailer still raises, for a different reason: an absent trailer is ambiguous between "no
-   excluded file changed" and "the trailer broke", and that ambiguity is precisely the defect #25
-   exists to remove. A trailer that can silently not appear re-creates it unpredictably.
-+
-+## 2026-08-07 chore/add-python-linter — a linter, so reviewers stop finding what a machine finds free
-+
-+  PROTECTED-PATH AUTHORITY. Two protected paths are edited: `.gitlab-ci.yml` (a PROTECTED_FILE and
-+  one of the three guard paths, `task_contract_gate.py:77`) and `.claude/hooks/git_discipline.py`
-+  (PROTECTED prefix). Both carry the opus floor.
-+
-+  CPO INSTRUCTION (conversation, 2026-08-07): **"ok, do it"**, approving a plan that named the
-+  dependency, the `F`/`E9` ruleset, the `.gitlab-ci.yml` step and the opus floor explicitly. It
-+  followed his question *"What would an experienced software developer who has defined 100 AI
-+  guardrails do in this situation?"* and a stated recommendation to push checks down the cost curve
-+  rather than add more review. This entry and the contract's `protected_override` were written in
-+  the SAME action (#28's class fix).
-+
-+  ⭐ THE ARGUMENT, WITH THE MEASUREMENT THAT MAKES IT. The CPO's constraint was explicit: mechanisms
-+  that build trust, WITHOUT red tape that slows work and burns tokens. The answer offered was that
-+  the guards are not the red tape — spending the most expensive check on facts a cheap one settles
-+  is. Measured on #25 the same day: `platform-reviewer` at opus spent ~125k tokens finding a
-+  duplicate module-level function name. That is pyflakes **F811**, reported in milliseconds. Three
-+  of the four defects found across #25's three rounds were mechanically decidable.
-+
-+  MEASURED BEFORE THE RULESET WAS LOCKED, which the plan required so the rules could not be chosen
-+  to flatter the number: `ruff check . --select F,E9` reports **12** violations — 10 × F401 unused
-+  import, 1 × F811, 1 × F841. Small enough to fix here rather than bring back as a count.
-+
-+  ⭐ THE FINDING THAT SETTLES IT. One of the 12 is `.claude/hooks/git_discipline.py:197`, an unused
-+  `import subprocess` **introduced by !19 earlier the same day**, when the git call moved into
-+  `_staged_stat`. It passed THREE review rounds and TWO opus reviewers and reached `main`. The
-+  linter finds it instantly. That is the case for this change stated as evidence rather than as
-+  argument.
-+
-+  ⚠ AND THE PREMISE FAILED ITS OWN VERIFICATION, WHICH IS THE PART WORTH KEEPING. The plan's first
-+  acceptance criterion was "show ruff reporting F811 for the exact duplicate `_review_patch` that
-+  cost #25 a round; if it does not catch that, the linter is not worth adding." Run rather than
-+  assumed, DEFAULT ruff does NOT catch it: `dummy-variable-rgx` exempts underscore-prefixed names,
-+  so `f` and `review_patch` are flagged while `_f`, `_review_patch` and `__x` pass silently. Every
-+  test helper here is underscore-prefixed by convention, so the linter would have shipped INERT
-+  against the very class that justified it, and the MR would have read as a success.
-+
-+  FIXED BY ONE SETTING, and the cost was measured rather than hoped: `dummy-variable-rgx = "^_+$"`
-+  restricts the exemption to bare underscores. `_review_patch` is then flagged; `for _ in range(3)`
-+  and `a, _ = (1, 2)` still pass; the repo-wide count stays at 12, so it adds no noise. Recorded
-+  because the reusable lesson is not about ruff: an acceptance criterion that is actually RUN can
-+  reject the premise of its own task, and this one did.
-+
-+  NEW DEPENDENCY — DECLARED, and it is a CTO threshold in its own right. `ruff`, pinned in a NEW
-+  `requirements-dev.txt` so it cannot enter the runtime image.
-+
-+  RECURRING COST — YES, DECLARED: one extra CI step per MR, seconds, no new service and no
-+  schedule. Set against three review rounds on #25 alone.
-+
-+  BOUNDED: correctness rules only (`F` + `E9`). NO style, import-sorting or formatting rules — on
-+  an existing codebase those produce a large mechanical diff nobody can review, and they would turn
-+  a cheap win into churn. Widening the ruleset later is a fresh decision.
-+
-+  ⚠ ROUND 1: THE PREMISE WAS FALSE, AND THE CHANGE WOULD HAVE LOOSENED A GUARD. `cto-reviewer` and
-+  `platform-reviewer`, independently at opus, both FAILed on the same thing: this repo ALREADY has
-+  ruff. `.pre-commit-config.yaml` configures `astral-sh/ruff-pre-commit` `rev: v0.7.4` over
-+  `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, `.git/hooks/pre-commit` is
-+  installed, and `README.md` documents it. The contract's "This repo has NO linter and none pinned"
-+  came from grepping `requirements*.txt` alone and reporting that scoped result as general — the
-+  #904 class, third instance from this builder in two days.
-+
-+  THE CONSEQUENCE, MEASURED rather than argued: ruff walks up for config, so the NEW root
-+  `ruff.toml` is read by the pre-commit hook too. Over that hook's file set, ruff's defaults
-+  (`E4,E7,E9,F`) report **10** violations, all E402; the approved `select = ["F","E9"]` reports
-+  **0**. The MR would have silently stopped E4 and E7 being enforced on every local commit — a
-+  never-loosen-a-guard failure inside an MR whose entire justification was strengthening guards.
-+
-+  CPO ANSWER (conversation, 2026-08-07): **"do it"**, against a recommendation to set `select` to
-+  ruff's DEFAULT `["E4","E7","E9","F"]` so nothing narrows anywhere, declare the 10 E402s in
-+  `per-file-ignores` (all four files use the deliberate `sys.path.insert`-then-import shim), align
-+  the pre-commit `rev` to the pinned `0.16.2` since both now read one config, and add a test pinning
-+  the load-bearing settings. The recommendation stated plainly that `.pre-commit-config.yaml` was
-+  outside the approved scope.
-+
-+  ONE ROUND-1 FINDING REJECTED, with evidence. `scope-auditor` FAILed on the "12 violations" figure,
-+  arguing no live F811 existed. It did: `tests/test_batch_fixtures.py:464 F811 Redefinition of
-+  unused 'call' from line 9`. Removing `call` from the line-9 import cleared BOTH that F811 and its
-+  F401 in one edit, so the branch shows 11 edits for 12 violations. It counted edits, not
-+  violations.
-+
-+  ⭐ THE REUSABLE LESSON, which is not about ruff. Two of the three round-1 FAILs trace to one
-+  habit: a grep scoped to where I expected the answer, reported as though it were exhaustive. The
-+  fix is not "grep harder" — it is that a claim of ABSENCE ("no linter exists", "nothing imports
-+  this") must name where it looked, so a reviewer can see the boundary and test it.
-+
-+  ⚠ ROUND 2: THE TWO FAILS PULLED IN OPPOSITE DIRECTIONS, AND THE FIX DISSOLVED BOTH.
-+  `cto-reviewer` FAILed the `.pre-commit-config.yaml` `rev` bump that round 1's own fix introduced:
-+  that `rev` also governs `ruff-format`, which rewrites files on every local commit, and across
-+  v0.7.4 to v0.16.2 **75 files would be reformatted** (measured with `ruff format --diff`). That is
-+  precisely the unreviewable mechanical diff this change argues against. But NOT aligning the
-+  versions is `platform-reviewer`'s round-1 finding — two ruff versions reading one config, one of
-+  them running `--fix`. Both moves lose.
-+
-+  RESOLVED STRUCTURALLY. Ruff auto-discovers only `ruff.toml`, `.ruff.toml` and `pyproject.toml`.
-+  Naming the file `.ruff-ci.toml` and passing `--config` from CI means the pre-commit hook never
-+  reads it: no shared config, no alignment owed, `ruff-format` never moves, and neither enforcement
-+  point can silently change the other. VERIFIED both ways before adopting. `.pre-commit-config.yaml`
-+  is now byte-identical to `main` and left `scope_paths`. **The round-3 change touches strictly LESS
-+  than round 2 did** — the amendment narrows the task rather than widening it.
-+
-+  ⚠ AND THE CORRECTION ITSELF FAILED THE SAME WAY TWICE MORE, which is the part worth keeping.
-+  `cto-reviewer`: round 2 corrected the false "no linter" premise in `contract.md` but left it
-+  standing VERBATIM in `.gitlab-ci.yml` and the config's own header — the two PERMANENT artifacts,
-+  where a comment is all a future engineer reads, and one of them then argued against itself
-+  eighteen lines later. `feedback_corrections_replace.md` is exactly this: corrections replace, they
-+  do not accumulate. `platform-reviewer`: `done_when` still named `ruff check . --select F,E9` as
-+  the acceptance command, and a CLI `--select` OVERRIDES the config file — so the stated
-+  verification bypassed the thing it verified and would have passed on a tree where the config
-+  failed to load. `scope-auditor`: "ten F401s survived the hook" contradicted its own sentence,
-+  since one of the ten is in `.claude/hooks/`, which the same sentence says the hook does not cover.
-+
-+  ⭐ FOUR #904-CLASS CLAIMS IN TWO DAYS, THE LAST ONE INSIDE THE FIX FOR THE THIRD. Counted so the
-+  pattern is visible rather than reading as four unrelated slips: the false `impact_map` import
-+  claim (!19), the stale `done_when` test count (!19), "this repo has NO linter" (here, round 1),
-+  and "ten F401s" (here, round 2, written while correcting the third). Prose has not fixed it. The
-+  only thing that has caught every instance is a reviewer running the command — which is the
-+  argument for this MR, turned on its author.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index cd2b896..619d429 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -346,6 +346,47 @@ validate:ui:
- # test stage
- # ---------------------------------------------------------------------------
- 
-+# Correctness-only Python lint (ruff; ruleset in .ruff-ci.toml).
-+#
-+# WHY IT EXISTS: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
-+# duplicate module-level function name, and three of the four defects across that MR's three
-+# review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
-+# belong on judgement, not on facts a tool settles for free.
-+#
-+# ruff was NOT new to the repo — `.pre-commit-config.yaml` has run it locally for a long time. What
-+# was missing is a CI BACKSTOP: that hook is local-only, so it binds one machine and can be skipped,
-+# and its `files:` regex excludes `.claude/hooks/` entirely. Nine F401s inside its own file pattern
-+# had survived it, on a hook whose args are `--fix, --exit-non-zero-on-fix` — evidence it was not
-+# being run.
-+#
-+# ⚠ `--config .ruff-ci.toml` IS REQUIRED, not decoration. Ruff auto-discovers only `ruff.toml`,
-+# `.ruff.toml` and `pyproject.toml`; the config is deliberately named outside that set so the
-+# pre-commit hook never adopts it, which keeps the two enforcement points independent and means no
-+# ruff version alignment is owed (aligning would drag `ruff-format` and reformat 75 files).
-+# Do NOT add `--select` here: a CLI `--select` OVERRIDES the config file wholesale, so the job
-+# would silently stop enforcing what `.ruff-ci.toml` sets. `tests/test_lint_config.py` pins both.
-+#
-+# It deliberately does NOT use the `*python` anchor: linting imports nothing, so installing the
-+# runtime dependencies would add minutes for no benefit. Its cache key is requirements-dev.txt.
-+lint:python:
-+  image: python:3.11
-+  needs: []
-+  stage: test
-+  cache:
-+    key:
-+      files:
-+        - requirements-dev.txt
-+    paths:
-+      - .cache/pip
-+  before_script:
-+    - python -m pip install --upgrade pip
-+    - pip install -r requirements-dev.txt
-+  script:
-+    - ruff check . --config .ruff-ci.toml
-+  rules:
-+    - *not_on_schedule
-+    - when: on_success
-+
- # was: python-ci.yml
- test:python:
-   <<: *python
-diff --git a/.ruff-ci.toml b/.ruff-ci.toml
-new file mode 100644
-index 0000000..7e438e8
---- /dev/null
-+++ b/.ruff-ci.toml
-@@ -0,0 +1,83 @@
-+# Python lint config for the CI `lint:python` job. CORRECTNESS ONLY.
-+#
-+# ⚠ THE FILENAME IS LOAD-BEARING. Do NOT rename this to `ruff.toml` or `.ruff.toml`, and do not
-+# move these settings into a root `pyproject.toml`.
-+#
-+# Ruff auto-discovers exactly those three names by walking UP from each linted file. This repo has
-+# run ruff on every local commit since long before this file existed — `.pre-commit-config.yaml`
-+# (`rev: v0.7.4`, `args: [--fix, --exit-non-zero-on-fix]`) over
-+# `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, passing no `--config`, so it uses
-+# ruff's DEFAULTS. An auto-discoverable config at the root is silently adopted by that hook too,
-+# and then both ways of proceeding lose:
-+#
-+#   · Narrowing `select` here switches rules off on every local commit. Measured over the hook's
-+#     own file set: ruff's defaults report 10 violations (all E402); `["F","E9"]` reports 0. The
-+#     first version of this file shipped `["F","E9"]` and would have done exactly that — a guard
-+#     loosened as a side effect of adding a file.
-+#   · "Just align the two ruff versions" is not a fix either: the pre-commit `rev` also governs
-+#     `ruff-format`, which rewrites files on commit. Measured across v0.7.4 -> v0.16.2 with
-+#     `ruff format --diff`: **75 files would be reformatted** — the unreviewable mechanical diff
-+#     this whole change argues against.
-+#
-+# So CI passes `--config .ruff-ci.toml` explicitly and the local hook keeps its own defaults. The
-+# two enforcement points stay independent: no shared config, no version alignment owed, and neither
-+# can silently change the other. `tests/test_lint_config.py` fails if an auto-discoverable config
-+# appears at the root, or if the CI job stops passing `--config`.
-+
-+target-version = "py311"
-+
-+extend-exclude = [".venv", "site_v2/node_modules", "site_v2/dist", "dbt_project/target"]
-+
-+[lint]
-+# EXACTLY RUFF'S DEFAULT SET. Not one rule more, not one fewer.
-+#   E4  imports (E401 multiple-on-one-line, E402 module-import-not-at-top)
-+#   E7  statement-level errors (E711/E712 comparison-to-None/True, E722 bare except, E731 lambda…)
-+#   E9  syntax and IO errors
-+#   F   pyflakes — undefined names, unused imports, redefinitions, unused locals
-+#
-+# Matching the default is deliberate in BOTH directions. Narrower would enforce less in CI than the
-+# local hook already does, which is a backstop that backs nothing. Wider would adopt a new class of
-+# enforced opinion across the whole tree — style, import order, complexity — producing a large
-+# mechanical diff no reviewer can meaningfully read. Moving this list either way is a decision.
-+select = ["E4", "E7", "E9", "F"]
-+
-+# ⚠ LOAD-BEARING, and its removal is INVISIBLE — the violation count does not change.
-+#
-+# MUST STAY IN `[lint]`, ABOVE the `[lint.per-file-ignores]` header below: TOML keys belong to the
-+# last table declared, so moving this line under that header reparents it and ruff dies with
-+# "invalid type: string, expected a sequence". `tests/test_lint_config.py` caught exactly that
-+# within a minute of it happening.
-+#
-+# Ruff's default treats ANY underscore-prefixed name as an intentional throwaway and exempts it
-+# from F811 (redefinition) and F841 (unused local). Measured: `f` and `review_patch` are flagged;
-+# `_f`, `_review_patch` and `__x` are not. Every test helper in this repo is underscore-prefixed by
-+# convention, and the defect that motivated this whole change was a redefined `_review_patch` that
-+# broke four tests and cost an opus review round. On the default this linter would have shipped
-+# INERT against the exact class that justified it, while looking like it worked.
-+#
-+# `^_+$` narrows the exemption to BARE underscores, so `for _ in range(3)` and `a, _ = (1, 2)`
-+# still pass and named helpers do not. Measured: repo-wide violation count unchanged, so the
-+# coverage costs no noise.
-+dummy-variable-rgx = "^_+$"
-+
-+[lint.per-file-ignores]
-+# E402 (module import not at top of file) is CORRECT in these four and they are not defects. Each
-+# script is executed directly rather than imported, and must put the repo (or its own directory) on
-+# `sys.path` BEFORE importing from it. What trips E402 is the assignment above the insert, not the
-+# insert itself — ruff exempts `sys.path` modification, but not the line that computes the path:
-+#
-+#     _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))   # <- non-import code
-+#     if _ROOT not in sys.path:
-+#         sys.path.insert(0, _ROOT)
-+#     from ingestion.api_football.settings import GCP_PROJECT_ID               # <- E402
-+#
-+# Declared per file in one auditable table rather than as scattered `# noqa: E402`: adding a file
-+# here is a visible diff. Dropping E402 from `select` instead would disable it repo-wide, which is
-+# the never-loosen-a-guard failure this file already warns about twice.
-+#
-+# Every OTHER shim site in the tree already carries a pre-existing `# noqa: E402`, so this list is
-+# complete at four — counted independently by platform-reviewer at opus.
-+"scripts/clear_apif_ingest_lock.py" = ["E402"]
-+"scripts/compare_fixture_statistics_live.py" = ["E402"]
-+"scripts/export_matchday_json.py" = ["E402"]
-+"scripts/export_team_season_json.py" = ["E402"]
-diff --git a/ingestion/api_football/seasons.py b/ingestion/api_football/seasons.py
-index 3c21c16..0097799 100644
---- a/ingestion/api_football/seasons.py
-+++ b/ingestion/api_football/seasons.py
-@@ -20,7 +20,7 @@ import os
- from datetime import date, datetime, timedelta
- 
- from .settings import _env_truthy, _ingest_profile_name
--from .season_inference import effective_season_max, effective_season_min, season_year
-+from .season_inference import effective_season_min, season_year
- from .quota import append_api_errors, _flatten_api_errors
- from .http_client import fetch_json
- 
-diff --git a/requirements-dev.txt b/requirements-dev.txt
-new file mode 100644
-index 0000000..7f838fe
---- /dev/null
-+++ b/requirements-dev.txt
-@@ -0,0 +1,10 @@
-+# Developer-only tooling. Deliberately NOT in requirements.txt: nothing here may reach the
-+# ingestion runtime image, and nothing here is imported by shipped code.
-+#
-+# Install with:  python -m pip install -r requirements-dev.txt
-+#
-+# Pinned exactly, matching how requirements.txt pins. An unpinned linter turns every CI run into a
-+# lottery: a new release adds rules, the build goes red on code nobody touched, and the cheapest
-+# way out is to loosen the ruleset — which is how a guard dies.
-+
-+ruff==0.16.2
-diff --git a/tests/test_batch_fixtures.py b/tests/test_batch_fixtures.py
-index b9d110f..2649ff8 100644
---- a/tests/test_batch_fixtures.py
-+++ b/tests/test_batch_fixtures.py
-@@ -6,15 +6,13 @@ All BigQuery and HTTP interactions are mocked — no live GCP connection require
- from __future__ import annotations
- 
- from datetime import date, timedelta
--from unittest.mock import MagicMock, call, patch
-+from unittest.mock import MagicMock, patch
- 
--import pytest
- from google.cloud.exceptions import NotFound
- 
- from ingestion.api_football.loads.batch_fixtures import (
-     _BATCH_SIZE,
-     _STATS_RETRY_DAYS,
--    _fetch_and_persist_batch,
-     _finished_fixture_ids,
-     _needs_fetch,
-     _read_fetched_coverage,
-diff --git a/tests/test_fixture_scheduling.py b/tests/test_fixture_scheduling.py
-index be7f864..cfd230e 100644
---- a/tests/test_fixture_scheduling.py
-+++ b/tests/test_fixture_scheduling.py
-@@ -1,6 +1,5 @@
- """Tests for fixture_scheduling.py — coverage flags and the fanout gate."""
- 
--import pytest
- from datetime import date
- from ingestion.api_football.fixture_scheduling import (
-     _coverage_for_season,
-diff --git a/tests/test_fixtures_cache_skip.py b/tests/test_fixtures_cache_skip.py
-index 5f5585d..b1caf46 100644
---- a/tests/test_fixtures_cache_skip.py
-+++ b/tests/test_fixtures_cache_skip.py
-@@ -167,7 +167,9 @@ class TestFetchMergeSkip:
- 
-     def test_non_season_mode_never_skips_and_skips_cache_read(self):
-         ctx = _make_ctx()
--        cached = [_fixture(1, 2023, "FT"), _fixture(2, 2024, "NS")]
-+        # No `cached` fixture list here, unlike its siblings: this test asserts
-+        # `mock_read.assert_not_called()`, so the cache is never consulted and its
-+        # contents cannot affect the result. One was copied in and left unused (F841).
-         with patch.dict(
-             "os.environ", {"API_FOOTBALL_FIXTURES_MODE": "from_to"}, clear=False
-         ):
-diff --git a/tests/test_injuries_coaches.py b/tests/test_injuries_coaches.py
-index 7dbdedd..a054e85 100644
---- a/tests/test_injuries_coaches.py
-+++ b/tests/test_injuries_coaches.py
-@@ -5,9 +5,7 @@ All BigQuery and HTTP interactions are mocked — no live GCP connection require
- 
- from __future__ import annotations
- 
--from unittest.mock import MagicMock, call, patch
+-amendments: >
+-  ONE amendment, 2026-08-07, after review round 1. TWO PATHS ADDED: `.pre-commit-config.yaml` and
+-  `tests/test_lint_config.py`.
 -
--import pytest
-+from unittest.mock import MagicMock, patch
- 
- from ingestion.api_football.loads.injuries import load_injuries
- from ingestion.api_football.loads.coaches import load_coaches
-diff --git a/tests/test_lint_config.py b/tests/test_lint_config.py
-new file mode 100644
-index 0000000..cce62b8
---- /dev/null
-+++ b/tests/test_lint_config.py
-@@ -0,0 +1,155 @@
-+"""Pin the lint configuration, because every way of breaking it leaves the build GREEN.
-+
-+WHY THIS EXISTS
-+---------------
-+`.ruff-ci.toml` was added on 2026-08-07 after `platform-reviewer` at opus spent ~125k tokens on
-+!19 finding a duplicate module-level function name. Three review rounds on that change surfaced
-+five defects, and every one of them shares a shape: the lint setup keeps failing in ways that
-+report success.
-+
-+  * The ruleset can be narrowed and nothing goes red — it just stops finding things.
-+  * `dummy-variable-rgx` can be deleted and the violation count does not move, because the repo
-+    currently has no violation of the rule it restores.
-+  * The config can be made auto-discoverable and the only symptom is that a DIFFERENT tool, the
-+    pre-commit hook, quietly changes behaviour.
-+  * `per-file-ignores` can grow an entry that disables a whole rule for a whole directory.
-+  * The CI job can add `--select`, which overrides the config file wholesale, and every test here
-+    would still pass while the config stops mattering.
-+
-+Each of those is a guard that looks strong and is nearly inert — the failure
-+`tests/test_materialisation_policy.py` was written about.
-+
-+HOW IT IS SHAPED, AND WHY
-+-------------------------
-+Values are read from parsed TOML and YAML, never grepped from file text. A guard that matches
-+prose is defeated by a reword, which is that same file's other lesson.
-+
-+`select` is asserted to equal ruff's DEFAULT set exactly, and that is deliberate in both
-+directions. Narrower means CI enforces less than the local pre-commit hook already does — a
-+backstop that backs nothing. Wider adopts a new class of enforced opinion across the whole tree.
-+Either is a decision, not a tidy-up.
-+"""
-+
-+from __future__ import annotations
-+
-+import pathlib
-+import re
-+import tomllib
-+
-+ROOT = pathlib.Path(__file__).resolve().parents[1]
-+CI_CONFIG = ROOT / ".ruff-ci.toml"
-+GITLAB_CI = ROOT / ".gitlab-ci.yml"
-+
-+# Ruff's own default. Changing this constant is the deliberate act; changing the config alone is not.
-+RUFF_DEFAULT_SELECT = ["E4", "E7", "E9", "F"]
-+
-+# The three names ruff auto-discovers by walking up from each linted file.
-+AUTO_DISCOVERED = ("ruff.toml", ".ruff.toml", "pyproject.toml")
-+
-+
-+def _config() -> dict:
-+    return tomllib.loads(CI_CONFIG.read_text(encoding="utf-8"))
-+
-+
-+def test_select_is_exactly_ruffs_default_set():
-+    """Narrowing enforces less than the local hook; widening is a new class of opinion."""
-+    select = _config()["lint"]["select"]
-+
-+    assert sorted(select) == sorted(RUFF_DEFAULT_SELECT), (
-+        f"`select` is {select}, not ruff's default {RUFF_DEFAULT_SELECT}. Narrower means the CI "
-+        "backstop enforces less than .pre-commit-config.yaml already does locally; wider adopts "
-+        "style/import-order/complexity rules across the whole tree. Both are decisions."
-+    )
-+
-+
-+def test_the_dummy_variable_override_survives():
-+    """Its removal is invisible: the violation count is unchanged and the build stays green.
-+
-+    Ruff's default exempts ALL underscore-prefixed names from F811/F841. Measured 2026-08-07:
-+    `f` and `review_patch` are flagged for redefinition; `_f`, `_review_patch` and `__x` are not.
-+    """
-+    rgx = _config()["lint"].get("dummy-variable-rgx")
-+
-+    assert rgx is not None, (
-+        "`dummy-variable-rgx` is gone. On ruff's default, F811/F841 exempt every underscore-"
-+        "prefixed name, and every test helper in this repo is underscore-prefixed — so the linter "
-+        "goes inert against the class it was added for, with no count change to reveal it. "
-+        "(If this fires unexpectedly, check the key has not been reparented under a later "
-+        "[table] header: TOML keys belong to the last table declared.)"
-+    )
-+    compiled = re.compile(rgx)
-+    assert compiled.fullmatch("_"), "bare `_` must stay exempt (`for _ in range(3)`)"
-+    assert compiled.fullmatch("__"), "bare `__` must stay exempt"
-+    assert not compiled.fullmatch("_review_patch"), (
-+        f"`{rgx}` still exempts named underscore-prefixed helpers, which is the default behaviour "
-+        "this setting exists to override"
-+    )
-+
-+
-+def test_the_ci_config_is_not_auto_discoverable():
-+    """The filename is the whole mechanism keeping CI and the pre-commit hook independent.
-+
-+    Ruff walks up for `ruff.toml` / `.ruff.toml` / `pyproject.toml`. If this config becomes one of
-+    those, `.pre-commit-config.yaml`'s ruff hook silently adopts it: narrowing `select` would then
-+    switch rules off on every local commit, and "just align the versions" drags `ruff-format`,
-+    which reformats 75 files. Neither symptom appears in CI.
-+    """
-+    assert CI_CONFIG.name not in AUTO_DISCOVERED, (
-+        f"{CI_CONFIG.name} is one of ruff's auto-discovered names, so the pre-commit hook now "
-+        "reads it too"
-+    )
-+    for name in AUTO_DISCOVERED:
-+        candidate = ROOT / name
-+        if name == "pyproject.toml" and candidate.exists():
-+            assert "[tool.ruff]" not in candidate.read_text(encoding="utf-8"), (
-+                "a root pyproject.toml now carries [tool.ruff]; the pre-commit hook will adopt it"
-+            )
-+            continue
-+        assert not candidate.exists(), (
-+            f"{name} exists at the repo root. Ruff auto-discovers it, so the pre-commit hook "
-+            "silently adopts its settings — the coupling .ruff-ci.toml's filename exists to avoid."
-+        )
-+
-+
-+def test_per_file_ignores_only_exempt_e402_in_the_shim_scripts():
-+    """An entry here can disable a whole rule for a whole directory, invisibly.
-+
-+    `"tests/*" = ["F811"]` would switch off the coverage this config was added for, while every
-+    other test in this file passes and `ruff check` stays green.
-+    """
-+    ignores = _config()["lint"].get("per-file-ignores", {})
-+
-+    for pattern, rules in ignores.items():
-+        assert rules == ["E402"], (
-+            f"per-file-ignores exempts {rules} for `{pattern}`. Only E402 is justified here, and "
-+            "only for scripts that must extend sys.path before importing. Any other rule or any "
-+            "broader pattern disables coverage without a single test going red."
-+        )
-+        assert pattern.startswith("scripts/") and pattern.endswith(".py"), (
-+            f"`{pattern}` is not a single script under scripts/. Directory-wide patterns turn a "
-+            "declared exemption into a silent hole."
-+        )
-+
-+
-+def test_the_ci_job_passes_the_config_and_no_select_override():
-+    """`--select` on the command line OVERRIDES the config file wholesale.
-+
-+    Round 3 of this change found the acceptance criterion itself naming
-+    `ruff check . --select F,E9`, which would have passed on a tree where E4/E7 were red or where
-+    the config failed to load at all. The same mistake in the CI job would make every other test
-+    in this file meaningless.
-+    """
-+    text = GITLAB_CI.read_text(encoding="utf-8")
-+    invocations = re.findall(r"^\s*-\s*(ruff check .*)$", text, re.M)
-+
-+    assert invocations, "no `ruff check` invocation found in .gitlab-ci.yml"
-+    for cmd in invocations:
-+        assert "--config .ruff-ci.toml" in cmd, (
-+            f"`{cmd}` does not pass `--config .ruff-ci.toml`. Without it ruff finds no config at "
-+            "all (the filename is deliberately not auto-discovered) and silently falls back to "
-+            "its defaults, losing dummy-variable-rgx and the per-file-ignores."
-+        )
-+        assert "--select" not in cmd and "--ignore" not in cmd, (
-+            f"`{cmd}` overrides the config from the command line. A CLI --select/--ignore replaces "
-+            "the config's ruleset, so .ruff-ci.toml stops governing what CI enforces."
-+        )
-diff --git a/tests/test_per_team_completeness.py b/tests/test_per_team_completeness.py
-index e34662d..c71a88c 100644
---- a/tests/test_per_team_completeness.py
-+++ b/tests/test_per_team_completeness.py
-@@ -20,8 +20,6 @@ from __future__ import annotations
- 
- import types
- 
--import pytest
+-  AUTHORITY: CPO instruction **"do it"**, conversation 2026-08-07, against a stated recommendation
+-  naming the ruleset change, the `per-file-ignores`, the pre-commit version alignment and the fact
+-  that `.pre-commit-config.yaml` sits outside the approved scope. Recorded at
+-  `.claude/task/escalations.log`, same entry, block `⚠ ROUND 1: THE PREMISE WAS FALSE`. That block
+-  and this amendment were written in the SAME action.
 -
- from ingestion.api_football.completeness import (
-     PER_TEAM_ENTITIES,
-     PER_TEAM_GATED,
-diff --git a/tests/test_season_inference.py b/tests/test_season_inference.py
-index 815c303..f38993a 100644
---- a/tests/test_season_inference.py
-+++ b/tests/test_season_inference.py
-@@ -6,7 +6,6 @@ the previous season instead of the current one. This has caused real bugs.
+-  ⚠ WHY IT WIDENED — THE OBJECTIVE'S PREMISE WAS FALSE. This contract claimed "This repo has NO
+-  linter and none pinned". `.pre-commit-config.yaml` has configured `astral-sh/ruff-pre-commit`
+-  `rev: v0.7.4` all along, over `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, and
+-  `.git/hooks/pre-commit` is installed, so it fires on every local commit. The claim came from
+-  grepping `requirements*.txt` only and reporting that scoped result as a general one — the #904
+-  class, and the THIRD instance from this builder in two days. Found by `cto-reviewer` and
+-  `platform-reviewer` independently, at opus.
+-
+-  ⚠ AND THE CHANGE AS APPROVED WOULD HAVE LOOSENED AN EXISTING GUARD. Ruff walks up for config, so
+-  a NEW root `ruff.toml` is read by the pre-commit hook too. MEASURED over that hook's own file
+-  set: ruff's defaults (`E4,E7,E9,F`) report **10** violations, all E402; the approved
+-  `select = ["F","E9"]` reports **0**. Shipping it would have silently stopped E4 and E7 being
+-  enforced on every local commit — never-loosen-a-guard, committed inside an MR justified as
+-  strengthening guards.
+-
+-  WHAT CHANGES. `select` becomes `["E4","E7","E9","F"]`, ruff's default, so NOTHING is narrowed
+-  anywhere. The 10 E402s are declared in `per-file-ignores` rather than fixed: all four files use
+-  the deliberate `sys.path.insert(...)`-then-import shim, where the import genuinely must follow the
+-  path setup. `.pre-commit-config.yaml`'s `rev` moves to `v0.16.2` to match the pinned CI version,
+-  because both now read the same `ruff.toml` and every measurement here was taken on 0.16.2.
+-  `tests/test_lint_config.py` pins `select` and `dummy-variable-rgx`, closing `platform-reviewer`'s
+-  finding that the load-bearing setting had nothing stopping its removal.
+-
+-  BOUNDED: this does NOT change what CI runs beyond the ruleset, does not touch SQLFluff's
+-  pre-commit entry, and adopts no style, import-sorting or formatting rules. `select` is now exactly
+-  ruff's default and not one rule more.
+-
+-  SECOND AMENDMENT, 2026-08-07, after review round 2. NET EFFECT: ONE PATH ADDED (`.ruff-ci.toml`),
+-  TWO REMOVED (`ruff.toml`, `.pre-commit-config.yaml`). Written in the SAME action as its
+-  `escalations.log` block.
+-
+-  AUTHORITY: the same CPO instruction **"do it"** (2026-08-07). This amendment does not widen the
+-  task — it NARROWS it, giving back a path the first amendment took. Both round-2 FAILs are fixed
+-  by touching strictly less than round 2 did.
+-
+-  ⚠ WHY: the two round-2 FAILs pulled in OPPOSITE directions. `cto-reviewer` FAILed the
+-  `.pre-commit-config.yaml` `rev` bump, because the same `rev` governs `ruff-format` and across
+-  v0.7.4 to v0.16.2 **75 files would be reformatted** — measured, and exactly the unreviewable
+-  mechanical diff this branch argues against. But NOT aligning the versions leaves two ruff versions
+-  reading one config, which was `platform-reviewer`'s round-1 finding. Aligning or not aligning both
+-  lose.
+-
+-  THE FIX DISSOLVES BOTH RATHER THAN TRADING THEM. Ruff auto-discovers only `ruff.toml`,
+-  `.ruff.toml` and `pyproject.toml`. Naming the file `.ruff-ci.toml` and passing `--config` in CI
+-  means the pre-commit hook never reads it: no shared config, so no version alignment is owed, so
+-  `ruff-format` never moves. VERIFIED both ways before adopting: with the file present and no
+-  `--config`, a redefined `_f` is NOT flagged (config not discovered); with `--config .ruff-ci.toml`
+-  it IS.
+-
+-  `.pre-commit-config.yaml` is therefore byte-identical to `main` and leaves `scope_paths`.
+-
+-  ALSO IN ROUND 3, all text-only and all found by review: the false "no linter" premise removed from
+-  `.gitlab-ci.yml` and the config's own comments (it survived round 2 verbatim in both PERMANENT
+-  artifacts while only the contract was corrected — corrections must replace, not accumulate); the
+-  `done_when` command that bypassed its own config; the `done_when` bar that forbade the
+-  `per-file-ignores` the branch ships; `decisions_reserved` reserving a widening already taken; the
+-  `impact_map`'s disproved "cannot weaken an existing gate"; and "ten F401s" corrected to NINE
+-  inside the hook's file pattern.
++
++amendments: (none)
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 9dec7f7..0de3d59 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -46,11 +46,6 @@ Next: player insights chain (#153 → #156).
+ | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
+ | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
  
- from datetime import datetime
+-> The old `gh_pages_match_preview_*.plan.md` row was removed 2026-08-06. The file still exists on
+-> disk, but it plans the **retired** MVP, and an always-loaded table listing it as authoritative is
+-> how a session ends up building against a dead product. Same defect as the
+-> `pipeline_architecture_plan.md` pointer removed from `MEMORY.md` the same day.
+-
+ ## Architecture decisions (non-negotiable)
  
--import pytest
- from ingestion.api_football.season_inference import (
-     _infer_competition_season_start_year,
-     effective_season_max,
+ - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
+diff --git a/docs/pipeline_architecture_plan.md b/docs/pipeline_architecture_plan.md
+deleted file mode 100644
+index d9e3d04..0000000
+--- a/docs/pipeline_architecture_plan.md
++++ /dev/null
+@@ -1,286 +0,0 @@
+-# Multi-competition pipeline architecture plan
+-
+-**Status:** Step 1 complete. Step 2 architecture decided (manual-UNION base + CI guarantee + core source-agnostic); execution split into 6 endpoint-surface PRs (2.1 through 2.6). **Step 3 matchday-form rules are locked** — CPO clarifications **2026-05-15** are recorded under **CPO decisions (recorded)**.
+-
+-**Last updated:** 2026-05-16
+-
+-## Goal
+-
+-Make it easy and straightforward to add any new league/competition. Adding a new competition should require:
+-1. One entry in `docs/competition_registry.yml`
+-2. One new mart file (`mart_matchday_insights_{league_code}.sql`)
+-3. **Registry-driven extensions** to shared **`int_matchday__*`** intermediates where the form/upcoming-round behaviour is shared; **no** ad hoc business logic in `3_core`. (Core schema changes are separate gated PRs when new facts are introduced.)
+-
+----
+-
+-## Ingestion fixes merged (2026-05-05)
+-
+-- **PR #36**: `current_season` threaded from registry through ingestion — WC uses season 2026 correctly
+-- **PR #37**: This architecture plan document
+-- **PR #38**: Stats fetch always attempted for finished fixtures; stale staging model reference in CI trust script fixed
+-- **PR #39**: All 7 qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC) made first-class competitions — ingested through the standard pipeline, same level of detail as BL1
+-- **PR #40**: Fanout gate fixed — finished fixtures always enter the fanout loop for statistics regardless of reference season coverage flags (was silently skipping WC 2022 and WCQEU stats)
+-
+-## Subsequent architectural changes (2026-05-06 → 2026-05-10)
+-
+-These changed inputs and constraints to Step 2 and need to be reflected in the plan:
+-
+-- **PR #48 — Global completeness-driven fanout**: priority queue across all competitions, with `history_seasons` per competition. Combined with PR #39, **each qualifier confederation is now a first-class competition with its own per-confederation raw tables** (`RAW_APIF_WCQEU_*`, `RAW_APIF_WCQAF_*`, etc.). The earlier aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table is no longer written and is stale since 2026-05-05.
+-- **PR #49 — Catalog guard**: `/leagues` writes only when the API returns non-empty `response`, preventing daily-quota errors from wiping valid leagues data via WRITE_TRUNCATE.
+-- **PR #51 — `mart_team_season` rank fix**: short-term workaround at the mart layer (use latest `snapshot_valid_from` for dedup) so the matchday-preview UI shows correct Tabellenplatz.
+-- **PR #52 — Standings snapshot removed**: `snap_apif_d1_standings` deleted. `fct_standings` now sources from unified `base_apif__standings` (regular table dedup across competitions), not from an SCD2 snapshot. There is currently no snapshot anywhere in the project.
+-- **PR #53 — Tiered completeness gate + run summary**: scheduled workflow hard-fails only when an `active` competition is incomplete; `in_progress` competitions warn and stay green. Every run renders a per-competition coverage table to `$GITHUB_STEP_SUMMARY`. This is the always-on observability for the pipeline.
+-- **PR #56 — Injuries removal**: the entire injury surface (ingestion call, `merge_injuries_envelope`, dbt sources, staging models, `fct_injury` mention in deferred-fact list) is deleted. Injuries are no longer ingested for any competition and the architecture should not reference them.
+-- **Diagnostic scripts** added under `scripts/diagnostics/`: `inspect_raw_payload.py`, `probe_time_travel.py`, `restore_from_time_travel.py`. Used today to restore `RAW_APIF_BL1_LEAGUES` from BigQuery time travel after a quota-induced WRITE_TRUNCATE corruption.
+-
+-## Ingestion status as of 2026-05-10
+-
+-| Competition | Finished fixtures | Fanout coverage | Notes |
+-|---|---|---|---|
+-| BL1 | 3,056 / 3,056 | ✅ all 5 endpoints 100% | active |
+-| WC | 128 / 128 | ✅ all 5 endpoints 100% | active |
+-| WCQEU | 740 / 740 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 99.9% (1 missing) | in_progress |
+-| WCQAF | 540 / 540 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~20% (434 missing) | in_progress |
+-| WCQCA | 330 / 330 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~55% (148 missing) | in_progress |
+-| WCQSA | 269 / 269 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 99.3% (2 missing) | in_progress |
+-| WCQAS | 681 / 681 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~45% (372 missing) | in_progress |
+-| WCQIP | 4 / 4 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~25% (3 missing) | in_progress |
+-| WCQOC | 18 / 18 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 0% (18 missing) | in_progress |
+-
+-BL1 and WC are fully complete; qualifier statistics will converge to 100% over additional scheduled runs as the global fanout prioritizes missing fixtures. The completeness target is **0% gap** — any qualifier fixture without statistics is treated as incomplete until backfilled.
+-
+-## Current state
+-
+-- `mart_matchday_insights_bl1.sql` is BL1-only (`where league_code = 'BL1'`); `mart_matchday_insights.sql` is a thin view for the stable export name — **must not break**
+-- Form and matchday spine live in `int_matchday__*` models; the mart joins those intermediates with `mart_team_season`
+-- Known gaps vs **Step 3 + CPO decisions** — implementation PR will close:
+-  - Matchday-based window vs **games** + **full previous season before current season starts**
+-  - `coalesce(stat, 0)` vs **null** numerics + **“Not provided”** copy for optional API gaps (glossary/UI)
+-  - WC form dispatch (Group Stage MD1 qualifiers → cumulative WC tournament form) not yet isolated in a WC-specific intermediate model
+-- Intermediate: `int_pipeline__raw_ingestion_spread` (ingestion monitoring); `int_matchday__*` (fixture denorm, finished legs + stats, upcoming round, team form metrics). **Rule:** `4_intermediate` models must not `ref()` any `mart_*` model.
+-- Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
+-- Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
+-- No SCD2 snapshots in the project; injuries are not ingested (see PR #52 and PR #56 above)
+-- Dims `dim_league`, `dim_competition_season`, and `dim_team` read unified `base_apif__leagues` / `base_apif__teams` (PR #59 — all registry competitions with staging).
+-- `fct_fixture` reads `base_apif__fixtures_next` (PR #59). `fct_standings` reads `base_apif__standings` (Step 2.2). Other facts remain BL1-only until their Step 2.x PRs.
+-- Per-competition bases for leagues, teams, fixtures, and standings are superseded by unified `base_apif__*` models with explicit `ref()` lists; remaining endpoints follow the same pattern in the plan table.
+-
+----
+-
+-## Execution order
+-
+-### Step 1 — Verify WC ingestion (prerequisite) — DONE
+-
+-WC and the 7 qualifier confederations are each first-class competitions in the registry, ingested through the standard pipeline with their own per-confederation raw tables.
+-
+-Per-competition raw tables (BL1 reference shown for comparison; same endpoint suffixes for all):
+-
+-| League code | Status | Raw tables produced |
+-|---|---|---|
+-| `BL1` | active | `RAW_APIF_BL1_FIXTURES_NEXT`, `_LEAGUES`, `_STANDINGS`, `_ROUNDS`, `_TEAMS`, `_TRANSFERS`, `_LINEUPS`, `_FIXTURE_EVENTS`, `_FIXTURE_STATISTICS`, `_FIXTURE_PLAYERS`, `_PREDICTIONS`, `_PLAYERS` |
+-| `WC` | active | same set, `WC` prefix |
+-| `WCQEU`, `WCQAF`, `WCQCA`, `WCQSA`, `WCQAS`, `WCQIP`, `WCQOC` | in_progress | same set per confederation, `WCQ<XX>` prefix |
+-
+-Verify with the diagnostic script when needed:
+-
+-```bash
+-python scripts/diagnostics/inspect_raw_payload.py --table RAW_APIF_<league_code>_<entity>
+-```
+-
+-Completeness state for these tables is shown in the **Ingestion status as of 2026-05-10** section above.
+-
+-The aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table referenced in the original (2026-05-05) plan is **obsolete and stale** since PR #39 / #48 made each qualifier a first-class competition. The dbt source declaration `raw_apif_wc_qualifier_fixtures` and the staging/base models that read it were removed in Step 2.1 (multi-competition foundation PR).
+-
+-### Step 2 — Expand core layer to full BL1 parity across all competitions
+-
+-
+-**Step 2.1 sequencing correction:** The original plan split fixtures (2.1) from leagues/teams (2.6). `fct_fixture` relationship tests require `dim_competition_season`, `dim_league`, and `dim_team` to already include qualifier rows. PR 2.1 therefore bundles the three unified bases (leagues, teams, fixtures_next) with the dim and fixture refactors in one merge unit so BL1 stays green.
+-
+-**No mart changes in this step.** Scope is data-flow plumbing only; form-source dispatch (qualifiers → WC group stage) is Step 3.
+-
+-Goal: every fact in `3_core` covers BL1 + WC + 7 qualifier confederations, sourced by the same shape of base model as BL1 uses today. Every dim covers the same 9 competitions.
+-
+-#### Layer discipline (re-stated)
+-
+-- **Staging is 1:1 with raw.** One staging model per raw table — JSON unnesting, casting, no UNION ALL, no business logic.
+-- **Base is the unification point.** UNION ALL across competitions + dedup happens here. **Each endpoint gets exactly one base model** that unions every per-competition staging via explicit `ref()` calls. No per-competition base models.
+-- **Core consumes base only.** Facts and dims read from a single base per endpoint and never UNION across competitions. Core is source-agnostic.
+-
+-#### Architectural decision — manual UNION list + CI guarantee (not auto-discovery)
+-
+-The technical north star (`docs/north_star.md`) documents ingestion + staging + mechanical base `ref()` lines, with no core/mart edits per competition once bases exist for an endpoint. The literal "staging only" reading would force auto-discovery in base (Jinja over `graph.nodes`). I'm deliberately not going that route. Decision and rationale, as senior analytics engineer:
+-
+-- Each base model lists its component stagings explicitly with `ref()`. Adding a competition means adding one `ref()` line per base — mechanical, ~10 lines total across all bases.
+-- Singular tests (`assert_base_*_covers_active_competition_var.sql`, see test table below) fail if any `league_code` in `vars.active_competition_league_codes` is missing from a unified base; `scripts/check_registry_var_sync.py` keeps that var aligned with the registry (`active` / `in_progress`).
+-- **Why not auto-discovery**: dbt's strength is explicit `ref()` lineage — visible in `dbt docs`, the lineage graph, and `dbt --select +model` selectors. `graph.nodes` enumeration hides those edges from dbt's graph and is a rare pattern that's harder for future contributors to read. Adding a competition is quarterly cadence, not daily — the cost of editing ~10 mechanical `ref()` lines is negligible compared to the cost of debugging Jinja-graph magic the one time it goes wrong.
+-- **The north star's spirit is preserved**: zero changes to **core, intermediate, or marts** when adding a competition once unified bases cover that endpoint. Base edits remain mechanical and CI-guaranteed.
+-
+-For each endpoint surface listed below, the work pattern is identical:
+-
+-1. Declare per-confederation raw sources in `sources.yml` (21 table entries for leagues, teams, fixtures_next per WCQ code)
+-2. Add a WC staging model if missing (`stg_apif__wc_<endpoint>`)
+-3. Add 7 per-confederation staging models (`stg_apif__wcqeu_<endpoint>`, etc.)
+-4. Add or extend the base model so it UNION ALLs BL1 + WC + 7 qualifiers and dedupes
+-5. Expand the corresponding fact (drop BL1-only references)
+-6. Add the active-competitions presence test for that fact
+-
+-#### Per-endpoint scope
+-
+-| Endpoint surface | Stagings (9 total per endpoint when complete) | Base model | Core consumers (refactored to read single base) |
+-|---|---|---|---|
+-| Fixtures | BL1 ✓, WC ✓, 7 qualifiers (new) | `base_apif__fixtures_next` (replaces per-competition bases) | `fct_fixture` |
+-| Standings | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__standings` (replaces `base_apif__bl1_standings`) | `fct_standings` |
+-| Fixture statistics | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__fixture_statistics` (new) | `fct_fixture_team_stats` |
+-| Fixture events | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__fixture_events` (new) | `fct_fixture_event` |
+-| Fixture players | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__fixture_players` (new) | `fct_fixture_player_stats` |
+-| Teams | BL1 ✓, WC ✓, 7 qualifiers (new) | `base_apif__teams` (replaces per-competition bases) | `dim_team` |
+-| Players | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__players` (new) | `dim_player` |
+-| Transfers | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__transfers` (new) | `fct_transfer` |
+-| Leagues | BL1 ✓, WC ✓, 7 qualifiers (new) | `base_apif__leagues` (replaces per-competition bases) | `dim_league`, `dim_competition_season` |
+-| Lineups | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__lineups` (new) | (no fact yet — feeds Step 3 form computation) |
+-| Predictions | BL1 ✓, WC (new), 7 qualifiers (new) | `base_apif__predictions` (new) | (no fact yet — feeds Step 3) |
+-
+-Total work for Step 2:
+-- ~63 new per-confederation staging models (7 qualifiers × 9 endpoints, minus those already existing)
+-- ~8 new WC stagings (endpoints WC doesn't have yet)
+-- 11 single-union base models (replace existing per-competition bases; add new for endpoints without bases)
+-- 6 fact and 3 dim refactors — each reads exactly one base, no UNION in core
+-- The CI tests below
+-
+-**Core source-agnosticism**: after Step 2, every model in `3_core/` reads from a single `base_apif__<endpoint>` and contains zero `union_all` macros or per-competition `ref()` calls. This is the test of whether the principle is met.
+-
+-#### Cleanup tasks (part of Step 2)
+-
+-- [x] Remove `raw_apif_wc_qualifier_fixtures` from `sources.yml` (no longer written)
+-- [x] Delete `stg_apif__wc_qualifier_fixtures.sql` and `base_apif__wc_qualifier_fixtures.sql`
+-- [x] Drop the BQ table `RAW_APIF_WC_QUALIFIER_FIXTURES` via `scripts/drop_raw_apif_wc_qualifier_fixtures.py` (run `--apply` after merge)
+-- [x] Drop the `--exclude stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures` flags from both workflow files
+-
+-#### Tests required for Step 2 (added in CI)
+-
+-| Test | Assertion |
+-|---|---|
+-| `assert_base_leagues_covers_active_competition_var.sql` (and teams / fixtures_next variants) | Every `league_code` in `vars.active_competition_league_codes` has ≥ 1 row in the unified base (must match registry; enforced by `check_registry_var_sync.py`). **Manual-UNION guarantee.** |
+-| `check_layer_contract.py` | Fails if any `3_core/*.sql` contains `union_all(` — core reads a single base per endpoint. |
+-| `assert_fct_fixture_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_fixture` |
+-| `assert_base_fixture_statistics_covers_active_competition_var.sql` | Every var `league_code` with fixture-statistics coverage has ≥ 1 row in `base_apif__fixture_statistics` |
+-| `assert_fct_standings_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_standings` |
+-| `assert_fct_fixture_team_stats_covers_active_competition_var.sql` | Every var `league_code` with fixture-statistics coverage has ≥ 1 row in `fct_fixture_team_stats` |
+-| `assert_fct_fixture_event_all_active_competitions_present.sql` | Same shape, for events |
+-| `assert_fct_fixture_player_stats_all_active_competitions_present.sql` | Same shape, for player stats |
+-| `assert_dim_team_all_active_competitions_present.sql` | Every team appearing in any fact has a `dim_team` row |
+-| `assert_dim_player_all_active_competitions_present.sql` | Same shape, for players |
+-| `assert_dim_league_all_active_competitions_present.sql` | Every `league_code` in registry → row in `dim_league` |
+-
+-> **Risk:** Expanding the facts touches the BL1 data path. After each endpoint surface PR, re-run the existing BL1 trust diagnostics (`assert_fct_fixture_finished_goals_not_null`, `assert_fct_fixture_goals_plausible`, `data_trust_fixture_stats.py`) and verify the matchday-preview JSON export for BL1 is unchanged before merging.
+-
+-> **Completeness gating:** Qualifier statistics are still backfilling (see ingestion status table). The tiered completeness gate (PR #53) keeps the scheduled workflow green while backfill converges. Step 2 fact expansions surface the partial data, but the matchday-preview UI will not consume WC / qualifier facts until Steps 5+ wire them in.
+-
+-### Step 3 — Matchday form & fixture spine (intermediate; design locked)
+-
+-> **Status: LOCKED — product rules in “Locked rules (CPO-aligned)” + “CPO decisions (recorded)”.** Implement in `dbt_project/models/4_intermediate/matchday/` by evolving **`int_matchday__team_form_metrics`** (and related ints). Older drafts in this file referred to `int_apif__team_form` / `int_apif__fixture_enriched`; those map to **`int_matchday__team_form_metrics`** and **`int_matchday__fixture_denormalized`** (already one row per fixture with core dims).
+-
+-#### Locked rules (CPO-aligned)
+-
+-> Classification is by the **competition_types taxonomy** (`competition_type` → `entity_type`). The per-competition `form_source` field and the `supporting_leagues` enumeration were retired (PR #429); the rules below are unchanged — only the mechanism that selects which rule applies (taxonomy + competition phase) is restated.
+-
+-1. **Domestic leagues (club `entity_type`, e.g. BL1)**  
+-   - **Before the competition has started** (no finished league match yet in the **current** `season_api_year` for that `league_code`): compute form from the **entire previous season** — all finished matches for that team in the same `league_code` with the prior season year (`season_type` / split-year rules from `dim_competition_season`).  
+-   - **After the first finished match of the current season:** use **only** the **current** competition. Rolling window = the **last five finished matches** in that `league_code` + current `season_api_year`, ordered by kickoff (deterministic tie-break). **Until five such matches exist**, include **every** finished match played so far (matchday 1 → one game, matchday 3 → up to three games, etc.). **Never** use `dense_rank()` on `round_order` to fake five slots when postponements leave gaps — the window is **games**, not **matchdays**.
+-
+-2. **WC (national `entity_type`)**  
+-   - **Through Group Stage Matchday 1:** form uses **all** finished qualifier legs for that team across its national competitions (legs with `entity_type = 'national'`, selected by recency rather than an enumerated supporting-league list) — no cap.  
+-   - **From Group Stage Matchday 2 onward (including knockout):** use **only** finished `league_code = 'WC'` tournament legs before kickoff — cumulative tournament-to-date (no five-game cap).
+-
+-3. **Season boundaries**  
+-   Do not mix legs across the wrong season year for the path above. `season_type` from `dim_competition_season` / registry drives which `season_api_year` counts as “previous” for split-year leagues.
+-
+-4. **Missing data — contract vs copy**  
+-   - **Integrity / must-not-lie:** If the warehouse says a match is finished but **required** facts are missing (e.g. both goals null), **CI must stay red** (existing singular tests; extend only when product defines new hard requirements).  
+-   - **Optional provider gaps:** When API-Football simply **does not supply** a stat for a leg, **do not** coerce to `0` in rates. Expose **null** in numeric columns and document in **`metric_glossary`** / UI that the rendered label is **`Not provided`** (or equivalent plain language), **not** a numeric zero. The app should not show a bare em dash that reads like “zero”.
+-
+-5. **Marts stay thin**  
+-   `mart_matchday_insights_bl1`, future `mart_matchday_insights_wc`, and the **`mart_matchday_insights`** shim: filters, column order, display names only — **no** window or dispatch logic here.
+-
+-#### Implementation defaults (analytics engineering; revise only via this doc)
+-
+-- **“Competition started” for domestic** = exists at least one **finished** (FT/AET/PEN) fixture in `fct_fixture` for that `league_code` + current `season_api_year` (with non-null goals per finished-leg int).  
+-- **First WC tournament match for dispatch** = earliest finished WC leg for the team with `kickoff_datetime <` the reference upcoming fixture kickoff.  
+-- **Qualifier set for a national team** = its finished legs with `entity_type = 'national'` (selected by recency / season-to-date across the team’s national competitions), not an enumerated registry list. An explicit WC↔qualifier parent link is reserved for GAP-18 (`parent_competition`).
+-
+-### Step 4 — Intermediate-layer tests
+-
+-Add or extend before shipping changed JSON to fans:
+-
+-| Test | Assertion |
+-|---|---|
+-| `assert_team_form_max_5_games.sql` | After domestic “competition started”: at most **5** current-season legs in the window per `(fixture_sk, team_sk)`; before start, previous-season path may exceed 5 |
+-| `assert_team_form_same_season_only.sql` | Legs obey the season / dispatch rule for that path (not a blind `season_api_year = ref.season_api_year` if the spec says otherwise) |
+-| `assert_team_form_no_zero_avg_when_no_stats.sql` | Rates are **null** when inputs missing — never silent numeric zero; UI/glossary maps optional gaps to **“Not provided”** |
+-| Fixture grain | Extend existing tests on **`int_matchday__fixture_denormalized`** if new columns are added |
+-
+-**Seed / scenario test:** six finished games in sequence → only the **five** most recent by kickoff enter the capped window.
+-
+-### Step 5 — WC mart (new file; does not change BL1)
+-
+-`mart_matchday_insights_wc.sql`:
+-
+-- Thin mart: `league_code = 'WC'` on the same upcoming-round + form spine as BL1.
+-- **Identical column contract to `mart_matchday_insights_bl1`** for the web renderer.
+-- Singular test: **`assert_mart_wc_column_contract_matches_bl1.sql`**.
+-
+-### Step 6 — Wire WC to the web app
+-
+-- Selector (BL1 vs WC) and/or second export; BL1 regression required.
+-
+-### Step 7 — BL1 behaviour vs legacy numbers
+-
+-`mart_matchday_insights_bl1` is already structurally thin. After **`int_matchday__team_form_metrics`** matches Step 3, run **full regression** on exported JSON (or document every intentional delta in the PR).
+-
+-### Step 8 — New competition (repeatable)
+-
+-1. Registry → ingestion → staging → base `ref()` + coverage tests  
+-2. `mart_matchday_insights_<league_code>.sql` thin mart
+-
+-**Scope discipline:** Steps 3–4 touch **`4_intermediate`** and **tests**. **No `3_core` changes** as part of form dispatch. Step 5 **adds** a mart. **`mart_matchday_insights` (shim)** keeps the stable BigQuery name for the exporter.
+-
+----
+-
+-## Open questions (narrow)
+-
+-- **Optional hard calendar for qualifier form (what it is for):** Today we trust **whatever finished qualifier matches are already in the warehouse** for the WC-linked `league_code`s (registry seasons / ingestion scope). A **“hard calendar”** would mean **extra** explicit rules like “only matches with `kickoff_datetime` between date A and date B count toward pre-WC form” — for example to drop **friendlies**, **old-cycle** games, or anything outside a legal/product definition of “this World Cup’s qualification story.” **Default stays: no extra cut-out** unless you later decide you need one. If you never need it, this item stays open as “not doing” and implementation ignores it.
+-- **Step 6 UX** lives in product / site repos.
+-
+-**Already locked:** dispatch rules; “all qualifiers pre-WC”; rolling five in-season; display policy for optional API gaps.
+-
+----
+-
+-## CPO decisions (recorded)
+-
+-**Source:** Product clarification (conversation, **2026-05-15**). Supersedes the earlier four-question checklist; no further template reply required.
+-
+-| Topic | Decision |
+-|-------|----------|
+-| **Domestic form windows** | Before any finished match in the **current** league season → form from **full previous season** for that team/league. After play starts → **current season only**, **up to the last five finished matches** (fewer early in the season: MD1 → one game, MD3 → up to three, etc.). |
+-| **WC pre-tournament** | **All** finished qualifier matches for that team across WC-linked qualifier competitions — **not** capped at five. |
+-| **Missing / optional stats** | **Integrity failures** (e.g. impossible finished row) → **fail pipeline / tests**. **API omitted optional stat** → keep **null** in numeric marts; user-facing copy **`Not provided`** (or equivalent) via **glossary + UI**, not a fake zero. |
+-| **Sign-off** | The table above is the authoritative Step 3 product contract for implementation PRs. |
+-
+----
+-
+-## Branch / PR plan
+-
+-Step 2 is too large for one PR. Split by endpoint surface so each PR's blast radius is bounded and the BL1 data path is regression-tested incrementally:
+-
+-| Step | Branch name | Scope |
+-|---|---|---|
+-| 2.1 | `feature/core-multi-competition-foundation` | Fixtures plus dim foundation (bundled): unified bases leagues/teams/fixtures_next, core single-base refs, WCQ stagings and sources, qualifier aggregate removal, registry/var sync and singular tests. |
+-| 2.2 | `feature/core-standings-multi-competition` | Standings: WC + 7 qualifier stagings + union base + `fct_standings` expansion + test |
+-| 2.3 | `feature/core-fixture-stats-multi-competition` | Fixture statistics: same shape |
+-| 2.4 | `feature/core-fixture-events-multi-competition` | Fixture events: same shape |
+-| 2.5 | `feature/core-fixture-players-multi-competition` | Fixture players + `dim_player` expansion |
+-| 2.6 | `feature/core-transfers-lineups-predictions-multi-competition` | Transfers, lineups, predictions (teams/leagues/fixtures covered in 2.1). |
+-| 3–4 | `feature/intermediate-team-form` | Implement **locked Step 3** in `int_matchday__*` + tests (per **CPO decisions (recorded)**) |
+-| 5 | `feature/mart-wc-matchday-insights` | Per Step 5 below — needs Step 2–4 complete |
+-| 6 | `feature/web-app-competition-selector` | Per Step 6 below |
+-| 7 | `refactor/bl1-mart-use-intermediate` | Per Step 7 below — only after Step 5 is live and validated |
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -972,6 +654,6 @@ index 815c303..f38993a 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 1551 +++++++++++++++++++--------------------
-#    1 file changed, 746 insertions(+), 805 deletions(-)
+#   .claude/task/review_input.patch | 1556 +++++++++++++++------------------------
+#    1 file changed, 606 insertions(+), 950 deletions(-)
 # ============================================================================
