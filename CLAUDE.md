@@ -6,9 +6,9 @@ Read this at the start of every session before doing anything else.
 
 1. Run `git branch --show-current` via **Bash** to confirm the active branch.
 2. If the branch doesn't match the task, switch now **before writing any files**: `git checkout <target-branch>` or `git checkout -b <new-branch>`.
-3. **Use Bash for all commands** — git, bq, gh, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion.
+3. **Use Bash for all commands** — git, bq, `glab`, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion. (`gh` is dead — the GitHub account is suspended. Use `glab`.)
 4. If unsure which branch to use, ask the user before touching any file.
-5. **Before creating a new branch**, run `gh pr list --state open` and ask two questions: (a) is this work a hard dependency for an open PR? (b) does separating it into its own PR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a.
+5. **Before creating a new branch**, run `glab mr list` and ask two questions: (a) is this work a hard dependency for an open MR? (b) does separating it into its own MR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a, which says the same.
 
 ## Working agreement
 
@@ -24,7 +24,9 @@ Pay particular attention to **§10 Decision rights** (the CPO-only decision clas
 
 ## What this project is
 
-A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → GitHub Pages match preview UI.
+A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → the **Matchday Pilot** v2 site (`site_v2/`, Astro, deployed to Firebase).
+
+The legacy GitHub Pages match-preview UI it used to end in was **retired 2026-07-21** — offline, `site/` frozen. There is no public site today.
 
 Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL2, PL, PD, SA, L1, VL, WC (2026), WCQ*, LMX, LP, MLS, SPL, ED.
 Next: player insights chain (#153 → #156).
@@ -41,7 +43,13 @@ Next: player insights chain (#153 → #156).
 | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
 | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
 | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
-| GitHub Pages match preview plan | `C:\Users\Rami\.cursor\plans\gh_pages_match_preview_bce3ad94.plan.md` |
+| v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
+| GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+
+> The old `gh_pages_match_preview_*.plan.md` row was removed 2026-08-06. The file still exists on
+> disk, but it plans the **retired** MVP, and an always-loaded table listing it as authoritative is
+> how a session ends up building against a dead product. Same defect as the
+> `pipeline_architecture_plan.md` pointer removed from `MEMORY.md` the same day.
 
 ## Architecture decisions (non-negotiable)
 
@@ -84,6 +92,45 @@ with src as (
 
 Base models read directly from the generic staging model. The `league_code` column flows through from the raw table — no UNION ALL loop, no per-competition `ref()` calls.
 
+## Operational notes — the traps, in the file that is always loaded
+
+Moved here from `.claude/active_work.md` on 2026-08-06. They lived in a file hard-capped at
+16,000 characters whose own header says "CURRENT STATE ONLY", and which silently drops its tail
+when it overflows — so the most durable knowledge in the repo sat in the most volatile place, and
+every session that learned something had to delete something. None of this is current state.
+
+- **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
+  bigquery 1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`,
+  `ls`, `ls --select <model>+` all work. Use it for `impact_map` lineage.
+  **Never run `dbt build`** — the CI and prod datasets are shared, so a local build clobbers prod.
+- **SQLFluff: lint from the REPO ROOT** (the root `.sqlfluff` carries the jinja macro path):
+  `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set.
+  `dbt_utils` is unresolvable under the jinja templater, so `mart_player_profile` reports
+  pre-existing TMP/PRS noise — check against main before believing it. BigQuery rejects a
+  FROM-less WHERE.
+- **Commit mechanics.** `git commit` must be the SOLE command in a Bash call — no chaining, no
+  leading `cd`. `--amend`, `--no-verify` and self-staging flags are gate-blocked. Use
+  `git commit -F <file>` and write the message to the scratchpad; an apostrophe can break the form
+  gate. A post-commit hook auto-pushes and opens the **MR**. `review.md` must be COMMITTED, and
+  its reviewer sections must be `## <exact-routing-key>` headers — the gate parses those
+  literally, and a `verdicts:` block alone does NOT satisfy it.
+- **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
+  blocks the turn once if any fails. Do not end a turn on a red gate silently.
+- **⚠ On a SECOND commit, `--staged-hash` is the WRONG number** — it covers only the increment,
+  while CI recomputes over the whole branch. Use `check_task_artifacts.py --base origin/main`. A
+  `review.md`-only commit is artifact-exempt, so rebinding the hash is free.
+- **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
+  the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
+  LIFO and load-bearing WIP lives in it.
+- **⚠ CWD persists between Bash calls.** **⚠ `fnmatch`'s `*` CROSSES `/`**, and `scope_paths`'
+  `[lang]`/`[team]` are CHARACTER CLASSES — write `site_v2/src/pages/*/teams/*.astro`.
+- **⚠ Heredocs are blocked for file writes** — use Edit/Write, including for scratchpad files.
+- **⚠ A line-based grep misses a phrase straddling a line break**, and Astro splits interpolated
+  text with `<!-- -->`. Sweep whitespace-collapsed with comments stripped.
+- **Frontend.** `deploy:site-v2` is manual-only. The Browser pane drives the dev server
+  (`preview_start` name `v2`); accessibility tree, geometry and console work, `screenshot` fails.
+  `astro build` OOMs at full scale; `git clean -fX site_v2/src/data` before a local dev build.
+
 ## Memory files
 
 Claude memory for this project lives at:
@@ -105,5 +152,17 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
 - BigQuery (GCP project `football-data-pipeline-gcp`)
 - dbt (project in `dbt_project/`)
 - SQLFluff for SQL linting
-- GitHub Actions for CI (`ci-validate.yml`, `ci-data-build.yml`, `ci-ui.yml`) and scheduled runs (`dbt-scheduled.yml`)
-- GitHub Pages for the match preview UI (`pages-match-preview.yml`)
+- **CI is GitLab, in `.gitlab-ci.yml`** (one file, 5 stages). Jobs: `validate:governance`,
+  `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
+  `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
+  **MRs**, not PRs.
+- **GitHub is RETAINED but DORMANT.** Its Actions run nothing; `.github/workflows/` is a snapshot
+  of what ran before the 2026-08 migration and is deliberately kept unedited — see
+  `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
+  returns. Do not read that directory as the CI reference, and do not edit a workflow there to
+  "keep it in sync".
+- **⚠ No nightly SCHEDULE exists on GitLab yet.** `data:nightly` is written and reachable only by
+  a manual web dispatch, so nothing refreshes the data on a timer right now. Creating a schedule
+  is a recurring-cost decision and therefore the CPO's.
+- Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
+  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
