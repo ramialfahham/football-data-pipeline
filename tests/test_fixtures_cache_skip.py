@@ -167,7 +167,9 @@ class TestFetchMergeSkip:
 
     def test_non_season_mode_never_skips_and_skips_cache_read(self):
         ctx = _make_ctx()
-        cached = [_fixture(1, 2023, "FT"), _fixture(2, 2024, "NS")]
+        # No `cached` fixture list here, unlike its siblings: this test asserts
+        # `mock_read.assert_not_called()`, so the cache is never consulted and its
+        # contents cannot affect the result. One was copied in and left unused (F841).
         with patch.dict(
             "os.environ", {"API_FOOTBALL_FIXTURES_MODE": "from_to"}, clear=False
         ):

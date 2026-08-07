@@ -194,7 +194,6 @@ def _review_patch_bytes(root: str) -> bytes:
     different questions, and conflating them is what made a typo fix cost a full round.
     Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
     generated; generating it by hand is how it came to re-embed its own history."""
-    import subprocess
     routing = _load_routing(root) or {}
     excludes = routing.get("review_exclude_paths") or []
     # Reviewed CONTENT that is not pasted. Excluded from the body like `excludes`, but
