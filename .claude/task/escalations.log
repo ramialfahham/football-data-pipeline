@@ -1102,3 +1102,53 @@ This entry is the durable record of the metric-definition authority the contract
   `*gcp_auth` (including `.data_build_base`, so there is now ONE definition rather than a copy
   per job), and pinned by `test_every_job_using_gcp_auth_declares_id_tokens`, which was verified
   to FAIL against the broken form before being accepted.
+
+## 2026-08-06 — `review_summarise_paths`: a NEW MECHANISM in the review machinery
+
+  RAISED BY `cto-reviewer` AT OPUS, as a FAIL on `chore/wire-the-unwired-guards`, and it was
+  right. The builder had declared the mechanism honestly in `decisions_taken` but then asked the
+  CTO REVIEWER to rule on it. That is the wrong party: §10 reserves new mechanisms to the CPO,
+  and §2 step 3 says a reviewer never approves a §10 decision. Recorded here because the failure
+  is reusable — declaring a crossing is not the same as getting it approved, and a reviewer
+  cannot convert one into the other.
+
+  THE SCOPE GAP. The approved plan said "`review_exclude_paths` already exists and simply does
+  not cover `site_v2/src/data/**`" — one entry in an existing list. What was built is a THIRD
+  routing key plus a manifest emitter in `git_discipline.py`, which changes what every reviewer
+  is handed in every future task.
+
+  WHY IT WAS BUILT BIGGER. Adding the paths to `review_exclude_paths` would have hidden the
+  sample data outright. `bi-analyst-reviewer`'s core hunt item is whether a field displayed by a
+  component actually EXISTS in the exported sample — a check performed by opening those files.
+  Hiding them trades a payload saving for a real loss of coverage, which is the "never loosen a
+  guard" failure. So the new key excludes them from the patch BODY and substitutes a MANIFEST
+  (file list + `--stat` counts + an instruction to grep them). Reviewers keep `Read`/`Grep`, so
+  the check survives; only the paste goes away.
+
+  MEASURED, not asserted: 30,480 of 34,074 patch lines (89%) on the last task before this were
+  committed sample JSON under `site_v2/src/data/**`.
+
+  CPO ANSWER (2026-08-06): APPROVED, the manifest version. Put to him in plain language —
+  reviewers are handed a file of which ~9 lines in 10 are machine-generated data nobody reads;
+  the approved plan said delete those lines; deleting them outright also stops one reviewer
+  knowing the data changed at all; the built version deletes them and leaves a note. His
+  instruction: *"do as recommended"*, against a stated recommendation that the alternative is
+  "cheaper to approve and strictly worse".
+
+  BOUNDED: this approves `review_summarise_paths` as a mechanism and `site_v2/src/data/**` as its
+  only member. Adding a path to that list later is a fresh decision — it removes content from
+  what reviewers read, and the whole point of the key is that such removals are visible.
+
+  NOT APPROVED, WITHDRAWN IN THE SAME REVIEW: an `i18n:same-as-en` exemption marker for
+  `check_copy_gate.py`. `cto-reviewer` showed the case it existed for is already exempt (check 4
+  skips values with no `[a-z]{3,}` word and single capitalised tokens), that the repo has zero
+  instances needing it, and that the one historical case was settled by the CPO TRANSLATING the
+  string with no exemption available. A self-serve comment would have let any future agent green
+  a §10 copy check on its own authority. Removed; the gate's message now points at the CPO
+  instead of advertising a hatch that does not exist.
+
+  ALSO FROM THAT REVIEW, both builder defects, both fixed: the contract declared "RECURRING COST
+  — NO" while moving `scope-auditor` haiku -> sonnet, which is a permanent per-commit increase
+  (the approval existed; the declaration was false); and the new fail-open canary printed its
+  JSON to stdout in CLI mode, appending a blob into `review_input.patch` itself. The second was
+  reproduced before being fixed.

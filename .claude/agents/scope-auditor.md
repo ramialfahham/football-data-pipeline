@@ -2,7 +2,7 @@
 name: scope-auditor
 description: Adversarial governance reviewer (the CPO's proxy). Reviews the cumulative branch diff against the task contract and the decision-rights table before any commit. Read-only. Invoked in step 2 (Blinding) of the review cycle — never for building.
 tools: Read, Grep, Glob
-model: haiku
+model: sonnet
 effort: medium
 ---
 

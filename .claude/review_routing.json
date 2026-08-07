@@ -222,5 +222,31 @@
     ".claude/task/TEMPLATE.md",
     ".claude/task/REVIEW_TEMPLATE.md",
     ".claude/active_work.md"
+  ],
+
+  "_doc_review_summarise_paths": [
+    "'review_summarise_paths' = reviewed CONTENT that is not PASTED (2026-08-06).",
+    "Different question from review_exclude_paths, and the distinction is the whole",
+    "point. That list is the review's own PAPERWORK, which reviewers must never",
+    "judge, and it is hidden outright. These paths are real reviewed content that",
+    "simply must not be pasted into the patch body.",
+    "MEASURED, on the last task before this key existed: review_input.patch was",
+    "34,074 lines / 1,285,586 bytes, of which 30,480 lines (89%) were committed",
+    "sample JSON under site_v2/src/data/**. At ~337k tokens per spawn x 5 reviewers",
+    "x 2.76 mean rounds, that is ~4.65M declared tokens per task, ~89% of it",
+    "generated fixture data no reviewer has a hunt item for.",
+    "WHY NOT JUST EXCLUDE IT. bi-analyst-reviewer's core hunt item is whether a",
+    "displayed field actually EXISTS in the exported sample. Hiding the data",
+    "outright would silently delete that check — trading payload for coverage,",
+    "which is the 'never loosen a guard' failure. So the body is replaced by a",
+    "MANIFEST: the file list with +/- counts, plus an instruction to grep the files",
+    "directly. Reviewers have Read and Grep, so the check survives intact.",
+    "NOT in hash_exclude_paths, deliberately: these files still invalidate a",
+    "reviewer's verdict when they change. What a reviewer READS and what BINDS",
+    "their verdict are different questions — conflating them is what made a typo",
+    "fix cost a full round."
+  ],
+  "review_summarise_paths": [
+    "site_v2/src/data/**"
   ]
 }

@@ -90,14 +90,17 @@ policy). `seo-expert-reviewer` exists but is STILL NOT ROUTED — approved in
 principle 2026-07-31, not commissioned; it fires on nothing.
 CFO/Growth/Product-Analyst are advisors (consulted at contract time),
 not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
-`model:` frontmatter): `scope-auditor` on **haiku**, the six specialists on
+`model:` frontmatter): `scope-auditor` and the six specialists all on
 **sonnet**. The pin is a floor — on a guard path (`.claude/hooks/**`,
 `.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
 `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
 `.github/workflows/**`, `.gitlab-ci.yml`) every **specialist** routing requires is spawned on **opus**
 (a procedural override, not hook-enforced), because guard bypasses are the costliest
-misses. `scope-auditor` is exempt and stays haiku — it sits in `always`, so "every
-reviewer" would promote it on every governance commit. That means `cto-reviewer` on
+misses. `scope-auditor` is exempt from that OPUS PROMOTION — it sits in `always`, so
+"every reviewer" would promote it on every governance commit. It ran on **haiku**
+until 2026-08-06; the exemption withheld the most expensive tier and was being read
+as justifying the cheapest, on the reviewer that sees every diff. That means
+`cto-reviewer` on
 all nine, **plus `platform-reviewer` on exactly three**, `.claude/hooks/**`,
 `.github/workflows/**` and `.gitlab-ci.yml`: the CTO rules on authority, Platform on the implementation,
 and the G3 bypasses were fail-open and test-coverage findings, which are Platform's.

@@ -29,15 +29,22 @@ The checks, each traceable to a real defect:
 Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
 as a CI check should.
 
-**DELIBERATELY NOT WIRED INTO CI YET, and that is a decision, not an oversight.**
-It exits 1 on `main` today with 16 real findings: 14 em dashes (worst
-`heroVerdictUnder`, in all three locales), `fi.secForm` = `Muotovertailu`, and
-`fi.footerDataSource` left in English. **Every one of those fixes is copy, which is
-the CPO's alone (§10), so the builder cannot green it.** Wiring it into `ci-ui.yml`
-is one line the moment he rewrites them; until then CI would be red on strings only
-he may touch. Recorded in the contract's `decisions_reserved` and in the handover,
-because a check that runs nowhere is the exact failure this repo already carries
-with `seo-expert-reviewer` and must not be claimed as working.
+**WIRED, 2026-08-06.** Runs in `.gitlab-ci.yml` `validate:governance` and in the
+`validate-local` skill.
+
+It was deliberately unwired for its first weeks, and the reason is worth keeping: it
+exited 1 on `main` with 16 findings (14 em dashes, `fi.secForm` = `Muotovertailu`,
+`fi.footerDataSource` left in English), and every one of those fixes is copy, which
+is the CPO's alone (§10) — so the builder could not green it. Wiring it then would
+have reddened CI on strings only he could touch.
+
+MR !7 cleared all 16 with his rulings, which made wiring a one-line change. That
+sequencing was the point: fix, then wire, so the default branch never goes red.
+
+The interval is the lesson, not the exception. A guard that runs nowhere is
+indistinguishable from no guard, and this repo already carries that failure with
+`seo-expert-reviewer`. "Not wired yet" is only honest while it is temporary and
+someone is counting the days.
 """
 from __future__ import annotations
 
@@ -70,6 +77,27 @@ TERMINOLOGY = {
 # because check-page-specs.mjs extracts keys on the double quote.
 _DICT_RE = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.S | re.M)
 _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
+
+# NO COMMENT-BASED EXEMPTION, and that is the decision rather than an omission.
+#
+# Check 4's message used to promise one — "the value needs a comment saying so" — while the code
+# parsed no comment, so the only way past it was to change the copy. A marker (`i18n:same-as-en`)
+# was built to honour that promise and then REMOVED after cto-reviewer at opus argued it down.
+# The argument, kept because it is the reusable part:
+#
+#   · The case the exemption was for is ALREADY exempt. Check 4 skips any value with no
+#     `[a-z]{3,}` word (numbers, symbols, abbreviations) and any single capitalised token
+#     (brand names). The residual case is a multi-word English string deliberately kept in
+#     de/fi — of which this repo has ZERO.
+#   · The one historical instance, `fi.footerDataSource`, was ruled on by the CPO by
+#     TRANSLATING it, in a decision taken with no exemption available.
+#   · Translation is §10, the CPO's alone. A self-serve comment would let any future agent whose
+#     change reddens check 4 go green on its own authority — a guard bypass added ahead of any
+#     demonstrated need, in the direction the last real ruling went against.
+#
+# So the message is corrected instead: it now points at the CPO rather than promising a hatch.
+# If a genuine identical-string case ever appears, it is a CPO ruling, and THAT is when an
+# exemption gets designed — with the case in hand.
 
 # #370 added a SECOND string class this gate has to see: metric display names, in their own
 # `METRIC_LABELS_<LOC>` maps keyed by the catalogue's `label_i18n_key`. Their keys are QUOTED and
@@ -208,8 +236,9 @@ def main() -> int:
                 continue
             findings.append(
                 f"untranslated: {loc}.{key} is byte-identical to en ({en_val!r}). "
-                "If that is correct for this locale, the value needs a comment "
-                "saying so."
+                "Translate it, or — if sameness is genuinely correct for this locale — "
+                "that is a §10 wording call: take it to the CPO. There is deliberately "
+                "no self-serve exemption comment; see the note above check 4."
             )
 
     if findings:
