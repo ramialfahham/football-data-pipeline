@@ -52,10 +52,10 @@ committed with the branch so it is PR-visible:
   code, and they are LOCKED after that; only the CPO may move them. The commit gate
   (`git_discipline._acceptance_gate`) denies without them, and denies again unless
   `.claude/task/acceptance_evidence.md` demonstrates every one under a
-  `criteria_demonstrated:` marker, read from BUILT output. CPO ruling 2026-07-31
-  (#868): every reviewer checks that the code is right, and nothing checked that it
-  does what was asked — a finished page passed both its reviewers while opening on
-  the wrong season
+  `criteria_demonstrated:` marker, read from BUILT output. Every reviewer checks
+  that the code is RIGHT; this is the only thing that checks it does WHAT WAS
+  ASKED (CPO ruling 2026-07-31, #868; the failure it answers is in
+  `escalations.log`)
 - **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, **and
   every protected path** — see below; added 2026-07-22): the
@@ -71,10 +71,7 @@ committed with the branch so it is PR-visible:
   evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
 - **Consult before building (a NORM, not a gate).** On a structural change, gather
   the domain knowledge first — a reviewer role, a doc, a data check — rather than
-  discovering it in review round three. This was briefly a machine-gated `consulted:`
-  field (review-economics, 2026-07-22) and was demoted to a habit the same week: a
-  one-day-old field hardened into two enforcement paths did not earn its cost (a
-  staff-level review of the guardrails). The intent stands; the gate is gone.
+  discovering it in review round three.
 - **done_when** — mechanical verification steps
 - **amendments** — scope extensions, written on a CLEAN tree, each recording the
   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
@@ -90,9 +87,7 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
   `impact_map` (§2 above / Appendix A6). Enforced on the shell write path too,
   not only on Edit/Write.
 - **An `Artifact` publish is denied without a contract carrying a real
-  `decisions_reserved`** (2026-07-22). Design was the only surface with no gate
-  at all: three player-page mocks were produced and rejected in a single day
-  without a contract, a routed reviewer or a commit gate ever seeing them.
+  `decisions_reserved`** (2026-07-22; what it answers is in `escalations.log`).
   "What does this page show" is a §10 decision, reserved and escalated, never
   answered by drawing it. **Honest limit:** this is keyed on the `Artifact` tool
   name, not on the act of designing. Writing an HTML mock to a scratchpad with
@@ -104,10 +99,9 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
   except in a dedicated CPO-approved governance task whose contract carries
   `protected_override` **and a non-placeholder `impact_map`** — both, since
   2026-07-22. They are two different questions: the override answers "may you",
-  the map answers "do you know what breaks". Until that date only the override
-  was required, so editing a guard demanded *less* evidence than a cosmetic
-  label change on a leaf mart, while a guard's blast radius is every future task
-  in the repo. The reviewer definitions and routing are protected so
+  the map answers "do you know what breaks", and a guard's blast radius is every
+  future task in the repo (why both are required: `escalations.log`).
+  The reviewer definitions and routing are protected so
   the builder can never weaken its own adversary inside an ordinary task (CPO
   ruling, G3 escalation 2026-06-12); `.claude/commands/` is protected because
   custom slash commands can embed shell, so a command file is the same
@@ -140,48 +134,35 @@ serialized four steps; the commit gate enforces them mechanically:
    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
    `.cursor/mcp.json`, `.github/workflows/**`, `.gitlab-ci.yml`), every **specialist** routing
    requires for it is spawned at **opus**, because guard bypasses are the
-   highest-stakes findings (the G3 commit-gate bypasses were caught only at that
-   depth). `scope-auditor` is exempt from the OPUS PROMOTION — it is in `always`,
-   so "every reviewer routing requires" would silently promote it on every
-   governance commit. That exemption stands. It ran on **haiku** until
-   2026-08-06, and the exemption was being used to justify the cheapest tier
-   rather than merely to withhold the most expensive one: it is the only reviewer
-   on EVERY diff, and its brief states that for an UNDECLARED THRESHOLD "no gate
-   parses that field, so this item is the whole enforcement". (Secrets are hunted
-   by `cto-reviewer` and `platform-reviewer` too, and by `validate:secrets`
-   gitleaks in CI — scope-auditor is the only one on every diff, not the only one
-   looking.) The hardest judgement was pinned to the weakest model reading the
-   largest input. It is now on **sonnet**, the same floor as every other reviewer,
-   with the opus exemption unchanged. This is a RECURRING COST — it applies to
-   every substantive commit — and was approved as part of the 2026-08-06 plan.
+   highest-stakes findings. `scope-auditor` is EXEMPT from that opus promotion —
+   it is in `always`, so "every reviewer routing requires" would promote it on
+   every governance commit. **That exemption withholds the most expensive tier; it
+   is not a licence for the cheapest.** It sits on the same **sonnet** floor as
+   every other reviewer, because it is the only reviewer on EVERY diff and its
+   brief states that for an UNDECLARED THRESHOLD "no gate parses that field, so
+   this item is the whole enforcement" (for that threshold specifically — secrets
+   are also hunted by `cto-reviewer`, `platform-reviewer` and CI's
+   `validate:secrets`). Its tier is a RECURRING COST and therefore CPO-class.
    In practice that means `cto-reviewer` on all nine, **plus
    `platform-reviewer` on exactly three of them, `.claude/hooks/**`,
-   `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority, Platform on the
-   implementation, and the G3 bypasses were fail-open and test-coverage
-   findings, which are Platform's items. Platform is deliberately absent from
+   `.github/workflows/**` and `.gitlab-ci.yml`** — the CTO rules on authority,
+   Platform on the implementation. Platform is deliberately absent from
    the other six, `.claude/agents/**` above all: a reviewer brief is a prompt,
    not machinery, so its verdict there would be a rubber stamp.
    This is a procedural rule the orchestrator applies at spawn time, not a
    hook-enforced one. **Never state it in prose without checking it against the
-   rows.** Round 1 of the split's own review found three documents claiming
-   "both on all eight" while routing gave Platform two; round 2 fixed it by
-   widening the rows to six and was failed again, because two opus specialists
-   where one ran is a recurring cost and cost is CPO-class. **A doc/row mismatch
-   is fixed by correcting whichever side is wrong, and that is almost always the
-   prose.** Before that, the path list itself disagreed across four files
-   (5 vs 6 vs 8 entries).
-3. **Cross-Examination** — adversarial verdicts. Three rules, and the first two
-   were rewritten on 2026-08-01 after they produced a twelve-round PR:
+   rows**, and **a doc/row mismatch is fixed by correcting whichever side is
+   wrong, which is almost always the prose** — widening the rows to match the
+   prose adds a second opus specialist, which is a recurring cost and CPO-class.
+   `tests/test_governance_doc_parity.py` now checks both claims mechanically.
+3. **Cross-Examination** — adversarial verdicts. Three rules:
    - **A FAIL must name a defect**: file, line, and what goes wrong. No concrete
      failure, no FAIL.
    - **A PASS may find nothing.** It records what was EXAMINED under
      `risks_checked:` — at least one entry, and "checked X against Y, no defect"
-     is complete. Praise is still banned; so is manufacturing a finding to
-     justify a pass. *Until 2026-08-01 a PASS required two named risks, which
-     meant that given correct code a reviewer was obliged to produce findings —
-     so it produced them about the builder's own paperwork. #370's rounds 6-12
-     found nothing a visitor would see. CPO: "the reviewer needs to have the
-     critical attitude but it's allowed to approve and not invent some finding."*
+     is complete. Praise is banned; so is manufacturing a finding to justify a
+     pass. A reviewer keeps the critical attitude and is still allowed to
+     approve (CPO ruling, 2026-08-01).
    - **Reviewers never see the review's own paperwork.** The task NOTES in
      `.claude/task/` are excluded from `review_input.patch`
      (`review_exclude_paths`), which is generated by
@@ -196,9 +177,8 @@ serialized four steps; the commit gate enforces them mechanically:
    **A re-review after the first round is a DELTA review** — the
    reviewer is told only what changed since its own last PASS and judges that
    plus its prior findings, not the whole diff again, and refuses (FAILs) when
-   the delta is large enough that its earlier pass no longer stands. Re-running
-   every reviewer at full depth every round is what made a nine-round PR cost
-   what it did (CPO 2026-07-22, review-economics).
+   the delta is large enough that its earlier pass no longer stands
+   (CPO 2026-07-22, review-economics).
 4. **Lock** — verdicts + the SHA-256 of the staged diff
    (`python .claude/hooks/git_discipline.py --staged-hash`) + a `rounds:` count
    written to `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`).
@@ -206,12 +186,12 @@ serialized four steps; the commit gate enforces them mechanically:
    the bookkeeping artifacts (`hash_exclude_paths` in review_routing.json), so CI
    can recompute it from `git diff base...HEAD` and bind the review to the PR's
    actual code (F11/#409). **The two evidence artifacts are excluded too** (CPO
-   2026-08-01): while they were hashed, fixing a typo in one voided every PASS
-   and bought a fresh round. `contract.md` stays IN, because `scope_paths` and
-   `acceptance_criteria` carry authority and must not move after review — that
-   is a different question from what a reviewer reads, and conflating the two is
-   what cost #370 its rounds. `contract.md` is never artifact-exempt, so a contract
-   change always goes through review (F10/#409). The loop is bounded: **the round
+   2026-08-01): they carry evidence, not authority. `contract.md` stays IN,
+   because `scope_paths` and `acceptance_criteria` carry authority and must not
+   move after review. **What a reviewer READS and what BINDS its verdict are
+   different questions**; conflating them is expensive. `contract.md` is never
+   artifact-exempt, so a contract change always goes through review (F10/#409).
+   The loop is bounded: **the round
    count is capped at 3**, and past the cap the builder STOPS and brings the open
    findings to the CPO rather than grinding another round — to continue anyway on
    the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
