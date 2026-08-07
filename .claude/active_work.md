@@ -5,108 +5,106 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-08-07**. main GREEN at **9987184**. **NOTHING IN FLIGHT — no open MRs.**
+_Last updated **2026-08-07**. main GREEN at **6238dc4**. **NOTHING IN FLIGHT — no open MRs.**
 The product is **Matchday Pilot**. **The repo is on GITLAB** (`glab`, MRs, `.gitlab-ci.yml`).
 GitHub is KEPT but dormant — its Actions run nothing and its 114 issues are unreachable;
 `.github/workflows/README.md` says so at the tree, and says what re-arms it.
 
 Merged 2026-08-06/07 (`git log` for detail): **!6** web dispatch, **!7** copy-gate defects, **!8**
-six guards wired, **!9** GitHub marked dormant, **!10** handover.
+six guards wired, **!9** GitHub marked dormant, **!10 + !11** handover, **!12** GitLab #1.
 
 ## ⭐ THE COLLABORATION AUDIT IS CLOSED OUT — its follow-ups are ISSUES, not this file
 
-A 59-finding audit of the agent setup ran 2026-08-05/06 and a 12-item plan came out of it. **Eight
-executed (!7–!10), three filed as issues needing the CPO, one dropped** (Cloud Scheduler — the
-GitLab migration already solved it). Do NOT re-derive the plan; it is spent.
-
-**What remains is on the tracker — `glab issue list`.** The instruction/knowledge half was left
+A 59-finding audit ran 2026-08-05/06 and its 12-item plan is **SPENT** (8 executed in !7–!11, 3
+filed, 1 dropped). Do NOT re-derive it. **What remains is `glab issue list`.** That half was left
 deliberately: each item needs a judgement about what a rule should SAY, not where to plug it in.
 
-- **#1 + #19 are the class that bit this work** — a fact hand-copied into several places with
-  nothing checking they agree (#1 cost three review rounds once; #19 is "compile, don't append",
-  every governing artifact 50-60% its own changelog). **Smallest useful next step, and
-  mechanical.** #19 is its own session: nothing deleted, only moved to git + `escalations.log`.
+- **#1 is DONE (!12).** `tests/test_governance_doc_parity.py` derives the guard-path counts and the
+  protected-path list from `review_routing.json` + `task_contract_gate.py` and fails when prose
+  disagrees. Lists are matched by CONTENT, not phrasing, so a new one anywhere is checked. It found
+  a TWELFTH restatement site on its first run (#22). **#19 IS NEXT** and is its own session:
+  "compile, don't append", every governing artifact 50-60% its own changelog; nothing deleted, only
+  moved to git + `escalations.log`.
 - **#5** Confirm still has no real enforcement — the installed hook is an ADVISORY, it cannot
   deny. Related and unfiled: `docs/working_agreement.md` is **opt-in**, 26KB of "non-negotiable"
   rules with zero `@` imports. That was the audit's top-ranked finding.
 - **#14** plugin injects 10 unpinned MCP servers · **#15** escalation default · **#16 + #18** the
   two ways the scope boundary bounds itself · **#17** three dead i18n keys.
+- **Filed 2026-08-07.** **#20** `branch_discipline.py` refuses EVERY push while you are on `main`,
+  including deleting a merged branch, because it judges by location not target; blocked on **#21**
+  (in OPEN below). GitLab `main` IS protected, but at Maintainer while the account is Owner, so the
+  hook is the only hard block. · **#22 + #23** two protected-path prose fixes, same class · **#24**
+  the governance base, see REVIEW MECHANICS.
 
-**Why mechanism beats wording:** every WIRED guard held (gates blocked ~8 real mistakes; reviewers
-found 11 defects, no false positives). The only thing that failed was a commitment left in PROSE.
-`/audit-agent-setup` at user level re-runs this audit on any project.
+**Why mechanism beats wording:** every WIRED guard held; the only failures were commitments left in
+PROSE. `/audit-agent-setup` at user level re-runs this audit on any project.
 
-**⚠ THE GUARDS CHANGED (!8) — expect different behaviour.** Stop hook runs 5 offline gates
-(~2.9s), blocks once on failure · copy gate runs in CI · 5 USER-LEVEL hooks now in
-`~/.claude/settings.json` (hard deny on pushing `main`; plan-back prompt on your first code edit)
-· `scope-auditor` on sonnet · reviewers get a MANIFEST for `site_v2/src/data/**`, not the diff.
+**⚠ GUARDS WIRED IN !8 — expect different behaviour.** Stop hook runs 5 offline gates (~2.9s) and
+blocks once on failure · copy gate runs in CI · 5 USER-LEVEL hooks in `~/.claude/settings.json`
+(hard deny on pushing `main`, see **#20**; plan-back prompt on your first code edit) ·
+`scope-auditor` on sonnet.
 
 **⚠ OPERATIONAL NOTES ARE IN `CLAUDE.md` NOW (!9), not here** — dbt CLI, SQLFluff, commit
 mechanics, stash-dance, CWD/fnmatch/heredoc/grep traps, frontend. This file is capped at 16,000
 chars and DROPS ITS TAIL; `CLAUDE.md` is never truncated. **Do not copy them back.**_
 
 **FIRST ACTIONS: run `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX —
-the indices move every time anything is stashed, and on 2026-08-06 this file still pointed at
-`stash@{0}` for the player Overview after it had shifted to `{1}`, which would have sent a fresh
-session to pop the landing page instead. The one that must not be rebuilt is the entry whose
-message contains **`feat/player-overview-tab: Overview BUILT`** (currently `{1}`)._
+indices move whenever anything is stashed, and this file carried a stale one twice, which would
+have sent a session to pop the landing page instead. The entry that must not be rebuilt is the one
+whose message contains **`feat/player-overview-tab: Overview BUILT`**._
 
 ## ⭐ START HERE — the ingest cluster is CLOSED but UNVERIFIED. Cost is next.
 
-The four fixes below are merged and live. **NO PRODUCTION RUN HAS EXERCISED ANY OF THEM**, and the
-window to check widened rather than closed: the nightly moved hosts. It now runs as
-`data:nightly` in `.gitlab-ci.yml`, reachable from a GitLab SCHEDULE or a manual web dispatch —
-and **no schedule has been created yet**, so nothing is running nightly at all right now. That is
-a live gap, not a background detail.
+The four fixes below are merged and live. **NO PRODUCTION RUN HAS EXERCISED ANY OF THEM**, and
+none will: `data:nightly` moved into `.gitlab-ci.yml` and **no SCHEDULE exists**, so it is
+reachable only by a manual web dispatch. A live gap, not a background detail.
 
 Verify with `glab ci list --per-page 5` then `glab ci trace <job-id>`, grepping the `data:nightly`
 log for `rateLimit: Too many requests`. Expect **zero** drops and ingest near **98 min** rather
 than 63 (08-03 baseline: 6 drops in 1h16m38s; 08-02: 26). If it lands materially off, the 1.55x
 pacing estimate was wrong — say so with the log output rather than explaining it away.
 
-**What each fix does NOT do — the limits are the part that still matters:** #897 pacing reduces
-the failure RATE only · #896 stops the data LOSS but does NOT make failure visible · #898 counts
-and hard-fails on STAGNATION only, and does NOT measure completeness · cause 3 gates
-players/squads/transfers but **COACHES reports only** (~23 teams genuinely have no coach).
+**What each fix does NOT do, which is the part that matters:** #897 pacing reduces the failure RATE
+only · #896 stops the data LOSS but does NOT make failure visible · #898 hard-fails on STAGNATION
+only and does NOT measure completeness · cause 3 gates players/squads/transfers but **COACHES
+reports only** (~23 teams genuinely have no coach).
 
 **Standing facts, each of which corrected a wrong assumption:** plan is Ultra **450/min,
-75,000/day**, and daily draw ~8,300 (~11%) — so the per-minute limit is the constraint, never the
-daily · transfers healing is OBSERVED (`load_transfers_batch` is append-only, so a gap is staging
-masking and recoverable) · per-team data was COMPLETE at 08-03, so cause 3's gate starts green and
-can only fire on a regression.
+75,000/day**, daily draw ~8,300 (~11%), so the per-minute limit is the constraint, never the daily
+· transfers healing is OBSERVED (`load_transfers_batch` is append-only, so a gap is staging masking
+and recoverable) · per-team data was COMPLETE at 08-03, so cause 3's gate starts green.
 
 **No user impact: there is no public site.** Do not present any of this as a live incident.
 
 ## ⭐ COST — read **GitLab issue #3** before touching anything
 
-#547's comment WAS the durable record and is now unreachable (GitHub). Everything recoverable was
-copied into **GitLab #3 "Cost knowledge recovery"** — baselines, the ranked list, the free tools,
-and which figures are MEASURED vs UNMEASURED. Read it there; do not redo the analysis. Key traps:
+#547's comment was the durable record and is unreachable (GitHub). Everything recoverable is in
+**GitLab #3 "Cost knowledge recovery"** — baselines, the ranked list, the free tools, and which
+figures are MEASURED vs UNMEASURED. Read it there; do not redo the analysis. Key traps:
 
-- **⚠ NEVER set a time-based partition expiry on raw** (#892 comment). Nine biennial/quadrennial
-  tournaments are `ingest_active` and go months to years without a refresh in poll mode; expiry would
-  delete the ONLY surviving row and staging's `qualify` would return zero rows for that league,
-  silently. Use keep-latest-per-`(table, league_code)` instead. **A fixed lookback window has the same
-  defect** — the #892 fix must compute per-league maxima.
+- **⚠ NEVER set a time-based partition expiry on raw** (#892). Nine biennial/quadrennial
+  tournaments are `ingest_active` and go months to years without a refresh in poll mode; expiry
+  would delete the ONLY surviving row and staging's `qualify` would silently return zero rows for
+  that league. Use keep-latest-per-`(table, league_code)`. **A fixed lookback window has the same
+  defect** — #892 must compute per-league maxima.
 - **⚠ Do NOT claim the API quota "breaks first".** `standings.py:30` and `teams.py:28` do loop every
-  configured season daily with no skip, which is real and worth fixing. But the daily quota number is
-  not in the repo, and Thread 1 + #547 both assessed the API budget as fine. That claim was made this
-  session without evidence and withdrawn.
+  configured season daily with no skip, which is real and worth fixing. But the daily quota number
+  is not in the repo and #547 assessed the API budget as fine. Claimed once without evidence and
+  withdrawn.
 - **⭐ Two FREE tools, use them: `bq query --dry_run`** (exact bytes, nothing runs — use it to CHOOSE
   a query shape) and **`python scripts/report_bq_cost.py`** (read-only INFORMATION_SCHEMA, spend by
   workload/node). ⚠ The CPO instructed on 2026-08-06 that `report_bq_cost.py` not be run — check
   `escalations.log` before running it.
 - ⚠ **Paste the command output or do not claim it.** Three completeness claims in #547 were wrong.
-- **#547's ranked list, in ITS order** (full text in GitLab #3): 1 ingest cluster DONE · 2 fetch-side
-  skip on `/standings` `/teams` `/coachs` `/injuries`, an API-VOLUME finding and NOT a proven quota
-  breach · 3 `pages-match-preview.yml` — **now $0, never translated to GitLab; returns only if
-  GitHub is reactivated** · 4 **#895** ~$9.96/35d, needs the slim-vs-drop call · 5 **#892** ~$2/mo ·
-  6 guards (`require_partition_filter`, `maximum_bytes_billed`), neither set · 7 merge-on-write.
+- **#547's ranked list is in GitLab #3, in ITS order.** Still live, in that order: fetch-side skip
+  on `/standings` `/teams` `/coachs` `/injuries` (an API-VOLUME finding, NOT a proven quota breach)
+  · **#895** ~$9.96/35d, needs the slim-vs-drop call · **#892** ~$2/mo · two unset guards
+  (`require_partition_filter`, `maximum_bytes_billed`) · merge-on-write.
 - **MEASURED 08-03: $2.73/day**, prod tests $1.46 vs models $0.75. The top cost is now
   `not_null_stg_apif__transfers_raw_ingested_at` at $0.30/day — a test on a STAGING view rescanning
   6.99 GiB. **The two-step read is the proven cheap shape**: subquery-MAX predicate 7.51 GB vs
   literal timestamps 384 MB vs maxima alone 14.8 KB. Rationale in
-  `completeness.py::_latest_snapshot_timestamps`; figures in GitLab #3.
+  `completeness.py::_latest_snapshot_timestamps`.
 
 ## ⭐ REVIEW MECHANICS — what you cannot derive from the working agreement
 
@@ -117,6 +115,10 @@ Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
   Cumulative from base. Reviewers do NOT see task notes; `contract.md` + `escalations.log` ARE
   delivered, because they carry authority. `site_v2/src/data/**` is summarised as a MANIFEST,
   not pasted — it still binds the hash, so reviewers must grep those files directly.
+- **⚠ LOCALLY THE ARTIFACT GATE NEEDS `--base gitlab/main`.** `origin` is the DORMANT GITHUB
+  remote here and GitLab only in CI, so the `origin/main` spelling in `CLAUDE.md:120` and in the
+  script's own default diffs against a stale tree and FALSE-FAILS, naming reviewers that are not
+  required. Observed 2026-08-07. Filed as **#24**; until it is fixed, pass the base explicitly.
 - **A PASS may find nothing.** One `risks_checked:` entry is enough. Never invent a finding. Cap is
   3 rounds, then STOP and bring open findings to the CPO.
 - **`.claude/task/**` is scope-exempt; `.claude/active_work.md` is NOT** — it must be in
@@ -140,7 +142,8 @@ URL or a control. Deciding apart sets the URL shape twice. Measured counts (×3 
 51,589→154,767 pages; **matches are BIGGER at 176,235**; h2h 51,903; teams 9,669. With a per-season
 gate of 5 matches: 1,274 teams and 21,979 players qualify. Bring counts, not a general question.
 
-**The player Overview is BUILT but UNCOMMITTED in `stash@{0}`** with a known-wrong default rule
+**The player Overview is BUILT but UNCOMMITTED**, in the stash whose message contains
+`feat/player-overview-tab: Overview BUILT` (NEVER by index), with a known-wrong default rule
 (`seasons[0]` = most recent of ANY competition, so both samples open on World Cup 2026). Its mart half
 IS shipped, so it is a one-line change when it resumes. Held on #845.
 **#848: the player page is FOUR tabs** — Overview/Performance/Career are **club only**; International
@@ -149,24 +152,24 @@ is a national-lens TAB (not a toggle: a crawler cannot follow a control), shown 
 
 ## DESIGN DISCIPLINE (the weak spot)
 Never design off the cuff. Use approved wireframes and role briefs. Never invent a block to fill a
-slot. Never design the canonical page around an edge case. Build ONE tab at a time.
-**Show rendered output — never ask the CPO to rule on prose in the abstract.**
-**Copy is ALWAYS his (§10).** Gather copy decisions UP FRONT in one pass, before the branch.
+slot. Never design the canonical page around an edge case. Build ONE tab at a time. **Show rendered
+output; never ask the CPO to rule on prose in the abstract. Copy is ALWAYS his (§10)** — gather
+copy decisions UP FRONT in one pass, before the branch.
 
 ## OWED — deferred, not forgotten
 - **The round cap only RECORDS.** `ROUND_CAP = 3` is checked at commit against a number the builder
   types; nothing stops a fourth round while rounds run. CPO: tighten it later. Not tightened.
-- **No gate records when it fires** — ~2,500 lines of enforcement, near-zero telemetry. Highest-value
-  follow-up in the repo. Partly addressed 2026-08-06: the commit gate and routing loader now emit a
-  CANARY when they fail open, so a dead gate is no longer silent. Nothing else is instrumented.
+- **No gate records when it fires** — ~2,500 lines of enforcement, near-zero telemetry.
+  Highest-value follow-up in the repo. Partly addressed 2026-08-06: the commit gate and routing
+  loader emit a CANARY when they fail open. Nothing else is instrumented.
 - Delete or rewrite `macros/apif_latest_source_partition.sql` — zero callers and it never pruned.
 - A metric-change skill · mirror the crests · reviewers as peers (#822 shipped only the model half).
-- **#904: contract claims about the code are unverified.** SEVEN false factual statements in one
-  task's `contract.md`, every one caught in review, costing five rounds and two cap overrides on a
-  task whose CODE passed cleanly. Cause: the contract is written BEFORE the code, so its claims are
-  predictions, and nothing re-reads it against the finished tree. Measurements never failed because
-  producing them verified them. **Until the lint exists: grep every "is tested / is read / has N
-  callers / gains N arguments" claim before writing it**, and never count test-file call sites.
+- **#904: contract claims about the code are unverified.** SEVEN false statements in one
+  `contract.md`, all caught in review, five rounds, on a task whose CODE passed cleanly. Cause: the
+  contract is written BEFORE the code, so its claims are predictions and nothing re-reads it
+  against the finished tree. Measurements never failed, because producing them verified them.
+  **Grep every "is tested / is read / has N callers" claim before writing it**; never count
+  test-file call sites.
 - **#900: blueprint §4 says a full daily run is 20-50 API calls; measured ~8,300.**
 
 ## NEXT
@@ -186,17 +189,16 @@ slot. Never design the canonical page around an edge case. Build ONE tab at a ti
    re-derive from code, and re-file on GitLab as you pick each up. **#875** metric GROUP headings
    English on DE/FI (needs a CPO ruling on where a group name lives) · **#877** `GD`, `W/D/L`,
    `T·I·B` need DE/FI words · **#876** rows break mid-word · **#863** PROTECTED path editable with
-   no `protected_override` · **#866** `Regular Season - 20` untranslated — NOT caught by the copy
-   gate, which reads `strings.ts` while this is provider text · **#873** routing matcher
-   hand-copied, no parity test · route `seo-expert-reviewer`, still the only unrouted reviewer ·
-   **#887** MR-time DQ cannot see the MR's own models · **#883** blank `competition_type` skipped
-   by all three guards. **The live backlog is `glab issue list`.**
+   no `protected_override` · **#866** `Regular Season - 20` untranslated, provider text so the copy
+   gate cannot see it · **#873** routing matcher hand-copied, no parity test · route
+   `seo-expert-reviewer`, still the only unrouted reviewer · **#887** MR-time DQ cannot see its own
+   models · **#883** blank `competition_type` skipped by all three guards.
 
 ## OPEN — the CPO's alone
 **Imprint operator + address** (#799), blocks publication, never conclude it · hosting recurring run ·
 the feedback Apps Script (#687) · **#850**'s alias decision · **#875** where a group name lives ·
-**#895 slim-vs-drop, which blocks the biggest remaining cost item**. (#898's threshold policy is
-DECIDED and shipped: visible always, fail only on stagnation.)
+**#895 slim-vs-drop, which blocks the biggest remaining cost item** · **#21** which layer owns
+branch protection, and whether `~/.claude` gets version control.
 
 ## DO NOT (standing)
 - Do NOT treat the tracker as agreed work; re-validate before acting.
@@ -212,7 +214,7 @@ DECIDED and shipped: visible always, fail only on stagnation.)
   Nothing is published, which is why URLs are still free to change.
 - **v2 built:** design system + 26 components, fixture page, team page (3 tabs), nav shell,
   page-spec + SEO contract (#826/#844), metric labels per locale (#879).
-- **Tests:** **583 python** (measured 2026-08-03, `.venv/Scripts/python.exe -m pytest tests/ -q`),
-  plus 59 site (`cd site_v2 && npm test`). The governance count is not re-measured here.
+- **Tests:** **645 python** (measured 2026-08-07, `.venv/Scripts/python.exe -m pytest tests/ -q`,
+  ~4.5 min), plus 59 site (`cd site_v2 && npm test`).
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). API-Football:
   reselling is the one hard prohibition.
