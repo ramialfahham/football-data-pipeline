@@ -49,8 +49,22 @@ Next: player insights chain (#153 → #156).
 ## Architecture decisions (non-negotiable)
 
 - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
-- **league_code** is the partition key on every model — never hardcode a competition identifier in business logic.
-- **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share six unified raw tables, discriminated by a `league_code STRING` column. There are no per-competition raw tables. Staging models are generic — one file per entity, not per competition.
+- **league_code** is the competition discriminator on every model — never hardcode a competition
+  identifier in business logic. It is **not** a BigQuery partition key, and calling it one has
+  misled cost work: **no dbt model declares `partition_by` or `cluster_by`** —
+  `grep -rn "partition_by\|cluster_by" dbt_project/models/ dbt_project/dbt_project.yml` returns
+  zero hits (checked 2026-08-08, #33 Gate 0.2). Physical partitioning is a property of the RAW
+  tables only, set by the ingestion loaders — see `docs/data_contract.md`.
+- **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions
+  share **one table per entity**, discriminated by a `league_code STRING` column. There are no
+  per-competition raw tables. Staging models are generic — one file per entity, not per
+  competition. Do not quote a fixed count here; it has been wrong before ("six", corrected
+  2026-08-08 under #33). Recount instead:
+  `grep -rho "raw_table(\s*[\"'][A-Z_]*[\"']" ingestion/ | sort -u` for what is WRITTEN,
+  `grep -n "      - name: raw_apif" dbt_project/models/1_staging/api_football/sources.yml` for
+  what is DECLARED. On 2026-08-08 that was **12 written, 11 declared** — `RAW_APIF_INJURIES` is
+  written by the loaders and modelled nowhere (#33 item 15). `RAW_APIF_INGEST_LOCK` and
+  `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
 - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
 - **UI flow**: v2 website IA per `docs/site_architecture.md` (hybrid browse + fixtures-first home, epic #361). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**; #377 is v2's own go-live.
@@ -65,14 +79,14 @@ Do not work around the CI check — fix the approach instead.
 
 | Rule | What it means | CI check |
 |------|---------------|----------|
-| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires **zero file edits of any kind** — no SQL, no YAML, no Python. The registry entry is the only change. | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
-| **Single-source rule** | The registry is the only place leagues are listed. `dbt_project.yml` is derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry |
+| **No-new-model rule** | Adding a league requires **no new model, macro, SQL or Python file** — nothing per-competition is ever authored. It is not "zero file edits of any kind" (corrected 2026-08-08, #33 Gate 0.2): three tracked files change, and two of them are written FOR you by `scripts/sync_dbt_vars.py` — `docs/competition_registry.yml` (by hand), then `dbt_project/dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` (generated). | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
+| **Single-source rule** | The registry is the only place leagues are listed by hand. BOTH `dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` are derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry, **or** if the seed's `league_code → (competition_type, parent_competition)` rows drift from it |
 | **CI ingest rule** | CI detects new leagues by querying `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` and ingests only those not yet present | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
 
 ### How to add a new league (the only correct procedure)
 
 1. Add entry to `docs/competition_registry.yml`
-2. Run `python scripts/sync_dbt_vars.py` (updates `dbt_project.yml`)
+2. Run `python scripts/sync_dbt_vars.py` (updates `dbt_project.yml` **and** `dbt_project/seeds/competition_registry.csv` — commit both; `check_registry_var_sync.py` fails CI if either drifts)
 3. Push — CI ingests only the new league into the unified raw tables; all downstream models pick it up via the `league_code` column
 
 **Do not create any new files in `dbt_project/models/` when adding a league.** If you find yourself doing that, stop — the approach is wrong. Generic staging models read `league_code` from the unified raw tables; no per-competition files are needed.
@@ -97,7 +111,16 @@ every session that learned something had to delete something. None of this is cu
 - **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
   bigquery 1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`,
   `ls`, `ls --select <model>+` all work. Use it for `impact_map` lineage.
-  **Never run `dbt build`** — the CI and prod datasets are shared, so a local build clobbers prod.
+  **Never run `dbt build`.** The reason is NOT that CI and prod share datasets — they have not
+  since `b96cf76` (2026-07-08). `macros/generate_schema_name.sql` prefixes every non-prod
+  target, so `dev` writes `dev_staging`/`dev_core`/`dev_marts`… and cannot touch prod's layer
+  datasets. The real reasons, both live: (1) models with **no** `+schema` — the base models and
+  the seeds — ride `target.schema`, i.e. the profile's `dataset:`, and prod's is `dbt_analytics`;
+  a dev profile pointed there overwrites **prod's base tables and prod's seeds**. Keep the dev
+  target on `dev_scratch` as `dbt_project/profiles.example.yml` shows (#33 Gate 0.1, applied
+  2026-08-08). (2) A build is billed BigQuery work against the shared project regardless of
+  which datasets it writes. Corrected 2026-08-08 under #33 Gate 0.2 — the old sentence had been
+  false for a month.
 - **SQLFluff: lint from the REPO ROOT** (the root `.sqlfluff` carries the jinja macro path):
   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set.
   `dbt_utils` is unresolvable under the jinja templater, so `mart_player_profile` reports

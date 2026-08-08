@@ -45,6 +45,5 @@ select
     json_value(player_el, '$.player.photo') as player_photo_url,
     safe_cast(json_value(player_el, '$.player.birth.date') as date) as birth_date,
     json_value(player_el, '$.player.nationality') as nationality,
-    json_query(player_el, '$.statistics') as statistics_json,
-    to_json_string(player_el) as source_json
+    json_query(player_el, '$.statistics') as statistics_json
 from player_rows

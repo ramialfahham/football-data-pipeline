@@ -22,7 +22,10 @@ Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors
 
 No `response` data is discarded at ingest, so new fields surface in modelling without refetching; the reshape loaders above drop only the per-call envelope metadata (`get`/`parameters`/`errors`/`results`/`paging`), not the response items.
 
-All raw tables are partitioned by `DATE(ingested_at)` and clustered by `league_code`. Queries that filter on both `league_code` and `ingested_at` read only the relevant league's data within the relevant partition, keeping scan costs low as the table grows across seasons and competitions.
+Raw tables are **created** partitioned by `DATE(ingested_at)` and clustered by `league_code` (`ingestion/api_football/bigquery.py:88-93`). Two cautions go with that, and the second one has cost real money:
+
+- Creation uses `exists_ok=True`, so a table that predates the partitioning code is **never retro-fitted**. Do not assume a given raw table is partitioned — check it: `bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_<ENTITY>` and read `timePartitioning` (metadata only, free).
+- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. The way to keep raw scans bounded is to bound the table itself (merge-on-write keyed on `league_code`, #33 item 8), not to filter by time.
 
 dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
 
@@ -58,15 +61,17 @@ Reference tables — fixtures-next, standings, teams, players, coaches, injuries
 2. The complete response is written as a new row with the current UTC timestamp.
 3. Prior rows are preserved. BigQuery retains the full ingest history.
 
-The latest row always contains the complete picture because every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). This is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. Staging reads only the latest snapshot per league using partition pruning and a `QUALIFY` window:
+The latest row always contains the complete picture because every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). This is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. The staging models that read a per-league snapshot table keep only the latest snapshot per league, with `league_code` as the sole partitioning key of the window:
 
 ```sql
--- Pre-filter engages partition pruning; QUALIFY picks latest snapshot per league
-where DATE(ingested_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
 qualify row_number() over (
     partition by league_code order by ingested_at desc
 ) = 1
 ```
+
+This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: the merge-on-write tables (`RAW_APIF_FIXTURE_DETAILS`, `RAW_APIF_PLAYERS`) already hold one row per entity key, and a latest-snapshot window there would drop fixtures and players rather than deduplicate them.
+
+**No staging model carries a `DATE(ingested_at)` pre-filter, and none should.** This document used to prescribe a 7-day one here. No model ever implemented it, and it would have been a live defect if one had — see the second bullet under raw partitioning above (#892). Ranking cannot prune a partition, so the pre-filter bought nothing it claimed to buy.
 
 **`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
 

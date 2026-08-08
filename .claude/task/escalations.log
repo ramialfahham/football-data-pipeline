@@ -1577,3 +1577,57 @@ times.
   and "ten F401s" (here, round 2, written while correcting the third). Prose has not fixed it. The
   only thing that has caught every instance is a reviewer running the command — which is the
   argument for this MR, turned on its author.
+
+## 2026-08-08 — GitLab #33: the CPO approves the whole pipeline cost/scalability plan, in advance
+
+  NOT AN ESCALATION. A standing CPO approval, recorded here because this log is the durable
+  decision record and `contract.md` is overwritten by the next task. Every Wave 1/2/3 contract in
+  this stream cites this entry, so it has to exist somewhere a reviewer can check. `scope-auditor`
+  FAILED round 1 of `chore/gate0-truth-and-dbt-deadwood` for exactly its absence and was right —
+  the same finding as 2026-07-31 and 2026-08-01 above: "Recording a ruling in the contract is not
+  recording it." Three rulings on the same rule now; the rule holds.
+
+  WHAT WAS APPROVED. GitLab issue #33 is the working brief for the pipeline stream, produced by
+  three independent expert assessments (warehouse modelling, ingestion/raw, orchestration) plus a
+  synthesis that adjudicated the conflicts between them. On 2026-08-08 the CPO said "yes" to all
+  three headline decisions and then approved the full recommendation set. Verbatim, as given to the
+  builder:
+
+    "Every item in #33's Gate 0, Wave 1, Wave 2 and Wave 3 is APPROVED, including the two that
+    would normally be CPO-class: raw merge-on-write with the raw_archive backup first (item 8),
+    and staging materialised as a table (item 9). The CPO said 'yes' to all three headline
+    decisions on 2026-08-08 and then approved the full recommendation set."
+
+  The same instruction supplies the §1 Confirm for every task in the stream ("Work through the plan
+  without checking in on anything #33 already settles") and directs that this paragraph be quoted
+  as the authority in each contract's `protected_override` or `decisions_taken`, citing #33.
+
+  THE §10-CLASS ITEMS THIS COVERS, named individually so a later reader does not have to infer the
+  scope of "the full recommendation set":
+  - Item 7 — CREATE THE GITLAB NIGHTLY SCHEDULE, 04:00 UTC, branch main, activated. A recurring
+    cost, therefore CPO-class. Not a NEW recurring cost: `.github/workflows/dbt-scheduled.yml` ran
+    the same job on the same cron until 2026-08-06 and the migration dropped it silently.
+  - Item 8 — RAW MERGE-ON-WRITE on the eight append-only raw tables, keyed on `league_code`.
+    Permanently discards ingest history beyond BigQuery's 7-day time travel, hence CPO-class. The
+    approval is CONDITIONAL ON THE BACKUP: a one-off copy of each raw table into a `raw_archive`
+    dataset FIRST (~$0.30/mo on ~15 GiB), which is what makes it reversible.
+  - Item 9 — STAGING MATERIALISED AS A TABLE (`1_staging: +materialized: table`). A storage-cost
+    and layer-architecture change. Depends on item 5 (drop `source_json`) landing first, or the
+    dropped column becomes the dominant stored bytes.
+  - Item 11 — `scripts/check_scan_budget.py` wired into `validate:governance`. A NEW MECHANISM in
+    the CI gate set.
+  - Items 2/3/4 — trigger scoping, singular-test de-duplication, and REMOVING
+    `API_FOOTBALL_SKIP_INGEST_LOCK=1` from `.gitlab-ci.yml`. Protected-path edits.
+  - Item 6 — removing the `dbt_expectations` dependency (and transitively `godatadriven/dbt_date`).
+    A dependency change, declared as a threshold crossing in the Wave 1 contract.
+
+  WHAT WAS DELIBERATELY CUT, recorded because a later reader will otherwise propose them again:
+  partition expiry and a current/archive split on raw (both UNSAFE under #892 — raw is DAY
+  partitioned on `ingested_at`, so a time expiry deletes by write date and the nine biennial and
+  quadrennial competitions lose their only surviving row); bounding `get_new_league_codes.py` with
+  a predicate; deleting the 63 per-model materialisation overrides; marts to view-by-default; and
+  `interruptible: true` on a prod-writing job. These are rejected on evidence, not deferred.
+
+  LIMIT OF THIS ENTRY. It records an approval of a PLAN. It does not pre-approve whatever a builder
+  later decides an item means. Where an item's implementation raises a question #33 does not settle,
+  that question is still a §10 escalation.

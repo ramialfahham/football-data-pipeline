@@ -22,7 +22,6 @@ select
     api_errors_json,
     api_reported_result_count,
     request_parameters_json,
-    match_json as source_json,
     safe_cast(json_value(match_json, '$.fixture.id') as int64) as fixture_id,
     safe_cast(json_value(match_json, '$.fixture.timestamp') as int64) as fixture_api_unix_seconds,
     date(safe_cast(json_value(match_json, '$.fixture.date') as timestamp)) as fixture_date,

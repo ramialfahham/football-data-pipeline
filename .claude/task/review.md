@@ -1,50 +1,93 @@
-# Review — chore/handover-after-audit-rerun — 2026-08-07
+# Review — chore/gate0-truth-and-dbt-deadwood — 2026-08-08
 
-diff_sha256: 39edee7f9e8610ae8c1fbe0b3324855433b76f8d121131a82db2b3ddb55ea8b7
+> Gate 0.2 + Wave 1 items 5 and 6 of GitLab #33. Required reviewer set for the staged paths:
+> `scope-auditor` (always), `analytics-engineer-reviewer` (`dbt_project/**`),
+> `data-engineer-reviewer` (`docs/data_contract.md`). No guard path is staged, so no opus
+> promotion applies and all three ran on their pinned sonnet floor.
 
-rounds: 1
+diff_sha256: 0baa0b20b5e3598eaf441403f0ed195d05a088acce2c116251c37be5b996ea20
+
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: the diff touches only `contract.md` and `.claude/active_work.md`, both in `scope_paths`.
-  No undeclared file edited.
-- ⭐ THE #27-DROP CLASS, which is the failure this exact file produced on 2026-08-07 when an issue
-  was silently cut while trimming to the cap: grepped the current handover for #4, #17, #25, #27,
-  #29 and #30. **#27 is present** (line 39, under the CPO's set). #4 is present. #25 and #29 appear
-  only as closed, never as open. Nothing was dropped.
-- `decisions_reserved` respected: both the cap-mechanism question and the re-ranking of the
-  remaining stream are presented in the handover as OPEN and the CPO's, not as decided by this
-  task. The re-ranking is stated as #30's evidence, not as a settled plan.
-- Internal consistency between `contract.md`'s objective and the rendered handover block on the
-  audit's headline conclusion — no contradiction between the two copies.
-- §10, new-mechanism, recurring-cost and credential sweep of the diff: prose-only edit to one
-  handover file, nothing found.
-- Doc-sync: nothing in this diff describes an inventory, hook list or spec that would require a
-  second document to move in lockstep.
-- ⚠ COULD NOT EXECUTE, disclosed rather than papered over: this reviewer had Read/Grep/Glob only
-  and no shell, so it could not independently re-run `git show main:.claude/active_work.md`,
-  `glab issue list`, `pytest --collect-only -q` or a Python `len()`. It declined to convert those
-  gaps into either a fabricated pass or an invented finding. Those four checks were run by the
-  builder instead and their output is recorded below.
+- Round 1 was a FAIL, and it was right: the contract cited a sweeping 2026-08-08 CPO approval for
+  #33 that existed nowhere in `.claude/task/escalations.log`. Same failure the repo has ruled on
+  twice (escalations.log 2026-06-17 E1 and 2026-07-31 — "Recording a ruling in the contract is not
+  recording it"), because `contract.md` is overwritten by the next task. Round 2 re-examined the
+  cure: the new entry at `escalations.log:1581-1634` is dated, quotes the approval verbatim, names
+  the §10-class items individually (7, 8, 9, 11, 2/3/4, and item 6 — the dependency removal this
+  branch actually executes), records what was deliberately cut, and states its own limit. Defect
+  cured; the authority is now checkable.
+- `decisions_taken` now points at that log entry as the durable record rather than asserting the
+  ruling inline, consistent with the precedent it cites.
+- Item 5 (dropping `source_json`) checked against the §10 table: mechanically-verified zero-consumer
+  column removal, not a §10 decision, so its absence from the named §10 list is not a gap.
+- Scope: every changed file matches `scope_paths` — `CLAUDE.md`, `docs/data_contract.md`,
+  `dbt_project/packages.yml`, `package-lock.yml`, the two deleted macros, the 9 staging models. No
+  undeclared file changed.
+- Factual claims in the `CLAUDE.md` diff verified against the actual files, not accepted as written:
+  no model declares `partition_by`/`cluster_by`; `generate_schema_name.sql` prefixes non-prod
+  targets; `profiles.example.yml` uses `dev_scratch`. All held.
+- Appendix A patterns A1-A5 checked against the diff: none present.
+- Round-2 delta introduces no new scope, mechanism, cost or credential surface — it is confined to
+  the two `.claude/task/` files that carry authority and are legitimately reviewed.
 
-## Builder-run checks the reviewer could not execute
-Recorded here because the reviewer explicitly flagged them as uncertifiable with its toolset, and
-an unverified claim is the failure class that hit six times in two days.
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 was a FAIL, and it was right. The `impact_map` claimed "79 models: the 9 changed + 70
+  downstream" and headed the intermediate layer "4_intermediate (24)" over a 23-item list. The
+  reviewer independently traced the graph and identified `int_team__market_value_latest` as the one
+  intermediate model NOT downstream of the 9 changed staging models. Re-counted mechanically and the
+  reviewer's numbers were confirmed: `wc -l` = 78 total, and `grep -c` per layer = 9 / 12 / 11 / 23
+  / 23. A #904-class recurrence — a hand count asserted as a paste. Round 2 verified all four sites
+  now read 78/69 consistently (impact_map, the blast-radius line, and both `done_when` lines), with
+  the stale figures surviving only inside the note recording what round 1 caught.
+- Layer placement of the 9 column drops: each removes only a `to_json_string(...)`/passthrough
+  `source_json` alias from a final select. No dedup, aggregation, pivot or cross-domain join added —
+  consistent with `dbt_project/docs/layering.md` §1_staging.
+- `source_json` zero-consumer claim re-derived independently by repo-wide grep rather than trusting
+  the pasted output: no hits in models, `schema.yml`, macros, seeds, scripts, `site_v2/src` or
+  `tests`. No dangling test or doc left behind.
+- Macro deletions and package removals: zero live callers anywhere. The two surviving references
+  (a dormant GitHub Actions path filter, a closed-thread doc log) are inert and the contract
+  justifies declining to edit them under CLAUDE.md's frozen-tree rule.
+- `docs/data_contract.md` rewrite checked against the actual 15 staging models: exactly 6 carry the
+  `qualify row_number() ... partition by league_code` window, and zero carry a `DATE(ingested_at)`
+  pre-filter — confirming the deleted 7-day prescription described behaviour that never existed.
+- `CLAUDE.md` corrections independently re-derived: `partition_by`/`cluster_by` grep returns zero;
+  `sync_dbt_vars.py` does write both `dbt_project.yml` and the registry seed; counting `raw_table()`
+  call sites against `sources.yml` gives 12 written vs 11 declared with `INJURIES` the gap.
+- Round-2 delta confined to the two `.claude/task/` files; no new SQL, model, seed or export surface
+  entered the diff, so no fresh layer/catalogue/consumption check is triggered.
 
-- **Character cap:** 15,971 with Python `len()`, against `MAX_CHARS = 16000`. 29 to spare.
-  `handover_in.py` injects it with no truncation notice (grepped the injected output for
-  "truncat": zero hits).
-- **Issue parity, the check that FAILed on 2026-08-07:** diffed every `#N` in the handover against
-  `glab issue list`. Open: 3, 4, 5, 14, 15, 16, 17, 18, 20, 21, 26, 27, 28, 30. The handover names
-  all but #4 and #17. Both were then checked against `git show main:.claude/active_work.md` and
-  **neither had ever been present**, so nothing was dropped by this edit. #4 was ADDED (it is the
-  same web-dispatch foot-gun as the block it now sits in). #17 is left out deliberately: it is
-  ordinary dead i18n code whose body is one `glab issue view` away, and the handover's own policy
-  is that the tracker is the index.
-- **Test count:** re-measured on this branch, not carried forward — `pytest --collect-only -q`
-  gives **665**, matching what the handover states.
-- **Gates:** the five offline gates pass; `ruff check . --config .ruff-ci.toml` exits 0.
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- The 9 changed staging models read end-to-end: in every one the underlying JSON element
+  (`match_json`/`row_json`/`team_row`/`player_el`/`stat_el`/`lineup_el`) is still consumed by other
+  columns, so this is a pure column drop, not a change to response parsing.
+- `source_json` was a staging-layer derived column (`to_json_string()`/alias), never a RAW table
+  column. The raw `payload` is untouched, so the `RAW_APIF_{entity}` schema contract is unaffected.
+- No `ingestion/` write-path file is touched by this branch; `bigquery.py` append-vs-merge logic is
+  unmodified. No WRITE_TRUNCATE introduced.
+- `ingestion/api_football/bigquery.py:88-93` — the line range the new `data_contract.md` prose
+  cites — verified to actually contain `time_partitioning`, `clustering_fields` and
+  `create_table(..., exists_ok=True)`, matching the claim that partitioning is set at create time
+  and never retro-fitted.
+- The rewritten `data_contract.md` latest-snapshot section verified by direct grep against all 15
+  staging files: exactly `fixtures_next`, `leagues`, `squads`, `standings`, `teams`, `transfers`
+  match, and no staging model anywhere carries a `DATE(ingested_at)` pre-filter.
+- `CLAUDE.md`'s "12 written, 11 declared, `RAW_APIF_INJURIES` unmodelled" claim verified against
+  `sources.yml` and the `raw_table()` call sites across `ingestion/api_football/loads/*.py`.
+- `packages.yml`/`package-lock.yml` confirmed valid YAML after the edit, `dbt_utils` retained,
+  `dbt_expectations` and transitive `dbt_date` removed consistently in both.
+- §10 cost/scope knobs: no `history_seasons`, `ingest_active`, fanout cap or cadence change anywhere
+  in the diff, so the contract's "RECURRING COST: unchanged" declaration holds.
+- Round 2 (delta): `docs/data_contract.md`, the basis of the round-1 PASS, is untouched. The delta
+  is a paperwork-authority fix plus an arithmetic correction, neither reopening anything passed.
 
 ## escalations
 (none)
