@@ -57,7 +57,7 @@ workflow:
 # `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in this file — including
 # data:build:main, a FULL prod warehouse build. And a `changes:` filter does not
 # save you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push
-# or a merge request, so data:build:main's *data_paths filter does NOT hold it
+# or a merge request, so data:build:main's *data_paths_prod filter does NOT hold it
 # back on a schedule. Admit schedules naively and every nightly runs the prod
 # build TWICE — once as data:nightly, once as data:build:main.
 #
@@ -224,10 +224,26 @@ workflow:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
 
-# Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
-# Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
-# edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
-.data_paths: &data_paths
+# Path sets. Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so
+# docs-only edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
+#
+# THERE ARE TWO ANCHORS, AND THE DIFFERENCE IS DELIBERATE (#33 item 2, 2026-08-08).
+# They were one anchor, on the theory that "the MR and main variants cannot drift
+# apart". But the two jobs answer different questions, so one list gave the wrong
+# answer to one of them:
+#
+#   data:build:mr   asks "could this MR break the build?"        -> revalidate broadly
+#   data:build:main asks "did prod's compiled output change?"    -> rebuild narrowly
+#
+# A FULL prod warehouse build is the most expensive job in this file. Five entries
+# below cannot change a single compiled dbt artifact, yet each triggered one on every
+# push to main: measured over 39 triggering pushes, 17 changed nothing that could.
+# They stay in the MR anchor — a CI, ingestion or script change must still be
+# revalidated — and leave the prod one.
+#
+# Before adding a path to *data_paths_prod, ask the narrow question: can editing this
+# file change the SQL dbt compiles? If not, it belongs in the MR anchor alone.
+.data_paths_mr: &data_paths_mr
   - dbt_project/models/**/*
   - dbt_project/macros/**/*
   - dbt_project/seeds/**/*
@@ -241,6 +257,29 @@ workflow:
   - scripts/data_trust_*.py
   - requirements.txt
   - .gitlab-ci.yml
+
+# The prod anchor: ONLY paths that can change what dbt compiles. Dropped relative to
+# the MR anchor, each with the reason it cannot:
+#   .gitlab-ci.yml        — changes how the build is invoked, not what compiles
+#   scripts/check_*.py    — offline governance gates; they run in validate:governance
+#   scripts/data_trust_*.py — reporting only; no model reads them
+#   requirements.txt      — see the residual risk note below
+#   ingestion/**/*        — writes RAW; it does not participate in dbt compilation
+#
+# RESIDUAL RISK, stated rather than left for someone to discover: a dbt version bump
+# in requirements.txt CAN change compiled SQL, and prod will not rebuild for it on its
+# own. It self-heals at the next model change or nightly run. Accepted knowingly under
+# #33 item 2; if that ever bites, the fix is to put requirements.txt back here, not to
+# widen the whole list.
+.data_paths_prod: &data_paths_prod
+  - dbt_project/models/**/*
+  - dbt_project/macros/**/*
+  - dbt_project/seeds/**/*
+  - dbt_project/snapshots/**/*
+  - dbt_project/tests/**/*
+  - dbt_project/*.yml
+  - dbt_project/.sqlfluff
+  - docs/competition_registry.yml
 
 .ui_paths: &ui_paths
   - site/**/*
@@ -443,6 +482,20 @@ build:site-v2:
 # did. If the WIF configuration is missing they FAIL LOUDLY (see .gcp_auth) rather
 # than being skipped — an unwired data-quality gate must be red, never
 # green-and-absent.
+#
+# ⚠ THE INGEST LOCK IS ON IN CI, AND MUST STAY ON (#33 item 4, fixed 2026-08-08).
+# API_FOOTBALL_SKIP_INGEST_LOCK=1 appeared in three places here and disabled the
+# BigQuery ingest lease for every ingest CI ran. That is forbidden:
+# docs/operations_guide.md:149 — "Local debugging only; never production." And these
+# ingests ARE production: settings.py:31 defaults the raw dataset to `raw` and
+# API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file, so an MR pipeline writes
+# PRODUCTION raw — from an unmerged branch, and from a different resource_group than
+# the prod writers, so GitLab's own serialisation could not help either.
+# A held lease is not a silent skip: acquire_ingest_lock() failing returns 409 and
+# main.py:55 turns that into exit 2, so the job goes RED and you find out.
+# tests/test_ci_data_job_invariants.py pins the flag's absence so this cannot come
+# back quietly. (That an MR pipeline can write prod raw AT ALL is a separate, still
+# open question — #33 item 13.)
 # ---------------------------------------------------------------------------
 
 .data_build_base: &data_build_base
@@ -475,15 +528,22 @@ data:build:mr:
     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
     # The GitHub original gated this on a separate `ingest` path filter. GitLab
     # rules cannot express two independent change-flags for one job, so the
-    # check always runs: it is a cheap BigQuery metadata lookup that returns
-    # empty (and ingests nothing) whenever every league already has raw tables.
+    # check always runs. It returns empty (and ingests nothing) whenever every
+    # league already has raw tables.
+    #
+    # It is NOT a "cheap metadata lookup" — that claim was wrong and is corrected
+    # here (#33). get_new_league_codes.py:50 runs
+    # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT`, a BILLED column
+    # scan. It stays unbounded on purpose: the column is narrow and clustered and
+    # lands under BigQuery's 10 MB minimum billing anyway, while any `ingested_at`
+    # predicate would reintroduce the #892 hazard and silently hide the nine
+    # biennial/quadrennial competitions. Cheap, yes. Metadata, no.
     - NEW_CODES=$(python scripts/get_new_league_codes.py)
     - |
       if [ -n "$NEW_CODES" ]; then
         echo "Leagues needing bootstrap: $NEW_CODES"
         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
         python -m ingestion.api_football.main
       else
         echo "All leagues already have raw tables — skipping bootstrap ingest."
@@ -511,7 +571,7 @@ data:build:mr:
   rules:
     - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes: *data_paths
+      changes: *data_paths_mr
 
 # main-push / manual full builds keep the FULL build — prod must stay complete
 # and serve as the always-compilable baseline for MR state comparisons. Joins the
@@ -532,14 +592,12 @@ data:build:main:
       if [ "$RUN_INGEST" = "true" ]; then
         echo "RUN_INGEST set — forcing full re-ingest of all active leagues."
         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
         API_FOOTBALL_INGEST_FORCE_FULL=1 \
         python -m ingestion.api_football.main
       elif [ -n "$NEW_CODES" ]; then
         echo "Leagues needing bootstrap: $NEW_CODES"
         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
         python -m ingestion.api_football.main
       else
         echo "All leagues already have raw tables — skipping bootstrap ingest."
@@ -547,6 +605,25 @@ data:build:main:
     - cd dbt_project
     # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
     # dbt ignores a CLI --exclude when --selector is supplied.
+    #
+    # ⚠ 25 OF THE 30 SINGULAR TESTS RUN TWICE HERE — once inside each dbt build, once
+    # on the last line. THAT DUPLICATION IS DELIBERATE, and #33 item 3's proposal to
+    # remove it was WITHDRAWN on 2026-08-08 after review. Do not "optimise" it away
+    # without reading this:
+    #
+    #   `dbt build` compiles with add_test_edges=True (dbt/task/build.py:134) and marks
+    #   dependents of a failed test as skipped (MARK_DEPENDENT_ERRORS_STATUSES,
+    #   build.py:80). So a severity=error singular test failing INSIDE these two builds
+    #   stops the models below it from being written, and prod keeps its last good data.
+    #   Excluding singular tests from the selectors leaves the same 28 assertions running
+    #   on the last line — but by then the whole warehouse has already been materialised
+    #   into the bare prod datasets. The test count is identical; the gate is gone.
+    #
+    # The duplicate execution is what buys that gate. It cost 9.7s of the 7m29s prod
+    # build measured on 2026-08-08. De-duplicating from the other side (narrowing the
+    # last line to the seed-only tests the selectors cannot reach) was considered and
+    # also rejected: it needs a tag, and a new singular test whose author forgets the tag
+    # would then never run here at all — trading a cheap duplicate for a silent hole.
     - dbt build --selector staging --target prod
     - dbt build --selector downstream --target prod
     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
@@ -566,7 +643,7 @@ data:build:main:
   rules:
     - *not_on_schedule
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
-      changes: *data_paths
+      changes: *data_paths_prod
     # Deliberate full prod builds stay possible — as a BUTTON. MR !4 added this clause
     # meaning "I want a full prod build now", which is still valid; the defect was that
     # it started without being asked.

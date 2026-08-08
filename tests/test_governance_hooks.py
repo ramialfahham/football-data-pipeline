@@ -2037,7 +2037,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
     `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in the file, including
     `data:build:main` — a full prod warehouse build. A `changes:` filter does NOT save
     you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or a
-    merge request, so `data:build:main`'s `*data_paths` does not hold it back.
+    merge request, so `data:build:main`'s `*data_paths_prod` does not hold it back.
 
     Rules are first-match-wins, so the guard is only a guard if it comes FIRST. A later
     `when: never` can be outvoted by an earlier matching clause, which is exactly the
