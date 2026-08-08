@@ -3,8 +3,25 @@
 > Wave 1 item 1 of GitLab #33. Required reviewer set for the staged paths: `scope-auditor`
 > (always), `data-engineer-reviewer` (`ingestion/**`), `platform-reviewer` (`tests/**`). No guard
 > path is staged, so no opus promotion applies and all three ran on their pinned sonnet floor.
+>
+> REBASED onto `main` @ `5c268e5` after !24 merged, and the hash below is REBOUND accordingly.
+> !24 and this branch both rewrite `.claude/task/{contract,review,review_input}.md/patch`, and
+> nothing else — `git diff --name-only` of each against the old base `72a6a69` overlaps on exactly
+> those three. All three were resolved by taking THIS branch's version; `escalations.log` came
+> from main untouched, so !24's standing-rule entry is intact.
+> The reviewers' verdicts stand because the CODE did not move: `git diff dc97c8e a80b5f2` (the
+> pre- and post-rebase commits) shows changes only in `.gitlab-ci.yml`, `escalations.log`,
+> `tests/test_ci_data_job_invariants.py` and `tests/test_governance_hooks.py` — all of them !24's,
+> arriving via the new base. No `ingestion/**` file and no line of
+> `tests/test_ingestion_read_hoisting.py` differs. Full suite re-run on the rebased tree: 683
+> passed, 1 skipped, exit 0 (666 on main + 17 here), so the two changes coexist.
+>
+> The hash MOVED without the code moving, which is expected and is why it must be rebound: it
+> covers code + `contract.md`, and `contract.md` now diffs against !24's version rather than !23's.
+> Recomputed with `scripts/check_task_artifacts.py --base gitlab/main`, i.e. the way CI computes
+> it — NOT with `--staged-hash`, which on a second commit covers only the increment.
 
-diff_sha256: eb3f5bede747a416c55b494086c3e6062ef86415944b7edd55fd3eb9c67c483f
+diff_sha256: 07c5c9b48e25da5877df3fc236ba3d394cc0b2ba2594d68f7b30a0941a14a46d
 
 rounds: 3
 

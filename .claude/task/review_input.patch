@@ -474,6 +474,250 @@ index e489234..87af966 100644
 +  - No `dbt build`, `dbt run` or ingest is executed locally at any point.
  
  amendments: (none)
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 09d0ca1..544249c 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -1631,3 +1631,59 @@ times.
+   LIMIT OF THIS ENTRY. It records an approval of a PLAN. It does not pre-approve whatever a builder
+   later decides an item means. Where an item's implementation raises a question #33 does not settle,
+   that question is still a §10 escalation.
++
++## 2026-08-08 — STANDING RULE: a reference broken by an approved change is part of that change
++
++  CPO RULING, given 2026-08-08 on the `ci/scope-triggers-and-restore-ingest-lock` branch. A RULE
++  EXTENSION (§10), so it is the CPO's and nobody else's, and it is recorded here because a rule
++  that lives only in a task contract does not survive the next task.
++
++  THE RULE, verbatim as recommended and accepted:
++
++    "Updating a reference that an approved change itself breaks is part of that change, not a
++    scope extension — provided the update is confined to the reference and changes no behaviour."
++
++  WHAT IT PERMITS. Adding a file to `scope_paths` mid-task, without a fresh CPO grant, WHEN the
++  only edit to that file is repairing a name the same task's approved change invalidated. The
++  amendment is still written on a clean tree and still recorded in `amendments:`; what it no longer
++  needs is a separate authority line, and it cites THIS entry instead.
++
++  WHAT IT DOES NOT PERMIT, and these limits are the rule:
++  - Any other edit to the newly in-scope file. Fix the reference and nothing else. "While I was in
++    there" is exactly the drift `scope_paths` exists to stop.
++  - Anything that changes behaviour. A stale COMMENT or docstring, a doc sentence, a fixture name —
++    yes. A code path, an assertion, a config value — no, even if it "only" restores intent.
++  - Discovering the reference and using it as a reason to widen the task's objective.
++  - A PROTECTED path. `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
++    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
++    `.github/workflows/**`, `.gitlab-ci.yml` still need `protected_override` and an `impact_map`,
++    rule or no rule. Nothing here touches the protected-path machinery.
++
++  WHY IT EXISTS. `scope-auditor` FAILed round 2 of this branch, correctly: the round-2 amendment
++  added `tests/test_governance_hooks.py` for a ONE-WORD docstring fix — it named the `*data_paths`
++  anchor the same MR renames — and justified it with "no new authority is needed to do LESS", which
++  covered the item-3 WITHDRAWAL in the same amendment but not the addition. §2 says each scope
++  extension records the CPO authority, and it cited on-point precedent (2026-06-23,
++  `feat/player-per90-metrics`) where an equivalent stale-comment touch-up was held to need the CPO.
++  The auditor was right on the letter and the finding stands.
++
++  The CPO's answer was to fix the CLASS rather than the instance. Every rename breaks references;
++  the same question was going to arrive again in Wave 2 (raw merge-on-write renames things) and
++  Wave 3, and each arrival costs a review round to ask. Deciding it once is cheaper than deciding
++  it five times, and leaving it undecided has a worse failure mode than either answer: a builder
++  who does not want to spend a round will simply leave the stale reference, which is how a repo
++  accumulates comments naming things that no longer exist.
++
++  THE COUNTER-ARGUMENT, recorded so the rule can be attacked later. This narrows what
++  `scope_paths` catches. The mitigation is that the permitted edit is defined by the change that
++  precedes it — you may repair only what you broke — so the blast radius of an abuse is one wrong
++  identifier in one comment, and every reviewer still sees the file in the diff. If it is ever
++  abused, the fix is to withdraw the rule, not to add a gate.
++
++  FIRST APPLICATION: this branch. `tests/test_governance_hooks.py:2040` said "data:build:main's
++  `*data_paths`"; item 2 renamed that anchor to `*data_paths_prod`; the fix is that one word.
++
++  FOLLOW-UP NOT DONE HERE, deliberately. `docs/working_agreement.md` §2 is where a reader looks for
++  the amendment rules, and this ruling is not in it — adding it would itself be a scope extension
++  onto a file this task has no business editing, mid-review, at round 3 of a 3-round cap. Folding
++  the rule into §2 is worth its own small change.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 619d429..0a25bcf 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -57,7 +57,7 @@ workflow:
+ # `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in this file — including
+ # data:build:main, a FULL prod warehouse build. And a `changes:` filter does not
+ # save you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push
+-# or a merge request, so data:build:main's *data_paths filter does NOT hold it
++# or a merge request, so data:build:main's *data_paths_prod filter does NOT hold it
+ # back on a schedule. Admit schedules naively and every nightly runs the prod
+ # build TWICE — once as data:nightly, once as data:build:main.
+ #
+@@ -224,10 +224,26 @@ workflow:
+     GITLAB_OIDC_TOKEN:
+       aud: https://gitlab.com
+ 
+-# Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
+-# Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
+-# edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
+-.data_paths: &data_paths
++# Path sets. Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so
++# docs-only edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
++#
++# THERE ARE TWO ANCHORS, AND THE DIFFERENCE IS DELIBERATE (#33 item 2, 2026-08-08).
++# They were one anchor, on the theory that "the MR and main variants cannot drift
++# apart". But the two jobs answer different questions, so one list gave the wrong
++# answer to one of them:
++#
++#   data:build:mr   asks "could this MR break the build?"        -> revalidate broadly
++#   data:build:main asks "did prod's compiled output change?"    -> rebuild narrowly
++#
++# A FULL prod warehouse build is the most expensive job in this file. Five entries
++# below cannot change a single compiled dbt artifact, yet each triggered one on every
++# push to main: measured over 39 triggering pushes, 17 changed nothing that could.
++# They stay in the MR anchor — a CI, ingestion or script change must still be
++# revalidated — and leave the prod one.
++#
++# Before adding a path to *data_paths_prod, ask the narrow question: can editing this
++# file change the SQL dbt compiles? If not, it belongs in the MR anchor alone.
++.data_paths_mr: &data_paths_mr
+   - dbt_project/models/**/*
+   - dbt_project/macros/**/*
+   - dbt_project/seeds/**/*
+@@ -242,6 +258,29 @@ workflow:
+   - requirements.txt
+   - .gitlab-ci.yml
+ 
++# The prod anchor: ONLY paths that can change what dbt compiles. Dropped relative to
++# the MR anchor, each with the reason it cannot:
++#   .gitlab-ci.yml        — changes how the build is invoked, not what compiles
++#   scripts/check_*.py    — offline governance gates; they run in validate:governance
++#   scripts/data_trust_*.py — reporting only; no model reads them
++#   requirements.txt      — see the residual risk note below
++#   ingestion/**/*        — writes RAW; it does not participate in dbt compilation
++#
++# RESIDUAL RISK, stated rather than left for someone to discover: a dbt version bump
++# in requirements.txt CAN change compiled SQL, and prod will not rebuild for it on its
++# own. It self-heals at the next model change or nightly run. Accepted knowingly under
++# #33 item 2; if that ever bites, the fix is to put requirements.txt back here, not to
++# widen the whole list.
++.data_paths_prod: &data_paths_prod
++  - dbt_project/models/**/*
++  - dbt_project/macros/**/*
++  - dbt_project/seeds/**/*
++  - dbt_project/snapshots/**/*
++  - dbt_project/tests/**/*
++  - dbt_project/*.yml
++  - dbt_project/.sqlfluff
++  - docs/competition_registry.yml
++
+ .ui_paths: &ui_paths
+   - site/**/*
+   - scripts/build_match_preview_site.sh
+@@ -443,6 +482,20 @@ build:site-v2:
+ # did. If the WIF configuration is missing they FAIL LOUDLY (see .gcp_auth) rather
+ # than being skipped — an unwired data-quality gate must be red, never
+ # green-and-absent.
++#
++# ⚠ THE INGEST LOCK IS ON IN CI, AND MUST STAY ON (#33 item 4, fixed 2026-08-08).
++# API_FOOTBALL_SKIP_INGEST_LOCK=1 appeared in three places here and disabled the
++# BigQuery ingest lease for every ingest CI ran. That is forbidden:
++# docs/operations_guide.md:149 — "Local debugging only; never production." And these
++# ingests ARE production: settings.py:31 defaults the raw dataset to `raw` and
++# API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file, so an MR pipeline writes
++# PRODUCTION raw — from an unmerged branch, and from a different resource_group than
++# the prod writers, so GitLab's own serialisation could not help either.
++# A held lease is not a silent skip: acquire_ingest_lock() failing returns 409 and
++# main.py:55 turns that into exit 2, so the job goes RED and you find out.
++# tests/test_ci_data_job_invariants.py pins the flag's absence so this cannot come
++# back quietly. (That an MR pipeline can write prod raw AT ALL is a separate, still
++# open question — #33 item 13.)
+ # ---------------------------------------------------------------------------
+ 
+ .data_build_base: &data_build_base
+@@ -475,15 +528,22 @@ data:build:mr:
+     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
+     # The GitHub original gated this on a separate `ingest` path filter. GitLab
+     # rules cannot express two independent change-flags for one job, so the
+-    # check always runs: it is a cheap BigQuery metadata lookup that returns
+-    # empty (and ingests nothing) whenever every league already has raw tables.
++    # check always runs. It returns empty (and ingests nothing) whenever every
++    # league already has raw tables.
++    #
++    # It is NOT a "cheap metadata lookup" — that claim was wrong and is corrected
++    # here (#33). get_new_league_codes.py:50 runs
++    # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT`, a BILLED column
++    # scan. It stays unbounded on purpose: the column is narrow and clustered and
++    # lands under BigQuery's 10 MB minimum billing anyway, while any `ingested_at`
++    # predicate would reintroduce the #892 hazard and silently hide the nine
++    # biennial/quadrennial competitions. Cheap, yes. Metadata, no.
+     - NEW_CODES=$(python scripts/get_new_league_codes.py)
+     - |
+       if [ -n "$NEW_CODES" ]; then
+         echo "Leagues needing bootstrap: $NEW_CODES"
+         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
+         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+         python -m ingestion.api_football.main
+       else
+         echo "All leagues already have raw tables — skipping bootstrap ingest."
+@@ -511,7 +571,7 @@ data:build:mr:
+   rules:
+     - *not_on_schedule
+     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+-      changes: *data_paths
++      changes: *data_paths_mr
+ 
+ # main-push / manual full builds keep the FULL build — prod must stay complete
+ # and serve as the always-compilable baseline for MR state comparisons. Joins the
+@@ -532,14 +592,12 @@ data:build:main:
+       if [ "$RUN_INGEST" = "true" ]; then
+         echo "RUN_INGEST set — forcing full re-ingest of all active leagues."
+         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+         API_FOOTBALL_INGEST_FORCE_FULL=1 \
+         python -m ingestion.api_football.main
+       elif [ -n "$NEW_CODES" ]; then
+         echo "Leagues needing bootstrap: $NEW_CODES"
+         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
+         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+         python -m ingestion.api_football.main
+       else
+         echo "All leagues already have raw tables — skipping bootstrap ingest."
+@@ -547,6 +605,25 @@ data:build:main:
+     - cd dbt_project
+     # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
+     # dbt ignores a CLI --exclude when --selector is supplied.
++    #
++    # ⚠ 25 OF THE 30 SINGULAR TESTS RUN TWICE HERE — once inside each dbt build, once
++    # on the last line. THAT DUPLICATION IS DELIBERATE, and #33 item 3's proposal to
++    # remove it was WITHDRAWN on 2026-08-08 after review. Do not "optimise" it away
++    # without reading this:
++    #
++    #   `dbt build` compiles with add_test_edges=True (dbt/task/build.py:134) and marks
++    #   dependents of a failed test as skipped (MARK_DEPENDENT_ERRORS_STATUSES,
++    #   build.py:80). So a severity=error singular test failing INSIDE these two builds
++    #   stops the models below it from being written, and prod keeps its last good data.
++    #   Excluding singular tests from the selectors leaves the same 28 assertions running
++    #   on the last line — but by then the whole warehouse has already been materialised
++    #   into the bare prod datasets. The test count is identical; the gate is gone.
++    #
++    # The duplicate execution is what buys that gate. It cost 9.7s of the 7m29s prod
++    # build measured on 2026-08-08. De-duplicating from the other side (narrowing the
++    # last line to the seed-only tests the selectors cannot reach) was considered and
++    # also rejected: it needs a tag, and a new singular test whose author forgets the tag
++    # would then never run here at all — trading a cheap duplicate for a silent hole.
+     - dbt build --selector staging --target prod
+     - dbt build --selector downstream --target prod
+     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
+@@ -566,7 +643,7 @@ data:build:main:
+   rules:
+     - *not_on_schedule
+     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+-      changes: *data_paths
++      changes: *data_paths_prod
+     # Deliberate full prod builds stay possible — as a BUTTON. MR !4 added this clause
+     # meaning "I want a full prod build now", which is still valid; the defect was that
+     # it started without being asked.
 diff --git a/ingestion/api_football/completeness.py b/ingestion/api_football/completeness.py
 index 9b51405..12cd9d3 100644
 --- a/ingestion/api_football/completeness.py
@@ -944,6 +1188,175 @@ index 75c3a34..581cfaf 100644
          dropped_calls = minute_rate_limit_counts()
          # #898 cause 3: the per-team endpoints (players, squads, transfers, coaches) had no
          # completeness check at all. Two-step read on purpose — see _latest_snapshot_timestamps.
+diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+new file mode 100644
+index 0000000..15c435d
+--- /dev/null
++++ b/tests/test_ci_data_job_invariants.py
+@@ -0,0 +1,150 @@
++"""Pin two CI data-job invariants that can be broken while every pipeline stays GREEN.
++
++WHY THIS EXISTS
++---------------
++Both properties were repaired on 2026-08-08 under GitLab #33, and both share the shape this repo
++keeps getting caught by: breaking them produces no red anywhere.
++
++  * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
++    ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
++    production" — and these ingests ARE production: `ingestion/api_football/settings.py:31`
++    defaults the raw dataset to `raw` and `API_FOOTBALL_BIGQUERY_DATASET` is set nowhere in CI. So
++    an MR pipeline wrote production raw from an unmerged branch with the lock off, and nothing
++    failed. Re-adding the flag would restore that silently.
++
++  * `.data_paths_prod` decides whether a push to main rebuilds the prod warehouse. Drop one entry —
++    `dbt_project/models/**/*`, say — and `data:build:main` stops firing on model merges. Prod goes
++    quietly stale, and because every MR build defers to prod with `--defer --favor-state`, the
++    staleness propagates into MR validation with nothing red anywhere. The single `.data_paths`
++    anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
++    for a comment, so the guarantee is re-established here as an assertion.
++
++HOW IT IS SHAPED, AND WHY
++-------------------------
++Values come from PARSED YAML, never from raw file text. That matters concretely: the
++`.gitlab-ci.yml` comment block documenting the lock fix NAMES `API_FOOTBALL_SKIP_INGEST_LOCK`, so a
++text grep would flag the documentation of the defect as the defect.
++
++The lock check reads `variables:` as well as script lines. An env var set through a `variables:`
++mapping — global, `default:`, or per job — reaches the ingest exactly as an inline assignment does,
++and `orchestrator.py:95` literally tells the operator to set that variable when the lease is held.
++A guard that only read script text would miss the most idiomatic way to reintroduce the flag
++(platform-reviewer, round 1).
++
++WHAT IS DELIBERATELY *NOT* PINNED HERE
++--------------------------------------
++Singular tests run twice on the prod build — once inside each `dbt build --selector`, once in the
++trailing `dbt test` step. #33 item 3 proposed removing that duplication; it was WITHDRAWN after
++review, because `dbt build` adds test edges (`dbt/task/build.py:134`) and skips a failed test's
++dependents (`build.py:80`), so the in-build run is a write-blocking gate and the trailing run is a
++post-write report. An earlier version of this module asserted the "de-duplicated" arrangement was
++safe, which would have certified the regression rather than caught it. The reasoning now lives in a
++comment at the `dbt build --selector` lines, where someone about to optimise will read it.
++"""
++
++from __future__ import annotations
++
++import pathlib
++
++import yaml
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++CI_FILE = ROOT / ".gitlab-ci.yml"
++
++# The inputs that can change what dbt COMPILES. A push to main touching any of these
++# must rebuild the prod warehouse, so .data_paths_prod has to keep covering them.
++DBT_COMPILE_INPUTS = frozenset(
++    {
++        "dbt_project/models/**/*",
++        "dbt_project/macros/**/*",
++        "dbt_project/seeds/**/*",
++        "dbt_project/snapshots/**/*",
++        "dbt_project/tests/**/*",
++        "dbt_project/*.yml",
++    }
++)
++
++
++def _ci_config() -> dict:
++    return yaml.safe_load(CI_FILE.read_text(encoding="utf-8"))
++
++
++def _script_lines(config: dict) -> list[str]:
++    lines: list[str] = []
++    for node in config.values():
++        if not isinstance(node, dict):
++            continue
++        for section in ("before_script", "script", "after_script"):
++            for entry in node.get(section) or []:
++                if isinstance(entry, str):
++                    # A `|` block scalar arrives as one multi-line string.
++                    lines.extend(entry.splitlines())
++    return lines
++
++
++def _declared_variables(config: dict) -> list[tuple[str, str]]:
++    """Every (name, value) from a `variables:` mapping — global, `default:`, or per job."""
++    found: list[tuple[str, str]] = []
++
++    def collect(where: str, block) -> None:
++        if isinstance(block, dict):
++            for name, value in block.items():
++                found.append((f"{where}.{name}", str(value)))
++
++    collect("<global>", config.get("variables"))
++    for key, node in config.items():
++        if isinstance(node, dict):
++            collect(key, node.get("variables"))
++    return found
++
++
++def test_ci_never_disables_the_ingest_lock():
++    """#33 item 4. The flag is local-debugging-only and CI ingests write production raw."""
++    config = _ci_config()
++
++    offenders = [
++        line.strip()
++        for line in _script_lines(config)
++        if "API_FOOTBALL_SKIP_INGEST_LOCK" in line
++    ]
++    offenders += [
++        f"variables: {name}={value}"
++        for name, value in _declared_variables(config)
++        if "API_FOOTBALL_SKIP_INGEST_LOCK" in name
++    ]
++
++    assert offenders == [], (
++        "API_FOOTBALL_SKIP_INGEST_LOCK is set in .gitlab-ci.yml. It disables the BigQuery "
++        "ingest lease, and docs/operations_guide.md:149 restricts it to local debugging. CI "
++        "ingests write the production `raw` dataset (ingestion/api_football/settings.py:31), so "
++        f"this is production. Offending: {offenders}"
++    )
++
++
++def test_the_prod_trigger_still_covers_every_dbt_compile_input():
++    """#33 item 2. Splitting the anchor removed the structural no-drift guarantee; restore it.
++
++    Two directions, because the split can fail either way:
++      * too NARROW -> a model merge stops rebuilding prod, silently.
++      * wider than the MR anchor -> the prod build fires on something the MR build never
++        validated, which is the drift the single anchor originally prevented.
++    """
++    config = _ci_config()
++    mr_paths = config.get(".data_paths_mr")
++    prod_paths = config.get(".data_paths_prod")
++
++    assert isinstance(mr_paths, list) and mr_paths, ".data_paths_mr is missing or not a list"
++    assert isinstance(prod_paths, list) and prod_paths, ".data_paths_prod is missing or not a list"
++
++    missing = DBT_COMPILE_INPUTS - set(prod_paths)
++    assert not missing, (
++        f".data_paths_prod no longer covers {sorted(missing)}. A push to main touching those "
++        "would not rebuild the prod warehouse, so prod goes stale — and every MR build defers to "
++        "prod as its baseline, so the staleness spreads with nothing turning red."
++    )
++
++    wider = set(prod_paths) - set(mr_paths)
++    assert not wider, (
++        f".data_paths_prod contains {sorted(wider)}, which .data_paths_mr does not. The prod "
++        "build would then fire on a change the MR build never validated."
++    )
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index fe506c6..8a19298 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -2037,7 +2037,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
+     `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in the file, including
+     `data:build:main` — a full prod warehouse build. A `changes:` filter does NOT save
+     you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or a
+-    merge request, so `data:build:main`'s `*data_paths` does not hold it back.
++    merge request, so `data:build:main`'s `*data_paths_prod` does not hold it back.
+ 
+     Rules are first-match-wins, so the guard is only a guard if it comes FIRST. A later
+     `when: never` can be outvoted by an earlier matching clause, which is exactly the
 diff --git a/tests/test_ingestion_read_hoisting.py b/tests/test_ingestion_read_hoisting.py
 new file mode 100644
 index 0000000..0ab8d17
@@ -1341,6 +1754,7 @@ index 0000000..0ab8d17
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 1935 +++++++++++++++++++++++++--------------
-#    1 file changed, 1236 insertions(+), 699 deletions(-)
+#   .claude/task/review.md          |  163 ++--
+#    .claude/task/review_input.patch | 2012 +++++++++++++++++++++++++--------------
+#    2 files changed, 1399 insertions(+), 776 deletions(-)
 # ============================================================================
