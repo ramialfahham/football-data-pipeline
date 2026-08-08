@@ -15,7 +15,11 @@ from .completeness import (
     FINISHED_STATUS_SHORT,
     _fixture_ids_from_fixtures_payload,
 )
-from .coverage import covered_for_league, read_coverage
+# read_coverage is deliberately NOT imported here. This module is reached once per
+# competition, so a call to it from this file is the O(competitions^2) defect #33 item 1
+# removed. The caller reads coverage once and passes it in; `ruff` will flag the import
+# as unused if someone adds it back without a call site.
+from .coverage import covered_for_league
 from .fixture_scheduling import (
     _coverage_for_season,
     _fixture_needs_any_endpoint,
@@ -74,30 +78,27 @@ def _reference_season(comp: Competition, fixtures_payload: dict | None) -> int:
     return 0
 
 
-def _fanout_covered_from_bq(client: bigquery.Client, league_code: str) -> dict[str, set[int]]:
-    """Return covered fixture IDs per shell key for one league.
-
-    Derives coverage from RAW_APIF_FIXTURE_DETAILS (via read_coverage — one query
-    covers all leagues) and translates it to the shell-key format used by
-    _fixture_needs_any_endpoint.
-    """
-    all_covered = read_coverage(client)
-    return covered_for_league(all_covered, league_code)
-
-
 def _finished_fanout_has_gaps(
-    client: bigquery.Client,
+    all_covered: dict[str, dict[str, dict[int, bool]]],
     league_code: str,
     fixtures_payload: dict | None,
     cov: dict[str, bool],
 ) -> bool:
+    """Does this league have finished fixtures still missing fanout data?
+
+    Takes ALREADY-READ coverage rather than reading it. `read_coverage()` scans all of
+    RAW_APIF_FIXTURE_DETAILS with no league or time filter, and this function is reached
+    once per competition, so reading it here made ingestion reads O(competitions^2) —
+    45 scans of a multi-GiB table per run. The caller reads once and passes the result in
+    (#33 item 1). `covered_for_league` is a pure dict lookup, so this is now in-memory work.
+    """
     finished_ids = _fixture_ids_from_fixtures_payload(
         fixtures_payload,
         statuses=FINISHED_STATUS_SHORT,
     )
     if not finished_ids:
         return False
-    covered = _fanout_covered_from_bq(client, league_code)
+    covered = covered_for_league(all_covered, league_code)
     for fixture_id in finished_ids:
         if _fixture_needs_any_endpoint(fixture_id, covered, cov, finished_ids):
             return True
@@ -107,8 +108,15 @@ def _finished_fanout_has_gaps(
 def resolve_ingest_mode(
     client: bigquery.Client,
     comp: Competition,
+    all_covered: dict[str, dict[str, dict[int, bool]]],
 ) -> tuple[IngestMode, str]:
-    """Read latest raw payloads and return (mode, reason) for this competition."""
+    """Read latest raw payloads and return (mode, reason) for this competition.
+
+    `all_covered` is the run's single `read_coverage()` result, read ONCE by the caller
+    before the per-competition loop. It is a required argument on purpose: defaulting it
+    to None and reading lazily here would silently restore the per-competition scan this
+    change exists to remove (#33 item 1).
+    """
     try:
         fx_payload = read_latest_payload_json(
             client, raw_table("FIXTURES_NEXT"), league_code=comp.league_code
@@ -134,7 +142,7 @@ def resolve_ingest_mode(
         if leagues_payload and ref_season
         else {}
     )
-    fanout_gaps = _finished_fanout_has_gaps(client, comp.league_code, fx_payload, cov)
+    fanout_gaps = _finished_fanout_has_gaps(all_covered, comp.league_code, fx_payload, cov)
 
     return decide_ingest_mode(
         has_fixtures_payload=has_fixtures,

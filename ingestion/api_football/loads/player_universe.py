@@ -84,19 +84,44 @@ def _existing_player_ids(client: bigquery.Client, target_entity: str) -> set[int
         return set()
 
 
+def query_player_universe(
+    client: bigquery.Client,
+    min_season: int | None = None,
+) -> list[tuple[int, str]]:
+    """Public entry point for the run-level universe read (#33 item 1).
+
+    Exists so the orchestrator can compute the universe ONCE and hand the same list to both
+    per-player loaders, without reaching into `_query_universe`. Applies the same default
+    `min_season` those loaders would, so the shared result is identical to what each would
+    have computed alone.
+    """
+    return _query_universe(client, _min_season() if min_season is None else min_season)
+
+
 def players_needing(
     client: bigquery.Client,
     target_entity: str,
     min_season: int | None = None,
+    universe: list[tuple[int, str]] | None = None,
 ) -> dict[str, list[int]]:
     """Players to fetch for `target_entity`, grouped by provenance league_code.
 
     = current universe (rostered season >= min_season) minus players already in the target.
+
+    `universe` lets the caller supply an already-computed `_query_universe()` result. That
+    query UNNESTs all of RAW_APIF_PLAYERS twice per run — once for PLAYER_PROFILES, once
+    for PLAYER_TEAMS — for an identical answer, because nothing writes RAW_APIF_PLAYERS
+    between the two calls (#33 item 1).
+
+    `_existing_player_ids` is deliberately NOT shareable: it reads the TARGET table, which
+    differs per call and is written between them.
     """
     ms = _min_season() if min_season is None else min_season
     already = _existing_player_ids(client, target_entity)
     by_league: dict[str, list[int]] = {}
-    for player_id, league_code in _query_universe(client, ms):
+    for player_id, league_code in (
+        _query_universe(client, ms) if universe is None else universe
+    ):
         if player_id in already:
             continue
         by_league.setdefault(league_code, []).append(player_id)

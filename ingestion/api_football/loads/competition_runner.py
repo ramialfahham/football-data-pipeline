@@ -123,8 +123,18 @@ def run_cheap_phases(
 def run_squads_for_competition(
     ctx: PipelineContext,
     result: CompetitionRunResult,
+    already_captured: set[tuple[int, int]],
 ) -> None:
-    """Run squad /players batch for one competition after global fanout."""
+    """Run squad /players batch for one competition after global fanout.
+
+    `already_captured` is the run's single `captured_player_team_seasons()` result, read
+    once by the orchestrator before the loop and MUTATED as keys are written (#33 item 1).
+
+    REQUIRED, with no default, and that is the guard. The orchestrator is this function's
+    only caller, so a default would mean dropping the argument at the one call site
+    silently restores the per-competition scan with every test still green — the gap
+    `platform-reviewer` found at round 1. Omitting it is now a TypeError.
+    """
     try:
         _ingestion_phase(result.league_code, "squad /players batch")
         load_squad_players_batch(
@@ -133,6 +143,7 @@ def run_squads_for_competition(
             result.seasons_list,
             result.team_ids,
             reference_season=max(result.seasons_list) if result.seasons_list else None,
+            already_captured=already_captured,
         )
     except Exception as e:
         ctx.errors.append(f"league {result.league_code} squads: {e}")

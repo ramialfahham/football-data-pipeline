@@ -19,14 +19,24 @@ from .context import PipelineContext
 from .player_universe import players_needing
 
 
-def load_player_teams_global(ctx: PipelineContext) -> None:
+def load_player_teams_global(
+    ctx: PipelineContext,
+    universe: list[tuple[int, str]] | None,
+) -> None:
+    """`universe` is the run's shared `_query_universe()` result — the same answer
+    load_player_profiles_global just used, and nothing writes RAW_APIF_PLAYERS between the
+    two phases, so re-running that full UNNEST bought nothing (#33 item 1).
+
+    REQUIRED (it may be None, but it must be PASSED) — see load_player_profiles_global for
+    why a default would make the hoist silently revertible.
+    """
     if os.getenv("API_FOOTBALL_SKIP_PLAYER_TEAMS", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
             "player_teams: skipped (API_FOOTBALL_SKIP_PLAYER_TEAMS set — use on low-quota archive runs)"
         )
         return
     try:
-        by_league = players_needing(ctx.client, "PLAYER_TEAMS")
+        by_league = players_needing(ctx.client, "PLAYER_TEAMS", universe=universe)
     except Exception as e:
         ctx.errors.append(f"player_teams universe: {e}")
         return

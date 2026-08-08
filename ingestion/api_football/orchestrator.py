@@ -28,10 +28,12 @@ from .completeness import (
     per_team_missing_by_league_entity,
     persist_fixture_statistics_missing,
     read_per_team_coverage,
+    read_prior_snapshot,
     run_ingest_completeness_checks,
     write_ci_output,
     write_step_summary_if_configured,
 )
+from .coverage import read_coverage
 from .ingestion_lock import (
     acquire_ingest_lock,
     ensure_ingest_lock_table,
@@ -73,6 +75,8 @@ from .loads.competition_runner import (
     run_player_squads_catchup,
     run_transfers_for_competition,
 )
+from .loads.squads import captured_player_team_seasons
+from .loads.player_universe import query_player_universe
 from .loads.player_profiles import load_player_profiles_global
 from .loads.player_teams import load_player_teams_global
 from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
@@ -133,11 +137,23 @@ def _load_api_football(request):
             )
 
         # Phase 1: full cheap phases or poll-only (catalog + latest-season fixtures).
+        #
+        # Fanout coverage is read ONCE here, for every league, and passed into the loop.
+        # read_coverage() scans all of RAW_APIF_FIXTURE_DETAILS with no league or time
+        # filter; it used to be reached from inside resolve_ingest_mode, i.e. once per
+        # competition, which made ingestion reads O(competitions^2) — 45 scans of a
+        # multi-GiB table every run, growing quadratically as leagues are added (#33 item 1).
+        #
+        # ⚠ This is deliberately NOT a run-wide cache. Phase 2 WRITES FIXTURE_DETAILS, and
+        # the completeness check below MUST see those writes — that is what it checks. It
+        # therefore keeps its own, separate read. Hoisting further (one read for the whole
+        # run) would make every run report fanout gaps that the same run had just filled.
+        phase1_covered = read_coverage(ctx.client)
         results = []
         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
         finished_comps: list[tuple[str, int, set[int]]] = []
         for comp in selected:
-            ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp)
+            ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp, phase1_covered)
             print(
                 f"[api-football] league={comp.league_code} ingest_mode={ingest_mode} "
                 f"reason={ingest_reason}",
@@ -175,9 +191,16 @@ def _load_api_football(request):
         if results:
             run_batch_fixture_fanout_and_persist(ctx, results)
 
-        # Phase 3: squad /players batch per competition
+        # Phase 3: squad /players batch per competition.
+        #
+        # The captured (team, season) set is read ONCE here rather than once per
+        # competition. That query UNNESTs all of RAW_APIF_PLAYERS and was the second
+        # O(competitions^2) read in this loop (#33 item 1). Unlike Phase 1's coverage
+        # hoist this set is MUTATED as the loop writes, because this loader writes the
+        # very table the set describes — see load_squad_players_batch.
+        squads_captured = captured_player_team_seasons(ctx)
         for result in results:
-            run_squads_for_competition(ctx, result)
+            run_squads_for_competition(ctx, result, already_captured=squads_captured)
 
         # Phase 3b: /players/squads batch per competition (current squad + shirt number)
         for result in results:
@@ -199,8 +222,20 @@ def _load_api_football(request):
         # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
         # already-ingested players skipped). Quota-guarded — the first run is the backfill,
         # resumed on later runs.
-        load_player_profiles_global(ctx)
-        load_player_teams_global(ctx)
+        #
+        # Both loaders need the SAME player universe, and computing it UNNESTs all of
+        # RAW_APIF_PLAYERS. Nothing writes that table between them — profiles writes
+        # RAW_APIF_PLAYER_PROFILES, teams writes RAW_APIF_PLAYER_TEAMS — so the second
+        # run of that query returned an identical answer for full price (#33 item 1).
+        # A failure here is non-fatal: `universe=None` makes each loader compute its own,
+        # which is exactly the previous behaviour.
+        try:
+            shared_universe = query_player_universe(ctx.client)
+        except Exception as e:
+            ctx.errors.append(f"player universe (shared): {e}")
+            shared_universe = None
+        load_player_profiles_global(ctx, universe=shared_universe)
+        load_player_teams_global(ctx, universe=shared_universe)
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:
@@ -211,10 +246,13 @@ def _load_api_football(request):
                 tail += f" ... (+{len(uniq) - 40} more distinct notes)"
             msg += f" Notes: {tail}"
 
-        prior_stats_missing = load_prior_fixture_statistics_missing(client)
-        # Read BEFORE persisting this run's counts, or the comparison is against itself.
-        prior_dropped = load_prior_dropped_calls(client)
-        prior_per_team = load_prior_per_team_missing(client)
+        # ONE read of the previous run's snapshot, three keys out of it. These three
+        # readers each used to issue their own identical query (#33 item 1). Read BEFORE
+        # persisting this run's counts, or every comparison is against itself.
+        prior_snapshot = read_prior_snapshot(client)
+        prior_stats_missing = load_prior_fixture_statistics_missing(client, prior_snapshot)
+        prior_dropped = load_prior_dropped_calls(client, prior_snapshot)
+        prior_per_team = load_prior_per_team_missing(client, prior_snapshot)
         dropped_calls = minute_rate_limit_counts()
         # #898 cause 3: the per-team endpoints (players, squads, transfers, coaches) had no
         # completeness check at all. Two-step read on purpose — see _latest_snapshot_timestamps.

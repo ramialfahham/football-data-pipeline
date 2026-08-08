@@ -428,9 +428,38 @@ def detect_stagnant_per_team_gaps(
     return stagnant
 
 
-def load_prior_per_team_missing(client: bigquery.Client) -> dict[str, int] | None:
+# "Caller supplied nothing" and "the caller supplied the answer, and the answer is None"
+# are DIFFERENT, and conflating them is a live defect rather than a style point:
+# `read_prior_snapshot` legitimately returns None on a first run, on a run whose predecessor
+# had API_FOOTBALL_SKIP_COMPLETENESS_CHECK set, and any time the snapshot table does not
+# exist yet. With `payload=None` as the "unsupplied" sentinel, those runs made all three
+# readers fetch for themselves — 1 hoisted read + 3 re-reads = 4, one MORE than the 3 this
+# change set out to remove, in exactly the case each reader's docstring says it exists for.
+# Caught in review round 1. A unique sentinel keeps the two cases apart.
+_UNREAD = object()
+
+
+def read_prior_snapshot(client: bigquery.Client) -> dict | None:
+    """The previous run's completeness snapshot payload, read ONCE.
+
+    The three `load_prior_*` readers below each pull a different key out of this ONE
+    payload, and each used to issue its own `read_latest_payload_json` — three reads of the
+    same row, back to back, for three dict lookups (#33 item 1). Nothing writes the
+    snapshot between them: `persist_fixture_statistics_missing` runs afterwards.
+
+    Returns None when there is no prior record. Pass that None straight through to the
+    readers: they distinguish it from "unsupplied" via `_UNREAD`, so a first run still costs
+    ONE read, not four.
+    """
+    return read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+
+
+def load_prior_per_team_missing(
+    client: bigquery.Client, payload: Any = _UNREAD
+) -> dict[str, int] | None:
     """Previous run's per-team gaps, or None when there is no prior record (fail-open)."""
-    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+    if payload is _UNREAD:
+        payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
     if not payload:
         return None
     raw = payload.get("per_team_missing")
@@ -449,10 +478,11 @@ def fixture_statistics_missing_by_league(report: dict[str, Any]) -> dict[str, in
 
 
 def load_prior_fixture_statistics_missing(
-    client: bigquery.Client,
+    client: bigquery.Client, payload: Any = _UNREAD
 ) -> dict[str, int] | None:
     """Previous run's per-league statistics missing counts, or None if first run."""
-    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+    if payload is _UNREAD:
+        payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
     if not payload:
         return None
     raw = payload.get("fixture_statistics_missing")
@@ -461,14 +491,17 @@ def load_prior_fixture_statistics_missing(
     return {str(k): int(v) for k, v in raw.items()}
 
 
-def load_prior_dropped_calls(client: bigquery.Client) -> dict[str, int] | None:
+def load_prior_dropped_calls(
+    client: bigquery.Client, payload: Any = _UNREAD
+) -> dict[str, int] | None:
     """Previous run's per-endpoint dropped-call counts, or None if there is no prior record.
 
     None means "no comparison possible" and the stagnation check stays silent, which is the same
     fail-open direction ``load_prior_fixture_statistics_missing`` takes: a first run, or a run after
     the snapshot was skipped, must not raise a false alarm.
     """
-    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+    if payload is _UNREAD:
+        payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
     if not payload:
         return None
     raw = payload.get("dropped_calls_by_endpoint")
