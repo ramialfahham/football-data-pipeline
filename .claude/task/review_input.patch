@@ -1,1394 +1,764 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e489234..87af966 100644
+index 87af966..95d99cb 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,265 +1,223 @@
--# Task contract — Gate 0.2 + Wave 1 items 5 and 6 (#33)
-+# Task contract — Wave 1 item 1 (#33): hoist the per-run ingestion reads
+@@ -1,223 +1,178 @@
+-# Task contract — Wave 1 item 1 (#33): hoist the per-run ingestion reads
++# Task contract — #33 item 8a: an incomplete fetch must not supersede a good snapshot
  
--> Branch `chore/gate0-truth-and-dbt-deadwood` from `main` (`6352d7d`), in the worktree
--> `D:\Projects\fdp-pipeline`. No PROTECTED path, so no `protected_override`.
--> `dbt_project/models/**` IS the structural surface, so an `impact_map` is REQUIRED and is
--> below. No `site_v2/src/`, so no `acceptance_criteria`.
-+> Branch `perf/ingestion-hoist-per-run-reads` from `main` (`72a6a69`), in the worktree
-+> `D:\Projects\fdp-pipeline`. No PROTECTED path, so no `protected_override`. `ingestion/**` IS the
-+> structural surface, so an `impact_map` is REQUIRED and is below. No `site_v2/src/`, so no
-+> `acceptance_criteria`.
+-> Branch `perf/ingestion-hoist-per-run-reads` from `main` (`72a6a69`), in the worktree
+-> `D:\Projects\fdp-pipeline`. No PROTECTED path, so no `protected_override`. `ingestion/**` IS the
+-> structural surface, so an `impact_map` is REQUIRED and is below. No `site_v2/src/`, so no
+-> `acceptance_criteria`.
++> Branch `fix/896-guard-partial-writes` from `main` (`7b464bd`), worktree `D:\Projects\fdp-pipeline`.
++> No PROTECTED path, so no `protected_override`. `ingestion/**` IS the structural surface, so an
++> `impact_map` is REQUIRED and is below. No `site_v2/src/`, so no `acceptance_criteria`.
  
  objective: >
--  Land Gate 0.2 and Wave 1 items 5 and 6 of GitLab issue #33 — the pipeline cost/scalability
--  plan. Three separable things that share one reviewer set and touch disjoint files from the
--  other two Wave 1 MRs:
+-  Wave 1 item 1 of GitLab #33 — the only change in the plan that alters an exponent. Ingestion
+-  reads are O(competitions^2): two full-table scans are issued once per competition inside the
+-  per-competition loop, so adding a league makes every league more expensive.
 -
--  (a) GATE 0.2 — correct four statements in `CLAUDE.md` that are false today, plus the stale
--  headline of the memory file `project_dbt_shared_ci_prod_datasets.md`. #33 puts this first
--  because every later item is reviewed against these statements, and three of the four would
--  actively mislead a reviewer judging the rest of the plan.
+-  WHAT IS ACTUALLY QUADRATIC, traced rather than taken from #33:
+-  - `coverage.read_coverage()` scans ALL of `RAW_APIF_FIXTURE_DETAILS` with no `league_code` and no
+-    `ingested_at` filter, reading the `payload` JSON column twice. Reached from `ingest_plan.py:84`
+-    (`_fanout_covered_from_bq`) <- `_finished_fanout_has_gaps` <- `resolve_ingest_mode` <-
+-    `orchestrator.py:140`, which is inside the loop over all selected competitions. 45 active
+-    competitions today, so 45 scans, plus 1 more in `completeness.py:135`.
+-  - `squads.captured_player_team_seasons()` UNNESTs ALL of `RAW_APIF_PLAYERS` and is called from
+-    `load_squad_players_batch` (`squads.py:146`) once per full-mode competition in Phase 3.
 -
--  (b) ITEM 5 — drop the `source_json` column from the 9 staging models that emit it. It has
--  zero consumers. Near-free today because BigQuery prunes an unused output column of a view,
--  but staging becomes a TABLE in Wave 2 item 9, at which point this column is the dominant
--  stored bytes. #33 makes item 5 a hard prerequisite of item 9; this is that prerequisite.
+-  Two cheaper duplicates ride along, both provably safe to collapse (see the impact_map):
+-  - `player_universe._query_universe()` — the same full `RAW_APIF_PLAYERS` UNNEST runs twice per
+-    run, once for `PLAYER_PROFILES` and once for `PLAYER_TEAMS`.
+-  - The completeness snapshot is read three times back to back (`completeness.py:433/455/471` from
+-    `orchestrator.py:214-217`) to extract three different keys from one payload.
 -
--  (c) ITEM 6 — delete zero-caller / zero-use deadwood: two macros, a documented pre-filter
--  that exists in no model, and the `dbt_expectations` package.
--
--  CONSULTED BEFORE BUILDING (§2 norm): `dbt ls` for the real downstream closure rather than
--  memory; `dbt_project/docs/layering.md` for what staging may and may not do; the actual
--  `qualify` forms in all 15 staging models before rewriting the data contract's description
--  of them.
-+  Wave 1 item 1 of GitLab #33 — the only change in the plan that alters an exponent. Ingestion
-+  reads are O(competitions^2): two full-table scans are issued once per competition inside the
-+  per-competition loop, so adding a league makes every league more expensive.
+-  CONSULTED BEFORE BUILDING (§2 norm): traced every call site with grep rather than assuming, and —
+-  the part that changed the design — established the WRITE ordering between each pair of duplicate
+-  reads before deciding what may be cached.
++  Port the #896 guard — "an incomplete fetch must never supersede stored data" — to the four
++  per-league snapshot loaders that lack it: TRANSFERS, COACHES, STANDINGS, TEAMS.
 +
-+  WHAT IS ACTUALLY QUADRATIC, traced rather than taken from #33:
-+  - `coverage.read_coverage()` scans ALL of `RAW_APIF_FIXTURE_DETAILS` with no `league_code` and no
-+    `ingested_at` filter, reading the `payload` JSON column twice. Reached from `ingest_plan.py:84`
-+    (`_fanout_covered_from_bq`) <- `_finished_fanout_has_gaps` <- `resolve_ingest_mode` <-
-+    `orchestrator.py:140`, which is inside the loop over all selected competitions. 45 active
-+    competitions today, so 45 scans, plus 1 more in `completeness.py:135`.
-+  - `squads.captured_player_team_seasons()` UNNESTs ALL of `RAW_APIF_PLAYERS` and is called from
-+    `load_squad_players_batch` (`squads.py:146`) once per full-mode competition in Phase 3.
++  WHY THIS EXISTS, AND WHY IT IS ITS OWN MR. #33 item 8 converts the append-only raw tables to
++  merge-on-write keyed on `league_code`. Applying that today would DESTROY PRODUCTION DATA: each
++  of these four loaders abandons its fetch loop when the daily quota latches and then writes the
++  partial payload unconditionally. Under append-only that is recoverable — the partial wins the
++  latest-snapshot `qualify` in staging, but the complete prior row still exists in `raw`. Under
++  merge-on-write the partial write DELETES the complete prior row. The CPO split item 8 on
++  2026-08-08 after this was found; 8a is the precondition that makes 8b non-destructive.
 +
-+  Two cheaper duplicates ride along, both provably safe to collapse (see the impact_map):
-+  - `player_universe._query_universe()` — the same full `RAW_APIF_PLAYERS` UNNEST runs twice per
-+    run, once for `PLAYER_PROFILES` and once for `PLAYER_TEAMS`.
-+  - The completeness snapshot is read three times back to back (`completeness.py:433/455/471` from
-+    `orchestrator.py:214-217`) to extract three different keys from one payload.
++  THE DEFECT, one shape in four files:
++      transfers.py:31-33   coaches.py:44-45   standings.py:31-32   teams.py:29-30
++      for x in ...:
++          if errors_quota._http_quota_exhausted:
++              break                      # loop abandoned, nothing recorded
++          ...
++      load_json_to_bq(..., append=True)  # partial written as if complete
 +
-+  CONSULTED BEFORE BUILDING (§2 norm): traced every call site with grep rather than assuming, and —
-+  the part that changed the design — established the WRITE ordering between each pair of duplicate
-+  reads before deciding what may be cached.
++  THE FIX ALREADY EXISTS IN THIS REPO and is not being invented here. `result_is_complete()`
++  (`http_client.py:83`) is the #896 primitive: True only when the provider reported no body-level
++  error AND the run's daily-quota flag is unset, because the two failure shapes differ — a
++  per-minute rate limit arrives as HTTP 200 with the error in the body, while an exhausted daily
++  quota short-circuits to an empty body with no error at all. Either signal alone misses one.
++  `players_response_for_team` (`fixture_scheduling.py:480`) already uses it.
++
++  ⚠ A SWEEP CHANGED WHAT I THOUGHT THE SCOPE WAS. `result_is_complete` is called in exactly ONE
++  place in the whole codebase. Eleven loaders fetch-and-write; nine have no completeness check.
++  Only RAW_APIF_PLAYERS is genuinely protected (per key, `squads.py:188-196`); RAW_APIF_SQUADS is
++  partially protected (`player_squads.py` guards the catch-up path on `quota_cut` only, not on
++  body errors). This MR fixes the four the CPO named and scoped. The remaining holes are listed
++  under decisions_reserved rather than silently widened into or silently dropped.
++
++  CONSULTED BEFORE BUILDING (§2 norm): read `result_is_complete`'s docstring for why both signals
++  are needed; read `squads.py`'s per-key guard and `player_squads.py`'s discard-the-partial guard
++  as the two existing precedents, and followed the second, because these four tables are ONE row
++  per league and cannot withhold per team.
  
  refs: >
--  GitLab issue #33 (the working brief for the pipeline stream) — Gate 0.2, Wave 1 items 5
--  and 6. Supersedes the ranking in #32. Related: #892 (why a time-based raw pre-filter is
--  unsafe), #547 (base materialised as table, 2026-08-02).
-+  GitLab issue #33, Wave 1 item 1. Follows !23 (merged, `72a6a69`) and !24 (open). Related: #892.
+-  GitLab issue #33, Wave 1 item 1. Follows !23 (merged, `72a6a69`) and !24 (open). Related: #892.
++  GitLab #33 item 8, split into 8a/8b by the CPO on 2026-08-08 after this defect was found.
++  Implements the #896 ruling for four more tables. Follows !23, !24, !25 (Wave 1, all merged).
  
  scope_paths:
--  - CLAUDE.md
--  - docs/data_contract.md
--  - dbt_project/packages.yml
--  - dbt_project/package-lock.yml
--  - dbt_project/macros/apif_latest_source_partition.sql
--  - dbt_project/macros/domestic_league_codes_in_clause.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__players.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__standings.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__teams.sql
-+  - ingestion/api_football/orchestrator.py
-+  - ingestion/api_football/ingest_plan.py
-+  - ingestion/api_football/completeness.py
-+  - ingestion/api_football/loads/squads.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - ingestion/api_football/loads/player_universe.py
-+  - ingestion/api_football/loads/player_profiles.py
-+  - ingestion/api_football/loads/player_teams.py
-+  - tests/test_ingestion_read_hoisting.py
+-  - ingestion/api_football/orchestrator.py
+-  - ingestion/api_football/ingest_plan.py
+-  - ingestion/api_football/completeness.py
+-  - ingestion/api_football/loads/squads.py
+-  - ingestion/api_football/loads/competition_runner.py
+-  - ingestion/api_football/loads/player_universe.py
+-  - ingestion/api_football/loads/player_profiles.py
+-  - ingestion/api_football/loads/player_teams.py
+-  - tests/test_ingestion_read_hoisting.py
++  - ingestion/api_football/loads/transfers.py
++  - ingestion/api_football/loads/coaches.py
++  - ingestion/api_football/loads/standings.py
++  - ingestion/api_football/loads/teams.py
++  - ingestion/api_football/fixture_scheduling.py
++  - tests/test_incomplete_snapshot_not_written.py
  
  impact_map: >
--  WRITERS of the changed surface.
--  `source_json` is emitted by exactly 9 models and by nothing else. Verified by repo-wide
--  grep, not from memory:
--      $ grep -rn "source_json" --include=*.sql --include=*.yml --include=*.py --include=*.md \
--          --include=*.json . | grep -v node_modules
--      ./dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql:25
--      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql:38
--      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql:80
--      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql:126
--      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql:33
--      ./dbt_project/models/1_staging/api_football/stg_apif__leagues.sql:65
--      ./dbt_project/models/1_staging/api_football/stg_apif__lineups.sql:32
--      ./dbt_project/models/1_staging/api_football/stg_apif__players.sql:49
--      ./dbt_project/models/1_staging/api_football/stg_apif__standings.sql:49
--      ./dbt_project/models/1_staging/api_football/stg_apif__teams.sql:25
--  The two hits in `stg_apif__fixture_players.sql` are one column carried through an internal
--  CTE (line 80 defines it, line 126 re-selects it in the final select of the same model), not
--  two columns. Upstream of these models the raw writers are the ingestion loaders under
--  `ingestion/api_football/loads/`; they are NOT touched by this task and the raw `payload`
--  column they write is unchanged, so `source_json` disappearing changes nothing about what is
--  stored in `raw`.
+-  WRITERS. This task changes no writer. Every raw table is written by exactly the loaders that
+-  write it today, with the same payloads, the same merge keys and the same ordering. What changes
+-  is how many times the pipeline READS three tables inside one run.
 -
--  DOWNSTREAM — the full closure, pasted from the command, not asserted:
--      $ dbt ls --resource-type model --select stg_apif__fixtures_next+ stg_apif__fixture_events+ \
--          stg_apif__fixture_players+ stg_apif__fixture_statistics+ stg_apif__leagues+ \
--          stg_apif__lineups+ stg_apif__players+ stg_apif__standings+ stg_apif__teams+
--      Found 94 models, 870 tests, 6 seeds, 11 sources, 0 exposures, 0 metrics, 853 macros
--      -> 78 models: the 9 changed + 69 downstream.
--      Counted mechanically, not by hand — the first version of this map said 79/70 with a
--      "4_intermediate (24)" header over a 23-item list, `analytics-engineer-reviewer` FAILed it
--      at round 1, and it was right (a #904-class recurrence). The count now comes from:
--        $ dbt ls --resource-type model --select <the 9>+ | grep "^football_data_pipeline\." > closure.txt
--        $ wc -l < closure.txt                      -> 78
--        $ for L in 1_staging 2_base 3_core 4_intermediate 5_marts; do grep -c "\.$L\." closure.txt; done
--                                                   -> 9, 12, 11, 23, 23
--      1_staging (9): stg_apif__fixture_events, stg_apif__fixture_players,
--        stg_apif__fixture_statistics, stg_apif__fixtures_next, stg_apif__leagues,
--        stg_apif__lineups, stg_apif__players, stg_apif__standings, stg_apif__teams
--      2_base (12): base_apif__competition_seasons, base_apif__fixture_events,
--        base_apif__fixture_players, base_apif__fixture_statistics, base_apif__fixtures_next,
--        base_apif__league_entity, base_apif__leagues, base_apif__player_team_season,
--        base_apif__players, base_apif__standings, base_apif__teams, base_apif__teams_global
--      3_core (11): dim_competition_season, dim_league, dim_player,
--        dim_player_team_season_mapping, dim_team, dim_team_competition_season_mapping,
--        fct_fixture, fct_fixture_event, fct_fixture_player_stats, fct_fixture_team_stats,
--        fct_standings
--      4_intermediate (23): int_legs__player_match, int_legs__team_from_players,
--        int_legs__team_match, int_player_club_season__metrics,
--        int_player_competition_benchmarks, int_player_momentum__metrics,
--        int_player_profile__contribution, int_player_profile__yoy, int_player_season__metrics,
--        int_player_season__team, int_player_season_position__metrics, int_player_season_record,
--        int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
--        int_team_momentum__metrics, int_team_momentum_window, int_team_profile__streaks,
--        int_team_profile__yoy, int_team_season__deserved_vs_actual, int_team_season__metrics,
--        int_team_season__metrics_cumulative, int_team_season__standings_primary,
--        int_team_season_record
--      5_marts (23): mart_fixture_standing_context, mart_head_to_head, mart_leaderboards,
--        mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
--        mart_player_fixture_stats, mart_player_match_log, mart_player_momentum,
--        mart_player_profile, mart_player_season_record, mart_roster, mart_standings,
--        mart_team_competition_benchmarks, mart_team_fixture_stats, mart_team_fixtures,
--        mart_team_market_value, mart_team_momentum, mart_team_momentum_window,
--        mart_team_profile, mart_team_season, mart_team_season_insights,
--        mart_team_season_record
+-  DOWNSTREAM. Nothing in dbt is touched, so there is no model lineage to trace and no mart or
+-  number can move. Evidence that the boundary is real: `git diff --stat main...HEAD` touches only
+-  `ingestion/**` and `tests/**`; `RAW_APIF_*` schemas, the `payload` column and the merge keys are
+-  untouched, so every `stg_apif__*` model reads exactly what it reads today.
 -
--  BLAST RADIUS: none. No mart column, no displayed number, no test changes.
--  The claim is "no consumer exists", so the search is as wide as the claim — every model
--  layer, every macro, every singular test, every seed, the export scripts, the built
--  frontend, and the python test suite:
--      $ grep -rn "source_json" dbt_project/models/2_base dbt_project/models/3_core \
--          dbt_project/models/4_intermediate dbt_project/models/5_marts dbt_project/macros \
--          dbt_project/tests dbt_project/seeds scripts site_v2/src tests
--      (no output; exit 1)
--      $ grep -rn "source_json" --include=*.yml dbt_project/
--      (no output; exit 1)
--  So no schema.yml documents or tests the column either — dropping it removes no test.
--  The 69 downstream models above are the set CI will rebuild under `state:modified+`; that
--  build is the executable proof of this "none", because a consumer would fail to compile.
+-  ⚠ THE CONSTRAINT THAT SHAPES THE WHOLE DESIGN — WRITE ORDERING. A run-wide read cache would be
+-  WRONG here, and wrong silently. `orchestrator.py` interleaves the duplicate reads with writes to
+-  the very tables being read:
+-      line 140  resolve_ingest_mode      -> reads FIXTURE_DETAILS coverage, per competition
+-      line 176  run_batch_fixture_fanout -> WRITES FIXTURE_DETAILS
+-      line 231  run_ingest_completeness  -> reads FIXTURE_DETAILS coverage again
+-  The completeness check MUST see post-fanout rows; that is what it is for. Cache coverage across
+-  those two points and every run reports fanout gaps that were filled minutes earlier. So the fix
+-  is a PHASE-SCOPED hoist — one read shared by the Phase-1 loop, and the completeness check keeps
+-  its own, separate read — not a memo on `PipelineContext` and not a module-level cache.
+-  The same reasoning rules each of the other three individually; each is justified below by naming
+-  what writes between the reads, or that nothing does.
 -
--  The two deleted MACROS have zero callers in compiled code:
--      $ grep -rn "apif_latest_source_partition\|domestic_league_codes_in_clause" \
--          --include=*.sql --include=*.yml --include=*.py --include=*.md .
--      ./.claude/active_work.md:160                       (a note saying to delete it)
--      ./.github/workflows/pages-match-preview.yml:21     (path filter, dormant tree)
--      ./dbt_project/macros/apif_latest_source_partition.sql:23,31  (its own docstring + def)
--      ./dbt_project/macros/domestic_league_codes_in_clause.sql:1   (its own def)
--      ./docs/product_direction_threads.md:12             (dated log of a CLOSED thread)
--  No model, test or seed invokes either.
+-  PER-READ SAFETY, one argument each:
+-  1. `read_coverage` in Phase 1. All 45 calls happen inside one loop with NO write to
+-     FIXTURE_DETAILS between them — the fanout is Phase 2. One read before the loop is therefore
+-     observationally identical for every competition. 45 -> 1.
+-  2. `captured_player_team_seasons` in Phase 3. Here a write DOES land between calls:
+-     `load_squad_players_batch` writes RAW_APIF_PLAYERS for each competition. A naive hoist would
+-     let competition 2 re-fetch a (team, season) competition 1 just captured — wasteful, not
+-     incorrect (the function's own docstring: "a duplicate download, never a silent miss"), but
+-     national teams genuinely appear in more than one competition, so it would fire. The hoisted
+-     set is therefore UPDATED IN PLACE with the keys each competition fetches, which keeps it
+-     exactly as accurate as re-reading. N -> 1.
+-  3. `_query_universe` (Phase 5). Between the `PLAYER_PROFILES` and `PLAYER_TEAMS` calls, the only
+-     write is to RAW_APIF_PLAYER_PROFILES. The universe query reads RAW_APIF_PLAYERS, which nothing
+-     writes in Phase 5. Safe. 2 -> 1. `_existing_player_ids` is NOT cached — it reads the target
+-     table, which differs per call and is written between them.
+-  4. The completeness snapshot triple. Three reads of one table, back to back, extracting three
+-     different keys; the snapshot is not written until `persist_fixture_statistics_missing`
+-     afterwards. Safe. 3 -> 1.
 -
--  `dbt_expectations` is used nowhere. Repo-wide, excluding the installed package tree:
--      $ grep -rn "dbt_date\|dbt_expectations" . | grep -v /dbt_packages/ | grep -v /node_modules/
--      ./dbt_project/package-lock.yml:4,6
--      ./dbt_project/packages.yml:4
--  Removing it also removes its TRANSITIVE dependency `godatadriven/dbt_date` (observed in
--  `dbt deps` output), which is likewise referenced by nothing. `dbt-labs/dbt_utils` stays and
--  IS used.
+-  A CORRECTION TO #33, on evidence. #33 claims this takes "46 full scans of a ~4 GiB table per run
+-  to 1". It cannot go to 1, and should not: the 46th scan is the completeness check's, and it must
+-  stay because it has to observe the fanout's writes. The achievable figure is **2** — one for the
+-  Phase-1 loop, one for completeness. The quadratic TERM is still removed, which is the point of
+-  the item; only the headline number is wrong.
 -
--  LAYER RULES that apply. `scripts/check_layer_contract.py` (run in `validate:governance`):
--  no per-competition staging subdirectory; no per-model materialisation override in `2_base`.
--  Neither is affected — no directory is added, no `materialized` config is touched.
--  `dbt_project/docs/layering.md` §1_staging: staging is raw cleanup only. Removing a
--  passthrough column and deleting the doc's prescription of a pre-filter that no model
--  implements both move toward that rule, never away from it.
+-  LAYER RULES. `check_layer_contract.py` governs dbt directories and is unaffected. The ingestion
+-  rule that applies is the competition-agnostic one (`docs/working_agreement.md` §8): nothing here
+-  introduces a league identifier, and the hoist makes the code MORE competition-agnostic by
+-  removing per-competition work that did not depend on the competition.
 -
--  DEPLOY ORDER on the shared warehouse. Staging is `view`, so the models are re-created, not
--  migrated — there is no window in which a downstream model reads a dropped column, because
--  no downstream model reads it. The nightly (`data:nightly`) is unreachable today: no GitLab
--  schedule exists (creating one is #33 item 7, Wave 2), so there is no 04:00 run to sequence
--  around. `data:build:main` rebuilds the full prod warehouse on merge to main, which
--  re-creates all 9 views with the new column list in one build.
-+  WRITERS. This task changes no writer. Every raw table is written by exactly the loaders that
-+  write it today, with the same payloads, the same merge keys and the same ordering. What changes
-+  is how many times the pipeline READS three tables inside one run.
+-  DEPLOY ORDER. No warehouse object changes, no migration, nothing to sequence around the nightly
+-  (which is unreachable anyway — no schedule exists; that is item 7). The ingest is not run by this
+-  MR's CI: `data:build:mr` reaches the ingest branch only when `get_new_league_codes.py` returns a
+-  non-empty list, and on !23's pipeline it printed "All leagues already have raw tables — skipping
+-  bootstrap ingest."
+-
+-  BLAST RADIUS: no mart, no number, no displayed value. The observable change is the count of
+-  BigQuery jobs a run issues, and the risk being managed is a stale read inside a run, which is
+-  what the per-read safety arguments above address one by one.
++  WRITERS. Exactly the four loaders named, each the sole writer of its raw table — verified with
++  `grep -rn "load_json_to_bq" ingestion/`:
++      loads/transfers.py  -> RAW_APIF_TRANSFERS   (6.99 GiB, 59% of raw)
++      loads/coaches.py    -> RAW_APIF_COACHES     (0.21 GiB)
++      loads/standings.py  -> RAW_APIF_STANDINGS   (0.09 GiB)
++      loads/teams.py      -> RAW_APIF_TEAMS       (0.08 GiB)
++  `fixture_scheduling.py` is touched only to give `transfers_response_for_team` the same
++  `(rows, complete)` return shape `players_response_for_team` already has. No other caller of that
++  function exists — verified.
 +
-+  DOWNSTREAM. Nothing in dbt is touched, so there is no model lineage to trace and no mart or
-+  number can move. Evidence that the boundary is real: `git diff --stat main...HEAD` touches only
-+  `ingestion/**` and `tests/**`; `RAW_APIF_*` schemas, the `payload` column and the merge keys are
-+  untouched, so every `stg_apif__*` model reads exactly what it reads today.
++  WHAT CHANGES BEHAVIOURALLY, stated precisely because it is a behaviour change and not a refactor.
++  When a fetch loop is cut short by the daily quota, or any per-team/per-season response carries a
++  body-level error, the league's snapshot is now DISCARDED instead of written. Consequences:
++  - Normal runs: nothing changes. A complete run writes exactly what it writes today.
++  - A degraded run: staging keeps the PREVIOUS complete snapshot instead of being superseded by a
++    partial. That is the #896 ruling and it is strictly better for data quality.
++  - A degraded FIRST-EVER ingest of a league: nothing is written at all, where today a partial
++    would land. Accepted, and it is the same trade `player_squads.py` already makes on its
++    catch-up path. It self-heals on the next run, and the discarded snapshot is reported through
++    `ctx.errors`, which reaches the completeness summary rather than being silent.
 +
-+  ⚠ THE CONSTRAINT THAT SHAPES THE WHOLE DESIGN — WRITE ORDERING. A run-wide read cache would be
-+  WRONG here, and wrong silently. `orchestrator.py` interleaves the duplicate reads with writes to
-+  the very tables being read:
-+      line 140  resolve_ingest_mode      -> reads FIXTURE_DETAILS coverage, per competition
-+      line 176  run_batch_fixture_fanout -> WRITES FIXTURE_DETAILS
-+      line 231  run_ingest_completeness  -> reads FIXTURE_DETAILS coverage again
-+  The completeness check MUST see post-fanout rows; that is what it is for. Cache coverage across
-+  those two points and every run reports fanout gaps that were filled minutes earlier. So the fix
-+  is a PHASE-SCOPED hoist — one read shared by the Phase-1 loop, and the completeness check keeps
-+  its own, separate read — not a memo on `PipelineContext` and not a module-level cache.
-+  The same reasoning rules each of the other three individually; each is justified below by naming
-+  what writes between the reads, or that nothing does.
++  DOWNSTREAM. No dbt model, seed, macro or test is touched, so there is no lineage to trace and no
++  mart or number can move. The raw SCHEMA is unchanged — same table, same columns, same payload
++  shape, same append semantics. What changes is only WHETHER a given degraded run writes a row.
++  Staging is unaffected by construction: `stg_apif__transfers`, `_standings` and `_teams` already
++  select the latest snapshot per `league_code`, so they read one row per league either way.
 +
-+  PER-READ SAFETY, one argument each:
-+  1. `read_coverage` in Phase 1. All 45 calls happen inside one loop with NO write to
-+     FIXTURE_DETAILS between them — the fanout is Phase 2. One read before the loop is therefore
-+     observationally identical for every competition. 45 -> 1.
-+  2. `captured_player_team_seasons` in Phase 3. Here a write DOES land between calls:
-+     `load_squad_players_batch` writes RAW_APIF_PLAYERS for each competition. A naive hoist would
-+     let competition 2 re-fetch a (team, season) competition 1 just captured — wasteful, not
-+     incorrect (the function's own docstring: "a duplicate download, never a silent miss"), but
-+     national teams genuinely appear in more than one competition, so it would fire. The hoisted
-+     set is therefore UPDATED IN PLACE with the keys each competition fetches, which keeps it
-+     exactly as accurate as re-reading. N -> 1.
-+  3. `_query_universe` (Phase 5). Between the `PLAYER_PROFILES` and `PLAYER_TEAMS` calls, the only
-+     write is to RAW_APIF_PLAYER_PROFILES. The universe query reads RAW_APIF_PLAYERS, which nothing
-+     writes in Phase 5. Safe. 2 -> 1. `_existing_player_ids` is NOT cached — it reads the target
-+     table, which differs per call and is written between them.
-+  4. The completeness snapshot triple. Three reads of one table, back to back, extracting three
-+     different keys; the snapshot is not written until `persist_fixture_statistics_missing`
-+     afterwards. Safe. 3 -> 1.
++  DELIBERATELY NOT IN THIS MR: no merge-on-write, no delete of any kind, no `league_code`-keyed
++  DELETE. This MR only ever writes FEWER rows than today. That is what makes it safe to land
++  before 8b, and safe to land the same day the nightly resumes.
 +
-+  A CORRECTION TO #33, on evidence. #33 claims this takes "46 full scans of a ~4 GiB table per run
-+  to 1". It cannot go to 1, and should not: the 46th scan is the completeness check's, and it must
-+  stay because it has to observe the fanout's writes. The achievable figure is **2** — one for the
-+  Phase-1 loop, one for completeness. The quadratic TERM is still removed, which is the point of
-+  the item; only the headline number is wrong.
++  DEPLOY ORDER. No warehouse object changes. The nightly (schedule 4379625) fires 04:00 UTC daily
++  and will be the first consumer. Landing this BEFORE 8b is the point of the split; landing it
++  before tonight's run is desirable but not required, because append-only remains safe either way.
 +
-+  LAYER RULES. `check_layer_contract.py` governs dbt directories and is unaffected. The ingestion
-+  rule that applies is the competition-agnostic one (`docs/working_agreement.md` §8): nothing here
-+  introduces a league identifier, and the hoist makes the code MORE competition-agnostic by
-+  removing per-competition work that did not depend on the competition.
-+
-+  DEPLOY ORDER. No warehouse object changes, no migration, nothing to sequence around the nightly
-+  (which is unreachable anyway — no schedule exists; that is item 7). The ingest is not run by this
-+  MR's CI: `data:build:mr` reaches the ingest branch only when `get_new_league_codes.py` returns a
-+  non-empty list, and on !23's pipeline it printed "All leagues already have raw tables — skipping
-+  bootstrap ingest."
-+
-+  BLAST RADIUS: no mart, no number, no displayed value. The observable change is the count of
-+  BigQuery jobs a run issues, and the risk being managed is a stale read inside a run, which is
-+  what the per-read safety arguments above address one by one.
++  BLAST RADIUS on data: no mart, no number, no displayed value. The risk being managed is the
++  reverse of the usual one — this makes the pipeline write less, never more.
  
  decisions_taken: >
--  AUTHORITY FOR EVERY ITEM BELOW. The durable record is
--  `.claude/task/escalations.log`, entry "2026-08-08 — GitLab #33: the CPO approves the whole
--  pipeline cost/scalability plan, in advance" — appended in this branch, and appended BECAUSE
--  `scope-auditor` FAILed round 1 for its absence and was right. This contract is overwritten by
--  the next task, so quoting a ruling here is not recording it (the CPO's own rule, escalations.log
--  2026-07-31 and 2026-08-01). That entry also names the §10-class items the approval covers
--  individually, and states its own limit: it approves a PLAN, not whatever a builder later decides
--  an item means. Quoted from the CPO's instruction of 2026-08-08:
--  "Every item in #33's Gate 0, Wave 1, Wave 2 and Wave 3 is APPROVED, including the two that
--  would normally be CPO-class: raw merge-on-write with the raw_archive backup first (item 8),
--  and staging materialised as a table (item 9). The CPO said 'yes' to all three headline
--  decisions on 2026-08-08 and then approved the full recommendation set." That instruction
--  also supplies the §1 Confirm for this task: "Work through the plan without checking in on
--  anything #33 already settles."
+-  AUTHORITY: the CPO's standing approval of 2026-08-08, durably recorded in
+-  `.claude/task/escalations.log` ("2026-08-08 — GitLab #33: the CPO approves the whole pipeline
+-  cost/scalability plan, in advance"), which is on `main` at `72a6a69` and independently checkable.
+-  #33 lists item 1 under "Wave 1 — mechanical, no CPO decision".
++  AUTHORITY. The durable record is `.claude/task/escalations.log`, entry
++  "2026-08-08 — #33 item 8 SPLIT into 8a/8b: item 8 as approved would have destroyed prod data",
++  appended in this branch. It records the split itself, the evidence that forced it, the CPO's
++  "go ahead with 8a", and — explicitly, because it was the thing most likely to be inferred later
++  — that 8a is scoped to FOUR loaders and which five gaps are deliberately left out.
++  That entry exists BECAUSE `scope-auditor` FAILed round 1 for its absence, and it was right:
++  the 2026-08-08 blanket #33 approval covers item 8 as ONE thing ("raw merge-on-write with the
++  raw_archive backup first"), and a split that changes what item 8 IS is a new decision. Fourth
++  time this repo has ruled that a decision living only in `contract.md` is not recorded
++  (2026-07-31, 2026-08-01, and the standing-rule entry of 2026-08-08).
++  The underlying rule is NOT new: #896 is already this repo's ruling, recorded 2026-08-03, and
++  already implemented for RAW_APIF_PLAYERS. This MR applies an existing ruling to four more
++  tables; it does not create one.
+ 
+   THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an oversight).
+-  - RECURRING COST: reduced, and this is the item's whole purpose. No new job, schedule, cadence,
+-    API call, endpoint or history depth. The API-call count per run is UNCHANGED — this touches
+-    BigQuery reads only, never the fetch plan. That distinction matters: `captured_player_team_
+-    seasons` feeds a fetch-side skip, so getting it wrong WOULD change API spend. It is kept exact
+-    by updating the hoisted set in place rather than by accepting a stale one.
+-  - NEW MECHANISM: none. No cache class, no memo decorator, no module-level state, no new
+-    dependency. The hoists pass an already-computed value down as an ordinary parameter — the
+-    plainest thing that works, and deliberately not a `PipelineContext` cache, which would have
+-    been the tempting general mechanism and would have made the write-ordering hazard invisible.
+-    One private module constant was added: `completeness._UNREAD`, a sentinel — see round 1.
 -
--  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an
--  oversight).
--  - DEPENDENCY CHANGE: this REMOVES `metaplane/dbt_expectations` and, transitively,
--    `godatadriven/dbt_date` from `dbt_project/packages.yml` and `package-lock.yml`. It adds
--    no dependency. `packages.yml` matches no routing row, so `cto-reviewer` is not required
--    on this diff and would only see this if declared here. Authority: #33 item 6, approved
--    as above. Evidence of zero use is in the impact_map.
--  - MECHANISM REMOVED, not added: two macros are deleted. Nothing new is introduced — no UDF,
--    no lifecycle hook, no library, no workflow step (cf. Appendix A3).
--  - RECURRING COST: unchanged by this MR, in either direction. Item 5's saving is not
--    realised until staging becomes a table (Wave 2 item 9); today BigQuery prunes the unused
--    view output column, so this is a prerequisite, not a saving. No schedule, cadence, API
--    budget or history depth is touched.
--  - ONE-OFF COST, disclosed: this MR modifies 9 staging models, so `data:build:mr` selects
--    `state:modified+` = the 78-model closure above plus the full singular DQ suite. That is
--    the most expensive shape an MR build takes. It is also the point — it is the executable
--    proof that no consumer of `source_json` existed.
+-  WHAT REVIEW ROUND 1 FOUND, both accepted, both verified against the code before acting:
+-  - `data-engineer-reviewer`: the completeness-snapshot hoist made a FIRST RUN WORSE, not better.
+-    `read_prior_snapshot()` returns None when there is no prior record — a first run, or one whose
+-    predecessor had `API_FOOTBALL_SKIP_COMPLETENESS_CHECK` set. None was also the "caller supplied
+-    nothing" sentinel, so passing it through made all three readers fetch for themselves: 1 hoisted
+-    read + 3 re-reads = 4, against a baseline of 3, in exactly the case each reader's docstring
+-    says it exists to handle. Fixed with a private `_UNREAD` sentinel so "no prior record" and
+-    "unsupplied" stop being the same value. This is the finding that mattered most in the round.
+-  - `platform-reviewer`: the other three hoists were revertible in silence. `already_captured` and
+-    `universe` had defaults, and the orchestrator is their ONLY caller, so deleting one keyword
+-    argument at one call site restored a full-table scan with the entire suite green — the tests
+-    exercised the functions in isolation, never the wiring. Fixed STRUCTURALLY rather than with a
+-    wiring test: those arguments are now REQUIRED, so omitting one is a TypeError, which is the
+-    same protection `resolve_ingest_mode` already had and which that reviewer had singled out as
+-    the reason it alone was safe. It also showed the correctness pin could be defeated by ADDING
+-    an `all_covered=None` parameter to `run_ingest_completeness_checks` and wiring Phase 1's result
+-    in — a behavioural test cannot see that, so the signature is now pinned too.
 -
--  SCOPE JUDGEMENTS I made rather than escalated (all below §10; stated so a reviewer can
--  attack them):
--  - `.github/workflows/pages-match-preview.yml:21` lists a deleted macro in a `paths:`
--    filter. NOT edited. `CLAUDE.md` and `.github/workflows/README.md` both say that tree is a
--    deliberately frozen pre-migration snapshot that runs nothing; a path filter naming a file
--    that no longer exists is inert. Editing it to "keep it in sync" is the exact thing
--    `CLAUDE.md` forbids.
--  - `docs/product_direction_threads.md:12` names `apif_latest_source_partition` under
--    "Thread 1 — Cost at scale (CLOSED 2026-05-25)". NOT edited. It is a dated record that PR
--    #222 added the macro, which remains true. #33 lists the `data_contract.md` lines because
--    that document is PRESCRIPTIVE and a reader would restore the behaviour from it; a closed
--    thread log is not prescriptive.
--  - `data_contract.md:61` introduces the SQL block being deleted, so deleting the block alone
--    would leave a dangling sentence. That sentence is rewritten to describe what the 15
--    staging models actually do, verified by reading all of them: 6 apply
--    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
--    (fixtures_next, leagues, squads, standings, teams, transfers) and NONE applies the
--    7-day `where DATE(ingested_at) >= ...` pre-filter the doc prescribes. Editorial
--    correction of a statement that is false; not a design change.
+-  WHAT REVIEW ROUND 2 FOUND. `data-engineer-reviewer` PASSED. `platform-reviewer` FAILED again, on
+-  a DIFFERENT path to the same failure class, and was right twice: requiring the argument closes
+-  only the narrowest revert — deleting the keyword. Moving the computation back INSIDE the
+-  per-competition loop, while still passing it, restores the whole O(competitions^2) scan with all
+-  14 assertions green, because every callee-level test sees a value arrive exactly as before. It
+-  also caught `done_when` claiming a multi-competition orchestrator count test that does not exist.
+-  Fixed by pinning the CALLER: an AST check that the three readers are not called from inside any
+-  loop in `_load_api_football`, proven by moving `read_coverage` back into the loop and watching it
+-  fail. Its limit (name-based, so an alias evades it) is stated in the test. The overclaimed
+-  `done_when` line is rewritten to say what the tests actually assert.
+-  - GUARD WEAKENED: no. No test is removed or narrowed, no assertion relaxed. The completeness gate
+-    keeps its own independent read precisely so it cannot be weakened by this change.
 -
--  A CORRECTION TO #33, on evidence, per the CPO's instruction to say so plainly. #33 says the
--  memory file "records the fix as still needed". It does not: it carries a
--  "RESOLVED — PR #668 (MERGED 2026-07-08)" section. What is stale is its `description:`
--  frontmatter and its "How to apply:" line, which still assert the shared-dataset hazard as
--  live and are what a recall surfaces first. Those two are corrected; the body's history is
--  left intact. (That file lives outside the repo, so it is not in `scope_paths` and does not
--  appear in this diff.)
-+  AUTHORITY: the CPO's standing approval of 2026-08-08, durably recorded in
-+  `.claude/task/escalations.log` ("2026-08-08 — GitLab #33: the CPO approves the whole pipeline
-+  cost/scalability plan, in advance"), which is on `main` at `72a6a69` and independently checkable.
-+  #33 lists item 1 under "Wave 1 — mechanical, no CPO decision".
+-  SCOPE JUDGEMENT — TWO OF #33's SIX SUB-ITEMS ARE DEFERRED, stated rather than silently dropped:
+-  - "Make `_finished_fanout_has_gaps` lazy." Once the coverage read is hoisted out of
+-    `resolve_ingest_mode`, that function no longer issues a query at all — the remaining work is an
+-    in-memory set walk. Laziness would save microseconds and add a branch. Deferred as not worth
+-    the diff; the saving #33 attributes to it is entirely delivered by the hoist.
+-  - "Cache the FIXTURES_NEXT payload." The duplicate is `ingest_plan.py:113` and
+-    `loads/fixtures.py:117`, both per competition. Unlike the two scans above this is a PRUNED
+-    equality read on one league's latest snapshot, not a full-table scan, and collapsing it means
+-    threading a payload through `run_cheap_phases` into the fixtures loader — invasive for a small
+-    constant. Deferred as its own follow-up rather than bundled into a refactor whose value is the
+-    exponent change.
+-  Both are recorded on #33 so they are visible as remaining work, not lost.
++  - NEW MECHANISM: none. `result_is_complete()` already exists and is already used. No new
++    dependency, no new config, no new env var, no new table.
++  - RECURRING COST: unchanged, or very slightly reduced. No new API call — `result_is_complete`
++    inspects the response already in hand. No extra BigQuery read. On a degraded run one LOAD job
++    is skipped, so a bad night gets marginally cheaper.
++  - GUARD STRENGTHENED, not weakened. Four tables gain a protection only one table had.
++  - BEHAVIOUR CHANGE, declared: a degraded first-ever ingest now writes nothing. See impact_map.
 +
-+  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an oversight).
-+  - RECURRING COST: reduced, and this is the item's whole purpose. No new job, schedule, cadence,
-+    API call, endpoint or history depth. The API-call count per run is UNCHANGED — this touches
-+    BigQuery reads only, never the fetch plan. That distinction matters: `captured_player_team_
-+    seasons` feeds a fetch-side skip, so getting it wrong WOULD change API spend. It is kept exact
-+    by updating the hoisted set in place rather than by accepting a stale one.
-+  - NEW MECHANISM: none. No cache class, no memo decorator, no module-level state, no new
-+    dependency. The hoists pass an already-computed value down as an ordinary parameter — the
-+    plainest thing that works, and deliberately not a `PipelineContext` cache, which would have
-+    been the tempting general mechanism and would have made the write-ordering hazard invisible.
-+    One private module constant was added: `completeness._UNREAD`, a sentinel — see round 1.
-+
-+  WHAT REVIEW ROUND 1 FOUND, both accepted, both verified against the code before acting:
-+  - `data-engineer-reviewer`: the completeness-snapshot hoist made a FIRST RUN WORSE, not better.
-+    `read_prior_snapshot()` returns None when there is no prior record — a first run, or one whose
-+    predecessor had `API_FOOTBALL_SKIP_COMPLETENESS_CHECK` set. None was also the "caller supplied
-+    nothing" sentinel, so passing it through made all three readers fetch for themselves: 1 hoisted
-+    read + 3 re-reads = 4, against a baseline of 3, in exactly the case each reader's docstring
-+    says it exists to handle. Fixed with a private `_UNREAD` sentinel so "no prior record" and
-+    "unsupplied" stop being the same value. This is the finding that mattered most in the round.
-+  - `platform-reviewer`: the other three hoists were revertible in silence. `already_captured` and
-+    `universe` had defaults, and the orchestrator is their ONLY caller, so deleting one keyword
-+    argument at one call site restored a full-table scan with the entire suite green — the tests
-+    exercised the functions in isolation, never the wiring. Fixed STRUCTURALLY rather than with a
-+    wiring test: those arguments are now REQUIRED, so omitting one is a TypeError, which is the
-+    same protection `resolve_ingest_mode` already had and which that reviewer had singled out as
-+    the reason it alone was safe. It also showed the correctness pin could be defeated by ADDING
-+    an `all_covered=None` parameter to `run_ingest_completeness_checks` and wiring Phase 1's result
-+    in — a behavioural test cannot see that, so the signature is now pinned too.
-+
-+  WHAT REVIEW ROUND 2 FOUND. `data-engineer-reviewer` PASSED. `platform-reviewer` FAILED again, on
-+  a DIFFERENT path to the same failure class, and was right twice: requiring the argument closes
-+  only the narrowest revert — deleting the keyword. Moving the computation back INSIDE the
-+  per-competition loop, while still passing it, restores the whole O(competitions^2) scan with all
-+  14 assertions green, because every callee-level test sees a value arrive exactly as before. It
-+  also caught `done_when` claiming a multi-competition orchestrator count test that does not exist.
-+  Fixed by pinning the CALLER: an AST check that the three readers are not called from inside any
-+  loop in `_load_api_football`, proven by moving `read_coverage` back into the loop and watching it
-+  fail. Its limit (name-based, so an alias evades it) is stated in the test. The overclaimed
-+  `done_when` line is rewritten to say what the tests actually assert.
-+  - GUARD WEAKENED: no. No test is removed or narrowed, no assertion relaxed. The completeness gate
-+    keeps its own independent read precisely so it cannot be weakened by this change.
-+
-+  SCOPE JUDGEMENT — TWO OF #33's SIX SUB-ITEMS ARE DEFERRED, stated rather than silently dropped:
-+  - "Make `_finished_fanout_has_gaps` lazy." Once the coverage read is hoisted out of
-+    `resolve_ingest_mode`, that function no longer issues a query at all — the remaining work is an
-+    in-memory set walk. Laziness would save microseconds and add a branch. Deferred as not worth
-+    the diff; the saving #33 attributes to it is entirely delivered by the hoist.
-+  - "Cache the FIXTURES_NEXT payload." The duplicate is `ingest_plan.py:113` and
-+    `loads/fixtures.py:117`, both per competition. Unlike the two scans above this is a PRUNED
-+    equality read on one league's latest snapshot, not a full-table scan, and collapsing it means
-+    threading a payload through `run_cheap_phases` into the fixtures loader — invasive for a small
-+    constant. Deferred as its own follow-up rather than bundled into a refactor whose value is the
-+    exponent change.
-+  Both are recorded on #33 so they are visible as remaining work, not lost.
++  WHY DISCARD RATHER THAN WRITE-AND-MARK. Two precedents exist. `squads.py` withholds incomplete
++  KEYS, which works because RAW_APIF_PLAYERS is one row per (team, season). These four tables are
++  ONE ROW PER LEAGUE, so there is no key to withhold — the snapshot is complete or it is not.
++  `player_squads.py` faces the same one-row-per-league shape and DISCARDS. Followed the second.
  
  decisions_reserved:
--  - The fate of `stg_apif__lineups`, `stg_apif__squads` and `stg_apif__player_teams` — zero
--    `ref()` anywhere, 12 tests between them (#33 "Later, still open", item 17). Deleting a
--    model is permanent and is a §10 call. NOT decided here: `stg_apif__lineups` keeps its
--    place in this diff and only loses the unused column, exactly like the other 8.
--  - Whether `data_contract.md` should positively PRESCRIBE a cheap latest-snapshot read shape
--    now that the 7-day pre-filter is deleted. This MR only removes a false statement. What
--    the correct prescribed shape is depends on Wave 2 items 8 and 9 (merge-on-write makes the
--    question different), so writing one now would be inventing a rule ahead of its evidence.
-+  - Whether the completeness check's independent `read_coverage` should ALSO be avoided, by having
-+    the fanout return what it wrote instead of re-reading. That would take the count from 2 to 1
-+    and is what #33 assumed was free. It changes what the completeness gate observes — from
-+    "what BigQuery says is there" to "what this process believes it wrote" — which is a
-+    weaker check, and weakening a DQ gate is §10. NOT decided here; flagged on #33.
-+  - #33 items 13, 14, 15 (fetch-side skips, dropping `/injuries`) all change API spend and are
-+    CPO-class. Nothing here touches the fetch plan.
+-  - Whether the completeness check's independent `read_coverage` should ALSO be avoided, by having
+-    the fanout return what it wrote instead of re-reading. That would take the count from 2 to 1
+-    and is what #33 assumed was free. It changes what the completeness gate observes — from
+-    "what BigQuery says is there" to "what this process believes it wrote" — which is a
+-    weaker check, and weakening a DQ gate is §10. NOT decided here; flagged on #33.
+-  - #33 items 13, 14, 15 (fetch-side skips, dropping `/injuries`) all change API spend and are
+-    CPO-class. Nothing here touches the fetch plan.
++  - THE REMAINING #896 HOLES, found by the sweep and deliberately not fixed here: `catalog.py`
++    (LEAGUES), `injuries.py` (INJURIES), `fixtures.py` (FIXTURES_NEXT), `player_profiles.py`,
++    `player_teams.py`, and the body-error half of `player_squads.py`. The CPO scoped 8a to four
++    loaders; widening to nine inside the same MR would be exactly the drift `scope_paths` exists
++    to stop. They matter for 8b, and are reported on #33 so 8b's scope is decided with them in
++    view — not left to be rediscovered.
++  - Which tables 8b may convert at all. `PLAYER_PROFILES` and `PLAYER_TEAMS` accumulate per player
++    (`players_needing()` writes only newly-seen players), so a `league_code`-keyed DELETE would
++    erase every player ingested on an earlier run. They must never be converted. Not decided here.
++  - #33 item 15 (drop `/injuries`). RAW_APIF_INJURIES is 1.78 GiB, the second-largest raw table,
++    with no source declaration and no model. Whether to guard it or delete the endpoint is one
++    decision, and it is the CPO's.
  
  done_when:
--  - `grep -rn "source_json"` over the repo (excluding node_modules and dbt_packages) returns
--    no hits at all.
--  - `dbt deps` succeeds and installs only `dbt_utils`, and `dbt_packages/` afterwards contains
--    only `dbt_utils` — so the two removed packages are physically gone, not merely undeclared.
--  - `dbt compile --exclude resource_type:test` exits 0 over all 94 models.
--    **`dbt parse` is NOT the check here and must not be substituted for it.** Measured on this
--    branch: with a deliberate `{{ dbt_expectations.type_column_list('x') }}` probe inserted into
--    `stg_apif__lineups.sql`, `dbt parse` exited **0** — it does not render model bodies — while
--    `dbt compile` exited **2** with "'dbt_expectations' is undefined". The probe was then
--    reverted. A green `parse` would have proved nothing about the package removal; `compile` is
--    what makes the claim falsifiable.
--    (Full `dbt compile` including tests fails locally for an unrelated reason: the singular test
--    `assert_metric_catalogue_expr_resolvable` is introspective and queries the dev dataset, which
--    is now `dev_scratch` and does not exist after Gate 0.1. That is Gate 0.1 working as intended —
--    before it, the same introspective test silently queried prod's `dbt_analytics`. CI is
--    unaffected: it runs `--target ci`/`--target prod`, whose datasets exist.)
--  - `dbt ls --resource-type model --select <the 9 models>+` still resolves 78 models — no
--    broken `ref()` introduced by the deletions. Count it with `wc -l`, never by reading the list.
--  - `python -m sqlfluff lint <the 9 changed models> --templater jinja --dialect bigquery`
--    from the REPO ROOT reports nothing that is not also present on `main` for the same files.
--  - `python scripts/check_layer_contract.py` and `python scripts/check_registry_var_sync.py`
--    both exit 0 (exit code read directly, not inferred from output).
--  - `python -m pytest tests/ -q` exit code read directly; green.
--  - CI `validate:governance` and `data:build:mr` green on the MR. The `state:modified+` build
--    over the 78-model closure plus the full singular DQ suite is the executable proof of the
--    impact_map's "blast radius: none".
-+  - `python -m pytest tests/ -q` exit code read DIRECTLY; green, and no lower than main's count
-+    plus the new tests.
-+  - `tests/test_ingestion_read_hoisting.py` pins the property at BOTH ends, because neither end
-+    alone is enough — `platform-reviewer` demonstrated that at round 2:
-+      · CALLEE side, with a mock client that records every query issued: `resolve_ingest_mode`
-+        issues no FIXTURE_DETAILS scan; `load_squad_players_batch` issues no RAW_APIF_PLAYERS
-+        UNNEST when handed the set; `players_needing` does not recompute the universe when handed
-+        one; the three `load_prior_*` readers issue nothing when handed the payload (including an
-+        explicit None).
-+      · CALLER side, by AST: `read_coverage`, `captured_player_team_seasons` and
-+        `query_player_universe` must not be CALLED FROM INSIDE A LOOP in `_load_api_football`.
-+      An earlier version of this line claimed the tests assert an end-to-end
-+      "one query for a multi-competition run". They do not, and did not — no test drives the
-+      orchestrator across several competitions. That overclaim was itself a round-2 finding.
-+      The reason for the split is concrete: with only the callee assertions, moving the read back
-+      inside the loop while still passing the result restores the full quadratic scan and every
-+      callee test stays green, because the callee still receives a value on every call.
-+  - EVERY assertion proven load-bearing by reverting the hoist it guards and watching the test go
-+    red, then restoring. DONE for all of them, and the step paid for itself THREE times — three
-+    assertions passed while their subject was broken, i.e. were decoration, and were rewritten:
-+      · `test_resolve_ingest_mode_issues_no_coverage_query` — the first probe only added a default
-+        argument, which does not restore the read. Re-probed by reintroducing the scan at the call
-+        site; it then failed, quoting the RAW_APIF_FIXTURE_DETAILS SQL.
-+      · `test_completeness_keeps_its_own_coverage_read` — grepped `inspect.getsource` for
-+        "read_coverage(" and passed with the call deleted, because that string ALSO appears in a
-+        comment inside the same function. A guard that matches prose is defeated by a reword, and
-+        this one was defeated by a reword that had already happened. Rewritten to monkeypatch and
-+        assert the call, and given a signature companion after `platform-reviewer` showed the
-+        behavioural form still misses the realistic regression.
-+      · `test_a_first_run_still_costs_one_snapshot_read_not_four` — counted `client.query` calls,
-+        but that reader reaches BigQuery through the Storage Read API and never touches
-+        `client.query`, so it read green against the very defect it was written for. Rewritten to
-+        count `read_latest_payload_json` calls.
-+  - The safety property is tested TWICE, behaviourally and structurally: the completeness check
-+    must still call `read_coverage` itself, AND `run_ingest_completeness_checks` must accept no
-+    parameter but `client`, so coverage cannot be injected into it at all.
-+  - The three orchestrator-facing hoisted arguments have NO defaults, and a test asserts that, so
-+    reverting a hoist is a TypeError rather than a silent cost regression.
-+  - `python -m pytest tests/ -q -k "coverage or squad or player or completeness or ingest"` green —
-+    the existing suites over the changed modules, unchanged and unweakened.
-+  - No `dbt build`, `dbt run` or ingest is executed locally at any point.
+-  - `python -m pytest tests/ -q` exit code read DIRECTLY; green, and no lower than main's count
+-    plus the new tests.
+-  - `tests/test_ingestion_read_hoisting.py` pins the property at BOTH ends, because neither end
+-    alone is enough — `platform-reviewer` demonstrated that at round 2:
+-      · CALLEE side, with a mock client that records every query issued: `resolve_ingest_mode`
+-        issues no FIXTURE_DETAILS scan; `load_squad_players_batch` issues no RAW_APIF_PLAYERS
+-        UNNEST when handed the set; `players_needing` does not recompute the universe when handed
+-        one; the three `load_prior_*` readers issue nothing when handed the payload (including an
+-        explicit None).
+-      · CALLER side, by AST: `read_coverage`, `captured_player_team_seasons` and
+-        `query_player_universe` must not be CALLED FROM INSIDE A LOOP in `_load_api_football`.
+-      An earlier version of this line claimed the tests assert an end-to-end
+-      "one query for a multi-competition run". They do not, and did not — no test drives the
+-      orchestrator across several competitions. That overclaim was itself a round-2 finding.
+-      The reason for the split is concrete: with only the callee assertions, moving the read back
+-      inside the loop while still passing the result restores the full quadratic scan and every
+-      callee test stays green, because the callee still receives a value on every call.
+-  - EVERY assertion proven load-bearing by reverting the hoist it guards and watching the test go
+-    red, then restoring. DONE for all of them, and the step paid for itself THREE times — three
+-    assertions passed while their subject was broken, i.e. were decoration, and were rewritten:
+-      · `test_resolve_ingest_mode_issues_no_coverage_query` — the first probe only added a default
+-        argument, which does not restore the read. Re-probed by reintroducing the scan at the call
+-        site; it then failed, quoting the RAW_APIF_FIXTURE_DETAILS SQL.
+-      · `test_completeness_keeps_its_own_coverage_read` — grepped `inspect.getsource` for
+-        "read_coverage(" and passed with the call deleted, because that string ALSO appears in a
+-        comment inside the same function. A guard that matches prose is defeated by a reword, and
+-        this one was defeated by a reword that had already happened. Rewritten to monkeypatch and
+-        assert the call, and given a signature companion after `platform-reviewer` showed the
+-        behavioural form still misses the realistic regression.
+-      · `test_a_first_run_still_costs_one_snapshot_read_not_four` — counted `client.query` calls,
+-        but that reader reaches BigQuery through the Storage Read API and never touches
+-        `client.query`, so it read green against the very defect it was written for. Rewritten to
+-        count `read_latest_payload_json` calls.
+-  - The safety property is tested TWICE, behaviourally and structurally: the completeness check
+-    must still call `read_coverage` itself, AND `run_ingest_completeness_checks` must accept no
+-    parameter but `client`, so coverage cannot be injected into it at all.
+-  - The three orchestrator-facing hoisted arguments have NO defaults, and a test asserts that, so
+-    reverting a hoist is a TypeError rather than a silent cost regression.
+-  - `python -m pytest tests/ -q -k "coverage or squad or player or completeness or ingest"` green —
+-    the existing suites over the changed modules, unchanged and unweakened.
+-  - No `dbt build`, `dbt run` or ingest is executed locally at any point.
++  - `python -m pytest tests/ -q` exit code read DIRECTLY; green, and no lower than main's 683.
++  - New tests in `tests/test_incomplete_snapshot_not_written.py` assert, for EACH of the four
++    loaders: (a) a complete fetch still writes exactly one payload; (b) a body-level error on any
++    one team/season writes NOTHING and reports through `ctx.errors`; (c) a mid-loop daily-quota
++    cut writes NOTHING. Assertions are on whether the loader called its BigQuery write, using a
++    recording double — not on log text.
++  - EVERY new assertion proven load-bearing by reverting the guard it covers and watching that
++    test go red, then restoring. DONE, and it caught TWO decoration bugs in this MR alone:
++      · round 0: the quota-cut cases for `standings` and `teams` PASSED with the guard disabled.
++        Their helper re-patched `fetch_merged_paged` with an empty response list, so they were
++        exercising an IndexError path, not a quota cut. Harness restructured (patch and invoke
++        split apart); all 8 discard cases then failed as required.
++      · round 1, found by BOTH specialists independently: `_patch_transfers` monkeypatched
++        `transfers_response_for_team` out entirely and substituted a hand-rolled stand-in, so the
++        REAL guard at `fixture_scheduling.py:513` — the one protecting RAW_APIF_TRANSFERS, 6.99
++        GiB and 59% of raw — was never executed by any test. Reverting it to `complete = True`
++        left the whole suite green. Fixed by patching the HTTP layer UNDER the helper instead,
++        plus a direct unit test of the helper's own return value; re-verified against that exact
++        revert, which now fails two cases.
++      · round 2, `platform-reviewer` again, and the sharpest of the three: the mid-loop
++        quota-cut cases were masked for ALL FOUR loaders. The fake sets the latched quota flag on
++        iteration 1, and every one of these loaders has a PRE-EXISTING top-of-loop
++        `if _http_quota_exhausted: break` that catches it on iteration 2 — so the new check could
++        be regressed to body-errors-only (`if data.get("errors")`, blind to the quota flag, which
++        is half of what #896 is about) and all four cases would still pass on the OLD code.
++        Fixed by adding `test_a_quota_cut_on_a_single_iteration_is_caught`, which invokes each
++        loader with exactly ONE team/season so there is no second iteration for the old guard to
++        fire on. Verified against exactly that regression in all four loaders: the four new cases
++        fail, and — confirming the reviewer's analysis precisely — the four mid-loop cases stay
++        green throughout.
++    TEN decoration tests have now been caught this way across four MRs. None was caught by
++    reading the test; every one needed the subject broken.
++  - `grep -rn "result_is_complete" ingestion/` shows the four new call sites plus the pre-existing
++    one — i.e. the fix uses the existing primitive rather than a private reimplementation.
++  - `ruff check --config .ruff-ci.toml ingestion/ tests/` exits 0.
++  - No `dbt build`, `dbt run` or ingest is executed at any point.
  
  amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 09d0ca1..544249c 100644
+index 544249c..4bdcb04 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1631,3 +1631,59 @@ times.
-   LIMIT OF THIS ENTRY. It records an approval of a PLAN. It does not pre-approve whatever a builder
-   later decides an item means. Where an item's implementation raises a question #33 does not settle,
-   that question is still a §10 escalation.
+@@ -1687,3 +1687,57 @@ times.
+   the amendment rules, and this ruling is not in it — adding it would itself be a scope extension
+   onto a file this task has no business editing, mid-review, at round 3 of a 3-round cap. Folding
+   the rule into §2 is worth its own small change.
 +
-+## 2026-08-08 — STANDING RULE: a reference broken by an approved change is part of that change
++## 2026-08-08 — #33 item 8 SPLIT into 8a/8b: item 8 as approved would have destroyed prod data
 +
-+  CPO RULING, given 2026-08-08 on the `ci/scope-triggers-and-restore-ingest-lock` branch. A RULE
-+  EXTENSION (§10), so it is the CPO's and nobody else's, and it is recorded here because a rule
-+  that lives only in a task contract does not survive the next task.
++  CPO DECISION, taken 2026-08-08, AFTER and NARROWING the blanket #33 approval recorded above.
++  Recorded here because that blanket entry approved item 8 as one thing ("raw merge-on-write with
++  the raw_archive backup first") and this changes what item 8 IS. `scope-auditor` FAILed round 1 of
++  `fix/896-guard-partial-writes` for its absence and was right — the fourth time this repo has
++  ruled that a decision living only in `contract.md` is not recorded, after 2026-07-31, 2026-08-01
++  and 2026-08-08 (the standing-rule entry above).
 +
-+  THE RULE, verbatim as recommended and accepted:
++  WHAT WAS FOUND, and it is why the split exists. Item 8 converts the append-only raw tables to
++  merge-on-write keyed on `league_code`. Four of the target loaders abandon their fetch loop when
++  the daily quota latches and then write the partial payload unconditionally:
 +
-+    "Updating a reference that an approved change itself breaks is part of that change, not a
-+    scope extension — provided the update is confined to the reference and changes no behaviour."
++      transfers.py:31-33   coaches.py:44-45   standings.py:31-32   teams.py:29-30
++      for x in ...:
++          if errors_quota._http_quota_exhausted:
++              break                      # loop abandoned, nothing recorded
++          ...
++      load_json_to_bq(..., append=True)  # partial written as if complete
 +
-+  WHAT IT PERMITS. Adding a file to `scope_paths` mid-task, without a fresh CPO grant, WHEN the
-+  only edit to that file is repairing a name the same task's approved change invalidated. The
-+  amendment is still written on a clean tree and still recorded in `amendments:`; what it no longer
-+  needs is a separate authority line, and it cites THIS entry instead.
++  Under append-only that is RECOVERABLE: the partial wins the latest-snapshot `qualify` in
++  staging, but the complete prior row still exists in `raw`. Under merge-on-write the partial
++  write DELETES the complete prior row. A single quota cut would permanently destroy the good
++  snapshot — including RAW_APIF_TRANSFERS, measured 2026-08-08 at 6.99 GiB, 59% of all raw.
 +
-+  WHAT IT DOES NOT PERMIT, and these limits are the rule:
-+  - Any other edit to the newly in-scope file. Fix the reference and nothing else. "While I was in
-+    there" is exactly the drift `scope_paths` exists to stop.
-+  - Anything that changes behaviour. A stale COMMENT or docstring, a doc sentence, a fixture name —
-+    yes. A code path, an assertion, a config value — no, even if it "only" restores intent.
-+  - Discovering the reference and using it as a reason to widen the task's objective.
-+  - A PROTECTED path. `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
-+    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
-+    `.github/workflows/**`, `.gitlab-ci.yml` still need `protected_override` and an `impact_map`,
-+    rule or no rule. Nothing here touches the protected-path machinery.
++  This is #896 ("an incomplete fetch must never supersede good data"), already ruled on
++  2026-08-03 and already implemented for RAW_APIF_PLAYERS only. A sweep found
++  `result_is_complete()` is called in exactly ONE place in the whole codebase; nine loaders
++  fetch-and-write with no completeness check at all.
 +
-+  WHY IT EXISTS. `scope-auditor` FAILed round 2 of this branch, correctly: the round-2 amendment
-+  added `tests/test_governance_hooks.py` for a ONE-WORD docstring fix — it named the `*data_paths`
-+  anchor the same MR renames — and justified it with "no new authority is needed to do LESS", which
-+  covered the item-3 WITHDRAWAL in the same amendment but not the addition. §2 says each scope
-+  extension records the CPO authority, and it cited on-point precedent (2026-06-23,
-+  `feat/player-per90-metrics`) where an equivalent stale-comment touch-up was held to need the CPO.
-+  The auditor was right on the letter and the finding stands.
++  THE RULING.
++  - **8a** — port the #896 guard first, to `transfers`, `coaches`, and (checked, and they had the
++    same defect) `standings` and `teams`. No deletion, no merge-on-write. Independently valuable,
++    can only ever write FEWER rows than today, and is the precondition that makes 8b safe.
++  - **8b** — merge-on-write, only for tables provably complete-snapshot AFTER 8a.
++  - The CPO's words on being shown the above: "go ahead with 8a".
 +
-+  The CPO's answer was to fix the CLASS rather than the instance. Every rename breaks references;
-+  the same question was going to arrive again in Wave 2 (raw merge-on-write renames things) and
-+  Wave 3, and each arrival costs a review round to ask. Deciding it once is cheaper than deciding
-+  it five times, and leaving it undecided has a worse failure mode than either answer: a builder
-+  who does not want to spend a round will simply leave the stale reference, which is how a repo
-+  accumulates comments naming things that no longer exist.
++  SCOPE OF 8a, decided explicitly rather than inferred: FOUR loaders, not two and not nine. Two
++  (`transfers`, `coaches`) were named by the CPO; `standings` and `teams` were named as "check" and
++  were found to have the identical defect, so they are in. The remaining five gaps — `catalog.py`,
++  `injuries.py`, `fixtures.py`, `player_profiles.py`, `player_teams.py`, plus the body-error half
++  of `player_squads.py` — are NOT in 8a. They are listed in that branch's `decisions_reserved` and
++  reported on #33 so 8b's scope is decided with them in view.
 +
-+  THE COUNTER-ARGUMENT, recorded so the rule can be attacked later. This narrows what
-+  `scope_paths` catches. The mitigation is that the permitted edit is defined by the change that
-+  precedes it — you may repair only what you broke — so the blast radius of an abuse is one wrong
-+  identifier in one comment, and every reviewer still sees the file in the diff. If it is ever
-+  abused, the fix is to withdraw the rule, not to add a gate.
++  A LIMIT ON 8b THAT IS ALREADY KNOWN, recorded now so it cannot be lost between MRs:
++  `PLAYER_PROFILES` and `PLAYER_TEAMS` must NEVER be converted to a `league_code`-keyed delete.
++  They accumulate per player — `players_needing()` writes only newly-seen players — so deleting
++  prior rows for a league would erase every player ingested on an earlier run.
 +
-+  FIRST APPLICATION: this branch. `tests/test_governance_hooks.py:2040` said "data:build:main's
-+  `*data_paths`"; item 2 renamed that anchor to `*data_paths_prod`; the fix is that one word.
-+
-+  FOLLOW-UP NOT DONE HERE, deliberately. `docs/working_agreement.md` §2 is where a reader looks for
-+  the amendment rules, and this ruling is not in it — adding it would itself be a scope extension
-+  onto a file this task has no business editing, mid-review, at round 3 of a 3-round cap. Folding
-+  the rule into §2 is worth its own small change.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 619d429..0a25bcf 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -57,7 +57,7 @@ workflow:
- # `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in this file — including
- # data:build:main, a FULL prod warehouse build. And a `changes:` filter does not
- # save you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push
--# or a merge request, so data:build:main's *data_paths filter does NOT hold it
-+# or a merge request, so data:build:main's *data_paths_prod filter does NOT hold it
- # back on a schedule. Admit schedules naively and every nightly runs the prod
- # build TWICE — once as data:nightly, once as data:build:main.
- #
-@@ -224,10 +224,26 @@ workflow:
-     GITLAB_OIDC_TOKEN:
-       aud: https://gitlab.com
++  ALSO CORRECTED, from the same investigation: #33's item 8 says "eight append-only raw tables"
++  and "six per-league snapshot tables". The code has TEN append-only tables, and the set safe for
++  a `league_code`-keyed delete is smaller than six and is not the obvious six. Do not take either
++  count from #33 when scoping 8b; re-derive it from the loaders.
+diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
+index c86807e..a4bcd4f 100644
+--- a/ingestion/api_football/fixture_scheduling.py
++++ b/ingestion/api_football/fixture_scheduling.py
+@@ -490,24 +490,31 @@ def transfers_response_for_team(
+     errors: list[str] | None = None,
+     *,
+     error_context: str = "",
+-) -> list:
++) -> tuple[list, bool]:
+     """All /transfers for a team (every player who moved in/out). Not season-scoped —
+     one call returns the team's full transfer history. Fetching by team returns each
+     move twice (once per involved team); the base model dedups.
  
--# Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
--# Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
--# edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
--.data_paths: &data_paths
-+# Path sets. Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so
-+# docs-only edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
-+#
-+# THERE ARE TWO ANCHORS, AND THE DIFFERENCE IS DELIBERATE (#33 item 2, 2026-08-08).
-+# They were one anchor, on the theory that "the MR and main variants cannot drift
-+# apart". But the two jobs answer different questions, so one list gave the wrong
-+# answer to one of them:
-+#
-+#   data:build:mr   asks "could this MR break the build?"        -> revalidate broadly
-+#   data:build:main asks "did prod's compiled output change?"    -> rebuild narrowly
-+#
-+# A FULL prod warehouse build is the most expensive job in this file. Five entries
-+# below cannot change a single compiled dbt artifact, yet each triggered one on every
-+# push to main: measured over 39 triggering pushes, 17 changed nothing that could.
-+# They stay in the MR anchor — a CI, ingestion or script change must still be
-+# revalidated — and leave the prod one.
-+#
-+# Before adding a path to *data_paths_prod, ask the narrow question: can editing this
-+# file change the SQL dbt compiles? If not, it belongs in the MR anchor alone.
-+.data_paths_mr: &data_paths_mr
-   - dbt_project/models/**/*
-   - dbt_project/macros/**/*
-   - dbt_project/seeds/**/*
-@@ -242,6 +258,29 @@ workflow:
-   - requirements.txt
-   - .gitlab-ci.yml
- 
-+# The prod anchor: ONLY paths that can change what dbt compiles. Dropped relative to
-+# the MR anchor, each with the reason it cannot:
-+#   .gitlab-ci.yml        — changes how the build is invoked, not what compiles
-+#   scripts/check_*.py    — offline governance gates; they run in validate:governance
-+#   scripts/data_trust_*.py — reporting only; no model reads them
-+#   requirements.txt      — see the residual risk note below
-+#   ingestion/**/*        — writes RAW; it does not participate in dbt compilation
-+#
-+# RESIDUAL RISK, stated rather than left for someone to discover: a dbt version bump
-+# in requirements.txt CAN change compiled SQL, and prod will not rebuild for it on its
-+# own. It self-heals at the next model change or nightly run. Accepted knowingly under
-+# #33 item 2; if that ever bites, the fix is to put requirements.txt back here, not to
-+# widen the whole list.
-+.data_paths_prod: &data_paths_prod
-+  - dbt_project/models/**/*
-+  - dbt_project/macros/**/*
-+  - dbt_project/seeds/**/*
-+  - dbt_project/snapshots/**/*
-+  - dbt_project/tests/**/*
-+  - dbt_project/*.yml
-+  - dbt_project/.sqlfluff
-+  - docs/competition_registry.yml
+     paginate=False: /transfers rejects the `page` param (like /teams and /standings —
+     'The Page field do not exist.') and returns empty when it is sent, so we send a single
+-    `team=` call (verified: returns the team's full move list in one response)."""
++    `team=` call (verified: returns the team's full move list in one response).
 +
- .ui_paths: &ui_paths
-   - site/**/*
-   - scripts/build_match_preview_site.sh
-@@ -443,6 +482,20 @@ build:site-v2:
- # did. If the WIF configuration is missing they FAIL LOUDLY (see .gcp_auth) rather
- # than being skipped — an unwired data-quality gate must be red, never
- # green-and-absent.
-+#
-+# ⚠ THE INGEST LOCK IS ON IN CI, AND MUST STAY ON (#33 item 4, fixed 2026-08-08).
-+# API_FOOTBALL_SKIP_INGEST_LOCK=1 appeared in three places here and disabled the
-+# BigQuery ingest lease for every ingest CI ran. That is forbidden:
-+# docs/operations_guide.md:149 — "Local debugging only; never production." And these
-+# ingests ARE production: settings.py:31 defaults the raw dataset to `raw` and
-+# API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file, so an MR pipeline writes
-+# PRODUCTION raw — from an unmerged branch, and from a different resource_group than
-+# the prod writers, so GitLab's own serialisation could not help either.
-+# A held lease is not a silent skip: acquire_ingest_lock() failing returns 409 and
-+# main.py:55 turns that into exit 2, so the job goes RED and you find out.
-+# tests/test_ci_data_job_invariants.py pins the flag's absence so this cannot come
-+# back quietly. (That an MR pipeline can write prod raw AT ALL is a separate, still
-+# open question — #33 item 13.)
- # ---------------------------------------------------------------------------
- 
- .data_build_base: &data_build_base
-@@ -475,15 +528,22 @@ data:build:mr:
-     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
-     # The GitHub original gated this on a separate `ingest` path filter. GitLab
-     # rules cannot express two independent change-flags for one job, so the
--    # check always runs: it is a cheap BigQuery metadata lookup that returns
--    # empty (and ingests nothing) whenever every league already has raw tables.
-+    # check always runs. It returns empty (and ingests nothing) whenever every
-+    # league already has raw tables.
-+    #
-+    # It is NOT a "cheap metadata lookup" — that claim was wrong and is corrected
-+    # here (#33). get_new_league_codes.py:50 runs
-+    # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT`, a BILLED column
-+    # scan. It stays unbounded on purpose: the column is narrow and clustered and
-+    # lands under BigQuery's 10 MB minimum billing anyway, while any `ingested_at`
-+    # predicate would reintroduce the #892 hazard and silently hide the nine
-+    # biennial/quadrennial competitions. Cheap, yes. Metadata, no.
-     - NEW_CODES=$(python scripts/get_new_league_codes.py)
-     - |
-       if [ -n "$NEW_CODES" ]; then
-         echo "Leagues needing bootstrap: $NEW_CODES"
-         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
-         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
--        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
-         python -m ingestion.api_football.main
-       else
-         echo "All leagues already have raw tables — skipping bootstrap ingest."
-@@ -511,7 +571,7 @@ data:build:mr:
-   rules:
-     - *not_on_schedule
-     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
--      changes: *data_paths
-+      changes: *data_paths_mr
- 
- # main-push / manual full builds keep the FULL build — prod must stay complete
- # and serve as the always-compilable baseline for MR state comparisons. Joins the
-@@ -532,14 +592,12 @@ data:build:main:
-       if [ "$RUN_INGEST" = "true" ]; then
-         echo "RUN_INGEST set — forcing full re-ingest of all active leagues."
-         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
--        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
-         API_FOOTBALL_INGEST_FORCE_FULL=1 \
-         python -m ingestion.api_football.main
-       elif [ -n "$NEW_CODES" ]; then
-         echo "Leagues needing bootstrap: $NEW_CODES"
-         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
-         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
--        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
-         python -m ingestion.api_football.main
-       else
-         echo "All leagues already have raw tables — skipping bootstrap ingest."
-@@ -547,6 +605,25 @@ data:build:main:
-     - cd dbt_project
-     # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
-     # dbt ignores a CLI --exclude when --selector is supplied.
-+    #
-+    # ⚠ 25 OF THE 30 SINGULAR TESTS RUN TWICE HERE — once inside each dbt build, once
-+    # on the last line. THAT DUPLICATION IS DELIBERATE, and #33 item 3's proposal to
-+    # remove it was WITHDRAWN on 2026-08-08 after review. Do not "optimise" it away
-+    # without reading this:
-+    #
-+    #   `dbt build` compiles with add_test_edges=True (dbt/task/build.py:134) and marks
-+    #   dependents of a failed test as skipped (MARK_DEPENDENT_ERRORS_STATUSES,
-+    #   build.py:80). So a severity=error singular test failing INSIDE these two builds
-+    #   stops the models below it from being written, and prod keeps its last good data.
-+    #   Excluding singular tests from the selectors leaves the same 28 assertions running
-+    #   on the last line — but by then the whole warehouse has already been materialised
-+    #   into the bare prod datasets. The test count is identical; the gate is gone.
-+    #
-+    # The duplicate execution is what buys that gate. It cost 9.7s of the 7m29s prod
-+    # build measured on 2026-08-08. De-duplicating from the other side (narrowing the
-+    # last line to the seed-only tests the selectors cannot reach) was considered and
-+    # also rejected: it needs a tag, and a new singular test whose author forgets the tag
-+    # would then never run here at all — trading a cheap duplicate for a silent hole.
-     - dbt build --selector staging --target prod
-     - dbt build --selector downstream --target prod
-     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
-@@ -566,7 +643,7 @@ data:build:main:
-   rules:
-     - *not_on_schedule
-     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
--      changes: *data_paths
-+      changes: *data_paths_prod
-     # Deliberate full prod builds stay possible — as a BUTTON. MR !4 added this clause
-     # meaning "I want a full prod build now", which is still valid; the defect was that
-     # it started without being asked.
-diff --git a/ingestion/api_football/completeness.py b/ingestion/api_football/completeness.py
-index 9b51405..12cd9d3 100644
---- a/ingestion/api_football/completeness.py
-+++ b/ingestion/api_football/completeness.py
-@@ -428,9 +428,38 @@ def detect_stagnant_per_team_gaps(
-     return stagnant
- 
- 
--def load_prior_per_team_missing(client: bigquery.Client) -> dict[str, int] | None:
-+# "Caller supplied nothing" and "the caller supplied the answer, and the answer is None"
-+# are DIFFERENT, and conflating them is a live defect rather than a style point:
-+# `read_prior_snapshot` legitimately returns None on a first run, on a run whose predecessor
-+# had API_FOOTBALL_SKIP_COMPLETENESS_CHECK set, and any time the snapshot table does not
-+# exist yet. With `payload=None` as the "unsupplied" sentinel, those runs made all three
-+# readers fetch for themselves — 1 hoisted read + 3 re-reads = 4, one MORE than the 3 this
-+# change set out to remove, in exactly the case each reader's docstring says it exists for.
-+# Caught in review round 1. A unique sentinel keeps the two cases apart.
-+_UNREAD = object()
-+
-+
-+def read_prior_snapshot(client: bigquery.Client) -> dict | None:
-+    """The previous run's completeness snapshot payload, read ONCE.
-+
-+    The three `load_prior_*` readers below each pull a different key out of this ONE
-+    payload, and each used to issue its own `read_latest_payload_json` — three reads of the
-+    same row, back to back, for three dict lookups (#33 item 1). Nothing writes the
-+    snapshot between them: `persist_fixture_statistics_missing` runs afterwards.
-+
-+    Returns None when there is no prior record. Pass that None straight through to the
-+    readers: they distinguish it from "unsupplied" via `_UNREAD`, so a first run still costs
-+    ONE read, not four.
-+    """
-+    return read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-+
-+
-+def load_prior_per_team_missing(
-+    client: bigquery.Client, payload: Any = _UNREAD
-+) -> dict[str, int] | None:
-     """Previous run's per-team gaps, or None when there is no prior record (fail-open)."""
--    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-+    if payload is _UNREAD:
-+        payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-     if not payload:
-         return None
-     raw = payload.get("per_team_missing")
-@@ -449,10 +478,11 @@ def fixture_statistics_missing_by_league(report: dict[str, Any]) -> dict[str, in
- 
- 
- def load_prior_fixture_statistics_missing(
--    client: bigquery.Client,
-+    client: bigquery.Client, payload: Any = _UNREAD
- ) -> dict[str, int] | None:
-     """Previous run's per-league statistics missing counts, or None if first run."""
--    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-+    if payload is _UNREAD:
-+        payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-     if not payload:
-         return None
-     raw = payload.get("fixture_statistics_missing")
-@@ -461,14 +491,17 @@ def load_prior_fixture_statistics_missing(
-     return {str(k): int(v) for k, v in raw.items()}
- 
- 
--def load_prior_dropped_calls(client: bigquery.Client) -> dict[str, int] | None:
-+def load_prior_dropped_calls(
-+    client: bigquery.Client, payload: Any = _UNREAD
-+) -> dict[str, int] | None:
-     """Previous run's per-endpoint dropped-call counts, or None if there is no prior record.
- 
-     None means "no comparison possible" and the stagnation check stays silent, which is the same
-     fail-open direction ``load_prior_fixture_statistics_missing`` takes: a first run, or a run after
-     the snapshot was skipped, must not raise a false alarm.
-     """
--    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-+    if payload is _UNREAD:
-+        payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
-     if not payload:
-         return None
-     raw = payload.get("dropped_calls_by_endpoint")
-diff --git a/ingestion/api_football/ingest_plan.py b/ingestion/api_football/ingest_plan.py
-index 5a63cc6..52fa3e5 100644
---- a/ingestion/api_football/ingest_plan.py
-+++ b/ingestion/api_football/ingest_plan.py
-@@ -15,7 +15,11 @@ from .completeness import (
-     FINISHED_STATUS_SHORT,
-     _fixture_ids_from_fixtures_payload,
- )
--from .coverage import covered_for_league, read_coverage
-+# read_coverage is deliberately NOT imported here. This module is reached once per
-+# competition, so a call to it from this file is the O(competitions^2) defect #33 item 1
-+# removed. The caller reads coverage once and passes it in; `ruff` will flag the import
-+# as unused if someone adds it back without a call site.
-+from .coverage import covered_for_league
- from .fixture_scheduling import (
-     _coverage_for_season,
-     _fixture_needs_any_endpoint,
-@@ -74,30 +78,27 @@ def _reference_season(comp: Competition, fixtures_payload: dict | None) -> int:
-     return 0
- 
- 
--def _fanout_covered_from_bq(client: bigquery.Client, league_code: str) -> dict[str, set[int]]:
--    """Return covered fixture IDs per shell key for one league.
--
--    Derives coverage from RAW_APIF_FIXTURE_DETAILS (via read_coverage — one query
--    covers all leagues) and translates it to the shell-key format used by
--    _fixture_needs_any_endpoint.
--    """
--    all_covered = read_coverage(client)
--    return covered_for_league(all_covered, league_code)
--
--
- def _finished_fanout_has_gaps(
--    client: bigquery.Client,
-+    all_covered: dict[str, dict[str, dict[int, bool]]],
-     league_code: str,
-     fixtures_payload: dict | None,
-     cov: dict[str, bool],
- ) -> bool:
-+    """Does this league have finished fixtures still missing fanout data?
-+
-+    Takes ALREADY-READ coverage rather than reading it. `read_coverage()` scans all of
-+    RAW_APIF_FIXTURE_DETAILS with no league or time filter, and this function is reached
-+    once per competition, so reading it here made ingestion reads O(competitions^2) —
-+    45 scans of a multi-GiB table per run. The caller reads once and passes the result in
-+    (#33 item 1). `covered_for_league` is a pure dict lookup, so this is now in-memory work.
-+    """
-     finished_ids = _fixture_ids_from_fixtures_payload(
-         fixtures_payload,
-         statuses=FINISHED_STATUS_SHORT,
++    Returns ``(rows, complete)``, matching `players_response_for_team`. ``complete`` is False
++    when the provider returned a body-level error or the run's quota flag cut the fetch short;
++    ``rows`` may then be empty OR partial while still looking like success, and the caller MUST
++    NOT let it supersede stored data (#896)."""
+     data = fetch_merged_paged(
+         "/transfers",
+         headers,
+         {"team": team_id},
+         paginate=False,
      )
-     if not finished_ids:
-         return False
--    covered = _fanout_covered_from_bq(client, league_code)
-+    covered = covered_for_league(all_covered, league_code)
-     for fixture_id in finished_ids:
-         if _fixture_needs_any_endpoint(fixture_id, covered, cov, finished_ids):
-             return True
-@@ -107,8 +108,15 @@ def _finished_fanout_has_gaps(
- def resolve_ingest_mode(
-     client: bigquery.Client,
-     comp: Competition,
-+    all_covered: dict[str, dict[str, dict[int, bool]]],
- ) -> tuple[IngestMode, str]:
--    """Read latest raw payloads and return (mode, reason) for this competition."""
-+    """Read latest raw payloads and return (mode, reason) for this competition.
-+
-+    `all_covered` is the run's single `read_coverage()` result, read ONCE by the caller
-+    before the per-competition loop. It is a required argument on purpose: defaulting it
-+    to None and reading lazily here would silently restore the per-competition scan this
-+    change exists to remove (#33 item 1).
-+    """
-     try:
-         fx_payload = read_latest_payload_json(
-             client, raw_table("FIXTURES_NEXT"), league_code=comp.league_code
-@@ -134,7 +142,7 @@ def resolve_ingest_mode(
-         if leagues_payload and ref_season
-         else {}
-     )
--    fanout_gaps = _finished_fanout_has_gaps(client, comp.league_code, fx_payload, cov)
-+    fanout_gaps = _finished_fanout_has_gaps(all_covered, comp.league_code, fx_payload, cov)
- 
-     return decide_ingest_mode(
-         has_fixtures_payload=has_fixtures,
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index 61f4440..a8ebb91 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -123,8 +123,18 @@ def run_cheap_phases(
- def run_squads_for_competition(
-     ctx: PipelineContext,
-     result: CompetitionRunResult,
-+    already_captured: set[tuple[int, int]],
- ) -> None:
--    """Run squad /players batch for one competition after global fanout."""
-+    """Run squad /players batch for one competition after global fanout.
-+
-+    `already_captured` is the run's single `captured_player_team_seasons()` result, read
-+    once by the orchestrator before the loop and MUTATED as keys are written (#33 item 1).
-+
-+    REQUIRED, with no default, and that is the guard. The orchestrator is this function's
-+    only caller, so a default would mean dropping the argument at the one call site
-+    silently restores the per-competition scan with every test still green — the gap
-+    `platform-reviewer` found at round 1. Omitting it is now a TypeError.
-+    """
-     try:
-         _ingestion_phase(result.league_code, "squad /players batch")
-         load_squad_players_batch(
-@@ -133,6 +143,7 @@ def run_squads_for_competition(
-             result.seasons_list,
-             result.team_ids,
-             reference_season=max(result.seasons_list) if result.seasons_list else None,
-+            already_captured=already_captured,
-         )
-     except Exception as e:
-         ctx.errors.append(f"league {result.league_code} squads: {e}")
-diff --git a/ingestion/api_football/loads/player_profiles.py b/ingestion/api_football/loads/player_profiles.py
-index 5448634..d224de9 100644
---- a/ingestion/api_football/loads/player_profiles.py
-+++ b/ingestion/api_football/loads/player_profiles.py
-@@ -19,14 +19,24 @@ from .context import PipelineContext
- from .player_universe import players_needing
++    # Evaluated before any further fetch: the quota flag latches for the rest of the run.
++    complete = result_is_complete(data)
+     if errors is not None:
+         ctx = error_context or f"transfers team_id={team_id}"
+         append_api_errors(data, ctx, errors)
+-    return list(data.get("response") or [])
++    return list(data.get("response") or []), complete
  
  
--def load_player_profiles_global(ctx: PipelineContext) -> None:
-+def load_player_profiles_global(
-+    ctx: PipelineContext,
-+    universe: list[tuple[int, str]] | None,
-+) -> None:
-+    """`universe` is the run's shared `_query_universe()` result — see load_player_teams_global,
-+    which needs the identical answer, and loads/player_universe.players_needing (#33 item 1).
-+
-+    REQUIRED (it may be None, but it must be PASSED). The orchestrator is the only caller, so
-+    a default would let the shared universe be dropped at that one call site without any test
-+    noticing, silently restoring the duplicate full UNNEST of RAW_APIF_PLAYERS.
-+    """
-     if os.getenv("API_FOOTBALL_SKIP_PLAYER_PROFILES", "").strip().lower() in ("1", "true", "yes"):
-         ctx.errors.append(
-             "player_profiles: skipped (API_FOOTBALL_SKIP_PLAYER_PROFILES set — use on low-quota archive runs)"
-         )
-         return
-     try:
--        by_league = players_needing(ctx.client, "PLAYER_PROFILES")
-+        by_league = players_needing(ctx.client, "PLAYER_PROFILES", universe=universe)
-     except Exception as e:
-         ctx.errors.append(f"player_profiles universe: {e}")
-         return
-diff --git a/ingestion/api_football/loads/player_teams.py b/ingestion/api_football/loads/player_teams.py
-index b6a46b0..8aed46f 100644
---- a/ingestion/api_football/loads/player_teams.py
-+++ b/ingestion/api_football/loads/player_teams.py
-@@ -19,14 +19,24 @@ from .context import PipelineContext
- from .player_universe import players_needing
+ def squads_response_for_team(
+diff --git a/ingestion/api_football/loads/coaches.py b/ingestion/api_football/loads/coaches.py
+index 75fc7cd..1b902aa 100644
+--- a/ingestion/api_football/loads/coaches.py
++++ b/ingestion/api_football/loads/coaches.py
+@@ -19,7 +19,7 @@ from __future__ import annotations
  
+ from .. import quota as errors_quota
+ from ..bigquery import load_json_to_bq
+-from ..http_client import fetch_merged_paged
++from ..http_client import fetch_merged_paged, result_is_complete
+ from ..quota import append_api_errors
+ from ..settings import raw_table
+ from .context import PipelineContext
+@@ -40,8 +40,16 @@ def load_coaches(
  
--def load_player_teams_global(ctx: PipelineContext) -> None:
-+def load_player_teams_global(
-+    ctx: PipelineContext,
-+    universe: list[tuple[int, str]] | None,
-+) -> None:
-+    """`universe` is the run's shared `_query_universe()` result — the same answer
-+    load_player_profiles_global just used, and nothing writes RAW_APIF_PLAYERS between the
-+    two phases, so re-running that full UNNEST bought nothing (#33 item 1).
-+
-+    REQUIRED (it may be None, but it must be PASSED) — see load_player_profiles_global for
-+    why a default would make the hoist silently revertible.
-+    """
-     if os.getenv("API_FOOTBALL_SKIP_PLAYER_TEAMS", "").strip().lower() in ("1", "true", "yes"):
-         ctx.errors.append(
-             "player_teams: skipped (API_FOOTBALL_SKIP_PLAYER_TEAMS set — use on low-quota archive runs)"
-         )
-         return
-     try:
--        by_league = players_needing(ctx.client, "PLAYER_TEAMS")
-+        by_league = players_needing(ctx.client, "PLAYER_TEAMS", universe=universe)
-     except Exception as e:
-         ctx.errors.append(f"player_teams universe: {e}")
-         return
-diff --git a/ingestion/api_football/loads/player_universe.py b/ingestion/api_football/loads/player_universe.py
-index 9dd7c32..3dd5676 100644
---- a/ingestion/api_football/loads/player_universe.py
-+++ b/ingestion/api_football/loads/player_universe.py
-@@ -84,19 +84,44 @@ def _existing_player_ids(client: bigquery.Client, target_entity: str) -> set[int
-         return set()
+     payload: dict = {"league_code": league_code, "response": []}
  
- 
-+def query_player_universe(
-+    client: bigquery.Client,
-+    min_season: int | None = None,
-+) -> list[tuple[int, str]]:
-+    """Public entry point for the run-level universe read (#33 item 1).
-+
-+    Exists so the orchestrator can compute the universe ONCE and hand the same list to both
-+    per-player loaders, without reaching into `_query_universe`. Applies the same default
-+    `min_season` those loaders would, so the shared result is identical to what each would
-+    have computed alone.
-+    """
-+    return _query_universe(client, _min_season() if min_season is None else min_season)
-+
-+
- def players_needing(
-     client: bigquery.Client,
-     target_entity: str,
-     min_season: int | None = None,
-+    universe: list[tuple[int, str]] | None = None,
- ) -> dict[str, list[int]]:
-     """Players to fetch for `target_entity`, grouped by provenance league_code.
- 
-     = current universe (rostered season >= min_season) minus players already in the target.
-+
-+    `universe` lets the caller supply an already-computed `_query_universe()` result. That
-+    query UNNESTs all of RAW_APIF_PLAYERS twice per run — once for PLAYER_PROFILES, once
-+    for PLAYER_TEAMS — for an identical answer, because nothing writes RAW_APIF_PLAYERS
-+    between the two calls (#33 item 1).
-+
-+    `_existing_player_ids` is deliberately NOT shareable: it reads the TARGET table, which
-+    differs per call and is written between them.
-     """
-     ms = _min_season() if min_season is None else min_season
-     already = _existing_player_ids(client, target_entity)
-     by_league: dict[str, list[int]] = {}
--    for player_id, league_code in _query_universe(client, ms):
-+    for player_id, league_code in (
-+        _query_universe(client, ms) if universe is None else universe
-+    ):
-         if player_id in already:
-             continue
-         by_league.setdefault(league_code, []).append(player_id)
-diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
-index 6766901..5e9b5bd 100644
---- a/ingestion/api_football/loads/squads.py
-+++ b/ingestion/api_football/loads/squads.py
-@@ -128,7 +128,21 @@ def load_squad_players_batch(
-     seasons_list: list[int],
-     team_ids: set[int],
-     reference_season: int | None = None,
-+    already_captured: set[tuple[int, int]] | None = None,
- ) -> None:
-+    """Fetch and store the /players roster per (team, season) for one competition.
-+
-+    `already_captured` is the run's single `captured_player_team_seasons()` result, read
-+    ONCE by the caller before the per-competition loop. That query UNNESTs all of
-+    RAW_APIF_PLAYERS, and this function runs once per competition, so reading it here was
-+    the second O(competitions^2) term (#33 item 1).
-+
-+    ⚠ It is MUTATED, not just read. This loader WRITES RAW_APIF_PLAYERS, so unlike the
-+    fanout-coverage hoist the set genuinely goes stale between competitions — and national
-+    teams really do appear in more than one competition. Every key written below is added
-+    to it, which keeps it exactly as accurate as re-reading would. Passing None preserves
-+    the old read-it-yourself behaviour for any caller that has no run-level set.
-+    """
-     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
-         ctx.errors.append(
-             f"players {league_code}: skipped (API_FOOTBALL_SKIP_PLAYERS set — use on low-quota archive runs)"
-@@ -143,7 +157,8 @@ def load_squad_players_batch(
-         if reference_season is not None
-         else (max(seasons_list) if seasons_list else 0)
-     )
--    already_captured = captured_player_team_seasons(ctx)
-+    if already_captured is None:
-+        already_captured = captured_player_team_seasons(ctx)
-     fetch_keys = plan_player_team_season_fetch(seasons_list, team_ids, ref, already_captured)
-     total = len(seasons_list) * len(team_ids)
-     print(
-@@ -213,6 +228,15 @@ def load_squad_players_batch(
-                 ctx.client, raw_table("PLAYERS"), league_code, written_keys, ts
++    # #896: one row per league, latest-per-league in staging, so a partial supersedes a good
++    # snapshot. Complete or discard — see the same guard in loads/transfers.py.
++    # NOTE the empty-response subtlety this must NOT get wrong: ~23 of 1,265 teams genuinely
++    # have no coach on every run (measured 2026-07-30..08-03, which is why COACHES never gates
++    # completeness). An empty response with NO error is a COMPLETE answer and must stay one;
++    # only `result_is_complete` — body error or latched quota flag — marks the run partial.
++    complete = True
+     for team_id in sorted(team_ids):
+         if errors_quota._http_quota_exhausted:
++            complete = False
+             break
+         try:
+             data = fetch_merged_paged(
+@@ -50,6 +58,9 @@ def load_coaches(
+                 {"team": team_id},
+                 paginate=False,
              )
-             ctx.add_loaded(1)
-+            # Keep the caller's hoisted set exact. Without this, the next competition in
-+            # the run would not see these (team, season) keys and would re-fetch any it
-+            # shares — national teams appear in club AND national competitions, so this
-+            # fires in practice. Only done on a SUCCESSFUL write: on the exception path
-+            # below the rows are not stored, so they are not captured, and re-fetching
-+            # them next competition is the correct behaviour.
-+            for key in written_keys:
-+                team_str, _, season_str = key.partition("-")
-+                already_captured.add((int(team_str), int(season_str)))
++            # Before the next fetch: the quota flag latches for the rest of the run.
++            if not result_is_complete(data):
++                complete = False
+             append_api_errors(
+                 data, f"coaches {league_code} team_id={team_id}", ctx.errors
+             )
+@@ -58,8 +69,16 @@ def load_coaches(
+                     {"team_id": team_id, "coach": coach}
+                 )
          except Exception as e:
-             ctx.errors.append(f"players BQ {league_code}: {e}")
++            complete = False
+             ctx.errors.append(f"coaches {league_code} team_id={team_id}: {e}")
  
-diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
-index 75c3a34..581cfaf 100644
---- a/ingestion/api_football/orchestrator.py
-+++ b/ingestion/api_football/orchestrator.py
-@@ -28,10 +28,12 @@ from .completeness import (
-     per_team_missing_by_league_entity,
-     persist_fixture_statistics_missing,
-     read_per_team_coverage,
-+    read_prior_snapshot,
-     run_ingest_completeness_checks,
-     write_ci_output,
-     write_step_summary_if_configured,
- )
-+from .coverage import read_coverage
- from .ingestion_lock import (
-     acquire_ingest_lock,
-     ensure_ingest_lock_table,
-@@ -73,6 +75,8 @@ from .loads.competition_runner import (
-     run_player_squads_catchup,
-     run_transfers_for_competition,
- )
-+from .loads.squads import captured_player_team_seasons
-+from .loads.player_universe import query_player_universe
- from .loads.player_profiles import load_player_profiles_global
- from .loads.player_teams import load_player_teams_global
- from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
-@@ -133,11 +137,23 @@ def _load_api_football(request):
++    if not complete:
++        ctx.errors.append(
++            f"coaches {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
++            f"snapshot kept (#896); retries next run"
++        )
++        return
++
+     try:
+         load_json_to_bq(ctx.client, raw_table("COACHES"), payload, as_json_payload=True, append=True, league_code=league_code)
+         ctx.add_loaded(1)
+diff --git a/ingestion/api_football/loads/standings.py b/ingestion/api_football/loads/standings.py
+index 739dfcb..096f429 100644
+--- a/ingestion/api_football/loads/standings.py
++++ b/ingestion/api_football/loads/standings.py
+@@ -10,7 +10,7 @@ from .. import quota as errors_quota
+ from ..bigquery import load_json_to_bq
+ from ..settings import raw_table
+ from ..quota import append_api_errors
+-from ..http_client import fetch_merged_paged
++from ..http_client import fetch_merged_paged, result_is_complete
+ from ..seasons import _merge_merged_paged
+ from .context import PipelineContext
+ 
+@@ -26,9 +26,14 @@ def load_standings_if_enabled(
+         ctx.errors.append(
+             f"standings {league_code}: coverage metadata reported unsupported; attempting fetch anyway"
+         )
++    # #896: one row per league covering ALL configured seasons, read latest-per-league in
++    # staging. Lose one season to a quota cut and the merged payload silently becomes a
++    # shorter history that supersedes the full one. Complete or discard.
++    complete = True
+     standings_merged: dict | None = None
+     for season in seasons_list:
+         if errors_quota._http_quota_exhausted:
++            complete = False
+             break
+         try:
+             st = fetch_merged_paged(
+@@ -37,13 +42,23 @@ def load_standings_if_enabled(
+                 {"league": league_id, "season": season},
+                 paginate=False,
              )
++            # Before the next fetch: the quota flag latches for the rest of the run.
++            if not result_is_complete(st):
++                complete = False
+             append_api_errors(st, f"standings {league_code} season={season}", ctx.errors)
+             standings_merged = _merge_merged_paged(standings_merged, st)
+         except Exception as e:
++            complete = False
+             ctx.errors.append(f"standings {league_code} season={season}: {e}")
+     if standings_merged is None:
+         ctx.errors.append(f"standings {league_code}: no payload fetched for configured seasons")
+         return
++    if not complete:
++        ctx.errors.append(
++            f"standings {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
++            f"snapshot kept (#896); retries next run"
++        )
++        return
+     try:
+         load_json_to_bq(
+             ctx.client,
+diff --git a/ingestion/api_football/loads/teams.py b/ingestion/api_football/loads/teams.py
+index 5705a3e..33d56b0 100644
+--- a/ingestion/api_football/loads/teams.py
++++ b/ingestion/api_football/loads/teams.py
+@@ -11,7 +11,7 @@ from ..bigquery import load_json_to_bq
+ from ..settings import raw_table
+ from ..quota import append_api_errors
+ from ..fixture_scheduling import team_ids_for_league
+-from ..http_client import fetch_merged_paged
++from ..http_client import fetch_merged_paged, result_is_complete
+ from .context import PipelineContext
  
-         # Phase 1: full cheap phases or poll-only (catalog + latest-season fixtures).
-+        #
-+        # Fanout coverage is read ONCE here, for every league, and passed into the loop.
-+        # read_coverage() scans all of RAW_APIF_FIXTURE_DETAILS with no league or time
-+        # filter; it used to be reached from inside resolve_ingest_mode, i.e. once per
-+        # competition, which made ingestion reads O(competitions^2) — 45 scans of a
-+        # multi-GiB table every run, growing quadratically as leagues are added (#33 item 1).
-+        #
-+        # ⚠ This is deliberately NOT a run-wide cache. Phase 2 WRITES FIXTURE_DETAILS, and
-+        # the completeness check below MUST see those writes — that is what it checks. It
-+        # therefore keeps its own, separate read. Hoisting further (one read for the whole
-+        # run) would make every run report fanout gaps that the same run had just filled.
-+        phase1_covered = read_coverage(ctx.client)
-         results = []
-         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
-         finished_comps: list[tuple[str, int, set[int]]] = []
-         for comp in selected:
--            ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp)
-+            ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp, phase1_covered)
-             print(
-                 f"[api-football] league={comp.league_code} ingest_mode={ingest_mode} "
-                 f"reason={ingest_reason}",
-@@ -175,9 +191,16 @@ def _load_api_football(request):
-         if results:
-             run_batch_fixture_fanout_and_persist(ctx, results)
  
--        # Phase 3: squad /players batch per competition
-+        # Phase 3: squad /players batch per competition.
-+        #
-+        # The captured (team, season) set is read ONCE here rather than once per
-+        # competition. That query UNNESTs all of RAW_APIF_PLAYERS and was the second
-+        # O(competitions^2) read in this loop (#33 item 1). Unlike Phase 1's coverage
-+        # hoist this set is MUTATED as the loop writes, because this loader writes the
-+        # very table the set describes — see load_squad_players_batch.
-+        squads_captured = captured_player_team_seasons(ctx)
-         for result in results:
--            run_squads_for_competition(ctx, result)
-+            run_squads_for_competition(ctx, result, already_captured=squads_captured)
- 
-         # Phase 3b: /players/squads batch per competition (current squad + shirt number)
-         for result in results:
-@@ -199,8 +222,20 @@ def _load_api_football(request):
-         # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
-         # already-ingested players skipped). Quota-guarded — the first run is the backfill,
-         # resumed on later runs.
--        load_player_profiles_global(ctx)
--        load_player_teams_global(ctx)
-+        #
-+        # Both loaders need the SAME player universe, and computing it UNNESTs all of
-+        # RAW_APIF_PLAYERS. Nothing writes that table between them — profiles writes
-+        # RAW_APIF_PLAYER_PROFILES, teams writes RAW_APIF_PLAYER_TEAMS — so the second
-+        # run of that query returned an identical answer for full price (#33 item 1).
-+        # A failure here is non-fatal: `universe=None` makes each loader compute its own,
-+        # which is exactly the previous behaviour.
-+        try:
-+            shared_universe = query_player_universe(ctx.client)
-+        except Exception as e:
-+            ctx.errors.append(f"player universe (shared): {e}")
-+            shared_universe = None
-+        load_player_profiles_global(ctx, universe=shared_universe)
-+        load_player_teams_global(ctx, universe=shared_universe)
- 
-         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
-         if ctx.errors:
-@@ -211,10 +246,13 @@ def _load_api_football(request):
-                 tail += f" ... (+{len(uniq) - 40} more distinct notes)"
-             msg += f" Notes: {tail}"
- 
--        prior_stats_missing = load_prior_fixture_statistics_missing(client)
--        # Read BEFORE persisting this run's counts, or the comparison is against itself.
--        prior_dropped = load_prior_dropped_calls(client)
--        prior_per_team = load_prior_per_team_missing(client)
-+        # ONE read of the previous run's snapshot, three keys out of it. These three
-+        # readers each used to issue their own identical query (#33 item 1). Read BEFORE
-+        # persisting this run's counts, or every comparison is against itself.
-+        prior_snapshot = read_prior_snapshot(client)
-+        prior_stats_missing = load_prior_fixture_statistics_missing(client, prior_snapshot)
-+        prior_dropped = load_prior_dropped_calls(client, prior_snapshot)
-+        prior_per_team = load_prior_per_team_missing(client, prior_snapshot)
-         dropped_calls = minute_rate_limit_counts()
-         # #898 cause 3: the per-team endpoints (players, squads, transfers, coaches) had no
-         # completeness check at all. Two-step read on purpose — see _latest_snapshot_timestamps.
-diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+@@ -23,10 +23,15 @@ def load_teams_merge_and_extend_ids(
+     reference_season: int,
+     team_ids: set[int],
+ ) -> None:
++    # #896: one row per league covering ALL configured seasons, read latest-per-league in
++    # staging, so losing a season to a quota cut silently shortens history and supersedes the
++    # full snapshot. Complete or discard — same guard as loads/standings.py.
++    complete = True
+     teams_merged_envelope: dict | None = None
+     try:
+         for season in seasons_list:
+             if errors_quota._http_quota_exhausted:
++                complete = False
+                 break
+             teams_part = fetch_merged_paged(
+                 "/teams",
+@@ -34,6 +39,9 @@ def load_teams_merge_and_extend_ids(
+                 {"league": league_id, "season": season},
+                 paginate=False,
+             )
++            # Before the next fetch: the quota flag latches for the rest of the run.
++            if not result_is_complete(teams_part):
++                complete = False
+             append_api_errors(teams_part, f"teams {league_code} season={season}", ctx.errors)
+             if teams_merged_envelope is None:
+                 teams_merged_envelope = {
+@@ -57,15 +65,27 @@ def load_teams_merge_and_extend_ids(
+         if teams_merged_envelope is not None:
+             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
+             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
+-            load_json_to_bq(
+-                ctx.client,
+-                raw_table("TEAMS"),
+-                teams_merged_envelope,
+-                as_json_payload=True,
+-                append=True,
+-                league_code=league_code,
+-            )
+-            ctx.add_loaded(1)
++            if complete:
++                load_json_to_bq(
++                    ctx.client,
++                    raw_table("TEAMS"),
++                    teams_merged_envelope,
++                    as_json_payload=True,
++                    append=True,
++                    league_code=league_code,
++                )
++                ctx.add_loaded(1)
++            else:
++                ctx.errors.append(
++                    f"teams {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
++                    f"snapshot kept (#896); retries next run"
++                )
++            # The id extension runs EITHER WAY, deliberately. It is not a write to raw; it is
++            # what feeds team_ids to the coaches / transfers / squads phases below. Withholding
++            # it on a degraded run would starve them of teams they could still have fetched,
++            # turning one short season into a run-wide outage. The discarded snapshot above is
++            # about not superseding stored data — a different question from what this run may
++            # still attempt.
+             for item in teams_merged_envelope["response"]:
+                 team = item.get("team") or {}
+                 tid = team.get("id")
+diff --git a/ingestion/api_football/loads/transfers.py b/ingestion/api_football/loads/transfers.py
+index 30b9a97..67a09c1 100644
+--- a/ingestion/api_football/loads/transfers.py
++++ b/ingestion/api_football/loads/transfers.py
+@@ -28,16 +28,25 @@ def load_transfers_batch(
+             f"transfers {league_code}: skipped (API_FOOTBALL_SKIP_TRANSFERS set — use on low-quota archive runs)"
+         )
+         return
++    # #896: this payload is ONE row for the whole league, and staging reads the latest row per
++    # league_code. So it is complete or it is worthless — there is no per-team key to withhold
++    # the way squads.py can. Any team that could not be fetched cleanly makes the snapshot
++    # partial, and a partial must not supersede the good one already stored.
++    complete = True
+     for team_id in sorted(team_ids):
+         if errors_quota._http_quota_exhausted:
++            complete = False
+             break
+         try:
+-            transfers_rows = transfers_response_for_team(
++            transfers_rows, team_complete = transfers_response_for_team(
+                 ctx.headers,
+                 team_id,
+                 ctx.errors,
+                 error_context=f"transfers {league_code} team_id={team_id}",
+             )
++            if not team_complete:
++                complete = False
++                continue
+             transfers_payload["response"].append(
+                 {
+                     "team_id": team_id,
+@@ -45,7 +54,17 @@ def load_transfers_batch(
+                 }
+             )
+         except Exception as e:
++            complete = False
+             ctx.errors.append(f"transfers {league_code} team {team_id}: {e}")
++    if not complete:
++        # Discard rather than supersede. Under today's append-only writes the stored snapshot
++        # simply stays the latest; once #33 item 8b makes this table merge-on-write, writing
++        # here would DELETE that stored snapshot, so this guard is what makes 8b safe.
++        ctx.errors.append(
++            f"transfers {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
++            f"snapshot kept (#896); retries next run"
++        )
++        return
+     try:
+         load_json_to_bq(
+             ctx.client,
+diff --git a/tests/test_incomplete_snapshot_not_written.py b/tests/test_incomplete_snapshot_not_written.py
 new file mode 100644
-index 0000000..15c435d
+index 0000000..2a0fe16
 --- /dev/null
-+++ b/tests/test_ci_data_job_invariants.py
-@@ -0,0 +1,150 @@
-+"""Pin two CI data-job invariants that can be broken while every pipeline stays GREEN.
++++ b/tests/test_incomplete_snapshot_not_written.py
+@@ -0,0 +1,308 @@
++"""#896 for the four per-league snapshot loaders (#33 item 8a).
 +
 +WHY THIS EXISTS
 +---------------
-+Both properties were repaired on 2026-08-08 under GitLab #33, and both share the shape this repo
-+keeps getting caught by: breaking them produces no red anywhere.
++`transfers`, `coaches`, `standings` and `teams` each write ONE row per league, and staging reads
++the latest row per `league_code`. Each used to abandon its fetch loop when the daily quota latched
++and then write the partial payload as if it were whole:
 +
-+  * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
-+    ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
-+    production" — and these ingests ARE production: `ingestion/api_football/settings.py:31`
-+    defaults the raw dataset to `raw` and `API_FOOTBALL_BIGQUERY_DATASET` is set nowhere in CI. So
-+    an MR pipeline wrote production raw from an unmerged branch with the lock off, and nothing
-+    failed. Re-adding the flag would restore that silently.
++    for x in ...:
++        if errors_quota._http_quota_exhausted:
++            break                      # loop abandoned, nothing recorded
++        ...
++    load_json_to_bq(..., append=True)  # partial written as if complete
 +
-+  * `.data_paths_prod` decides whether a push to main rebuilds the prod warehouse. Drop one entry —
-+    `dbt_project/models/**/*`, say — and `data:build:main` stops firing on model merges. Prod goes
-+    quietly stale, and because every MR build defers to prod with `--defer --favor-state`, the
-+    staleness propagates into MR validation with nothing red anywhere. The single `.data_paths`
-+    anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
-+    for a comment, so the guarantee is re-established here as an assertion.
++Under append-only that is recoverable — the partial wins in staging but the complete prior row
++survives in `raw`. Under #33 item 8b (merge-on-write keyed on `league_code`) the partial write
++DELETES the complete prior row. So this is the guard that makes 8b non-destructive, and these
++tests are what stop it being quietly removed again.
 +
-+HOW IT IS SHAPED, AND WHY
-+-------------------------
-+Values come from PARSED YAML, never from raw file text. That matters concretely: the
-+`.gitlab-ci.yml` comment block documenting the lock fix NAMES `API_FOOTBALL_SKIP_INGEST_LOCK`, so a
-+text grep would flag the documentation of the defect as the defect.
++The failure is invisible without them: a partial snapshot is a well-formed payload. Nothing throws,
++no row count looks wrong, and the pipeline reports success.
 +
-+The lock check reads `variables:` as well as script lines. An env var set through a `variables:`
-+mapping — global, `default:`, or per job — reaches the ingest exactly as an inline assignment does,
-+and `orchestrator.py:95` literally tells the operator to set that variable when the lease is held.
-+A guard that only read script text would miss the most idiomatic way to reintroduce the flag
-+(platform-reviewer, round 1).
++HOW THESE ARE SHAPED
++--------------------
++The assertion is "did the loader call its BigQuery write", via a recording double — never on log
++text, which a reword defeats. Each loader gets three cases: a clean run still writes; a body-level
++error on any one team/season writes nothing; a mid-loop daily-quota cut writes nothing.
 +
-+WHAT IS DELIBERATELY *NOT* PINNED HERE
-+--------------------------------------
-+Singular tests run twice on the prod build — once inside each `dbt build --selector`, once in the
-+trailing `dbt test` step. #33 item 3 proposed removing that duplication; it was WITHDRAWN after
-+review, because `dbt build` adds test edges (`dbt/task/build.py:134`) and skips a failed test's
-+dependents (`build.py:80`), so the in-build run is a write-blocking gate and the trailing run is a
-+post-write report. An earlier version of this module asserted the "de-duplicated" arrangement was
-+safe, which would have certified the regression rather than caught it. The reasoning now lives in a
-+comment at the `dbt build --selector` lines, where someone about to optimise will read it.
-+"""
-+
-+from __future__ import annotations
-+
-+import pathlib
-+
-+import yaml
-+
-+ROOT = pathlib.Path(__file__).resolve().parents[1]
-+CI_FILE = ROOT / ".gitlab-ci.yml"
-+
-+# The inputs that can change what dbt COMPILES. A push to main touching any of these
-+# must rebuild the prod warehouse, so .data_paths_prod has to keep covering them.
-+DBT_COMPILE_INPUTS = frozenset(
-+    {
-+        "dbt_project/models/**/*",
-+        "dbt_project/macros/**/*",
-+        "dbt_project/seeds/**/*",
-+        "dbt_project/snapshots/**/*",
-+        "dbt_project/tests/**/*",
-+        "dbt_project/*.yml",
-+    }
-+)
-+
-+
-+def _ci_config() -> dict:
-+    return yaml.safe_load(CI_FILE.read_text(encoding="utf-8"))
-+
-+
-+def _script_lines(config: dict) -> list[str]:
-+    lines: list[str] = []
-+    for node in config.values():
-+        if not isinstance(node, dict):
-+            continue
-+        for section in ("before_script", "script", "after_script"):
-+            for entry in node.get(section) or []:
-+                if isinstance(entry, str):
-+                    # A `|` block scalar arrives as one multi-line string.
-+                    lines.extend(entry.splitlines())
-+    return lines
-+
-+
-+def _declared_variables(config: dict) -> list[tuple[str, str]]:
-+    """Every (name, value) from a `variables:` mapping — global, `default:`, or per job."""
-+    found: list[tuple[str, str]] = []
-+
-+    def collect(where: str, block) -> None:
-+        if isinstance(block, dict):
-+            for name, value in block.items():
-+                found.append((f"{where}.{name}", str(value)))
-+
-+    collect("<global>", config.get("variables"))
-+    for key, node in config.items():
-+        if isinstance(node, dict):
-+            collect(key, node.get("variables"))
-+    return found
-+
-+
-+def test_ci_never_disables_the_ingest_lock():
-+    """#33 item 4. The flag is local-debugging-only and CI ingests write production raw."""
-+    config = _ci_config()
-+
-+    offenders = [
-+        line.strip()
-+        for line in _script_lines(config)
-+        if "API_FOOTBALL_SKIP_INGEST_LOCK" in line
-+    ]
-+    offenders += [
-+        f"variables: {name}={value}"
-+        for name, value in _declared_variables(config)
-+        if "API_FOOTBALL_SKIP_INGEST_LOCK" in name
-+    ]
-+
-+    assert offenders == [], (
-+        "API_FOOTBALL_SKIP_INGEST_LOCK is set in .gitlab-ci.yml. It disables the BigQuery "
-+        "ingest lease, and docs/operations_guide.md:149 restricts it to local debugging. CI "
-+        "ingests write the production `raw` dataset (ingestion/api_football/settings.py:31), so "
-+        f"this is production. Offending: {offenders}"
-+    )
-+
-+
-+def test_the_prod_trigger_still_covers_every_dbt_compile_input():
-+    """#33 item 2. Splitting the anchor removed the structural no-drift guarantee; restore it.
-+
-+    Two directions, because the split can fail either way:
-+      * too NARROW -> a model merge stops rebuilding prod, silently.
-+      * wider than the MR anchor -> the prod build fires on something the MR build never
-+        validated, which is the drift the single anchor originally prevented.
-+    """
-+    config = _ci_config()
-+    mr_paths = config.get(".data_paths_mr")
-+    prod_paths = config.get(".data_paths_prod")
-+
-+    assert isinstance(mr_paths, list) and mr_paths, ".data_paths_mr is missing or not a list"
-+    assert isinstance(prod_paths, list) and prod_paths, ".data_paths_prod is missing or not a list"
-+
-+    missing = DBT_COMPILE_INPUTS - set(prod_paths)
-+    assert not missing, (
-+        f".data_paths_prod no longer covers {sorted(missing)}. A push to main touching those "
-+        "would not rebuild the prod warehouse, so prod goes stale — and every MR build defers to "
-+        "prod as its baseline, so the staleness spreads with nothing turning red."
-+    )
-+
-+    wider = set(prod_paths) - set(mr_paths)
-+    assert not wider, (
-+        f".data_paths_prod contains {sorted(wider)}, which .data_paths_mr does not. The prod "
-+        "build would then fire on a change the MR build never validated."
-+    )
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index fe506c6..8a19298 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -2037,7 +2037,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
-     `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in the file, including
-     `data:build:main` — a full prod warehouse build. A `changes:` filter does NOT save
-     you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or a
--    merge request, so `data:build:main`'s `*data_paths` does not hold it back.
-+    merge request, so `data:build:main`'s `*data_paths_prod` does not hold it back.
- 
-     Rules are first-match-wins, so the guard is only a guard if it comes FIRST. A later
-     `when: never` can be outvoted by an earlier matching clause, which is exactly the
-diff --git a/tests/test_ingestion_read_hoisting.py b/tests/test_ingestion_read_hoisting.py
-new file mode 100644
-index 0000000..0ab8d17
---- /dev/null
-+++ b/tests/test_ingestion_read_hoisting.py
-@@ -0,0 +1,378 @@
-+"""Pin the per-run read hoists (#33 item 1) by COUNTING the BigQuery queries issued.
-+
-+WHY THIS EXISTS
-+---------------
-+Ingestion reads were O(competitions^2): two full-table scans sat inside the per-competition
-+loop, so every league added made every other league more expensive. `coverage.read_coverage()`
-+scans all of RAW_APIF_FIXTURE_DETAILS with no league or time filter; `captured_player_team_
-+seasons()` UNNESTs all of RAW_APIF_PLAYERS. At 45 active competitions that is ~45 scans of each
-+per run.
-+
-+Nothing about that is visible from a passing test suite, a green pipeline, or the data. It shows
-+up only on the bill, and the regression is a one-line change — restore a default argument, or
-+call the reader "just here", and the loop is quadratic again with every test still green. So
-+these tests count queries rather than assert outcomes.
-+
-+THE HAZARD THESE TESTS ALSO GUARD, which is NOT about cost
-+-----------------------------------------------------------
-+A run-wide cache would be WRONG. `orchestrator` interleaves these reads with writes to the very
-+tables being read: Phase 1 reads fanout coverage, Phase 2 WRITES FIXTURE_DETAILS, and the
-+completeness check then reads coverage again — and it must see Phase 2's writes, because
-+detecting missing fanout data is its entire job. Cache across that boundary and every run
-+reports gaps it had just filled.
-+
-+So `test_completeness_keeps_its_own_coverage_read` is the important one here. The others pin a
-+cost property; that one pins a correctness property, and it is what should fail if someone
-+"finishes the job" by hoisting coverage to run scope.
++THE ONE THING THESE MUST NOT OVER-ASSERT: an EMPTY response with no error is a COMPLETE answer.
++About 23 of 1,265 teams genuinely have no coach on every run, which is why COACHES never gates
++completeness. `test_empty_but_clean_response_still_counts_as_complete` pins that, so a future
++"tighten the guard" cannot start discarding good snapshots for leagues with legitimately empty
++responses.
 +"""
 +
 +from __future__ import annotations
@@ -1397,349 +767,272 @@ index 0000000..0ab8d17
 +
 +import pytest
 +
-+from ingestion.api_football import completeness, ingest_plan
-+from ingestion.api_football.loads import player_universe, squads
++from ingestion.api_football import fixture_scheduling
++from ingestion.api_football import quota as errors_quota
++from ingestion.api_football.loads import coaches, standings, teams, transfers
 +
 +
-+class _CountingClient:
-+    """Records every query issued so a test can count them by shape."""
++class _Writes:
++    """Records every raw write a loader attempts."""
 +
-+    def __init__(self, rows_by_marker=None):
-+        self.queries: list[str] = []
-+        self._rows_by_marker = rows_by_marker or {}
++    def __init__(self):
++        self.tables: list[str] = []
 +
-+    def query(self, sql, job_config=None):
-+        self.queries.append(sql)
-+        rows = []
-+        for marker, marker_rows in self._rows_by_marker.items():
-+            if marker in sql:
-+                rows = marker_rows
-+                break
-+        return types.SimpleNamespace(result=lambda: iter(rows))
-+
-+    def get_table(self, table_id):
-+        # Schema-less on purpose: `read_latest_payload_json` branches on whether an
-+        # ingest-time column exists, and these tests count queries rather than exercise
-+        # the two-step pruned read, which `tests/test_latest_payload_read.py` owns.
-+        return types.SimpleNamespace(schema=[])
-+
-+    def count_matching(self, *needles: str) -> int:
-+        return sum(1 for q in self.queries if all(n in q for n in needles))
++    def __call__(self, client, table, payload, **kwargs):
++        self.tables.append(table)
 +
 +
-+def _ctx(client):
-+    return types.SimpleNamespace(client=client, headers={}, errors=[], tables_loaded=0)
++def _ctx():
++    return types.SimpleNamespace(
++        client=object(), headers={}, errors=[], tables_loaded=0,
++        add_loaded=lambda n=1: None,
++    )
 +
 +
-+# --- Phase 1: fanout coverage is read once for the run, not once per competition ---
++def _ok(response=None):
++    """A clean provider response: no body-level errors."""
++    return {"response": response if response is not None else [{"team": {"id": 1}}],
++            "errors": [], "results": 1, "paging": {"current": 1, "total": 1}}
 +
 +
-+def test_resolve_ingest_mode_issues_no_coverage_query():
-+    """The scan must happen in the caller, above the loop — never in here.
++def _errored():
++    """The per-minute rate limit shape: HTTP 200, error in the BODY, response empty."""
++    return {"response": [], "errors": {"rateLimit": "Too many requests"},
++            "results": 0, "paging": {"current": 1, "total": 1}}
 +
-+    `resolve_ingest_mode` runs once per competition. Any RAW_APIF_FIXTURE_DETAILS scan
-+    reachable from it is the quadratic defect, whatever it is called.
++
++@pytest.fixture(autouse=True)
++def _reset_quota():
++    errors_quota.reset_http_quota_exhausted()
++    yield
++    errors_quota.reset_http_quota_exhausted()
++
++
++# --- the four loaders, driven through a common table of how each is invoked ---
++
++# Each loader is described by (how to install a fake fetch, how to invoke it). Splitting those
++# two is not tidiness — the first version folded them into one `run(ctx, monkeypatch, responses)`
++# helper, and the quota-cut test then had to call it with an EMPTY response list while separately
++# installing its own fetch. `run` re-patched over that fetch with one that popped from the empty
++# list, so `standings` and `teams` were exercising an IndexError path, not a quota cut, and both
++# passed with the guard disabled. The break-it check caught it; the tests did not.
++
++def _patch_transfers(module, monkeypatch, fetch):
++    """Patch the HTTP layer UNDER the real helper, never the helper itself.
++
++    The first version replaced `transfers.transfers_response_for_team` with a hand-rolled
++    stand-in that returned `(rows, not d.get("errors"))`. That looked equivalent and was not:
++    it never ran `fixture_scheduling.py`'s real `result_is_complete(data)` — the actual #896
++    guard for RAW_APIF_TRANSFERS, the 6.99 GiB table this whole change exists for — and it
++    reimplemented only the body-error half, missing the latched-quota half entirely. Reverting
++    the real guard to `complete = True` left the entire suite green. Found in review round 1 by
++    two reviewers independently.
 +    """
-+    client = _CountingClient()
-+    comp = types.SimpleNamespace(
-+        league_code="BL1", provider_league_id=78, current_season=2025, status="active"
++    monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
++
++
++def _patch_fetch(module, monkeypatch, fetch):
++    monkeypatch.setattr(module, "fetch_merged_paged", lambda *a, **k: fetch())
++
++
++def _invoke_transfers(ctx):
++    transfers.load_transfers_batch(ctx, "BL1", {1, 2})
++
++
++def _invoke_coaches(ctx):
++    coaches.load_coaches(ctx, "BL1", {1, 2})
++
++
++def _invoke_standings(ctx):
++    standings.load_standings_if_enabled(ctx, "BL1", 78, [2024, 2025], {"standings": True})
++
++
++def _invoke_teams(ctx):
++    teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2024, 2025], 2025, set())
++
++
++# SINGLE-ITEM invocations: exactly one team / one season, so the loop body runs ONCE.
++# These exist because of a masking bug, not for variety — see
++# test_a_quota_cut_on_a_single_iteration_is_caught.
++def _invoke_transfers_one(ctx):
++    transfers.load_transfers_batch(ctx, "BL1", {1})
++
++
++def _invoke_coaches_one(ctx):
++    coaches.load_coaches(ctx, "BL1", {1})
++
++
++def _invoke_standings_one(ctx):
++    standings.load_standings_if_enabled(ctx, "BL1", 78, [2025], {"standings": True})
++
++
++def _invoke_teams_one(ctx):
++    teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2025], 2025, set())
++
++
++LOADERS = [
++    ("transfers", transfers, _patch_transfers, _invoke_transfers, _invoke_transfers_one),
++    ("coaches", coaches, _patch_fetch, _invoke_coaches, _invoke_coaches_one),
++    ("standings", standings, _patch_fetch, _invoke_standings, _invoke_standings_one),
++    ("teams", teams, _patch_fetch, _invoke_teams, _invoke_teams_one),
++]
++
++
++def _sequence(responses):
++    """A fetch that returns each response in turn. Two fetches per loader in these tests."""
++    seq = list(responses)
++    return lambda: seq.pop(0)
++
++
++@pytest.mark.parametrize("name, module, patch, invoke, invoke_one", LOADERS, ids=[x[0] for x in LOADERS])
++def test_a_clean_run_still_writes(name, module, patch, invoke, invoke_one, monkeypatch):
++    """The guard must not cost a normal run its snapshot."""
++    writes = _Writes()
++    monkeypatch.setattr(module, "load_json_to_bq", writes)
++    patch(module, monkeypatch, _sequence([_ok(), _ok()]))
++    ctx = _ctx()
++
++    invoke(ctx)
++
++    assert len(writes.tables) == 1, (
++        f"{name}: a clean run wrote {len(writes.tables)} payloads, expected exactly 1. The #896 "
++        "guard must only suppress INCOMPLETE snapshots."
 +    )
 +
-+    ingest_plan.resolve_ingest_mode(client, comp, {})
 +
-+    coverage_queries = client.count_matching("FIXTURE_DETAILS", "JSON_QUERY_ARRAY")
-+    assert coverage_queries == 0, (
-+        "resolve_ingest_mode issued a RAW_APIF_FIXTURE_DETAILS scan. It is called once per "
-+        "competition, so that read is O(competitions^2) — the exact defect #33 item 1 removed. "
-+        f"Queries issued: {client.queries}"
++@pytest.mark.parametrize("name, module, patch, invoke, invoke_one", LOADERS, ids=[x[0] for x in LOADERS])
++def test_a_body_level_error_discards_the_snapshot(name, module, patch, invoke, invoke_one, monkeypatch):
++    """A per-minute rate limit is HTTP 200 with the error in the body — the shape that looks
++    like success. One of these anywhere in the loop makes the league snapshot partial."""
++    writes = _Writes()
++    monkeypatch.setattr(module, "load_json_to_bq", writes)
++    patch(module, monkeypatch, _sequence([_ok(), _errored()]))
++    ctx = _ctx()
++
++    invoke(ctx)
++
++    assert writes.tables == [], (
++        f"{name}: wrote a snapshot after a body-level provider error. That payload is partial "
++        "and supersedes the stored one in staging today, and DELETES it once #33 item 8b makes "
++        "the table merge-on-write (#896)."
++    )
++    assert any("INCOMPLETE" in e for e in ctx.errors), (
++        f"{name}: discarded the snapshot without reporting it. A silent discard is how a league "
++        f"goes stale unnoticed. ctx.errors={ctx.errors}"
 +    )
 +
 +
-+def test_resolve_ingest_mode_requires_coverage_to_be_passed_in():
-+    """No default. A default would let the scan creep back with every test still green."""
-+    client = _CountingClient()
-+    comp = types.SimpleNamespace(
-+        league_code="BL1", provider_league_id=78, current_season=2025, status="active"
-+    )
-+    with pytest.raises(TypeError):
-+        ingest_plan.resolve_ingest_mode(client, comp)
++@pytest.mark.parametrize("name, module, patch, invoke, invoke_one", LOADERS, ids=[x[0] for x in LOADERS])
++def test_a_mid_loop_quota_cut_discards_the_snapshot(name, module, patch, invoke, invoke_one, monkeypatch):
++    """The daily quota latches: `fetch_json` short-circuits to an empty body with NO error, so
++    the body-error check alone would miss it. This is the second of the two signals
++    `result_is_complete` exists to combine.
 +
-+
-+def test_completeness_keeps_its_own_coverage_read(monkeypatch):
-+    """THE CORRECTNESS PIN, not a cost one.
-+
-+    Phase 2 writes RAW_APIF_FIXTURE_DETAILS between Phase 1's coverage read and this one.
-+    The completeness check exists to notice fanout gaps, so it must observe those writes.
-+    If someone "finishes the job" by hoisting coverage to run scope to get the count from
-+    2 to 1, this fails.
-+
-+    Asserts the CALL, not the source text. The first version of this test grepped
-+    `inspect.getsource` for "read_coverage(" and passed while the call was removed —
-+    because that string also appears in a COMMENT inside the same function. A guard that
-+    matches prose is defeated by a reword, and this one was defeated by a reword that had
-+    already happened.
++    The fake returns a CLEAN payload every time and merely sets the quota flag on the first
++    call — so if the loader were checking only for body errors, it would see nothing wrong.
 +    """
-+    calls: list[str] = []
-+    monkeypatch.setattr(
-+        completeness, "read_coverage", lambda client: calls.append("read") or {}
-+    )
-+    monkeypatch.setattr(completeness, "skip_completeness_check", lambda: False)
-+    monkeypatch.setattr(completeness, "selected_competitions", lambda: ([], []))
-+    monkeypatch.setattr(
-+        completeness, "read_latest_payload_json", lambda *a, **k: None
-+    )
++    writes = _Writes()
++    monkeypatch.setattr(module, "load_json_to_bq", writes)
 +
-+    completeness.run_ingest_completeness_checks(_CountingClient())
++    def _sets_quota_then_ok():
++        errors_quota._http_quota_exhausted = True
++        return _ok()
 +
-+    assert calls == ["read"], (
-+        "run_ingest_completeness_checks did not read fanout coverage itself. Phase 2 WRITES "
-+        "FIXTURE_DETAILS after Phase 1's read, so reusing Phase 1's result here would make "
-+        "the completeness gate report gaps the same run had already filled."
-+    )
++    patch(module, monkeypatch, _sets_quota_then_ok)
++    ctx = _ctx()
 +
++    invoke(ctx)
 +
-+# --- Phase 3: the captured (team, season) set is read once and kept exact ---
-+
-+
-+def test_load_squad_players_batch_does_not_reread_when_given_the_set():
-+    client = _CountingClient()
-+    ctx = _ctx(client)
-+
-+    squads.load_squad_players_batch(
-+        ctx, "BL1", [2025], set(), reference_season=2025, already_captured={(1, 2025)}
-+    )
-+
-+    assert client.count_matching("RAW_APIF_PLAYERS", "UNNEST") == 0, (
-+        "load_squad_players_batch re-read the captured (team, season) set even though the "
-+        "caller supplied it. That read UNNESTs all of RAW_APIF_PLAYERS and the function runs "
-+        f"once per competition. Queries issued: {client.queries}"
-+    )
-+
-+
-+def test_load_squad_players_batch_still_reads_when_not_given_the_set():
-+    """The hoist is an optimisation for the orchestrator, not a new requirement on callers."""
-+    client = _CountingClient()
-+    ctx = _ctx(client)
-+
-+    squads.load_squad_players_batch(ctx, "BL1", [2025], set(), reference_season=2025)
-+
-+    assert client.count_matching("RAW_APIF_PLAYERS", "UNNEST") == 1
-+
-+
-+# --- Phase 5: one player-universe query for both per-player loaders ---
-+
-+
-+def test_players_needing_does_not_requery_the_universe_when_given_one():
-+    client = _CountingClient()
-+
-+    player_universe.players_needing(
-+        client, "PLAYER_PROFILES", universe=[(10, "BL1"), (11, "PL")]
-+    )
-+
-+    assert client.count_matching("players_payload") == 0, (
-+        "players_needing recomputed the player universe despite being handed one. That query "
-+        "UNNESTs all of RAW_APIF_PLAYERS and both per-player loaders need the identical "
-+        f"answer. Queries issued: {client.queries}"
-+    )
-+
-+
-+def test_players_needing_still_reads_the_target_table_per_call():
-+    """`_existing_player_ids` must NOT be shared — it reads the target, which differs."""
-+    client = _CountingClient()
-+
-+    player_universe.players_needing(client, "PLAYER_PROFILES", universe=[(10, "BL1")])
-+
-+    assert client.count_matching("PLAYER_PROFILES") == 1, (
-+        "the per-target 'already ingested' read was skipped. It reads the TARGET table, which "
-+        "differs between PLAYER_PROFILES and PLAYER_TEAMS and is written between them, so it "
-+        "is not shareable."
-+    )
-+
-+
-+# --- Completeness snapshot: one read, three keys ---
-+
-+
-+def test_prior_snapshot_readers_do_not_requery_when_given_the_payload():
-+    client = _CountingClient()
-+    payload = {
-+        "fixture_statistics_missing": {"BL1": 1},
-+        "dropped_calls_by_endpoint": {"/players": 2},
-+        "per_team_missing": {"BL1/players": 3},
-+    }
-+
-+    assert completeness.load_prior_fixture_statistics_missing(client, payload) == {"BL1": 1}
-+    assert completeness.load_prior_dropped_calls(client, payload) == {"/players": 2}
-+    assert completeness.load_prior_per_team_missing(client, payload) == {"BL1/players": 3}
-+
-+    assert client.queries == [], (
-+        "a prior-snapshot reader issued its own query despite being handed the payload. All "
-+        f"three read different keys out of the SAME row. Queries issued: {client.queries}"
-+    )
-+
-+
-+def test_a_first_run_still_costs_one_snapshot_read_not_four(monkeypatch):
-+    """The regression `data-engineer-reviewer` found at round 1.
-+
-+    `read_prior_snapshot()` returns None on a FIRST run — no snapshot table yet, or the
-+    previous run skipped the completeness check. While None doubled as the "caller supplied
-+    nothing" sentinel, passing that None through made all three readers fetch for
-+    themselves: 1 hoisted read + 3 re-reads = 4, one MORE than the 3 this change removes,
-+    in precisely the case every one of those readers documents itself as existing for.
-+
-+    Counts calls to `read_latest_payload_json`, NOT `client.query`. The first version of
-+    this test counted queries on the fake client and passed while the defect was
-+    reintroduced, because that reader reaches BigQuery through the Storage Read API and
-+    never touches `client.query`. Counting the wrong thing is how a guard reads green
-+    against the very bug it names.
-+    """
-+    fetches: list[str] = []
-+    monkeypatch.setattr(
-+        completeness,
-+        "read_latest_payload_json",
-+        lambda client, table, *a, **k: fetches.append(table) or None,
-+    )
-+    client = _CountingClient()
-+
-+    assert completeness.load_prior_fixture_statistics_missing(client, None) is None
-+    assert completeness.load_prior_dropped_calls(client, None) is None
-+    assert completeness.load_prior_per_team_missing(client, None) is None
-+
-+    assert fetches == [], (
-+        "a prior-snapshot reader re-fetched after being handed an explicit None. None is a "
-+        "legitimate ANSWER ('no prior record'), not the absence of one; only the private "
-+        f"_UNREAD sentinel means 'unsupplied'. Fetches: {fetches}"
-+    )
-+
-+
-+def test_completeness_check_cannot_be_handed_injected_coverage():
-+    """Structural companion to the correctness pin above.
-+
-+    The realistic way to break the completeness gate is not to delete its read — it is to
-+    add `all_covered=None` to this signature and wire the orchestrator to pass Phase 1's
-+    result, which is the exact optional-parameter shape this branch uses four times
-+    elsewhere. A behavioural test cannot see that: called with one argument it still takes
-+    the None branch and still passes. So the SIGNATURE is pinned instead.
-+    """
-+    import inspect
-+
-+    params = list(inspect.signature(completeness.run_ingest_completeness_checks).parameters)
-+    assert params == ["client"], (
-+        "run_ingest_completeness_checks accepts something besides `client`: "
-+        f"{params}. If that is a way to inject already-read coverage, the completeness gate "
-+        "can be fed Phase 1's PRE-fanout snapshot and will report gaps the same run filled. "
-+        "This read must stay the function's own."
++    assert writes.tables == [], (
++        f"{name}: wrote a snapshot after the daily quota cut the loop short. The remaining "
++        "teams/seasons were never fetched, so the payload is partial (#896)."
 +    )
 +
 +
 +@pytest.mark.parametrize(
-+    "func_path, argname",
-+    [
-+        ("ingestion.api_football.loads.competition_runner.run_squads_for_competition",
-+         "already_captured"),
-+        ("ingestion.api_football.loads.player_profiles.load_player_profiles_global",
-+         "universe"),
-+        ("ingestion.api_football.loads.player_teams.load_player_teams_global", "universe"),
-+    ],
++    "name, module, patch, invoke, invoke_one", LOADERS, ids=[x[0] for x in LOADERS]
 +)
-+def test_hoisted_values_are_required_arguments(func_path, argname):
-+    """No defaults on the orchestrator-facing hoists (`platform-reviewer`, round 1).
++def test_a_quota_cut_on_a_single_iteration_is_caught(
++    name, module, patch, invoke, invoke_one, monkeypatch
++):
++    """The quota half of `result_is_complete` — pinned where nothing else can supply the verdict.
 +
-+    Each of these has exactly ONE caller: the orchestrator. With a default, deleting the
-+    keyword argument at that single call site restores a per-competition or duplicated
-+    full-table scan and every test in this file still passes, because they all exercise the
-+    functions in isolation. Without a default it is a TypeError. `resolve_ingest_mode` was
-+    already protected this way; these three were not.
++    `test_a_mid_loop_quota_cut_discards_the_snapshot` above runs two iterations, and every one
++    of these loaders has a PRE-EXISTING top-of-loop `if _http_quota_exhausted: break` that fires
++    on the second one. `platform-reviewer` showed at round 2 that this masks the new code for all
++    four loaders: drop the quota half of the new check — keep only `if data.get("errors")` — and
++    those four cases still pass, because the old top-of-loop guard catches it independently.
++
++    With exactly ONE team / ONE season the loop body runs once, so the top-of-loop check never
++    gets a second iteration to fire on. The only thing that can mark the run incomplete is the
++    new `result_is_complete` call, which is precisely what needs pinning: the daily quota
++    short-circuits `fetch_json` to an empty body with NO error, so a body-error check alone is
++    blind to it.
 +    """
-+    import importlib
-+    import inspect
++    writes = _Writes()
++    monkeypatch.setattr(module, "load_json_to_bq", writes)
 +
-+    module_path, _, name = func_path.rpartition(".")
-+    func = getattr(importlib.import_module(module_path), name)
-+    param = inspect.signature(func).parameters[argname]
++    def _sets_quota_then_ok():
++        errors_quota._http_quota_exhausted = True
++        return _ok()
 +
-+    assert param.default is inspect.Parameter.empty, (
-+        f"{name}'s `{argname}` has a default ({param.default!r}). The orchestrator is its "
-+        "only caller, so a default means the hoist can be silently reverted by deleting one "
-+        "keyword argument, with the whole suite still green."
++    patch(module, monkeypatch, _sets_quota_then_ok)
++    ctx = _ctx()
++
++    invoke_one(ctx)
++
++    assert writes.tables == [], (
++        f"{name}: wrote a snapshot when the daily quota latched during its ONLY fetch. Nothing "
++        "else can catch this — there is no second iteration for the pre-existing top-of-loop "
++        "check to fire on — so the new result_is_complete call is not doing its job, or is only "
++        "looking at body-level errors and is blind to the quota flag (#896)."
 +    )
-+
-+
-+def _calls_inside_any_loop(func) -> set[str]:
-+    """Names of functions called from inside a `for`/`while` body in `func`'s source."""
-+    import ast
-+    import inspect
-+    import textwrap
-+
-+    tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
-+    inside: set[str] = set()
-+    for node in ast.walk(tree):
-+        if not isinstance(node, (ast.For, ast.While)):
-+            continue
-+        for child in ast.walk(node):
-+            if isinstance(child, ast.Call):
-+                fn = child.func
-+                if isinstance(fn, ast.Name):
-+                    inside.add(fn.id)
-+                elif isinstance(fn, ast.Attribute):
-+                    inside.add(fn.attr)
-+    return inside
 +
 +
 +@pytest.mark.parametrize(
-+    "reader",
-+    ["read_coverage", "captured_player_team_seasons", "query_player_universe"],
++    "payload, expected_complete",
++    [(_ok(), True), (_errored(), False)],
++    ids=["clean", "body-error"],
 +)
-+def test_the_hoisted_reads_are_not_issued_inside_a_loop(reader):
-+    """The property this whole change is about, pinned where the defect actually lives.
++def test_transfers_helper_reports_completeness_itself(payload, expected_complete, monkeypatch):
++    """Pin `transfers_response_for_team`'s OWN completeness signal, directly.
 +
-+    `platform-reviewer` found at round 2 that requiring the argument closes only the
-+    narrowest revert path — deleting the keyword. Move the computation back INSIDE the
-+    per-competition loop and keep passing it, and every other test in this file stays green
-+    while the O(competitions^2) scan is fully restored: the callee still receives a value on
-+    every call, so no callee-level assertion can see it. The defect is in the CALLER's call
-+    placement, so that is what this checks.
-+
-+    Structural rather than behavioural, deliberately. "Computed once, above the loop" is a
-+    statement about code shape; the behavioural equivalent means mocking ~20 collaborators
-+    to drive `_load_api_football` end to end, which would be a fragile test of the wrong
-+    thing.
-+
-+    KNOWN LIMIT, stated rather than left implicit: this matches calls by NAME, so aliasing
-+    the reader (`_rc = read_coverage`) and calling the alias inside the loop evades it. That
-+    is a deliberate act, not the accidental revert this guards against.
++    The loader-level tests above reach this function through `load_transfers_batch`, and
++    `load_transfers_batch` has a pre-existing per-iteration quota check of its own. Two
++    reviewers showed round 1's transfers cases could pass on THAT check while this function's
++    new `result_is_complete` call was reverted — right answer, wrong code path. This test calls
++    the helper directly, so nothing else can supply the verdict for it.
 +    """
-+    from ingestion.api_football import orchestrator
++    monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: payload)
 +
-+    inside = _calls_inside_any_loop(orchestrator._load_api_football)
++    rows, complete = fixture_scheduling.transfers_response_for_team({}, 1, [])
 +
-+    assert reader not in inside, (
-+        f"`{reader}` is called from inside a loop in _load_api_football. It must be computed "
-+        "ONCE above the loop and passed in — calling it per iteration restores the "
-+        "O(competitions^2) full-table scan #33 item 1 removed, and no callee-level test can "
-+        "detect that, because the callee still receives a value every time."
++    assert complete is expected_complete, (
++        "transfers_response_for_team returned complete="
++        f"{complete} for a {'clean' if expected_complete else 'body-errored'} response. This "
++        "is the signal load_transfers_batch uses to decide whether a snapshot may supersede "
++        "6.99 GiB of stored transfers (#896)."
 +    )
++    assert rows == list(payload.get("response") or [])
 +
 +
-+def test_prior_snapshot_readers_still_read_when_not_given_a_payload(monkeypatch):
-+    """Called in isolation — a test, a script — each must still fetch for itself.
++def test_empty_but_clean_response_still_counts_as_complete(monkeypatch):
++    """An empty response with NO error is a COMPLETE answer and must still be written.
 +
-+    Counts calls to `read_latest_payload_json`, not raw queries: that reader reaches
-+    BigQuery through the Storage Read API rather than `client.query`, and how it gets
-+    there is `tests/test_latest_payload_read.py`'s business, not this file's.
++    Measured 2026-07-30..08-03: ~23 of 1,265 teams genuinely have no coach on every run, which
++    is why COACHES is reported and never gates. If the guard treated "empty" as "incomplete",
++    those leagues would stop being written entirely — trading one silent failure for another.
 +    """
-+    calls: list[str] = []
-+    monkeypatch.setattr(
-+        completeness,
-+        "read_latest_payload_json",
-+        lambda client, table, *a, **k: calls.append(table) or {"dropped_calls_by_endpoint": {}},
-+    )
++    writes = _Writes()
++    monkeypatch.setattr(coaches, "load_json_to_bq", writes)
++    _patch_fetch(coaches, monkeypatch, lambda: _ok(response=[]))
++    ctx = _ctx()
 +
-+    completeness.load_prior_dropped_calls(_CountingClient())
++    coaches.load_coaches(ctx, "BL1", {1, 2})
 +
-+    assert calls == [completeness.COMPLETENESS_SNAPSHOT_TABLE], (
-+        "load_prior_dropped_calls no longer fetches for itself when given no payload. The "
-+        "shared-payload argument is an optimisation for the orchestrator, not a new "
-+        f"requirement on every caller. Fetches: {calls}"
++    assert len(writes.tables) == 1, (
++        "an empty-but-clean response was treated as incomplete. Emptiness is a legitimate "
++        "answer; only a body error or the latched quota flag means partial."
 +    )
 
 # ============================================================================
@@ -1754,7 +1047,6 @@ index 0000000..0ab8d17
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |  163 ++--
-#    .claude/task/review_input.patch | 2012 +++++++++++++++++++++++++--------------
-#    2 files changed, 1399 insertions(+), 776 deletions(-)
+#   .claude/task/review_input.patch | 2462 +++++++++++++--------------------------
+#    1 file changed, 842 insertions(+), 1620 deletions(-)
 # ============================================================================

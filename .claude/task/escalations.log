@@ -1687,3 +1687,57 @@ times.
   the amendment rules, and this ruling is not in it — adding it would itself be a scope extension
   onto a file this task has no business editing, mid-review, at round 3 of a 3-round cap. Folding
   the rule into §2 is worth its own small change.
+
+## 2026-08-08 — #33 item 8 SPLIT into 8a/8b: item 8 as approved would have destroyed prod data
+
+  CPO DECISION, taken 2026-08-08, AFTER and NARROWING the blanket #33 approval recorded above.
+  Recorded here because that blanket entry approved item 8 as one thing ("raw merge-on-write with
+  the raw_archive backup first") and this changes what item 8 IS. `scope-auditor` FAILed round 1 of
+  `fix/896-guard-partial-writes` for its absence and was right — the fourth time this repo has
+  ruled that a decision living only in `contract.md` is not recorded, after 2026-07-31, 2026-08-01
+  and 2026-08-08 (the standing-rule entry above).
+
+  WHAT WAS FOUND, and it is why the split exists. Item 8 converts the append-only raw tables to
+  merge-on-write keyed on `league_code`. Four of the target loaders abandon their fetch loop when
+  the daily quota latches and then write the partial payload unconditionally:
+
+      transfers.py:31-33   coaches.py:44-45   standings.py:31-32   teams.py:29-30
+      for x in ...:
+          if errors_quota._http_quota_exhausted:
+              break                      # loop abandoned, nothing recorded
+          ...
+      load_json_to_bq(..., append=True)  # partial written as if complete
+
+  Under append-only that is RECOVERABLE: the partial wins the latest-snapshot `qualify` in
+  staging, but the complete prior row still exists in `raw`. Under merge-on-write the partial
+  write DELETES the complete prior row. A single quota cut would permanently destroy the good
+  snapshot — including RAW_APIF_TRANSFERS, measured 2026-08-08 at 6.99 GiB, 59% of all raw.
+
+  This is #896 ("an incomplete fetch must never supersede good data"), already ruled on
+  2026-08-03 and already implemented for RAW_APIF_PLAYERS only. A sweep found
+  `result_is_complete()` is called in exactly ONE place in the whole codebase; nine loaders
+  fetch-and-write with no completeness check at all.
+
+  THE RULING.
+  - **8a** — port the #896 guard first, to `transfers`, `coaches`, and (checked, and they had the
+    same defect) `standings` and `teams`. No deletion, no merge-on-write. Independently valuable,
+    can only ever write FEWER rows than today, and is the precondition that makes 8b safe.
+  - **8b** — merge-on-write, only for tables provably complete-snapshot AFTER 8a.
+  - The CPO's words on being shown the above: "go ahead with 8a".
+
+  SCOPE OF 8a, decided explicitly rather than inferred: FOUR loaders, not two and not nine. Two
+  (`transfers`, `coaches`) were named by the CPO; `standings` and `teams` were named as "check" and
+  were found to have the identical defect, so they are in. The remaining five gaps — `catalog.py`,
+  `injuries.py`, `fixtures.py`, `player_profiles.py`, `player_teams.py`, plus the body-error half
+  of `player_squads.py` — are NOT in 8a. They are listed in that branch's `decisions_reserved` and
+  reported on #33 so 8b's scope is decided with them in view.
+
+  A LIMIT ON 8b THAT IS ALREADY KNOWN, recorded now so it cannot be lost between MRs:
+  `PLAYER_PROFILES` and `PLAYER_TEAMS` must NEVER be converted to a `league_code`-keyed delete.
+  They accumulate per player — `players_needing()` writes only newly-seen players — so deleting
+  prior rows for a league would erase every player ingested on an earlier run.
+
+  ALSO CORRECTED, from the same investigation: #33's item 8 says "eight append-only raw tables"
+  and "six per-league snapshot tables". The code has TEN append-only tables, and the set safe for
+  a `league_code`-keyed delete is smaller than six and is not the obvious six. Do not take either
+  count from #33 when scoping 8b; re-derive it from the loaders.
