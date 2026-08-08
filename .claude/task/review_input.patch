@@ -1,719 +1,908 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index c4f75b9..e489234 100644
+index e489234..d39afcc 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,90 +1,265 @@
--# Task contract — handover after !18-!21 and the cold audit re-run
-+# Task contract — Gate 0.2 + Wave 1 items 5 and 6 (#33)
+@@ -1,265 +1,237 @@
+-# Task contract — Gate 0.2 + Wave 1 items 5 and 6 (#33)
++# Task contract — Wave 1 items 2 and 4 (#33): CI trigger scoping and the ingest lock
  
--> Branch `chore/handover-after-audit-rerun` from `main` (`290bac0`). Bookkeeping. No PROTECTED
--> path, so no `protected_override`. Nothing structural, so no `impact_map`. No `site_v2/src/`, so
--> no `acceptance_criteria`. `.claude/active_work.md` is NOT scope-exempt and is listed below. A
--> commit touching `contract.md` is NEVER artifact-exempt, so this still takes a scope audit.
-+> Branch `chore/gate0-truth-and-dbt-deadwood` from `main` (`6352d7d`), in the worktree
-+> `D:\Projects\fdp-pipeline`. No PROTECTED path, so no `protected_override`.
-+> `dbt_project/models/**` IS the structural surface, so an `impact_map` is REQUIRED and is
-+> below. No `site_v2/src/`, so no `acceptance_criteria`.
+-> Branch `chore/gate0-truth-and-dbt-deadwood` from `main` (`6352d7d`), in the worktree
+-> `D:\Projects\fdp-pipeline`. No PROTECTED path, so no `protected_override`.
+-> `dbt_project/models/**` IS the structural surface, so an `impact_map` is REQUIRED and is
+-> below. No `site_v2/src/`, so no `acceptance_criteria`.
++> Branch `ci/scope-triggers-and-restore-ingest-lock` from `main` (`72a6a69`), in the worktree
++> `D:\Projects\fdp-pipeline`. `.gitlab-ci.yml` is a PROTECTED path, so this carries BOTH
++> `protected_override` AND an `impact_map`. Routes to `cto-reviewer` + `platform-reviewer` at the
++> OPUS floor, plus the always-on `scope-auditor`. No `site_v2/src/`, so no `acceptance_criteria`.
++>
++> ⚠ **Item 3 was in this contract and is WITHDRAWN at review round 2.** See "Item 3, withdrawn"
++> below. The title, objective and scope have shrunk accordingly; this MR now does strictly less
++> than round 1 proposed.
  
  objective: >
--  Bring `.claude/active_work.md` to current state after !18, !19, !20 and !21 merged, and record
--  the one thing this session produced that a cold chat cannot re-derive.
-+  Land Gate 0.2 and Wave 1 items 5 and 6 of GitLab issue #33 — the pipeline cost/scalability
-+  plan. Three separable things that share one reviewer set and touch disjoint files from the
-+  other two Wave 1 MRs:
- 
--  WHAT IS STALE. main is `290bac0`, not `0394e52`. The merge list stops at !15. It lists #25 and
--  #29 as OPEN when both are merged and closed. Its test count is 648 (now 665). It says the audit
--  stream's open set is #5/#14/#18/#20/#25/#26/#28 when #25 is done. It knows nothing of the linter,
--  of `.ruff-ci.toml`, or of the cold audit.
-+  (a) GATE 0.2 — correct four statements in `CLAUDE.md` that are false today, plus the stale
-+  headline of the memory file `project_dbt_shared_ci_prod_datasets.md`. #33 puts this first
-+  because every later item is reviewed against these statements, and three of the four would
-+  actively mislead a reviewer judging the rest of the plan.
- 
--  ⭐ THE ONE THAT MATTERS, and the reason this is not routine bookkeeping. The CPO asked whether
--  the audit's findings were replicable or an artifact of one long session. A cold re-run of
--  `/audit-agent-setup`, in a fresh context with no knowledge of the first audit's conclusions,
--  answered it: **the findings replicate, the prioritisation does not.** Six major findings
--  reproduced. The framing did not — the first audit produced 29 issues that all ADD; the cold run's
--  first recommendation was DELETION. Same repo, same skill, opposite first move.
-+  (b) ITEM 5 — drop the `source_json` column from the 9 staging models that emit it. It has
-+  zero consumers. Near-free today because BigQuery prunes an unused output column of a view,
-+  but staging becomes a TABLE in Wave 2 item 9, at which point this column is the dominant
-+  stored bytes. #33 makes item 5 a hard prerequisite of item 9; this is that prerequisite.
- 
--  The operative conclusion, which the handover must carry because acting on the wrong one cost this
--  session hours: **an audit is an instrument for FINDING, not for DECIDING. Its output is a list of
--  leads to verify, never a work list to execute.** Two of the cold run's four deletion targets did
--  not survive checking, and it missed a third stale doc entirely.
-+  (c) ITEM 6 — delete zero-caller / zero-use deadwood: two macros, a documented pre-filter
-+  that exists in no model, and the `dbt_expectations` package.
- 
--  A cold chat reading only the old handover would find "FINISH THE AUDIT STREAM" as NEXT step 1 and
--  grind through thirteen issues. Two are build items. The rest are decisions.
-+  CONSULTED BEFORE BUILDING (§2 norm): `dbt ls` for the real downstream closure rather than
-+  memory; `dbt_project/docs/layering.md` for what staging may and may not do; the actual
-+  `qualify` forms in all 15 staging models before rewriting the data contract's description
-+  of them.
+-  Land Gate 0.2 and Wave 1 items 5 and 6 of GitLab issue #33 — the pipeline cost/scalability
+-  plan. Three separable things that share one reviewer set and touch disjoint files from the
+-  other two Wave 1 MRs:
+-
+-  (a) GATE 0.2 — correct four statements in `CLAUDE.md` that are false today, plus the stale
+-  headline of the memory file `project_dbt_shared_ci_prod_datasets.md`. #33 puts this first
+-  because every later item is reviewed against these statements, and three of the four would
+-  actively mislead a reviewer judging the rest of the plan.
+-
+-  (b) ITEM 5 — drop the `source_json` column from the 9 staging models that emit it. It has
+-  zero consumers. Near-free today because BigQuery prunes an unused output column of a view,
+-  but staging becomes a TABLE in Wave 2 item 9, at which point this column is the dominant
+-  stored bytes. #33 makes item 5 a hard prerequisite of item 9; this is that prerequisite.
+-
+-  (c) ITEM 6 — delete zero-caller / zero-use deadwood: two macros, a documented pre-filter
+-  that exists in no model, and the `dbt_expectations` package.
+-
+-  CONSULTED BEFORE BUILDING (§2 norm): `dbt ls` for the real downstream closure rather than
+-  memory; `dbt_project/docs/layering.md` for what staging may and may not do; the actual
+-  `qualify` forms in all 15 staging models before rewriting the data contract's description
+-  of them.
++  Wave 1 items 2 and 4 of GitLab issue #33, bundled because both edit `.gitlab-ci.yml` and
++  separate MRs would conflict line-for-line.
++
++  (2) TRIGGER SCOPING. Split the single `*data_paths` anchor into an MR anchor and a prod anchor,
++  and drop five entries from the PROD one — `.gitlab-ci.yml`, `scripts/check_*.py`,
++  `scripts/data_trust_*.py`, `requirements.txt`, `ingestion/**/*`. None can change a compiled dbt
++  artifact, and each currently triggers a FULL prod warehouse build on push to main.
++
++  (4) THE INGEST LOCK — correctness, not cost, and #33 calls it the most serious finding in the
++  assessment. Remove `API_FOOTBALL_SKIP_INGEST_LOCK=1` from all three places it appears.
++  `settings.py:31` defaults the raw dataset to `raw` and `API_FOOTBALL_BIGQUERY_DATASET` is set
++  nowhere in CI, so `data:build:mr` writes PRODUCTION raw from an unmerged branch, with the lock
++  disabled, from a different `resource_group` than the prod writers.
++  `docs/operations_guide.md:149` already forbids it: "Local debugging only; never production."
++
++  Plus the residual #33 attaches to a CUT item: correct the false comment calling
++  `get_new_league_codes.py` "a cheap BigQuery metadata lookup". It is
++  `SELECT DISTINCT league_code FROM ...` (`scripts/get_new_league_codes.py:50`) — a billed column
++  scan. #33 cut bounding it with a predicate (the #892 hazard) and kept only the comment fix.
++
++  CONSULTED BEFORE BUILDING (§2 norm): enumerated the singular-test sets with `dbt ls` rather than
++  trusting #33's counts; read `ingestion_lock.py` and `main.py` to confirm a held lease cannot pass
++  silently; read `operations_guide.md` for the standing rule item 4 restores. What that consultation
++  MISSED is recorded under "Item 3, withdrawn" — it was the right method applied to the wrong
++  question.
  
  refs: >
--  !18 (#29), !19 (#25), !20 (the CI lint backstop), !21 (delete the stale architecture plan), all
--  merged 2026-08-07. Issues CLOSED: #29, #25. Issue FILED: **#30**, the cold audit re-run in full.
--  CPO instruction: **"update the handover and file the audit report as an issue"**.
-+  GitLab issue #33 (the working brief for the pipeline stream) — Gate 0.2, Wave 1 items 5
-+  and 6. Supersedes the ranking in #32. Related: #892 (why a time-based raw pre-filter is
-+  unsafe), #547 (base materialised as table, 2026-08-02).
+-  GitLab issue #33 (the working brief for the pipeline stream) — Gate 0.2, Wave 1 items 5
+-  and 6. Supersedes the ranking in #32. Related: #892 (why a time-based raw pre-filter is
+-  unsafe), #547 (base materialised as table, 2026-08-02).
++  GitLab issue #33, Wave 1 items 2 and 4 (+ the `get_new_league_codes.py` comment residual from the
++  "Cut, deliberately" section). Item 3 withdrawn — see below. Follows MR !23 (Gate 0.2 + items
++  5/6), merged 2026-08-08 as `72a6a69`. Related: #892, #667.
++
++protected_override: >
++  CPO approval of 2026-08-08, recorded durably in `.claude/task/escalations.log`, entry
++  "2026-08-08 — GitLab #33: the CPO approves the whole pipeline cost/scalability plan, in advance"
++  — which is ON `main` as of `72a6a69`, so a blinded reviewer can verify it independently of this
++  branch. That entry names items 2/3/4 explicitly as protected-path edits covered by the approval.
++  Verbatim: "Every item in #33's Gate 0, Wave 1, Wave 2 and Wave 3 is APPROVED, including the two
++  that would normally be CPO-class: raw merge-on-write with the raw_archive backup first (item 8),
++  and staging materialised as a table (item 9). The CPO said 'yes' to all three headline decisions
++  on 2026-08-08 and then approved the full recommendation set."
++  The same instruction supplies the §1 Confirm: "Work through the plan without checking in on
++  anything #33 already settles."
++  Note the entry's own stated limit, which round 2 proved load-bearing: "It records an approval of
++  a PLAN. It does not pre-approve whatever a builder later decides an item means."
  
  scope_paths:
--  - .claude/active_work.md
--  - .claude/task/contract.md
--  - .claude/task/review.md
--  - .claude/task/review_input.patch
-+  - CLAUDE.md
-+  - docs/data_contract.md
-+  - dbt_project/packages.yml
-+  - dbt_project/package-lock.yml
-+  - dbt_project/macros/apif_latest_source_partition.sql
-+  - dbt_project/macros/domestic_league_codes_in_clause.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__players.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__standings.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__teams.sql
+-  - CLAUDE.md
+-  - docs/data_contract.md
+-  - dbt_project/packages.yml
+-  - dbt_project/package-lock.yml
+-  - dbt_project/macros/apif_latest_source_partition.sql
+-  - dbt_project/macros/domestic_league_codes_in_clause.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__players.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__standings.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__teams.sql
++  - .gitlab-ci.yml
++  - tests/test_ci_data_job_invariants.py
++  - tests/test_governance_hooks.py
  
--decisions_taken: >
--  THRESHOLD DECLARATIONS, stated because no gate parses this field.
-+impact_map: >
-+  WRITERS of the changed surface.
-+  `source_json` is emitted by exactly 9 models and by nothing else. Verified by repo-wide
-+  grep, not from memory:
-+      $ grep -rn "source_json" --include=*.sql --include=*.yml --include=*.py --include=*.md \
-+          --include=*.json . | grep -v node_modules
-+      ./dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql:25
-+      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql:38
-+      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql:80
-+      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql:126
-+      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql:33
-+      ./dbt_project/models/1_staging/api_football/stg_apif__leagues.sql:65
-+      ./dbt_project/models/1_staging/api_football/stg_apif__lineups.sql:32
-+      ./dbt_project/models/1_staging/api_football/stg_apif__players.sql:49
-+      ./dbt_project/models/1_staging/api_football/stg_apif__standings.sql:49
-+      ./dbt_project/models/1_staging/api_football/stg_apif__teams.sql:25
-+  The two hits in `stg_apif__fixture_players.sql` are one column carried through an internal
-+  CTE (line 80 defines it, line 126 re-selects it in the final select of the same model), not
-+  two columns. Upstream of these models the raw writers are the ingestion loaders under
-+  `ingestion/api_football/loads/`; they are NOT touched by this task and the raw `payload`
-+  column they write is unchanged, so `source_json` disappearing changes nothing about what is
-+  stored in `raw`.
+ impact_map: >
+-  WRITERS of the changed surface.
+-  `source_json` is emitted by exactly 9 models and by nothing else. Verified by repo-wide
+-  grep, not from memory:
+-      $ grep -rn "source_json" --include=*.sql --include=*.yml --include=*.py --include=*.md \
+-          --include=*.json . | grep -v node_modules
+-      ./dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql:25
+-      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql:38
+-      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql:80
+-      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql:126
+-      ./dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql:33
+-      ./dbt_project/models/1_staging/api_football/stg_apif__leagues.sql:65
+-      ./dbt_project/models/1_staging/api_football/stg_apif__lineups.sql:32
+-      ./dbt_project/models/1_staging/api_football/stg_apif__players.sql:49
+-      ./dbt_project/models/1_staging/api_football/stg_apif__standings.sql:49
+-      ./dbt_project/models/1_staging/api_football/stg_apif__teams.sql:25
+-  The two hits in `stg_apif__fixture_players.sql` are one column carried through an internal
+-  CTE (line 80 defines it, line 126 re-selects it in the final select of the same model), not
+-  two columns. Upstream of these models the raw writers are the ingestion loaders under
+-  `ingestion/api_football/loads/`; they are NOT touched by this task and the raw `payload`
+-  column they write is unchanged, so `source_json` disappearing changes nothing about what is
+-  stored in `raw`.
+-
+-  DOWNSTREAM — the full closure, pasted from the command, not asserted:
+-      $ dbt ls --resource-type model --select stg_apif__fixtures_next+ stg_apif__fixture_events+ \
+-          stg_apif__fixture_players+ stg_apif__fixture_statistics+ stg_apif__leagues+ \
+-          stg_apif__lineups+ stg_apif__players+ stg_apif__standings+ stg_apif__teams+
+-      Found 94 models, 870 tests, 6 seeds, 11 sources, 0 exposures, 0 metrics, 853 macros
+-      -> 78 models: the 9 changed + 69 downstream.
+-      Counted mechanically, not by hand — the first version of this map said 79/70 with a
+-      "4_intermediate (24)" header over a 23-item list, `analytics-engineer-reviewer` FAILed it
+-      at round 1, and it was right (a #904-class recurrence). The count now comes from:
+-        $ dbt ls --resource-type model --select <the 9>+ | grep "^football_data_pipeline\." > closure.txt
+-        $ wc -l < closure.txt                      -> 78
+-        $ for L in 1_staging 2_base 3_core 4_intermediate 5_marts; do grep -c "\.$L\." closure.txt; done
+-                                                   -> 9, 12, 11, 23, 23
+-      1_staging (9): stg_apif__fixture_events, stg_apif__fixture_players,
+-        stg_apif__fixture_statistics, stg_apif__fixtures_next, stg_apif__leagues,
+-        stg_apif__lineups, stg_apif__players, stg_apif__standings, stg_apif__teams
+-      2_base (12): base_apif__competition_seasons, base_apif__fixture_events,
+-        base_apif__fixture_players, base_apif__fixture_statistics, base_apif__fixtures_next,
+-        base_apif__league_entity, base_apif__leagues, base_apif__player_team_season,
+-        base_apif__players, base_apif__standings, base_apif__teams, base_apif__teams_global
+-      3_core (11): dim_competition_season, dim_league, dim_player,
+-        dim_player_team_season_mapping, dim_team, dim_team_competition_season_mapping,
+-        fct_fixture, fct_fixture_event, fct_fixture_player_stats, fct_fixture_team_stats,
+-        fct_standings
+-      4_intermediate (23): int_legs__player_match, int_legs__team_from_players,
+-        int_legs__team_match, int_player_club_season__metrics,
+-        int_player_competition_benchmarks, int_player_momentum__metrics,
+-        int_player_profile__contribution, int_player_profile__yoy, int_player_season__metrics,
+-        int_player_season__team, int_player_season_position__metrics, int_player_season_record,
+-        int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
+-        int_team_momentum__metrics, int_team_momentum_window, int_team_profile__streaks,
+-        int_team_profile__yoy, int_team_season__deserved_vs_actual, int_team_season__metrics,
+-        int_team_season__metrics_cumulative, int_team_season__standings_primary,
+-        int_team_season_record
+-      5_marts (23): mart_fixture_standing_context, mart_head_to_head, mart_leaderboards,
+-        mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
+-        mart_player_fixture_stats, mart_player_match_log, mart_player_momentum,
+-        mart_player_profile, mart_player_season_record, mart_roster, mart_standings,
+-        mart_team_competition_benchmarks, mart_team_fixture_stats, mart_team_fixtures,
+-        mart_team_market_value, mart_team_momentum, mart_team_momentum_window,
+-        mart_team_profile, mart_team_season, mart_team_season_insights,
+-        mart_team_season_record
+-
+-  BLAST RADIUS: none. No mart column, no displayed number, no test changes.
+-  The claim is "no consumer exists", so the search is as wide as the claim — every model
+-  layer, every macro, every singular test, every seed, the export scripts, the built
+-  frontend, and the python test suite:
+-      $ grep -rn "source_json" dbt_project/models/2_base dbt_project/models/3_core \
+-          dbt_project/models/4_intermediate dbt_project/models/5_marts dbt_project/macros \
+-          dbt_project/tests dbt_project/seeds scripts site_v2/src tests
+-      (no output; exit 1)
+-      $ grep -rn "source_json" --include=*.yml dbt_project/
+-      (no output; exit 1)
+-  So no schema.yml documents or tests the column either — dropping it removes no test.
+-  The 69 downstream models above are the set CI will rebuild under `state:modified+`; that
+-  build is the executable proof of this "none", because a consumer would fail to compile.
+-
+-  The two deleted MACROS have zero callers in compiled code:
+-      $ grep -rn "apif_latest_source_partition\|domestic_league_codes_in_clause" \
+-          --include=*.sql --include=*.yml --include=*.py --include=*.md .
+-      ./.claude/active_work.md:160                       (a note saying to delete it)
+-      ./.github/workflows/pages-match-preview.yml:21     (path filter, dormant tree)
+-      ./dbt_project/macros/apif_latest_source_partition.sql:23,31  (its own docstring + def)
+-      ./dbt_project/macros/domestic_league_codes_in_clause.sql:1   (its own def)
+-      ./docs/product_direction_threads.md:12             (dated log of a CLOSED thread)
+-  No model, test or seed invokes either.
+-
+-  `dbt_expectations` is used nowhere. Repo-wide, excluding the installed package tree:
+-      $ grep -rn "dbt_date\|dbt_expectations" . | grep -v /dbt_packages/ | grep -v /node_modules/
+-      ./dbt_project/package-lock.yml:4,6
+-      ./dbt_project/packages.yml:4
+-  Removing it also removes its TRANSITIVE dependency `godatadriven/dbt_date` (observed in
+-  `dbt deps` output), which is likewise referenced by nothing. `dbt-labs/dbt_utils` stays and
+-  IS used.
+-
+-  LAYER RULES that apply. `scripts/check_layer_contract.py` (run in `validate:governance`):
+-  no per-competition staging subdirectory; no per-model materialisation override in `2_base`.
+-  Neither is affected — no directory is added, no `materialized` config is touched.
+-  `dbt_project/docs/layering.md` §1_staging: staging is raw cleanup only. Removing a
+-  passthrough column and deleting the doc's prescription of a pre-filter that no model
+-  implements both move toward that rule, never away from it.
+-
+-  DEPLOY ORDER on the shared warehouse. Staging is `view`, so the models are re-created, not
+-  migrated — there is no window in which a downstream model reads a dropped column, because
+-  no downstream model reads it. The nightly (`data:nightly`) is unreachable today: no GitLab
+-  schedule exists (creating one is #33 item 7, Wave 2), so there is no 04:00 run to sequence
+-  around. `data:build:main` rebuilds the full prod warehouse on merge to main, which
+-  re-creates all 9 views with the new column list in one build.
++  This is a PROTECTED path, so the trace is of the GUARD, not of table lineage.
 +
-+  DOWNSTREAM — the full closure, pasted from the command, not asserted:
-+      $ dbt ls --resource-type model --select stg_apif__fixtures_next+ stg_apif__fixture_events+ \
-+          stg_apif__fixture_players+ stg_apif__fixture_statistics+ stg_apif__leagues+ \
-+          stg_apif__lineups+ stg_apif__players+ stg_apif__standings+ stg_apif__teams+
-+      Found 94 models, 870 tests, 6 seeds, 11 sources, 0 exposures, 0 metrics, 853 macros
-+      -> 78 models: the 9 changed + 69 downstream.
-+      Counted mechanically, not by hand — the first version of this map said 79/70 with a
-+      "4_intermediate (24)" header over a 23-item list, `analytics-engineer-reviewer` FAILed it
-+      at round 1, and it was right (a #904-class recurrence). The count now comes from:
-+        $ dbt ls --resource-type model --select <the 9>+ | grep "^football_data_pipeline\." > closure.txt
-+        $ wc -l < closure.txt                      -> 78
-+        $ for L in 1_staging 2_base 3_core 4_intermediate 5_marts; do grep -c "\.$L\." closure.txt; done
-+                                                   -> 9, 12, 11, 23, 23
-+      1_staging (9): stg_apif__fixture_events, stg_apif__fixture_players,
-+        stg_apif__fixture_statistics, stg_apif__fixtures_next, stg_apif__leagues,
-+        stg_apif__lineups, stg_apif__players, stg_apif__standings, stg_apif__teams
-+      2_base (12): base_apif__competition_seasons, base_apif__fixture_events,
-+        base_apif__fixture_players, base_apif__fixture_statistics, base_apif__fixtures_next,
-+        base_apif__league_entity, base_apif__leagues, base_apif__player_team_season,
-+        base_apif__players, base_apif__standings, base_apif__teams, base_apif__teams_global
-+      3_core (11): dim_competition_season, dim_league, dim_player,
-+        dim_player_team_season_mapping, dim_team, dim_team_competition_season_mapping,
-+        fct_fixture, fct_fixture_event, fct_fixture_player_stats, fct_fixture_team_stats,
-+        fct_standings
-+      4_intermediate (23): int_legs__player_match, int_legs__team_from_players,
-+        int_legs__team_match, int_player_club_season__metrics,
-+        int_player_competition_benchmarks, int_player_momentum__metrics,
-+        int_player_profile__contribution, int_player_profile__yoy, int_player_season__metrics,
-+        int_player_season__team, int_player_season_position__metrics, int_player_season_record,
-+        int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
-+        int_team_momentum__metrics, int_team_momentum_window, int_team_profile__streaks,
-+        int_team_profile__yoy, int_team_season__deserved_vs_actual, int_team_season__metrics,
-+        int_team_season__metrics_cumulative, int_team_season__standings_primary,
-+        int_team_season_record
-+      5_marts (23): mart_fixture_standing_context, mart_head_to_head, mart_leaderboards,
-+        mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
-+        mart_player_fixture_stats, mart_player_match_log, mart_player_momentum,
-+        mart_player_profile, mart_player_season_record, mart_roster, mart_standings,
-+        mart_team_competition_benchmarks, mart_team_fixture_stats, mart_team_fixtures,
-+        mart_team_market_value, mart_team_momentum, mart_team_momentum_window,
-+        mart_team_profile, mart_team_season, mart_team_season_insights,
-+        mart_team_season_record
++  WHAT FIRES IT. `.gitlab-ci.yml` is the entire CI definition — 5 stages, 11 jobs. Every pipeline
++  on every branch, MR, web dispatch and (once item 7 lands) schedule is governed by it. Its blast
++  radius is every future push to this repo.
 +
-+  BLAST RADIUS: none. No mart column, no displayed number, no test changes.
-+  The claim is "no consumer exists", so the search is as wide as the claim — every model
-+  layer, every macro, every singular test, every seed, the export scripts, the built
-+  frontend, and the python test suite:
-+      $ grep -rn "source_json" dbt_project/models/2_base dbt_project/models/3_core \
-+          dbt_project/models/4_intermediate dbt_project/models/5_marts dbt_project/macros \
-+          dbt_project/tests dbt_project/seeds scripts site_v2/src tests
-+      (no output; exit 1)
-+      $ grep -rn "source_json" --include=*.yml dbt_project/
-+      (no output; exit 1)
-+  So no schema.yml documents or tests the column either — dropping it removes no test.
-+  The 69 downstream models above are the set CI will rebuild under `state:modified+`; that
-+  build is the executable proof of this "none", because a consumer would fail to compile.
- 
--  NEW MECHANISM — NO. Prose edits to one handover file.
-+  The two deleted MACROS have zero callers in compiled code:
-+      $ grep -rn "apif_latest_source_partition\|domestic_league_codes_in_clause" \
-+          --include=*.sql --include=*.yml --include=*.py --include=*.md .
-+      ./.claude/active_work.md:160                       (a note saying to delete it)
-+      ./.github/workflows/pages-match-preview.yml:21     (path filter, dormant tree)
-+      ./dbt_project/macros/apif_latest_source_partition.sql:23,31  (its own docstring + def)
-+      ./dbt_project/macros/domestic_league_codes_in_clause.sql:1   (its own def)
-+      ./docs/product_direction_threads.md:12             (dated log of a CLOSED thread)
-+  No model, test or seed invokes either.
- 
--  RECURRING COST — NO. Nothing executes. The file must stay under its 16,000-CHARACTER cap, which
--  it currently sits at 2 characters below, so every addition is paid for by a deletion.
-+  `dbt_expectations` is used nowhere. Repo-wide, excluding the installed package tree:
-+      $ grep -rn "dbt_date\|dbt_expectations" . | grep -v /dbt_packages/ | grep -v /node_modules/
-+      ./dbt_project/package-lock.yml:4,6
-+      ./dbt_project/packages.yml:4
-+  Removing it also removes its TRANSITIVE dependency `godatadriven/dbt_date` (observed in
-+  `dbt deps` output), which is likewise referenced by nothing. `dbt-labs/dbt_utils` stays and
-+  IS used.
- 
--  NEW EXTERNAL SURFACE — NO.
-+  LAYER RULES that apply. `scripts/check_layer_contract.py` (run in `validate:governance`):
-+  no per-competition staging subdirectory; no per-model materialisation override in `2_base`.
-+  Neither is affected — no directory is added, no `materialized` config is touched.
-+  `dbt_project/docs/layering.md` §1_staging: staging is raw cleanup only. Removing a
-+  passthrough column and deleting the doc's prescription of a pre-filter that no model
-+  implements both move toward that rule, never away from it.
++  WHAT THE EDITED REGIONS CONTROL, and every consumer of each:
++  - The `.data_paths` anchor had exactly TWO consumers, verified by
++    `grep -n "data_paths" .gitlab-ci.yml`: the `changes:` clause of `data:build:mr` and that of
++    `data:build:main`. A third hit is a PROSE comment naming the anchor, updated here so it does
++    not go stale; a fourth lives in `tests/test_governance_hooks.py` and is updated for the same
++    reason. That is the whole reference set.
++  - `API_FOOTBALL_SKIP_INGEST_LOCK=1` appeared three times — once in `data:build:mr`, twice in
++    `data:build:main` (the `RUN_INGEST` branch and the bootstrap branch). It appears in no other
++    file except `ingestion/api_football/ingestion_lock.py:29` (the reader) and
++    `docs/operations_guide.md:149` (the rule forbidding it), neither of which is edited.
 +
-+  DEPLOY ORDER on the shared warehouse. Staging is `view`, so the models are re-created, not
-+  migrated — there is no window in which a downstream model reads a dropped column, because
-+  no downstream model reads it. The nightly (`data:nightly`) is unreachable today: no GitLab
-+  schedule exists (creating one is #33 item 7, Wave 2), so there is no 04:00 run to sequence
-+  around. `data:build:main` rebuilds the full prod warehouse on merge to main, which
-+  re-creates all 9 views with the new column list in one build.
++  WHAT STOPS BEING ENFORCED IF THIS IS WRONG:
++  - Item 2 wrong -> either prod stops rebuilding when it should (a stale warehouse, which is also
++    the `--defer --favor-state` baseline for every MR build, so the staleness would propagate into
++    MR validation with nothing red), or nothing changes. Two mitigations: the anchor gates only the
++    `push`-to-main clause, so the `web` + `when: manual` full build is always one button away; and
++    `tests/test_ci_data_job_invariants.py` now asserts the property in BOTH directions —
++    `.data_paths_prod` must cover every dbt compile input, and must not exceed `.data_paths_mr`.
++    The single anchor used to make that drift structurally impossible; splitting it traded the
++    guarantee for a comment, so the test re-establishes it.
++  - Item 4 wrong -> an ingest could run while another holds the lease. It cannot fail silently:
++    `acquire_ingest_lock` returning False makes `_load_api_football` return 409, and `main.py:55-56`
++    turns 409 into `SystemExit(2)`, so the job goes RED. Removing the flag converts a silent
++    concurrent-write hazard into a loud failure. It does NOT stop `data:build:mr` writing prod raw —
++    that is #33 item 13, still open and deliberately out of scope.
 +
-+decisions_taken: >
-+  AUTHORITY FOR EVERY ITEM BELOW. The durable record is
-+  `.claude/task/escalations.log`, entry "2026-08-08 — GitLab #33: the CPO approves the whole
-+  pipeline cost/scalability plan, in advance" — appended in this branch, and appended BECAUSE
-+  `scope-auditor` FAILed round 1 for its absence and was right. This contract is overwritten by
-+  the next task, so quoting a ruling here is not recording it (the CPO's own rule, escalations.log
-+  2026-07-31 and 2026-08-01). That entry also names the §10-class items the approval covers
-+  individually, and states its own limit: it approves a PLAN, not whatever a builder later decides
-+  an item means. Quoted from the CPO's instruction of 2026-08-08:
-+  "Every item in #33's Gate 0, Wave 1, Wave 2 and Wave 3 is APPROVED, including the two that
-+  would normally be CPO-class: raw merge-on-write with the raw_archive backup first (item 8),
-+  and staging materialised as a table (item 9). The CPO said 'yes' to all three headline
-+  decisions on 2026-08-08 and then approved the full recommendation set." That instruction
-+  also supplies the §1 Confirm for this task: "Work through the plan without checking in on
-+  anything #33 already settles."
++  WHAT HAPPENS ON FAILURE OF THIS CHANGE ITSELF. A YAML error fails every job immediately and
++  visibly; there is no fail-open mode. The MR's own pipeline exercises both edits: it re-parses the
++  file, and `data:build:mr` runs under the new MR anchor with the lock restored.
++
++  DEPLOY ORDER / SHARED WAREHOUSE. No warehouse object changes. No model, seed, macro or test SQL
++  is touched, so `state:modified+` selects nothing new and prod's tables are untouched. The nightly
++  is unreachable today (no GitLab schedule; that is item 7), so nothing to sequence around.
++
++  BLAST RADIUS on data: none. No mart, no number, no displayed value changes, and — after the
++  round-2 withdrawal of item 3 — no change whatsoever to which DQ tests run, when they run, or what
++  they block.
  
--  GUARD INVARIANT — UNCHANGED. No guard, hook, test or routing row is touched.
-+  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an
-+  oversight).
-+  - DEPENDENCY CHANGE: this REMOVES `metaplane/dbt_expectations` and, transitively,
-+    `godatadriven/dbt_date` from `dbt_project/packages.yml` and `package-lock.yml`. It adds
-+    no dependency. `packages.yml` matches no routing row, so `cto-reviewer` is not required
-+    on this diff and would only see this if declared here. Authority: #33 item 6, approved
-+    as above. Evidence of zero use is in the impact_map.
-+  - MECHANISM REMOVED, not added: two macros are deleted. Nothing new is introduced — no UDF,
-+    no lifecycle hook, no library, no workflow step (cf. Appendix A3).
-+  - RECURRING COST: unchanged by this MR, in either direction. Item 5's saving is not
-+    realised until staging becomes a table (Wave 2 item 9); today BigQuery prunes the unused
-+    view output column, so this is a prerequisite, not a saving. No schedule, cadence, API
-+    budget or history depth is touched.
-+  - ONE-OFF COST, disclosed: this MR modifies 9 staging models, so `data:build:mr` selects
-+    `state:modified+` = the 78-model closure above plus the full singular DQ suite. That is
-+    the most expensive shape an MR build takes. It is also the point — it is the executable
-+    proof that no consumer of `source_json` existed.
- 
--  WHAT IS DELETED, stated because deletion is the risk in a capped file. Only spent content goes:
--  the build detail of #1's parity test and #19's compression percentage (both merged and in git);
--  the per-issue note for #25 (merged); the merge list for !6-!15, collapsed to a range; and the
--  ingest-cluster verification prose, tightened without losing the pacing numbers, the four fixes'
--  gaps or the standing facts. No open decision, no live trap and no CPO ruling is removed.
-+  SCOPE JUDGEMENTS I made rather than escalated (all below §10; stated so a reviewer can
-+  attack them):
-+  - `.github/workflows/pages-match-preview.yml:21` lists a deleted macro in a `paths:`
-+    filter. NOT edited. `CLAUDE.md` and `.github/workflows/README.md` both say that tree is a
-+    deliberately frozen pre-migration snapshot that runs nothing; a path filter naming a file
-+    that no longer exists is inert. Editing it to "keep it in sync" is the exact thing
-+    `CLAUDE.md` forbids.
-+  - `docs/product_direction_threads.md:12` names `apif_latest_source_partition` under
-+    "Thread 1 — Cost at scale (CLOSED 2026-05-25)". NOT edited. It is a dated record that PR
-+    #222 added the macro, which remains true. #33 lists the `data_contract.md` lines because
-+    that document is PRESCRIPTIVE and a reader would restore the behaviour from it; a closed
-+    thread log is not prescriptive.
-+  - `data_contract.md:61` introduces the SQL block being deleted, so deleting the block alone
-+    would leave a dangling sentence. That sentence is rewritten to describe what the 15
-+    staging models actually do, verified by reading all of them: 6 apply
-+    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
-+    (fixtures_next, leagues, squads, standings, teams, transfers) and NONE applies the
-+    7-day `where DATE(ingested_at) >= ...` pre-filter the doc prescribes. Editorial
-+    correction of a statement that is false; not a design change.
- 
--  ⚠ THAT CLAIM HAS BEEN FALSE BEFORE in this exact file: on 2026-08-07 `scope-auditor` FAILed a
--  handover task because #27 had been cut entirely while trimming to the cap, while the same field
--  claimed nothing open was lost. It is checked against the file this time, not asserted — see
--  `done_when`.
-+  A CORRECTION TO #33, on evidence, per the CPO's instruction to say so plainly. #33 says the
-+  memory file "records the fix as still needed". It does not: it carries a
-+  "RESOLVED — PR #668 (MERGED 2026-07-08)" section. What is stale is its `description:`
-+  frontmatter and its "How to apply:" line, which still assert the shared-dataset hazard as
-+  live and are what a recall surfaces first. Those two are corrected; the body's history is
-+  left intact. (That file lives outside the repo, so it is not in `scope_paths` and does not
-+  appear in this diff.)
+ decisions_taken: >
+-  AUTHORITY FOR EVERY ITEM BELOW. The durable record is
+-  `.claude/task/escalations.log`, entry "2026-08-08 — GitLab #33: the CPO approves the whole
+-  pipeline cost/scalability plan, in advance" — appended in this branch, and appended BECAUSE
+-  `scope-auditor` FAILed round 1 for its absence and was right. This contract is overwritten by
+-  the next task, so quoting a ruling here is not recording it (the CPO's own rule, escalations.log
+-  2026-07-31 and 2026-08-01). That entry also names the §10-class items the approval covers
+-  individually, and states its own limit: it approves a PLAN, not whatever a builder later decides
+-  an item means. Quoted from the CPO's instruction of 2026-08-08:
+-  "Every item in #33's Gate 0, Wave 1, Wave 2 and Wave 3 is APPROVED, including the two that
+-  would normally be CPO-class: raw merge-on-write with the raw_archive backup first (item 8),
+-  and staging materialised as a table (item 9). The CPO said 'yes' to all three headline
+-  decisions on 2026-08-08 and then approved the full recommendation set." That instruction
+-  also supplies the §1 Confirm for this task: "Work through the plan without checking in on
+-  anything #33 already settles."
+-
+-  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an
+-  oversight).
+-  - DEPENDENCY CHANGE: this REMOVES `metaplane/dbt_expectations` and, transitively,
+-    `godatadriven/dbt_date` from `dbt_project/packages.yml` and `package-lock.yml`. It adds
+-    no dependency. `packages.yml` matches no routing row, so `cto-reviewer` is not required
+-    on this diff and would only see this if declared here. Authority: #33 item 6, approved
+-    as above. Evidence of zero use is in the impact_map.
+-  - MECHANISM REMOVED, not added: two macros are deleted. Nothing new is introduced — no UDF,
+-    no lifecycle hook, no library, no workflow step (cf. Appendix A3).
+-  - RECURRING COST: unchanged by this MR, in either direction. Item 5's saving is not
+-    realised until staging becomes a table (Wave 2 item 9); today BigQuery prunes the unused
+-    view output column, so this is a prerequisite, not a saving. No schedule, cadence, API
+-    budget or history depth is touched.
+-  - ONE-OFF COST, disclosed: this MR modifies 9 staging models, so `data:build:mr` selects
+-    `state:modified+` = the 78-model closure above plus the full singular DQ suite. That is
+-    the most expensive shape an MR build takes. It is also the point — it is the executable
+-    proof that no consumer of `source_json` existed.
+-
+-  SCOPE JUDGEMENTS I made rather than escalated (all below §10; stated so a reviewer can
+-  attack them):
+-  - `.github/workflows/pages-match-preview.yml:21` lists a deleted macro in a `paths:`
+-    filter. NOT edited. `CLAUDE.md` and `.github/workflows/README.md` both say that tree is a
+-    deliberately frozen pre-migration snapshot that runs nothing; a path filter naming a file
+-    that no longer exists is inert. Editing it to "keep it in sync" is the exact thing
+-    `CLAUDE.md` forbids.
+-  - `docs/product_direction_threads.md:12` names `apif_latest_source_partition` under
+-    "Thread 1 — Cost at scale (CLOSED 2026-05-25)". NOT edited. It is a dated record that PR
+-    #222 added the macro, which remains true. #33 lists the `data_contract.md` lines because
+-    that document is PRESCRIPTIVE and a reader would restore the behaviour from it; a closed
+-    thread log is not prescriptive.
+-  - `data_contract.md:61` introduces the SQL block being deleted, so deleting the block alone
+-    would leave a dangling sentence. That sentence is rewritten to describe what the 15
+-    staging models actually do, verified by reading all of them: 6 apply
+-    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
+-    (fixtures_next, leagues, squads, standings, teams, transfers) and NONE applies the
+-    7-day `where DATE(ingested_at) >= ...` pre-filter the doc prescribes. Editorial
+-    correction of a statement that is false; not a design change.
+-
+-  A CORRECTION TO #33, on evidence, per the CPO's instruction to say so plainly. #33 says the
+-  memory file "records the fix as still needed". It does not: it carries a
+-  "RESOLVED — PR #668 (MERGED 2026-07-08)" section. What is stale is its `description:`
+-  frontmatter and its "How to apply:" line, which still assert the shared-dataset hazard as
+-  live and are what a recall surfaces first. Those two are corrected; the body's history is
+-  left intact. (That file lives outside the repo, so it is not in `scope_paths` and does not
+-  appear in this diff.)
++  AUTHORITY: see `protected_override` — the durable record is the 2026-08-08 entry in
++  `.claude/task/escalations.log`, on `main` at `72a6a69`, independently checkable by a blinded
++  reviewer. Quoting a ruling only in this file is not recording it (`scope-auditor` FAILed !23
++  round 1 for exactly that).
++
++  ITEM 3, WITHDRAWN AT REVIEW ROUND 2 — the most important thing in this contract.
++  Round 1 implemented it and all three specialist reviewers independently FAILed it on the same
++  defect. They were right, and I verified the mechanism in the installed dbt before accepting it:
++      dbt/task/build.py:134      compiler.compile(self.manifest, add_test_edges=True)
++      dbt/task/build.py:80       MARK_DEPENDENT_ERRORS_STATUSES = [NodeStatus.Error, NodeStatus.Fail]
++      dbt/compilation.py:203-206 add_test_edges makes an upstream test a dependency of the node
++  So inside `dbt build`, a `severity: error` test that fails SKIPS the models below it, and prod
++  keeps its last good data. Excluding singular tests from the `staging`/`downstream` selectors left
++  the same 28 assertions running on the trailing `dbt test` line — but by then the entire warehouse
++  has been materialised into the bare prod datasets. Several of the 25 sit on high-fan-out nodes
++  (`fct_fixture`, `base_apif__fixtures_next`, `dim_team`). The test COUNT was unchanged; the GATE
++  was removed.
++  My round-1 contract asserted "Coverage delta is EXACTLY ZERO … What changes is 25 duplicate
++  executions, nothing else" and "GUARD WEAKENED? NO". Both were wrong, and wrong in the way this
++  repo logs repeatedly: I measured the thing that was easy to count (how many tests execute) and
++  not the property that mattered (whether a failure blocks the write). `dbt ls` cannot see that
++  difference, so a correct-looking measurement certified a regression.
++  The alternative de-duplication — keep the tests in the builds, narrow the trailing line to the
++  three seed-only catalogue tests — was considered and ALSO rejected: naming that set durably needs
++  a tag, and a future singular test whose author forgets the tag would then never run on the prod
++  build at all. That trades a cheap duplicate for a silent hole, which is the worse bargain.
++  So the duplication STAYS. It cost 9.7s of a 7m29s prod build (measured on MR !23's pipeline).
++  #33's item 3 is not implementable as specified (its mechanism is a no-op — `dbt` ignores a CLI
++  `--exclude` under `--selector`; measured: `dbt ls --selector downstream --resource-type test`
++  returns 770 with and without it, while the same flag against `--select` drops 870 to 840), and the
++  obvious alternative inverts a DQ gate. It needs its own scoped decision, not a rushed round-2
++  patch, and it is reported back to the CPO on #33 rather than quietly dropped.
++
++  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an oversight).
++  - GUARD WEAKENED? NO — and unlike round 1 this is now true rather than asserted. With item 3
++    withdrawn, `dbt_project/selectors.yml` is byte-identical to `main` (`git diff main --
++    dbt_project/selectors.yml` is empty), so nothing about DQ enforcement moves. Item 4 RESTORES a
++    guard CI had disabled. Item 2 narrows when an expensive job runs, only for paths that cannot
++    change a compiled dbt artifact, and adds a test that pins the narrowing in both directions.
++  - RECURRING COST: reduced. Item 2 removes prod builds triggered by paths that cannot change dbt
++    output. No new job, schedule or cadence. Item 7 is Wave 2 and NOT in this MR.
++  - NEW MECHANISM: none in CI. One new test file, declared below.
++
++  SCOPE JUDGEMENTS I made rather than escalated (all below §10):
++  - I ADDED `tests/test_ci_data_job_invariants.py`, which #33 does not ask for. `platform-reviewer`'s
++    standing hunt item is "does a test pin this changed behaviour", and for item 2 the honest
++    round-1 answer was no — it was the item with the silent-failure mode and it was the one left
++    unpinned. Two assertions, both proven to fail (see done_when).
++  - I updated two PROSE references to the renamed anchor — the comment at the top of
++    `.gitlab-ci.yml` and a docstring in `tests/test_governance_hooks.py:2040`. A comment naming a
++    nonexistent anchor is the stale-reference failure this repo logs repeatedly, and round 1 fixed
++    one copy while missing the other, which is the same half-correction pattern.
++  - I did NOT touch `docs/operations_guide.md:149`. It already states the rule correctly; item 4
++    makes CI comply with it.
++  - I did NOT remove the bootstrap ingest from `data:build:mr` (#33 item 13, "Later, still open").
++
++  RESIDUAL RISK IN ITEM 2, flagged rather than silently accepted. Dropping `requirements.txt` from
++  the PROD anchor means a dbt version bump merged to main will not by itself rebuild prod, and a
++  dbt upgrade can change compiled SQL. Prod would serve old-compiled tables until the next model
++  change or (once item 7 exists) the nightly. #33 approved the drop explicitly and the exposure is
++  small and self-healing, so I implemented it as specified rather than narrowing it on my own
++  judgement — but the reviewer should see it named, and the reasoning is also in the file itself.
  
  decisions_reserved:
--  - "Whether the 16,000-character cap is the right mechanism. Every session pays a compression tax
--    to add a line, and #30 names it as a MAJOR finding. Raised in two prior handover tasks and
--    still not decided. The CPO's."
--  - "The re-ranking of what remains. #30's evidence says the next build item should be a check that
--    the contract's factual claims hold against the tree, ahead of the hook telemetry it ranked
--    first. NOT decided here — this task records state, it does not re-plan the stream."
-+  - The fate of `stg_apif__lineups`, `stg_apif__squads` and `stg_apif__player_teams` — zero
-+    `ref()` anywhere, 12 tests between them (#33 "Later, still open", item 17). Deleting a
-+    model is permanent and is a §10 call. NOT decided here: `stg_apif__lineups` keeps its
-+    place in this diff and only loses the unused column, exactly like the other 8.
-+  - Whether `data_contract.md` should positively PRESCRIBE a cheap latest-snapshot read shape
-+    now that the 7-day pre-filter is deleted. This MR only removes a false statement. What
-+    the correct prescribed shape is depends on Wave 2 items 8 and 9 (merge-on-write makes the
-+    question different), so writing one now would be inventing a rule ahead of its evidence.
+-  - The fate of `stg_apif__lineups`, `stg_apif__squads` and `stg_apif__player_teams` — zero
+-    `ref()` anywhere, 12 tests between them (#33 "Later, still open", item 17). Deleting a
+-    model is permanent and is a §10 call. NOT decided here: `stg_apif__lineups` keeps its
+-    place in this diff and only loses the unused column, exactly like the other 8.
+-  - Whether `data_contract.md` should positively PRESCRIBE a cheap latest-snapshot read shape
+-    now that the 7-day pre-filter is deleted. This MR only removes a false statement. What
+-    the correct prescribed shape is depends on Wave 2 items 8 and 9 (merge-on-write makes the
+-    question different), so writing one now would be inventing a rule ahead of its evidence.
++  - #33 ITEM 3's FUTURE. Whether to pursue the de-duplication at all, and if so by which mechanism,
++    now that the specified one is a proven no-op and the obvious alternative inverts a DQ gate. My
++    recommendation, for the CPO to accept or reject on #33: DROP IT. The measured prize is ~9.7s of
++    test time per prod build; the cheapest safe mechanism introduces a silent-hole class. This is
++    reserved rather than decided because "may the prod warehouse be materialised over a
++    severity=error DQ failure" is a §10 question and `cto-reviewer` said so explicitly.
++  - #33 item 13 — taking the bootstrap ingest out of `data:build:mr` entirely. Item 4 restores the
++    lock; it does not stop the write. Whether an MR pipeline may write production raw at all is §10.
++  - #33 item 12 — scoping `data:build:main` to `state:modified+` via a moving `prod-built` tag.
++    Blocked on item 7 and not attempted.
++  - Whether `.gitlab-ci.yml` should stay in the MR anchor. Kept deliberately: a change to CI must
++    revalidate CI. #33 only asks for it to leave the PROD anchor.
  
  done_when:
--  - "`.claude/active_work.md` is under 16,000 CHARACTERS measured with Python `len()`, and
--    `handover_in.py` injects it with no truncation notice."
--  - "main `290bac0`; !18-!21 recorded as merged; #29 and #25 recorded as CLOSED; **#30** present
--    with its one-line conclusion that an audit finds but does not decide."
--  - "The audit stream's remaining set is stated as it actually is: TWO build items, everything else
--    a decision. #25 no longer appears as open."
--  - "Every issue open before this edit is still present after it, VERIFIED by diffing the issue
--    numbers in the file against `glab issue list` — not asserted. This is the check that FAILed on
--    2026-08-07 when #27 was silently dropped."
--  - "The test count is **665**, MEASURED with `pytest --collect-only -q`, never predicted. Three
--    contracts in one day shipped a wrong count (#904), and #904's own recurrence count is updated
--    to SIX with the rule that would have caught them."
--  - "The five offline gates pass, `ruff check . --config .ruff-ci.toml` exits 0, and
--    `check_task_artifacts.py` runs BARE."
-+  - `grep -rn "source_json"` over the repo (excluding node_modules and dbt_packages) returns
-+    no hits at all.
-+  - `dbt deps` succeeds and installs only `dbt_utils`, and `dbt_packages/` afterwards contains
-+    only `dbt_utils` — so the two removed packages are physically gone, not merely undeclared.
-+  - `dbt compile --exclude resource_type:test` exits 0 over all 94 models.
-+    **`dbt parse` is NOT the check here and must not be substituted for it.** Measured on this
-+    branch: with a deliberate `{{ dbt_expectations.type_column_list('x') }}` probe inserted into
-+    `stg_apif__lineups.sql`, `dbt parse` exited **0** — it does not render model bodies — while
-+    `dbt compile` exited **2** with "'dbt_expectations' is undefined". The probe was then
-+    reverted. A green `parse` would have proved nothing about the package removal; `compile` is
-+    what makes the claim falsifiable.
-+    (Full `dbt compile` including tests fails locally for an unrelated reason: the singular test
-+    `assert_metric_catalogue_expr_resolvable` is introspective and queries the dev dataset, which
-+    is now `dev_scratch` and does not exist after Gate 0.1. That is Gate 0.1 working as intended —
-+    before it, the same introspective test silently queried prod's `dbt_analytics`. CI is
-+    unaffected: it runs `--target ci`/`--target prod`, whose datasets exist.)
-+  - `dbt ls --resource-type model --select <the 9 models>+` still resolves 78 models — no
-+    broken `ref()` introduced by the deletions. Count it with `wc -l`, never by reading the list.
-+  - `python -m sqlfluff lint <the 9 changed models> --templater jinja --dialect bigquery`
-+    from the REPO ROOT reports nothing that is not also present on `main` for the same files.
-+  - `python scripts/check_layer_contract.py` and `python scripts/check_registry_var_sync.py`
-+    both exit 0 (exit code read directly, not inferred from output).
-+  - `python -m pytest tests/ -q` exit code read directly; green.
-+  - CI `validate:governance` and `data:build:mr` green on the MR. The `state:modified+` build
-+    over the 78-model closure plus the full singular DQ suite is the executable proof of the
-+    impact_map's "blast radius: none".
- 
- amendments: (none)
+-  - `grep -rn "source_json"` over the repo (excluding node_modules and dbt_packages) returns
+-    no hits at all.
+-  - `dbt deps` succeeds and installs only `dbt_utils`, and `dbt_packages/` afterwards contains
+-    only `dbt_utils` — so the two removed packages are physically gone, not merely undeclared.
+-  - `dbt compile --exclude resource_type:test` exits 0 over all 94 models.
+-    **`dbt parse` is NOT the check here and must not be substituted for it.** Measured on this
+-    branch: with a deliberate `{{ dbt_expectations.type_column_list('x') }}` probe inserted into
+-    `stg_apif__lineups.sql`, `dbt parse` exited **0** — it does not render model bodies — while
+-    `dbt compile` exited **2** with "'dbt_expectations' is undefined". The probe was then
+-    reverted. A green `parse` would have proved nothing about the package removal; `compile` is
+-    what makes the claim falsifiable.
+-    (Full `dbt compile` including tests fails locally for an unrelated reason: the singular test
+-    `assert_metric_catalogue_expr_resolvable` is introspective and queries the dev dataset, which
+-    is now `dev_scratch` and does not exist after Gate 0.1. That is Gate 0.1 working as intended —
+-    before it, the same introspective test silently queried prod's `dbt_analytics`. CI is
+-    unaffected: it runs `--target ci`/`--target prod`, whose datasets exist.)
+-  - `dbt ls --resource-type model --select <the 9 models>+` still resolves 78 models — no
+-    broken `ref()` introduced by the deletions. Count it with `wc -l`, never by reading the list.
+-  - `python -m sqlfluff lint <the 9 changed models> --templater jinja --dialect bigquery`
+-    from the REPO ROOT reports nothing that is not also present on `main` for the same files.
+-  - `python scripts/check_layer_contract.py` and `python scripts/check_registry_var_sync.py`
+-    both exit 0 (exit code read directly, not inferred from output).
+-  - `python -m pytest tests/ -q` exit code read directly; green.
+-  - CI `validate:governance` and `data:build:mr` green on the MR. The `state:modified+` build
+-    over the 78-model closure plus the full singular DQ suite is the executable proof of the
+-    impact_map's "blast radius: none".
+-
+-amendments: (none)
++  - `.gitlab-ci.yml` parses (`yaml.safe_load`), and the MR pipeline accepts it.
++  - No `.gitlab-ci.yml` SCRIPT LINE **or `variables:` ENTRY** sets `API_FOOTBALL_SKIP_INGEST_LOCK`.
++    Check by parsing, not grepping: `grep -c` over the file returns 1, because the comment block
++    documenting the fix names the flag. A text grep would flag the documentation as the defect.
++  - `git diff main -- dbt_project/selectors.yml` is EMPTY — item 3 fully withdrawn, no DQ
++    enforcement change anywhere in this MR.
++  - `python -m pytest tests/test_ci_data_job_invariants.py -q` exit code read DIRECTLY; green.
++  - EVERY assertion proven load-bearing by breaking the thing and watching it go red, then
++    reverting. DONE, all four, and two of them mattered:
++      · re-added the flag as a script line       -> FAILED naming the line. Reverted; green.
++      · set the flag via a `variables:` mapping  -> FAILED naming `data:build:mr.API_FOOTBALL_
++        SKIP_INGEST_LOCK`. This hole was REAL and was found by `platform-reviewer` at round 1: the
++        round-1 test read only script text, and `orchestrator.py:95` literally tells an operator to
++        set that variable. Reverted; green.
++      · removed `dbt_project/models/**/*` from `.data_paths_prod` -> FAILED naming it. Reverted.
++      · added a path to `.data_paths_prod` absent from `.data_paths_mr` -> FAILED naming it.
++        Reverted.
++    A round-1 assertion that did NOT survive this step is recorded here rather than deleted
++    quietly: the item-3 pairing test PASSED while its subject was broken, because it searched every
++    job's script and `data:build:mr` has a singular-test line of its own. It was rewritten to be
++    per-job, then removed entirely with item 3.
++  - `python -m pytest tests/ -q` exit code read directly; green, and no lower than the 665 tests on
++    `main` plus the new ones.
++  - CI green on the MR, with `data:build:mr` showing "All leagues already have raw tables —
++    skipping bootstrap ingest", i.e. no ingest runs with or without the lock.
++
++amendments:
++  - 2026-08-08 (round 1): + `dbt_project/selectors.yml` — for item 3. SUPERSEDED by the round-2
++    amendment below; the file is now byte-identical to `main` and has left `scope_paths`.
++  - 2026-08-08 (round 2, part A — a scope REDUCTION): item 3 WITHDRAWN and
++    `dbt_project/selectors.yml` reverted and removed from `scope_paths`. Authority: none needed to
++    do LESS — the round-2 change touches strictly less than round 1 did, which is the direction an
++    amendment is always free to move. The withdrawal is forced by three independent reviewer FAILs,
++    verified against dbt's own source before being accepted.
++  - 2026-08-08 (round 3, part B — a scope EXTENSION, and it needed its own authority):
++    + `tests/test_governance_hooks.py`, for a ONE-WORD docstring fix — line 2040 names the
++    `*data_paths` anchor that item 2 renames. Authority: the CPO's standing ruling of 2026-08-08,
++    recorded in `.claude/task/escalations.log` as "STANDING RULE: a reference broken by an approved
++    change is part of that change" — "Updating a reference that an approved change itself breaks is
++    part of that change, not a scope extension — provided the update is confined to the reference
++    and changes no behaviour." This edit is exactly that: one identifier in a docstring, no
++    behaviour touched, and the only edit made to that file.
++    WHY PART B IS SEPARATE FROM PART A, since bundling them is what went wrong. Round 2 wrote both
++    moves under one "Authority:" line reading "no new authority is needed to do LESS". That
++    justified the reduction and silently carried the addition along with it. `scope-auditor` FAILed
++    it, correctly, citing §2 ("each recording the CPO authority") and on-point precedent from
++    2026-06-23 where an equivalent stale-comment fix was held to need the CPO. The CPO then chose
++    to settle the CLASS rather than this instance, because every rename breaks references and Waves
++    2 and 3 will raise the same question again.
++    Both parts written on a clean tree, riding INTO the reviewed commit rather than arriving later
++    (F10/F11, #409).
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index f9f44f1..09d0ca1 100644
+index 09d0ca1..544249c 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1577,3 +1577,57 @@ times.
-   and "ten F401s" (here, round 2, written while correcting the third). Prose has not fixed it. The
-   only thing that has caught every instance is a reviewer running the command — which is the
-   argument for this MR, turned on its author.
+@@ -1631,3 +1631,59 @@ times.
+   LIMIT OF THIS ENTRY. It records an approval of a PLAN. It does not pre-approve whatever a builder
+   later decides an item means. Where an item's implementation raises a question #33 does not settle,
+   that question is still a §10 escalation.
 +
-+## 2026-08-08 — GitLab #33: the CPO approves the whole pipeline cost/scalability plan, in advance
++## 2026-08-08 — STANDING RULE: a reference broken by an approved change is part of that change
 +
-+  NOT AN ESCALATION. A standing CPO approval, recorded here because this log is the durable
-+  decision record and `contract.md` is overwritten by the next task. Every Wave 1/2/3 contract in
-+  this stream cites this entry, so it has to exist somewhere a reviewer can check. `scope-auditor`
-+  FAILED round 1 of `chore/gate0-truth-and-dbt-deadwood` for exactly its absence and was right —
-+  the same finding as 2026-07-31 and 2026-08-01 above: "Recording a ruling in the contract is not
-+  recording it." Three rulings on the same rule now; the rule holds.
++  CPO RULING, given 2026-08-08 on the `ci/scope-triggers-and-restore-ingest-lock` branch. A RULE
++  EXTENSION (§10), so it is the CPO's and nobody else's, and it is recorded here because a rule
++  that lives only in a task contract does not survive the next task.
 +
-+  WHAT WAS APPROVED. GitLab issue #33 is the working brief for the pipeline stream, produced by
-+  three independent expert assessments (warehouse modelling, ingestion/raw, orchestration) plus a
-+  synthesis that adjudicated the conflicts between them. On 2026-08-08 the CPO said "yes" to all
-+  three headline decisions and then approved the full recommendation set. Verbatim, as given to the
-+  builder:
++  THE RULE, verbatim as recommended and accepted:
 +
-+    "Every item in #33's Gate 0, Wave 1, Wave 2 and Wave 3 is APPROVED, including the two that
-+    would normally be CPO-class: raw merge-on-write with the raw_archive backup first (item 8),
-+    and staging materialised as a table (item 9). The CPO said 'yes' to all three headline
-+    decisions on 2026-08-08 and then approved the full recommendation set."
++    "Updating a reference that an approved change itself breaks is part of that change, not a
++    scope extension — provided the update is confined to the reference and changes no behaviour."
 +
-+  The same instruction supplies the §1 Confirm for every task in the stream ("Work through the plan
-+  without checking in on anything #33 already settles") and directs that this paragraph be quoted
-+  as the authority in each contract's `protected_override` or `decisions_taken`, citing #33.
++  WHAT IT PERMITS. Adding a file to `scope_paths` mid-task, without a fresh CPO grant, WHEN the
++  only edit to that file is repairing a name the same task's approved change invalidated. The
++  amendment is still written on a clean tree and still recorded in `amendments:`; what it no longer
++  needs is a separate authority line, and it cites THIS entry instead.
 +
-+  THE §10-CLASS ITEMS THIS COVERS, named individually so a later reader does not have to infer the
-+  scope of "the full recommendation set":
-+  - Item 7 — CREATE THE GITLAB NIGHTLY SCHEDULE, 04:00 UTC, branch main, activated. A recurring
-+    cost, therefore CPO-class. Not a NEW recurring cost: `.github/workflows/dbt-scheduled.yml` ran
-+    the same job on the same cron until 2026-08-06 and the migration dropped it silently.
-+  - Item 8 — RAW MERGE-ON-WRITE on the eight append-only raw tables, keyed on `league_code`.
-+    Permanently discards ingest history beyond BigQuery's 7-day time travel, hence CPO-class. The
-+    approval is CONDITIONAL ON THE BACKUP: a one-off copy of each raw table into a `raw_archive`
-+    dataset FIRST (~$0.30/mo on ~15 GiB), which is what makes it reversible.
-+  - Item 9 — STAGING MATERIALISED AS A TABLE (`1_staging: +materialized: table`). A storage-cost
-+    and layer-architecture change. Depends on item 5 (drop `source_json`) landing first, or the
-+    dropped column becomes the dominant stored bytes.
-+  - Item 11 — `scripts/check_scan_budget.py` wired into `validate:governance`. A NEW MECHANISM in
-+    the CI gate set.
-+  - Items 2/3/4 — trigger scoping, singular-test de-duplication, and REMOVING
-+    `API_FOOTBALL_SKIP_INGEST_LOCK=1` from `.gitlab-ci.yml`. Protected-path edits.
-+  - Item 6 — removing the `dbt_expectations` dependency (and transitively `godatadriven/dbt_date`).
-+    A dependency change, declared as a threshold crossing in the Wave 1 contract.
++  WHAT IT DOES NOT PERMIT, and these limits are the rule:
++  - Any other edit to the newly in-scope file. Fix the reference and nothing else. "While I was in
++    there" is exactly the drift `scope_paths` exists to stop.
++  - Anything that changes behaviour. A stale COMMENT or docstring, a doc sentence, a fixture name —
++    yes. A code path, an assertion, a config value — no, even if it "only" restores intent.
++  - Discovering the reference and using it as a reason to widen the task's objective.
++  - A PROTECTED path. `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
++    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
++    `.github/workflows/**`, `.gitlab-ci.yml` still need `protected_override` and an `impact_map`,
++    rule or no rule. Nothing here touches the protected-path machinery.
 +
-+  WHAT WAS DELIBERATELY CUT, recorded because a later reader will otherwise propose them again:
-+  partition expiry and a current/archive split on raw (both UNSAFE under #892 — raw is DAY
-+  partitioned on `ingested_at`, so a time expiry deletes by write date and the nine biennial and
-+  quadrennial competitions lose their only surviving row); bounding `get_new_league_codes.py` with
-+  a predicate; deleting the 63 per-model materialisation overrides; marts to view-by-default; and
-+  `interruptible: true` on a prod-writing job. These are rejected on evidence, not deferred.
++  WHY IT EXISTS. `scope-auditor` FAILed round 2 of this branch, correctly: the round-2 amendment
++  added `tests/test_governance_hooks.py` for a ONE-WORD docstring fix — it named the `*data_paths`
++  anchor the same MR renames — and justified it with "no new authority is needed to do LESS", which
++  covered the item-3 WITHDRAWAL in the same amendment but not the addition. §2 says each scope
++  extension records the CPO authority, and it cited on-point precedent (2026-06-23,
++  `feat/player-per90-metrics`) where an equivalent stale-comment touch-up was held to need the CPO.
++  The auditor was right on the letter and the finding stands.
 +
-+  LIMIT OF THIS ENTRY. It records an approval of a PLAN. It does not pre-approve whatever a builder
-+  later decides an item means. Where an item's implementation raises a question #33 does not settle,
-+  that question is still a §10 escalation.
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 0de3d59..632b210 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -49,8 +49,22 @@ Next: player insights chain (#153 → #156).
- ## Architecture decisions (non-negotiable)
- 
- - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
--- **league_code** is the partition key on every model — never hardcode a competition identifier in business logic.
--- **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share six unified raw tables, discriminated by a `league_code STRING` column. There are no per-competition raw tables. Staging models are generic — one file per entity, not per competition.
-+- **league_code** is the competition discriminator on every model — never hardcode a competition
-+  identifier in business logic. It is **not** a BigQuery partition key, and calling it one has
-+  misled cost work: **no dbt model declares `partition_by` or `cluster_by`** —
-+  `grep -rn "partition_by\|cluster_by" dbt_project/models/ dbt_project/dbt_project.yml` returns
-+  zero hits (checked 2026-08-08, #33 Gate 0.2). Physical partitioning is a property of the RAW
-+  tables only, set by the ingestion loaders — see `docs/data_contract.md`.
-+- **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions
-+  share **one table per entity**, discriminated by a `league_code STRING` column. There are no
-+  per-competition raw tables. Staging models are generic — one file per entity, not per
-+  competition. Do not quote a fixed count here; it has been wrong before ("six", corrected
-+  2026-08-08 under #33). Recount instead:
-+  `grep -rho "raw_table(\s*[\"'][A-Z_]*[\"']" ingestion/ | sort -u` for what is WRITTEN,
-+  `grep -n "      - name: raw_apif" dbt_project/models/1_staging/api_football/sources.yml` for
-+  what is DECLARED. On 2026-08-08 that was **12 written, 11 declared** — `RAW_APIF_INJURIES` is
-+  written by the loaders and modelled nowhere (#33 item 15). `RAW_APIF_INGEST_LOCK` and
-+  `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
- - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
- - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
- - **UI flow**: v2 website IA per `docs/site_architecture.md` (hybrid browse + fixtures-first home, epic #361). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**; #377 is v2's own go-live.
-@@ -65,14 +79,14 @@ Do not work around the CI check — fix the approach instead.
- 
- | Rule | What it means | CI check |
- |------|---------------|----------|
--| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires **zero file edits of any kind** — no SQL, no YAML, no Python. The registry entry is the only change. | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
--| **Single-source rule** | The registry is the only place leagues are listed. `dbt_project.yml` is derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry |
-+| **No-new-model rule** | Adding a league requires **no new model, macro, SQL or Python file** — nothing per-competition is ever authored. It is not "zero file edits of any kind" (corrected 2026-08-08, #33 Gate 0.2): three tracked files change, and two of them are written FOR you by `scripts/sync_dbt_vars.py` — `docs/competition_registry.yml` (by hand), then `dbt_project/dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` (generated). | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
-+| **Single-source rule** | The registry is the only place leagues are listed by hand. BOTH `dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` are derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry, **or** if the seed's `league_code → (competition_type, parent_competition)` rows drift from it |
- | **CI ingest rule** | CI detects new leagues by querying `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` and ingests only those not yet present | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
- 
- ### How to add a new league (the only correct procedure)
- 
- 1. Add entry to `docs/competition_registry.yml`
--2. Run `python scripts/sync_dbt_vars.py` (updates `dbt_project.yml`)
-+2. Run `python scripts/sync_dbt_vars.py` (updates `dbt_project.yml` **and** `dbt_project/seeds/competition_registry.csv` — commit both; `check_registry_var_sync.py` fails CI if either drifts)
- 3. Push — CI ingests only the new league into the unified raw tables; all downstream models pick it up via the `league_code` column
- 
- **Do not create any new files in `dbt_project/models/` when adding a league.** If you find yourself doing that, stop — the approach is wrong. Generic staging models read `league_code` from the unified raw tables; no per-competition files are needed.
-@@ -97,7 +111,16 @@ every session that learned something had to delete something. None of this is cu
- - **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
-   bigquery 1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`,
-   `ls`, `ls --select <model>+` all work. Use it for `impact_map` lineage.
--  **Never run `dbt build`** — the CI and prod datasets are shared, so a local build clobbers prod.
-+  **Never run `dbt build`.** The reason is NOT that CI and prod share datasets — they have not
-+  since `b96cf76` (2026-07-08). `macros/generate_schema_name.sql` prefixes every non-prod
-+  target, so `dev` writes `dev_staging`/`dev_core`/`dev_marts`… and cannot touch prod's layer
-+  datasets. The real reasons, both live: (1) models with **no** `+schema` — the base models and
-+  the seeds — ride `target.schema`, i.e. the profile's `dataset:`, and prod's is `dbt_analytics`;
-+  a dev profile pointed there overwrites **prod's base tables and prod's seeds**. Keep the dev
-+  target on `dev_scratch` as `dbt_project/profiles.example.yml` shows (#33 Gate 0.1, applied
-+  2026-08-08). (2) A build is billed BigQuery work against the shared project regardless of
-+  which datasets it writes. Corrected 2026-08-08 under #33 Gate 0.2 — the old sentence had been
-+  false for a month.
- - **SQLFluff: lint from the REPO ROOT** (the root `.sqlfluff` carries the jinja macro path):
-   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set.
-   `dbt_utils` is unresolvable under the jinja templater, so `mart_player_profile` reports
-diff --git a/dbt_project/macros/apif_latest_source_partition.sql b/dbt_project/macros/apif_latest_source_partition.sql
-deleted file mode 100644
-index f8d778b..0000000
---- a/dbt_project/macros/apif_latest_source_partition.sql
-+++ /dev/null
-@@ -1,40 +0,0 @@
--{#-
--  Read only the most recent snapshot row from an append-only raw reference table.
--
--  WHY THIS MACRO EXISTS
--  ---------------------
--  Reference tables (fixtures, standings, teams, rounds, players, leagues)
--  use append-only writes since issue #220. Each daily pipeline run appends one new
--  complete snapshot row. BigQuery partitions the table by DATE(ingested_at).
--
--  A staging model that reads the full table without a filter would see one row per
--  day the pipeline has run, producing duplicate fixture_ids / team_ids / etc. and
--  failing all uniqueness tests.
--
--  This macro wraps a source() reference in a subquery that keeps only the row(s)
--  from the most recent ingested_at value — i.e. yesterday's (or today's) run.
--
--  USAGE — reference tables only
--  ------------------------------
--  Use this macro in the `src` CTE of every reference-table staging model:
--
--      with src as (
--          select *
--          from {{ apif_latest_source_partition('api_football', 'raw_apif_fixtures_next') }}
--      ),
--
--  DO NOT use for fanout tables (lineups, fixture_events, fixture_statistics,
--  fixture_players, predictions). Those tables accumulate rows across runs — each
--  run adds only the newly fetched fixtures — so staging must union all partitions
--  to see the complete dataset.
---#}
--{% macro apif_latest_source_partition(source_name, table_name) -%}
--(
--    select *
--    from {{ source(source_name, table_name) }}
--    where ingested_at = (
--        select max(ingested_at)
--        from {{ source(source_name, table_name) }}
--    )
--)
--{%- endmacro %}
-diff --git a/dbt_project/macros/domestic_league_codes_in_clause.sql b/dbt_project/macros/domestic_league_codes_in_clause.sql
-deleted file mode 100644
-index 7e6f3be..0000000
---- a/dbt_project/macros/domestic_league_codes_in_clause.sql
-+++ /dev/null
-@@ -1,13 +0,0 @@
--{% macro domestic_league_codes_in_clause() %}
--    {%- set codes = [] -%}
--    {%- for code in var('active_competition_league_codes') -%}
--        {%- if code != 'WC' and not code.startswith('WCQ') -%}
--            {%- do codes.append(code) -%}
--        {%- endif -%}
--    {%- endfor -%}
--    (
--        {%- for code in codes -%}
--            '{{ code }}'{% if not loop.last %}, {% endif %}
--        {%- endfor -%}
--    )
--{% endmacro %}
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-index 27327ac..1cbe2f9 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-@@ -34,6 +34,5 @@ select
-     json_value(event_el, '$.assist.name') as assist_player_name,
-     json_value(event_el, '$.type') as event_type,
-     json_value(event_el, '$.detail') as event_detail,
--    json_value(event_el, '$.comments') as event_comments,
--    to_json_string(event_el) as source_json
-+    json_value(event_el, '$.comments') as event_comments
- from events
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-index 2403796..ea15044 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-@@ -76,8 +76,7 @@ flattened as (
-         safe_cast(json_value(stats_el, '$.penalty.commited') as int64) as penalty_committed,
-         safe_cast(json_value(stats_el, '$.penalty.scored') as int64) as penalty_scored,
-         safe_cast(json_value(stats_el, '$.penalty.missed') as int64) as penalty_missed,
--        safe_cast(json_value(stats_el, '$.penalty.saved') as int64) as penalty_saved,
--        to_json_string(player_el) as source_json
-+        safe_cast(json_value(stats_el, '$.penalty.saved') as int64) as penalty_saved
-     from players
-     left join unnest([json_query(player_el, '$.statistics[0]')]) as stats_el on true
- )
-@@ -122,6 +121,5 @@ select
-     penalty_committed,
-     penalty_scored,
-     penalty_missed,
--    penalty_saved,
--    source_json
-+    penalty_saved
- from flattened
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-index 91c32b5..9d74228 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-@@ -29,7 +29,6 @@ select
-     safe_cast(json_value(stat_el, '$.team.id') as int64) as team_id,
-     json_value(stat_el, '$.team.name') as team_name,
-     json_value(line_el, '$.type') as stat_type,
--    json_value(line_el, '$.value') as stat_value_raw,
--    to_json_string(stat_el) as source_json
-+    json_value(line_el, '$.value') as stat_value_raw
- from stats_rows,
-     unnest(json_query_array(stat_el, '$.statistics')) as line_el
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
-index 81ab7c1..1d5999a 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
-@@ -22,7 +22,6 @@ select
-     api_errors_json,
-     api_reported_result_count,
-     request_parameters_json,
--    match_json as source_json,
-     safe_cast(json_value(match_json, '$.fixture.id') as int64) as fixture_id,
-     safe_cast(json_value(match_json, '$.fixture.timestamp') as int64) as fixture_api_unix_seconds,
-     date(safe_cast(json_value(match_json, '$.fixture.date') as timestamp)) as fixture_date,
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-index 48486e0..5cdf9b8 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-@@ -62,7 +62,6 @@ select
-     api_errors_json,
-     api_reported_result_count,
-     request_parameters_json,
--    row_json as source_json,
-     league_api_id,
-     league_name,
-     league_type,
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-index 05149b9..4136642 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-@@ -28,6 +28,5 @@ select
-     json_value(lineup_el, '$.formation') as formation,
-     json_value(lineup_el, '$.coach.name') as coach_name,
-     json_query(lineup_el, '$.startXI') as start_xi_json,
--    json_query(lineup_el, '$.substitutes') as substitutes_json,
--    to_json_string(lineup_el) as source_json
-+    json_query(lineup_el, '$.substitutes') as substitutes_json
- from line_rows
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__players.sql b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
-index c4e361b..4c173aa 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__players.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
-@@ -45,6 +45,5 @@ select
-     json_value(player_el, '$.player.photo') as player_photo_url,
-     safe_cast(json_value(player_el, '$.player.birth.date') as date) as birth_date,
-     json_value(player_el, '$.player.nationality') as nationality,
--    json_query(player_el, '$.statistics') as statistics_json,
--    to_json_string(player_el) as source_json
-+    json_query(player_el, '$.statistics') as statistics_json
- from player_rows
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__standings.sql b/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
-index 38be219..82921de 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
-@@ -45,6 +45,5 @@ select
-     safe_cast(json_value(team_row, '$.all.played') as int64) as played_all,
-     safe_cast(json_value(team_row, '$.all.win') as int64) as wins_all,
-     safe_cast(json_value(team_row, '$.all.draw') as int64) as draws_all,
--    safe_cast(json_value(team_row, '$.all.lose') as int64) as losses_all,
--    to_json_string(team_row) as source_json
-+    safe_cast(json_value(team_row, '$.all.lose') as int64) as losses_all
- from expanded_standings
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__teams.sql b/dbt_project/models/1_staging/api_football/stg_apif__teams.sql
-index d1d7cc2..0efa76b 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__teams.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__teams.sql
-@@ -22,7 +22,6 @@ select
-     api_errors_json,
-     api_reported_result_count,
-     request_parameters_json,
--    row_json as source_json,
-     safe_cast(json_value(row_json, '$.league.season') as int64) as season,
-     safe_cast(json_value(row_json, '$.team.id') as int64) as team_id,
-     json_value(row_json, '$.team.name') as team_name,
-diff --git a/dbt_project/package-lock.yml b/dbt_project/package-lock.yml
-index d624484..5739fb8 100644
---- a/dbt_project/package-lock.yml
-+++ b/dbt_project/package-lock.yml
-@@ -1,8 +1,4 @@
- packages:
- - package: dbt-labs/dbt_utils
-   version: 1.3.3
--- package: metaplane/dbt_expectations
--  version: 0.10.10
--- package: godatadriven/dbt_date
--  version: 0.15.0
--sha1_hash: d46262da56c4456d8e21914ec17a05de5964329b
-+sha1_hash: 5ffdb7983bbd653b524c5344daf6cb5fd9eaf293
-diff --git a/dbt_project/packages.yml b/dbt_project/packages.yml
-index f7769b3..3a1bd6a 100644
---- a/dbt_project/packages.yml
-+++ b/dbt_project/packages.yml
-@@ -1,5 +1,7 @@
-+# Only packages this project actually calls belong here. `metaplane/dbt_expectations`
-+# (and its transitive `godatadriven/dbt_date`) were declared but invoked nowhere — zero
-+# hits outside packages.yml/package-lock.yml in the whole repo — so every `dbt deps`
-+# fetched two unused packages. Removed 2026-08-08 under issue #33, Wave 1 item 6.
- packages:
-   - package: dbt-labs/dbt_utils
--    version: 1.3.3  # Updated to the latest stable version
--  - package: metaplane/dbt_expectations
--    version: 0.10.10
-\ No newline at end of file
-+    version: 1.3.3  # Updated to the latest stable version
-\ No newline at end of file
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 1ba5160..2dd2ba4 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -22,7 +22,10 @@ Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors
- 
- No `response` data is discarded at ingest, so new fields surface in modelling without refetching; the reshape loaders above drop only the per-call envelope metadata (`get`/`parameters`/`errors`/`results`/`paging`), not the response items.
- 
--All raw tables are partitioned by `DATE(ingested_at)` and clustered by `league_code`. Queries that filter on both `league_code` and `ingested_at` read only the relevant league's data within the relevant partition, keeping scan costs low as the table grows across seasons and competitions.
-+Raw tables are **created** partitioned by `DATE(ingested_at)` and clustered by `league_code` (`ingestion/api_football/bigquery.py:88-93`). Two cautions go with that, and the second one has cost real money:
++  The CPO's answer was to fix the CLASS rather than the instance. Every rename breaks references;
++  the same question was going to arrive again in Wave 2 (raw merge-on-write renames things) and
++  Wave 3, and each arrival costs a review round to ask. Deciding it once is cheaper than deciding
++  it five times, and leaving it undecided has a worse failure mode than either answer: a builder
++  who does not want to spend a round will simply leave the stale reference, which is how a repo
++  accumulates comments naming things that no longer exist.
 +
-+- Creation uses `exists_ok=True`, so a table that predates the partitioning code is **never retro-fitted**. Do not assume a given raw table is partitioned — check it: `bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_<ENTITY>` and read `timePartitioning` (metadata only, free).
-+- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. The way to keep raw scans bounded is to bound the table itself (merge-on-write keyed on `league_code`, #33 item 8), not to filter by time.
- 
- dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
- 
-@@ -58,16 +61,18 @@ Reference tables — fixtures-next, standings, teams, players, coaches, injuries
- 2. The complete response is written as a new row with the current UTC timestamp.
- 3. Prior rows are preserved. BigQuery retains the full ingest history.
- 
--The latest row always contains the complete picture because every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). This is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. Staging reads only the latest snapshot per league using partition pruning and a `QUALIFY` window:
-+The latest row always contains the complete picture because every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). This is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. The staging models that read a per-league snapshot table keep only the latest snapshot per league, with `league_code` as the sole partitioning key of the window:
- 
- ```sql
---- Pre-filter engages partition pruning; QUALIFY picks latest snapshot per league
--where DATE(ingested_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
- qualify row_number() over (
-     partition by league_code order by ingested_at desc
- ) = 1
- ```
- 
-+This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: the merge-on-write tables (`RAW_APIF_FIXTURE_DETAILS`, `RAW_APIF_PLAYERS`) already hold one row per entity key, and a latest-snapshot window there would drop fixtures and players rather than deduplicate them.
++  THE COUNTER-ARGUMENT, recorded so the rule can be attacked later. This narrows what
++  `scope_paths` catches. The mitigation is that the permitted edit is defined by the change that
++  precedes it — you may repair only what you broke — so the blast radius of an abuse is one wrong
++  identifier in one comment, and every reviewer still sees the file in the diff. If it is ever
++  abused, the fix is to withdraw the rule, not to add a gate.
 +
-+**No staging model carries a `DATE(ingested_at)` pre-filter, and none should.** This document used to prescribe a 7-day one here. No model ever implemented it, and it would have been a live defect if one had — see the second bullet under raw partitioning above (#892). Ranking cannot prune a partition, so the pre-filter bought nothing it claimed to buy.
++  FIRST APPLICATION: this branch. `tests/test_governance_hooks.py:2040` said "data:build:main's
++  `*data_paths`"; item 2 renamed that anchor to `*data_paths_prod`; the fix is that one word.
 +
- **`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
++  FOLLOW-UP NOT DONE HERE, deliberately. `docs/working_agreement.md` §2 is where a reader looks for
++  the amendment rules, and this ruling is not in it — adding it would itself be a scope extension
++  onto a file this task has no business editing, mid-review, at round 3 of a 3-round cap. Folding
++  the rule into §2 is worth its own small change.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 619d429..0a25bcf 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -57,7 +57,7 @@ workflow:
+ # `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in this file — including
+ # data:build:main, a FULL prod warehouse build. And a `changes:` filter does not
+ # save you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push
+-# or a merge request, so data:build:main's *data_paths filter does NOT hold it
++# or a merge request, so data:build:main's *data_paths_prod filter does NOT hold it
+ # back on a schedule. Admit schedules naively and every nightly runs the prod
+ # build TWICE — once as data:nightly, once as data:build:main.
+ #
+@@ -224,10 +224,26 @@ workflow:
+     GITLAB_OIDC_TOKEN:
+       aud: https://gitlab.com
  
- This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
+-# Path sets, kept as YAML anchors so the MR and main variants cannot drift apart.
+-# Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so docs-only
+-# edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
+-.data_paths: &data_paths
++# Path sets. Enumerates dbt build inputs rather than a blanket 'dbt_project/**', so
++# docs-only edits under dbt_project/docs/** do NOT trigger the expensive BigQuery build.
++#
++# THERE ARE TWO ANCHORS, AND THE DIFFERENCE IS DELIBERATE (#33 item 2, 2026-08-08).
++# They were one anchor, on the theory that "the MR and main variants cannot drift
++# apart". But the two jobs answer different questions, so one list gave the wrong
++# answer to one of them:
++#
++#   data:build:mr   asks "could this MR break the build?"        -> revalidate broadly
++#   data:build:main asks "did prod's compiled output change?"    -> rebuild narrowly
++#
++# A FULL prod warehouse build is the most expensive job in this file. Five entries
++# below cannot change a single compiled dbt artifact, yet each triggered one on every
++# push to main: measured over 39 triggering pushes, 17 changed nothing that could.
++# They stay in the MR anchor — a CI, ingestion or script change must still be
++# revalidated — and leave the prod one.
++#
++# Before adding a path to *data_paths_prod, ask the narrow question: can editing this
++# file change the SQL dbt compiles? If not, it belongs in the MR anchor alone.
++.data_paths_mr: &data_paths_mr
+   - dbt_project/models/**/*
+   - dbt_project/macros/**/*
+   - dbt_project/seeds/**/*
+@@ -242,6 +258,29 @@ workflow:
+   - requirements.txt
+   - .gitlab-ci.yml
+ 
++# The prod anchor: ONLY paths that can change what dbt compiles. Dropped relative to
++# the MR anchor, each with the reason it cannot:
++#   .gitlab-ci.yml        — changes how the build is invoked, not what compiles
++#   scripts/check_*.py    — offline governance gates; they run in validate:governance
++#   scripts/data_trust_*.py — reporting only; no model reads them
++#   requirements.txt      — see the residual risk note below
++#   ingestion/**/*        — writes RAW; it does not participate in dbt compilation
++#
++# RESIDUAL RISK, stated rather than left for someone to discover: a dbt version bump
++# in requirements.txt CAN change compiled SQL, and prod will not rebuild for it on its
++# own. It self-heals at the next model change or nightly run. Accepted knowingly under
++# #33 item 2; if that ever bites, the fix is to put requirements.txt back here, not to
++# widen the whole list.
++.data_paths_prod: &data_paths_prod
++  - dbt_project/models/**/*
++  - dbt_project/macros/**/*
++  - dbt_project/seeds/**/*
++  - dbt_project/snapshots/**/*
++  - dbt_project/tests/**/*
++  - dbt_project/*.yml
++  - dbt_project/.sqlfluff
++  - docs/competition_registry.yml
++
+ .ui_paths: &ui_paths
+   - site/**/*
+   - scripts/build_match_preview_site.sh
+@@ -443,6 +482,20 @@ build:site-v2:
+ # did. If the WIF configuration is missing they FAIL LOUDLY (see .gcp_auth) rather
+ # than being skipped — an unwired data-quality gate must be red, never
+ # green-and-absent.
++#
++# ⚠ THE INGEST LOCK IS ON IN CI, AND MUST STAY ON (#33 item 4, fixed 2026-08-08).
++# API_FOOTBALL_SKIP_INGEST_LOCK=1 appeared in three places here and disabled the
++# BigQuery ingest lease for every ingest CI ran. That is forbidden:
++# docs/operations_guide.md:149 — "Local debugging only; never production." And these
++# ingests ARE production: settings.py:31 defaults the raw dataset to `raw` and
++# API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file, so an MR pipeline writes
++# PRODUCTION raw — from an unmerged branch, and from a different resource_group than
++# the prod writers, so GitLab's own serialisation could not help either.
++# A held lease is not a silent skip: acquire_ingest_lock() failing returns 409 and
++# main.py:55 turns that into exit 2, so the job goes RED and you find out.
++# tests/test_ci_data_job_invariants.py pins the flag's absence so this cannot come
++# back quietly. (That an MR pipeline can write prod raw AT ALL is a separate, still
++# open question — #33 item 13.)
+ # ---------------------------------------------------------------------------
+ 
+ .data_build_base: &data_build_base
+@@ -475,15 +528,22 @@ data:build:mr:
+     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
+     # The GitHub original gated this on a separate `ingest` path filter. GitLab
+     # rules cannot express two independent change-flags for one job, so the
+-    # check always runs: it is a cheap BigQuery metadata lookup that returns
+-    # empty (and ingests nothing) whenever every league already has raw tables.
++    # check always runs. It returns empty (and ingests nothing) whenever every
++    # league already has raw tables.
++    #
++    # It is NOT a "cheap metadata lookup" — that claim was wrong and is corrected
++    # here (#33). get_new_league_codes.py:50 runs
++    # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT`, a BILLED column
++    # scan. It stays unbounded on purpose: the column is narrow and clustered and
++    # lands under BigQuery's 10 MB minimum billing anyway, while any `ingested_at`
++    # predicate would reintroduce the #892 hazard and silently hide the nine
++    # biennial/quadrennial competitions. Cheap, yes. Metadata, no.
+     - NEW_CODES=$(python scripts/get_new_league_codes.py)
+     - |
+       if [ -n "$NEW_CODES" ]; then
+         echo "Leagues needing bootstrap: $NEW_CODES"
+         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
+         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+         python -m ingestion.api_football.main
+       else
+         echo "All leagues already have raw tables — skipping bootstrap ingest."
+@@ -511,7 +571,7 @@ data:build:mr:
+   rules:
+     - *not_on_schedule
+     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+-      changes: *data_paths
++      changes: *data_paths_mr
+ 
+ # main-push / manual full builds keep the FULL build — prod must stay complete
+ # and serve as the always-compilable baseline for MR state comparisons. Joins the
+@@ -532,14 +592,12 @@ data:build:main:
+       if [ "$RUN_INGEST" = "true" ]; then
+         echo "RUN_INGEST set — forcing full re-ingest of all active leagues."
+         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+         API_FOOTBALL_INGEST_FORCE_FULL=1 \
+         python -m ingestion.api_football.main
+       elif [ -n "$NEW_CODES" ]; then
+         echo "Leagues needing bootstrap: $NEW_CODES"
+         API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
+         API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
+-        API_FOOTBALL_SKIP_INGEST_LOCK=1 \
+         python -m ingestion.api_football.main
+       else
+         echo "All leagues already have raw tables — skipping bootstrap ingest."
+@@ -547,6 +605,25 @@ data:build:main:
+     - cd dbt_project
+     # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
+     # dbt ignores a CLI --exclude when --selector is supplied.
++    #
++    # ⚠ 25 OF THE 30 SINGULAR TESTS RUN TWICE HERE — once inside each dbt build, once
++    # on the last line. THAT DUPLICATION IS DELIBERATE, and #33 item 3's proposal to
++    # remove it was WITHDRAWN on 2026-08-08 after review. Do not "optimise" it away
++    # without reading this:
++    #
++    #   `dbt build` compiles with add_test_edges=True (dbt/task/build.py:134) and marks
++    #   dependents of a failed test as skipped (MARK_DEPENDENT_ERRORS_STATUSES,
++    #   build.py:80). So a severity=error singular test failing INSIDE these two builds
++    #   stops the models below it from being written, and prod keeps its last good data.
++    #   Excluding singular tests from the selectors leaves the same 28 assertions running
++    #   on the last line — but by then the whole warehouse has already been materialised
++    #   into the bare prod datasets. The test count is identical; the gate is gone.
++    #
++    # The duplicate execution is what buys that gate. It cost 9.7s of the 7m29s prod
++    # build measured on 2026-08-08. De-duplicating from the other side (narrowing the
++    # last line to the seed-only tests the selectors cannot reach) was considered and
++    # also rejected: it needs a tag, and a new singular test whose author forgets the tag
++    # would then never run here at all — trading a cheap duplicate for a silent hole.
+     - dbt build --selector staging --target prod
+     - dbt build --selector downstream --target prod
+     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
+@@ -566,7 +643,7 @@ data:build:main:
+   rules:
+     - *not_on_schedule
+     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+-      changes: *data_paths
++      changes: *data_paths_prod
+     # Deliberate full prod builds stay possible — as a BUTTON. MR !4 added this clause
+     # meaning "I want a full prod build now", which is still valid; the defect was that
+     # it started without being asked.
+diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+new file mode 100644
+index 0000000..15c435d
+--- /dev/null
++++ b/tests/test_ci_data_job_invariants.py
+@@ -0,0 +1,150 @@
++"""Pin two CI data-job invariants that can be broken while every pipeline stays GREEN.
++
++WHY THIS EXISTS
++---------------
++Both properties were repaired on 2026-08-08 under GitLab #33, and both share the shape this repo
++keeps getting caught by: breaking them produces no red anywhere.
++
++  * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
++    ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
++    production" — and these ingests ARE production: `ingestion/api_football/settings.py:31`
++    defaults the raw dataset to `raw` and `API_FOOTBALL_BIGQUERY_DATASET` is set nowhere in CI. So
++    an MR pipeline wrote production raw from an unmerged branch with the lock off, and nothing
++    failed. Re-adding the flag would restore that silently.
++
++  * `.data_paths_prod` decides whether a push to main rebuilds the prod warehouse. Drop one entry —
++    `dbt_project/models/**/*`, say — and `data:build:main` stops firing on model merges. Prod goes
++    quietly stale, and because every MR build defers to prod with `--defer --favor-state`, the
++    staleness propagates into MR validation with nothing red anywhere. The single `.data_paths`
++    anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
++    for a comment, so the guarantee is re-established here as an assertion.
++
++HOW IT IS SHAPED, AND WHY
++-------------------------
++Values come from PARSED YAML, never from raw file text. That matters concretely: the
++`.gitlab-ci.yml` comment block documenting the lock fix NAMES `API_FOOTBALL_SKIP_INGEST_LOCK`, so a
++text grep would flag the documentation of the defect as the defect.
++
++The lock check reads `variables:` as well as script lines. An env var set through a `variables:`
++mapping — global, `default:`, or per job — reaches the ingest exactly as an inline assignment does,
++and `orchestrator.py:95` literally tells the operator to set that variable when the lease is held.
++A guard that only read script text would miss the most idiomatic way to reintroduce the flag
++(platform-reviewer, round 1).
++
++WHAT IS DELIBERATELY *NOT* PINNED HERE
++--------------------------------------
++Singular tests run twice on the prod build — once inside each `dbt build --selector`, once in the
++trailing `dbt test` step. #33 item 3 proposed removing that duplication; it was WITHDRAWN after
++review, because `dbt build` adds test edges (`dbt/task/build.py:134`) and skips a failed test's
++dependents (`build.py:80`), so the in-build run is a write-blocking gate and the trailing run is a
++post-write report. An earlier version of this module asserted the "de-duplicated" arrangement was
++safe, which would have certified the regression rather than caught it. The reasoning now lives in a
++comment at the `dbt build --selector` lines, where someone about to optimise will read it.
++"""
++
++from __future__ import annotations
++
++import pathlib
++
++import yaml
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++CI_FILE = ROOT / ".gitlab-ci.yml"
++
++# The inputs that can change what dbt COMPILES. A push to main touching any of these
++# must rebuild the prod warehouse, so .data_paths_prod has to keep covering them.
++DBT_COMPILE_INPUTS = frozenset(
++    {
++        "dbt_project/models/**/*",
++        "dbt_project/macros/**/*",
++        "dbt_project/seeds/**/*",
++        "dbt_project/snapshots/**/*",
++        "dbt_project/tests/**/*",
++        "dbt_project/*.yml",
++    }
++)
++
++
++def _ci_config() -> dict:
++    return yaml.safe_load(CI_FILE.read_text(encoding="utf-8"))
++
++
++def _script_lines(config: dict) -> list[str]:
++    lines: list[str] = []
++    for node in config.values():
++        if not isinstance(node, dict):
++            continue
++        for section in ("before_script", "script", "after_script"):
++            for entry in node.get(section) or []:
++                if isinstance(entry, str):
++                    # A `|` block scalar arrives as one multi-line string.
++                    lines.extend(entry.splitlines())
++    return lines
++
++
++def _declared_variables(config: dict) -> list[tuple[str, str]]:
++    """Every (name, value) from a `variables:` mapping — global, `default:`, or per job."""
++    found: list[tuple[str, str]] = []
++
++    def collect(where: str, block) -> None:
++        if isinstance(block, dict):
++            for name, value in block.items():
++                found.append((f"{where}.{name}", str(value)))
++
++    collect("<global>", config.get("variables"))
++    for key, node in config.items():
++        if isinstance(node, dict):
++            collect(key, node.get("variables"))
++    return found
++
++
++def test_ci_never_disables_the_ingest_lock():
++    """#33 item 4. The flag is local-debugging-only and CI ingests write production raw."""
++    config = _ci_config()
++
++    offenders = [
++        line.strip()
++        for line in _script_lines(config)
++        if "API_FOOTBALL_SKIP_INGEST_LOCK" in line
++    ]
++    offenders += [
++        f"variables: {name}={value}"
++        for name, value in _declared_variables(config)
++        if "API_FOOTBALL_SKIP_INGEST_LOCK" in name
++    ]
++
++    assert offenders == [], (
++        "API_FOOTBALL_SKIP_INGEST_LOCK is set in .gitlab-ci.yml. It disables the BigQuery "
++        "ingest lease, and docs/operations_guide.md:149 restricts it to local debugging. CI "
++        "ingests write the production `raw` dataset (ingestion/api_football/settings.py:31), so "
++        f"this is production. Offending: {offenders}"
++    )
++
++
++def test_the_prod_trigger_still_covers_every_dbt_compile_input():
++    """#33 item 2. Splitting the anchor removed the structural no-drift guarantee; restore it.
++
++    Two directions, because the split can fail either way:
++      * too NARROW -> a model merge stops rebuilding prod, silently.
++      * wider than the MR anchor -> the prod build fires on something the MR build never
++        validated, which is the drift the single anchor originally prevented.
++    """
++    config = _ci_config()
++    mr_paths = config.get(".data_paths_mr")
++    prod_paths = config.get(".data_paths_prod")
++
++    assert isinstance(mr_paths, list) and mr_paths, ".data_paths_mr is missing or not a list"
++    assert isinstance(prod_paths, list) and prod_paths, ".data_paths_prod is missing or not a list"
++
++    missing = DBT_COMPILE_INPUTS - set(prod_paths)
++    assert not missing, (
++        f".data_paths_prod no longer covers {sorted(missing)}. A push to main touching those "
++        "would not rebuild the prod warehouse, so prod goes stale — and every MR build defers to "
++        "prod as its baseline, so the staleness spreads with nothing turning red."
++    )
++
++    wider = set(prod_paths) - set(mr_paths)
++    assert not wider, (
++        f".data_paths_prod contains {sorted(wider)}, which .data_paths_mr does not. The prod "
++        "build would then fire on a change the MR build never validated."
++    )
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index fe506c6..8a19298 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -2037,7 +2037,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
+     `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in the file, including
+     `data:build:main` — a full prod warehouse build. A `changes:` filter does NOT save
+     you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or a
+-    merge request, so `data:build:main`'s `*data_paths` does not hold it back.
++    merge request, so `data:build:main`'s `*data_paths_prod` does not hold it back.
+ 
+     Rules are first-match-wins, so the guard is only a guard if it comes FIRST. A later
+     `when: never` can be outvoted by an earlier matching clause, which is exactly the
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -727,6 +916,6 @@ index 1ba5160..2dd2ba4 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 795 +++++++++++++++++++++++++++++++---------
-#    1 file changed, 623 insertions(+), 172 deletions(-)
+#   .claude/task/review_input.patch | 1492 +++++++++++++++++++++------------------
+#    1 file changed, 801 insertions(+), 691 deletions(-)
 # ============================================================================

@@ -1631,3 +1631,59 @@ times.
   LIMIT OF THIS ENTRY. It records an approval of a PLAN. It does not pre-approve whatever a builder
   later decides an item means. Where an item's implementation raises a question #33 does not settle,
   that question is still a §10 escalation.
+
+## 2026-08-08 — STANDING RULE: a reference broken by an approved change is part of that change
+
+  CPO RULING, given 2026-08-08 on the `ci/scope-triggers-and-restore-ingest-lock` branch. A RULE
+  EXTENSION (§10), so it is the CPO's and nobody else's, and it is recorded here because a rule
+  that lives only in a task contract does not survive the next task.
+
+  THE RULE, verbatim as recommended and accepted:
+
+    "Updating a reference that an approved change itself breaks is part of that change, not a
+    scope extension — provided the update is confined to the reference and changes no behaviour."
+
+  WHAT IT PERMITS. Adding a file to `scope_paths` mid-task, without a fresh CPO grant, WHEN the
+  only edit to that file is repairing a name the same task's approved change invalidated. The
+  amendment is still written on a clean tree and still recorded in `amendments:`; what it no longer
+  needs is a separate authority line, and it cites THIS entry instead.
+
+  WHAT IT DOES NOT PERMIT, and these limits are the rule:
+  - Any other edit to the newly in-scope file. Fix the reference and nothing else. "While I was in
+    there" is exactly the drift `scope_paths` exists to stop.
+  - Anything that changes behaviour. A stale COMMENT or docstring, a doc sentence, a fixture name —
+    yes. A code path, an assertion, a config value — no, even if it "only" restores intent.
+  - Discovering the reference and using it as a reason to widen the task's objective.
+  - A PROTECTED path. `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+    `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
+    `.github/workflows/**`, `.gitlab-ci.yml` still need `protected_override` and an `impact_map`,
+    rule or no rule. Nothing here touches the protected-path machinery.
+
+  WHY IT EXISTS. `scope-auditor` FAILed round 2 of this branch, correctly: the round-2 amendment
+  added `tests/test_governance_hooks.py` for a ONE-WORD docstring fix — it named the `*data_paths`
+  anchor the same MR renames — and justified it with "no new authority is needed to do LESS", which
+  covered the item-3 WITHDRAWAL in the same amendment but not the addition. §2 says each scope
+  extension records the CPO authority, and it cited on-point precedent (2026-06-23,
+  `feat/player-per90-metrics`) where an equivalent stale-comment touch-up was held to need the CPO.
+  The auditor was right on the letter and the finding stands.
+
+  The CPO's answer was to fix the CLASS rather than the instance. Every rename breaks references;
+  the same question was going to arrive again in Wave 2 (raw merge-on-write renames things) and
+  Wave 3, and each arrival costs a review round to ask. Deciding it once is cheaper than deciding
+  it five times, and leaving it undecided has a worse failure mode than either answer: a builder
+  who does not want to spend a round will simply leave the stale reference, which is how a repo
+  accumulates comments naming things that no longer exist.
+
+  THE COUNTER-ARGUMENT, recorded so the rule can be attacked later. This narrows what
+  `scope_paths` catches. The mitigation is that the permitted edit is defined by the change that
+  precedes it — you may repair only what you broke — so the blast radius of an abuse is one wrong
+  identifier in one comment, and every reviewer still sees the file in the diff. If it is ever
+  abused, the fix is to withdraw the rule, not to add a gate.
+
+  FIRST APPLICATION: this branch. `tests/test_governance_hooks.py:2040` said "data:build:main's
+  `*data_paths`"; item 2 renamed that anchor to `*data_paths_prod`; the fix is that one word.
+
+  FOLLOW-UP NOT DONE HERE, deliberately. `docs/working_agreement.md` §2 is where a reader looks for
+  the amendment rules, and this ruling is not in it — adding it would itself be a scope extension
+  onto a file this task has no business editing, mid-review, at round 3 of a 3-round cap. Folding
+  the rule into §2 is worth its own small change.
