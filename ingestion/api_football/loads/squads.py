@@ -128,7 +128,21 @@ def load_squad_players_batch(
     seasons_list: list[int],
     team_ids: set[int],
     reference_season: int | None = None,
+    already_captured: set[tuple[int, int]] | None = None,
 ) -> None:
+    """Fetch and store the /players roster per (team, season) for one competition.
+
+    `already_captured` is the run's single `captured_player_team_seasons()` result, read
+    ONCE by the caller before the per-competition loop. That query UNNESTs all of
+    RAW_APIF_PLAYERS, and this function runs once per competition, so reading it here was
+    the second O(competitions^2) term (#33 item 1).
+
+    ⚠ It is MUTATED, not just read. This loader WRITES RAW_APIF_PLAYERS, so unlike the
+    fanout-coverage hoist the set genuinely goes stale between competitions — and national
+    teams really do appear in more than one competition. Every key written below is added
+    to it, which keeps it exactly as accurate as re-reading would. Passing None preserves
+    the old read-it-yourself behaviour for any caller that has no run-level set.
+    """
     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
             f"players {league_code}: skipped (API_FOOTBALL_SKIP_PLAYERS set — use on low-quota archive runs)"
@@ -143,7 +157,8 @@ def load_squad_players_batch(
         if reference_season is not None
         else (max(seasons_list) if seasons_list else 0)
     )
-    already_captured = captured_player_team_seasons(ctx)
+    if already_captured is None:
+        already_captured = captured_player_team_seasons(ctx)
     fetch_keys = plan_player_team_season_fetch(seasons_list, team_ids, ref, already_captured)
     total = len(seasons_list) * len(team_ids)
     print(
@@ -213,6 +228,15 @@ def load_squad_players_batch(
                 ctx.client, raw_table("PLAYERS"), league_code, written_keys, ts
             )
             ctx.add_loaded(1)
+            # Keep the caller's hoisted set exact. Without this, the next competition in
+            # the run would not see these (team, season) keys and would re-fetch any it
+            # shares — national teams appear in club AND national competitions, so this
+            # fires in practice. Only done on a SUCCESSFUL write: on the exception path
+            # below the rows are not stored, so they are not captured, and re-fetching
+            # them next competition is the correct behaviour.
+            for key in written_keys:
+                team_str, _, season_str = key.partition("-")
+                already_captured.add((int(team_str), int(season_str)))
         except Exception as e:
             ctx.errors.append(f"players BQ {league_code}: {e}")
 

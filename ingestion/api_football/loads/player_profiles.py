@@ -19,14 +19,24 @@ from .context import PipelineContext
 from .player_universe import players_needing
 
 
-def load_player_profiles_global(ctx: PipelineContext) -> None:
+def load_player_profiles_global(
+    ctx: PipelineContext,
+    universe: list[tuple[int, str]] | None,
+) -> None:
+    """`universe` is the run's shared `_query_universe()` result — see load_player_teams_global,
+    which needs the identical answer, and loads/player_universe.players_needing (#33 item 1).
+
+    REQUIRED (it may be None, but it must be PASSED). The orchestrator is the only caller, so
+    a default would let the shared universe be dropped at that one call site without any test
+    noticing, silently restoring the duplicate full UNNEST of RAW_APIF_PLAYERS.
+    """
     if os.getenv("API_FOOTBALL_SKIP_PLAYER_PROFILES", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
             "player_profiles: skipped (API_FOOTBALL_SKIP_PLAYER_PROFILES set — use on low-quota archive runs)"
         )
         return
     try:
-        by_league = players_needing(ctx.client, "PLAYER_PROFILES")
+        by_league = players_needing(ctx.client, "PLAYER_PROFILES", universe=universe)
     except Exception as e:
         ctx.errors.append(f"player_profiles universe: {e}")
         return
