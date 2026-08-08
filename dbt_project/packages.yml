@@ -1,5 +1,7 @@
+# Only packages this project actually calls belong here. `metaplane/dbt_expectations`
+# (and its transitive `godatadriven/dbt_date`) were declared but invoked nowhere — zero
+# hits outside packages.yml/package-lock.yml in the whole repo — so every `dbt deps`
+# fetched two unused packages. Removed 2026-08-08 under issue #33, Wave 1 item 6.
 packages:
   - package: dbt-labs/dbt_utils
     version: 1.3.3  # Updated to the latest stable version
-  - package: metaplane/dbt_expectations
-    version: 0.10.10

@@ -76,8 +76,7 @@ flattened as (
         safe_cast(json_value(stats_el, '$.penalty.commited') as int64) as penalty_committed,
         safe_cast(json_value(stats_el, '$.penalty.scored') as int64) as penalty_scored,
         safe_cast(json_value(stats_el, '$.penalty.missed') as int64) as penalty_missed,
-        safe_cast(json_value(stats_el, '$.penalty.saved') as int64) as penalty_saved,
-        to_json_string(player_el) as source_json
+        safe_cast(json_value(stats_el, '$.penalty.saved') as int64) as penalty_saved
     from players
     left join unnest([json_query(player_el, '$.statistics[0]')]) as stats_el on true
 )
@@ -122,6 +121,5 @@ select
     penalty_committed,
     penalty_scored,
     penalty_missed,
-    penalty_saved,
-    source_json
+    penalty_saved
 from flattened

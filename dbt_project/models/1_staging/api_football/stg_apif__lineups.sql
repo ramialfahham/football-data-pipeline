@@ -28,6 +28,5 @@ select
     json_value(lineup_el, '$.formation') as formation,
     json_value(lineup_el, '$.coach.name') as coach_name,
     json_query(lineup_el, '$.startXI') as start_xi_json,
-    json_query(lineup_el, '$.substitutes') as substitutes_json,
-    to_json_string(lineup_el) as source_json
+    json_query(lineup_el, '$.substitutes') as substitutes_json
 from line_rows

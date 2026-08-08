@@ -34,6 +34,5 @@ select
     json_value(event_el, '$.assist.name') as assist_player_name,
     json_value(event_el, '$.type') as event_type,
     json_value(event_el, '$.detail') as event_detail,
-    json_value(event_el, '$.comments') as event_comments,
-    to_json_string(event_el) as source_json
+    json_value(event_el, '$.comments') as event_comments
 from events

@@ -62,7 +62,6 @@ select
     api_errors_json,
     api_reported_result_count,
     request_parameters_json,
-    row_json as source_json,
     league_api_id,
     league_name,
     league_type,

@@ -22,7 +22,6 @@ select
     api_errors_json,
     api_reported_result_count,
     request_parameters_json,
-    row_json as source_json,
     safe_cast(json_value(row_json, '$.league.season') as int64) as season,
     safe_cast(json_value(row_json, '$.team.id') as int64) as team_id,
     json_value(row_json, '$.team.name') as team_name,
