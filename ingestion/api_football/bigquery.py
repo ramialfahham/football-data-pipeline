@@ -136,6 +136,7 @@ def load_json_to_bq(
     as_json_payload: bool = False,
     append: bool = False,
     league_code: str | None = None,
+    ingested_at: str | None = None,
 ) -> None:
     """Write one JSON row to a BigQuery raw table.
 
@@ -157,6 +158,12 @@ def load_json_to_bq(
     as_json_payload=False (used for operational tables like INGEST_LOCK):
         Writes the payload dict directly with BigQuery autodetect schema.
         Always uses WRITE_TRUNCATE — these tables hold a single current-state row.
+
+    Pass ``ingested_at`` (UTC ISO string) when the caller needs the exact timestamp
+    afterwards — a merge-on-write that deletes the rows superseded by this load must
+    delete strictly BEFORE it, and cannot do that if the stamp is invented in here and
+    thrown away. Mirrors the same parameter on ``load_json_payload_rows_to_bq``. Ignored
+    when ``as_json_payload=False``, which writes the payload dict verbatim.
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
 
@@ -167,7 +174,7 @@ def load_json_to_bq(
             else:
                 ensure_raw_table_partitioned(client, table_name)
 
-        ingested_at = datetime.now(timezone.utc).isoformat()
+        ingested_at = ingested_at or datetime.now(timezone.utc).isoformat()
         if league_code is not None:
             row = {"league_code": league_code, "payload": payload, "ingested_at": ingested_at}
             schema = [
@@ -250,6 +257,47 @@ def load_json_payload_rows_to_bq(
     )
     job.result()
     return len(payloads)
+
+
+def delete_superseded_league_rows(
+    client: bigquery.Client,
+    table_name: str,
+    league_code: str,
+    before: datetime,
+) -> None:
+    """Drop this league's rows written before ``before`` — the whole-league merge-on-write.
+
+    For raw tables whose loader writes ONE row covering the entire league (TRANSFERS,
+    STANDINGS, TEAMS), so the row just appended fully supersedes every earlier one and
+    staging's latest-per-league ``qualify`` was already discarding them. #33 item 8b.
+
+    The per-key sibling is ``loads/squads.py:_delete_superseded_player_rows``, which keeps a
+    ``(team, season)`` predicate because RAW_APIF_PLAYERS holds many rows per league and a
+    bare league delete there would drop keys this run did not re-fetch. The difference is the
+    row grain, not a preference — do NOT copy this function to a multi-row-per-league table.
+
+    Call it only AFTER the append succeeded and only when the fetch was COMPLETE (the #896
+    guard from 8a returns early otherwise). ``before`` must be the appended row's own
+    ``ingested_at``, so the strict ``<`` leaves that row intact.
+
+    Both predicates prune: the table is clustered on ``league_code`` and DAY-partitioned on
+    ``ingested_at`` (``ensure_unified_raw_table``).
+    """
+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+    q = f"""
+        delete from `{table_id}`
+        where league_code = @lc
+          and ingested_at < @before
+    """
+    client.query(
+        q,
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
+                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
+            ]
+        ),
+    ).result()
 
 
 def _scalar(

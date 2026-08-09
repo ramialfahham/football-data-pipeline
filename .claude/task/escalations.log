@@ -1741,3 +1741,44 @@ times.
   and "six per-league snapshot tables". The code has TEN append-only tables, and the set safe for
   a `league_code`-keyed delete is smaller than six and is not the obvious six. Do not take either
   count from #33 when scoping 8b; re-derive it from the loaders.
+
+
+2026-08-09 — #33 item 8b SCOPED TO THREE TABLES (a reduction of an approved item)
+
+  CONTEXT. The 8b scope was re-derived from the loaders and their CONSUMERS, as the 2026-08-08
+  entry above requires. #33 item 8 was approved by the CPO on 2026-08-08 ("yes" to items 7, 8, 9)
+  against a text naming eight tables. The set actually safe is THREE: TRANSFERS, STANDINGS, TEAMS.
+  Recorded here, not only in contract.md, because scope-auditor FAILed 8a round 1 for exactly that
+  omission — the fourth time this repo has ruled that a scope living only in the contract is not
+  recorded.
+
+  THE TEST APPLIED, which #33 does not state: a `league_code`-keyed delete is safe only if BOTH
+  (a) the loader writes a COMPLETE per-league row each run, and (b) NO consumer reads snapshot
+  history. #33 only ever considered (a). Condition (b) is what excludes COACHES.
+
+  EXCLUDED — DATA DESTRUCTION, not preference:
+  - COACHES. `stg_apif__coaches.sql:1-7` reads ALL snapshots deliberately, by the CPO ruling of
+    2026-06-23 in this log, to preserve every coach ever seen; latest-per-league would drop ~120
+    coaches whose teams later left our pull. A league-keyed delete destroys exactly what that
+    ruling protects. This is a SECOND data-destruction hazard inside item 8, the same class as the
+    one that forced the 8a/8b split, and it was invisible from the issue text.
+  - SQUADS. The loader writes a team SUBSET (catch-up skips teams already stored, teams active
+    elsewhere, and teams a sibling comp claimed first) while `stg_apif__squads` reads
+    latest-per-league. Verified in production 2026-08-09: WCQAF exposes 10 of 44 teams, CNL 2 of
+    22, AFCON 8 of 16. Filed as #37. Raw is append-only today so the fuller rows still exist and
+    the defect is recoverable; merge-on-write would make it permanent.
+
+  EXCLUDED — not worth the risk surface:
+  - FIXTURES_NEXT: complete only via the carry-forward at `loads/fixtures.py:225-250`, and it has
+    no #896 guard. Needs one first.
+  - INJURIES: right shape, no guard, and #33 item 15 proposes dropping the endpoint entirely.
+  - LEAGUES: safe but tiny (one small row per league); no saving to justify the change.
+
+  NEVER, restated from 2026-08-08: PLAYER_PROFILES and PLAYER_TEAMS accumulate per player.
+
+  The prize is unaffected by the reduction: TRANSFERS alone is 6.99 GiB, 59% of all raw.
+
+  NOT ESCALATED AS A FORK, deliberately. This narrows an approved item on evidence and adds
+  nothing; the CPO was shown the COACHES finding and the three-table scope before implementation
+  and approved it ("start 8b at the three-table scope"). Widening it back is what would need a
+  new decision.

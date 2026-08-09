@@ -1,13 +1,19 @@
 """Fetch /standings for all configured seasons → RAW_*_STANDINGS.
 
-Each run fetches all seasons and appends a fresh complete snapshot row.
-No cross-run merge: the API returns the full standings history on every call.
+Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
+the full standings history on every call.
+
+MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
+league's older rows. The row covers ALL configured seasons, so nothing is lost —
+staging already read only the latest row per league_code.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from .. import quota as errors_quota
-from ..bigquery import load_json_to_bq
+from ..bigquery import delete_superseded_league_rows, load_json_to_bq
 from ..settings import raw_table
 from ..quota import append_api_errors
 from ..http_client import fetch_merged_paged, result_is_complete
@@ -60,6 +66,7 @@ def load_standings_if_enabled(
         )
         return
     try:
+        ts = datetime.now(timezone.utc)
         load_json_to_bq(
             ctx.client,
             raw_table("STANDINGS"),
@@ -67,6 +74,12 @@ def load_standings_if_enabled(
             as_json_payload=True,
             append=True,
             league_code=league_code,
+            ingested_at=ts.isoformat(),
+        )
+        # #33 item 8b — see loads/transfers.py for why this is safe and why it runs
+        # only past the completeness guard above.
+        delete_superseded_league_rows(
+            ctx.client, raw_table("STANDINGS"), league_code, ts
         )
         ctx.add_loaded(1)
     except Exception as e:

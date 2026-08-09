@@ -1,109 +1,42 @@
-# Review — fix/896-guard-partial-writes — 2026-08-08
+# Review — perf/33-raw-merge-on-write — 2026-08-09
 
-> #33 item 8a. Required reviewer set for the staged paths: `scope-auditor` (always),
-> `data-engineer-reviewer` (`ingestion/**`), `platform-reviewer` (`tests/**`). No guard path is
-> staged, so no opus promotion applies and all three ran on their pinned sonnet floor.
+diff_sha256: c3df806a4a5fa288c7e30e0bf1d22a925d1a3bf67d95f3de73769c64bce308dc
 
-diff_sha256: 78b98eb0873c4cefd9e571132ba75ad5821489e0d20ac48178d782a007400342
-
-rounds: 3
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL, and it was correct: the 8a/8b split, the CPO's "go ahead with 8a", and the
-  four-loader scope were asserted only in `contract.md` and appeared nowhere in
-  `escalations.log`. The blanket 2026-08-08 #33 approval covers item 8 as ONE thing ("raw
-  merge-on-write with the raw_archive backup first"), so a split that changes what item 8 IS is a
-  new decision. Fourth time this repo has ruled that recording a ruling in the contract is not
-  recording it (2026-07-31, 2026-08-01, 2026-08-08 standing rule).
-- Round 3: verified the new `escalations.log` entry cures it — it records the split, the
-  file:line evidence that forced it, the CPO's quoted ruling, the FOUR-loader scope stated
-  explicitly rather than left inferable, the five excluded gaps named by file, the forward limit
-  on 8b (`PLAYER_PROFILES`/`PLAYER_TEAMS` must never take a `league_code`-keyed delete), and a
-  correction to #33's own counts. No ambiguous edge left for a later reader to widen or narrow.
-- `contract.md`'s AUTHORITY paragraph cites that entry by title and explains why the blanket
-  approval does not cover a split; no drift between the two documents.
-- The `done_when` rewrite replaces an overstated verification claim with what was actually
-  verified. A correction toward honesty, needing no separate authority.
-- Mechanism/cost: no merge-on-write, no DELETE, no `league_code`-keyed delete anywhere in the
-  diff. Every change either skips a write or threads the existing `result_is_complete` primitive.
-  No new mechanism, no new recurring cost, no credential-shaped content.
-- Item-8b pull-forward: checked for merge-on-write or DELETE logic arriving early — none.
+- Scope: every changed file (`ingestion/api_football/bigquery.py`, `loads/standings.py`, `loads/teams.py`, `loads/transfers.py`, `tests/test_raw_merge_on_write.py`, `docs/data_contract.md`, `.claude/task/contract.md`, `.claude/task/escalations.log`) is listed in `contract.md`'s `scope_paths`; no out-of-scope file touched.
+- §10 / new-mechanism check: `delete_superseded_league_rows` (`bigquery.py:262`) is the whole-league variant of the pre-existing `_delete_superseded_player_rows` (`squads.py`) and the FIXTURE_DETAILS merge-on-write pattern already documented in `docs/data_contract.md`; the contract's "NEW MECHANISM — none" claim holds against the code.
+- Undeclared-threshold hunt: the recurring-cost threshold (new DML delete jobs per league per table per run) is explicitly declared in `contract.md` `decisions_taken` with a dollar estimate and rationale, tied to the CPO's 2026-08-08 approval of item 8 and the 2026-08-09 scoping entry. Not smuggled.
+- `decisions_reserved` cross-check: COACHES, SQUADS, FIXTURES_NEXT, INJURIES, LEAGUES, PLAYER_PROFILES/PLAYER_TEAMS are all excluded in the code as well as the prose (grep-verified: `coaches.py` untouched, no delete import there). None silently converted.
+- Impact-map honesty (A6): evidenced with actual `dbt ls --select ...+` output (29 models, 94 parsed) and `bq show` row/size baselines rather than asserted from memory; matches the structural-surface trigger for `ingestion/**`.
+- Failure-mode correctness verified in the diff rather than from the contract's claim: a failed delete in `transfers.py`/`standings.py` is caught by the outer `except Exception` and reported via `ctx.errors` without raising, and `teams.py` catches it separately so the team-id extension still runs.
+- Credentials/secrets sweep across the full diff: no key/token/password-shaped string; every "key" hit is a `league_code`-keyed delete or a dict key.
+- Scope reduction (eight/ten tables → three) is recorded in `escalations.log` (2026-08-09 entry), not only in `contract.md`, satisfying the repo's own precedent that a contract-only record does not count.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL, and it was correct: `_patch_transfers` monkeypatched `transfers_response_for_team`
-  out entirely and substituted a hand-rolled stand-in, so the real guard at
-  `fixture_scheduling.py:513` — protecting RAW_APIF_TRANSFERS, 6.99 GiB, 59% of raw — was never
-  executed by any test. Reverting it to `complete = True` left the whole suite green.
-- Round 2: traced the fix rather than accepting it. `transfers_response_for_team` calls the bare
-  name `fetch_merged_paged`, resolved against `fixture_scheduling`'s module globals at call time,
-  so patching `fixture_scheduling.fetch_merged_paged` lands exactly where the lookup resolves and
-  the real `result_is_complete(data)` now executes on every call.
-- Re-derived the revert outcome independently instead of trusting the report: with
-  `complete = True` hardcoded, the body-error case fails (no quota flag is set by a body error, so
-  the loader's own per-iteration check never trips either) and the direct helper test fails —
-  exactly two cases, matching the claim.
-- Checked why the other three loaders needed no equivalent fix: their `result_is_complete` calls
-  are inline in the same module `_patch_fetch` already patches, so round 1's indirection defect
-  was specific to transfers and the fix is correctly scoped to it.
-- Read `result_is_complete` (`http_client.py:83-107`) and confirmed it combines both signals — a
-  body-level error AND the latched daily-quota flag — as its docstring and the guards claim.
-- Verified guard ordering in all four loaders: the quota flag is checked at the top of the loop,
-  and `result_is_complete` is called immediately after each fetch and before the next one, which
-  is what that primitive's docstring requires.
-- Discard-versus-mark: correct for these tables. They are ONE row per league, so there is no
-  per-key withholding available as in `squads.py`; `player_squads.py` faces the same shape and
-  also discards.
-- Idempotency: every write is still `append=True`; no merge-on-write or DELETE introduced.
-- Completeness honesty: every discard path appends an `INCOMPLETE ... DISCARDED` entry to
-  `ctx.errors`, so a degraded run is visible rather than silent.
-- No new API call, endpoint, cadence or history-depth change; the guard only gates the final
-  `load_json_to_bq`, the fetch loops are unchanged.
-- `teams.py` extending `team_ids` even when the snapshot is discarded: traced the caller chain —
-  `team_ids` is populated primarily by `fetch_merge_and_persist_fixtures` BEFORE this runs, so a
-  degraded `/teams` fetch does not starve the coaches/transfers/squads phases, and the
-  unconditional extension is unchanged from `main`. Not a defect introduced here.
+- Writer uniqueness / impact-map accuracy: confirmed `loads/transfers.py`, `loads/standings.py` and `loads/teams.py` are each the SOLE writer of their raw table, and no `scripts/` writer exists for any of the three.
+- Staging grain claim verified at the SQL level rather than accepted from the contract: `stg_apif__transfers.sql`, `stg_apif__standings.sql` and `stg_apif__teams.sql` all carry `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`. This is the load-bearing fact behind "nothing is lost", and it holds — deleting strictly-older-than-this-write rows cannot change what any of the 29 downstream models see.
+- The #896 guard is genuinely upstream of every delete: traced all three loaders line by line. `delete_superseded_league_rows` is reachable only after `complete` is True (transfers/standings return early before the write; teams nests the delete inside `if complete:`). No path lets a partial fetch reach the delete.
+- Idempotency / self-healing: the append commits via a batch LOAD job (not a streaming insert, so no streaming-buffer delete restriction) before the DELETE is attempted. A failed delete leaves both rows, staging still picks the newer one, and the next run's delete — bounded by its own later timestamp — cleans up the leftover. No duplication, truncation or permanent drift.
+- Exclusion set checked against code, not prose: `stg_apif__coaches.sql:1-7` does read all snapshots, so the stated reason a league-keyed delete would destroy ~120 coaches is factually true.
+- Test fidelity against this repo's documented decoration-test failure modes: the transfers case patches `fixture_scheduling.fetch_merged_paged` (not `transfers_response_for_team` itself), and `transfers_response_for_team` resolves `fetch_merged_paged` from that same module namespace — the exact bug class caught in 8a round 1 is not present. Same namespace check for standings/teams/coaches.
+- Minor asymmetry examined and judged a NON-defect: `transfers.py`/`standings.py` wrap write + delete + `ctx.add_loaded(1)` in one `try`, so a delete failure skips the counter and is labelled `"transfers BQ {league}: {e}"`, conflating it with a write failure — unlike `teams.py`, which isolates it deliberately. Traced `ctx.tables_loaded`'s only consumers (`orchestrator.py`: a log line and `write_ci_output("new_data", tables_loaded > 0)`); it is a run-wide counter incremented across ~45 competitions, so one missed increment cannot flip `new_data`. The error still reaches `ctx.errors`. Cosmetic inconsistency, no concrete failure.
+- Declarations cross-checked: "no new mechanism" is true against `squads.py:43-74`; the recurring-cost arithmetic (~135 jobs/night, ~$0.25/month) is the right ballpark for a 10 MB DML minimum; the three-table scope reduction is quoted in `escalations.log`, not merely asserted.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL (two findings) and round 2 FAIL (one), all three correct and all three accepted.
-- Round 1: the real transfers guard was untested, and the transfers quota case passed for the
-  wrong reason — `load_transfers_batch`'s pre-existing per-iteration check fired on the second
-  team. Fixed by patching the HTTP layer beneath the real helper, plus a direct unit test of the
-  helper's own return value.
-- Round 2, the sharpest finding on this branch: the mid-loop quota cases were masked for ALL FOUR
-  loaders, not just transfers. The fake sets the latched flag on iteration 1 and every loader's
-  PRE-EXISTING top-of-loop `break` catches it on iteration 2, so the new check could be regressed
-  to body-errors-only — blind to the quota flag, which is half of what #896 is about — and all
-  four cases would still pass on the old code.
-- Round 3: verified the fix structurally for all four. The top-of-loop guard is checked BEFORE
-  the fetch, so on iteration 1 the flag is always unset; `_invoke_*_one` passes exactly one
-  team/season, so the loop body runs once and that guard cannot supply the verdict. The only
-  remaining path to `writes.tables == []` is the new `result_is_complete` call — confirmed
-  independently in `transfers.py:41-49`, `coaches.py:50-63`, `standings.py:34-47`,
-  `teams.py:32-68`, including the `if complete:` branch around the envelope write.
-- Confirmed the test and production code import the SAME `quota` module object, so the fake's
-  `errors_quota._http_quota_exhausted = True` is visible to the loader under test rather than
-  mutating a disconnected copy — the fake genuinely exercises the quota-latch path.
-- Confirmed the claimed differential: under a body-errors-only regression the four new
-  single-iteration cases fail while the four mid-loop cases still pass, which is precisely what
-  makes the new test non-decorative.
-- Checked the LOADERS tuple arity change (4 to 5) is applied consistently at every parametrize
-  site, and that the pre-existing tests still use the multi-item invoke.
-- Confirmed production code is unchanged since round 2 by diffing the patch against direct reads
-  of the five source files.
-- Fail direction: the guards only ever suppress a write — fail closed on doubt. The new
-  assertions run under `test:python`, which has no `changes:` filter, so they fire on every MR
-  and every push.
-- Re-run safety: a discarded snapshot writes nothing and appends an error; the next run retries
-  from scratch with no partial state to corrupt.
-- Quota global-state leak: the autouse `_reset_quota` fixture resets before and after every test
-  in the file; no cross-test leak or ordering dependency found.
+- Re-run / interruption safety for all three loaders: if the process dies between the append and the delete, the league keeps one extra stale row; the next successful run's delete boundary removes it, so the state self-heals with no manual intervention and no accumulation across retries. Traced through `bigquery.py:262-300` and all three call sites.
+- Guard ordering (8a → 8b) confirmed in source rather than from the docstring: `transfers.py:40-72`, `standings.py:38-67`, `teams.py:35-105` all set `complete = False` and return or skip before reaching `load_json_to_bq`/`delete_superseded_league_rows`. `result_is_complete()` (`http_client.py:83-107`) flags both the body-error and quota-latch shapes the test fixtures use.
+- Delete-boundary invariant: `ts = datetime.now(timezone.utc)` is computed ONCE and passed to both the write (`ingested_at=ts.isoformat()`) and the delete (`before=ts`) at every call site — no second, independently-taken clock reading that could race ahead of or behind the appended row's stamp.
+- Decoration-test check on every new case in `tests/test_raw_merge_on_write.py`: for each, traced the single production edit that flips it red (drop the delete call; unscope the `league_code` predicate; drop the `ingested_at <` bound; move the delete above the completeness guard; merge the delete into the outer try in `teams.py`; add a delete to `coaches.py`; import the helper into a fourth loader). None came back "no edit would fail this". The helper under test is exercised for real against a fake client recording SQL and bound parameters, not monkeypatched — unlike the prior `test_squad_players_rows.py` decoration bug.
+- Initially flagged then WITHDRAWN as not a defect: the combined-try shape in `transfers.py:73-93` / `standings.py:68-86` was checked against the pre-existing sibling `loads/squads.py:216-241`, which is unmodified by this branch and has the identical combined-try shape and the identical generic error message. Matching established out-of-scope precedent is not a defect introduced here.
+- Dependency hygiene, credentials, build/hosting, and the guard-hooks/CI-workflow parity items: none of those paths appear in this branch's `review_input.patch`, so there is nothing in that class to check.
 
 ## escalations
-(none — the 8a/8b split was ruled by the CPO before this branch began and is recorded in
-`.claude/task/escalations.log`, entry "2026-08-08 — #33 item 8 SPLIT into 8a/8b".)
+(none)
