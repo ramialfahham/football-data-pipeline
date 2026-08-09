@@ -1,1030 +1,1000 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 95d99cb..642fc4c 100644
+index 642fc4c..5f52d25 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,178 +1,144 @@
--# Task contract — #33 item 8a: an incomplete fetch must not supersede a good snapshot
--
--> Branch `fix/896-guard-partial-writes` from `main` (`7b464bd`), worktree `D:\Projects\fdp-pipeline`.
--> No PROTECTED path, so no `protected_override`. `ingestion/**` IS the structural surface, so an
--> `impact_map` is REQUIRED and is below. No `site_v2/src/`, so no `acceptance_criteria`.
-+# Task contract — #33 item 8b: merge-on-write for TRANSFERS, STANDINGS, TEAMS
+@@ -1,144 +1,146 @@
+-# Task contract — #33 item 8b: merge-on-write for TRANSFERS, STANDINGS, TEAMS
++# Task contract — #39 Stage 1: move the nightly out of CI onto Cloud Run
  
  objective: >
--  Port the #896 guard — "an incomplete fetch must never supersede stored data" — to the four
--  per-league snapshot loaders that lack it: TRANSFERS, COACHES, STANDINGS, TEAMS.
--
--  WHY THIS EXISTS, AND WHY IT IS ITS OWN MR. #33 item 8 converts the append-only raw tables to
--  merge-on-write keyed on `league_code`. Applying that today would DESTROY PRODUCTION DATA: each
--  of these four loaders abandons its fetch loop when the daily quota latches and then writes the
--  partial payload unconditionally. Under append-only that is recoverable — the partial wins the
--  latest-snapshot `qualify` in staging, but the complete prior row still exists in `raw`. Under
--  merge-on-write the partial write DELETES the complete prior row. The CPO split item 8 on
--  2026-08-08 after this was found; 8a is the precondition that makes 8b non-destructive.
--
--  THE DEFECT, one shape in four files:
--      transfers.py:31-33   coaches.py:44-45   standings.py:31-32   teams.py:29-30
--      for x in ...:
--          if errors_quota._http_quota_exhausted:
--              break                      # loop abandoned, nothing recorded
--          ...
--      load_json_to_bq(..., append=True)  # partial written as if complete
--
--  THE FIX ALREADY EXISTS IN THIS REPO and is not being invented here. `result_is_complete()`
--  (`http_client.py:83`) is the #896 primitive: True only when the provider reported no body-level
--  error AND the run's daily-quota flag is unset, because the two failure shapes differ — a
--  per-minute rate limit arrives as HTTP 200 with the error in the body, while an exhausted daily
--  quota short-circuits to an empty body with no error at all. Either signal alone misses one.
--  `players_response_for_team` (`fixture_scheduling.py:480`) already uses it.
--
--  ⚠ A SWEEP CHANGED WHAT I THOUGHT THE SCOPE WAS. `result_is_complete` is called in exactly ONE
--  place in the whole codebase. Eleven loaders fetch-and-write; nine have no completeness check.
--  Only RAW_APIF_PLAYERS is genuinely protected (per key, `squads.py:188-196`); RAW_APIF_SQUADS is
--  partially protected (`player_squads.py` guards the catch-up path on `quota_cut` only, not on
--  body errors). This MR fixes the four the CPO named and scoped. The remaining holes are listed
--  under decisions_reserved rather than silently widened into or silently dropped.
--
--  CONSULTED BEFORE BUILDING (§2 norm): read `result_is_complete`'s docstring for why both signals
--  are needed; read `squads.py`'s per-key guard and `player_squads.py`'s discard-the-partial guard
--  as the two existing precedents, and followed the second, because these four tables are ONE row
--  per league and cannot withhold per team.
--
--refs: >
--  GitLab #33 item 8, split into 8a/8b by the CPO on 2026-08-08 after this defect was found.
--  Implements the #896 ruling for four more tables. Follows !23, !24, !25 (Wave 1, all merged).
-+  Convert three append-only raw tables to merge-on-write keyed on `league_code`: append the
-+  fresh per-league snapshot, then delete that league's strictly-older rows. Raw stops growing
-+  with `competitions x runs` for these tables and becomes O(competitions). The prize is SCAN
-+  cost, not storage — `stg_apif__transfers` and its tests re-read the whole 6.99 GiB table on
-+  every build, and the two most expensive nodes in the warehouse are both scans of it.
-+
-+  Scope is THREE tables, not the eight #33 names. Re-derived from the loaders and their
-+  consumers this session; two of the excluded tables are data-destruction hazards, not
-+  preferences. See decisions_taken.
-+refs: GitLab #33 item 8b (8a merged as !26, `main` @ 8ac63f6); #37 (the SQUADS exclusion)
+-  Convert three append-only raw tables to merge-on-write keyed on `league_code`: append the
+-  fresh per-league snapshot, then delete that league's strictly-older rows. Raw stops growing
+-  with `competitions x runs` for these tables and becomes O(competitions). The prize is SCAN
+-  cost, not storage — `stg_apif__transfers` and its tests re-read the whole 6.99 GiB table on
+-  every build, and the two most expensive nodes in the warehouse are both scans of it.
++  Package the nightly pipeline as a container and run it on Cloud Run Jobs, triggered by Cloud
++  Scheduler at 04:00 UTC, so the production data plane stops living inside GitLab CI. A CI-side
++  event has taken the product's data offline twice in four days — the migration silently dropped
++  the cron (6 days stale, unnoticed), then the namespace hit `ci_quota_exceeded`. Neither cause
++  had anything to do with data.
+ 
+-  Scope is THREE tables, not the eight #33 names. Re-derived from the loaders and their
+-  consumers this session; two of the excluded tables are data-destruction hazards, not
+-  preferences. See decisions_taken.
+-refs: GitLab #33 item 8b (8a merged as !26, `main` @ 8ac63f6); #37 (the SQUADS exclusion)
++  Stage 1 is the split ONLY. No Python changes: the `data:nightly` shell logic is ported 1:1 into
++  a container entrypoint. `.gitlab-ci.yml` is NOT edited — the GitLab schedule is paused instead,
++  keeping the old path as a manual fallback until the new one has proven itself.
++refs: GitLab #39 (Stage 1 of 3); #33 items 7, 14, 16
  
  scope_paths:
-+  - ingestion/api_football/bigquery.py
-   - ingestion/api_football/loads/transfers.py
--  - ingestion/api_football/loads/coaches.py
-   - ingestion/api_football/loads/standings.py
-   - ingestion/api_football/loads/teams.py
--  - ingestion/api_football/fixture_scheduling.py
--  - tests/test_incomplete_snapshot_not_written.py
-+  - tests/test_raw_merge_on_write.py
-+  - docs/data_contract.md
-+  - .claude/task/contract.md
-+  - .claude/task/escalations.log
-+  - .claude/task/review.md
-+  - .claude/task/review_input.patch
+-  - ingestion/api_football/bigquery.py
+-  - ingestion/api_football/loads/transfers.py
+-  - ingestion/api_football/loads/standings.py
+-  - ingestion/api_football/loads/teams.py
+-  - tests/test_raw_merge_on_write.py
+-  - docs/data_contract.md
++  - Dockerfile
++  - .dockerignore
++  - .gitattributes
++  - deploy/nightly/entrypoint.sh
++  - deploy/nightly/profiles.yml
++  - deploy/nightly/README.md
++  - tests/test_nightly_entrypoint_parity.py
+   - .claude/task/contract.md
+   - .claude/task/escalations.log
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
  
++# Not gate-required — no path here is on the structural surface (`ingestion/**`,
++# `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths). Included
++# anyway: this creates a SECOND production execution path for the whole pipeline, which is
++# a wider blast radius than most model edits, and a reviewer should not have to take that
++# on trust.
  impact_map: >
--  WRITERS. Exactly the four loaders named, each the sole writer of its raw table — verified with
--  `grep -rn "load_json_to_bq" ingestion/`:
--      loads/transfers.py  -> RAW_APIF_TRANSFERS   (6.99 GiB, 59% of raw)
--      loads/coaches.py    -> RAW_APIF_COACHES     (0.21 GiB)
--      loads/standings.py  -> RAW_APIF_STANDINGS   (0.09 GiB)
--      loads/teams.py      -> RAW_APIF_TEAMS       (0.08 GiB)
--  `fixture_scheduling.py` is touched only to give `transfers_response_for_team` the same
--  `(rows, complete)` return shape `players_response_for_team` already has. No other caller of that
--  function exists — verified.
+-  writers: RAW_APIF_TRANSFERS is written ONLY by `loads/transfers.py:69` (one row per league,
+-    whole-league snapshot). RAW_APIF_STANDINGS only by `loads/standings.py:63`. RAW_APIF_TEAMS
+-    only by `loads/teams.py:69`. Verified by `grep -rn "raw_table(" ingestion/` — no second
+-    writer of any of the three, and no script under `scripts/` writes them.
 -
--  WHAT CHANGES BEHAVIOURALLY, stated precisely because it is a behaviour change and not a refactor.
--  When a fetch loop is cut short by the daily quota, or any per-team/per-season response carries a
--  body-level error, the league's snapshot is now DISCARDED instead of written. Consequences:
--  - Normal runs: nothing changes. A complete run writes exactly what it writes today.
--  - A degraded run: staging keeps the PREVIOUS complete snapshot instead of being superseded by a
--    partial. That is the #896 ruling and it is strictly better for data quality.
--  - A degraded FIRST-EVER ingest of a league: nothing is written at all, where today a partial
--    would land. Accepted, and it is the same trade `player_squads.py` already makes on its
--    catch-up path. It self-heals on the next run, and the discarded snapshot is reported through
--    `ctx.errors`, which reaches the completeness summary rather than being silent.
+-  downstream: `dbt ls --project-dir dbt_project --select stg_apif__transfers+
+-    stg_apif__standings+ stg_apif__teams+ --resource-type model` (dbt 1.7.19, bigquery 1.7.2,
+-    94 models parsed) returns 29 models:
 -
--  DOWNSTREAM. No dbt model, seed, macro or test is touched, so there is no lineage to trace and no
--  mart or number can move. The raw SCHEMA is unchanged — same table, same columns, same payload
--  shape, same append semantics. What changes is only WHETHER a given degraded run writes a row.
--  Staging is unaffected by construction: `stg_apif__transfers`, `_standings` and `_teams` already
--  select the latest snapshot per `league_code`, so they read one row per league either way.
+-      1_staging: stg_apif__standings, stg_apif__teams, stg_apif__transfers
+-      2_base:    base_apif__standings, base_apif__teams, base_apif__teams_global,
+-                 base_apif__transfers
+-      3_core:    dim_player_team_season_mapping, dim_team, fct_standings, fct_transfer
+-      4_inter:   int_team_season__deserved_vs_actual, int_team_season__standings_primary
+-      5_marts:   mart_fixture_standing_context, mart_matchday_insights, mart_player_career,
+-                 mart_player_fixture_stats, mart_player_match_log, mart_player_profile,
+-                 mart_roster, mart_standings, mart_team_competition_benchmarks,
+-                 mart_team_fixture_stats, mart_team_fixtures, mart_team_market_value,
+-                 mart_team_momentum_window, mart_team_profile, mart_team_season,
+-                 mart_team_season_insights
 -
--  DELIBERATELY NOT IN THIS MR: no merge-on-write, no delete of any kind, no `league_code`-keyed
--  DELETE. This MR only ever writes FEWER rows than today. That is what makes it safe to land
--  before 8b, and safe to land the same day the nightly resumes.
+-  layer_rules: no dbt model, macro or seed is touched, so `check_layer_contract.py` and
+-    `check_registry_var_sync.py` are unaffected. The three staging models keep their
+-    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
+-    unchanged — this task deliberately does NOT edit them.
 -
--  DEPLOY ORDER. No warehouse object changes. The nightly (schedule 4379625) fires 04:00 UTC daily
--  and will be the first consumer. Landing this BEFORE 8b is the point of the split; landing it
--  before tonight's run is desirable but not required, because append-only remains safe either way.
+-  deploy_order: nothing breaks between merge and the next run. The raw SCHEMA is unchanged
+-    (`league_code, payload, ingested_at`); only row retention changes. The deployed staging
+-    models keep working against a table with one row per league exactly as they do against
+-    many. The first merge-on-write happens on the first nightly after merge (04:00 UTC,
+-    schedule 4379625). No backfill, no migration step, no dbt run required.
 -
--  BLAST RADIUS on data: no mart, no number, no displayed value. The risk being managed is the
--  reverse of the usual one — this makes the pipeline write less, never more.
-+  writers: RAW_APIF_TRANSFERS is written ONLY by `loads/transfers.py:69` (one row per league,
-+    whole-league snapshot). RAW_APIF_STANDINGS only by `loads/standings.py:63`. RAW_APIF_TEAMS
-+    only by `loads/teams.py:69`. Verified by `grep -rn "raw_table(" ingestion/` — no second
-+    writer of any of the three, and no script under `scripts/` writes them.
+-  blast_radius: NO mart number changes, and the reason is mechanical rather than empirical.
+-    All three staging models already select ONLY the latest row per `league_code`; the rows
+-    this task deletes are strictly older than the row written in the same call
+-    (`ingested_at < @before`, where `@before` is that write's own timestamp), so every deleted
+-    row is one the qualify was already discarding. The 29 models above read the same input
+-    before and after. Baseline for the post-merge check, `bq show` 2026-08-09:
+-      RAW_APIF_TRANSFERS  1,143 rows  6.986 GiB
+-      RAW_APIF_STANDINGS  1,673 rows  0.089 GiB
+-      RAW_APIF_TEAMS      1,673 rows  0.078 GiB
+-    45 active competitions, so each should settle at ~45 rows. Proportionally TRANSFERS lands
+-    near ~0.27 GiB; #33 predicts ~0.12 GiB. Rows are not uniform in size, so neither figure is
+-    asserted — the post-merge `bq show` settles it.
+-    REVERSIBLE: `raw_archive` holds `RAW_APIF_{TRANSFERS,STANDINGS,TEAMS}_20260808`,
+-    row-for-row verified (item 8 step 0, 2026-08-08).
++  what this changes: nothing in the pipeline's CODE. It adds a second way to INVOKE the
++    existing entrypoint `python -m ingestion.api_football.main` followed by the same
++    `dbt deps / seed / build --target prod`. Verified against `.gitlab-ci.yml` `data:nightly`
++    (lines 667-711): the ported step list and order are identical, including the `new_data`
++    gate and both contract checks.
 +
-+  downstream: `dbt ls --project-dir dbt_project --select stg_apif__transfers+
-+    stg_apif__standings+ stg_apif__teams+ --resource-type model` (dbt 1.7.19, bigquery 1.7.2,
-+    94 models parsed) returns 29 models:
++  writers: the container runs the SAME ingestion package that writes every RAW_APIF_* table,
++    and the same `dbt build --target prod` that writes `dbt_analytics`. No new writer is
++    introduced and no write path is altered.
 +
-+      1_staging: stg_apif__standings, stg_apif__teams, stg_apif__transfers
-+      2_base:    base_apif__standings, base_apif__teams, base_apif__teams_global,
-+                 base_apif__transfers
-+      3_core:    dim_player_team_season_mapping, dim_team, fct_standings, fct_transfer
-+      4_inter:   int_team_season__deserved_vs_actual, int_team_season__standings_primary
-+      5_marts:   mart_fixture_standing_context, mart_matchday_insights, mart_player_career,
-+                 mart_player_fixture_stats, mart_player_match_log, mart_player_profile,
-+                 mart_roster, mart_standings, mart_team_competition_benchmarks,
-+                 mart_team_fixture_stats, mart_team_fixtures, mart_team_market_value,
-+                 mart_team_momentum_window, mart_team_profile, mart_team_season,
-+                 mart_team_season_insights
++  downstream: unchanged. The nightly's outputs are the raw tables and the prod warehouse; both
++    are produced by the identical commands. `dbt ls` lineage is untouched because no model,
++    macro or seed is edited in this task.
 +
-+  layer_rules: no dbt model, macro or seed is touched, so `check_layer_contract.py` and
-+    `check_registry_var_sync.py` are unaffected. The three staging models keep their
-+    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
-+    unchanged — this task deliberately does NOT edit them.
++  concurrency: the existing BigQuery ingest lock (`ingestion/api_football/ingestion_lock.py`,
++    `RAW_APIF_INGEST_LOCK`) is what prevents a Cloud Run run and any GitLab run from colliding
++    — it is dataset-level, not CI-level, so it already spans both platforms. This is why the
++    GitLab job can remain in place as a fallback rather than having to be deleted first.
++    `--max-retries 0` is set deliberately: the lock holds a lease, so an immediate retry would
++    be refused and only add noise.
 +
-+  deploy_order: nothing breaks between merge and the next run. The raw SCHEMA is unchanged
-+    (`league_code, payload, ingested_at`); only row retention changes. The deployed staging
-+    models keep working against a table with one row per league exactly as they do against
-+    many. The first merge-on-write happens on the first nightly after merge (04:00 UTC,
-+    schedule 4379625). No backfill, no migration step, no dbt run required.
++  credentials: the job runs AS `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`,
++    the service account that already holds the BigQuery roles used by CI. `method: oauth` +
++    `google.auth.default()` resolves it natively inside Cloud Run — no WIF exchange and no key
++    file. TWO new IAM grants, both in `deploy/nightly/README.md`, both enumerated here because
++    an earlier draft of this paragraph claimed there was only one and `cto-reviewer` and
++    `platform-reviewer` each caught it independently (round 1):
++      1. `roles/secretmanager.secretAccessor` on the secret `api-football-key` — lets the job
++         read the API key at runtime instead of baking it into an image layer.
++      2. `roles/run.invoker` on the JOB `fdp-nightly` — lets Cloud Scheduler start it.
++    Grant 2 is RESOURCE-scoped, not project-scoped. The project-scoped form would let this
++    identity invoke every Cloud Run service and job in the project, present and future, and
++    `github-actions-dbt` is not single-purpose — it is the same account CI impersonates to write
++    the prod warehouse. Widening a shared production identity is not something this task needs
++    and is not something it does.
 +
-+  blast_radius: NO mart number changes, and the reason is mechanical rather than empirical.
-+    All three staging models already select ONLY the latest row per `league_code`; the rows
-+    this task deletes are strictly older than the row written in the same call
-+    (`ingested_at < @before`, where `@before` is that write's own timestamp), so every deleted
-+    row is one the qualify was already discarding. The 29 models above read the same input
-+    before and after. Baseline for the post-merge check, `bq show` 2026-08-09:
-+      RAW_APIF_TRANSFERS  1,143 rows  6.986 GiB
-+      RAW_APIF_STANDINGS  1,673 rows  0.089 GiB
-+      RAW_APIF_TEAMS      1,673 rows  0.078 GiB
-+    45 active competitions, so each should settle at ~45 rows. Proportionally TRANSFERS lands
-+    near ~0.27 GiB; #33 predicts ~0.12 GiB. Rows are not uniform in size, so neither figure is
-+    asserted — the post-merge `bq show` settles it.
-+    REVERSIBLE: `raw_archive` holds `RAW_APIF_{TRANSFERS,STANDINGS,TEAMS}_20260808`,
-+    row-for-row verified (item 8 step 0, 2026-08-08).
++  deploy_order: nothing breaks at any point. The container is additive; until the Cloud Run job
++    is deployed AND the GitLab schedule paused, behaviour is exactly as today. The two can
++    never both fire because pausing the schedule precedes the first scheduled Cloud Run run,
++    and the ingest lock backstops it regardless.
++
++  blast_radius: no mart, model or number changes. The risk is operational, not analytical: if
++    the container is wrong, the nightly fails and data goes stale — the failure mode that
++    already exists today and that Stage 2 (#33 item 16 freshness alerting) is what actually
++    closes. Stage 1 does not close it and does not claim to.
  
  decisions_taken: >
--  AUTHORITY. The durable record is `.claude/task/escalations.log`, entry
--  "2026-08-08 — #33 item 8 SPLIT into 8a/8b: item 8 as approved would have destroyed prod data",
--  appended in this branch. It records the split itself, the evidence that forced it, the CPO's
--  "go ahead with 8a", and — explicitly, because it was the thing most likely to be inferred later
--  — that 8a is scoped to FOUR loaders and which five gaps are deliberately left out.
--  That entry exists BECAUSE `scope-auditor` FAILed round 1 for its absence, and it was right:
--  the 2026-08-08 blanket #33 approval covers item 8 as ONE thing ("raw merge-on-write with the
--  raw_archive backup first"), and a split that changes what item 8 IS is a new decision. Fourth
--  time this repo has ruled that a decision living only in `contract.md` is not recorded
--  (2026-07-31, 2026-08-01, and the standing-rule entry of 2026-08-08).
--  The underlying rule is NOT new: #896 is already this repo's ruling, recorded 2026-08-03, and
--  already implemented for RAW_APIF_PLAYERS. This MR applies an existing ruling to four more
--  tables; it does not create one.
+-  CPO approved #33 item 8 on 2026-08-08 ("yes" to items 7, 8 and 9). Item 8 was then SPLIT into
+-  8a (the #896 completeness guard, merged as !26) and 8b (this task) on being shown that the
+-  approved change would destroy production data; the split is recorded in escalations.log,
+-  entry "2026-08-08 — #33 item 8 SPLIT into 8a/8b".
 -
--  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an oversight).
--  - NEW MECHANISM: none. `result_is_complete()` already exists and is already used. No new
--    dependency, no new config, no new env var, no new table.
--  - RECURRING COST: unchanged, or very slightly reduced. No new API call — `result_is_complete`
--    inspects the response already in hand. No extra BigQuery read. On a degraded run one LOAD job
--    is skipped, so a bad night gets marginally cheaper.
--  - GUARD STRENGTHENED, not weakened. Four tables gain a protection only one table had.
--  - BEHAVIOUR CHANGE, declared: a degraded first-ever ingest now writes nothing. See impact_map.
+-  This contract pre-approves the conversion of exactly THREE tables: TRANSFERS, STANDINGS,
+-  TEAMS. #33's text says "the eight append-only raw tables"; there are TEN, and the safe set is
+-  three. Excluded, with the reason each:
+-    - COACHES — `stg_apif__coaches.sql:1-7` reads ALL snapshots by an explicit CPO ruling
+-      (escalations.log, 2026-06-23) to preserve every coach ever seen; latest-per-league would
+-      drop ~120 coaches whose teams left our pull. A league-keyed delete destroys exactly that.
+-      A SECOND data-destruction hazard inside item 8, same class as the one that forced 8a.
+-    - SQUADS — the loader writes a TEAM SUBSET while staging reads latest-per-league. Verified
+-      in production 2026-08-09: WCQAF exposes 10 of 44 teams, CNL 2 of 22, AFCON 8 of 16.
+-      Filed as #37. Merge-on-write would make a recoverable staging bug permanent.
+-    - FIXTURES_NEXT — complete only via carry-forward and it has no #896 guard.
+-    - INJURIES — right shape, no guard, and #33 item 15 proposes deleting the endpoint.
+-    - LEAGUES — safe but tiny; no benefit against the added risk surface.
+-    - PLAYER_PROFILES, PLAYER_TEAMS — accumulate per player (`players_needing()` writes only
+-      newly-seen players). A league-keyed delete erases every player from earlier runs. NEVER.
 -
--  WHY DISCARD RATHER THAN WRITE-AND-MARK. Two precedents exist. `squads.py` withholds incomplete
--  KEYS, which works because RAW_APIF_PLAYERS is one row per (team, season). These four tables are
--  ONE ROW PER LEAGUE, so there is no key to withhold — the snapshot is complete or it is not.
--  `player_squads.py` faces the same one-row-per-league shape and DISCARDS. Followed the second.
-+  CPO approved #33 item 8 on 2026-08-08 ("yes" to items 7, 8 and 9). Item 8 was then SPLIT into
-+  8a (the #896 completeness guard, merged as !26) and 8b (this task) on being shown that the
-+  approved change would destroy production data; the split is recorded in escalations.log,
-+  entry "2026-08-08 — #33 item 8 SPLIT into 8a/8b".
+-  Reducing an approved item's scope is itself recorded in escalations.log with this task, per
+-  the 8a precedent (scope-auditor FAILed 8a round 1 for leaving the scope only in contract.md).
+-
+-  `docs/data_contract.md` is edited under the CPO STANDING RULE of 2026-08-08: "Updating a
+-  reference that an approved change itself breaks is part of that change, not a scope
+-  extension — provided the update is confined to the reference and changes no behaviour."
++  The CPO approved the architecture and this stage explicitly: "start with #39", then "plan
++  stage 1", then approval of the written plan. Region `europe-west1` and Secret Manager for the
++  API key were both chosen by the CPO when asked.
 +
-+  This contract pre-approves the conversion of exactly THREE tables: TRANSFERS, STANDINGS,
-+  TEAMS. #33's text says "the eight append-only raw tables"; there are TEN, and the safe set is
-+  three. Excluded, with the reason each:
-+    - COACHES — `stg_apif__coaches.sql:1-7` reads ALL snapshots by an explicit CPO ruling
-+      (escalations.log, 2026-06-23) to preserve every coach ever seen; latest-per-league would
-+      drop ~120 coaches whose teams left our pull. A league-keyed delete destroys exactly that.
-+      A SECOND data-destruction hazard inside item 8, same class as the one that forced 8a.
-+    - SQUADS — the loader writes a TEAM SUBSET while staging reads latest-per-league. Verified
-+      in production 2026-08-09: WCQAF exposes 10 of 44 teams, CNL 2 of 22, AFCON 8 of 16.
-+      Filed as #37. Merge-on-write would make a recoverable staging bug permanent.
-+    - FIXTURES_NEXT — complete only via carry-forward and it has no #896 guard.
-+    - INJURIES — right shape, no guard, and #33 item 15 proposes deleting the endpoint.
-+    - LEAGUES — safe but tiny; no benefit against the added risk surface.
-+    - PLAYER_PROFILES, PLAYER_TEAMS — accumulate per player (`players_needing()` writes only
-+      newly-seen players). A league-keyed delete erases every player from earlier runs. NEVER.
++  Framing ruling that constrains this task: "the nightly run is the minimum of updates we need
++  so data doesn't become stale." Cadence is therefore NOT available as a cost lever, which is
++  what rules out the cheaper options (reduce frequency, wait for the quota reset) and forces the
++  hosting change.
 +
-+  Reducing an approved item's scope is itself recorded in escalations.log with this task, per
-+  the 8a precedent (scope-auditor FAILed 8a round 1 for leaving the scope only in contract.md).
++  CPO also ruled out, in this conversation: buying GitLab compute minutes, and applying to the
++  GitLab for Open Source programme.
+ 
+   # THRESHOLD DECLARATIONS
+-  NEW MECHANISM — none. Merge-on-write already exists in this repo and this task adds no new
+-  class of thing: `loads/squads.py:43-74` (`_delete_superseded_player_rows`, keyed on
+-  `(league, team, season)`) and `RAW_APIF_FIXTURE_DETAILS` (keyed on `(league, fixture_id)`)
+-  both do it today, and `docs/data_contract.md:40-44` already documents merge-on-write as an
+-  established write mode. `delete_superseded_league_rows` is the whole-league variant of an
+-  existing function, placed in `bigquery.py` beside the other write helpers rather than copied
+-  into three loaders.
+-
+-  RECURRING COST — YES, declared. This adds one DELETE query job per (league, table) per run:
+-  45 competitions x 3 tables = ~135 extra jobs per nightly. BigQuery bills DML at a 10 MB
+-  minimum, so ~1.35 GB/night ≈ $0.008/night ≈ $0.25/month at on-demand rates. This is a real
+-  increase and is offset by the scan reduction it buys (`base_apif__transfers` and
+-  `not_null_stg_apif__transfers_raw_ingested_at` were the two most expensive nodes measured, at
+-  $0.60 each per 6 days, both scanning the 6.99 GiB table). Declared here because a recurring
+-  cost is CTO-threshold and appears in no routing row.
++  NEW MECHANISM — YES. Cloud Run Jobs, Cloud Scheduler and a container image are all new to this
++  repo; nothing here runs on them today. Declared rather than smuggled: this is the CTO-class
++  threshold and no routing row covers `Dockerfile` or `deploy/**`, so `cto-reviewer` is spawned
++  for this task even though `.claude/review_routing.json` does not require it.
 +
-+  `docs/data_contract.md` is edited under the CPO STANDING RULE of 2026-08-08: "Updating a
-+  reference that an approved change itself breaks is part of that change, not a scope
-+  extension — provided the update is confined to the reference and changes no behaviour."
++  RECURRING COST — YES. ~1 vCPU / 2 GiB for ~110 min/day ≈ **$1.70/month** on the existing GCP
++  bill, falling to ~$0.35 once #33 item 14 removes the redundant re-fetching. Cloud Scheduler is
++  free at this volume. Secret Manager ~$0.06/month. Against this it returns the whole 400
++  GitLab minutes/month to CI across all three of the owner's projects, and today the nightly
++  cannot run at all.
 +
-+  # THRESHOLD DECLARATIONS
-+  NEW MECHANISM — none. Merge-on-write already exists in this repo and this task adds no new
-+  class of thing: `loads/squads.py:43-74` (`_delete_superseded_player_rows`, keyed on
-+  `(league, team, season)`) and `RAW_APIF_FIXTURE_DETAILS` (keyed on `(league, fixture_id)`)
-+  both do it today, and `docs/data_contract.md:40-44` already documents merge-on-write as an
-+  established write mode. `delete_superseded_league_rows` is the whole-league variant of an
-+  existing function, placed in `bigquery.py` beside the other write helpers rather than copied
-+  into three loaders.
-+
-+  RECURRING COST — YES, declared. This adds one DELETE query job per (league, table) per run:
-+  45 competitions x 3 tables = ~135 extra jobs per nightly. BigQuery bills DML at a 10 MB
-+  minimum, so ~1.35 GB/night ≈ $0.008/night ≈ $0.25/month at on-demand rates. This is a real
-+  increase and is offset by the scan reduction it buys (`base_apif__transfers` and
-+  `not_null_stg_apif__transfers_raw_ingested_at` were the two most expensive nodes measured, at
-+  $0.60 each per 6 days, both scanning the 6.99 GiB table). Declared here because a recurring
-+  cost is CTO-threshold and appears in no routing row.
++  NO new Python dependency is added — `requirements.txt` is unchanged; the image installs
++  exactly what CI installs.
  
  decisions_reserved:
--  - THE REMAINING #896 HOLES, found by the sweep and deliberately not fixed here: `catalog.py`
--    (LEAGUES), `injuries.py` (INJURIES), `fixtures.py` (FIXTURES_NEXT), `player_profiles.py`,
--    `player_teams.py`, and the body-error half of `player_squads.py`. The CPO scoped 8a to four
--    loaders; widening to nine inside the same MR would be exactly the drift `scope_paths` exists
--    to stop. They matter for 8b, and are reported on #33 so 8b's scope is decided with them in
--    view — not left to be rediscovered.
--  - Which tables 8b may convert at all. `PLAYER_PROFILES` and `PLAYER_TEAMS` accumulate per player
--    (`players_needing()` writes only newly-seen players), so a `league_code`-keyed DELETE would
--    erase every player ingested on an earlier run. They must never be converted. Not decided here.
--  - #33 item 15 (drop `/injuries`). RAW_APIF_INJURIES is 1.78 GiB, the second-largest raw table,
--    with no source declaration and no model. Whether to guard it or delete the endpoint is one
--    decision, and it is the CPO's.
-+  - Whether FIXTURES_NEXT is ever converted. It needs a #896-style completeness guard first,
-+    because its snapshot is complete only via the carry-forward at `loads/fixtures.py:225-250`.
-+    Not decided here; not attempted here.
-+  - How #37 (the SQUADS subset/latest-row defect) is fixed — read it as accumulation
-+    (UNION ALL, like `stg_apif__player_profiles`) or make the loader carry forward. Entangled
-+    with #33 item 17, which asks whether `stg_apif__squads` should exist at all given zero
-+    `ref()`. Both are CPO calls; this task only excludes the table.
-+  - Whether INJURIES is converted or the endpoint is dropped (#33 item 15).
-+  - The COACHES all-snapshot read is CPO-ruled (2026-06-23) and is NOT revisited here.
+-  - Whether FIXTURES_NEXT is ever converted. It needs a #896-style completeness guard first,
+-    because its snapshot is complete only via the carry-forward at `loads/fixtures.py:225-250`.
+-    Not decided here; not attempted here.
+-  - How #37 (the SQUADS subset/latest-row defect) is fixed — read it as accumulation
+-    (UNION ALL, like `stg_apif__player_profiles`) or make the loader carry forward. Entangled
+-    with #33 item 17, which asks whether `stg_apif__squads` should exist at all given zero
+-    `ref()`. Both are CPO calls; this task only excludes the table.
+-  - Whether INJURIES is converted or the endpoint is dropped (#33 item 15).
+-  - The COACHES all-snapshot read is CPO-ruled (2026-06-23) and is NOT revisited here.
++  - When `data:nightly` is deleted from `.gitlab-ci.yml`. It is a protected path needing its own
++    governance task with `protected_override`, and it should not happen until the Cloud Run job
++    has run successfully at least once. Not decided here.
++  - Whether ingest and dbt stay one job or split into two chained jobs (#39 open question).
++  - Stage 2 (freshness alerting, #33 item 16) and Stage 3 (CI builds and pushes the image) are
++    separate tasks. Stage 1 deliberately leaves the staleness blind spot open.
++  - Per-competition task sharding — later, and constrained by the provider's per-minute rate
++    limit and the global daily quota.
  
  done_when:
--  - `python -m pytest tests/ -q` exit code read DIRECTLY; green, and no lower than main's 683.
--  - New tests in `tests/test_incomplete_snapshot_not_written.py` assert, for EACH of the four
--    loaders: (a) a complete fetch still writes exactly one payload; (b) a body-level error on any
--    one team/season writes NOTHING and reports through `ctx.errors`; (c) a mid-loop daily-quota
--    cut writes NOTHING. Assertions are on whether the loader called its BigQuery write, using a
--    recording double — not on log text.
--  - EVERY new assertion proven load-bearing by reverting the guard it covers and watching that
--    test go red, then restoring. DONE, and it caught TWO decoration bugs in this MR alone:
--      · round 0: the quota-cut cases for `standings` and `teams` PASSED with the guard disabled.
--        Their helper re-patched `fetch_merged_paged` with an empty response list, so they were
--        exercising an IndexError path, not a quota cut. Harness restructured (patch and invoke
--        split apart); all 8 discard cases then failed as required.
--      · round 1, found by BOTH specialists independently: `_patch_transfers` monkeypatched
--        `transfers_response_for_team` out entirely and substituted a hand-rolled stand-in, so the
--        REAL guard at `fixture_scheduling.py:513` — the one protecting RAW_APIF_TRANSFERS, 6.99
--        GiB and 59% of raw — was never executed by any test. Reverting it to `complete = True`
--        left the whole suite green. Fixed by patching the HTTP layer UNDER the helper instead,
--        plus a direct unit test of the helper's own return value; re-verified against that exact
--        revert, which now fails two cases.
--      · round 2, `platform-reviewer` again, and the sharpest of the three: the mid-loop
--        quota-cut cases were masked for ALL FOUR loaders. The fake sets the latched quota flag on
--        iteration 1, and every one of these loaders has a PRE-EXISTING top-of-loop
--        `if _http_quota_exhausted: break` that catches it on iteration 2 — so the new check could
--        be regressed to body-errors-only (`if data.get("errors")`, blind to the quota flag, which
--        is half of what #896 is about) and all four cases would still pass on the OLD code.
--        Fixed by adding `test_a_quota_cut_on_a_single_iteration_is_caught`, which invokes each
--        loader with exactly ONE team/season so there is no second iteration for the old guard to
--        fire on. Verified against exactly that regression in all four loaders: the four new cases
--        fail, and — confirming the reviewer's analysis precisely — the four mid-loop cases stay
--        green throughout.
--    TEN decoration tests have now been caught this way across four MRs. None was caught by
--    reading the test; every one needed the subject broken.
--  - `grep -rn "result_is_complete" ingestion/` shows the four new call sites plus the pre-existing
--    one — i.e. the fix uses the existing primitive rather than a private reimplementation.
--  - `ruff check --config .ruff-ci.toml ingestion/ tests/` exits 0.
--  - No `dbt build`, `dbt run` or ingest is executed at any point.
-+  - `pytest tests/ -q` exits 0 (baseline on main is 702 passed, 1 skipped; this adds cases).
-+  - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
-+  - Every new test verified by BREAKING its subject and confirming WHICH cases go red:
-+    remove the delete call (write/param/pinning cases fail); move the delete above the 8a
-+    completeness guard (the discard case fails); drop the `ingested_at <` bound (the
-+    survives-own-write case fails).
-+  - No `dbt build`, no `dbt run`, no ingest executed at any point.
-+  - Post-merge only (not on this branch): after one nightly,
-+    `SELECT league_code, COUNT(*) FROM raw.RAW_APIF_TRANSFERS GROUP BY 1 HAVING COUNT(*) > 1`
-+    returns zero rows, and `bq show` shows the table shrunk.
- 
- amendments: (none)
+-  - `pytest tests/ -q` exits 0 (baseline on main is 702 passed, 1 skipped; this adds cases).
++  - `pytest tests/ -q` exits 0 (baseline on main is 720 passed, 1 skipped).
+   - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
+-  - Every new test verified by BREAKING its subject and confirming WHICH cases go red:
+-    remove the delete call (write/param/pinning cases fail); move the delete above the 8a
+-    completeness guard (the discard case fails); drop the `ingested_at <` bound (the
+-    survives-own-write case fails).
+-  - No `dbt build`, no `dbt run`, no ingest executed at any point.
+-  - Post-merge only (not on this branch): after one nightly,
+-    `SELECT league_code, COUNT(*) FROM raw.RAW_APIF_TRANSFERS GROUP BY 1 HAVING COUNT(*) > 1`
+-    returns zero rows, and `bq show` shows the table shrunk.
+-
+-amendments: (none)
++  - The parity test is verified by BREAKING its subject: remove a step from the entrypoint and
++    confirm the test goes red, then restore.
++  - `deploy/nightly/entrypoint.sh` is confirmed to be a faithful port by diffing its step list
++    against `.gitlab-ci.yml` `data:nightly` by hand, not by assertion.
++  - No `gcloud` resource is created and no ingest is run from this branch. Deployment is blocked
++    on the CPO enabling Secret Manager and creating the API-key secret, and is a separate,
++    deliberate step with the log watched.
++
++amendments:
++  - 2026-08-09: + `.gitattributes` — authority: **CPO, asked and answered in-thread: "yes, add
++    .gitattributes"**. An earlier draft of this entry cited builder judgement instead and
++    `scope-auditor` FAILed it in round 1, correctly: working_agreement §2 requires an amendment
++    to record the CPO's authority, and §219-221 makes extending scope without it drift by
++    definition. Recording that no authority was sought is not the same as having it.
++    The alternative offered to the CPO was stripping CRs inside the Dockerfile, which is already
++    in scope; it was declined as symptom-treatment that leaves the repo still corrupting shell
++    scripts for anyone who clones it. Content: `*.sh` and `Dockerfile` pinned to `eol=lf`.
++    WHY IT IS NOT OPTIONAL: `core.autocrlf=true` on this machine and the repo has no
++    `.gitattributes`, so `deploy/nightly/entrypoint.sh` is LF only because it was just
++    written — any fresh clone or `git checkout` converts it to CRLF. `gcloud run jobs deploy
++    --source .` uploads the WORKING TREE, so the image would ship a script whose shebang is
++    `#!/usr/bin/env bash\r`, and the container would fail with "no such file or directory"
++    at 04:00 in production. It fails nowhere earlier: tests pass, the build succeeds, and the
++    parity test reads the file as text.
++    Deliberately narrow — two patterns, both consumed only by Linux tooling. A repo-wide
++    normalisation would rewrite unrelated files and is not in scope.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 4bdcb04..da86e3b 100644
+index da86e3b..7d0e0f9 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1741,3 +1741,44 @@ times.
-   and "six per-league snapshot tables". The code has TEN append-only tables, and the set safe for
-   a `league_code`-keyed delete is smaller than six and is not the obvious six. Do not take either
-   count from #33 when scoping 8b; re-derive it from the loaders.
+@@ -1782,3 +1782,80 @@ times.
+   nothing; the CPO was shown the COACHES finding and the three-table scope before implementation
+   and approved it ("start 8b at the three-table scope"). Widening it back is what would need a
+   new decision.
 +
 +
-+2026-08-09 — #33 item 8b SCOPED TO THREE TABLES (a reduction of an approved item)
++2026-08-09 — #39: the nightly LEAVES CI. New mechanism + recurring cost, both APPROVED.
 +
-+  CONTEXT. The 8b scope was re-derived from the loaders and their CONSUMERS, as the 2026-08-08
-+  entry above requires. #33 item 8 was approved by the CPO on 2026-08-08 ("yes" to items 7, 8, 9)
-+  against a text naming eight tables. The set actually safe is THREE: TRANSFERS, STANDINGS, TEAMS.
-+  Recorded here, not only in contract.md, because scope-auditor FAILed 8a round 1 for exactly that
-+  omission — the fourth time this repo has ruled that a scope living only in the contract is not
-+  recorded.
++  WHAT PROMPTED IT. `data:nightly` ran the production data plane inside GitLab CI, so a CI-side
++  event took the product's data offline twice in four days: the GitHub→GitLab migration silently
++  dropped the cron (2026-08-03 → 08-09, six days stale, nothing noticed), then the namespace hit
++  `ci_quota_exceeded` and jobs stopped starting. Neither cause had anything to do with data.
 +
-+  THE TEST APPLIED, which #33 does not state: a `league_code`-keyed delete is safe only if BOTH
-+  (a) the loader writes a COMPLETE per-league row each run, and (b) NO consumer reads snapshot
-+  history. #33 only ever considered (a). Condition (b) is what excludes COACHES.
++  THE MEASUREMENT that settled it (job 15794630814, 2026-08-09): the nightly is ~111 min/run
++  against a **400 min/month** free-tier allowance shared across all three of the CPO's projects.
++  ~83 of the 105 ingestion minutes are `transfers`, `coaches` and in-season squads re-fetching
++  data that has not changed — i.e. #33 item 14. It never fit, from the moment item 7 created the
++  schedule. Note the project is already `visibility: public`, and that does NOT exempt it.
 +
-+  EXCLUDED — DATA DESTRUCTION, not preference:
-+  - COACHES. `stg_apif__coaches.sql:1-7` reads ALL snapshots deliberately, by the CPO ruling of
-+    2026-06-23 in this log, to preserve every coach ever seen; latest-per-league would drop ~120
-+    coaches whose teams later left our pull. A league-keyed delete destroys exactly what that
-+    ruling protects. This is a SECOND data-destruction hazard inside item 8, the same class as the
-+    one that forced the 8a/8b split, and it was invisible from the issue text.
-+  - SQUADS. The loader writes a team SUBSET (catch-up skips teams already stored, teams active
-+    elsewhere, and teams a sibling comp claimed first) while `stg_apif__squads` reads
-+    latest-per-league. Verified in production 2026-08-09: WCQAF exposes 10 of 44 teams, CNL 2 of
-+    22, AFCON 8 of 16. Filed as #37. Raw is append-only today so the fuller rows still exist and
-+    the defect is recoverable; merge-on-write would make it permanent.
++  THE CPO RULING that removed the cheap options: "the nightly run is the minimum of updates we
++  need so data don't become stale." Cadence is therefore NOT a cost lever. Also ruled out in the
++  same conversation: buying GitLab compute minutes, and applying to the GitLab for Open Source
++  programme. That leaves hosting as the only variable, which is what #39 changes.
 +
-+  EXCLUDED — not worth the risk surface:
-+  - FIXTURES_NEXT: complete only via the carry-forward at `loads/fixtures.py:225-250`, and it has
-+    no #896 guard. Needs one first.
-+  - INJURIES: right shape, no guard, and #33 item 15 proposes dropping the endpoint entirely.
-+  - LEAGUES: safe but tiny (one small row per league); no saving to justify the change.
++  APPROVED, explicitly and in sequence: "start with #39" → "plan stage 1" → approval of the
++  written Stage 1 plan. Region `europe-west1` and Secret Manager for the API key were both
++  chosen by the CPO when asked directly.
 +
-+  NEVER, restated from 2026-08-08: PLAYER_PROFILES and PLAYER_TEAMS accumulate per player.
++  THRESHOLDS CROSSED, declared here so they are verifiable rather than asserted in a contract
++  that ships with the same commit:
++  - NEW MECHANISM — Cloud Run Jobs, Cloud Scheduler and a container image. All new to this repo.
++  - RECURRING COST — ~$1.70/month GCP, falling to ~$0.35 after #33 item 14. Against it, the
++    whole 400 GitLab minutes/month return to CI across three projects, and today the nightly
++    cannot run at all.
++  - IAM — TWO new grants to `github-actions-dbt@…`, and it matters that they are enumerated
++    because that identity is NOT single-purpose: it is the same account CI impersonates to
++    write the prod warehouse. (1) `roles/secretmanager.secretAccessor` on the secret
++    `api-football-key`. (2) `roles/run.invoker` on the JOB `fdp-nightly` — RESOURCE-scoped, not
++    project-scoped. The project-scoped form would let it invoke every Cloud Run resource in the
++    project, present and future, which this task does not need.
++    Round 1 caught this: the first draft of the runbook used the project-scoped binding and the
++    contract claimed only ONE grant existed. `cto-reviewer` and `platform-reviewer` found it
++    independently. Recorded here so a future reader can see the full credential surface of the
++    nightly in one place rather than reconstructing it from a runbook.
++  No routing row in `.claude/review_routing.json` covers `Dockerfile` or `deploy/**`, so
++  `cto-reviewer` was spawned for this task even though routing does not require it. A new
++  mechanism with no CTO verdict would be the gap the threshold-declaration rule exists to close.
 +
-+  The prize is unaffected by the reduction: TRANSFERS alone is 6.99 GiB, 59% of all raw.
++  DELIBERATELY NOT DONE IN STAGE 1, so the limits are on record rather than discovered later:
++  - `.gitlab-ci.yml` is NOT edited. `data:nightly` stays as a manual fallback until Cloud Run has
++    proven itself; the GitLab SCHEDULE is paused instead (project config, not a file). Deleting
++    the job touches a protected path and needs its own governance task.
++  - The staleness blind spot is NOT closed. That is Stage 2 (#33 item 16) and Stage 1 does not
++    claim otherwise.
++  - The image is not rebuilt on merge. Stage 3. Until then a merge and a redeploy are two acts,
++    and between them the nightly runs the previous image.
 +
-+  NOT ESCALATED AS A FORK, deliberately. This narrows an approved item on evidence and adds
-+  nothing; the CPO was shown the COACHES finding and the three-table scope before implementation
-+  and approved it ("start 8b at the three-table scope"). Widening it back is what would need a
-+  new decision.
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 2dd2ba4..13e1e48 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -39,12 +39,12 @@ Eleven tables serve the entire fleet of competitions. No per-competition raw tab
- |-------|------------|-----------|---------|-----------|
- | `RAW_APIF_FIXTURE_DETAILS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, fixture_id)` |
- | `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
--| `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
--| `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
-+| `RAW_APIF_STANDINGS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
-+| `RAW_APIF_TEAMS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
- | `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
- | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
- | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
--| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
-+| `RAW_APIF_TRANSFERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
- | `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
- | `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
- | `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
-@@ -55,7 +55,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
- 
- ## Append-only writes (reference tables)
- 
--Reference tables — fixtures-next, standings, teams, players, coaches, injuries, leagues — are written with `WRITE_APPEND`. On every pipeline run:
-+Reference tables — fixtures-next, coaches, injuries, leagues, squads, player-profiles, player-teams — are written with `WRITE_APPEND`. On every pipeline run:
- 
- 1. The pipeline assembles the **full history window** for the competition. A full (active) run fetches every configured season from the API, reusing finished historical seasons from the previous snapshot (issue #283). A poll/idle run (a finished competition) fetches only the current season and **carries forward** the prior seasons from the latest snapshot — finished matches never change, so the carried rows stay current. Either path yields a complete response.
- 2. The complete response is written as a new row with the current UTC timestamp.
-@@ -79,6 +79,23 @@ This scales cleanly: adding more seasons or competitions adds rows to existing t
- 
- ---
- 
-+## Whole-league merge-on-write (`TRANSFERS`, `STANDINGS`, `TEAMS`)
++  SCOPE EXTENSION, asked and granted mid-task: `.gitattributes`.
++  The question put to the CPO: may `.gitattributes` be added to scope_paths (two lines — `*.sh`
++  and `Dockerfile` pinned to `eol=lf`)? The CPO's answer, verbatim: **"yes, add .gitattributes"**.
++  WHY IT WAS ASKED RATHER THAN TAKEN. `core.autocrlf=true` on the dev machine and the repo had
++  no `.gitattributes`, so any fresh clone rewrites `deploy/nightly/entrypoint.sh` to CRLF.
++  `gcloud run jobs deploy --source .` uploads the WORKING TREE, so the image would ship a
++  `#!/usr/bin/env bash\r` shebang and the container would die with "no such file or directory"
++  — at 04:00, in production. Demonstrated, not theorised: a forced re-checkout produced exactly
++  that shebang. It fails nowhere earlier — tests pass, the build succeeds, nothing in CI runs
++  the script.
++  THE ALTERNATIVE OFFERED and declined: strip the CRs inside the Dockerfile, which is already in
++  scope and needs no extension. Declined as symptom-treatment — it only helps files the
++  Dockerfile names and leaves the repo corrupting shell scripts for anyone who clones it.
++  RECORDED HERE BECAUSE OF A ROUND-2 FAIL. The first fix cited the CPO quote in `contract.md`
++  only. `scope-auditor` FAILed that too, correctly: every other CPO decision in this task is
++  corroborated in this log, and working_agreement §2 makes the log the only way a reviewer can
++  check that a claimed ruling exists. A builder-authored quote inside the artefact whose scope
++  it widens is not independent evidence. Two FAILs on the same item, both mine, both right.
 +
-+Since **#33 item 8b**, these three write **merge-on-write keyed on `league_code` alone**. Each loader writes ONE row covering the entire competition, so the row it appends fully supersedes every earlier one. Each run appends its snapshot with an explicit `ingested_at`, then deletes that league's rows written strictly before it (`ingestion/api_football/bigquery.py:delete_superseded_league_rows`). The table settles at one row per competition — O(competitions), not O(competitions × runs).
++  REJECTED, with reasons, so they are not re-proposed: Cloud Composer/Airflow (~$300/month floor
++  against a $26/month warehouse); Dataflow or Spark (wrong tool — rate-limited HTTP calls, not
++  distributed computation); a self-hosted GitLab runner for the NIGHTLY (removes the bill without
++  fixing the coupling, and adds a dependency on a machine being awake at 04:00 — though it
++  remains the right answer for human-triggered MR pipelines, which is a separate decision).
+diff --git a/.dockerignore b/.dockerignore
+new file mode 100644
+index 0000000..6b9bdbb
+--- /dev/null
++++ b/.dockerignore
+@@ -0,0 +1,50 @@
++# Keep secrets out of the image and the build context small. GitLab #39 Stage 1.
++#
++# DELIBERATELY MINIMAL. An over-eager exclude here fails at 04:00 in production, not at build
++# time, and the first draft of this file proved it: excluding `docs/` would have broken every
++# run, because `docs/competition_registry.yml` is read at runtime by `registry.py:56` and by
++# both contract-check scripts the entrypoint calls. Nothing is excluded here unless it is a
++# secret, a build artefact, or large AND provably unread by the nightly.
 +
-+Nothing is lost: the three staging models already selected only the latest row per `league_code`, so every deleted row was one the `qualify` was discarding. The saving is **scan cost**, not storage — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on 2026-08-09 (59% of all raw) and was re-read in full by every test and base model on every build.
++# SECRETS — the one that matters most. `.env` holds API_FOOTBALL_API_KEY. The container gets
++# that value from Secret Manager at runtime; baking it into a layer would make it readable by
++# anyone who can pull the image, and it would survive rotation.
++.env
++.env.*
++!.env.example
++*.pem
++*.key
++*-key.json
++*credentials*.json
 +
-+**The delete is reachable only past the #896 completeness guard** (#33 item 8a). A quota-truncated fetch returns before the write, so a partial snapshot can never delete the good stored row. The guard and the merge are one mechanism; do not port one without the other.
++# The v2 site (1.4M + node_modules when present) and the frozen legacy site. Astro apps the
++# nightly never touches. `deploy:export` / `deploy:site-v2` are separate GitLab jobs and are
++# not part of this image.
++site_v2
++site
 +
-+**Do not extend this to another table without re-deriving that it writes a complete per-league row AND that no consumer reads snapshot history.** The set is pinned by `tests/test_raw_merge_on_write.py`. Specifically excluded:
++# Build artefacts and caches — regenerated in the container, and a stale host copy is worse
++# than none. `dbt deps` runs in the entrypoint, so dbt_packages must NOT be shipped.
++__pycache__
++**/__pycache__
++*.py[cod]
++.pytest_cache
++.ruff_cache
++.venv
++venv
++dbt_project/target
++dbt_project/dbt_packages
++dbt_project/logs
 +
-+- **`RAW_APIF_COACHES`** — `stg_apif__coaches` reads **all** snapshots by CPO ruling (`escalations.log`, 2026-06-23) to preserve every coach ever seen; a league-keyed delete destroys ~120 coaches whose teams later left our pull.
-+- **`RAW_APIF_SQUADS`** — the loader writes a team **subset**, not a whole-league row (#37).
-+- **`RAW_APIF_FIXTURES_NEXT`** — complete only via carry-forward, and it has no #896 guard.
-+- **`RAW_APIF_PLAYER_PROFILES` / `_PLAYER_TEAMS`** — accumulate per player; a league-keyed delete erases every player ingested on an earlier run. **Never.**
++# Agent governance and VCS metadata. Not read by any runtime path.
++.git
++.claude
++.cursor
++
++# KEPT ON PURPOSE, because the nightly reads them:
++#   docs/           — competition_registry.yml (registry.py:56, check_layer_contract.py,
++#                     check_registry_var_sync.py)
++#   scripts/        — both contract checks run in the entrypoint
++#   dbt_project/    — the models, seeds and packages.yml the prod build needs
++#   ingestion/      — the pipeline itself
++#   requirements.txt — the same file CI installs
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 0000000..861bb9c
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,17 @@
++# Line endings for files that Linux tooling executes. GitLab #39 Stage 1.
++#
++# WHY THIS EXISTS. `core.autocrlf=true` is set on the development machine and this repo had no
++# `.gitattributes`, so every checkout on Windows rewrote shell scripts to CRLF in the working
++# tree. `gcloud run jobs deploy --source .` uploads the WORKING TREE to Cloud Build, so the
++# image would ship `deploy/nightly/entrypoint.sh` with a `#!/usr/bin/env bash\r` shebang and the
++# container would die with "no such file or directory" — at 04:00, in production.
++#
++# It fails NOWHERE EARLIER: the tests pass (they read the file as text), the image builds fine,
++# and nothing in CI executes the script. Pinning it here is the only place the problem is
++# visible before it bites.
++#
++# Deliberately narrow. A repo-wide `* text=auto` would rewrite unrelated files and churn the
++# diff; these two patterns are the ones consumed exclusively by Linux tooling.
++
++*.sh text eol=lf
++Dockerfile text eol=lf
+diff --git a/Dockerfile b/Dockerfile
+new file mode 100644
+index 0000000..e972cf7
+--- /dev/null
++++ b/Dockerfile
+@@ -0,0 +1,39 @@
++# The nightly pipeline image. GitLab #39 Stage 1.
++#
++# Built remotely by Cloud Build (`gcloud run jobs deploy --source .`) — no local Docker needed.
++#
++# WHY AN IMAGE AT ALL, rather than pointing a scheduler at the repo: today the nightly
++# pip-installs at 04:00 and runs whatever `main` happens to be, so what executes in production
++# is never the thing that was tested. An image is built once and re-run byte-identical.
++
++FROM python:3.11-slim
++
++# git: `dbt deps` fetches packages from git remotes (see dbt_project/packages.yml).
++# Nothing else is added — the smaller the surface, the less there is to patch.
++RUN apt-get update \
++    && apt-get install -y --no-install-recommends git \
++    && rm -rf /var/lib/apt/lists/*
++
++WORKDIR /app
++
++# Dependencies first, as their own layer: requirements.txt changes far less often than the
++# source, so ordinary code changes reuse the cached install.
++#
++# This is the SAME requirements.txt CI installs. Stage 1 adds no dependency — if these ever
++# diverge, the image stops being a faithful stand-in for the tested environment.
++COPY requirements.txt ./
++RUN python -m pip install --no-cache-dir --upgrade pip \
++    && pip install --no-cache-dir -r requirements.txt
++
++COPY . .
++
++# dbt reads ~/.dbt/profiles.yml by default. Prod target only — see the file's own header.
++RUN mkdir -p /root/.dbt && cp deploy/nightly/profiles.yml /root/.dbt/profiles.yml
++
++RUN chmod +x deploy/nightly/entrypoint.sh
++
++# Unbuffered, so Cloud Logging shows progress live rather than in one dump at the end. The
++# 2026-08-09 outage was diagnosed by reading a running job's log; that has to keep working.
++ENV PYTHONUNBUFFERED=1
++
++ENTRYPOINT ["deploy/nightly/entrypoint.sh"]
+diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
+new file mode 100644
+index 0000000..e015db9
+--- /dev/null
++++ b/deploy/nightly/README.md
+@@ -0,0 +1,159 @@
++# The nightly on Cloud Run — deploy and operate
++
++GitLab **#39 Stage 1**. Moves the nightly pipeline out of GitLab CI onto
++`Cloud Scheduler → Cloud Run Job → BigQuery`.
++
++**Why:** the nightly is a *production* job — it keeps the product's data fresh. Running it in
++CI meant a CI-side event took the product offline, twice in four days: the GitHub→GitLab
++migration silently dropped the cron (six days stale, unnoticed), then the namespace hit
++`ci_quota_exceeded`. At ~111 minutes per run against a 400 min/month allowance shared across
++three projects, it never fit. Daily refresh is the product's minimum, so cadence was not
++available as a lever — the hosting had to change.
++
++| | |
++|---|---|
++| GCP project | `football-data-pipeline-gcp` |
++| Region | `europe-west1` (BigQuery data is EU multi-region) |
++| Job name | `fdp-nightly` |
++| Service account | `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` |
++| Schedule | `0 4 * * *` UTC |
++| Cost | ~$1.70/month; ~$0.35 after #33 item 14 |
++
++The service account is the one CI already impersonates, so it **already holds the BigQuery
++roles**. Inside Cloud Run the job runs *as* it, so `method: oauth` + `google.auth.default()`
++resolves credentials natively — no Workload Identity Federation exchange, no key file.
 +
 +---
 +
- ## Fixture details (merge-on-write)
- 
- `RAW_APIF_FIXTURE_DETAILS` uses merge-on-write. Each run fetches only the fixtures that are missing data (not the full history), then upserts into the unified table keyed on `(league_code, fixture_id)`. The table always holds the latest payload per fixture, without accumulating duplicate rows.
-@@ -155,7 +172,7 @@ Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`
- 
- ## Endpoints and raw tables
- 
--Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` uses merge-on-write.
-+Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` use merge-on-write on an entity key, and `RAW_APIF_TRANSFERS`, `RAW_APIF_STANDINGS` and `RAW_APIF_TEAMS` on `league_code` alone (#33 item 8b) — see the write-mode table above.
- 
- | Area | Endpoint(s) | BigQuery raw table |
- |------|-------------|-------------------|
-@@ -174,7 +191,7 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
- 
- **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
- 
--**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; an append-only full-history snapshot per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
-+**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; a full-history snapshot per run written merge-on-write on `league_code` since #33 item 8b, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
- 
- **Added 2026-06-15 (player-data initiative, PR-a):** three player endpoints. `/players/squads` per team → `RAW_APIF_SQUADS` (present-day squad + shirt number; distinct from the `/players` roster pull that lands `RAW_APIF_PLAYERS`). `/players/profiles` per player → `RAW_APIF_PLAYER_PROFILES` (bio) and `/players/teams` per player → `RAW_APIF_PLAYER_TEAMS` (career team×seasons) run as a **global per-player phase** over the current universe (players rostered in season ≥ `API_FOOTBALL_PLAYER_UNIVERSE_MIN_SEASON`, default 2025), derived from `RAW_APIF_PLAYERS`. Each player is grouped under a deterministic provenance `league_code` (MIN over the leagues that surfaced them — provenance, not identity, as with transfers). Already-ingested players are skipped (bio/career are static/slow-moving), so the first run is the quota-guarded backfill and later runs fetch only newly-rostered players. CPO scope ruling (2026-06-15): profiles + teams + squads; `/players/seasons` was evaluated and **not** ingested (a bare list of years, redundant with `/players/teams`).
- 
-diff --git a/ingestion/api_football/bigquery.py b/ingestion/api_football/bigquery.py
-index 395bbd7..b6af8a1 100644
---- a/ingestion/api_football/bigquery.py
-+++ b/ingestion/api_football/bigquery.py
-@@ -136,6 +136,7 @@ def load_json_to_bq(
-     as_json_payload: bool = False,
-     append: bool = False,
-     league_code: str | None = None,
-+    ingested_at: str | None = None,
- ) -> None:
-     """Write one JSON row to a BigQuery raw table.
- 
-@@ -157,6 +158,12 @@ def load_json_to_bq(
-     as_json_payload=False (used for operational tables like INGEST_LOCK):
-         Writes the payload dict directly with BigQuery autodetect schema.
-         Always uses WRITE_TRUNCATE — these tables hold a single current-state row.
++## One-time setup
 +
-+    Pass ``ingested_at`` (UTC ISO string) when the caller needs the exact timestamp
-+    afterwards — a merge-on-write that deletes the rows superseded by this load must
-+    delete strictly BEFORE it, and cannot do that if the stamp is invented in here and
-+    thrown away. Mirrors the same parameter on ``load_json_payload_rows_to_bq``. Ignored
-+    when ``as_json_payload=False``, which writes the payload dict verbatim.
-     """
-     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
- 
-@@ -167,7 +174,7 @@ def load_json_to_bq(
-             else:
-                 ensure_raw_table_partitioned(client, table_name)
- 
--        ingested_at = datetime.now(timezone.utc).isoformat()
-+        ingested_at = ingested_at or datetime.now(timezone.utc).isoformat()
-         if league_code is not None:
-             row = {"league_code": league_code, "payload": payload, "ingested_at": ingested_at}
-             schema = [
-@@ -252,6 +259,47 @@ def load_json_payload_rows_to_bq(
-     return len(payloads)
- 
- 
-+def delete_superseded_league_rows(
-+    client: bigquery.Client,
-+    table_name: str,
-+    league_code: str,
-+    before: datetime,
-+) -> None:
-+    """Drop this league's rows written before ``before`` — the whole-league merge-on-write.
++### 1. The API key (do this first — the deploy references it)
 +
-+    For raw tables whose loader writes ONE row covering the entire league (TRANSFERS,
-+    STANDINGS, TEAMS), so the row just appended fully supersedes every earlier one and
-+    staging's latest-per-league ``qualify`` was already discarding them. #33 item 8b.
++`API_FOOTBALL_API_KEY` is a credential and must not be an env var in the job config, where it
++is readable in plain text by anyone with `run.jobs.get` and survives rotation.
 +
-+    The per-key sibling is ``loads/squads.py:_delete_superseded_player_rows``, which keeps a
-+    ``(team, season)`` predicate because RAW_APIF_PLAYERS holds many rows per league and a
-+    bare league delete there would drop keys this run did not re-fetch. The difference is the
-+    row grain, not a preference — do NOT copy this function to a multi-row-per-league table.
++```bash
++gcloud services enable secretmanager.googleapis.com
++```
 +
-+    Call it only AFTER the append succeeded and only when the fetch was COMPLETE (the #896
-+    guard from 8a returns early otherwise). ``before`` must be the appended row's own
-+    ``ingested_at``, so the strict ``<`` leaves that row intact.
++Create the secret and paste the value when prompted. Take it from the repo-root `.env`:
 +
-+    Both predicates prune: the table is clustered on ``league_code`` and DAY-partitioned on
-+    ``ingested_at`` (``ensure_unified_raw_table``).
-+    """
-+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
-+    q = f"""
-+        delete from `{table_id}`
-+        where league_code = @lc
-+          and ingested_at < @before
-+    """
-+    client.query(
-+        q,
-+        job_config=bigquery.QueryJobConfig(
-+            query_parameters=[
-+                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
-+                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
-+            ]
-+        ),
-+    ).result()
++```bash
++gcloud secrets create api-football-key --replication-policy=automatic --data-file=-
++```
 +
++Then let the job read it:
 +
- def _scalar(
-     client: bigquery.Client,
-     sql: str,
-diff --git a/ingestion/api_football/loads/standings.py b/ingestion/api_football/loads/standings.py
-index 096f429..ba4254e 100644
---- a/ingestion/api_football/loads/standings.py
-+++ b/ingestion/api_football/loads/standings.py
-@@ -1,13 +1,19 @@
- """Fetch /standings for all configured seasons → RAW_*_STANDINGS.
- 
--Each run fetches all seasons and appends a fresh complete snapshot row.
--No cross-run merge: the API returns the full standings history on every call.
-+Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
-+the full standings history on every call.
++```bash
++gcloud secrets add-iam-policy-binding api-football-key \
++  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
++  --role="roles/secretmanager.secretAccessor"
++```
 +
-+MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
-+league's older rows. The row covers ALL configured seasons, so nothing is lost —
-+staging already read only the latest row per league_code.
- """
- 
- from __future__ import annotations
- 
-+from datetime import datetime, timezone
++### 2. Deploy the job
 +
- from .. import quota as errors_quota
--from ..bigquery import load_json_to_bq
-+from ..bigquery import delete_superseded_league_rows, load_json_to_bq
- from ..settings import raw_table
- from ..quota import append_api_errors
- from ..http_client import fetch_merged_paged, result_is_complete
-@@ -60,6 +66,7 @@ def load_standings_if_enabled(
-         )
-         return
-     try:
-+        ts = datetime.now(timezone.utc)
-         load_json_to_bq(
-             ctx.client,
-             raw_table("STANDINGS"),
-@@ -67,6 +74,12 @@ def load_standings_if_enabled(
-             as_json_payload=True,
-             append=True,
-             league_code=league_code,
-+            ingested_at=ts.isoformat(),
-+        )
-+        # #33 item 8b — see loads/transfers.py for why this is safe and why it runs
-+        # only past the completeness guard above.
-+        delete_superseded_league_rows(
-+            ctx.client, raw_table("STANDINGS"), league_code, ts
-         )
-         ctx.add_loaded(1)
-     except Exception as e:
-diff --git a/ingestion/api_football/loads/teams.py b/ingestion/api_football/loads/teams.py
-index 33d56b0..2ff5ce0 100644
---- a/ingestion/api_football/loads/teams.py
-+++ b/ingestion/api_football/loads/teams.py
-@@ -1,13 +1,19 @@
- """Fetch /teams for all configured seasons → RAW_*_TEAMS; extends team_ids set.
- 
--Each run fetches all seasons and appends a fresh complete snapshot row.
--No cross-run merge: the API returns the full team list on every call.
-+Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
-+the full team list on every call.
++Built remotely by Cloud Build from the `Dockerfile` at the repo root — **no local Docker
++needed**. Run from the repo root:
 +
-+MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
-+league's older rows. The row covers ALL configured seasons, so nothing is lost —
-+staging already read only the latest row per league_code.
- """
- 
- from __future__ import annotations
- 
-+from datetime import datetime, timezone
++```bash
++gcloud run jobs deploy fdp-nightly \
++  --source . \
++  --region europe-west1 \
++  --service-account github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com \
++  --set-secrets API_FOOTBALL_API_KEY=api-football-key:latest \
++  --cpu 1 --memory 2Gi \
++  --task-timeout 3h \
++  --max-retries 0
++```
 +
- from .. import quota as errors_quota
--from ..bigquery import load_json_to_bq
-+from ..bigquery import delete_superseded_league_rows, load_json_to_bq
- from ..settings import raw_table
- from ..quota import append_api_errors
- from ..fixture_scheduling import team_ids_for_league
-@@ -66,6 +72,7 @@ def load_teams_merge_and_extend_ids(
-             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
-             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
-             if complete:
-+                ts = datetime.now(timezone.utc)
-                 load_json_to_bq(
-                     ctx.client,
-                     raw_table("TEAMS"),
-@@ -73,7 +80,23 @@ def load_teams_merge_and_extend_ids(
-                     as_json_payload=True,
-                     append=True,
-                     league_code=league_code,
-+                    ingested_at=ts.isoformat(),
-                 )
-+                # #33 item 8b — see loads/transfers.py for why this is safe and why it
-+                # runs only past the completeness guard above.
-+                #
-+                # Caught HERE rather than by the outer `except`, unlike transfers and
-+                # standings. That handler has side effects this failure must not trigger:
-+                # it would skip the id extension below — which the comment there says runs
-+                # EITHER WAY, deliberately — and then spend an extra /teams call on the
-+                # `team_ids_for_league` fallback. A failed space reclaim must not cost the
-+                # run its team ids or an API call.
-+                try:
-+                    delete_superseded_league_rows(
-+                        ctx.client, raw_table("TEAMS"), league_code, ts
-+                    )
-+                except Exception as e:
-+                    ctx.errors.append(f"teams merge-delete {league_code}: {e}")
-                 ctx.add_loaded(1)
-             else:
-                 ctx.errors.append(
-diff --git a/ingestion/api_football/loads/transfers.py b/ingestion/api_football/loads/transfers.py
-index 67a09c1..88fc511 100644
---- a/ingestion/api_football/loads/transfers.py
-+++ b/ingestion/api_football/loads/transfers.py
-@@ -1,17 +1,22 @@
- """Fetch /transfers per team (batched) → RAW_APIF_TRANSFERS.
- 
--Each run fetches the full transfer history for all teams and appends a fresh
--snapshot row. Transfers are not season-scoped — one /transfers?team= call returns
--all of a team's players' moves. Fetching by team returns each move twice (once per
--involved team); the base model dedups. No cross-run merge with prior BQ data.
-+Each run fetches the full transfer history for all teams and writes a fresh snapshot
-+row. Transfers are not season-scoped — one /transfers?team= call returns all of a
-+team's players' moves. Fetching by team returns each move twice (once per involved
-+team); the base model dedups.
++`--max-retries 0` is deliberate. The ingest lock (`ingestion/api_football/ingestion_lock.py`)
++holds a lease on `RAW_APIF_INGEST_LOCK`, so an immediate retry would be refused and would only
++add noise. Recovery is the next night — which is exactly why Stage 2 (freshness alerting,
++#33 item 16) matters and why Stage 1 does not claim to close that gap.
 +
-+MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
-+league's older rows. The row is the WHOLE league, so nothing is lost — staging already
-+read only the latest row per league_code.
- """
- 
- from __future__ import annotations
- 
- import os
-+from datetime import datetime, timezone
- 
- from .. import quota as errors_quota
--from ..bigquery import load_json_to_bq
-+from ..bigquery import delete_superseded_league_rows, load_json_to_bq
- from ..settings import raw_table
- from ..fixture_scheduling import transfers_response_for_team
- from .context import PipelineContext
-@@ -66,6 +71,7 @@ def load_transfers_batch(
-         )
-         return
-     try:
-+        ts = datetime.now(timezone.utc)
-         load_json_to_bq(
-             ctx.client,
-             raw_table("TRANSFERS"),
-@@ -73,6 +79,14 @@ def load_transfers_batch(
-             as_json_payload=True,
-             append=True,
-             league_code=league_code,
-+            ingested_at=ts.isoformat(),
-+        )
-+        # #33 item 8b. Reachable only past the completeness guard above, so a partial
-+        # snapshot never deletes anything. Strictly BEFORE `ts` keeps the row just
-+        # written. If the delete raises, the append already stood and both rows remain —
-+        # staging still selects the newer one, so a failure costs the saving, never data.
-+        delete_superseded_league_rows(
-+            ctx.client, raw_table("TRANSFERS"), league_code, ts
-         )
-         ctx.add_loaded(1)
-     except Exception as e:
-diff --git a/tests/test_raw_merge_on_write.py b/tests/test_raw_merge_on_write.py
++`--task-timeout 3h` matches the CI job's timeout.
++
++### 3. Schedule it
++
++Scheduler needs permission to invoke the job. Bind it **on the job**, not on the project:
++
++```bash
++gcloud run jobs add-iam-policy-binding fdp-nightly \
++  --region europe-west1 \
++  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
++  --role="roles/run.invoker"
++```
++
++The project-scoped form (`gcloud projects add-iam-policy-binding … roles/run.invoker`) would let
++this identity invoke **every** Cloud Run service and job in the project, present and future.
++That matters more than usual here: `github-actions-dbt` is not a single-purpose identity — it is
++the same account CI impersonates to write the prod warehouse. The resource-scoped binding above
++grants exactly one capability: invoke `fdp-nightly`.
++
++```bash
++gcloud scheduler jobs create http fdp-nightly \
++  --location europe-west1 \
++  --schedule "0 4 * * *" \
++  --time-zone UTC \
++  --uri "https://run.googleapis.com/v2/projects/football-data-pipeline-gcp/locations/europe-west1/jobs/fdp-nightly:run" \
++  --http-method POST \
++  --oauth-service-account-email github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com
++```
++
++### 4. Pause the GitLab schedule
++
++**Required, and easy to forget.** Otherwise both fire at 04:00 once GitLab's quota resets on
++the 1st. The BigQuery ingest lock would stop them corrupting each other — it is dataset-level,
++not CI-level, so it already spans both platforms — but one of the two would fail every night
++for no reason.
++
++GitLab → **Build → Pipeline schedules** → pause the 04:00 schedule (id `4379625`).
++
++`data:nightly` stays in `.gitlab-ci.yml` on purpose, reachable by manual web dispatch, as a
++fallback until Cloud Run has proven itself. Removing it edits `.gitlab-ci.yml`, which the repo
++guards, so it needs its own governance task — see `docs/working_agreement.md` §2.
++
++---
++
++## Operating it
++
++```bash
++# run now, and wait for it (a real prod ingest + dbt build)
++gcloud run jobs execute fdp-nightly --region europe-west1 --wait
++
++# what happened
++gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 5
++gcloud beta run jobs executions logs read <EXECUTION> --region europe-west1
++
++# is the schedule healthy
++gcloud scheduler jobs describe fdp-nightly --location europe-west1
++```
++
++**Confirming a run actually landed data** — the same check that exposed the original six-day
++outage, and the one to trust over a green tick:
++
++```bash
++bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_FIXTURES_NEXT \
++  | python -c "import sys,json,datetime;d=json.load(sys.stdin);print(datetime.datetime.utcfromtimestamp(int(d['lastModifiedTime'])/1000))"
++```
++
++A run that reports `new_data=false` exits 0 before dbt and writes nothing. **That is a $0
++night, not a failure** — the gate is in `entrypoint.sh` and mirrors the CI job.
++
++## Rolling back
++
++The GitLab job is untouched, so rollback is: un-pause the GitLab schedule, and pause or delete
++the Cloud Scheduler job.
++
++```bash
++gcloud scheduler jobs pause fdp-nightly --location europe-west1
++```
++
++## After a code change
++
++The image is **not** rebuilt automatically — Stage 3 wires that into CI on merge. Until then,
++re-run the `gcloud run jobs deploy` command above after merging anything that changes
++ingestion, the dbt project, or `requirements.txt`.
++
++This is a real gap, stated rather than hidden: between a merge and a redeploy, the nightly runs
++the previous image.
+diff --git a/deploy/nightly/entrypoint.sh b/deploy/nightly/entrypoint.sh
 new file mode 100644
-index 0000000..80714a3
+index 0000000..4ec327c
 --- /dev/null
-+++ b/tests/test_raw_merge_on_write.py
-@@ -0,0 +1,350 @@
-+"""Merge-on-write for the three whole-league snapshot tables (#33 item 8b).
++++ b/deploy/nightly/entrypoint.sh
+@@ -0,0 +1,57 @@
++#!/usr/bin/env bash
++#
++# The nightly pipeline, as run by Cloud Run Jobs. GitLab #39 Stage 1.
++#
++# THIS IS A 1:1 PORT of the `data:nightly` script block in `.gitlab-ci.yml` (lines 667-711).
++# Same steps, same order, same gate. Nothing here is new logic — the point of Stage 1 is to
++# change WHERE the pipeline runs, not WHAT it does, so that a GitLab-side event (a dropped
++# cron, an exhausted minute quota) can no longer take the product's data offline.
++#
++# While both copies exist they can drift, and drift means the nightly silently stops doing a
++# step. `tests/test_nightly_entrypoint_parity.py` fails if the two step lists diverge. Both the
++# CI job and that test are removed together once this has proven itself (a follow-up governance
++# MR — editing `.gitlab-ci.yml` needs a governance task; see working_agreement.md §2).
++#
++# Credentials: no key file and no WIF exchange. The job runs AS the service account, so
++# `google.auth.default()` — which dbt-bigquery (`method: oauth`), google-cloud-bigquery and the
++# ingestion package all use — resolves it natively. Only API_FOOTBALL_API_KEY is injected, from
++# Secret Manager.
++
++set -euo pipefail
++
++export PYTHONPATH=.
++
++# How the `new_data` signal survives the platform change, again. `write_ci_output()`
++# (ingestion/api_football/completeness.py:769) writes `key=value` to whatever
++# $CI_STEP_OUTPUT points at — it is read from the environment, not hardcoded to a CI
++# vendor, which is why this port needs no Python change at all. GitLab set it to
++# $CI_PROJECT_DIR/.ci-step-output; here it is a tmpfile.
++export CI_STEP_OUTPUT="${CI_STEP_OUTPUT:-/tmp/.ci-step-output}"
++: > "$CI_STEP_OUTPUT"
++
++echo "[nightly] ingesting..."
++API_FOOTBALL_INCLUDE_IN_PROGRESS=1 python -m ingestion.api_football.main
++
++NEW_DATA=$(grep -E '^new_data=' "$CI_STEP_OUTPUT" 2>/dev/null | tail -1 | cut -d= -f2 || true)
++if [ "$NEW_DATA" != "true" ]; then
++    echo "[nightly] Ingestion reported new_data=${NEW_DATA:-<unset>} — nothing new landed."
++    echo "[nightly] Skipping deps, seed, contract checks and the prod build."
++    echo "[nightly] This is a \$0 night, not a failure."
++    exit 0
++fi
++
++echo "[nightly] new_data=true — proceeding with the full prod build."
++python scripts/check_layer_contract.py
++python scripts/check_registry_var_sync.py
++
++cd dbt_project
++# `dbt deps` is INSIDE the gate, as it is in CI and was on GitHub. Cheap — a package fetch,
++# no BigQuery — but the contract claims a quiet night runs nothing, and a claim that does not
++# match the code is the defect regardless of the amount.
++dbt deps
++dbt seed --target prod
++# `dbt build` with no selector = fqn:* (every node). freshness_check is deliberately NOT
++# excluded: this run ingested first, so freshness is real.
++dbt build --target prod
++
++echo "[nightly] done."
+diff --git a/deploy/nightly/profiles.yml b/deploy/nightly/profiles.yml
+new file mode 100644
+index 0000000..1e31cb6
+--- /dev/null
++++ b/deploy/nightly/profiles.yml
+@@ -0,0 +1,26 @@
++# dbt profile for the Cloud Run nightly. GitLab #39 Stage 1.
++#
++# PROD TARGET ONLY, deliberately. The CI copy in `.gitlab-ci.yml` carries `ci` and `prod`
++# because one runner serves merge requests and main. This container serves exactly one job, so
++# shipping only `prod` removes any path by which it could write a `ci_*` or `dev_*` dataset —
++# and, more importantly, any path by which a mistyped `--target` silently writes the wrong one.
++#
++# `method: oauth` resolves through google.auth.default(). Inside Cloud Run that is the job's
++# service account, so there is no key file and no WIF exchange to configure. Values are copied
++# verbatim from the `.dbt_profile` anchor in `.gitlab-ci.yml` — dataset, location and threads
++# must not drift from it while both exist.
++#
++# Nothing here is a secret: a GCP project id, a dataset name and a region.
++
++football_data_pipeline:
++  target: prod
++  outputs:
++    prod:
++      type: bigquery
++      method: oauth
++      project: football-data-pipeline-gcp
++      dataset: dbt_analytics
++      threads: 4
++      timeout_seconds: 300
++      location: EU
++      priority: interactive
+diff --git a/tests/test_nightly_entrypoint_parity.py b/tests/test_nightly_entrypoint_parity.py
+new file mode 100644
+index 0000000..a4ec973
+--- /dev/null
++++ b/tests/test_nightly_entrypoint_parity.py
+@@ -0,0 +1,234 @@
++"""The Cloud Run entrypoint must stay a faithful port of `data:nightly` (GitLab #39 Stage 1).
 +
 +WHY THIS EXISTS
 +---------------
-+`TRANSFERS`, `STANDINGS` and `TEAMS` each write ONE row covering the entire league, and
-+staging reads only the latest row per `league_code`. Every earlier row is therefore dead
-+weight that is still scanned — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on
-+2026-08-09, 59% of all raw, and the two most expensive nodes in the warehouse were both
-+scans of a view over it. Each run now appends its snapshot and deletes that league's
-+strictly-older rows.
++Stage 1 moves the nightly out of GitLab CI onto Cloud Run, and deliberately leaves the CI job
++in place as a fallback until the new path has proven itself. That means TWO copies of the
++nightly exist for a while, and they can drift.
 +
-+The whole change rests on ONE invariant: the delete boundary is the appended row's OWN
-+`ingested_at`, so `ingested_at < @before` can never reach the row just written. Get that
-+wrong and the loader deletes everything including its own write, leaving the league empty.
-+`test_the_delete_boundary_is_the_write_s_own_timestamp` is the case that pins it.
++Drift here is silent and expensive. If a step is added to one and not the other — a new
++contract check, a seed, a different dbt target — the nightly keeps exiting 0 while quietly
++doing less than it claims. That is the same failure shape as the two outages this whole change
++exists to prevent: nothing turns red, the data is just wrong or stale.
 +
-+HOW THESE ARE SHAPED
-+--------------------
-+The delete is asserted through the REAL `delete_superseded_league_rows` against a fake
-+client that records SQL and query parameters. It is deliberately NOT monkeypatched.
++Both this file and the CI job are deleted together in the follow-up governance MR that removes
++`data:nightly` from `.gitlab-ci.yml` (a protected path, so it needs its own task).
 +
-+That is not a style choice. `tests/test_squad_players_rows.py` monkeypatches
-+`_delete_superseded_player_rows` — the sibling merge helper — so the SQL it builds and the
-+parameters it binds are asserted nowhere, and reverting its `ingested_at` bound leaves that
-+suite green. Ten decoration tests have now been caught in this repo by breaking the subject
-+rather than reading the test; monkeypatching the very helper under test was one of the named
-+causes. Only `load_json_to_bq` is doubled here, because a real BigQuery load is not the
-+subject.
++HOW IT IS SHAPED
++----------------
++It compares the ORDERED list of meaningful commands, extracted from each source, rather than
++matching text. A text match would fail on indentation, `$CI_PROJECT_DIR` vs `/tmp`, and the
++`[nightly]` log prefixes — none of which are drift. What it asserts is that both run the same
++things in the same order.
 +
-+WHAT MUST NOT BE ADDED TO THE CONVERTED SET
-+-------------------------------------------
-+`test_only_the_three_whole_league_loaders_merge` pins the set. Two exclusions are data
-+destruction, not preference:
-+
-+  COACHES — `stg_apif__coaches.sql` reads ALL snapshots by CPO ruling (escalations.log,
-+  2026-06-23) to preserve every coach ever seen. A league-keyed delete destroys ~120 coaches
-+  whose teams left our pull. It is the loader that looks most like the three converted ones,
-+  which is exactly why it is pinned here.
-+
-+  SQUADS — the loader writes a team SUBSET (see #37; WCQAF exposes 10 of 44 teams today).
-+  Merge-on-write would make a recoverable staging bug permanent.
-+
-+PLAYER_PROFILES and PLAYER_TEAMS accumulate per player and must NEVER be converted.
++The one thing it must NOT do is compare the two files as strings; they are legitimately
++different in wording, and a test that fails on wording gets deleted rather than fixed.
 +"""
 +
 +from __future__ import annotations
 +
-+import types
++import os
++import re
++import shutil
++import subprocess
++from pathlib import Path
 +
 +import pytest
 +
-+from ingestion.api_football import fixture_scheduling
-+from ingestion.api_football import quota as errors_quota
-+from ingestion.api_football.loads import coaches, standings, teams, transfers
++import yaml
 +
++REPO = Path(__file__).resolve().parents[1]
++ENTRYPOINT = REPO / "deploy" / "nightly" / "entrypoint.sh"
++CI_CONFIG = REPO / ".gitlab-ci.yml"
 +
-+class _Client:
-+    """Records every query the loader issues. `fail=True` makes the DELETE raise."""
-+
-+    def __init__(self, fail: bool = False):
-+        self.queries: list[tuple[str, object]] = []
-+        self._fail = fail
-+
-+    def query(self, sql, job_config=None):
-+        self.queries.append((sql, job_config))
-+        if self._fail:
-+            raise RuntimeError("simulated BigQuery DML failure")
-+        return types.SimpleNamespace(result=lambda: None)
-+
-+    def deletes(self) -> list[tuple[str, object]]:
-+        return [(sql, jc) for sql, jc in self.queries if "delete from" in sql.lower()]
-+
-+
-+class _Writes:
-+    """Records every raw write, keeping the kwargs so `ingested_at` can be compared."""
-+
-+    def __init__(self):
-+        self.calls: list[tuple[str, dict]] = []
-+
-+    def __call__(self, client, table, payload, **kwargs):
-+        self.calls.append((table, kwargs))
-+
-+
-+def _ctx(client):
-+    return types.SimpleNamespace(
-+        client=client, headers={}, errors=[], tables_loaded=0,
-+        add_loaded=lambda n=1: None,
-+    )
-+
-+
-+def _ok():
-+    return {"response": [{"team": {"id": 1}}], "errors": [], "results": 1,
-+            "paging": {"current": 1, "total": 1}}
-+
-+
-+def _errored():
-+    """The per-minute rate limit shape: HTTP 200, error in the BODY, response empty."""
-+    return {"response": [], "errors": {"rateLimit": "Too many requests"}, "results": 0,
-+            "paging": {"current": 1, "total": 1}}
-+
-+
-+@pytest.fixture(autouse=True)
-+def _reset_quota():
-+    errors_quota.reset_http_quota_exhausted()
-+    yield
-+    errors_quota.reset_http_quota_exhausted()
-+
-+
-+# `transfers` reaches the provider through fixture_scheduling, the other two through their
-+# own module namespace. Patching the HTTP layer UNDER the real helper (never the helper
-+# itself) is what makes the real #896 guard run — see test_incomplete_snapshot_not_written.
-+def _patch_transfers(monkeypatch, fetch):
-+    monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
-+
-+
-+def _patch_standings(monkeypatch, fetch):
-+    monkeypatch.setattr(standings, "fetch_merged_paged", lambda *a, **k: fetch())
-+
-+
-+def _patch_teams(monkeypatch, fetch):
-+    monkeypatch.setattr(teams, "fetch_merged_paged", lambda *a, **k: fetch())
-+
-+
-+def _invoke_transfers(ctx):
-+    transfers.load_transfers_batch(ctx, "BL1", {1})
-+
-+
-+def _invoke_standings(ctx):
-+    standings.load_standings_if_enabled(ctx, "BL1", 78, [2025], {"standings": True})
-+
-+
-+def _invoke_teams(ctx):
-+    teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2025], 2025, set())
-+
-+
-+CONVERTED = [
-+    ("transfers", transfers, _patch_transfers, _invoke_transfers, "RAW_APIF_TRANSFERS"),
-+    ("standings", standings, _patch_standings, _invoke_standings, "RAW_APIF_STANDINGS"),
-+    ("teams", teams, _patch_teams, _invoke_teams, "RAW_APIF_TEAMS"),
++# The steps that define what the nightly DOES, in the order it must do them. Each entry is a
++# regex matched against a command line from either source. Anything not matching one of these
++# (echo, cd, export, the gate plumbing) is not a step and is ignored — those legitimately
++# differ between a CI runner and a container.
++STEPS = [
++    ("ingest", r"python -m ingestion\.api_football\.main"),
++    ("layer contract check", r"python scripts/check_layer_contract\.py"),
++    ("registry sync check", r"python scripts/check_registry_var_sync\.py"),
++    ("dbt deps", r"^dbt deps"),
++    ("dbt seed prod", r"^dbt seed --target prod"),
++    ("dbt build prod", r"^dbt build --target prod"),
 +]
-+IDS = [x[0] for x in CONVERTED]
 +
 +
-+def _params(job_config) -> dict:
-+    return {p.name: p.value for p in job_config.query_parameters}
++def _commands(text: str) -> list[str]:
++    """Flatten a shell script (or a YAML script block) to stripped, non-comment lines."""
++    out = []
++    for raw in text.splitlines():
++        line = raw.strip()
++        if not line or line.startswith("#"):
++            continue
++        out.append(line)
++    return out
 +
 +
-+@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-+def test_a_clean_run_appends_then_deletes_the_superseded_rows(
-+    name, module, patch, invoke, table, monkeypatch
-+):
-+    """One write, then exactly one DELETE against the same table."""
-+    writes = _Writes()
-+    client = _Client()
-+    monkeypatch.setattr(module, "load_json_to_bq", writes)
-+    patch(monkeypatch, lambda: _ok())
++def _ci_nightly_script() -> list[str]:
++    """The `data:nightly` script block, read from the real .gitlab-ci.yml.
 +
-+    invoke(_ctx(client))
-+
-+    assert [t for t, _ in writes.calls] == [table], (
-+        f"{name}: expected exactly one write to {table}, got {[t for t, _ in writes.calls]}"
-+    )
-+    deletes = client.deletes()
-+    assert len(deletes) == 1, (
-+        f"{name}: expected exactly one DELETE after the append, got {len(deletes)}. "
-+        "Without it the table keeps growing with competitions x runs (#33 item 8b)."
-+    )
-+    assert table in deletes[0][0], (
-+        f"{name}: the DELETE does not target {table}. SQL={deletes[0][0]!r}"
-+    )
-+
-+
-+@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-+def test_the_delete_is_scoped_to_this_league(
-+    name, module, patch, invoke, table, monkeypatch
-+):
-+    """`league_code` is bound as a parameter, so one competition can never delete another's
-+    rows. All 45 competitions share one physical table."""
-+    writes = _Writes()
-+    client = _Client()
-+    monkeypatch.setattr(module, "load_json_to_bq", writes)
-+    patch(monkeypatch, lambda: _ok())
-+
-+    invoke(_ctx(client))
-+
-+    sql, job_config = client.deletes()[0]
-+    assert "league_code = @lc" in sql, (
-+        f"{name}: the DELETE is not scoped to a league. SQL={sql!r}. An unscoped delete "
-+        "wipes every other competition's snapshot from the shared table."
-+    )
-+    assert _params(job_config)["lc"] == "BL1", (
-+        f"{name}: the DELETE bound league_code={_params(job_config).get('lc')!r}, expected 'BL1'."
-+    )
-+
-+
-+@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-+def test_the_delete_boundary_is_the_write_s_own_timestamp(
-+    name, module, patch, invoke, table, monkeypatch
-+):
-+    """THE case this file exists for.
-+
-+    The delete must be bounded strictly BEFORE the `ingested_at` of the row just appended.
-+    Same value, strict `<`: older rows go, the new row stays. If the bound were dropped, or
-+    computed independently of the write, the loader would delete its own snapshot and leave
-+    the league with no row at all — and staging, which reads the latest row per league,
-+    would then serve nothing for that competition.
++    Parsed as YAML rather than sliced by line number, so the test does not break the first time
++    somebody adds a line above the job. The `!reference`/anchor tags in this file are not
++    resolvable by safe_load, so unknown tags are ignored — the anchors carry auth and profile
++    setup, not pipeline steps.
 +    """
-+    writes = _Writes()
-+    client = _Client()
-+    monkeypatch.setattr(module, "load_json_to_bq", writes)
-+    patch(monkeypatch, lambda: _ok())
++    class _Ignore(yaml.SafeLoader):
++        pass
 +
-+    invoke(_ctx(client))
++    _Ignore.add_multi_constructor("!", lambda loader, suffix, node: None)
++    doc = yaml.load(CI_CONFIG.read_text(encoding="utf-8"), Loader=_Ignore)
++    job = doc.get("data:nightly")
++    assert job, "data:nightly is gone from .gitlab-ci.yml — delete this test with it (#39)."
++    lines: list[str] = []
++    for entry in job.get("script") or []:
++        if isinstance(entry, str):
++            lines.extend(_commands(entry))
++    return lines
 +
-+    written_stamp = writes.calls[0][1].get("ingested_at")
-+    assert written_stamp is not None, (
-+        f"{name}: the loader did not pass `ingested_at` to the write, so the delete boundary "
-+        "cannot be the row's own timestamp — it would be an independently-taken clock reading."
++
++def _ordered_steps(lines: list[str]) -> list[str]:
++    found = []
++    for line in lines:
++        for name, pattern in STEPS:
++            if re.search(pattern, line):
++                found.append(name)
++                break
++    return found
++
++
++@pytest.mark.skipif(not CI_CONFIG.exists(), reason="no .gitlab-ci.yml")
++def test_entrypoint_runs_the_same_steps_in_the_same_order_as_ci():
++    entry_steps = _ordered_steps(_commands(ENTRYPOINT.read_text(encoding="utf-8")))
++    ci_steps = _ordered_steps(_ci_nightly_script())
++
++    assert entry_steps == ci_steps, (
++        "the Cloud Run entrypoint and .gitlab-ci.yml data:nightly have DRIFTED.\n"
++        f"  entrypoint: {entry_steps}\n"
++        f"  gitlab ci : {ci_steps}\n"
++        "While both exist they must run the same steps in the same order. A step present in "
++        "one and not the other means the nightly silently does less than it claims, and exits "
++        "0 while doing it."
++    )
++    assert entry_steps == [name for name, _ in STEPS], (
++        f"the nightly's step list changed: {entry_steps}. If that is intended, update STEPS "
++        "in this file — but check BOTH copies were changed."
 +    )
 +
-+    sql, job_config = client.deletes()[0]
-+    assert "ingested_at < @before" in sql, (
-+        f"{name}: the DELETE has no strict upper bound on ingested_at. SQL={sql!r}. Without "
-+        "it the statement also deletes the row this run just wrote."
-+    )
-+    assert _params(job_config)["before"].isoformat() == written_stamp, (
-+        f"{name}: the delete boundary {_params(job_config)['before'].isoformat()!r} is not the "
-+        f"written row's stamp {written_stamp!r}. Any drift here deletes the new row or spares "
-+        "a superseded one."
-+    )
 +
++def _run_entrypoint(tmp_path, new_data: str) -> list[str]:
++    """RUN the entrypoint with `python` and `dbt` stubbed out, and return what it invoked.
 +
-+@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-+def test_an_incomplete_fetch_deletes_nothing(
-+    name, module, patch, invoke, table, monkeypatch
-+):
-+    """The 8a guard returns before the write, so the delete must be unreachable.
++    Executing it is the point. An earlier version of this test asserted the ORDER of three
++    regex matches in the file — gate before `exit 0` before `dbt build` — and a reviewer showed
++    it was decoration: changing the condition to `if [ "$NEW_DATA" != "true" ] || true; then`
++    makes the gate fire on EVERY run, silently killing the nightly build forever, while all
++    three markers keep their positions and the test stays green. Textual position cannot see
++    boolean structure. This runs the real script and observes what it actually does.
 +
-+    This is the ordering that makes 8b safe: a partial snapshot that reached the delete
-+    would remove the good stored row and replace it with less data — permanently, past the
-+    7-day time-travel window. The guard and the delete are one mechanism.
++    Nothing real executes: the stubs log their arguments and exit 0, and the `python` stub is
++    what writes the `new_data` signal, exactly as `write_ci_output()` does in production.
 +    """
-+    writes = _Writes()
-+    client = _Client()
-+    monkeypatch.setattr(module, "load_json_to_bq", writes)
-+    patch(monkeypatch, lambda: _errored())
++    bindir = tmp_path / "bin"
++    bindir.mkdir()
++    trace = tmp_path / "trace.log"
++    step_output = tmp_path / "step-output"
 +
-+    ctx = _ctx(client)
-+    invoke(ctx)
-+
-+    assert writes.calls == [], f"{name}: wrote a partial snapshot (#896)."
-+    assert client.deletes() == [], (
-+        f"{name}: issued a DELETE on the incomplete-fetch path. The stored snapshot is the "
-+        "good one and this would destroy it."
++    (bindir / "python").write_text(
++        '#!/usr/bin/env bash\n'
++        'echo "python $*" >> "$TRACE"\n'
++        'case "$*" in\n'
++        '  *ingestion.api_football.main*) echo "new_data=$FAKE_NEW_DATA" >> "$CI_STEP_OUTPUT" ;;\n'
++        'esac\n'
++        'exit 0\n',
++        encoding="utf-8", newline="\n",
 +    )
-+    assert any("INCOMPLETE" in e for e in ctx.errors), (
-+        f"{name}: discarded silently. ctx.errors={ctx.errors}"
++    (bindir / "dbt").write_text(
++        '#!/usr/bin/env bash\necho "dbt $*" >> "$TRACE"\nexit 0\n',
++        encoding="utf-8", newline="\n",
 +    )
++    for stub in ("python", "dbt"):
++        (bindir / stub).chmod(0o755)
++
++    env = {
++        **os.environ,
++        "PATH": f"{bindir}{os.pathsep}{os.environ.get('PATH', '')}",
++        "TRACE": str(trace),
++        "CI_STEP_OUTPUT": str(step_output),
++        "FAKE_NEW_DATA": new_data,
++    }
++    proc = subprocess.run(
++        [shutil.which("bash"), str(ENTRYPOINT)],
++        cwd=REPO, env=env, capture_output=True, text=True, timeout=120,
++    )
++    assert proc.returncode == 0, (
++        f"entrypoint exited {proc.returncode} with new_data={new_data}.\n"
++        f"stdout: {proc.stdout}\nstderr: {proc.stderr}"
++    )
++    return trace.read_text(encoding="utf-8").splitlines() if trace.exists() else []
 +
 +
-+@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-+def test_a_failed_delete_is_reported_and_does_not_raise(
-+    name, module, patch, invoke, table, monkeypatch
-+):
-+    """Fails safe. The append already succeeded, so both rows survive and staging still
-+    selects the newer one — a failed delete costs the space saving, never the data. It must
-+    not take the run down, and it must not pass silently."""
-+    writes = _Writes()
-+    client = _Client(fail=True)
-+    monkeypatch.setattr(module, "load_json_to_bq", writes)
-+    patch(monkeypatch, lambda: _ok())
++@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash to execute the entrypoint")
++def test_a_quiet_night_exits_before_dbt(tmp_path):
++    """`new_data=false` must cost nothing. This is the `$0 night` contract — the difference
++    between a cheap no-op and a full prod warehouse build every 24h."""
++    invoked = _run_entrypoint(tmp_path, "false")
 +
-+    ctx = _ctx(client)
-+    invoke(ctx)  # must not raise
-+
-+    assert ctx.errors, f"{name}: a failed DELETE was swallowed with no error recorded."
-+
-+
-+def test_a_failed_delete_still_extends_team_ids(monkeypatch):
-+    """`teams` catches the delete itself instead of letting the outer handler take it.
-+
-+    That handler has side effects this failure must not trigger: it skips the id extension —
-+    which `teams.py` states runs EITHER WAY, deliberately — and then spends an extra /teams
-+    call on the `team_ids_for_league` fallback. Downstream, `coaches`, `transfers` and
-+    `squads` all fetch by team id, so losing the ids turns a failed space reclaim into a
-+    run-wide outage for that competition.
-+    """
-+    writes = _Writes()
-+    client = _Client(fail=True)
-+    monkeypatch.setattr(teams, "load_json_to_bq", writes)
-+    _patch_teams(monkeypatch, lambda: _ok())
-+    team_ids: set[int] = set()
-+
-+    teams.load_teams_merge_and_extend_ids(_ctx(client), "BL1", 78, [2025], 2025, team_ids)
-+
-+    assert team_ids == {1}, (
-+        "a failed merge-delete cost the run its team ids "
-+        f"(got {team_ids}); the id extension must be independent of it."
++    assert any("ingestion.api_football.main" in line for line in invoked), (
++        f"ingestion did not run at all; the test is not exercising the entrypoint. {invoked}"
++    )
++    assert not [line for line in invoked if line.startswith("dbt ")], (
++        f"a quiet night reached dbt. Every night would build the warehouse. Invoked: {invoked}"
++    )
++    assert not [line for line in invoked if "check_layer_contract" in line], (
++        f"a quiet night ran the contract checks it claims to skip. Invoked: {invoked}"
 +    )
 +
 +
-+def test_only_the_three_whole_league_loaders_merge(monkeypatch):
-+    """COACHES looks identical to the three converted loaders and must NOT merge.
++@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash to execute the entrypoint")
++def test_new_data_runs_the_full_prod_build(tmp_path):
++    """The mirror case. Without it, a gate that ALWAYS exits early would pass the test above —
++    which is exactly the regression that made the previous version of this test decoration."""
++    invoked = _run_entrypoint(tmp_path, "true")
 +
-+    Behavioural, not a source grep: `coaches` is run exactly as the converted loaders are,
-+    and asserted to issue no DELETE. `stg_apif__coaches.sql` reads ALL snapshots by CPO
-+    ruling (escalations.log, 2026-06-23) — a league-keyed delete there destroys ~120 coaches
-+    whose teams later left our pull.
-+    """
-+    writes = _Writes()
-+    client = _Client()
-+    monkeypatch.setattr(coaches, "load_json_to_bq", writes)
-+    monkeypatch.setattr(coaches, "fetch_merged_paged", lambda *a, **k: _ok())
++    joined = "\n".join(invoked)
++    for expected in (
++        "ingestion.api_football.main",
++        "check_layer_contract.py",
++        "check_registry_var_sync.py",
++        "dbt deps",
++        "dbt seed --target prod",
++        "dbt build --target prod",
++    ):
++        assert expected in joined, (
++            f"new_data=true did not reach `{expected}`. The nightly would silently do less "
++            f"than it claims. Invoked:\n{joined}"
++        )
 +
-+    coaches.load_coaches(_ctx(client), "BL1", {1})
 +
-+    assert [t for t, _ in writes.calls] == ["RAW_APIF_COACHES"], (
-+        "coaches did not write its snapshot; the test is not exercising the loader."
++def test_the_entrypoint_never_targets_a_non_prod_dataset():
++    """The container ships only the prod profile, so a stray `--target ci` would fail at 04:00
++    rather than at build time. Cheaper to catch here."""
++    text = ENTRYPOINT.read_text(encoding="utf-8")
++    stray = re.findall(r"--target\s+(\w+)", text)
++    assert stray and set(stray) == {"prod"}, (
++        f"entrypoint targets {sorted(set(stray))}; only 'prod' is shipped in "
++        "deploy/nightly/profiles.yml, so anything else fails in production."
 +    )
-+    assert client.deletes() == [], (
-+        "COACHES issued a league-keyed DELETE. `stg_apif__coaches` reads ALL snapshots by "
-+        "CPO ruling 2026-06-23 to preserve every coach ever seen — this destroys them."
++
++
++def test_the_shipped_profile_has_only_the_prod_target():
++    """If a `ci` or `dev` target ever appears in the image's profile, a mistyped --target stops
++    failing loudly and starts writing the wrong dataset instead."""
++    profile = yaml.safe_load(
++        (REPO / "deploy" / "nightly" / "profiles.yml").read_text(encoding="utf-8")
 +    )
-+
-+
-+def test_the_merge_helper_is_imported_by_exactly_the_converted_loaders():
-+    """Pins the converted set against a loader being added quietly.
-+
-+    Checks the imported NAME in each module's namespace, which is a runtime fact rather than
-+    a text match — a comment mentioning the helper cannot satisfy it. Honest limit: a module
-+    reaching it as `bigquery.delete_superseded_league_rows` through a module alias would
-+    evade this, which is why the behavioural COACHES case above exists alongside it.
-+    """
-+    import importlib
-+    import pkgutil
-+
-+    from ingestion.api_football import loads
-+
-+    merging = set()
-+    for mod in pkgutil.iter_modules(loads.__path__):
-+        module = importlib.import_module(f"{loads.__name__}.{mod.name}")
-+        if hasattr(module, "delete_superseded_league_rows"):
-+            merging.add(mod.name)
-+
-+    assert merging == {"transfers", "standings", "teams"}, (
-+        f"the merge-on-write set changed to {sorted(merging)}. Only whole-league snapshot "
-+        "tables may merge. SQUADS writes a team subset (#37), COACHES is read across ALL "
-+        "snapshots (CPO 2026-06-23), and PLAYER_PROFILES / PLAYER_TEAMS accumulate per "
-+        "player — a league-keyed delete erases every player from earlier runs."
++    outputs = profile["football_data_pipeline"]["outputs"]
++    assert set(outputs) == {"prod"}, (
++        f"the shipped profile carries targets {sorted(outputs)}. Ship prod ONLY — a second "
++        "target is a path to writing ci_* or dev_* from the production nightly."
 +    )
++    assert profile["football_data_pipeline"]["target"] == "prod"
++    assert outputs["prod"]["dataset"] == "dbt_analytics"
++    assert outputs["prod"]["location"] == "EU"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review_input.patch | 1803 +++++++++++++++++++--------------------
+#    1 file changed, 869 insertions(+), 934 deletions(-)
+# ============================================================================

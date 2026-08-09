@@ -1,144 +1,146 @@
-# Task contract — #33 item 8b: merge-on-write for TRANSFERS, STANDINGS, TEAMS
+# Task contract — #39 Stage 1: move the nightly out of CI onto Cloud Run
 
 objective: >
-  Convert three append-only raw tables to merge-on-write keyed on `league_code`: append the
-  fresh per-league snapshot, then delete that league's strictly-older rows. Raw stops growing
-  with `competitions x runs` for these tables and becomes O(competitions). The prize is SCAN
-  cost, not storage — `stg_apif__transfers` and its tests re-read the whole 6.99 GiB table on
-  every build, and the two most expensive nodes in the warehouse are both scans of it.
+  Package the nightly pipeline as a container and run it on Cloud Run Jobs, triggered by Cloud
+  Scheduler at 04:00 UTC, so the production data plane stops living inside GitLab CI. A CI-side
+  event has taken the product's data offline twice in four days — the migration silently dropped
+  the cron (6 days stale, unnoticed), then the namespace hit `ci_quota_exceeded`. Neither cause
+  had anything to do with data.
 
-  Scope is THREE tables, not the eight #33 names. Re-derived from the loaders and their
-  consumers this session; two of the excluded tables are data-destruction hazards, not
-  preferences. See decisions_taken.
-refs: GitLab #33 item 8b (8a merged as !26, `main` @ 8ac63f6); #37 (the SQUADS exclusion)
+  Stage 1 is the split ONLY. No Python changes: the `data:nightly` shell logic is ported 1:1 into
+  a container entrypoint. `.gitlab-ci.yml` is NOT edited — the GitLab schedule is paused instead,
+  keeping the old path as a manual fallback until the new one has proven itself.
+refs: GitLab #39 (Stage 1 of 3); #33 items 7, 14, 16
 
 scope_paths:
-  - ingestion/api_football/bigquery.py
-  - ingestion/api_football/loads/transfers.py
-  - ingestion/api_football/loads/standings.py
-  - ingestion/api_football/loads/teams.py
-  - tests/test_raw_merge_on_write.py
-  - docs/data_contract.md
+  - Dockerfile
+  - .dockerignore
+  - .gitattributes
+  - deploy/nightly/entrypoint.sh
+  - deploy/nightly/profiles.yml
+  - deploy/nightly/README.md
+  - tests/test_nightly_entrypoint_parity.py
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
   - .claude/task/review_input.patch
 
+# Not gate-required — no path here is on the structural surface (`ingestion/**`,
+# `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths). Included
+# anyway: this creates a SECOND production execution path for the whole pipeline, which is
+# a wider blast radius than most model edits, and a reviewer should not have to take that
+# on trust.
 impact_map: >
-  writers: RAW_APIF_TRANSFERS is written ONLY by `loads/transfers.py:69` (one row per league,
-    whole-league snapshot). RAW_APIF_STANDINGS only by `loads/standings.py:63`. RAW_APIF_TEAMS
-    only by `loads/teams.py:69`. Verified by `grep -rn "raw_table(" ingestion/` — no second
-    writer of any of the three, and no script under `scripts/` writes them.
+  what this changes: nothing in the pipeline's CODE. It adds a second way to INVOKE the
+    existing entrypoint `python -m ingestion.api_football.main` followed by the same
+    `dbt deps / seed / build --target prod`. Verified against `.gitlab-ci.yml` `data:nightly`
+    (lines 667-711): the ported step list and order are identical, including the `new_data`
+    gate and both contract checks.
 
-  downstream: `dbt ls --project-dir dbt_project --select stg_apif__transfers+
-    stg_apif__standings+ stg_apif__teams+ --resource-type model` (dbt 1.7.19, bigquery 1.7.2,
-    94 models parsed) returns 29 models:
+  writers: the container runs the SAME ingestion package that writes every RAW_APIF_* table,
+    and the same `dbt build --target prod` that writes `dbt_analytics`. No new writer is
+    introduced and no write path is altered.
 
-      1_staging: stg_apif__standings, stg_apif__teams, stg_apif__transfers
-      2_base:    base_apif__standings, base_apif__teams, base_apif__teams_global,
-                 base_apif__transfers
-      3_core:    dim_player_team_season_mapping, dim_team, fct_standings, fct_transfer
-      4_inter:   int_team_season__deserved_vs_actual, int_team_season__standings_primary
-      5_marts:   mart_fixture_standing_context, mart_matchday_insights, mart_player_career,
-                 mart_player_fixture_stats, mart_player_match_log, mart_player_profile,
-                 mart_roster, mart_standings, mart_team_competition_benchmarks,
-                 mart_team_fixture_stats, mart_team_fixtures, mart_team_market_value,
-                 mart_team_momentum_window, mart_team_profile, mart_team_season,
-                 mart_team_season_insights
+  downstream: unchanged. The nightly's outputs are the raw tables and the prod warehouse; both
+    are produced by the identical commands. `dbt ls` lineage is untouched because no model,
+    macro or seed is edited in this task.
 
-  layer_rules: no dbt model, macro or seed is touched, so `check_layer_contract.py` and
-    `check_registry_var_sync.py` are unaffected. The three staging models keep their
-    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
-    unchanged — this task deliberately does NOT edit them.
+  concurrency: the existing BigQuery ingest lock (`ingestion/api_football/ingestion_lock.py`,
+    `RAW_APIF_INGEST_LOCK`) is what prevents a Cloud Run run and any GitLab run from colliding
+    — it is dataset-level, not CI-level, so it already spans both platforms. This is why the
+    GitLab job can remain in place as a fallback rather than having to be deleted first.
+    `--max-retries 0` is set deliberately: the lock holds a lease, so an immediate retry would
+    be refused and only add noise.
 
-  deploy_order: nothing breaks between merge and the next run. The raw SCHEMA is unchanged
-    (`league_code, payload, ingested_at`); only row retention changes. The deployed staging
-    models keep working against a table with one row per league exactly as they do against
-    many. The first merge-on-write happens on the first nightly after merge (04:00 UTC,
-    schedule 4379625). No backfill, no migration step, no dbt run required.
+  credentials: the job runs AS `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`,
+    the service account that already holds the BigQuery roles used by CI. `method: oauth` +
+    `google.auth.default()` resolves it natively inside Cloud Run — no WIF exchange and no key
+    file. TWO new IAM grants, both in `deploy/nightly/README.md`, both enumerated here because
+    an earlier draft of this paragraph claimed there was only one and `cto-reviewer` and
+    `platform-reviewer` each caught it independently (round 1):
+      1. `roles/secretmanager.secretAccessor` on the secret `api-football-key` — lets the job
+         read the API key at runtime instead of baking it into an image layer.
+      2. `roles/run.invoker` on the JOB `fdp-nightly` — lets Cloud Scheduler start it.
+    Grant 2 is RESOURCE-scoped, not project-scoped. The project-scoped form would let this
+    identity invoke every Cloud Run service and job in the project, present and future, and
+    `github-actions-dbt` is not single-purpose — it is the same account CI impersonates to write
+    the prod warehouse. Widening a shared production identity is not something this task needs
+    and is not something it does.
 
-  blast_radius: NO mart number changes, and the reason is mechanical rather than empirical.
-    All three staging models already select ONLY the latest row per `league_code`; the rows
-    this task deletes are strictly older than the row written in the same call
-    (`ingested_at < @before`, where `@before` is that write's own timestamp), so every deleted
-    row is one the qualify was already discarding. The 29 models above read the same input
-    before and after. Baseline for the post-merge check, `bq show` 2026-08-09:
-      RAW_APIF_TRANSFERS  1,143 rows  6.986 GiB
-      RAW_APIF_STANDINGS  1,673 rows  0.089 GiB
-      RAW_APIF_TEAMS      1,673 rows  0.078 GiB
-    45 active competitions, so each should settle at ~45 rows. Proportionally TRANSFERS lands
-    near ~0.27 GiB; #33 predicts ~0.12 GiB. Rows are not uniform in size, so neither figure is
-    asserted — the post-merge `bq show` settles it.
-    REVERSIBLE: `raw_archive` holds `RAW_APIF_{TRANSFERS,STANDINGS,TEAMS}_20260808`,
-    row-for-row verified (item 8 step 0, 2026-08-08).
+  deploy_order: nothing breaks at any point. The container is additive; until the Cloud Run job
+    is deployed AND the GitLab schedule paused, behaviour is exactly as today. The two can
+    never both fire because pausing the schedule precedes the first scheduled Cloud Run run,
+    and the ingest lock backstops it regardless.
+
+  blast_radius: no mart, model or number changes. The risk is operational, not analytical: if
+    the container is wrong, the nightly fails and data goes stale — the failure mode that
+    already exists today and that Stage 2 (#33 item 16 freshness alerting) is what actually
+    closes. Stage 1 does not close it and does not claim to.
 
 decisions_taken: >
-  CPO approved #33 item 8 on 2026-08-08 ("yes" to items 7, 8 and 9). Item 8 was then SPLIT into
-  8a (the #896 completeness guard, merged as !26) and 8b (this task) on being shown that the
-  approved change would destroy production data; the split is recorded in escalations.log,
-  entry "2026-08-08 — #33 item 8 SPLIT into 8a/8b".
+  The CPO approved the architecture and this stage explicitly: "start with #39", then "plan
+  stage 1", then approval of the written plan. Region `europe-west1` and Secret Manager for the
+  API key were both chosen by the CPO when asked.
 
-  This contract pre-approves the conversion of exactly THREE tables: TRANSFERS, STANDINGS,
-  TEAMS. #33's text says "the eight append-only raw tables"; there are TEN, and the safe set is
-  three. Excluded, with the reason each:
-    - COACHES — `stg_apif__coaches.sql:1-7` reads ALL snapshots by an explicit CPO ruling
-      (escalations.log, 2026-06-23) to preserve every coach ever seen; latest-per-league would
-      drop ~120 coaches whose teams left our pull. A league-keyed delete destroys exactly that.
-      A SECOND data-destruction hazard inside item 8, same class as the one that forced 8a.
-    - SQUADS — the loader writes a TEAM SUBSET while staging reads latest-per-league. Verified
-      in production 2026-08-09: WCQAF exposes 10 of 44 teams, CNL 2 of 22, AFCON 8 of 16.
-      Filed as #37. Merge-on-write would make a recoverable staging bug permanent.
-    - FIXTURES_NEXT — complete only via carry-forward and it has no #896 guard.
-    - INJURIES — right shape, no guard, and #33 item 15 proposes deleting the endpoint.
-    - LEAGUES — safe but tiny; no benefit against the added risk surface.
-    - PLAYER_PROFILES, PLAYER_TEAMS — accumulate per player (`players_needing()` writes only
-      newly-seen players). A league-keyed delete erases every player from earlier runs. NEVER.
+  Framing ruling that constrains this task: "the nightly run is the minimum of updates we need
+  so data doesn't become stale." Cadence is therefore NOT available as a cost lever, which is
+  what rules out the cheaper options (reduce frequency, wait for the quota reset) and forces the
+  hosting change.
 
-  Reducing an approved item's scope is itself recorded in escalations.log with this task, per
-  the 8a precedent (scope-auditor FAILed 8a round 1 for leaving the scope only in contract.md).
-
-  `docs/data_contract.md` is edited under the CPO STANDING RULE of 2026-08-08: "Updating a
-  reference that an approved change itself breaks is part of that change, not a scope
-  extension — provided the update is confined to the reference and changes no behaviour."
+  CPO also ruled out, in this conversation: buying GitLab compute minutes, and applying to the
+  GitLab for Open Source programme.
 
   # THRESHOLD DECLARATIONS
-  NEW MECHANISM — none. Merge-on-write already exists in this repo and this task adds no new
-  class of thing: `loads/squads.py:43-74` (`_delete_superseded_player_rows`, keyed on
-  `(league, team, season)`) and `RAW_APIF_FIXTURE_DETAILS` (keyed on `(league, fixture_id)`)
-  both do it today, and `docs/data_contract.md:40-44` already documents merge-on-write as an
-  established write mode. `delete_superseded_league_rows` is the whole-league variant of an
-  existing function, placed in `bigquery.py` beside the other write helpers rather than copied
-  into three loaders.
+  NEW MECHANISM — YES. Cloud Run Jobs, Cloud Scheduler and a container image are all new to this
+  repo; nothing here runs on them today. Declared rather than smuggled: this is the CTO-class
+  threshold and no routing row covers `Dockerfile` or `deploy/**`, so `cto-reviewer` is spawned
+  for this task even though `.claude/review_routing.json` does not require it.
 
-  RECURRING COST — YES, declared. This adds one DELETE query job per (league, table) per run:
-  45 competitions x 3 tables = ~135 extra jobs per nightly. BigQuery bills DML at a 10 MB
-  minimum, so ~1.35 GB/night ≈ $0.008/night ≈ $0.25/month at on-demand rates. This is a real
-  increase and is offset by the scan reduction it buys (`base_apif__transfers` and
-  `not_null_stg_apif__transfers_raw_ingested_at` were the two most expensive nodes measured, at
-  $0.60 each per 6 days, both scanning the 6.99 GiB table). Declared here because a recurring
-  cost is CTO-threshold and appears in no routing row.
+  RECURRING COST — YES. ~1 vCPU / 2 GiB for ~110 min/day ≈ **$1.70/month** on the existing GCP
+  bill, falling to ~$0.35 once #33 item 14 removes the redundant re-fetching. Cloud Scheduler is
+  free at this volume. Secret Manager ~$0.06/month. Against this it returns the whole 400
+  GitLab minutes/month to CI across all three of the owner's projects, and today the nightly
+  cannot run at all.
+
+  NO new Python dependency is added — `requirements.txt` is unchanged; the image installs
+  exactly what CI installs.
 
 decisions_reserved:
-  - Whether FIXTURES_NEXT is ever converted. It needs a #896-style completeness guard first,
-    because its snapshot is complete only via the carry-forward at `loads/fixtures.py:225-250`.
-    Not decided here; not attempted here.
-  - How #37 (the SQUADS subset/latest-row defect) is fixed — read it as accumulation
-    (UNION ALL, like `stg_apif__player_profiles`) or make the loader carry forward. Entangled
-    with #33 item 17, which asks whether `stg_apif__squads` should exist at all given zero
-    `ref()`. Both are CPO calls; this task only excludes the table.
-  - Whether INJURIES is converted or the endpoint is dropped (#33 item 15).
-  - The COACHES all-snapshot read is CPO-ruled (2026-06-23) and is NOT revisited here.
+  - When `data:nightly` is deleted from `.gitlab-ci.yml`. It is a protected path needing its own
+    governance task with `protected_override`, and it should not happen until the Cloud Run job
+    has run successfully at least once. Not decided here.
+  - Whether ingest and dbt stay one job or split into two chained jobs (#39 open question).
+  - Stage 2 (freshness alerting, #33 item 16) and Stage 3 (CI builds and pushes the image) are
+    separate tasks. Stage 1 deliberately leaves the staleness blind spot open.
+  - Per-competition task sharding — later, and constrained by the provider's per-minute rate
+    limit and the global daily quota.
 
 done_when:
-  - `pytest tests/ -q` exits 0 (baseline on main is 702 passed, 1 skipped; this adds cases).
+  - `pytest tests/ -q` exits 0 (baseline on main is 720 passed, 1 skipped).
   - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
-  - Every new test verified by BREAKING its subject and confirming WHICH cases go red:
-    remove the delete call (write/param/pinning cases fail); move the delete above the 8a
-    completeness guard (the discard case fails); drop the `ingested_at <` bound (the
-    survives-own-write case fails).
-  - No `dbt build`, no `dbt run`, no ingest executed at any point.
-  - Post-merge only (not on this branch): after one nightly,
-    `SELECT league_code, COUNT(*) FROM raw.RAW_APIF_TRANSFERS GROUP BY 1 HAVING COUNT(*) > 1`
-    returns zero rows, and `bq show` shows the table shrunk.
+  - The parity test is verified by BREAKING its subject: remove a step from the entrypoint and
+    confirm the test goes red, then restore.
+  - `deploy/nightly/entrypoint.sh` is confirmed to be a faithful port by diffing its step list
+    against `.gitlab-ci.yml` `data:nightly` by hand, not by assertion.
+  - No `gcloud` resource is created and no ingest is run from this branch. Deployment is blocked
+    on the CPO enabling Secret Manager and creating the API-key secret, and is a separate,
+    deliberate step with the log watched.
 
-amendments: (none)
+amendments:
+  - 2026-08-09: + `.gitattributes` — authority: **CPO, asked and answered in-thread: "yes, add
+    .gitattributes"**. An earlier draft of this entry cited builder judgement instead and
+    `scope-auditor` FAILed it in round 1, correctly: working_agreement §2 requires an amendment
+    to record the CPO's authority, and §219-221 makes extending scope without it drift by
+    definition. Recording that no authority was sought is not the same as having it.
+    The alternative offered to the CPO was stripping CRs inside the Dockerfile, which is already
+    in scope; it was declined as symptom-treatment that leaves the repo still corrupting shell
+    scripts for anyone who clones it. Content: `*.sh` and `Dockerfile` pinned to `eol=lf`.
+    WHY IT IS NOT OPTIONAL: `core.autocrlf=true` on this machine and the repo has no
+    `.gitattributes`, so `deploy/nightly/entrypoint.sh` is LF only because it was just
+    written — any fresh clone or `git checkout` converts it to CRLF. `gcloud run jobs deploy
+    --source .` uploads the WORKING TREE, so the image would ship a script whose shebang is
+    `#!/usr/bin/env bash\r`, and the container would fail with "no such file or directory"
+    at 04:00 in production. It fails nowhere earlier: tests pass, the build succeeds, and the
+    parity test reads the file as text.
+    Deliberately narrow — two patterns, both consumed only by Linux tooling. A repo-wide
+    normalisation would rewrite unrelated files and is not in scope.
