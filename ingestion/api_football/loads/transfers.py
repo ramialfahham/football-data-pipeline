@@ -28,16 +28,25 @@ def load_transfers_batch(
             f"transfers {league_code}: skipped (API_FOOTBALL_SKIP_TRANSFERS set — use on low-quota archive runs)"
         )
         return
+    # #896: this payload is ONE row for the whole league, and staging reads the latest row per
+    # league_code. So it is complete or it is worthless — there is no per-team key to withhold
+    # the way squads.py can. Any team that could not be fetched cleanly makes the snapshot
+    # partial, and a partial must not supersede the good one already stored.
+    complete = True
     for team_id in sorted(team_ids):
         if errors_quota._http_quota_exhausted:
+            complete = False
             break
         try:
-            transfers_rows = transfers_response_for_team(
+            transfers_rows, team_complete = transfers_response_for_team(
                 ctx.headers,
                 team_id,
                 ctx.errors,
                 error_context=f"transfers {league_code} team_id={team_id}",
             )
+            if not team_complete:
+                complete = False
+                continue
             transfers_payload["response"].append(
                 {
                     "team_id": team_id,
@@ -45,7 +54,17 @@ def load_transfers_batch(
                 }
             )
         except Exception as e:
+            complete = False
             ctx.errors.append(f"transfers {league_code} team {team_id}: {e}")
+    if not complete:
+        # Discard rather than supersede. Under today's append-only writes the stored snapshot
+        # simply stays the latest; once #33 item 8b makes this table merge-on-write, writing
+        # here would DELETE that stored snapshot, so this guard is what makes 8b safe.
+        ctx.errors.append(
+            f"transfers {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
+            f"snapshot kept (#896); retries next run"
+        )
+        return
     try:
         load_json_to_bq(
             ctx.client,

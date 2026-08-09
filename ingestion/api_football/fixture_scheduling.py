@@ -490,24 +490,31 @@ def transfers_response_for_team(
     errors: list[str] | None = None,
     *,
     error_context: str = "",
-) -> list:
+) -> tuple[list, bool]:
     """All /transfers for a team (every player who moved in/out). Not season-scoped —
     one call returns the team's full transfer history. Fetching by team returns each
     move twice (once per involved team); the base model dedups.
 
     paginate=False: /transfers rejects the `page` param (like /teams and /standings —
     'The Page field do not exist.') and returns empty when it is sent, so we send a single
-    `team=` call (verified: returns the team's full move list in one response)."""
+    `team=` call (verified: returns the team's full move list in one response).
+
+    Returns ``(rows, complete)``, matching `players_response_for_team`. ``complete`` is False
+    when the provider returned a body-level error or the run's quota flag cut the fetch short;
+    ``rows`` may then be empty OR partial while still looking like success, and the caller MUST
+    NOT let it supersede stored data (#896)."""
     data = fetch_merged_paged(
         "/transfers",
         headers,
         {"team": team_id},
         paginate=False,
     )
+    # Evaluated before any further fetch: the quota flag latches for the rest of the run.
+    complete = result_is_complete(data)
     if errors is not None:
         ctx = error_context or f"transfers team_id={team_id}"
         append_api_errors(data, ctx, errors)
-    return list(data.get("response") or [])
+    return list(data.get("response") or []), complete
 
 
 def squads_response_for_team(
