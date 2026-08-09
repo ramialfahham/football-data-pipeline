@@ -1,178 +1,144 @@
-# Task contract — #33 item 8a: an incomplete fetch must not supersede a good snapshot
-
-> Branch `fix/896-guard-partial-writes` from `main` (`7b464bd`), worktree `D:\Projects\fdp-pipeline`.
-> No PROTECTED path, so no `protected_override`. `ingestion/**` IS the structural surface, so an
-> `impact_map` is REQUIRED and is below. No `site_v2/src/`, so no `acceptance_criteria`.
+# Task contract — #33 item 8b: merge-on-write for TRANSFERS, STANDINGS, TEAMS
 
 objective: >
-  Port the #896 guard — "an incomplete fetch must never supersede stored data" — to the four
-  per-league snapshot loaders that lack it: TRANSFERS, COACHES, STANDINGS, TEAMS.
+  Convert three append-only raw tables to merge-on-write keyed on `league_code`: append the
+  fresh per-league snapshot, then delete that league's strictly-older rows. Raw stops growing
+  with `competitions x runs` for these tables and becomes O(competitions). The prize is SCAN
+  cost, not storage — `stg_apif__transfers` and its tests re-read the whole 6.99 GiB table on
+  every build, and the two most expensive nodes in the warehouse are both scans of it.
 
-  WHY THIS EXISTS, AND WHY IT IS ITS OWN MR. #33 item 8 converts the append-only raw tables to
-  merge-on-write keyed on `league_code`. Applying that today would DESTROY PRODUCTION DATA: each
-  of these four loaders abandons its fetch loop when the daily quota latches and then writes the
-  partial payload unconditionally. Under append-only that is recoverable — the partial wins the
-  latest-snapshot `qualify` in staging, but the complete prior row still exists in `raw`. Under
-  merge-on-write the partial write DELETES the complete prior row. The CPO split item 8 on
-  2026-08-08 after this was found; 8a is the precondition that makes 8b non-destructive.
-
-  THE DEFECT, one shape in four files:
-      transfers.py:31-33   coaches.py:44-45   standings.py:31-32   teams.py:29-30
-      for x in ...:
-          if errors_quota._http_quota_exhausted:
-              break                      # loop abandoned, nothing recorded
-          ...
-      load_json_to_bq(..., append=True)  # partial written as if complete
-
-  THE FIX ALREADY EXISTS IN THIS REPO and is not being invented here. `result_is_complete()`
-  (`http_client.py:83`) is the #896 primitive: True only when the provider reported no body-level
-  error AND the run's daily-quota flag is unset, because the two failure shapes differ — a
-  per-minute rate limit arrives as HTTP 200 with the error in the body, while an exhausted daily
-  quota short-circuits to an empty body with no error at all. Either signal alone misses one.
-  `players_response_for_team` (`fixture_scheduling.py:480`) already uses it.
-
-  ⚠ A SWEEP CHANGED WHAT I THOUGHT THE SCOPE WAS. `result_is_complete` is called in exactly ONE
-  place in the whole codebase. Eleven loaders fetch-and-write; nine have no completeness check.
-  Only RAW_APIF_PLAYERS is genuinely protected (per key, `squads.py:188-196`); RAW_APIF_SQUADS is
-  partially protected (`player_squads.py` guards the catch-up path on `quota_cut` only, not on
-  body errors). This MR fixes the four the CPO named and scoped. The remaining holes are listed
-  under decisions_reserved rather than silently widened into or silently dropped.
-
-  CONSULTED BEFORE BUILDING (§2 norm): read `result_is_complete`'s docstring for why both signals
-  are needed; read `squads.py`'s per-key guard and `player_squads.py`'s discard-the-partial guard
-  as the two existing precedents, and followed the second, because these four tables are ONE row
-  per league and cannot withhold per team.
-
-refs: >
-  GitLab #33 item 8, split into 8a/8b by the CPO on 2026-08-08 after this defect was found.
-  Implements the #896 ruling for four more tables. Follows !23, !24, !25 (Wave 1, all merged).
+  Scope is THREE tables, not the eight #33 names. Re-derived from the loaders and their
+  consumers this session; two of the excluded tables are data-destruction hazards, not
+  preferences. See decisions_taken.
+refs: GitLab #33 item 8b (8a merged as !26, `main` @ 8ac63f6); #37 (the SQUADS exclusion)
 
 scope_paths:
+  - ingestion/api_football/bigquery.py
   - ingestion/api_football/loads/transfers.py
-  - ingestion/api_football/loads/coaches.py
   - ingestion/api_football/loads/standings.py
   - ingestion/api_football/loads/teams.py
-  - ingestion/api_football/fixture_scheduling.py
-  - tests/test_incomplete_snapshot_not_written.py
+  - tests/test_raw_merge_on_write.py
+  - docs/data_contract.md
+  - .claude/task/contract.md
+  - .claude/task/escalations.log
+  - .claude/task/review.md
+  - .claude/task/review_input.patch
 
 impact_map: >
-  WRITERS. Exactly the four loaders named, each the sole writer of its raw table — verified with
-  `grep -rn "load_json_to_bq" ingestion/`:
-      loads/transfers.py  -> RAW_APIF_TRANSFERS   (6.99 GiB, 59% of raw)
-      loads/coaches.py    -> RAW_APIF_COACHES     (0.21 GiB)
-      loads/standings.py  -> RAW_APIF_STANDINGS   (0.09 GiB)
-      loads/teams.py      -> RAW_APIF_TEAMS       (0.08 GiB)
-  `fixture_scheduling.py` is touched only to give `transfers_response_for_team` the same
-  `(rows, complete)` return shape `players_response_for_team` already has. No other caller of that
-  function exists — verified.
+  writers: RAW_APIF_TRANSFERS is written ONLY by `loads/transfers.py:69` (one row per league,
+    whole-league snapshot). RAW_APIF_STANDINGS only by `loads/standings.py:63`. RAW_APIF_TEAMS
+    only by `loads/teams.py:69`. Verified by `grep -rn "raw_table(" ingestion/` — no second
+    writer of any of the three, and no script under `scripts/` writes them.
 
-  WHAT CHANGES BEHAVIOURALLY, stated precisely because it is a behaviour change and not a refactor.
-  When a fetch loop is cut short by the daily quota, or any per-team/per-season response carries a
-  body-level error, the league's snapshot is now DISCARDED instead of written. Consequences:
-  - Normal runs: nothing changes. A complete run writes exactly what it writes today.
-  - A degraded run: staging keeps the PREVIOUS complete snapshot instead of being superseded by a
-    partial. That is the #896 ruling and it is strictly better for data quality.
-  - A degraded FIRST-EVER ingest of a league: nothing is written at all, where today a partial
-    would land. Accepted, and it is the same trade `player_squads.py` already makes on its
-    catch-up path. It self-heals on the next run, and the discarded snapshot is reported through
-    `ctx.errors`, which reaches the completeness summary rather than being silent.
+  downstream: `dbt ls --project-dir dbt_project --select stg_apif__transfers+
+    stg_apif__standings+ stg_apif__teams+ --resource-type model` (dbt 1.7.19, bigquery 1.7.2,
+    94 models parsed) returns 29 models:
 
-  DOWNSTREAM. No dbt model, seed, macro or test is touched, so there is no lineage to trace and no
-  mart or number can move. The raw SCHEMA is unchanged — same table, same columns, same payload
-  shape, same append semantics. What changes is only WHETHER a given degraded run writes a row.
-  Staging is unaffected by construction: `stg_apif__transfers`, `_standings` and `_teams` already
-  select the latest snapshot per `league_code`, so they read one row per league either way.
+      1_staging: stg_apif__standings, stg_apif__teams, stg_apif__transfers
+      2_base:    base_apif__standings, base_apif__teams, base_apif__teams_global,
+                 base_apif__transfers
+      3_core:    dim_player_team_season_mapping, dim_team, fct_standings, fct_transfer
+      4_inter:   int_team_season__deserved_vs_actual, int_team_season__standings_primary
+      5_marts:   mart_fixture_standing_context, mart_matchday_insights, mart_player_career,
+                 mart_player_fixture_stats, mart_player_match_log, mart_player_profile,
+                 mart_roster, mart_standings, mart_team_competition_benchmarks,
+                 mart_team_fixture_stats, mart_team_fixtures, mart_team_market_value,
+                 mart_team_momentum_window, mart_team_profile, mart_team_season,
+                 mart_team_season_insights
 
-  DELIBERATELY NOT IN THIS MR: no merge-on-write, no delete of any kind, no `league_code`-keyed
-  DELETE. This MR only ever writes FEWER rows than today. That is what makes it safe to land
-  before 8b, and safe to land the same day the nightly resumes.
+  layer_rules: no dbt model, macro or seed is touched, so `check_layer_contract.py` and
+    `check_registry_var_sync.py` are unaffected. The three staging models keep their
+    `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`
+    unchanged — this task deliberately does NOT edit them.
 
-  DEPLOY ORDER. No warehouse object changes. The nightly (schedule 4379625) fires 04:00 UTC daily
-  and will be the first consumer. Landing this BEFORE 8b is the point of the split; landing it
-  before tonight's run is desirable but not required, because append-only remains safe either way.
+  deploy_order: nothing breaks between merge and the next run. The raw SCHEMA is unchanged
+    (`league_code, payload, ingested_at`); only row retention changes. The deployed staging
+    models keep working against a table with one row per league exactly as they do against
+    many. The first merge-on-write happens on the first nightly after merge (04:00 UTC,
+    schedule 4379625). No backfill, no migration step, no dbt run required.
 
-  BLAST RADIUS on data: no mart, no number, no displayed value. The risk being managed is the
-  reverse of the usual one — this makes the pipeline write less, never more.
+  blast_radius: NO mart number changes, and the reason is mechanical rather than empirical.
+    All three staging models already select ONLY the latest row per `league_code`; the rows
+    this task deletes are strictly older than the row written in the same call
+    (`ingested_at < @before`, where `@before` is that write's own timestamp), so every deleted
+    row is one the qualify was already discarding. The 29 models above read the same input
+    before and after. Baseline for the post-merge check, `bq show` 2026-08-09:
+      RAW_APIF_TRANSFERS  1,143 rows  6.986 GiB
+      RAW_APIF_STANDINGS  1,673 rows  0.089 GiB
+      RAW_APIF_TEAMS      1,673 rows  0.078 GiB
+    45 active competitions, so each should settle at ~45 rows. Proportionally TRANSFERS lands
+    near ~0.27 GiB; #33 predicts ~0.12 GiB. Rows are not uniform in size, so neither figure is
+    asserted — the post-merge `bq show` settles it.
+    REVERSIBLE: `raw_archive` holds `RAW_APIF_{TRANSFERS,STANDINGS,TEAMS}_20260808`,
+    row-for-row verified (item 8 step 0, 2026-08-08).
 
 decisions_taken: >
-  AUTHORITY. The durable record is `.claude/task/escalations.log`, entry
-  "2026-08-08 — #33 item 8 SPLIT into 8a/8b: item 8 as approved would have destroyed prod data",
-  appended in this branch. It records the split itself, the evidence that forced it, the CPO's
-  "go ahead with 8a", and — explicitly, because it was the thing most likely to be inferred later
-  — that 8a is scoped to FOUR loaders and which five gaps are deliberately left out.
-  That entry exists BECAUSE `scope-auditor` FAILed round 1 for its absence, and it was right:
-  the 2026-08-08 blanket #33 approval covers item 8 as ONE thing ("raw merge-on-write with the
-  raw_archive backup first"), and a split that changes what item 8 IS is a new decision. Fourth
-  time this repo has ruled that a decision living only in `contract.md` is not recorded
-  (2026-07-31, 2026-08-01, and the standing-rule entry of 2026-08-08).
-  The underlying rule is NOT new: #896 is already this repo's ruling, recorded 2026-08-03, and
-  already implemented for RAW_APIF_PLAYERS. This MR applies an existing ruling to four more
-  tables; it does not create one.
+  CPO approved #33 item 8 on 2026-08-08 ("yes" to items 7, 8 and 9). Item 8 was then SPLIT into
+  8a (the #896 completeness guard, merged as !26) and 8b (this task) on being shown that the
+  approved change would destroy production data; the split is recorded in escalations.log,
+  entry "2026-08-08 — #33 item 8 SPLIT into 8a/8b".
 
-  THRESHOLD DECLARATIONS (no gate parses this field; an omission is a defect, not an oversight).
-  - NEW MECHANISM: none. `result_is_complete()` already exists and is already used. No new
-    dependency, no new config, no new env var, no new table.
-  - RECURRING COST: unchanged, or very slightly reduced. No new API call — `result_is_complete`
-    inspects the response already in hand. No extra BigQuery read. On a degraded run one LOAD job
-    is skipped, so a bad night gets marginally cheaper.
-  - GUARD STRENGTHENED, not weakened. Four tables gain a protection only one table had.
-  - BEHAVIOUR CHANGE, declared: a degraded first-ever ingest now writes nothing. See impact_map.
+  This contract pre-approves the conversion of exactly THREE tables: TRANSFERS, STANDINGS,
+  TEAMS. #33's text says "the eight append-only raw tables"; there are TEN, and the safe set is
+  three. Excluded, with the reason each:
+    - COACHES — `stg_apif__coaches.sql:1-7` reads ALL snapshots by an explicit CPO ruling
+      (escalations.log, 2026-06-23) to preserve every coach ever seen; latest-per-league would
+      drop ~120 coaches whose teams left our pull. A league-keyed delete destroys exactly that.
+      A SECOND data-destruction hazard inside item 8, same class as the one that forced 8a.
+    - SQUADS — the loader writes a TEAM SUBSET while staging reads latest-per-league. Verified
+      in production 2026-08-09: WCQAF exposes 10 of 44 teams, CNL 2 of 22, AFCON 8 of 16.
+      Filed as #37. Merge-on-write would make a recoverable staging bug permanent.
+    - FIXTURES_NEXT — complete only via carry-forward and it has no #896 guard.
+    - INJURIES — right shape, no guard, and #33 item 15 proposes deleting the endpoint.
+    - LEAGUES — safe but tiny; no benefit against the added risk surface.
+    - PLAYER_PROFILES, PLAYER_TEAMS — accumulate per player (`players_needing()` writes only
+      newly-seen players). A league-keyed delete erases every player from earlier runs. NEVER.
 
-  WHY DISCARD RATHER THAN WRITE-AND-MARK. Two precedents exist. `squads.py` withholds incomplete
-  KEYS, which works because RAW_APIF_PLAYERS is one row per (team, season). These four tables are
-  ONE ROW PER LEAGUE, so there is no key to withhold — the snapshot is complete or it is not.
-  `player_squads.py` faces the same one-row-per-league shape and DISCARDS. Followed the second.
+  Reducing an approved item's scope is itself recorded in escalations.log with this task, per
+  the 8a precedent (scope-auditor FAILed 8a round 1 for leaving the scope only in contract.md).
+
+  `docs/data_contract.md` is edited under the CPO STANDING RULE of 2026-08-08: "Updating a
+  reference that an approved change itself breaks is part of that change, not a scope
+  extension — provided the update is confined to the reference and changes no behaviour."
+
+  # THRESHOLD DECLARATIONS
+  NEW MECHANISM — none. Merge-on-write already exists in this repo and this task adds no new
+  class of thing: `loads/squads.py:43-74` (`_delete_superseded_player_rows`, keyed on
+  `(league, team, season)`) and `RAW_APIF_FIXTURE_DETAILS` (keyed on `(league, fixture_id)`)
+  both do it today, and `docs/data_contract.md:40-44` already documents merge-on-write as an
+  established write mode. `delete_superseded_league_rows` is the whole-league variant of an
+  existing function, placed in `bigquery.py` beside the other write helpers rather than copied
+  into three loaders.
+
+  RECURRING COST — YES, declared. This adds one DELETE query job per (league, table) per run:
+  45 competitions x 3 tables = ~135 extra jobs per nightly. BigQuery bills DML at a 10 MB
+  minimum, so ~1.35 GB/night ≈ $0.008/night ≈ $0.25/month at on-demand rates. This is a real
+  increase and is offset by the scan reduction it buys (`base_apif__transfers` and
+  `not_null_stg_apif__transfers_raw_ingested_at` were the two most expensive nodes measured, at
+  $0.60 each per 6 days, both scanning the 6.99 GiB table). Declared here because a recurring
+  cost is CTO-threshold and appears in no routing row.
 
 decisions_reserved:
-  - THE REMAINING #896 HOLES, found by the sweep and deliberately not fixed here: `catalog.py`
-    (LEAGUES), `injuries.py` (INJURIES), `fixtures.py` (FIXTURES_NEXT), `player_profiles.py`,
-    `player_teams.py`, and the body-error half of `player_squads.py`. The CPO scoped 8a to four
-    loaders; widening to nine inside the same MR would be exactly the drift `scope_paths` exists
-    to stop. They matter for 8b, and are reported on #33 so 8b's scope is decided with them in
-    view — not left to be rediscovered.
-  - Which tables 8b may convert at all. `PLAYER_PROFILES` and `PLAYER_TEAMS` accumulate per player
-    (`players_needing()` writes only newly-seen players), so a `league_code`-keyed DELETE would
-    erase every player ingested on an earlier run. They must never be converted. Not decided here.
-  - #33 item 15 (drop `/injuries`). RAW_APIF_INJURIES is 1.78 GiB, the second-largest raw table,
-    with no source declaration and no model. Whether to guard it or delete the endpoint is one
-    decision, and it is the CPO's.
+  - Whether FIXTURES_NEXT is ever converted. It needs a #896-style completeness guard first,
+    because its snapshot is complete only via the carry-forward at `loads/fixtures.py:225-250`.
+    Not decided here; not attempted here.
+  - How #37 (the SQUADS subset/latest-row defect) is fixed — read it as accumulation
+    (UNION ALL, like `stg_apif__player_profiles`) or make the loader carry forward. Entangled
+    with #33 item 17, which asks whether `stg_apif__squads` should exist at all given zero
+    `ref()`. Both are CPO calls; this task only excludes the table.
+  - Whether INJURIES is converted or the endpoint is dropped (#33 item 15).
+  - The COACHES all-snapshot read is CPO-ruled (2026-06-23) and is NOT revisited here.
 
 done_when:
-  - `python -m pytest tests/ -q` exit code read DIRECTLY; green, and no lower than main's 683.
-  - New tests in `tests/test_incomplete_snapshot_not_written.py` assert, for EACH of the four
-    loaders: (a) a complete fetch still writes exactly one payload; (b) a body-level error on any
-    one team/season writes NOTHING and reports through `ctx.errors`; (c) a mid-loop daily-quota
-    cut writes NOTHING. Assertions are on whether the loader called its BigQuery write, using a
-    recording double — not on log text.
-  - EVERY new assertion proven load-bearing by reverting the guard it covers and watching that
-    test go red, then restoring. DONE, and it caught TWO decoration bugs in this MR alone:
-      · round 0: the quota-cut cases for `standings` and `teams` PASSED with the guard disabled.
-        Their helper re-patched `fetch_merged_paged` with an empty response list, so they were
-        exercising an IndexError path, not a quota cut. Harness restructured (patch and invoke
-        split apart); all 8 discard cases then failed as required.
-      · round 1, found by BOTH specialists independently: `_patch_transfers` monkeypatched
-        `transfers_response_for_team` out entirely and substituted a hand-rolled stand-in, so the
-        REAL guard at `fixture_scheduling.py:513` — the one protecting RAW_APIF_TRANSFERS, 6.99
-        GiB and 59% of raw — was never executed by any test. Reverting it to `complete = True`
-        left the whole suite green. Fixed by patching the HTTP layer UNDER the helper instead,
-        plus a direct unit test of the helper's own return value; re-verified against that exact
-        revert, which now fails two cases.
-      · round 2, `platform-reviewer` again, and the sharpest of the three: the mid-loop
-        quota-cut cases were masked for ALL FOUR loaders. The fake sets the latched quota flag on
-        iteration 1, and every one of these loaders has a PRE-EXISTING top-of-loop
-        `if _http_quota_exhausted: break` that catches it on iteration 2 — so the new check could
-        be regressed to body-errors-only (`if data.get("errors")`, blind to the quota flag, which
-        is half of what #896 is about) and all four cases would still pass on the OLD code.
-        Fixed by adding `test_a_quota_cut_on_a_single_iteration_is_caught`, which invokes each
-        loader with exactly ONE team/season so there is no second iteration for the old guard to
-        fire on. Verified against exactly that regression in all four loaders: the four new cases
-        fail, and — confirming the reviewer's analysis precisely — the four mid-loop cases stay
-        green throughout.
-    TEN decoration tests have now been caught this way across four MRs. None was caught by
-    reading the test; every one needed the subject broken.
-  - `grep -rn "result_is_complete" ingestion/` shows the four new call sites plus the pre-existing
-    one — i.e. the fix uses the existing primitive rather than a private reimplementation.
-  - `ruff check --config .ruff-ci.toml ingestion/ tests/` exits 0.
-  - No `dbt build`, `dbt run` or ingest is executed at any point.
+  - `pytest tests/ -q` exits 0 (baseline on main is 702 passed, 1 skipped; this adds cases).
+  - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
+  - Every new test verified by BREAKING its subject and confirming WHICH cases go red:
+    remove the delete call (write/param/pinning cases fail); move the delete above the 8a
+    completeness guard (the discard case fails); drop the `ingested_at <` bound (the
+    survives-own-write case fails).
+  - No `dbt build`, no `dbt run`, no ingest executed at any point.
+  - Post-merge only (not on this branch): after one nightly,
+    `SELECT league_code, COUNT(*) FROM raw.RAW_APIF_TRANSFERS GROUP BY 1 HAVING COUNT(*) > 1`
+    returns zero rows, and `bq show` shows the table shrunk.
 
 amendments: (none)

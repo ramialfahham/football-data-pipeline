@@ -39,12 +39,12 @@ Eleven tables serve the entire fleet of competitions. No per-competition raw tab
 |-------|------------|-----------|---------|-----------|
 | `RAW_APIF_FIXTURE_DETAILS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, fixture_id)` |
 | `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_STANDINGS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
+| `RAW_APIF_TEAMS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
 | `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
 | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_TRANSFERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
 | `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
@@ -55,7 +55,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
 
 ## Append-only writes (reference tables)
 
-Reference tables — fixtures-next, standings, teams, players, coaches, injuries, leagues — are written with `WRITE_APPEND`. On every pipeline run:
+Reference tables — fixtures-next, coaches, injuries, leagues, squads, player-profiles, player-teams — are written with `WRITE_APPEND`. On every pipeline run:
 
 1. The pipeline assembles the **full history window** for the competition. A full (active) run fetches every configured season from the API, reusing finished historical seasons from the previous snapshot (issue #283). A poll/idle run (a finished competition) fetches only the current season and **carries forward** the prior seasons from the latest snapshot — finished matches never change, so the carried rows stay current. Either path yields a complete response.
 2. The complete response is written as a new row with the current UTC timestamp.
@@ -76,6 +76,23 @@ This is what the six per-league snapshot staging models do today — `stg_apif__
 **`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
 
 This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
+
+---
+
+## Whole-league merge-on-write (`TRANSFERS`, `STANDINGS`, `TEAMS`)
+
+Since **#33 item 8b**, these three write **merge-on-write keyed on `league_code` alone**. Each loader writes ONE row covering the entire competition, so the row it appends fully supersedes every earlier one. Each run appends its snapshot with an explicit `ingested_at`, then deletes that league's rows written strictly before it (`ingestion/api_football/bigquery.py:delete_superseded_league_rows`). The table settles at one row per competition — O(competitions), not O(competitions × runs).
+
+Nothing is lost: the three staging models already selected only the latest row per `league_code`, so every deleted row was one the `qualify` was discarding. The saving is **scan cost**, not storage — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on 2026-08-09 (59% of all raw) and was re-read in full by every test and base model on every build.
+
+**The delete is reachable only past the #896 completeness guard** (#33 item 8a). A quota-truncated fetch returns before the write, so a partial snapshot can never delete the good stored row. The guard and the merge are one mechanism; do not port one without the other.
+
+**Do not extend this to another table without re-deriving that it writes a complete per-league row AND that no consumer reads snapshot history.** The set is pinned by `tests/test_raw_merge_on_write.py`. Specifically excluded:
+
+- **`RAW_APIF_COACHES`** — `stg_apif__coaches` reads **all** snapshots by CPO ruling (`escalations.log`, 2026-06-23) to preserve every coach ever seen; a league-keyed delete destroys ~120 coaches whose teams later left our pull.
+- **`RAW_APIF_SQUADS`** — the loader writes a team **subset**, not a whole-league row (#37).
+- **`RAW_APIF_FIXTURES_NEXT`** — complete only via carry-forward, and it has no #896 guard.
+- **`RAW_APIF_PLAYER_PROFILES` / `_PLAYER_TEAMS`** — accumulate per player; a league-keyed delete erases every player ingested on an earlier run. **Never.**
 
 ---
 
@@ -155,7 +172,7 @@ Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`
 
 ## Endpoints and raw tables
 
-Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` uses merge-on-write.
+Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` use merge-on-write on an entity key, and `RAW_APIF_TRANSFERS`, `RAW_APIF_STANDINGS` and `RAW_APIF_TEAMS` on `league_code` alone (#33 item 8b) — see the write-mode table above.
 
 | Area | Endpoint(s) | BigQuery raw table |
 |------|-------------|-------------------|
@@ -174,7 +191,7 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 
 **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
 
-**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; an append-only full-history snapshot per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
+**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; a full-history snapshot per run written merge-on-write on `league_code` since #33 item 8b, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
 
 **Added 2026-06-15 (player-data initiative, PR-a):** three player endpoints. `/players/squads` per team → `RAW_APIF_SQUADS` (present-day squad + shirt number; distinct from the `/players` roster pull that lands `RAW_APIF_PLAYERS`). `/players/profiles` per player → `RAW_APIF_PLAYER_PROFILES` (bio) and `/players/teams` per player → `RAW_APIF_PLAYER_TEAMS` (career team×seasons) run as a **global per-player phase** over the current universe (players rostered in season ≥ `API_FOOTBALL_PLAYER_UNIVERSE_MIN_SEASON`, default 2025), derived from `RAW_APIF_PLAYERS`. Each player is grouped under a deterministic provenance `league_code` (MIN over the leagues that surfaced them — provenance, not identity, as with transfers). Already-ingested players are skipped (bio/career are static/slow-moving), so the first run is the quota-guarded backfill and later runs fetch only newly-rostered players. CPO scope ruling (2026-06-15): profiles + teams + squads; `/players/seasons` was evaluated and **not** ingested (a bare list of years, redundant with `/players/teams`).
 
