@@ -1,0 +1,50 @@
+# Keep secrets out of the image and the build context small. GitLab #39 Stage 1.
+#
+# DELIBERATELY MINIMAL. An over-eager exclude here fails at 04:00 in production, not at build
+# time, and the first draft of this file proved it: excluding `docs/` would have broken every
+# run, because `docs/competition_registry.yml` is read at runtime by `registry.py:56` and by
+# both contract-check scripts the entrypoint calls. Nothing is excluded here unless it is a
+# secret, a build artefact, or large AND provably unread by the nightly.
+
+# SECRETS — the one that matters most. `.env` holds API_FOOTBALL_API_KEY. The container gets
+# that value from Secret Manager at runtime; baking it into a layer would make it readable by
+# anyone who can pull the image, and it would survive rotation.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*-key.json
+*credentials*.json
+
+# The v2 site (1.4M + node_modules when present) and the frozen legacy site. Astro apps the
+# nightly never touches. `deploy:export` / `deploy:site-v2` are separate GitLab jobs and are
+# not part of this image.
+site_v2
+site
+
+# Build artefacts and caches — regenerated in the container, and a stale host copy is worse
+# than none. `dbt deps` runs in the entrypoint, so dbt_packages must NOT be shipped.
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.venv
+venv
+dbt_project/target
+dbt_project/dbt_packages
+dbt_project/logs
+
+# Agent governance and VCS metadata. Not read by any runtime path.
+.git
+.claude
+.cursor
+
+# KEPT ON PURPOSE, because the nightly reads them:
+#   docs/           — competition_registry.yml (registry.py:56, check_layer_contract.py,
+#                     check_registry_var_sync.py)
+#   scripts/        — both contract checks run in the entrypoint
+#   dbt_project/    — the models, seeds and packages.yml the prod build needs
+#   ingestion/      — the pipeline itself
+#   requirements.txt — the same file CI installs

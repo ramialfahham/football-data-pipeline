@@ -1782,3 +1782,80 @@ times.
   nothing; the CPO was shown the COACHES finding and the three-table scope before implementation
   and approved it ("start 8b at the three-table scope"). Widening it back is what would need a
   new decision.
+
+
+2026-08-09 — #39: the nightly LEAVES CI. New mechanism + recurring cost, both APPROVED.
+
+  WHAT PROMPTED IT. `data:nightly` ran the production data plane inside GitLab CI, so a CI-side
+  event took the product's data offline twice in four days: the GitHub→GitLab migration silently
+  dropped the cron (2026-08-03 → 08-09, six days stale, nothing noticed), then the namespace hit
+  `ci_quota_exceeded` and jobs stopped starting. Neither cause had anything to do with data.
+
+  THE MEASUREMENT that settled it (job 15794630814, 2026-08-09): the nightly is ~111 min/run
+  against a **400 min/month** free-tier allowance shared across all three of the CPO's projects.
+  ~83 of the 105 ingestion minutes are `transfers`, `coaches` and in-season squads re-fetching
+  data that has not changed — i.e. #33 item 14. It never fit, from the moment item 7 created the
+  schedule. Note the project is already `visibility: public`, and that does NOT exempt it.
+
+  THE CPO RULING that removed the cheap options: "the nightly run is the minimum of updates we
+  need so data don't become stale." Cadence is therefore NOT a cost lever. Also ruled out in the
+  same conversation: buying GitLab compute minutes, and applying to the GitLab for Open Source
+  programme. That leaves hosting as the only variable, which is what #39 changes.
+
+  APPROVED, explicitly and in sequence: "start with #39" → "plan stage 1" → approval of the
+  written Stage 1 plan. Region `europe-west1` and Secret Manager for the API key were both
+  chosen by the CPO when asked directly.
+
+  THRESHOLDS CROSSED, declared here so they are verifiable rather than asserted in a contract
+  that ships with the same commit:
+  - NEW MECHANISM — Cloud Run Jobs, Cloud Scheduler and a container image. All new to this repo.
+  - RECURRING COST — ~$1.70/month GCP, falling to ~$0.35 after #33 item 14. Against it, the
+    whole 400 GitLab minutes/month return to CI across three projects, and today the nightly
+    cannot run at all.
+  - IAM — TWO new grants to `github-actions-dbt@…`, and it matters that they are enumerated
+    because that identity is NOT single-purpose: it is the same account CI impersonates to
+    write the prod warehouse. (1) `roles/secretmanager.secretAccessor` on the secret
+    `api-football-key`. (2) `roles/run.invoker` on the JOB `fdp-nightly` — RESOURCE-scoped, not
+    project-scoped. The project-scoped form would let it invoke every Cloud Run resource in the
+    project, present and future, which this task does not need.
+    Round 1 caught this: the first draft of the runbook used the project-scoped binding and the
+    contract claimed only ONE grant existed. `cto-reviewer` and `platform-reviewer` found it
+    independently. Recorded here so a future reader can see the full credential surface of the
+    nightly in one place rather than reconstructing it from a runbook.
+  No routing row in `.claude/review_routing.json` covers `Dockerfile` or `deploy/**`, so
+  `cto-reviewer` was spawned for this task even though routing does not require it. A new
+  mechanism with no CTO verdict would be the gap the threshold-declaration rule exists to close.
+
+  DELIBERATELY NOT DONE IN STAGE 1, so the limits are on record rather than discovered later:
+  - `.gitlab-ci.yml` is NOT edited. `data:nightly` stays as a manual fallback until Cloud Run has
+    proven itself; the GitLab SCHEDULE is paused instead (project config, not a file). Deleting
+    the job touches a protected path and needs its own governance task.
+  - The staleness blind spot is NOT closed. That is Stage 2 (#33 item 16) and Stage 1 does not
+    claim otherwise.
+  - The image is not rebuilt on merge. Stage 3. Until then a merge and a redeploy are two acts,
+    and between them the nightly runs the previous image.
+
+  SCOPE EXTENSION, asked and granted mid-task: `.gitattributes`.
+  The question put to the CPO: may `.gitattributes` be added to scope_paths (two lines — `*.sh`
+  and `Dockerfile` pinned to `eol=lf`)? The CPO's answer, verbatim: **"yes, add .gitattributes"**.
+  WHY IT WAS ASKED RATHER THAN TAKEN. `core.autocrlf=true` on the dev machine and the repo had
+  no `.gitattributes`, so any fresh clone rewrites `deploy/nightly/entrypoint.sh` to CRLF.
+  `gcloud run jobs deploy --source .` uploads the WORKING TREE, so the image would ship a
+  `#!/usr/bin/env bash\r` shebang and the container would die with "no such file or directory"
+  — at 04:00, in production. Demonstrated, not theorised: a forced re-checkout produced exactly
+  that shebang. It fails nowhere earlier — tests pass, the build succeeds, nothing in CI runs
+  the script.
+  THE ALTERNATIVE OFFERED and declined: strip the CRs inside the Dockerfile, which is already in
+  scope and needs no extension. Declined as symptom-treatment — it only helps files the
+  Dockerfile names and leaves the repo corrupting shell scripts for anyone who clones it.
+  RECORDED HERE BECAUSE OF A ROUND-2 FAIL. The first fix cited the CPO quote in `contract.md`
+  only. `scope-auditor` FAILed that too, correctly: every other CPO decision in this task is
+  corroborated in this log, and working_agreement §2 makes the log the only way a reviewer can
+  check that a claimed ruling exists. A builder-authored quote inside the artefact whose scope
+  it widens is not independent evidence. Two FAILs on the same item, both mine, both right.
+
+  REJECTED, with reasons, so they are not re-proposed: Cloud Composer/Airflow (~$300/month floor
+  against a $26/month warehouse); Dataflow or Spark (wrong tool — rate-limited HTTP calls, not
+  distributed computation); a self-hosted GitLab runner for the NIGHTLY (removes the bill without
+  fixing the coupling, and adds a dependency on a machine being awake at 04:00 — though it
+  remains the right answer for human-triggered MR pipelines, which is a separate decision).

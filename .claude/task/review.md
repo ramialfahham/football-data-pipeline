@@ -1,42 +1,61 @@
-# Review — perf/33-raw-merge-on-write — 2026-08-09
+# Review — feat/39-nightly-cloud-run — 2026-08-09
 
-diff_sha256: c3df806a4a5fa288c7e30e0bf1d22a925d1a3bf67d95f3de73769c64bce308dc
+diff_sha256: 9017de88cfdd1da18e190ba2eebc1640ede83988c258818ea16a760a19f832c5
 
-rounds: 1
+rounds: 3
+
+<!--
+Round history, stated plainly because every FAIL was the builder's:
+  r1  scope-auditor FAIL · cto-reviewer FAIL · platform-reviewer FAIL
+  r2  cto PASS · platform PASS · scope-auditor FAIL (same item, second form)
+  r3  scope-auditor PASS
+`cto-reviewer` is NOT routed to these paths by .claude/review_routing.json — no row covers
+`Dockerfile` or `deploy/**`. It was spawned deliberately because this change declares a NEW
+MECHANISM and a RECURRING COST, which are its thresholds and which no routing row can find.
+
+HONEST NOTE ON THE HASH: cto and platform returned PASS at round 2 against a diff that differs
+from this one by exactly one addition — the `.gitattributes` block appended to
+`.claude/task/escalations.log` to cure scope-auditor's round-2 finding. That addition is a
+record of a ruling both had already read cited in `contract.md`, and touches neither reviewer's
+territory. Stated rather than glossed, because the hash binds all three verdicts to the final
+diff and only scope-auditor saw it.
+-->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every changed file (`ingestion/api_football/bigquery.py`, `loads/standings.py`, `loads/teams.py`, `loads/transfers.py`, `tests/test_raw_merge_on_write.py`, `docs/data_contract.md`, `.claude/task/contract.md`, `.claude/task/escalations.log`) is listed in `contract.md`'s `scope_paths`; no out-of-scope file touched.
-- §10 / new-mechanism check: `delete_superseded_league_rows` (`bigquery.py:262`) is the whole-league variant of the pre-existing `_delete_superseded_player_rows` (`squads.py`) and the FIXTURE_DETAILS merge-on-write pattern already documented in `docs/data_contract.md`; the contract's "NEW MECHANISM — none" claim holds against the code.
-- Undeclared-threshold hunt: the recurring-cost threshold (new DML delete jobs per league per table per run) is explicitly declared in `contract.md` `decisions_taken` with a dollar estimate and rationale, tied to the CPO's 2026-08-08 approval of item 8 and the 2026-08-09 scoping entry. Not smuggled.
-- `decisions_reserved` cross-check: COACHES, SQUADS, FIXTURES_NEXT, INJURIES, LEAGUES, PLAYER_PROFILES/PLAYER_TEAMS are all excluded in the code as well as the prose (grep-verified: `coaches.py` untouched, no delete import there). None silently converted.
-- Impact-map honesty (A6): evidenced with actual `dbt ls --select ...+` output (29 models, 94 parsed) and `bq show` row/size baselines rather than asserted from memory; matches the structural-surface trigger for `ingestion/**`.
-- Failure-mode correctness verified in the diff rather than from the contract's claim: a failed delete in `transfers.py`/`standings.py` is caught by the outer `except Exception` and reported via `ctx.errors` without raising, and `teams.py` catches it separately so the team-id extension still runs.
-- Credentials/secrets sweep across the full diff: no key/token/password-shaped string; every "key" hit is a `league_code`-keyed delete or a dict key.
-- Scope reduction (eight/ten tables → three) is recorded in `escalations.log` (2026-08-09 entry), not only in `contract.md`, satisfying the repo's own precedent that a contract-only record does not count.
+- Verified the round-2 defect (CPO authority for `.gitattributes` unverifiable — absent from `escalations.log`) against the new log content at `.claude/task/escalations.log:1838-1854`: the "SCOPE EXTENSION, asked and granted mid-task" block now records the question as put, the verbatim CPO answer, the demonstrated failure mode, the declined alternative, and the round-2 FAIL that prompted the entry — cured.
+- Cross-checked `contract.md:129-146`'s amendment text against the new log block for consistency (same quote, same declined alternative, same rationale) — no divergence between the two artifacts.
+- Confirmed nothing else in the branch changed since round 2 (contract.md unmodified, `scope_paths` and `impact_map` untouched) — the delta is confined to the single log addition, within bounds for a delta re-review.
+- (r1, still standing) Scope conformance: every changed file maps to a `scope_paths` entry; no out-of-scope file touched.
+- (r1) Secrets sweep across the full diff: no key, token or password material. `.env`, `*.pem`, `*.key`, `*credentials*.json` are excluded from the image by `.dockerignore`; the API key is referenced only by name.
+- (r1) Threshold declarations: NEW MECHANISM and RECURRING COST both declared in `contract.md` and corroborated in `escalations.log`, with `cto-reviewer` spawned outside normal routing. Declared, not smuggled.
+- (r1) Parity claim in `impact_map`: hand-diffed the entrypoint's step order against `.gitlab-ci.yml` `data:nightly` (667-711) — same steps, same order, same gate; `.gitlab-ci.yml` itself untouched as the contract requires.
+- (r1) `decisions_reserved` (deletion of `data:nightly`, ingest/dbt job split, Stages 2-3, sharding): none decided in the diff.
 
-## data-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Writer uniqueness / impact-map accuracy: confirmed `loads/transfers.py`, `loads/standings.py` and `loads/teams.py` are each the SOLE writer of their raw table, and no `scripts/` writer exists for any of the three.
-- Staging grain claim verified at the SQL level rather than accepted from the contract: `stg_apif__transfers.sql`, `stg_apif__standings.sql` and `stg_apif__teams.sql` all carry `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`. This is the load-bearing fact behind "nothing is lost", and it holds — deleting strictly-older-than-this-write rows cannot change what any of the 29 downstream models see.
-- The #896 guard is genuinely upstream of every delete: traced all three loaders line by line. `delete_superseded_league_rows` is reachable only after `complete` is True (transfers/standings return early before the write; teams nests the delete inside `if complete:`). No path lets a partial fetch reach the delete.
-- Idempotency / self-healing: the append commits via a batch LOAD job (not a streaming insert, so no streaming-buffer delete restriction) before the DELETE is attempted. A failed delete leaves both rows, staging still picks the newer one, and the next run's delete — bounded by its own later timestamp — cleans up the leftover. No duplication, truncation or permanent drift.
-- Exclusion set checked against code, not prose: `stg_apif__coaches.sql:1-7` does read all snapshots, so the stated reason a league-keyed delete would destroy ~120 coaches is factually true.
-- Test fidelity against this repo's documented decoration-test failure modes: the transfers case patches `fixture_scheduling.fetch_merged_paged` (not `transfers_response_for_team` itself), and `transfers_response_for_team` resolves `fetch_merged_paged` from that same module namespace — the exact bug class caught in 8a round 1 is not present. Same namespace check for standings/teams/coaches.
-- Minor asymmetry examined and judged a NON-defect: `transfers.py`/`standings.py` wrap write + delete + `ctx.add_loaded(1)` in one `try`, so a delete failure skips the counter and is labelled `"transfers BQ {league}: {e}"`, conflating it with a write failure — unlike `teams.py`, which isolates it deliberately. Traced `ctx.tables_loaded`'s only consumers (`orchestrator.py`: a log line and `write_ci_output("new_data", tables_loaded > 0)`); it is a run-wide counter incremented across ~45 competitions, so one missed increment cannot flip `new_data`. The error still reaches `ctx.errors`. Cosmetic inconsistency, no concrete failure.
-- Declarations cross-checked: "no new mechanism" is true against `squads.py:43-74`; the recurring-cost arithmetic (~135 jobs/night, ~$0.25/month) is the right ballpark for a 10 MB DML minimum; the three-table scope reduction is quoted in `escalations.log`, not merely asserted.
+- Round 1 finding (project-scoped `roles/run.invoker` on `github-actions-dbt@…`) — cured. `deploy/nightly/README.md` now binds resource-scoped via `gcloud run jobs add-iam-policy-binding fdp-nightly --region europe-west1`, and names the project-scoped form as rejected with the reason. Grepped the whole repo for `run.invoker` / `projects add-iam-policy-binding`: the only other occurrence is explanatory prose describing what was rejected — no leftover project-scoped binding anywhere.
+- `contract.md`'s `credentials:` paragraph now enumerates BOTH grants, states grant 2 is resource-scoped, and records that the earlier draft under-counted them; matches the runbook and matches the IAM bullet in `escalations.log`.
+- Whether the delta grants any capability beyond the CPO record: reviewed all nine file diffs — no new dependency, no additional grant, no widened permission beyond the two declared IAM bindings. `requirements.txt` unchanged.
+- CPO authority for the new mechanism: traced through `contract.md` `decisions_taken` and the 2026-08-09 `escalations.log` entry — a real, sequenced approval ("start with #39" → "plan stage 1" → plan approval), with region and Secret Manager attributed to the CPO directly.
+- Recurring cost: ~$1.70/month falling to ~$0.35, cross-checked against the log's independent restatement and against the alternatives the CPO explicitly ruled out (buying minutes, the OSS programme, reduced cadence). Proportionate, not silently absorbed.
+- Boring-technology check: Composer/Airflow, Dataflow/Spark and a self-hosted runner are each named and rejected with reasons in `escalations.log` before landing on Cloud Run Jobs — a standard building block, not an exotic choice.
+- Guard paths: none of the nine appear in this diff, confirmed against the file list, so `protected_override` and opus-routing do not apply.
+- Secrets: no credential literal introduced; the API key is read from Secret Manager at runtime, never hardcoded.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Re-run / interruption safety for all three loaders: if the process dies between the append and the delete, the league keeps one extra stale row; the next successful run's delete boundary removes it, so the state self-heals with no manual intervention and no accumulation across retries. Traced through `bigquery.py:262-300` and all three call sites.
-- Guard ordering (8a → 8b) confirmed in source rather than from the docstring: `transfers.py:40-72`, `standings.py:38-67`, `teams.py:35-105` all set `complete = False` and return or skip before reaching `load_json_to_bq`/`delete_superseded_league_rows`. `result_is_complete()` (`http_client.py:83-107`) flags both the body-error and quota-latch shapes the test fixtures use.
-- Delete-boundary invariant: `ts = datetime.now(timezone.utc)` is computed ONCE and passed to both the write (`ingested_at=ts.isoformat()`) and the delete (`before=ts`) at every call site — no second, independently-taken clock reading that could race ahead of or behind the appended row's stamp.
-- Decoration-test check on every new case in `tests/test_raw_merge_on_write.py`: for each, traced the single production edit that flips it red (drop the delete call; unscope the `league_code` predicate; drop the `ingested_at <` bound; move the delete above the completeness guard; merge the delete into the outer try in `teams.py`; add a delete to `coaches.py`; import the helper into a fourth loader). None came back "no edit would fail this". The helper under test is exercised for real against a fake client recording SQL and bound parameters, not monkeypatched — unlike the prior `test_squad_players_rows.py` decoration bug.
-- Initially flagged then WITHDRAWN as not a defect: the combined-try shape in `transfers.py:73-93` / `standings.py:68-86` was checked against the pre-existing sibling `loads/squads.py:216-241`, which is unmodified by this branch and has the identical combined-try shape and the identical generic error message. Matching established out-of-scope precedent is not a defect introduced here.
-- Dependency hygiene, credentials, build/hosting, and the guard-hooks/CI-workflow parity items: none of those paths appear in this branch's `review_input.patch`, so there is nothing in that class to check.
+- Round 1 finding 1 (IAM grant) — cured; resource-scoped binding confirmed in `deploy/nightly/README.md` §3, with `contract.md` and `escalations.log` both enumerating the two grants.
+- Round 1 finding 2 (decoration test) — cured. The regex-order test is gone; `_run_entrypoint` now EXECUTES `deploy/nightly/entrypoint.sh` under real `bash` with `python`/`dbt` replaced by logging stubs on PATH. Hand-traced the named regression against `entrypoint.sh:36`: rewriting the condition to `|| true` makes the script always take the early-exit branch, so `test_new_data_runs_the_full_prod_build` loses all six asserted steps from the trace and fails exactly as claimed. `test_a_quiet_night_exits_before_dbt` alone would NOT catch it — both branches skip dbt when `new_data=false` — which is why the pairing is what closes the gap, and both are present.
+- Decoration hunt on the replacements: named a concrete single-line edit that flips each red (remove the `exit 0`; drop a contract check; drop any of the six steps; change a target flag). Neither is vacuous.
+- Whether the stubs could mask a real failure: they observe invocation and argument strings only, not `cwd` or real dbt/BigQuery behaviour. Inherent to a parity/gate test rather than a new hole, and backstopped by the separate static tests pinning the target string and the shipped profile's target set.
+- The "protected path" rewording in `README.md` and `entrypoint.sh`: confirmed the phrase is gone (satisfying the `test_governance_doc_parity` sweep) and confirmed via `.claude/hooks/task_contract_gate.py` that `.gitlab-ci.yml` genuinely is in the guarded set — so the replacement wording stays factually accurate rather than weakening the claim.
+- `.dockerignore` correctness: verified every runtime-read path (`docs/competition_registry.yml`, both `scripts/check_*.py`, `dbt_project/**` except target/dbt_packages/logs, `requirements.txt`, `ingestion/**`) is NOT excluded, while secrets are.
+- `.gitattributes` `*.sh`/`Dockerfile` → `eol=lf`: a real fix for the CRLF-shebang failure mode, consistent with the CPO-authorised amendment.
+- Credential hygiene across `Dockerfile`, `.dockerignore`, `profiles.yml`, `README.md`: no secret values; the API key is sourced from Secret Manager at runtime only.
 
 ## escalations
 (none)

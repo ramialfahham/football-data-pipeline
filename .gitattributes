@@ -1,0 +1,17 @@
+# Line endings for files that Linux tooling executes. GitLab #39 Stage 1.
+#
+# WHY THIS EXISTS. `core.autocrlf=true` is set on the development machine and this repo had no
+# `.gitattributes`, so every checkout on Windows rewrote shell scripts to CRLF in the working
+# tree. `gcloud run jobs deploy --source .` uploads the WORKING TREE to Cloud Build, so the
+# image would ship `deploy/nightly/entrypoint.sh` with a `#!/usr/bin/env bash\r` shebang and the
+# container would die with "no such file or directory" — at 04:00, in production.
+#
+# It fails NOWHERE EARLIER: the tests pass (they read the file as text), the image builds fine,
+# and nothing in CI executes the script. Pinning it here is the only place the problem is
+# visible before it bites.
+#
+# Deliberately narrow. A repo-wide `* text=auto` would rewrite unrelated files and churn the
+# diff; these two patterns are the ones consumed exclusively by Linux tooling.
+
+*.sh text eol=lf
+Dockerfile text eol=lf

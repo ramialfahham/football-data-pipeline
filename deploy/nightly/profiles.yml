@@ -1,0 +1,26 @@
+# dbt profile for the Cloud Run nightly. GitLab #39 Stage 1.
+#
+# PROD TARGET ONLY, deliberately. The CI copy in `.gitlab-ci.yml` carries `ci` and `prod`
+# because one runner serves merge requests and main. This container serves exactly one job, so
+# shipping only `prod` removes any path by which it could write a `ci_*` or `dev_*` dataset —
+# and, more importantly, any path by which a mistyped `--target` silently writes the wrong one.
+#
+# `method: oauth` resolves through google.auth.default(). Inside Cloud Run that is the job's
+# service account, so there is no key file and no WIF exchange to configure. Values are copied
+# verbatim from the `.dbt_profile` anchor in `.gitlab-ci.yml` — dataset, location and threads
+# must not drift from it while both exist.
+#
+# Nothing here is a secret: a GCP project id, a dataset name and a region.
+
+football_data_pipeline:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: football-data-pipeline-gcp
+      dataset: dbt_analytics
+      threads: 4
+      timeout_seconds: 300
+      location: EU
+      priority: interactive
