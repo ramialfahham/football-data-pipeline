@@ -27,6 +27,7 @@ different in wording, and a test that fails on wording gets deleted rather than 
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -215,6 +216,106 @@ def test_the_entrypoint_never_targets_a_non_prod_dataset():
     assert stray and set(stray) == {"prod"}, (
         f"entrypoint targets {sorted(set(stray))}; only 'prod' is shipped in "
         "deploy/nightly/profiles.yml, so anything else fails in production."
+    )
+
+
+def test_the_alert_policies_carry_only_fields_the_api_accepts():
+    """#39 Stage 2 deploy artefact. Lives here because this file already owns "the nightly's
+    deploy artefacts stay honest", and a separate module for one check is churn.
+
+    `alert-policy.json` carries `_`-prefixed comment keys for the reader, and the runbook strips
+    exactly those before POSTing because the Monitoring API rejects unknown fields. The failure
+    this catches is a comment added WITHOUT the underscore — `"note": "..."` sails through the
+    stripper and 400s the create call, at the moment someone is rebuilding alerting.
+
+    An earlier version instead asserted that no `_` key survived `strip()`, which was
+    tautological: the value tested WAS the output of `strip()`. Worse, the break-it check that
+    "proved" it edited `strip()` — the test's own helper — rather than the subject. Breaking the
+    harness is not breaking the subject, and a reviewer caught it.
+
+    It does NOT claim the deployed policies match this file; nothing applies it automatically.
+    That gap is stated in the README rather than implied away by a test.
+    """
+    raw = json.loads((REPO / "deploy" / "nightly" / "alert-policy.json").read_text(encoding="utf-8"))
+
+    def strip(o):
+        if isinstance(o, dict):
+            return {k: strip(v) for k, v in o.items() if not k.startswith("_")}
+        if isinstance(o, list):
+            return [strip(v) for v in o]
+        return o
+
+    policies = strip(raw)["policies"]
+    assert policies, "alert-policy.json declares no policies"
+
+    ALLOWED_POLICY_KEYS = {
+        "displayName", "documentation", "combiner", "conditions",
+        "alertStrategy", "notificationChannels", "enabled", "severity", "userLabels",
+    }
+    ALLOWED_CONDITION_KEYS = {
+        "displayName", "conditionThreshold", "conditionAbsent",
+        "conditionMonitoringQueryLanguage", "conditionMatchedLog", "name",
+    }
+
+    for p in policies:
+        unknown = sorted(set(p) - ALLOWED_POLICY_KEYS)
+        assert not unknown, (
+            f"{p.get('displayName')!r} carries policy fields the Monitoring API does not "
+            f"accept: {unknown}. Comments must start with `_` so the runbook's stripper removes "
+            "them; anything else 400s the create call."
+        )
+        for c in p["conditions"]:
+            unknown = sorted(set(c) - ALLOWED_CONDITION_KEYS)
+            assert not unknown, (
+                f"condition {c.get('displayName')!r} carries unknown fields: {unknown}."
+            )
+
+
+def test_no_policy_refers_to_another_policy_by_a_name_that_does_not_exist():
+    """FIX THE CLASS, not the instance.
+
+    Renaming a policy left stale references behind THREE times in this task, each found by a
+    reviewer rather than by anything mechanical:
+      1. `deploy/nightly/README.md` quick-reference table (round 3)
+      2. `deploy/nightly/README.md` "open incidents" curl filter (round 3)
+      3. `alert-policy.json`'s own `fdp-nightly execution failed` documentation, pointing at the
+         renamed sibling (round 4)
+
+    The third is the one that made a manual sweep clearly insufficient: it is JSON referencing
+    JSON, so a README-vs-JSON comparison could never see it. These strings are what Cloud
+    Monitoring renders on the incident page, so a wrong name there sends an on-call engineer
+    looking for a policy that does not exist, mid-incident.
+
+    Any backticked `fdp ...` name appearing in a policy's documentation or comments must be a
+    real declared policy — or the one explicitly-known exception below.
+    """
+    path = REPO / "deploy" / "nightly" / "alert-policy.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    declared = {p["displayName"] for p in raw["policies"]}
+
+    # Deployed but deliberately NOT in this file: the superseded 25h job-success policy, kept
+    # as a bridge until the sentinel runs. Documented in README.md; absent here so that
+    # re-applying the file cannot recreate it.
+    KNOWN_UNVERSIONED = {"fdp-nightly stale (no success in 25h)"}
+
+    # Cloud Run JOB names are a different namespace from policy display names and are
+    # legitimately referenced in the runbook commands inside `documentation.content`. Listed
+    # rather than pattern-matched: the first version of this guard matched every backticked
+    # `fdp…` token and flagged `fdp-freshness`, a real job, as a missing policy. A guard that
+    # cries wolf gets deleted, which would put us back where round 4 found us.
+    JOB_NAMES = {"fdp-nightly", "fdp-freshness"}
+
+    referenced: set[str] = set()
+    for match in re.finditer(r"`(fdp[^`]*)`", path.read_text(encoding="utf-8")):
+        referenced.add(match.group(1))
+
+    unknown = sorted(referenced - declared - KNOWN_UNVERSIONED - JOB_NAMES)
+    assert not unknown, (
+        f"alert-policy.json refers to policy name(s) that do not exist: {unknown}.\n"
+        f"declared: {sorted(declared)}\n"
+        "A renamed policy left a stale reference behind. These strings render on the Cloud "
+        "Monitoring incident page, so this sends an on-call engineer after a policy that is "
+        "not there."
     )
 
 

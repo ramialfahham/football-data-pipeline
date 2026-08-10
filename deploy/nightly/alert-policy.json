@@ -1,0 +1,157 @@
+{
+  "_comment": [
+    "Cloud Monitoring alert policies. GitLab #39 Stage 2.",
+    "",
+    "WHY OUT-OF-BAND. Every check inside the nightly only runs when the nightly runs. The",
+    "failure that cost six days of stale data (2026-08-03 to 08-09) was the nightly NOT",
+    "RUNNING AT ALL - a cron silently dropped by a platform migration. No in-pipeline test can",
+    "ever see that.",
+    "",
+    "WHY THESE MEASURE DATA AGE AND NOT JOB SUCCESS. The first design alerted on the absence",
+    "of a successful fdp-nightly execution. It worked, but job success is a PROXY: a pipeline",
+    "that 'succeeds' nightly while writing nothing is stale and would never have tripped it.",
+    "It also ran into a hard platform cap - conditionAbsent rejects durations over 23h30m and",
+    "MQL absent_for over 1d1h, while for a DAILY job anything at or below 24h fires before",
+    "every run - leaving 25h as a ceiling rather than a choice. The CPO chose to measure the",
+    "real signal instead: scripts/check_raw_freshness.py reads each raw table's last-modified",
+    "time and exits non-zero when it is past the error_after already declared in sources.yml.",
+    "",
+    "Running that sentinel HOURLY also dissolves the cap: absence detection on an hourly job",
+    "needs a 3h window, far inside the limit.",
+    "",
+    "Applied by the commands in deploy/nightly/README.md, which strip every key starting with",
+    "`_` (the API rejects unknown fields) and inject the notification channel id read back from",
+    "the API rather than hardcoded."
+  ],
+
+  "policies": [
+    {
+      "displayName": "fdp raw data is STALE or uncheckable",
+
+      "_comment": [
+        "THE IMPORTANT ONE. Fires when scripts/check_raw_freshness.py exits NON-ZERO.",
+        "",
+        "⚠ IT CANNOT DISTINGUISH exit 1 (a table is genuinely past error_after) from exit 2",
+        "(the sentinel could not check - unreadable thresholds, BigQuery unreachable, a table",
+        "that will not answer). Cloud Run's completed_execution_count metric carries only",
+        "succeeded/failed, not the process exit code, so both surface identically. An earlier",
+        "draft of this documentation asserted 'users are affected', which is not established on",
+        "an exit 2; a reviewer caught it. The title and text now cover both, and the log says",
+        "which one it was in its first line.",
+        "",
+        "Both are worth waking up for, which is why they share a policy rather than being",
+        "separated with a log-based metric: stale data means users see yesterday's football,",
+        "and a sentinel that cannot check means we have lost the ability to tell.",
+        "",
+        "Thresholds are NOT here. They live in sources.yml (warn 30h / error 54h on 8 of the",
+        "11 sources; 3 deliberately have none because they refresh rarely). One definition, so",
+        "there is nothing to drift."
+      ],
+
+      "documentation": {
+        "content": "The freshness sentinel exited non-zero. That is EITHER stale data OR an inability to check - the alert cannot tell which, so read the log first.\n\n  exit 1 = a raw table is past its `error_after` (see `dbt_project/models/1_staging/api_football/sources.yml`). Users are affected: Matchday Pilot serves fixtures, so stale raw means yesterday's football.\n  exit 2 = the sentinel could NOT check (unreadable thresholds, BigQuery unreachable, a table that will not answer). The data may be fine; we have lost the ability to say so.\n\nCloud Run's execution metric carries only succeeded/failed, not the exit code, which is why one policy covers both. The sentinel's log states which, and names the table and its age:\n  gcloud run jobs executions list --job fdp-freshness --region europe-west1 --limit 5\n  gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"fdp-freshness\"' --limit 30 --order=desc\n\nIf it is exit 1, ask why the nightly is not landing data:\n  gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 5\n  gcloud scheduler jobs describe fdp-nightly --location europe-west1\n\nRunbook: deploy/nightly/README.md",
+        "mimeType": "text/markdown"
+      },
+
+      "combiner": "OR",
+      "conditions": [
+        {
+          "displayName": "freshness sentinel reported stale data",
+          "conditionThreshold": {
+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-freshness\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
+            "comparison": "COMPARISON_GT",
+            "thresholdValue": 0,
+            "duration": "0s",
+            "aggregations": [
+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
+            ],
+            "trigger": { "count": 1 }
+          }
+        }
+      ],
+
+      "alertStrategy": { "autoClose": "604800s" },
+      "notificationChannels": [],
+      "enabled": true
+    },
+
+    {
+      "displayName": "fdp freshness sentinel itself stopped",
+
+      "_comment": [
+        "WATCHES THE WATCHER. The sentinel is the only thing that can see a stopped pipeline,",
+        "so a sentinel that stops takes the visibility with it and everything looks fine.",
+        "",
+        "3h of absence on an HOURLY job: two missed runs plus slack. This is the shape the",
+        "original design could not use - conditionAbsent caps at 23h30m, which is useless for",
+        "a DAILY signal but generous for an hourly one. Running the check often is what makes",
+        "cheap absence detection possible.",
+        "",
+        "The regress stops here deliberately: nothing watches Cloud Scheduler and Cloud",
+        "Monitoring themselves. They are managed services with their own status surface, and a",
+        "third monitor is where this stops being proportionate."
+      ],
+
+      "documentation": {
+        "content": "The freshness sentinel (`fdp-freshness`) has not run successfully in 3 hours. It is scheduled hourly.\n\nThis does NOT mean the data is stale. It means we can no longer TELL whether it is - which is the same blind spot that let six days of stale data pass unnoticed in August 2026.\n\nCHECK:\n  gcloud run jobs executions list --job fdp-freshness --region europe-west1 --limit 5\n  gcloud scheduler jobs describe fdp-freshness --location europe-west1\n\nMeanwhile, check freshness by hand - it is a free metadata read:\n  bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_FIXTURES_NEXT\n\nExit code 2 from the sentinel means 'could not check' (unreadable thresholds, BigQuery unreachable, a table that will not answer) and is deliberately not 0 - a sentinel that cannot check must never look healthy.\n\nRunbook: deploy/nightly/README.md",
+        "mimeType": "text/markdown"
+      },
+
+      "combiner": "OR",
+      "conditions": [
+        {
+          "displayName": "No successful freshness check in 3h",
+          "conditionAbsent": {
+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-freshness\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"succeeded\"",
+            "duration": "10800s",
+            "aggregations": [
+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
+            ],
+            "trigger": { "count": 1 }
+          }
+        }
+      ],
+
+      "alertStrategy": { "autoClose": "604800s" },
+      "notificationChannels": [],
+      "enabled": true
+    },
+
+    {
+      "displayName": "fdp-nightly execution failed",
+
+      "_comment": [
+        "Kept from the first design and still worth having: it names the CAUSE (the nightly",
+        "broke) hours before the effect (data crosses error_after) would show up. Not a",
+        "substitute for the staleness policy - a nightly can fail without the data being stale",
+        "yet, and data can go stale without the nightly ever failing."
+      ],
+
+      "documentation": {
+        "content": "A football-data-pipeline nightly execution FAILED.\n\nThe data is not necessarily stale YET - `error_after` is 54h on most sources, so there is room for a retry tonight. This is the early warning; `fdp raw data is STALE or uncheckable` is the one that fires when users may actually be affected (exit 1) or when we have lost the ability to tell (exit 2).\n\n  gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 5\n  gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"fdp-nightly\"' --limit 50 --order=desc\n\nNo retry happens automatically: the job is deployed with --max-retries 0 because the BigQuery ingest lock holds a lease and an immediate retry would be refused. Recovery is the next scheduled run.\n\nRunbook: deploy/nightly/README.md",
+        "mimeType": "text/markdown"
+      },
+
+      "combiner": "OR",
+      "conditions": [
+        {
+          "displayName": "Nightly execution failed",
+          "conditionThreshold": {
+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-nightly\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
+            "comparison": "COMPARISON_GT",
+            "thresholdValue": 0,
+            "duration": "0s",
+            "aggregations": [
+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
+            ],
+            "trigger": { "count": 1 }
+          }
+        }
+      ],
+
+      "alertStrategy": { "autoClose": "604800s" },
+      "notificationChannels": [],
+      "enabled": true
+    }
+  ]
+}
