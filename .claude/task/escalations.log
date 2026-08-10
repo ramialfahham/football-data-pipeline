@@ -1917,3 +1917,69 @@ times.
   is a policy that looks armed and is not. Stage 2 is not "done" until an email has actually
   arrived — a policy that has never fired is decoration, the same as a test that has never gone
   red.
+
+
+2026-08-10 — #33 ITEM 14: THE 7-DAY RE-FETCH CADENCE, AND TWO CONSEQUENCES THE BUILDER DERIVED
+
+  WHY THIS ENTRY EXISTS AT ALL. `scope-auditor` FAILed the task for recording every one of these
+  decisions in `contract.md` only. It was right, and the precedent it cited is the entry above
+  from 2026-08-09, where the identical pattern was FAILed twice on the `.gitattributes`
+  amendment: "a builder-authored quote inside the artefact whose scope it widens is not
+  independent evidence". THIRD OCCURRENCE OF THE SAME MISS, by the same builder, two days after
+  writing that sentence. The lesson is not "remember harder": the moment a CPO answers anything,
+  it belongs here BEFORE the contract cites it.
+
+  THE RULING, verbatim, in-thread: **"re-fetch transfers and coaches every 7 days"**.
+  Context put to the CPO first: `transfers` 26.7 min + `coaches` 18.7 min = 45 of the 105
+  ingestion minutes measured on the 2026-08-09 nightly, spent re-downloading unchanged data,
+  plus ~3,800 of ~8,300 daily API calls. The CPO framed it as "we had a setup that ensures not
+  fetching data we already have... fix it".
+
+  A PREMISE CHECK RUN BEFORE ACCEPTING THAT FRAMING, recorded because it changes what the task
+  is. `git log -S` across ALL history for `already_captured`, `captured_`, `skip_if_present`,
+  `cached_response` and `players_needing`, scoped to `loads/transfers.py` and
+  `loads/coaches.py`, returns ZERO commits. Neither loader has EVER had skip-if-present logic,
+  so nothing regressed and nothing was "changed to the worse". The CPO's recollection of the
+  DESIGN is nonetheless correct: it exists deliberately in five other loaders (`players`,
+  `player_squads`, `player_profiles`, `player_teams`, `fixtures`, `fixture_details`). This task
+  finishes an unfinished job rather than restoring a broken one.
+
+  TWO CONSEQUENCES THE BUILDER DERIVED AND PUT IN THE PLAN THE CPO APPROVED. Both are flagged
+  here as builder-derived rather than ruled, because neither follows from a literal reading of
+  "every 7 days":
+
+  1. THE FRESHNESS THRESHOLDS MOVE WITH THE CADENCE — and this LOOSENS A GUARD.
+     `sources.yml` had warn 30h / error 54h on both tables. Under a 7-day cadence they sit
+     permanently past `error_after`. Raised to warn 8d / error 10d for these two tables only.
+     THE COST, stated plainly: genuine breakage of transfers or coaches ingestion is now
+     invisible for up to 10 days instead of 54 hours.
+     WHY IT IS STILL THE NARROW FIX and not a blanket widening: 54h is simply FALSE once the
+     intended refresh interval is 7 days, and a guard that fires daily on correct behaviour gets
+     muted — which is a worse outcome than a wider true one. The other nine sources are
+     untouched, and a test pins `error_after > cadence + one cycle` so the two cannot drift.
+     WHEN IT BITES: nothing on the item-14 branch reads these thresholds (`dbt source freshness`
+     is invoked nowhere). The consumer is the hourly sentinel on the SEPARATE, unmerged #39
+     Stage 2 branch (!30, commit 42ba08f). Until that merges this is inert metadata.
+
+  2. THE STAGGER, `md5(league_code) % 7`, is a builder addition.
+     Without it every league shares tonight's `ingested_at` and all 45 come due on the SAME
+     night — one night in seven costing the full 45 minutes against a 3h timeout, six costing
+     nothing. Staggering spreads it to ~6-7 leagues a night.
+     ⚠ THE FIRST IMPLEMENTATION BROKE THE CPO'S RULING and a reviewer caught it: it computed
+     `due_after = interval - offset` on EVERY call, which permanently SHORTENED the interval, so
+     a league with offset 6 re-fetched every single DAY and only offset 0 ever got 7 days. The
+     stagger must shift WHICH day a league runs, never how often. Now a calendar slot
+     (`(ordinal + offset) % interval == 0`) with a safety net at `age >= interval`.
+
+  SCOPE AMENDMENT: `ingestion/api_football/orchestrator.py`, authority = the CPO-approved plan,
+  which specifies the read is "called ONCE per table per run and passed down, mirroring
+  `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live where the
+  per-competition loop is, so the approved design already required this file; its omission from
+  `scope_paths` was clerical. The contract gate caught it on the first edit.
+
+  ALSO CORRECTED, from a reviewer finding: four places in this task asserted that
+  `RAW_APIF_COACHES` is merge-on-write since 8b. It is APPEND-ONLY and was explicitly EXCLUDED
+  from 8b by the ruling of 2026-06-23 recorded above, because `stg_apif__coaches` reads ALL
+  snapshots to preserve every coach ever seen. The builder wrote that exclusion two days ago and
+  then contradicted it. The skip design is unaffected — skipping writes nothing either way —
+  but the stated reason was wrong for one of the two tables the task is about.

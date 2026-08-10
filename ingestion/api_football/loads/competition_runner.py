@@ -13,6 +13,9 @@ the others.
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from ..refetch import should_refetch, skip_reason, utcnow
 from .context import CompetitionRunResult, PipelineContext
 from .coaches import load_coaches
 from .fixtures import fetch_merge_and_persist_fixtures
@@ -31,6 +34,17 @@ from .teams import load_teams_merge_and_extend_ids
 
 def _ingestion_phase(league_code: str, step: str) -> None:
     print(f"[api-football] league={league_code} phase={step}", flush=True)
+
+
+def _skipped_phase(league_code: str, step: str, reason: str) -> None:
+    """A skip must be as visible as a run (#33 item 14).
+
+    A phase that quietly stops doing anything is indistinguishable from a phase that broke —
+    which is the failure class that cost this pipeline six silent days. The line carries the
+    age and the next due date so "should this have run tonight?" is answerable from the log
+    alone, without querying anything.
+    """
+    print(f"[api-football] league={league_code} phase={step} SKIPPED ({reason})", flush=True)
 
 
 def run_poll_phases(
@@ -76,12 +90,18 @@ def run_cheap_phases(
     current_season: int | None = None,
     history_seasons: int | None = None,
     season_type: str = "split_year",
+    coaches_last_ingest: dict[str, datetime] | None = None,
 ) -> CompetitionRunResult | None:
     """Run all cheap (non-fanout) ingestion phases for one competition.
 
     Returns CompetitionRunResult on success, None on unrecoverable error.
     Errors are appended to ctx.errors; a None return means the competition
     cannot participate in the global fanout (e.g. catalog fetch failed).
+
+    `coaches_last_ingest` is the run's single `latest_ingest_per_league(...COACHES)` result,
+    read ONCE by the orchestrator before the per-competition loop (#33 item 14). Passing None
+    means "no cadence information", which makes every league due — the safe default, and what
+    keeps existing callers behaving exactly as before.
     """
     try:
         _ingestion_phase(league_code, "catalog (leagues + season plan)")
@@ -105,8 +125,22 @@ def run_cheap_phases(
         )
         _ingestion_phase(league_code, "injuries")
         load_injuries(ctx, league_code, league_id, seasons_list)
-        _ingestion_phase(league_code, "coaches")
-        load_coaches(ctx, league_code, team_ids)
+        # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
+        # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
+        #
+        # RAW_APIF_COACHES is APPEND-ONLY — deliberately excluded from 8b's merge-on-write
+        # because `stg_apif__coaches` reads ALL snapshots to preserve every coach ever seen
+        # (CPO ruling 2026-06-23). So skipping loses nothing: the stored snapshots stay and
+        # base still dedups to the latest. Unlike transfers, a stray partial write here would
+        # not destroy anything — but there is no reason to write one either.
+        coaches_seen = (coaches_last_ingest or {}).get(league_code)
+        if should_refetch(league_code, coaches_seen, utcnow()):
+            _ingestion_phase(league_code, "coaches")
+            load_coaches(ctx, league_code, team_ids)
+        else:
+            _skipped_phase(
+                league_code, "coaches", skip_reason(league_code, coaches_seen, utcnow())
+            )
         return CompetitionRunResult(
             league_code=league_code,
             seasons_list=seasons_list,
@@ -152,9 +186,27 @@ def run_squads_for_competition(
 def run_transfers_for_competition(
     ctx: PipelineContext,
     result: CompetitionRunResult,
+    transfers_last_ingest: dict[str, datetime] | None = None,
 ) -> None:
-    """Run /transfers batch for one competition's teams after global fanout."""
+    """Run /transfers batch for one competition's teams after global fanout.
+
+    `transfers_last_ingest` is the run's single `latest_ingest_per_league(...TRANSFERS)` result
+    (#33 item 14). None means "no cadence information" and every league is due — the safe
+    default, and existing behaviour.
+    """
     try:
+        # #33 item 14 — transfers move in bursts (January, summer), not nightly. This was the
+        # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
+        # RAW_APIF_TRANSFERS is one row per league and merge-on-write since 8b, so a partial
+        # write would DELETE the complete row rather than sit harmlessly beside it.
+        seen = (transfers_last_ingest or {}).get(result.league_code)
+        if not should_refetch(result.league_code, seen, utcnow()):
+            _skipped_phase(
+                result.league_code,
+                "transfers batch",
+                skip_reason(result.league_code, seen, utcnow()),
+            )
+            return
         _ingestion_phase(result.league_code, "transfers batch")
         load_transfers_batch(ctx, result.league_code, result.team_ids)
     except Exception as e:

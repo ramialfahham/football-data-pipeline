@@ -1,10 +1,10 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 5f52d25..d0e00c1 100644
+index 5f52d25..ea205d2 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,146 +1,195 @@
+@@ -1,146 +1,146 @@
 -# Task contract — #39 Stage 1: move the nightly out of CI onto Cloud Run
-+# Task contract — #39 Stage 2: make the nightly observable
++# Task contract — #33 item 14: re-fetch cadence for transfers and coaches
  
  objective: >
 -  Package the nightly pipeline as a container and run it on Cloud Run Jobs, triggered by Cloud
@@ -17,34 +17,36 @@ index 5f52d25..d0e00c1 100644
 -  a container entrypoint. `.gitlab-ci.yml` is NOT edited — the GitLab schedule is paused instead,
 -  keeping the old path as a manual fallback until the new one has proven itself.
 -refs: GitLab #39 (Stage 1 of 3); #33 items 7, 14, 16
-+  Stage 1 gave the nightly a safe home. It still has the blind spot that turned a silently
-+  dropped cron into SIX DAYS of stale data (2026-08-03 → 08-09), found by a human by accident
-+  rather than by a system. Stage 2 closes it.
++  `transfers` and `coaches` re-download identical data every night. Measured on the 2026-08-09
++  nightly: 26.7 + 18.7 = **45 of 105 ingestion minutes**, and roughly 3,800 of ~8,300 daily API
++  calls, spent fetching data that has not changed. Transfers move in bursts (January, summer);
++  managers change rarely.
 +
-+  THE LOAD-BEARING INSIGHT, and the reason this is not just "wire up dbt source freshness":
-+  every check that lives inside the nightly only runs when the nightly runs. The failure that
-+  cost six days was the nightly NOT RUNNING AT ALL. No in-pipeline test can ever see that.
++  This task makes both re-fetch on a **7-day cadence per league** instead of nightly.
 +
-+  WHAT SHIPPED, after the CPO redirected the design mid-task: the monitor is ENTIRELY
-+  out-of-band. `scripts/check_raw_freshness.py` runs hourly as its own Cloud Run Job, reads each
-+  raw table's last-modified time from BigQuery METADATA, and exits non-zero when it is past the
-+  `error_after` already declared in `sources.yml`. THE NIGHTLY IS NOT TOUCHED AT ALL —
-+  `deploy/nightly/entrypoint.sh` has zero net diff on this branch. An earlier attempt added
-+  `dbt source freshness` inside it and hoisted `dbt deps` above the `new_data` gate; that was
-+  REVERTED when the sentinel made it redundant. There is no in-pipeline half.
-+refs: GitLab #39 (Stage 2 of 3); #33 item 16
++  NOT A REGRESSION FIX, and the record matters because the CPO asked for it as one. `git log -S`
++  across ALL history for `already_captured`, `captured_`, `skip_if_present`, `cached_response`
++  and `players_needing`, scoped to `loads/transfers.py` and `loads/coaches.py`, returns ZERO
++  commits. Neither loader has ever carried skip-if-present logic. The CPO's recollection of a
++  "don't fetch what we already have" design is nonetheless correct — it exists and is deliberate
++  in FIVE other loaders (`players`, `player_squads`, `player_profiles`, `player_teams`,
++  `fixtures`, `fixture_details`). These two never got it. This finishes the job rather than
++  restoring something.
++refs: GitLab #33 item 14
  
  scope_paths:
 -  - Dockerfile
 -  - .dockerignore
 -  - .gitattributes
-   - deploy/nightly/entrypoint.sh
+-  - deploy/nightly/entrypoint.sh
 -  - deploy/nightly/profiles.yml
-+  - deploy/nightly/alert-policy.json
-   - deploy/nightly/README.md
-+  - scripts/check_raw_freshness.py
-   - tests/test_nightly_entrypoint_parity.py
-+  - tests/test_raw_freshness_sentinel.py
+-  - deploy/nightly/README.md
+-  - tests/test_nightly_entrypoint_parity.py
++  - ingestion/api_football/refetch.py
++  - ingestion/api_football/loads/competition_runner.py
++  - ingestion/api_football/orchestrator.py
++  - dbt_project/models/1_staging/api_football/sources.yml
++  - tests/test_refetch_cadence.py
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
@@ -55,9 +57,6 @@ index 5f52d25..d0e00c1 100644
 -# anyway: this creates a SECOND production execution path for the whole pipeline, which is
 -# a wider blast radius than most model edits, and a reviewer should not have to take that
 -# on trust.
-+# Not gate-required — no path here is on the structural surface. Included because this
-+# changes the nightly's execution path and its cost profile, and a reviewer should not
-+# have to take either on trust.
  impact_map: >
 -  what this changes: nothing in the pipeline's CODE. It adds a second way to INVOKE the
 -    existing entrypoint `python -m ingestion.api_football.main` followed by the same
@@ -104,46 +103,52 @@ index 5f52d25..d0e00c1 100644
 -    the container is wrong, the nightly fails and data goes stale — the failure mode that
 -    already exists today and that Stage 2 (#33 item 16 freshness alerting) is what actually
 -    closes. Stage 1 does not close it and does not claim to.
-+  what changes in the pipeline: NOTHING. `deploy/nightly/entrypoint.sh` carries zero net diff on
-+    this branch — verify with `git diff main -- deploy/nightly/entrypoint.sh`, which is empty. A
-+    quiet night still exits 0 before `dbt deps`, the contract checks, seed and build, and is
-+    still literally $0, exactly as after Stage 1. No dbt model, seed or macro is touched either.
-+    The monitoring is entirely beside the pipeline, not inside it.
-+    (An earlier revision of this contract described adding `dbt source freshness` to the
-+    entrypoint. That change was reverted when the CPO chose the sentinel; three reviewers caught
-+    the contract still describing it. Corrected here rather than left as a footnote, because a
-+    contract that mis-states its own shipped mechanism is worse than no contract.)
++  writers: unchanged. `loads/transfers.py:69` and `loads/coaches.py:83` remain the sole writers
++    of their tables and are NOT edited. What changes is whether `competition_runner.py` calls
++    them at all on a given night.
 +
-+  what changes outside the repo: one Cloud Monitoring notification channel (email) and one
-+    alert policy, both defined in `deploy/nightly/alert-policy.json` and created by REST calls
-+    recorded in the runbook — version-controlled rather than clicked once in a console.
++  downstream: `dbt ls --select source:api_football.raw_apif_transfers+
++    source:api_football.raw_apif_coaches+ --resource-type model` (dbt 1.7.19, 94 models parsed):
 +
-+  downstream: none. No model, mart or number is affected. `dbt build --target prod` is
-+    unchanged and still gated on `new_data`.
++      1_staging: stg_apif__coach_career, stg_apif__coaches, stg_apif__transfers
++      2_base:    base_apif__coach_career, base_apif__coaches, base_apif__transfers
++      3_core:    dim_coach, dim_coach_team_mapping, fct_transfer
 +
-+  cost profile: UNCHANGED for the nightly — a quiet night is still literally $0, because the
-+    entrypoint is untouched. The only new spend is the sentinel itself, and it is close to
-+    nothing: `client.get_table()` is a METADATA call, not a query, so no bytes are scanned and
-+    no query job is billed. What remains is ~24 Cloud Run executions a day of a few seconds
-+    each at 1 vCPU / 512 MiB. Alert policies, notification channels and Cloud Scheduler are
-+    free at this volume. Being free per run is precisely what makes hourly affordable, and
-+    hourly is what allows a 3h absence window instead of the 25h ceiling.
++  blast_radius on those 9 models: NONE. A skipped league writes NOTHING, so its existing row is
++    untouched and staging reads exactly what it read yesterday. The only observable change is
++    that a row's `ingested_at` advances weekly instead of nightly. `stg_apif__transfers` selects
++    latest-per-league and `stg_apif__coaches` reads all snapshots — neither cares how old the
++    latest is.
 +
-+  failure semantics: a source past `error_after` makes the SENTINEL exit 1 → the `fdp-freshness`
-+    execution is marked failed → the policy fires. A source past `warn_after` only logs and does
-+    not fail. A sentinel that cannot check exits 2, also non-zero, deliberately — a sentinel
-+    that cannot check must never look healthy.
-+    ⚠ THE POLICY CANNOT TELL exit 1 FROM exit 2: Cloud Run's `completed_execution_count` carries
-+    only succeeded/failed, not the exit code. Both are worth waking up for, so they share a
-+    policy; the sentinel prints `EXIT 1 — STALE` or `EXIT 2 — CANNOT CHECK` as the first thing
-+    in its failure output, and the policy's documentation sends the reader there. Caught by a
-+    reviewer, whose point was that the documentation had asserted "users are affected" for a
-+    case where that is not established.
++  the sources.yml edit changes NO SQL. `freshness:` is metadata; it does not appear in compiled
++    model SQL and cannot alter lineage or results.
 +
-+  the watcher's watcher: the absence condition depends on Cloud Scheduler and Cloud Monitoring
-+    themselves working. That regress stops here deliberately — both are managed Google services
-+    with their own status surface, and adding a second monitor to watch the first is where this
-+    stops being proportionate.
++    ⚠ WHO READS IT, stated precisely because an earlier draft of this contract got it wrong and
++    `data-engineer-reviewer` was right to FAIL that. ON THIS BRANCH: **nobody**. `dbt source
++    freshness` is invoked nowhere in the repo, and a grep for `warn_after|error_after` outside
++    `sources.yml` returns only this task's own test. The consumer —
++    `scripts/check_raw_freshness.py`, the hourly out-of-band sentinel — lives on the UNMERGED
++    branch `feat/39-nightly-freshness-alert` (#39 Stage 2, MR !30, commit 42ba08f) and is NOT
++    in this diff. A blinded reviewer cannot verify it from here, and the earlier draft asserted
++    it as present-tense fact, which is exactly the assert-before-checking pattern Appendix A6
++    names.
++
++    THE CHANGE IS CORRECT EITHER WAY, and that is the point:
++      · if !30 never merges — nothing reads these thresholds, so raising them is INERT. No
++        behaviour changes anywhere.
++      · if !30 merges — the sentinel reads `error_after` and would email daily about a pipeline
++        behaving exactly as ruled, until somebody muted it. Raising them prevents that.
++    So merge order genuinely does not matter, which is what `deploy_order` below claims.
++
++  ⚠ WHY THE SKIP MUST SKIP THE WRITE TOO, not just the fetch: both loaders write ONE row per
++    league. Fetching a subset and writing it would produce a partial row — the SQUADS defect
++    (#37) — and since #33 item 8b these tables are MERGE-ON-WRITE, so that partial write would
++    DELETE the complete row. Skipping the phase entirely means no fetch, no write, no delete,
++    and no carry-forward needed. This is the whole reason the design is safe.
++
++  deploy_order: nothing breaks at any point and no backfill is needed. On the first nightly
++    after merge, every league has a fresh row from tonight, so all of them skip until their
++    staggered due-date arrives. Independent of #39 !30 — either can merge first.
  
  decisions_taken: >
 -  The CPO approved the architecture and this stage explicitly: "start with #39", then "plan
@@ -157,88 +162,57 @@ index 5f52d25..d0e00c1 100644
 -
 -  CPO also ruled out, in this conversation: buying GitLab compute minutes, and applying to the
 -  GitLab for Open Source programme.
-+  The CPO approved Stage 2 ("do stage 2") and the written plan. Two choices were put to the CPO
-+  and answered directly: the alert channel is EMAIL to rami.fahham@gmail.com, and the staleness
-+  threshold is NO SUCCESSFUL RUN IN 30 HOURS (chosen over 26h and 54h).
++  CPO ruling, in-thread: **"re-fetch transfers and coaches every 7 days"**. That is the cadence
++  and it is not the builder's to adjust.
 +
-+  ⚠ THE 30h CHOICE COULD NOT BE HONOURED BY THE FIRST DESIGN — AND THE CPO CHOSE A DIFFERENT
-+  DESIGN RATHER THAN A DIFFERENT NUMBER.
++  TWO CONSEQUENCES THE CPO WAS SHOWN AND APPROVED IN THE PLAN, because neither follows from a
++  literal reading of the ruling:
 +
-+  SEQUENCE, recorded because the first attempt got this wrong. The builder hit the platform
-+  cap, substituted 25h, DEPLOYED it, and wrote up the reasoning. `scope-auditor` FAILed that in
-+  round 1 and was right: §10 makes a threshold a CPO decision "regardless of how obvious the
-+  answer seems", and documenting an override after shipping is not the same as holding
-+  authority for it. §11 requires the conflicting paths and a recommendation put to the CPO
-+  BEFORE implementing. The escalation was then run properly — keep 25h / disable staleness
-+  until item 14 / build a BigQuery-backed check — and the CPO chose:
-+  **"Build a BigQuery-backed check instead."**
++  1. THE FRESHNESS THRESHOLDS MOVE WITH IT. `sources.yml` declares warn 30h / error 54h for both
++     tables. Under a 7-day cadence they would sit permanently past `error_after`. Raised to
++     warn 8 days / error 10 days for these two tables ONLY; the other 9 sources stay at 30h/54h
++     because they are still daily.
++     WHEN THAT MATTERS is conditional and is spelled out in the impact_map above: nothing on
++     THIS branch reads these thresholds, so the change is inert here. It takes effect only once
++     #39 Stage 2's sentinel (MR !30, not in this diff) merges — at which point unraised
++     thresholds would page daily about correct behaviour.
 +
-+  WHAT THAT CHANGES. The 25h cap stops applying, because the alert no longer keys on Cloud Run
-+  job success at all. A sentinel measures the thing the product actually cares about — how old
-+  the DATA is — and job success becomes irrelevant to it. The CPO's original 30h intent is
-+  reachable again, and better: thresholds come from `sources.yml`, which already declares
-+  warn 30h / error 54h per source, so there is no second place for a threshold to drift.
-+
-+  THE PLATFORM CONSTRAINTS THAT DROVE THIS, kept so they are not rediscovered: `conditionAbsent`
-+  rejects any duration over 23h30m ("Durations longer than 23h30m are not supported"); MQL
-+  `absent_for` rejects anything over 1d1h. Both tried against the real API, both HTTP 400. For a
-+  DAILY job every value at or below 24h false-alarms before each run, which left 25h as the only
-+  usable number — a ceiling, not a choice. Running the SENTINEL hourly dissolves the problem:
-+  absence detection on an hourly job needs a 3h window, far inside the cap.
-+    - `conditionAbsent` rejects any duration over 23h30m: "Durations longer than 23h30m are not
-+      supported" (HTTP 400, tried against the real API).
-+    - MQL `absent_for` rejects anything over 1d1h: "the longest time the query results might be
-+      absent is 1d6h, which is greater than the allowed 1d1h" (HTTP 400).
-+    - 23h30m is WORSE than useless for a daily job — consecutive successes are ~24h apart, so
-+      it would fire shortly before every single run. That is why the staleness policy is MQL
-+      rather than the simpler `conditionAbsent`: 25h is the only value above 24h that either
-+      mechanism permits.
-+  25h is therefore the maximum achievable and the closest to the CPO's intent. It detects
-+  FASTER than 30h; what it gives up is slack. With runs currently taking 1-2h, successes land
-+  ~05:00-06:00 and 25h absorbs about an hour of drift; a run hitting the full 3h timeout could
-+  trip it spuriously. That window widens on its own once #33 item 14 cuts the run to ~20 min.
-+  If the CPO would rather have fewer false alarms than this detection speed, the lever is item
-+  14, not the threshold — the threshold is already at its ceiling.
-+
-+  A SECOND API CONSTRAINT, same class: one policy cannot hold both conditions — "Alert policies
-+  with monitoring_query_language condition type can only have a single condition" (HTTP 400).
-+  Shipped as TWO policies sharing one notification channel.
-+
-+  A CORRECTION TO #33 ITEM 16, verified rather than inherited: it states the two
-+  `freshness_check` tests have never run. They DO run — the nightly's `dbt build` carries no
-+  selector, which is `fqn:*`, and `.gitlab-ci.yml` says so explicitly ("freshness_check is
-+  deliberately NOT excluded"). The claim was true before the migration and is stale now. What is
-+  genuinely un-wired is the `dbt source freshness` COMMAND, whose only repo-wide mention is a
-+  line of prose in `dbt_project/docs/engineering_standards.md:145`. IT REMAINS UN-WIRED after
-+  this task, and that is deliberate: the sentinel reads the same `sources.yml` thresholds from
-+  outside the pipeline, which covers the same ground without making a quiet night cost money or
-+  coupling staleness detection to the nightly running at all.
++  2. STAGGERED BY LEAGUE. Every league shares tonight's `ingested_at`, so an unstaggered cadence
++     makes all 45 due on the same night — one night in seven costing the full 45 minutes against
++     a 3h timeout, six costing nothing. `hash(league_code) % 7` spreads it to ~6-7 leagues a
++     night. Each league still re-fetches every 7 days exactly as ruled; only the offset differs.
  
    # THRESHOLD DECLARATIONS
 -  NEW MECHANISM — YES. Cloud Run Jobs, Cloud Scheduler and a container image are all new to this
 -  repo; nothing here runs on them today. Declared rather than smuggled: this is the CTO-class
 -  threshold and no routing row covers `Dockerfile` or `deploy/**`, so `cto-reviewer` is spawned
 -  for this task even though `.claude/review_routing.json` does not require it.
-+  NEW MECHANISM — YES. Cloud Monitoring alert policies and notification channels are new to this
-+  project (0 of each exist today). Declared rather than smuggled, and `cto-reviewer` is spawned
-+  for this task even though `.claude/review_routing.json` covers neither `deploy/**` nor a
-+  monitoring surface — the same reason it was spawned for Stage 1.
- 
+-
 -  RECURRING COST — YES. ~1 vCPU / 2 GiB for ~110 min/day ≈ **$1.70/month** on the existing GCP
 -  bill, falling to ~$0.35 once #33 item 14 removes the redundant re-fetching. Cloud Scheduler is
 -  free at this volume. Secret Manager ~$0.06/month. Against this it returns the whole 400
 -  GitLab minutes/month to CI across all three of the owner's projects, and today the nightly
 -  cannot run at all.
-+  RECURRING COST — effectively ZERO, and ZERO for the nightly specifically. Alert policies,
-+  notification channels and Cloud Scheduler are free at this volume; the sentinel's BigQuery
-+  reads are metadata calls and are not billed. The only spend is a few seconds of Cloud Run
-+  compute, 24 times a day, at 1 vCPU / 512 MiB. The nightly's own cost profile does not change
-+  at all — an earlier revision claimed a quiet night would cost "a few cents a month" via
-+  `dbt source freshness`; that mechanism was reverted and the claim with it.
- 
+-
 -  NO new Python dependency is added — `requirements.txt` is unchanged; the image installs
 -  exactly what CI installs.
-+  NO new Python dependency, and `requirements.txt` is unchanged.
++  NEW MECHANISM — no. Skip-if-present is an established pattern here (five loaders), and the
++  hoisted one-read-per-run shape copies `captured_player_team_seasons` (`orchestrator.py:201`),
++  the fix #33 item 1 made for the same class of problem. No new service, dependency or
++  lifecycle. `API_FOOTBALL_INGEST_FORCE_FULL` is reused rather than a second flag invented.
++
++  RECURRING COST — this REDUCES it: ~45 min/night of ingest becomes ~6-7, and ~3,800 daily API
++  calls disappear. No new spend.
++
++  ⚠ A GUARD IS BEING LOOSENED, declared because this repo's standing rule is never to loosen one
++  quietly. Raising `error_after` from 54h to 10 days means genuine breakage of transfers or
++  coaches ingestion now goes unnoticed for up to 10 days instead of 54 hours. The rule's actual
++  requirement is to NARROW a guard to where it still holds rather than delete the assertion, and
++  that is what this is: 54h is simply false once the intended refresh interval is 7 days, and a
++  guard that fires daily on correct behaviour gets muted, which is a worse outcome than a wider
++  true one. The other nine sources are untouched, so the narrowing is confined to exactly the
++  two tables whose contract changed. `tests/test_refetch_cadence.py` then pins the relationship
++  so cadence and threshold cannot drift apart again.
  
  decisions_reserved:
 -  - When `data:nightly` is deleted from `.gitlab-ci.yml`. It is a protected path needing its own
@@ -249,17 +223,16 @@ index 5f52d25..d0e00c1 100644
 -    separate tasks. Stage 1 deliberately leaves the staleness blind spot open.
 -  - Per-competition task sharding — later, and constrained by the provider's per-minute rate
 -    limit and the global daily quota.
-+  - Deleting `data:nightly` from `.gitlab-ci.yml`. Guarded path, needs its own governance task,
-+    and it stays a fallback while Cloud Run is still new. Not decided here.
-+  - Whether the 3 sources deliberately left without freshness thresholds should ever gain them.
-+    They refresh rarely and thresholds would false-alarm; changing that is a data decision.
-+  - Stage 3 (CI builds and pushes the image on merge), #33 item 14, and the GitLab self-hosted
-+    runner decision are all separate.
++  - Whether the cadence should be window-aware (daily during January/summer transfer windows,
++    weekly otherwise). Truer to the data, more complexity; the CPO ruled a flat 7 days and this
++    implements exactly that.
++  - `player_squads` / `squad` (38 min combined) are NOT touched. They already skip; their cost
++    is the current season, which genuinely changes nightly.
++  - `injuries` — #33 item 15 proposes dropping the endpoint entirely; not decided here.
  
  done_when:
 -  - `pytest tests/ -q` exits 0 (baseline on main is 720 passed, 1 skipped).
-+  - `pytest tests/ -q` exits 0 (baseline on main is 725 passed, 1 skipped).
-   - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
+-  - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
 -  - The parity test is verified by BREAKING its subject: remove a step from the entrypoint and
 -    confirm the test goes red, then restore.
 -  - `deploy/nightly/entrypoint.sh` is confirmed to be a faithful port by diffing its step list
@@ -267,28 +240,13 @@ index 5f52d25..d0e00c1 100644
 -  - No `gcloud` resource is created and no ingest is run from this branch. Deployment is blocked
 -    on the CPO enabling Secret Manager and creating the API-key secret, and is a separate,
 -    deliberate step with the log watched.
-+  - `bash -n deploy/nightly/entrypoint.sh` exits 0.
-+  - Every new/changed test verified by BREAKING ITS SUBJECT — the production code, never the
-+    test's own helper — and confirming WHICH cases go red:
-+      · disable the staleness comparison (`age > limit * 100`) → the stale case, the boundary
-+        case and the end-to-end exit-code case fail; the fresh/warn cases stay green.
-+      · make "nothing to check" return 0 instead of 2 → the empty-thresholds case fails.
-+      · rebind `SOURCES_YML` as an import-time default → the cannot-read-thresholds case fails.
-+        This one was MASKED at first: in an unauthenticated environment `main()` returned 2 via
-+        the BigQuery branch regardless, so the test passed either way. A reviewer caught it; the
-+        fix stubs BigQuery healthy so 2 can only come from the branch under test.
-+      · add a comment key without a `_` prefix to `alert-policy.json` → the API-field whitelist
-+        case fails. An earlier version of that assertion was tautological, and the break-it
-+        check that "proved" it had edited the test's own `strip()` helper rather than the JSON.
-+        Breaking the harness is not breaking the subject.
-+  - The notification channel and BOTH alert policies exist and are readable back from the
-+    Monitoring API, confirmed by a GET rather than by trusting the POST responses.
-+  - The channel's verification state is reported HONESTLY. The API does not return a
-+    `verificationStatus` field for this channel at all, so whether email delivery works is
-+    UNKNOWN from here and must be stated as unknown. An unverified channel is a policy that
-+    looks armed and is not — claiming Stage 2 is complete before the CPO confirms an email
-+    arrived would be exactly the false green this stage exists to prevent.
-+  - No Cloud Run execution is triggered by this task.
++  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 5e1a672: 725 passed).
++  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
++  - Every new test verified by BREAKING ITS SUBJECT — production code, never a test helper —
++    and confirming WHICH cases go red.
++  - `dbt parse` succeeds against the edited `sources.yml` (a malformed freshness block is a
++    parse error, and nothing else in CI would catch it while `data:build` cannot run).
++  - No ingest, no `dbt build`, no `gcloud` resource touched from this branch.
  
  amendments:
 -  - 2026-08-09: + `.gitattributes` — authority: **CPO, asked and answered in-thread: "yes, add
@@ -308,786 +266,523 @@ index 5f52d25..d0e00c1 100644
 -    parity test reads the file as text.
 -    Deliberately narrow — two patterns, both consumed only by Linux tooling. A repo-wide
 -    normalisation would rewrite unrelated files and is not in scope.
-+  - 2026-08-10: + `scripts/check_raw_freshness.py`, + `tests/test_raw_freshness_sentinel.py` —
-+    authority: **CPO, asked via a §11 escalation with three paths and a recommendation, and
-+    answered "Build a BigQuery-backed check instead"** (the builder's recommendation was to keep
-+    25h; the CPO chose otherwise). Recorded in escalations.log, 2026-08-10, not only here —
-+    scope-auditor FAILed this exact omission twice on the Stage 1 branch.
-+    Content: a sentinel that reads each raw table's last-modified time via BigQuery METADATA
-+    calls (free — no query, no scan), compares the age against the `error_after` already
-+    declared in `sources.yml`, and exits non-zero when stale. Deployed as a second Cloud Run Job
-+    from the SAME image with an entrypoint override, scheduled hourly, so no second image is
-+    built and absence detection needs only a 3h window.
++  - 2026-08-10: + `ingestion/api_football/orchestrator.py` — authority: **the CPO-approved plan
++    for this task**, which specifies "called ONCE per table per run and passed down, mirroring
++    `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live in the
++    orchestrator — that is where the per-competition loop and every existing hoist are — so the
++    approved design already required editing this file and the omission from `scope_paths` was
++    clerical, not a widening. Caught by the contract gate on the first edit, which is the gate
++    working: the plan and the contract disagreed, and the contract is what governs.
++    Content: read `latest_ingest_per_league` once per table before the loop and pass the two
++    dicts into `run_cheap_phases` and `run_transfers_for_competition`. No other change.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 7d0e0f9..b668d8e 100644
+index 7d0e0f9..4364dfe 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1859,3 +1859,61 @@ times.
+@@ -1859,3 +1859,69 @@ times.
    distributed computation); a self-hosted GitLab runner for the NIGHTLY (removes the bill without
    fixing the coupling, and adds a dependency on a machine being awake at 04:00 — though it
    remains the right answer for human-triggered MR pipelines, which is a separate decision).
 +
 +
-+2026-08-10 — #39 STAGE 2: A CPO CHOICE THE PLATFORM REFUSED (30h → 25h)
++2026-08-10 — #33 ITEM 14: THE 7-DAY RE-FETCH CADENCE, AND TWO CONSEQUENCES THE BUILDER DERIVED
 +
-+  THE CHOICE. Asked and answered in-thread, alongside the alert channel: the staleness threshold
-+  is "no successful run in 30 HOURS", picked by the CPO over 26h and 54h. 30h matched the
-+  `warn_after` already set on 8 sources in sources.yml.
++  WHY THIS ENTRY EXISTS AT ALL. `scope-auditor` FAILed the task for recording every one of these
++  decisions in `contract.md` only. It was right, and the precedent it cited is the entry above
++  from 2026-08-09, where the identical pattern was FAILed twice on the `.gitattributes`
++  amendment: "a builder-authored quote inside the artefact whose scope it widens is not
++  independent evidence". THIRD OCCURRENCE OF THE SAME MISS, by the same builder, two days after
++  writing that sentence. The lesson is not "remember harder": the moment a CPO answers anything,
++  it belongs here BEFORE the contract cites it.
 +
-+  THE REFUSAL. Cloud Monitoring will not accept it. Both mechanisms were tried against the real
-+  API and both returned HTTP 400:
-+    - `conditionAbsent` — "Durations longer than 23h30m are not supported."
-+    - MQL `absent_for` — "the longest time the query results might be absent is 1d6h, which is
-+      greater than the allowed 1d1h."
-+  So the ceiling is 25h, and 23h30m is not a fallback: for a DAILY job consecutive successes are
-+  ~24h apart, so a 23h30m window fires shortly before every single run. Anything at or below 24h
-+  is a daily false alarm. 25h is the ONLY value above 24h either mechanism permits, which is why
-+  the staleness policy is MQL rather than the simpler `conditionAbsent`.
++  THE RULING, verbatim, in-thread: **"re-fetch transfers and coaches every 7 days"**.
++  Context put to the CPO first: `transfers` 26.7 min + `coaches` 18.7 min = 45 of the 105
++  ingestion minutes measured on the 2026-08-09 nightly, spent re-downloading unchanged data,
++  plus ~3,800 of ~8,300 daily API calls. The CPO framed it as "we had a setup that ensures not
++  fetching data we already have... fix it".
 +
-+  WHAT THE BUILDER DID WRONG, first: substituted 25h, DEPLOYED it, and wrote up the reasoning.
-+  `scope-auditor` FAILed that in round 1 and was right. §10 makes a threshold a CPO decision
-+  "regardless of how obvious the answer seems", and §11 requires the conflicting paths and a
-+  recommendation put to the CPO BEFORE implementing. Documenting an override after shipping is
-+  not holding authority for it. A constraint that leaves exactly one viable NUMBER does not make
-+  the DECISION unavailable — the real fork was never "which number", it was "accept a tighter
-+  alert / drop staleness detection until item 14 / measure something else entirely", and only
-+  the CPO could weigh those.
++  A PREMISE CHECK RUN BEFORE ACCEPTING THAT FRAMING, recorded because it changes what the task
++  is. `git log -S` across ALL history for `already_captured`, `captured_`, `skip_if_present`,
++  `cached_response` and `players_needing`, scoped to `loads/transfers.py` and
++  `loads/coaches.py`, returns ZERO commits. Neither loader has EVER had skip-if-present logic,
++  so nothing regressed and nothing was "changed to the worse". The CPO's recollection of the
++  DESIGN is nonetheless correct: it exists deliberately in five other loaders (`players`,
++  `player_squads`, `player_profiles`, `player_teams`, `fixtures`, `fixture_details`). This task
++  finishes an unfinished job rather than restoring a broken one.
 +
-+  THE ESCALATION, run properly the second time, with three paths and a recommendation:
-+    A. keep 25h — fastest detection the platform allows, ~1h of drift tolerance (RECOMMENDED)
-+    B. disable staleness until item 14 — no false alarms, blind spot stays open
-+    C. build a BigQuery-backed check — no cap, measures data age rather than job success,
-+       but a bigger build than Stage 2 as scoped
-+  CPO ANSWER: **"Build a BigQuery-backed check instead."** — path C, against the builder's
-+  recommendation.
++  TWO CONSEQUENCES THE BUILDER DERIVED AND PUT IN THE PLAN THE CPO APPROVED. Both are flagged
++  here as builder-derived rather than ruled, because neither follows from a literal reading of
++  "every 7 days":
 +
-+  WHY C IS BETTER, now that it is built. Job success was always a PROXY. A pipeline that
-+  "succeeds" every night while writing nothing is stale, and no absence-of-success alert would
-+  ever have caught it. `scripts/check_raw_freshness.py` measures table age directly, so the 25h
-+  ceiling stops applying entirely, and the thresholds come from `sources.yml` — the same ones
-+  `dbt source freshness` uses, so there is no second copy to drift. Running it HOURLY also makes
-+  absence detection cheap: a 3h window, far inside the 23h30m cap that made the original design
-+  awkward. Cost is zero — `get_table()` is a metadata call, not a query.
++  1. THE FRESHNESS THRESHOLDS MOVE WITH THE CADENCE — and this LOOSENS A GUARD.
++     `sources.yml` had warn 30h / error 54h on both tables. Under a 7-day cadence they sit
++     permanently past `error_after`. Raised to warn 8d / error 10d for these two tables only.
++     THE COST, stated plainly: genuine breakage of transfers or coaches ingestion is now
++     invisible for up to 10 days instead of 54 hours.
++     WHY IT IS STILL THE NARROW FIX and not a blanket widening: 54h is simply FALSE once the
++     intended refresh interval is 7 days, and a guard that fires daily on correct behaviour gets
++     muted — which is a worse outcome than a wider true one. The other nine sources are
++     untouched, and a test pins `error_after > cadence + one cycle` so the two cannot drift.
++     WHEN IT BITES: nothing on the item-14 branch reads these thresholds (`dbt source freshness`
++     is invoked nowhere). The consumer is the hourly sentinel on the SEPARATE, unmerged #39
++     Stage 2 branch (!30, commit 42ba08f). Until that merges this is inert metadata.
 +
-+  A CONSEQUENCE WORTH KEEPING: because the sentinel covers "succeeding but stale" out of band,
-+  the in-entrypoint `dbt source freshness` added earlier in this task was REVERTED. It had
-+  forced `dbt deps` above the new_data gate and turned a quiet night from $0 into a few cents.
-+  The sentinel does the same job better, for free, without touching the nightly at all.
++  2. THE STAGGER, `md5(league_code) % 7`, is a builder addition.
++     Without it every league shares tonight's `ingested_at` and all 45 come due on the SAME
++     night — one night in seven costing the full 45 minutes against a 3h timeout, six costing
++     nothing. Staggering spreads it to ~6-7 leagues a night.
++     ⚠ THE FIRST IMPLEMENTATION BROKE THE CPO'S RULING and a reviewer caught it: it computed
++     `due_after = interval - offset` on EVERY call, which permanently SHORTENED the interval, so
++     a league with offset 6 re-fetched every single DAY and only offset 0 ever got 7 days. The
++     stagger must shift WHICH day a league runs, never how often. Now a calendar slot
++     (`(ordinal + offset) % interval == 0`) with a safety net at `age >= interval`.
 +
-+  A SECOND API CONSTRAINT, same class, recorded so it is not rediscovered: one policy cannot
-+  hold both the staleness and the failure condition — "Alert policies with
-+  monitoring_query_language condition type can only have a single condition" (HTTP 400). Shipped
-+  as TWO policies sharing one notification channel.
++  SCOPE AMENDMENT: `ingestion/api_football/orchestrator.py`, authority = the CPO-approved plan,
++  which specifies the read is "called ONCE per table per run and passed down, mirroring
++  `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live where the
++  per-competition loop is, so the approved design already required this file; its omission from
++  `scope_paths` was clerical. The contract gate caught it on the first edit.
 +
-+  NOT YET PROVEN, stated plainly: the Monitoring API returns no `verificationStatus` field for
-+  the email channel, so whether delivery works is UNKNOWN from this side. An unverified channel
-+  is a policy that looks armed and is not. Stage 2 is not "done" until an email has actually
-+  arrived — a policy that has never fired is decoration, the same as a test that has never gone
-+  red.
-diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
-index e015db9..84e042f 100644
---- a/deploy/nightly/README.md
-+++ b/deploy/nightly/README.md
-@@ -115,6 +115,186 @@ guards, so it needs its own governance task — see `docs/working_agreement.md`
++  ALSO CORRECTED, from a reviewer finding: four places in this task asserted that
++  `RAW_APIF_COACHES` is merge-on-write since 8b. It is APPEND-ONLY and was explicitly EXCLUDED
++  from 8b by the ruling of 2026-06-23 recorded above, because `stg_apif__coaches` reads ALL
++  snapshots to preserve every coach ever seen. The builder wrote that exclusion two days ago and
++  then contradicted it. The skip design is unaffected — skipping writes nothing either way —
++  but the stated reason was wrong for one of the two tables the task is about.
+diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
+index 5954d10..cc906f1 100644
+--- a/dbt_project/models/1_staging/api_football/sources.yml
++++ b/dbt_project/models/1_staging/api_football/sources.yml
+@@ -40,12 +40,26 @@ sources:
+           warn_after: {count: 30, period: hour}
+           error_after: {count: 54, period: hour}
  
- ---
++      # 7-DAY RE-FETCH CADENCE (#33 item 14), so these thresholds are NOT the 30h/54h the
++      # nightly sources use. Managers change rarely and /coachs cost 18.7 min a night to
++      # re-download unchanged data; the CPO ruled a weekly cadence.
++      #
++      # These two numbers are LOAD-BEARING, not decoration: at 54h this table would sit
++      # permanently past error_after once anything actually reads these thresholds.
++      # WHO READS THEM: nothing does today. `dbt source freshness` is invoked nowhere in this
++      # repo. The consumer is the hourly sentinel added by #39 Stage 2 (MR !30), which is a
++      # SEPARATE, currently unmerged branch — so until it lands this block is inert metadata,
++      # and after it lands unraised thresholds would email daily about correct behaviour.
++      # 8 days = the 7-day cadence plus a day of slack. 10 days = tolerate one entirely missed
++      # cycle before paging. `tests/test_refetch_cadence.py` pins this against
++      # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.
++      # The honest cost: genuine breakage here is now invisible for up to 10 days, not 54h.
+       - name: raw_apif_coaches
+         identifier: RAW_APIF_COACHES
+         loaded_at_field: ingested_at
+         freshness:
+-          warn_after: {count: 30, period: hour}
+-          error_after: {count: 54, period: hour}
++          warn_after: {count: 8, period: day}
++          error_after: {count: 10, period: day}
  
-+## Monitoring — #39 Stage 2
-+
-+**Why this is out-of-band.** Every check inside the nightly only runs when the nightly runs.
-+The failure that cost six days of stale data was the nightly **not running at all**, and no
-+in-pipeline test can ever see that.
-+
-+**What is monitored is DATA AGE, not job success.** `scripts/check_raw_freshness.py` runs
-+hourly as its own Cloud Run Job, reads each raw table's last-modified time, and exits non-zero
-+when it is past the `error_after` already declared in `sources.yml`. Job success is only a
-+proxy — a pipeline that "succeeds" nightly while writing nothing is stale and would pass a
-+job-success check. Table age is the real signal.
-+
-+Three policies, all wired to the same email:
-+
-+| Policy | Fires when | Means |
-+|---|---|---|
-+| `fdp raw data is STALE or uncheckable` | the sentinel exits non-zero | **stale data (exit 1) OR we cannot tell (exit 2)** — read the log |
-+| `fdp freshness sentinel itself stopped` | no successful sentinel run in 3h | we can no longer *tell* |
-+| `fdp-nightly execution failed` | a nightly run dies | early warning, before staleness |
-+
-+**Cost: zero.** `client.get_table()` is a metadata call, not a query — no bytes scanned, no
-+query job. That is what makes hourly affordable without thinking about it.
-+
-+### Why not simply alert on the nightly not running
-+
-+That was the first design, and it hit a wall worth recording so nobody reaches for it again:
-+
-+- `conditionAbsent` rejects any duration over **23h30m**; MQL `absent_for` rejects anything
-+  over **1d1h**. Both tried against the real API, both HTTP 400.
-+- For a **daily** job every value at or below 24h fires shortly before *every* run. So 25h was
-+  the only usable number — a ceiling, not a choice.
-+- An MQL condition also cannot share a policy with any other condition: *"Alert policies with
-+  monitoring_query_language condition type can only have a single condition."*
-+
-+Running the **sentinel hourly** dissolves all of it: absence detection on an hourly job needs
-+only a 3h window, far inside the cap, and the staleness threshold itself is ours to set from
-+`sources.yml`.
-+
-+`gcloud alpha monitoring` is not installed and does not need to be — the REST API is enough.
-+
-+### Deploy the sentinel job
-+
-+⚠ **ORDER MATTERS, and getting it wrong produces an alert storm.** The sentinel runs from the
-+nightly's image, so that image must already contain `scripts/check_raw_freshness.py`. Until
-+Stage 3 has CI rebuild the image on merge, the sequence is:
-+
-+1. merge the branch that adds the script
-+2. rebuild: `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` (from `main`)
-+3. point the sentinel at the new image (below)
-+4. **only then** create the schedule and the two sentinel alert policies
-+
-+Doing 4 before 2 means the sentinel fails every hour on
-+`can't open file '/app/scripts/check_raw_freshness.py'`, and the "sentinel itself stopped"
-+policy pages every 3h. Verified the hard way: deploying against the pre-script image and
-+executing it produced exactly that error, with `exit(2)`.
-+
-+One policy is deployed but deliberately **not** in `alert-policy.json`:
-+`fdp-nightly stale (no success in 25h)`, from the superseded job-success design. Keep it alive
-+as a bridge until the sentinel is running, then delete it — otherwise there is an unmonitored
-+window between the two designs. It is absent from the JSON because the JSON is the target
-+state, and re-applying the file must not recreate it.
-+
-+Same image as the nightly — Cloud Run overrides the entrypoint, so there is no second build and
-+no second thing to keep in sync:
-+
-+```bash
-+gcloud run jobs deploy fdp-freshness \
-+  --image "$(gcloud run jobs describe fdp-nightly --region europe-west1 --format='value(spec.template.template.containers[0].image)')" \
-+  --region europe-west1 \
-+  --service-account github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com \
-+  --command python --args scripts/check_raw_freshness.py \
-+  --cpu 1 --memory 512Mi \
-+  --task-timeout 5m \
-+  --max-retries 0
-+
-+gcloud run jobs add-iam-policy-binding fdp-freshness \
-+  --region europe-west1 \
-+  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
-+  --role="roles/run.invoker"
-+
-+gcloud scheduler jobs create http fdp-freshness \
-+  --location europe-west1 \
-+  --schedule "7 * * * *" \
-+  --time-zone UTC \
-+  --uri "https://run.googleapis.com/v2/projects/football-data-pipeline-gcp/locations/europe-west1/jobs/fdp-freshness:run" \
-+  --http-method POST \
-+  --oauth-service-account-email github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com
-+```
-+
-+`--max-retries 0`: a retry would re-check the same tables and reach the same answer. Staleness
-+is a state, not a transient error.
-+
-+Minute `7` rather than `0` keeps it off the hour, where scheduler load and the nightly's own
-+04:00 start cluster.
-+
-+**Exit codes are the alerting mechanism.** `0` fresh · `1` stale (past `error_after`) · `2`
-+could not check. `2` is deliberately not `0` — a sentinel that cannot check must never look
-+healthy, because that is indistinguishable from a working pipeline.
-+
-+### Create the notification channel (once)
-+
-+```bash
-+curl -s -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-+  -H "Content-Type: application/json" \
-+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
-+  -d '{"type":"email","displayName":"fdp alerts","labels":{"email_address":"rami.fahham@gmail.com"}}'
-+```
-+
-+**Google sends a verification email. Until it is clicked the channel exists but delivers
-+nothing** — so an unverified channel is a policy that looks armed and is not.
-+
-+### Create the alert policies
-+
-+`alert-policy.json` holds BOTH policies under `policies`, plus `_comment` keys for the reader.
-+The API rejects unknown fields, so strip anything beginning with `_` on the way in, and inject
-+the channel id read back from the API rather than hardcoding it:
-+
-+```bash
-+CHANNEL=$(curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
-+  | python -c "import sys,json;print(json.load(sys.stdin)['notificationChannels'][0]['name'])")
-+
-+python -c "
-+import json
-+def strip(o):
-+    if isinstance(o,dict):  return {k:strip(v) for k,v in o.items() if not k.startswith('_')}
-+    if isinstance(o,list):  return [strip(v) for v in o]
-+    return o
-+for i,p in enumerate(strip(json.load(open('deploy/nightly/alert-policy.json')))['policies']):
-+    p['notificationChannels'] = ['$CHANNEL']
-+    json.dump(p, open('pol%d.json' % i, 'w'))
-+"
-+
-+for i in 0 1; do
-+  curl -s -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-+    -H "Content-Type: application/json" \
-+    "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
-+    -d @pol$i.json
-+done
-+rm -f pol0.json pol1.json
-+```
-+
-+⚠ **`curl` on Windows cannot read a Git Bash `/tmp/...` path** — write the payloads to a
-+Windows-visible directory or the repo root, as above. `-d @/tmp/x.json` fails with
-+*"option -d: error encountered when reading a file"*.
-+
-+⚠ **NEITHER command is idempotent.** Both are bare `POST`s with no existence check, so running
-+this section twice creates a *second* notification channel and a *second* pair of policies —
-+and you then get every alert twice, which is how people learn to ignore alerts. Check before
-+re-running:
-+
-+```bash
-+curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
-+  | python -c "import sys,json;[print(p['name'],p['displayName']) for p in json.load(sys.stdin).get('alertPolicies',[])]"
-+```
-+
-+To change an existing policy, `PATCH` its `name` rather than re-POSTing. To remove a duplicate,
-+`DELETE` that `name`.
-+
-+### Checking and silencing it
-+
-+```bash
-+# does the policy exist, is it enabled, is the channel verified
-+curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies"
-+
-+# open incidents
-+curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies?filter=display_name=\"fdp raw data is STALE or uncheckable\""
-+```
-+
-+To silence during planned work, PATCH the policy with `"enabled": false` — and re-enable it.
-+A permanently-disabled alert is the same blind spot this stage exists to close.
-+
-+**A policy that has never fired is decoration.** The cheap way to prove it works: disable the
-+Cloud Scheduler job for a day and confirm the email arrives — or temporarily PATCH the absence
-+`duration` down to `3600s`, wait an hour past the last success, and confirm, then restore
-+`108000s`.
-+
- ## Operating it
+       - name: raw_apif_fixture_details
+         identifier: RAW_APIF_FIXTURE_DETAILS
+@@ -54,12 +68,16 @@ sources:
+           warn_after: {count: 30, period: hour}
+           error_after: {count: 54, period: hour}
  
- ```bash
-@@ -137,8 +317,15 @@ bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_FIXTURES_NEX
-   | python -c "import sys,json,datetime;d=json.load(sys.stdin);print(datetime.datetime.utcfromtimestamp(int(d['lastModifiedTime'])/1000))"
- ```
++      # 7-DAY RE-FETCH CADENCE (#33 item 14) — see the note on raw_apif_coaches above for why
++      # these thresholds differ from the nightly sources and why they are load-bearing.
++      # Transfers move in bursts (January, summer), not nightly, and this was the single most
++      # expensive phase in the run at 26.7 min.
+       - name: raw_apif_transfers
+         identifier: RAW_APIF_TRANSFERS
+         loaded_at_field: ingested_at
+         freshness:
+-          warn_after: {count: 30, period: hour}
+-          error_after: {count: 54, period: hour}
++          warn_after: {count: 8, period: day}
++          error_after: {count: 10, period: day}
  
--A run that reports `new_data=false` exits 0 before dbt and writes nothing. **That is a $0
--night, not a failure** — the gate is in `entrypoint.sh` and mirrors the CI job.
-+A run that reports `new_data=false` exits 0 before `dbt deps`, the contract checks, `dbt seed`
-+and `dbt build`, and writes nothing. **That is a $0 night, not a failure** — the gate is in
-+`entrypoint.sh` and mirrors the CI job.
+       # Player-data tables (PR-a): slow-moving (bio/career/squad), backfilled then refreshed
+       # rarely — no aggressive freshness thresholds (they would false-alarm between refreshes).
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index a8ebb91..879da6a 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -13,6 +13,9 @@ the others.
+ 
+ from __future__ import annotations
+ 
++from datetime import datetime
 +
-+**Stage 2 did not change this.** An earlier draft moved `dbt deps` and `dbt source freshness`
-+above the gate, which would have made a quiet night cost a few cents; that was reverted when
-+the CPO chose the out-of-band sentinel instead. The nightly is untouched by Stage 2, and
-+"succeeding but stale" is caught by `fdp-freshness` reading table metadata hourly — outside the
-+nightly entirely, which is the point.
++from ..refetch import should_refetch, skip_reason, utcnow
+ from .context import CompetitionRunResult, PipelineContext
+ from .coaches import load_coaches
+ from .fixtures import fetch_merge_and_persist_fixtures
+@@ -33,6 +36,17 @@ def _ingestion_phase(league_code: str, step: str) -> None:
+     print(f"[api-football] league={league_code} phase={step}", flush=True)
  
- ## Rolling back
  
-diff --git a/deploy/nightly/alert-policy.json b/deploy/nightly/alert-policy.json
++def _skipped_phase(league_code: str, step: str, reason: str) -> None:
++    """A skip must be as visible as a run (#33 item 14).
++
++    A phase that quietly stops doing anything is indistinguishable from a phase that broke —
++    which is the failure class that cost this pipeline six silent days. The line carries the
++    age and the next due date so "should this have run tonight?" is answerable from the log
++    alone, without querying anything.
++    """
++    print(f"[api-football] league={league_code} phase={step} SKIPPED ({reason})", flush=True)
++
++
+ def run_poll_phases(
+     ctx: PipelineContext,
+     league_code: str,
+@@ -76,12 +90,18 @@ def run_cheap_phases(
+     current_season: int | None = None,
+     history_seasons: int | None = None,
+     season_type: str = "split_year",
++    coaches_last_ingest: dict[str, datetime] | None = None,
+ ) -> CompetitionRunResult | None:
+     """Run all cheap (non-fanout) ingestion phases for one competition.
+ 
+     Returns CompetitionRunResult on success, None on unrecoverable error.
+     Errors are appended to ctx.errors; a None return means the competition
+     cannot participate in the global fanout (e.g. catalog fetch failed).
++
++    `coaches_last_ingest` is the run's single `latest_ingest_per_league(...COACHES)` result,
++    read ONCE by the orchestrator before the per-competition loop (#33 item 14). Passing None
++    means "no cadence information", which makes every league due — the safe default, and what
++    keeps existing callers behaving exactly as before.
+     """
+     try:
+         _ingestion_phase(league_code, "catalog (leagues + season plan)")
+@@ -105,8 +125,22 @@ def run_cheap_phases(
+         )
+         _ingestion_phase(league_code, "injuries")
+         load_injuries(ctx, league_code, league_id, seasons_list)
+-        _ingestion_phase(league_code, "coaches")
+-        load_coaches(ctx, league_code, team_ids)
++        # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
++        # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
++        #
++        # RAW_APIF_COACHES is APPEND-ONLY — deliberately excluded from 8b's merge-on-write
++        # because `stg_apif__coaches` reads ALL snapshots to preserve every coach ever seen
++        # (CPO ruling 2026-06-23). So skipping loses nothing: the stored snapshots stay and
++        # base still dedups to the latest. Unlike transfers, a stray partial write here would
++        # not destroy anything — but there is no reason to write one either.
++        coaches_seen = (coaches_last_ingest or {}).get(league_code)
++        if should_refetch(league_code, coaches_seen, utcnow()):
++            _ingestion_phase(league_code, "coaches")
++            load_coaches(ctx, league_code, team_ids)
++        else:
++            _skipped_phase(
++                league_code, "coaches", skip_reason(league_code, coaches_seen, utcnow())
++            )
+         return CompetitionRunResult(
+             league_code=league_code,
+             seasons_list=seasons_list,
+@@ -152,9 +186,27 @@ def run_squads_for_competition(
+ def run_transfers_for_competition(
+     ctx: PipelineContext,
+     result: CompetitionRunResult,
++    transfers_last_ingest: dict[str, datetime] | None = None,
+ ) -> None:
+-    """Run /transfers batch for one competition's teams after global fanout."""
++    """Run /transfers batch for one competition's teams after global fanout.
++
++    `transfers_last_ingest` is the run's single `latest_ingest_per_league(...TRANSFERS)` result
++    (#33 item 14). None means "no cadence information" and every league is due — the safe
++    default, and existing behaviour.
++    """
+     try:
++        # #33 item 14 — transfers move in bursts (January, summer), not nightly. This was the
++        # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
++        # RAW_APIF_TRANSFERS is one row per league and merge-on-write since 8b, so a partial
++        # write would DELETE the complete row rather than sit harmlessly beside it.
++        seen = (transfers_last_ingest or {}).get(result.league_code)
++        if not should_refetch(result.league_code, seen, utcnow()):
++            _skipped_phase(
++                result.league_code,
++                "transfers batch",
++                skip_reason(result.league_code, seen, utcnow()),
++            )
++            return
+         _ingestion_phase(result.league_code, "transfers batch")
+         load_transfers_batch(ctx, result.league_code, result.team_ids)
+     except Exception as e:
+diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
+index 581cfaf..d03e1df 100644
+--- a/ingestion/api_football/orchestrator.py
++++ b/ingestion/api_football/orchestrator.py
+@@ -40,6 +40,7 @@ from .ingestion_lock import (
+     new_run_id,
+     release_ingest_lock,
+ )
++from .refetch import latest_ingest_per_league
+ from .settings import (
+     DATASET_ID,
+     DEFAULT_SEASON_WINDOW_YEARS,
+@@ -48,6 +49,7 @@ from .settings import (
+     _env_truthy,
+     _ingest_profile_name,
+     get_headers,
++    raw_table,
+ )
+ from .season_inference import (
+     effective_season_max,
+@@ -149,6 +151,16 @@ def _load_api_football(request):
+         # therefore keeps its own, separate read. Hoisting further (one read for the whole
+         # run) would make every run report fanout gaps that the same run had just filled.
+         phase1_covered = read_coverage(ctx.client)
++        # #33 item 14 — the re-fetch cadence for coaches and transfers, read ONCE for every
++        # league and passed into the loops below. Same reason as read_coverage above: reading
++        # this per competition would reintroduce exactly the O(competitions^2) shape item 1
++        # removed. Two grouped queries against tables 8b shrank to 0.178 and 0.008 GiB.
++        #
++        # Unlike phase1_covered this IS safe to hoist for the whole run: nothing in this run
++        # writes COACHES or TRANSFERS before these loops, so there are no same-run writes for
++        # a later read to miss.
++        coaches_last_ingest = latest_ingest_per_league(ctx.client, raw_table("COACHES"))
++        transfers_last_ingest = latest_ingest_per_league(ctx.client, raw_table("TRANSFERS"))
+         results = []
+         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
+         finished_comps: list[tuple[str, int, set[int]]] = []
+@@ -180,6 +192,7 @@ def _load_api_football(request):
+                 current_season=comp.current_season,
+                 history_seasons=comp.history_seasons,
+                 season_type=comp.season_type,
++                coaches_last_ingest=coaches_last_ingest,
+             )
+             if result is not None:
+                 results.append(result)
+@@ -216,7 +229,9 @@ def _load_api_football(request):
+ 
+         # Phase 4: transfers batch per competition (dated affiliation moves)
+         for result in results:
+-            run_transfers_for_competition(ctx, result)
++            run_transfers_for_competition(
++                ctx, result, transfers_last_ingest=transfers_last_ingest
++            )
+ 
+         # Phase 5: global per-player bio + career (profiles + teams) over the current
+         # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
+diff --git a/ingestion/api_football/refetch.py b/ingestion/api_football/refetch.py
 new file mode 100644
-index 0000000..6618418
+index 0000000..dd51d41
 --- /dev/null
-+++ b/deploy/nightly/alert-policy.json
-@@ -0,0 +1,157 @@
-+{
-+  "_comment": [
-+    "Cloud Monitoring alert policies. GitLab #39 Stage 2.",
-+    "",
-+    "WHY OUT-OF-BAND. Every check inside the nightly only runs when the nightly runs. The",
-+    "failure that cost six days of stale data (2026-08-03 to 08-09) was the nightly NOT",
-+    "RUNNING AT ALL - a cron silently dropped by a platform migration. No in-pipeline test can",
-+    "ever see that.",
-+    "",
-+    "WHY THESE MEASURE DATA AGE AND NOT JOB SUCCESS. The first design alerted on the absence",
-+    "of a successful fdp-nightly execution. It worked, but job success is a PROXY: a pipeline",
-+    "that 'succeeds' nightly while writing nothing is stale and would never have tripped it.",
-+    "It also ran into a hard platform cap - conditionAbsent rejects durations over 23h30m and",
-+    "MQL absent_for over 1d1h, while for a DAILY job anything at or below 24h fires before",
-+    "every run - leaving 25h as a ceiling rather than a choice. The CPO chose to measure the",
-+    "real signal instead: scripts/check_raw_freshness.py reads each raw table's last-modified",
-+    "time and exits non-zero when it is past the error_after already declared in sources.yml.",
-+    "",
-+    "Running that sentinel HOURLY also dissolves the cap: absence detection on an hourly job",
-+    "needs a 3h window, far inside the limit.",
-+    "",
-+    "Applied by the commands in deploy/nightly/README.md, which strip every key starting with",
-+    "`_` (the API rejects unknown fields) and inject the notification channel id read back from",
-+    "the API rather than hardcoded."
-+  ],
++++ b/ingestion/api_football/refetch.py
+@@ -0,0 +1,193 @@
++"""Per-league re-fetch cadence for the loaders that do not need nightly data. #33 item 14.
 +
-+  "policies": [
-+    {
-+      "displayName": "fdp raw data is STALE or uncheckable",
++WHY
++---
++`transfers` and `coaches` re-download identical data every night: 26.7 + 18.7 = 45 of the 105
++ingestion minutes measured on the 2026-08-09 nightly, and roughly 3,800 of ~8,300 daily API
++calls. Transfers move in bursts (January, summer); managers change rarely. CPO ruling: re-fetch
++both every 7 days per league.
 +
-+      "_comment": [
-+        "THE IMPORTANT ONE. Fires when scripts/check_raw_freshness.py exits NON-ZERO.",
-+        "",
-+        "⚠ IT CANNOT DISTINGUISH exit 1 (a table is genuinely past error_after) from exit 2",
-+        "(the sentinel could not check - unreadable thresholds, BigQuery unreachable, a table",
-+        "that will not answer). Cloud Run's completed_execution_count metric carries only",
-+        "succeeded/failed, not the process exit code, so both surface identically. An earlier",
-+        "draft of this documentation asserted 'users are affected', which is not established on",
-+        "an exit 2; a reviewer caught it. The title and text now cover both, and the log says",
-+        "which one it was in its first line.",
-+        "",
-+        "Both are worth waking up for, which is why they share a policy rather than being",
-+        "separated with a log-based metric: stale data means users see yesterday's football,",
-+        "and a sentinel that cannot check means we have lost the ability to tell.",
-+        "",
-+        "Thresholds are NOT here. They live in sources.yml (warn 30h / error 54h on 8 of the",
-+        "11 sources; 3 deliberately have none because they refresh rarely). One definition, so",
-+        "there is nothing to drift."
-+      ],
++This is not restoring something that was lost. `git log -S` across all history shows neither
++loader ever had skip-if-present logic. Five other loaders do — `players`, `player_squads`,
++`player_profiles`, `player_teams`, `fixtures`, `fixture_details` — and these two never got it.
 +
-+      "documentation": {
-+        "content": "The freshness sentinel exited non-zero. That is EITHER stale data OR an inability to check - the alert cannot tell which, so read the log first.\n\n  exit 1 = a raw table is past its `error_after` (see `dbt_project/models/1_staging/api_football/sources.yml`). Users are affected: Matchday Pilot serves fixtures, so stale raw means yesterday's football.\n  exit 2 = the sentinel could NOT check (unreadable thresholds, BigQuery unreachable, a table that will not answer). The data may be fine; we have lost the ability to say so.\n\nCloud Run's execution metric carries only succeeded/failed, not the exit code, which is why one policy covers both. The sentinel's log states which, and names the table and its age:\n  gcloud run jobs executions list --job fdp-freshness --region europe-west1 --limit 5\n  gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"fdp-freshness\"' --limit 30 --order=desc\n\nIf it is exit 1, ask why the nightly is not landing data:\n  gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 5\n  gcloud scheduler jobs describe fdp-nightly --location europe-west1\n\nRunbook: deploy/nightly/README.md",
-+        "mimeType": "text/markdown"
-+      },
++⚠ THE SKIP MUST SKIP THE WRITE, NOT JUST THE FETCH — for DIFFERENT reasons per table
++------------------------------------------------------------------------------------
++Both loaders write one row per league per run, so fetching a subset of teams and writing it
++would persist a partial snapshot. What that costs differs, and an earlier version of this
++docstring got COACHES wrong by asserting both were the same:
 +
-+      "combiner": "OR",
-+      "conditions": [
-+        {
-+          "displayName": "freshness sentinel reported stale data",
-+          "conditionThreshold": {
-+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-freshness\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
-+            "comparison": "COMPARISON_GT",
-+            "thresholdValue": 0,
-+            "duration": "0s",
-+            "aggregations": [
-+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
-+            ],
-+            "trigger": { "count": 1 }
-+          }
-+        }
-+      ],
++  RAW_APIF_TRANSFERS — MERGE-ON-WRITE since #33 item 8b, and `stg_apif__transfers` reads
++  latest-per-league. A partial write DELETES the complete row it supersedes. Unrecoverable
++  past time travel — the #37 shape.
 +
-+      "alertStrategy": { "autoClose": "604800s" },
-+      "notificationChannels": [],
-+      "enabled": true
-+    },
++  RAW_APIF_COACHES — APPEND-ONLY. It was deliberately EXCLUDED from 8b (`data_contract.md`,
++  and the CPO ruling of 2026-06-23) because `stg_apif__coaches` reads ALL snapshots to preserve
++  every coach ever seen; a league-keyed delete would drop ~120 coaches whose teams later left
++  our pull. So a partial write here destroys nothing — it appends a thin snapshot that base
++  then dedups. Still not something to do on purpose, but the consequence is noise, not loss.
 +
-+    {
-+      "displayName": "fdp freshness sentinel itself stopped",
++Either way a league that is not due is skipped ENTIRELY at the call site: no fetch, no write.
++Its stored rows are untouched and staging reads exactly what it read yesterday. That is why no
++carry-forward is needed here, unlike `loads/fixtures.py`, which carries prior seasons forward
++precisely because it DOES write on every run.
 +
-+      "_comment": [
-+        "WATCHES THE WATCHER. The sentinel is the only thing that can see a stopped pipeline,",
-+        "so a sentinel that stops takes the visibility with it and everything looks fine.",
-+        "",
-+        "3h of absence on an HOURLY job: two missed runs plus slack. This is the shape the",
-+        "original design could not use - conditionAbsent caps at 23h30m, which is useless for",
-+        "a DAILY signal but generous for an hourly one. Running the check often is what makes",
-+        "cheap absence detection possible.",
-+        "",
-+        "The regress stops here deliberately: nothing watches Cloud Scheduler and Cloud",
-+        "Monitoring themselves. They are managed services with their own status surface, and a",
-+        "third monitor is where this stops being proportionate."
-+      ],
-+
-+      "documentation": {
-+        "content": "The freshness sentinel (`fdp-freshness`) has not run successfully in 3 hours. It is scheduled hourly.\n\nThis does NOT mean the data is stale. It means we can no longer TELL whether it is - which is the same blind spot that let six days of stale data pass unnoticed in August 2026.\n\nCHECK:\n  gcloud run jobs executions list --job fdp-freshness --region europe-west1 --limit 5\n  gcloud scheduler jobs describe fdp-freshness --location europe-west1\n\nMeanwhile, check freshness by hand - it is a free metadata read:\n  bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_FIXTURES_NEXT\n\nExit code 2 from the sentinel means 'could not check' (unreadable thresholds, BigQuery unreachable, a table that will not answer) and is deliberately not 0 - a sentinel that cannot check must never look healthy.\n\nRunbook: deploy/nightly/README.md",
-+        "mimeType": "text/markdown"
-+      },
-+
-+      "combiner": "OR",
-+      "conditions": [
-+        {
-+          "displayName": "No successful freshness check in 3h",
-+          "conditionAbsent": {
-+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-freshness\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"succeeded\"",
-+            "duration": "10800s",
-+            "aggregations": [
-+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
-+            ],
-+            "trigger": { "count": 1 }
-+          }
-+        }
-+      ],
-+
-+      "alertStrategy": { "autoClose": "604800s" },
-+      "notificationChannels": [],
-+      "enabled": true
-+    },
-+
-+    {
-+      "displayName": "fdp-nightly execution failed",
-+
-+      "_comment": [
-+        "Kept from the first design and still worth having: it names the CAUSE (the nightly",
-+        "broke) hours before the effect (data crosses error_after) would show up. Not a",
-+        "substitute for the staleness policy - a nightly can fail without the data being stale",
-+        "yet, and data can go stale without the nightly ever failing."
-+      ],
-+
-+      "documentation": {
-+        "content": "A football-data-pipeline nightly execution FAILED.\n\nThe data is not necessarily stale YET - `error_after` is 54h on most sources, so there is room for a retry tonight. This is the early warning; `fdp raw data is STALE or uncheckable` is the one that fires when users may actually be affected (exit 1) or when we have lost the ability to tell (exit 2).\n\n  gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 5\n  gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"fdp-nightly\"' --limit 50 --order=desc\n\nNo retry happens automatically: the job is deployed with --max-retries 0 because the BigQuery ingest lock holds a lease and an immediate retry would be refused. Recovery is the next scheduled run.\n\nRunbook: deploy/nightly/README.md",
-+        "mimeType": "text/markdown"
-+      },
-+
-+      "combiner": "OR",
-+      "conditions": [
-+        {
-+          "displayName": "Nightly execution failed",
-+          "conditionThreshold": {
-+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-nightly\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
-+            "comparison": "COMPARISON_GT",
-+            "thresholdValue": 0,
-+            "duration": "0s",
-+            "aggregations": [
-+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
-+            ],
-+            "trigger": { "count": 1 }
-+          }
-+        }
-+      ],
-+
-+      "alertStrategy": { "autoClose": "604800s" },
-+      "notificationChannels": [],
-+      "enabled": true
-+    }
-+  ]
-+}
-diff --git a/scripts/check_raw_freshness.py b/scripts/check_raw_freshness.py
-new file mode 100644
-index 0000000..b4f544e
---- /dev/null
-+++ b/scripts/check_raw_freshness.py
-@@ -0,0 +1,183 @@
-+"""Out-of-band raw-data staleness sentinel. GitLab #39 Stage 2.
-+
-+WHY THIS EXISTS
-+---------------
-+Every check that lives inside the nightly only runs when the nightly runs. The failure that
-+cost six days of stale data (2026-08-03 to 08-09) was the nightly NOT RUNNING AT ALL — a cron
-+silently dropped by a platform migration. Nothing inside the pipeline can see that.
-+
-+This runs on its own schedule and measures the thing the product actually cares about: HOW OLD
-+IS THE DATA. It does not care whether the nightly ran, succeeded, or exists. A pipeline that
-+"succeeds" every night while writing nothing is stale, and this catches that too — job success
-+is a proxy, data age is the real signal.
-+
-+WHY NOT AN ALERT ON THE JOB ITSELF
-+----------------------------------
-+That was the first design and the CPO rejected it. Cloud Monitoring caps `conditionAbsent` at
-+23h30m and MQL `absent_for` at 1d1h, and for a DAILY job every value at or below 24h fires
-+before each run — so the only usable number was 25h, a ceiling rather than a choice. Running
-+THIS hourly dissolves that: absence detection on an hourly job needs a 3h window, far inside
-+the cap, and the staleness threshold itself is ours to set.
-+
-+COST: ZERO. `client.get_table()` is a metadata call, not a query — no bytes scanned, no query
-+job, nothing billed. That is why this can run hourly without thinking about it.
-+
-+THRESHOLDS ARE NOT DEFINED HERE. They are read from
-+`dbt_project/models/1_staging/api_football/sources.yml`, which already declares
-+`freshness.error_after` per source and is what `dbt source freshness` uses. A second copy would
-+drift, and the drifted one would be the one nobody noticed.
-+
-+EXIT CODES
-+  0  every source with a declared threshold is within it (warnings are logged, not fatal)
-+  1  at least one source is past `error_after` — Cloud Run marks the execution FAILED, which
-+     is what the alert policy fires on
-+  2  the check could not run (unreadable config, BigQuery unreachable). Deliberately NOT 0:
-+     a sentinel that cannot check must never look healthy.
++READS ARE HOISTED
++-----------------
++`latest_ingest_per_league` is called ONCE per table per run and the result passed down, mirroring
++`captured_player_team_seasons` (`orchestrator.py:201`). Calling it per competition would
++reintroduce the O(competitions^2) shape that #33 item 1 removed.
 +"""
 +
 +from __future__ import annotations
 +
-+import argparse
-+import sys
-+from datetime import datetime, timezone
-+from pathlib import Path
++import hashlib
++import os
++from datetime import datetime, timedelta, timezone
 +
-+import yaml
++from google.cloud import bigquery
 +
-+REPO = Path(__file__).resolve().parents[1]
-+SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
++from .settings import DATASET_ID, GCP_PROJECT_ID
 +
-+_PERIOD_TO_HOURS = {"minute": 1 / 60, "hour": 1, "day": 24}
++# The CPO's ruling, in one place. Both loaders share it; a per-table cadence would be a second
++# thing to keep in step with sources.yml for no benefit while the ruling covers both.
++REFETCH_INTERVAL_DAYS = 7
 +
-+
-+def _to_hours(spec: dict) -> float | None:
-+    """`{count: 54, period: hour}` -> 54.0. None when the spec is absent or unusable."""
-+    if not isinstance(spec, dict):
-+        return None
-+    count, period = spec.get("count"), spec.get("period")
-+    if count is None or period not in _PERIOD_TO_HOURS:
-+        return None
-+    return float(count) * _PERIOD_TO_HOURS[period]
++# How many days the freshness thresholds in sources.yml must exceed the cadence before the
++# staleness alert would fire on CORRECT behaviour. One whole extra cycle: a league refreshed on
++# schedule is at most REFETCH_INTERVAL_DAYS old, and one missed run makes it 2x that.
++# `tests/test_refetch_cadence.py` pins sources.yml against this so the two cannot drift.
++FRESHNESS_MUST_EXCEED_CADENCE_BY_DAYS = 1
 +
 +
-+def load_thresholds(path: Path | None = None) -> dict[str, dict[str, float]]:
-+    """Read per-table freshness thresholds from the dbt sources file.
++def _force_full() -> bool:
++    """Reuse the existing backfill escape hatch rather than invent a second flag.
 +
-+    `path` resolves to the module-level SOURCES_YML at CALL time, not as a default argument.
-+    A default is bound once at import, so `SOURCES_YML` could be pointed elsewhere and this
-+    would keep reading the original file — which made the "cannot read its thresholds" test
-+    pass against production data instead of the missing file it meant to simulate. A test that
-+    silently exercises the wrong thing is the failure mode this whole file is about.
-+
-+    Only tables carrying a `freshness:` block are returned. All 11 sources declare
-+    `loaded_at_field`, but 3 deliberately have no thresholds — they refresh rarely and any
-+    threshold would false-alarm. Those must NOT be checked here either; inventing a threshold
-+    for them is how a sentinel starts crying wolf and gets muted.
++    `API_FOOTBALL_INGEST_FORCE_FULL` already means "ignore incremental shortcuts" elsewhere in
++    the pipeline, and a backfill must be able to bypass the cadence.
 +    """
-+    doc = yaml.safe_load((path or SOURCES_YML).read_text(encoding="utf-8"))
-+    out: dict[str, dict[str, float]] = {}
-+    for source in doc.get("sources") or []:
-+        for table in source.get("tables") or []:
-+            fresh = table.get("freshness")
-+            if not fresh:
-+                continue
-+            error_h = _to_hours(fresh.get("error_after") or {})
-+            if error_h is None:
-+                continue
-+            entry = {"error_after_hours": error_h}
-+            warn_h = _to_hours(fresh.get("warn_after") or {})
-+            if warn_h is not None:
-+                entry["warn_after_hours"] = warn_h
-+            # `identifier` wins when present: the dbt source NAME is lowercase by convention
-+            # while the physical table is upper-case, and it is the physical name BigQuery
-+            # needs. Falling back to the name silently would look up a table that does not
-+            # exist, which surfaces as "cannot check" rather than a false pass.
-+            out[table.get("identifier") or table["name"]] = entry
++    return os.getenv("API_FOOTBALL_INGEST_FORCE_FULL", "").strip().lower() in ("1", "true", "yes")
++
++
++def stagger_offset_days(league_code: str, interval_days: int = REFETCH_INTERVAL_DAYS) -> int:
++    """A stable 0..interval-1 offset per league, so they do not all come due the same night.
++
++    Without this every league shares tonight's `ingested_at` and therefore expires together:
++    one night in seven costs the full 45 minutes against a 3h timeout, and the other six cost
++    nothing. Spreading gives ~6-7 leagues a night. Each league still re-fetches every
++    `interval_days` exactly as ruled; only the phase differs.
++
++    md5 rather than `hash()`: Python salts `hash()` per process (PYTHONHASHSEED), so a league's
++    offset would change on every run and the cadence would smear into "somewhere between 1 and 7
++    days". Stability across processes is the whole point.
++    """
++    digest = hashlib.md5(league_code.encode("utf-8")).digest()
++    return digest[0] % interval_days
++
++
++def should_refetch(
++    league_code: str,
++    last_ingested: datetime | None,
++    now: datetime,
++    interval_days: int = REFETCH_INTERVAL_DAYS,
++) -> bool:
++    """Is this league due? Pure — no I/O, so the cadence is testable without BigQuery.
++
++    True when the league has never been ingested (`last_ingested is None`), when the force flag
++    is set, or when the row is older than its staggered due-date. A first-ever ingest must never
++    be skipped: there is no row to keep, so skipping would leave the league permanently absent.
++    """
++    if _force_full():
++        return True
++    if last_ingested is None:
++        return True
++
++    age_days = (now - last_ingested).total_seconds() / 86400.0
++
++    # SAFETY NET FIRST: never let a league exceed the ruled cadence, whatever the stagger says.
++    # This is what makes a missed run self-heal instead of waiting a further week.
++    if age_days >= interval_days:
++        return True
++
++    # Already refreshed today — never fetch a league twice in one day.
++    if age_days < 1:
++        return False
++
++    # The stagger is a SLOT IN THE CALENDAR, not a shortened interval. Each league is due on
++    # exactly one day in every `interval_days`, chosen by its own offset, so every league gets
++    # the full cadence the CPO ruled and the work spreads across the week.
++    #
++    # An earlier version computed `due_after = interval_days - offset` on every call, which
++    # looked equivalent and was not: it PERMANENTLY shortened the interval, so a league with
++    # offset 6 re-fetched every single day and only offset 0 ever got 7 days. Caught in review.
++    # The comment then claimed the offset "shifts the FIRST due-date only" — which is exactly
++    # what this version does and the old one did not.
++    return (now.toordinal() + stagger_offset_days(league_code, interval_days)) % interval_days == 0
++
++
++def latest_ingest_per_league(
++    client: bigquery.Client, table_name: str
++) -> dict[str, datetime]:
++    """`{league_code: latest ingested_at}` for one raw table. ONE query per table per run.
++
++    Hoisted deliberately — see the module docstring. Returns an empty dict when the table does
++    not exist or the read fails, which makes every league look never-ingested and therefore
++    DUE. That is the safe direction: a failed read costs a redundant fetch, never a silent
++    skip that would let data quietly go stale.
++    """
++    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
++    sql = f"""
++        select league_code, max(ingested_at) as latest
++        from `{table_id}`
++        group by league_code
++    """
++    out: dict[str, datetime] = {}
++    try:
++        for row in client.query(sql).result():
++            if row.league_code and row.latest:
++                out[row.league_code] = row.latest
++    except Exception:  # noqa: BLE001 - see docstring: fail toward fetching, never toward skipping
++        return {}
 +    return out
 +
 +
-+def table_age_hours(client, project: str, dataset: str, table: str, now: datetime) -> float:
-+    """Hours since the table was last written, from its METADATA. No query, no cost."""
-+    meta = client.get_table(f"{project}.{dataset}.{table}")
-+    return (now - meta.modified).total_seconds() / 3600.0
++def next_due(last_ingested: datetime, league_code: str,
++             interval_days: int = REFETCH_INTERVAL_DAYS) -> datetime:
++    """The next calendar day this league is due, derived the SAME way `should_refetch` decides.
 +
-+
-+def evaluate(ages: dict[str, float], thresholds: dict[str, dict[str, float]]) -> tuple[list, list]:
-+    """Pure split into (stale, warning). Separated from I/O so it is testable without BigQuery."""
-+    stale, warning = [], []
-+    for table, limits in sorted(thresholds.items()):
-+        age = ages.get(table)
-+        if age is None:
-+            continue
-+        if age > limits["error_after_hours"]:
-+            stale.append((table, age, limits["error_after_hours"]))
-+        elif "warn_after_hours" in limits and age > limits["warn_after_hours"]:
-+            warning.append((table, age, limits["warn_after_hours"]))
-+    return stale, warning
-+
-+
-+def main(argv: list[str] | None = None) -> int:
-+    parser = argparse.ArgumentParser(description=__doc__)
-+    parser.add_argument("--project", default="football-data-pipeline-gcp")
-+    parser.add_argument("--dataset", default="raw")
-+    args = parser.parse_args(argv)
-+
-+    try:
-+        thresholds = load_thresholds()
-+    except Exception as e:  # noqa: BLE001 - any failure here means we cannot check at all
-+        print(f"[freshness] EXIT 2 — CANNOT CHECK: unreadable thresholds: {e}", file=sys.stderr)
-+        return 2
-+    if not thresholds:
-+        print("[freshness] EXIT 2 — CANNOT CHECK: no source declares an error_after threshold.", file=sys.stderr)
-+        return 2
-+
-+    try:
-+        from google.cloud import bigquery
-+
-+        client = bigquery.Client(project=args.project)
-+    except Exception as e:  # noqa: BLE001
-+        print(f"[freshness] EXIT 2 — CANNOT CHECK: BigQuery client unavailable: {e}", file=sys.stderr)
-+        return 2
-+
-+    now = datetime.now(timezone.utc)
-+    ages: dict[str, float] = {}
-+    unreadable: list[str] = []
-+    for table in sorted(thresholds):
-+        try:
-+            ages[table] = table_age_hours(client, args.project, args.dataset, table, now)
-+        except Exception as e:  # noqa: BLE001
-+            unreadable.append(f"{table}: {e}")
-+
-+    if unreadable:
-+        # A table we cannot read is not a table we can call fresh.
-+        for u in unreadable:
-+            print(f"[freshness] EXIT 2 — CANNOT CHECK {u}", file=sys.stderr)
-+        return 2
-+
-+    stale, warning = evaluate(ages, thresholds)
-+
-+    for table in sorted(ages):
-+        print(f"[freshness] {table:<38} age={ages[table]:6.1f}h "
-+              f"error_after={thresholds[table]['error_after_hours']:.0f}h")
-+
-+    for table, age, limit in warning:
-+        print(f"[freshness] WARN  {table} is {age:.1f}h old (warn_after {limit:.0f}h)")
-+
-+    if stale:
-+        for table, age, limit in stale:
-+            print(f"[freshness] STALE {table} is {age:.1f}h old (error_after {limit:.0f}h)",
-+                  file=sys.stderr)
-+        # "EXIT 1" spelled out because the alert policy CANNOT tell exit 1 from exit 2 —
-+        # Cloud Run's execution metric carries only succeeded/failed, not the exit code. The
-+        # runbook tells the on-call engineer to read this line to find out which, so it has to
-+        # actually say it.
-+        print(f"[freshness] EXIT 1 — STALE: {len(stale)} source(s) past error_after. The data "
-+              "the product serves is out of date.", file=sys.stderr)
-+        return 1
-+
-+    print(f"[freshness] OK — {len(ages)} source(s) within threshold.")
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    raise SystemExit(main())
-diff --git a/tests/test_nightly_entrypoint_parity.py b/tests/test_nightly_entrypoint_parity.py
-index a4ec973..4581ee0 100644
---- a/tests/test_nightly_entrypoint_parity.py
-+++ b/tests/test_nightly_entrypoint_parity.py
-@@ -27,6 +27,7 @@ different in wording, and a test that fails on wording gets deleted rather than
- 
- from __future__ import annotations
- 
-+import json
- import os
- import re
- import shutil
-@@ -218,6 +219,106 @@ def test_the_entrypoint_never_targets_a_non_prod_dataset():
-     )
- 
- 
-+def test_the_alert_policies_carry_only_fields_the_api_accepts():
-+    """#39 Stage 2 deploy artefact. Lives here because this file already owns "the nightly's
-+    deploy artefacts stay honest", and a separate module for one check is churn.
-+
-+    `alert-policy.json` carries `_`-prefixed comment keys for the reader, and the runbook strips
-+    exactly those before POSTing because the Monitoring API rejects unknown fields. The failure
-+    this catches is a comment added WITHOUT the underscore — `"note": "..."` sails through the
-+    stripper and 400s the create call, at the moment someone is rebuilding alerting.
-+
-+    An earlier version instead asserted that no `_` key survived `strip()`, which was
-+    tautological: the value tested WAS the output of `strip()`. Worse, the break-it check that
-+    "proved" it edited `strip()` — the test's own helper — rather than the subject. Breaking the
-+    harness is not breaking the subject, and a reviewer caught it.
-+
-+    It does NOT claim the deployed policies match this file; nothing applies it automatically.
-+    That gap is stated in the README rather than implied away by a test.
++    Two functions computing a due-date two ways is how a log line starts lying about what the
++    scheduler will do, so this walks forward day by day using the same slot arithmetic rather
++    than restating it as a formula.
 +    """
-+    raw = json.loads((REPO / "deploy" / "nightly" / "alert-policy.json").read_text(encoding="utf-8"))
-+
-+    def strip(o):
-+        if isinstance(o, dict):
-+            return {k: strip(v) for k, v in o.items() if not k.startswith("_")}
-+        if isinstance(o, list):
-+            return [strip(v) for v in o]
-+        return o
-+
-+    policies = strip(raw)["policies"]
-+    assert policies, "alert-policy.json declares no policies"
-+
-+    ALLOWED_POLICY_KEYS = {
-+        "displayName", "documentation", "combiner", "conditions",
-+        "alertStrategy", "notificationChannels", "enabled", "severity", "userLabels",
-+    }
-+    ALLOWED_CONDITION_KEYS = {
-+        "displayName", "conditionThreshold", "conditionAbsent",
-+        "conditionMonitoringQueryLanguage", "conditionMatchedLog", "name",
-+    }
-+
-+    for p in policies:
-+        unknown = sorted(set(p) - ALLOWED_POLICY_KEYS)
-+        assert not unknown, (
-+            f"{p.get('displayName')!r} carries policy fields the Monitoring API does not "
-+            f"accept: {unknown}. Comments must start with `_` so the runbook's stripper removes "
-+            "them; anything else 400s the create call."
-+        )
-+        for c in p["conditions"]:
-+            unknown = sorted(set(c) - ALLOWED_CONDITION_KEYS)
-+            assert not unknown, (
-+                f"condition {c.get('displayName')!r} carries unknown fields: {unknown}."
-+            )
++    offset = stagger_offset_days(league_code, interval_days)
++    day = last_ingested + timedelta(days=1)
++    for _ in range(interval_days + 1):
++        if (day.toordinal() + offset) % interval_days == 0:
++            return day
++        day += timedelta(days=1)
++    # Unreachable while a slot exists in every `interval_days` window; the safety net in
++    # should_refetch would have fired by now anyway.
++    return last_ingested + timedelta(days=interval_days)
 +
 +
-+def test_no_policy_refers_to_another_policy_by_a_name_that_does_not_exist():
-+    """FIX THE CLASS, not the instance.
++def skip_reason(
++    league_code: str,
++    last_ingested: datetime | None,
++    now: datetime,
++    interval_days: int = REFETCH_INTERVAL_DAYS,
++) -> str:
++    """One log line explaining a skip, with the age and when it next runs.
 +
-+    Renaming a policy left stale references behind THREE times in this task, each found by a
-+    reviewer rather than by anything mechanical:
-+      1. `deploy/nightly/README.md` quick-reference table (round 3)
-+      2. `deploy/nightly/README.md` "open incidents" curl filter (round 3)
-+      3. `alert-policy.json`'s own `fdp-nightly execution failed` documentation, pointing at the
-+         renamed sibling (round 4)
-+
-+    The third is the one that made a manual sweep clearly insufficient: it is JSON referencing
-+    JSON, so a README-vs-JSON comparison could never see it. These strings are what Cloud
-+    Monitoring renders on the incident page, so a wrong name there sends an on-call engineer
-+    looking for a policy that does not exist, mid-incident.
-+
-+    Any backticked `fdp ...` name appearing in a policy's documentation or comments must be a
-+    real declared policy — or the one explicitly-known exception below.
++    A skip that logs nothing is indistinguishable from a phase that silently stopped working —
++    which is the failure class this repo has been bitten by twice.
 +    """
-+    path = REPO / "deploy" / "nightly" / "alert-policy.json"
-+    raw = json.loads(path.read_text(encoding="utf-8"))
-+    declared = {p["displayName"] for p in raw["policies"]}
-+
-+    # Deployed but deliberately NOT in this file: the superseded 25h job-success policy, kept
-+    # as a bridge until the sentinel runs. Documented in README.md; absent here so that
-+    # re-applying the file cannot recreate it.
-+    KNOWN_UNVERSIONED = {"fdp-nightly stale (no success in 25h)"}
-+
-+    # Cloud Run JOB names are a different namespace from policy display names and are
-+    # legitimately referenced in the runbook commands inside `documentation.content`. Listed
-+    # rather than pattern-matched: the first version of this guard matched every backticked
-+    # `fdp…` token and flagged `fdp-freshness`, a real job, as a missing policy. A guard that
-+    # cries wolf gets deleted, which would put us back where round 4 found us.
-+    JOB_NAMES = {"fdp-nightly", "fdp-freshness"}
-+
-+    referenced: set[str] = set()
-+    for match in re.finditer(r"`(fdp[^`]*)`", path.read_text(encoding="utf-8")):
-+        referenced.add(match.group(1))
-+
-+    unknown = sorted(referenced - declared - KNOWN_UNVERSIONED - JOB_NAMES)
-+    assert not unknown, (
-+        f"alert-policy.json refers to policy name(s) that do not exist: {unknown}.\n"
-+        f"declared: {sorted(declared)}\n"
-+        "A renamed policy left a stale reference behind. These strings render on the Cloud "
-+        "Monitoring incident page, so this sends an on-call engineer after a policy that is "
-+        "not there."
-+    )
++    if last_ingested is None:
++        return "never ingested"
++    age_h = (now - last_ingested).total_seconds() / 3600.0
++    due = next_due(last_ingested, league_code, interval_days)
++    return (f"age={age_h:.1f}h, next due {due:%Y-%m-%d} (cadence {interval_days}d)")
 +
 +
- def test_the_shipped_profile_has_only_the_prod_target():
-     """If a `ci` or `dev` target ever appears in the image's profile, a mistyped --target stops
-     failing loudly and starts writing the wrong dataset instead."""
-diff --git a/tests/test_raw_freshness_sentinel.py b/tests/test_raw_freshness_sentinel.py
++def utcnow() -> datetime:
++    """Single clock source, so tests can freeze time by patching one name."""
++    return datetime.now(timezone.utc)
+diff --git a/tests/test_refetch_cadence.py b/tests/test_refetch_cadence.py
 new file mode 100644
-index 0000000..10c9c46
+index 0000000..04c97b3
 --- /dev/null
-+++ b/tests/test_raw_freshness_sentinel.py
-@@ -0,0 +1,204 @@
-+"""The out-of-band staleness sentinel. GitLab #39 Stage 2.
++++ b/tests/test_refetch_cadence.py
+@@ -0,0 +1,287 @@
++"""The 7-day re-fetch cadence for transfers and coaches. #33 item 14.
 +
-+WHAT IT GUARDS
-+--------------
-+`scripts/check_raw_freshness.py` is the ONLY thing in this system that can notice the nightly
-+has stopped. Every other check runs inside the nightly, so a nightly that never runs takes its
-+own monitoring with it — which is exactly how six days of stale data passed unnoticed in
-+August 2026.
++WHAT THIS GUARDS
++----------------
++Skipping work is easy to get wrong in ways that are silent:
 +
-+That makes the sentinel's failure modes unusually expensive, and they are all quiet ones:
++  · skipping a league that has NEVER been ingested  → it stays permanently absent
++  · skipping but still WRITING                      → a partial row, which since 8b DELETES
++                                                       the complete one (the #37 shape)
++  · a failed cadence read treated as "up to date"   → every league skipped forever
++  · cadence and sources.yml thresholds drifting     → the staleness alert fires daily on
++                                                       CORRECT behaviour and gets muted
 +
-+  · returning 0 when a source is stale        → the outage stays invisible, as before
-+  · returning 0 when it could not check       → a broken sentinel looks like a healthy pipeline
-+  · inventing a threshold for a source that
-+    deliberately has none                      → false alarms, and an alert people learn to mute
-+
-+None of those raise. Each test below targets one, and the pure `evaluate()` split exists so
-+they can be driven without BigQuery.
++None of those raise. Each has a test below, and the last is the one that ties this change's two
++halves together — the code cadence and the dbt freshness thresholds are only correct relative to
++each other.
 +"""
 +
 +from __future__ import annotations
@@ -1101,179 +796,264 @@ index 0000000..10c9c46
 +
 +sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 +
-+from scripts.check_raw_freshness import (  # noqa: E402
-+    evaluate,
-+    load_thresholds,
-+    main,
++from ingestion.api_football.refetch import (  # noqa: E402
++    FRESHNESS_MUST_EXCEED_CADENCE_BY_DAYS,
++    REFETCH_INTERVAL_DAYS,
++    latest_ingest_per_league,
++    next_due,
++    should_refetch,
++    stagger_offset_days,
 +)
 +
 +REPO = Path(__file__).resolve().parents[1]
 +SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
 +
++# The tables this task put on a cadence. They differ in write mode and it matters:
++#   TRANSFERS is merge-on-write (8b) and read latest-per-league — a partial write DELETES.
++#   COACHES is APPEND-ONLY, deliberately excluded from 8b because stg_apif__coaches reads all
++#   snapshots to preserve every coach ever seen (CPO 2026-06-23) — a partial write only adds
++#   noise. An earlier version of this file called both merge-on-write; a reviewer caught it.
++CADENCED_TABLES = {"RAW_APIF_TRANSFERS", "RAW_APIF_COACHES"}
 +
-+def test_thresholds_come_from_sources_yml_and_match_it():
-+    """The sentinel must not carry its own copy of the thresholds.
++NOW = datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc)
 +
-+    Two definitions drift, and the drifted one is the one nobody notices. This asserts the
-+    loader returns exactly the tables that declare a `freshness:` block in the real file — not
-+    a hardcoded list that would quietly stop matching when a source is added.
-+    """
-+    doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
-+    expected = {
-+        (t.get("identifier") or t["name"])
-+        for s in doc["sources"] for t in s["tables"] if t.get("freshness")
-+    }
-+    assert load_thresholds() .keys() == expected, (
-+        "the sentinel's table set diverged from sources.yml. It must be derived, never listed."
++
++def test_a_league_ingested_today_is_skipped():
++    assert not should_refetch("BL1", NOW - timedelta(hours=6), NOW)
++
++
++def test_a_league_ingested_long_ago_is_refetched():
++    assert should_refetch("BL1", NOW - timedelta(days=REFETCH_INTERVAL_DAYS + 1), NOW)
++
++
++def test_a_league_never_ingested_is_always_fetched():
++    """The one that must never be "optimised". There is no stored row to preserve, so skipping
++    would leave the competition permanently absent from raw — silently, since nothing errors."""
++    assert should_refetch("BL1", None, NOW)
++
++
++def test_the_force_flag_overrides_the_cadence(monkeypatch):
++    """A backfill has to be able to bypass this. Reuses the existing
++    API_FOOTBALL_INGEST_FORCE_FULL rather than a second flag nobody would remember."""
++    fresh = NOW - timedelta(hours=1)
++    assert not should_refetch("BL1", fresh, NOW)
++    monkeypatch.setenv("API_FOOTBALL_INGEST_FORCE_FULL", "1")
++    assert should_refetch("BL1", fresh, NOW)
++
++
++def test_the_stagger_spreads_leagues_across_the_whole_interval():
++    """Every league shares tonight's ingested_at, so without a stagger they all come due on the
++    same night: one night in seven costing the full 45 minutes against a 3h timeout, six costing
++    nothing. This asserts the offsets actually spread rather than clustering."""
++    codes = ["BL1", "BL2", "PL", "PD", "SA", "L1", "VL", "WC", "LMX", "LP", "MLS", "SPL",
++             "ED", "UCL", "UEL", "UECL", "BSA", "APD", "J1", "KL1", "DFBP", "FAC"]
++    offsets = {c: stagger_offset_days(c) for c in codes}
++    assert all(0 <= o < REFETCH_INTERVAL_DAYS for o in offsets.values())
++    assert len(set(offsets.values())) >= 5, (
++        f"offsets barely spread: {sorted(set(offsets.values()))}. All leagues would come due "
++        "on nearly the same night, which is the spike this exists to prevent."
 +    )
-+    assert expected, "sources.yml declares no freshness thresholds; the sentinel would no-op."
 +
 +
-+def test_sources_without_a_threshold_are_never_checked():
-+    """3 of the 11 sources deliberately carry `loaded_at_field` but NO thresholds — they
-+    refresh rarely and any threshold would false-alarm. Checking them anyway is how a sentinel
-+    starts crying wolf and gets muted, which is worse than not having one."""
-+    doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
-+    without = {
-+        (t.get("identifier") or t["name"])
-+        for s in doc["sources"] for t in s["tables"]
-+        if t.get("loaded_at_field") and not t.get("freshness")
-+    }
-+    assert without, "expected some sources to be deliberately threshold-free; sources.yml changed"
-+    assert not (without & load_thresholds().keys()), (
-+        f"the sentinel would check {sorted(without & load_thresholds().keys())}, which "
-+        "deliberately have no thresholds."
++def test_the_stagger_is_stable_across_processes():
++    """Python salts the builtin `hash()` per process, so using it here would give a league a
++    different offset every run and smear the cadence into 'somewhere between 1 and 7 days'.
++    This pins the values, so a switch to `hash()` fails rather than silently degrading."""
++    assert stagger_offset_days("BL1") == stagger_offset_days("BL1")
++    assert [stagger_offset_days(c) for c in ("BL1", "PL", "SA")] == [
++        stagger_offset_days(c) for c in ("BL1", "PL", "SA")
++    ]
++
++
++@pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS", "J1", "FAC", "UCL"])
++def test_every_league_actually_gets_the_ruled_cadence(code):
++    """THE ONE MY FIRST VERSION LACKED, and a reviewer found the bug instead.
++
++    The first implementation computed `due_after = interval - offset` on EVERY call, which
++    permanently SHORTENED the interval: a league with offset 6 re-fetched every single day and
++    only offset 0 ever got 7 days. It looked like a stagger and was a silent cadence cut, and
++    the CPO's ruling was "every 7 days" — not "somewhere between 1 and 7 depending on a hash".
++
++    This simulates a year of nightly runs and asserts the observed gap between re-fetches is
++    exactly the ruled interval for EVERY league, not just the lucky ones. It fails on the old
++    implementation for 6 of every 7 leagues.
++    """
++    last = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc)
++    fetches = []
++    for day in range(365):
++        now = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) + timedelta(days=day)
++        if should_refetch(code, last, now):
++            fetches.append(now)
++            last = now
++
++    assert len(fetches) >= 40, f"{code} barely re-fetched in a year: {len(fetches)}"
++    gaps = {(b - a).days for a, b in zip(fetches, fetches[1:])}
++    assert gaps == {REFETCH_INTERVAL_DAYS}, (
++        f"{code} re-fetched at gaps of {sorted(gaps)} days; the CPO ruled exactly "
++        f"{REFETCH_INTERVAL_DAYS}. A stagger must shift WHICH day, never how often."
 +    )
 +
 +
-+def test_a_stale_source_is_reported_stale():
-+    thresholds = {"T": {"error_after_hours": 54.0, "warn_after_hours": 30.0}}
-+    stale, warning = evaluate({"T": 55.0}, thresholds)
-+    assert [t for t, _, _ in stale] == ["T"], "a source past error_after was not flagged stale"
-+    assert not warning
++@pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS"])
++def test_the_logged_next_due_date_is_the_day_it_actually_refetches(code):
++    """The skip log tells an operator when a league next runs. If `next_due` and
++    `should_refetch` compute that two different ways, the log lies — and a lying log is worse
++    than none, because it gets trusted during an incident.
 +
-+
-+def test_a_fresh_source_is_neither_stale_nor_warned():
-+    thresholds = {"T": {"error_after_hours": 54.0, "warn_after_hours": 30.0}}
-+    stale, warning = evaluate({"T": 1.0}, thresholds)
-+    assert not stale and not warning
-+
-+
-+def test_a_warning_is_not_an_error():
-+    """warn_after must NOT fail the job. If it did, every run 30h after the last ingest would
-+    page — and the nightly is daily, so that would be routine."""
-+    thresholds = {"T": {"error_after_hours": 54.0, "warn_after_hours": 30.0}}
-+    stale, warning = evaluate({"T": 31.0}, thresholds)
-+    assert not stale, "a warn-level age was escalated to stale; this would page routinely"
-+    assert [t for t, _, _ in warning] == ["T"]
-+
-+
-+def test_the_boundary_is_strictly_greater_than():
-+    """Exactly at the threshold is not yet stale. Off-by-one here means a daily alert."""
-+    thresholds = {"T": {"error_after_hours": 54.0}}
-+    assert not evaluate({"T": 54.0}, thresholds)[0]
-+    assert evaluate({"T": 54.01}, thresholds)[0]
-+
-+
-+def _install_healthy_bigquery(monkeypatch):
-+    """A BigQuery that always answers, and answers FRESH.
-+
-+    Needed so `main()` can only return 2 via the branch under test. Without it this test was
-+    masked: `test:python` in CI runs with no GCP credentials (the job merges `<<: *python`
-+    only, no `*gcp_job`, no `id_tokens:`), so `bigquery.Client()` raises, `main()` returns 2
-+    through the "BigQuery unavailable" branch, and the assertion held whether or not the defect
-+    it names had been reintroduced. A reviewer caught that; it is the same "silently exercises
-+    the wrong thing" class this file warns about elsewhere, applied to this file itself.
++    Asserts the reported date is the first day `should_refetch` actually returns True.
 +    """
-+    class _Meta:
-+        modified = datetime.now(timezone.utc)
++    last = datetime(2026, 3, 2, 4, 0, tzinfo=timezone.utc)
++    reported = next_due(last, code)
 +
-+    class _Client:
-+        def __init__(self, *a, **k):
-+            pass
++    actual = None
++    for day in range(1, REFETCH_INTERVAL_DAYS + 2):
++        now = last + timedelta(days=day)
++        if should_refetch(code, last, now):
++            actual = now
++            break
 +
-+        def get_table(self, _ref):
-+            return _Meta()
-+
-+    import google.cloud.bigquery as bq
-+
-+    monkeypatch.setattr(bq, "Client", _Client)
-+
-+
-+def test_a_sentinel_that_cannot_read_its_thresholds_does_not_report_healthy(monkeypatch, tmp_path):
-+    """THE most dangerous failure mode: exit 0 while checking nothing.
-+
-+    A sentinel that cannot check must never look healthy — that is indistinguishable from a
-+    working pipeline, which is the precise shape of the incident this whole stage exists to
-+    prevent. Exit 2, not 0.
-+
-+    BigQuery is stubbed HEALTHY on purpose. If `load_thresholds` regressed to binding
-+    `SOURCES_YML` as an import-time default (the defect this pins), the monkeypatched path would
-+    be ignored, the real sources.yml would load, every table would read as fresh, and `main()`
-+    would return 0 — so the assertion fails, which is what it is for. Without the stub, an
-+    unauthenticated environment returns 2 for an unrelated reason and hides that entirely.
-+    """
-+    import scripts.check_raw_freshness as mod
-+
-+    _install_healthy_bigquery(monkeypatch)
-+    monkeypatch.setattr(mod, "SOURCES_YML", tmp_path / "does-not-exist.yml")
-+    assert main([]) == 2, "an unreadable thresholds file reported success"
++    assert actual is not None, f"{code} never became due within a full cycle"
++    assert reported.date() == actual.date(), (
++        f"{code}: the skip log would report {reported.date()} but the scheduler re-fetches on "
++        f"{actual.date()}."
++    )
 +
 +
-+def test_an_empty_threshold_set_does_not_report_healthy(monkeypatch):
-+    """Same class: if sources.yml parses but declares nothing, there is nothing to check and
-+    saying OK would be a lie."""
-+    import scripts.check_raw_freshness as mod
++def test_the_stagger_actually_spreads_the_load_across_the_week():
++    """The other half: exact cadence is worthless if every league lands on the same day, which
++    is the 45-minute spike the stagger exists to prevent."""
++    codes = ["BL1", "BL2", "PL", "PD", "SA", "L1", "VL", "WC", "LMX", "LP", "MLS", "SPL",
++             "ED", "UCL", "UEL", "UECL", "BSA", "APD", "J1", "KL1", "DFBP", "FAC"]
++    last = {c: datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) for c in codes}
++    per_day = []
++    for day in range(1, 15):
++        now = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) + timedelta(days=day)
++        due = [c for c in codes if should_refetch(c, last[c], now)]
++        for c in due:
++            last[c] = now
++        per_day.append(len(due))
 +
-+    _install_healthy_bigquery(monkeypatch)  # so 2 can only come from the branch under test
-+    monkeypatch.setattr(mod, "load_thresholds", lambda *a, **k: {})
-+    assert main([]) == 2, "an empty threshold set reported success"
-+
-+
-+@pytest.mark.parametrize("age_hours, expected_exit", [(1.0, 0), (100.0, 1)])
-+def test_end_to_end_exit_code_drives_the_alert(monkeypatch, age_hours, expected_exit):
-+    """The exit code IS the alerting mechanism — Cloud Run marks a non-zero execution FAILED
-+    and the alert policy fires on that. Asserted end to end through main(), with BigQuery
-+    replaced, because an exit code that is right in evaluate() and wrong in main() alerts on
-+    nothing."""
-+    import scripts.check_raw_freshness as mod
-+
-+    monkeypatch.setattr(mod, "load_thresholds", lambda *a, **k: {"T": {"error_after_hours": 54.0}})
-+
-+    class _FakeMeta:
-+        modified = datetime.now(timezone.utc) - timedelta(hours=age_hours)
-+
-+    class _FakeClient:
-+        def __init__(self, *a, **k):
-+            pass
-+
-+        def get_table(self, _ref):
-+            return _FakeMeta()
-+
-+    import google.cloud.bigquery as bq
-+
-+    monkeypatch.setattr(bq, "Client", _FakeClient)
-+    assert main([]) == expected_exit
++    busiest = max(per_day)
++    assert busiest < len(codes), (
++        f"all {len(codes)} leagues came due on one night ({per_day}); that is the spike the "
++        "stagger exists to prevent."
++    )
++    assert busiest <= len(codes) // 2, f"load poorly spread across the week: {per_day}"
 +
 +
-+def test_an_unreadable_table_is_not_treated_as_fresh(monkeypatch):
-+    """A table BigQuery will not answer for is unknown, not fresh. Returning 0 here would mean
-+    a deleted or renamed raw table silently reads as healthy forever."""
-+    import scripts.check_raw_freshness as mod
++def test_a_failed_cadence_read_makes_every_league_due():
++    """Fail toward fetching, never toward skipping.
 +
-+    monkeypatch.setattr(mod, "load_thresholds", lambda *a, **k: {"T": {"error_after_hours": 54.0}})
-+
++    If the cadence query dies, treating leagues as up-to-date would skip every phase forever
++    and the data would rot in silence. A redundant fetch is the cheap error."""
 +    class _Boom:
-+        def __init__(self, *a, **k):
-+            pass
++        def query(self, _sql):
++            raise RuntimeError("BigQuery unavailable")
 +
-+        def get_table(self, _ref):
-+            raise RuntimeError("404 Not found: Table T")
++    assert latest_ingest_per_league(_Boom(), "RAW_APIF_TRANSFERS") == {}
++    assert should_refetch("BL1", {}.get("BL1"), NOW)
 +
-+    import google.cloud.bigquery as bq
 +
-+    monkeypatch.setattr(bq, "Client", _Boom)
-+    assert main([]) == 2, "an unreadable table reported success"
++def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
++    """THE ONE THAT PREVENTS DATA LOSS.
++
++    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league and
++    merge-on-write since 8b, so a write of a partial payload would DELETE the complete row —
++    the #37 defect, made permanent. Asserted by running the real orchestration path with the
++    loader replaced by a recorder: zero calls, not "a call with less data".
++    """
++    from ingestion.api_football.loads import competition_runner as cr
++
++    calls = []
++    monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: calls.append(a))
++
++    result = type("R", (), {"league_code": "BL1", "team_ids": {1, 2}, "seasons_list": [2026]})()
++    ctx = type("C", (), {"errors": []})()
++
++    fresh = {"BL1": datetime.now(timezone.utc) - timedelta(hours=2)}
++    cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=fresh)
++    assert calls == [], "a skipped league still called the loader; it would write a partial row"
++
++    stale = {"BL1": datetime.now(timezone.utc) - timedelta(days=30)}
++    cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=stale)
++    assert len(calls) == 1, "a due league did not fetch; the cadence would never refresh"
++
++
++def test_no_cadence_information_means_fetch(monkeypatch):
++    """Passing None (the default) must behave exactly as before this change — every league
++    fetches. Otherwise any caller that forgets the argument silently stops ingesting."""
++    from ingestion.api_football.loads import competition_runner as cr
++
++    calls = []
++    monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: calls.append(a))
++    result = type("R", (), {"league_code": "BL1", "team_ids": {1}, "seasons_list": [2026]})()
++    ctx = type("C", (), {"errors": []})()
++
++    cr.run_transfers_for_competition(ctx, result)
++    assert len(calls) == 1
++
++
++def _threshold_days(spec: dict) -> float:
++    per = {"minute": 1 / 1440, "hour": 1 / 24, "day": 1}
++    return float(spec["count"]) * per[spec["period"]]
++
++
++@pytest.mark.parametrize("table", sorted(CADENCED_TABLES))
++def test_freshness_thresholds_exceed_the_cadence(table):
++    """THE GUARD THAT TIES THE TWO HALVES TOGETHER.
++
++    The code cadence and the dbt freshness thresholds are only correct relative to each other.
++    At the old 54h, a table refreshed every 7 days sits permanently past `error_after`.
++
++    Nothing on this branch reads those thresholds — `dbt source freshness` is invoked nowhere,
++    and the consumer is the hourly sentinel on the separate, unmerged #39 Stage 2 branch (!30).
++    So today this is inert; once !30 lands, unraised thresholds would email EVERY DAY about a
++    pipeline behaving exactly as ruled, which ends with somebody muting the alert and leaving
++    the pipeline unwatched again. This test is what keeps the two halves in step regardless of
++    which merges first.
++
++    So `error_after` must exceed the cadence plus one whole extra cycle. Change
++    REFETCH_INTERVAL_DAYS to 14 without touching sources.yml and this fails, which is the point.
++    """
++    doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
++    tables = {
++        (t.get("identifier") or t["name"]): t
++        for s in doc["sources"] for t in s["tables"]
++    }
++    assert table in tables, f"{table} vanished from sources.yml"
++    fresh = tables[table].get("freshness")
++    assert fresh, f"{table} lost its freshness block; the sentinel would stop checking it"
++
++    error_days = _threshold_days(fresh["error_after"])
++    minimum = REFETCH_INTERVAL_DAYS + FRESHNESS_MUST_EXCEED_CADENCE_BY_DAYS
++    assert error_days > minimum, (
++        f"{table} error_after is {error_days}d but the re-fetch cadence is "
++        f"{REFETCH_INTERVAL_DAYS}d. It must exceed {minimum}d (cadence + one cycle), or the "
++        "staleness alert fires daily on a pipeline that is behaving correctly, and gets muted."
++    )
++
++    warn_days = _threshold_days(fresh["warn_after"])
++    assert warn_days >= REFETCH_INTERVAL_DAYS, (
++        f"{table} warn_after is {warn_days}d, inside the {REFETCH_INTERVAL_DAYS}d cadence — "
++        "it would warn on every normal cycle."
++    )
++    assert warn_days < error_days
++
++
++def test_the_nightly_sources_keep_their_tight_thresholds():
++    """The relaxation must be confined to the two cadenced tables. Everything else is still
++    ingested nightly, and widening those would blind the sentinel for no reason."""
++    doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
++    for s in doc["sources"]:
++        for t in s["tables"]:
++            name = t.get("identifier") or t["name"]
++            fresh = t.get("freshness")
++            if not fresh or name in CADENCED_TABLES:
++                continue
++            assert _threshold_days(fresh["error_after"]) <= 3, (
++                f"{name} is not on a re-fetch cadence but its error_after was widened to "
++                f"{_threshold_days(fresh['error_after'])}d. Only the cadenced tables may relax."
++            )
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1287,6 +1067,6 @@ index 0000000..10c9c46
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 1968 ++++++++++++++++++++++-----------------
-#    1 file changed, 1106 insertions(+), 862 deletions(-)
+#   .claude/task/review_input.patch | 1772 +++++++++++++++++++--------------------
+#    1 file changed, 885 insertions(+), 887 deletions(-)
 # ============================================================================

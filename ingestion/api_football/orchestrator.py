@@ -40,6 +40,7 @@ from .ingestion_lock import (
     new_run_id,
     release_ingest_lock,
 )
+from .refetch import latest_ingest_per_league
 from .settings import (
     DATASET_ID,
     DEFAULT_SEASON_WINDOW_YEARS,
@@ -48,6 +49,7 @@ from .settings import (
     _env_truthy,
     _ingest_profile_name,
     get_headers,
+    raw_table,
 )
 from .season_inference import (
     effective_season_max,
@@ -149,6 +151,16 @@ def _load_api_football(request):
         # therefore keeps its own, separate read. Hoisting further (one read for the whole
         # run) would make every run report fanout gaps that the same run had just filled.
         phase1_covered = read_coverage(ctx.client)
+        # #33 item 14 — the re-fetch cadence for coaches and transfers, read ONCE for every
+        # league and passed into the loops below. Same reason as read_coverage above: reading
+        # this per competition would reintroduce exactly the O(competitions^2) shape item 1
+        # removed. Two grouped queries against tables 8b shrank to 0.178 and 0.008 GiB.
+        #
+        # Unlike phase1_covered this IS safe to hoist for the whole run: nothing in this run
+        # writes COACHES or TRANSFERS before these loops, so there are no same-run writes for
+        # a later read to miss.
+        coaches_last_ingest = latest_ingest_per_league(ctx.client, raw_table("COACHES"))
+        transfers_last_ingest = latest_ingest_per_league(ctx.client, raw_table("TRANSFERS"))
         results = []
         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
         finished_comps: list[tuple[str, int, set[int]]] = []
@@ -180,6 +192,7 @@ def _load_api_football(request):
                 current_season=comp.current_season,
                 history_seasons=comp.history_seasons,
                 season_type=comp.season_type,
+                coaches_last_ingest=coaches_last_ingest,
             )
             if result is not None:
                 results.append(result)
@@ -216,7 +229,9 @@ def _load_api_football(request):
 
         # Phase 4: transfers batch per competition (dated affiliation moves)
         for result in results:
-            run_transfers_for_competition(ctx, result)
+            run_transfers_for_competition(
+                ctx, result, transfers_last_ingest=transfers_last_ingest
+            )
 
         # Phase 5: global per-player bio + career (profiles + teams) over the current
         # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
