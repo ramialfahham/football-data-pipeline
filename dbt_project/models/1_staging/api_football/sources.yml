@@ -40,12 +40,26 @@ sources:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
 
+      # 7-DAY RE-FETCH CADENCE (#33 item 14), so these thresholds are NOT the 30h/54h the
+      # nightly sources use. Managers change rarely and /coachs cost 18.7 min a night to
+      # re-download unchanged data; the CPO ruled a weekly cadence.
+      #
+      # These two numbers are LOAD-BEARING, not decoration: at 54h this table would sit
+      # permanently past error_after once anything actually reads these thresholds.
+      # WHO READS THEM: nothing does today. `dbt source freshness` is invoked nowhere in this
+      # repo. The consumer is the hourly sentinel added by #39 Stage 2 (MR !30), which is a
+      # SEPARATE, currently unmerged branch — so until it lands this block is inert metadata,
+      # and after it lands unraised thresholds would email daily about correct behaviour.
+      # 8 days = the 7-day cadence plus a day of slack. 10 days = tolerate one entirely missed
+      # cycle before paging. `tests/test_refetch_cadence.py` pins this against
+      # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.
+      # The honest cost: genuine breakage here is now invisible for up to 10 days, not 54h.
       - name: raw_apif_coaches
         identifier: RAW_APIF_COACHES
         loaded_at_field: ingested_at
         freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
+          warn_after: {count: 8, period: day}
+          error_after: {count: 10, period: day}
 
       - name: raw_apif_fixture_details
         identifier: RAW_APIF_FIXTURE_DETAILS
@@ -54,12 +68,16 @@ sources:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
 
+      # 7-DAY RE-FETCH CADENCE (#33 item 14) — see the note on raw_apif_coaches above for why
+      # these thresholds differ from the nightly sources and why they are load-bearing.
+      # Transfers move in bursts (January, summer), not nightly, and this was the single most
+      # expensive phase in the run at 26.7 min.
       - name: raw_apif_transfers
         identifier: RAW_APIF_TRANSFERS
         loaded_at_field: ingested_at
         freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
+          warn_after: {count: 8, period: day}
+          error_after: {count: 10, period: day}
 
       # Player-data tables (PR-a): slow-moving (bio/career/squad), backfilled then refreshed
       # rarely — no aggressive freshness thresholds (they would false-alarm between refreshes).

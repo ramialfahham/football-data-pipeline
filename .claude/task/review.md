@@ -1,67 +1,91 @@
-# Review — feat/39-nightly-freshness-alert — 2026-08-10
+# Review — perf/33-item14-refetch-cadence — 2026-08-10
 
-diff_sha256: 93a4870de38230c01920a43165ece741009ac3b14ea802afeb614f6ffe60c456
+diff_sha256: 16ef2e2f5d755991a4a03a23311f385eb4c9d791448369b4b5af4038510df317
 
-rounds: 5
+rounds: 4
 
-rounds_cap_override: CPO authorised twice, explicitly and separately — "run round 4" and then
-"run round 5" — each time so a live platform-reviewer FAIL could be fixed and re-verified rather
-than accepted on the builder's word. The cap exists to stop grinding; here every extra round was
-paid for by a real defect the reviewer found and the builder had missed, including one the
-builder's own sweep was structurally incapable of seeing.
+rounds_cap_override: CPO authorised explicitly — "run round 4" — so scope-auditor's round-3
+finding could be fixed and re-verified rather than accepted on the builder's word. The cap
+exists to stop grinding; here the extra round was paid for by a real defect the reviewer found.
 
 <!--
-Round history. Every FAIL was the builder's, and the design changed mid-task on a CPO ruling.
-  r1  scope-auditor FAIL · platform FAIL · cto PASS
-  r2  all three FAIL — the same defect, found independently
-  r3  scope-auditor PASS · cto PASS · platform FAIL
-  r4  scope-auditor PASS · platform FAIL          (cap override #1)
-  r5  platform PASS                                (cap override #2)
+REBASED onto main after #39 Stage 2 (!30) merged, 2026-08-10. The four `.claude/task/*` files
+conflicted, as every pair of concurrent branches in this repo does: `contract.md`, `review.md`
+and `review_input.patch` were taken from THIS branch (they describe THIS task), while
+`escalations.log` was UNIONED — it is append-only history and both Stage 2's entry and item
+14's had to survive. Verified: both are present, no conflict markers remain.
 
-`cto-reviewer` is NOT routed to these paths by .claude/review_routing.json — no row covers
-`deploy/**` or a monitoring surface. Spawned deliberately because this task declares a NEW
-MECHANISM and touches recurring cost, which are its thresholds and which no routing row finds.
+`diff_sha256` was rebound with `scripts/check_task_artifacts.py --base main`, NOT
+`--staged-hash`. On a rebased branch the staged hash covers only the increment while CI
+recomputes over the whole branch, so the two diverge and the local number would false-green.
 
-Verdicts below are each reviewer's LAST, all against the final diff:
-  scope-auditor r4 · cto r3 · platform r5.
-cto's r3 PASS predates two later changes, both confined to `deploy/nightly/README.md` and
-`alert-policy.json` documentation strings and a new test — no cost claim, no mechanism, nothing
-in its remit moved. Stated rather than glossed, because the hash binds all three to this diff.
+No reviewer verdict below was re-run for the rebase: no code, test or contract line changed —
+only the base commit and the three artifacts above. The rebase did, however, bring the two
+halves of this change together for the first time, and that was verified rather than assumed:
+`scripts/check_raw_freshness.py` (from !30) now reads item 14's raised thresholds, 240h error
+instead of 54h. Without item 14's `sources.yml` edit the sentinel would have paged daily the
+moment the cadence went live.
+-->
+
+<!-- Post-rebase verification: pytest 764 passed / 1 skipped (main after !30 is 751), ruff
+     clean, no conflict markers, both escalations entries intact. -->
+
+
+<!--
+Round history. Every FAIL was the builder's, and the first two were live bugs, not paperwork:
+  r1  analytics-engineer FAIL  (stagger broke the ruled cadence; COACHES mislabelled)
+  r2  data-engineer FAIL       (contract cited a file that lives on an unmerged branch)
+  r3  analytics PASS · data-engineer PASS · platform PASS · scope-auditor FAIL
+  r4  scope-auditor PASS
+
+Verdicts below are each reviewer's LAST. analytics/data-engineer/platform passed at round 3
+against a diff that differs from this one by exactly one addition — the 2026-08-10
+`escalations.log` entry that cured scope-auditor's finding. No code, test or contract line
+changed after their pass. Stated rather than glossed, because the hash binds all four to the
+final diff and only scope-auditor saw the last delta.
 -->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round-2 finding (contract and README describing a reverted mechanism as shipped) re-checked against current text: `contract.md` objective, impact_map and cost profile, and `README.md` "Operating it" all now state the entrypoint is untouched, and cite `git diff main -- deploy/nightly/entrypoint.sh` being empty as the check. Confirmed no hunk in `review_input.patch` touches that file. Cured.
-- §10/§11 authority chain for the mid-task design change: `contract.md` `decisions_taken` and the 2026-08-10 `escalations.log` entry both record a proper escalation with three paths and a recommendation, and the CPO's contrary choice ("Build a BigQuery-backed check instead"). The `amendments:` entry cites that ruling for the two added scope paths.
-- Recurring-cost claim verified against implementation: `table_age_hours()` calls only `client.get_table()`, a metadata call with no query job — the "free" claim holds.
-- Numeric claims against source of truth: "warn 30h / error 54h on 8 of the 11 sources" checked against `sources.yml` — exactly 8 tables carry a `freshness:` block. Consistent across contract, README, JSON comments and the script docstring.
-- Doc/JSON consistency after the rename: README's quick-reference table and its `display_name` curl filter both match `alert-policy.json`'s actual `displayName`; the bridge policy `fdp-nightly stale (no success in 25h)` is disclosed as deployed-but-unversioned rather than papering over drift.
-- Scope: every file in the patch is listed in `scope_paths`; the delta stayed inside it.
-- Credentials sweep across the full diff: only `gcloud auth print-access-token` (a dynamic fetch, not a stored secret) and Secret Manager references by name. Nothing credential-shaped introduced.
+- Round-3 finding 1 (the CPO ruling and both derived consequences claimed in `contract.md` but absent from `escalations.log`): remedied — verbatim ruling quote and explicit builder-derived flagging with stated costs now recorded at `escalations.log:1864-1914`, in the format this repo has used for every other accepted ruling.
+- Round-3 finding 2 (the `orchestrator.py` amendment citing an unrecorded "CPO-approved plan"): remedied — the same entry records the scope-amendment authority and the specific plan content at `escalations.log:1916-1920`, outside the artifact it authorises.
+- Circularity check, because a second self-authored copy could be no better than the first: compared this entry's evidentiary format against ~10 other accepted ruling records in the same log (lines 337, 1015, 1172, 1306, 1359, 1840). Same "verbatim, in-thread" convention throughout — line 250 explicitly flags that its quotes cannot be verified from repo contents by a cold reviewer and was accepted. This meets the established bar, not a lower one invented for this task.
+- Premise check re-verified INDEPENDENTLY rather than taken from the contract: grepped `ingestion/api_football/loads/` for the five named skip-logic patterns; `transfers.py` and `coaches.py` are absent from the matches, consistent with "neither loader has ever had skip-if-present logic".
+- Confirmed no code, test or `contract.md` line changed in this delta — only `escalations.log` — so no new surface required re-audit.
+- (r3, still standing) Scope conformance: every changed file maps to a `scope_paths` entry, including the amended `orchestrator.py`.
+- (r3) The stagger fix verified not reintroduced: `should_refetch`'s safety net (`age_days >= interval_days`) precedes the slot check, so every league gets the full ruled interval.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- All five round-2 defect locations re-read verbatim and confirmed corrected: `objective` (no in-pipeline half), `impact_map` "what changes in the pipeline" (NOTHING, with the empty-diff check named), `impact_map` cost profile and `decisions_taken` RECURRING COST (nightly cost unchanged, quiet night still $0), and `done_when` (break-it list now matches assertions that exist).
-- The "11 vs 8" discrepancy: 11 sources total, 8 with thresholds, 3 deliberately without — arithmetically consistent everywhere it is stated; no surviving place asserts a conflicting total.
-- Recurring cost now verifiable from the contract's own words without re-deriving from code: ~24 Cloud Run executions/day of a few seconds at 1 vCPU / 512 MiB, metadata calls unbilled, policies and Scheduler free. One number, stated identically in both places it appears.
-- New mechanism authority: the second Cloud Run Job and its hourly schedule were escalated and answered by the CPO, so the mechanism and cost thresholds were declared with authority rather than smuggled.
-- Proportionality: Cloud Monitoring is native to the GCP project already in use since Stage 1 — no third-party paging service introduced. The "watcher's watcher" regress is explicitly declined at one level, which is the right boundary rather than an infinite chain.
-- IAM: the `run.invoker` binding is resource-scoped to the `fdp-freshness` job, not project-wide, consistent with the restraint established in Stage 1. No new dependency; `requirements.txt` untouched.
+- Threshold arithmetic against a genuine 7-day cadence: `warn 8d` gives one day of slack before warning, `error 10d` tolerates one fully missed cycle before erroring — and the relationship is pinned by `test_freshness_thresholds_exceed_the_cadence` so cadence and thresholds cannot drift apart.
+- Confinement of the relaxation: only `raw_apif_coaches` and `raw_apif_transfers` moved; the other nine sources in `sources.yml` are untouched, and `test_the_nightly_sources_keep_their_tight_thresholds` guards that boundary going forward.
+- No league identifier hardcoded anywhere; the change is table-scoped, not competition-scoped.
+- Downstream: no SQL, model or grain changed. The `impact_map`'s pasted `dbt ls` output (`stg_apif__coaches/coach_career/transfers` → `base_apif__*` → `dim_coach`, `dim_coach_team_mapping`, `fct_transfer`) matches an independent grep of `dbt_project/models`; nothing further downstream references these, so "blast_radius: NONE on 9 models" holds.
+- Round-1 finding 1 (the stagger permanently shortening the interval so most leagues re-fetched daily) — verified fixed against the new slot arithmetic.
+- Round-1 finding 2 (`RAW_APIF_COACHES` wrongly called merge-on-write in four places) — verified corrected against `data_contract.md`, `stg_apif__coaches.sql` and `loads/coaches.py:83`, which confirms `append=True` with no delete call.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Cadence arithmetic in `refetch.py::should_refetch`: traced the slot modulo against the safety net (`age_days >= interval_days`) and the same-day floor (`age_days < 1`). Steady-state gaps are exactly 7 days per league by a pigeonhole argument — any 7 consecutive days contain exactly one slot day for a given offset. A missed run self-heals via the safety net. The only transient is a possibly-shorter first interval after a `None`-triggered first ingest: one-time, and in the safe direction (an extra fetch, never a skip).
+- Hoisting placement in `orchestrator.py`: `latest_ingest_per_league` called exactly once per table, after `acquire_ingest_lock` and before the per-competition loop; both consumers receive the same pre-computed dict. No O(competitions²) reintroduced, and no coaches/transfers write happens earlier in the run that this read could miss.
+- Failure direction: `latest_ingest_per_league` catches all exceptions and returns `{}`; `.get()` yields `None`; `should_refetch(..., None, ...)` returns True. A failed read makes every league DUE, never silently skipped.
+- Write modes confirmed at source: `loads/coaches.py:83` append-only with no `delete_superseded_league_rows`; `loads/transfers.py:88` merge-on-write via that call. Matches the corrected comments.
+- The `new_data` gate: `ctx.tables_loaded` is incremented by loaders that still run unconditionally every night (fixtures, standings, teams, injuries), so a coaches/transfers skip cannot by itself drive `new_data` false and suppress the warehouse build.
+- Call-site completeness: `run_cheap_phases` and `run_transfers_for_competition` are called only from `orchestrator.py`; both updated, no stale caller left behind.
+- Round-2 finding (the contract citing `scripts/check_raw_freshness.py` as present fact when it lives on unmerged !30) — verified corrected; the contract now states the consumer is not in this diff and that the change is inert either way.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round-4 defect re-read verbatim at `alert-policy.json:131`: the sibling policy is now named correctly ("or uncheckable") and the "users affected" claim is attributed to exit 1 only, with exit 2 stated separately as "lost the ability to tell". Confirmed by direct read, not from the builder's report.
-- Fourth-instance sweep: `README.md` in full (all `fdp-*` occurrences), `entrypoint.sh`, `scripts/check_raw_freshness.py`, `.gitlab-ci.yml` and `.github/workflows/` — zero surviving references to any stale policy name. No fourth instance exists.
-- The new guard is real, not decoration: hand-derived its backtick-extraction regex against the actual JSON bytes — exactly two spans exist file-wide, both correctly classified. Reinstating the round-4 wording changes the captured string to one absent from all three allowlists, failing the assertion.
-- `JOB_NAMES` allowlist examined as a hiding spot: it matches only by exact full-string equality to a bare job name, so it could mask only a reference truncated to exactly `fdp-nightly` or `fdp-freshness`. No such reference exists. A narrow, currently-inert gap — named rather than manufactured into a finding.
-- `KNOWN_UNVERSIONED` checked against the one place that string appears (`README.md`), matching exactly; the JSON deliberately omits that policy as documented.
-- (r3, still standing) The masked "cannot check" test is cured: `_install_healthy_bigquery` stubs the client so `main()` can only return 2 via the branch under test. Traced the named regression by hand — with the stub it returns 0 and the assertion fails, with or without GCP credentials in CI.
-- (r3, still standing) The sentinel's silent failure modes each have a test that goes red under a single production edit: staleness comparison disabled, "nothing to check" returning 0, `SOURCES_YML` rebound as an import-time default, and an unreadable table treated as fresh.
-- (r3, still standing) `evaluate()`'s stale/warn/boundary split verified — warn does not escalate to a failure, and the boundary is strictly greater-than, so an exactly-at-threshold age does not page daily.
+- Decoration hunt across all new tests: for each, identified the single production edit that flips it red — reinstating `due_after = interval - offset` (the year-long simulation fails for 6 of 8 leagues), removing the `return` after a skip (the no-write test fails), making a never-ingested league skip (three tests fail), widening `REFETCH_INTERVAL_DAYS` without touching `sources.yml` (the threshold-drift guard fails). None vacuous.
+- `test_a_skipped_league_writes_nothing_at_all` exercises the real `run_transfers_for_competition` path with the loader replaced by a recorder, asserting zero calls rather than "a call with less data" — the assertion that actually guards against the #37 shape on a merge-on-write table.
+- `test_the_logged_next_due_date_is_the_day_it_actually_refetches`: `next_due` and `should_refetch` are pinned to agree, so the skip log cannot report a date the scheduler will not honour. A log that lies during an incident is worse than none.
+- The stagger's stability: `md5` rather than the builtin `hash()`, which Python salts per process — a per-run-varying offset would smear the cadence. Pinned by test.
+- Env override reuses the existing `API_FOOTBALL_INGEST_FORCE_FULL` rather than introducing a second flag; verified it bypasses the cadence.
+- Skip visibility: `_skipped_phase` logs age and next due date, so a silently-stopped phase is distinguishable from a deliberately skipped one in the nightly log.
 
 ## escalations
-- question: The CPO chose a 30h staleness threshold. Cloud Monitoring rejects it — `conditionAbsent` caps at 23h30m, MQL `absent_for` at 1d1h, and for a daily job anything at or below 24h fires before every run. Three paths were put to the CPO: (A) keep 25h, the platform ceiling, with ~1h of drift tolerance — the builder's recommendation; (B) disable staleness detection until #33 item 14 shrinks the run; (C) build a BigQuery-backed check that measures data age directly and is not subject to the cap.
-  CPO ANSWER: "Build a BigQuery-backed check instead." — path C, against the builder's recommendation. Recorded in `.claude/task/escalations.log`, 2026-08-10.
+(none)
