@@ -1,1122 +1,408 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d0e00c1..ea205d2 100644
+index ea205d2..40b0001 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,195 +1,146 @@
--# Task contract — #39 Stage 2: make the nightly observable
-+# Task contract — #33 item 14: re-fetch cadence for transfers and coaches
+@@ -1,146 +1,200 @@
+-# Task contract — #33 item 14: re-fetch cadence for transfers and coaches
++# Task contract — #53: correct the Macau/Mação event mis-attribution
  
  objective: >
--  Stage 1 gave the nightly a safe home. It still has the blind spot that turned a silently
--  dropped cron into SIX DAYS of stale data (2026-08-03 → 08-09), found by a human by accident
--  rather than by a system. Stage 2 closes it.
+-  `transfers` and `coaches` re-download identical data every night. Measured on the 2026-08-09
+-  nightly: 26.7 + 18.7 = **45 of 105 ingestion minutes**, and roughly 3,800 of ~8,300 daily API
+-  calls, spent fetching data that has not changed. Transfers move in bursts (January, summer);
+-  managers change rarely.
 -
--  THE LOAD-BEARING INSIGHT, and the reason this is not just "wire up dbt source freshness":
--  every check that lives inside the nightly only runs when the nightly runs. The failure that
--  cost six days was the nightly NOT RUNNING AT ALL. No in-pipeline test can ever see that.
+-  This task makes both re-fetch on a **7-day cadence per league** instead of nightly.
 -
--  WHAT SHIPPED, after the CPO redirected the design mid-task: the monitor is ENTIRELY
--  out-of-band. `scripts/check_raw_freshness.py` runs hourly as its own Cloud Run Job, reads each
--  raw table's last-modified time from BigQuery METADATA, and exits non-zero when it is past the
--  `error_after` already declared in `sources.yml`. THE NIGHTLY IS NOT TOUCHED AT ALL —
--  `deploy/nightly/entrypoint.sh` has zero net diff on this branch. An earlier attempt added
--  `dbt source freshness` inside it and hoisted `dbt deps` above the `new_data` gate; that was
--  REVERTED when the sentinel made it redundant. There is no in-pipeline half.
--refs: GitLab #39 (Stage 2 of 3); #33 item 16
-+  `transfers` and `coaches` re-download identical data every night. Measured on the 2026-08-09
-+  nightly: 26.7 + 18.7 = **45 of 105 ingestion minutes**, and roughly 3,800 of ~8,300 daily API
-+  calls, spent fetching data that has not changed. Transfers move in bursts (January, summer);
-+  managers change rarely.
+-  NOT A REGRESSION FIX, and the record matters because the CPO asked for it as one. `git log -S`
+-  across ALL history for `already_captured`, `captured_`, `skip_if_present`, `cached_response`
+-  and `players_needing`, scoped to `loads/transfers.py` and `loads/coaches.py`, returns ZERO
+-  commits. Neither loader has ever carried skip-if-present logic. The CPO's recollection of a
+-  "don't fetch what we already have" design is nonetheless correct — it exists and is deliberate
+-  in FIVE other loaders (`players`, `player_squads`, `player_profiles`, `player_teams`,
+-  `fixtures`, `fixture_details`). These two never got it. This finishes the job rather than
+-  restoring something.
+-refs: GitLab #33 item 14
++  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
++  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
++  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
++  current while `dbt_analytics` silently is not.
 +
-+  This task makes both re-fetch on a **7-day cadence per league** instead of nightly.
-+
-+  NOT A REGRESSION FIX, and the record matters because the CPO asked for it as one. `git log -S`
-+  across ALL history for `already_captured`, `captured_`, `skip_if_present`, `cached_response`
-+  and `players_needing`, scoped to `loads/transfers.py` and `loads/coaches.py`, returns ZERO
-+  commits. Neither loader has ever carried skip-if-present logic. The CPO's recollection of a
-+  "don't fetch what we already have" design is nonetheless correct — it exists and is deliberate
-+  in FIVE other loaders (`players`, `player_squads`, `player_profiles`, `player_teams`,
-+  `fixtures`, `fixture_details`). These two never got it. This finishes the job rather than
-+  restoring something.
-+refs: GitLab #33 item 14
++  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
++  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
++  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
++  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
++  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
++refs: >
++  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
++  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
++  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
  
  scope_paths:
--  - deploy/nightly/entrypoint.sh
--  - deploy/nightly/alert-policy.json
--  - deploy/nightly/README.md
--  - scripts/check_raw_freshness.py
--  - tests/test_nightly_entrypoint_parity.py
--  - tests/test_raw_freshness_sentinel.py
-+  - ingestion/api_football/refetch.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - ingestion/api_football/orchestrator.py
-+  - dbt_project/models/1_staging/api_football/sources.yml
-+  - tests/test_refetch_cadence.py
+-  - ingestion/api_football/refetch.py
+-  - ingestion/api_football/loads/competition_runner.py
+-  - ingestion/api_football/orchestrator.py
+-  - dbt_project/models/1_staging/api_football/sources.yml
+-  - tests/test_refetch_cadence.py
++  - dbt_project/seeds/fixture_event_team_overrides.csv
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
    - .claude/task/review_input.patch
  
--# Not gate-required — no path here is on the structural surface. Included because this
--# changes the nightly's execution path and its cost profile, and a reviewer should not
--# have to take either on trust.
  impact_map: >
--  what changes in the pipeline: NOTHING. `deploy/nightly/entrypoint.sh` carries zero net diff on
--    this branch — verify with `git diff main -- deploy/nightly/entrypoint.sh`, which is empty. A
--    quiet night still exits 0 before `dbt deps`, the contract checks, seed and build, and is
--    still literally $0, exactly as after Stage 1. No dbt model, seed or macro is touched either.
--    The monitoring is entirely beside the pipeline, not inside it.
--    (An earlier revision of this contract described adding `dbt source freshness` to the
--    entrypoint. That change was reverted when the CPO chose the sentinel; three reviewers caught
--    the contract still describing it. Corrected here rather than left as a footnote, because a
--    contract that mis-states its own shipped mechanism is worse than no contract.)
+-  writers: unchanged. `loads/transfers.py:69` and `loads/coaches.py:83` remain the sole writers
+-    of their tables and are NOT edited. What changes is whether `competition_runner.py` calls
+-    them at all on a given night.
 -
--  what changes outside the repo: one Cloud Monitoring notification channel (email) and one
--    alert policy, both defined in `deploy/nightly/alert-policy.json` and created by REST calls
--    recorded in the runbook — version-controlled rather than clicked once in a console.
+-  downstream: `dbt ls --select source:api_football.raw_apif_transfers+
+-    source:api_football.raw_apif_coaches+ --resource-type model` (dbt 1.7.19, 94 models parsed):
 -
--  downstream: none. No model, mart or number is affected. `dbt build --target prod` is
--    unchanged and still gated on `new_data`.
+-      1_staging: stg_apif__coach_career, stg_apif__coaches, stg_apif__transfers
+-      2_base:    base_apif__coach_career, base_apif__coaches, base_apif__transfers
+-      3_core:    dim_coach, dim_coach_team_mapping, fct_transfer
 -
--  cost profile: UNCHANGED for the nightly — a quiet night is still literally $0, because the
--    entrypoint is untouched. The only new spend is the sentinel itself, and it is close to
--    nothing: `client.get_table()` is a METADATA call, not a query, so no bytes are scanned and
--    no query job is billed. What remains is ~24 Cloud Run executions a day of a few seconds
--    each at 1 vCPU / 512 MiB. Alert policies, notification channels and Cloud Scheduler are
--    free at this volume. Being free per run is precisely what makes hourly affordable, and
--    hourly is what allows a 3h absence window instead of the 25h ceiling.
+-  blast_radius on those 9 models: NONE. A skipped league writes NOTHING, so its existing row is
+-    untouched and staging reads exactly what it read yesterday. The only observable change is
+-    that a row's `ingested_at` advances weekly instead of nightly. `stg_apif__transfers` selects
+-    latest-per-league and `stg_apif__coaches` reads all snapshots — neither cares how old the
+-    latest is.
 -
--  failure semantics: a source past `error_after` makes the SENTINEL exit 1 → the `fdp-freshness`
--    execution is marked failed → the policy fires. A source past `warn_after` only logs and does
--    not fail. A sentinel that cannot check exits 2, also non-zero, deliberately — a sentinel
--    that cannot check must never look healthy.
--    ⚠ THE POLICY CANNOT TELL exit 1 FROM exit 2: Cloud Run's `completed_execution_count` carries
--    only succeeded/failed, not the exit code. Both are worth waking up for, so they share a
--    policy; the sentinel prints `EXIT 1 — STALE` or `EXIT 2 — CANNOT CHECK` as the first thing
--    in its failure output, and the policy's documentation sends the reader there. Caught by a
--    reviewer, whose point was that the documentation had asserted "users are affected" for a
--    case where that is not established.
+-  the sources.yml edit changes NO SQL. `freshness:` is metadata; it does not appear in compiled
+-    model SQL and cannot alter lineage or results.
 -
--  the watcher's watcher: the absence condition depends on Cloud Scheduler and Cloud Monitoring
--    themselves working. That regress stops here deliberately — both are managed Google services
--    with their own status surface, and adding a second monitor to watch the first is where this
--    stops being proportionate.
-+  writers: unchanged. `loads/transfers.py:69` and `loads/coaches.py:83` remain the sole writers
-+    of their tables and are NOT edited. What changes is whether `competition_runner.py` calls
-+    them at all on a given night.
+-    ⚠ WHO READS IT, stated precisely because an earlier draft of this contract got it wrong and
+-    `data-engineer-reviewer` was right to FAIL that. ON THIS BRANCH: **nobody**. `dbt source
+-    freshness` is invoked nowhere in the repo, and a grep for `warn_after|error_after` outside
+-    `sources.yml` returns only this task's own test. The consumer —
+-    `scripts/check_raw_freshness.py`, the hourly out-of-band sentinel — lives on the UNMERGED
+-    branch `feat/39-nightly-freshness-alert` (#39 Stage 2, MR !30, commit 42ba08f) and is NOT
+-    in this diff. A blinded reviewer cannot verify it from here, and the earlier draft asserted
+-    it as present-tense fact, which is exactly the assert-before-checking pattern Appendix A6
+-    names.
+-
+-    THE CHANGE IS CORRECT EITHER WAY, and that is the point:
+-      · if !30 never merges — nothing reads these thresholds, so raising them is INERT. No
+-        behaviour changes anywhere.
+-      · if !30 merges — the sentinel reads `error_after` and would email daily about a pipeline
+-        behaving exactly as ruled, until somebody muted it. Raising them prevents that.
+-    So merge order genuinely does not matter, which is what `deploy_order` below claims.
+-
+-  ⚠ WHY THE SKIP MUST SKIP THE WRITE TOO, not just the fetch: both loaders write ONE row per
+-    league. Fetching a subset and writing it would produce a partial row — the SQUADS defect
+-    (#37) — and since #33 item 8b these tables are MERGE-ON-WRITE, so that partial write would
+-    DELETE the complete row. Skipping the phase entirely means no fetch, no write, no delete,
+-    and no carry-forward needed. This is the whole reason the design is safe.
+-
+-  deploy_order: nothing breaks at any point and no backfill is needed. On the first nightly
+-    after merge, every league has a fresh row from tonight, so all of them skip until their
+-    staggered due-date arrives. Independent of #39 !30 — either can merge first.
++  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
++  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
++  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
++  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
 +
-+  downstream: `dbt ls --select source:api_football.raw_apif_transfers+
-+    source:api_football.raw_apif_coaches+ --resource-type model` (dbt 1.7.19, 94 models parsed):
++  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
++    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
 +
-+      1_staging: stg_apif__coach_career, stg_apif__coaches, stg_apif__transfers
-+      2_base:    base_apif__coach_career, base_apif__coaches, base_apif__transfers
-+      3_core:    dim_coach, dim_coach_team_mapping, fct_transfer
++  who READS it — exactly one model, confirmed by grep across the repo:
++    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
++    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
++    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
++    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
++    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
++    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
++    in `dim_team`, no page URL and no slug can move because of this change.
 +
-+  blast_radius on those 9 models: NONE. A skipped league writes NOTHING, so its existing row is
-+    untouched and staging reads exactly what it read yesterday. The only observable change is
-+    that a row's `ingested_at` advances weekly instead of nightly. `stg_apif__transfers` selects
-+    latest-per-league and `stg_apif__coaches` reads all snapshots — neither cares how old the
-+    latest is.
++  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
++    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
++    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
++    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
++    was not.
 +
-+  the sources.yml edit changes NO SQL. `freshness:` is metadata; it does not appear in compiled
-+    model SQL and cannot alter lineage or results.
++      2_base.api_football.base_apif__fixture_events
++      2_base.api_football.base_apif__players
++      3_core.dim_player
++      3_core.fct_fixture_event
++      4_intermediate.domestic_league.team_season.int_player_season__metrics
++      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
++      4_intermediate.domestic_league.team_season.int_team_season__metrics
++      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
++      4_intermediate.shared.int_legs__player_match
++      4_intermediate.shared.int_legs__team_from_players
++      4_intermediate.shared.int_legs__team_match
++      4_intermediate.shared.int_player_club_season__metrics
++      4_intermediate.shared.int_player_competition_benchmarks
++      4_intermediate.shared.int_player_momentum__metrics
++      4_intermediate.shared.int_player_profile__contribution
++      4_intermediate.shared.int_player_profile__yoy
++      4_intermediate.shared.int_player_season__team
++      4_intermediate.shared.int_player_season_position__metrics
++      4_intermediate.shared.int_player_season_record
++      4_intermediate.shared.int_team_competition_benchmark_metrics_long
++      4_intermediate.shared.int_team_competition_benchmarks
++      4_intermediate.shared.int_team_momentum__metrics
++      4_intermediate.shared.int_team_momentum_window
++      4_intermediate.shared.int_team_profile__streaks
++      4_intermediate.shared.int_team_profile__yoy
++      4_intermediate.shared.int_team_season_record
++      5_marts.domestic_league.mart_matchday_insights
++      5_marts.domestic_league.mart_team_season_insights
++      5_marts.shared.mart_head_to_head
++      5_marts.shared.mart_leaderboards
++      5_marts.shared.mart_player_career
++      5_marts.shared.mart_player_competition_benchmarks
++      5_marts.shared.mart_player_fixture_stats
++      5_marts.shared.mart_player_match_log
++      5_marts.shared.mart_player_momentum
++      5_marts.shared.mart_player_profile
++      5_marts.shared.mart_player_season_record
++      5_marts.shared.mart_roster
++      5_marts.shared.mart_team_competition_benchmarks
++      5_marts.shared.mart_team_fixtures
++      5_marts.shared.mart_team_momentum
++      5_marts.shared.mart_team_momentum_window
++      5_marts.shared.mart_team_profile
++      5_marts.shared.mart_team_season
++      5_marts.shared.mart_team_season_record
 +
-+    ⚠ WHO READS IT, stated precisely because an earlier draft of this contract got it wrong and
-+    `data-engineer-reviewer` was right to FAIL that. ON THIS BRANCH: **nobody**. `dbt source
-+    freshness` is invoked nowhere in the repo, and a grep for `warn_after|error_after` outside
-+    `sources.yml` returns only this task's own test. The consumer —
-+    `scripts/check_raw_freshness.py`, the hourly out-of-band sentinel — lives on the UNMERGED
-+    branch `feat/39-nightly-freshness-alert` (#39 Stage 2, MR !30, commit 42ba08f) and is NOT
-+    in this diff. A blinded reviewer cannot verify it from here, and the earlier draft asserted
-+    it as present-tense fact, which is exactly the assert-before-checking pattern Appendix A6
-+    names.
++    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
++    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
++    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
++    -> `dim_player`), which pulls the whole player surface in.
 +
-+    THE CHANGE IS CORRECT EITHER WAY, and that is the point:
-+      · if !30 never merges — nothing reads these thresholds, so raising them is INERT. No
-+        behaviour changes anywhere.
-+      · if !30 merges — the sentinel reads `error_after` and would email daily about a pipeline
-+        behaving exactly as ruled, until somebody muted it. Raising them prevents that.
-+    So merge order genuinely does not matter, which is what `deploy_order` below claims.
++  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
++    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
++    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
++    a different seed.
 +
-+  ⚠ WHY THE SKIP MUST SKIP THE WRITE TOO, not just the fetch: both loaders write ONE row per
-+    league. Fetching a subset and writing it would produce a partial row — the SQUADS defect
-+    (#37) — and since #33 item 8b these tables are MERGE-ON-WRITE, so that partial write would
-+    DELETE the complete row. Skipping the phase entirely means no fetch, no write, no delete,
-+    and no carry-forward needed. This is the whole reason the design is safe.
++  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
++    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
++    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
++    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
++    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
++    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
++    built from the repo, so merging alone does NOT deploy this. It needs
++    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
++    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
 +
-+  deploy_order: nothing breaks at any point and no backfill is needed. On the first nightly
-+    after merge, every league has a fresh row from tonight, so all of them skip until their
-+    staggered due-date arrives. Independent of #39 !30 — either can merge first.
++  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
++    not asserted:
++      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
++        `team_sk = 4767`, `league_code = WCQAS`.
++      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
++        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
++        it was not written for.
++      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
++        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
++        legitimate Mação event, because there are none.
++      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
++        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
++        before and after.
++    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
++    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
++    keyed on the fixture's own participants, so a stat that was previously attributed to a
++    non-participant was already unreachable there. Nothing else in the warehouse changes.
  
  decisions_taken: >
--  The CPO approved Stage 2 ("do stage 2") and the written plan. Two choices were put to the CPO
--  and answered directly: the alert channel is EMAIL to rami.fahham@gmail.com, and the staleness
--  threshold is NO SUCCESSFUL RUN IN 30 HOURS (chosen over 26h and 54h).
+-  CPO ruling, in-thread: **"re-fetch transfers and coaches every 7 days"**. That is the cadence
+-  and it is not the builder's to adjust.
 -
--  ⚠ THE 30h CHOICE COULD NOT BE HONOURED BY THE FIRST DESIGN — AND THE CPO CHOSE A DIFFERENT
--  DESIGN RATHER THAN A DIFFERENT NUMBER.
+-  TWO CONSEQUENCES THE CPO WAS SHOWN AND APPROVED IN THE PLAN, because neither follows from a
+-  literal reading of the ruling:
 -
--  SEQUENCE, recorded because the first attempt got this wrong. The builder hit the platform
--  cap, substituted 25h, DEPLOYED it, and wrote up the reasoning. `scope-auditor` FAILed that in
--  round 1 and was right: §10 makes a threshold a CPO decision "regardless of how obvious the
--  answer seems", and documenting an override after shipping is not the same as holding
--  authority for it. §11 requires the conflicting paths and a recommendation put to the CPO
--  BEFORE implementing. The escalation was then run properly — keep 25h / disable staleness
--  until item 14 / build a BigQuery-backed check — and the CPO chose:
--  **"Build a BigQuery-backed check instead."**
+-  1. THE FRESHNESS THRESHOLDS MOVE WITH IT. `sources.yml` declares warn 30h / error 54h for both
+-     tables. Under a 7-day cadence they would sit permanently past `error_after`. Raised to
+-     warn 8 days / error 10 days for these two tables ONLY; the other 9 sources stay at 30h/54h
+-     because they are still daily.
+-     WHEN THAT MATTERS is conditional and is spelled out in the impact_map above: nothing on
+-     THIS branch reads these thresholds, so the change is inert here. It takes effect only once
+-     #39 Stage 2's sentinel (MR !30, not in this diff) merges — at which point unraised
+-     thresholds would page daily about correct behaviour.
 -
--  WHAT THAT CHANGES. The 25h cap stops applying, because the alert no longer keys on Cloud Run
--  job success at all. A sentinel measures the thing the product actually cares about — how old
--  the DATA is — and job success becomes irrelevant to it. The CPO's original 30h intent is
--  reachable again, and better: thresholds come from `sources.yml`, which already declares
--  warn 30h / error 54h per source, so there is no second place for a threshold to drift.
--
--  THE PLATFORM CONSTRAINTS THAT DROVE THIS, kept so they are not rediscovered: `conditionAbsent`
--  rejects any duration over 23h30m ("Durations longer than 23h30m are not supported"); MQL
--  `absent_for` rejects anything over 1d1h. Both tried against the real API, both HTTP 400. For a
--  DAILY job every value at or below 24h false-alarms before each run, which left 25h as the only
--  usable number — a ceiling, not a choice. Running the SENTINEL hourly dissolves the problem:
--  absence detection on an hourly job needs a 3h window, far inside the cap.
--    - `conditionAbsent` rejects any duration over 23h30m: "Durations longer than 23h30m are not
--      supported" (HTTP 400, tried against the real API).
--    - MQL `absent_for` rejects anything over 1d1h: "the longest time the query results might be
--      absent is 1d6h, which is greater than the allowed 1d1h" (HTTP 400).
--    - 23h30m is WORSE than useless for a daily job — consecutive successes are ~24h apart, so
--      it would fire shortly before every single run. That is why the staleness policy is MQL
--      rather than the simpler `conditionAbsent`: 25h is the only value above 24h that either
--      mechanism permits.
--  25h is therefore the maximum achievable and the closest to the CPO's intent. It detects
--  FASTER than 30h; what it gives up is slack. With runs currently taking 1-2h, successes land
--  ~05:00-06:00 and 25h absorbs about an hour of drift; a run hitting the full 3h timeout could
--  trip it spuriously. That window widens on its own once #33 item 14 cuts the run to ~20 min.
--  If the CPO would rather have fewer false alarms than this detection speed, the lever is item
--  14, not the threshold — the threshold is already at its ceiling.
--
--  A SECOND API CONSTRAINT, same class: one policy cannot hold both conditions — "Alert policies
--  with monitoring_query_language condition type can only have a single condition" (HTTP 400).
--  Shipped as TWO policies sharing one notification channel.
--
--  A CORRECTION TO #33 ITEM 16, verified rather than inherited: it states the two
--  `freshness_check` tests have never run. They DO run — the nightly's `dbt build` carries no
--  selector, which is `fqn:*`, and `.gitlab-ci.yml` says so explicitly ("freshness_check is
--  deliberately NOT excluded"). The claim was true before the migration and is stale now. What is
--  genuinely un-wired is the `dbt source freshness` COMMAND, whose only repo-wide mention is a
--  line of prose in `dbt_project/docs/engineering_standards.md:145`. IT REMAINS UN-WIRED after
--  this task, and that is deliberate: the sentinel reads the same `sources.yml` thresholds from
--  outside the pipeline, which covers the same ground without making a quiet night cost money or
--  coupling staleness detection to the nightly running at all.
-+  CPO ruling, in-thread: **"re-fetch transfers and coaches every 7 days"**. That is the cadence
-+  and it is not the builder's to adjust.
+-  2. STAGGERED BY LEAGUE. Every league shares tonight's `ingested_at`, so an unstaggered cadence
+-     makes all 45 due on the same night — one night in seven costing the full 45 minutes against
+-     a 3h timeout, six costing nothing. `hash(league_code) % 7` spreads it to ~6-7 leagues a
+-     night. Each league still re-fetches every 7 days exactly as ruled; only the offset differs.
++  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
++  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
++  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
++  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
 +
-+  TWO CONSEQUENCES THE CPO WAS SHOWN AND APPROVED IN THE PLAN, because neither follows from a
-+  literal reading of the ruling:
++  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
++  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
++  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
++  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
++  precedent already in this seed.
 +
-+  1. THE FRESHNESS THRESHOLDS MOVE WITH IT. `sources.yml` declares warn 30h / error 54h for both
-+     tables. Under a 7-day cadence they would sit permanently past `error_after`. Raised to
-+     warn 8 days / error 10 days for these two tables ONLY; the other 9 sources stay at 30h/54h
-+     because they are still daily.
-+     WHEN THAT MATTERS is conditional and is spelled out in the impact_map above: nothing on
-+     THIS branch reads these thresholds, so the change is inert here. It takes effect only once
-+     #39 Stage 2's sentinel (MR !30, not in this diff) merges — at which point unraised
-+     thresholds would page daily about correct behaviour.
++  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
++  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
++  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
++  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
++  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
++  issue text.
 +
-+  2. STAGGERED BY LEAGUE. Every league shares tonight's `ingested_at`, so an unstaggered cadence
-+     makes all 45 due on the same night — one night in seven costing the full 45 minutes against
-+     a 3h timeout, six costing nothing. `hash(league_code) % 7` spreads it to ~6-7 leagues a
-+     night. Each league still re-fetches every 7 days exactly as ruled; only the offset differs.
++  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
++  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
++  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
++  seed breaks. The note is wrapped in double quotes — RFC 4180, already
++  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
++  CPO's; only the CSV framing differs.
  
    # THRESHOLD DECLARATIONS
--  NEW MECHANISM — YES. Cloud Monitoring alert policies and notification channels are new to this
--  project (0 of each exist today). Declared rather than smuggled, and `cto-reviewer` is spawned
--  for this task even though `.claude/review_routing.json` covers neither `deploy/**` nor a
--  monitoring surface — the same reason it was spawned for Stage 1.
+-  NEW MECHANISM — no. Skip-if-present is an established pattern here (five loaders), and the
+-  hoisted one-read-per-run shape copies `captured_player_team_seasons` (`orchestrator.py:201`),
+-  the fix #33 item 1 made for the same class of problem. No new service, dependency or
+-  lifecycle. `API_FOOTBALL_INGEST_FORCE_FULL` is reused rather than a second flag invented.
 -
--  RECURRING COST — effectively ZERO, and ZERO for the nightly specifically. Alert policies,
--  notification channels and Cloud Scheduler are free at this volume; the sentinel's BigQuery
--  reads are metadata calls and are not billed. The only spend is a few seconds of Cloud Run
--  compute, 24 times a day, at 1 vCPU / 512 MiB. The nightly's own cost profile does not change
--  at all — an earlier revision claimed a quiet night would cost "a few cents a month" via
--  `dbt source freshness`; that mechanism was reverted and the claim with it.
+-  RECURRING COST — this REDUCES it: ~45 min/night of ingest becomes ~6-7, and ~3,800 daily API
+-  calls disappear. No new spend.
 -
--  NO new Python dependency, and `requirements.txt` is unchanged.
-+  NEW MECHANISM — no. Skip-if-present is an established pattern here (five loaders), and the
-+  hoisted one-read-per-run shape copies `captured_player_team_seasons` (`orchestrator.py:201`),
-+  the fix #33 item 1 made for the same class of problem. No new service, dependency or
-+  lifecycle. `API_FOOTBALL_INGEST_FORCE_FULL` is reused rather than a second flag invented.
-+
-+  RECURRING COST — this REDUCES it: ~45 min/night of ingest becomes ~6-7, and ~3,800 daily API
-+  calls disappear. No new spend.
-+
-+  ⚠ A GUARD IS BEING LOOSENED, declared because this repo's standing rule is never to loosen one
-+  quietly. Raising `error_after` from 54h to 10 days means genuine breakage of transfers or
-+  coaches ingestion now goes unnoticed for up to 10 days instead of 54 hours. The rule's actual
-+  requirement is to NARROW a guard to where it still holds rather than delete the assertion, and
-+  that is what this is: 54h is simply false once the intended refresh interval is 7 days, and a
-+  guard that fires daily on correct behaviour gets muted, which is a worse outcome than a wider
-+  true one. The other nine sources are untouched, so the narrowing is confined to exactly the
-+  two tables whose contract changed. `tests/test_refetch_cadence.py` then pins the relationship
-+  so cadence and threshold cannot drift apart again.
+-  ⚠ A GUARD IS BEING LOOSENED, declared because this repo's standing rule is never to loosen one
+-  quietly. Raising `error_after` from 54h to 10 days means genuine breakage of transfers or
+-  coaches ingestion now goes unnoticed for up to 10 days instead of 54 hours. The rule's actual
+-  requirement is to NARROW a guard to where it still holds rather than delete the assertion, and
+-  that is what this is: 54h is simply false once the intended refresh interval is 7 days, and a
+-  guard that fires daily on correct behaviour gets muted, which is a worse outcome than a wider
+-  true one. The other nine sources are untouched, so the narrowing is confined to exactly the
+-  two tables whose contract changed. `tests/test_refetch_cadence.py` then pins the relationship
+-  so cadence and threshold cannot drift apart again.
++  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
++  shipped under #526. This adds a third data row to an existing configuration table.
++  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
++  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
++  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
++  a known cause — an alert that fires daily on a known cause is one that gets muted.
++  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
++  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
++  the data. A future occurrence of this class still fails the build.
++  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
++  is written in full rather than short-form.
  
  decisions_reserved:
--  - Deleting `data:nightly` from `.gitlab-ci.yml`. Guarded path, needs its own governance task,
--    and it stays a fallback while Cloud Run is still new. Not decided here.
--  - Whether the 3 sources deliberately left without freshness thresholds should ever gain them.
--    They refresh rarely and thresholds would false-alarm; changing that is a data decision.
--  - Stage 3 (CI builds and pushes the image on merge), #33 item 14, and the GitLab self-hosted
--    runner decision are all separate.
-+  - Whether the cadence should be window-aware (daily during January/summer transfer windows,
-+    weekly otherwise). Truer to the data, more complexity; the CPO ruled a flat 7 days and this
-+    implements exactly that.
-+  - `player_squads` / `squad` (38 min combined) are NOT touched. They already skip; their cost
-+    is the current season, which genuinely changes nightly.
-+  - `injuries` — #33 item 15 proposes dropping the endpoint entirely; not decided here.
+-  - Whether the cadence should be window-aware (daily during January/summer transfer windows,
+-    weekly otherwise). Truer to the data, more complexity; the CPO ruled a flat 7 days and this
+-    implements exactly that.
+-  - `player_squads` / `squad` (38 min combined) are NOT touched. They already skip; their cost
+-    is the current season, which genuinely changes nightly.
+-  - `injuries` — #33 item 15 proposes dropping the endpoint entirely; not decided here.
++  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
++    that never plays in our data, so today it exists only as an attribution artefact and, once the
++    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
++    out of scope for making the nightly green.
++  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
++    permanent local patch for a defect we do not own.
++  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
++    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
++    the reason the override mechanism exists at all.
  
  done_when:
--  - `pytest tests/ -q` exits 0 (baseline on main is 725 passed, 1 skipped).
--  - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
--  - `bash -n deploy/nightly/entrypoint.sh` exits 0.
--  - Every new/changed test verified by BREAKING ITS SUBJECT — the production code, never the
--    test's own helper — and confirming WHICH cases go red:
--      · disable the staleness comparison (`age > limit * 100`) → the stale case, the boundary
--        case and the end-to-end exit-code case fail; the fresh/warn cases stay green.
--      · make "nothing to check" return 0 instead of 2 → the empty-thresholds case fails.
--      · rebind `SOURCES_YML` as an import-time default → the cannot-read-thresholds case fails.
--        This one was MASKED at first: in an unauthenticated environment `main()` returned 2 via
--        the BigQuery branch regardless, so the test passed either way. A reviewer caught it; the
--        fix stubs BigQuery healthy so 2 can only come from the branch under test.
--      · add a comment key without a `_` prefix to `alert-policy.json` → the API-field whitelist
--        case fails. An earlier version of that assertion was tautological, and the break-it
--        check that "proved" it had edited the test's own `strip()` helper rather than the JSON.
--        Breaking the harness is not breaking the subject.
--  - The notification channel and BOTH alert policies exist and are readable back from the
--    Monitoring API, confirmed by a GET rather than by trusting the POST responses.
--  - The channel's verification state is reported HONESTLY. The API does not return a
--    `verificationStatus` field for this channel at all, so whether email delivery works is
--    UNKNOWN from here and must be stated as unknown. An unverified channel is a policy that
--    looks armed and is not — claiming Stage 2 is complete before the CPO confirms an email
--    arrived would be exactly the false green this stage exists to prevent.
--  - No Cloud Run execution is triggered by this task.
-+  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 5e1a672: 725 passed).
-+  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
-+  - Every new test verified by BREAKING ITS SUBJECT — production code, never a test helper —
-+    and confirming WHICH cases go red.
-+  - `dbt parse` succeeds against the edited `sources.yml` (a malformed freshness block is a
-+    parse error, and nothing else in CI would catch it while `data:build` cannot run).
-+  - No ingest, no `dbt build`, no `gcloud` resource touched from this branch.
- 
- amendments:
--  - 2026-08-10: + `scripts/check_raw_freshness.py`, + `tests/test_raw_freshness_sentinel.py` —
--    authority: **CPO, asked via a §11 escalation with three paths and a recommendation, and
--    answered "Build a BigQuery-backed check instead"** (the builder's recommendation was to keep
--    25h; the CPO chose otherwise). Recorded in escalations.log, 2026-08-10, not only here —
--    scope-auditor FAILed this exact omission twice on the Stage 1 branch.
--    Content: a sentinel that reads each raw table's last-modified time via BigQuery METADATA
--    calls (free — no query, no scan), compares the age against the `error_after` already
--    declared in `sources.yml`, and exits non-zero when stale. Deployed as a second Cloud Run Job
--    from the SAME image with an entrypoint override, scheduled hourly, so no second image is
--    built and absence detection needs only a 3h window.
-+  - 2026-08-10: + `ingestion/api_football/orchestrator.py` — authority: **the CPO-approved plan
-+    for this task**, which specifies "called ONCE per table per run and passed down, mirroring
-+    `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live in the
-+    orchestrator — that is where the per-competition loop and every existing hoist are — so the
-+    approved design already required editing this file and the omission from `scope_paths` was
-+    clerical, not a widening. Caught by the contract gate on the first edit, which is the gate
-+    working: the plan and the contract disagreed, and the contract is what governs.
-+    Content: read `latest_ingest_per_league` once per table before the loop and pass the two
-+    dicts into `run_cheap_phases` and `run_transfers_for_competition`. No other change.
+-  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 5e1a672: 725 passed).
+-  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
+-  - Every new test verified by BREAKING ITS SUBJECT — production code, never a test helper —
+-    and confirming WHICH cases go red.
+-  - `dbt parse` succeeds against the edited `sources.yml` (a malformed freshness block is a
+-    parse error, and nothing else in CI would catch it while `data:build` cannot run).
+-  - No ingest, no `dbt build`, no `gcloud` resource touched from this branch.
+-
+-amendments:
+-  - 2026-08-10: + `ingestion/api_football/orchestrator.py` — authority: **the CPO-approved plan
+-    for this task**, which specifies "called ONCE per table per run and passed down, mirroring
+-    `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live in the
+-    orchestrator — that is where the per-competition loop and every existing hoist are — so the
+-    approved design already required editing this file and the omission from `scope_paths` was
+-    clerical, not a widening. Caught by the contract gate on the first edit, which is the gate
+-    working: the plan and the contract disagreed, and the contract is what governs.
+-    Content: read `latest_ingest_per_league` once per table before the loop and pass the two
+-    dicts into `run_cheap_phases` and `run_transfers_for_competition`. No other change.
++  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
++    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
++    line endings and valid UTF-8 preserved.
++  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
++  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
++    predicate is SIMULATED against PROD, read-only, by replaying
++    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
++    UNIONed onto the live seed table, and the test predicate re-run over the result:
++    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
++    must resolve to `team_id = 1544`.**
++  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
++  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
++    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
++    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
++
++amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index b668d8e..3952dae 100644
+index 3952dae..885928f 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1917,3 +1917,69 @@ times.
-   is a policy that looks armed and is not. Stage 2 is not "done" until an email has actually
-   arrived — a policy that has never fired is decoration, the same as a test that has never gone
-   red.
-+
-+
-+2026-08-10 — #33 ITEM 14: THE 7-DAY RE-FETCH CADENCE, AND TWO CONSEQUENCES THE BUILDER DERIVED
-+
-+  WHY THIS ENTRY EXISTS AT ALL. `scope-auditor` FAILed the task for recording every one of these
-+  decisions in `contract.md` only. It was right, and the precedent it cited is the entry above
-+  from 2026-08-09, where the identical pattern was FAILed twice on the `.gitattributes`
-+  amendment: "a builder-authored quote inside the artefact whose scope it widens is not
-+  independent evidence". THIRD OCCURRENCE OF THE SAME MISS, by the same builder, two days after
-+  writing that sentence. The lesson is not "remember harder": the moment a CPO answers anything,
-+  it belongs here BEFORE the contract cites it.
-+
-+  THE RULING, verbatim, in-thread: **"re-fetch transfers and coaches every 7 days"**.
-+  Context put to the CPO first: `transfers` 26.7 min + `coaches` 18.7 min = 45 of the 105
-+  ingestion minutes measured on the 2026-08-09 nightly, spent re-downloading unchanged data,
-+  plus ~3,800 of ~8,300 daily API calls. The CPO framed it as "we had a setup that ensures not
-+  fetching data we already have... fix it".
-+
-+  A PREMISE CHECK RUN BEFORE ACCEPTING THAT FRAMING, recorded because it changes what the task
-+  is. `git log -S` across ALL history for `already_captured`, `captured_`, `skip_if_present`,
-+  `cached_response` and `players_needing`, scoped to `loads/transfers.py` and
-+  `loads/coaches.py`, returns ZERO commits. Neither loader has EVER had skip-if-present logic,
-+  so nothing regressed and nothing was "changed to the worse". The CPO's recollection of the
-+  DESIGN is nonetheless correct: it exists deliberately in five other loaders (`players`,
-+  `player_squads`, `player_profiles`, `player_teams`, `fixtures`, `fixture_details`). This task
-+  finishes an unfinished job rather than restoring a broken one.
-+
-+  TWO CONSEQUENCES THE BUILDER DERIVED AND PUT IN THE PLAN THE CPO APPROVED. Both are flagged
-+  here as builder-derived rather than ruled, because neither follows from a literal reading of
-+  "every 7 days":
-+
-+  1. THE FRESHNESS THRESHOLDS MOVE WITH THE CADENCE — and this LOOSENS A GUARD.
-+     `sources.yml` had warn 30h / error 54h on both tables. Under a 7-day cadence they sit
-+     permanently past `error_after`. Raised to warn 8d / error 10d for these two tables only.
-+     THE COST, stated plainly: genuine breakage of transfers or coaches ingestion is now
-+     invisible for up to 10 days instead of 54 hours.
-+     WHY IT IS STILL THE NARROW FIX and not a blanket widening: 54h is simply FALSE once the
-+     intended refresh interval is 7 days, and a guard that fires daily on correct behaviour gets
-+     muted — which is a worse outcome than a wider true one. The other nine sources are
-+     untouched, and a test pins `error_after > cadence + one cycle` so the two cannot drift.
-+     WHEN IT BITES: nothing on the item-14 branch reads these thresholds (`dbt source freshness`
-+     is invoked nowhere). The consumer is the hourly sentinel on the SEPARATE, unmerged #39
-+     Stage 2 branch (!30, commit 42ba08f). Until that merges this is inert metadata.
-+
-+  2. THE STAGGER, `md5(league_code) % 7`, is a builder addition.
-+     Without it every league shares tonight's `ingested_at` and all 45 come due on the SAME
-+     night — one night in seven costing the full 45 minutes against a 3h timeout, six costing
-+     nothing. Staggering spreads it to ~6-7 leagues a night.
-+     ⚠ THE FIRST IMPLEMENTATION BROKE THE CPO'S RULING and a reviewer caught it: it computed
-+     `due_after = interval - offset` on EVERY call, which permanently SHORTENED the interval, so
-+     a league with offset 6 re-fetched every single DAY and only offset 0 ever got 7 days. The
-+     stagger must shift WHICH day a league runs, never how often. Now a calendar slot
-+     (`(ordinal + offset) % interval == 0`) with a safety net at `age >= interval`.
-+
-+  SCOPE AMENDMENT: `ingestion/api_football/orchestrator.py`, authority = the CPO-approved plan,
-+  which specifies the read is "called ONCE per table per run and passed down, mirroring
-+  `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live where the
-+  per-competition loop is, so the approved design already required this file; its omission from
-+  `scope_paths` was clerical. The contract gate caught it on the first edit.
-+
-+  ALSO CORRECTED, from a reviewer finding: four places in this task asserted that
-+  `RAW_APIF_COACHES` is merge-on-write since 8b. It is APPEND-ONLY and was explicitly EXCLUDED
-+  from 8b by the ruling of 2026-06-23 recorded above, because `stg_apif__coaches` reads ALL
-+  snapshots to preserve every coach ever seen. The builder wrote that exclusion two days ago and
-+  then contradicted it. The skip design is unaffected — skipping writes nothing either way —
-+  but the stated reason was wrong for one of the two tables the task is about.
-diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
-index 5954d10..cc906f1 100644
---- a/dbt_project/models/1_staging/api_football/sources.yml
-+++ b/dbt_project/models/1_staging/api_football/sources.yml
-@@ -40,12 +40,26 @@ sources:
-           warn_after: {count: 30, period: hour}
-           error_after: {count: 54, period: hour}
- 
-+      # 7-DAY RE-FETCH CADENCE (#33 item 14), so these thresholds are NOT the 30h/54h the
-+      # nightly sources use. Managers change rarely and /coachs cost 18.7 min a night to
-+      # re-download unchanged data; the CPO ruled a weekly cadence.
-+      #
-+      # These two numbers are LOAD-BEARING, not decoration: at 54h this table would sit
-+      # permanently past error_after once anything actually reads these thresholds.
-+      # WHO READS THEM: nothing does today. `dbt source freshness` is invoked nowhere in this
-+      # repo. The consumer is the hourly sentinel added by #39 Stage 2 (MR !30), which is a
-+      # SEPARATE, currently unmerged branch — so until it lands this block is inert metadata,
-+      # and after it lands unraised thresholds would email daily about correct behaviour.
-+      # 8 days = the 7-day cadence plus a day of slack. 10 days = tolerate one entirely missed
-+      # cycle before paging. `tests/test_refetch_cadence.py` pins this against
-+      # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.
-+      # The honest cost: genuine breakage here is now invisible for up to 10 days, not 54h.
-       - name: raw_apif_coaches
-         identifier: RAW_APIF_COACHES
-         loaded_at_field: ingested_at
-         freshness:
--          warn_after: {count: 30, period: hour}
--          error_after: {count: 54, period: hour}
-+          warn_after: {count: 8, period: day}
-+          error_after: {count: 10, period: day}
- 
-       - name: raw_apif_fixture_details
-         identifier: RAW_APIF_FIXTURE_DETAILS
-@@ -54,12 +68,16 @@ sources:
-           warn_after: {count: 30, period: hour}
-           error_after: {count: 54, period: hour}
- 
-+      # 7-DAY RE-FETCH CADENCE (#33 item 14) — see the note on raw_apif_coaches above for why
-+      # these thresholds differ from the nightly sources and why they are load-bearing.
-+      # Transfers move in bursts (January, summer), not nightly, and this was the single most
-+      # expensive phase in the run at 26.7 min.
-       - name: raw_apif_transfers
-         identifier: RAW_APIF_TRANSFERS
-         loaded_at_field: ingested_at
-         freshness:
--          warn_after: {count: 30, period: hour}
--          error_after: {count: 54, period: hour}
-+          warn_after: {count: 8, period: day}
-+          error_after: {count: 10, period: day}
- 
-       # Player-data tables (PR-a): slow-moving (bio/career/squad), backfilled then refreshed
-       # rarely — no aggressive freshness thresholds (they would false-alarm between refreshes).
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index a8ebb91..879da6a 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -13,6 +13,9 @@ the others.
- 
- from __future__ import annotations
- 
-+from datetime import datetime
-+
-+from ..refetch import should_refetch, skip_reason, utcnow
- from .context import CompetitionRunResult, PipelineContext
- from .coaches import load_coaches
- from .fixtures import fetch_merge_and_persist_fixtures
-@@ -33,6 +36,17 @@ def _ingestion_phase(league_code: str, step: str) -> None:
-     print(f"[api-football] league={league_code} phase={step}", flush=True)
- 
- 
-+def _skipped_phase(league_code: str, step: str, reason: str) -> None:
-+    """A skip must be as visible as a run (#33 item 14).
-+
-+    A phase that quietly stops doing anything is indistinguishable from a phase that broke —
-+    which is the failure class that cost this pipeline six silent days. The line carries the
-+    age and the next due date so "should this have run tonight?" is answerable from the log
-+    alone, without querying anything.
-+    """
-+    print(f"[api-football] league={league_code} phase={step} SKIPPED ({reason})", flush=True)
-+
-+
- def run_poll_phases(
-     ctx: PipelineContext,
-     league_code: str,
-@@ -76,12 +90,18 @@ def run_cheap_phases(
-     current_season: int | None = None,
-     history_seasons: int | None = None,
-     season_type: str = "split_year",
-+    coaches_last_ingest: dict[str, datetime] | None = None,
- ) -> CompetitionRunResult | None:
-     """Run all cheap (non-fanout) ingestion phases for one competition.
- 
-     Returns CompetitionRunResult on success, None on unrecoverable error.
-     Errors are appended to ctx.errors; a None return means the competition
-     cannot participate in the global fanout (e.g. catalog fetch failed).
-+
-+    `coaches_last_ingest` is the run's single `latest_ingest_per_league(...COACHES)` result,
-+    read ONCE by the orchestrator before the per-competition loop (#33 item 14). Passing None
-+    means "no cadence information", which makes every league due — the safe default, and what
-+    keeps existing callers behaving exactly as before.
-     """
-     try:
-         _ingestion_phase(league_code, "catalog (leagues + season plan)")
-@@ -105,8 +125,22 @@ def run_cheap_phases(
-         )
-         _ingestion_phase(league_code, "injuries")
-         load_injuries(ctx, league_code, league_id, seasons_list)
--        _ingestion_phase(league_code, "coaches")
--        load_coaches(ctx, league_code, team_ids)
-+        # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
-+        # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
-+        #
-+        # RAW_APIF_COACHES is APPEND-ONLY — deliberately excluded from 8b's merge-on-write
-+        # because `stg_apif__coaches` reads ALL snapshots to preserve every coach ever seen
-+        # (CPO ruling 2026-06-23). So skipping loses nothing: the stored snapshots stay and
-+        # base still dedups to the latest. Unlike transfers, a stray partial write here would
-+        # not destroy anything — but there is no reason to write one either.
-+        coaches_seen = (coaches_last_ingest or {}).get(league_code)
-+        if should_refetch(league_code, coaches_seen, utcnow()):
-+            _ingestion_phase(league_code, "coaches")
-+            load_coaches(ctx, league_code, team_ids)
-+        else:
-+            _skipped_phase(
-+                league_code, "coaches", skip_reason(league_code, coaches_seen, utcnow())
-+            )
-         return CompetitionRunResult(
-             league_code=league_code,
-             seasons_list=seasons_list,
-@@ -152,9 +186,27 @@ def run_squads_for_competition(
- def run_transfers_for_competition(
-     ctx: PipelineContext,
-     result: CompetitionRunResult,
-+    transfers_last_ingest: dict[str, datetime] | None = None,
- ) -> None:
--    """Run /transfers batch for one competition's teams after global fanout."""
-+    """Run /transfers batch for one competition's teams after global fanout.
-+
-+    `transfers_last_ingest` is the run's single `latest_ingest_per_league(...TRANSFERS)` result
-+    (#33 item 14). None means "no cadence information" and every league is due — the safe
-+    default, and existing behaviour.
-+    """
-     try:
-+        # #33 item 14 — transfers move in bursts (January, summer), not nightly. This was the
-+        # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
-+        # RAW_APIF_TRANSFERS is one row per league and merge-on-write since 8b, so a partial
-+        # write would DELETE the complete row rather than sit harmlessly beside it.
-+        seen = (transfers_last_ingest or {}).get(result.league_code)
-+        if not should_refetch(result.league_code, seen, utcnow()):
-+            _skipped_phase(
-+                result.league_code,
-+                "transfers batch",
-+                skip_reason(result.league_code, seen, utcnow()),
-+            )
-+            return
-         _ingestion_phase(result.league_code, "transfers batch")
-         load_transfers_batch(ctx, result.league_code, result.team_ids)
-     except Exception as e:
-diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
-index 581cfaf..d03e1df 100644
---- a/ingestion/api_football/orchestrator.py
-+++ b/ingestion/api_football/orchestrator.py
-@@ -40,6 +40,7 @@ from .ingestion_lock import (
-     new_run_id,
-     release_ingest_lock,
- )
-+from .refetch import latest_ingest_per_league
- from .settings import (
-     DATASET_ID,
-     DEFAULT_SEASON_WINDOW_YEARS,
-@@ -48,6 +49,7 @@ from .settings import (
-     _env_truthy,
-     _ingest_profile_name,
-     get_headers,
-+    raw_table,
- )
- from .season_inference import (
-     effective_season_max,
-@@ -149,6 +151,16 @@ def _load_api_football(request):
-         # therefore keeps its own, separate read. Hoisting further (one read for the whole
-         # run) would make every run report fanout gaps that the same run had just filled.
-         phase1_covered = read_coverage(ctx.client)
-+        # #33 item 14 — the re-fetch cadence for coaches and transfers, read ONCE for every
-+        # league and passed into the loops below. Same reason as read_coverage above: reading
-+        # this per competition would reintroduce exactly the O(competitions^2) shape item 1
-+        # removed. Two grouped queries against tables 8b shrank to 0.178 and 0.008 GiB.
-+        #
-+        # Unlike phase1_covered this IS safe to hoist for the whole run: nothing in this run
-+        # writes COACHES or TRANSFERS before these loops, so there are no same-run writes for
-+        # a later read to miss.
-+        coaches_last_ingest = latest_ingest_per_league(ctx.client, raw_table("COACHES"))
-+        transfers_last_ingest = latest_ingest_per_league(ctx.client, raw_table("TRANSFERS"))
-         results = []
-         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
-         finished_comps: list[tuple[str, int, set[int]]] = []
-@@ -180,6 +192,7 @@ def _load_api_football(request):
-                 current_season=comp.current_season,
-                 history_seasons=comp.history_seasons,
-                 season_type=comp.season_type,
-+                coaches_last_ingest=coaches_last_ingest,
-             )
-             if result is not None:
-                 results.append(result)
-@@ -216,7 +229,9 @@ def _load_api_football(request):
- 
-         # Phase 4: transfers batch per competition (dated affiliation moves)
-         for result in results:
--            run_transfers_for_competition(ctx, result)
-+            run_transfers_for_competition(
-+                ctx, result, transfers_last_ingest=transfers_last_ingest
-+            )
- 
-         # Phase 5: global per-player bio + career (profiles + teams) over the current
-         # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
-diff --git a/ingestion/api_football/refetch.py b/ingestion/api_football/refetch.py
-new file mode 100644
-index 0000000..dd51d41
---- /dev/null
-+++ b/ingestion/api_football/refetch.py
-@@ -0,0 +1,193 @@
-+"""Per-league re-fetch cadence for the loaders that do not need nightly data. #33 item 14.
-+
-+WHY
-+---
-+`transfers` and `coaches` re-download identical data every night: 26.7 + 18.7 = 45 of the 105
-+ingestion minutes measured on the 2026-08-09 nightly, and roughly 3,800 of ~8,300 daily API
-+calls. Transfers move in bursts (January, summer); managers change rarely. CPO ruling: re-fetch
-+both every 7 days per league.
-+
-+This is not restoring something that was lost. `git log -S` across all history shows neither
-+loader ever had skip-if-present logic. Five other loaders do — `players`, `player_squads`,
-+`player_profiles`, `player_teams`, `fixtures`, `fixture_details` — and these two never got it.
-+
-+⚠ THE SKIP MUST SKIP THE WRITE, NOT JUST THE FETCH — for DIFFERENT reasons per table
-+------------------------------------------------------------------------------------
-+Both loaders write one row per league per run, so fetching a subset of teams and writing it
-+would persist a partial snapshot. What that costs differs, and an earlier version of this
-+docstring got COACHES wrong by asserting both were the same:
-+
-+  RAW_APIF_TRANSFERS — MERGE-ON-WRITE since #33 item 8b, and `stg_apif__transfers` reads
-+  latest-per-league. A partial write DELETES the complete row it supersedes. Unrecoverable
-+  past time travel — the #37 shape.
-+
-+  RAW_APIF_COACHES — APPEND-ONLY. It was deliberately EXCLUDED from 8b (`data_contract.md`,
-+  and the CPO ruling of 2026-06-23) because `stg_apif__coaches` reads ALL snapshots to preserve
-+  every coach ever seen; a league-keyed delete would drop ~120 coaches whose teams later left
-+  our pull. So a partial write here destroys nothing — it appends a thin snapshot that base
-+  then dedups. Still not something to do on purpose, but the consequence is noise, not loss.
-+
-+Either way a league that is not due is skipped ENTIRELY at the call site: no fetch, no write.
-+Its stored rows are untouched and staging reads exactly what it read yesterday. That is why no
-+carry-forward is needed here, unlike `loads/fixtures.py`, which carries prior seasons forward
-+precisely because it DOES write on every run.
-+
-+READS ARE HOISTED
-+-----------------
-+`latest_ingest_per_league` is called ONCE per table per run and the result passed down, mirroring
-+`captured_player_team_seasons` (`orchestrator.py:201`). Calling it per competition would
-+reintroduce the O(competitions^2) shape that #33 item 1 removed.
-+"""
-+
-+from __future__ import annotations
-+
-+import hashlib
-+import os
-+from datetime import datetime, timedelta, timezone
-+
-+from google.cloud import bigquery
-+
-+from .settings import DATASET_ID, GCP_PROJECT_ID
-+
-+# The CPO's ruling, in one place. Both loaders share it; a per-table cadence would be a second
-+# thing to keep in step with sources.yml for no benefit while the ruling covers both.
-+REFETCH_INTERVAL_DAYS = 7
-+
-+# How many days the freshness thresholds in sources.yml must exceed the cadence before the
-+# staleness alert would fire on CORRECT behaviour. One whole extra cycle: a league refreshed on
-+# schedule is at most REFETCH_INTERVAL_DAYS old, and one missed run makes it 2x that.
-+# `tests/test_refetch_cadence.py` pins sources.yml against this so the two cannot drift.
-+FRESHNESS_MUST_EXCEED_CADENCE_BY_DAYS = 1
-+
-+
-+def _force_full() -> bool:
-+    """Reuse the existing backfill escape hatch rather than invent a second flag.
-+
-+    `API_FOOTBALL_INGEST_FORCE_FULL` already means "ignore incremental shortcuts" elsewhere in
-+    the pipeline, and a backfill must be able to bypass the cadence.
-+    """
-+    return os.getenv("API_FOOTBALL_INGEST_FORCE_FULL", "").strip().lower() in ("1", "true", "yes")
-+
-+
-+def stagger_offset_days(league_code: str, interval_days: int = REFETCH_INTERVAL_DAYS) -> int:
-+    """A stable 0..interval-1 offset per league, so they do not all come due the same night.
-+
-+    Without this every league shares tonight's `ingested_at` and therefore expires together:
-+    one night in seven costs the full 45 minutes against a 3h timeout, and the other six cost
-+    nothing. Spreading gives ~6-7 leagues a night. Each league still re-fetches every
-+    `interval_days` exactly as ruled; only the phase differs.
-+
-+    md5 rather than `hash()`: Python salts `hash()` per process (PYTHONHASHSEED), so a league's
-+    offset would change on every run and the cadence would smear into "somewhere between 1 and 7
-+    days". Stability across processes is the whole point.
-+    """
-+    digest = hashlib.md5(league_code.encode("utf-8")).digest()
-+    return digest[0] % interval_days
-+
-+
-+def should_refetch(
-+    league_code: str,
-+    last_ingested: datetime | None,
-+    now: datetime,
-+    interval_days: int = REFETCH_INTERVAL_DAYS,
-+) -> bool:
-+    """Is this league due? Pure — no I/O, so the cadence is testable without BigQuery.
-+
-+    True when the league has never been ingested (`last_ingested is None`), when the force flag
-+    is set, or when the row is older than its staggered due-date. A first-ever ingest must never
-+    be skipped: there is no row to keep, so skipping would leave the league permanently absent.
-+    """
-+    if _force_full():
-+        return True
-+    if last_ingested is None:
-+        return True
-+
-+    age_days = (now - last_ingested).total_seconds() / 86400.0
-+
-+    # SAFETY NET FIRST: never let a league exceed the ruled cadence, whatever the stagger says.
-+    # This is what makes a missed run self-heal instead of waiting a further week.
-+    if age_days >= interval_days:
-+        return True
-+
-+    # Already refreshed today — never fetch a league twice in one day.
-+    if age_days < 1:
-+        return False
-+
-+    # The stagger is a SLOT IN THE CALENDAR, not a shortened interval. Each league is due on
-+    # exactly one day in every `interval_days`, chosen by its own offset, so every league gets
-+    # the full cadence the CPO ruled and the work spreads across the week.
-+    #
-+    # An earlier version computed `due_after = interval_days - offset` on every call, which
-+    # looked equivalent and was not: it PERMANENTLY shortened the interval, so a league with
-+    # offset 6 re-fetched every single day and only offset 0 ever got 7 days. Caught in review.
-+    # The comment then claimed the offset "shifts the FIRST due-date only" — which is exactly
-+    # what this version does and the old one did not.
-+    return (now.toordinal() + stagger_offset_days(league_code, interval_days)) % interval_days == 0
-+
-+
-+def latest_ingest_per_league(
-+    client: bigquery.Client, table_name: str
-+) -> dict[str, datetime]:
-+    """`{league_code: latest ingested_at}` for one raw table. ONE query per table per run.
-+
-+    Hoisted deliberately — see the module docstring. Returns an empty dict when the table does
-+    not exist or the read fails, which makes every league look never-ingested and therefore
-+    DUE. That is the safe direction: a failed read costs a redundant fetch, never a silent
-+    skip that would let data quietly go stale.
-+    """
-+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
-+    sql = f"""
-+        select league_code, max(ingested_at) as latest
-+        from `{table_id}`
-+        group by league_code
-+    """
-+    out: dict[str, datetime] = {}
-+    try:
-+        for row in client.query(sql).result():
-+            if row.league_code and row.latest:
-+                out[row.league_code] = row.latest
-+    except Exception:  # noqa: BLE001 - see docstring: fail toward fetching, never toward skipping
-+        return {}
-+    return out
-+
-+
-+def next_due(last_ingested: datetime, league_code: str,
-+             interval_days: int = REFETCH_INTERVAL_DAYS) -> datetime:
-+    """The next calendar day this league is due, derived the SAME way `should_refetch` decides.
-+
-+    Two functions computing a due-date two ways is how a log line starts lying about what the
-+    scheduler will do, so this walks forward day by day using the same slot arithmetic rather
-+    than restating it as a formula.
-+    """
-+    offset = stagger_offset_days(league_code, interval_days)
-+    day = last_ingested + timedelta(days=1)
-+    for _ in range(interval_days + 1):
-+        if (day.toordinal() + offset) % interval_days == 0:
-+            return day
-+        day += timedelta(days=1)
-+    # Unreachable while a slot exists in every `interval_days` window; the safety net in
-+    # should_refetch would have fired by now anyway.
-+    return last_ingested + timedelta(days=interval_days)
-+
-+
-+def skip_reason(
-+    league_code: str,
-+    last_ingested: datetime | None,
-+    now: datetime,
-+    interval_days: int = REFETCH_INTERVAL_DAYS,
-+) -> str:
-+    """One log line explaining a skip, with the age and when it next runs.
-+
-+    A skip that logs nothing is indistinguishable from a phase that silently stopped working —
-+    which is the failure class this repo has been bitten by twice.
-+    """
-+    if last_ingested is None:
-+        return "never ingested"
-+    age_h = (now - last_ingested).total_seconds() / 3600.0
-+    due = next_due(last_ingested, league_code, interval_days)
-+    return (f"age={age_h:.1f}h, next due {due:%Y-%m-%d} (cadence {interval_days}d)")
-+
-+
-+def utcnow() -> datetime:
-+    """Single clock source, so tests can freeze time by patching one name."""
-+    return datetime.now(timezone.utc)
-diff --git a/tests/test_refetch_cadence.py b/tests/test_refetch_cadence.py
-new file mode 100644
-index 0000000..04c97b3
---- /dev/null
-+++ b/tests/test_refetch_cadence.py
-@@ -0,0 +1,287 @@
-+"""The 7-day re-fetch cadence for transfers and coaches. #33 item 14.
-+
-+WHAT THIS GUARDS
-+----------------
-+Skipping work is easy to get wrong in ways that are silent:
-+
-+  · skipping a league that has NEVER been ingested  → it stays permanently absent
-+  · skipping but still WRITING                      → a partial row, which since 8b DELETES
-+                                                       the complete one (the #37 shape)
-+  · a failed cadence read treated as "up to date"   → every league skipped forever
-+  · cadence and sources.yml thresholds drifting     → the staleness alert fires daily on
-+                                                       CORRECT behaviour and gets muted
-+
-+None of those raise. Each has a test below, and the last is the one that ties this change's two
-+halves together — the code cadence and the dbt freshness thresholds are only correct relative to
-+each other.
-+"""
-+
-+from __future__ import annotations
-+
-+import sys
-+from datetime import datetime, timedelta, timezone
-+from pathlib import Path
-+
-+import pytest
-+import yaml
-+
-+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-+
-+from ingestion.api_football.refetch import (  # noqa: E402
-+    FRESHNESS_MUST_EXCEED_CADENCE_BY_DAYS,
-+    REFETCH_INTERVAL_DAYS,
-+    latest_ingest_per_league,
-+    next_due,
-+    should_refetch,
-+    stagger_offset_days,
-+)
-+
-+REPO = Path(__file__).resolve().parents[1]
-+SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
-+
-+# The tables this task put on a cadence. They differ in write mode and it matters:
-+#   TRANSFERS is merge-on-write (8b) and read latest-per-league — a partial write DELETES.
-+#   COACHES is APPEND-ONLY, deliberately excluded from 8b because stg_apif__coaches reads all
-+#   snapshots to preserve every coach ever seen (CPO 2026-06-23) — a partial write only adds
-+#   noise. An earlier version of this file called both merge-on-write; a reviewer caught it.
-+CADENCED_TABLES = {"RAW_APIF_TRANSFERS", "RAW_APIF_COACHES"}
-+
-+NOW = datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc)
-+
-+
-+def test_a_league_ingested_today_is_skipped():
-+    assert not should_refetch("BL1", NOW - timedelta(hours=6), NOW)
-+
-+
-+def test_a_league_ingested_long_ago_is_refetched():
-+    assert should_refetch("BL1", NOW - timedelta(days=REFETCH_INTERVAL_DAYS + 1), NOW)
-+
-+
-+def test_a_league_never_ingested_is_always_fetched():
-+    """The one that must never be "optimised". There is no stored row to preserve, so skipping
-+    would leave the competition permanently absent from raw — silently, since nothing errors."""
-+    assert should_refetch("BL1", None, NOW)
-+
-+
-+def test_the_force_flag_overrides_the_cadence(monkeypatch):
-+    """A backfill has to be able to bypass this. Reuses the existing
-+    API_FOOTBALL_INGEST_FORCE_FULL rather than a second flag nobody would remember."""
-+    fresh = NOW - timedelta(hours=1)
-+    assert not should_refetch("BL1", fresh, NOW)
-+    monkeypatch.setenv("API_FOOTBALL_INGEST_FORCE_FULL", "1")
-+    assert should_refetch("BL1", fresh, NOW)
-+
-+
-+def test_the_stagger_spreads_leagues_across_the_whole_interval():
-+    """Every league shares tonight's ingested_at, so without a stagger they all come due on the
-+    same night: one night in seven costing the full 45 minutes against a 3h timeout, six costing
-+    nothing. This asserts the offsets actually spread rather than clustering."""
-+    codes = ["BL1", "BL2", "PL", "PD", "SA", "L1", "VL", "WC", "LMX", "LP", "MLS", "SPL",
-+             "ED", "UCL", "UEL", "UECL", "BSA", "APD", "J1", "KL1", "DFBP", "FAC"]
-+    offsets = {c: stagger_offset_days(c) for c in codes}
-+    assert all(0 <= o < REFETCH_INTERVAL_DAYS for o in offsets.values())
-+    assert len(set(offsets.values())) >= 5, (
-+        f"offsets barely spread: {sorted(set(offsets.values()))}. All leagues would come due "
-+        "on nearly the same night, which is the spike this exists to prevent."
-+    )
-+
-+
-+def test_the_stagger_is_stable_across_processes():
-+    """Python salts the builtin `hash()` per process, so using it here would give a league a
-+    different offset every run and smear the cadence into 'somewhere between 1 and 7 days'.
-+    This pins the values, so a switch to `hash()` fails rather than silently degrading."""
-+    assert stagger_offset_days("BL1") == stagger_offset_days("BL1")
-+    assert [stagger_offset_days(c) for c in ("BL1", "PL", "SA")] == [
-+        stagger_offset_days(c) for c in ("BL1", "PL", "SA")
-+    ]
-+
-+
-+@pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS", "J1", "FAC", "UCL"])
-+def test_every_league_actually_gets_the_ruled_cadence(code):
-+    """THE ONE MY FIRST VERSION LACKED, and a reviewer found the bug instead.
-+
-+    The first implementation computed `due_after = interval - offset` on EVERY call, which
-+    permanently SHORTENED the interval: a league with offset 6 re-fetched every single day and
-+    only offset 0 ever got 7 days. It looked like a stagger and was a silent cadence cut, and
-+    the CPO's ruling was "every 7 days" — not "somewhere between 1 and 7 depending on a hash".
-+
-+    This simulates a year of nightly runs and asserts the observed gap between re-fetches is
-+    exactly the ruled interval for EVERY league, not just the lucky ones. It fails on the old
-+    implementation for 6 of every 7 leagues.
-+    """
-+    last = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc)
-+    fetches = []
-+    for day in range(365):
-+        now = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) + timedelta(days=day)
-+        if should_refetch(code, last, now):
-+            fetches.append(now)
-+            last = now
-+
-+    assert len(fetches) >= 40, f"{code} barely re-fetched in a year: {len(fetches)}"
-+    gaps = {(b - a).days for a, b in zip(fetches, fetches[1:])}
-+    assert gaps == {REFETCH_INTERVAL_DAYS}, (
-+        f"{code} re-fetched at gaps of {sorted(gaps)} days; the CPO ruled exactly "
-+        f"{REFETCH_INTERVAL_DAYS}. A stagger must shift WHICH day, never how often."
-+    )
-+
-+
-+@pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS"])
-+def test_the_logged_next_due_date_is_the_day_it_actually_refetches(code):
-+    """The skip log tells an operator when a league next runs. If `next_due` and
-+    `should_refetch` compute that two different ways, the log lies — and a lying log is worse
-+    than none, because it gets trusted during an incident.
-+
-+    Asserts the reported date is the first day `should_refetch` actually returns True.
-+    """
-+    last = datetime(2026, 3, 2, 4, 0, tzinfo=timezone.utc)
-+    reported = next_due(last, code)
-+
-+    actual = None
-+    for day in range(1, REFETCH_INTERVAL_DAYS + 2):
-+        now = last + timedelta(days=day)
-+        if should_refetch(code, last, now):
-+            actual = now
-+            break
-+
-+    assert actual is not None, f"{code} never became due within a full cycle"
-+    assert reported.date() == actual.date(), (
-+        f"{code}: the skip log would report {reported.date()} but the scheduler re-fetches on "
-+        f"{actual.date()}."
-+    )
-+
-+
-+def test_the_stagger_actually_spreads_the_load_across_the_week():
-+    """The other half: exact cadence is worthless if every league lands on the same day, which
-+    is the 45-minute spike the stagger exists to prevent."""
-+    codes = ["BL1", "BL2", "PL", "PD", "SA", "L1", "VL", "WC", "LMX", "LP", "MLS", "SPL",
-+             "ED", "UCL", "UEL", "UECL", "BSA", "APD", "J1", "KL1", "DFBP", "FAC"]
-+    last = {c: datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) for c in codes}
-+    per_day = []
-+    for day in range(1, 15):
-+        now = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) + timedelta(days=day)
-+        due = [c for c in codes if should_refetch(c, last[c], now)]
-+        for c in due:
-+            last[c] = now
-+        per_day.append(len(due))
-+
-+    busiest = max(per_day)
-+    assert busiest < len(codes), (
-+        f"all {len(codes)} leagues came due on one night ({per_day}); that is the spike the "
-+        "stagger exists to prevent."
-+    )
-+    assert busiest <= len(codes) // 2, f"load poorly spread across the week: {per_day}"
-+
-+
-+def test_a_failed_cadence_read_makes_every_league_due():
-+    """Fail toward fetching, never toward skipping.
-+
-+    If the cadence query dies, treating leagues as up-to-date would skip every phase forever
-+    and the data would rot in silence. A redundant fetch is the cheap error."""
-+    class _Boom:
-+        def query(self, _sql):
-+            raise RuntimeError("BigQuery unavailable")
-+
-+    assert latest_ingest_per_league(_Boom(), "RAW_APIF_TRANSFERS") == {}
-+    assert should_refetch("BL1", {}.get("BL1"), NOW)
-+
-+
-+def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
-+    """THE ONE THAT PREVENTS DATA LOSS.
-+
-+    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league and
-+    merge-on-write since 8b, so a write of a partial payload would DELETE the complete row —
-+    the #37 defect, made permanent. Asserted by running the real orchestration path with the
-+    loader replaced by a recorder: zero calls, not "a call with less data".
-+    """
-+    from ingestion.api_football.loads import competition_runner as cr
-+
-+    calls = []
-+    monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: calls.append(a))
-+
-+    result = type("R", (), {"league_code": "BL1", "team_ids": {1, 2}, "seasons_list": [2026]})()
-+    ctx = type("C", (), {"errors": []})()
-+
-+    fresh = {"BL1": datetime.now(timezone.utc) - timedelta(hours=2)}
-+    cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=fresh)
-+    assert calls == [], "a skipped league still called the loader; it would write a partial row"
-+
-+    stale = {"BL1": datetime.now(timezone.utc) - timedelta(days=30)}
-+    cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=stale)
-+    assert len(calls) == 1, "a due league did not fetch; the cadence would never refresh"
-+
-+
-+def test_no_cadence_information_means_fetch(monkeypatch):
-+    """Passing None (the default) must behave exactly as before this change — every league
-+    fetches. Otherwise any caller that forgets the argument silently stops ingesting."""
-+    from ingestion.api_football.loads import competition_runner as cr
-+
-+    calls = []
-+    monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: calls.append(a))
-+    result = type("R", (), {"league_code": "BL1", "team_ids": {1}, "seasons_list": [2026]})()
-+    ctx = type("C", (), {"errors": []})()
-+
-+    cr.run_transfers_for_competition(ctx, result)
-+    assert len(calls) == 1
-+
-+
-+def _threshold_days(spec: dict) -> float:
-+    per = {"minute": 1 / 1440, "hour": 1 / 24, "day": 1}
-+    return float(spec["count"]) * per[spec["period"]]
-+
-+
-+@pytest.mark.parametrize("table", sorted(CADENCED_TABLES))
-+def test_freshness_thresholds_exceed_the_cadence(table):
-+    """THE GUARD THAT TIES THE TWO HALVES TOGETHER.
-+
-+    The code cadence and the dbt freshness thresholds are only correct relative to each other.
-+    At the old 54h, a table refreshed every 7 days sits permanently past `error_after`.
-+
-+    Nothing on this branch reads those thresholds — `dbt source freshness` is invoked nowhere,
-+    and the consumer is the hourly sentinel on the separate, unmerged #39 Stage 2 branch (!30).
-+    So today this is inert; once !30 lands, unraised thresholds would email EVERY DAY about a
-+    pipeline behaving exactly as ruled, which ends with somebody muting the alert and leaving
-+    the pipeline unwatched again. This test is what keeps the two halves in step regardless of
-+    which merges first.
-+
-+    So `error_after` must exceed the cadence plus one whole extra cycle. Change
-+    REFETCH_INTERVAL_DAYS to 14 without touching sources.yml and this fails, which is the point.
-+    """
-+    doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
-+    tables = {
-+        (t.get("identifier") or t["name"]): t
-+        for s in doc["sources"] for t in s["tables"]
-+    }
-+    assert table in tables, f"{table} vanished from sources.yml"
-+    fresh = tables[table].get("freshness")
-+    assert fresh, f"{table} lost its freshness block; the sentinel would stop checking it"
-+
-+    error_days = _threshold_days(fresh["error_after"])
-+    minimum = REFETCH_INTERVAL_DAYS + FRESHNESS_MUST_EXCEED_CADENCE_BY_DAYS
-+    assert error_days > minimum, (
-+        f"{table} error_after is {error_days}d but the re-fetch cadence is "
-+        f"{REFETCH_INTERVAL_DAYS}d. It must exceed {minimum}d (cadence + one cycle), or the "
-+        "staleness alert fires daily on a pipeline that is behaving correctly, and gets muted."
-+    )
-+
-+    warn_days = _threshold_days(fresh["warn_after"])
-+    assert warn_days >= REFETCH_INTERVAL_DAYS, (
-+        f"{table} warn_after is {warn_days}d, inside the {REFETCH_INTERVAL_DAYS}d cadence — "
-+        "it would warn on every normal cycle."
-+    )
-+    assert warn_days < error_days
-+
-+
-+def test_the_nightly_sources_keep_their_tight_thresholds():
-+    """The relaxation must be confined to the two cadenced tables. Everything else is still
-+    ingested nightly, and widening those would blind the sentinel for no reason."""
-+    doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
-+    for s in doc["sources"]:
-+        for t in s["tables"]:
-+            name = t.get("identifier") or t["name"]
-+            fresh = t.get("freshness")
-+            if not fresh or name in CADENCED_TABLES:
-+                continue
-+            assert _threshold_days(fresh["error_after"]) <= 3, (
-+                f"{name} is not on a re-fetch cadence but its error_after was widened to "
-+                f"{_threshold_days(fresh['error_after'])}d. Only the cadenced tables may relax."
-+            )
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/review.md          |   95 +-
-#    .claude/task/review_input.patch | 1840 +++++++++++++++++----------------------
-#    2 files changed, 858 insertions(+), 1077 deletions(-)
-# ============================================================================
+@@ -1983,3 +1983,61 @@ times.
+   snapshots to preserve every coach ever seen. The builder wrote that exclusion two days ago and
+   then contradicted it. The skip design is unaffected — skipping writes nothing either way —
+   but the stated reason was wrong for one of the two tables the task is about.
++
++
++2026-08-11 — #53: APPLY THE fixture_event_team_overrides ROW FOR MACAU (1544) / MAÇÃO (4767)
++
++  RECORDED HERE BEFORE THE CONTRACT CITES IT, which is the whole point of this entry existing
++  as its own step. Three tasks in the last two days FAILed review for recording a CPO decision
++  only inside `contract.md` — the artefact whose own scope the decision authorises. The ruling
++  is also published on GitLab #53 as a comment timestamped 2026-08-11T12:02:55Z, i.e. BEFORE
++  the branch existed, so a blinded reviewer can verify it independently of anything the builder
++  wrote.
++
++  THE RULING, verbatim, in-thread: **"add the seed row"** — in answer to the recommendation on
++  #53 to apply `4767 -> 1544` with mode `reattribute_if_cohabiting`, NOT `alias`.
++
++  WHAT WAS PUT TO THE CPO BEFORE THE ANSWER, so the ruling is on evidence and not on the
++  builder's inference. The prod nightly of 2026-08-11 failed:
++  `assert_event_team_in_fixture_participants` returned 10 rows, `dbt build` halted, and 540 of
++  970 nodes SKIPped — so ingestion kept succeeding while `dbt_analytics` went stale, and it
++  recurs every night until fixed. All 10 events sit in two WCQAS fixtures (1100381, 1100382,
++  the same two nations home and away) and every one names team 4767.
++
++  THE EXTERNAL GROUND TRUTH, which this repo's standing rule requires before asserting that two
++  entity records relate (`feedback_verify_real_world_identity`): **Mação is a municipality in
++  Portugal; Macau is an AFC member association.** A Portuguese municipality cannot appear in the
++  Asian section of World Cup qualifying. Both facts are externally checkable and were stated to
++  the CPO on #53 before the ruling.
++
++  THE INTERNAL EVIDENCE, re-verified against PROD on 2026-08-11 by this task rather than taken
++  from the issue text: Mação (4767) is a participant in **0** fixtures warehouse-wide and its
++  only events anywhere are these 10; Macau (1544) is a participant in exactly the 2 fixtures
++  whose events are mis-tagged. 4767 exists in `dim_team` only as an attribution artefact.
++
++  WHY `reattribute_if_cohabiting` AND NOT `alias`, since the two modes are not interchangeable
++  and the wrong one fails in opposite directions. `alias` is an UNCONDITIONAL id replacement and
++  means "one club, two provider ids" — it would permanently conflate a Portuguese municipality
++  with a national team, so if Mação ever legitimately appeared in Portuguese football its events
++  would be silently folded into Macau. `reattribute_if_cohabiting` fires only where the correct
++  id IS a fixture participant and the wrong id is NOT, which is exactly the ASKO Kara precedent
++  already in this seed (#526). The failure modes are asymmetric: `alias` is silently wrong
++  forever, `reattribute_if_cohabiting` is at worst inert.
++
++  THE CPO'S OWN VERIFICATION CONDITION, quoted because it is a done_when and not advice:
++  "verify by running its SQL directly (it is in `dbt_project/tests/`), NOT by assuming the seed
++  took effect. The `reattribute_if_cohabiting` mode is conditional, so a row that does not match
++  its condition silently does nothing." The seed landing in git is NOT evidence the test passes.
++
++  ONE IMPLEMENTATION DETAIL THE BUILDER DECIDED, declared because it changes the bytes of the
++  CPO-specified row: the note text contains a comma ("Portuguese municipality, name collision"),
++  and this is a 4-column CSV. Written unquoted it parses as 5 fields and the seed breaks (counted
++  with `csv.reader`, not eyeballed — an earlier draft of this entry said 6). The
++  note is therefore wrapped in double quotes — standard RFC 4180 quoting, already used in
++  `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
++  CPO's; only the CSV framing differs. Not a decision about content.
++
++  NOT DECIDED HERE, and deliberately not touched: whether `dim_team` should stop publishing
++  4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
++  the provider should be asked to correct the feed. Both are separate from making the nightly
++  green.
+diff --git a/dbt_project/seeds/fixture_event_team_overrides.csv b/dbt_project/seeds/fixture_event_team_overrides.csv
+index 8a64f96..a8f856f 100644
+--- a/dbt_project/seeds/fixture_event_team_overrides.csv
++++ b/dbt_project/seeds/fixture_event_team_overrides.csv
+@@ -1,3 +1,4 @@
+ wrong_team_api_id,correct_team_api_id,mode,note
+ 2263,10124,alias,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
+ 6424,25274,reattribute_if_cohabiting,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
++4767,1544,reattribute_if_cohabiting,"Macau 1544 events mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"

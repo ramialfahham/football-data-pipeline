@@ -1983,3 +1983,61 @@ times.
   snapshots to preserve every coach ever seen. The builder wrote that exclusion two days ago and
   then contradicted it. The skip design is unaffected — skipping writes nothing either way —
   but the stated reason was wrong for one of the two tables the task is about.
+
+
+2026-08-11 — #53: APPLY THE fixture_event_team_overrides ROW FOR MACAU (1544) / MAÇÃO (4767)
+
+  RECORDED HERE BEFORE THE CONTRACT CITES IT, which is the whole point of this entry existing
+  as its own step. Three tasks in the last two days FAILed review for recording a CPO decision
+  only inside `contract.md` — the artefact whose own scope the decision authorises. The ruling
+  is also published on GitLab #53 as a comment timestamped 2026-08-11T12:02:55Z, i.e. BEFORE
+  the branch existed, so a blinded reviewer can verify it independently of anything the builder
+  wrote.
+
+  THE RULING, verbatim, in-thread: **"add the seed row"** — in answer to the recommendation on
+  #53 to apply `4767 -> 1544` with mode `reattribute_if_cohabiting`, NOT `alias`.
+
+  WHAT WAS PUT TO THE CPO BEFORE THE ANSWER, so the ruling is on evidence and not on the
+  builder's inference. The prod nightly of 2026-08-11 failed:
+  `assert_event_team_in_fixture_participants` returned 10 rows, `dbt build` halted, and 540 of
+  970 nodes SKIPped — so ingestion kept succeeding while `dbt_analytics` went stale, and it
+  recurs every night until fixed. All 10 events sit in two WCQAS fixtures (1100381, 1100382,
+  the same two nations home and away) and every one names team 4767.
+
+  THE EXTERNAL GROUND TRUTH, which this repo's standing rule requires before asserting that two
+  entity records relate (`feedback_verify_real_world_identity`): **Mação is a municipality in
+  Portugal; Macau is an AFC member association.** A Portuguese municipality cannot appear in the
+  Asian section of World Cup qualifying. Both facts are externally checkable and were stated to
+  the CPO on #53 before the ruling.
+
+  THE INTERNAL EVIDENCE, re-verified against PROD on 2026-08-11 by this task rather than taken
+  from the issue text: Mação (4767) is a participant in **0** fixtures warehouse-wide and its
+  only events anywhere are these 10; Macau (1544) is a participant in exactly the 2 fixtures
+  whose events are mis-tagged. 4767 exists in `dim_team` only as an attribution artefact.
+
+  WHY `reattribute_if_cohabiting` AND NOT `alias`, since the two modes are not interchangeable
+  and the wrong one fails in opposite directions. `alias` is an UNCONDITIONAL id replacement and
+  means "one club, two provider ids" — it would permanently conflate a Portuguese municipality
+  with a national team, so if Mação ever legitimately appeared in Portuguese football its events
+  would be silently folded into Macau. `reattribute_if_cohabiting` fires only where the correct
+  id IS a fixture participant and the wrong id is NOT, which is exactly the ASKO Kara precedent
+  already in this seed (#526). The failure modes are asymmetric: `alias` is silently wrong
+  forever, `reattribute_if_cohabiting` is at worst inert.
+
+  THE CPO'S OWN VERIFICATION CONDITION, quoted because it is a done_when and not advice:
+  "verify by running its SQL directly (it is in `dbt_project/tests/`), NOT by assuming the seed
+  took effect. The `reattribute_if_cohabiting` mode is conditional, so a row that does not match
+  its condition silently does nothing." The seed landing in git is NOT evidence the test passes.
+
+  ONE IMPLEMENTATION DETAIL THE BUILDER DECIDED, declared because it changes the bytes of the
+  CPO-specified row: the note text contains a comma ("Portuguese municipality, name collision"),
+  and this is a 4-column CSV. Written unquoted it parses as 5 fields and the seed breaks (counted
+  with `csv.reader`, not eyeballed — an earlier draft of this entry said 6). The
+  note is therefore wrapped in double quotes — standard RFC 4180 quoting, already used in
+  `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
+  CPO's; only the CSV framing differs. Not a decision about content.
+
+  NOT DECIDED HERE, and deliberately not touched: whether `dim_team` should stop publishing
+  4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
+  the provider should be asked to correct the feed. Both are separate from making the nightly
+  green.

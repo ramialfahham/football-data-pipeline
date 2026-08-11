@@ -1,146 +1,200 @@
-# Task contract — #33 item 14: re-fetch cadence for transfers and coaches
+# Task contract — #53: correct the Macau/Mação event mis-attribution
 
 objective: >
-  `transfers` and `coaches` re-download identical data every night. Measured on the 2026-08-09
-  nightly: 26.7 + 18.7 = **45 of 105 ingestion minutes**, and roughly 3,800 of ~8,300 daily API
-  calls, spent fetching data that has not changed. Transfers move in bursts (January, summer);
-  managers change rarely.
+  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
+  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
+  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
+  current while `dbt_analytics` silently is not.
 
-  This task makes both re-fetch on a **7-day cadence per league** instead of nightly.
-
-  NOT A REGRESSION FIX, and the record matters because the CPO asked for it as one. `git log -S`
-  across ALL history for `already_captured`, `captured_`, `skip_if_present`, `cached_response`
-  and `players_needing`, scoped to `loads/transfers.py` and `loads/coaches.py`, returns ZERO
-  commits. Neither loader has ever carried skip-if-present logic. The CPO's recollection of a
-  "don't fetch what we already have" design is nonetheless correct — it exists and is deliberate
-  in FIVE other loaders (`players`, `player_squads`, `player_profiles`, `player_teams`,
-  `fixtures`, `fixture_details`). These two never got it. This finishes the job rather than
-  restoring something.
-refs: GitLab #33 item 14
+  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
+  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
+  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
+  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
+  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
+refs: >
+  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
+  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
+  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
 
 scope_paths:
-  - ingestion/api_football/refetch.py
-  - ingestion/api_football/loads/competition_runner.py
-  - ingestion/api_football/orchestrator.py
-  - dbt_project/models/1_staging/api_football/sources.yml
-  - tests/test_refetch_cadence.py
+  - dbt_project/seeds/fixture_event_team_overrides.csv
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
   - .claude/task/review_input.patch
 
 impact_map: >
-  writers: unchanged. `loads/transfers.py:69` and `loads/coaches.py:83` remain the sole writers
-    of their tables and are NOT edited. What changes is whether `competition_runner.py` calls
-    them at all on a given night.
+  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
+  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
+  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
+  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
 
-  downstream: `dbt ls --select source:api_football.raw_apif_transfers+
-    source:api_football.raw_apif_coaches+ --resource-type model` (dbt 1.7.19, 94 models parsed):
+  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
+    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
 
-      1_staging: stg_apif__coach_career, stg_apif__coaches, stg_apif__transfers
-      2_base:    base_apif__coach_career, base_apif__coaches, base_apif__transfers
-      3_core:    dim_coach, dim_coach_team_mapping, fct_transfer
+  who READS it — exactly one model, confirmed by grep across the repo:
+    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
+    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
+    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
+    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
+    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
+    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
+    in `dim_team`, no page URL and no slug can move because of this change.
 
-  blast_radius on those 9 models: NONE. A skipped league writes NOTHING, so its existing row is
-    untouched and staging reads exactly what it read yesterday. The only observable change is
-    that a row's `ingested_at` advances weekly instead of nightly. `stg_apif__transfers` selects
-    latest-per-league and `stg_apif__coaches` reads all snapshots — neither cares how old the
-    latest is.
+  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
+    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
+    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
+    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
+    was not.
 
-  the sources.yml edit changes NO SQL. `freshness:` is metadata; it does not appear in compiled
-    model SQL and cannot alter lineage or results.
+      2_base.api_football.base_apif__fixture_events
+      2_base.api_football.base_apif__players
+      3_core.dim_player
+      3_core.fct_fixture_event
+      4_intermediate.domestic_league.team_season.int_player_season__metrics
+      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
+      4_intermediate.domestic_league.team_season.int_team_season__metrics
+      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
+      4_intermediate.shared.int_legs__player_match
+      4_intermediate.shared.int_legs__team_from_players
+      4_intermediate.shared.int_legs__team_match
+      4_intermediate.shared.int_player_club_season__metrics
+      4_intermediate.shared.int_player_competition_benchmarks
+      4_intermediate.shared.int_player_momentum__metrics
+      4_intermediate.shared.int_player_profile__contribution
+      4_intermediate.shared.int_player_profile__yoy
+      4_intermediate.shared.int_player_season__team
+      4_intermediate.shared.int_player_season_position__metrics
+      4_intermediate.shared.int_player_season_record
+      4_intermediate.shared.int_team_competition_benchmark_metrics_long
+      4_intermediate.shared.int_team_competition_benchmarks
+      4_intermediate.shared.int_team_momentum__metrics
+      4_intermediate.shared.int_team_momentum_window
+      4_intermediate.shared.int_team_profile__streaks
+      4_intermediate.shared.int_team_profile__yoy
+      4_intermediate.shared.int_team_season_record
+      5_marts.domestic_league.mart_matchday_insights
+      5_marts.domestic_league.mart_team_season_insights
+      5_marts.shared.mart_head_to_head
+      5_marts.shared.mart_leaderboards
+      5_marts.shared.mart_player_career
+      5_marts.shared.mart_player_competition_benchmarks
+      5_marts.shared.mart_player_fixture_stats
+      5_marts.shared.mart_player_match_log
+      5_marts.shared.mart_player_momentum
+      5_marts.shared.mart_player_profile
+      5_marts.shared.mart_player_season_record
+      5_marts.shared.mart_roster
+      5_marts.shared.mart_team_competition_benchmarks
+      5_marts.shared.mart_team_fixtures
+      5_marts.shared.mart_team_momentum
+      5_marts.shared.mart_team_momentum_window
+      5_marts.shared.mart_team_profile
+      5_marts.shared.mart_team_season
+      5_marts.shared.mart_team_season_record
 
-    ⚠ WHO READS IT, stated precisely because an earlier draft of this contract got it wrong and
-    `data-engineer-reviewer` was right to FAIL that. ON THIS BRANCH: **nobody**. `dbt source
-    freshness` is invoked nowhere in the repo, and a grep for `warn_after|error_after` outside
-    `sources.yml` returns only this task's own test. The consumer —
-    `scripts/check_raw_freshness.py`, the hourly out-of-band sentinel — lives on the UNMERGED
-    branch `feat/39-nightly-freshness-alert` (#39 Stage 2, MR !30, commit 42ba08f) and is NOT
-    in this diff. A blinded reviewer cannot verify it from here, and the earlier draft asserted
-    it as present-tense fact, which is exactly the assert-before-checking pattern Appendix A6
-    names.
+    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
+    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
+    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
+    -> `dim_player`), which pulls the whole player surface in.
 
-    THE CHANGE IS CORRECT EITHER WAY, and that is the point:
-      · if !30 never merges — nothing reads these thresholds, so raising them is INERT. No
-        behaviour changes anywhere.
-      · if !30 merges — the sentinel reads `error_after` and would email daily about a pipeline
-        behaving exactly as ruled, until somebody muted it. Raising them prevents that.
-    So merge order genuinely does not matter, which is what `deploy_order` below claims.
+  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
+    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
+    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
+    a different seed.
 
-  ⚠ WHY THE SKIP MUST SKIP THE WRITE TOO, not just the fetch: both loaders write ONE row per
-    league. Fetching a subset and writing it would produce a partial row — the SQUADS defect
-    (#37) — and since #33 item 8b these tables are MERGE-ON-WRITE, so that partial write would
-    DELETE the complete row. Skipping the phase entirely means no fetch, no write, no delete,
-    and no carry-forward needed. This is the whole reason the design is safe.
+  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
+    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
+    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
+    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
+    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
+    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
+    built from the repo, so merging alone does NOT deploy this. It needs
+    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
+    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
 
-  deploy_order: nothing breaks at any point and no backfill is needed. On the first nightly
-    after merge, every league has a fresh row from tonight, so all of them skip until their
-    staggered due-date arrives. Independent of #39 !30 — either can merge first.
+  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
+    not asserted:
+      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
+        `team_sk = 4767`, `league_code = WCQAS`.
+      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
+        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
+        it was not written for.
+      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
+        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
+        legitimate Mação event, because there are none.
+      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
+        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
+        before and after.
+    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
+    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
+    keyed on the fixture's own participants, so a stat that was previously attributed to a
+    non-participant was already unreachable there. Nothing else in the warehouse changes.
 
 decisions_taken: >
-  CPO ruling, in-thread: **"re-fetch transfers and coaches every 7 days"**. That is the cadence
-  and it is not the builder's to adjust.
+  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
+  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
+  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
+  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
 
-  TWO CONSEQUENCES THE CPO WAS SHOWN AND APPROVED IN THE PLAN, because neither follows from a
-  literal reading of the ruling:
+  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
+  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
+  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
+  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
+  precedent already in this seed.
 
-  1. THE FRESHNESS THRESHOLDS MOVE WITH IT. `sources.yml` declares warn 30h / error 54h for both
-     tables. Under a 7-day cadence they would sit permanently past `error_after`. Raised to
-     warn 8 days / error 10 days for these two tables ONLY; the other 9 sources stay at 30h/54h
-     because they are still daily.
-     WHEN THAT MATTERS is conditional and is spelled out in the impact_map above: nothing on
-     THIS branch reads these thresholds, so the change is inert here. It takes effect only once
-     #39 Stage 2's sentinel (MR !30, not in this diff) merges — at which point unraised
-     thresholds would page daily about correct behaviour.
+  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
+  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
+  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
+  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
+  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
+  issue text.
 
-  2. STAGGERED BY LEAGUE. Every league shares tonight's `ingested_at`, so an unstaggered cadence
-     makes all 45 due on the same night — one night in seven costing the full 45 minutes against
-     a 3h timeout, six costing nothing. `hash(league_code) % 7` spreads it to ~6-7 leagues a
-     night. Each league still re-fetches every 7 days exactly as ruled; only the offset differs.
+  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
+  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
+  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
+  seed breaks. The note is wrapped in double quotes — RFC 4180, already
+  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
+  CPO's; only the CSV framing differs.
 
   # THRESHOLD DECLARATIONS
-  NEW MECHANISM — no. Skip-if-present is an established pattern here (five loaders), and the
-  hoisted one-read-per-run shape copies `captured_player_team_seasons` (`orchestrator.py:201`),
-  the fix #33 item 1 made for the same class of problem. No new service, dependency or
-  lifecycle. `API_FOOTBALL_INGEST_FORCE_FULL` is reused rather than a second flag invented.
-
-  RECURRING COST — this REDUCES it: ~45 min/night of ingest becomes ~6-7, and ~3,800 daily API
-  calls disappear. No new spend.
-
-  ⚠ A GUARD IS BEING LOOSENED, declared because this repo's standing rule is never to loosen one
-  quietly. Raising `error_after` from 54h to 10 days means genuine breakage of transfers or
-  coaches ingestion now goes unnoticed for up to 10 days instead of 54 hours. The rule's actual
-  requirement is to NARROW a guard to where it still holds rather than delete the assertion, and
-  that is what this is: 54h is simply false once the intended refresh interval is 7 days, and a
-  guard that fires daily on correct behaviour gets muted, which is a worse outcome than a wider
-  true one. The other nine sources are untouched, so the narrowing is confined to exactly the
-  two tables whose contract changed. `tests/test_refetch_cadence.py` then pins the relationship
-  so cadence and threshold cannot drift apart again.
+  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
+  shipped under #526. This adds a third data row to an existing configuration table.
+  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
+  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
+  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
+  a known cause — an alert that fires daily on a known cause is one that gets muted.
+  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
+  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
+  the data. A future occurrence of this class still fails the build.
+  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
+  is written in full rather than short-form.
 
 decisions_reserved:
-  - Whether the cadence should be window-aware (daily during January/summer transfer windows,
-    weekly otherwise). Truer to the data, more complexity; the CPO ruled a flat 7 days and this
-    implements exactly that.
-  - `player_squads` / `squad` (38 min combined) are NOT touched. They already skip; their cost
-    is the current season, which genuinely changes nightly.
-  - `injuries` — #33 item 15 proposes dropping the endpoint entirely; not decided here.
+  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
+    that never plays in our data, so today it exists only as an attribution artefact and, once the
+    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
+    out of scope for making the nightly green.
+  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
+    permanent local patch for a defect we do not own.
+  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
+    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
+    the reason the override mechanism exists at all.
 
 done_when:
-  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 5e1a672: 725 passed).
-  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
-  - Every new test verified by BREAKING ITS SUBJECT — production code, never a test helper —
-    and confirming WHICH cases go red.
-  - `dbt parse` succeeds against the edited `sources.yml` (a malformed freshness block is a
-    parse error, and nothing else in CI would catch it while `data:build` cannot run).
-  - No ingest, no `dbt build`, no `gcloud` resource touched from this branch.
+  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
+    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
+    line endings and valid UTF-8 preserved.
+  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
+  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
+    predicate is SIMULATED against PROD, read-only, by replaying
+    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
+    UNIONed onto the live seed table, and the test predicate re-run over the result:
+    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
+    must resolve to `team_id = 1544`.**
+  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
+  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
+    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
+    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
 
-amendments:
-  - 2026-08-10: + `ingestion/api_football/orchestrator.py` — authority: **the CPO-approved plan
-    for this task**, which specifies "called ONCE per table per run and passed down, mirroring
-    `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live in the
-    orchestrator — that is where the per-competition loop and every existing hoist are — so the
-    approved design already required editing this file and the omission from `scope_paths` was
-    clerical, not a widening. Caught by the contract gate on the first edit, which is the gate
-    working: the plan and the contract disagreed, and the contract is what governs.
-    Content: read `latest_ingest_per_league` once per table before the loop and pass the two
-    dicts into `run_cheap_phases` and `run_transfers_for_competition`. No other change.
+amendments: (none)
