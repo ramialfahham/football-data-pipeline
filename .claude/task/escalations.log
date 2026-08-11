@@ -1859,3 +1859,61 @@ times.
   distributed computation); a self-hosted GitLab runner for the NIGHTLY (removes the bill without
   fixing the coupling, and adds a dependency on a machine being awake at 04:00 — though it
   remains the right answer for human-triggered MR pipelines, which is a separate decision).
+
+
+2026-08-10 — #39 STAGE 2: A CPO CHOICE THE PLATFORM REFUSED (30h → 25h)
+
+  THE CHOICE. Asked and answered in-thread, alongside the alert channel: the staleness threshold
+  is "no successful run in 30 HOURS", picked by the CPO over 26h and 54h. 30h matched the
+  `warn_after` already set on 8 sources in sources.yml.
+
+  THE REFUSAL. Cloud Monitoring will not accept it. Both mechanisms were tried against the real
+  API and both returned HTTP 400:
+    - `conditionAbsent` — "Durations longer than 23h30m are not supported."
+    - MQL `absent_for` — "the longest time the query results might be absent is 1d6h, which is
+      greater than the allowed 1d1h."
+  So the ceiling is 25h, and 23h30m is not a fallback: for a DAILY job consecutive successes are
+  ~24h apart, so a 23h30m window fires shortly before every single run. Anything at or below 24h
+  is a daily false alarm. 25h is the ONLY value above 24h either mechanism permits, which is why
+  the staleness policy is MQL rather than the simpler `conditionAbsent`.
+
+  WHAT THE BUILDER DID WRONG, first: substituted 25h, DEPLOYED it, and wrote up the reasoning.
+  `scope-auditor` FAILed that in round 1 and was right. §10 makes a threshold a CPO decision
+  "regardless of how obvious the answer seems", and §11 requires the conflicting paths and a
+  recommendation put to the CPO BEFORE implementing. Documenting an override after shipping is
+  not holding authority for it. A constraint that leaves exactly one viable NUMBER does not make
+  the DECISION unavailable — the real fork was never "which number", it was "accept a tighter
+  alert / drop staleness detection until item 14 / measure something else entirely", and only
+  the CPO could weigh those.
+
+  THE ESCALATION, run properly the second time, with three paths and a recommendation:
+    A. keep 25h — fastest detection the platform allows, ~1h of drift tolerance (RECOMMENDED)
+    B. disable staleness until item 14 — no false alarms, blind spot stays open
+    C. build a BigQuery-backed check — no cap, measures data age rather than job success,
+       but a bigger build than Stage 2 as scoped
+  CPO ANSWER: **"Build a BigQuery-backed check instead."** — path C, against the builder's
+  recommendation.
+
+  WHY C IS BETTER, now that it is built. Job success was always a PROXY. A pipeline that
+  "succeeds" every night while writing nothing is stale, and no absence-of-success alert would
+  ever have caught it. `scripts/check_raw_freshness.py` measures table age directly, so the 25h
+  ceiling stops applying entirely, and the thresholds come from `sources.yml` — the same ones
+  `dbt source freshness` uses, so there is no second copy to drift. Running it HOURLY also makes
+  absence detection cheap: a 3h window, far inside the 23h30m cap that made the original design
+  awkward. Cost is zero — `get_table()` is a metadata call, not a query.
+
+  A CONSEQUENCE WORTH KEEPING: because the sentinel covers "succeeding but stale" out of band,
+  the in-entrypoint `dbt source freshness` added earlier in this task was REVERTED. It had
+  forced `dbt deps` above the new_data gate and turned a quiet night from $0 into a few cents.
+  The sentinel does the same job better, for free, without touching the nightly at all.
+
+  A SECOND API CONSTRAINT, same class, recorded so it is not rediscovered: one policy cannot
+  hold both the staleness and the failure condition — "Alert policies with
+  monitoring_query_language condition type can only have a single condition" (HTTP 400). Shipped
+  as TWO policies sharing one notification channel.
+
+  NOT YET PROVEN, stated plainly: the Monitoring API returns no `verificationStatus` field for
+  the email channel, so whether delivery works is UNKNOWN from this side. An unverified channel
+  is a policy that looks armed and is not. Stage 2 is not "done" until an email has actually
+  arrived — a policy that has never fired is decoration, the same as a test that has never gone
+  red.
