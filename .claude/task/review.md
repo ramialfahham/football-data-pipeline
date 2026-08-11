@@ -1,12 +1,35 @@
 # Review — perf/33-item14-refetch-cadence — 2026-08-10
 
-diff_sha256: 94e78fb7bd70e2c42cbe16023abfc01594bf87547a6632273cb7b5a09aaf3a23
+diff_sha256: 16ef2e2f5d755991a4a03a23311f385eb4c9d791448369b4b5af4038510df317
 
 rounds: 4
 
 rounds_cap_override: CPO authorised explicitly — "run round 4" — so scope-auditor's round-3
 finding could be fixed and re-verified rather than accepted on the builder's word. The cap
 exists to stop grinding; here the extra round was paid for by a real defect the reviewer found.
+
+<!--
+REBASED onto main after #39 Stage 2 (!30) merged, 2026-08-10. The four `.claude/task/*` files
+conflicted, as every pair of concurrent branches in this repo does: `contract.md`, `review.md`
+and `review_input.patch` were taken from THIS branch (they describe THIS task), while
+`escalations.log` was UNIONED — it is append-only history and both Stage 2's entry and item
+14's had to survive. Verified: both are present, no conflict markers remain.
+
+`diff_sha256` was rebound with `scripts/check_task_artifacts.py --base main`, NOT
+`--staged-hash`. On a rebased branch the staged hash covers only the increment while CI
+recomputes over the whole branch, so the two diverge and the local number would false-green.
+
+No reviewer verdict below was re-run for the rebase: no code, test or contract line changed —
+only the base commit and the three artifacts above. The rebase did, however, bring the two
+halves of this change together for the first time, and that was verified rather than assumed:
+`scripts/check_raw_freshness.py` (from !30) now reads item 14's raised thresholds, 240h error
+instead of 54h. Without item 14's `sources.yml` edit the sentinel would have paged daily the
+moment the cadence went live.
+-->
+
+<!-- Post-rebase verification: pytest 764 passed / 1 skipped (main after !30 is 751), ruff
+     clean, no conflict markers, both escalations entries intact. -->
+
 
 <!--
 Round history. Every FAIL was the builder's, and the first two were live bugs, not paperwork:
