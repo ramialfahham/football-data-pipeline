@@ -1,408 +1,1064 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index ea205d2..40b0001 100644
+index 40b0001..fcc0054 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,146 +1,200 @@
--# Task contract — #33 item 14: re-fetch cadence for transfers and coaches
-+# Task contract — #53: correct the Macau/Mação event mis-attribution
+@@ -1,200 +1,114 @@
+-# Task contract — #53: correct the Macau/Mação event mis-attribution
++# Task contract — #61: the alert-policy apply recipe under-deploys
  
  objective: >
--  `transfers` and `coaches` re-download identical data every night. Measured on the 2026-08-09
--  nightly: 26.7 + 18.7 = **45 of 105 ingestion minutes**, and roughly 3,800 of ~8,300 daily API
--  calls, spent fetching data that has not changed. Transfers move in bursts (January, summer);
--  managers change rarely.
+-  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
+-  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
+-  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
+-  current while `dbt_analytics` silently is not.
 -
--  This task makes both re-fetch on a **7-day cadence per league** instead of nightly.
--
--  NOT A REGRESSION FIX, and the record matters because the CPO asked for it as one. `git log -S`
--  across ALL history for `already_captured`, `captured_`, `skip_if_present`, `cached_response`
--  and `players_needing`, scoped to `loads/transfers.py` and `loads/coaches.py`, returns ZERO
--  commits. Neither loader has ever carried skip-if-present logic. The CPO's recollection of a
--  "don't fetch what we already have" design is nonetheless correct — it exists and is deliberate
--  in FIVE other loaders (`players`, `player_squads`, `player_profiles`, `player_teams`,
--  `fixtures`, `fixture_details`). These two never got it. This finishes the job rather than
--  restoring something.
--refs: GitLab #33 item 14
-+  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
-+  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
-+  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
-+  current while `dbt_analytics` silently is not.
+-  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
+-  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
+-  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
+-  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
+-  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
+-refs: >
+-  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
+-  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
+-  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
++  `deploy/nightly/README.md` documents how to create the Cloud Monitoring alert policies. Its
++  apply step ends in `for i in 0 1`, a HARDCODED index list, over a generator that writes one
++  payload per policy declared in `deploy/nightly/alert-policy.json`. The file has since grown to
++  three policies, so index 2 was written and never POSTed.
 +
-+  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
-+  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
-+  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
-+  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
-+  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
-+refs: >
-+  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
-+  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
-+  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
++  This was not theoretical. `fdp freshness sentinel itself stopped` — the watcher that detects
++  the monitoring itself having died — was declared and never deployed. Found 2026-08-11 while
++  deleting the superseded 25h bridge policy; the two together would have left the "nightly and
++  sentinel both dead" case with no alert at all.
++
++  It FAILS OPEN, and that is the whole character of the bug: the dropped policy is the one whose
++  absence is invisible, so nothing about the broken state looks broken.
++
++  Two defects, one cause. (a) the count is hardcoded where it should be derived; (b) the prose
++  one line above still says the file "holds BOTH policies". Both are the same rot: a literal
++  standing in for something the file already knows.
++refs: GitLab #61. Found under #33 / #39 Stage 2.
  
  scope_paths:
--  - ingestion/api_football/refetch.py
--  - ingestion/api_football/loads/competition_runner.py
--  - ingestion/api_football/orchestrator.py
--  - dbt_project/models/1_staging/api_football/sources.yml
--  - tests/test_refetch_cadence.py
-+  - dbt_project/seeds/fixture_event_team_overrides.csv
+-  - dbt_project/seeds/fixture_event_team_overrides.csv
++  - deploy/nightly/README.md
++  - tests/test_alert_policy_recipe.py
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
    - .claude/task/review_input.patch
  
  impact_map: >
--  writers: unchanged. `loads/transfers.py:69` and `loads/coaches.py:83` remain the sole writers
--    of their tables and are NOT edited. What changes is whether `competition_runner.py` calls
--    them at all on a given night.
+-  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
++  Not gate-required — neither `deploy/**` nor `tests/**` is on the structural surface
+   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
+-  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
+-  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
 -
--  downstream: `dbt ls --select source:api_football.raw_apif_transfers+
--    source:api_football.raw_apif_coaches+ --resource-type model` (dbt 1.7.19, 94 models parsed):
+-  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
+-    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
 -
--      1_staging: stg_apif__coach_career, stg_apif__coaches, stg_apif__transfers
--      2_base:    base_apif__coach_career, base_apif__coaches, base_apif__transfers
--      3_core:    dim_coach, dim_coach_team_mapping, fct_transfer
+-  who READS it — exactly one model, confirmed by grep across the repo:
+-    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
+-    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
+-    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
+-    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
+-    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
+-    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
+-    in `dim_team`, no page URL and no slug can move because of this change.
 -
--  blast_radius on those 9 models: NONE. A skipped league writes NOTHING, so its existing row is
--    untouched and staging reads exactly what it read yesterday. The only observable change is
--    that a row's `ingested_at` advances weekly instead of nightly. `stg_apif__transfers` selects
--    latest-per-league and `stg_apif__coaches` reads all snapshots — neither cares how old the
--    latest is.
+-  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
+-    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
+-    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
+-    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
+-    was not.
 -
--  the sources.yml edit changes NO SQL. `freshness:` is metadata; it does not appear in compiled
--    model SQL and cannot alter lineage or results.
+-      2_base.api_football.base_apif__fixture_events
+-      2_base.api_football.base_apif__players
+-      3_core.dim_player
+-      3_core.fct_fixture_event
+-      4_intermediate.domestic_league.team_season.int_player_season__metrics
+-      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
+-      4_intermediate.domestic_league.team_season.int_team_season__metrics
+-      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
+-      4_intermediate.shared.int_legs__player_match
+-      4_intermediate.shared.int_legs__team_from_players
+-      4_intermediate.shared.int_legs__team_match
+-      4_intermediate.shared.int_player_club_season__metrics
+-      4_intermediate.shared.int_player_competition_benchmarks
+-      4_intermediate.shared.int_player_momentum__metrics
+-      4_intermediate.shared.int_player_profile__contribution
+-      4_intermediate.shared.int_player_profile__yoy
+-      4_intermediate.shared.int_player_season__team
+-      4_intermediate.shared.int_player_season_position__metrics
+-      4_intermediate.shared.int_player_season_record
+-      4_intermediate.shared.int_team_competition_benchmark_metrics_long
+-      4_intermediate.shared.int_team_competition_benchmarks
+-      4_intermediate.shared.int_team_momentum__metrics
+-      4_intermediate.shared.int_team_momentum_window
+-      4_intermediate.shared.int_team_profile__streaks
+-      4_intermediate.shared.int_team_profile__yoy
+-      4_intermediate.shared.int_team_season_record
+-      5_marts.domestic_league.mart_matchday_insights
+-      5_marts.domestic_league.mart_team_season_insights
+-      5_marts.shared.mart_head_to_head
+-      5_marts.shared.mart_leaderboards
+-      5_marts.shared.mart_player_career
+-      5_marts.shared.mart_player_competition_benchmarks
+-      5_marts.shared.mart_player_fixture_stats
+-      5_marts.shared.mart_player_match_log
+-      5_marts.shared.mart_player_momentum
+-      5_marts.shared.mart_player_profile
+-      5_marts.shared.mart_player_season_record
+-      5_marts.shared.mart_roster
+-      5_marts.shared.mart_team_competition_benchmarks
+-      5_marts.shared.mart_team_fixtures
+-      5_marts.shared.mart_team_momentum
+-      5_marts.shared.mart_team_momentum_window
+-      5_marts.shared.mart_team_profile
+-      5_marts.shared.mart_team_season
+-      5_marts.shared.mart_team_season_record
 -
--    ⚠ WHO READS IT, stated precisely because an earlier draft of this contract got it wrong and
--    `data-engineer-reviewer` was right to FAIL that. ON THIS BRANCH: **nobody**. `dbt source
--    freshness` is invoked nowhere in the repo, and a grep for `warn_after|error_after` outside
--    `sources.yml` returns only this task's own test. The consumer —
--    `scripts/check_raw_freshness.py`, the hourly out-of-band sentinel — lives on the UNMERGED
--    branch `feat/39-nightly-freshness-alert` (#39 Stage 2, MR !30, commit 42ba08f) and is NOT
--    in this diff. A blinded reviewer cannot verify it from here, and the earlier draft asserted
--    it as present-tense fact, which is exactly the assert-before-checking pattern Appendix A6
--    names.
+-    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
+-    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
+-    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
+-    -> `dim_player`), which pulls the whole player surface in.
 -
--    THE CHANGE IS CORRECT EITHER WAY, and that is the point:
--      · if !30 never merges — nothing reads these thresholds, so raising them is INERT. No
--        behaviour changes anywhere.
--      · if !30 merges — the sentinel reads `error_after` and would email daily about a pipeline
--        behaving exactly as ruled, until somebody muted it. Raising them prevents that.
--    So merge order genuinely does not matter, which is what `deploy_order` below claims.
+-  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
+-    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
+-    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
+-    a different seed.
 -
--  ⚠ WHY THE SKIP MUST SKIP THE WRITE TOO, not just the fetch: both loaders write ONE row per
--    league. Fetching a subset and writing it would produce a partial row — the SQUADS defect
--    (#37) — and since #33 item 8b these tables are MERGE-ON-WRITE, so that partial write would
--    DELETE the complete row. Skipping the phase entirely means no fetch, no write, no delete,
--    and no carry-forward needed. This is the whole reason the design is safe.
+-  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
+-    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
+-    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
+-    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
+-    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
+-    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
+-    built from the repo, so merging alone does NOT deploy this. It needs
+-    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
+-    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
 -
--  deploy_order: nothing breaks at any point and no backfill is needed. On the first nightly
--    after merge, every league has a fresh row from tonight, so all of them skip until their
--    staggered due-date arrives. Independent of #39 !30 — either can merge first.
-+  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
-+  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
-+  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
-+  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
+-  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
+-    not asserted:
+-      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
+-        `team_sk = 4767`, `league_code = WCQAS`.
+-      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
+-        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
+-        it was not written for.
+-      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
+-        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
+-        legitimate Mação event, because there are none.
+-      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
+-        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
+-        before and after.
+-    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
+-    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
+-    keyed on the fixture's own participants, so a stat that was previously attributed to a
+-    non-participant was already unreachable there. Nothing else in the warehouse changes.
++  Written short-form and evidenced anyway, because the subject is a PRODUCTION MONITORING
++  recipe and "it is only a README" is the reading that let the bug ship.
 +
-+  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
-+    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
++  what executes this: nothing automated. `grep -rln "alertPolicies" --include=*.py --include=*.sh
++    --include=*.yml .` returns ZERO files — the recipe is run BY HAND by the operator, which is
++    exactly why nothing caught the dropped policy. `.gitlab-ci.yml` and
++    `deploy/nightly/entrypoint.sh` never touch Cloud Monitoring.
 +
-+  who READS it — exactly one model, confirmed by grep across the repo:
-+    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
-+    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
-+    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
-+    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
-+    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
-+    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
-+    in `dim_team`, no page URL and no slug can move because of this change.
++  blast_radius: none at runtime. No pipeline, no dbt model, no ingest and no deployed job reads
++    `deploy/nightly/README.md`. Changing it cannot alter a number, a table or a schedule. The
++    effect is entirely on what a human does the NEXT time policies are applied.
 +
-+  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
-+    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
-+    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
-+    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
-+    was not.
++  layer_rules: none engaged. No dbt model, no seed, no `league_code`.
 +
-+      2_base.api_football.base_apif__fixture_events
-+      2_base.api_football.base_apif__players
-+      3_core.dim_player
-+      3_core.fct_fixture_event
-+      4_intermediate.domestic_league.team_season.int_player_season__metrics
-+      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
-+      4_intermediate.domestic_league.team_season.int_team_season__metrics
-+      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
-+      4_intermediate.shared.int_legs__player_match
-+      4_intermediate.shared.int_legs__team_from_players
-+      4_intermediate.shared.int_legs__team_match
-+      4_intermediate.shared.int_player_club_season__metrics
-+      4_intermediate.shared.int_player_competition_benchmarks
-+      4_intermediate.shared.int_player_momentum__metrics
-+      4_intermediate.shared.int_player_profile__contribution
-+      4_intermediate.shared.int_player_profile__yoy
-+      4_intermediate.shared.int_player_season__team
-+      4_intermediate.shared.int_player_season_position__metrics
-+      4_intermediate.shared.int_player_season_record
-+      4_intermediate.shared.int_team_competition_benchmark_metrics_long
-+      4_intermediate.shared.int_team_competition_benchmarks
-+      4_intermediate.shared.int_team_momentum__metrics
-+      4_intermediate.shared.int_team_momentum_window
-+      4_intermediate.shared.int_team_profile__streaks
-+      4_intermediate.shared.int_team_profile__yoy
-+      4_intermediate.shared.int_team_season_record
-+      5_marts.domestic_league.mart_matchday_insights
-+      5_marts.domestic_league.mart_team_season_insights
-+      5_marts.shared.mart_head_to_head
-+      5_marts.shared.mart_leaderboards
-+      5_marts.shared.mart_player_career
-+      5_marts.shared.mart_player_competition_benchmarks
-+      5_marts.shared.mart_player_fixture_stats
-+      5_marts.shared.mart_player_match_log
-+      5_marts.shared.mart_player_momentum
-+      5_marts.shared.mart_player_profile
-+      5_marts.shared.mart_player_season_record
-+      5_marts.shared.mart_roster
-+      5_marts.shared.mart_team_competition_benchmarks
-+      5_marts.shared.mart_team_fixtures
-+      5_marts.shared.mart_team_momentum
-+      5_marts.shared.mart_team_momentum_window
-+      5_marts.shared.mart_team_profile
-+      5_marts.shared.mart_team_season
-+      5_marts.shared.mart_team_season_record
-+
-+    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
-+    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
-+    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
-+    -> `dim_player`), which pulls the whole player surface in.
-+
-+  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
-+    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
-+    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
-+    a different seed.
-+
-+  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
-+    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
-+    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
-+    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
-+    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
-+    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
-+    built from the repo, so merging alone does NOT deploy this. It needs
-+    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
-+    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
-+
-+  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
-+    not asserted:
-+      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
-+        `team_sk = 4767`, `league_code = WCQAS`.
-+      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
-+        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
-+        it was not written for.
-+      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
-+        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
-+        legitimate Mação event, because there are none.
-+      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
-+        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
-+        before and after.
-+    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
-+    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
-+    keyed on the fixture's own participants, so a stat that was previously attributed to a
-+    non-participant was already unreachable there. Nothing else in the warehouse changes.
++  deploy_order: irrelevant — nothing is deployed by this change. ⚠ AND NOTHING NEEDS TO BE: the
++    missing policy was already created by hand on 2026-08-11 (`alertPolicies/751471063453009885`)
++    and live state already matches `alert-policy.json`. This task fixes the RECIPE so the gap
++    cannot recur; it does not re-fix the instance.
  
  decisions_taken: >
--  CPO ruling, in-thread: **"re-fetch transfers and coaches every 7 days"**. That is the cadence
--  and it is not the builder's to adjust.
+-  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
+-  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
+-  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
+-  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
 -
--  TWO CONSEQUENCES THE CPO WAS SHOWN AND APPROVED IN THE PLAN, because neither follows from a
--  literal reading of the ruling:
+-  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
+-  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
+-  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
+-  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
+-  precedent already in this seed.
 -
--  1. THE FRESHNESS THRESHOLDS MOVE WITH IT. `sources.yml` declares warn 30h / error 54h for both
--     tables. Under a 7-day cadence they would sit permanently past `error_after`. Raised to
--     warn 8 days / error 10 days for these two tables ONLY; the other 9 sources stay at 30h/54h
--     because they are still daily.
--     WHEN THAT MATTERS is conditional and is spelled out in the impact_map above: nothing on
--     THIS branch reads these thresholds, so the change is inert here. It takes effect only once
--     #39 Stage 2's sentinel (MR !30, not in this diff) merges — at which point unraised
--     thresholds would page daily about correct behaviour.
+-  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
+-  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
+-  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
+-  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
+-  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
+-  issue text.
 -
--  2. STAGGERED BY LEAGUE. Every league shares tonight's `ingested_at`, so an unstaggered cadence
--     makes all 45 due on the same night — one night in seven costing the full 45 minutes against
--     a 3h timeout, six costing nothing. `hash(league_code) % 7` spreads it to ~6-7 leagues a
--     night. Each league still re-fetches every 7 days exactly as ruled; only the offset differs.
-+  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
-+  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
-+  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
-+  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
+-  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
+-  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
+-  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
+-  seed breaks. The note is wrapped in double quotes — RFC 4180, already
+-  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
+-  CPO's; only the CSV framing differs.
++  ⚠ THE AUTHORITY, STATED EXACTLY, because a first draft of this contract overstated it and
++  `scope-auditor` FAILed that correctly. The CPO ruling is **"go ahead"**, and it was given to
++  GitLab #61 as filed — NOT to a three-part plan, which the builder described only AFTERWARDS.
++  The earlier wording ("approved in-thread after being shown the three proposed fixes") reversed
++  that order and dressed a builder decision as a quoted ruling. It is corrected here and the
++  ruling is recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #61"), which is
++  visible to reviewers precisely so a claimed authority can be checked against something other
++  than this file.
 +
-+  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
-+  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
-+  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
-+  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
-+  precedent already in this seed.
++  Items 1 and 2 of #61 (derive the loop, correct the stale prose) ARE the filed bug and need no
++  authority beyond "go ahead".
 +
-+  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
-+  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
-+  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
-+  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
-+  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
-+  issue text.
++  ITEM 3 (IDEMPOTENCY) IS A BUILDER DECISION, not a ruling. #61 lists it as "consider", and the
++  builder took it. Declared as builder-derived so it can be attacked on its merits:
++  the README today DOCUMENTS the hazard rather than removing it — it warns that re-running
++  creates duplicate policies and that duplicates are "how people learn to ignore alerts". A
++  recipe that must be run carefully is the same class of defect as a count that must be updated
++  carefully, and this task exists because that class already failed once in production. It
++  crosses no §10 line: no new mechanism, no cost, no product or naming decision, nothing
++  permanent. If the CPO disagrees, item 3 can be reverted on its own without touching items 1
++  and 2.
 +
-+  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
-+  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
-+  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
-+  seed breaks. The note is wrapped in double quotes — RFC 4180, already
-+  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
-+  CPO's; only the CSV framing differs.
++  A TEST IS ADDED, and this is the point of the task rather than a nicety. The repo's standing
++  rule is that a prose rule which recurs needs a mechanism; this one rotted silently and cost a
++  real monitoring gap. `tests/test_nightly_entrypoint_parity.py` is the precedent — it pins a
++  deploy artefact's step list against its twin, so pinning a deploy recipe against the file it
++  is supposed to enumerate is an established pattern here, not a new one.
  
    # THRESHOLD DECLARATIONS
--  NEW MECHANISM — no. Skip-if-present is an established pattern here (five loaders), and the
--  hoisted one-read-per-run shape copies `captured_player_team_seasons` (`orchestrator.py:201`),
--  the fix #33 item 1 made for the same class of problem. No new service, dependency or
--  lifecycle. `API_FOOTBALL_INGEST_FORCE_FULL` is reused rather than a second flag invented.
--
--  RECURRING COST — this REDUCES it: ~45 min/night of ingest becomes ~6-7, and ~3,800 daily API
--  calls disappear. No new spend.
--
--  ⚠ A GUARD IS BEING LOOSENED, declared because this repo's standing rule is never to loosen one
--  quietly. Raising `error_after` from 54h to 10 days means genuine breakage of transfers or
--  coaches ingestion now goes unnoticed for up to 10 days instead of 54 hours. The rule's actual
--  requirement is to NARROW a guard to where it still holds rather than delete the assertion, and
--  that is what this is: 54h is simply false once the intended refresh interval is 7 days, and a
--  guard that fires daily on correct behaviour gets muted, which is a worse outcome than a wider
--  true one. The other nine sources are untouched, so the narrowing is confined to exactly the
--  two tables whose contract changed. `tests/test_refetch_cadence.py` then pins the relationship
--  so cadence and threshold cannot drift apart again.
-+  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
-+  shipped under #526. This adds a third data row to an existing configuration table.
-+  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
-+  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
-+  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
-+  a known cause — an alert that fires daily on a known cause is one that gets muted.
-+  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
-+  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
-+  the data. A future occurrence of this class still fails the build.
-+  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
-+  is written in full rather than short-form.
+-  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
+-  shipped under #526. This adds a third data row to an existing configuration table.
+-  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
+-  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
+-  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
+-  a known cause — an alert that fires daily on a known cause is one that gets muted.
+-  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
+-  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
+-  the data. A future occurrence of this class still fails the build.
+-  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
+-  is written in full rather than short-form.
++  NEW MECHANISM — no. One test file in an existing suite, run by the existing `test:python` job.
++  No new service, dependency, lifecycle hook or workflow step. Deliberately NOT taken: turning
++  the recipe into a `scripts/apply_alert_policies.py`. That would be a new operational mechanism
++  and is the CPO's call, not the builder's; the test closes the same hole without one.
++  RECURRING COST — no. No new job, schedule, API call or storage. The test is offline.
++  GUARD LOOSENED — no; this ADDS one. Nothing today checks the recipe against the policy file.
++  SHIPPED NUMBERS — no. Nothing downstream of a number is touched.
  
  decisions_reserved:
--  - Whether the cadence should be window-aware (daily during January/summer transfer windows,
--    weekly otherwise). Truer to the data, more complexity; the CPO ruled a flat 7 days and this
--    implements exactly that.
--  - `player_squads` / `squad` (38 min combined) are NOT touched. They already skip; their cost
--    is the current season, which genuinely changes nightly.
--  - `injuries` — #33 item 15 proposes dropping the endpoint entirely; not decided here.
-+  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
-+    that never plays in our data, so today it exists only as an attribution artefact and, once the
-+    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
-+    out of scope for making the nightly green.
-+  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
-+    permanent local patch for a defect we do not own.
-+  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
-+    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
-+    the reason the override mechanism exists at all.
+-  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
+-    that never plays in our data, so today it exists only as an attribution artefact and, once the
+-    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
+-    out of scope for making the nightly green.
+-  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
+-    permanent local patch for a defect we do not own.
+-  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
+-    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
+-    the reason the override mechanism exists at all.
++  - Whether the apply step should become a real script (testable end to end, idempotent by
++    construction) instead of a documented shell recipe. That is a new operational mechanism and
++    therefore CPO-class. Noted, not taken.
++  - Whether `deploy/**` should route to `platform-reviewer` in `review_routing.json`. It does
++    not today, so this diff reaches Platform only via `tests/**`. Changing routing is a
++    protected-path governance event and is not attempted here.
++  - Whether the notification-channel creation step (same section, same non-idempotent shape)
++    should get the same treatment. Out of scope for #61 as filed.
  
  done_when:
--  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 5e1a672: 725 passed).
--  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
--  - Every new test verified by BREAKING ITS SUBJECT — production code, never a test helper —
--    and confirming WHICH cases go red.
--  - `dbt parse` succeeds against the edited `sources.yml` (a malformed freshness block is a
--    parse error, and nothing else in CI would catch it while `data:build` cannot run).
--  - No ingest, no `dbt build`, no `gcloud` resource touched from this branch.
--
--amendments:
--  - 2026-08-10: + `ingestion/api_football/orchestrator.py` — authority: **the CPO-approved plan
--    for this task**, which specifies "called ONCE per table per run and passed down, mirroring
--    `captured_player_team_seasons` (`orchestrator.py:201`)". The hoist can only live in the
--    orchestrator — that is where the per-competition loop and every existing hoist are — so the
--    approved design already required editing this file and the omission from `scope_paths` was
--    clerical, not a widening. Caught by the contract gate on the first edit, which is the gate
--    working: the plan and the contract disagreed, and the contract is what governs.
--    Content: read `latest_ingest_per_league` once per table before the loop and pass the two
--    dicts into `run_cheap_phases` and `run_transfers_for_competition`. No other change.
-+  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
-+    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
-+    line endings and valid UTF-8 preserved.
-+  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
-+  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
-+    predicate is SIMULATED against PROD, read-only, by replaying
-+    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
-+    UNIONed onto the live seed table, and the test predicate re-run over the result:
-+    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
-+    must resolve to `team_id = 1544`.**
-+  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
-+  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
-+    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
-+    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
-+
-+amendments: (none)
+-  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
+-    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
+-    line endings and valid UTF-8 preserved.
+-  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
+-  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
+-    predicate is SIMULATED against PROD, read-only, by replaying
+-    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
+-    UNIONed onto the live seed table, and the test predicate re-run over the result:
+-    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
+-    must resolve to `team_id = 1544`.**
+-  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
+-  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
+-    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
+-    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
++  - `pytest tests/ -q` exits 0.
++  - `ruff --config .ruff-ci.toml tests/` exits 0.
++  - ⚠ THE NEW TEST IS VERIFIED BY BREAKING ITS SUBJECT — restore `for i in 0 1` in the README
++    and confirm the test goes RED, then restore the fix. A test that has never failed is
++    decoration, and this repo has shipped ten of those.
++  - The corrected recipe's ANTI-DUPLICATION half is verified against the LIVE API, read-only:
++    run only its existence-check step and confirm it resolves all three declared policies to
++    already-present, i.e. it would take the update path and POST none.
++  - ⚠ THE POST PATH IS DELIBERATELY NOT EXECUTED. Running it would create duplicate live alert
++    policies, which is the exact defect being fixed. The same request shape was executed
++    successfully by hand on 2026-08-11 when the missing policy was created.
++  - No `gcloud`/Monitoring WRITE is issued from this branch.
+ 
+ amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 3952dae..885928f 100644
+index 885928f..97dfbaf 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -1983,3 +1983,61 @@ times.
-   snapshots to preserve every coach ever seen. The builder wrote that exclusion two days ago and
-   then contradicted it. The skip design is unaffected — skipping writes nothing either way —
-   but the stated reason was wrong for one of the two tables the task is about.
+@@ -2041,3 +2041,140 @@ times.
+   4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
+   the provider should be asked to correct the feed. Both are separate from making the nightly
+   green.
 +
 +
-+2026-08-11 — #53: APPLY THE fixture_event_team_overrides ROW FOR MACAU (1544) / MAÇÃO (4767)
++2026-08-12 fix/61-alert-policy-apply-loop — #61: THE RULING IS "GO AHEAD", AND IT COVERS LESS
++  THAN THE FIRST DRAFT OF THE CONTRACT CLAIMED
 +
-+  RECORDED HERE BEFORE THE CONTRACT CITES IT, which is the whole point of this entry existing
-+  as its own step. Three tasks in the last two days FAILed review for recording a CPO decision
-+  only inside `contract.md` — the artefact whose own scope the decision authorises. The ruling
-+  is also published on GitLab #53 as a comment timestamped 2026-08-11T12:02:55Z, i.e. BEFORE
-+  the branch existed, so a blinded reviewer can verify it independently of anything the builder
-+  wrote.
++  WHY THIS ENTRY EXISTS. `scope-auditor` FAILed round 1 because `contract.md` asserted the CPO
++  "approved in-thread ('go ahead') after being shown the three proposed fixes" and no matching
++  record existed anywhere. It was right on both counts, and the second is the worse one: the
++  sequence was BACKWARDS. The CPO said "go ahead" to a one-line mention of the issue; the
++  builder described the three-part plan AFTERWARDS and then built it. Writing that up as a
++  ruling given on a plan the CPO had seen is the Appendix A2 pattern — a decision presented as
++  agreed. Corrected before commit.
 +
-+  THE RULING, verbatim, in-thread: **"add the seed row"** — in answer to the recommendation on
-+  #53 to apply `4767 -> 1544` with mode `reattribute_if_cohabiting`, NOT `alias`.
++  THE RULING, verbatim: **"go ahead"** — in answer to "Next up when you want to continue, in
++  order: the alert-deploy bug I found, then the squads issue, then making staging a table."
++  So the authority is: START #61 AS FILED. Nothing narrower, nothing wider.
 +
-+  WHAT WAS PUT TO THE CPO BEFORE THE ANSWER, so the ruling is on evidence and not on the
-+  builder's inference. The prod nightly of 2026-08-11 failed:
-+  `assert_event_team_in_fixture_participants` returned 10 rows, `dbt build` halted, and 540 of
-+  970 nodes SKIPped — so ingestion kept succeeding while `dbt_analytics` went stale, and it
-+  recurs every night until fixed. All 10 events sit in two WCQAS fixtures (1100381, 1100382,
-+  the same two nations home and away) and every one names team 4767.
++  WHAT #61 AS FILED CONTAINS, since that is now the whole boundary. It was written by the
++  builder on 2026-08-11 and lists three suggested fixes: (1) derive the apply loop from the
++  file instead of `for i in 0 1`, (2) correct the prose that says the file "holds BOTH
++  policies", (3) "Consider making the apply step genuinely idempotent".
 +
-+  THE EXTERNAL GROUND TRUTH, which this repo's standing rule requires before asserting that two
-+  entity records relate (`feedback_verify_real_world_identity`): **Mação is a municipality in
-+  Portugal; Macau is an AFC member association.** A Portuguese municipality cannot appear in the
-+  Asian section of World Cup qualifying. Both facts are externally checkable and were stated to
-+  the CPO on #53 before the ruling.
++  ITEMS 1 AND 2 ARE THE BUG and are covered outright.
 +
-+  THE INTERNAL EVIDENCE, re-verified against PROD on 2026-08-11 by this task rather than taken
-+  from the issue text: Mação (4767) is a participant in **0** fixtures warehouse-wide and its
-+  only events anywhere are these 10; Macau (1544) is a participant in exactly the 2 fixtures
-+  whose events are mis-tagged. 4767 exists in `dim_team` only as an attribution artefact.
++  ITEM 3 IS A BUILDER DECISION and is labelled as one in the contract rather than attributed to
++  the CPO. Reasoning, recorded so it can be attacked: the README currently DOCUMENTS the hazard
++  instead of removing it — it warns that re-running duplicates every policy and that duplicates
++  are "how people learn to ignore alerts". A recipe that must be run carefully is the same
++  class of defect as a count that must be updated carefully, and that class already failed in
++  production. It crosses no §10 line: no new mechanism, no recurring cost, no product, naming
++  or permanent decision. It is separable — item 3 can be reverted without touching 1 and 2.
 +
-+  WHY `reattribute_if_cohabiting` AND NOT `alias`, since the two modes are not interchangeable
-+  and the wrong one fails in opposite directions. `alias` is an UNCONDITIONAL id replacement and
-+  means "one club, two provider ids" — it would permanently conflate a Portuguese municipality
-+  with a national team, so if Mação ever legitimately appeared in Portuguese football its events
-+  would be silently folded into Macau. `reattribute_if_cohabiting` fires only where the correct
-+  id IS a fixture participant and the wrong id is NOT, which is exactly the ASKO Kara precedent
-+  already in this seed (#526). The failure modes are asymmetric: `alias` is silently wrong
-+  forever, `reattribute_if_cohabiting` is at worst inert.
++  EXPLICITLY NOT TAKEN, and reserved to the CPO: turning the apply step into a real script
++  (`scripts/apply_alert_policies.py` or similar). That WOULD be a new operational mechanism. The
++  builder wrote exactly that into the README on the first attempt, contradicting its own
++  contract, and reverted it before review. The recipe stays an inline documented block.
 +
-+  THE CPO'S OWN VERIFICATION CONDITION, quoted because it is a done_when and not advice:
-+  "verify by running its SQL directly (it is in `dbt_project/tests/`), NOT by assuming the seed
-+  took effect. The `reattribute_if_cohabiting` mode is conditional, so a row that does not match
-+  its condition silently does nothing." The seed landing in git is NOT evidence the test passes.
++  WHAT THE BUG ACTUALLY WAS, for whoever reads this later: `deploy/nightly/README.md` applied
++  the Cloud Monitoring policies with `for i in 0 1` over a generator that writes one payload per
++  policy declared in `deploy/nightly/alert-policy.json`. The file grew to three. Index 2 was
++  generated and never sent, so `fdp freshness sentinel itself stopped` — the policy that fires
++  when the freshness sentinel itself dies — was never deployed. It FAILS OPEN: the dropped alert
++  is the one whose absence nothing else can reveal. Found 2026-08-11 while deleting the
++  superseded 25h bridge policy, and the two together would have left "nightly and sentinel both
++  dead" with no alert at all. The instance was fixed by hand that day
++  (`alertPolicies/751471063453009885`); this task fixes the RECIPE.
 +
-+  ONE IMPLEMENTATION DETAIL THE BUILDER DECIDED, declared because it changes the bytes of the
-+  CPO-specified row: the note text contains a comma ("Portuguese municipality, name collision"),
-+  and this is a 4-column CSV. Written unquoted it parses as 5 fields and the seed breaks (counted
-+  with `csv.reader`, not eyeballed — an earlier draft of this entry said 6). The
-+  note is therefore wrapped in double quotes — standard RFC 4180 quoting, already used in
-+  `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
-+  CPO's; only the CSV framing differs. Not a decision about content.
++  A SECOND REVIEWER FINDING WORTH KEEPING, because the guard repeated the defect it polices.
++  `platform-reviewer` FAILed round 1: the first version of `tests/test_alert_policy_recipe.py`
++  matched only the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`).
++  The fixed recipe is Python, so all three patterns were already unreachable — `["policies"][:2]`,
++  an `islice(..., 2)` or a `break` would have dropped the third policy with every test green.
++  A guard written against one dead idiom is a literal standing in for the real rule, which is
++  the same defect one level up. Replaced with a STRUCTURAL check: the recipe's Python block is
++  parsed with `ast`, the loop over the declared policies is located, and its iterable must
++  contain no number, no slice, no `islice` and no `break`. Both Python-shaped regressions were
++  then verified to go red.
 +
-+  NOT DECIDED HERE, and deliberately not touched: whether `dim_team` should stop publishing
-+  4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
-+  the provider should be asked to correct the feed. Both are separate from making the nightly
-+  green.
-diff --git a/dbt_project/seeds/fixture_event_team_overrides.csv b/dbt_project/seeds/fixture_event_team_overrides.csv
-index 8a64f96..a8f856f 100644
---- a/dbt_project/seeds/fixture_event_team_overrides.csv
-+++ b/dbt_project/seeds/fixture_event_team_overrides.csv
-@@ -1,3 +1,4 @@
- wrong_team_api_id,correct_team_api_id,mode,note
- 2263,10124,alias,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
- 6424,25274,reattribute_if_cohabiting,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
-+4767,1544,reattribute_if_cohabiting,"Macau 1544 events mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"
++  ROUND 2 THEN FAILED THAT TOO, correctly, with four rewrites that reproduce #61 while passing
++  every assertion: hoisting the slice into a variable whose name contains "policies", a
++  `continue` on one displayName, a filter baked into a generator expression, and a post-loop
++  DELETE. The AST check only ever inspected the loop's iterable expression and the body's
++  `break`. The docstring also claimed the check "holds for any rewording", which was simply
++  false. THE REAL LESSON, third time in one task: a static check tests how code LOOKS and the
++  defect is about what it DOES. Replaced by EXECUTING the recipe against a stubbed Monitoring
++  API and asserting every declared policy receives a write. All four rewrites verified red.
++
++  ROUND 3 CAP-OVERRIDE — CPO ASKED, ANSWERED, RECORDED BEFORE `review.md` CITES IT.
++  Round 3 FAILed with a finding sharper than either earlier one, and it is worth keeping
++  whatever happens to this branch: an executed test that compares the recipe against TODAY'S
++  `alert-policy.json` cannot distinguish "iterates every policy" from "hardcoded to a bound
++  that happens to equal today's count". `[:3]` against a 3-policy file passes all 8 tests —
++  and that is #61's exact mechanism, because `for i in 0 1` was ALSO correct on the day it was
++  written, when there were two policies. The bug is invisible until the next policy is added,
++  which is the moment it does its damage.
++
++  `docs/working_agreement.md` §2 caps the review loop at 3 rounds and requires the builder to
++  STOP and bring open findings to the CPO rather than grind a fourth. Put to the CPO with three
++  paths: (A) one more round applying the fix, (B) ship the recipe fix alone and file the test
++  separately, (C) park the branch.
++  CPO ANSWER (AskUserQuestion, 2026-08-12): **"One more round"** — path A, the builder's
++  recommendation. `review.md` therefore carries `rounds: 4` with a `rounds_cap_override`.
++
++  THE FIX THE OVERRIDE BUYS: run the recipe against a SYNTHETIC policy set whose size differs
++  from the real file, so any count baked into the recipe — a slice, a literal name list, an
++  index bound — fails the moment it is written rather than the next time a policy is added.
++  Count-independence is the property the deleted AST check had and the executed test lacked;
++  this gets it without going back to inspecting source.
++
++  ROUND 4 THEN FOUND THE FIX WAS ASYMMETRIC, and this one is subtle enough to be worth writing
++  down. Both new synthetic tests passed `existing=[]`, so every synthetic policy took the
++  CREATE branch. NOTHING in the file drove the UPDATE/PATCH branch at any count other than the
++  real file's three. A bound placed inside that branch —
++
++      if name in existing:
++          if patch_count >= 3: continue
++
++  — passes all ten tests: the real-file update test has exactly three pre-existing policies so
++  the counter runs out exactly as the loop ends, and the synthetic tests never enter the branch
++  at all. It then stops reconciling the fourth policy forever, in the ordinary steady state
++  where policies already exist. Same #61 shape, relocated one branch over. Count-independence
++  has to hold on BOTH branches or it is not count-independence.
++
++  ROUND 5 AUTHORISED. Round 4 was itself an override, so a fifth needed its own decision. Put
++  to the CPO as part of a sequencing plan that named it "one small test fix and a final review
++  round".
++  CPO ANSWER (in-thread, 2026-08-12): **"go"**.
++  `review.md` carries `rounds: 5` with the `rounds_cap_override` naming both grants.
++
++  THE FIX: synthetic-set tests that drive the UPDATE branch (all pre-existing) and a MIXED set
++  (some existing, some new — the real steady state after a policy is added), asserting every
++  declared policy is reconciled on every branch regardless of set size.
++
++  ROUND 5: scope-auditor PASS. platform-reviewer FAIL with two more, both real.
++  (a) EVERY "larger than today" fixture used exactly 5, so a bound of 5 — the size the test
++      suite itself standardised on — was invisible to all twelve tests. The hardcoded number
++      had simply MOVED from the recipe (3, today's real count) into the test (5, today's
++      chosen stress size). Fixed by parametrising over several sizes.
++  (b) MORE SERIOUS, and the best finding of the five rounds: no test ever inspected the URL of
++      a PATCH, only its body. A recipe that derived the target resource id wrongly — say
++      `list(existing.values())[0]["name"]` instead of `existing[name]["name"]` — sends one
++      PATCH per policy, each carrying its own correct displayName, so every test passes while
++      in production every PATCH lands on the SAME alert policy. One real policy is overwritten
++      repeatedly and all the others silently go stale, while the recipe prints "updated" for
++      each. That is WORSE than #61: #61 left one policy undeployed, this leaves N-1 permanently
++      unreconciled. Fixed by asserting each PATCH URL carries the id of the policy named in its
++      own body.
++
++  ROUND 6 AUTHORISED, AND SCOPED. Third time past the cap. Put to the CPO with the honest
++  framing that the RECIPE fix is reviewed and solid and it is the TEST that keeps failing, and
++  that the marginal value was falling while the cost was not.
++  CPO ANSWER (AskUserQuestion, 2026-08-12): **"Fix both, one scoped round, then stop"**.
++  The round is a DELTA judging whether those two findings are closed — which is what
++  `docs/working_agreement.md` §2 already defines a re-review to be ("told only what changed
++  since its own last PASS and judges that plus its prior findings"), not a lowered bar. If it
++  does not pass, the builder STOPS and the residue is filed as its own issue rather than
++  ground for a seventh round.
+diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
+index 84e042f..6355a53 100644
+--- a/deploy/nightly/README.md
++++ b/deploy/nightly/README.md
+@@ -228,52 +228,80 @@ nothing** — so an unverified channel is a policy that looks armed and is not.
+ 
+ ### Create the alert policies
+ 
+-`alert-policy.json` holds BOTH policies under `policies`, plus `_comment` keys for the reader.
++`alert-policy.json` holds EVERY policy under `policies`, plus `_comment` keys for the reader.
+ The API rejects unknown fields, so strip anything beginning with `_` on the way in, and inject
+-the channel id read back from the API rather than hardcoding it:
++the channel id read back from the API rather than hardcoding it.
++
++⚠ **NEVER HARDCODE HOW MANY POLICIES THERE ARE.** An earlier version of this section ended in
++`for i in 0 1` over a generator that writes one payload per declared policy. The file later grew
++to three, so index 2 was generated and never sent, and
++`fdp freshness sentinel itself stopped` sat undeployed — the one policy whose absence is
++invisible, because it is the thing that watches the watcher. Found 2026-08-11, GitLab #61.
++`tests/test_alert_policy_recipe.py` now fails the build if a literal count reappears here.
++
++The block below is **idempotent**: it reads what already exists, `PATCH`es a policy whose
++`displayName` matches, and `POST`s only what is genuinely new. Re-running it is safe, which is
++what makes it usable as a repair step rather than a one-shot. It also does the whole job in one
++Python process over `urllib`, so there are no payload files on disk and the Windows `curl`
++path trap below does not apply to it.
+ 
+ ```bash
+-CHANNEL=$(curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+-  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
+-  | python -c "import sys,json;print(json.load(sys.stdin)['notificationChannels'][0]['name'])")
++TOKEN=$(gcloud auth print-access-token) python - <<'EOF'
++import json, os, urllib.request
++
++BASE = "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp"
++HDRS = {"Authorization": "Bearer " + os.environ["TOKEN"],
++        "Content-Type": "application/json"}
++
++def api(path, data=None, method=None):
++    req = urllib.request.Request(
++        BASE + path,
++        data=json.dumps(data).encode() if data is not None else None,
++        headers=HDRS, method=method)
++    with urllib.request.urlopen(req) as r:
++        body = r.read().decode()
++    return json.loads(body) if body.strip() else {}
+ 
+-python -c "
+-import json
+ def strip(o):
+-    if isinstance(o,dict):  return {k:strip(v) for k,v in o.items() if not k.startswith('_')}
+-    if isinstance(o,list):  return [strip(v) for v in o]
++    if isinstance(o, dict):
++        return {k: strip(v) for k, v in o.items() if not k.startswith("_")}
++    if isinstance(o, list):
++        return [strip(v) for v in o]
+     return o
+-for i,p in enumerate(strip(json.load(open('deploy/nightly/alert-policy.json')))['policies']):
+-    p['notificationChannels'] = ['$CHANNEL']
+-    json.dump(p, open('pol%d.json' % i, 'w'))
+-"
+-
+-for i in 0 1; do
+-  curl -s -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+-    -H "Content-Type: application/json" \
+-    "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
+-    -d @pol$i.json
+-done
+-rm -f pol0.json pol1.json
++
++chans = api("/notificationChannels").get("notificationChannels", [])
++assert len(chans) == 1, "expected exactly 1 notification channel, found %d" % len(chans)
++
++existing = {p["displayName"]: p for p in api("/alertPolicies").get("alertPolicies", [])}
++
++# Derived from the file, never from a literal count.
++for pol in strip(json.load(open("deploy/nightly/alert-policy.json")))["policies"]:
++    pol["notificationChannels"] = [chans[0]["name"]]
++    name = pol["displayName"]
++    if name in existing:
++        pol["name"] = existing[name]["name"]
++        api("/" + pol["name"].split("/", 2)[2], data=pol, method="PATCH")
++        print("updated", name)
++    else:
++        api("/alertPolicies", data=pol)
++        print("created", name)
++EOF
+ ```
+ 
+-⚠ **`curl` on Windows cannot read a Git Bash `/tmp/...` path** — write the payloads to a
+-Windows-visible directory or the repo root, as above. `-d @/tmp/x.json` fails with
+-*"option -d: error encountered when reading a file"*.
++It prints one line per declared policy, so the output length is the check: if the file declares
++three and you see two lines, something was skipped.
+ 
+-⚠ **NEITHER command is idempotent.** Both are bare `POST`s with no existence check, so running
+-this section twice creates a *second* notification channel and a *second* pair of policies —
+-and you then get every alert twice, which is how people learn to ignore alerts. Check before
+-re-running:
++⚠ **The notification-channel creation step above is still a bare `POST` and is NOT idempotent** —
++running it twice creates a second channel, and you then get every alert twice, which is how
++people learn to ignore alerts. Check before re-running:
+ 
+ ```bash
+ curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+-  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
+-  | python -c "import sys,json;[print(p['name'],p['displayName']) for p in json.load(sys.stdin).get('alertPolicies',[])]"
++  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
++  | python -c "import sys,json;[print(c['name'],c.get('type')) for c in json.load(sys.stdin).get('notificationChannels',[])]"
+ ```
+ 
+-To change an existing policy, `PATCH` its `name` rather than re-POSTing. To remove a duplicate,
+-`DELETE` that `name`.
++To remove a duplicate policy or channel, `DELETE` its `name`.
+ 
+ ### Checking and silencing it
+ 
+diff --git a/tests/test_alert_policy_recipe.py b/tests/test_alert_policy_recipe.py
+new file mode 100644
+index 0000000..138d80a
+--- /dev/null
++++ b/tests/test_alert_policy_recipe.py
+@@ -0,0 +1,498 @@
++"""The alert-policy apply recipe must apply EVERY declared policy (GitLab #61).
++
++WHY THIS EXISTS
++---------------
++`deploy/nightly/README.md` documents how the Cloud Monitoring alert policies get created. Its
++apply step used to end in `for i in 0 1` — a literal index list — over a generator that writes
++one payload per policy declared in `deploy/nightly/alert-policy.json`. The file later grew to
++three. Index 2 was generated and never sent.
++
++The policy that went missing was `fdp freshness sentinel itself stopped`: the one that fires
++when the freshness sentinel itself dies. So the dropped alert was precisely the alert whose
++absence nothing else can reveal. It FAILS OPEN — the broken state looks identical to the
++working one — and it sat undeployed until found by accident on 2026-08-11.
++
++HOW IT IS SHAPED, AND TWO REJECTED ATTEMPTS
++-------------------------------------------
++This test went through two wrong versions before this one, both caught in review, and the
++progression is the useful part:
++
++  v1 matched the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`). The
++     fixed recipe is Python, so every pattern was already unreachable.
++  v2 parsed the recipe with `ast` and forbade a number, slice, `islice` or `break` in the loop
++     expression. Better, but still a shape test, and a reviewer produced four rewrites that
++     reproduce #61 while passing all of it: hoisting the slice into a variable
++     (`policies_to_apply = ...[:2]`), a `continue` that skips one policy, a filter baked into a
++     generator expression, and a second statement that undoes the loop afterwards.
++
++The lesson both times: a static check on a snippet tests how the code LOOKS, and the defect is
++about what it DOES. Any shape test can be walked around by writing the same bug differently.
++
++So this version RUNS the documented recipe against a stubbed Monitoring API and asserts the
++only thing that actually matters: **every policy declared in `alert-policy.json` receives a
++write.** Truncation, filtering, early exit, hoisting and post-hoc deletion all fail it
++identically, because they all end in a declared policy that never got written.
++
++Running repo-controlled, version-controlled, reviewed documentation under `exec` is deliberate.
++It is the only way to test a runbook snippet's behaviour rather than its spelling, and it has
++the side benefit of proving the documented commands are executable at all — a runbook that does
++not run is the failure mode this whole area keeps producing.
++
++`tests/test_nightly_entrypoint_parity.py` is the precedent for pinning a deploy artefact.
++"""
++
++from __future__ import annotations
++
++import ast
++import json
++import os
++import re
++import tempfile
++import urllib.request
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++README = REPO / "deploy" / "nightly" / "README.md"
++POLICY_FILE = REPO / "deploy" / "nightly" / "alert-policy.json"
++
++SECTION_START = "### Create the alert policies"
++SECTION_END = "### Checking and silencing it"
++
++_FAKE_CHANNEL = "projects/fake/notificationChannels/1"
++_FAKE_PROJECT = "projects/football-data-pipeline-gcp"
++
++
++def _section() -> str:
++    text = README.read_text(encoding="utf-8")
++    assert SECTION_START in text, "the %r section is gone - retarget this test" % SECTION_START
++    body = text.split(SECTION_START, 1)[1]
++    assert SECTION_END in body, "the %r section is gone - retarget this test" % SECTION_END
++    return body.split(SECTION_END, 1)[0]
++
++
++def _declared_policy_names() -> list[str]:
++    return [
++        p["displayName"]
++        for p in json.loads(POLICY_FILE.read_text(encoding="utf-8"))["policies"]
++    ]
++
++
++def _recipe_python_source() -> str:
++    """The Python heredoc inside the apply block — the thing that actually does the work."""
++    match = re.search(r"<<'EOF'\n(.*?)\nEOF\b", _section(), re.DOTALL)
++    assert match, (
++        "The apply recipe no longer contains a `python - <<'EOF' ... EOF` block. If it was "
++        "deliberately reshaped, retarget this test at whatever now performs the apply - do NOT "
++        "delete it. It is the only thing standing between this recipe and a silent repeat of "
++        "GitLab #61."
++    )
++    return match.group(1)
++
++
++class _FakeResponse:
++    def __init__(self, payload: dict) -> None:
++        self._payload = payload
++
++    def read(self) -> bytes:
++        return json.dumps(self._payload).encode("utf-8")
++
++    def __enter__(self) -> _FakeResponse:
++        return self
++
++    def __exit__(self, *exc: object) -> bool:
++        return False
++
++
++def _run_recipe(
++    existing: list[dict],
++    policies: list[dict] | None = None,
++) -> list[tuple[str, str, dict | None]]:
++    """Execute the documented recipe against a stubbed API. Returns every request it made.
++
++    `existing` is what the fake API reports as already deployed, so the caller can drive both
++    the create path (empty) and the update path (everything already there).
++
++    `policies` replaces the CONTENT of `alert-policy.json` for the run. This is what makes the
++    suite count-independent, and it is not a refinement — it is the whole difference between
++    catching #61 and re-shipping it. A test that only ever runs against the real file cannot
++    tell "iterates every policy" from "hardcoded to a bound that equals today's count", and the
++    second is precisely what #61 was: `for i in 0 1` was CORRECT on the day it was written,
++    when the file declared two. Running against a set of a different size makes any baked-in
++    count fail at the moment it is written instead of silently, later, when a policy is added.
++    """
++    calls: list[tuple[str, str, dict | None]] = []
++
++    def fake_urlopen(req, *args, **kwargs):  # noqa: ANN001 - mirrors urlopen's loose signature
++        method = req.get_method()
++        url = req.full_url
++        body = json.loads(req.data.decode("utf-8")) if req.data else None
++        calls.append((method, url, body))
++        if method == "GET" and url.endswith("/notificationChannels"):
++            return _FakeResponse({"notificationChannels": [{"name": _FAKE_CHANNEL}]})
++        if method == "GET" and url.endswith("/alertPolicies"):
++            return _FakeResponse({"alertPolicies": existing})
++        return _FakeResponse({})
++
++    source = _recipe_python_source()
++    real_urlopen = urllib.request.urlopen
++    real_token = os.environ.get("TOKEN")
++    cwd = os.getcwd()
++    urllib.request.urlopen = fake_urlopen
++    os.environ["TOKEN"] = "fake-token-for-tests"
++
++    with tempfile.TemporaryDirectory() as tmp:
++        # The recipe opens `deploy/nightly/alert-policy.json` by relative path, so the run
++        # happens in a directory where that path holds whatever this call is testing against.
++        root = Path(tmp)
++        target = root / "deploy" / "nightly" / "alert-policy.json"
++        target.parent.mkdir(parents=True)
++        if policies is None:
++            target.write_text(POLICY_FILE.read_text(encoding="utf-8"), encoding="utf-8")
++        else:
++            target.write_text(json.dumps({"policies": policies}), encoding="utf-8")
++        os.chdir(root)
++        try:
++            exec(  # noqa: S102 - executing the runbook IS the test; see the module docstring
++                compile(source, "<deploy/nightly/README.md apply recipe>", "exec"),
++                {"__name__": "__recipe__"},
++            )
++        finally:
++            os.chdir(cwd)
++            urllib.request.urlopen = real_urlopen
++            if real_token is None:
++                os.environ.pop("TOKEN", None)
++            else:
++                os.environ["TOKEN"] = real_token
++    return calls
++
++
++def _synthetic_policies(count: int) -> list[dict]:
++    """A policy set deliberately UNLIKE the real one: different size, different names."""
++    return [
++        {
++            "displayName": "synthetic policy %d" % i,
++            "combiner": "OR",
++            "enabled": True,
++            "_comment": ["reader-only key, must be stripped before sending"],
++            "conditions": [
++                {
++                    "displayName": "synthetic condition %d" % i,
++                    "conditionThreshold": {
++                        "filter": 'resource.type = "cloud_run_job"',
++                        "comparison": "COMPARISON_GT",
++                        "thresholdValue": 0,
++                        "duration": "0s",
++                        "trigger": {"count": 1},
++                    },
++                }
++            ],
++        }
++        for i in range(count)
++    ]
++
++
++def _written_display_names(calls, method: str) -> set[str]:
++    return {
++        body["displayName"]
++        for verb, _url, body in calls
++        if verb == method and isinstance(body, dict) and "displayName" in body
++    }
++
++
++def test_recipe_creates_every_declared_policy_on_an_empty_project():
++    """THE LOAD-BEARING CHECK, create path. Nothing declared may be silently skipped."""
++    declared = set(_declared_policy_names())
++    calls = _run_recipe(existing=[])
++    created = _written_display_names(calls, "POST")
++
++    missing = declared - created
++    assert not missing, (
++        "The apply recipe never sends %s. Every policy declared in alert-policy.json must be "
++        "applied - a declared policy that is never written is GitLab #61 exactly, and the one "
++        "it dropped was the alert that watches the monitoring itself." % sorted(missing)
++    )
++    assert created == declared, "recipe wrote policies not in the file: %s" % sorted(created - declared)
++
++
++def test_recipe_updates_every_declared_policy_and_creates_nothing_when_all_exist():
++    """THE LOAD-BEARING CHECK, update path. This is the idempotency claim, executed."""
++    declared = _declared_policy_names()
++    existing = [
++        {"displayName": name, "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, i)}
++        for i, name in enumerate(declared)
++    ]
++    calls = _run_recipe(existing=existing)
++
++    updated = _written_display_names(calls, "PATCH")
++    missing = set(declared) - updated
++    assert not missing, (
++        "On a re-run the recipe never updates %s. Every declared policy must be reconciled, "
++        "not just the ones that happen to come first." % sorted(missing)
++    )
++
++    posts = [url for verb, url, _ in calls if verb == "POST"]
++    assert not posts, (
++        "The recipe POSTed %d time(s) when every declared policy already existed. That creates "
++        "DUPLICATE alert policies, and duplicates are how people learn to ignore alerts."
++        % len(posts)
++    )
++
++
++# Sizes the count-independence tests run at. MORE THAN ONE, ON PURPOSE.
++#
++# An earlier version used 5 everywhere, and a reviewer pointed out that this had simply MOVED
++# the hardcoded number rather than removed it: a bound of exactly 5 - the size the suite itself
++# had standardised on - was invisible to every test. The same defect as #61, one layer up.
++#
++# No finite set of sizes proves a universal property. What this does is make a surviving bound
++# absurd: it would have to be >= 17 to pass, which is not a number anyone writes by accident
++# while a file declares 3. The odd/even mix also kills parity-based skips.
++_SIZES = [1, 2, 3, 5, 8, 17]
++
++
++@pytest.mark.parametrize("size", _SIZES)
++def test_recipe_applies_every_policy_at_any_set_size(size: int):
++    """COUNT-INDEPENDENCE, create path, across sizes so no single constant can hide."""
++    synthetic = _synthetic_policies(size)
++    declared = {p["displayName"] for p in synthetic}
++    created = _written_display_names(_run_recipe(existing=[], policies=synthetic), "POST")
++    assert created == declared, (
++        "Given a %d-policy file the recipe created %d of them. It must apply every declared "
++        "policy at any count." % (size, len(created))
++    )
++
++
++@pytest.mark.parametrize("size", _SIZES)
++def test_recipe_reconciles_every_policy_at_any_set_size(size: int):
++    """COUNT-INDEPENDENCE, update path, across sizes. Kills a bound inside the PATCH branch."""
++    synthetic = _synthetic_policies(size)
++    declared = {p["displayName"] for p in synthetic}
++    calls = _run_recipe(existing=_as_existing(synthetic), policies=synthetic)
++    updated = _written_display_names(calls, "PATCH")
++    assert updated == declared, (
++        "Given a %d-policy file where all already exist, the recipe reconciled %d of them. "
++        "Every declared policy must be updated on a re-run, at any count." % (size, len(updated))
++    )
++    assert not [u for verb, u, _ in calls if verb == "POST"], "duplicate POST on a re-run"
++
++
++def test_recipe_applies_a_policy_set_LARGER_than_todays_file():
++    """COUNT-INDEPENDENCE, and the single most important test in this file.
++
++    Every other test compares the recipe against the real `alert-policy.json`, so a bound that
++    happens to equal today's count — `[:3]` against three declared policies, or a hardcoded
++    list of today's three names — passes them all. That is not a hypothetical: it is #61's
++    exact mechanism. `for i in 0 1` was CORRECT when it was written, and became a silent
++    data-loss bug only when a third policy was added.
++
++    Running against a synthetic set of a DIFFERENT size makes any baked-in count fail the
++    moment it is written, which is the only time it is cheap to fix.
++    """
++    synthetic = _synthetic_policies(5)
++    declared = {p["displayName"] for p in synthetic}
++    calls = _run_recipe(existing=[], policies=synthetic)
++    created = _written_display_names(calls, "POST")
++
++    assert created == declared, (
++        "Given a %d-policy file the recipe applied %d of them (%s). It must apply every "
++        "policy the file declares, whatever that number turns out to be - a bound that "
++        "matches today's count is exactly how GitLab #61 shipped looking correct."
++        % (len(synthetic), len(created), sorted(created))
++    )
++
++
++def test_recipe_applies_a_policy_set_SMALLER_than_todays_file():
++    """The other side of count-independence: it must not invent policies either.
++
++    Catches a recipe that stopped reading the file and hardcoded today's names as literals -
++    which the deleted static check used to catch, and which a larger-set test alone does not.
++    """
++    synthetic = _synthetic_policies(1)
++    declared = {p["displayName"] for p in synthetic}
++    calls = _run_recipe(existing=[], policies=synthetic)
++    created = _written_display_names(calls, "POST")
++
++    assert created == declared, (
++        "Given a 1-policy file the recipe applied %s. Anything other than exactly the declared "
++        "set means it is not reading the file - most likely the policy names are hardcoded in "
++        "the recipe." % sorted(created)
++    )
++
++
++def _as_existing(policies: list[dict]) -> list[dict]:
++    """Turn declared policies into what the API would report as already deployed.
++
++    The ids are deliberately distinct per policy so a test can check that each PATCH is aimed
++    at the RIGHT one - see test_every_patch_targets_the_resource_named_in_its_own_body.
++    """
++    return [
++        {"displayName": p["displayName"], "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, 100 + i)}
++        for i, p in enumerate(policies)
++    ]
++
++
++def test_every_patch_targets_the_resource_named_in_its_own_body():
++    """Each PATCH must hit the id of the policy it is carrying, not merely SOME id.
++
++    Every other assertion in this file reads `body["displayName"]` and ignores the URL. That
++    leaves a worse bug than #61 completely uncovered: a recipe that derives the target id
++    wrongly - `list(existing.values())[0]["name"]` instead of `existing[name]["name"]` - still
++    sends one PATCH per declared policy, each carrying its own correct displayName, so the
++    counts and the name sets all come out right. In production every PATCH lands on the SAME
++    alert policy: one gets overwritten repeatedly and the rest silently go stale forever, while
++    the recipe prints "updated" for each of them.
++
++    #61 left one policy undeployed. This would leave N-1 permanently unreconciled.
++    """
++    synthetic = _synthetic_policies(4)
++    existing = _as_existing(synthetic)
++    id_by_name = {e["displayName"]: e["name"].rsplit("/", 1)[1] for e in existing}
++
++    calls = _run_recipe(existing=existing, policies=synthetic)
++    patches = [(url, body) for verb, url, body in calls if verb == "PATCH"]
++    assert len(patches) == len(synthetic), (
++        "expected one PATCH per declared policy, got %d for %d" % (len(patches), len(synthetic))
++    )
++
++    for url, body in patches:
++        name = body["displayName"]
++        expected_id = id_by_name[name]
++        assert url.rsplit("/", 1)[1] == expected_id, (
++            "PATCH for %r was sent to resource id %r but that policy is %r. The recipe is "
++            "aiming updates at the wrong resource: every policy would overwrite one victim "
++            "and the rest would never be reconciled." % (name, url.rsplit("/", 1)[1], expected_id)
++        )
++
++    targeted = {url.rsplit("/", 1)[1] for url, _ in patches}
++    assert len(targeted) == len(synthetic), (
++        "the %d PATCHes hit only %d distinct resources (%s) - policies are overwriting each "
++        "other." % (len(patches), len(targeted), sorted(targeted))
++    )
++
++
++def test_recipe_updates_a_policy_set_LARGER_than_todays_file():
++    """COUNT-INDEPENDENCE ON THE UPDATE BRANCH.
++
++    The create-path tests above pass `existing=[]`, so they never enter `if name in existing`.
++    A bound placed inside THAT branch — `if patch_count >= 3: continue` — passes them and also
++    passes the real-file update test, because the real file has exactly three pre-existing
++    policies and the counter runs out exactly as the loop ends. It then silently stops
++    reconciling the fourth policy forever. Same #61 shape, one branch over.
++    """
++    synthetic = _synthetic_policies(5)
++    declared = {p["displayName"] for p in synthetic}
++    calls = _run_recipe(existing=_as_existing(synthetic), policies=synthetic)
++
++    updated = _written_display_names(calls, "PATCH")
++    assert updated == declared, (
++        "Given a %d-policy file where all %d already exist, the recipe reconciled %d of them "
++        "(%s). Every declared policy must be updated on a re-run, whatever the count - a bound "
++        "inside the update branch is GitLab #61 relocated, not fixed."
++        % (len(synthetic), len(synthetic), len(updated), sorted(updated))
++    )
++    posts = [url for verb, url, _ in calls if verb == "POST"]
++    assert not posts, "recipe POSTed %d duplicate(s) when everything already existed" % len(posts)
++
++
++def test_recipe_reconciles_a_MIXED_set_of_existing_and_new_policies():
++    """The real steady state: a policy is added to the file and everything else already exists.
++
++    This is the exact situation #61 was discovered in, and neither an all-new nor an all-existing
++    test reproduces it - the bug needs both branches live in one run to show itself.
++    """
++    synthetic = _synthetic_policies(5)
++    declared = {p["displayName"] for p in synthetic}
++    already = _as_existing(synthetic[:2])
++
++    calls = _run_recipe(existing=already, policies=synthetic)
++    written = _written_display_names(calls, "PATCH") | _written_display_names(calls, "POST")
++
++    missing = declared - written
++    assert not missing, (
++        "With 2 of 5 policies already deployed the recipe never wrote %s. Adding a policy to "
++        "the file must apply it while the existing ones are reconciled - that is the exact "
++        "situation #61 was found in." % sorted(missing)
++    )
++    assert _written_display_names(calls, "PATCH") == {p["displayName"] for p in synthetic[:2]}, (
++        "the 2 pre-existing policies must be PATCHed, not re-created"
++    )
++    assert _written_display_names(calls, "POST") == {p["displayName"] for p in synthetic[2:]}, (
++        "the 3 new policies must be POSTed, not skipped"
++    )
++
++
++def test_recipe_never_deletes_anything():
++    """A 'cleanup' pass that removes a policy after applying it reproduces #61 from the far end."""
++    for existing in ([], [{"displayName": n, "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, i)}
++                          for i, n in enumerate(_declared_policy_names())]):
++        calls = _run_recipe(existing=existing)
++        deletes = [url for verb, url, _ in calls if verb == "DELETE"]
++        assert not deletes, (
++            "The apply recipe issues a DELETE (%s). Applying policies must not remove one - "
++            "that is the same end state as never creating it." % deletes
++        )
++
++
++def test_recipe_sends_a_notification_channel_on_every_policy():
++    """A policy with no channel is armed and silent, which is the failure this area exists for."""
++    calls = _run_recipe(existing=[])
++    written = [b for verb, _u, b in calls if verb in ("POST", "PATCH") and isinstance(b, dict)]
++    assert written, "the recipe wrote nothing at all"
++    for body in written:
++        assert body.get("notificationChannels"), (
++            "policy %r is applied with no notificationChannels - it would fire into nowhere."
++            % body.get("displayName")
++        )
++
++
++def test_recipe_strips_underscore_prefixed_keys_before_sending():
++    """`_comment` keys are for the reader; the API rejects unknown fields."""
++    calls = _run_recipe(existing=[])
++    for verb, _url, body in calls:
++        if verb in ("POST", "PATCH") and isinstance(body, dict):
++            leaked = [k for k in body if k.startswith("_")]
++            assert not leaked, (
++                "policy %r is sent with reader-only key(s) %s, which the Monitoring API "
++                "rejects." % (body.get("displayName"), leaked)
++            )
++
++
++def test_recipe_python_block_is_valid_python():
++    """A runbook whose documented snippet does not parse is a runbook that fails at 3am."""
++    try:
++        ast.parse(_recipe_python_source())
++    except SyntaxError as exc:  # pragma: no cover - the message is the point
++        raise AssertionError(
++            "The documented apply snippet is not valid Python (%s at line %s)."
++            % (exc.msg, exc.lineno)
++        ) from exc
++
++
++def test_prose_states_no_policy_count_that_disagrees_with_the_file():
++    """The second half of the original rot: 'holds BOTH policies' over a three-policy file."""
++    declared = len(_declared_policy_names())
++    words = {2: "both", 3: "three", 4: "four", 5: "five"}
++    section = _section().lower()
++
++    wrong = [
++        word
++        for count, word in words.items()
++        if count != declared and re.search(r"\b%s\b[^.]{0,40}\bpolic" % word, section)
++    ]
++    assert not wrong, (
++        "The apply section claims %s polic(y/ies) while alert-policy.json declares %d. "
++        "State no number, or state the right one - a stale count is how #61 read as correct."
++        % (" and ".join(wrong), declared)
++    )
++
++
++def test_every_declared_policy_has_a_unique_display_name():
++    """The recipe keys create-vs-update on displayName, so a collision overwrites a policy."""
++    names = _declared_policy_names()
++    assert all(n and n.strip() for n in names), "a declared policy has an empty displayName"
++    assert len(names) == len(set(names)), (
++        "two declared policies share a displayName, so an idempotent apply cannot tell them "
++        "apart and one would PATCH over the other: %s" % names
++    )

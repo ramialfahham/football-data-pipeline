@@ -1,200 +1,114 @@
-# Task contract — #53: correct the Macau/Mação event mis-attribution
+# Task contract — #61: the alert-policy apply recipe under-deploys
 
 objective: >
-  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
-  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
-  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
-  current while `dbt_analytics` silently is not.
+  `deploy/nightly/README.md` documents how to create the Cloud Monitoring alert policies. Its
+  apply step ends in `for i in 0 1`, a HARDCODED index list, over a generator that writes one
+  payload per policy declared in `deploy/nightly/alert-policy.json`. The file has since grown to
+  three policies, so index 2 was written and never POSTed.
 
-  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
-  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
-  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
-  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
-  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
-refs: >
-  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
-  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
-  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
+  This was not theoretical. `fdp freshness sentinel itself stopped` — the watcher that detects
+  the monitoring itself having died — was declared and never deployed. Found 2026-08-11 while
+  deleting the superseded 25h bridge policy; the two together would have left the "nightly and
+  sentinel both dead" case with no alert at all.
+
+  It FAILS OPEN, and that is the whole character of the bug: the dropped policy is the one whose
+  absence is invisible, so nothing about the broken state looks broken.
+
+  Two defects, one cause. (a) the count is hardcoded where it should be derived; (b) the prose
+  one line above still says the file "holds BOTH policies". Both are the same rot: a literal
+  standing in for something the file already knows.
+refs: GitLab #61. Found under #33 / #39 Stage 2.
 
 scope_paths:
-  - dbt_project/seeds/fixture_event_team_overrides.csv
+  - deploy/nightly/README.md
+  - tests/test_alert_policy_recipe.py
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
   - .claude/task/review_input.patch
 
 impact_map: >
-  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
+  Not gate-required — neither `deploy/**` nor `tests/**` is on the structural surface
   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
-  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
-  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
+  Written short-form and evidenced anyway, because the subject is a PRODUCTION MONITORING
+  recipe and "it is only a README" is the reading that let the bug ship.
 
-  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
-    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
+  what executes this: nothing automated. `grep -rln "alertPolicies" --include=*.py --include=*.sh
+    --include=*.yml .` returns ZERO files — the recipe is run BY HAND by the operator, which is
+    exactly why nothing caught the dropped policy. `.gitlab-ci.yml` and
+    `deploy/nightly/entrypoint.sh` never touch Cloud Monitoring.
 
-  who READS it — exactly one model, confirmed by grep across the repo:
-    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
-    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
-    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
-    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
-    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
-    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
-    in `dim_team`, no page URL and no slug can move because of this change.
+  blast_radius: none at runtime. No pipeline, no dbt model, no ingest and no deployed job reads
+    `deploy/nightly/README.md`. Changing it cannot alter a number, a table or a schedule. The
+    effect is entirely on what a human does the NEXT time policies are applied.
 
-  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
-    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
-    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
-    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
-    was not.
+  layer_rules: none engaged. No dbt model, no seed, no `league_code`.
 
-      2_base.api_football.base_apif__fixture_events
-      2_base.api_football.base_apif__players
-      3_core.dim_player
-      3_core.fct_fixture_event
-      4_intermediate.domestic_league.team_season.int_player_season__metrics
-      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
-      4_intermediate.domestic_league.team_season.int_team_season__metrics
-      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
-      4_intermediate.shared.int_legs__player_match
-      4_intermediate.shared.int_legs__team_from_players
-      4_intermediate.shared.int_legs__team_match
-      4_intermediate.shared.int_player_club_season__metrics
-      4_intermediate.shared.int_player_competition_benchmarks
-      4_intermediate.shared.int_player_momentum__metrics
-      4_intermediate.shared.int_player_profile__contribution
-      4_intermediate.shared.int_player_profile__yoy
-      4_intermediate.shared.int_player_season__team
-      4_intermediate.shared.int_player_season_position__metrics
-      4_intermediate.shared.int_player_season_record
-      4_intermediate.shared.int_team_competition_benchmark_metrics_long
-      4_intermediate.shared.int_team_competition_benchmarks
-      4_intermediate.shared.int_team_momentum__metrics
-      4_intermediate.shared.int_team_momentum_window
-      4_intermediate.shared.int_team_profile__streaks
-      4_intermediate.shared.int_team_profile__yoy
-      4_intermediate.shared.int_team_season_record
-      5_marts.domestic_league.mart_matchday_insights
-      5_marts.domestic_league.mart_team_season_insights
-      5_marts.shared.mart_head_to_head
-      5_marts.shared.mart_leaderboards
-      5_marts.shared.mart_player_career
-      5_marts.shared.mart_player_competition_benchmarks
-      5_marts.shared.mart_player_fixture_stats
-      5_marts.shared.mart_player_match_log
-      5_marts.shared.mart_player_momentum
-      5_marts.shared.mart_player_profile
-      5_marts.shared.mart_player_season_record
-      5_marts.shared.mart_roster
-      5_marts.shared.mart_team_competition_benchmarks
-      5_marts.shared.mart_team_fixtures
-      5_marts.shared.mart_team_momentum
-      5_marts.shared.mart_team_momentum_window
-      5_marts.shared.mart_team_profile
-      5_marts.shared.mart_team_season
-      5_marts.shared.mart_team_season_record
-
-    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
-    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
-    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
-    -> `dim_player`), which pulls the whole player surface in.
-
-  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
-    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
-    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
-    a different seed.
-
-  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
-    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
-    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
-    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
-    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
-    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
-    built from the repo, so merging alone does NOT deploy this. It needs
-    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
-    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
-
-  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
-    not asserted:
-      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
-        `team_sk = 4767`, `league_code = WCQAS`.
-      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
-        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
-        it was not written for.
-      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
-        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
-        legitimate Mação event, because there are none.
-      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
-        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
-        before and after.
-    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
-    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
-    keyed on the fixture's own participants, so a stat that was previously attributed to a
-    non-participant was already unreachable there. Nothing else in the warehouse changes.
+  deploy_order: irrelevant — nothing is deployed by this change. ⚠ AND NOTHING NEEDS TO BE: the
+    missing policy was already created by hand on 2026-08-11 (`alertPolicies/751471063453009885`)
+    and live state already matches `alert-policy.json`. This task fixes the RECIPE so the gap
+    cannot recur; it does not re-fix the instance.
 
 decisions_taken: >
-  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
-  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
-  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
-  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
+  ⚠ THE AUTHORITY, STATED EXACTLY, because a first draft of this contract overstated it and
+  `scope-auditor` FAILed that correctly. The CPO ruling is **"go ahead"**, and it was given to
+  GitLab #61 as filed — NOT to a three-part plan, which the builder described only AFTERWARDS.
+  The earlier wording ("approved in-thread after being shown the three proposed fixes") reversed
+  that order and dressed a builder decision as a quoted ruling. It is corrected here and the
+  ruling is recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #61"), which is
+  visible to reviewers precisely so a claimed authority can be checked against something other
+  than this file.
 
-  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
-  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
-  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
-  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
-  precedent already in this seed.
+  Items 1 and 2 of #61 (derive the loop, correct the stale prose) ARE the filed bug and need no
+  authority beyond "go ahead".
 
-  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
-  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
-  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
-  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
-  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
-  issue text.
+  ITEM 3 (IDEMPOTENCY) IS A BUILDER DECISION, not a ruling. #61 lists it as "consider", and the
+  builder took it. Declared as builder-derived so it can be attacked on its merits:
+  the README today DOCUMENTS the hazard rather than removing it — it warns that re-running
+  creates duplicate policies and that duplicates are "how people learn to ignore alerts". A
+  recipe that must be run carefully is the same class of defect as a count that must be updated
+  carefully, and this task exists because that class already failed once in production. It
+  crosses no §10 line: no new mechanism, no cost, no product or naming decision, nothing
+  permanent. If the CPO disagrees, item 3 can be reverted on its own without touching items 1
+  and 2.
 
-  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
-  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
-  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
-  seed breaks. The note is wrapped in double quotes — RFC 4180, already
-  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
-  CPO's; only the CSV framing differs.
+  A TEST IS ADDED, and this is the point of the task rather than a nicety. The repo's standing
+  rule is that a prose rule which recurs needs a mechanism; this one rotted silently and cost a
+  real monitoring gap. `tests/test_nightly_entrypoint_parity.py` is the precedent — it pins a
+  deploy artefact's step list against its twin, so pinning a deploy recipe against the file it
+  is supposed to enumerate is an established pattern here, not a new one.
 
   # THRESHOLD DECLARATIONS
-  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
-  shipped under #526. This adds a third data row to an existing configuration table.
-  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
-  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
-  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
-  a known cause — an alert that fires daily on a known cause is one that gets muted.
-  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
-  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
-  the data. A future occurrence of this class still fails the build.
-  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
-  is written in full rather than short-form.
+  NEW MECHANISM — no. One test file in an existing suite, run by the existing `test:python` job.
+  No new service, dependency, lifecycle hook or workflow step. Deliberately NOT taken: turning
+  the recipe into a `scripts/apply_alert_policies.py`. That would be a new operational mechanism
+  and is the CPO's call, not the builder's; the test closes the same hole without one.
+  RECURRING COST — no. No new job, schedule, API call or storage. The test is offline.
+  GUARD LOOSENED — no; this ADDS one. Nothing today checks the recipe against the policy file.
+  SHIPPED NUMBERS — no. Nothing downstream of a number is touched.
 
 decisions_reserved:
-  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
-    that never plays in our data, so today it exists only as an attribution artefact and, once the
-    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
-    out of scope for making the nightly green.
-  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
-    permanent local patch for a defect we do not own.
-  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
-    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
-    the reason the override mechanism exists at all.
+  - Whether the apply step should become a real script (testable end to end, idempotent by
+    construction) instead of a documented shell recipe. That is a new operational mechanism and
+    therefore CPO-class. Noted, not taken.
+  - Whether `deploy/**` should route to `platform-reviewer` in `review_routing.json`. It does
+    not today, so this diff reaches Platform only via `tests/**`. Changing routing is a
+    protected-path governance event and is not attempted here.
+  - Whether the notification-channel creation step (same section, same non-idempotent shape)
+    should get the same treatment. Out of scope for #61 as filed.
 
 done_when:
-  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
-    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
-    line endings and valid UTF-8 preserved.
-  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
-  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
-    predicate is SIMULATED against PROD, read-only, by replaying
-    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
-    UNIONed onto the live seed table, and the test predicate re-run over the result:
-    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
-    must resolve to `team_id = 1544`.**
-  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
-  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
-    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
-    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
+  - `pytest tests/ -q` exits 0.
+  - `ruff --config .ruff-ci.toml tests/` exits 0.
+  - ⚠ THE NEW TEST IS VERIFIED BY BREAKING ITS SUBJECT — restore `for i in 0 1` in the README
+    and confirm the test goes RED, then restore the fix. A test that has never failed is
+    decoration, and this repo has shipped ten of those.
+  - The corrected recipe's ANTI-DUPLICATION half is verified against the LIVE API, read-only:
+    run only its existence-check step and confirm it resolves all three declared policies to
+    already-present, i.e. it would take the update path and POST none.
+  - ⚠ THE POST PATH IS DELIBERATELY NOT EXECUTED. Running it would create duplicate live alert
+    policies, which is the exact defect being fixed. The same request shape was executed
+    successfully by hand on 2026-08-11 when the missing policy was created.
+  - No `gcloud`/Monitoring WRITE is issued from this branch.
 
 amendments: (none)

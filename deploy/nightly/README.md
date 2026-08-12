@@ -228,52 +228,80 @@ nothing** — so an unverified channel is a policy that looks armed and is not.
 
 ### Create the alert policies
 
-`alert-policy.json` holds BOTH policies under `policies`, plus `_comment` keys for the reader.
+`alert-policy.json` holds EVERY policy under `policies`, plus `_comment` keys for the reader.
 The API rejects unknown fields, so strip anything beginning with `_` on the way in, and inject
-the channel id read back from the API rather than hardcoding it:
+the channel id read back from the API rather than hardcoding it.
+
+⚠ **NEVER HARDCODE HOW MANY POLICIES THERE ARE.** An earlier version of this section ended in
+`for i in 0 1` over a generator that writes one payload per declared policy. The file later grew
+to three, so index 2 was generated and never sent, and
+`fdp freshness sentinel itself stopped` sat undeployed — the one policy whose absence is
+invisible, because it is the thing that watches the watcher. Found 2026-08-11, GitLab #61.
+`tests/test_alert_policy_recipe.py` now fails the build if a literal count reappears here.
+
+The block below is **idempotent**: it reads what already exists, `PATCH`es a policy whose
+`displayName` matches, and `POST`s only what is genuinely new. Re-running it is safe, which is
+what makes it usable as a repair step rather than a one-shot. It also does the whole job in one
+Python process over `urllib`, so there are no payload files on disk and the Windows `curl`
+path trap below does not apply to it.
 
 ```bash
-CHANNEL=$(curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
-  | python -c "import sys,json;print(json.load(sys.stdin)['notificationChannels'][0]['name'])")
+TOKEN=$(gcloud auth print-access-token) python - <<'EOF'
+import json, os, urllib.request
 
-python -c "
-import json
+BASE = "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp"
+HDRS = {"Authorization": "Bearer " + os.environ["TOKEN"],
+        "Content-Type": "application/json"}
+
+def api(path, data=None, method=None):
+    req = urllib.request.Request(
+        BASE + path,
+        data=json.dumps(data).encode() if data is not None else None,
+        headers=HDRS, method=method)
+    with urllib.request.urlopen(req) as r:
+        body = r.read().decode()
+    return json.loads(body) if body.strip() else {}
+
 def strip(o):
-    if isinstance(o,dict):  return {k:strip(v) for k,v in o.items() if not k.startswith('_')}
-    if isinstance(o,list):  return [strip(v) for v in o]
+    if isinstance(o, dict):
+        return {k: strip(v) for k, v in o.items() if not k.startswith("_")}
+    if isinstance(o, list):
+        return [strip(v) for v in o]
     return o
-for i,p in enumerate(strip(json.load(open('deploy/nightly/alert-policy.json')))['policies']):
-    p['notificationChannels'] = ['$CHANNEL']
-    json.dump(p, open('pol%d.json' % i, 'w'))
-"
 
-for i in 0 1; do
-  curl -s -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "Content-Type: application/json" \
-    "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
-    -d @pol$i.json
-done
-rm -f pol0.json pol1.json
+chans = api("/notificationChannels").get("notificationChannels", [])
+assert len(chans) == 1, "expected exactly 1 notification channel, found %d" % len(chans)
+
+existing = {p["displayName"]: p for p in api("/alertPolicies").get("alertPolicies", [])}
+
+# Derived from the file, never from a literal count.
+for pol in strip(json.load(open("deploy/nightly/alert-policy.json")))["policies"]:
+    pol["notificationChannels"] = [chans[0]["name"]]
+    name = pol["displayName"]
+    if name in existing:
+        pol["name"] = existing[name]["name"]
+        api("/" + pol["name"].split("/", 2)[2], data=pol, method="PATCH")
+        print("updated", name)
+    else:
+        api("/alertPolicies", data=pol)
+        print("created", name)
+EOF
 ```
 
-⚠ **`curl` on Windows cannot read a Git Bash `/tmp/...` path** — write the payloads to a
-Windows-visible directory or the repo root, as above. `-d @/tmp/x.json` fails with
-*"option -d: error encountered when reading a file"*.
+It prints one line per declared policy, so the output length is the check: if the file declares
+three and you see two lines, something was skipped.
 
-⚠ **NEITHER command is idempotent.** Both are bare `POST`s with no existence check, so running
-this section twice creates a *second* notification channel and a *second* pair of policies —
-and you then get every alert twice, which is how people learn to ignore alerts. Check before
-re-running:
+⚠ **The notification-channel creation step above is still a bare `POST` and is NOT idempotent** —
+running it twice creates a second channel, and you then get every alert twice, which is how
+people learn to ignore alerts. Check before re-running:
 
 ```bash
 curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
-  | python -c "import sys,json;[print(p['name'],p['displayName']) for p in json.load(sys.stdin).get('alertPolicies',[])]"
+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
+  | python -c "import sys,json;[print(c['name'],c.get('type')) for c in json.load(sys.stdin).get('notificationChannels',[])]"
 ```
 
-To change an existing policy, `PATCH` its `name` rather than re-POSTing. To remove a duplicate,
-`DELETE` that `name`.
+To remove a duplicate policy or channel, `DELETE` its `name`.
 
 ### Checking and silencing it
 
