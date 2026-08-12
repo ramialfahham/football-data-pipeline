@@ -28,9 +28,110 @@ seeds:
           Hybrid-IA nav group for this competition type (GAP-19 — the taxonomy that
           previously lived as the _GROUP_OF_TYPE dict in scripts/export_site_data.py).
           Empty (null) for types that never appear in the nav (friendlies).
+          ⚠ SLATED FOR DELETION (CPO 2026-08-11, #57): it groups club competitions by FORMAT
+          (leagues, cups) and everything else by GEOGRAPHY (continental-club, national-teams), so
+          its axis changes halfway through; it overloads BLANK to mean "not browsable"; and none
+          of its four values fits club_world_cup. No dbt model reads it — all 35 downstream of
+          this seed read entity_type only — so its single consumer is build_nav() in
+          scripts/export_site_data.py, feeding the home page's browse chips. It is kept until
+          **#44** rewrites that block, because deleting it here would turn a seed change into a
+          redesign of a shipped block. ⚠ Consequence until then: club_world_cup carries
+          continental-club because nothing else fits, so #56's mislabel survives on the home page.
         tests:
           - accepted_values:
               values: ["leagues", "cups", "continental-club", "national-teams"]
+      - name: single_country
+        description: >
+          Whether this kind of competition is played inside ONE country. It answers exactly one
+          question — which registry field a competition's region sub-line reads — and it exists
+          because nothing else in the model could: `entity_type` does not separate them (a
+          domestic league and the Champions League are both `club`), `tier` exists only on
+          domestic leagues, and reading the `domestic_` prefix off the type name is string
+          sniffing that `club_friendly_domestic` breaks anyway.
+          true  -> the row shows the registry's `country`   (Premier League — England)
+          false -> the row shows the confederation's label   (Champions League — Europe)
+          The alternative was to print `country` for everything, which is what shipped: it says
+          the literal "International" for 15 of the 45 registry competitions, and says it for
+          COAM and AFCON while EURO — the same competition_type — says "Europe" (#54).
+          ⚠ ADDITIVE AND NOT YET READ. `mart_competition_index` (#62) is what will resolve the
+          branch; until it exists nothing consumes this column.
+          ⚠ NO `accepted_values` TEST, deliberately. Every value is the literal `true`/`false`, so
+          dbt's seed type inference loads this as a native BigQuery BOOL — no `column_types`
+          override is declared for this seed. BigQuery has no implicit BOOL↔STRING coercion, so
+          `accepted_values: ["true","false"]` would not merely fail, it would fail to COMPILE. The
+          type already constrains the column to true/false/null, which is what such a test would
+          have asserted. `metric_catalogue.lower_is_better` is the same literal pattern and carries
+          `not_null` alone for the same reason — that precedent was missed on the first draft and
+          caught in review.
+        tests:
+          - not_null
+      - name: label_i18n_key
+        description: >
+          i18n key for the TRANSLATED category heading. English does NOT resolve through it — see
+          label_en. Convention, mechanical so the two never drift: `compType` + PascalCase of the
+          competition_type. That is why `world_championship` carries compTypeWorldChampionship
+          even though its label reads "World Cup" — the key follows the TYPE, so when the type is
+          eventually renamed (CPO ruling 2 of #57, deferred) the key renames with it.
+        tests:
+          - not_null
+          - unique
+      - name: label_en
+        description: >
+          The category's English display name — the heading a reader sees above a group of
+          competitions on /{locale}/competitions/. CPO ruling 2026-08-10: *"the single source of
+          truth for the displayed name is this seed file, same idea as in the metric layer; the
+          mapping to other languages happens in a different file."* Translations stay in the i18n
+          layer keyed by label_i18n_key.
+          ⚠ The metric layer is the MODEL the CPO named, not a precedent already on this branch:
+          `metric_catalogue` gains its own `label_en` in !27, which is unmerged. The two land
+          independently and neither depends on the other.
+          NAMING SYSTEM (CPO 2026-08-11): a type that holds ONE specific competition is named for
+          it — "Club World Cup", "Intercontinental Cup", "World Cup"; a type that holds a CLASS
+          takes a plural noun phrase — "Domestic leagues", "Continental club cups". Three types
+          are singular by nature and all three are FIFA's.
+          ⚠ ADDITIVE AND NOT YET READ, same as single_country.
+        tests:
+          - not_null
+          - unique
+
+  - name: confederations
+    description: >
+      Display labels for the confederation enum — the REGION shown under a competition that is not
+      confined to one country. `docs/competition_registry.yml` stores governing-body codes (UEFA,
+      CONMEBOL, CAF …) and no readable "UEFA -> Europe" existed anywhere in the repo, so the first
+      design that needed one typed the labels into a mockup. That is the failure #58 was filed
+      about, and this seed is the fix.
+      Keyed by confederation rather than added as columns on competition_types because the region
+      varies WITHIN a type: COAM and EURO are both `continental_championship`, and they are South
+      America and Europe.
+      CPO 2026-08-11, on whether seven display strings justify a seed rather than living in
+      strings.ts: *"keep the seed, we may need it the warehouse later if not now."*
+      ⚠ ADDITIVE AND NOT YET READ — `mart_competition_index` (#62) is the intended consumer.
+      ⚠ The seven English labels are the CPO's to change; `FIFA -> World` is the one that is a
+      judgement rather than geography, since FIFA is a global body and not a region.
+    columns:
+      - name: confederation
+        description: >
+          Confederation code, matching docs/competition_registry.yml's `confederation` field and
+          the enum documented in its header (UEFA | CONMEBOL | CONCACAF | CAF | AFC | OFC | FIFA).
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              values: ["UEFA", "CONMEBOL", "CONCACAF", "CAF", "AFC", "OFC", "FIFA"]
+      - name: label_i18n_key
+        description: "i18n key for the translated region label. Convention: `confed` + PascalCase of the code."
+        tests:
+          - not_null
+          - unique
+      - name: label_en
+        description: >
+          The region's English display name. CONCACAF's "North & Central America" is the
+          normalised form — the registry's own `country` field writes it "North/Central America"
+          for CCCU, which is one of the inconsistencies this seed removes.
+        tests:
+          - not_null
+          - unique
 
   - name: competition_registry
     description: >

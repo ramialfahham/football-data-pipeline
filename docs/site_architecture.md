@@ -136,7 +136,8 @@ Two browse axes, both fully registry-driven (#364 adds the fields):
 
 - **Competition groups** (`display_group`, defaultable from `competition_type`):
   `leagues` (domestic_league) · `cups` (domestic_cup, domestic_super_cup) ·
-  `continental-club` (continental_club, continental_super_cup, club_qualifying) ·
+  `continental-club` (continental_cup, continental_super_cup, club_qualifying, club_world_cup,
+  intercontinental_super_cup) ·
   `national-teams` (world_championship, continental_championship, qualifying).
 - **Country hubs** (`country` field): `/football/germany/` lists BL1, BL2, DFB-Pokal …
   ordered by `tier` + `sort_order`. International competitions appear under their

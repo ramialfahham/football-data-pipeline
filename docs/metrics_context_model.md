@@ -48,7 +48,14 @@ A club's form only ever includes club matches; a national team's only national m
 ## 3. Temporal phases (and how we detect them)
 
 Three phases, detected **generically by fixture counts** in the current edition (no
-per-league logic, no maintained date tables):
+per-league logic, no maintained date tables).
+
+⚠ **The counts are the TEAM's own fixtures in that competition edition, not the competition's**
+(clarified by the CPO 2026-08-12). For a league the two are the same — everyone plays to the final
+matchday. For a **knockout** they are not: a club dumped out of the cup in round one has ≥1
+finished and 0 upcoming from that moment, so it is in "after it's finished" while the cup itself
+runs on for months. That is the intended reading, and it is what makes "their full cup run" honest
+for a team whose run was a single match.
 
 | Phase | Detection | Meaning |
 |-------|-----------|---------|
@@ -81,15 +88,37 @@ are taxonomy-only / not yet ingested.
 
 ### Club competitions
 
+**The two types added 2026-08-12 (#57) each inherit an existing row** — CPO ruling, same date:
+`club_world_cup` follows **`continental_cup`**, `intercontinental_super_cup` follows
+**`continental_super_cup`**.
+
+**When a competition gets an "after it's finished" figure at all** (CPO 2026-08-12): only when
+every entrant plays a group or league phase, so there are **enough matches to be worth
+aggregating**. `domestic_league`, `continental_cup` and `club_world_cup` qualify — the Champions
+League and the Club World Cup both have a group phase, so a club eliminated in the knockout still
+has a full group campaign behind it. A **pure knockout does not**: `domestic_cup`,
+`club_qualifying` and the super cups show nothing, because a team's run there can be a single
+match and phase is per team (§3).
+
+⚠ Read "full completed season / edition" as **all of that team's matches in that competition
+edition** — not "only if they reached the final". That distinction is the whole reason the
+knockout rows are empty.
+
+So the cumulative-within-tournament exception stays **national-only**: a club competition never
+gets it, however tournament-shaped it looks. That is also why `CWC`'s window is unchanged by the
+re-type — it resolved to last-5 as `continental_club` and still does.
+
 | competition_type | status | Before it starts | While it's running | After it's finished |
 |---|---|---|---|---|
 | domestic_league | active | Previous season of this league | Last 5 across all the club's competitions | Full completed season |
-| domestic_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Their full cup run |
+| domestic_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | — |
 | domestic_super_cup | taxonomy | Last 5 across all the club's competitions | — (single match) | — |
-| club_qualifying | taxonomy | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Last 5 across all the club's competitions |
-| continental_club | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Full completed edition |
+| club_qualifying | taxonomy | Last 5 across all the club's competitions | Last 5 across all the club's competitions | — |
+| continental_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Full completed edition |
 | continental_super_cup | active | Last 5 across all the club's competitions | — (single match) | — |
 | club_friendly_domestic | not ingesting | Defer (low signal) | — | — |
+| club_world_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Full completed edition |
+| intercontinental_super_cup | taxonomy | Last 5 across all the club's competitions | — (single match) | — |
 | club_friendly_international | not ingesting | Defer (low signal) | — | — |
 
 ### National-team competitions
@@ -281,13 +310,15 @@ join happen **in the model**). The export and UI only **format** them; no deriva
 
 ### 8.4 Window matrix — which legs form each window
 
-**Club competitions** — a player's club form *is* his relevant form; no divergence from the team
-rule (§4):
+**Club competitions — see §4. There is no player divergence, so there is no second table.**
 
-| Competition type | Before it starts | During | After |
-|---|---|---|---|
-| Domestic league | Previous season (this league) | Last 5 across the club's competitions | Full season |
-| Domestic cup · continental club · super cups · club qualifying | Last 5 across the club's competitions | Last 5 (super cups: single match) | Full edition / cup run |
+A player's club form *is* his relevant form, which this section has always said. It used to restate
+§4's club rules in a condensed two-row form, and that copy drifted: it still named
+`continental club` after the type was renamed to `continental_cup`, it never gained
+`club_world_cup` or `intercontinental_super_cup`, and its single "Full edition / cup run" cell
+covered five competition types that no longer share an "after" rule — domestic cups, club
+qualifying and the super cups have none (CPO 2026-08-12). **Struck rather than re-synced**: two
+tables that must agree are one table too many, and this one was already wrong on three counts.
 
 **National-team competitions** — reframed as **context, not form** (strict club/national
 separation: the national view never borrows club data):

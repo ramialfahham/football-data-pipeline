@@ -1,131 +1,136 @@
-# Review — fix/65-ci-worktree-prune — 2026-08-13
+# Review — feat/57-competition-taxonomy-seed — 2026-08-12
 
-diff_sha256: 6bca53577109b13bce379e83a94d322ea581f4a59dd3d555cecf1780bb86d620
+diff_sha256: 0c1ef8aff9aca4eb7902911b41b380c12c10f82e43c8855ac7f774af23cfd517
 
-rounds: 1
+rounds: 3
 
-⚠ REBOUND 2026-08-13 after rebasing onto `a13c16e`, which carries `chore/33-item15-drop-injuries`.
+⚠ `diff_sha256` above is the CUMULATIVE branch number from `check_task_artifacts.py`, NOT
+`--staged-hash`. On a second commit those differ — `--staged-hash` covers only the increment while
+the gate (and CI) recompute `base...HEAD` over the same exclusion set. Binding the increment number
+here failed the gate on this very branch.
+
+⚠ REBOUND 2026-08-12 after rebasing onto main `a2b4184` (main moved twice: !32/#53, !34/#61).
 The hash is a function of the BASE, so a rebase invalidates it even when not one line of the work
-changes — and none did. The verdicts below stand: the rebase conflicted ONLY in the four
-`.claude/task/*` paperwork files, resolved as MINE for contract/review/review_input (single-owner
-per task) and `escalations.log` UNIONed and checked by ARITHMETIC (base 299,989 + main's item 15
-2,694 + this branch's #65 3,214 = 305,897, written 305,897), never by eye. `.gitlab-ci.yml` and
-`tests/test_ci_data_job_invariants.py` merged CLEANLY — the reviewed change did not move.
+changes. The verdicts below stand — the rebase touched only the four `.claude/task/*` paperwork
+files, resolved as: MINE for contract/review/review_input (single-owner), and `escalations.log`
+UNIONed and checked by ARITHMETIC (base 279,580 + main's #61 9,806 + this branch's #57 7,224 =
+296,610, written 296,610), never by eye. No code, seed, model or doc content moved in the rebase.
 
-Three routed reviewers, blinded (patch + `contract.md` + `escalations.log`; no builder narrative).
-Routing per `.claude/review_routing.json`: scope-auditor (always), plus cto-reviewer and
-platform-reviewer for `.gitlab-ci.yml`, which is a PROTECTED file. All three PASS at round 1.
+Four routed reviewers, blinded (patch + contract.md + escalations.log; no builder narrative).
+Routing per `.claude/review_routing.json`: scope-auditor (always), analytics-engineer-reviewer
+(`dbt_project/**`), data-engineer-reviewer (`docs/competition_registry.yml`,
+`dbt_project/seeds/competition_registry.csv`), platform-reviewer (`tests/**`).
 
-⚠ Two things the reviewers established that the builder had NOT: that `.github/workflows/` runs on
-`ubuntu-latest` (ephemeral), so leaving the twin line unedited is diagnostically correct and not
-merely policy-correct; and that `test:python` runs on every non-scheduled pipeline, so the new guard
-fails closed on every future MR rather than only locally. Both are recorded below in the reviewer's
-own territory rather than restated as builder claims.
+Round 1: 2 PASS, 2 FAIL. Round 2: 3 PASS, 1 FAIL. Round 3: platform only, PASS.
+⚠ Both round-1 failures were real defects that this contract's own `done_when` would NOT have
+caught. Round 3 re-ran ONE reviewer rather than the panel — the only one whose findings were acted
+on after its verdict (CPO in session: correct the false lines and stop, rather than re-review prose
+with all four).
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- `protected_override` authority is real and correctly ORDERED: `.gitlab-ci.yml` confirmed present
-  in `PROTECTED_FILES` (`task_contract_gate.py:77`), and the 2026-08-13 `escalations.log` entry
-  recording the CPO's "yes" plus the premise interrogation ("Does it conflict with the other
-  worktree?") is appended BEFORE `contract.md` cites it.
-- Narrowness of the override checked against the file, not the claim: `git worktree` appears only in
-  `data:build:mr`; no `rules:`/`changes:` anchor, no other job, no resource group and nothing under
-  `.github/workflows/` is touched.
-- `scope_paths` matches the diffed file set EXACTLY — four files, none undeclared.
-- The `.claude/active_work.md` exclusion (`decisions_taken` 6) judged as a documented decision
-  rather than a handover-discipline violation: it gives a concrete reason (main's copy is stale,
-  the live copy is on `!33`, editing it would manufacture a conflict) and states how to reverse it.
-- No new mechanism and no recurring cost: `git worktree prune` is a stateless local git metadata
-  operation, adding no job, schedule, service or BigQuery object; the added test pins a CLASS rather
-  than a line number.
+- Checked every file in the diff against `scope_paths` (base list + amendment 1) — no out-of-scope
+  file. Amendment 1's cited authority ("I would include the three -> do it") verified independently
+  against the escalations.log entry rather than taken from the contract.
+- Traced each substantive `docs/metrics_context_model.md` change — the knockout after-window
+  removal, per-team phase detection, the section 8.4 table deletion — against escalations.log
+  rulings 3 to 6 line by line; each edit traces to a verbatim ruling and none exceeds it.
+- Checked all four `decisions_reserved` items against the diff: `display_group` untouched,
+  `world_championship` unrenamed, no mart built, no registry fields projected. None silently decided.
+- Checked the four threshold declarations (new mechanism / recurring cost / guard loosened /
+  shipped numbers) against what the diff actually does — all four hold.
+- ROUND 1 FAIL, fixed: `decisions_reserved` reserved the English label copy for the CPO while the
+  same diff shipped all 21 strings as non-null, unique, test-enforced content. Moved to
+  `decisions_taken` item 9, which now names which 5 of 14 category strings are CPO-attributable,
+  which 9 plus all 7 confederation labels are builder-authored, flags the two judgement calls
+  (`FIFA -> World`, normalising CONCACAF), and records that no per-string approval was obtained.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The gate's own requirements are satisfied for a protected path: `_is_structural`
-  (`task_contract_gate.py:193-208`) makes `impact_map` mandatory alongside a non-placeholder
-  `protected_override`, and the contract carries both.
-- The escalation entry was compared against the two prior protected-path entries (#61, #63) and
-  matches their shape — ask, premise check, ruling, explicit narrowing — rather than being an
-  outlier written to fit.
-- NO GUARD INVARIANT IS WEAKENED. `prune` removes only registrations whose directory is gone, so a
-  genuine live collision still fails loudly; `add -f`, which would have silently overridden one, was
-  explicitly rejected. No test, lint or DQ step is skipped, reordered or narrowed.
-- The instrument was challenged: does this paper over a runner misconfiguration that should be fixed
-  at the runner instead? Judged reasonable — reconfiguring a shared self-hosted runner's workspace
-  strategy is a materially larger and riskier change, and the contract defers it explicitly rather
-  than smuggling it in.
-- ⭐ THE GUARD FAILS CLOSED GOING FORWARD, verified rather than assumed: `test:python`
-  (`.gitlab-ci.yml:430-437`) runs `pytest tests/` on every non-scheduled pipeline, so dropping the
-  prune line reddens every future MR and main pipeline.
-- Recurring cost: none. No trigger, schedule, BigQuery scan or network call added;
-  `.data_paths_mr`/`.data_paths_prod` untouched, so WHICH changes cause a build is unchanged.
-- The still-red pipeline was tested against the "verify by running" standard and judged DISCLOSURE
-  rather than evasion: #66 is named separately in both `done_when` and the escalation, with the
-  reason, instead of a false green being claimed.
+- Layer placement: no model, macro or SQL file touched; `dbt_project/docs/layering.md:339` places
+  taxonomy mappings in seeds/registry fields, which is where this landed.
+- Rename join-integrity: `continental_club -> continental_cup` and the `CWC` re-type applied
+  identically on both sides, backed by the existing `relationships` test
+  (`dbt_project/seeds/schema.yml`), so a one-sided rename fails immediately. Repo-wide grep found
+  no live SQL/TS/Python branching on the old literal.
+- New-column typing: confirmed `single_country`'s `true`/`false` literals load as native BigQuery
+  BOOL under dbt seed inference with no `column_types` override, and that `not_null` alone is
+  correct — matching the `metric_catalogue.lower_is_better` precedent.
+- ROUND 1 FAIL, fixed: the first draft put `accepted_values: ["true","false"]` on that BOOL column.
+  BigQuery has no implicit BOOL/STRING coercion, so the test would not merely fail — it would fail
+  to COMPILE on the first `dbt build`. Removed, `not_null` retained, reasoning recorded in the
+  column description so it is not re-added.
+- ROUND 2, both corrected: the impact_map subtotal read "14 intermediate + 21 marts" where the
+  pasted list is 18 + 17 (total 35 and the list itself were right); and a `done_when` grep claim
+  was not true of the whole tree.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Re-derived the single-source lockstep rather than accepting it: all 45 registry rows diffed
+  against the 45 seed rows, the 8 re-typed competitions matching exactly, with `provider_league_id`,
+  `ingest_active`, `history_seasons` and `parent_competition` unmoved on every one.
+- Confirmed `dbt_project.yml` is correctly untouched — its active-code list derives from `status`,
+  which no row changed — consistent with `sync_dbt_vars.py`'s logic.
+- Confirmed `entity_type` stays `club` across the rename and the re-type, so no club/national
+  classification moves downstream.
+- Confirmed no `ingestion/**` path appears and no new `provider_league_id` is introduced, so the
+  onboarding cost and provider-identity rules have no surface here.
+- Surfaced `site_v2/src/data/teams/33.json` — 9 stale `continental_club` values in a committed
+  sample export, missed by the builder's original sweep which excluded `.json`. Judged inert
+  (`types.ts:185` types the field as a bare `string | null`, nothing branches on it) and out of
+  scope; now disclosed in `done_when` and carried to #62's export repoint.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Placement traced through the real script order (`.gitlab-ci.yml:517-577`): prune and add are
-  adjacent, nothing runs between them, and `resource_group: ci-data-build-write-ci` plus the absence
-  of any other worktree-using job means no concurrent job can re-register the stale entry in the
-  gap.
-- The diagnosis was tested against the config rather than taken on trust: `GIT_STRATEGY` and
-  `GIT_CLEAN_FLAGS` are unset (so nothing in-repo overrides the runner default that would falsify
-  "the project dir persists"), `GIT_DEPTH` affects fetch depth only, and `cache:` covers
-  `.cache/pip`/`.npm` and never `/tmp` or `.git/worktrees`. ⚠ Nothing in the file CONTRADICTS the
-  diagnosis and nothing in it CONFIRMS the diagnosis — it rests on the two cited job logs, which is
-  outside what the diff can show.
-- ⚠ A STATE THE FIX DOES NOT CLEAR, stated rather than glossed: `/tmp/main-src` existing with stale
-  CONTENT while still registered. `prune` only clears registrations whose directory is gone, so that
-  case would fail with "already exists". It is consistent with `decisions_taken` 2 (fail loudly on a
-  genuine collision) and is NOT a regression — the behaviour is identical before and after.
-- The new test is real, not decoration: `_script_lines_by_job` was traced against the actual YAML
-  merge structure (`<<: [*python, *gcp_job]` inside `.data_build_base`, then `<<: *data_build_base`)
-  — PyYAML resolves merge keys before the alias is reused, so the job's own `script:` is captured
-  intact and in execution order. Removing the prune line was traced through the assertion: `add_at`
-  found, `prune_at` None, job flagged, test fails.
-- No false positives: every job without `git worktree add` is skipped by the `continue` and never
-  reaches the assertion.
-- ⚠ LATENT LIMITATION OF THE GUARD, disclosed rather than left to be discovered: `extends:`,
-  `!reference` and `include:` are grepped and none is used in this file today, so the test sees
-  everything. A template whose `script:` lived in an `include:`-ed file WOULD be invisible to it.
-  Not triggered by anything in this repo now; recorded so the next person adding an `include:` knows.
-- ⭐ Leaving `.github/workflows/ci-data-build.yml:191` unedited is DIAGNOSTICALLY correct, not just
-  policy-correct: that workflow declares `runs-on: ubuntu-latest`, i.e. ephemeral GitHub-hosted
-  runners, where a persisted project directory cannot occur. The dormant-workflow README already
-  carries a pre-reactivation audit section, so a future re-arm does not depend on silence here.
-- Re-run and interruption safety: prune is idempotent, and a job dying after a successful `add`
-  leaves a registration that self-heals on the next run through the same prune.
-- Nothing else engaged: no secrets, no permission widening, no dependency/lockfile/site-build/hosting
-  file touched, and `git worktree` logic exists in neither `git_discipline.py` nor
-  `check_task_artifacts.py`.
+- Traced the new `test_display_group_of_type_covers_the_renamed_and_new_types` against
+  `_display_group_of_type`, which reads the committed seed from disk with no mocking, and confirmed
+  its assertions would go RED on a revert of the rename — genuine coverage of the changed behaviour.
+- Read both guard scripts in full: `check_competition_type_seed.py` fails on any registry type
+  missing from the seed; `check_registry_var_sync.py` compares
+  `(league_code, competition_type, parent_competition)` symmetrically. Both `sys.exit(1)` on drift
+  with no exception swallowing, and both are wired into `.gitlab-ci.yml`.
+- Checked every `done_when` claim against the real files: both seed shapes, no blanks in any new
+  column, `confederations.csv` keys equal to the registry header enum AND to the `confederation`
+  values actually used across the registry, and the corrected repo-wide grep result.
+- ROUND 2 FAIL finding 1, fixed: the edited `build_nav` fixture pinned nothing — `build_nav()`
+  never branches on `competition_type`, so reverting the whole rename left it green. The new test
+  above replaces that as the pin, and was proved RED against a reconstructed pre-#57 seed rather
+  than trusted on a green run (`scratchpad/prove_seed_test_fails.py`).
+- ROUND 2 FAIL finding 2, DEFERRED not fixed: `confederations.csv` has no guard tying it to the
+  registry's `confederation` values, where `competition_type` has one. All 44 registry values match
+  the 7 seed rows today, so it is a coverage gap rather than a break. CPO decision in session: the
+  seed is read by nothing, so the guard has nothing to protect until #62 builds its consumer, and
+  `scripts/**` is outside these scope_paths. Recorded as an explicit gap in `done_when`.
 
-## Verification (LOCAL — CI evidence is the pipeline on this MR)
+## Post-review increment — stated rather than hidden
 
-- ⭐ The new test was SEEN RED before it was trusted green. Against the unfixed `.gitlab-ci.yml` it
-  failed naming the real offender: `data:build:mr: git worktree add at script index 76, prune
-  absent`. After the fix, green.
-- ⭐ BOTH of its failure branches were proved live, because one of them ("prune present but AFTER the
-  add") could otherwise have been dead code. Driven over four synthetic configs: prune absent →
-  flagged; prune after the add → flagged; prune before the add → clean; prune in a DIFFERENT job →
-  flagged. The last case is what stops a prune elsewhere in the file from satisfying the check.
-- ⭐ The MECHANISM was run against real git, not read off the manual (`scratchpad/wt_repro.py`):
-  unfixed `add` exits 128 reproducing CI's error text, `prune` then `add` exits 0, and a repeat prune
-  with nothing stale is a no-op that still leaves `add` working.
-- `git worktree prune --dry-run -v` on this machine removes NONE of the three registered worktrees,
-  which is the evidence behind the CPO's "does it conflict with the other worktree?" question.
-- `pytest tests/` — 799 passed, 1 skipped, 15 subtests passed. `dbt parse` clean.
-- Offline gates all PASS: `check_layer_contract`, `check_registry_var_sync`,
-  `check_competition_type_seed`, `check_copy_gate`, `check_ui_i18n_metrics`, and all five JSON
-  manifests parse.
-- `sqlfluff lint` NOT run and NOT claimed: this diff contains zero `.sql` files, so it would have
-  been uninformative.
+Three changes post-date the verdicts above and are covered by this hash but by no reviewer:
 
-⚠ **This is LOCAL evidence and is never CI evidence.** The pipeline on this MR is the CI evidence.
-It is EXPECTED to go past the worktree step and then FAIL further down on **#66** — prod data has
-not been rebuilt since 08-09, so `assert_event_team_in_fixture_participants` still returns its 10
-rows through `--defer --favor-state`. That is a different defect and not evidence this fix failed.
-Read the log, not the colour.
+1. **Two corrections to `contract.md`** flagged by analytics-engineer in round 2 — the impact_map
+   subtotal (14+21 to 18+17) and a `done_when` grep claim that was not true of the whole tree.
+   CPO decision in session: correct the false lines and stop, rather than re-review prose with the
+   full panel. Neither touches `scope_paths` nor adds work.
+2. **contract.md amendment 2** — adds `.claude/active_work.md` to `scope_paths`. Not a CPO ruling
+   but a standing `docs/working_agreement.md` §3 requirement, enforced by the post-commit workflow
+   hook. Recorded as an amendment rather than edited quietly, because the contract gate is right
+   that an out-of-scope edit is drift however routine it feels.
+3. **The handover rewrite.** Its header claimed "NOTHING IN FLIGHT — no open MRs" while `!27` and
+   `!33` are both open; a fresh session handed only that file would have re-scoped from scratch.
+   ⚠ Capped at 16,000 CHARACTERS and sitting at 15,971, so this was a TRADE, not an addition: the
+   audit section is compressed to its durable lesson plus the GitLab #30 pointer, and the cost
+   section to its measured baseline plus the traps. Final size 15,951.
+
+None of the three touches code, seeds, models or any model-facing path.
+
+## Verification (all LOCAL — CI has no minutes, account-wide)
+
+`check_competition_type_seed` OK · `check_registry_var_sync` OK · `check_layer_contract` passed ·
+`check_copy_gate` OK · `check_task_artifacts` OK · `dbt parse` clean · `pytest tests/` 764 passed
+1 skipped (42 in the touched file after the new test) · both seeds parse at their declared shapes ·
+`sync_dbt_vars.py` idempotent on a second run with `dbt_project.yml` unchanged.
+
+⚠ **No CI run. None of the above is CI evidence and must never be presented as such.**

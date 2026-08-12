@@ -1,477 +1,1018 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 83f282f..f57a225 100644
+index 40b0001..220c8b3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,181 +1,134 @@
--# Task contract — #33 items 9 + 10: staging becomes a table, and the guard follows
-+# Task contract — #65: clear the stale worktree registration that fails every MR
+@@ -1,70 +1,62 @@
+-# Task contract — #53: correct the Macau/Mação event mis-attribution
++# Task contract — #57: reshape the competition taxonomy seed
  
  objective: >
--  `1_staging` is `+materialized: view`, so it stores nothing and every reader re-executes the
--  JSON parse of the raw table underneath. There are **59 staging tests** across 15 staging
--  models, plus ~20 base models reading those views, so each raw table is scanned roughly five
--  times a night per staging model to answer questions a stored table would answer for the 10 MB
--  minimum.
+-  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
+-  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
+-  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
+-  current while `dbt_analytics` silently is not.
 -
--  Item 9 sets `1_staging: +materialized: table`. Item 10 extends the existing per-model
--  materialisation ban from `2_base` to `1_staging` so the layer decision cannot be overridden
--  model by model and silently stop being re-costed with the rest of its layer.
--
--  This is the SAME change #547 made to `2_base` on 2026-08-02, one layer up, for the same
--  measured reason.
-+  `data:build:mr` fails on EVERY merge request at `.gitlab-ci.yml:555`:
-+  `git worktree add --detach /tmp/main-src FETCH_HEAD` exits 128 with "'/tmp/main-src' is a missing
-+  but already registered worktree". Both open MRs (`!33`, `!27`) are blocked behind it, so nothing
-+  merges until it clears.
+-  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
+-  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
+-  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
+-  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
+-  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
++  The competitions page (#54) is designed and closed, and its design depends on two seed columns
++  that do not exist: a category label, and a flag saying whether a competition sits inside one
++  country. #62 then builds `mart_competition_index` on top of them. This is the first buildable
++  step and everything downstream waits on it.
 +
-+  Cause, read out of two job logs rather than inferred from the error text: the self-hosted runner
-+  keeps the PROJECT directory between jobs — so `.git/worktrees/` persists — while each job gets a
-+  FRESH `/tmp`. The registration therefore outlives the directory it points at. Job 15864168006
-+  (08-12) ran the same command and SUCCEEDED, creating the registration; the 08-13 job on pipeline
-+  2756651714 hit exit 128 with the registration present and the directory gone.
++  Six CPO rulings of 2026-08-11 (recorded in #57's second note) are applied: rename
++  `continental_club` -> `continental_cup`, add `club_world_cup` and `intercontinental_super_cup`, add
++  `single_country` + `label_i18n_key` + `label_en` to every row, add a new `confederations` seed,
++  re-type `CWC`, and carry no blanks in any new column.
 +
-+  This is a consequence of the runner migration. On the previous shared runners every job got a
-+  clean clone, so the registration never survived a job. The first run after the migration passed
-+  and every run since has failed.
++  **This is a configuration change. No model, macro or SQL file is touched.**
 +
  refs: >
--  GitLab #33 items 9 and 10. Precedent and measurement method: #547 (`2_base`), recorded in
--  `dbt_project/docs/layering.md` §2_base and pinned by `tests/test_materialisation_policy.py`.
-+  GitLab #65 (the failure, the two job logs, the fix). Reproduced against real git in
-+  `scratchpad/wt_repro.py` before any file was edited.
-+  ⚠ BLOCKS `!33` and `!27`; neither can go green until this merges.
-+  Context only, NOT in scope: GitLab #66 (prod data stale since 08-09, so this job will still fail
-+  further down) and the coming GitLab group move.
-+
-+protected_override: >
-+  CPO, in session 2026-08-13, recorded in `.claude/task/escalations.log` BEFORE this contract was
-+  written: asked to take #65 next, answered **"yes"**, then interrogated the premise — **"Does it
-+  conflict with the other worktree?"** — and approved the plan once that was answered by
-+  measurement rather than argument.
-+  `.gitlab-ci.yml` is a PROTECTED FILE (`task_contract_gate.py:77` — "the file that decides what CI
-+  enforces"), so it may not be edited inside an ordinary contract.
-+  ⚠ THE AUTHORITY IS NARROW, and the log says so: it covers ONE line added to `data:build:mr` and
-+  the test that pins it. It does NOT extend to any other job, the `rules:`/`changes:` path anchors,
-+  the resource groups, the runner configuration, or the group move. None of those is touched. It
-+  also does not licence editing `.github/workflows/ci-data-build.yml:191`, which carries the same
-+  line and is deliberately kept unedited.
+-  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
+-  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
+-  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
++  GitLab #57 (the taxonomy; its SECOND NOTE of 2026-08-11 is the authority and supersedes the
++  description and the first note), #54 (the page these columns serve; five notes, read the last),
++  #62 (the one-mart rule these columns feed), #55 (the display NAME, a different field and not in
++  scope), #56 (the "European club" mislabel — NOT resolved here, see below).
  
  scope_paths:
--  - dbt_project/dbt_project.yml
--  - ingestion/api_football/bigquery.py
--  - ingestion/api_football/loads/teams.py
--  - scripts/check_layer_contract.py
--  - tests/test_materialisation_policy.py
--  - dbt_project/docs/layering.md
--  - dbt_project/docs/engineering_standards.md
--  - CLAUDE.md
-+  - .gitlab-ci.yml
-+  - tests/test_ci_data_job_invariants.py
+-  - dbt_project/seeds/fixture_event_team_overrides.csv
++  - dbt_project/seeds/competition_types.csv
++  - dbt_project/seeds/confederations.csv
++  - dbt_project/seeds/competition_registry.csv
++  - dbt_project/seeds/schema.yml
++  - docs/competition_registry.yml
++  - dbt_project/models/5_marts/shared/shared.yml
++  - tests/test_export_site_data.py
++  # added by amendment 1 — see amendments
++  - docs/product_direction_threads.md
++  - docs/metrics_context_model.md
++  - docs/site_architecture.md
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
    - .claude/task/review_input.patch
++  # added by amendment 2 — see amendments
++  - .claude/active_work.md
  
  impact_map: >
--  Not gate-required — `dbt_project/dbt_project.yml` is not `dbt_project/models/**`, and no model
--  file is edited. Written in full anyway, because a one-line config change here alters how every
--  staging model is BUILT and what every staging test READS, which is a far wider blast radius
--  than the diff suggests.
+-  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
+-  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
+-  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
+-  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
 -
--  what changes physically: 15 staging models stop being views and become tables in the `staging`
--    dataset, rebuilt each run. Verified there are **zero** per-model materialisation overrides in
--    `1_staging` today (`grep -rn "materialized" dbt_project/models/1_staging/` → no matches), so
--    nothing conflicts with the layer default and item 10 has nothing to fix retroactively.
+-  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
+-    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
 -
--  downstream: no lineage changes. `ref()` graph, column names and row semantics are untouched —
--    a view and a table over the same SELECT return the same rows. What changes is WHERE the
--    result is read from. Confirmed by `dbt ls --select 1_staging --resource-type test` → 59
--    tests, all of which continue to test the same models.
+-  who READS it — exactly one model, confirmed by grep across the repo:
+-    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
+-    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
+-    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
+-    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
+-    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
+-    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
+-    in `dim_team`, no page URL and no slug can move because of this change.
 -
--  layer_rules: `scripts/check_layer_contract.py` currently bans per-model
--    `config(materialized=...)` in `2_base` only (`BASE_DIR`, the `BASE_MATERIALIZED` regex).
--    Item 10 extends that to `1_staging`. `tests/test_materialisation_policy.py` is the offline
--    twin and carries `EXPECTED["1_staging"] = "view"`, which is the policy record and must move
--    in the same commit — the test is deliberately built so changing `dbt_project.yml` alone
--    fails.
+-  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
+-    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
+-    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
+-    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
+-    was not.
 -
--  ⚠ THE DOC SITES ARE PART OF THE CHANGE, NOT TIDYING. `test_materialisation_policy.py` exists
--    because in May 2026 a cost fix landed, an unrelated refactor reverted it two days later, and
--    nothing failed for two months because every other test asks whether a NUMBER is right and
--    none asks whether something became expensive. Three sites state the staging rule and become
--    FALSE with this change:
--      · `dbt_project/docs/layering.md:12` — "`1_staging` dbt models (views by default)"
--      · `dbt_project/docs/engineering_standards.md:108` — "Prefer views for lightweight `staging`"
--      · `dbt_project/dbt_project.yml:79` — "# 1. Staging: Raw cleanup (Views for speed and low cost)"
--    `CLAUDE.md:73` is updated too: its sentence is past-tense and stays historically true, but it
--    is the always-loaded orientation file and would leave a reader believing staging is a view.
+-      2_base.api_football.base_apif__fixture_events
+-      2_base.api_football.base_apif__players
+-      3_core.dim_player
+-      3_core.fct_fixture_event
+-      4_intermediate.domestic_league.team_season.int_player_season__metrics
+-      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
+-      4_intermediate.domestic_league.team_season.int_team_season__metrics
+-      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
++  writers: both seed tables are written ONLY by `dbt seed`. `competition_registry.csv` is
++    additionally GENERATED by `scripts/sync_dbt_vars.py` from `docs/competition_registry.yml` and
++    must never be hand-edited; `scripts/check_registry_var_sync.py` fails CI if it drifts.
++
++  downstream, PASTED from
++    `dbt ls --project-dir dbt_project --select competition_types+ --resource-type model`
++    (dbt 1.7.19 from the pinned venv, DBT_PROFILES_DIR=C:/Users/Rami/.dbt). **35 models**:
++    18 intermediate + 17 marts. (A first draft of this line said 14 + 21 — the total and the
++    pasted list were right, the split was arithmetic nobody would have re-counted. Caught in
++    review.)
++
+       4_intermediate.shared.int_legs__player_match
+       4_intermediate.shared.int_legs__team_from_players
+       4_intermediate.shared.int_legs__team_match
+-      4_intermediate.shared.int_player_club_season__metrics
+-      4_intermediate.shared.int_player_competition_benchmarks
+       4_intermediate.shared.int_player_momentum__metrics
+       4_intermediate.shared.int_player_profile__contribution
+       4_intermediate.shared.int_player_profile__yoy
+       4_intermediate.shared.int_player_season__team
+-      4_intermediate.shared.int_player_season_position__metrics
+       4_intermediate.shared.int_player_season_record
+       4_intermediate.shared.int_team_competition_benchmark_metrics_long
+       4_intermediate.shared.int_team_competition_benchmarks
+@@ -72,129 +64,230 @@ impact_map: >
+       4_intermediate.shared.int_team_momentum_window
+       4_intermediate.shared.int_team_profile__streaks
+       4_intermediate.shared.int_team_profile__yoy
++      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
++      4_intermediate.domestic_league.team_season.int_team_season__metrics
++      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
+       4_intermediate.shared.int_team_season_record
+-      5_marts.domestic_league.mart_matchday_insights
+-      5_marts.domestic_league.mart_team_season_insights
++      5_marts.shared.mart_fixture_standing_context
+       5_marts.shared.mart_head_to_head
+-      5_marts.shared.mart_leaderboards
++      5_marts.domestic_league.mart_matchday_insights
+       5_marts.shared.mart_player_career
+-      5_marts.shared.mart_player_competition_benchmarks
+-      5_marts.shared.mart_player_fixture_stats
+-      5_marts.shared.mart_player_match_log
+       5_marts.shared.mart_player_momentum
+       5_marts.shared.mart_player_profile
+       5_marts.shared.mart_player_season_record
+       5_marts.shared.mart_roster
++      5_marts.shared.mart_standings
+       5_marts.shared.mart_team_competition_benchmarks
+       5_marts.shared.mart_team_fixtures
+       5_marts.shared.mart_team_momentum
+       5_marts.shared.mart_team_momentum_window
+       5_marts.shared.mart_team_profile
+       5_marts.shared.mart_team_season
++      5_marts.domestic_league.mart_team_season_insights
+       5_marts.shared.mart_team_season_record
+ 
+-    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
+-    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
+-    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
+-    -> `dim_player`), which pulls the whole player surface in.
 -
--  ⚠ DELIBERATELY NOT TOUCHED, and this keeps the task out of governance territory:
--    `.claude/hooks/dbt_layer_gate.py` is a PROTECTED path. Checked line by line — its
--    `1_staging` message says nothing about materialisation, and its `2_base` message mentions
--    staging views only in past tense as the #547 rationale, which remains accurate. No
--    `protected_override` is needed. `scripts/report_bq_cost.py:77` and
--    `dbt_project/docs/layering.md:162` are likewise past-tense history and stay.
--    `.claude/active_work.md` mentions the staging view twice and is NOT edited — the product
--    stream owns it (#33 says so); state goes on #33 instead.
+-  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
+-    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
+-    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
+-    a different seed.
 -
--  deploy_order: nothing breaks at any point and no `--full-refresh` is needed. Staging models are
--    not incremental, so dbt replaces each view with a table on the next build. The first prod run
--    after merge pays one extra scan per staging model to populate the tables; every run after
--    that is cheaper. ⚠ THE NIGHTLY RUNS AN IMAGE — merging does not deploy this. It needs
+-  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
+-    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
+-    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
+-    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
+-    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
+-    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
+-    built from the repo, so merging alone does NOT deploy this. It needs
 -    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
--    (#39 Stage 3 not built).
+-    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
 -
--  blast_radius: no number in any mart moves. This changes cost and build mechanics only.
-+  ⚠ REQUIRED HERE BECAUSE THE PATH IS PROTECTED, not because a model moved
-+  (`task_contract_gate.py:195` — a guard's blast radius is every future task in the repo).
-+  `protected_override` answers "may you"; this answers "do you know what breaks".
+-  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
+-    not asserted:
+-      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
+-        `team_sk = 4767`, `league_code = WCQAS`.
+-      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
+-        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
+-        it was not written for.
+-      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
+-        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
+-        legitimate Mação event, because there are none.
+-      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
+-        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
+-        before and after.
+-    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
+-    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
+-    keyed on the fixture's own participants, so a stat that was previously attributed to a
+-    non-participant was already unreachable there. Nothing else in the warehouse changes.
++    ⚠ WIDE CLOSURE, NARROW CHANGE. That list is what REBUILDS, not what moves. Every one of those
++    35 reads exactly ONE column from this seed — `entity_type` — verified by grep: each does
++    `select * from {{ ref('competition_types') }}` and then uses `entity_type`. The three columns
++    added here are read by nothing yet, by design.
 +
-+  who RUNS the changed line: exactly one job, `data:build:mr`, and only on a merge request whose
-+    diff matches `.data_paths_mr`. `git worktree` appears nowhere else in `.gitlab-ci.yml` —
-+    verified from PARSED YAML across all 11 jobs' `before_script`/`script`/`after_script`, not by
-+    grep. `data:build:main` and `data:nightly` do not use a worktree, which is why #66's remedy
-+    (a prod build on main) does not depend on this fix.
++  what the RENAME can reach, established by grep rather than assumed:
++    `grep -rn "continental_club" --include=*.sql --include=*.py --include=*.yml --include=*.ts
++      --include=*.astro --include=*.mjs --include=*.csv .`
++    -> outside the registry and the two seeds, exactly TWO hits, neither of them logic:
++       `dbt_project/models/5_marts/shared/shared.yml:656`  (a column description, listing example
++         competition_type values)
++       `tests/test_export_site_data.py:101`                (a build_nav fixture)
++    **No SQL branches on `continental_club`.** `scripts/export_site_data.py`'s two hardcoded sets
++    are `_GROUP_ORDER` (display_group values, untouched) and `_DOMESTIC_TYPES`
++    (`domestic_league`, `domestic_cup`, `domestic_super_cup` — none renamed), both checked at
++    `export_site_data.py:73-75`.
 +
-+  who is AFFECTED BY the prune: nothing but stale registrations, and this was measured, not
-+    assumed. `git worktree prune` removes only registrations whose directory is GONE.
-+    - On the CPO's machine three worktrees are registered (`football-data-pipeline`,
-+      `fdp-pipeline`, `fdp-product`); `git worktree prune --dry-run -v` removes NONE of them. The
-+      change also runs on the runner, in a different clone, so it cannot reach that machine.
-+    - Concurrently in CI: `data:build:mr` carries `resource_group: ci-data-build-write-ci`, so two
-+      never run at once, and it is the only job holding a worktree.
-+    - Within the job: prune runs immediately before the add, when `/tmp/main-src` does not exist.
++  ⚠ WHY `world_championship` IS **NOT** RENAMED HERE, and it is the reason this contract exists in
++    long form: unlike `continental_club`, that value IS branched on in live SQL —
++      `int_team_momentum_window.sql:135`
++        `coalesce(s.competition_type in ('world_championship','continental_championship'), false)`
++        sets `is_tournament`, choosing the cumulative within-tournament form window over last-5;
++      `dbt_project/tests/assert_tournament_form_window.sql:53` guards that same rule.
++    The failure mode is **SILENT**: the `coalesce(..., false)` is deliberate, so an unrecognised
++    type falls back to `last_5` rather than erroring — and `assert_tournament_form_window` would
++    NOT fire, because its predicate only triggers when `window_type` already IS a tournament
++    window. So a rename without both SQL edits would quietly give the World Cup a last-5 form
++    window with every test green. The form window is a CLAUDE.md non-negotiable and CI has no
++    minutes, so the rename is deferred to its own change. Nothing is lost: the page heading reads
++    "World Cup" because `label_en` says so, not because of the type's internal id.
++    ⚠ An earlier statement of mine to the CPO ("nothing branches on the literals") was WRONG and
++    is corrected here — it came from a grep of `continental_club` and `qualifying` that never
++    covered `world_championship`.
 +
-+  what does NOT change: no dbt model, macro, seed, snapshot or test; no mart, no shipped number, no
-+    page, no export. `.data_paths_mr` and `.data_paths_prod` are untouched, so WHICH changes
-+    trigger a build is exactly as before. No BigQuery object is created, dropped or rebuilt.
++  layer_rules: `dbt_project/docs/layering.md:339` places taxonomy mappings in seeds/registry
++    fields, which is where these live. No model file is touched, so `check_layer_contract.py` has
++    nothing to judge. `check_competition_type_seed.py` (registry types subset of seed types) and
++    `check_registry_var_sync.py` (generated seed matches the registry) both govern this change and
++    must pass.
 +
-+  ⚠ RECURRING COST: none. The added command is a local git metadata operation on the runner. It
-+    does not add a job, a trigger, a schedule or a BigQuery scan.
++  deploy_order: no backfill, no `--full-refresh`, nothing breaks at any point. `dbt seed` reloads
++    both tables in the same run that rebuilds the models joining them, so the renamed value never
++    exists on only one side of a join.
 +
-+  deploy_order: none. It takes effect on the next pipeline; there is no image, schedule or
-+    warehouse object to sequence.
-+
-+  layer_rules: none engaged. `check_layer_contract.py` judges `dbt_project/models/**`, untouched.
++  blast_radius: **no shipped number moves.** The rename changes a value in a configuration table
++    and in the registry-derived seed simultaneously; every consumer joins
++    `competition_registry.competition_type = competition_types.competition_type`, so the join
++    resolves identically before and after and `entity_type` still returns `club` for all 8
++    affected competitions. The `CWC` re-type moves it from `continental_cup` to `club_world_cup`,
++    both `entity_type: club`, so its club/national classification is unchanged too. The three new
++    columns are additive and read by nothing.
++    The only OBSERVABLE change today is on the home page's browse block, and it is nil: `CWC` was
++    in `display_group: continental-club` and remains there.
  
  decisions_taken: >
--  CPO ruling, in-thread 2026-08-12: **"definitely"**, in answer to "Shall I do item 9 + 10 now?"
--  Recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #33 ITEMS 9 + 10 …") BEFORE
--  this contract was written.
+-  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
+-  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
+-  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
+-  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
 -
--  ⚠ A PREMISE CHECK THE CPO DEMANDED, AND THE ANSWER IS IN THE LOG. Asked whether staging had
--  previously been a table and was made a view for cost reasons — which would make this a
--  reversal needing justification. It was NOT: `1_staging` has been `view` at every commit that
--  ever touched `dbt_project.yml`, from `1f422c0` (2026-04-10) to `4899025` (2026-08-02),
--  extracted by replaying the block per commit. The recollection was of `2_base`, which was a
--  view and became a table under #547 — the precedent FOR this change, not against it.
+-  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
+-  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
+-  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
+-  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
+-  precedent already in this seed.
 -
--  # THRESHOLD DECLARATIONS
--  RECURRING COST — **yes, and it is a net REDUCTION, measured rather than assumed.**
--    · added storage: ~0.5 GiB. Measured basis: the whole `dbt_analytics` base layer, which is
--      staging's parsed output, is **0.415 GiB across 43 tables**, while the `staging` dataset is
--      **0.0 GiB across 259 objects** because views store nothing. At EU active-storage rates that
--      is single-digit cents per month.
--    · removed query cost: measured on the last 24h of prod builds, tests **$0.17** vs models
--      **$0.07** — the 2.4x view-rescan signature. Expected saving ~**$3-4/month**.
--    ⚠ SMALLER THAN #33 CLAIMS, stated here so nobody sizes future work off the issue. #33
--      justified this on `RAW_APIF_TRANSFERS` at 6.99 GiB rescanned per test; item 8b has since
--      shrunk that table to **0.178 GiB**, a 39x reduction, so the largest scan the item was
--      written about is already gone. The case now rests on the MULTIPLIER (≈5 scans per staging
--      model per night collapsing to 1), which applies to whatever raw grows to — and the CPO
--      confirmed in the same thread that more competitions are coming.
--  NEW MECHANISM — no. A layer config value changes and an existing guard's directory list gains
--    one entry. No new file, dependency, service or lifecycle hook.
--  GUARD LOOSENED — no; this ADDS one. `check_layer_contract.py` and its offline twin gain a
--    staging case that does not exist today.
--  SHIPPED NUMBERS — no. Same rows, same columns, same lineage; only the storage changes.
+-  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
+-  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
+-  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
+-  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
+-  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
+-  issue text.
 -
--decisions_reserved:
--  - `RAW_APIF_INJURIES` is now the LARGEST raw table (1.975 GiB) with zero consumers — no source
--    declaration, no model, nothing reads it. That is #33 item 15 and the CPO approved it
--    ("yes") as a SEPARATE task in the same thread. Deliberately not bundled here: it stops an
--    ingest and deletes a raw table, a different blast radius from a materialisation policy.
--  - The `staging` dataset holds **259 objects for 15 models**, which implies a large number of
--    orphaned views from renamed models. Not investigated, not in scope; worth its own look.
--  - Whether any of the 59 staging tests are redundant against equivalent base tests. Cutting
--    tests is loosening a guard and is not proposed.
-+  1. `git worktree prune` BEFORE the add, as its own script line. Prune is the purpose-built
-+     command for this exact state — it drops registrations whose directory is gone and is a no-op
-+     otherwise. Its own line rather than `prune && add` so each step shows separately in the job
-+     trace, which is how this defect was diagnosed in the first place.
+-  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
+-  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
+-  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
+-  seed breaks. The note is wrapped in double quotes — RFC 4180, already
+-  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
+-  CPO's; only the CSV framing differs.
++  Six CPO rulings, 2026-08-11, all recorded on GitLab #57 (second note) before this branch existed:
++    1. `display_group` is deleted from the seed — ⚠ **NOT DONE HERE**, see decisions_reserved.
++    2. Naming rule: a type holding ONE specific competition is named for it; a type holding a
++       CLASS is named generically. Hence `continental_club` -> `continental_cup` (it was the only
++       type naming the ENTITY where every other names the FORMAT).
++    3. TWO new club types, not one: `club_world_cup` (a tournament) and `intercontinental_super_cup`
++       (a one-off between titleholders) — the same split the taxonomy already makes at domestic
++       and continental level. No national-team intercontinental type: *"for national teams i don't
++       know if we have intercontinental"*, and seeding a type on a guess is what #58 forbids.
++    4. `single_country` added — it answers which registry field a row's sub-line reads. Nothing
++       existing answers it: `entity_type` does not (a domestic league and the Champions League are
++       both `club`) and `tier` exists only on leagues.
++    5. `confederations.csv` stays a SEED rather than living in `strings.ts`: *"keep the seed, we
++       may need it the warehouse later if not now"*.
++    6. No blanks in the new columns, including the three friendly rows.
 +
-+  2. ⚠ NOT `git worktree add -f`. `-f` clears the same error, so it is the tempting one-character
-+     fix, and it is wrong: it ALSO overrides a worktree whose directory genuinely exists, turning a
-+     real collision into a silent overwrite. Prune fixes the state that actually occurs and leaves
-+     the state that must not occur still failing loudly.
++  9. THE 21 ENGLISH LABEL STRINGS ARE SHIPPED, AND MOST OF THEM ARE MINE. Stated plainly because
++     the first draft of this contract reserved them for the CPO while the same diff shipped them
++     as non-null, unique, test-enforced content — a self-contradiction a reviewer was right to
++     fail. What is actually true:
++       · CPO-attributable: the NAMING SYSTEM (a type holding one competition is named for it, a
++         class takes a plural noun phrase — ruling 2), and 5 of the 14 category strings that
++         follow directly from his own words: "Domestic leagues", "Continental club cups",
++         "Club World Cup", "Intercontinental Cup", "World Cup".
++       · BUILDER-AUTHORED: the other 9 category strings and all 7 confederation labels. Two are
++         judgement calls rather than transcription — `FIFA -> World` (FIFA is a global body, not
++         a region) and normalising CONCACAF to "North & Central America" where the registry's own
++         `country` field writes "North/Central America".
++     ⚠ NO PER-STRING APPROVAL WAS OBTAINED, and this contract does not claim otherwise. The CPO
++     declined the review ceremony rather than the authority — asked to look at the list he
++     answered that the point is the mechanism, not the words: the English IS the single source,
++     one cell in one seed, translations keyed off it. §10 still makes user-visible wording his,
++     so any of the 21 is his to change; nothing reads them yet (#62), so changing one costs one
++     cell and no rebuild of anything that exists today.
 +
-+  3. THE MECHANISM WAS RUN, NOT REASONED FROM THE MANUAL. `scratchpad/wt_repro.py` models the two
-+     jobs against real git and prints:
-+       worktree add (UNFIXED)       exit=128  ... 'prune' or 'remove' to clear   <- reproduces CI
-+       worktree prune               exit=0
-+       worktree add (FIXED)         exit=0    Preparing worktree (detached HEAD ...)
-+       prune again (nothing stale)  exit=0    <- idempotent, safe on a clean runner
-+     This matters beyond politeness: it is what rules out "prune is a no-op here and the real cause
-+     is something else".
-+
-+  4. THE TEST PINS THE CLASS, NOT THE INSTANCE. It scans every job's script and requires that ANY
-+     job running `git worktree add` runs `git worktree prune` earlier in the SAME script. A second
-+     worktree call added later is therefore covered without editing the test. Written this way
-+     because a one-line-number assertion is the repeated failure mode here (a word list holing four
-+     review rounds).
-+
-+  5. VALUES COME FROM PARSED YAML, NEVER RAW FILE TEXT — the module's own stated rule, and it binds
-+     concretely: the fix carries a comment naming `worktree` and `prune`, so a text grep would read
-+     the documentation of the fix as the defect. The existing module says exactly this about
-+     `API_FOOTBALL_SKIP_INGEST_LOCK`.
-+
-+  6. ⚠ `.claude/active_work.md` IS DELIBERATELY OUT OF SCOPE, stated rather than silently omitted.
-+     `main`'s copy is stale (last written 08-07); the CURRENT handover lives on `!33`, already
-+     documents #65, and will land when `!33` merges. Editing the stale copy here would add nothing
-+     a reader gets, and would manufacture a merge conflict for `!33` in the one file that is hardest
-+     to resolve mechanically. If the CPO would rather it be updated here, that reverses cleanly.
-+
-+  7. THE DORMANT GITHUB WORKFLOW IS LEFT ALONE. `.github/workflows/ci-data-build.yml:191` carries
-+     the identical line, but `.github/workflows/` is both a PROTECTED prefix and deliberately kept
-+     as an unedited snapshot (`CLAUDE.md`, `.github/workflows/README.md`). Fixing it would be scope
-+     drift into a tree that runs nothing.
++  LABEL KEY CONVENTION, one builder decision: `label_i18n_key` = `compType` + PascalCase of the
++  competition_type, mechanically, on every row — so `world_championship` takes
++  `compTypeWorldChampionship` even though its label reads "World Cup". The key follows the TYPE so
++  the two rename together; naming it after the label would leave the key stranded when ruling 2 is
++  finally applied to that type.
+ 
+   # THRESHOLD DECLARATIONS
+-  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
+-  shipped under #526. This adds a third data row to an existing configuration table.
+-  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
+-  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
+-  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
+-  a known cause — an alert that fires daily on a known cause is one that gets muted.
+-  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
+-  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
+-  the data. A future occurrence of this class still fails the build.
+-  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
+-  is written in full rather than short-form.
++  NEW MECHANISM — **no**. `confederations.csv` is a new FILE but not a new mechanism: it is the
++  seeds-as-configuration pattern this repo already uses for `competition_types`,
++  `metric_catalogue`, `team_name_overrides` and `fixture_event_team_overrides`, and the CPO ruled
++  explicitly for the seed over the alternative.
++  RECURRING COST — **negligible and bounded**: one 7-row table added to `dbt seed`, plus three
++  columns on a 14-row table. No new query, no new model, no new schedule.
++  GUARD LOOSENED — **no, and two are tightened**. `display_group`'s `accepted_values` test is
++  untouched; the new columns arrive WITH `not_null` / `unique` / `accepted_values` tests.
++  SHIPPED NUMBERS — **no**. Quantified in blast_radius: the rename moves both sides of every join
++  together and no metric, count or ranking changes.
+ 
+ decisions_reserved:
+-  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
+-    that never plays in our data, so today it exists only as an attribution artefact and, once the
+-    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
+-    out of scope for making the nightly green.
+-  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
+-    permanent local patch for a defect we do not own.
+-  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
+-    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
+-    the reason the override mechanism exists at all.
++  - **Deleting `display_group` (ruling 1).** Its only consumer is `build_nav()`
++    (`export_site_data.py:568`), which builds the home page's browse groups from it, plus
++    `types.ts`'s `BrowseCompetition`, two tests and the seed's `accepted_values` test. That block
++    is what **#44** rewrites. Dropping the column here would turn a seed change into a redesign of
++    a shipped block. ⚠ Consequence, named not hidden: **#56's mislabel survives** — `club_world_cup`
++    takes `display_group: continental-club` because none of the four values fits, so the Club World
++    Cup still sits under a "European club" browse group on the home page until #44 lands.
++  - **`world_championship` -> `world_cup`** — deferred with evidence, see impact_map.
++  - **`mart_competition_index` and repointing the export** (#62). The mart must not ship in this MR:
++    the deferred DQ step resolves `ref('competition_types')` to MAIN's seed, so a model reading
++    `single_country` in the same MR that adds it would fail. Ruled twice already in this repo.
++  - **Projecting `country`/`confederation`/`slug`/`sort_order` into `competition_registry.csv`**
++    (#62, and GAP-28's approved-but-unbuilt half). Requires extending
++    `check_registry_var_sync.py` or the guard silently stops covering most of the file.
++  - (The English label COPY was listed here in the first draft and that was a contradiction —
++    the same diff ships it as finished, tested content. Moved to decisions_taken, item 9.)
  
  done_when:
--  - `tests/test_materialisation_policy.py` passes with `EXPECTED["1_staging"] == "table"`.
--  - ⚠ ITEM 10 VERIFIED BY BREAKING ITS SUBJECT — see the 2026-08-12 amendment below for the
--    method actually used, which the contract gate forced to change. Both the CI script and the
--    offline twin must go RED on a per-model override and name the file. A guard that has never
--    fired is decoration.
--  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ a2b4184: 789 passed).
--  - `ruff --config .ruff-ci.toml scripts/ tests/` exits 0.
--  - `dbt parse` succeeds against the edited `dbt_project.yml`.
--  - Every doc site listed in the impact_map is updated in THIS commit, and a repo sweep finds no
--    remaining present-tense claim that staging is a view.
--  - ⚠ NOT VERIFIABLE FROM THIS BRANCH, and recorded so it is not mistaken for done: the actual
--    cost saving. `dbt build` is forbidden locally and CI cannot run it here. The saving is
--    confirmed only by `python scripts/report_bq_cost.py --days 1` AFTER the first prod build on
--    the redeployed image, where `tests` should fall below `models`.
+-  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
+-    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
+-    line endings and valid UTF-8 preserved.
+-  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
+-  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
+-    predicate is SIMULATED against PROD, read-only, by replaying
+-    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
+-    UNIONed onto the live seed table, and the test predicate re-run over the result:
+-    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
+-    must resolve to `team_id = 1544`.**
+-  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
+-  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
+-    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
+-    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
 -
--amendments:
--  - 2026-08-12: `done_when`'s break-test METHOD changed — no scope widened, no path added.
--    Authority: none needed; this records a method the repo's own guard made impossible, and the
--    replacement is strictly stronger than what it replaces.
--    WHAT HAPPENED: the original wording said to add `config(materialized='view')` to a real
--    staging model, watch the guard fire, and revert. The CONTRACT GATE denied that edit —
--    `dbt_project/models/1_staging/api_football/stg_apif__teams.sql` is not in `scope_paths`,
--    and adding it would have put a production model in scope purely to vandalise it temporarily.
--    That is the gate working: a temporary break in a real model is exactly the kind of edit that
--    gets forgotten and shipped.
--    WHAT WAS DONE INSTEAD: the REAL script, the REAL regex and the REAL
--    `check_staging_materialisation` function were run against the REAL body of
--    `stg_apif__teams.sql`, copied into a temp directory with `STAGING_DIR`/`REPO_ROOT` pointed
--    at it. Three cases, and the third is the one that matters:
--      · unmodified real model            -> 0 errors   (the guard is not firing on everything)
--      · + config(materialized='view')    -> 1 error, naming the file
--      · + config(materialized='table')   -> 1 error, naming the file
--    The `table` case proves the rule is "no per-model override AT ALL", not "no override to the
--    wrong value" — a model pinned to the layer's current value would otherwise pass while
--    silently opting out of the next re-costing. `tests/test_materialisation_policy.py` carries
--    the same check as a committed test so it runs in CI, not only here.
--  - 2026-08-12: + `ingestion/api_football/bigquery.py`, + `ingestion/api_football/loads/teams.py`.
--    Authority: the STANDING CPO RULE recorded in this log on 2026-08-08 — "Updating a reference
--    that an approved change itself breaks is part of that change, not a scope extension —
--    provided the update is confined to the reference and changes no behaviour."
--    Both are COMMENTS made false by this change, and nothing else in either file is touched:
--      · `bigquery.py:121` "so staging views can still do full scans"
--      · `loads/teams.py:63` "staging views read $.league.season per row"
--    HOW THEY WERE FOUND, and why this matters more than the two lines: NOT by the manual sweep
--    in `done_when`, which missed them. They were found by the generalised drift guard added in
--    response to the round-1 review, on its FIRST run. Two reviewers independently FAILed round 1
--    for extending only the per-model-override half of the guard to staging and leaving the
--    doc-drift half hardcoded to `2_base`; generalising it immediately produced three offenders a
--    human grep had walked past. That is the argument for the guard, made by the guard.
--    `.claude/active_work.md` was the third offender and is NOT edited — the product stream owns
--    it (#33) — so it joins `_is_bookkeeping()`, which already excludes `.claude/task/**` for the
--    same reason: a handover file is state, not a policy site. It is flagged to that stream
--    instead.
-+  - `data:build:mr` runs `git worktree prune` before `git worktree add`, and no other job or path
-+    anchor in `.gitlab-ci.yml` is touched.
-+  - NEW TEST pins it for ANY job, from parsed YAML. ⚠ It must be SEEN RED against the unfixed file
-+    before it is trusted green — a test only ever observed passing proves nothing (#63 shipped
-+    three such tests and each passed against the very defect it was written to catch).
-+  - `python -m pytest tests/test_ci_data_job_invariants.py -q` green, then the full suite green.
-+  - The offline gates pass (`validate-local`).
-+  - END TO END, and the only proof that counts: this branch's own pipeline gets PAST the worktree
-+    step. ⚠ The job is still expected to FAIL further down on #66 (stale prod data, 10 rows from
-+    `assert_event_team_in_fixture_participants`). That is a different defect and is NOT evidence
-+    this fix failed — read the log, not the colour.
+-amendments: (none)
++  - `dbt_project/seeds/competition_types.csv` parses as 6 columns on EVERY row (`csv.reader`,
++    assert `len(row) == 6`), 14 rows, no blank in `single_country`, `label_i18n_key` or `label_en`.
++  - `dbt_project/seeds/confederations.csv` parses as 3 columns on every row, 7 rows, no blanks, and
++    its key set equals the enum documented at `docs/competition_registry.yml` line 21.
++  - `python scripts/check_competition_type_seed.py` exits 0.
++  - `python scripts/check_registry_var_sync.py` exits 0.
++  - `python scripts/sync_dbt_vars.py` run twice: the second reports the seed already in sync
++    (idempotent), and `dbt_project.yml` is unchanged because no league code moved.
++  - `.venv/Scripts/dbt.exe parse` exits 0.
++  - `python -m pytest tests/ -q` — no new failure; the one edited fixture stays green.
++  - `grep -rn "continental_club"` over `docs/`, `dbt_project/`, `scripts/` and `tests/` returns
++    only historical prose: `product_direction_threads.md:71` (a dated "state as of 2026-05-25"
++    snapshot), `:88` (a hypothetical folder name in a 2026-05-27 decision record), and one
++    explanatory sentence in `metrics_context_model.md`.
++    ⚠ NOT the whole tree, and the first draft of this line wrongly said it was.
++    `site_v2/src/data/teams/33.json` — a committed sample export — still carries 9 stale
++    `"competition_type": "continental_club"` values. It is outside these scope_paths, nothing in
++    `site_v2/` branches on the literal (`types.ts:185` types it as a bare `string | null`), and
++    the next export regenerates it, so it is stale display data rather than a break. It belongs
++    with #62's export repoint.
++  - ⚠ NO AUTOMATED GUARD ties `confederations.csv` to the registry's `confederation` values, the
++    way `check_competition_type_seed.py` does for `competition_type`. The two agree today — all 44
++    registry values resolve against the 7 seed rows, checked by hand — but a future registry edge
++    would go unnoticed until #62's mart joins on it. Deliberately NOT built here: the seed is read
++    by nothing, so the guard has nothing to protect until its consumer exists, and `scripts/**` is
++    outside these scope_paths. Ships with #62.
++  - ⚠ **The design mock must go RED and then green**: `design-mocks/gen_competitions.py` carries
++    `check_registry_still_unedited()`, which asserts the registry still holds the OLD values. It
++    MUST fail after this change — that is the guard proving itself — and then render identically
++    once `continental_club` is dropped from `RENAMED_TYPES` and `CWC` from `RETYPED`.
++    ⚠ `design-mocks/` is OUTSIDE the repo and outside these scope_paths; that follow-up is not
++    part of this MR.
++  - NOT satisfiable from this branch, recorded so it is not mistaken for done: **no CI run.**
++    Minutes are exhausted account-wide. Every check above is LOCAL evidence and must never be
++    presented as CI-verified.
 +
-+amendments: []
++amendments:
++  - id: 1
++    date: 2026-08-12
++    authority: >
++      CPO, in session, verbatim: **"I'd include the three -> do it"**, answering a direct question
++      about whether the rename should also update the three documents that still name
++      `continental_club`. Asked rather than assumed precisely because they sit outside the
++      scope_paths above, and widening scope quietly is the drift this gate exists to catch.
++    adds:
++      - docs/product_direction_threads.md
++      - docs/metrics_context_model.md
++      - docs/site_architecture.md
++    why: >
++      A rename is not finished while the document that DEFINES the taxonomy still names the old
++      value. `product_direction_threads.md:38` is the table that introduced the 12 types;
++      `metrics_context_model.md:90` keys the form-window matrix by competition_type; and
++      `site_architecture.md:139` maps types to display groups. All three would send a reader
++      looking for a value that no longer exists. This repo has been bitten by exactly this class
++      before — "a deleted module leaves traces that do not carry its name".
++  - id: 2
++    date: 2026-08-12
++    authority: >
++      Not a CPO ruling — a STANDING REQUIREMENT of `docs/working_agreement.md` §3, enforced by the
++      workflow hook that fires after a commit: the handover must be updated so the next session can
++      continue. It was not in the original scope_paths because the handover is task-agnostic
++      bookkeeping and the first draft only listed the task's own artifacts. Recorded as an
++      amendment rather than edited quietly, because the gate is right that an out-of-scope edit is
++      drift regardless of how routine it feels.
++    adds:
++      - .claude/active_work.md
++    why: >
++      The commit `84347c0` and MR `!33` exist; a fresh chat handed only the handover would read a
++      2026-08-07 file saying "NOTHING IN FLIGHT — no open MRs" and re-scope from scratch. ⚠ The
++      file is at 15,971 of its 16,000-CHARACTER cap, so this is a TRADE, not an addition: the audit
++      section is compressed to its durable lesson plus the GitLab #30 pointer to pay for the
++      current-state block.
++
++    NOT included, deliberately: two further hits are genuinely historical and must NOT be
++      rewritten — `product_direction_threads.md:69` records "Registry state as of 2026-05-25"
++      (a dated snapshot of what needed fixing), and `:86` uses `5_marts/continental_club/` as a
++      hypothetical folder-naming example in a 2026-05-27 decision record. Editing either would
++      falsify a record of what was true at the time.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index ed96994..eb5c986 100644
+index 885928f..c41f60a 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -2330,3 +2330,49 @@ times.
-   particular file from this worktree. Where the two conflict, the specific, later, file-scoped
-   instruction governs. If the CPO would rather it be corrected in place, that is one word and
-   this entry is the place to overturn it.
+@@ -2041,3 +2041,93 @@ times.
+   4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
+   the provider should be asked to correct the feed. Both are separate from making the nightly
+   green.
 +
++2026-08-12 feat/57-competition-taxonomy-seed — three CPO rulings taken in session, recorded here
++  because the contract may only be rewritten on a clean tree and these arrived mid-build.
 +
-+2026-08-13 fix/65-ci-worktree-prune - CPO authority to edit a PROTECTED path.
++  (1) SCOPE — the rename must also update the docs that name the old type.
++      Asked because the three files sit OUTSIDE the contract's scope_paths, and widening scope
++      without asking is the drift the gate exists to catch.
++      CPO ANSWER, verbatim: "I'd include the three -> do it".
++      Applied as contract amendment 1: docs/product_direction_threads.md,
++      docs/metrics_context_model.md, docs/site_architecture.md. Two further `continental_club`
++      mentions are deliberately NOT rewritten — product_direction_threads.md:71 is a dated
++      snapshot ("registry state as of 2026-05-25") and :88 uses it as a hypothetical folder name
++      in a 2026-05-27 decision record. Editing either would falsify a record of what was true.
 +
-+  THE ASK. `data:build:mr` fails on EVERY merge request at `.gitlab-ci.yml:555`:
-+  `git worktree add --detach /tmp/main-src FETCH_HEAD` exits 128 with "'/tmp/main-src' is a
-+  missing but already registered worktree". Both open MRs (!33, !27) are blocked behind it.
-+  `.gitlab-ci.yml` is a PROTECTED FILE (`task_contract_gate.py:77` - "the file that decides what
-+  CI enforces"), so it may not be edited inside an ordinary contract.
++  (2) NAMING — the second new club type.
++      CPO ANSWER, verbatim: "it should be intercontinental_super_cup".
++      So the type is `intercontinental_super_cup` while `label_en` stays "Intercontinental Cup":
++      the type takes the super-cup naming, the label stays the competition's actual name, which
++      is what a reader sees.
 +
-+  THE PREMISE, CHECKED BEFORE THE ASK. The cause is not guessed from the error text; it is read
-+  out of two job logs. Job 15864168006 (08-12) ran the SAME command and SUCCEEDED
-+  ("Preparing worktree (detached HEAD a2b4184e)"), creating the registration. The 08-13 job on
-+  pipeline 2756651714 hit exit 128 with the registration present and the directory gone. The
-+  self-hosted runner keeps the PROJECT directory between jobs - so `.git/worktrees/` persists -
-+  while each job gets a FRESH `/tmp`. The registration therefore outlives the directory it points
-+  at. This is a consequence of the runner migration: on the previous shared runners every job got
-+  a clean clone, so the first run after the migration passed and every run since has failed.
++  (3) FORM WINDOW for both new club types. Each inherits an existing row rather than getting a
++      new rule: `club_world_cup` follows `continental_cup`; `intercontinental_super_cup` follows
++      `continental_super_cup` — so it shows last-5 before, and nothing during or after, because a
++      super cup is a single match. (The CPO's first phrasing sent both to `continental_cup` and he
++      corrected the second one the same day; only the corrected ruling stands.)
++      Recorded in docs/metrics_context_model.md §4, which is the ruling surface for form windows.
++      ⚠ THE LOAD-BEARING CONSEQUENCE: the cumulative within-tournament window stays NATIONAL-ONLY.
++      A club competition never gets it however tournament-shaped it looks, so the Club World Cup
++      takes last-5 exactly like the Champions League. That is also why CWC's re-type moves no
++      number — it resolved to last-5 as `continental_club` and still does.
 +
-+  THE FIX WAS RUN, NOT REASONED. `scratchpad/wt_repro.py` models the two jobs against real git:
-+  unfixed `add` exits 128 (reproducing CI exactly), `git worktree prune` then `add` exits 0, and
-+  a second prune with nothing stale is a no-op that still leaves `add` working. `add -f` was
-+  REJECTED - it also overrides a LIVE worktree, hiding a genuine collision instead of clearing a
-+  stale record.
++  (4) KNOCKOUT COMPETITIONS HAVE NO "AFTER IT'S FINISHED" WINDOW. CPO, verbatim: "for club
++      qualifying and for domestic cups there only the pre match, during but no after it's
++      finished." So `domestic_cup` and `club_qualifying` both take "—" in that column, joining
++      the three super cups and the two friendlies. `domestic_cup` previously read "Their full cup
++      run" and `club_qualifying` read "Last 5 across all the club's competitions" — the only cell
++      in the matrix that put a live-form rule in a completed-competition column. Both struck.
++      THE TEST, ruled the same day when the builder asked whether `continental_cup` had the same
++      problem: an "after" figure exists when every entrant plays a GROUP OR LEAGUE PHASE, i.e.
++      when there are enough matches to be worth aggregating. CPO: "no champions league has group
++      phase -> enough matches, so keep full completed edition (or all available matches from that
++      competition)". So `continental_cup` and `club_world_cup` KEEP it — a club knocked out in the
++      round of 16 still has a full group campaign behind it — while a pure knockout does not,
++      because a team's run there can be one match and phase is per team (§5 below).
++      ⚠ AND THE PHRASE IS CLARIFIED: "full completed edition" means ALL OF THAT TEAM'S MATCHES in
++      that edition, not "only if they reached the final". Recorded in §4, because that reading is
++      the entire reason the knockout rows are empty and the group-phase rows are not.
++      ⚠ The builder filled `club_qualifying` with "Their full qualifying run" before this ruling
++      and then reported "no cell in the matrix changed", which was wrong twice over. Corrected.
++      ⚠ Underlying observation, noted and NOT acted on: "After it's finished" is not a form window
++      at all — a finished competition has no next match, so there is nothing to compute. That
++      column belongs to the SEASON window, the other of the two. The matrix carries both windows
++      in one table without saying so, which is why its edge cells stop making sense.
 +
-+  THE RULING. The CPO approved the plan in session 2026-08-13, having first asked whether prune
-+  "conflict[s] with the other worktree". It does not, and the answer was measured rather than
-+  argued: on the CPO's machine three worktrees are registered (`football-data-pipeline`,
-+  `fdp-pipeline`, `fdp-product`) and `git worktree prune --dry-run -v` removes NONE of them,
-+  because prune drops only registrations whose directory is gone. In CI, `data:build:mr` carries
-+  `resource_group: ci-data-build-write-ci`, so two never run concurrently, and it is the only job
-+  that touches a worktree at all.
++  (5) PHASE DETECTION is per TEAM, not per competition. CPO: "domestic_cup as well, some teams
++      may be out after the first round." §3 said phases are detected "by fixture counts in the
++      current edition" without saying WHOSE fixtures. For a league it makes no difference; for a
++      knockout it decides everything — a club eliminated in round one has 0 upcoming fixtures in
++      that cup from that moment, so it is in "after it's finished" while the cup runs on for
++      months. Clarified in §3. No cell in the matrix changes; the ambiguity was in the detection
++      rule above it, and "their full cup run" is only honest once the phase is the team's.
++      ⚠ NOT verified: whether the models actually count the team's fixtures or the competition's.
++      That is the same class as the two divergences below and needs the same check.
 +
-+  THE AUTHORITY IS NARROW. It covers ONE line added to `data:build:mr` in `.gitlab-ci.yml` and
-+  the test that pins it. It does NOT extend to any other job, the `rules:`/`changes:` path
-+  anchors, the resource groups, the runner configuration, or the coming group move. None of those
-+  is touched. It also does NOT licence editing `.github/workflows/ci-data-build.yml:191`, which
-+  carries the same line and is deliberately kept unedited (`CLAUDE.md`,
-+  `.github/workflows/README.md`).
++  (6) THE PLAYER MATRIX (§8.4) RESTATED THE CLUB RULES AND HAD DRIFTED. Its own header says "a
++      player's club form IS his relevant form; no divergence from the team rule (§4)" — and then
++      it restated §4's club rules in a condensed two-row table, which by 2026-08-12 was wrong on
++      three counts: it named `continental club` after the rename to `continental_cup`; it lacked
++      `club_world_cup` and `intercontinental_super_cup`; and its single "Full edition / cup run"
++      cell covered five types that no longer share an "after" rule.
++      CPO ANSWER: fix all three. Applied by DELETING the club table and pointing at §4 — two
++      tables that must agree are one table too many, and re-syncing the copy would only reset the
++      clock on the same drift. The national-team half of §8.4 stays: it IS player-specific
++      (context, not form — §8.5's override of 2026-06-17).
 +
-+  NOT IN SCOPE, AND SAID OUT LOUD SO A GREEN JOB IS NOT CLAIMED FOR IT. Once past the worktree
-+  step this job will still fail further down on GitLab #66:
-+  `assert_event_team_in_fixture_participants` returns 10 rows because prod data has not been
-+  rebuilt since 08-09 and #53's Macau correction has therefore never been applied. That is a
-+  separate defect, it needs a BILLED `data:build:main` run, and that spend is the CPO's decision -
-+  not this task's.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 0a25bcf..7a2df77 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -552,6 +552,13 @@ data:build:mr:
-     # model execution). PROD target so deferred refs resolve to prod's bare
-     # datasets, not ci_*.
-     - git fetch --no-tags --depth=1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
-+    # The runner keeps the PROJECT directory between jobs but gives each job a fresh
-+    # /tmp, so the registration written into .git/worktrees/ outlives the directory it
-+    # points at and the next `add` dies with "missing but already registered worktree"
-+    # (#65). Prune drops exactly those stale registrations and is a no-op otherwise.
-+    # NOT `add -f`: that would also override a worktree whose directory really exists,
-+    # turning a genuine collision into a silent overwrite.
-+    - git worktree prune
-     - git worktree add --detach /tmp/main-src FETCH_HEAD
-     - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
-     # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
-diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
-index 15c435d..bf21ee0 100644
---- a/tests/test_ci_data_job_invariants.py
-+++ b/tests/test_ci_data_job_invariants.py
-@@ -1,9 +1,9 @@
--"""Pin two CI data-job invariants that can be broken while every pipeline stays GREEN.
-+"""Pin three CI data-job invariants that can be broken while every pipeline stays GREEN.
++  ⚠ TWO CODE/RULING DIVERGENCES SURFACED WHILE CHECKING (3), NOT DECIDED AND NOT TOUCHED. The CPO
++  was explicit that the agreement is the authority and the code follows it — "the code can be
++  wrong" — so these are code defects to file, not documentation to update:
++    · `domestic_league` BEFORE the season starts. §4 rules "previous season of this league".
++      `int_team_momentum_window` returns NO ROWS and its own header defers to a #326
++      season-to-date fallback whose existence was not verified.
++    · `qualifying` WHILE running. §4 rules "all matches so far in this qualifying campaign". The
++      model header states `qualifying`-type previews keep `last_5`, "deferred #483".
++  Both predate this branch. Neither is in this task's scope.
++
++  ⚠ A PROCESS DEFECT FOUND BY THE BUILDER, recorded so it is not lost: the contract gate that
++  refuses a contract rewrite on a dirty tree enforces on the Edit tool only. A `sed -i` against
++  .claude/task/contract.md went through unchallenged earlier in this session — the same class the
++  gate already blocks for heredocs. The edit itself was a mechanical rename of an already-approved
++  value, but the hole is real and belongs in its own issue.
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 2d8bef2..51364c6 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -653,7 +653,7 @@ models:
+       - name: competition_type
+         description: >
+           The competition's type from the registry (domestic_league, domestic_cup,
+-          continental_club, world_championship, …). Carried so the featured-season rule can prefer
++          continental_cup, world_championship, …). Carried so the featured-season rule can prefer
+           a league over a cup within club football, and so a consumer can tell the two apart
+           without re-joining the registry.
+       - name: entity_type
+diff --git a/dbt_project/seeds/competition_registry.csv b/dbt_project/seeds/competition_registry.csv
+index 8454606..d9c94d4 100644
+--- a/dbt_project/seeds/competition_registry.csv
++++ b/dbt_project/seeds/competition_registry.csv
+@@ -1,19 +1,19 @@
+ league_code,competition_type,parent_competition
+ ACN,continental_championship,
+-AFCCL,continental_club,
++AFCCL,continental_cup,
+ AFCON,continental_championship,
+ APD,domestic_league,
+ BL1,domestic_league,
+ BL2,domestic_league,
+ BSA,domestic_league,
+-CAFCL,continental_club,
+-CCCU,continental_club,
++CAFCL,continental_cup,
++CCCU,continental_cup,
+ CDF,domestic_cup,L1
+ CDR,domestic_cup,PD
+ CIT,domestic_cup,SA
+ CNL,continental_championship,
+ COAM,continental_championship,
+-CWC,continental_club,
++CWC,club_world_cup,
+ DFBP,domestic_cup,BL1
+ ED,domestic_league,
+ EURO,continental_championship,
+@@ -22,7 +22,7 @@ GCUP,continental_championship,
+ J1,domestic_league,
+ KL1,domestic_league,
+ L1,domestic_league,
+-LIBER,continental_club,
++LIBER,continental_cup,
+ LMX,domestic_league,
+ LP,domestic_league,
+ MLS,domestic_league,
+@@ -30,9 +30,9 @@ PD,domestic_league,
+ PL,domestic_league,
+ SA,domestic_league,
+ SPL,domestic_league,
+-UCL,continental_club,
+-UECL,continental_club,
+-UEL,continental_club,
++UCL,continental_cup,
++UECL,continental_cup,
++UEL,continental_cup,
+ UESC,continental_super_cup,
+ UNL,continental_championship,
+ VL,domestic_league,
+diff --git a/dbt_project/seeds/competition_types.csv b/dbt_project/seeds/competition_types.csv
+index 6de678a..0192e39 100644
+--- a/dbt_project/seeds/competition_types.csv
++++ b/dbt_project/seeds/competition_types.csv
+@@ -1,13 +1,15 @@
+-competition_type,entity_type,display_group
+-domestic_league,club,leagues
+-domestic_cup,club,cups
+-domestic_super_cup,club,cups
+-club_qualifying,club,continental-club
+-continental_club,club,continental-club
+-continental_super_cup,club,continental-club
+-club_friendly_domestic,club,
+-club_friendly_international,club,
+-qualifying,national,national-teams
+-continental_championship,national,national-teams
+-world_championship,national,national-teams
+-national_team_friendly,national,
++competition_type,entity_type,display_group,single_country,label_i18n_key,label_en
++domestic_league,club,leagues,true,compTypeDomesticLeague,Domestic leagues
++domestic_cup,club,cups,true,compTypeDomesticCup,Domestic cups
++domestic_super_cup,club,cups,true,compTypeDomesticSuperCup,Domestic super cups
++club_qualifying,club,continental-club,false,compTypeClubQualifying,Continental club qualifiers
++continental_cup,club,continental-club,false,compTypeContinentalCup,Continental club cups
++continental_super_cup,club,continental-club,false,compTypeContinentalSuperCup,Continental super cups
++club_world_cup,club,continental-club,false,compTypeClubWorldCup,Club World Cup
++intercontinental_super_cup,club,continental-club,false,compTypeIntercontinentalSuperCup,Intercontinental Cup
++club_friendly_domestic,club,,true,compTypeClubFriendlyDomestic,Domestic club friendlies
++club_friendly_international,club,,false,compTypeClubFriendlyInternational,International club friendlies
++qualifying,national,national-teams,false,compTypeQualifying,National team qualifiers
++continental_championship,national,national-teams,false,compTypeContinentalChampionship,Continental championships
++world_championship,national,national-teams,false,compTypeWorldChampionship,World Cup
++national_team_friendly,national,,false,compTypeNationalTeamFriendly,National team friendlies
+diff --git a/dbt_project/seeds/confederations.csv b/dbt_project/seeds/confederations.csv
+new file mode 100644
+index 0000000..765c32b
+--- /dev/null
++++ b/dbt_project/seeds/confederations.csv
+@@ -0,0 +1,8 @@
++confederation,label_i18n_key,label_en
++AFC,confedAfc,Asia
++CAF,confedCaf,Africa
++CONCACAF,confedConcacaf,North & Central America
++CONMEBOL,confedConmebol,South America
++FIFA,confedFifa,World
++OFC,confedOfc,Oceania
++UEFA,confedUefa,Europe
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 93c231b..6fe7df6 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -28,9 +28,110 @@ seeds:
+           Hybrid-IA nav group for this competition type (GAP-19 — the taxonomy that
+           previously lived as the _GROUP_OF_TYPE dict in scripts/export_site_data.py).
+           Empty (null) for types that never appear in the nav (friendlies).
++          ⚠ SLATED FOR DELETION (CPO 2026-08-11, #57): it groups club competitions by FORMAT
++          (leagues, cups) and everything else by GEOGRAPHY (continental-club, national-teams), so
++          its axis changes halfway through; it overloads BLANK to mean "not browsable"; and none
++          of its four values fits club_world_cup. No dbt model reads it — all 35 downstream of
++          this seed read entity_type only — so its single consumer is build_nav() in
++          scripts/export_site_data.py, feeding the home page's browse chips. It is kept until
++          **#44** rewrites that block, because deleting it here would turn a seed change into a
++          redesign of a shipped block. ⚠ Consequence until then: club_world_cup carries
++          continental-club because nothing else fits, so #56's mislabel survives on the home page.
+         tests:
+           - accepted_values:
+               values: ["leagues", "cups", "continental-club", "national-teams"]
++      - name: single_country
++        description: >
++          Whether this kind of competition is played inside ONE country. It answers exactly one
++          question — which registry field a competition's region sub-line reads — and it exists
++          because nothing else in the model could: `entity_type` does not separate them (a
++          domestic league and the Champions League are both `club`), `tier` exists only on
++          domestic leagues, and reading the `domestic_` prefix off the type name is string
++          sniffing that `club_friendly_domestic` breaks anyway.
++          true  -> the row shows the registry's `country`   (Premier League — England)
++          false -> the row shows the confederation's label   (Champions League — Europe)
++          The alternative was to print `country` for everything, which is what shipped: it says
++          the literal "International" for 15 of the 45 registry competitions, and says it for
++          COAM and AFCON while EURO — the same competition_type — says "Europe" (#54).
++          ⚠ ADDITIVE AND NOT YET READ. `mart_competition_index` (#62) is what will resolve the
++          branch; until it exists nothing consumes this column.
++          ⚠ NO `accepted_values` TEST, deliberately. Every value is the literal `true`/`false`, so
++          dbt's seed type inference loads this as a native BigQuery BOOL — no `column_types`
++          override is declared for this seed. BigQuery has no implicit BOOL↔STRING coercion, so
++          `accepted_values: ["true","false"]` would not merely fail, it would fail to COMPILE. The
++          type already constrains the column to true/false/null, which is what such a test would
++          have asserted. `metric_catalogue.lower_is_better` is the same literal pattern and carries
++          `not_null` alone for the same reason — that precedent was missed on the first draft and
++          caught in review.
++        tests:
++          - not_null
++      - name: label_i18n_key
++        description: >
++          i18n key for the TRANSLATED category heading. English does NOT resolve through it — see
++          label_en. Convention, mechanical so the two never drift: `compType` + PascalCase of the
++          competition_type. That is why `world_championship` carries compTypeWorldChampionship
++          even though its label reads "World Cup" — the key follows the TYPE, so when the type is
++          eventually renamed (CPO ruling 2 of #57, deferred) the key renames with it.
++        tests:
++          - not_null
++          - unique
++      - name: label_en
++        description: >
++          The category's English display name — the heading a reader sees above a group of
++          competitions on /{locale}/competitions/. CPO ruling 2026-08-10: *"the single source of
++          truth for the displayed name is this seed file, same idea as in the metric layer; the
++          mapping to other languages happens in a different file."* Translations stay in the i18n
++          layer keyed by label_i18n_key.
++          ⚠ The metric layer is the MODEL the CPO named, not a precedent already on this branch:
++          `metric_catalogue` gains its own `label_en` in !27, which is unmerged. The two land
++          independently and neither depends on the other.
++          NAMING SYSTEM (CPO 2026-08-11): a type that holds ONE specific competition is named for
++          it — "Club World Cup", "Intercontinental Cup", "World Cup"; a type that holds a CLASS
++          takes a plural noun phrase — "Domestic leagues", "Continental club cups". Three types
++          are singular by nature and all three are FIFA's.
++          ⚠ ADDITIVE AND NOT YET READ, same as single_country.
++        tests:
++          - not_null
++          - unique
++
++  - name: confederations
++    description: >
++      Display labels for the confederation enum — the REGION shown under a competition that is not
++      confined to one country. `docs/competition_registry.yml` stores governing-body codes (UEFA,
++      CONMEBOL, CAF …) and no readable "UEFA -> Europe" existed anywhere in the repo, so the first
++      design that needed one typed the labels into a mockup. That is the failure #58 was filed
++      about, and this seed is the fix.
++      Keyed by confederation rather than added as columns on competition_types because the region
++      varies WITHIN a type: COAM and EURO are both `continental_championship`, and they are South
++      America and Europe.
++      CPO 2026-08-11, on whether seven display strings justify a seed rather than living in
++      strings.ts: *"keep the seed, we may need it the warehouse later if not now."*
++      ⚠ ADDITIVE AND NOT YET READ — `mart_competition_index` (#62) is the intended consumer.
++      ⚠ The seven English labels are the CPO's to change; `FIFA -> World` is the one that is a
++      judgement rather than geography, since FIFA is a global body and not a region.
++    columns:
++      - name: confederation
++        description: >
++          Confederation code, matching docs/competition_registry.yml's `confederation` field and
++          the enum documented in its header (UEFA | CONMEBOL | CONCACAF | CAF | AFC | OFC | FIFA).
++        tests:
++          - not_null
++          - unique
++          - accepted_values:
++              values: ["UEFA", "CONMEBOL", "CONCACAF", "CAF", "AFC", "OFC", "FIFA"]
++      - name: label_i18n_key
++        description: "i18n key for the translated region label. Convention: `confed` + PascalCase of the code."
++        tests:
++          - not_null
++          - unique
++      - name: label_en
++        description: >
++          The region's English display name. CONCACAF's "North & Central America" is the
++          normalised form — the registry's own `country` field writes it "North/Central America"
++          for CCCU, which is one of the inconsistencies this seed removes.
++        tests:
++          - not_null
++          - unique
  
- WHY THIS EXISTS
- ---------------
--Both properties were repaired on 2026-08-08 under GitLab #33, and both share the shape this repo
--keeps getting caught by: breaking them produces no red anywhere.
-+The first two properties were repaired on 2026-08-08 under GitLab #33, and both share the shape
-+this repo keeps getting caught by: breaking them produces no red anywhere.
+   - name: competition_registry
+     description: >
+diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
+index 8e3d4b8..4f64600 100644
+--- a/docs/competition_registry.yml
++++ b/docs/competition_registry.yml
+@@ -465,7 +465,7 @@ competitions:
+   - league_code: "UCL"
+     name: "UEFA Champions League"
+     country: "Europe"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "UEFA"
+     slug: "champions-league"
+     sort_order: 10
+@@ -491,7 +491,7 @@ competitions:
+   - league_code: "UEL"
+     name: "UEFA Europa League"
+     country: "Europe"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "UEFA"
+     slug: "europa-league"
+     sort_order: 20
+@@ -510,7 +510,7 @@ competitions:
+   - league_code: "UECL"
+     name: "UEFA Europa Conference League"
+     country: "Europe"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "UEFA"
+     slug: "conference-league"
+     sort_order: 30
+@@ -877,7 +877,7 @@ competitions:
+   - league_code: "LIBER"
+     name: "Copa Libertadores"
+     country: "South America"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "CONMEBOL"
+     slug: "copa-libertadores"
+     sort_order: 50
+@@ -896,7 +896,7 @@ competitions:
+   - league_code: "CAFCL"
+     name: "CAF Champions League"
+     country: "Africa"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "CAF"
+     slug: "caf-champions-league"
+     sort_order: 80
+@@ -915,7 +915,7 @@ competitions:
+   - league_code: "AFCCL"
+     name: "AFC Champions League Elite"
+     country: "Asia"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "AFC"
+     slug: "afc-champions-league"
+     sort_order: 70
+@@ -939,7 +939,7 @@ competitions:
+   - league_code: "CCCU"
+     name: "CONCACAF Champions Cup"
+     country: "North/Central America"
+-    competition_type: "continental_club"
++    competition_type: "continental_cup"
+     confederation: "CONCACAF"
+     slug: "concacaf-champions-cup"
+     sort_order: 90
+@@ -958,7 +958,7 @@ competitions:
+   - league_code: "CWC"
+     name: "FIFA Club World Cup"
+     country: "International"
+-    competition_type: "continental_club"
++    competition_type: "club_world_cup"
+     confederation: "FIFA"
+     slug: "club-world-cup"
+     sort_order: 60
+diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
+index 933a48a..2bb915b 100644
+--- a/docs/metrics_context_model.md
++++ b/docs/metrics_context_model.md
+@@ -48,7 +48,14 @@ A club's form only ever includes club matches; a national team's only national m
+ ## 3. Temporal phases (and how we detect them)
  
-   * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
-     ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
-@@ -19,6 +19,14 @@ keeps getting caught by: breaking them produces no red anywhere.
-     anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
-     for a comment, so the guarantee is re-established here as an assertion.
- 
-+  * `git worktree prune` must run before `git worktree add` (GitLab #65, 2026-08-13). The
-+    self-hosted runner keeps the project directory between jobs but gives each job a fresh `/tmp`,
-+    so a worktree registration in the persisted `.git/worktrees/` outlives the directory it points
-+    at and the next `add` dies with "missing but already registered worktree". Delete the prune and
-+    the damage is delayed, not immediate: the next pipeline on a given runner slot passes (it
-+    creates the registration) and the one after it fails. That delay is what puts it in this
-+    module — the breakage does not show up in the pipeline that caused it.
+ Three phases, detected **generically by fixture counts** in the current edition (no
+-per-league logic, no maintained date tables):
++per-league logic, no maintained date tables).
 +
- HOW IT IS SHAPED, AND WHY
- -------------------------
- Values come from PARSED YAML, never from raw file text. That matters concretely: the
-@@ -82,6 +90,26 @@ def _script_lines(config: dict) -> list[str]:
-     return lines
++⚠ **The counts are the TEAM's own fixtures in that competition edition, not the competition's**
++(clarified by the CPO 2026-08-12). For a league the two are the same — everyone plays to the final
++matchday. For a **knockout** they are not: a club dumped out of the cup in round one has ≥1
++finished and 0 upcoming from that moment, so it is in "after it's finished" while the cup itself
++runs on for months. That is the intended reading, and it is what makes "their full cup run" honest
++for a team whose run was a single match.
  
+ | Phase | Detection | Meaning |
+ |-------|-----------|---------|
+@@ -81,15 +88,37 @@ are taxonomy-only / not yet ingested.
  
-+def _script_lines_by_job(config: dict) -> dict[str, list[str]]:
-+    """Same extraction as `_script_lines`, but keeping the job boundary.
+ ### Club competitions
+ 
++**The two types added 2026-08-12 (#57) each inherit an existing row** — CPO ruling, same date:
++`club_world_cup` follows **`continental_cup`**, `intercontinental_super_cup` follows
++**`continental_super_cup`**.
 +
-+    Ordering within a job is the whole point for the worktree check — a `prune` sitting in some
-+    OTHER job would satisfy a flattened scan while fixing nothing.
++**When a competition gets an "after it's finished" figure at all** (CPO 2026-08-12): only when
++every entrant plays a group or league phase, so there are **enough matches to be worth
++aggregating**. `domestic_league`, `continental_cup` and `club_world_cup` qualify — the Champions
++League and the Club World Cup both have a group phase, so a club eliminated in the knockout still
++has a full group campaign behind it. A **pure knockout does not**: `domestic_cup`,
++`club_qualifying` and the super cups show nothing, because a team's run there can be a single
++match and phase is per team (§3).
++
++⚠ Read "full completed season / edition" as **all of that team's matches in that competition
++edition** — not "only if they reached the final". That distinction is the whole reason the
++knockout rows are empty.
++
++So the cumulative-within-tournament exception stays **national-only**: a club competition never
++gets it, however tournament-shaped it looks. That is also why `CWC`'s window is unchanged by the
++re-type — it resolved to last-5 as `continental_club` and still does.
++
+ | competition_type | status | Before it starts | While it's running | After it's finished |
+ |---|---|---|---|---|
+ | domestic_league | active | Previous season of this league | Last 5 across all the club's competitions | Full completed season |
+-| domestic_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Their full cup run |
++| domestic_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | — |
+ | domestic_super_cup | taxonomy | Last 5 across all the club's competitions | — (single match) | — |
+-| club_qualifying | taxonomy | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Last 5 across all the club's competitions |
+-| continental_club | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Full completed edition |
++| club_qualifying | taxonomy | Last 5 across all the club's competitions | Last 5 across all the club's competitions | — |
++| continental_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Full completed edition |
+ | continental_super_cup | active | Last 5 across all the club's competitions | — (single match) | — |
+ | club_friendly_domestic | not ingesting | Defer (low signal) | — | — |
++| club_world_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | Full completed edition |
++| intercontinental_super_cup | taxonomy | Last 5 across all the club's competitions | — (single match) | — |
+ | club_friendly_international | not ingesting | Defer (low signal) | — | — |
+ 
+ ### National-team competitions
+@@ -281,13 +310,15 @@ join happen **in the model**). The export and UI only **format** them; no deriva
+ 
+ ### 8.4 Window matrix — which legs form each window
+ 
+-**Club competitions** — a player's club form *is* his relevant form; no divergence from the team
+-rule (§4):
++**Club competitions — see §4. There is no player divergence, so there is no second table.**
+ 
+-| Competition type | Before it starts | During | After |
+-|---|---|---|---|
+-| Domestic league | Previous season (this league) | Last 5 across the club's competitions | Full season |
+-| Domestic cup · continental club · super cups · club qualifying | Last 5 across the club's competitions | Last 5 (super cups: single match) | Full edition / cup run |
++A player's club form *is* his relevant form, which this section has always said. It used to restate
++§4's club rules in a condensed two-row form, and that copy drifted: it still named
++`continental club` after the type was renamed to `continental_cup`, it never gained
++`club_world_cup` or `intercontinental_super_cup`, and its single "Full edition / cup run" cell
++covered five competition types that no longer share an "after" rule — domestic cups, club
++qualifying and the super cups have none (CPO 2026-08-12). **Struck rather than re-synced**: two
++tables that must agree are one table too many, and this one was already wrong on three counts.
+ 
+ **National-team competitions** — reframed as **context, not form** (strict club/national
+ separation: the national view never borrows club data):
+diff --git a/docs/product_direction_threads.md b/docs/product_direction_threads.md
+index 6bfc313..cdd4c54 100644
+--- a/docs/product_direction_threads.md
++++ b/docs/product_direction_threads.md
+@@ -35,8 +35,10 @@ Tackle one by one. Do not close a thread without explicit sign-off from Rami.
+ | `domestic_cup` | Knockout bracket, multiple rounds, no standings | DFB-Pokal, FA Cup, Copa del Rey |
+ | `domestic_super_cup` | One-off match(es) between domestic titleholders | DFL-Supercup, FA Community Shield, Supercoppa Italiana, Supercopa de España |
+ | `club_qualifying` | Qualifying rounds feeding into a continental club competition | UCL qualifying, UEL qualifying |
+-| `continental_club` | Group stage + knockout, multi-nation club squads | UCL, UEL, UECL |
++| `continental_cup` | Group stage + knockout, multi-nation club squads | UCL, UEL, UECL |
+ | `continental_super_cup` | One-off match between continental titleholders | UEFA Super Cup |
++| `club_world_cup` | Global club tournament — not continental | FIFA Club World Cup |
++| `intercontinental_super_cup` | One-off match between continental titleholders from different confederations | FIFA Intercontinental Cup |
+ | `club_friendly_domestic` | Pre-season or mid-season friendly between club sides (domestic context) | — taxonomy only, not ingesting |
+ | `club_friendly_international` | Pre-season or mid-season friendly between club sides (cross-border) | — taxonomy only, not ingesting |
+ 
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 3be4132..f1a9ea4 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -136,7 +136,8 @@ Two browse axes, both fully registry-driven (#364 adds the fields):
+ 
+ - **Competition groups** (`display_group`, defaultable from `competition_type`):
+   `leagues` (domestic_league) · `cups` (domestic_cup, domestic_super_cup) ·
+-  `continental-club` (continental_club, continental_super_cup, club_qualifying) ·
++  `continental-club` (continental_cup, continental_super_cup, club_qualifying, club_world_cup,
++  intercontinental_super_cup) ·
+   `national-teams` (world_championship, continental_championship, qualifying).
+ - **Country hubs** (`country` field): `/football/germany/` lists BL1, BL2, DFB-Pokal …
+   ordered by `tier` + `sort_order`. International competitions appear under their
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 29b730a..e6d4965 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -65,6 +65,24 @@ def test_display_group_of_type_reads_seed():
+     assert m["club_friendly_domestic"] is None         # empty cell -> None (not in nav)
+ 
+ 
++def test_display_group_of_type_covers_the_renamed_and_new_types():
++    """#57's taxonomy change, pinned against the REAL seed.
++
++    ⚠ This exists because the obvious place to pin the rename does not pin it. The build_nav
++    fixture below carries a competition_type, but build_nav never branches on one — it groups by
++    the already-resolved display_group — so reverting the whole rename leaves that test green.
++    Only the seed lookup actually resolves a competition_type, so the assertion belongs here.
 +    """
-+    per_job: dict[str, list[str]] = {}
-+    for name, node in config.items():
-+        if not isinstance(node, dict):
-+            continue
-+        lines: list[str] = []
-+        for section in ("before_script", "script", "after_script"):
-+            for entry in node.get(section) or []:
-+                if isinstance(entry, str):
-+                    lines.extend(entry.splitlines())
-+        if lines:
-+            per_job[name] = lines
-+    return per_job
++    m = _display_group_of_type()
++    # renamed 2026-08-12: the entity-named type became format-named
++    assert "continental_club" not in m, "the old type name is back in the seed"
++    assert m["continental_cup"] == "continental-club"
++    # added 2026-08-12 — a global club tournament and an intercontinental one-off, split because
++    # the taxonomy splits tournament from super cup at every other level
++    assert m["club_world_cup"] == "continental-club"
++    assert m["intercontinental_super_cup"] == "continental-club"
 +
 +
- def _declared_variables(config: dict) -> list[tuple[str, str]]:
-     """Every (name, value) from a `variables:` mapping — global, `default:`, or per job."""
-     found: list[tuple[str, str]] = []
-@@ -148,3 +176,40 @@ def test_the_prod_trigger_still_covers_every_dbt_compile_input():
-         f".data_paths_prod contains {sorted(wider)}, which .data_paths_mr does not. The prod "
-         "build would then fire on a change the MR build never validated."
-     )
-+
-+
-+def test_every_worktree_add_is_preceded_by_a_prune():
-+    """#65. The runner persists the project dir but not /tmp, so registrations go stale.
-+
-+    Written to the CLASS, not to the one line that broke: any job that adds a worktree must prune
-+    first, in its own script. A second worktree call added later is covered without touching this
-+    test — a list of known offenders is precisely what has holed guards here before.
-+
-+    Read from parsed YAML rather than file text on purpose. The fix carries a comment naming both
-+    `worktree` and `prune`, so a text scan would match the documentation of the fix and pass
-+    whether or not the command is actually there.
-+    """
-+    offenders = []
-+    for job, lines in _script_lines_by_job(_ci_config()).items():
-+        add_at = next(
-+            (i for i, line in enumerate(lines) if "git worktree add" in line), None
-+        )
-+        if add_at is None:
-+            continue
-+        prune_at = next(
-+            (i for i, line in enumerate(lines) if "git worktree prune" in line), None
-+        )
-+        if prune_at is None or prune_at > add_at:
-+            offenders.append(
-+                f"{job}: `git worktree add` at script index {add_at}, prune "
-+                + ("absent" if prune_at is None else f"at {prune_at} (too late)")
-+            )
-+
-+    assert offenders == [], (
-+        "A job adds a git worktree without pruning stale registrations first. The self-hosted "
-+        "runner keeps the project directory between jobs while each job gets a fresh /tmp, so the "
-+        "registration in .git/worktrees/ outlives its directory and `git worktree add` exits 128 "
-+        "with 'missing but already registered worktree' (GitLab #65). This does not fail the "
-+        "pipeline that removes the prune — it fails the NEXT one on that runner slot. "
-+        f"Offending: {offenders}"
-+    )
+ def test_shape_matchstats_drops_fixture_sk():
+     p = shape_matchstats(
+         99,
+@@ -98,7 +116,7 @@ def test_build_nav_groups_and_country_hubs():
+          "country": "Germany", "competition_type": "domestic_cup",
+          "display_group": "cups", "sort_order": 30},
+         {"league_code": "UCL", "name": "Champions League", "slug": "champions-league",
+-         "country": "Europe", "competition_type": "continental_club",
++         "country": "Europe", "competition_type": "continental_cup",
+          "display_group": "continental-club", "sort_order": 10},
+     ]
+     nav = build_nav(comps)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/active_work.md          |  236 +++----
+#    .claude/task/review.md          |  163 ++---
+#    .claude/task/review_input.patch | 1287 ++++++++++++++++++++++++++++-----------
+#    3 files changed, 1148 insertions(+), 538 deletions(-)
+# ============================================================================

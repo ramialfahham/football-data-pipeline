@@ -65,6 +65,24 @@ def test_display_group_of_type_reads_seed():
     assert m["club_friendly_domestic"] is None         # empty cell -> None (not in nav)
 
 
+def test_display_group_of_type_covers_the_renamed_and_new_types():
+    """#57's taxonomy change, pinned against the REAL seed.
+
+    ⚠ This exists because the obvious place to pin the rename does not pin it. The build_nav
+    fixture below carries a competition_type, but build_nav never branches on one — it groups by
+    the already-resolved display_group — so reverting the whole rename leaves that test green.
+    Only the seed lookup actually resolves a competition_type, so the assertion belongs here.
+    """
+    m = _display_group_of_type()
+    # renamed 2026-08-12: the entity-named type became format-named
+    assert "continental_club" not in m, "the old type name is back in the seed"
+    assert m["continental_cup"] == "continental-club"
+    # added 2026-08-12 — a global club tournament and an intercontinental one-off, split because
+    # the taxonomy splits tournament from super cup at every other level
+    assert m["club_world_cup"] == "continental-club"
+    assert m["intercontinental_super_cup"] == "continental-club"
+
+
 def test_shape_matchstats_drops_fixture_sk():
     p = shape_matchstats(
         99,
@@ -98,7 +116,7 @@ def test_build_nav_groups_and_country_hubs():
          "country": "Germany", "competition_type": "domestic_cup",
          "display_group": "cups", "sort_order": 30},
         {"league_code": "UCL", "name": "Champions League", "slug": "champions-league",
-         "country": "Europe", "competition_type": "continental_club",
+         "country": "Europe", "competition_type": "continental_cup",
          "display_group": "continental-club", "sort_order": 10},
     ]
     nav = build_nav(comps)
