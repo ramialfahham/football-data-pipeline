@@ -2041,3 +2041,140 @@ times.
   4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
   the provider should be asked to correct the feed. Both are separate from making the nightly
   green.
+
+
+2026-08-12 fix/61-alert-policy-apply-loop — #61: THE RULING IS "GO AHEAD", AND IT COVERS LESS
+  THAN THE FIRST DRAFT OF THE CONTRACT CLAIMED
+
+  WHY THIS ENTRY EXISTS. `scope-auditor` FAILed round 1 because `contract.md` asserted the CPO
+  "approved in-thread ('go ahead') after being shown the three proposed fixes" and no matching
+  record existed anywhere. It was right on both counts, and the second is the worse one: the
+  sequence was BACKWARDS. The CPO said "go ahead" to a one-line mention of the issue; the
+  builder described the three-part plan AFTERWARDS and then built it. Writing that up as a
+  ruling given on a plan the CPO had seen is the Appendix A2 pattern — a decision presented as
+  agreed. Corrected before commit.
+
+  THE RULING, verbatim: **"go ahead"** — in answer to "Next up when you want to continue, in
+  order: the alert-deploy bug I found, then the squads issue, then making staging a table."
+  So the authority is: START #61 AS FILED. Nothing narrower, nothing wider.
+
+  WHAT #61 AS FILED CONTAINS, since that is now the whole boundary. It was written by the
+  builder on 2026-08-11 and lists three suggested fixes: (1) derive the apply loop from the
+  file instead of `for i in 0 1`, (2) correct the prose that says the file "holds BOTH
+  policies", (3) "Consider making the apply step genuinely idempotent".
+
+  ITEMS 1 AND 2 ARE THE BUG and are covered outright.
+
+  ITEM 3 IS A BUILDER DECISION and is labelled as one in the contract rather than attributed to
+  the CPO. Reasoning, recorded so it can be attacked: the README currently DOCUMENTS the hazard
+  instead of removing it — it warns that re-running duplicates every policy and that duplicates
+  are "how people learn to ignore alerts". A recipe that must be run carefully is the same
+  class of defect as a count that must be updated carefully, and that class already failed in
+  production. It crosses no §10 line: no new mechanism, no recurring cost, no product, naming
+  or permanent decision. It is separable — item 3 can be reverted without touching 1 and 2.
+
+  EXPLICITLY NOT TAKEN, and reserved to the CPO: turning the apply step into a real script
+  (`scripts/apply_alert_policies.py` or similar). That WOULD be a new operational mechanism. The
+  builder wrote exactly that into the README on the first attempt, contradicting its own
+  contract, and reverted it before review. The recipe stays an inline documented block.
+
+  WHAT THE BUG ACTUALLY WAS, for whoever reads this later: `deploy/nightly/README.md` applied
+  the Cloud Monitoring policies with `for i in 0 1` over a generator that writes one payload per
+  policy declared in `deploy/nightly/alert-policy.json`. The file grew to three. Index 2 was
+  generated and never sent, so `fdp freshness sentinel itself stopped` — the policy that fires
+  when the freshness sentinel itself dies — was never deployed. It FAILS OPEN: the dropped alert
+  is the one whose absence nothing else can reveal. Found 2026-08-11 while deleting the
+  superseded 25h bridge policy, and the two together would have left "nightly and sentinel both
+  dead" with no alert at all. The instance was fixed by hand that day
+  (`alertPolicies/751471063453009885`); this task fixes the RECIPE.
+
+  A SECOND REVIEWER FINDING WORTH KEEPING, because the guard repeated the defect it polices.
+  `platform-reviewer` FAILed round 1: the first version of `tests/test_alert_policy_recipe.py`
+  matched only the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`).
+  The fixed recipe is Python, so all three patterns were already unreachable — `["policies"][:2]`,
+  an `islice(..., 2)` or a `break` would have dropped the third policy with every test green.
+  A guard written against one dead idiom is a literal standing in for the real rule, which is
+  the same defect one level up. Replaced with a STRUCTURAL check: the recipe's Python block is
+  parsed with `ast`, the loop over the declared policies is located, and its iterable must
+  contain no number, no slice, no `islice` and no `break`. Both Python-shaped regressions were
+  then verified to go red.
+
+  ROUND 2 THEN FAILED THAT TOO, correctly, with four rewrites that reproduce #61 while passing
+  every assertion: hoisting the slice into a variable whose name contains "policies", a
+  `continue` on one displayName, a filter baked into a generator expression, and a post-loop
+  DELETE. The AST check only ever inspected the loop's iterable expression and the body's
+  `break`. The docstring also claimed the check "holds for any rewording", which was simply
+  false. THE REAL LESSON, third time in one task: a static check tests how code LOOKS and the
+  defect is about what it DOES. Replaced by EXECUTING the recipe against a stubbed Monitoring
+  API and asserting every declared policy receives a write. All four rewrites verified red.
+
+  ROUND 3 CAP-OVERRIDE — CPO ASKED, ANSWERED, RECORDED BEFORE `review.md` CITES IT.
+  Round 3 FAILed with a finding sharper than either earlier one, and it is worth keeping
+  whatever happens to this branch: an executed test that compares the recipe against TODAY'S
+  `alert-policy.json` cannot distinguish "iterates every policy" from "hardcoded to a bound
+  that happens to equal today's count". `[:3]` against a 3-policy file passes all 8 tests —
+  and that is #61's exact mechanism, because `for i in 0 1` was ALSO correct on the day it was
+  written, when there were two policies. The bug is invisible until the next policy is added,
+  which is the moment it does its damage.
+
+  `docs/working_agreement.md` §2 caps the review loop at 3 rounds and requires the builder to
+  STOP and bring open findings to the CPO rather than grind a fourth. Put to the CPO with three
+  paths: (A) one more round applying the fix, (B) ship the recipe fix alone and file the test
+  separately, (C) park the branch.
+  CPO ANSWER (AskUserQuestion, 2026-08-12): **"One more round"** — path A, the builder's
+  recommendation. `review.md` therefore carries `rounds: 4` with a `rounds_cap_override`.
+
+  THE FIX THE OVERRIDE BUYS: run the recipe against a SYNTHETIC policy set whose size differs
+  from the real file, so any count baked into the recipe — a slice, a literal name list, an
+  index bound — fails the moment it is written rather than the next time a policy is added.
+  Count-independence is the property the deleted AST check had and the executed test lacked;
+  this gets it without going back to inspecting source.
+
+  ROUND 4 THEN FOUND THE FIX WAS ASYMMETRIC, and this one is subtle enough to be worth writing
+  down. Both new synthetic tests passed `existing=[]`, so every synthetic policy took the
+  CREATE branch. NOTHING in the file drove the UPDATE/PATCH branch at any count other than the
+  real file's three. A bound placed inside that branch —
+
+      if name in existing:
+          if patch_count >= 3: continue
+
+  — passes all ten tests: the real-file update test has exactly three pre-existing policies so
+  the counter runs out exactly as the loop ends, and the synthetic tests never enter the branch
+  at all. It then stops reconciling the fourth policy forever, in the ordinary steady state
+  where policies already exist. Same #61 shape, relocated one branch over. Count-independence
+  has to hold on BOTH branches or it is not count-independence.
+
+  ROUND 5 AUTHORISED. Round 4 was itself an override, so a fifth needed its own decision. Put
+  to the CPO as part of a sequencing plan that named it "one small test fix and a final review
+  round".
+  CPO ANSWER (in-thread, 2026-08-12): **"go"**.
+  `review.md` carries `rounds: 5` with the `rounds_cap_override` naming both grants.
+
+  THE FIX: synthetic-set tests that drive the UPDATE branch (all pre-existing) and a MIXED set
+  (some existing, some new — the real steady state after a policy is added), asserting every
+  declared policy is reconciled on every branch regardless of set size.
+
+  ROUND 5: scope-auditor PASS. platform-reviewer FAIL with two more, both real.
+  (a) EVERY "larger than today" fixture used exactly 5, so a bound of 5 — the size the test
+      suite itself standardised on — was invisible to all twelve tests. The hardcoded number
+      had simply MOVED from the recipe (3, today's real count) into the test (5, today's
+      chosen stress size). Fixed by parametrising over several sizes.
+  (b) MORE SERIOUS, and the best finding of the five rounds: no test ever inspected the URL of
+      a PATCH, only its body. A recipe that derived the target resource id wrongly — say
+      `list(existing.values())[0]["name"]` instead of `existing[name]["name"]` — sends one
+      PATCH per policy, each carrying its own correct displayName, so every test passes while
+      in production every PATCH lands on the SAME alert policy. One real policy is overwritten
+      repeatedly and all the others silently go stale, while the recipe prints "updated" for
+      each. That is WORSE than #61: #61 left one policy undeployed, this leaves N-1 permanently
+      unreconciled. Fixed by asserting each PATCH URL carries the id of the policy named in its
+      own body.
+
+  ROUND 6 AUTHORISED, AND SCOPED. Third time past the cap. Put to the CPO with the honest
+  framing that the RECIPE fix is reviewed and solid and it is the TEST that keeps failing, and
+  that the marginal value was falling while the cost was not.
+  CPO ANSWER (AskUserQuestion, 2026-08-12): **"Fix both, one scoped round, then stop"**.
+  The round is a DELTA judging whether those two findings are closed — which is what
+  `docs/working_agreement.md` §2 already defines a re-review to be ("told only what changed
+  since its own last PASS and judges that plus its prior findings"), not a lowered bar. If it
+  does not pass, the builder STOPS and the residue is filed as its own issue rather than
+  ground for a seventh round.

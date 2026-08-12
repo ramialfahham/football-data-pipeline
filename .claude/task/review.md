@@ -1,83 +1,108 @@
-# Review — fix/53-macau-event-attribution — 2026-08-11
+# Review — fix/61-alert-policy-apply-loop — 2026-08-12
 
-diff_sha256: 67086a9ec75509267e1dc9d976a8e15792da1f124c6384ebdacc6df074d4bf8a
+diff_sha256: fda126a564fac6dea5a5e0379e5f0414497c6207df142993c23d81d3f8fce583
 
-rounds: 2
+rounds: 6
+
+rounds_cap_override: >
+  THREE separate CPO grants, each recorded in `.claude/task/escalations.log` BEFORE the round
+  it authorises, and each verified there by `scope-auditor`:
+    · round 4 — "One more round" (AskUserQuestion, 2026-08-12)
+    · round 5 — "go" (in-thread, 2026-08-12, as part of an agreed sequencing plan)
+    · round 6 — "Fix both, one scoped round, then stop" (AskUserQuestion, 2026-08-12)
+  WHY IT RAN LONG, stated plainly rather than excused: the RECIPE fix passed early and never
+  regressed. Every round after the first failed on the TEST, and every failure was a real,
+  demonstrated bypass — the guard kept reproducing, one level up, the same defect it polices
+  (a literal standing in for something the file already knows). Rounds 2-5 each ended with a
+  working counterexample, not a reviewer opinion. Round 6 was explicitly SCOPED by the CPO to
+  closing the two round-5 findings, with the standing instruction that anything new is filed
+  as its own issue rather than opening a seventh round. Nothing new was found.
 
 <!--
-Round 1 was spent on a defect in the REVIEW MACHINERY, not in the change, and both
-reviewers caught it independently. `.claude/hooks/git_discipline.py --review-patch`
-writes the patch to STDOUT and accepts no `--base` argument; the builder passed
-`--base main` (silently ignored) and never redirected stdout into
-`.claude/task/review_input.patch`, so the file the reviewers read was still the
-PREVIOUS task's patch (#33 item 14, already merged as c742b96) and contained no hunk
-for this branch at all. scope-auditor FAILed on it. analytics-engineer-reviewer
-reported it as a process anomaly and reviewed the on-disk files directly instead.
-Fixed by regenerating the patch properly; no branch content changed. Round 2 is the
-first round in which either reviewer judged this task's actual diff.
+Round-by-round, kept because the progression is the useful record:
+  1  scope-auditor FAIL   — stale review_input.patch (previous task's diff); the generator
+                            writes to stdout and takes no --base, so the file was never written.
+     platform FAIL        — the guard matched only the RETIRED bash idiom; the fixed recipe is
+                            Python, so every pattern was already unreachable.
+  2  scope-auditor FAIL   — contract claimed a CPO ruling given "after being shown the three
+                            proposed fixes". The sequence was backwards. Corrected; item 3
+                            relabelled a BUILDER decision; escalations.log added to scope_paths.
+     platform FAIL        — the AST check inspected only the loop's iterable and `break`. Four
+                            rewrites reproduced #61 and passed: hoisted slice, `continue`,
+                            generator filter, post-loop DELETE.
+  3  platform FAIL        — executing the recipe against TODAY'S file cannot tell "iterates
+                            everything" from "bounded at today's count". `[:3]` passed.
+  4  platform FAIL        — count-independence held only on the CREATE branch; a bound inside
+                            the UPDATE branch passed all ten tests.
+  5  scope-auditor PASS
+     platform FAIL        — every "larger" fixture used 5, so a bound of 5 hid; and no test
+                            ever inspected a PATCH's URL, so a recipe aiming every update at
+                            one victim resource passed everything.
+  6  both PASS.
 -->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Compared every file in the regenerated `review_input.patch` against `contract.md`'s
-  `scope_paths`: `dbt_project/seeds/fixture_event_team_overrides.csv`,
-  `.claude/task/contract.md` and `.claude/task/escalations.log` are the only three
-  touched, and all three are declared. No file outside scope appears.
-- Checked the CSV edit against the contract's "no model/macro/SQL changes" claim: the
-  diff adds exactly one row and no `.sql` file appears anywhere in the diff. Parsed the
-  row by hand for the 4-column-with-quoted-comma structure the contract describes —
-  RFC 4180-valid, resolves to exactly 4 fields.
-- Verified `mode` is `reattribute_if_cohabiting`, not `alias`, matching both
-  `contract.md` and the independently-recorded `escalations.log` entry
-  "2026-08-11 — #53", which states the CPO ruling verbatim. The ruling is therefore not
-  confined to the artefact whose scope it authorises — the rule this project has FAILed
-  builders on twice before.
-- Checked all four THRESHOLD DECLARATIONS against what the diff actually contains: NEW
-  MECHANISM (none — no new file, mode or column), RECURRING COST (none — no job,
-  schedule or service touched), GUARD LOOSENED (the guard test is absent from the diff,
-  so its `severity` cannot have moved), SHIPPED NUMBERS (declared "yes, 10 rows" and
-  quantified in `blast_radius`). All four are honest against the diff.
-- Checked `decisions_reserved` for anything nevertheless decided: neither the `dim_team`
-  question nor the provider-feed question is touched by the one-row CSV change.
+- Confirmed the cumulative patch touches exactly `contract.md`, `escalations.log`,
+  `deploy/nightly/README.md` and `tests/test_alert_policy_recipe.py`, all four declared in
+  `scope_paths`. No path outside it, at any round.
+- Verified all three `rounds_cap_override` grants exist in `escalations.log`, each following
+  the findings it answers and preceding the round it authorises. No retrospective citation.
+- Verified the corrected `decisions_taken` matches what `escalations.log` records, clause by
+  clause, after the round-2 FAIL: the ruling is "go ahead" given to #61 AS FILED, and item 3
+  (idempotency) is labelled a BUILDER decision with its reasoning exposed, not a quoted ruling.
+- Attacked the item-3 §10 classification against every decision-rights row and Appendix A3:
+  it stays manual and documentary — no automation, no CI wiring, no new file — and the line
+  the contract draws (script-form = CPO-class, prose-form = not) is the same line the builder's
+  own reverted first attempt shows was live and enforced, not merely asserted.
+- Re-checked at rounds 5 and 6 whether the growing test file crossed into the reserved "apply
+  step becomes a real script" territory: it creates no new file, no new dependency and no new
+  CI job; the recipe is exec'd only inside `tests/` against a stubbed API. Line not crossed.
+- Checked the diff for credential-shaped content at every round: none (stub token only).
 
-## analytics-engineer-reviewer
+## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Seed row well-formedness: the new row parses as exactly 4 fields under RFC 4180 —
-  the embedded comma sits inside the quoted `note`. CRLF preserved on all 4 lines,
-  non-ASCII "ção" consistent with valid UTF-8.
-- `dbt_project/seeds/schema.yml` (`fixture_event_team_overrides` block): `unique` on
-  `wrong_team_api_id` still holds (4767 is distinct from 2263/6424); `accepted_values`
-  on `mode` admits `reattribute_if_cohabiting`; `not_null` holds on all four columns.
-  No declared seed test is broken.
-- `base_apif__fixture_events.sql:83-127`: traced the `reattribute_if_cohabiting` join —
-  fires only when `team_id = wrong_team_api_id` AND `correct_team_api_id` IS a fixture
-  participant AND `wrong_team_api_id` is NOT, matching the contract exactly. The
-  `unique` constraint on `wrong_team_api_id` prevents fan-out from multiple matches.
-- `fct_fixture_event.sql:47-64`: the self-heal incremental predicate re-processes any
-  committed fixture whose `team_sk` is not in `(home_team_sk, away_team_sk)`, confirming
-  the contract's claim that no `--full-refresh` and no backfill are needed.
-- `assert_event_team_in_fixture_participants.sql`: read in full, unchanged, still
-  `severity='error'`. The data is corrected so the guard passes; the guard is not moved
-  to fit the data.
-- `dbt_project/docs/layering.md`: the seed+join pattern this row extends belongs in
-  `2_base` (cross-source entity resolution), and no model file changed, so no logic is
-  smuggled into another layer.
-- Competition-agnostic (§8): the join filters on team ids only, never on `league_code`;
-  the `WCQAS` mention in the note is documentation, not a predicate.
-- The PROD simulation's substitution of `fct_fixture_event.team_api_id` for the model's
-  `recovered.team_id`: core's `team_api_id` is post-EXISTING-override
-  (`base_apif__fixture_events.sql:105-109` -> `fct_fixture_event.sql:77`), so the
-  substitution is only valid where no existing override could produce the value under
-  test. Neither live override row (2263->10124, 6424->25274) keys on or targets 4767 on
-  either side, so for the `team_sk=4767` population the two values are provably
-  identical. Sound for this measurement.
-- The PROD simulation's substitution of `fct_fixture` for `base_apif__fixtures_next` as
-  the participant source: `fct_fixture.sql:12-13` casts `home_team_id`/`away_team_id`
-  straight through with no intervening join or override, matching the base model's own
-  `fixture_participants` CTE; null-handling is equivalent between the guard's WHERE and
-  the CTE's filter. No hidden case.
+- Traced its own round-5 counterexample `pol["name"] = list(existing.values())[0]["name"]`
+  against the new `test_every_patch_targets_the_resource_named_in_its_own_body`: with
+  `_as_existing()` now assigning distinct ids, both the per-name id comparison and the
+  distinct-resource check fire. Exposed at any N >= 2, not a size-4 fluke.
+- Traced its own round-5 counterexample `written_count >= 5` against
+  `_SIZES = [1, 2, 3, 5, 8, 17]` on both the create- and update-parametrised tests: survives
+  only at exactly 5 (a conceded boundary, not a hidden one) and is caught at 8 and 17.
+- Agreed with the builder's stated limit rather than letting it pass silently: a parametrised
+  test proves the property only at the sizes tested; a bound of >= 18 would still pass. What
+  the change buys is that a surviving bound is no longer a number anyone writes by accident,
+  unlike 3 (the real count) or 5 (the suite's former single stress size, shown exploitable).
+- Attempted to construct a create+update interaction bug that hides at the mixed test's fixed
+  size of 5; could not produce a working counterexample not already subsumed by the
+  parametrised per-branch tests, and declined to report a hypothesis as a finding.
+- Checked `_as_existing`'s id extraction (`rsplit("/", 1)[1]`) is applied identically on the
+  expected and actual sides, so the comparison is not accidentally tautological.
+- Confirmed `import pytest` / `parametrize` add no dependency and need no requirements change;
+  the file is picked up by the existing unconditional `pytest tests/` in `.gitlab-ci.yml`.
+- Earlier rounds, still standing: PATCH URL construction from a real resource name; `name` set
+  on the update branch and absent on the create branch; `strip()` removing `_`-prefixed keys at
+  every nesting depth; `assert len(chans) == 1` failing closed; the removed Windows `curl`
+  warning no longer applying anywhere in the file; `tempfile`/`chdir` restored via `finally`
+  before the temp directory is deleted, on both the success and exception paths; `# noqa: S102`
+  justified because the exec'd source is a fixed version-controlled repo path and `urlopen` is
+  replaced rather than wrapped, so no live network path exists.
 
 ## escalations
-(none)
+- question: >
+    The review loop hit its documented cap of 3 rounds with an open, demonstrated finding.
+    Continue, ship a reduced scope, or park the branch?
+  CPO ANSWER: "One more round" (AskUserQuestion, 2026-08-12) — authorising round 4.
+- question: >
+    Round 4 was itself an override and failed on a new defect. Continue again?
+  CPO ANSWER: "go" (in-thread, 2026-08-12), given as part of an agreed sequencing plan that
+    named it "one small test fix and a final review round" — authorising round 5.
+- question: >
+    Round 5 failed with two more findings. The recipe fix is solid and reviewed; it is the
+    test that keeps failing. Fix both and run one scoped round, fix only the serious one, or
+    park the branch?
+  CPO ANSWER: "Fix both, one scoped round, then stop" (AskUserQuestion, 2026-08-12) —
+    authorising round 6, scoped to closing the two findings, with anything new to be filed as
+    its own issue rather than opening a seventh round.
