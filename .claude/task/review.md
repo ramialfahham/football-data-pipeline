@@ -1,20 +1,21 @@
 # Review — feat/57-competition-taxonomy-seed — 2026-08-12
 
-diff_sha256: 0c1ef8aff9aca4eb7902911b41b380c12c10f82e43c8855ac7f774af23cfd517
+diff_sha256: 1ccafbfc690df9fc7c9467ff341c9c036b1b6c8f340556ee09f023aae94251f3
 
 rounds: 3
 
-⚠ `diff_sha256` above is the CUMULATIVE branch number from `check_task_artifacts.py`, NOT
-`--staged-hash`. On a second commit those differ — `--staged-hash` covers only the increment while
-the gate (and CI) recompute `base...HEAD` over the same exclusion set. Binding the increment number
-here failed the gate on this very branch.
+⚠ `diff_sha256` above is the CUMULATIVE branch number over `base...HEAD`, and since **#63** it
+hashes `git diff --raw` — CONTENT IDENTITY (mode, blob SHAs, status, path), not rendered patch
+text. `--staged-hash` now produces exactly this number on any commit; both were verified equal
+here (`1ccafbfc…`, 1,459 bytes). The older warning that `--staged-hash` was "the wrong number on a
+second commit" described the pre-#63 implementation and no longer applies.
 
-⚠ REBOUND 2026-08-12 after rebasing onto main `a2b4184` (main moved twice: !32/#53, !34/#61).
-The hash is a function of the BASE, so a rebase invalidates it even when not one line of the work
-changes. The verdicts below stand — the rebase touched only the four `.claude/task/*` paperwork
-files, resolved as: MINE for contract/review/review_input (single-owner), and `escalations.log`
-UNIONed and checked by ARITHMETIC (base 279,580 + main's #61 9,806 + this branch's #57 7,224 =
-296,610, written 296,610), never by eye. No code, seed, model or doc content moved in the rebase.
+⚠ REBOUND 2026-08-13 after rebasing onto main `b4b2414`, which carries **!35/#63**. TWO reasons the
+old number is dead: the base moved, and the ALGORITHM changed. The verdicts below stand — the
+rebase touched only the four `.claude/task/*` paperwork files, resolved as MINE for
+contract/review/review_input (single-owner), and `escalations.log` UNIONed and checked by
+ARITHMETIC (base 289,386 + main's #63 4,392 + this branch's #57 7,224 = 301,002, written 301,002),
+never by eye. No code, seed, model or doc content moved in the rebase.
 
 Four routed reviewers, blinded (patch + contract.md + escalations.log; no builder narrative).
 Routing per `.claude/review_routing.json`: scope-auditor (always), analytics-engineer-reviewer
@@ -126,11 +127,13 @@ Three changes post-date the verdicts above and are covered by this hash but by n
 
 None of the three touches code, seeds, models or any model-facing path.
 
-## Verification (all LOCAL — CI has no minutes, account-wide)
+## Verification (LOCAL at review time)
 
 `check_competition_type_seed` OK · `check_registry_var_sync` OK · `check_layer_contract` passed ·
 `check_copy_gate` OK · `check_task_artifacts` OK · `dbt parse` clean · `pytest tests/` 764 passed
 1 skipped (42 in the touched file after the new test) · both seeds parse at their declared shapes ·
 `sync_dbt_vars.py` idempotent on a second run with `dbt_project.yml` unchanged.
 
-⚠ **No CI run. None of the above is CI evidence and must never be presented as such.**
+⚠ **The above is LOCAL evidence and is never CI evidence.** CI was unrunnable at review time (zero
+minutes, account-wide); a self-hosted runner has since restored it, so the pipeline on this MR is
+the CI evidence — read the job log, not the colour.
