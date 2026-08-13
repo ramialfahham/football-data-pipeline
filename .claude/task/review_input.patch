@@ -1,959 +1,1019 @@
-diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
-index 8f171ca..8c4ca0a 100644
---- a/.claude/hooks/git_discipline.py
-+++ b/.claude/hooks/git_discipline.py
-@@ -91,21 +91,47 @@ def _repo_root() -> str:
-     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
- 
- 
--def _staged_diff_bytes(root: str) -> bytes:
--    import subprocess
--    # F11 (#409): hash the staged diff EXCLUDING the bookkeeping artifacts, so the
--    # review hash covers code + contract.md only and CI can recompute the same value
--    # over `git diff base...HEAD` (it has no staging index). See _hash_exclude_pathspec.
--    # --no-renames AND --no-abbrev pin the diff so the local staged hash and the CI
--    # recompute (`git diff base...HEAD`) are byte-identical for identical content:
--    # --no-renames removes endpoint-sensitive rename detection; --no-abbrev forces full
--    # 40-hex blob SHAs in the `index` lines so the abbreviation length (which depends on
--    # the repo's object count, and so differs pre- vs post-commit) cannot diverge them.
--    return subprocess.run(
--        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
--        + _hash_exclude_pathspec(_load_routing(root)),
--        cwd=root, capture_output=True, timeout=30,
--    ).stdout
-+def _staged_diff_bytes(root: str) -> bytes | None:
-+    """The bytes the review hash covers: CONTENT IDENTITY of the cumulative branch diff,
-+    excluding the bookkeeping artifacts (F11/#409, see _hash_exclude_pathspec).
-+
-+    ⚠ `--raw`, NOT the rendered patch (#63). The old form hashed `git diff`'s human-readable
-+    output, which is a PRESENTATION format: its bytes depend on git version, platform and diff
-+    settings, so the same content hashed two ways on two machines and `validate:governance` could
-+    not pass at all — measured on one machine, identical commits, `-U3` -> 0c1ef8af and `-U0` ->
-+    ca1afb7d. `--raw` emits `:mode mode <blobA> <blobB> STATUS<TAB>path`; blob SHAs ARE content
-+    hashes, identical everywhere and forever. No discriminating power is lost — a rendered patch is
-+    DERIVED from those blobs and cannot differ unless a blob SHA does — and mode changes and
-+    add/delete/modify status are carried explicitly.
-+
-+    ⚠ CUMULATIVE FROM THE BASE, not `--staged` alone (#63, second half). The CI twin recomputes
-+    `git diff base...HEAD`; a bare `--staged` is HEAD-vs-index, i.e. only the LAST increment, so on
-+    a multi-commit branch the two compared different diffs by construction. That was a documented
-+    trap ("on a SECOND commit, `--staged-hash` is the WRONG number") rather than a mystery, and it
-+    is now simply false. `_cumulative_diff` already resolves the base correctly — reused here so
-+    there is exactly one base resolver.
-+
-+    ⚠ MUST NOT RAISE, and MUST NOT return b"" on failure. `_commit_gate`'s caller FAILS OPEN on
-+    exception by deliberate house rule (see the handler at the bottom of this file), so an escaping
-+    exception would wave a commit through unverified. But returning b"" is WORSE, not safer, and an
-+    earlier draft of this function did exactly that while claiming to be fail-closed:
-+
-+      `--staged-hash` would print sha256(b"") = e3b0c442… with EXIT 0; the builder pastes that into
-+      `review.md`; the gate recomputes it from the same broken call, gets the same value, and the
-+      two AGREE. The commit passes with a binding that covers ZERO bytes — no code, not even
-+      `contract.md`. Deterministic, not a race: both calls run seconds apart in the same state.
-+      Reproduced before fixing (cto-reviewer, opus).
-+
-+    So failure returns **None**, which is distinguishable from a genuinely empty diff, and BOTH
-+    callers must handle it: the CLI refuses to emit a hash it could not compute (stderr, non-zero
-+    exit) and the gate denies with its own message. The states that reach it are the ones
-+    `_base_commit` already names — a `--single-branch` clone, a shallow checkout, two histories
-+    with no common ancestor — and these hooks travel to other repos by design.
-+    """
-+    try:
-+        return _cumulative_diff(root, _hash_exclude_pathspec(_load_routing(root)), raw=True)
-+    except Exception:
-+        return None
- 
- 
- def _staged_paths(root: str) -> list[str]:
-@@ -376,7 +402,52 @@ def _base_commit(root: str) -> str:
-                            text=True, timeout=30)
-         return r.returncode, r.stdout.strip()
- 
--    for ref in ("main", "origin/main"):
-+    # ⚠ GOVERNANCE_BASE FIRST — the escape hatch, and it must exist because the gate now DENIES
-+    # when the base cannot be resolved (#63). An earlier draft's deny message told the operator to
-+    # "set GOVERNANCE_BASE" while this function read no environment variable at all: half the
-+    # stated remedy was fictional, and for two histories with no common ancestor the other half
-+    # (fetch the base branch) does not help either, because the ref already resolves and it is the
-+    # missing ancestor that fails. That left `git commit` locked with no way out — exactly the
-+    # workflow lock the fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
-+    # `scripts/check_task_artifacts.py:106` already honours it, so this also closes a local/CI
-+    # asymmetry rather than only unblocking the operator.
-+    env_base = os.environ.get("GOVERNANCE_BASE")
-+    if env_base:
-+        code, resolved = _git("rev-parse", "--verify", "--quiet", f"{env_base}^{{commit}}")
-+        if code != 0 or not resolved:
-+            raise RuntimeError(
-+                f"GOVERNANCE_BASE={env_base!r} does not resolve to a commit. It is an explicit "
-+                "override, so a bad value is an error rather than something to fall back from — "
-+                "falling back would silently hash a different diff than the one asked for."
-+            )
-+        # ⚠ MERGE-BASE, NOT THE TIP. The CI twin spells this `f"{args.base}...HEAD"` — three-dot,
-+        # i.e. the common ancestor — so resolving the override to a branch TIP makes the two halves
-+        # hash different things the moment that branch has moved on, which is the documented use of
-+        # the variable. The local diff would then carry the branch's own changes PLUS a reverse
-+        # delta for everything merged upstream since the branch was cut: a red pipeline on a
-+        # correct branch, and a reviewers' patch full of already-merged work. That is precisely the
-+        # defect this task exists to remove, and an earlier draft reintroduced it through this very
-+        # escape hatch (platform-reviewer, opus, round 3). Every other base path in the repo is
-+        # merge-based, including the ref loop below.
-+        code, base = _git("merge-base", "HEAD", resolved)
-+        if code == 0 and base:
-+            return base
-+        raise RuntimeError(
-+            f"GOVERNANCE_BASE={env_base!r} resolves to {resolved[:12]} but shares no history with "
-+            "HEAD, so there is no common ancestor to diff from. Do not guess — a silently "
-+            "different base is the failure this override exists to prevent."
-+        )
-+
-+    # ⚠ REMOTE-TRACKING REFS FIRST, LOCAL `main` LAST (#63). A local `main` branch is a cached
-+    # copy that goes stale the moment someone branches from `gitlab/main` without checking main
-+    # out — which is the normal flow here. Found by this task: local `main` sat at 57175fc while
-+    # `gitlab/main` was a2b4184 (two merges newer), so the hook resolved a base two commits behind
-+    # CI's, the reviewers' patch showed files from an ALREADY-MERGED task, and the hash could not
-+    # possibly match the CI recompute. `scripts/check_task_artifacts.py::default_base` already
-+    # prefers the live remote for exactly this reason and explains that `origin` is the dormant
-+    # GitHub one here; this is the same ordering, so the two halves agree on the base as well as
-+    # on the bytes. Both must hold or the pair is still broken.
-+    for ref in ("gitlab/main", "origin/main", "main"):
-         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] != 0:
-             continue
-         code, base = _git("merge-base", "HEAD", ref)
-@@ -400,11 +471,20 @@ def _base_commit(root: str) -> str:
-     return root_commit.split("\n")[0]
- 
- 
--def _cumulative_diff(root: str, spec: list[str]) -> bytes:
-+def _cumulative_diff(root: str, spec: list[str], raw: bool = False) -> bytes:
-+    """The branch's cumulative staged diff, from the base.
-+
-+    `raw=True` asks for `--raw` (mode, blob SHAs, status, path) instead of the rendered patch —
-+    used by `_staged_diff_bytes` for the review hash, where a PRESENTATION format cannot be
-+    hashed (#63). The reviewers' patch keeps the rendered form, because a reviewer reads it.
-+    One function builds the command either way, so the base resolution and the fail-loud
-+    behaviour cannot drift between the two callers.
-+    """
-     import subprocess
-     rng = [_base_commit(root)]
-     r = subprocess.run(
--        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"] + rng + spec,
-+        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
-+        + (["--raw"] if raw else []) + rng + spec,
-         cwd=root, capture_output=True, timeout=30,
-     )
-     # FAIL LOUD, never silently smaller. The documented usage redirects stdout into
-@@ -657,7 +737,26 @@ def _commit_gate(root: str) -> str | None:
-         )
-     text = open(review_path, encoding="utf-8", errors="replace").read()
-     m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
--    live = hashlib.sha256(_staged_diff_bytes(root)).hexdigest()
-+    blob = _staged_diff_bytes(root)
-+    # ⚠ DENY EXPLICITLY when the hash could not be computed, rather than relying on a mismatch.
-+    # Letting this fall through to the comparison is what allowed sha256(b"") to match itself and
-+    # bind a review to zero bytes (cto-reviewer, opus — reproduced, then fixed).
-+    #
-+    # ⚠ `is None`, NOT `not blob`. The two are different states and conflating them re-creates the
-+    # bug one level up: `None` means the diff could not be computed, while `b""` is a LEGITIMATE
-+    # empty cumulative diff — reachable because `_staged_paths` is HEAD-vs-index while this is
-+    # base-vs-index, so staging a revert of an earlier commit on the same branch arrives here with
-+    # staged paths and no net change. Reporting that as "the base did not resolve" names a cause
-+    # that was not observed. An empty diff falls through to the normal comparison, where CI
-+    # computes the same empty value and agrees — an honest binding to a net-zero branch.
-+    if blob is None:
-+        return (
-+            "REVIEW GATE: the review hash could not be computed — the base commit did not "
-+            "resolve, or git failed. review.md cannot be bound to a diff that does not exist. "
-+            "Fetch the base branch (or set GOVERNANCE_BASE), re-run "
-+            "`python .claude/hooks/git_discipline.py --staged-hash`, and update review.md."
-+        )
-+    live = hashlib.sha256(blob).hexdigest()
-     if not m or m.group(1).lower() != live:
-         return (
-             "REVIEW GATE: staged diff has changed since the reviewers ran "
-@@ -726,7 +825,24 @@ def main() -> int:
-     _CLI_MODE = "--staged-hash" in sys.argv or "--review-patch" in sys.argv
-     if "--staged-hash" in sys.argv:
-         import hashlib
--        print(hashlib.sha256(_staged_diff_bytes(_repo_root())).hexdigest())
-+        blob = _staged_diff_bytes(_repo_root())
-+        # ⚠ REFUSE TO EMIT A HASH THAT WAS NOT COMPUTED. Printing sha256(b"") here is what made
-+        # the earlier draft's "fail-closed" claim false: the number would be pasted into
-+        # review.md, the gate would recompute the same empty value, the two would agree, and the
-+        # commit would pass bound to nothing. A hash nobody can compute must stop the workflow
-+        # loudly, not resolve to a constant that always matches itself.
-+        # ⚠ `is None`, not `not blob` — see `_commit_gate`. A legitimately EMPTY cumulative diff
-+        # is a real state with a real hash, and must not be reported as a failure to compute one.
-+        if blob is None:
-+            print(
-+                "ERROR: could not compute the review hash. The base commit did not resolve, or "
-+                "git failed — so there is no diff to bind review.md to. Fetch the base branch "
-+                "(or set GOVERNANCE_BASE) and try again. Refusing to print a hash that would "
-+                "bind the review to nothing.",
-+                file=sys.stderr,
-+            )
-+            return 1
-+        print(hashlib.sha256(blob).hexdigest())
-         return 0
-     if "--review-patch" in sys.argv:
-         sys.stdout.buffer.write(_review_patch_bytes(_repo_root()))
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index fcc0054..dee45f6 100644
+index dee45f6..83f282f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,114 +1,217 @@
--# Task contract — #61: the alert-policy apply recipe under-deploys
-+# Task contract — #63: bind the review to content identity, not to rendered diff text
+@@ -1,217 +1,181 @@
+-# Task contract — #63: bind the review to content identity, not to rendered diff text
++# Task contract — #33 items 9 + 10: staging becomes a table, and the guard follows
  
  objective: >
--  `deploy/nightly/README.md` documents how to create the Cloud Monitoring alert policies. Its
--  apply step ends in `for i in 0 1`, a HARDCODED index list, over a generator that writes one
--  payload per policy declared in `deploy/nightly/alert-policy.json`. The file has since grown to
--  three policies, so index 2 was written and never POSTed.
+-  `validate:governance` fails on `!33` and would fail on every merge request after it. The local
+-  commit gate and the CI recompute produce DIFFERENT `diff_sha256` values for provably identical
+-  commits, so the check that binds a review to its code cannot pass at all.
 -
--  This was not theoretical. `fdp freshness sentinel itself stopped` — the watcher that detects
--  the monitoring itself having died — was declared and never deployed. Found 2026-08-11 while
--  deleting the superseded 25h bridge policy; the two together would have left the "nightly and
--  sentinel both dead" case with no alert at all.
+-  Root cause: both sides hash the RENDERED PATCH TEXT — the human-readable output of `git diff`.
+-  That is a presentation format whose bytes depend on git version, platform and diff settings, so
+-  the same content can hash two ways on two machines. This change hashes CONTENT IDENTITY instead
+-  (`git diff --raw`: mode, blob SHAs, status, path), which is byte-identical everywhere.
 -
--  It FAILS OPEN, and that is the whole character of the bug: the dropped policy is the one whose
--  absence is invisible, so nothing about the broken state looks broken.
+-  A second defect in the same family is fixed with it: the local side diffs `--staged`
+-  (HEAD -> index) while CI diffs `base...HEAD`, so on a MULTI-COMMIT branch the local number is
+-  simply the wrong diff. That is the standing `CLAUDE.md` warning that `--staged-hash` is "the
+-  WRONG number" on a second commit; it cost two wasted cycles on `!33` alone.
 -
--  Two defects, one cause. (a) the count is hardcoded where it should be derived; (b) the prose
--  one line above still says the file "holds BOTH policies". Both are the same rot: a literal
--  standing in for something the file already knows.
--refs: GitLab #61. Found under #33 / #39 Stage 2.
-+  `validate:governance` fails on `!33` and would fail on every merge request after it. The local
-+  commit gate and the CI recompute produce DIFFERENT `diff_sha256` values for provably identical
-+  commits, so the check that binds a review to its code cannot pass at all.
++  `1_staging` is `+materialized: view`, so it stores nothing and every reader re-executes the
++  JSON parse of the raw table underneath. There are **59 staging tests** across 15 staging
++  models, plus ~20 base models reading those views, so each raw table is scanned roughly five
++  times a night per staging model to answer questions a stored table would answer for the 10 MB
++  minimum.
 +
-+  Root cause: both sides hash the RENDERED PATCH TEXT — the human-readable output of `git diff`.
-+  That is a presentation format whose bytes depend on git version, platform and diff settings, so
-+  the same content can hash two ways on two machines. This change hashes CONTENT IDENTITY instead
-+  (`git diff --raw`: mode, blob SHAs, status, path), which is byte-identical everywhere.
++  Item 9 sets `1_staging: +materialized: table`. Item 10 extends the existing per-model
++  materialisation ban from `2_base` to `1_staging` so the layer decision cannot be overridden
++  model by model and silently stop being re-costed with the rest of its layer.
 +
-+  A second defect in the same family is fixed with it: the local side diffs `--staged`
-+  (HEAD -> index) while CI diffs `base...HEAD`, so on a MULTI-COMMIT branch the local number is
-+  simply the wrong diff. That is the standing `CLAUDE.md` warning that `--staged-hash` is "the
-+  WRONG number" on a second commit; it cost two wasted cycles on `!33` alone.
-+
-+refs: >
-+  GitLab #63 (the failure, the five ruled-out hypotheses, and the local demonstration).
-+  ⚠ BLOCKS `!33` and `!27` — both are waiting on this and neither can go green until it merges.
-+  Context only, not in scope: #33 item 13 (an MR pipeline can write production raw) and #2
-+  (`data_paths` rebuilds prod on governance-only changes), both read while tracing the CI job.
-+
-+protected_override: >
-+  CPO, in session 2026-08-12, recorded in `.claude/task/escalations.log` BEFORE this contract was
-+  written: asked whether to fix the check as its own task, answered **"yes"**, and on method
-+  **"Fix it systematically like a top-notch engineer would do it."**
-+  `.claude/hooks/` is a PROTECTED prefix (`task_contract_gate.py:66`), so `git_discipline.py` may
-+  not be edited inside an ordinary contract.
-+  ⚠ THE AUTHORITY IS NARROW and the log says so: it covers HOW the review-binding hash is
-+  computed, in the two implementations that must agree, plus the tests and docs describing it. It
-+  does NOT extend to any other hook, the routing file, the reviewer briefs, or the commit-form
-+  deny package. None of those is touched.
++  This is the SAME change #547 made to `2_base` on 2026-08-02, one layer up, for the same
++  measured reason.
+ refs: >
+-  GitLab #63 (the failure, the five ruled-out hypotheses, and the local demonstration).
+-  ⚠ BLOCKS `!33` and `!27` — both are waiting on this and neither can go green until it merges.
+-  Context only, not in scope: #33 item 13 (an MR pipeline can write production raw) and #2
+-  (`data_paths` rebuilds prod on governance-only changes), both read while tracing the CI job.
+-
+-protected_override: >
+-  CPO, in session 2026-08-12, recorded in `.claude/task/escalations.log` BEFORE this contract was
+-  written: asked whether to fix the check as its own task, answered **"yes"**, and on method
+-  **"Fix it systematically like a top-notch engineer would do it."**
+-  `.claude/hooks/` is a PROTECTED prefix (`task_contract_gate.py:66`), so `git_discipline.py` may
+-  not be edited inside an ordinary contract.
+-  ⚠ THE AUTHORITY IS NARROW and the log says so: it covers HOW the review-binding hash is
+-  computed, in the two implementations that must agree, plus the tests and docs describing it. It
+-  does NOT extend to any other hook, the routing file, the reviewer briefs, or the commit-form
+-  deny package. None of those is touched.
++  GitLab #33 items 9 and 10. Precedent and measurement method: #547 (`2_base`), recorded in
++  `dbt_project/docs/layering.md` §2_base and pinned by `tests/test_materialisation_policy.py`.
  
  scope_paths:
--  - deploy/nightly/README.md
--  - tests/test_alert_policy_recipe.py
-+  - .claude/hooks/git_discipline.py
-+  - scripts/check_task_artifacts.py
-+  - tests/test_governance_hooks.py
-+  - docs/agent_guardrails.md
-+  - CLAUDE.md
+-  - .claude/hooks/git_discipline.py
+-  - scripts/check_task_artifacts.py
+-  - tests/test_governance_hooks.py
+-  - docs/agent_guardrails.md
++  - dbt_project/dbt_project.yml
++  - ingestion/api_football/bigquery.py
++  - ingestion/api_football/loads/teams.py
++  - scripts/check_layer_contract.py
++  - tests/test_materialisation_policy.py
++  - dbt_project/docs/layering.md
++  - dbt_project/docs/engineering_standards.md
+   - CLAUDE.md
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
    - .claude/task/review_input.patch
-+  # added by amendment 1 — see amendments
-+  - .claude/active_work.md
+-  # added by amendment 1 — see amendments
+-  - .claude/active_work.md
  
  impact_map: >
--  Not gate-required — neither `deploy/**` nor `tests/**` is on the structural surface
--  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
--  Written short-form and evidenced anyway, because the subject is a PRODUCTION MONITORING
--  recipe and "it is only a README" is the reading that let the bug ship.
+-  ⚠ REQUIRED HERE BECAUSE THE PATH IS PROTECTED, not because a model moved
+-  (`task_contract_gate.py:195` — "a guard's blast radius is every future task in the repo, which is
+-  wider than almost any model's"). `protected_override` answers "may you"; this answers "do you
+-  know what breaks".
 -
--  what executes this: nothing automated. `grep -rln "alertPolicies" --include=*.py --include=*.sh
--    --include=*.yml .` returns ZERO files — the recipe is run BY HAND by the operator, which is
--    exactly why nothing caught the dropped policy. `.gitlab-ci.yml` and
--    `deploy/nightly/entrypoint.sh` never touch Cloud Monitoring.
+-  who COMPUTES the hash — exactly two, and they must agree or every commit is falsely rejected:
+-    `.claude/hooks/git_discipline.py::_staged_diff_bytes` (line ~94) — feeds BOTH the PreToolUse
+-      commit gate (line ~659, denies `git commit` on mismatch) and the `--staged-hash` CLI
+-      (line ~729), which is how `review.md`'s number is produced.
+-    `scripts/check_task_artifacts.py` (line ~165) — the CI recompute, invoked by
+-      `.gitlab-ci.yml`'s `validate:governance` as
+-      `--base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"`.
 -
--  blast_radius: none at runtime. No pipeline, no dbt model, no ingest and no deployed job reads
--    `deploy/nightly/README.md`. Changing it cannot alter a number, a table or a schedule. The
--    effect is entirely on what a human does the NEXT time policies are applied.
+-  who CONSUMES it: `.claude/task/review.md`'s `diff_sha256` line, on every branch. Nothing else
+-    parses it, but SIX places DESCRIBE it, and the first draft of this list missed one:
+-    the two implementations, `tests/test_governance_hooks.py` (which hand-mirrors the CI command
+-    in `branch_hash`), `docs/agent_guardrails.md:57`, `docs/working_agreement.md:183`, the
+-    CLAUDE.md warning being deleted — and **`.claude/active_work.md:118`**, which repeated the same
+-    now-false "on a multi-commit branch `--staged-hash` is the WRONG number" sentence.
+-    ⚠ THAT MISS MATTERED MORE THAN THE OTHERS: `handover_in.py` injects `active_work.md` into
+-    EVERY new session at SessionStart, so the sentence deleted from CLAUDE.md would have survived
+-    verbatim in the one file guaranteed to be read first, and a fresh agent would have collapsed
+-    commits to work around a trap that no longer exists. Found by platform-reviewer, opus, which
+-    also correctly noted the completeness claim behind this list did not hold. Added under
+-    amendment 1.
 -
--  layer_rules: none engaged. No dbt model, no seed, no `league_code`.
+-  ⚠ BLAST RADIUS — EVERY EXISTING `review.md` HASH BECOMES INVALID. The number is a function of
+-    the algorithm, so changing the algorithm invalidates every recorded value. **`!27` and `!33`
+-    both need rebinding after this merges.** Stated here so it is planned rather than discovered.
+-    Nothing else in the repo, no model, no mart, no shipped number and no page is affected — this
+-    file set contains no SQL, no seed and no export.
 -
--  deploy_order: irrelevant — nothing is deployed by this change. ⚠ AND NOTHING NEEDS TO BE: the
--    missing policy was already created by hand on 2026-08-11 (`alertPolicies/751471063453009885`)
--    and live state already matches `alert-policy.json`. This task fixes the RECIPE so the gap
--    cannot recur; it does not re-fix the instance.
-+  ⚠ REQUIRED HERE BECAUSE THE PATH IS PROTECTED, not because a model moved
-+  (`task_contract_gate.py:195` — "a guard's blast radius is every future task in the repo, which is
-+  wider than almost any model's"). `protected_override` answers "may you"; this answers "do you
-+  know what breaks".
+-  deploy_order: none. No image, no schedule, no warehouse object. The hooks take effect on the
+-    next tool call locally and on the next pipeline in CI, independently.
+-
+-  layer_rules: none engaged. `check_layer_contract.py` judges `dbt_project/models/**`, untouched.
++  Not gate-required — `dbt_project/dbt_project.yml` is not `dbt_project/models/**`, and no model
++  file is edited. Written in full anyway, because a one-line config change here alters how every
++  staging model is BUILT and what every staging test READS, which is a far wider blast radius
++  than the diff suggests.
 +
-+  who COMPUTES the hash — exactly two, and they must agree or every commit is falsely rejected:
-+    `.claude/hooks/git_discipline.py::_staged_diff_bytes` (line ~94) — feeds BOTH the PreToolUse
-+      commit gate (line ~659, denies `git commit` on mismatch) and the `--staged-hash` CLI
-+      (line ~729), which is how `review.md`'s number is produced.
-+    `scripts/check_task_artifacts.py` (line ~165) — the CI recompute, invoked by
-+      `.gitlab-ci.yml`'s `validate:governance` as
-+      `--base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"`.
++  what changes physically: 15 staging models stop being views and become tables in the `staging`
++    dataset, rebuilt each run. Verified there are **zero** per-model materialisation overrides in
++    `1_staging` today (`grep -rn "materialized" dbt_project/models/1_staging/` → no matches), so
++    nothing conflicts with the layer default and item 10 has nothing to fix retroactively.
 +
-+  who CONSUMES it: `.claude/task/review.md`'s `diff_sha256` line, on every branch. Nothing else
-+    parses it, but SIX places DESCRIBE it, and the first draft of this list missed one:
-+    the two implementations, `tests/test_governance_hooks.py` (which hand-mirrors the CI command
-+    in `branch_hash`), `docs/agent_guardrails.md:57`, `docs/working_agreement.md:183`, the
-+    CLAUDE.md warning being deleted — and **`.claude/active_work.md:118`**, which repeated the same
-+    now-false "on a multi-commit branch `--staged-hash` is the WRONG number" sentence.
-+    ⚠ THAT MISS MATTERED MORE THAN THE OTHERS: `handover_in.py` injects `active_work.md` into
-+    EVERY new session at SessionStart, so the sentence deleted from CLAUDE.md would have survived
-+    verbatim in the one file guaranteed to be read first, and a fresh agent would have collapsed
-+    commits to work around a trap that no longer exists. Found by platform-reviewer, opus, which
-+    also correctly noted the completeness claim behind this list did not hold. Added under
-+    amendment 1.
++  downstream: no lineage changes. `ref()` graph, column names and row semantics are untouched —
++    a view and a table over the same SELECT return the same rows. What changes is WHERE the
++    result is read from. Confirmed by `dbt ls --select 1_staging --resource-type test` → 59
++    tests, all of which continue to test the same models.
 +
-+  ⚠ BLAST RADIUS — EVERY EXISTING `review.md` HASH BECOMES INVALID. The number is a function of
-+    the algorithm, so changing the algorithm invalidates every recorded value. **`!27` and `!33`
-+    both need rebinding after this merges.** Stated here so it is planned rather than discovered.
-+    Nothing else in the repo, no model, no mart, no shipped number and no page is affected — this
-+    file set contains no SQL, no seed and no export.
++  layer_rules: `scripts/check_layer_contract.py` currently bans per-model
++    `config(materialized=...)` in `2_base` only (`BASE_DIR`, the `BASE_MATERIALIZED` regex).
++    Item 10 extends that to `1_staging`. `tests/test_materialisation_policy.py` is the offline
++    twin and carries `EXPECTED["1_staging"] = "view"`, which is the policy record and must move
++    in the same commit — the test is deliberately built so changing `dbt_project.yml` alone
++    fails.
 +
-+  deploy_order: none. No image, no schedule, no warehouse object. The hooks take effect on the
-+    next tool call locally and on the next pipeline in CI, independently.
++  ⚠ THE DOC SITES ARE PART OF THE CHANGE, NOT TIDYING. `test_materialisation_policy.py` exists
++    because in May 2026 a cost fix landed, an unrelated refactor reverted it two days later, and
++    nothing failed for two months because every other test asks whether a NUMBER is right and
++    none asks whether something became expensive. Three sites state the staging rule and become
++    FALSE with this change:
++      · `dbt_project/docs/layering.md:12` — "`1_staging` dbt models (views by default)"
++      · `dbt_project/docs/engineering_standards.md:108` — "Prefer views for lightweight `staging`"
++      · `dbt_project/dbt_project.yml:79` — "# 1. Staging: Raw cleanup (Views for speed and low cost)"
++    `CLAUDE.md:73` is updated too: its sentence is past-tense and stays historically true, but it
++    is the always-loaded orientation file and would leave a reader believing staging is a view.
 +
-+  layer_rules: none engaged. `check_layer_contract.py` judges `dbt_project/models/**`, untouched.
++  ⚠ DELIBERATELY NOT TOUCHED, and this keeps the task out of governance territory:
++    `.claude/hooks/dbt_layer_gate.py` is a PROTECTED path. Checked line by line — its
++    `1_staging` message says nothing about materialisation, and its `2_base` message mentions
++    staging views only in past tense as the #547 rationale, which remains accurate. No
++    `protected_override` is needed. `scripts/report_bq_cost.py:77` and
++    `dbt_project/docs/layering.md:162` are likewise past-tense history and stay.
++    `.claude/active_work.md` mentions the staging view twice and is NOT edited — the product
++    stream owns it (#33 says so); state goes on #33 instead.
++
++  deploy_order: nothing breaks at any point and no `--full-refresh` is needed. Staging models are
++    not incremental, so dbt replaces each view with a table on the next build. The first prod run
++    after merge pays one extra scan per staging model to populate the tables; every run after
++    that is cheaper. ⚠ THE NIGHTLY RUNS AN IMAGE — merging does not deploy this. It needs
++    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
++    (#39 Stage 3 not built).
++
++  blast_radius: no number in any mart moves. This changes cost and build mechanics only.
  
  decisions_taken: >
--  ⚠ THE AUTHORITY, STATED EXACTLY, because a first draft of this contract overstated it and
--  `scope-auditor` FAILed that correctly. The CPO ruling is **"go ahead"**, and it was given to
--  GitLab #61 as filed — NOT to a three-part plan, which the builder described only AFTERWARDS.
--  The earlier wording ("approved in-thread after being shown the three proposed fixes") reversed
--  that order and dressed a builder decision as a quoted ruling. It is corrected here and the
--  ruling is recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #61"), which is
--  visible to reviewers precisely so a claimed authority can be checked against something other
--  than this file.
+-  1. HASH `--raw`, NOT THE RENDERED PATCH. `git diff --raw` emits
+-     `:mode mode <blobA> <blobB> STATUS<TAB>path`. Blob SHAs ARE content hashes, so the output is
+-     identical on every platform and git version, forever. The exclusion pathspec, `--no-renames`
+-     and `--no-abbrev` are all kept exactly as they were.
+-     EVIDENCE, measured on this machine with identical commits (GitLab #63):
+-       rendered -U3 -> 0c1ef8af...  51,628 bytes
+-       rendered -U0 -> ca1afb7d...  46,687 bytes   <- same content, DIFFERENT hash
+-       --raw        -> 974cd829...   1,459 bytes   <- stable
+-  2. DIFF FROM THE BASE ON BOTH SIDES, so the local number is the same diff CI recomputes even on a
+-     multi-commit branch. `_review_patch_bytes` already resolves the base correctly via
+-     `_cumulative_diff` / `_base_commit`; those are REUSED rather than a second resolver written.
+-  3. The `CLAUDE.md` warning about `--staged-hash` is DELETED, not qualified — the trap it warns
+-     about stops existing. A correction replaces; it never accumulates.
+-  4. ⚠ FOUND WHILE BUILDING, AND NOT IN THE APPROVED PLAN: `_base_commit` preferred a LOCAL `main`
+-     branch over the remote-tracking ref. A local `main` is a cached copy that goes stale the
+-     moment anyone branches from `gitlab/main` without checking main out — the normal flow here.
+-     Measured on this branch: local `main` sat at `57175fc` while `gitlab/main` was `a2b4184`, two
+-     merges newer. The consequences were not cosmetic — the reviewers' patch listed
+-     `deploy/nightly/README.md` and `tests/test_alert_policy_recipe.py`, files from the
+-     already-merged #61 that this task never touched, and the hash could not have matched the CI
+-     recompute no matter what bytes were fed to it.
+-     Preference order is now `gitlab/main` -> `origin/main` -> `main`, matching
+-     `check_task_artifacts.py::default_base`, which already resolved the live remote for exactly
+-     this reason.
+-     ⚠ THIS IS INSIDE THE OBJECTIVE, NOT SCOPE DRIFT, and the distinction is worth stating: the
+-     stated objective is that the local gate and the CI recompute agree. They must agree on the
+-     BASE as well as on the bytes; fixing only the bytes would have shipped a change that still
+-     could not pass. It is recorded here rather than folded in silently.
 -
--  Items 1 and 2 of #61 (derive the loop, correct the stale prose) ARE the filed bug and need no
--  authority beyond "go ahead".
+-  5. ⚠ THE GUARD'S BEHAVIOUR WHEN IT CANNOT COMPUTE THE HASH AT ALL — declared here because both
+-     opus reviewers were right that it is a guard-behaviour change and a docstring is the wrong
+-     place to introduce one.
+-     The first draft swallowed every exception and returned `b""`, calling that fail-closed. It was
+-     the opposite, and it was REPRODUCED before being fixed: `--staged-hash` printed
+-     `sha256(b"")` = `e3b0c442…` with EXIT 0; that value goes into `review.md`; the gate recomputes
+-     it from the same broken call; the two AGREE; the commit passes bound to ZERO bytes — no code,
+-     not even `contract.md`. Deterministic, not a race, and the states that reach it are the ones
+-     `_base_commit` already names (a `--single-branch` clone, a shallow checkout, unrelated
+-     histories) — real, because these hooks travel to other repos by design.
+-     NOW: failure returns `None`, distinguishable from an empty diff. `--staged-hash` refuses to
+-     print a hash it did not compute (stderr, exit 1) and the gate denies with its own message.
+-     ⚠ THIS IS A DELIBERATE DEPARTURE from the file's fail-open house rule, and the case where the
+-     departure is right: an unresolvable base is not a hook bug, it is the guard being unable to do
+-     its job, and the deny is actionable (fetch the base branch, or set `GOVERNANCE_BASE`).
+-     platform-reviewer offered the alternative — let the exception propagate so the existing loud
+-     fail-open banner fires — and explicitly left the choice open. Denying is strictly stronger
+-     than warning-then-allowing, so denying is what ships.
+-     Pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and
+-     `test_commit_gate_denies_when_the_hash_cannot_be_computed`, both shown to go RED against the
+-     `b""` behaviour before being trusted green.
 -
--  ITEM 3 (IDEMPOTENCY) IS A BUILDER DECISION, not a ruling. #61 lists it as "consider", and the
--  builder took it. Declared as builder-derived so it can be attacked on its merits:
--  the README today DOCUMENTS the hazard rather than removing it — it warns that re-running
--  creates duplicate policies and that duplicates are "how people learn to ignore alerts". A
--  recipe that must be run carefully is the same class of defect as a count that must be updated
--  carefully, and this task exists because that class already failed once in production. It
--  crosses no §10 line: no new mechanism, no cost, no product or naming decision, nothing
--  permanent. If the CPO disagrees, item 3 can be reverted on its own without touching items 1
--  and 2.
--
--  A TEST IS ADDED, and this is the point of the task rather than a nicety. The repo's standing
--  rule is that a prose rule which recurs needs a mechanism; this one rotted silently and cost a
--  real monitoring gap. `tests/test_nightly_entrypoint_parity.py` is the precedent — it pins a
--  deploy artefact's step list against its twin, so pinning a deploy recipe against the file it
--  is supposed to enumerate is an established pattern here, not a new one.
-+  1. HASH `--raw`, NOT THE RENDERED PATCH. `git diff --raw` emits
-+     `:mode mode <blobA> <blobB> STATUS<TAB>path`. Blob SHAs ARE content hashes, so the output is
-+     identical on every platform and git version, forever. The exclusion pathspec, `--no-renames`
-+     and `--no-abbrev` are all kept exactly as they were.
-+     EVIDENCE, measured on this machine with identical commits (GitLab #63):
-+       rendered -U3 -> 0c1ef8af...  51,628 bytes
-+       rendered -U0 -> ca1afb7d...  46,687 bytes   <- same content, DIFFERENT hash
-+       --raw        -> 974cd829...   1,459 bytes   <- stable
-+  2. DIFF FROM THE BASE ON BOTH SIDES, so the local number is the same diff CI recomputes even on a
-+     multi-commit branch. `_review_patch_bytes` already resolves the base correctly via
-+     `_cumulative_diff` / `_base_commit`; those are REUSED rather than a second resolver written.
-+  3. The `CLAUDE.md` warning about `--staged-hash` is DELETED, not qualified — the trap it warns
-+     about stops existing. A correction replaces; it never accumulates.
-+  4. ⚠ FOUND WHILE BUILDING, AND NOT IN THE APPROVED PLAN: `_base_commit` preferred a LOCAL `main`
-+     branch over the remote-tracking ref. A local `main` is a cached copy that goes stale the
-+     moment anyone branches from `gitlab/main` without checking main out — the normal flow here.
-+     Measured on this branch: local `main` sat at `57175fc` while `gitlab/main` was `a2b4184`, two
-+     merges newer. The consequences were not cosmetic — the reviewers' patch listed
-+     `deploy/nightly/README.md` and `tests/test_alert_policy_recipe.py`, files from the
-+     already-merged #61 that this task never touched, and the hash could not have matched the CI
-+     recompute no matter what bytes were fed to it.
-+     Preference order is now `gitlab/main` -> `origin/main` -> `main`, matching
-+     `check_task_artifacts.py::default_base`, which already resolved the live remote for exactly
-+     this reason.
-+     ⚠ THIS IS INSIDE THE OBJECTIVE, NOT SCOPE DRIFT, and the distinction is worth stating: the
-+     stated objective is that the local gate and the CI recompute agree. They must agree on the
-+     BASE as well as on the bytes; fixing only the bytes would have shipped a change that still
-+     could not pass. It is recorded here rather than folded in silently.
+-  6. ⚠ `GOVERNANCE_BASE` RESOLVES THROUGH MERGE-BASE, NOT TO THE BRANCH TIP — round 4, and it is a
+-     correction to item 5's own fix rather than to the original defect.
+-     The escape hatch added in round 2 resolved the override with `rev-parse <ref>^{commit}`, i.e.
+-     the TIP. The CI twin spells the base `f"{args.base}...HEAD"` — three-dot, the COMMON ANCESTOR.
+-     Point the variable at a branch that has moved on (the documented use) and the two halves hash
+-     different bytes: the local diff carries the branch's own changes PLUS a reverse delta for
+-     everything merged upstream since the branch was cut. Red pipeline on a correct branch, and a
+-     reviewers' patch full of already-merged work — the same symptom item 4 records as the measured
+-     harm of the stale-local-`main` bug, and the exact defect this whole task exists to remove,
+-     reintroduced through its own escape hatch.
+-     ⚠ AND THE TEST COULD NOT SEE IT: the override was pointed at a direct ANCESTOR of HEAD, where
+-     tip and merge-base are the same commit, so reverting the fix left the suite green. Third test
+-     in this task that passed either way. Now uses a genuinely diverged ref and was proved RED
+-     against the tip-resolving version before being trusted.
+-     Every other base path in the repo is merge-based, including the ref loop directly below it.
+-     Found by platform-reviewer (opus) at the round cap; round 4 authorised by the CPO ("fix it"),
+-     recorded in `escalations.log` before this round ran.
++  CPO ruling, in-thread 2026-08-12: **"definitely"**, in answer to "Shall I do item 9 + 10 now?"
++  Recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #33 ITEMS 9 + 10 …") BEFORE
++  this contract was written.
 +
-+  5. ⚠ THE GUARD'S BEHAVIOUR WHEN IT CANNOT COMPUTE THE HASH AT ALL — declared here because both
-+     opus reviewers were right that it is a guard-behaviour change and a docstring is the wrong
-+     place to introduce one.
-+     The first draft swallowed every exception and returned `b""`, calling that fail-closed. It was
-+     the opposite, and it was REPRODUCED before being fixed: `--staged-hash` printed
-+     `sha256(b"")` = `e3b0c442…` with EXIT 0; that value goes into `review.md`; the gate recomputes
-+     it from the same broken call; the two AGREE; the commit passes bound to ZERO bytes — no code,
-+     not even `contract.md`. Deterministic, not a race, and the states that reach it are the ones
-+     `_base_commit` already names (a `--single-branch` clone, a shallow checkout, unrelated
-+     histories) — real, because these hooks travel to other repos by design.
-+     NOW: failure returns `None`, distinguishable from an empty diff. `--staged-hash` refuses to
-+     print a hash it did not compute (stderr, exit 1) and the gate denies with its own message.
-+     ⚠ THIS IS A DELIBERATE DEPARTURE from the file's fail-open house rule, and the case where the
-+     departure is right: an unresolvable base is not a hook bug, it is the guard being unable to do
-+     its job, and the deny is actionable (fetch the base branch, or set `GOVERNANCE_BASE`).
-+     platform-reviewer offered the alternative — let the exception propagate so the existing loud
-+     fail-open banner fires — and explicitly left the choice open. Denying is strictly stronger
-+     than warning-then-allowing, so denying is what ships.
-+     Pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and
-+     `test_commit_gate_denies_when_the_hash_cannot_be_computed`, both shown to go RED against the
-+     `b""` behaviour before being trusted green.
-+
-+  6. ⚠ `GOVERNANCE_BASE` RESOLVES THROUGH MERGE-BASE, NOT TO THE BRANCH TIP — round 4, and it is a
-+     correction to item 5's own fix rather than to the original defect.
-+     The escape hatch added in round 2 resolved the override with `rev-parse <ref>^{commit}`, i.e.
-+     the TIP. The CI twin spells the base `f"{args.base}...HEAD"` — three-dot, the COMMON ANCESTOR.
-+     Point the variable at a branch that has moved on (the documented use) and the two halves hash
-+     different bytes: the local diff carries the branch's own changes PLUS a reverse delta for
-+     everything merged upstream since the branch was cut. Red pipeline on a correct branch, and a
-+     reviewers' patch full of already-merged work — the same symptom item 4 records as the measured
-+     harm of the stale-local-`main` bug, and the exact defect this whole task exists to remove,
-+     reintroduced through its own escape hatch.
-+     ⚠ AND THE TEST COULD NOT SEE IT: the override was pointed at a direct ANCESTOR of HEAD, where
-+     tip and merge-base are the same commit, so reverting the fix left the suite green. Third test
-+     in this task that passed either way. Now uses a genuinely diverged ref and was proved RED
-+     against the tip-resolving version before being trusted.
-+     Every other base path in the repo is merge-based, including the ref loop directly below it.
-+     Found by platform-reviewer (opus) at the round cap; round 4 authorised by the CPO ("fix it"),
-+     recorded in `escalations.log` before this round ran.
++  ⚠ A PREMISE CHECK THE CPO DEMANDED, AND THE ANSWER IS IN THE LOG. Asked whether staging had
++  previously been a table and was made a view for cost reasons — which would make this a
++  reversal needing justification. It was NOT: `1_staging` has been `view` at every commit that
++  ever touched `dbt_project.yml`, from `1f422c0` (2026-04-10) to `4899025` (2026-08-02),
++  extracted by replaying the block per commit. The recollection was of `2_base`, which was a
++  view and became a table under #547 — the precedent FOR this change, not against it.
  
    # THRESHOLD DECLARATIONS
--  NEW MECHANISM — no. One test file in an existing suite, run by the existing `test:python` job.
--  No new service, dependency, lifecycle hook or workflow step. Deliberately NOT taken: turning
--  the recipe into a `scripts/apply_alert_policies.py`. That would be a new operational mechanism
--  and is the CPO's call, not the builder's; the test closes the same hole without one.
--  RECURRING COST — no. No new job, schedule, API call or storage. The test is offline.
--  GUARD LOOSENED — no; this ADDS one. Nothing today checks the recipe against the policy file.
--  SHIPPED NUMBERS — no. Nothing downstream of a number is touched.
-+  NEW MECHANISM — **no**. Same gate, same `sha256`, same `review.md` field, same failure message.
-+    Only the bytes fed to the hash change.
-+  RECURRING COST — **no, and it drops**. The hashed input goes from ~51,600 bytes to ~1,460 on
-+    this branch's own diff. No new job, query, dependency or schedule.
-+  GUARD LOOSENED — **no, and it is TIGHTENED in one place.** On discriminating power: a rendered
-+    patch is DERIVED from the blobs and cannot differ unless a blob SHA differs, so every content
-+    change that moved the old hash moves the new one. Mode changes and add/delete/modify status are
-+    carried in `--raw` explicitly. What is removed is only the ability of a PRESENTATION setting to
-+    change the value — never protection, only a false-rejection surface. cto-reviewer attacked this
-+    directly (mode-only changes, add/delete, renames, binaries, textconv filters, `diff.context`)
-+    and could not construct a content change that moves the old hash but not the new one.
-+    ⚠ TIGHTENED: an uncomputable hash now DENIES instead of resolving to a constant that matches
-+    itself (item 5). The first draft of this branch loosened it, both reviewers caught it, and the
-+    fix leaves the gate stronger than it was before this task started.
-+  SHIPPED NUMBERS — **no**. No SQL, seed, mart or export is touched.
+-  NEW MECHANISM — **no**. Same gate, same `sha256`, same `review.md` field, same failure message.
+-    Only the bytes fed to the hash change.
+-  RECURRING COST — **no, and it drops**. The hashed input goes from ~51,600 bytes to ~1,460 on
+-    this branch's own diff. No new job, query, dependency or schedule.
+-  GUARD LOOSENED — **no, and it is TIGHTENED in one place.** On discriminating power: a rendered
+-    patch is DERIVED from the blobs and cannot differ unless a blob SHA differs, so every content
+-    change that moved the old hash moves the new one. Mode changes and add/delete/modify status are
+-    carried in `--raw` explicitly. What is removed is only the ability of a PRESENTATION setting to
+-    change the value — never protection, only a false-rejection surface. cto-reviewer attacked this
+-    directly (mode-only changes, add/delete, renames, binaries, textconv filters, `diff.context`)
+-    and could not construct a content change that moves the old hash but not the new one.
+-    ⚠ TIGHTENED: an uncomputable hash now DENIES instead of resolving to a constant that matches
+-    itself (item 5). The first draft of this branch loosened it, both reviewers caught it, and the
+-    fix leaves the gate stronger than it was before this task started.
+-  SHIPPED NUMBERS — **no**. No SQL, seed, mart or export is touched.
++  RECURRING COST — **yes, and it is a net REDUCTION, measured rather than assumed.**
++    · added storage: ~0.5 GiB. Measured basis: the whole `dbt_analytics` base layer, which is
++      staging's parsed output, is **0.415 GiB across 43 tables**, while the `staging` dataset is
++      **0.0 GiB across 259 objects** because views store nothing. At EU active-storage rates that
++      is single-digit cents per month.
++    · removed query cost: measured on the last 24h of prod builds, tests **$0.17** vs models
++      **$0.07** — the 2.4x view-rescan signature. Expected saving ~**$3-4/month**.
++    ⚠ SMALLER THAN #33 CLAIMS, stated here so nobody sizes future work off the issue. #33
++      justified this on `RAW_APIF_TRANSFERS` at 6.99 GiB rescanned per test; item 8b has since
++      shrunk that table to **0.178 GiB**, a 39x reduction, so the largest scan the item was
++      written about is already gone. The case now rests on the MULTIPLIER (≈5 scans per staging
++      model per night collapsing to 1), which applies to whatever raw grows to — and the CPO
++      confirmed in the same thread that more competitions are coming.
++  NEW MECHANISM — no. A layer config value changes and an existing guard's directory list gains
++    one entry. No new file, dependency, service or lifecycle hook.
++  GUARD LOOSENED — no; this ADDS one. `check_layer_contract.py` and its offline twin gain a
++    staging case that does not exist today.
++  SHIPPED NUMBERS — no. Same rows, same columns, same lineage; only the storage changes.
  
  decisions_reserved:
--  - Whether the apply step should become a real script (testable end to end, idempotent by
--    construction) instead of a documented shell recipe. That is a new operational mechanism and
--    therefore CPO-class. Noted, not taken.
--  - Whether `deploy/**` should route to `platform-reviewer` in `review_routing.json`. It does
--    not today, so this diff reaches Platform only via `tests/**`. Changing routing is a
--    protected-path governance event and is not attempted here.
--  - Whether the notification-channel creation step (same section, same non-idempotent shape)
--    should get the same treatment. Out of scope for #61 as filed.
-+  - Why CI's specific value (`be3a493d...`) differs from this machine's is NOT diagnosed, and this
-+    change does not need it diagnosed: it removes the entire class by not hashing a rendering.
-+    ⚠ Deliberately not chased further — the remaining candidates (git version, a platform default)
-+    are unobservable from here and the fix is correct against all of them.
-+  - Whether `test_local_staged_hash_equals_ci_recompute` should ALSO run under a second git
-+    version in CI. That would catch the real cross-platform case rather than a proxy, but it is a
-+    new CI job and therefore recurring cost — CPO-class, and out of scope here.
-+  - #33 item 13 and #2, both noted in `escalations.log` and neither touched.
+-  - Why CI's specific value (`be3a493d...`) differs from this machine's is NOT diagnosed, and this
+-    change does not need it diagnosed: it removes the entire class by not hashing a rendering.
+-    ⚠ Deliberately not chased further — the remaining candidates (git version, a platform default)
+-    are unobservable from here and the fix is correct against all of them.
+-  - Whether `test_local_staged_hash_equals_ci_recompute` should ALSO run under a second git
+-    version in CI. That would catch the real cross-platform case rather than a proxy, but it is a
+-    new CI job and therefore recurring cost — CPO-class, and out of scope here.
+-  - #33 item 13 and #2, both noted in `escalations.log` and neither touched.
++  - `RAW_APIF_INJURIES` is now the LARGEST raw table (1.975 GiB) with zero consumers — no source
++    declaration, no model, nothing reads it. That is #33 item 15 and the CPO approved it
++    ("yes") as a SEPARATE task in the same thread. Deliberately not bundled here: it stops an
++    ingest and deletes a raw table, a different blast radius from a materialisation policy.
++  - The `staging` dataset holds **259 objects for 15 models**, which implies a large number of
++    orphaned views from renamed models. Not investigated, not in scope; worth its own look.
++  - Whether any of the 59 staging tests are redundant against equivalent base tests. Cutting
++    tests is loosening a guard and is not proposed.
  
  done_when:
--  - `pytest tests/ -q` exits 0.
--  - `ruff --config .ruff-ci.toml tests/` exits 0.
--  - ⚠ THE NEW TEST IS VERIFIED BY BREAKING ITS SUBJECT — restore `for i in 0 1` in the README
--    and confirm the test goes RED, then restore the fix. A test that has never failed is
--    decoration, and this repo has shipped ten of those.
--  - The corrected recipe's ANTI-DUPLICATION half is verified against the LIVE API, read-only:
--    run only its existence-check step and confirm it resolves all three declared policies to
--    already-present, i.e. it would take the update path and POST none.
--  - ⚠ THE POST PATH IS DELIBERATELY NOT EXECUTED. Running it would create duplicate live alert
--    policies, which is the exact defect being fixed. The same request shape was executed
--    successfully by hand on 2026-08-11 when the missing policy was created.
--  - No `gcloud`/Monitoring WRITE is issued from this branch.
--
--amendments: (none)
-+  - `.claude/hooks/git_discipline.py` and `scripts/check_task_artifacts.py` hash the SAME bytes for
-+    the same content, both from the base, both `--raw`.
-+  - NEW TEST, invariance: the same content hashed under two different rendering settings produces
-+    ONE hash. ⚠ It must be shown to FAIL against the pre-change implementation, not merely to pass
-+    after it — a test only ever seen green proves nothing.
-+  - NEW TEST, multi-commit: after two commits on a branch, the local `--staged-hash` equals the CI
-+    recompute. ⚠ Also shown to fail against the pre-change implementation.
-+  - `test_local_staged_hash_equals_ci_recompute` (line ~1691) still passes UNCHANGED — it is the
-+    existing load-bearing invariant and this change must not need it edited.
-+  - `python -m pytest tests/test_governance_hooks.py -q` green, then the full suite green.
-+  - `docs/agent_guardrails.md` describes the new mechanism; the CLAUDE.md warning is gone.
-+  - END TO END, and the only proof that counts: `!33`'s `review.md` rebound to the new hash, and
-+    `validate:governance` GREEN on the runner. Until that is observed, this is unproven.
-+
-+amendments:
-+  - id: 1
-+    date: 2026-08-12
-+    authority: >
-+      Not a new CPO ruling — the SAME protected-path authority already recorded in
-+      `escalations.log` for this task, which covers "the tests and docs that describe" the hash.
-+      `.claude/active_work.md` is one of those docs and was missed when `scope_paths` was drawn.
-+      Recorded as an amendment rather than edited quietly because the gate is right that an
-+      out-of-scope edit is drift however obviously it belongs.
-+    adds:
-+      - .claude/active_work.md
-+    why: >
-+      `active_work.md:118` repeated the now-false warning that `--staged-hash` is "the WRONG
-+      number" on a multi-commit branch, verbatim. ⚠ `handover_in.py` injects that file into EVERY
-+      session at SessionStart, so deleting the sentence from `CLAUDE.md` while leaving it there
-+      would have preserved it in the one file guaranteed to be read first — and a fresh agent
-+      would keep collapsing commits to dodge a trap that no longer exists. Found by
-+      platform-reviewer (opus), which also caught that the impact_map's "nothing else parses it"
-+      completeness claim was drawn from a grep that missed this file. Both the file and the claim
-+      are corrected.
+-  - `.claude/hooks/git_discipline.py` and `scripts/check_task_artifacts.py` hash the SAME bytes for
+-    the same content, both from the base, both `--raw`.
+-  - NEW TEST, invariance: the same content hashed under two different rendering settings produces
+-    ONE hash. ⚠ It must be shown to FAIL against the pre-change implementation, not merely to pass
+-    after it — a test only ever seen green proves nothing.
+-  - NEW TEST, multi-commit: after two commits on a branch, the local `--staged-hash` equals the CI
+-    recompute. ⚠ Also shown to fail against the pre-change implementation.
+-  - `test_local_staged_hash_equals_ci_recompute` (line ~1691) still passes UNCHANGED — it is the
+-    existing load-bearing invariant and this change must not need it edited.
+-  - `python -m pytest tests/test_governance_hooks.py -q` green, then the full suite green.
+-  - `docs/agent_guardrails.md` describes the new mechanism; the CLAUDE.md warning is gone.
+-  - END TO END, and the only proof that counts: `!33`'s `review.md` rebound to the new hash, and
+-    `validate:governance` GREEN on the runner. Until that is observed, this is unproven.
++  - `tests/test_materialisation_policy.py` passes with `EXPECTED["1_staging"] == "table"`.
++  - ⚠ ITEM 10 VERIFIED BY BREAKING ITS SUBJECT — see the 2026-08-12 amendment below for the
++    method actually used, which the contract gate forced to change. Both the CI script and the
++    offline twin must go RED on a per-model override and name the file. A guard that has never
++    fired is decoration.
++  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ a2b4184: 789 passed).
++  - `ruff --config .ruff-ci.toml scripts/ tests/` exits 0.
++  - `dbt parse` succeeds against the edited `dbt_project.yml`.
++  - Every doc site listed in the impact_map is updated in THIS commit, and a repo sweep finds no
++    remaining present-tense claim that staging is a view.
++  - ⚠ NOT VERIFIABLE FROM THIS BRANCH, and recorded so it is not mistaken for done: the actual
++    cost saving. `dbt build` is forbidden locally and CI cannot run it here. The saving is
++    confirmed only by `python scripts/report_bq_cost.py --days 1` AFTER the first prod build on
++    the redeployed image, where `tests` should fall below `models`.
+ 
+ amendments:
+-  - id: 1
+-    date: 2026-08-12
+-    authority: >
+-      Not a new CPO ruling — the SAME protected-path authority already recorded in
+-      `escalations.log` for this task, which covers "the tests and docs that describe" the hash.
+-      `.claude/active_work.md` is one of those docs and was missed when `scope_paths` was drawn.
+-      Recorded as an amendment rather than edited quietly because the gate is right that an
+-      out-of-scope edit is drift however obviously it belongs.
+-    adds:
+-      - .claude/active_work.md
+-    why: >
+-      `active_work.md:118` repeated the now-false warning that `--staged-hash` is "the WRONG
+-      number" on a multi-commit branch, verbatim. ⚠ `handover_in.py` injects that file into EVERY
+-      session at SessionStart, so deleting the sentence from `CLAUDE.md` while leaving it there
+-      would have preserved it in the one file guaranteed to be read first — and a fresh agent
+-      would keep collapsing commits to dodge a trap that no longer exists. Found by
+-      platform-reviewer (opus), which also caught that the impact_map's "nothing else parses it"
+-      completeness claim was drawn from a grep that missed this file. Both the file and the claim
+-      are corrected.
++  - 2026-08-12: `done_when`'s break-test METHOD changed — no scope widened, no path added.
++    Authority: none needed; this records a method the repo's own guard made impossible, and the
++    replacement is strictly stronger than what it replaces.
++    WHAT HAPPENED: the original wording said to add `config(materialized='view')` to a real
++    staging model, watch the guard fire, and revert. The CONTRACT GATE denied that edit —
++    `dbt_project/models/1_staging/api_football/stg_apif__teams.sql` is not in `scope_paths`,
++    and adding it would have put a production model in scope purely to vandalise it temporarily.
++    That is the gate working: a temporary break in a real model is exactly the kind of edit that
++    gets forgotten and shipped.
++    WHAT WAS DONE INSTEAD: the REAL script, the REAL regex and the REAL
++    `check_staging_materialisation` function were run against the REAL body of
++    `stg_apif__teams.sql`, copied into a temp directory with `STAGING_DIR`/`REPO_ROOT` pointed
++    at it. Three cases, and the third is the one that matters:
++      · unmodified real model            -> 0 errors   (the guard is not firing on everything)
++      · + config(materialized='view')    -> 1 error, naming the file
++      · + config(materialized='table')   -> 1 error, naming the file
++    The `table` case proves the rule is "no per-model override AT ALL", not "no override to the
++    wrong value" — a model pinned to the layer's current value would otherwise pass while
++    silently opting out of the next re-costing. `tests/test_materialisation_policy.py` carries
++    the same check as a committed test so it runs in CI, not only here.
++  - 2026-08-12: + `ingestion/api_football/bigquery.py`, + `ingestion/api_football/loads/teams.py`.
++    Authority: the STANDING CPO RULE recorded in this log on 2026-08-08 — "Updating a reference
++    that an approved change itself breaks is part of that change, not a scope extension —
++    provided the update is confined to the reference and changes no behaviour."
++    Both are COMMENTS made false by this change, and nothing else in either file is touched:
++      · `bigquery.py:121` "so staging views can still do full scans"
++      · `loads/teams.py:63` "staging views read $.league.season per row"
++    HOW THEY WERE FOUND, and why this matters more than the two lines: NOT by the manual sweep
++    in `done_when`, which missed them. They were found by the generalised drift guard added in
++    response to the round-1 review, on its FIRST run. Two reviewers independently FAILed round 1
++    for extending only the per-model-override half of the guard to staging and leaving the
++    doc-drift half hardcoded to `2_base`; generalising it immediately produced three offenders a
++    human grep had walked past. That is the argument for the guard, made by the guard.
++    `.claude/active_work.md` was the third offender and is NOT edited — the product stream owns
++    it (#33) — so it joins `_is_bookkeeping()`, which already excludes `.claude/task/**` for the
++    same reason: a handover file is state, not a policy site. It is flagged to that stream
++    instead.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 97dfbaf..0d1ee79 100644
+index 0d1ee79..ed96994 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -2178,3 +2178,68 @@ times.
-   since its own last PASS and judges that plus its prior findings"), not a lowered bar. If it
-   does not pass, the builder STOPS and the residue is filed as its own issue rather than
-   ground for a seventh round.
+@@ -2243,3 +2243,90 @@ times.
+   round has failed on a NARROWER thing than the last, and rounds 2 and 3 each ended with a
+   reproduced defect rather than a reviewer opinion. Round 4 is scoped to this one finding. Anything
+   new is filed as its own issue rather than opening a fifth round.
 +
-+2026-08-12 fix/63-review-hash-content-identity — CPO authority to edit a PROTECTED path.
 +
-+  THE ASK. `validate:governance` fails on !33 and would fail on every MR after it: the local
-+  commit gate and the CI recompute produce DIFFERENT `diff_sha256` values for provably identical
-+  commits (`git ls-remote` confirms both sides hold the same two SHAs). Five candidate bases, the
-+  commit count, line endings and local git config were each ruled out BY MEASUREMENT, not by
-+  reasoning — the evidence table is on GitLab #63. Root cause: both sides hash the RENDERED PATCH
-+  TEXT, a presentation format whose bytes depend on git version, platform and diff settings.
-+  Demonstrated on one machine with identical commits: the same content hashes to `0c1ef8af` at
-+  `-U3` and `ca1afb7d` at `-U0`.
++2026-08-12 — #33 ITEMS 9 + 10 (STAGING AS A TABLE) AND ITEM 15 (DROP /INJURIES)
 +
-+  THE QUESTION PUT TO THE CPO, in plain language: one automatic check keeps failing; it is not
-+  the seed work; I believe the check itself is broken rather than my branch, because !33 is the
-+  first MR ever to reach it (main's own pipeline and !34 both died on `ci_quota_exceeded` first).
-+  Shall I fix it properly as its own task?
++  THE RULINGS. Item 9 + 10: **"definitely"**. Item 15: **"yes"**. Both in-thread, 2026-08-12,
++  after the analysis below was put to the CPO. Recorded before any contract cites them.
 +
-+  CPO ANSWER: **"yes"** — then, on how: **"Fix it systematically like a top-notch engineer would
-+  do it."**
++  ⚠ A PREMISE CHECK THE CPO DEMANDED, AND IT MATTERED. Asked directly: "it was a table before
++  then we made it a view, for cost reasons. are you sure?" If true, this task would be reversing
++  a measured decision and would need to explain what was wrong with that measurement.
 +
-+  WHY THIS ENTRY EXISTS AT ALL. `.claude/hooks/` is a PROTECTED prefix
-+  (`task_contract_gate.py:66`), so `git_discipline.py` may not be edited inside an ordinary task
-+  contract. The contract for this branch therefore carries `protected_override` citing this entry.
-+  ⚠ Recorded BEFORE the contract was written, so a blinded reviewer can verify the authority
-+  independently of the file that claims it.
++  IT IS NOT TRUE, and the evidence is mechanical rather than recollected: `1_staging` has been
++  `+materialized: view` at EVERY commit that ever touched `dbt_project/dbt_project.yml`, from
++  `1f422c0` (2026-04-10, the file's creation) through `4899025` (2026-08-02). Extracted by
++  replaying the 1_staging block at each commit, not by reading the current comment. Staging has
++  never been a table and was never switched to a view for cost reasons.
 +
-+  SCOPE OF THE AUTHORITY, stated narrowly so it cannot be read as a general licence: it covers
-+  changing HOW the review-binding hash is computed, in the two implementations that must agree
-+  (`.claude/hooks/git_discipline.py` and `scripts/check_task_artifacts.py`), plus the tests and
-+  docs that describe it. It does NOT authorise touching any other hook, the routing file, the
-+  reviewer briefs, or the commit-form deny package.
++  WHAT THE CPO WAS REMEMBERING IS `2_base`, which genuinely WAS a view and became a table on
++  2026-08-02 under #547 — and there the belief "not storing an intermediate result is cheaper"
++  is exactly what the measurement overturned. So the recollection was real, applied to the
++  neighbouring layer, and pointed at the correct precedent for THIS change rather than against
++  it.
 +
-+  ⚠ NOT DECIDED, and not this task's to decide: that an MR pipeline can write PRODUCTION raw
-+  (#33 item 13) and that `data_paths` triggers a full prod rebuild on governance-only changes
-+  (#2). Both were read while tracing the CI job and are noted here only so they are not
-+  rediscovered as new.
++  THE ECONOMICS ARE SMALLER THAN #33 CLAIMS, AND THE CONTRACT SAYS SO RATHER THAN QUOTING THE
++  ISSUE. #33 justified item 9 on `RAW_APIF_TRANSFERS` at 6.99 GiB being re-scanned per test.
++  Item 8b (merge-on-write) has since shrunk that table to **0.178 GiB, a 39x reduction**, so
++  the single largest scan the item was written about is already gone. Measured on the last 24h
++  of prod builds: tests $0.17 vs models $0.07 — the same 2.4x view-rescan signature, but on a
++  much smaller base. Expected saving is roughly **$3-4/month**, not the figure #33 implies.
++  ⚠ Do not quote #33's transfers numbers in any future contract; they are stale.
 +
-+2026-08-12 fix/63 — ROUND-CAP OVERRIDE, authorising round 4.
++  WHY IT IS STILL RIGHT, on the argument that survives the smaller number: each raw table is
++  currently scanned about five times a night per staging model — once per test plus once per
++  base read — because a view stores nothing and every reader re-executes the JSON parse. As a
++  table it is scanned ONCE and the 59 staging tests read a stored table at BigQuery's 10 MB
++  minimum. What the change removes is the MULTIPLIER, which applies to whatever raw grows to.
++  The CPO stated in the same thread that more competitions ARE coming, which is precisely the
++  condition that makes the multiplier the thing worth removing. Storage added is ~0.5 GiB
++  (measured: the whole `dbt_analytics` base layer, which is staging's parsed output, is
++  0.415 GiB across 43 tables), i.e. cents per month.
 +
-+  THE SITUATION PUT TO THE CPO. Round 3 is the documented cap. scope-auditor and cto-reviewer both
-+  PASSED it; platform-reviewer FAILED with a single finding, and the finding is real and was
-+  verified before being brought over rather than relayed on the reviewer's word:
++  ITEM 15 IS THE BIGGER AND SIMPLER WIN, and it surfaced from the same measurement rather than
++  from the issue text: `RAW_APIF_INJURIES` is now the **LARGEST raw table at 1.975 GiB** — the
++  merge-on-write work reordered the table, it used to be second — and NOTHING reads it. No
++  source declaration, no model, no script. Pure storage cost with no consumer and no downstream
++  to reason about.
 +
-+    `GOVERNANCE_BASE` — the escape hatch added in round 2 to answer cto-reviewer's round-2 FAIL —
-+    is resolved to a branch TIP by the hook (`rev-parse <ref>^{commit}`) but through a MERGE-BASE
-+    by the CI twin (`f"{args.base}...HEAD"`, three-dot). Point it at a branch that has moved on and
-+    the two halves hash different things: the local side emits the branch's own changes PLUS a
-+    reverse delta for everything merged upstream since the branch was cut. Red pipeline on a
-+    correct branch, and a reviewers' patch full of already-merged work — which is the exact defect
-+    #63 exists to remove, reintroduced through the fix for the previous round.
-+    ⚠ AND THE TEST COULD NOT CATCH IT: `GOVERNANCE_BASE` was pointed at a direct ancestor, where
-+    tip and merge-base are the same commit, so the missing call is invisible and reverting it would
-+    leave the suite green. Third time in this task that a test of mine passed either way.
++  SEQUENCED AS TWO TASKS at the CPO's agreement, not bundled: items 9+10 change a layer's
++  materialisation policy and its CI guard; item 15 stops an ingest and deletes a raw table.
++  Different blast radii, different reviewers, and bundling them would make either hard to
++  revert alone.
 +
-+  THE OPTIONS OFFERED, with the recommendation stated: (a) one more round — the fix is one call
-+  plus a test with a genuinely diverged ref; (b) drop the escape hatch, which re-opens
-+  cto-reviewer's round-2 objection that a deny with no exit is a workflow lock; (c) park it, which
-+  leaves every MR blocked. Recommended (a).
++  ⚠ THE `.claude/active_work.md` OWNERSHIP RULING, WRITTEN DOWN HERE BECAUSE A REVIEWER COULD
++  NOT VERIFY IT AND WAS RIGHT TO FAIL THE TASK OVER IT.
 +
-+  CPO ANSWER: **"fix it"** — authorising round 4.
++  THE RULING, verbatim, from the GitLab #33 issue body and repeated in the CPO's session brief:
++  **"Do not edit `.claude/active_work.md` from this worktree — the product stream owns it.
++  Record state here instead."** #33 also states the split it rests on: "Worktree:
++  `D:\Projects\fdp-pipeline`. The product stream runs in parallel in `D:\Projects\fdp-product`."
 +
-+  ⚠ WHY THIS IS NOT AN ENDLESS LOOP, stated because that is what the cap exists to prevent: every
-+  round has failed on a NARROWER thing than the last, and rounds 2 and 3 each ended with a
-+  reproduced defect rather than a reviewer opinion. Round 4 is scoped to this one finding. Anything
-+  new is filed as its own issue rather than opening a fifth round.
++  WHY THIS ENTRY EXISTS. `scope-auditor` FAILed round 2 of items 9/10 because the contract
++  justified excluding that file from a drift guard by citing "#33 says so" — an authority
++  living on a GitLab issue, which a blinded reviewer cannot read. It called the citation
++  unverifiable and noted that `CLAUDE.md`'s memory index says the opposite ("Authoritative
++  handover = the in-repo `.claude/active_work.md` ... Read it first, every session"), with no
++  evidence anywhere in the repo of a two-stream split. Every one of those observations is
++  correct. The FACT was true and the RECORD was not, which is the same defect this log has now
++  caught four separate times: an authority the builder can see and the reviewer cannot is not
++  an authority.
++
++  WHAT THE RULING DOES AND DOES NOT LICENCE. It forbids EDITING the file from this worktree. It
++  does NOT licence silently narrowing a guard that catches a real defect in it. The reviewer's
++  characterisation of the first attempt — "a genuine drift-detector was made not to see the
++  file it just caught something in" — was accurate, and the exclusion is only defensible now
++  because (a) the authority is recorded here where a reviewer can check it, (b) the staleness is
++  TRACKED rather than swallowed: `.claude/active_work.md:184` says "staging is still a VIEW so
++  tests re-scan raw", which this branch makes false, and it is reported to the owning stream on
++  #33 in the same session, and (c) the file is transient handover state that its own header
++  calls "CURRENT STATE ONLY", not a policy site any consumer of `layering.md` relies on.
++
++  THE ALTERNATIVE THE REVIEWER OFFERED — add the file to `scope_paths` and fix the one word
++  under the 2026-08-08 standing rule, as was done for the two ingestion comments in this same
++  diff — IS NOT AVAILABLE HERE, and that is the only reason it was not taken: the standing rule
++  permits fixing a broken reference, while this ruling separately forbids touching this
++  particular file from this worktree. Where the two conflict, the specific, later, file-scoped
++  instruction governs. If the CPO would rather it be corrected in place, that is one word and
++  this entry is the place to overturn it.
 diff --git a/CLAUDE.md b/CLAUDE.md
-index 632b210..be58b64 100644
+index be58b64..5d5ea74 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
-@@ -134,10 +134,15 @@ every session that learned something had to delete something. None of this is cu
-   literally, and a `verdicts:` block alone does NOT satisfy it.
- - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
-   blocks the turn once if any fails. Do not end a turn on a red gate silently.
--- **⚠ On a SECOND commit, `--staged-hash` is the WRONG number** — it covers only the increment,
--  while CI recomputes over the whole branch. Use `check_task_artifacts.py` (its default now
--  resolves the LIVE remote; `origin` is GitLab in CI but the dormant GitHub one here). A
--  `review.md`-only commit is artifact-exempt, so rebinding the hash is free.
-+- **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
-+  2026-08-12). It hashes `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the
-+  base, so it is byte-identical to the CI recompute on every platform and on a branch of any
-+  length. ⚠ The old warning here said `--staged-hash` was "the WRONG number" on a second commit;
-+  that was true of the pre-#63 implementation, which hashed the RENDERED patch of a bare
-+  `--staged`. It is now simply false and has been deleted rather than qualified.
-+  `check_task_artifacts.py` still resolves the LIVE remote by default (`origin` is GitLab in CI
-+  but the dormant GitHub one here), and a `review.md`-only commit is artifact-exempt, so rebinding
-+  is free.
- - **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
-   the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
-   LIFO and load-bearing WIP lives in it.
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 6ee3ab1..253e599 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -54,7 +54,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
- | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
- | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
--| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
-+| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+@@ -70,7 +70,7 @@ Next: player insights chain (#153 → #156).
+ - **UI flow**: v2 website IA per `docs/site_architecture.md` (hybrid browse + fixtures-first home, epic #361). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**; #377 is v2's own go-live.
+ - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
+ - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
+-- **Base models are TABLES** (changed 2026-08-02, #547; they were views). Staging and base were both views, so nothing stored an intermediate result and every *test* on a base model re-scanned the raw JSON. Measured over 35 days: tests $23.91 vs $5.84 to build the models, with `RAW_APIF_TRANSFERS` (6.82 GiB) read about seven times a night. Storing base once makes each test read a small table. Materialisation is a LAYER decision set once in `dbt_project.yml` — `2_base: +materialized: table` — and a base model must never override it per model.
++- **Staging AND base models are TABLES** (base changed 2026-08-02 under #547; staging changed 2026-08-12 under #33 items 9/10). Both were views, so nothing stored an intermediate result and every *test* re-scanned the raw JSON. For base, measured over 35 days: tests $23.91 vs $5.84 to build the models. For staging, measured over 24h on 2026-08-12: tests $0.17 vs models $0.07, with **59 staging tests** each re-executing the parse beneath a view. Storing each layer once a night makes every test read a small table instead. ⚠ The `RAW_APIF_TRANSFERS` figure both items were argued from (6.82–6.99 GiB) is STALE — item 8b shrank that table to **0.178 GiB**; do not size future work from it. Materialisation is a LAYER decision set once in `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a model must never override it per model, whatever the value. `scripts/check_layer_contract.py` enforces both layers.
  
- ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
+ ## Scalability rules — enforced by CI
  
-diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
-index d032a90..9ce9996 100644
---- a/scripts/check_task_artifacts.py
-+++ b/scripts/check_task_artifacts.py
-@@ -155,15 +155,23 @@ def main() -> int:
-         errors.append("review.md has no well-formed diff_sha256")
-     else:
-         # F11 (#409): bind review.md to THIS PR's code. Recompute the hash over the
--        # branch diff EXCLUDING the bookkeeping artifacts — the same diff the local gate
--        # hashes. --no-renames + --no-abbrev so the two invocations are byte-identical for
--        # identical content (rename detection off; full 40-hex blob SHAs in index lines so
--        # the abbreviation length cannot diverge pre- vs post-commit). A code-then-stale-
--        # review ordering (the #405 false-green) now fails here.
-+        # branch diff EXCLUDING the bookkeeping artifacts — the same bytes the local gate
-+        # hashes. --no-renames + --no-abbrev keep rename detection off and blob SHAs full.
-+        # A code-then-stale-review ordering (the #405 false-green) fails here.
-+        #
-+        # ⚠ `--raw`, NOT the rendered patch (#63). This is the CI HALF of a pair that must
-+        # agree byte for byte with `git_discipline.py::_staged_diff_bytes`; change one and
-+        # every commit is falsely rejected. The rendered patch is a PRESENTATION format
-+        # whose bytes vary with git version, platform and diff settings, so this check and
-+        # its local twin produced different hashes for provably identical commits and
-+        # `validate:governance` could not pass at all. `--raw` emits mode, blob SHAs,
-+        # status and path; blob SHAs are content hashes, identical on every platform and
-+        # git version. Nothing is weakened: the rendered patch is derived FROM those blobs.
-         excludes = routing.get("hash_exclude_paths") or []
-         pathspec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
-         diff = subprocess.run(
--            ["git", "diff", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"] + pathspec,
-+            ["git", "diff", "--raw", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"]
-+            + pathspec,
-             capture_output=True, check=True,
-         ).stdout
-         recomputed = hashlib.sha256(diff).hexdigest()
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 8a19298..c3279b4 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -1608,13 +1608,17 @@ def run_ci_check(repo) -> tuple[int, str]:
+diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
+index 48896ec..3f9f763 100644
+--- a/dbt_project/dbt_project.yml
++++ b/dbt_project/dbt_project.yml
+@@ -77,9 +77,21 @@ vars:
+ # Hierarchical Model Configuration
+ models:
+   football_data_pipeline:
+-    # 1. Staging: Raw cleanup (Views for speed and low cost)
++    # 1. Staging: Raw cleanup. TABLES since 2026-08-12 (#33 items 9/10). These were views from
++    # the project's first commit, on the same "not storing an intermediate result is cheaper"
++    # reasoning #547 already disproved one layer up. A view stores nothing, so every reader
++    # re-executes the JSON parse underneath it: 59 staging tests plus ~20 base-model reads scan
++    # each raw table about five times a night to answer questions a stored table answers for
++    # BigQuery's 10 MB minimum. Measured on 2026-08-12, prod build over 24h: tests $0.17 against
++    # models $0.07 — the same tests-cost-more-than-models signature #547 was diagnosed from.
++    # Storing staging once a night collapses that multiplier to one scan per model.
++    # The saving today is ~$3-4/month and the case is NOT today's money: item 8b shrank
++    # RAW_APIF_TRANSFERS from 6.99 GiB to 0.178 GiB, so #33's own figures for this item are
++    # stale. What is bought is that cost stops scaling with (tests x raw size) as competitions
++    # are added. Storage added is ~0.5 GiB — the whole base layer, which is this layer's parsed
++    # output, is 0.415 GiB.
+     1_staging:
+-      +materialized: view
++      +materialized: table
+       +schema: staging
  
+     # 2. Base: UNION ALL + dedup. TABLES since 2026-08-02 (#547). These were views, on the reasoning
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index d0291ef..5d40785 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -105,7 +105,13 @@ Per-layer minimums:
  
- def branch_hash(repo, base="main") -> str:
--    """The F11 hash CI recomputes: sha256 of `git diff base...HEAD` excluding the
--    bookkeeping artifacts (--no-renames), mirroring check_task_artifacts.py."""
-+    """The F11 hash CI recomputes: sha256 of `git diff --raw base...HEAD` excluding the
-+    bookkeeping artifacts, mirroring check_task_artifacts.py.
+ ## 5) Performance Standards (BigQuery)
+ 
+-- Prefer views for lightweight `staging`.
++- **Materialisation is a LAYER decision, never a per-model one.** It is set once in
++  `dbt_project.yml` and enforced by `scripts/check_layer_contract.py`; a per-model
++  `config(materialized=...)` is rejected in `1_staging` and `2_base` whatever its value.
++- `staging` and `base` are **tables** (#547, and #33 items 9/10). "Prefer views for lightweight
++  staging" was the rule here until 2026-08-12 and it was wrong for a measurable reason: a view
++  stores nothing, so every test on it re-executes the parse of the raw JSON underneath. Testing
++  cost more than building. See `dbt_project/docs/layering.md` §1_staging.
+ - Use tables for heavy transforms in `intermediate` and high-query `marts`.
+ - For large tables, apply partitioning and clustering (typically on date/time and league/team keys).
+ - Avoid repeated expensive expressions across layers; centralize once in `intermediate` if reused.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index dd25375..b62eb9c 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -9,7 +9,7 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
+ | Dataset | What lives there |
+ |---------|------------------|
+ | **`raw`** | 1:1 ingestion from Python (unified `RAW_APIF_*` tables, e.g. `RAW_APIF_FIXTURES_NEXT`, shared across all competitions and discriminated by a `league_code STRING` column — there are no per-competition raw tables). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
+-| **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
++| **`staging`** | `1_staging` dbt models (tables since #33 items 9/10): light cleanup on top of `raw`. |
+ | **`base`** | `2_base` models (tables since #547): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
+ | **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
+ | **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
+@@ -72,6 +72,32 @@ From `2_base` upward, a model may `ref()` any model in the **same layer or any u
+ 
+ Purpose: source-near cleanup with minimal transformation.
+ 
++**Why tables, changed 2026-08-12 (#33 items 9/10).** Staging was a view from the project's first
++commit (`1f422c0`, 2026-04-10) on the same "not storing an intermediate result is cheaper"
++reasoning #547 had already disproved one layer down. A view stores nothing, so every reader
++re-executes the JSON parse beneath it: **59 staging tests** plus ~20 base-model reads scanned each
++raw table roughly five times a night to answer questions a stored table answers for BigQuery's
++10 MB minimum. Measured on 2026-08-12 across 24h of prod builds, tests cost **$0.17** against
++**$0.07** to build the models — the same tests-cost-more-than-models signature #547 was diagnosed
++from. Storing staging once a night collapses the multiplier to one scan per model.
 +
-+    ⚠ `--raw` since #63 — CONTENT IDENTITY (mode, blob SHAs, status, path), not the rendered
-+    patch, whose bytes vary with git version, platform and diff settings. This helper mirrors
-+    the script by hand, so it has to move in the same commit or the mirror lies."""
-     import hashlib
-     excludes = ROUTING["hash_exclude_paths"]
-     pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
-     diff = subprocess.run(
--        ["git", "diff", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
-+        ["git", "diff", "--raw", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
-         cwd=repo, capture_output=True,
-     ).stdout
-     return hashlib.sha256(diff).hexdigest()
-@@ -1706,6 +1710,270 @@ def test_local_staged_hash_equals_ci_recompute(ci_repo):
-     assert local == ci, f"local {local} != ci {ci}"
- 
- 
-+def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
-+    """#63 — the hash must NOT move when a PRESENTATION setting moves.
++⚠ **Do not size future work from #33's figures for this item.** That issue justified the change on
++`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) has since shrunk it to **0.178 GiB**, a
++39x reduction, so the largest scan the item was written about was already gone by the time it
++landed. The saving today is ~**$3-4/month**. What the change actually buys is that cost stops
++scaling with (number of tests × raw size) as competitions are added. Storage added is ~0.5 GiB —
++for scale, the entire base layer, which is this layer's parsed output, is 0.415 GiB across 43
++tables, while the `staging` dataset was 0.0 GiB because views store nothing.
 +
-+    ⚠ THIS IS THE POINT OF THE WHOLE CHANGE, and it FAILS against the pre-#63 implementation.
-+    That version hashed `git diff`'s rendered patch, so anything altering the rendering altered
-+    the hash: measured on the real repo, identical commits gave 0c1ef8af at -U3 and ca1afb7d at
-+    -U0. `diff.context` is a per-repo git setting a machine can legitimately carry, which is how
-+    two machines hashed the same content differently and `validate:governance` could not pass.
++Materialisation is a **LAYER** decision set once in `dbt_project.yml`.
++The policy line is `1_staging: +materialized: table`, and a staging model must never override it
++per model. `scripts/check_layer_contract.py`
++(`check_staging_materialisation`) enforces that in CI and
++`tests/test_materialisation_policy.py` is the offline twin. The rule is "no per-model
++`config(materialized=...)` at all", not "no wrong value": a model pinned to the layer's current
++value silently stops moving when the layer is re-costed. Reproduce the figures with
++`python scripts/report_bq_cost.py`.
 +
-+    Cross-platform stability is the real requirement and cannot be tested from one machine; this
-+    is its closest honest proxy — same content, same git, one rendering knob turned.
+ A staging model does exactly two things, in this order:
+ 
+ 1. **Snapshot selection.** The unified raw tables are append-only logs. How a model selects
+diff --git a/ingestion/api_football/bigquery.py b/ingestion/api_football/bigquery.py
+index b6af8a1..026a3d3 100644
+--- a/ingestion/api_football/bigquery.py
++++ b/ingestion/api_football/bigquery.py
+@@ -118,7 +118,7 @@ def ensure_raw_table_partitioned(client: bigquery.Client, table_name: str) -> No
+     ]
+     table = bigquery.Table(table_id, schema=schema)
+     # Partition by the date part of ingested_at — one partition per calendar day.
+-    # require_partition_filter=False so staging views can still do full scans
++    # require_partition_filter=False so staging models can still do full scans
+     # during development without adding a WHERE clause.
+     table.time_partitioning = bigquery.TimePartitioning(
+         type_=bigquery.TimePartitioningType.DAY,
+diff --git a/ingestion/api_football/loads/teams.py b/ingestion/api_football/loads/teams.py
+index 2ff5ce0..7399cf8 100644
+--- a/ingestion/api_football/loads/teams.py
++++ b/ingestion/api_football/loads/teams.py
+@@ -60,7 +60,7 @@ def load_teams_merge_and_extend_ids(
+             teams_merged_envelope["errors"].extend(list(teams_part.get("errors") or []))
+             # API-Football /teams response items contain only {team, venue} — no league
+             # block. Inject (league.id, league.season) per item so downstream consumers
+-            # carry the season identity: staging views read $.league.season per row, and
++            # carry the season identity: staging models read $.league.season per row, and
+             # merge_teams_envelope dedups on (team_id, season) via _team_row_key.
+             # Without this, every team row is silently dropped by the merge and results=0.
+             enriched_items = [
+diff --git a/scripts/check_layer_contract.py b/scripts/check_layer_contract.py
+index a24971a..297fee6 100644
+--- a/scripts/check_layer_contract.py
++++ b/scripts/check_layer_contract.py
+@@ -25,16 +25,19 @@ BASE_FORBIDDEN_UPWARD_REF = re.compile(
+     re.IGNORECASE,
+ )
+ 
+-# Materialization for base is set once, per LAYER, in dbt_project.yml:
++# Materialization is set once, per LAYER, in dbt_project.yml:
++#   1_staging: +materialized: table
+ #   2_base: +materialized: table
+-# (since #547 — see dbt_project/docs/layering.md for the measurement behind that
+-# change; tests/test_materialisation_policy.py pins this line against the config).
+-# A base model must not carry a per-model
++# (base since #547, staging since #33 items 9/10 — see dbt_project/docs/layering.md
++# for the measurements behind both; tests/test_materialisation_policy.py pins these
++# lines against the config).
++# A model in either layer must not carry a per-model
+ # config(materialized=...) AT ALL, whatever the value: the point is that one
+ # place decides, so the layer can be re-costed by editing one line. Before #547
+ # this check allowed `view` and rejected everything else, which silently became
+-# wrong the moment the layer default changed.
+-BASE_MATERIALIZED = re.compile(
++# wrong the moment the layer default changed — which is exactly why the rule is
++# "no override", not "no override to the wrong value".
++PER_MODEL_MATERIALIZED = re.compile(
+     r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
+     re.IGNORECASE,
+ )
+@@ -114,14 +117,48 @@ def check_base_layer(errors: list[str]) -> None:
+             )
+ 
+         # 2. Materialization is a LAYER decision, so a base model must not set it at all.
+-        for match in BASE_MATERIALIZED.finditer(content):
+-            kind = match.group(1).lower()
+-            errors.append(
+-                f"{rel}: base model sets materialization to '{kind}' per model. Base "
+-                f"materialization is decided once for the layer in dbt_project.yml; a per-model "
+-                f"override is how one model drifts off the policy and stops being re-costed with "
+-                f"the rest. Remove the config(). {layering_ref}"
+-            )
++        _check_no_per_model_materialisation(errors, sql_path, content, "base", layering_ref)
++
++
++def _check_no_per_model_materialisation(
++    errors: list[str],
++    sql_path: Path,
++    content: str,
++    layer_label: str,
++    layering_ref: str,
++) -> None:
++    """One rule, applied to every layer whose materialisation is set centrally.
++
++    Shared rather than duplicated per layer: the staging case (#33 item 10) is the same rule as
++    the base case (#547), and a second copy is how the two drift apart. The check is on the
++    PRESENCE of a per-model config(), not on its value — a model pinned to the layer's current
++    value is still wrong, because it silently stops moving when the layer is re-costed.
 +    """
-+    # ⚠ The changed line must sit BETWEEN unchanged ones, or the control is vacuous: with a new
-+    # or wholly-rewritten file every line is a change, there is no context to include or exclude,
-+    # and the two settings render identically. An earlier draft of this test did exactly that and
-+    # passed against the very defect it exists to catch — found by running it against the old
-+    # implementation rather than trusting it green.
-+    model = ci_repo / "dbt_project" / "models" / "allowed.sql"
-+    model.write_text("".join("select %d\n" % i for i in range(1, 11)))
-+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "ten lines"], cwd=ci_repo, check=True)
-+
-+    lines = model.read_text().splitlines(keepends=True)
-+    lines[4] = "select 99\n"                      # one line, mid-file, context on both sides
-+    model.write_text("".join(lines))
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+
-+    subprocess.run(["git", "config", "diff.context", "0"], cwd=ci_repo, check=True)
-+    tight = staged_hash(ci_repo)
-+    subprocess.run(["git", "config", "diff.context", "3"], cwd=ci_repo, check=True)
-+    loose = staged_hash(ci_repo)
-+
-+    assert tight and loose, "the hook produced no hash at all"
-+    assert tight == loose, (
-+        "the review hash changed when only a DIFF RENDERING setting changed "
-+        f"(context=0 -> {tight[:16]}, context=3 -> {loose[:16]}); it is hashing a presentation "
-+        "format, so two machines can disagree about identical content (#63)")
++    rel = sql_path.relative_to(REPO_ROOT).as_posix()
++    for match in PER_MODEL_MATERIALIZED.finditer(content):
++        kind = match.group(1).lower()
++        errors.append(
++            f"{rel}: {layer_label} model sets materialization to '{kind}' per model. "
++            f"{layer_label.capitalize()} materialization is decided once for the layer in "
++            f"dbt_project.yml; a per-model override is how one model drifts off the policy and "
++            f"stops being re-costed with the rest. Remove the config(). {layering_ref}"
++        )
 +
 +
-+def test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute(tmp_path):
-+    """#63 — an uncomputable hash must STOP the workflow, not resolve to a constant.
++def check_staging_materialisation(errors: list[str]) -> None:
++    """Staging models must not set materialisation per model (#33 item 10).
 +
-+    ⚠ THE HOLE THIS CLOSES WAS REAL AND WAS REPRODUCED. An earlier draft returned b"" when the
-+    base could not be resolved and called that fail-closed. It was the opposite: `--staged-hash`
-+    printed sha256(b"") = e3b0c442… with EXIT 0, that value went into review.md, the gate
-+    recomputed the same empty value from the same broken call, the two AGREED, and the commit
-+    passed bound to ZERO bytes — no code, not even contract.md. Deterministic, not a race.
-+
-+    A directory that is not a git repository is the cheapest reproduction of "the base does not
-+    resolve"; the real-world cases `_base_commit` names are a --single-branch clone, a shallow
-+    checkout, and two histories with no common ancestor.
++    Staging became a table on 2026-08-12 for the same measured reason base did on 2026-08-02:
++    a view stores nothing, so all 59 staging tests re-executed the raw JSON parse. That saving
++    only survives if the layer keeps deciding centrally — one model opting back into `view`
++    reinstates the rescan for its own tests, invisibly, because nothing fails.
 +    """
-+    import hashlib
-+    empty = hashlib.sha256(b"").hexdigest()
-+    # ⚠ CLAUDE_PROJECT_DIR MUST BE REMOVED, not merely left to `cwd`. `_repo_root()` prefers the
-+    # env var over the working directory, so inheriting it points the hook at the REAL repository,
-+    # where the base resolves fine and it exits 0 — the test would go green for a reason unrelated
-+    # to the defect in any environment that exports it, which is the normal case for this repo.
-+    # It happens to be unset on the machine this was written on, which is exactly why it needed a
-+    # reviewer to catch (platform-reviewer, opus).
-+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
-+    r = subprocess.run(
-+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
-+        cwd=str(tmp_path), capture_output=True, text=True, timeout=60, env=env,
-+    )
-+    assert r.returncode != 0, "exited 0 without computing a hash"
-+    assert empty not in r.stdout, (
-+        "printed sha256 of EMPTY as if it were a real hash — review.md would bind to nothing "
-+        "and the gate would match it against itself")
-+    assert not re.search(r"\b[0-9a-f]{64}\b", r.stdout), \
-+        f"emitted a 64-hex hash it could not have computed: {r.stdout!r}"
++    if not STAGING_DIR.is_dir():
++        return
++    layering_ref = "See dbt_project/docs/layering.md §1_staging."
++    for sql_path in sorted(STAGING_DIR.rglob("*.sql")):
++        content = sql_path.read_text(encoding="utf-8")
++        _check_no_per_model_materialisation(errors, sql_path, content, "staging", layering_ref)
+ 
+ 
+ def check_intermediate_no_mart_refs(errors: list[str]) -> None:
+@@ -224,6 +261,7 @@ def main() -> int:
+     check_staging_inventory(errors)
+     check_staging_purity(errors)
+     check_staging_no_refs(errors)
++    check_staging_materialisation(errors)
+ 
+     if errors:
+         print("Layer contract checks failed:")
+diff --git a/tests/test_materialisation_policy.py b/tests/test_materialisation_policy.py
+index 75c39ca..d2ed2d3 100644
+--- a/tests/test_materialisation_policy.py
++++ b/tests/test_materialisation_policy.py
+@@ -34,29 +34,72 @@ import re
+ ROOT = pathlib.Path(__file__).resolve().parents[1]
+ DBT_PROJECT = ROOT / "dbt_project" / "dbt_project.yml"
+ BASE_MODELS = ROOT / "dbt_project" / "models" / "2_base"
++STAGING_MODELS = ROOT / "dbt_project" / "models" / "1_staging"
 +
 +
-+def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_repo):
-+    """#63 — the gate's own half of the same hole: deny explicitly, never by accidental mismatch.
++def _load_layer_contract():
++    """Import `scripts/check_layer_contract.py` as a module.
 +
-+    ⚠ `ci_repo`, not `repo`: the plain fixture carries no `review_routing.json`, and a missing
-+    routing file disables the review requirement ENTIRELY, so the gate returns None long before
-+    the hash is computed and the test would pass for a reason that has nothing to do with the
-+    defect. Found by running it.
++    Shared by the base and staging guard tests. It was inline in one test before #33 item 10
++    added a second; two copies of a loader is how the two tests quietly stop exercising the same
++    script.
 +    """
-+    repo = ci_repo
-+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
-+    (repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-+    write_review(repo, "a" * 64, GOOD_BODY)
-+
 +    import importlib.util
++
 +    spec = importlib.util.spec_from_file_location(
-+        "gd_under_test", os.path.join(HOOKS, "git_discipline.py"))
-+    gd = importlib.util.module_from_spec(spec)
-+    spec.loader.exec_module(gd)
-+    monkeypatch.setattr(gd, "_cumulative_diff",
-+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("base unresolvable")))
++        "check_layer_contract", ROOT / "scripts" / "check_layer_contract.py"
++    )
++    mod = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(mod)
++    return mod
+ 
+ # The policy. Changing a value here is the deliberate act; changing dbt_project.yml alone is not.
+ EXPECTED = {
+-    "1_staging": "view",     # light cleanup; cheap to re-run, and its consumers are stored
++    "1_staging": "table",    # #33 items 9/10: a view stored nothing, so all 59 staging tests
++                             # re-executed the raw JSON parse. Same defect, same fix as 2_base.
+     "2_base": "table",       # #547: stored once a night so tests stop re-scanning the raw JSON
+     "3_core": "table",
+     "4_intermediate": "table",
+     "5_marts": "table",
+ }
+ 
+-# Every file that tells a human or an agent what the base materialisation is. Seven sites exist for
+-# one rule; the first attempt at this task found four, because it grepped docs/ and the dbt project
+-# and never looked in the hooks or the role briefs. If you state the rule somewhere new, add it here
+-# — and the last test in this file fails if you forget.
++# Every file that tells a human or an agent what a layer's materialisation is, PER LAYER. Seven
++# sites existed for one rule; the first attempt at this task found four, because it grepped docs/
++# and the dbt project and never looked in the hooks or the role briefs. If you state the rule
++# somewhere new, add it here — and `test_the_policy_site_list_covers_every_file_that_quotes_the_
++# token` fails if you forget.
+ # NOTE dbt_project.yml is deliberately absent: it IS the config, and YAML splits the key and the
+ # value across two lines so it cannot contain the one-line token. It is pinned by EXPECTED instead.
+-POLICY_SITES = (
+-    "dbt_project/docs/layering.md",
+-    "CLAUDE.md",
+-    "scripts/check_layer_contract.py",
+-    ".claude/hooks/dbt_layer_gate.py",
+-    "docs/roles/analytics_engineer.md",
+-)
++#
++# ⚠ KEYED BY LAYER SINCE #33 items 9/10. It was a flat base-only tuple, and when `1_staging`
++# became a table three new prose sites appeared (CLAUDE.md, layering.md, engineering_standards.md)
++# that NOTHING guarded — the precise regression class this file exists for, reintroduced for the
++# layer the change was about. Two reviewers caught it. A layer with prose sites belongs here;
++# `3_core`/`4_intermediate`/`5_marts` are absent because no document states their materialisation
++# in the pinned token form.
++POLICY_SITES = {
++    "2_base": (
++        "dbt_project/docs/layering.md",
++        "CLAUDE.md",
++        "scripts/check_layer_contract.py",
++        ".claude/hooks/dbt_layer_gate.py",
++        "docs/roles/analytics_engineer.md",
++    ),
++    "1_staging": (
++        "dbt_project/docs/layering.md",
++        "CLAUDE.md",
++        "scripts/check_layer_contract.py",
++    ),
++}
 +
-+    reason = gd._commit_gate(str(repo))
-+    assert reason, "the gate allowed a commit whose hash could not be computed"
-+    assert "could not be computed" in reason, \
-+        f"denied for the wrong reason (a mismatch, not the real cause): {reason!r}"
-+
-+
-+def test_base_resolution_prefers_the_remote_tracking_ref_over_a_stale_local_main(ci_repo):
-+    """#63 — a local `main` is a CACHED COPY and goes stale; the remote-tracking ref is the truth.
-+
-+    ⚠ This pins the half of the fix that had no test. `ci_repo` creates a local `main` and NO
-+    remotes, so `gitlab/main` and `origin/main` both fail to resolve and every preference order
-+    gives the same answer — reverting the reorder left the whole suite green (platform-reviewer,
-+    opus). The fixture is given a real `refs/remotes/gitlab/main` here, ahead of a deliberately
-+    stale local `main`, so the order is observable.
-+
-+    Measured on the live repo when this was found: local `main` sat at 57175fc while `gitlab/main`
-+    was a2b4184, two merges newer. The reviewers' patch listed files from an already-merged task,
-+    and the hash could not have matched CI's no matter what bytes were fed to it.
++# The prose form of the same claim, per layer: "<layer> ... is a <materialisation>". Used by the
++# repo-wide sweep, which catches sentences that contradict the config while quoting no token at
++# all. Past-tense history ("they were views", "Staging and base were BOTH views") is deliberately
++# NOT matched — the record of the change has to stay writable.
++PROSE_SUBJECT = {
++    "2_base": r"base",
++    "1_staging": r"staging",
++}
+ 
+ 
+ def _configured_materialisations() -> dict[str, str]:
+@@ -105,27 +148,34 @@ def test_base_models_never_override_materialisation_per_model():
+     assert offenders == [], f"base models overriding materialisation: {offenders}"
+ 
+ 
+-def test_every_policy_site_quotes_the_configured_base_materialisation():
+-    """The May 2026 regression, in one assertion.
++def test_every_policy_site_quotes_the_configured_layer_materialisation():
++    """The May 2026 regression, in one assertion, for every layer that has prose sites.
+ 
+     The config changed and the prose did not, so the repo described a rule it no longer followed and
+     every reader after that was misled, including an agent reading it two months later. Each site
+     must quote the live config line verbatim, and none may still quote the superseded one.
+-    """
+-    actual = _configured_materialisations()["2_base"]
+-    current = f"2_base: +materialized: {actual}"
+-    superseded = [f"2_base: +materialized: {v}" for v in ("view", "table") if v != actual]
+ 
++    Named for LAYER, not base: it was `..._base_materialisation` while looping over every layer,
++    which is the same prose-drifted-from-behaviour defect this file exists to prevent, committed
++    inside the file that prevents it. Two reviewers flagged it independently.
 +    """
-+    stale = subprocess.run(["git", "rev-parse", "main"], cwd=ci_repo,
-+                           capture_output=True, text=True, check=True).stdout.strip()
++    configured = _configured_materialisations()
+     missing, stale = [], []
+-    for rel in POLICY_SITES:
+-        text = (ROOT / rel).read_text(encoding="utf-8")
+-        if current not in text:
+-            missing.append(rel)
+-        stale += [f"{rel} -> {tok!r}" for tok in superseded if tok in text]
 +
-+    # advance the remote-tracking ref two commits past the stale local `main`
-+    for n in (1, 2):
-+        (ci_repo / "dbt_project" / "models" / f"upstream{n}.sql").write_text(f"select {n}\n")
-+        subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+        subprocess.run(["git", "commit", "-qm", f"upstream {n}"], cwd=ci_repo, check=True)
-+    ahead = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ci_repo,
-+                           capture_output=True, text=True, check=True).stdout.strip()
-+    subprocess.run(["git", "update-ref", "refs/remotes/gitlab/main", ahead], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "update-ref", "refs/heads/main", stale], cwd=ci_repo, check=True)
-+    assert stale != ahead, "fixture did not actually create a stale local main"
++    for layer, sites in POLICY_SITES.items():
++        actual = configured[layer]
++        current = f"{layer}: +materialized: {actual}"
++        superseded = [f"{layer}: +materialized: {v}" for v in ("view", "table") if v != actual]
++        for rel in sites:
++            text = (ROOT / rel).read_text(encoding="utf-8")
++            if current not in text:
++                missing.append(f"{rel} -> missing {current!r}")
++            stale += [f"{rel} -> {tok!r}" for tok in superseded if tok in text]
+ 
+     assert not missing, (
+-        f"these state the base materialisation but do not quote {current!r}: {missing}. "
+-        "Quote the config line verbatim so drift is detectable."
++        f"these state a layer materialisation but do not quote the live config line: {missing}. "
++        "Quote it verbatim, on ONE line, so drift is detectable — a token split across a "
++        "markdown line wrap reads fine and matches nothing."
+     )
+     assert not stale, f"these still quote a superseded materialisation: {stale}"
+ 
+@@ -139,13 +189,7 @@ def test_check_layer_contract_rejects_any_per_model_materialisation(tmp_path, mo
+     all", and reverting it must fail here — otherwise the revert is free, since no base model sets
+     one today and CI would look identical either way.
+     """
+-    import importlib.util
+-
+-    spec = importlib.util.spec_from_file_location(
+-        "check_layer_contract", ROOT / "scripts" / "check_layer_contract.py"
+-    )
+-    mod = importlib.util.module_from_spec(spec)
+-    spec.loader.exec_module(mod)
++    mod = _load_layer_contract()
+ 
+     fake = tmp_path / "base_apif__fake.sql"
+     fake.write_text(
+@@ -168,6 +212,48 @@ def test_check_layer_contract_rejects_any_per_model_materialisation(tmp_path, mo
+     )
+ 
+ 
++def test_staging_models_never_override_materialisation_per_model():
++    """The same rule, on the layer that only just started needing it (#33 item 10).
 +
-+    (ci_repo / "dbt_project" / "models" / "mine.sql").write_text("select 42\n")
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+
-+    import hashlib
-+    excludes = ROUTING["hash_exclude_paths"]
-+    pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
-+
-+    def hash_from(base):
-+        d = subprocess.run(
-+            ["git", "diff", "--staged", "--no-renames", "--no-abbrev", "--raw", base] + pathspec,
-+            cwd=ci_repo, capture_output=True).stdout
-+        return hashlib.sha256(d).hexdigest()
-+
-+    got = staged_hash(ci_repo)
-+    assert got == hash_from(ahead), (
-+        "the hook resolved a base that is not the remote-tracking ref")
-+    assert got != hash_from(stale), (
-+        "the hook used the STALE local `main` — the reviewers' patch and the hash would both "
-+        "cover commits that are already merged upstream")
-+
-+
-+def test_governance_base_env_var_overrides_the_base(ci_repo):
-+    """#63 — the escape hatch the deny message promises must actually exist.
-+
-+    ⚠ It did not. An earlier draft's deny told the operator to "set GOVERNANCE_BASE" while
-+    `_base_commit` read no environment variable at all, so `git commit` was locked with a remedy
-+    that did nothing — and for two histories with no common ancestor the other suggested remedy
-+    (fetch the base branch) does not help either. A deny with no escape is the workflow lock the
-+    fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
-+    `scripts/check_task_artifacts.py:106` already honoured it, so this also closes a local/CI split.
-+
-+    ⚠ THE REF MUST HAVE DIVERGED. An earlier version of this test pointed GOVERNANCE_BASE at a
-+    direct ANCESTOR of HEAD, where the tip and the merge-base are the same commit — so it could
-+    not tell the two apart and stayed green against a hook that used the tip. The CI twin spells
-+    the base `f"{args.base}...HEAD"` (three-dot, merge-base), so a tip-resolving hook diverges from
-+    CI the moment the override names a branch that has moved on, which is the documented use of
-+    the variable. Caught by platform-reviewer, opus, round 3 — the third test in this task that
-+    passed either way.
++    Staging became a table on 2026-08-12 because a view stores nothing and all 59 staging tests
++    re-executed the raw JSON parse. That saving survives only while the layer keeps deciding
++    centrally: one model opting back into `view` reinstates the rescan for its own tests, and
++    nothing else fails, which is precisely how the May 2026 regression this file exists for went
++    unnoticed for two months.
 +    """
-+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "branch work"], cwd=ci_repo, check=True)
-+
-+    # an upstream ref that has MOVED ON since this branch was cut: shares an ancestor, is not one
-+    subprocess.run(["git", "checkout", "-q", "-b", "upstream", "main"], cwd=ci_repo, check=True)
-+    (ci_repo / "dbt_project" / "models" / "upstream_only.sql").write_text("select 99\n")
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "upstream moved"], cwd=ci_repo, check=True)
-+    tip = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ci_repo,
-+                         capture_output=True, text=True, check=True).stdout.strip()
-+    subprocess.run(["git", "checkout", "-q", "feature"], cwd=ci_repo, check=True)
-+
-+    ancestor = subprocess.run(["git", "merge-base", "HEAD", tip], cwd=ci_repo,
-+                              capture_output=True, text=True, check=True).stdout.strip()
-+    assert ancestor != tip, "fixture did not create a genuinely diverged ref"
-+
-+    (ci_repo / "dbt_project" / "models" / "second.sql").write_text("select 2\n")
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(ci_repo), GOVERNANCE_BASE="upstream")
-+    overridden = subprocess.run(
-+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
-+        cwd=str(ci_repo), capture_output=True, text=True, env=env, timeout=60)
-+    assert overridden.returncode == 0, overridden.stderr
-+
-+    import hashlib
-+    pathspec = ["--", "."] + [f":(exclude){p}" for p in ROUTING["hash_exclude_paths"]]
-+
-+    def hash_from(base):
-+        d = subprocess.run(
-+            ["git", "diff", "--staged", "--no-renames", "--no-abbrev", "--raw", base] + pathspec,
-+            cwd=ci_repo, capture_output=True).stdout
-+        return hashlib.sha256(d).hexdigest()
-+
-+    assert overridden.stdout.strip() == hash_from(ancestor), (
-+        "the override did not resolve through merge-base")
-+    assert overridden.stdout.strip() != hash_from(tip), (
-+        "the override resolved to the branch TIP. CI diffs `base...HEAD` (merge-base), so the two "
-+        "halves would hash different bytes and the local diff would carry a reverse delta for "
-+        "everything merged upstream since this branch was cut — the very defect #63 removes")
++    offenders = [
++        p.relative_to(ROOT).as_posix()
++        for p in sorted(STAGING_MODELS.rglob("*.sql"))
++        if re.search(r"""materialized\s*=\s*['"]""", p.read_text(encoding="utf-8"), re.IGNORECASE)
++    ]
++    assert offenders == [], f"staging models overriding materialisation: {offenders}"
 +
 +
-+def test_an_empty_cumulative_diff_is_not_reported_as_a_failure_to_compute(ci_repo):
-+    """#63 — `None` (could not compute) and `b""` (nothing changed) are different states.
++def test_check_layer_contract_rejects_a_staging_per_model_override(tmp_path, monkeypatch):
++    """The CI guard must reject it too, not just this offline twin.
 +
-+    ⚠ An earlier draft tested `if not blob`, which is true for both, so a legitimately empty
-+    cumulative diff was reported as "the base commit did not resolve" — a cause that was not
-+    observed, with two remedies that do not apply. Reachable in practice because `_staged_paths`
-+    is HEAD-vs-index while the hash is base-vs-index: staging a revert of an earlier commit on the
-+    same branch arrives with staged paths and no net change.
++    Written the same way as the base twin above: build a staging model that carries an override,
++    point the script's STAGING_DIR at it, and require an error. Without this, item 10 could ship
++    as a function nobody ever proved fires.
 +    """
-+    model = ci_repo / "dbt_project" / "models" / "allowed.sql"
-+    original = model.read_text()
-+    model.write_text("select 999\n")
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "change it"], cwd=ci_repo, check=True)
-+    model.write_text(original)                      # revert -> net-zero vs the base
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    mod = _load_layer_contract()
++    (tmp_path / "stg_apif__probe.sql").write_text(
++        "{{ config(materialized='view') }}\nselect 1 as x\n",
++        encoding="utf-8",
++    )
++    monkeypatch.setattr(mod, "STAGING_DIR", tmp_path)
++    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
 +
-+    r = subprocess.run(
-+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
-+        cwd=str(ci_repo), capture_output=True, text=True,
-+        env=dict(os.environ, CLAUDE_PROJECT_DIR=str(ci_repo)), timeout=60)
-+    assert r.returncode == 0, (
-+        "a net-zero branch was treated as a failure to compute the hash: " + r.stderr)
-+    import hashlib
-+    assert r.stdout.strip() == hashlib.sha256(b"").hexdigest(), \
-+        "an empty cumulative diff should hash to the empty digest, not be refused"
++    errors: list[str] = []
++    mod.check_staging_materialisation(errors)
 +
-+
-+def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo):
-+    """#63, second half — the same invariant as the single-commit test, after TWO commits.
-+
-+    ⚠ FAILS against the pre-#63 implementation, which diffed a bare `--staged` (HEAD-vs-index).
-+    Once a second commit lands, the index equals HEAD, so that diff is EMPTY while CI still sees
-+    the whole branch — the local number was the hash of nothing. This was a documented trap
-+    ("on a SECOND commit, --staged-hash is the WRONG number") rather than a mystery, and it cost
-+    two wasted rebind cycles on !33. Diffing from the base makes it simply false.
-+    """
-+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
-+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "first"], cwd=ci_repo, check=True)
-+
-+    (ci_repo / "dbt_project" / "models" / "second.sql").write_text("select 8\n")
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "second"], cwd=ci_repo, check=True)
-+
-+    local = staged_hash(ci_repo)     # what the commit gate would check
-+    ci = branch_hash(ci_repo)        # what CI recomputes over the whole branch
-+    assert local == ci, (
-+        f"local {local[:16]} != ci {ci[:16]} on a two-commit branch — the local gate is hashing "
-+        "only the last increment, so a locally-passing commit is rejected by CI (#63)")
++    assert any("materializ" in e.lower() for e in errors), (
++        "check_staging_materialisation accepted a per-model materialized='view' override. The "
++        f"layer default is {EXPECTED['1_staging']!r} and no per-model override is allowed. "
++        f"errors={errors}"
++    )
 +
 +
- def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
-     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+ def _is_bookkeeping(rel: str) -> bool:
+     """Files that legitimately hold BOTH the old and new wording, so neither walk may judge them.
+ 
+@@ -178,6 +264,18 @@ def _is_bookkeeping(rel: str) -> bool:
+     """
+     return (
+         rel.startswith(".claude/task/")
++        # ⚠ THE ONE EXCLUSION HERE THAT IS NOT SELF-REFERENTIAL PAPERWORK, so it carries the
++        # heaviest justification. `.claude/active_work.md` is the PRODUCT stream's handover and a
++        # standing CPO ruling forbids editing it from the pipeline worktree — recorded verbatim in
++        # `.claude/task/escalations.log` under "THE `.claude/active_work.md` OWNERSHIP RULING",
++        # where a blinded reviewer can check it. An earlier version of this line cited only a
++        # GitLab issue, which a reviewer cannot read, and `scope-auditor` correctly FAILed it:
++        # an authority the builder can see and the reviewer cannot is not an authority.
++        # This exclusion is NOT a false-positive defence — the guard caught a REAL stale claim
++        # there (line 184, "staging is still a VIEW"). It is excluded because it cannot be fixed
++        # from here, and the staleness is reported to the owning stream rather than swallowed.
++        # If that file ever becomes editable from this worktree, delete this line and fix it.
++        or rel == ".claude/active_work.md"
+         or rel == "docs/product_direction_threads.md"
+         or rel == "tests/test_materialisation_policy.py"
+     )
+@@ -201,17 +299,19 @@ def test_the_policy_site_list_covers_every_file_that_quotes_the_token():
+     Closes the failure that produced it: a list written from a partial grep. Any tracked file
+     quoting `2_base: +materialized:` must be pinned, so a new site cannot appear unguarded.
+     """
+-    token = "2_base: +materialized:"
+-    found = set()
+-    for path in _tracked_files():
+-        try:
+-            if token in path.read_text(encoding="utf-8"):
+-                found.add(path.relative_to(ROOT).as_posix())
+-        except (UnicodeDecodeError, OSError):
+-            continue
+-    found = {r for r in found if not _is_bookkeeping(r)}
+-    unpinned = sorted(found - set(POLICY_SITES))
+-    assert not unpinned, f"these quote the policy but are not in POLICY_SITES: {unpinned}"
++    unpinned = []
++    for layer, sites in POLICY_SITES.items():
++        token = f"{layer}: +materialized:"
++        found = set()
++        for path in _tracked_files():
++            try:
++                if token in path.read_text(encoding="utf-8"):
++                    found.add(path.relative_to(ROOT).as_posix())
++            except (UnicodeDecodeError, OSError):
++                continue
++        found = {r for r in found if not _is_bookkeeping(r)}
++        unpinned += [f"{layer}: {r}" for r in sorted(found - set(sites))]
++    assert not unpinned, f"these quote a policy token but are not in POLICY_SITES: {unpinned}"
+ 
+ 
+ def test_no_tracked_file_anywhere_states_the_superseded_materialisation():
+@@ -220,32 +320,39 @@ def test_no_tracked_file_anywhere_states_the_superseded_materialisation():
+     A file can quote the current token AND still contradict it in a sentence that quotes nothing —
+     which is exactly what `layering.md` did after the first attempt, and what
+     `profiles.example.yml` did while not being in POLICY_SITES at all. So this does not consult the
+-    site list: it asserts across every tracked file that nothing says base is a view while the
+-    config says table. Written from a real search (`git grep -inE ...`), not from memory, because
+-    guessing the site list is the mistake this task made three times.
++    site list: it asserts across every tracked file that nothing says a layer is a view while the
++    config says table (or vice versa), for every layer in PROSE_SUBJECT. Written from a real search
++    (`git grep -inE ...`), not from memory, because guessing the site list is the mistake this task
++    made three times — and on the run that first covered `1_staging` it immediately found three
++    sites a careful manual grep had walked past, two of them comments in `ingestion/`.
+ 
+     Past-tense history ("they were views") is deliberately NOT matched — the record of the change
+     has to stay writable, and `escalations.log` is where it lives.
+     """
+-    actual = _configured_materialisations()["2_base"]
+-    superseded = {"table": "view", "view": "table"}[actual]
+-    claim = re.compile(
+-        rf"base\s+(models?\s+)?(are\s+|as\s+|materiali[sz]es?\s+as\s+)?{superseded}s?\b"
+-        rf"|base\s+{superseded}s\s*\+",
+-        re.IGNORECASE,
+-    )
++    configured = _configured_materialisations()
+     offenders = []
+-    for path in _tracked_files():
+-        rel = path.relative_to(ROOT).as_posix()
+-        if _is_bookkeeping(rel):
+-            continue
+-        try:
+-            text = path.read_text(encoding="utf-8")
+-        except (UnicodeDecodeError, OSError):
+-            continue
+-        hit = claim.search(text)
+-        if hit:
+-            offenders.append(f"{rel} -> {hit.group(0)!r}")
++
++    for layer, subject in PROSE_SUBJECT.items():
++        actual = configured[layer]
++        superseded = {"table": "view", "view": "table"}[actual]
++        claim = re.compile(
++            rf"{subject}\s+(models?\s+)?(are\s+|is\s+|as\s+|materiali[sz]es?\s+as\s+)?"
++            rf"(a\s+)?{superseded}s?\b"
++            rf"|{subject}\s+{superseded}s\s*\+",
++            re.IGNORECASE,
++        )
++        for path in _tracked_files():
++            rel = path.relative_to(ROOT).as_posix()
++            if _is_bookkeeping(rel):
++                continue
++            try:
++                text = path.read_text(encoding="utf-8")
++            except (UnicodeDecodeError, OSError):
++                continue
++            hit = claim.search(text)
++            if hit:
++                offenders.append(f"{rel} -> {hit.group(0)!r} (says {layer} is a {superseded})")
++
+     assert not offenders, (
+-        f"these say base is a {superseded} while dbt_project.yml says {actual}: {offenders}"
++        f"these contradict the configured materialisation in dbt_project.yml: {offenders}"
+     )
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -967,7 +1027,7 @@ index 8a19298..c3279b4 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |   28 +-
-#    .claude/task/review_input.patch | 1841 ++++++++++++++++++---------------------
-#    2 files changed, 842 insertions(+), 1027 deletions(-)
+#   .claude/task/review.md          |  216 +++---
+#    .claude/task/review_input.patch | 1608 +++++++++++++++++++--------------------
+#    2 files changed, 882 insertions(+), 942 deletions(-)
 # ============================================================================

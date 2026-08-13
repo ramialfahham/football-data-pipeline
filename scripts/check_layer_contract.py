@@ -25,16 +25,19 @@ BASE_FORBIDDEN_UPWARD_REF = re.compile(
     re.IGNORECASE,
 )
 
-# Materialization for base is set once, per LAYER, in dbt_project.yml:
+# Materialization is set once, per LAYER, in dbt_project.yml:
+#   1_staging: +materialized: table
 #   2_base: +materialized: table
-# (since #547 — see dbt_project/docs/layering.md for the measurement behind that
-# change; tests/test_materialisation_policy.py pins this line against the config).
-# A base model must not carry a per-model
+# (base since #547, staging since #33 items 9/10 — see dbt_project/docs/layering.md
+# for the measurements behind both; tests/test_materialisation_policy.py pins these
+# lines against the config).
+# A model in either layer must not carry a per-model
 # config(materialized=...) AT ALL, whatever the value: the point is that one
 # place decides, so the layer can be re-costed by editing one line. Before #547
 # this check allowed `view` and rejected everything else, which silently became
-# wrong the moment the layer default changed.
-BASE_MATERIALIZED = re.compile(
+# wrong the moment the layer default changed — which is exactly why the rule is
+# "no override", not "no override to the wrong value".
+PER_MODEL_MATERIALIZED = re.compile(
     r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
     re.IGNORECASE,
 )
@@ -114,14 +117,48 @@ def check_base_layer(errors: list[str]) -> None:
             )
 
         # 2. Materialization is a LAYER decision, so a base model must not set it at all.
-        for match in BASE_MATERIALIZED.finditer(content):
-            kind = match.group(1).lower()
-            errors.append(
-                f"{rel}: base model sets materialization to '{kind}' per model. Base "
-                f"materialization is decided once for the layer in dbt_project.yml; a per-model "
-                f"override is how one model drifts off the policy and stops being re-costed with "
-                f"the rest. Remove the config(). {layering_ref}"
-            )
+        _check_no_per_model_materialisation(errors, sql_path, content, "base", layering_ref)
+
+
+def _check_no_per_model_materialisation(
+    errors: list[str],
+    sql_path: Path,
+    content: str,
+    layer_label: str,
+    layering_ref: str,
+) -> None:
+    """One rule, applied to every layer whose materialisation is set centrally.
+
+    Shared rather than duplicated per layer: the staging case (#33 item 10) is the same rule as
+    the base case (#547), and a second copy is how the two drift apart. The check is on the
+    PRESENCE of a per-model config(), not on its value — a model pinned to the layer's current
+    value is still wrong, because it silently stops moving when the layer is re-costed.
+    """
+    rel = sql_path.relative_to(REPO_ROOT).as_posix()
+    for match in PER_MODEL_MATERIALIZED.finditer(content):
+        kind = match.group(1).lower()
+        errors.append(
+            f"{rel}: {layer_label} model sets materialization to '{kind}' per model. "
+            f"{layer_label.capitalize()} materialization is decided once for the layer in "
+            f"dbt_project.yml; a per-model override is how one model drifts off the policy and "
+            f"stops being re-costed with the rest. Remove the config(). {layering_ref}"
+        )
+
+
+def check_staging_materialisation(errors: list[str]) -> None:
+    """Staging models must not set materialisation per model (#33 item 10).
+
+    Staging became a table on 2026-08-12 for the same measured reason base did on 2026-08-02:
+    a view stores nothing, so all 59 staging tests re-executed the raw JSON parse. That saving
+    only survives if the layer keeps deciding centrally — one model opting back into `view`
+    reinstates the rescan for its own tests, invisibly, because nothing fails.
+    """
+    if not STAGING_DIR.is_dir():
+        return
+    layering_ref = "See dbt_project/docs/layering.md §1_staging."
+    for sql_path in sorted(STAGING_DIR.rglob("*.sql")):
+        content = sql_path.read_text(encoding="utf-8")
+        _check_no_per_model_materialisation(errors, sql_path, content, "staging", layering_ref)
 
 
 def check_intermediate_no_mart_refs(errors: list[str]) -> None:
@@ -224,6 +261,7 @@ def main() -> int:
     check_staging_inventory(errors)
     check_staging_purity(errors)
     check_staging_no_refs(errors)
+    check_staging_materialisation(errors)
 
     if errors:
         print("Layer contract checks failed:")

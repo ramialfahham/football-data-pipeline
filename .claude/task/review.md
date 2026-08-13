@@ -1,130 +1,126 @@
-# Review — fix/63-review-hash-content-identity — 2026-08-12
+# Review — perf/33-item9-staging-as-table — 2026-08-12
 
-diff_sha256: e1a379b2c94e353456b2b37813f5d85bb18b1254b304a0e38bc76aeace7650ba
+diff_sha256: 23db5a935eb88f4edf77ebfb00cb0fb08b8a9b91d498c640fd272011a2f15725
 
-rounds: 4
-
-rounds_cap_override: >
-  ONE CPO grant, recorded in `.claude/task/escalations.log` BEFORE the round it authorises and
-  verifiable there independently of this file: round 3 hit the documented cap with
-  scope-auditor and cto-reviewer PASSING and platform-reviewer FAILING on a single finding. The
-  finding was verified by the builder before being brought over, three options were offered with a
-  stated recommendation, and the CPO answered **"fix it"**.
-  WHY IT RAN TO FOUR, stated plainly rather than excused: every round failed on something NARROWER
-  than the last, and rounds 2, 3 and 4 each ended with a REPRODUCED defect rather than a reviewer
-  opinion. Round 4 was scoped to the single round-3 finding; platform-reviewer listed four further
-  residuals and explicitly judged none of them grounds for a fifth round. They are filed as **#64**.
-
-⚠ Routing for these paths requires cto-reviewer AND platform-reviewer (`.claude/hooks/**` is one of
-the three guard paths carrying both, at the opus floor) plus the always-on scope-auditor.
-⚠ All three verdicts below cover the FINAL diff. scope-auditor passed round 3 and was re-run after
-round 4 changed the code, tests, contract and escalations log — a PASS that predates the delta it
-is supposed to cover is not a PASS.
+rounds: 3
 
 <!--
-Round-by-round, kept because the progression is the record:
-  1  scope-auditor FAIL  — contract RESERVED the 21 label strings while the diff shipped them.
-     analytics FAIL      — (that was #57; not this branch)
-  1  cto FAIL + platform FAIL — INDEPENDENTLY found the same hole: `_staged_diff_bytes` returning
-                          b"" on an unresolvable base was not fail-closed. `--staged-hash` printed
-                          sha256(b"") with exit 0, that value goes into review.md, the gate
-                          recomputes the same empty value, they AGREE, and the commit passes bound
-                          to ZERO bytes. Reproduced in a scratch dir before fixing.
-  2  cto FAIL           — the deny message promised a `GOVERNANCE_BASE` escape hatch the hook never
-                          read; the justification for departing from fail-open rested on it.
-                          Also `if not blob` conflated None with a legitimately empty diff.
-     platform FAIL      — same two, plus: the base reorder had NO test (reverting it left the whole
-                          suite green), a stale warning survived in `.claude/active_work.md` (which
-                          is injected into EVERY session), and a test inherited CLAUDE_PROJECT_DIR
-                          so it could pass for the wrong reason.
-  3  scope PASS · cto PASS
-     platform FAIL      — `GOVERNANCE_BASE` resolved to the branch TIP while CI resolves it through
-                          MERGE-BASE, so the halves disagreed the moment the override named a
-                          branch that had moved on — the very defect this task removes,
-                          reintroduced through its own escape hatch. The test could not catch it:
-                          it used a direct ancestor, where tip and merge-base coincide.
-  4  all three PASS.
-⚠ THREE of this task's tests passed against the defect they were written to catch, each found by
-running them against a reverted copy rather than trusting a green run.
+⚠ REBOUND AFTER A REBASE, and the cause is worth recording because it will recur.
+The first binding was `f8238905…`, computed on base `a2b4184`. CI recomputed a different value
+and `validate:governance` FAILed. Not a builder error and not the documented multi-commit trap:
+`#63` (`fix/63-review-hash-content-identity`) merged to `main` WHILE this branch was in review
+and CHANGED THE HASH ALGORITHM ITSELF — from hashing the rendered patch text to hashing content
+identity (`git diff --raw`), in both `.claude/hooks/git_discipline.py` and
+`scripts/check_task_artifacts.py`. This branch predated it, so the local side used the old
+algorithm and the merged-result pipeline used the new one. They could not agree.
+Resolved by rebasing onto `b4b2414`, recomputing with the new algorithm, and collapsing to one
+commit. THE REVIEWED CONTENT DID NOT CHANGE: `git diff --staged --name-only main` is the same 12
+paths the four reviewers passed, and none of #63's files appear in this branch's diff. So the
+verdicts below stand and were not re-run — only the binding moved.
+-->
+
+
+<!--
+Round 1: scope-auditor PASS (but flagged the drift-guard gap as a follow-up rather than a
+         defect); analytics-engineer FAIL and platform FAIL, independently, on the SAME thing —
+         only the per-model-override half of the guard was extended to staging, leaving the
+         doc-drift half hardcoded to 2_base, in a task whose thesis is that this exact
+         regression class needs mechanical enforcement. Platform additionally found the new
+         policy token in layering.md split across a markdown line wrap, which would have
+         silently defeated the check being added.
+Round 2: guards generalised per layer. On its FIRST run the generalised sweep found three stale
+         claims the manual done_when sweep had walked past — two ingestion comments and
+         .claude/active_work.md. analytics-engineer, platform and data-engineer PASS.
+         scope-auditor FAIL: the active_work.md exclusion cited a GitLab issue a blinded
+         reviewer cannot read, while suppressing a real finding.
+Round 3: the ownership ruling recorded verbatim in escalations.log, the exclusion comment
+         rewritten to disclose what it suppresses and how to reverse it, the staleness reported
+         to the owning stream on #33, and the cosmetically misnamed test renamed. All four PASS.
 -->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Enumerated every `diff --git` header in the patch against `scope_paths`: all seven files are
-  listed, none is a scope violation.
-- Verified the round-cap override is a real recorded ruling in `escalations.log` with the
-  situation, options and a stated recommendation, and that it reads as recorded BEFORE round 4
-  rather than backfilled — the round-3 verdicts and the exact defect are documented first, then
-  the answer.
-- Checked `decisions_taken` item 6 against the actual `_base_commit` delta: the claim (round 2's
-  hatch resolved to the ref TIP, now resolves through `merge-base` to match CI's three-dot
-  `base...HEAD`) is exactly what the diff does, and it honestly flags itself as a correction to
-  item 5's own fix rather than to the original defect.
-- Verified the protected-path authority's stated boundary holds: no other hook, no routing file,
-  no reviewer brief, no commit-form deny package appears in the diff.
-- Checked item 6's test claim against the test itself — it builds a diverged `upstream` branch and
-  asserts `ancestor != tip`, rather than the direct ancestor the earlier version used.
-- Swept all seven files for credential-shaped content and widened CI permissions: none.
+- Patch file set matches `scope_paths` at every round; no `dbt_project/models/**` edit, no
+  ingestion behaviour change, and item 15 correctly NOT bundled.
+- CPO authority for items 9+10 ("definitely") recorded in `escalations.log` before `contract.md`
+  cited it, together with the premise check the CPO demanded — that staging was never previously
+  a table, evidenced by replaying the config block at every commit from `1f422c0` to `4899025`.
+- RECURRING COST declaration attacked for honesty: it states a MEASURED net reduction, discloses
+  that the figure is SMALLER than the issue it cites claims (`RAW_APIF_TRANSFERS` 6.99 GiB ->
+  0.178 GiB post item-8b), and no site oversells it.
+- Both `amendments:` entries checked against the diff for undisclosed widening — the break-test
+  method change widened nothing, and the two-file ingestion growth is confined to comment text
+  and cites the 2026-08-08 standing rule, verified present in the log.
+- ⚠ FAILED round 2 on the `.claude/active_work.md` exclusion: a real stale claim suppressed on an
+  authority a blinded reviewer could not read. Re-verified at round 3 that the ruling is now
+  quoted verbatim in `escalations.log`, that the exclusion comment names the offender it
+  suppresses and the condition for reversing it, and that the narrowing is disclosed rather than
+  hidden.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Verified `protected_override` against `escalations.log` — the ruling exists, predates the
-  contract, and the contract reproduces its narrow bound rather than widening it. Confirmed
-  `.claude/hooks/` is genuinely a protected prefix (`task_contract_gate.py:66`) and that routing
-  puts platform beside the CTO on that path.
-- Verified the round-cap override is recorded in PROSPECTIVE voice, and said explicitly that
-  ordering two additions inside one cumulative diff is not git-provable — evidence is consistent,
-  and it declined to claim proof it did not have.
-- Attacked the `--raw` argument for lost discriminating power across mode-only changes, add/delete,
-  renames, binaries, textconv filters and `diff.context`; could not construct a content change that
-  moves the old hash but not the new one. Binaries get STRONGER — the rendered form emits
-  "Binary files differ" with no blob SHA.
-- Ruled on the fail-open departure: the outer handler is untouched and still fails open loudly on
-  hook bugs; exactly one value now fails closed, and the alternative (`sha256(b"")` matching
-  itself) was a bypass rather than a fail-open. Declared in `decisions_taken` item 5, not smuggled
-  into a docstring.
-- On round 4: confirmed the capability removed was a FAKE exit — a tip-resolved base produced a
-  hash CI could never reproduce — and that a real, CI-consistent exit still exists (any commit in
-  HEAD's own ancestry).
-- Thresholds, dependencies, credentials, workflow permissions: nothing added, nothing widened;
-  the deferred second-git-version CI job is correctly parked in `decisions_reserved` as CPO-class
-  recurring cost.
+- Staging-as-table correctness: read representative models (`stg_apif__player_profiles`,
+  `stg_apif__players`, `stg_apif__fixtures_next`). Snapshot-selection and
+  incremental-accumulation patterns are unaffected — a view and a table over the same SELECT
+  return the same rows, staging is not incremental, so no `--full-refresh` and no grain hazard.
+- Mid-run ordering hazard: read `deploy/nightly/entrypoint.sh` — ingestion completes before
+  `dbt build` starts, so raw is not written during the build and a stored staging table cannot
+  serve staler data than a view would have. No hazard.
+- "No lineage change" verified by construction, not assertion: zero `dbt_project/models/**/*.sql`
+  files appear in the diff.
+- Zero per-model materialisation overrides exist in `1_staging` today, so the new guard is not
+  retroactively firing on anything undisclosed.
+- Cost reasoning cross-checked across `contract.md`, `escalations.log`, `dbt_project.yml`,
+  `layering.md` — consistent, and the stale-#33-figures caveat is stated in all of them.
+- ⚠ FAILED round 1 on the asymmetric guard; re-verified at round 2 that `POLICY_SITES`,
+  `PROSE_SUBJECT` and all three drift tests now loop per layer with no base-only mechanism left.
+- Prose regex traced by hand against the past-tense history that must stay writable
+  ("Staging and base were BOTH views", "Both were views", `report_bq_cost.py:77`) — none match,
+  because the intervening `were`/`BOTH` break the alternation. No false positives.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Traced both hash implementations by hand and confirmed they compute identical bytes: local
-  `git diff --staged <merge-base> --raw --no-renames --no-abbrev <pathspec>` versus CI
-  `git diff --raw --no-renames --no-abbrev <base>...HEAD <pathspec>`; three-dot IS merge-base, so
-  the two now agree on the base as well as on the bytes. The hand-mirror `branch_hash` moved to
-  `--raw` in the same commit, so the third copy does not lie.
-- Verified the round-3 finding is closed at `_base_commit`: the override resolves through
-  `merge-base HEAD <resolved>`, and both failure paths (unresolvable value, no common ancestor)
-  raise loudly rather than falling back to a different diff.
-- Verified the override test now DISCRIMINATES structurally rather than incidentally: `upstream` is
-  cut after the feature commit and gains its own file, so diffing from the tip emits an extra
-  deletion row and the two hashes cannot coincide. Also confirmed the fixture is non-vacuous.
-- Re-verified all five of its round-2 findings closed, each against the code rather than the
-  contract's narration.
-- Guard orientation: the local hook still fails OPEN on an escaping exception (handler intact);
-  the CI backstop still fails CLOSED (`check=True`). Both `_staged_diff_bytes` callers handle
-  `None`; no third caller exists.
-- Re-run and interruption safety: every changed path is a read-only git invocation with a 30s
-  timeout and no writes.
-- Listed four residuals and explicitly judged none of them grounds for a fifth round — filed as
-  **#64**, together with one PRE-EXISTING local/CI reviewer-set split it noticed in passing.
+- The base path is behaviourally identical after the refactor: with `layer_label="base"`,
+  `.capitalize()` reproduces the original message byte-for-byte, and `check_base_layer` calls the
+  extracted helper with the same arguments.
+- `BASE_MATERIALIZED` -> `PER_MODEL_MATERIALIZED` rename: grepped the tree; no live reference to
+  the old name survives.
+- The new guard is not decoration — verified against the contract's recorded break test, which
+  ran the real function over the real body of `stg_apif__teams.sql` in three states and produced
+  0 errors only for the unmodified one.
+- ⚠ FAILED round 1 on two counts: base-only drift guards, and a policy token split across a
+  markdown line wrap in `layering.md` (a live instance of the "line-based grep misses a phrase
+  straddling a line break" hazard). Both fixed and re-verified.
+- `POLICY_SITES` becoming a dict: traced every consumer; both tests iterate `.items()` and use
+  the per-layer tuple. No stale flat-tuple assumption survives.
+- Confirmed `.claude/hooks/dbt_layer_gate.py` and `docs/roles/analytics_engineer.md` are
+  genuinely silent on staging materialisation, so registering them for `1_staging` would be
+  incorrect rather than merely omitted.
+- The dual-token case traced through the loop: a file quoting the `1_staging` token while
+  registered only under `2_base` is still caught on the `1_staging` pass.
+- Test rename verified as a pure rename — no `pytest -k` selector, doc or other test references
+  the old name.
 
-## Verification (all LOCAL — no CI run on this branch yet)
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Read the actual diff hunks for both ingestion files: each changes exactly one word inside a
+  `#` comment; no code, logic or config line is touched.
+- `bigquery.py:121`'s reasoning concerns the RAW table's partition-filter permissiveness, not
+  staging's own materialisation, so it holds unchanged under table materialisation.
+- `loads/teams.py:63`'s justification for injecting `(league.id, league.season)` at ingest time
+  describes SELECT-level extraction behaviour, identical whether the result persists as a view or
+  a table.
+- Swept `ingestion/**` case-insensitively for any other place assuming staging is a view — only
+  the two edited lines; no missed site.
+- Confirmed the registry/onboarding path (`docs/competition_registry.yml`, `data_contract.md`,
+  `.gitlab-ci.yml`, `deploy/nightly/**`) is absent from the diff, and that nothing here drops the
+  `/injuries` ingest or table — item 15 remains a separate, deliberately unstarted task.
 
-`pytest tests/test_governance_hooks.py` **295 passed** · the five fast governance gates pass ·
-`check_task_artifacts` OK.
-
-⚠ **THE PROOF THAT MATTERS HAS NOT HAPPENED YET.** This change exists because `validate:governance`
-fails on `!33`. Until `!33` is rebound to the new hash and that job goes GREEN on the runner, this
-is a fix that passes its own tests, which is exactly what the previous implementation also did.
-`done_when` records that, and it is not satisfied by this file.
-
-⚠ **Merging this invalidates every existing `review.md` hash** — `!27` and `!33` both need
-rebinding afterwards. Stated in the contract's `impact_map` so it is planned, not discovered.
+## escalations
+(none — the two CPO rulings this task rests on, "definitely" for items 9+10 and the
+`.claude/active_work.md` ownership ruling, are recorded in `.claude/task/escalations.log` and were
+verified there by `scope-auditor`. No question was put to the CPO during the review cycle.)

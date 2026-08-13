@@ -9,7 +9,7 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 | Dataset | What lives there |
 |---------|------------------|
 | **`raw`** | 1:1 ingestion from Python (unified `RAW_APIF_*` tables, e.g. `RAW_APIF_FIXTURES_NEXT`, shared across all competitions and discriminated by a `league_code STRING` column — there are no per-competition raw tables). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
-| **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
+| **`staging`** | `1_staging` dbt models (tables since #33 items 9/10): light cleanup on top of `raw`. |
 | **`base`** | `2_base` models (tables since #547): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
 | **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
 | **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
@@ -71,6 +71,32 @@ From `2_base` upward, a model may `ref()` any model in the **same layer or any u
 ## 1_staging
 
 Purpose: source-near cleanup with minimal transformation.
+
+**Why tables, changed 2026-08-12 (#33 items 9/10).** Staging was a view from the project's first
+commit (`1f422c0`, 2026-04-10) on the same "not storing an intermediate result is cheaper"
+reasoning #547 had already disproved one layer down. A view stores nothing, so every reader
+re-executes the JSON parse beneath it: **59 staging tests** plus ~20 base-model reads scanned each
+raw table roughly five times a night to answer questions a stored table answers for BigQuery's
+10 MB minimum. Measured on 2026-08-12 across 24h of prod builds, tests cost **$0.17** against
+**$0.07** to build the models — the same tests-cost-more-than-models signature #547 was diagnosed
+from. Storing staging once a night collapses the multiplier to one scan per model.
+
+⚠ **Do not size future work from #33's figures for this item.** That issue justified the change on
+`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) has since shrunk it to **0.178 GiB**, a
+39x reduction, so the largest scan the item was written about was already gone by the time it
+landed. The saving today is ~**$3-4/month**. What the change actually buys is that cost stops
+scaling with (number of tests × raw size) as competitions are added. Storage added is ~0.5 GiB —
+for scale, the entire base layer, which is this layer's parsed output, is 0.415 GiB across 43
+tables, while the `staging` dataset was 0.0 GiB because views store nothing.
+
+Materialisation is a **LAYER** decision set once in `dbt_project.yml`.
+The policy line is `1_staging: +materialized: table`, and a staging model must never override it
+per model. `scripts/check_layer_contract.py`
+(`check_staging_materialisation`) enforces that in CI and
+`tests/test_materialisation_policy.py` is the offline twin. The rule is "no per-model
+`config(materialized=...)` at all", not "no wrong value": a model pinned to the layer's current
+value silently stops moving when the layer is re-costed. Reproduce the figures with
+`python scripts/report_bq_cost.py`.
 
 A staging model does exactly two things, in this order:
 

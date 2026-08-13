@@ -105,7 +105,13 @@ Per-layer minimums:
 
 ## 5) Performance Standards (BigQuery)
 
-- Prefer views for lightweight `staging`.
+- **Materialisation is a LAYER decision, never a per-model one.** It is set once in
+  `dbt_project.yml` and enforced by `scripts/check_layer_contract.py`; a per-model
+  `config(materialized=...)` is rejected in `1_staging` and `2_base` whatever its value.
+- `staging` and `base` are **tables** (#547, and #33 items 9/10). "Prefer views for lightweight
+  staging" was the rule here until 2026-08-12 and it was wrong for a measurable reason: a view
+  stores nothing, so every test on it re-executes the parse of the raw JSON underneath. Testing
+  cost more than building. See `dbt_project/docs/layering.md` §1_staging.
 - Use tables for heavy transforms in `intermediate` and high-query `marts`.
 - For large tables, apply partitioning and clustering (typically on date/time and league/team keys).
 - Avoid repeated expensive expressions across layers; centralize once in `intermediate` if reused.

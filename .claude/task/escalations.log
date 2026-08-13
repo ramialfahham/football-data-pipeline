@@ -2243,3 +2243,90 @@ times.
   round has failed on a NARROWER thing than the last, and rounds 2 and 3 each ended with a
   reproduced defect rather than a reviewer opinion. Round 4 is scoped to this one finding. Anything
   new is filed as its own issue rather than opening a fifth round.
+
+
+2026-08-12 — #33 ITEMS 9 + 10 (STAGING AS A TABLE) AND ITEM 15 (DROP /INJURIES)
+
+  THE RULINGS. Item 9 + 10: **"definitely"**. Item 15: **"yes"**. Both in-thread, 2026-08-12,
+  after the analysis below was put to the CPO. Recorded before any contract cites them.
+
+  ⚠ A PREMISE CHECK THE CPO DEMANDED, AND IT MATTERED. Asked directly: "it was a table before
+  then we made it a view, for cost reasons. are you sure?" If true, this task would be reversing
+  a measured decision and would need to explain what was wrong with that measurement.
+
+  IT IS NOT TRUE, and the evidence is mechanical rather than recollected: `1_staging` has been
+  `+materialized: view` at EVERY commit that ever touched `dbt_project/dbt_project.yml`, from
+  `1f422c0` (2026-04-10, the file's creation) through `4899025` (2026-08-02). Extracted by
+  replaying the 1_staging block at each commit, not by reading the current comment. Staging has
+  never been a table and was never switched to a view for cost reasons.
+
+  WHAT THE CPO WAS REMEMBERING IS `2_base`, which genuinely WAS a view and became a table on
+  2026-08-02 under #547 — and there the belief "not storing an intermediate result is cheaper"
+  is exactly what the measurement overturned. So the recollection was real, applied to the
+  neighbouring layer, and pointed at the correct precedent for THIS change rather than against
+  it.
+
+  THE ECONOMICS ARE SMALLER THAN #33 CLAIMS, AND THE CONTRACT SAYS SO RATHER THAN QUOTING THE
+  ISSUE. #33 justified item 9 on `RAW_APIF_TRANSFERS` at 6.99 GiB being re-scanned per test.
+  Item 8b (merge-on-write) has since shrunk that table to **0.178 GiB, a 39x reduction**, so
+  the single largest scan the item was written about is already gone. Measured on the last 24h
+  of prod builds: tests $0.17 vs models $0.07 — the same 2.4x view-rescan signature, but on a
+  much smaller base. Expected saving is roughly **$3-4/month**, not the figure #33 implies.
+  ⚠ Do not quote #33's transfers numbers in any future contract; they are stale.
+
+  WHY IT IS STILL RIGHT, on the argument that survives the smaller number: each raw table is
+  currently scanned about five times a night per staging model — once per test plus once per
+  base read — because a view stores nothing and every reader re-executes the JSON parse. As a
+  table it is scanned ONCE and the 59 staging tests read a stored table at BigQuery's 10 MB
+  minimum. What the change removes is the MULTIPLIER, which applies to whatever raw grows to.
+  The CPO stated in the same thread that more competitions ARE coming, which is precisely the
+  condition that makes the multiplier the thing worth removing. Storage added is ~0.5 GiB
+  (measured: the whole `dbt_analytics` base layer, which is staging's parsed output, is
+  0.415 GiB across 43 tables), i.e. cents per month.
+
+  ITEM 15 IS THE BIGGER AND SIMPLER WIN, and it surfaced from the same measurement rather than
+  from the issue text: `RAW_APIF_INJURIES` is now the **LARGEST raw table at 1.975 GiB** — the
+  merge-on-write work reordered the table, it used to be second — and NOTHING reads it. No
+  source declaration, no model, no script. Pure storage cost with no consumer and no downstream
+  to reason about.
+
+  SEQUENCED AS TWO TASKS at the CPO's agreement, not bundled: items 9+10 change a layer's
+  materialisation policy and its CI guard; item 15 stops an ingest and deletes a raw table.
+  Different blast radii, different reviewers, and bundling them would make either hard to
+  revert alone.
+
+  ⚠ THE `.claude/active_work.md` OWNERSHIP RULING, WRITTEN DOWN HERE BECAUSE A REVIEWER COULD
+  NOT VERIFY IT AND WAS RIGHT TO FAIL THE TASK OVER IT.
+
+  THE RULING, verbatim, from the GitLab #33 issue body and repeated in the CPO's session brief:
+  **"Do not edit `.claude/active_work.md` from this worktree — the product stream owns it.
+  Record state here instead."** #33 also states the split it rests on: "Worktree:
+  `D:\Projects\fdp-pipeline`. The product stream runs in parallel in `D:\Projects\fdp-product`."
+
+  WHY THIS ENTRY EXISTS. `scope-auditor` FAILed round 2 of items 9/10 because the contract
+  justified excluding that file from a drift guard by citing "#33 says so" — an authority
+  living on a GitLab issue, which a blinded reviewer cannot read. It called the citation
+  unverifiable and noted that `CLAUDE.md`'s memory index says the opposite ("Authoritative
+  handover = the in-repo `.claude/active_work.md` ... Read it first, every session"), with no
+  evidence anywhere in the repo of a two-stream split. Every one of those observations is
+  correct. The FACT was true and the RECORD was not, which is the same defect this log has now
+  caught four separate times: an authority the builder can see and the reviewer cannot is not
+  an authority.
+
+  WHAT THE RULING DOES AND DOES NOT LICENCE. It forbids EDITING the file from this worktree. It
+  does NOT licence silently narrowing a guard that catches a real defect in it. The reviewer's
+  characterisation of the first attempt — "a genuine drift-detector was made not to see the
+  file it just caught something in" — was accurate, and the exclusion is only defensible now
+  because (a) the authority is recorded here where a reviewer can check it, (b) the staleness is
+  TRACKED rather than swallowed: `.claude/active_work.md:184` says "staging is still a VIEW so
+  tests re-scan raw", which this branch makes false, and it is reported to the owning stream on
+  #33 in the same session, and (c) the file is transient handover state that its own header
+  calls "CURRENT STATE ONLY", not a policy site any consumer of `layering.md` relies on.
+
+  THE ALTERNATIVE THE REVIEWER OFFERED — add the file to `scope_paths` and fix the one word
+  under the 2026-08-08 standing rule, as was done for the two ingestion comments in this same
+  diff — IS NOT AVAILABLE HERE, and that is the only reason it was not taken: the standing rule
+  permits fixing a broken reference, while this ruling separately forbids touching this
+  particular file from this worktree. Where the two conflict, the specific, later, file-scoped
+  instruction governs. If the CPO would rather it be corrected in place, that is one word and
+  this entry is the place to overturn it.

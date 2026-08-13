@@ -118,7 +118,7 @@ def ensure_raw_table_partitioned(client: bigquery.Client, table_name: str) -> No
     ]
     table = bigquery.Table(table_id, schema=schema)
     # Partition by the date part of ingested_at — one partition per calendar day.
-    # require_partition_filter=False so staging views can still do full scans
+    # require_partition_filter=False so staging models can still do full scans
     # during development without adding a WHERE clause.
     table.time_partitioning = bigquery.TimePartitioning(
         type_=bigquery.TimePartitioningType.DAY,
