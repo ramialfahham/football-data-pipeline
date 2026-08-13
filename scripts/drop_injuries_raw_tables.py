@@ -1,17 +1,24 @@
 """Drop every RAW_APIF_*_INJURIES table from BigQuery.
 
-The injuries surface (ingestion call, dbt source, staging model, schema
-docs) is fully removed in this PR. This script cleans up the orphaned
-raw tables that the previous loader may have created, across every
-competition (BL1 + WC qualifier confederations).
+⚠ THIS SCRIPT HAS OUTLIVED ONE REMOVAL ALREADY. It was written for `401c1cc` (2026-05-10), which
+removed the injuries surface because it had no consumer. The endpoint was re-added sixteen days
+later (`983d12c`) with no consumer named, migrated to the unified raw tables (`178261d`), and ran
+for three months writing `RAW_APIF_INJURIES` — 1.975 GiB, the largest raw table — that nothing
+ever read. #33 item 15 removes it again. If a third re-add is ever proposed, read
+`.claude/task/escalations.log` for why the first two failed to justify themselves.
 
-Run once after the PR merges. The script lists every table in the raw
-dataset whose name ends in ``_INJURIES`` (and starts with the
-``RAW_APIF_`` prefix used by the project) and drops each, preserving
-non-injury tables.
+The match pattern is unchanged and still correct: it targets tables whose name starts with
+``RAW_APIF_`` and ends with ``_INJURIES``. That covered the retired per-competition naming
+(``RAW_APIF_BL1_INJURIES``) and still covers the unified ``RAW_APIF_INJURIES``, since that also
+ends in ``_INJURIES``. Non-injury tables are never listed.
+
+⚠ IRREVERSIBLE past BigQuery's 7-day time travel. Run `--dry-run` first and have the printed list
+confirmed before the real run. Run it only AFTER the ingest removal has merged and the nightly
+image has been redeployed — otherwise the next run recreates the table.
 
 Usage:
-    python scripts/drop_injuries_raw_tables.py [--dry-run]
+    python scripts/drop_injuries_raw_tables.py --dry-run
+    python scripts/drop_injuries_raw_tables.py
 """
 
 from __future__ import annotations

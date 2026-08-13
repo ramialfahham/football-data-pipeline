@@ -1,13 +1,18 @@
-"""Tests for loads/injuries.py and loads/coaches.py.
+"""Tests for loads/coaches.py.
 
 All BigQuery and HTTP interactions are mocked — no live GCP connection required.
+
+Was `test_injuries_coaches.py` until #33 item 15 removed the `/injuries` ingest: the endpoint
+had no consumer anywhere in the warehouse, and `RAW_APIF_INJURIES` was the largest raw table at
+1.975 GiB. `TestLoadInjuries` went with the loader it tested. Coaches was added in the same
+commit as injuries (`983d12c`) and DID get a consumer — `stg_apif__coaches` -> `base_apif__coaches`
+-> `dim_coach` — which is why it stays.
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from ingestion.api_football.loads.injuries import load_injuries
 from ingestion.api_football.loads.coaches import load_coaches
 
 
@@ -30,145 +35,6 @@ def _api_response(items: list, errors=None) -> dict:
         "results": len(items),
         "paging": {"current": 1, "total": 1},
     }
-
-
-# ---------------------------------------------------------------------------
-# load_injuries
-# ---------------------------------------------------------------------------
-
-
-class TestLoadInjuries:
-    def test_calls_api_once_per_season(self):
-        ctx = _make_ctx()
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            return_value=_api_response([]),
-        ) as mock_fetch:
-            with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
-                load_injuries(ctx, "BL1", 78, [2024, 2023])
-
-        assert mock_fetch.call_count == 2
-        calls = mock_fetch.call_args_list
-        assert calls[0][0][0] == "/injuries"
-        assert calls[0][0][2] == {"league": 78, "season": 2024}
-        assert calls[1][0][2] == {"league": 78, "season": 2023}
-
-    def test_merges_all_seasons_into_one_bq_row(self):
-        ctx = _make_ctx()
-        season_2024 = _api_response([{"player": {"id": 1}}, {"player": {"id": 2}}])
-        season_2023 = _api_response([{"player": {"id": 3}}])
-
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            side_effect=[season_2024, season_2023],
-        ):
-            with patch(
-                "ingestion.api_football.loads.injuries.load_json_to_bq"
-            ) as mock_bq:
-                load_injuries(ctx, "BL1", 78, [2024, 2023])
-
-        assert mock_bq.call_count == 1
-        payload = mock_bq.call_args[0][2]
-        assert payload["results"] == 3
-        assert len(payload["response"]) == 3
-
-    def test_writes_to_correct_table(self):
-        ctx = _make_ctx()
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            return_value=_api_response([{"player": {"id": 1}}]),
-        ):
-            with patch(
-                "ingestion.api_football.loads.injuries.load_json_to_bq"
-            ) as mock_bq:
-                load_injuries(ctx, "PL", 39, [2024])
-
-        table_name = mock_bq.call_args[0][1]
-        assert table_name == "RAW_APIF_INJURIES"
-
-    def test_uses_append_mode(self):
-        ctx = _make_ctx()
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            return_value=_api_response([{"player": {"id": 1}}]),
-        ):
-            with patch(
-                "ingestion.api_football.loads.injuries.load_json_to_bq"
-            ) as mock_bq:
-                load_injuries(ctx, "BL1", 78, [2024])
-
-        kwargs = mock_bq.call_args[1]
-        assert kwargs.get("append") is True
-
-    def test_no_op_when_seasons_list_empty(self):
-        ctx = _make_ctx()
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged"
-        ) as mock_fetch:
-            with patch("ingestion.api_football.loads.injuries.load_json_to_bq") as mock_bq:
-                load_injuries(ctx, "BL1", 78, [])
-
-        mock_fetch.assert_not_called()
-        mock_bq.assert_not_called()
-
-    def test_skips_remaining_seasons_when_quota_exhausted(self):
-        import ingestion.api_football.quota as quota_mod
-
-        ctx = _make_ctx()
-        prev = quota_mod._http_quota_exhausted
-        quota_mod._http_quota_exhausted = True
-        try:
-            with patch(
-                "ingestion.api_football.loads.injuries.fetch_merged_paged"
-            ) as mock_fetch:
-                with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
-                    load_injuries(ctx, "BL1", 78, [2024, 2023])
-        finally:
-            quota_mod._http_quota_exhausted = prev
-
-        mock_fetch.assert_not_called()
-
-    def test_api_exception_appended_to_errors_and_continues(self):
-        ctx = _make_ctx()
-
-        def raise_on_first(path, headers, base_params, **kwargs):
-            if base_params["season"] == 2024:
-                raise RuntimeError("timeout")
-            return _api_response([{"player": {"id": 9}}])
-
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            side_effect=raise_on_first,
-        ):
-            with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
-                load_injuries(ctx, "BL1", 78, [2024, 2023])
-
-        assert any("injuries" in e and "BL1" in e for e in ctx.errors)
-
-    def test_bq_exception_appended_to_errors(self):
-        ctx = _make_ctx()
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            return_value=_api_response([{"player": {"id": 1}}]),
-        ):
-            with patch(
-                "ingestion.api_football.loads.injuries.load_json_to_bq",
-                side_effect=RuntimeError("BQ write failed"),
-            ):
-                load_injuries(ctx, "BL1", 78, [2024])
-
-        assert any("injuries BQ" in e for e in ctx.errors)
-
-    def test_increments_tables_loaded_counter(self):
-        ctx = _make_ctx()
-        with patch(
-            "ingestion.api_football.loads.injuries.fetch_merged_paged",
-            return_value=_api_response([{"player": {"id": 1}}]),
-        ):
-            with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
-                load_injuries(ctx, "BL1", 78, [2024])
-
-        ctx.add_loaded.assert_called_once_with(1)
 
 
 # ---------------------------------------------------------------------------

@@ -202,9 +202,9 @@ class TestReturnedKeySetIsStable:
     """Regression guard for the defect review round 1 caught.
 
     `fetch_merged_paged`'s returned dict is copied wholesale into the stored raw payload by
-    `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehensions in
-    loads/teams.py and loads/injuries.py, each of which excludes only a fixed key list. A new
-    top-level key therefore lands in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and
+    `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehension in
+    loads/teams.py, each of which excludes only a fixed key list. A new
+    top-level key therefore lands in RAW_APIF_STANDINGS, RAW_APIF_TEAMS and
     RAW_APIF_FIXTURES_NEXT. The first attempt at #896 added a `complete` key here and would have
     done exactly that, with a value frozen at the first season of a multi-season merge.
 

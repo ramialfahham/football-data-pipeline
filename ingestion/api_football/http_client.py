@@ -94,9 +94,9 @@ def result_is_complete(data: dict) -> bool:
     process-global and latches for the rest of the run.
 
     Deliberately a function rather than a key on the returned dict. ``_merge_merged_paged`` and the
-    manual envelope comprehensions in loads/teams.py and loads/injuries.py copy every key they do
+    manual envelope comprehension in loads/teams.py copies every key it does
     not explicitly exclude straight into the stored raw payload, so an extra key would be persisted
-    into four raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
+    into three raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
     FIRST source only, so the value would freeze at the first season of a multi-season loop and a
     run whose fourth season was rate-limited would still record the snapshot as complete.
 
@@ -126,9 +126,9 @@ def fetch_merged_paged(
     Fetch API list endpoints. When ``paginate`` is True, merges all ``page=`` results (e.g. ``/players``).
     When False, sends ``base_params`` only — many endpoints (and free-tier plans) reject ``page``.
 
-    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Four loaders build the
+    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Three loaders build the
     raw payload they persist by copying every key except a fixed exclusion list, so a new key lands
-    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and RAW_APIF_FIXTURES_NEXT. To ask
+    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS and RAW_APIF_FIXTURES_NEXT. To ask
     whether a result may supersede stored data, call :func:`result_is_complete` (#896).
     """
     if not paginate:

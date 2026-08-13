@@ -1,126 +1,97 @@
-# Review — perf/33-item9-staging-as-table — 2026-08-12
+# Review — chore/33-item15-drop-injuries — 2026-08-13
 
-diff_sha256: 23db5a935eb88f4edf77ebfb00cb0fb08b8a9b91d498c640fd272011a2f15725
+diff_sha256: 2f31a1c3938b751bacf70496c171d0b4ca6ab351f4642ae8e2421e2ac0480dde
 
 rounds: 3
 
 <!--
-⚠ REBOUND AFTER A REBASE, and the cause is worth recording because it will recur.
-The first binding was `f8238905…`, computed on base `a2b4184`. CI recomputed a different value
-and `validate:governance` FAILed. Not a builder error and not the documented multi-commit trap:
-`#63` (`fix/63-review-hash-content-identity`) merged to `main` WHILE this branch was in review
-and CHANGED THE HASH ALGORITHM ITSELF — from hashing the rendered patch text to hashing content
-identity (`git diff --raw`), in both `.claude/hooks/git_discipline.py` and
-`scripts/check_task_artifacts.py`. This branch predated it, so the local side used the old
-algorithm and the merged-result pipeline used the new one. They could not agree.
-Resolved by rebasing onto `b4b2414`, recomputing with the new algorithm, and collapsing to one
-commit. THE REVIEWED CONTENT DID NOT CHANGE: `git diff --staged --name-only main` is the same 12
-paths the four reviewers passed, and none of #63's files appear in this branch's diff. So the
-verdicts below stand and were not re-run — only the binding moved.
--->
+Round 1: all three PASS on the removal itself. platform-reviewer additionally FLAGGED, outside
+         its own territory and therefore not as a FAIL, that `docs/data_contract.md:36` still
+         said "Eleven tables" after a row was removed. scope-auditor had passed that same line
+         as "still correct".
+Round 2: the count was REMOVED rather than corrected (CLAUDE.md gives that instruction for this
+         exact class). scope-auditor PASS, and accepted the correction to its own round-1
+         reading. data-engineer-reviewer FAIL: the SAME stale count survived at line 3 of the
+         same file, under the OPPOSITE counting convention, so the document now contradicted
+         itself two lines from the top.
+Round 3: both instances closed, whole file swept, and the documented set recounted against what
+         the loaders actually write. All three PASS.
 
-
-<!--
-Round 1: scope-auditor PASS (but flagged the drift-guard gap as a follow-up rather than a
-         defect); analytics-engineer FAIL and platform FAIL, independently, on the SAME thing —
-         only the per-model-override half of the guard was extended to staging, leaving the
-         doc-drift half hardcoded to 2_base, in a task whose thesis is that this exact
-         regression class needs mechanical enforcement. Platform additionally found the new
-         policy token in layering.md split across a markdown line wrap, which would have
-         silently defeated the check being added.
-Round 2: guards generalised per layer. On its FIRST run the generalised sweep found three stale
-         claims the manual done_when sweep had walked past — two ingestion comments and
-         .claude/active_work.md. analytics-engineer, platform and data-engineer PASS.
-         scope-auditor FAIL: the active_work.md exclusion cited a GitLab issue a blinded
-         reviewer cannot read, while suppressing a real finding.
-Round 3: the ownership ruling recorded verbatim in escalations.log, the exclusion comment
-         rewritten to disclose what it suppresses and how to reverse it, the staleness reported
-         to the owning stream on #33, and the cosmetically misnamed test renamed. All four PASS.
+Worth keeping: the round-2 FAIL was "you fixed the instance, not the class" applied INSIDE a
+single file. The first fix was itself the defect it was fixing.
 -->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Patch file set matches `scope_paths` at every round; no `dbt_project/models/**` edit, no
-  ingestion behaviour change, and item 15 correctly NOT bundled.
-- CPO authority for items 9+10 ("definitely") recorded in `escalations.log` before `contract.md`
-  cited it, together with the premise check the CPO demanded — that staging was never previously
-  a table, evidenced by replaying the config block at every commit from `1f422c0` to `4899025`.
-- RECURRING COST declaration attacked for honesty: it states a MEASURED net reduction, discloses
-  that the figure is SMALLER than the issue it cites claims (`RAW_APIF_TRANSFERS` 6.99 GiB ->
-  0.178 GiB post item-8b), and no site oversells it.
-- Both `amendments:` entries checked against the diff for undisclosed widening — the break-test
-  method change widened nothing, and the two-file ingestion growth is confined to comment text
-  and cites the 2026-08-08 standing rule, verified present in the log.
-- ⚠ FAILED round 2 on the `.claude/active_work.md` exclusion: a real stale claim suppressed on an
-  authority a blinded reviewer could not read. Re-verified at round 3 that the ruling is now
-  quoted verbatim in `escalations.log`, that the exclusion comment names the offender it
-  suppresses and the condition for reversing it, and that the narrowing is disclosed rather than
-  hidden.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Staging-as-table correctness: read representative models (`stg_apif__player_profiles`,
-  `stg_apif__players`, `stg_apif__fixtures_next`). Snapshot-selection and
-  incremental-accumulation patterns are unaffected — a view and a table over the same SELECT
-  return the same rows, staging is not incremental, so no `--full-refresh` and no grain hazard.
-- Mid-run ordering hazard: read `deploy/nightly/entrypoint.sh` — ingestion completes before
-  `dbt build` starts, so raw is not written during the build and a stored staging table cannot
-  serve staler data than a view would have. No hazard.
-- "No lineage change" verified by construction, not assertion: zero `dbt_project/models/**/*.sql`
-  files appear in the diff.
-- Zero per-model materialisation overrides exist in `1_staging` today, so the new guard is not
-  retroactively firing on anything undisclosed.
-- Cost reasoning cross-checked across `contract.md`, `escalations.log`, `dbt_project.yml`,
-  `layering.md` — consistent, and the stale-#33-figures caveat is stated in all of them.
-- ⚠ FAILED round 1 on the asymmetric guard; re-verified at round 2 that `POLICY_SITES`,
-  `PROSE_SUBJECT` and all three drift tests now loop per layer with no base-only mechanism left.
-- Prose regex traced by hand against the past-tense history that must stay writable
-  ("Staging and base were BOTH views", "Both were views", `report_bq_cost.py:77`) — none match,
-  because the intervening `were`/`BOTH` break the alternation. No false positives.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- The base path is behaviourally identical after the refactor: with `layer_label="base"`,
-  `.capitalize()` reproduces the original message byte-for-byte, and `check_base_layer` calls the
-  extracted helper with the same arguments.
-- `BASE_MATERIALIZED` -> `PER_MODEL_MATERIALIZED` rename: grepped the tree; no live reference to
-  the old name survives.
-- The new guard is not decoration — verified against the contract's recorded break test, which
-  ran the real function over the real body of `stg_apif__teams.sql` in three states and produced
-  0 errors only for the unmodified one.
-- ⚠ FAILED round 1 on two counts: base-only drift guards, and a policy token split across a
-  markdown line wrap in `layering.md` (a live instance of the "line-based grep misses a phrase
-  straddling a line break" hazard). Both fixed and re-verified.
-- `POLICY_SITES` becoming a dict: traced every consumer; both tests iterate `.items()` and use
-  the per-layer tuple. No stale flat-tuple assumption survives.
-- Confirmed `.claude/hooks/dbt_layer_gate.py` and `docs/roles/analytics_engineer.md` are
-  genuinely silent on staging materialisation, so registering them for `1_staging` would be
-  incorrect rather than merely omitted.
-- The dual-token case traced through the loop: a file quoting the `1_staging` token while
-  registered only under `2_base` is still caught on the `1_staging` pass.
-- Test rename verified as a pure rename — no `pytest -k` selector, doc or other test references
-  the old name.
+- CPO authority verified in `.claude/task/escalations.log` independently of `contract.md` — the
+  question put ("drop `/injuries` as a second task?") and the answer ("yes") are both in the
+  committed log, as is the 2026-08-13 premise check.
+- The `readers: NONE` claim checked directly rather than accepted: `sources.yml` has no injuries
+  entry, and the only `injur` hits under `dbt_project/models/**` are `has_coverage_injuries`,
+  parsed from the `/leagues` coverage flag and untouched by this diff.
+- Every `diff --git` header maps onto an entry in `scope_paths`; no file outside the allowlist.
+- Dangling-reference sweep across `ingestion/**` and `scripts/**`: no surviving import of
+  `load_injuries` and no reference to `RAW_APIF_INJURIES` outside the deliberately-updated drop
+  script; the runner's docstring phase list and import list dropped the step consistently.
+- Test deletion judged against the "guard loosened" threshold: `TestLoadInjuries` went with its
+  subject, `TestLoadCoaches` is preserved verbatim, and the surviving envelope-stability guard in
+  `test_incomplete_fetch_no_supersede.py` lost only a docstring mention, not an assertion.
+- The physical table drop is confirmed NOT in this diff, matching `decisions_reserved`.
+- Classified the round-2 count removal against §10: no table, write mode, partition, cluster or
+  merge key changes, so a builder-level doc-hygiene call, consistent with the precedent CLAUDE.md
+  already sets — not a fresh unilateral pattern.
+- ⚠ Its round-1 reading of the "Eleven tables" line as "still correct" was wrong and it accepted
+  the correction at round 2. Recorded because a reviewer PASS is not evidence a claim is true.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Read the actual diff hunks for both ingestion files: each changes exactly one word inside a
-  `#` comment; no code, logic or config line is touched.
-- `bigquery.py:121`'s reasoning concerns the RAW table's partition-filter permissiveness, not
-  staging's own materialisation, so it holds unchanged under table materialisation.
-- `loads/teams.py:63`'s justification for injecting `(league.id, league.season)` at ingest time
-  describes SELECT-level extraction behaviour, identical whether the result persists as a view or
-  a table.
-- Swept `ingestion/**` case-insensitively for any other place assuming staging is a view — only
-  the two edited lines; no missed site.
-- Confirmed the registry/onboarding path (`docs/competition_registry.yml`, `data_contract.md`,
-  `.gitlab-ci.yml`, `deploy/nightly/**`) is absent from the diff, and that nothing here drops the
-  `/injuries` ingest or table — item 15 remains a separate, deliberately unstarted task.
+- ⚠ THE CRITICAL SAFETY CHECK: `has_coverage_injuries` is parsed at `stg_apif__leagues.sql:88`
+  from `$.coverage.injuries` (the `/leagues` payload), used in `base_apif__leagues.sql:23,62`,
+  `dim_competition_season.sql:25` and declared in `core.yml:143-144`. None of those files appears
+  in the patch, so the column is untouched and `dim_competition_season` cannot break.
+- Sole-writer claim verified by grepping all of `ingestion/api_football` — `load_injuries` was the
+  only writer of `RAW_APIF_INJURIES` and was called from exactly one site.
+- `run_cheap_phases` read in full after the change: import, phase log and call cleanly removed, no
+  orphaned variable, no unused import, try/except and the following coaches phase unaffected, and
+  the module docstring's phase list matches the code exactly.
+- Hidden dependents ruled out by reading `completeness.py` (`FANOUT_ENTITIES`, `PER_TEAM_ENTITIES`,
+  `PER_TEAM_GATED`, the snapshot table), `orchestrator.py`, `quota.py`, `settings.py`,
+  `bigquery.py` and `.gitlab-ci.yml` — no completeness gate, quota accounting or scheduler config
+  depends on the removed phase.
+- The `http_client.py` "four -> three" comment edit verified by ENUMERATING the loaders that copy
+  the envelope wholesale: `standings.py` and `fixtures.py` via `_merge_merged_paged`, plus
+  `teams.py`'s manual comprehension. Three, and `coaches.py` was never in that set because it
+  builds its payload from explicit named keys.
+- ⚠ FAILED round 2: the stale count at `docs/data_contract.md:3` survived the round-2 fix under
+  the opposite convention to the one the new caveat described, leaving the document
+  self-contradicting. Re-verified at round 3 that both instances are closed, the whole file is
+  free of number-words adjacent to "table", and the documented set matches reality — an
+  independent recount of `raw_table(...)` call sites gives 11 entities, exactly the 10 rows plus
+  `RAW_APIF_LEAGUES`.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- `tests/test_coaches.py` compared BYTE-FOR-BYTE against the `TestLoadCoaches` block in the
+  deleted file at `main` — all 9 methods and both helpers identical; no assertion, mock target or
+  fixture value changed, and nothing in the survivors referenced the deleted class or shared state
+  with it. The file was reconstructed rather than edited, so this was the check that mattered.
+- Test-count arithmetic confirmed by enumerating `TestLoadInjuries`' 9 methods: 798 − 9 = 789,
+  matching the run exactly. Nothing else was lost.
+- `scripts/drop_injuries_raw_tables.py` matching logic confirmed byte-identical (docstring only).
+  Verified `"RAW_APIF_INJURIES"` satisfies both `startswith("RAW_APIF_")` and
+  `endswith("_INJURIES")`, so the docstring's claim that one pattern covers both the retired
+  per-competition naming and the unified table is true. Dry-run path never calls `delete_table`;
+  a second run finds nothing and exits 0; per-table failures are collected and the script exits 1
+  on any error, so it fails closed rather than reporting false success.
+- Confirmed no dependency file, CI config, hook or `site_v2` path appears anywhere in the diff,
+  and no credential-shaped content beyond a pre-existing mock header value.
+- Flagged (outside its territory, hence not a FAIL) the stale "Eleven tables" line that
+  data-engineer-reviewer then FAILed on — the flag was correct and is what started round 2.
 
 ## escalations
-(none — the two CPO rulings this task rests on, "definitely" for items 9+10 and the
-`.claude/active_work.md` ownership ruling, are recorded in `.claude/task/escalations.log` and were
-verified there by `scope-auditor`. No question was put to the CPO during the review cycle.)
+(none — the CPO ruling "yes" (2026-08-12) and the 2026-08-13 premise check are both recorded in
+`.claude/task/escalations.log` and were verified there by `scope-auditor`. No question was put to
+the CPO during the review cycle.)
