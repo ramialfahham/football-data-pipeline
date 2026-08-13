@@ -77,9 +77,21 @@ vars:
 # Hierarchical Model Configuration
 models:
   football_data_pipeline:
-    # 1. Staging: Raw cleanup (Views for speed and low cost)
+    # 1. Staging: Raw cleanup. TABLES since 2026-08-12 (#33 items 9/10). These were views from
+    # the project's first commit, on the same "not storing an intermediate result is cheaper"
+    # reasoning #547 already disproved one layer up. A view stores nothing, so every reader
+    # re-executes the JSON parse underneath it: 59 staging tests plus ~20 base-model reads scan
+    # each raw table about five times a night to answer questions a stored table answers for
+    # BigQuery's 10 MB minimum. Measured on 2026-08-12, prod build over 24h: tests $0.17 against
+    # models $0.07 — the same tests-cost-more-than-models signature #547 was diagnosed from.
+    # Storing staging once a night collapses that multiplier to one scan per model.
+    # The saving today is ~$3-4/month and the case is NOT today's money: item 8b shrank
+    # RAW_APIF_TRANSFERS from 6.99 GiB to 0.178 GiB, so #33's own figures for this item are
+    # stale. What is bought is that cost stops scaling with (tests x raw size) as competitions
+    # are added. Storage added is ~0.5 GiB — the whole base layer, which is this layer's parsed
+    # output, is 0.415 GiB.
     1_staging:
-      +materialized: view
+      +materialized: table
       +schema: staging
 
     # 2. Base: UNION ALL + dedup. TABLES since 2026-08-02 (#547). These were views, on the reasoning

@@ -34,29 +34,72 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DBT_PROJECT = ROOT / "dbt_project" / "dbt_project.yml"
 BASE_MODELS = ROOT / "dbt_project" / "models" / "2_base"
+STAGING_MODELS = ROOT / "dbt_project" / "models" / "1_staging"
+
+
+def _load_layer_contract():
+    """Import `scripts/check_layer_contract.py` as a module.
+
+    Shared by the base and staging guard tests. It was inline in one test before #33 item 10
+    added a second; two copies of a loader is how the two tests quietly stop exercising the same
+    script.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "check_layer_contract", ROOT / "scripts" / "check_layer_contract.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 # The policy. Changing a value here is the deliberate act; changing dbt_project.yml alone is not.
 EXPECTED = {
-    "1_staging": "view",     # light cleanup; cheap to re-run, and its consumers are stored
+    "1_staging": "table",    # #33 items 9/10: a view stored nothing, so all 59 staging tests
+                             # re-executed the raw JSON parse. Same defect, same fix as 2_base.
     "2_base": "table",       # #547: stored once a night so tests stop re-scanning the raw JSON
     "3_core": "table",
     "4_intermediate": "table",
     "5_marts": "table",
 }
 
-# Every file that tells a human or an agent what the base materialisation is. Seven sites exist for
-# one rule; the first attempt at this task found four, because it grepped docs/ and the dbt project
-# and never looked in the hooks or the role briefs. If you state the rule somewhere new, add it here
-# — and the last test in this file fails if you forget.
+# Every file that tells a human or an agent what a layer's materialisation is, PER LAYER. Seven
+# sites existed for one rule; the first attempt at this task found four, because it grepped docs/
+# and the dbt project and never looked in the hooks or the role briefs. If you state the rule
+# somewhere new, add it here — and `test_the_policy_site_list_covers_every_file_that_quotes_the_
+# token` fails if you forget.
 # NOTE dbt_project.yml is deliberately absent: it IS the config, and YAML splits the key and the
 # value across two lines so it cannot contain the one-line token. It is pinned by EXPECTED instead.
-POLICY_SITES = (
-    "dbt_project/docs/layering.md",
-    "CLAUDE.md",
-    "scripts/check_layer_contract.py",
-    ".claude/hooks/dbt_layer_gate.py",
-    "docs/roles/analytics_engineer.md",
-)
+#
+# ⚠ KEYED BY LAYER SINCE #33 items 9/10. It was a flat base-only tuple, and when `1_staging`
+# became a table three new prose sites appeared (CLAUDE.md, layering.md, engineering_standards.md)
+# that NOTHING guarded — the precise regression class this file exists for, reintroduced for the
+# layer the change was about. Two reviewers caught it. A layer with prose sites belongs here;
+# `3_core`/`4_intermediate`/`5_marts` are absent because no document states their materialisation
+# in the pinned token form.
+POLICY_SITES = {
+    "2_base": (
+        "dbt_project/docs/layering.md",
+        "CLAUDE.md",
+        "scripts/check_layer_contract.py",
+        ".claude/hooks/dbt_layer_gate.py",
+        "docs/roles/analytics_engineer.md",
+    ),
+    "1_staging": (
+        "dbt_project/docs/layering.md",
+        "CLAUDE.md",
+        "scripts/check_layer_contract.py",
+    ),
+}
+
+# The prose form of the same claim, per layer: "<layer> ... is a <materialisation>". Used by the
+# repo-wide sweep, which catches sentences that contradict the config while quoting no token at
+# all. Past-tense history ("they were views", "Staging and base were BOTH views") is deliberately
+# NOT matched — the record of the change has to stay writable.
+PROSE_SUBJECT = {
+    "2_base": r"base",
+    "1_staging": r"staging",
+}
 
 
 def _configured_materialisations() -> dict[str, str]:
@@ -105,27 +148,34 @@ def test_base_models_never_override_materialisation_per_model():
     assert offenders == [], f"base models overriding materialisation: {offenders}"
 
 
-def test_every_policy_site_quotes_the_configured_base_materialisation():
-    """The May 2026 regression, in one assertion.
+def test_every_policy_site_quotes_the_configured_layer_materialisation():
+    """The May 2026 regression, in one assertion, for every layer that has prose sites.
 
     The config changed and the prose did not, so the repo described a rule it no longer followed and
     every reader after that was misled, including an agent reading it two months later. Each site
     must quote the live config line verbatim, and none may still quote the superseded one.
-    """
-    actual = _configured_materialisations()["2_base"]
-    current = f"2_base: +materialized: {actual}"
-    superseded = [f"2_base: +materialized: {v}" for v in ("view", "table") if v != actual]
 
+    Named for LAYER, not base: it was `..._base_materialisation` while looping over every layer,
+    which is the same prose-drifted-from-behaviour defect this file exists to prevent, committed
+    inside the file that prevents it. Two reviewers flagged it independently.
+    """
+    configured = _configured_materialisations()
     missing, stale = [], []
-    for rel in POLICY_SITES:
-        text = (ROOT / rel).read_text(encoding="utf-8")
-        if current not in text:
-            missing.append(rel)
-        stale += [f"{rel} -> {tok!r}" for tok in superseded if tok in text]
+
+    for layer, sites in POLICY_SITES.items():
+        actual = configured[layer]
+        current = f"{layer}: +materialized: {actual}"
+        superseded = [f"{layer}: +materialized: {v}" for v in ("view", "table") if v != actual]
+        for rel in sites:
+            text = (ROOT / rel).read_text(encoding="utf-8")
+            if current not in text:
+                missing.append(f"{rel} -> missing {current!r}")
+            stale += [f"{rel} -> {tok!r}" for tok in superseded if tok in text]
 
     assert not missing, (
-        f"these state the base materialisation but do not quote {current!r}: {missing}. "
-        "Quote the config line verbatim so drift is detectable."
+        f"these state a layer materialisation but do not quote the live config line: {missing}. "
+        "Quote it verbatim, on ONE line, so drift is detectable — a token split across a "
+        "markdown line wrap reads fine and matches nothing."
     )
     assert not stale, f"these still quote a superseded materialisation: {stale}"
 
@@ -139,13 +189,7 @@ def test_check_layer_contract_rejects_any_per_model_materialisation(tmp_path, mo
     all", and reverting it must fail here — otherwise the revert is free, since no base model sets
     one today and CI would look identical either way.
     """
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "check_layer_contract", ROOT / "scripts" / "check_layer_contract.py"
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    mod = _load_layer_contract()
 
     fake = tmp_path / "base_apif__fake.sql"
     fake.write_text(
@@ -168,6 +212,48 @@ def test_check_layer_contract_rejects_any_per_model_materialisation(tmp_path, mo
     )
 
 
+def test_staging_models_never_override_materialisation_per_model():
+    """The same rule, on the layer that only just started needing it (#33 item 10).
+
+    Staging became a table on 2026-08-12 because a view stores nothing and all 59 staging tests
+    re-executed the raw JSON parse. That saving survives only while the layer keeps deciding
+    centrally: one model opting back into `view` reinstates the rescan for its own tests, and
+    nothing else fails, which is precisely how the May 2026 regression this file exists for went
+    unnoticed for two months.
+    """
+    offenders = [
+        p.relative_to(ROOT).as_posix()
+        for p in sorted(STAGING_MODELS.rglob("*.sql"))
+        if re.search(r"""materialized\s*=\s*['"]""", p.read_text(encoding="utf-8"), re.IGNORECASE)
+    ]
+    assert offenders == [], f"staging models overriding materialisation: {offenders}"
+
+
+def test_check_layer_contract_rejects_a_staging_per_model_override(tmp_path, monkeypatch):
+    """The CI guard must reject it too, not just this offline twin.
+
+    Written the same way as the base twin above: build a staging model that carries an override,
+    point the script's STAGING_DIR at it, and require an error. Without this, item 10 could ship
+    as a function nobody ever proved fires.
+    """
+    mod = _load_layer_contract()
+    (tmp_path / "stg_apif__probe.sql").write_text(
+        "{{ config(materialized='view') }}\nselect 1 as x\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mod, "STAGING_DIR", tmp_path)
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+
+    errors: list[str] = []
+    mod.check_staging_materialisation(errors)
+
+    assert any("materializ" in e.lower() for e in errors), (
+        "check_staging_materialisation accepted a per-model materialized='view' override. The "
+        f"layer default is {EXPECTED['1_staging']!r} and no per-model override is allowed. "
+        f"errors={errors}"
+    )
+
+
 def _is_bookkeeping(rel: str) -> bool:
     """Files that legitimately hold BOTH the old and new wording, so neither walk may judge them.
 
@@ -178,6 +264,18 @@ def _is_bookkeeping(rel: str) -> bool:
     """
     return (
         rel.startswith(".claude/task/")
+        # ⚠ THE ONE EXCLUSION HERE THAT IS NOT SELF-REFERENTIAL PAPERWORK, so it carries the
+        # heaviest justification. `.claude/active_work.md` is the PRODUCT stream's handover and a
+        # standing CPO ruling forbids editing it from the pipeline worktree — recorded verbatim in
+        # `.claude/task/escalations.log` under "THE `.claude/active_work.md` OWNERSHIP RULING",
+        # where a blinded reviewer can check it. An earlier version of this line cited only a
+        # GitLab issue, which a reviewer cannot read, and `scope-auditor` correctly FAILed it:
+        # an authority the builder can see and the reviewer cannot is not an authority.
+        # This exclusion is NOT a false-positive defence — the guard caught a REAL stale claim
+        # there (line 184, "staging is still a VIEW"). It is excluded because it cannot be fixed
+        # from here, and the staleness is reported to the owning stream rather than swallowed.
+        # If that file ever becomes editable from this worktree, delete this line and fix it.
+        or rel == ".claude/active_work.md"
         or rel == "docs/product_direction_threads.md"
         or rel == "tests/test_materialisation_policy.py"
     )
@@ -201,17 +299,19 @@ def test_the_policy_site_list_covers_every_file_that_quotes_the_token():
     Closes the failure that produced it: a list written from a partial grep. Any tracked file
     quoting `2_base: +materialized:` must be pinned, so a new site cannot appear unguarded.
     """
-    token = "2_base: +materialized:"
-    found = set()
-    for path in _tracked_files():
-        try:
-            if token in path.read_text(encoding="utf-8"):
-                found.add(path.relative_to(ROOT).as_posix())
-        except (UnicodeDecodeError, OSError):
-            continue
-    found = {r for r in found if not _is_bookkeeping(r)}
-    unpinned = sorted(found - set(POLICY_SITES))
-    assert not unpinned, f"these quote the policy but are not in POLICY_SITES: {unpinned}"
+    unpinned = []
+    for layer, sites in POLICY_SITES.items():
+        token = f"{layer}: +materialized:"
+        found = set()
+        for path in _tracked_files():
+            try:
+                if token in path.read_text(encoding="utf-8"):
+                    found.add(path.relative_to(ROOT).as_posix())
+            except (UnicodeDecodeError, OSError):
+                continue
+        found = {r for r in found if not _is_bookkeeping(r)}
+        unpinned += [f"{layer}: {r}" for r in sorted(found - set(sites))]
+    assert not unpinned, f"these quote a policy token but are not in POLICY_SITES: {unpinned}"
 
 
 def test_no_tracked_file_anywhere_states_the_superseded_materialisation():
@@ -220,32 +320,39 @@ def test_no_tracked_file_anywhere_states_the_superseded_materialisation():
     A file can quote the current token AND still contradict it in a sentence that quotes nothing —
     which is exactly what `layering.md` did after the first attempt, and what
     `profiles.example.yml` did while not being in POLICY_SITES at all. So this does not consult the
-    site list: it asserts across every tracked file that nothing says base is a view while the
-    config says table. Written from a real search (`git grep -inE ...`), not from memory, because
-    guessing the site list is the mistake this task made three times.
+    site list: it asserts across every tracked file that nothing says a layer is a view while the
+    config says table (or vice versa), for every layer in PROSE_SUBJECT. Written from a real search
+    (`git grep -inE ...`), not from memory, because guessing the site list is the mistake this task
+    made three times — and on the run that first covered `1_staging` it immediately found three
+    sites a careful manual grep had walked past, two of them comments in `ingestion/`.
 
     Past-tense history ("they were views") is deliberately NOT matched — the record of the change
     has to stay writable, and `escalations.log` is where it lives.
     """
-    actual = _configured_materialisations()["2_base"]
-    superseded = {"table": "view", "view": "table"}[actual]
-    claim = re.compile(
-        rf"base\s+(models?\s+)?(are\s+|as\s+|materiali[sz]es?\s+as\s+)?{superseded}s?\b"
-        rf"|base\s+{superseded}s\s*\+",
-        re.IGNORECASE,
-    )
+    configured = _configured_materialisations()
     offenders = []
-    for path in _tracked_files():
-        rel = path.relative_to(ROOT).as_posix()
-        if _is_bookkeeping(rel):
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        hit = claim.search(text)
-        if hit:
-            offenders.append(f"{rel} -> {hit.group(0)!r}")
+
+    for layer, subject in PROSE_SUBJECT.items():
+        actual = configured[layer]
+        superseded = {"table": "view", "view": "table"}[actual]
+        claim = re.compile(
+            rf"{subject}\s+(models?\s+)?(are\s+|is\s+|as\s+|materiali[sz]es?\s+as\s+)?"
+            rf"(a\s+)?{superseded}s?\b"
+            rf"|{subject}\s+{superseded}s\s*\+",
+            re.IGNORECASE,
+        )
+        for path in _tracked_files():
+            rel = path.relative_to(ROOT).as_posix()
+            if _is_bookkeeping(rel):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            hit = claim.search(text)
+            if hit:
+                offenders.append(f"{rel} -> {hit.group(0)!r} (says {layer} is a {superseded})")
+
     assert not offenders, (
-        f"these say base is a {superseded} while dbt_project.yml says {actual}: {offenders}"
+        f"these contradict the configured materialisation in dbt_project.yml: {offenders}"
     )
