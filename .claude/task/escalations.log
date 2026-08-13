@@ -2370,3 +2370,49 @@ times.
   ⚠ DELETING THE TABLE IS SEPARATE FROM STOPPING THE INGEST, and is deliberately NOT bundled into
   the code change: a 1.975 GiB prod table is irreversible past BigQuery's 7-day time travel. The
   MR stops the writes; the drop is a distinct, confirmed action afterwards.
+
+
+2026-08-13 fix/65-ci-worktree-prune - CPO authority to edit a PROTECTED path.
+
+  THE ASK. `data:build:mr` fails on EVERY merge request at `.gitlab-ci.yml:555`:
+  `git worktree add --detach /tmp/main-src FETCH_HEAD` exits 128 with "'/tmp/main-src' is a
+  missing but already registered worktree". Both open MRs (!33, !27) are blocked behind it.
+  `.gitlab-ci.yml` is a PROTECTED FILE (`task_contract_gate.py:77` - "the file that decides what
+  CI enforces"), so it may not be edited inside an ordinary contract.
+
+  THE PREMISE, CHECKED BEFORE THE ASK. The cause is not guessed from the error text; it is read
+  out of two job logs. Job 15864168006 (08-12) ran the SAME command and SUCCEEDED
+  ("Preparing worktree (detached HEAD a2b4184e)"), creating the registration. The 08-13 job on
+  pipeline 2756651714 hit exit 128 with the registration present and the directory gone. The
+  self-hosted runner keeps the PROJECT directory between jobs - so `.git/worktrees/` persists -
+  while each job gets a FRESH `/tmp`. The registration therefore outlives the directory it points
+  at. This is a consequence of the runner migration: on the previous shared runners every job got
+  a clean clone, so the first run after the migration passed and every run since has failed.
+
+  THE FIX WAS RUN, NOT REASONED. `scratchpad/wt_repro.py` models the two jobs against real git:
+  unfixed `add` exits 128 (reproducing CI exactly), `git worktree prune` then `add` exits 0, and
+  a second prune with nothing stale is a no-op that still leaves `add` working. `add -f` was
+  REJECTED - it also overrides a LIVE worktree, hiding a genuine collision instead of clearing a
+  stale record.
+
+  THE RULING. The CPO approved the plan in session 2026-08-13, having first asked whether prune
+  "conflict[s] with the other worktree". It does not, and the answer was measured rather than
+  argued: on the CPO's machine three worktrees are registered (`football-data-pipeline`,
+  `fdp-pipeline`, `fdp-product`) and `git worktree prune --dry-run -v` removes NONE of them,
+  because prune drops only registrations whose directory is gone. In CI, `data:build:mr` carries
+  `resource_group: ci-data-build-write-ci`, so two never run concurrently, and it is the only job
+  that touches a worktree at all.
+
+  THE AUTHORITY IS NARROW. It covers ONE line added to `data:build:mr` in `.gitlab-ci.yml` and
+  the test that pins it. It does NOT extend to any other job, the `rules:`/`changes:` path
+  anchors, the resource groups, the runner configuration, or the coming group move. None of those
+  is touched. It also does NOT licence editing `.github/workflows/ci-data-build.yml:191`, which
+  carries the same line and is deliberately kept unedited (`CLAUDE.md`,
+  `.github/workflows/README.md`).
+
+  NOT IN SCOPE, AND SAID OUT LOUD SO A GREEN JOB IS NOT CLAIMED FOR IT. Once past the worktree
+  step this job will still fail further down on GitLab #66:
+  `assert_event_team_in_fixture_participants` returns 10 rows because prod data has not been
+  rebuilt since 08-09 and #53's Macau correction has therefore never been applied. That is a
+  separate defect, it needs a BILLED `data:build:main` run, and that spend is the CPO's decision -
+  not this task's.

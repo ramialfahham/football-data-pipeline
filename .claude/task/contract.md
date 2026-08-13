@@ -1,117 +1,134 @@
-# Task contract — #33 item 15: stop ingesting /injuries
+# Task contract — #65: clear the stale worktree registration that fails every MR
 
 objective: >
-  `RAW_APIF_INJURIES` is the **LARGEST raw table at 1.975 GiB** (raw totals 5.35 GiB) and
-  **nothing reads it**: no `sources.yml` declaration, no dbt model, no script, no export. It is
-  written every night for no consumer.
+  `data:build:mr` fails on EVERY merge request at `.gitlab-ci.yml:555`:
+  `git worktree add --detach /tmp/main-src FETCH_HEAD` exits 128 with "'/tmp/main-src' is a missing
+  but already registered worktree". Both open MRs (`!33`, `!27`) are blocked behind it, so nothing
+  merges until it clears.
 
-  This removes the ingest — the loader, its phase in the competition runner, its tests, and its
-  entries in the data contract. It does NOT delete the BigQuery table; that is a separate,
-  confirmed action after merge (see `done_when`).
+  Cause, read out of two job logs rather than inferred from the error text: the self-hosted runner
+  keeps the PROJECT directory between jobs — so `.git/worktrees/` persists — while each job gets a
+  FRESH `/tmp`. The registration therefore outlives the directory it points at. Job 15864168006
+  (08-12) ran the same command and SUCCEEDED, creating the registration; the 08-13 job on pipeline
+  2756651714 hit exit 128 with the registration present and the directory gone.
 
-  ⚠ THIS ENDPOINT WAS ALREADY REMOVED ONCE FOR THIS EXACT REASON AND CAME BACK — `401c1cc`
-  (2026-05-10) removed it because it "had no consumer downstream"; `983d12c` (2026-05-26)
-  re-added it sixteen days later naming no consumer. Recorded in `escalations.log`; the loop is
-  the reason this contract states what would make the removal wrong.
+  This is a consequence of the runner migration. On the previous shared runners every job got a
+  clean clone, so the registration never survived a job. The first run after the migration passed
+  and every run since has failed.
+
 refs: >
-  GitLab #33 item 15. CPO ruling "yes" (2026-08-12) and the premise check (2026-08-13) are both
-  in `.claude/task/escalations.log`.
+  GitLab #65 (the failure, the two job logs, the fix). Reproduced against real git in
+  `scratchpad/wt_repro.py` before any file was edited.
+  ⚠ BLOCKS `!33` and `!27`; neither can go green until this merges.
+  Context only, NOT in scope: GitLab #66 (prod data stale since 08-09, so this job will still fail
+  further down) and the coming GitLab group move.
+
+protected_override: >
+  CPO, in session 2026-08-13, recorded in `.claude/task/escalations.log` BEFORE this contract was
+  written: asked to take #65 next, answered **"yes"**, then interrogated the premise — **"Does it
+  conflict with the other worktree?"** — and approved the plan once that was answered by
+  measurement rather than argument.
+  `.gitlab-ci.yml` is a PROTECTED FILE (`task_contract_gate.py:77` — "the file that decides what CI
+  enforces"), so it may not be edited inside an ordinary contract.
+  ⚠ THE AUTHORITY IS NARROW, and the log says so: it covers ONE line added to `data:build:mr` and
+  the test that pins it. It does NOT extend to any other job, the `rules:`/`changes:` path anchors,
+  the resource groups, the runner configuration, or the group move. None of those is touched. It
+  also does not licence editing `.github/workflows/ci-data-build.yml:191`, which carries the same
+  line and is deliberately kept unedited.
 
 scope_paths:
-  - ingestion/api_football/loads/injuries.py
-  - ingestion/api_football/loads/competition_runner.py
-  - ingestion/api_football/http_client.py
-  - tests/test_injuries_coaches.py
-  - tests/test_coaches.py
-  - tests/test_incomplete_fetch_no_supersede.py
-  - docs/data_contract.md
-  - scripts/drop_injuries_raw_tables.py
+  - .gitlab-ci.yml
+  - tests/test_ci_data_job_invariants.py
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
   - .claude/task/review_input.patch
 
 impact_map: >
-  REQUIRED — `ingestion/**` is the structural surface, and a raw writer is being removed.
+  ⚠ REQUIRED HERE BECAUSE THE PATH IS PROTECTED, not because a model moved
+  (`task_contract_gate.py:195` — a guard's blast radius is every future task in the repo).
+  `protected_override` answers "may you"; this answers "do you know what breaks".
 
-  writers: `ingestion/api_football/loads/injuries.py::load_injuries` is the ONLY writer of
-    `RAW_APIF_INJURIES`, called from exactly one place —
-    `loads/competition_runner.py:126-127`, inside `run_cheap_phases`.
+  who RUNS the changed line: exactly one job, `data:build:mr`, and only on a merge request whose
+    diff matches `.data_paths_mr`. `git worktree` appears nowhere else in `.gitlab-ci.yml` —
+    verified from PARSED YAML across all 11 jobs' `before_script`/`script`/`after_script`, not by
+    grep. `data:build:main` and `data:nightly` do not use a worktree, which is why #66's remedy
+    (a prod build on main) does not depend on this fix.
 
-  readers: **NONE, and this is the whole basis of the change.**
-    · `grep -n "injuries" dbt_project/models/1_staging/api_football/sources.yml` -> no match, so
-      there is no dbt source node and nothing downstream can `ref()` it.
-    · The only `injur` hits anywhere under `dbt_project/models/**` are `has_coverage_injuries` in
-      `stg_apif__leagues.sql:88`, `base_apif__leagues.sql:23,62` and
-      `dim_competition_season.sql:25`. That column is parsed from the **`/leagues`** payload
-      (`$.coverage.injuries`) and is UNRELATED to `RAW_APIF_INJURIES`. ⚠ It MUST survive this
-      change untouched — removing it would break `dim_competition_season`.
-    · No `scripts/export_*.py` and no `site_v2` file mentions injuries.
+  who is AFFECTED BY the prune: nothing but stale registrations, and this was measured, not
+    assumed. `git worktree prune` removes only registrations whose directory is GONE.
+    - On the CPO's machine three worktrees are registered (`football-data-pipeline`,
+      `fdp-pipeline`, `fdp-product`); `git worktree prune --dry-run -v` removes NONE of them. The
+      change also runs on the runner, in a different clone, so it cannot reach that machine.
+    - Concurrently in CI: `data:build:mr` carries `resource_group: ci-data-build-write-ci`, so two
+      never run at once, and it is the only job holding a worktree.
+    - Within the job: prune runs immediately before the add, when `/tmp/main-src` does not exist.
 
-  downstream: there is no lineage to trace, because there is no source node — nothing to run
-    `dbt ls` against. That absence IS the evidence, and it is why this removal is safe in a way
-    dropping a consumed table would not be.
+  what does NOT change: no dbt model, macro, seed, snapshot or test; no mart, no shipped number, no
+    page, no export. `.data_paths_mr` and `.data_paths_prod` are untouched, so WHICH changes
+    trigger a build is exactly as before. No BigQuery object is created, dropped or rebuilt.
 
-  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` has nothing
-    to judge. `sources.yml` is not edited because the table was never declared there.
+  ⚠ RECURRING COST: none. The added command is a local git metadata operation on the runner. It
+    does not add a job, a trigger, a schedule or a BigQuery scan.
 
-  deploy_order: nothing breaks at any point — the nightly simply stops calling one endpoint. No
-    backfill, no `--full-refresh`, no migration ordering. ⚠ THE NIGHTLY RUNS AN IMAGE, so merging
-    does not deploy this; it needs
-    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`.
+  deploy_order: none. It takes effect on the next pipeline; there is no image, schedule or
+    warehouse object to sequence.
 
-  blast_radius: **no number in any mart, model or page changes**, because nothing consumes the
-    table. What changes is the nightly: measured on the 2026-08-13 run, the injuries phase ran
-    for 26 competitions at ~9s each — roughly 4 minutes — at one API call per competition per
-    season.
+  layer_rules: none engaged. `check_layer_contract.py` judges `dbt_project/models/**`, untouched.
 
 decisions_taken: >
-  CPO ruling, in-thread 2026-08-12: **"yes"**, to "Shall I do both — item 9 + 10 as planned, and
-  drop `/injuries` as a second task?" Recorded in `escalations.log` before this contract, along
-  with the 2026-08-13 premise check.
+  1. `git worktree prune` BEFORE the add, as its own script line. Prune is the purpose-built
+     command for this exact state — it drops registrations whose directory is gone and is a no-op
+     otherwise. Its own line rather than `prune && add` so each step shows separately in the job
+     trace, which is how this defect was diagnosed in the first place.
 
-  THE PREMISE CHECK CHANGED WHAT IS KNOWN WITHOUT CHANGING THE RULING. `/injuries` was removed on
-  2026-05-10 for having no consumer and re-added on 2026-05-26 with none stated. Coaches, added in
-  the same commit, DID get a consumer (`dim_coach`); injuries is the half that never did. That
-  makes this a correctly-removed endpoint that came back unexplained, rather than a feature
-  awaiting a downstream build — which is the reading that would have made removal wrong.
+  2. ⚠ NOT `git worktree add -f`. `-f` clears the same error, so it is the tempting one-character
+     fix, and it is wrong: it ALSO overrides a worktree whose directory genuinely exists, turning a
+     real collision into a silent overwrite. Prune fixes the state that actually occurs and leaves
+     the state that must not occur still failing loudly.
 
-  # THRESHOLD DECLARATIONS
-  RECURRING COST — **reduces, on three axes, all measured**: 1.975 GiB of BigQuery storage once
-    the table is dropped (the largest single raw table); ~4 minutes of the nightly; and one API
-    call per competition per season against a daily quota.
-  NEW MECHANISM — no. Code and docs are removed; nothing is introduced.
-  GUARD LOOSENED — **no**, and the distinction matters: `TestLoadInjuries` is deleted, but a test
-    whose subject no longer exists is not a guard. No assertion about surviving behaviour is
-    weakened, and `TestLoadCoaches` is preserved in full.
-  SHIPPED NUMBERS — no. Nothing reads the table.
+  3. THE MECHANISM WAS RUN, NOT REASONED FROM THE MANUAL. `scratchpad/wt_repro.py` models the two
+     jobs against real git and prints:
+       worktree add (UNFIXED)       exit=128  ... 'prune' or 'remove' to clear   <- reproduces CI
+       worktree prune               exit=0
+       worktree add (FIXED)         exit=0    Preparing worktree (detached HEAD ...)
+       prune again (nothing stale)  exit=0    <- idempotent, safe on a clean runner
+     This matters beyond politeness: it is what rules out "prune is a no-op here and the real cause
+     is something else".
 
-decisions_reserved:
-  - Whether `/injuries` should ever be ingested again. If a player-availability surface is
-    planned, this removal is the wrong call and the CPO should say so — the endpoint would then
-    be left alone rather than removed and re-added a third time. Searched: no open issue names
-    injuries as a consumer, and the player-page design (#753) does not reference it.
-  - Deleting the `RAW_APIF_INJURIES` table itself. Covered in principle by the same ruling but
-    deliberately NOT in this diff: it is irreversible past BigQuery's 7-day time travel, so it is
-    a separate confirmed action after merge.
-  - The nine legacy `RAW_WC26_APIF_*` tables (1 row each, untouched since 2026-05-24) are a
-    different cleanup and are not touched here.
+  4. THE TEST PINS THE CLASS, NOT THE INSTANCE. It scans every job's script and requires that ANY
+     job running `git worktree add` runs `git worktree prune` earlier in the SAME script. A second
+     worktree call added later is therefore covered without editing the test. Written this way
+     because a one-line-number assertion is the repeated failure mode here (a word list holing four
+     review rounds).
+
+  5. VALUES COME FROM PARSED YAML, NEVER RAW FILE TEXT — the module's own stated rule, and it binds
+     concretely: the fix carries a comment naming `worktree` and `prune`, so a text grep would read
+     the documentation of the fix as the defect. The existing module says exactly this about
+     `API_FOOTBALL_SKIP_INGEST_LOCK`.
+
+  6. ⚠ `.claude/active_work.md` IS DELIBERATELY OUT OF SCOPE, stated rather than silently omitted.
+     `main`'s copy is stale (last written 08-07); the CURRENT handover lives on `!33`, already
+     documents #65, and will land when `!33` merges. Editing the stale copy here would add nothing
+     a reader gets, and would manufacture a merge conflict for `!33` in the one file that is hardest
+     to resolve mechanically. If the CPO would rather it be updated here, that reverses cleanly.
+
+  7. THE DORMANT GITHUB WORKFLOW IS LEFT ALONE. `.github/workflows/ci-data-build.yml:191` carries
+     the identical line, but `.github/workflows/` is both a PROTECTED prefix and deliberately kept
+     as an unedited snapshot (`CLAUDE.md`, `.github/workflows/README.md`). Fixing it would be scope
+     drift into a tree that runs nothing.
 
 done_when:
-  - `ingestion/api_football/loads/injuries.py` is deleted, and a repo sweep finds no surviving
-    reference to it or to `RAW_APIF_INJURIES` outside deliberate history.
-  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 557a26a: 798 passed,
-    1 skipped).
-  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
-  - ⚠ VERIFIED BY RUNNING, not by reading: the competition runner still executes its remaining
-    phases in order with the injuries phase gone, and `run_cheap_phases`' docstring phase list is
-    checked against the code so the two cannot disagree.
-  - ⚠ `has_coverage_injuries` survives untouched in all three models. It is the one thing in the
-    repo whose name matches and MUST NOT be removed; asserted by grep and by the full suite.
-  - `docs/data_contract.md` no longer declares `RAW_APIF_INJURIES` in any of its four places.
-  - POST-MERGE, and NOT satisfiable from this branch: redeploy the nightly image from `main`,
-    confirm the next run logs no `phase=injuries`, then run
-    `python scripts/drop_injuries_raw_tables.py --dry-run` and perform the real drop only after
-    the CPO confirms the listed tables.
+  - `data:build:mr` runs `git worktree prune` before `git worktree add`, and no other job or path
+    anchor in `.gitlab-ci.yml` is touched.
+  - NEW TEST pins it for ANY job, from parsed YAML. ⚠ It must be SEEN RED against the unfixed file
+    before it is trusted green — a test only ever observed passing proves nothing (#63 shipped
+    three such tests and each passed against the very defect it was written to catch).
+  - `python -m pytest tests/test_ci_data_job_invariants.py -q` green, then the full suite green.
+  - The offline gates pass (`validate-local`).
+  - END TO END, and the only proof that counts: this branch's own pipeline gets PAST the worktree
+    step. ⚠ The job is still expected to FAIL further down on #66 (stale prod data, 10 rows from
+    `assert_event_team_in_fixture_participants`). That is a different defect and is NOT evidence
+    this fix failed — read the log, not the colour.
 
-amendments: (none)
+amendments: []

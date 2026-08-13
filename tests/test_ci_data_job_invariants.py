@@ -1,9 +1,9 @@
-"""Pin two CI data-job invariants that can be broken while every pipeline stays GREEN.
+"""Pin three CI data-job invariants that can be broken while every pipeline stays GREEN.
 
 WHY THIS EXISTS
 ---------------
-Both properties were repaired on 2026-08-08 under GitLab #33, and both share the shape this repo
-keeps getting caught by: breaking them produces no red anywhere.
+The first two properties were repaired on 2026-08-08 under GitLab #33, and both share the shape
+this repo keeps getting caught by: breaking them produces no red anywhere.
 
   * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
     ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
@@ -18,6 +18,14 @@ keeps getting caught by: breaking them produces no red anywhere.
     staleness propagates into MR validation with nothing red anywhere. The single `.data_paths`
     anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
     for a comment, so the guarantee is re-established here as an assertion.
+
+  * `git worktree prune` must run before `git worktree add` (GitLab #65, 2026-08-13). The
+    self-hosted runner keeps the project directory between jobs but gives each job a fresh `/tmp`,
+    so a worktree registration in the persisted `.git/worktrees/` outlives the directory it points
+    at and the next `add` dies with "missing but already registered worktree". Delete the prune and
+    the damage is delayed, not immediate: the next pipeline on a given runner slot passes (it
+    creates the registration) and the one after it fails. That delay is what puts it in this
+    module — the breakage does not show up in the pipeline that caused it.
 
 HOW IT IS SHAPED, AND WHY
 -------------------------
@@ -80,6 +88,26 @@ def _script_lines(config: dict) -> list[str]:
                     # A `|` block scalar arrives as one multi-line string.
                     lines.extend(entry.splitlines())
     return lines
+
+
+def _script_lines_by_job(config: dict) -> dict[str, list[str]]:
+    """Same extraction as `_script_lines`, but keeping the job boundary.
+
+    Ordering within a job is the whole point for the worktree check — a `prune` sitting in some
+    OTHER job would satisfy a flattened scan while fixing nothing.
+    """
+    per_job: dict[str, list[str]] = {}
+    for name, node in config.items():
+        if not isinstance(node, dict):
+            continue
+        lines: list[str] = []
+        for section in ("before_script", "script", "after_script"):
+            for entry in node.get(section) or []:
+                if isinstance(entry, str):
+                    lines.extend(entry.splitlines())
+        if lines:
+            per_job[name] = lines
+    return per_job
 
 
 def _declared_variables(config: dict) -> list[tuple[str, str]]:
@@ -147,4 +175,41 @@ def test_the_prod_trigger_still_covers_every_dbt_compile_input():
     assert not wider, (
         f".data_paths_prod contains {sorted(wider)}, which .data_paths_mr does not. The prod "
         "build would then fire on a change the MR build never validated."
+    )
+
+
+def test_every_worktree_add_is_preceded_by_a_prune():
+    """#65. The runner persists the project dir but not /tmp, so registrations go stale.
+
+    Written to the CLASS, not to the one line that broke: any job that adds a worktree must prune
+    first, in its own script. A second worktree call added later is covered without touching this
+    test — a list of known offenders is precisely what has holed guards here before.
+
+    Read from parsed YAML rather than file text on purpose. The fix carries a comment naming both
+    `worktree` and `prune`, so a text scan would match the documentation of the fix and pass
+    whether or not the command is actually there.
+    """
+    offenders = []
+    for job, lines in _script_lines_by_job(_ci_config()).items():
+        add_at = next(
+            (i for i, line in enumerate(lines) if "git worktree add" in line), None
+        )
+        if add_at is None:
+            continue
+        prune_at = next(
+            (i for i, line in enumerate(lines) if "git worktree prune" in line), None
+        )
+        if prune_at is None or prune_at > add_at:
+            offenders.append(
+                f"{job}: `git worktree add` at script index {add_at}, prune "
+                + ("absent" if prune_at is None else f"at {prune_at} (too late)")
+            )
+
+    assert offenders == [], (
+        "A job adds a git worktree without pruning stale registrations first. The self-hosted "
+        "runner keeps the project directory between jobs while each job gets a fresh /tmp, so the "
+        "registration in .git/worktrees/ outlives its directory and `git worktree add` exits 128 "
+        "with 'missing but already registered worktree' (GitLab #65). This does not fail the "
+        "pipeline that removes the prune — it fails the NEXT one on that runner slot. "
+        f"Offending: {offenders}"
     )

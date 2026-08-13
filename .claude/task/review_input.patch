@@ -1,10 +1,10 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 83f282f..35026d1 100644
+index 83f282f..f57a225 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,181 +1,117 @@
+@@ -1,181 +1,134 @@
 -# Task contract — #33 items 9 + 10: staging becomes a table, and the guard follows
-+# Task contract — #33 item 15: stop ingesting /injuries
++# Task contract — #65: clear the stale worktree registration that fails every MR
  
  objective: >
 -  `1_staging` is `+materialized: view`, so it stores nothing and every reader re-executes the
@@ -19,23 +19,42 @@ index 83f282f..35026d1 100644
 -
 -  This is the SAME change #547 made to `2_base` on 2026-08-02, one layer up, for the same
 -  measured reason.
-+  `RAW_APIF_INJURIES` is the **LARGEST raw table at 1.975 GiB** (raw totals 5.35 GiB) and
-+  **nothing reads it**: no `sources.yml` declaration, no dbt model, no script, no export. It is
-+  written every night for no consumer.
++  `data:build:mr` fails on EVERY merge request at `.gitlab-ci.yml:555`:
++  `git worktree add --detach /tmp/main-src FETCH_HEAD` exits 128 with "'/tmp/main-src' is a missing
++  but already registered worktree". Both open MRs (`!33`, `!27`) are blocked behind it, so nothing
++  merges until it clears.
 +
-+  This removes the ingest — the loader, its phase in the competition runner, its tests, and its
-+  entries in the data contract. It does NOT delete the BigQuery table; that is a separate,
-+  confirmed action after merge (see `done_when`).
++  Cause, read out of two job logs rather than inferred from the error text: the self-hosted runner
++  keeps the PROJECT directory between jobs — so `.git/worktrees/` persists — while each job gets a
++  FRESH `/tmp`. The registration therefore outlives the directory it points at. Job 15864168006
++  (08-12) ran the same command and SUCCEEDED, creating the registration; the 08-13 job on pipeline
++  2756651714 hit exit 128 with the registration present and the directory gone.
 +
-+  ⚠ THIS ENDPOINT WAS ALREADY REMOVED ONCE FOR THIS EXACT REASON AND CAME BACK — `401c1cc`
-+  (2026-05-10) removed it because it "had no consumer downstream"; `983d12c` (2026-05-26)
-+  re-added it sixteen days later naming no consumer. Recorded in `escalations.log`; the loop is
-+  the reason this contract states what would make the removal wrong.
++  This is a consequence of the runner migration. On the previous shared runners every job got a
++  clean clone, so the registration never survived a job. The first run after the migration passed
++  and every run since has failed.
++
  refs: >
 -  GitLab #33 items 9 and 10. Precedent and measurement method: #547 (`2_base`), recorded in
 -  `dbt_project/docs/layering.md` §2_base and pinned by `tests/test_materialisation_policy.py`.
-+  GitLab #33 item 15. CPO ruling "yes" (2026-08-12) and the premise check (2026-08-13) are both
-+  in `.claude/task/escalations.log`.
++  GitLab #65 (the failure, the two job logs, the fix). Reproduced against real git in
++  `scratchpad/wt_repro.py` before any file was edited.
++  ⚠ BLOCKS `!33` and `!27`; neither can go green until this merges.
++  Context only, NOT in scope: GitLab #66 (prod data stale since 08-09, so this job will still fail
++  further down) and the coming GitLab group move.
++
++protected_override: >
++  CPO, in session 2026-08-13, recorded in `.claude/task/escalations.log` BEFORE this contract was
++  written: asked to take #65 next, answered **"yes"**, then interrogated the premise — **"Does it
++  conflict with the other worktree?"** — and approved the plan once that was answered by
++  measurement rather than argument.
++  `.gitlab-ci.yml` is a PROTECTED FILE (`task_contract_gate.py:77` — "the file that decides what CI
++  enforces"), so it may not be edited inside an ordinary contract.
++  ⚠ THE AUTHORITY IS NARROW, and the log says so: it covers ONE line added to `data:build:mr` and
++  the test that pins it. It does NOT extend to any other job, the `rules:`/`changes:` path anchors,
++  the resource groups, the runner configuration, or the group move. None of those is touched. It
++  also does not licence editing `.github/workflows/ci-data-build.yml:191`, which carries the same
++  line and is deliberately kept unedited.
  
  scope_paths:
 -  - dbt_project/dbt_project.yml
@@ -46,14 +65,8 @@ index 83f282f..35026d1 100644
 -  - dbt_project/docs/layering.md
 -  - dbt_project/docs/engineering_standards.md
 -  - CLAUDE.md
-+  - ingestion/api_football/loads/injuries.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - ingestion/api_football/http_client.py
-+  - tests/test_injuries_coaches.py
-+  - tests/test_coaches.py
-+  - tests/test_incomplete_fetch_no_supersede.py
-+  - docs/data_contract.md
-+  - scripts/drop_injuries_raw_tables.py
++  - .gitlab-ci.yml
++  - tests/test_ci_data_job_invariants.py
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
@@ -110,60 +123,50 @@ index 83f282f..35026d1 100644
 -    (#39 Stage 3 not built).
 -
 -  blast_radius: no number in any mart moves. This changes cost and build mechanics only.
-+  REQUIRED — `ingestion/**` is the structural surface, and a raw writer is being removed.
++  ⚠ REQUIRED HERE BECAUSE THE PATH IS PROTECTED, not because a model moved
++  (`task_contract_gate.py:195` — a guard's blast radius is every future task in the repo).
++  `protected_override` answers "may you"; this answers "do you know what breaks".
 +
-+  writers: `ingestion/api_football/loads/injuries.py::load_injuries` is the ONLY writer of
-+    `RAW_APIF_INJURIES`, called from exactly one place —
-+    `loads/competition_runner.py:126-127`, inside `run_cheap_phases`.
++  who RUNS the changed line: exactly one job, `data:build:mr`, and only on a merge request whose
++    diff matches `.data_paths_mr`. `git worktree` appears nowhere else in `.gitlab-ci.yml` —
++    verified from PARSED YAML across all 11 jobs' `before_script`/`script`/`after_script`, not by
++    grep. `data:build:main` and `data:nightly` do not use a worktree, which is why #66's remedy
++    (a prod build on main) does not depend on this fix.
 +
-+  readers: **NONE, and this is the whole basis of the change.**
-+    · `grep -n "injuries" dbt_project/models/1_staging/api_football/sources.yml` -> no match, so
-+      there is no dbt source node and nothing downstream can `ref()` it.
-+    · The only `injur` hits anywhere under `dbt_project/models/**` are `has_coverage_injuries` in
-+      `stg_apif__leagues.sql:88`, `base_apif__leagues.sql:23,62` and
-+      `dim_competition_season.sql:25`. That column is parsed from the **`/leagues`** payload
-+      (`$.coverage.injuries`) and is UNRELATED to `RAW_APIF_INJURIES`. ⚠ It MUST survive this
-+      change untouched — removing it would break `dim_competition_season`.
-+    · No `scripts/export_*.py` and no `site_v2` file mentions injuries.
++  who is AFFECTED BY the prune: nothing but stale registrations, and this was measured, not
++    assumed. `git worktree prune` removes only registrations whose directory is GONE.
++    - On the CPO's machine three worktrees are registered (`football-data-pipeline`,
++      `fdp-pipeline`, `fdp-product`); `git worktree prune --dry-run -v` removes NONE of them. The
++      change also runs on the runner, in a different clone, so it cannot reach that machine.
++    - Concurrently in CI: `data:build:mr` carries `resource_group: ci-data-build-write-ci`, so two
++      never run at once, and it is the only job holding a worktree.
++    - Within the job: prune runs immediately before the add, when `/tmp/main-src` does not exist.
 +
-+  downstream: there is no lineage to trace, because there is no source node — nothing to run
-+    `dbt ls` against. That absence IS the evidence, and it is why this removal is safe in a way
-+    dropping a consumed table would not be.
++  what does NOT change: no dbt model, macro, seed, snapshot or test; no mart, no shipped number, no
++    page, no export. `.data_paths_mr` and `.data_paths_prod` are untouched, so WHICH changes
++    trigger a build is exactly as before. No BigQuery object is created, dropped or rebuilt.
 +
-+  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` has nothing
-+    to judge. `sources.yml` is not edited because the table was never declared there.
++  ⚠ RECURRING COST: none. The added command is a local git metadata operation on the runner. It
++    does not add a job, a trigger, a schedule or a BigQuery scan.
 +
-+  deploy_order: nothing breaks at any point — the nightly simply stops calling one endpoint. No
-+    backfill, no `--full-refresh`, no migration ordering. ⚠ THE NIGHTLY RUNS AN IMAGE, so merging
-+    does not deploy this; it needs
-+    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`.
++  deploy_order: none. It takes effect on the next pipeline; there is no image, schedule or
++    warehouse object to sequence.
 +
-+  blast_radius: **no number in any mart, model or page changes**, because nothing consumes the
-+    table. What changes is the nightly: measured on the 2026-08-13 run, the injuries phase ran
-+    for 26 competitions at ~9s each — roughly 4 minutes — at one API call per competition per
-+    season.
++  layer_rules: none engaged. `check_layer_contract.py` judges `dbt_project/models/**`, untouched.
  
  decisions_taken: >
 -  CPO ruling, in-thread 2026-08-12: **"definitely"**, in answer to "Shall I do item 9 + 10 now?"
 -  Recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #33 ITEMS 9 + 10 …") BEFORE
 -  this contract was written.
-+  CPO ruling, in-thread 2026-08-12: **"yes"**, to "Shall I do both — item 9 + 10 as planned, and
-+  drop `/injuries` as a second task?" Recorded in `escalations.log` before this contract, along
-+  with the 2026-08-13 premise check.
- 
+-
 -  ⚠ A PREMISE CHECK THE CPO DEMANDED, AND THE ANSWER IS IN THE LOG. Asked whether staging had
 -  previously been a table and was made a view for cost reasons — which would make this a
 -  reversal needing justification. It was NOT: `1_staging` has been `view` at every commit that
 -  ever touched `dbt_project.yml`, from `1f422c0` (2026-04-10) to `4899025` (2026-08-02),
 -  extracted by replaying the block per commit. The recollection was of `2_base`, which was a
 -  view and became a table under #547 — the precedent FOR this change, not against it.
-+  THE PREMISE CHECK CHANGED WHAT IS KNOWN WITHOUT CHANGING THE RULING. `/injuries` was removed on
-+  2026-05-10 for having no consumer and re-added on 2026-05-26 with none stated. Coaches, added in
-+  the same commit, DID get a consumer (`dim_coach`); injuries is the half that never did. That
-+  makes this a correctly-removed endpoint that came back unexplained, rather than a feature
-+  awaiting a downstream build — which is the reading that would have made removal wrong.
- 
-   # THRESHOLD DECLARATIONS
+-
+-  # THRESHOLD DECLARATIONS
 -  RECURRING COST — **yes, and it is a net REDUCTION, measured rather than assumed.**
 -    · added storage: ~0.5 GiB. Measured basis: the whole `dbt_analytics` base layer, which is
 -      staging's parsed output, is **0.415 GiB across 43 tables**, while the `staging` dataset is
@@ -182,16 +185,8 @@ index 83f282f..35026d1 100644
 -  GUARD LOOSENED — no; this ADDS one. `check_layer_contract.py` and its offline twin gain a
 -    staging case that does not exist today.
 -  SHIPPED NUMBERS — no. Same rows, same columns, same lineage; only the storage changes.
-+  RECURRING COST — **reduces, on three axes, all measured**: 1.975 GiB of BigQuery storage once
-+    the table is dropped (the largest single raw table); ~4 minutes of the nightly; and one API
-+    call per competition per season against a daily quota.
-+  NEW MECHANISM — no. Code and docs are removed; nothing is introduced.
-+  GUARD LOOSENED — **no**, and the distinction matters: `TestLoadInjuries` is deleted, but a test
-+    whose subject no longer exists is not a guard. No assertion about surviving behaviour is
-+    weakened, and `TestLoadCoaches` is preserved in full.
-+  SHIPPED NUMBERS — no. Nothing reads the table.
- 
- decisions_reserved:
+-
+-decisions_reserved:
 -  - `RAW_APIF_INJURIES` is now the LARGEST raw table (1.975 GiB) with zero consumers — no source
 -    declaration, no model, nothing reads it. That is #33 item 15 and the CPO approved it
 -    ("yes") as a SEPARATE task in the same thread. Deliberately not bundled here: it stops an
@@ -200,15 +195,46 @@ index 83f282f..35026d1 100644
 -    orphaned views from renamed models. Not investigated, not in scope; worth its own look.
 -  - Whether any of the 59 staging tests are redundant against equivalent base tests. Cutting
 -    tests is loosening a guard and is not proposed.
-+  - Whether `/injuries` should ever be ingested again. If a player-availability surface is
-+    planned, this removal is the wrong call and the CPO should say so — the endpoint would then
-+    be left alone rather than removed and re-added a third time. Searched: no open issue names
-+    injuries as a consumer, and the player-page design (#753) does not reference it.
-+  - Deleting the `RAW_APIF_INJURIES` table itself. Covered in principle by the same ruling but
-+    deliberately NOT in this diff: it is irreversible past BigQuery's 7-day time travel, so it is
-+    a separate confirmed action after merge.
-+  - The nine legacy `RAW_WC26_APIF_*` tables (1 row each, untouched since 2026-05-24) are a
-+    different cleanup and are not touched here.
++  1. `git worktree prune` BEFORE the add, as its own script line. Prune is the purpose-built
++     command for this exact state — it drops registrations whose directory is gone and is a no-op
++     otherwise. Its own line rather than `prune && add` so each step shows separately in the job
++     trace, which is how this defect was diagnosed in the first place.
++
++  2. ⚠ NOT `git worktree add -f`. `-f` clears the same error, so it is the tempting one-character
++     fix, and it is wrong: it ALSO overrides a worktree whose directory genuinely exists, turning a
++     real collision into a silent overwrite. Prune fixes the state that actually occurs and leaves
++     the state that must not occur still failing loudly.
++
++  3. THE MECHANISM WAS RUN, NOT REASONED FROM THE MANUAL. `scratchpad/wt_repro.py` models the two
++     jobs against real git and prints:
++       worktree add (UNFIXED)       exit=128  ... 'prune' or 'remove' to clear   <- reproduces CI
++       worktree prune               exit=0
++       worktree add (FIXED)         exit=0    Preparing worktree (detached HEAD ...)
++       prune again (nothing stale)  exit=0    <- idempotent, safe on a clean runner
++     This matters beyond politeness: it is what rules out "prune is a no-op here and the real cause
++     is something else".
++
++  4. THE TEST PINS THE CLASS, NOT THE INSTANCE. It scans every job's script and requires that ANY
++     job running `git worktree add` runs `git worktree prune` earlier in the SAME script. A second
++     worktree call added later is therefore covered without editing the test. Written this way
++     because a one-line-number assertion is the repeated failure mode here (a word list holing four
++     review rounds).
++
++  5. VALUES COME FROM PARSED YAML, NEVER RAW FILE TEXT — the module's own stated rule, and it binds
++     concretely: the fix carries a comment naming `worktree` and `prune`, so a text grep would read
++     the documentation of the fix as the defect. The existing module says exactly this about
++     `API_FOOTBALL_SKIP_INGEST_LOCK`.
++
++  6. ⚠ `.claude/active_work.md` IS DELIBERATELY OUT OF SCOPE, stated rather than silently omitted.
++     `main`'s copy is stale (last written 08-07); the CURRENT handover lives on `!33`, already
++     documents #65, and will land when `!33` merges. Editing the stale copy here would add nothing
++     a reader gets, and would manufacture a merge conflict for `!33` in the one file that is hardest
++     to resolve mechanically. If the CPO would rather it be updated here, that reverses cleanly.
++
++  7. THE DORMANT GITHUB WORKFLOW IS LEFT ALONE. `.github/workflows/ci-data-build.yml:191` carries
++     the identical line, but `.github/workflows/` is both a PROTECTED prefix and deliberately kept
++     as an unedited snapshot (`CLAUDE.md`, `.github/workflows/README.md`). Fixing it would be scope
++     drift into a tree that runs nothing.
  
  done_when:
 -  - `tests/test_materialisation_policy.py` passes with `EXPECTED["1_staging"] == "table"`.
@@ -264,882 +290,188 @@ index 83f282f..35026d1 100644
 -    it (#33) — so it joins `_is_bookkeeping()`, which already excludes `.claude/task/**` for the
 -    same reason: a handover file is state, not a policy site. It is flagged to that stream
 -    instead.
-+  - `ingestion/api_football/loads/injuries.py` is deleted, and a repo sweep finds no surviving
-+    reference to it or to `RAW_APIF_INJURIES` outside deliberate history.
-+  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ 557a26a: 798 passed,
-+    1 skipped).
-+  - `ruff --config .ruff-ci.toml ingestion/ tests/ scripts/` exits 0.
-+  - ⚠ VERIFIED BY RUNNING, not by reading: the competition runner still executes its remaining
-+    phases in order with the injuries phase gone, and `run_cheap_phases`' docstring phase list is
-+    checked against the code so the two cannot disagree.
-+  - ⚠ `has_coverage_injuries` survives untouched in all three models. It is the one thing in the
-+    repo whose name matches and MUST NOT be removed; asserted by grep and by the full suite.
-+  - `docs/data_contract.md` no longer declares `RAW_APIF_INJURIES` in any of its four places.
-+  - POST-MERGE, and NOT satisfiable from this branch: redeploy the nightly image from `main`,
-+    confirm the next run logs no `phase=injuries`, then run
-+    `python scripts/drop_injuries_raw_tables.py --dry-run` and perform the real drop only after
-+    the CPO confirms the listed tables.
++  - `data:build:mr` runs `git worktree prune` before `git worktree add`, and no other job or path
++    anchor in `.gitlab-ci.yml` is touched.
++  - NEW TEST pins it for ANY job, from parsed YAML. ⚠ It must be SEEN RED against the unfixed file
++    before it is trusted green — a test only ever observed passing proves nothing (#63 shipped
++    three such tests and each passed against the very defect it was written to catch).
++  - `python -m pytest tests/test_ci_data_job_invariants.py -q` green, then the full suite green.
++  - The offline gates pass (`validate-local`).
++  - END TO END, and the only proof that counts: this branch's own pipeline gets PAST the worktree
++    step. ⚠ The job is still expected to FAIL further down on #66 (stale prod data, 10 rows from
++    `assert_event_team_in_fixture_participants`). That is a different defect and is NOT evidence
++    this fix failed — read the log, not the colour.
 +
-+amendments: (none)
++amendments: []
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index ed96994..eeb3300 100644
+index ed96994..eb5c986 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -2330,3 +2330,43 @@ times.
+@@ -2330,3 +2330,49 @@ times.
    particular file from this worktree. Where the two conflict, the specific, later, file-scoped
    instruction governs. If the CPO would rather it be corrected in place, that is one word and
    this entry is the place to overturn it.
 +
 +
-+2026-08-13 — #33 ITEM 15 (DROP /INJURIES): THE PREMISE CHECK FOUND A REMOVE/RE-ADD LOOP
++2026-08-13 fix/65-ci-worktree-prune - CPO authority to edit a PROTECTED path.
 +
-+  The ruling stands unchanged — CPO **"yes"**, 2026-08-12, recorded above. This entry adds what
-+  the premise check turned up, because it is material to the decision and nobody had it when the
-+  ruling was given.
++  THE ASK. `data:build:mr` fails on EVERY merge request at `.gitlab-ci.yml:555`:
++  `git worktree add --detach /tmp/main-src FETCH_HEAD` exits 128 with "'/tmp/main-src' is a
++  missing but already registered worktree". Both open MRs (!33, !27) are blocked behind it.
++  `.gitlab-ci.yml` is a PROTECTED FILE (`task_contract_gate.py:77` - "the file that decides what
++  CI enforces"), so it may not be edited inside an ordinary contract.
 +
-+  ⚠ THIS ENDPOINT HAS ALREADY BEEN REMOVED ONCE, FOR THIS EXACT REASON, AND CAME BACK.
-+    · `401c1cc`, 2026-05-10, "refactor: remove injury ingestion and dbt surface project-wide" —
-+      its own message: "The /injuries endpoint was being called for every competition ... but had
-+      no consumer downstream ... the data was not surfaced anywhere in the product."
-+    · `983d12c`, 2026-05-26, SIXTEEN DAYS LATER, "feat(ingest): add injuries and coaches endpoint
-+      loaders" — re-added it. That message describes what the endpoint RETURNS and names no
-+      consumer, no product surface and no issue.
-+    · `178261d`, 2026-05-27, migrated it to the unified raw tables along with everything else.
-+  Three months on it still has no consumer: no `sources.yml` declaration, no model, no script.
-+  Verified today — the only `injur` hits in `dbt_project/models/**` are `has_coverage_injuries`,
-+  which is parsed from the `/leagues` payload (`$.coverage.injuries`) and has nothing to do with
-+  `RAW_APIF_INJURIES`.
++  THE PREMISE, CHECKED BEFORE THE ASK. The cause is not guessed from the error text; it is read
++  out of two job logs. Job 15864168006 (08-12) ran the SAME command and SUCCEEDED
++  ("Preparing worktree (detached HEAD a2b4184e)"), creating the registration. The 08-13 job on
++  pipeline 2756651714 hit exit 128 with the registration present and the directory gone. The
++  self-hosted runner keeps the PROJECT directory between jobs - so `.git/worktrees/` persists -
++  while each job gets a FRESH `/tmp`. The registration therefore outlives the directory it points
++  at. This is a consequence of the runner migration: on the previous shared runners every job got
++  a clean clone, so the first run after the migration passed and every run since has failed.
 +
-+  WHY THAT STRENGTHENS THE RULING RATHER THAN QUESTIONING IT. Coaches was added in the SAME
-+  commit and did get a consumer (`stg_apif__coaches` -> `base_apif__coaches` -> `dim_coach`).
-+  Injuries is the half of that batch that never landed one. So this is not a feature waiting on
-+  a downstream build; it is an endpoint that was correctly removed, re-added without a stated
-+  purpose, and left running.
++  THE FIX WAS RUN, NOT REASONED. `scratchpad/wt_repro.py` models the two jobs against real git:
++  unfixed `add` exits 128 (reproducing CI exactly), `git worktree prune` then `add` exits 0, and
++  a second prune with nothing stale is a no-op that still leaves `add` working. `add -f` was
++  REJECTED - it also overrides a LIVE worktree, hiding a genuine collision instead of clearing a
++  stale record.
 +
-+  WHAT WOULD MAKE THIS THE WRONG CALL, stated so the CPO can overturn it cheaply: a planned
-+  player-availability surface. Searched — no open issue mentions injuries as a consumer, and the
-+  player-page design work (#753) does not reference it. If such a feature is coming, say so and
-+  the right move is to leave the ingest alone rather than re-add it a third time.
++  THE RULING. The CPO approved the plan in session 2026-08-13, having first asked whether prune
++  "conflict[s] with the other worktree". It does not, and the answer was measured rather than
++  argued: on the CPO's machine three worktrees are registered (`football-data-pipeline`,
++  `fdp-pipeline`, `fdp-product`) and `git worktree prune --dry-run -v` removes NONE of them,
++  because prune drops only registrations whose directory is gone. In CI, `data:build:mr` carries
++  `resource_group: ci-data-build-write-ci`, so two never run concurrently, and it is the only job
++  that touches a worktree at all.
 +
-+  MEASURED TODAY, not taken from #33: `RAW_APIF_INJURIES` is **1.975 GiB, the LARGEST raw table**
-+  (raw totals 5.35 GiB after item 8b's merge-on-write). On the 2026-08-13 nightly the injuries
-+  phase ran for **26 competitions**, taking ~9s each for roughly **4 minutes** of the run, at one
-+  API call per competition per season.
++  THE AUTHORITY IS NARROW. It covers ONE line added to `data:build:mr` in `.gitlab-ci.yml` and
++  the test that pins it. It does NOT extend to any other job, the `rules:`/`changes:` path
++  anchors, the resource groups, the runner configuration, or the coming group move. None of those
++  is touched. It also does NOT licence editing `.github/workflows/ci-data-build.yml:191`, which
++  carries the same line and is deliberately kept unedited (`CLAUDE.md`,
++  `.github/workflows/README.md`).
 +
-+  ⚠ DELETING THE TABLE IS SEPARATE FROM STOPPING THE INGEST, and is deliberately NOT bundled into
-+  the code change: a 1.975 GiB prod table is irreversible past BigQuery's 7-day time travel. The
-+  MR stops the writes; the drop is a distinct, confirmed action afterwards.
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 13e1e48..0fec3ee 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -1,6 +1,6 @@
- # Data contract: API-Football → BigQuery
++  NOT IN SCOPE, AND SAID OUT LOUD SO A GREEN JOB IS NOT CLAIMED FOR IT. Once past the worktree
++  step this job will still fail further down on GitLab #66:
++  `assert_event_team_in_fixture_participants` returns 10 rows because prod data has not been
++  rebuilt since 08-09 and #53's Macau correction has therefore never been applied. That is a
++  separate defect, it needs a BILLED `data:build:main` run, and that spend is the CPO's decision -
++  not this task's.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 0a25bcf..7a2df77 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -552,6 +552,13 @@ data:build:mr:
+     # model execution). PROD target so deferred refs resolve to prod's bare
+     # datasets, not ci_*.
+     - git fetch --no-tags --depth=1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
++    # The runner keeps the PROJECT directory between jobs but gives each job a fresh
++    # /tmp, so the registration written into .git/worktrees/ outlives the directory it
++    # points at and the next `add` dies with "missing but already registered worktree"
++    # (#65). Prune drops exactly those stale registrations and is a no-op otherwise.
++    # NOT `add -f`: that would also override a worktree whose directory really exists,
++    # turning a genuine collision into a silent overwrite.
++    - git worktree prune
+     - git worktree add --detach /tmp/main-src FETCH_HEAD
+     - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
+     # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
+diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+index 15c435d..bf21ee0 100644
+--- a/tests/test_ci_data_job_invariants.py
++++ b/tests/test_ci_data_job_invariants.py
+@@ -1,9 +1,9 @@
+-"""Pin two CI data-job invariants that can be broken while every pipeline stays GREEN.
++"""Pin three CI data-job invariants that can be broken while every pipeline stays GREEN.
  
--Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eleven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
-+Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same unified raw tables, discriminated by a `league_code STRING` column — see [Unified raw tables](#unified-raw-tables) below, which is the list. The registry of active competitions lives in `docs/competition_registry.yml`.
+ WHY THIS EXISTS
+ ---------------
+-Both properties were repaired on 2026-08-08 under GitLab #33, and both share the shape this repo
+-keeps getting caught by: breaking them produces no red anywhere.
++The first two properties were repaired on 2026-08-08 under GitLab #33, and both share the shape
++this repo keeps getting caught by: breaking them produces no red anywhere.
  
- API references:
+   * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
+     ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
+@@ -19,6 +19,14 @@ keeps getting caught by: breaking them produces no red anywhere.
+     anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
+     for a comment, so the guarantee is re-established here as an assertion.
  
-@@ -33,7 +33,17 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
++  * `git worktree prune` must run before `git worktree add` (GitLab #65, 2026-08-13). The
++    self-hosted runner keeps the project directory between jobs but gives each job a fresh `/tmp`,
++    so a worktree registration in the persisted `.git/worktrees/` outlives the directory it points
++    at and the next `add` dies with "missing but already registered worktree". Delete the prune and
++    the damage is delayed, not immediate: the next pipeline on a given runner slot passes (it
++    creates the registration) and the one after it fails. That delay is what puts it in this
++    module — the breakage does not show up in the pipeline that caused it.
++
+ HOW IT IS SHAPED, AND WHY
+ -------------------------
+ Values come from PARSED YAML, never from raw file text. That matters concretely: the
+@@ -82,6 +90,26 @@ def _script_lines(config: dict) -> list[str]:
+     return lines
  
- ## Unified raw tables
  
--Eleven tables serve the entire fleet of competitions. No per-competition raw tables exist.
-+The tables below serve the entire fleet of competitions. No per-competition raw tables exist.
++def _script_lines_by_job(config: dict) -> dict[str, list[str]]:
++    """Same extraction as `_script_lines`, but keeping the job boundary.
 +
-+⚠ Deliberately no count, HERE OR ANYWHERE ELSE IN THIS FILE. This sentence said "Eleven" and went
-+stale the moment `RAW_APIF_INJURIES` was removed (#33 item 15) — and it was already ambiguous,
-+since `RAW_APIF_LEAGUES` is listed separately as "additional" and it was never clear whether it
-+sat inside the number. The opening paragraph carried the SAME count under the OPPOSITE convention
-+(eleven, only correct if `RAW_APIF_LEAGUES` IS included), so the document contradicted itself on
-+its own second line; a reviewer caught that when the first fix closed only one of the two.
-+`CLAUDE.md` gives the same instruction for the same reason ("do not quote a fixed number here; it
-+has been wrong before") and names the commands to recount. The table IS the count. If you add or
-+remove a raw table, edit the table below and nothing else.
- 
- | Table | Write mode | Partition | Cluster | Merge key |
- |-------|------------|-----------|---------|-----------|
-@@ -43,7 +53,6 @@ Eleven tables serve the entire fleet of competitions. No per-competition raw tab
- | `RAW_APIF_TEAMS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
- | `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
- | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
--| `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
- | `RAW_APIF_TRANSFERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
- | `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
- | `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
-@@ -55,7 +64,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
- 
- ## Append-only writes (reference tables)
- 
--Reference tables — fixtures-next, coaches, injuries, leagues, squads, player-profiles, player-teams — are written with `WRITE_APPEND`. On every pipeline run:
-+Reference tables — fixtures-next, coaches, leagues, squads, player-profiles, player-teams — are written with `WRITE_APPEND`. On every pipeline run:
- 
- 1. The pipeline assembles the **full history window** for the competition. A full (active) run fetches every configured season from the API, reusing finished historical seasons from the previous snapshot (issue #283). A poll/idle run (a finished competition) fetches only the current season and **carries forward** the prior seasons from the latest snapshot — finished matches never change, so the carried rows stay current. Either path yields a complete response.
- 2. The complete response is written as a new row with the current UTC timestamp.
-@@ -181,7 +190,6 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
- | Standings | `/standings` | `RAW_APIF_STANDINGS` |
- | Teams | `/teams` | `RAW_APIF_TEAMS` |
- | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
--| Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
- | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
- | Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
- | Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
-@@ -224,7 +232,7 @@ Mapping from a typical API-Football subscription list to what this repository in
- | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
- | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
- | Player bio, squads, career | Yes — `/players/profiles` per player (`RAW_APIF_PLAYER_PROFILES`), `/players/squads` per team (`RAW_APIF_SQUADS`), `/players/teams` per player (`RAW_APIF_PLAYER_TEAMS`); see the player-data note above |
--| Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
-+| Injuries | **No — deliberately not ingested.** `/injuries` was ingested until 2026-08-13 and had no consumer: no source declaration, no model, no export. Removed under #33 item 15; `RAW_APIF_INJURIES` was the largest raw table at 1.975 GiB. It had been removed once before (2026-05-10) for the same reason and re-added without one. Do not re-add without a named downstream consumer. |
- | Player transfers | Yes — `/transfers` per team (`RAW_APIF_TRANSFERS`); dated moves feed `fct_transfer`, the affiliation-timeline source (reinstated 2026-06-14, see note above) |
- | Pre-match / in-play odds | Not in this repo (no odds ingest) |
- | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
-diff --git a/ingestion/api_football/http_client.py b/ingestion/api_football/http_client.py
-index 255897b..bbf530b 100644
---- a/ingestion/api_football/http_client.py
-+++ b/ingestion/api_football/http_client.py
-@@ -94,9 +94,9 @@ def result_is_complete(data: dict) -> bool:
-     process-global and latches for the rest of the run.
- 
-     Deliberately a function rather than a key on the returned dict. ``_merge_merged_paged`` and the
--    manual envelope comprehensions in loads/teams.py and loads/injuries.py copy every key they do
-+    manual envelope comprehension in loads/teams.py copies every key it does
-     not explicitly exclude straight into the stored raw payload, so an extra key would be persisted
--    into four raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
-+    into three raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
-     FIRST source only, so the value would freeze at the first season of a multi-season loop and a
-     run whose fourth season was rate-limited would still record the snapshot as complete.
- 
-@@ -126,9 +126,9 @@ def fetch_merged_paged(
-     Fetch API list endpoints. When ``paginate`` is True, merges all ``page=`` results (e.g. ``/players``).
-     When False, sends ``base_params`` only — many endpoints (and free-tier plans) reject ``page``.
- 
--    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Four loaders build the
-+    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Three loaders build the
-     raw payload they persist by copying every key except a fixed exclusion list, so a new key lands
--    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and RAW_APIF_FIXTURES_NEXT. To ask
-+    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS and RAW_APIF_FIXTURES_NEXT. To ask
-     whether a result may supersede stored data, call :func:`result_is_complete` (#896).
-     """
-     if not paginate:
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index 879da6a..4dd6168 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -1,7 +1,7 @@
- """Ingestion pipeline for a single competition.
- 
- Two entry points:
--- run_cheap_phases(): catalog → fixtures → standings → teams → injuries → coaches.
-+- run_cheap_phases(): catalog → fixtures → standings → teams → coaches.
-   Returns CompetitionRunResult so the orchestrator can collect all competitions' state before
-   running the global fanout pass.
- - run_squads_for_competition(): squad /players batch, run after global fanout.
-@@ -20,7 +20,6 @@ from .context import CompetitionRunResult, PipelineContext
- from .coaches import load_coaches
- from .fixtures import fetch_merge_and_persist_fixtures
- from .catalog import fetch_catalog_persist_and_plan
--from .injuries import load_injuries
- from .squads import load_squad_players_batch
- from .player_squads import (
-     captured_team_seasons,
-@@ -123,8 +122,6 @@ def run_cheap_phases(
-         load_teams_merge_and_extend_ids(
-             ctx, league_code, league_id, seasons_list, reference_season, team_ids
-         )
--        _ingestion_phase(league_code, "injuries")
--        load_injuries(ctx, league_code, league_id, seasons_list)
-         # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
-         # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
-         #
-diff --git a/ingestion/api_football/loads/injuries.py b/ingestion/api_football/loads/injuries.py
-deleted file mode 100644
-index 1aff2ac..0000000
---- a/ingestion/api_football/loads/injuries.py
-+++ /dev/null
-@@ -1,77 +0,0 @@
--"""Fetch /injuries per league per season → RAW_*_INJURIES.
--
--One call per competition per season returns all recorded injuries for that
--league season (players missing fixtures or marked questionable). No pagination.
--
--Data refreshes every 4 hours on the API side. Our daily run at 04:00 UTC
--captures the overnight state — sufficient for match preview availability lists.
--
--Response structure (response[i]):
--    player.id / player.name / player.type / player.reason
--    team.id / team.name
--    fixture.id / fixture.date
--    league.id / league.season
--"""
--
--from __future__ import annotations
--
--from .. import quota as errors_quota
--from ..bigquery import load_json_to_bq
--from ..http_client import fetch_merged_paged
--from ..quota import append_api_errors
--from ..settings import raw_table
--from .context import PipelineContext
--
--
--def load_injuries(
--    ctx: PipelineContext,
--    league_code: str,
--    league_id: int,
--    seasons_list: list[int],
--) -> None:
--    """Fetch /injuries for all configured seasons and append to RAW_*_INJURIES.
--
--    Each season is a separate API call. All seasons' results are merged into
--    one payload row appended per run — consistent with how standings and rounds
--    are stored.
--    """
--    merged: dict | None = None
--
--    for season in seasons_list:
--        if errors_quota._http_quota_exhausted:
--            break
--        try:
--            part = fetch_merged_paged(
--                "/injuries",
--                ctx.headers,
--                {"league": league_id, "season": season},
--                paginate=False,
--            )
--            append_api_errors(part, f"injuries {league_code} season={season}", ctx.errors)
--
--            if merged is None:
--                merged = {
--                    k: v
--                    for k, v in part.items()
--                    if k not in ("response", "errors", "results", "paging")
--                }
--                merged["errors"] = []
--                merged["response"] = []
--
--            merged["errors"].extend(list(part.get("errors") or []))
--            merged["response"].extend(part.get("response") or [])
--
--        except Exception as e:
--            ctx.errors.append(f"injuries {league_code} season={season}: {e}")
--
--    if not merged:
--        return
--
--    merged["results"] = len(merged["response"])
--    merged["paging"] = {"current": 1, "total": 1}
--
--    try:
--        load_json_to_bq(ctx.client, raw_table("INJURIES"), merged, as_json_payload=True, append=True, league_code=league_code)
--        ctx.add_loaded(1)
--    except Exception as e:
--        ctx.errors.append(f"injuries BQ {league_code}: {e}")
-diff --git a/scripts/drop_injuries_raw_tables.py b/scripts/drop_injuries_raw_tables.py
-index f5ab29f..aea8b66 100644
---- a/scripts/drop_injuries_raw_tables.py
-+++ b/scripts/drop_injuries_raw_tables.py
-@@ -1,17 +1,24 @@
- """Drop every RAW_APIF_*_INJURIES table from BigQuery.
- 
--The injuries surface (ingestion call, dbt source, staging model, schema
--docs) is fully removed in this PR. This script cleans up the orphaned
--raw tables that the previous loader may have created, across every
--competition (BL1 + WC qualifier confederations).
--
--Run once after the PR merges. The script lists every table in the raw
--dataset whose name ends in ``_INJURIES`` (and starts with the
--``RAW_APIF_`` prefix used by the project) and drops each, preserving
--non-injury tables.
-+⚠ THIS SCRIPT HAS OUTLIVED ONE REMOVAL ALREADY. It was written for `401c1cc` (2026-05-10), which
-+removed the injuries surface because it had no consumer. The endpoint was re-added sixteen days
-+later (`983d12c`) with no consumer named, migrated to the unified raw tables (`178261d`), and ran
-+for three months writing `RAW_APIF_INJURIES` — 1.975 GiB, the largest raw table — that nothing
-+ever read. #33 item 15 removes it again. If a third re-add is ever proposed, read
-+`.claude/task/escalations.log` for why the first two failed to justify themselves.
-+
-+The match pattern is unchanged and still correct: it targets tables whose name starts with
-+``RAW_APIF_`` and ends with ``_INJURIES``. That covered the retired per-competition naming
-+(``RAW_APIF_BL1_INJURIES``) and still covers the unified ``RAW_APIF_INJURIES``, since that also
-+ends in ``_INJURIES``. Non-injury tables are never listed.
-+
-+⚠ IRREVERSIBLE past BigQuery's 7-day time travel. Run `--dry-run` first and have the printed list
-+confirmed before the real run. Run it only AFTER the ingest removal has merged and the nightly
-+image has been redeployed — otherwise the next run recreates the table.
- 
- Usage:
--    python scripts/drop_injuries_raw_tables.py [--dry-run]
-+    python scripts/drop_injuries_raw_tables.py --dry-run
-+    python scripts/drop_injuries_raw_tables.py
- """
- 
- from __future__ import annotations
-diff --git a/tests/test_coaches.py b/tests/test_coaches.py
-new file mode 100644
-index 0000000..0a8a5d1
---- /dev/null
-+++ b/tests/test_coaches.py
-@@ -0,0 +1,195 @@
-+"""Tests for loads/coaches.py.
-+
-+All BigQuery and HTTP interactions are mocked — no live GCP connection required.
-+
-+Was `test_injuries_coaches.py` until #33 item 15 removed the `/injuries` ingest: the endpoint
-+had no consumer anywhere in the warehouse, and `RAW_APIF_INJURIES` was the largest raw table at
-+1.975 GiB. `TestLoadInjuries` went with the loader it tested. Coaches was added in the same
-+commit as injuries (`983d12c`) and DID get a consumer — `stg_apif__coaches` -> `base_apif__coaches`
-+-> `dim_coach` — which is why it stays.
-+"""
-+
-+from __future__ import annotations
-+
-+from unittest.mock import MagicMock, patch
-+
-+from ingestion.api_football.loads.coaches import load_coaches
++    Ordering within a job is the whole point for the worktree check — a `prune` sitting in some
++    OTHER job would satisfy a flattened scan while fixing nothing.
++    """
++    per_job: dict[str, list[str]] = {}
++    for name, node in config.items():
++        if not isinstance(node, dict):
++            continue
++        lines: list[str] = []
++        for section in ("before_script", "script", "after_script"):
++            for entry in node.get(section) or []:
++                if isinstance(entry, str):
++                    lines.extend(entry.splitlines())
++        if lines:
++            per_job[name] = lines
++    return per_job
 +
 +
-+# ---------------------------------------------------------------------------
-+# Helpers
-+# ---------------------------------------------------------------------------
+ def _declared_variables(config: dict) -> list[tuple[str, str]]:
+     """Every (name, value) from a `variables:` mapping — global, `default:`, or per job."""
+     found: list[tuple[str, str]] = []
+@@ -148,3 +176,40 @@ def test_the_prod_trigger_still_covers_every_dbt_compile_input():
+         f".data_paths_prod contains {sorted(wider)}, which .data_paths_mr does not. The prod "
+         "build would then fire on a change the MR build never validated."
+     )
 +
 +
-+def _make_ctx(errors=None):
-+    ctx = MagicMock()
-+    ctx.errors = errors if errors is not None else []
-+    ctx.headers = {"x-apisports-key": "test"}
-+    return ctx
++def test_every_worktree_add_is_preceded_by_a_prune():
++    """#65. The runner persists the project dir but not /tmp, so registrations go stale.
 +
++    Written to the CLASS, not to the one line that broke: any job that adds a worktree must prune
++    first, in its own script. A second worktree call added later is covered without touching this
++    test — a list of known offenders is precisely what has holed guards here before.
 +
-+def _api_response(items: list, errors=None) -> dict:
-+    return {
-+        "response": items,
-+        "errors": errors or [],
-+        "results": len(items),
-+        "paging": {"current": 1, "total": 1},
-+    }
++    Read from parsed YAML rather than file text on purpose. The fix carries a comment naming both
++    `worktree` and `prune`, so a text scan would match the documentation of the fix and pass
++    whether or not the command is actually there.
++    """
++    offenders = []
++    for job, lines in _script_lines_by_job(_ci_config()).items():
++        add_at = next(
++            (i for i, line in enumerate(lines) if "git worktree add" in line), None
++        )
++        if add_at is None:
++            continue
++        prune_at = next(
++            (i for i, line in enumerate(lines) if "git worktree prune" in line), None
++        )
++        if prune_at is None or prune_at > add_at:
++            offenders.append(
++                f"{job}: `git worktree add` at script index {add_at}, prune "
++                + ("absent" if prune_at is None else f"at {prune_at} (too late)")
++            )
 +
-+
-+# ---------------------------------------------------------------------------
-+# load_coaches
-+# ---------------------------------------------------------------------------
-+
-+
-+class TestLoadCoaches:
-+    def test_calls_api_once_per_team(self):
-+        ctx = _make_ctx()
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response([]),
-+        ) as mock_fetch:
-+            with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
-+                load_coaches(ctx, "BL1", {10, 20, 30})
-+
-+        assert mock_fetch.call_count == 3
-+        queried_teams = {
-+            c[0][2]["team"] for c in mock_fetch.call_args_list
-+        }
-+        assert queried_teams == {10, 20, 30}
-+
-+    def test_wraps_each_coach_with_team_id(self):
-+        ctx = _make_ctx()
-+        coach_data = {"id": 99, "name": "J. Klopp", "career": []}
-+
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response([coach_data]),
-+        ):
-+            with patch(
-+                "ingestion.api_football.loads.coaches.load_json_to_bq"
-+            ) as mock_bq:
-+                load_coaches(ctx, "BL1", {40})
-+
-+        payload = mock_bq.call_args[0][2]
-+        assert len(payload["response"]) == 1
-+        assert payload["response"][0]["team_id"] == 40
-+        assert payload["response"][0]["coach"]["id"] == 99
-+
-+    def test_writes_to_correct_table(self):
-+        ctx = _make_ctx()
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response([{"id": 1}]),
-+        ):
-+            with patch(
-+                "ingestion.api_football.loads.coaches.load_json_to_bq"
-+            ) as mock_bq:
-+                load_coaches(ctx, "WC", {1})
-+
-+        table_name = mock_bq.call_args[0][1]
-+        assert table_name == "RAW_APIF_COACHES"
-+
-+    def test_uses_append_mode(self):
-+        ctx = _make_ctx()
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response([{"id": 1}]),
-+        ):
-+            with patch(
-+                "ingestion.api_football.loads.coaches.load_json_to_bq"
-+            ) as mock_bq:
-+                load_coaches(ctx, "BL1", {10})
-+
-+        kwargs = mock_bq.call_args[1]
-+        assert kwargs.get("append") is True
-+
-+    def test_no_op_when_team_ids_empty(self):
-+        ctx = _make_ctx()
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged"
-+        ) as mock_fetch:
-+            with patch("ingestion.api_football.loads.coaches.load_json_to_bq") as mock_bq:
-+                load_coaches(ctx, "BL1", set())
-+
-+        mock_fetch.assert_not_called()
-+        mock_bq.assert_not_called()
-+
-+    def test_skips_remaining_teams_when_quota_exhausted(self):
-+        import ingestion.api_football.quota as quota_mod
-+
-+        ctx = _make_ctx()
-+        prev = quota_mod._http_quota_exhausted
-+        quota_mod._http_quota_exhausted = True
-+        try:
-+            with patch(
-+                "ingestion.api_football.loads.coaches.fetch_merged_paged"
-+            ) as mock_fetch:
-+                with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
-+                    load_coaches(ctx, "BL1", {10, 20})
-+        finally:
-+            quota_mod._http_quota_exhausted = prev
-+
-+        mock_fetch.assert_not_called()
-+
-+    def test_team_exception_appended_to_errors_and_continues(self):
-+        ctx = _make_ctx()
-+        call_count = 0
-+
-+        def raise_on_first(path, headers, base_params, **kwargs):
-+            nonlocal call_count
-+            call_count += 1
-+            if call_count == 1:
-+                raise RuntimeError("network error")
-+            return _api_response([{"id": 5}])
-+
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            side_effect=raise_on_first,
-+        ):
-+            with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
-+                load_coaches(ctx, "BL1", {10, 20})
-+
-+        assert any("coaches" in e and "BL1" in e for e in ctx.errors)
-+
-+    def test_bq_exception_appended_to_errors(self):
-+        ctx = _make_ctx()
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response([{"id": 1}]),
-+        ):
-+            with patch(
-+                "ingestion.api_football.loads.coaches.load_json_to_bq",
-+                side_effect=RuntimeError("BQ write failed"),
-+            ):
-+                load_coaches(ctx, "BL1", {10})
-+
-+        assert any("coaches BQ" in e for e in ctx.errors)
-+
-+    def test_multiple_coaches_per_team_all_captured(self):
-+        """A team can have multiple coaches returned (e.g. current + caretakers)."""
-+        ctx = _make_ctx()
-+        two_coaches = [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}]
-+
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response(two_coaches),
-+        ):
-+            with patch(
-+                "ingestion.api_football.loads.coaches.load_json_to_bq"
-+            ) as mock_bq:
-+                load_coaches(ctx, "BL1", {40})
-+
-+        payload = mock_bq.call_args[0][2]
-+        assert len(payload["response"]) == 2
-+
-+    def test_increments_tables_loaded_counter(self):
-+        ctx = _make_ctx()
-+        with patch(
-+            "ingestion.api_football.loads.coaches.fetch_merged_paged",
-+            return_value=_api_response([{"id": 1}]),
-+        ):
-+            with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
-+                load_coaches(ctx, "BL1", {10})
-+
-+        ctx.add_loaded.assert_called_once_with(1)
-diff --git a/tests/test_incomplete_fetch_no_supersede.py b/tests/test_incomplete_fetch_no_supersede.py
-index 7f41cff..f129783 100644
---- a/tests/test_incomplete_fetch_no_supersede.py
-+++ b/tests/test_incomplete_fetch_no_supersede.py
-@@ -202,9 +202,9 @@ class TestReturnedKeySetIsStable:
-     """Regression guard for the defect review round 1 caught.
- 
-     `fetch_merged_paged`'s returned dict is copied wholesale into the stored raw payload by
--    `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehensions in
--    loads/teams.py and loads/injuries.py, each of which excludes only a fixed key list. A new
--    top-level key therefore lands in RAW_APIF_STANDINGS, RAW_APIF_TEAMS, RAW_APIF_INJURIES and
-+    `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehension in
-+    loads/teams.py, each of which excludes only a fixed key list. A new
-+    top-level key therefore lands in RAW_APIF_STANDINGS, RAW_APIF_TEAMS and
-     RAW_APIF_FIXTURES_NEXT. The first attempt at #896 added a `complete` key here and would have
-     done exactly that, with a value frozen at the first season of a multi-season merge.
- 
-diff --git a/tests/test_injuries_coaches.py b/tests/test_injuries_coaches.py
-deleted file mode 100644
-index a054e85..0000000
---- a/tests/test_injuries_coaches.py
-+++ /dev/null
-@@ -1,329 +0,0 @@
--"""Tests for loads/injuries.py and loads/coaches.py.
--
--All BigQuery and HTTP interactions are mocked — no live GCP connection required.
--"""
--
--from __future__ import annotations
--
--from unittest.mock import MagicMock, patch
--
--from ingestion.api_football.loads.injuries import load_injuries
--from ingestion.api_football.loads.coaches import load_coaches
--
--
--# ---------------------------------------------------------------------------
--# Helpers
--# ---------------------------------------------------------------------------
--
--
--def _make_ctx(errors=None):
--    ctx = MagicMock()
--    ctx.errors = errors if errors is not None else []
--    ctx.headers = {"x-apisports-key": "test"}
--    return ctx
--
--
--def _api_response(items: list, errors=None) -> dict:
--    return {
--        "response": items,
--        "errors": errors or [],
--        "results": len(items),
--        "paging": {"current": 1, "total": 1},
--    }
--
--
--# ---------------------------------------------------------------------------
--# load_injuries
--# ---------------------------------------------------------------------------
--
--
--class TestLoadInjuries:
--    def test_calls_api_once_per_season(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            return_value=_api_response([]),
--        ) as mock_fetch:
--            with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
--                load_injuries(ctx, "BL1", 78, [2024, 2023])
--
--        assert mock_fetch.call_count == 2
--        calls = mock_fetch.call_args_list
--        assert calls[0][0][0] == "/injuries"
--        assert calls[0][0][2] == {"league": 78, "season": 2024}
--        assert calls[1][0][2] == {"league": 78, "season": 2023}
--
--    def test_merges_all_seasons_into_one_bq_row(self):
--        ctx = _make_ctx()
--        season_2024 = _api_response([{"player": {"id": 1}}, {"player": {"id": 2}}])
--        season_2023 = _api_response([{"player": {"id": 3}}])
--
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            side_effect=[season_2024, season_2023],
--        ):
--            with patch(
--                "ingestion.api_football.loads.injuries.load_json_to_bq"
--            ) as mock_bq:
--                load_injuries(ctx, "BL1", 78, [2024, 2023])
--
--        assert mock_bq.call_count == 1
--        payload = mock_bq.call_args[0][2]
--        assert payload["results"] == 3
--        assert len(payload["response"]) == 3
--
--    def test_writes_to_correct_table(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            return_value=_api_response([{"player": {"id": 1}}]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.injuries.load_json_to_bq"
--            ) as mock_bq:
--                load_injuries(ctx, "PL", 39, [2024])
--
--        table_name = mock_bq.call_args[0][1]
--        assert table_name == "RAW_APIF_INJURIES"
--
--    def test_uses_append_mode(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            return_value=_api_response([{"player": {"id": 1}}]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.injuries.load_json_to_bq"
--            ) as mock_bq:
--                load_injuries(ctx, "BL1", 78, [2024])
--
--        kwargs = mock_bq.call_args[1]
--        assert kwargs.get("append") is True
--
--    def test_no_op_when_seasons_list_empty(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged"
--        ) as mock_fetch:
--            with patch("ingestion.api_football.loads.injuries.load_json_to_bq") as mock_bq:
--                load_injuries(ctx, "BL1", 78, [])
--
--        mock_fetch.assert_not_called()
--        mock_bq.assert_not_called()
--
--    def test_skips_remaining_seasons_when_quota_exhausted(self):
--        import ingestion.api_football.quota as quota_mod
--
--        ctx = _make_ctx()
--        prev = quota_mod._http_quota_exhausted
--        quota_mod._http_quota_exhausted = True
--        try:
--            with patch(
--                "ingestion.api_football.loads.injuries.fetch_merged_paged"
--            ) as mock_fetch:
--                with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
--                    load_injuries(ctx, "BL1", 78, [2024, 2023])
--        finally:
--            quota_mod._http_quota_exhausted = prev
--
--        mock_fetch.assert_not_called()
--
--    def test_api_exception_appended_to_errors_and_continues(self):
--        ctx = _make_ctx()
--
--        def raise_on_first(path, headers, base_params, **kwargs):
--            if base_params["season"] == 2024:
--                raise RuntimeError("timeout")
--            return _api_response([{"player": {"id": 9}}])
--
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            side_effect=raise_on_first,
--        ):
--            with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
--                load_injuries(ctx, "BL1", 78, [2024, 2023])
--
--        assert any("injuries" in e and "BL1" in e for e in ctx.errors)
--
--    def test_bq_exception_appended_to_errors(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            return_value=_api_response([{"player": {"id": 1}}]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.injuries.load_json_to_bq",
--                side_effect=RuntimeError("BQ write failed"),
--            ):
--                load_injuries(ctx, "BL1", 78, [2024])
--
--        assert any("injuries BQ" in e for e in ctx.errors)
--
--    def test_increments_tables_loaded_counter(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.injuries.fetch_merged_paged",
--            return_value=_api_response([{"player": {"id": 1}}]),
--        ):
--            with patch("ingestion.api_football.loads.injuries.load_json_to_bq"):
--                load_injuries(ctx, "BL1", 78, [2024])
--
--        ctx.add_loaded.assert_called_once_with(1)
--
--
--# ---------------------------------------------------------------------------
--# load_coaches
--# ---------------------------------------------------------------------------
--
--
--class TestLoadCoaches:
--    def test_calls_api_once_per_team(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response([]),
--        ) as mock_fetch:
--            with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
--                load_coaches(ctx, "BL1", {10, 20, 30})
--
--        assert mock_fetch.call_count == 3
--        queried_teams = {
--            c[0][2]["team"] for c in mock_fetch.call_args_list
--        }
--        assert queried_teams == {10, 20, 30}
--
--    def test_wraps_each_coach_with_team_id(self):
--        ctx = _make_ctx()
--        coach_data = {"id": 99, "name": "J. Klopp", "career": []}
--
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response([coach_data]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.coaches.load_json_to_bq"
--            ) as mock_bq:
--                load_coaches(ctx, "BL1", {40})
--
--        payload = mock_bq.call_args[0][2]
--        assert len(payload["response"]) == 1
--        assert payload["response"][0]["team_id"] == 40
--        assert payload["response"][0]["coach"]["id"] == 99
--
--    def test_writes_to_correct_table(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response([{"id": 1}]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.coaches.load_json_to_bq"
--            ) as mock_bq:
--                load_coaches(ctx, "WC", {1})
--
--        table_name = mock_bq.call_args[0][1]
--        assert table_name == "RAW_APIF_COACHES"
--
--    def test_uses_append_mode(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response([{"id": 1}]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.coaches.load_json_to_bq"
--            ) as mock_bq:
--                load_coaches(ctx, "BL1", {10})
--
--        kwargs = mock_bq.call_args[1]
--        assert kwargs.get("append") is True
--
--    def test_no_op_when_team_ids_empty(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged"
--        ) as mock_fetch:
--            with patch("ingestion.api_football.loads.coaches.load_json_to_bq") as mock_bq:
--                load_coaches(ctx, "BL1", set())
--
--        mock_fetch.assert_not_called()
--        mock_bq.assert_not_called()
--
--    def test_skips_remaining_teams_when_quota_exhausted(self):
--        import ingestion.api_football.quota as quota_mod
--
--        ctx = _make_ctx()
--        prev = quota_mod._http_quota_exhausted
--        quota_mod._http_quota_exhausted = True
--        try:
--            with patch(
--                "ingestion.api_football.loads.coaches.fetch_merged_paged"
--            ) as mock_fetch:
--                with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
--                    load_coaches(ctx, "BL1", {10, 20})
--        finally:
--            quota_mod._http_quota_exhausted = prev
--
--        mock_fetch.assert_not_called()
--
--    def test_team_exception_appended_to_errors_and_continues(self):
--        ctx = _make_ctx()
--        call_count = 0
--
--        def raise_on_first(path, headers, base_params, **kwargs):
--            nonlocal call_count
--            call_count += 1
--            if call_count == 1:
--                raise RuntimeError("network error")
--            return _api_response([{"id": 5}])
--
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            side_effect=raise_on_first,
--        ):
--            with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
--                load_coaches(ctx, "BL1", {10, 20})
--
--        assert any("coaches" in e and "BL1" in e for e in ctx.errors)
--
--    def test_bq_exception_appended_to_errors(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response([{"id": 1}]),
--        ):
--            with patch(
--                "ingestion.api_football.loads.coaches.load_json_to_bq",
--                side_effect=RuntimeError("BQ write failed"),
--            ):
--                load_coaches(ctx, "BL1", {10})
--
--        assert any("coaches BQ" in e for e in ctx.errors)
--
--    def test_multiple_coaches_per_team_all_captured(self):
--        """A team can have multiple coaches returned (e.g. current + caretakers)."""
--        ctx = _make_ctx()
--        two_coaches = [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}]
--
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response(two_coaches),
--        ):
--            with patch(
--                "ingestion.api_football.loads.coaches.load_json_to_bq"
--            ) as mock_bq:
--                load_coaches(ctx, "BL1", {40})
--
--        payload = mock_bq.call_args[0][2]
--        assert len(payload["response"]) == 2
--
--    def test_increments_tables_loaded_counter(self):
--        ctx = _make_ctx()
--        with patch(
--            "ingestion.api_football.loads.coaches.fetch_merged_paged",
--            return_value=_api_response([{"id": 1}]),
--        ):
--            with patch("ingestion.api_football.loads.coaches.load_json_to_bq"):
--                load_coaches(ctx, "BL1", {10})
--
--        ctx.add_loaded.assert_called_once_with(1)
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/review_input.patch | 1986 ++++++++++++++++++++-------------------
-#    1 file changed, 1043 insertions(+), 943 deletions(-)
-# ============================================================================
++    assert offenders == [], (
++        "A job adds a git worktree without pruning stale registrations first. The self-hosted "
++        "runner keeps the project directory between jobs while each job gets a fresh /tmp, so the "
++        "registration in .git/worktrees/ outlives its directory and `git worktree add` exits 128 "
++        "with 'missing but already registered worktree' (GitLab #65). This does not fail the "
++        "pipeline that removes the prune — it fails the NEXT one on that runner slot. "
++        f"Offending: {offenders}"
++    )

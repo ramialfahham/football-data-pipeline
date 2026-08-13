@@ -552,6 +552,13 @@ data:build:mr:
     # model execution). PROD target so deferred refs resolve to prod's bare
     # datasets, not ci_*.
     - git fetch --no-tags --depth=1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    # The runner keeps the PROJECT directory between jobs but gives each job a fresh
+    # /tmp, so the registration written into .git/worktrees/ outlives the directory it
+    # points at and the next `add` dies with "missing but already registered worktree"
+    # (#65). Prune drops exactly those stale registrations and is a no-op otherwise.
+    # NOT `add -f`: that would also override a worktree whose directory really exists,
+    # turning a genuine collision into a silent overwrite.
+    - git worktree prune
     - git worktree add --detach /tmp/main-src FETCH_HEAD
     - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
     # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
