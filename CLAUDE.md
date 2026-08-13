@@ -134,10 +134,15 @@ every session that learned something had to delete something. None of this is cu
   literally, and a `verdicts:` block alone does NOT satisfy it.
 - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
   blocks the turn once if any fails. Do not end a turn on a red gate silently.
-- **⚠ On a SECOND commit, `--staged-hash` is the WRONG number** — it covers only the increment,
-  while CI recomputes over the whole branch. Use `check_task_artifacts.py` (its default now
-  resolves the LIVE remote; `origin` is GitLab in CI but the dormant GitHub one here). A
-  `review.md`-only commit is artifact-exempt, so rebinding the hash is free.
+- **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
+  2026-08-12). It hashes `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the
+  base, so it is byte-identical to the CI recompute on every platform and on a branch of any
+  length. ⚠ The old warning here said `--staged-hash` was "the WRONG number" on a second commit;
+  that was true of the pre-#63 implementation, which hashed the RENDERED patch of a bare
+  `--staged`. It is now simply false and has been deleted rather than qualified.
+  `check_task_artifacts.py` still resolves the LIVE remote by default (`origin` is GitLab in CI
+  but the dormant GitHub one here), and a `review.md`-only commit is artifact-exempt, so rebinding
+  is free.
 - **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
   the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
   LIFO and load-bearing WIP lives in it.

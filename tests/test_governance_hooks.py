@@ -1608,13 +1608,17 @@ def run_ci_check(repo) -> tuple[int, str]:
 
 
 def branch_hash(repo, base="main") -> str:
-    """The F11 hash CI recomputes: sha256 of `git diff base...HEAD` excluding the
-    bookkeeping artifacts (--no-renames), mirroring check_task_artifacts.py."""
+    """The F11 hash CI recomputes: sha256 of `git diff --raw base...HEAD` excluding the
+    bookkeeping artifacts, mirroring check_task_artifacts.py.
+
+    ⚠ `--raw` since #63 — CONTENT IDENTITY (mode, blob SHAs, status, path), not the rendered
+    patch, whose bytes vary with git version, platform and diff settings. This helper mirrors
+    the script by hand, so it has to move in the same commit or the mirror lies."""
     import hashlib
     excludes = ROUTING["hash_exclude_paths"]
     pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
     diff = subprocess.run(
-        ["git", "diff", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
+        ["git", "diff", "--raw", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
         cwd=repo, capture_output=True,
     ).stdout
     return hashlib.sha256(diff).hexdigest()
@@ -1704,6 +1708,270 @@ def test_local_staged_hash_equals_ci_recompute(ci_repo):
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
     ci = branch_hash(ci_repo)               # what CI recomputes
     assert local == ci, f"local {local} != ci {ci}"
+
+
+def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
+    """#63 — the hash must NOT move when a PRESENTATION setting moves.
+
+    ⚠ THIS IS THE POINT OF THE WHOLE CHANGE, and it FAILS against the pre-#63 implementation.
+    That version hashed `git diff`'s rendered patch, so anything altering the rendering altered
+    the hash: measured on the real repo, identical commits gave 0c1ef8af at -U3 and ca1afb7d at
+    -U0. `diff.context` is a per-repo git setting a machine can legitimately carry, which is how
+    two machines hashed the same content differently and `validate:governance` could not pass.
+
+    Cross-platform stability is the real requirement and cannot be tested from one machine; this
+    is its closest honest proxy — same content, same git, one rendering knob turned.
+    """
+    # ⚠ The changed line must sit BETWEEN unchanged ones, or the control is vacuous: with a new
+    # or wholly-rewritten file every line is a change, there is no context to include or exclude,
+    # and the two settings render identically. An earlier draft of this test did exactly that and
+    # passed against the very defect it exists to catch — found by running it against the old
+    # implementation rather than trusting it green.
+    model = ci_repo / "dbt_project" / "models" / "allowed.sql"
+    model.write_text("".join("select %d\n" % i for i in range(1, 11)))
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "ten lines"], cwd=ci_repo, check=True)
+
+    lines = model.read_text().splitlines(keepends=True)
+    lines[4] = "select 99\n"                      # one line, mid-file, context on both sides
+    model.write_text("".join(lines))
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+
+    subprocess.run(["git", "config", "diff.context", "0"], cwd=ci_repo, check=True)
+    tight = staged_hash(ci_repo)
+    subprocess.run(["git", "config", "diff.context", "3"], cwd=ci_repo, check=True)
+    loose = staged_hash(ci_repo)
+
+    assert tight and loose, "the hook produced no hash at all"
+    assert tight == loose, (
+        "the review hash changed when only a DIFF RENDERING setting changed "
+        f"(context=0 -> {tight[:16]}, context=3 -> {loose[:16]}); it is hashing a presentation "
+        "format, so two machines can disagree about identical content (#63)")
+
+
+def test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute(tmp_path):
+    """#63 — an uncomputable hash must STOP the workflow, not resolve to a constant.
+
+    ⚠ THE HOLE THIS CLOSES WAS REAL AND WAS REPRODUCED. An earlier draft returned b"" when the
+    base could not be resolved and called that fail-closed. It was the opposite: `--staged-hash`
+    printed sha256(b"") = e3b0c442… with EXIT 0, that value went into review.md, the gate
+    recomputed the same empty value from the same broken call, the two AGREED, and the commit
+    passed bound to ZERO bytes — no code, not even contract.md. Deterministic, not a race.
+
+    A directory that is not a git repository is the cheapest reproduction of "the base does not
+    resolve"; the real-world cases `_base_commit` names are a --single-branch clone, a shallow
+    checkout, and two histories with no common ancestor.
+    """
+    import hashlib
+    empty = hashlib.sha256(b"").hexdigest()
+    # ⚠ CLAUDE_PROJECT_DIR MUST BE REMOVED, not merely left to `cwd`. `_repo_root()` prefers the
+    # env var over the working directory, so inheriting it points the hook at the REAL repository,
+    # where the base resolves fine and it exits 0 — the test would go green for a reason unrelated
+    # to the defect in any environment that exports it, which is the normal case for this repo.
+    # It happens to be unset on the machine this was written on, which is exactly why it needed a
+    # reviewer to catch (platform-reviewer, opus).
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
+        cwd=str(tmp_path), capture_output=True, text=True, timeout=60, env=env,
+    )
+    assert r.returncode != 0, "exited 0 without computing a hash"
+    assert empty not in r.stdout, (
+        "printed sha256 of EMPTY as if it were a real hash — review.md would bind to nothing "
+        "and the gate would match it against itself")
+    assert not re.search(r"\b[0-9a-f]{64}\b", r.stdout), \
+        f"emitted a 64-hex hash it could not have computed: {r.stdout!r}"
+
+
+def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_repo):
+    """#63 — the gate's own half of the same hole: deny explicitly, never by accidental mismatch.
+
+    ⚠ `ci_repo`, not `repo`: the plain fixture carries no `review_routing.json`, and a missing
+    routing file disables the review requirement ENTIRELY, so the gate returns None long before
+    the hash is computed and the test would pass for a reason that has nothing to do with the
+    defect. Found by running it.
+    """
+    repo = ci_repo
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
+    (repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    write_review(repo, "a" * 64, GOOD_BODY)
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "gd_under_test", os.path.join(HOOKS, "git_discipline.py"))
+    gd = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gd)
+    monkeypatch.setattr(gd, "_cumulative_diff",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("base unresolvable")))
+
+    reason = gd._commit_gate(str(repo))
+    assert reason, "the gate allowed a commit whose hash could not be computed"
+    assert "could not be computed" in reason, \
+        f"denied for the wrong reason (a mismatch, not the real cause): {reason!r}"
+
+
+def test_base_resolution_prefers_the_remote_tracking_ref_over_a_stale_local_main(ci_repo):
+    """#63 — a local `main` is a CACHED COPY and goes stale; the remote-tracking ref is the truth.
+
+    ⚠ This pins the half of the fix that had no test. `ci_repo` creates a local `main` and NO
+    remotes, so `gitlab/main` and `origin/main` both fail to resolve and every preference order
+    gives the same answer — reverting the reorder left the whole suite green (platform-reviewer,
+    opus). The fixture is given a real `refs/remotes/gitlab/main` here, ahead of a deliberately
+    stale local `main`, so the order is observable.
+
+    Measured on the live repo when this was found: local `main` sat at 57175fc while `gitlab/main`
+    was a2b4184, two merges newer. The reviewers' patch listed files from an already-merged task,
+    and the hash could not have matched CI's no matter what bytes were fed to it.
+    """
+    stale = subprocess.run(["git", "rev-parse", "main"], cwd=ci_repo,
+                           capture_output=True, text=True, check=True).stdout.strip()
+
+    # advance the remote-tracking ref two commits past the stale local `main`
+    for n in (1, 2):
+        (ci_repo / "dbt_project" / "models" / f"upstream{n}.sql").write_text(f"select {n}\n")
+        subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+        subprocess.run(["git", "commit", "-qm", f"upstream {n}"], cwd=ci_repo, check=True)
+    ahead = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ci_repo,
+                           capture_output=True, text=True, check=True).stdout.strip()
+    subprocess.run(["git", "update-ref", "refs/remotes/gitlab/main", ahead], cwd=ci_repo, check=True)
+    subprocess.run(["git", "update-ref", "refs/heads/main", stale], cwd=ci_repo, check=True)
+    assert stale != ahead, "fixture did not actually create a stale local main"
+
+    (ci_repo / "dbt_project" / "models" / "mine.sql").write_text("select 42\n")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+
+    import hashlib
+    excludes = ROUTING["hash_exclude_paths"]
+    pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
+
+    def hash_from(base):
+        d = subprocess.run(
+            ["git", "diff", "--staged", "--no-renames", "--no-abbrev", "--raw", base] + pathspec,
+            cwd=ci_repo, capture_output=True).stdout
+        return hashlib.sha256(d).hexdigest()
+
+    got = staged_hash(ci_repo)
+    assert got == hash_from(ahead), (
+        "the hook resolved a base that is not the remote-tracking ref")
+    assert got != hash_from(stale), (
+        "the hook used the STALE local `main` — the reviewers' patch and the hash would both "
+        "cover commits that are already merged upstream")
+
+
+def test_governance_base_env_var_overrides_the_base(ci_repo):
+    """#63 — the escape hatch the deny message promises must actually exist.
+
+    ⚠ It did not. An earlier draft's deny told the operator to "set GOVERNANCE_BASE" while
+    `_base_commit` read no environment variable at all, so `git commit` was locked with a remedy
+    that did nothing — and for two histories with no common ancestor the other suggested remedy
+    (fetch the base branch) does not help either. A deny with no escape is the workflow lock the
+    fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
+    `scripts/check_task_artifacts.py:106` already honoured it, so this also closes a local/CI split.
+
+    ⚠ THE REF MUST HAVE DIVERGED. An earlier version of this test pointed GOVERNANCE_BASE at a
+    direct ANCESTOR of HEAD, where the tip and the merge-base are the same commit — so it could
+    not tell the two apart and stayed green against a hook that used the tip. The CI twin spells
+    the base `f"{args.base}...HEAD"` (three-dot, merge-base), so a tip-resolving hook diverges from
+    CI the moment the override names a branch that has moved on, which is the documented use of
+    the variable. Caught by platform-reviewer, opus, round 3 — the third test in this task that
+    passed either way.
+    """
+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "branch work"], cwd=ci_repo, check=True)
+
+    # an upstream ref that has MOVED ON since this branch was cut: shares an ancestor, is not one
+    subprocess.run(["git", "checkout", "-q", "-b", "upstream", "main"], cwd=ci_repo, check=True)
+    (ci_repo / "dbt_project" / "models" / "upstream_only.sql").write_text("select 99\n")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "upstream moved"], cwd=ci_repo, check=True)
+    tip = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ci_repo,
+                         capture_output=True, text=True, check=True).stdout.strip()
+    subprocess.run(["git", "checkout", "-q", "feature"], cwd=ci_repo, check=True)
+
+    ancestor = subprocess.run(["git", "merge-base", "HEAD", tip], cwd=ci_repo,
+                              capture_output=True, text=True, check=True).stdout.strip()
+    assert ancestor != tip, "fixture did not create a genuinely diverged ref"
+
+    (ci_repo / "dbt_project" / "models" / "second.sql").write_text("select 2\n")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(ci_repo), GOVERNANCE_BASE="upstream")
+    overridden = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
+        cwd=str(ci_repo), capture_output=True, text=True, env=env, timeout=60)
+    assert overridden.returncode == 0, overridden.stderr
+
+    import hashlib
+    pathspec = ["--", "."] + [f":(exclude){p}" for p in ROUTING["hash_exclude_paths"]]
+
+    def hash_from(base):
+        d = subprocess.run(
+            ["git", "diff", "--staged", "--no-renames", "--no-abbrev", "--raw", base] + pathspec,
+            cwd=ci_repo, capture_output=True).stdout
+        return hashlib.sha256(d).hexdigest()
+
+    assert overridden.stdout.strip() == hash_from(ancestor), (
+        "the override did not resolve through merge-base")
+    assert overridden.stdout.strip() != hash_from(tip), (
+        "the override resolved to the branch TIP. CI diffs `base...HEAD` (merge-base), so the two "
+        "halves would hash different bytes and the local diff would carry a reverse delta for "
+        "everything merged upstream since this branch was cut — the very defect #63 removes")
+
+
+def test_an_empty_cumulative_diff_is_not_reported_as_a_failure_to_compute(ci_repo):
+    """#63 — `None` (could not compute) and `b""` (nothing changed) are different states.
+
+    ⚠ An earlier draft tested `if not blob`, which is true for both, so a legitimately empty
+    cumulative diff was reported as "the base commit did not resolve" — a cause that was not
+    observed, with two remedies that do not apply. Reachable in practice because `_staged_paths`
+    is HEAD-vs-index while the hash is base-vs-index: staging a revert of an earlier commit on the
+    same branch arrives with staged paths and no net change.
+    """
+    model = ci_repo / "dbt_project" / "models" / "allowed.sql"
+    original = model.read_text()
+    model.write_text("select 999\n")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "change it"], cwd=ci_repo, check=True)
+    model.write_text(original)                      # revert -> net-zero vs the base
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
+        cwd=str(ci_repo), capture_output=True, text=True,
+        env=dict(os.environ, CLAUDE_PROJECT_DIR=str(ci_repo)), timeout=60)
+    assert r.returncode == 0, (
+        "a net-zero branch was treated as a failure to compute the hash: " + r.stderr)
+    import hashlib
+    assert r.stdout.strip() == hashlib.sha256(b"").hexdigest(), \
+        "an empty cumulative diff should hash to the empty digest, not be refused"
+
+
+def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo):
+    """#63, second half — the same invariant as the single-commit test, after TWO commits.
+
+    ⚠ FAILS against the pre-#63 implementation, which diffed a bare `--staged` (HEAD-vs-index).
+    Once a second commit lands, the index equals HEAD, so that diff is EMPTY while CI still sees
+    the whole branch — the local number was the hash of nothing. This was a documented trap
+    ("on a SECOND commit, --staged-hash is the WRONG number") rather than a mystery, and it cost
+    two wasted rebind cycles on !33. Diffing from the base makes it simply false.
+    """
+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "first"], cwd=ci_repo, check=True)
+
+    (ci_repo / "dbt_project" / "models" / "second.sql").write_text("select 8\n")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "second"], cwd=ci_repo, check=True)
+
+    local = staged_hash(ci_repo)     # what the commit gate would check
+    ci = branch_hash(ci_repo)        # what CI recomputes over the whole branch
+    assert local == ci, (
+        f"local {local[:16]} != ci {ci[:16]} on a two-commit branch — the local gate is hashing "
+        "only the last increment, so a locally-passing commit is rejected by CI (#63)")
 
 
 def test_ci_check_fails_on_missing_required_reviewer(ci_repo):

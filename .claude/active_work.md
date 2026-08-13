@@ -84,14 +84,13 @@ ranked list, the free tools, MEASURED vs UNMEASURED. Read it there; do not redo 
   tournaments are `ingest_active` and go months without a refresh in poll mode; expiry would delete
   the ONLY surviving row and staging's `qualify` would silently return zero rows for that league.
   Use keep-latest-per-`(table, league_code)`. **A fixed lookback window has the same defect.**
-- **⚠ Do NOT claim the API quota "breaks first".** `standings.py:30` and `teams.py:28` do loop every
-  configured season daily with no skip, which is real and worth fixing. But the daily quota number
-  is not in the repo and #547 assessed the API budget as fine. Claimed once without evidence,
-  withdrawn.
+- **⚠ Do NOT claim the API quota "breaks first".** `standings.py:30` and `teams.py:28` DO loop every
+  configured season daily with no skip — real, worth fixing. But the daily quota number is not in
+  the repo and #547 assessed the API budget as fine. Claimed once without evidence, withdrawn.
 - **⭐ Two FREE tools: `bq query --dry_run`** (exact bytes, nothing runs — use it to CHOOSE a query
-  shape) and **`scripts/report_bq_cost.py`** (read-only INFORMATION_SCHEMA, spend by workload/node).
-  The 2026-08-06 stop on the latter was **LIFTED 2026-08-07** (`escalations.log`).
-- ⚠ **Paste the command output or do not claim it.** Three completeness claims in #547 were wrong.
+  shape) and **`scripts/report_bq_cost.py`** (read-only INFORMATION_SCHEMA, spend by workload).
+  The 2026-08-06 stop on it was **LIFTED 2026-08-07**.
+- ⚠ **Paste the output or do not claim it.** Three #547 completeness claims were wrong.
 - **#547's ranked list lives in GitLab #3, in ITS order** — read it there. Top items: fetch-side
   skip on `/standings` `/teams` `/coachs` `/injuries` (API VOLUME, not a proven quota breach) ·
   **#895** ~$9.96/35d, needs the slim-vs-drop call · **#892** ~$2/mo.
@@ -114,11 +113,12 @@ Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
   delivered, because they carry authority. `site_v2/src/data/**` is a MANIFEST, not pasted — it
   still binds the hash, so grep those files directly. Now also emits a trailer naming any excluded
   file that IS edited (#25/!19), so absence is no longer evidence a file was untouched.
-- **Run `check_task_artifacts.py` BARE** (#24, !15) — it resolves the live remote itself.
-  `GOVERNANCE_BASE` overrides. ⚠ On a multi-commit branch `--staged-hash` is the WRONG number; it
-  covers only the increment. Collapse with `git reset --soft <base>` so local and CI agree.
-- **A PASS may find nothing.** One `risks_checked:` entry is enough. Never invent a finding. Cap is
-  3 rounds, then STOP and bring open findings to the CPO.
+- **Run `check_task_artifacts.py` BARE** (#24, !15) — it resolves the live remote, and so does the
+  hook since **#63**; `GOVERNANCE_BASE` overrides both. ⚠ The old "on a multi-commit branch
+  `--staged-hash` is the WRONG number, collapse with `git reset --soft`" warning is **false since
+  #63** and deleted: the hash is `git diff --raw` from the base and matches CI at any length.
+- **A PASS may find nothing.** One `risks_checked:` entry is enough; never invent one. Cap is 3
+  rounds, then STOP and bring open findings to the CPO.
 - **`.claude/task/**` is scope-exempt; `.claude/active_work.md` is NOT** — it must be in
   `scope_paths`. A commit touching `contract.md` is **never** artifact-exempt.
 - **The org does NOT change** (CPO ruling): low activation is not a defect. Do not cut reviewers.
@@ -157,8 +157,8 @@ output, not prose; copy is ALWAYS his (§10)** — gather copy decisions UP FRON
   types; nothing stops a fourth round while rounds run. CPO: tighten it later. Not tightened.
 - **No gate records when it fires** — 2,684 lines of enforcement, zero telemetry (#30, finding 4).
   Only the commit gate and routing loader emit a CANARY on fail-open.
-- Delete or rewrite `macros/apif_latest_source_partition.sql` — zero callers and it never pruned.
-- A metric-change skill · mirror the crests · reviewers as peers (#822 shipped only the model half).
+- Delete `macros/apif_latest_source_partition.sql` (zero callers) · a metric-change skill · mirror
+  the crests · reviewers as peers (#822 shipped only the model half).
 - **⭐ #904 IS THE DOMINANT FAILURE, SIX times on 2026-08-07** — a claim about the code asserted
   rather than run. Twice it was the same shape: a grep scoped narrower than the sentence it
   supported ("this repo has NO linter"; "no orphaned pointer survives", which missed `.html`).

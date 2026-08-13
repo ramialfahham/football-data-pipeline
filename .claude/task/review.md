@@ -1,108 +1,130 @@
-# Review — fix/61-alert-policy-apply-loop — 2026-08-12
+# Review — fix/63-review-hash-content-identity — 2026-08-12
 
-diff_sha256: fda126a564fac6dea5a5e0379e5f0414497c6207df142993c23d81d3f8fce583
+diff_sha256: e1a379b2c94e353456b2b37813f5d85bb18b1254b304a0e38bc76aeace7650ba
 
-rounds: 6
+rounds: 4
 
 rounds_cap_override: >
-  THREE separate CPO grants, each recorded in `.claude/task/escalations.log` BEFORE the round
-  it authorises, and each verified there by `scope-auditor`:
-    · round 4 — "One more round" (AskUserQuestion, 2026-08-12)
-    · round 5 — "go" (in-thread, 2026-08-12, as part of an agreed sequencing plan)
-    · round 6 — "Fix both, one scoped round, then stop" (AskUserQuestion, 2026-08-12)
-  WHY IT RAN LONG, stated plainly rather than excused: the RECIPE fix passed early and never
-  regressed. Every round after the first failed on the TEST, and every failure was a real,
-  demonstrated bypass — the guard kept reproducing, one level up, the same defect it polices
-  (a literal standing in for something the file already knows). Rounds 2-5 each ended with a
-  working counterexample, not a reviewer opinion. Round 6 was explicitly SCOPED by the CPO to
-  closing the two round-5 findings, with the standing instruction that anything new is filed
-  as its own issue rather than opening a seventh round. Nothing new was found.
+  ONE CPO grant, recorded in `.claude/task/escalations.log` BEFORE the round it authorises and
+  verifiable there independently of this file: round 3 hit the documented cap with
+  scope-auditor and cto-reviewer PASSING and platform-reviewer FAILING on a single finding. The
+  finding was verified by the builder before being brought over, three options were offered with a
+  stated recommendation, and the CPO answered **"fix it"**.
+  WHY IT RAN TO FOUR, stated plainly rather than excused: every round failed on something NARROWER
+  than the last, and rounds 2, 3 and 4 each ended with a REPRODUCED defect rather than a reviewer
+  opinion. Round 4 was scoped to the single round-3 finding; platform-reviewer listed four further
+  residuals and explicitly judged none of them grounds for a fifth round. They are filed as **#64**.
+
+⚠ Routing for these paths requires cto-reviewer AND platform-reviewer (`.claude/hooks/**` is one of
+the three guard paths carrying both, at the opus floor) plus the always-on scope-auditor.
+⚠ All three verdicts below cover the FINAL diff. scope-auditor passed round 3 and was re-run after
+round 4 changed the code, tests, contract and escalations log — a PASS that predates the delta it
+is supposed to cover is not a PASS.
 
 <!--
-Round-by-round, kept because the progression is the useful record:
-  1  scope-auditor FAIL   — stale review_input.patch (previous task's diff); the generator
-                            writes to stdout and takes no --base, so the file was never written.
-     platform FAIL        — the guard matched only the RETIRED bash idiom; the fixed recipe is
-                            Python, so every pattern was already unreachable.
-  2  scope-auditor FAIL   — contract claimed a CPO ruling given "after being shown the three
-                            proposed fixes". The sequence was backwards. Corrected; item 3
-                            relabelled a BUILDER decision; escalations.log added to scope_paths.
-     platform FAIL        — the AST check inspected only the loop's iterable and `break`. Four
-                            rewrites reproduced #61 and passed: hoisted slice, `continue`,
-                            generator filter, post-loop DELETE.
-  3  platform FAIL        — executing the recipe against TODAY'S file cannot tell "iterates
-                            everything" from "bounded at today's count". `[:3]` passed.
-  4  platform FAIL        — count-independence held only on the CREATE branch; a bound inside
-                            the UPDATE branch passed all ten tests.
-  5  scope-auditor PASS
-     platform FAIL        — every "larger" fixture used 5, so a bound of 5 hid; and no test
-                            ever inspected a PATCH's URL, so a recipe aiming every update at
-                            one victim resource passed everything.
-  6  both PASS.
+Round-by-round, kept because the progression is the record:
+  1  scope-auditor FAIL  — contract RESERVED the 21 label strings while the diff shipped them.
+     analytics FAIL      — (that was #57; not this branch)
+  1  cto FAIL + platform FAIL — INDEPENDENTLY found the same hole: `_staged_diff_bytes` returning
+                          b"" on an unresolvable base was not fail-closed. `--staged-hash` printed
+                          sha256(b"") with exit 0, that value goes into review.md, the gate
+                          recomputes the same empty value, they AGREE, and the commit passes bound
+                          to ZERO bytes. Reproduced in a scratch dir before fixing.
+  2  cto FAIL           — the deny message promised a `GOVERNANCE_BASE` escape hatch the hook never
+                          read; the justification for departing from fail-open rested on it.
+                          Also `if not blob` conflated None with a legitimately empty diff.
+     platform FAIL      — same two, plus: the base reorder had NO test (reverting it left the whole
+                          suite green), a stale warning survived in `.claude/active_work.md` (which
+                          is injected into EVERY session), and a test inherited CLAUDE_PROJECT_DIR
+                          so it could pass for the wrong reason.
+  3  scope PASS · cto PASS
+     platform FAIL      — `GOVERNANCE_BASE` resolved to the branch TIP while CI resolves it through
+                          MERGE-BASE, so the halves disagreed the moment the override named a
+                          branch that had moved on — the very defect this task removes,
+                          reintroduced through its own escape hatch. The test could not catch it:
+                          it used a direct ancestor, where tip and merge-base coincide.
+  4  all three PASS.
+⚠ THREE of this task's tests passed against the defect they were written to catch, each found by
+running them against a reverted copy rather than trusting a green run.
 -->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Confirmed the cumulative patch touches exactly `contract.md`, `escalations.log`,
-  `deploy/nightly/README.md` and `tests/test_alert_policy_recipe.py`, all four declared in
-  `scope_paths`. No path outside it, at any round.
-- Verified all three `rounds_cap_override` grants exist in `escalations.log`, each following
-  the findings it answers and preceding the round it authorises. No retrospective citation.
-- Verified the corrected `decisions_taken` matches what `escalations.log` records, clause by
-  clause, after the round-2 FAIL: the ruling is "go ahead" given to #61 AS FILED, and item 3
-  (idempotency) is labelled a BUILDER decision with its reasoning exposed, not a quoted ruling.
-- Attacked the item-3 §10 classification against every decision-rights row and Appendix A3:
-  it stays manual and documentary — no automation, no CI wiring, no new file — and the line
-  the contract draws (script-form = CPO-class, prose-form = not) is the same line the builder's
-  own reverted first attempt shows was live and enforced, not merely asserted.
-- Re-checked at rounds 5 and 6 whether the growing test file crossed into the reserved "apply
-  step becomes a real script" territory: it creates no new file, no new dependency and no new
-  CI job; the recipe is exec'd only inside `tests/` against a stubbed API. Line not crossed.
-- Checked the diff for credential-shaped content at every round: none (stub token only).
+- Enumerated every `diff --git` header in the patch against `scope_paths`: all seven files are
+  listed, none is a scope violation.
+- Verified the round-cap override is a real recorded ruling in `escalations.log` with the
+  situation, options and a stated recommendation, and that it reads as recorded BEFORE round 4
+  rather than backfilled — the round-3 verdicts and the exact defect are documented first, then
+  the answer.
+- Checked `decisions_taken` item 6 against the actual `_base_commit` delta: the claim (round 2's
+  hatch resolved to the ref TIP, now resolves through `merge-base` to match CI's three-dot
+  `base...HEAD`) is exactly what the diff does, and it honestly flags itself as a correction to
+  item 5's own fix rather than to the original defect.
+- Verified the protected-path authority's stated boundary holds: no other hook, no routing file,
+  no reviewer brief, no commit-form deny package appears in the diff.
+- Checked item 6's test claim against the test itself — it builds a diverged `upstream` branch and
+  asserts `ancestor != tip`, rather than the direct ancestor the earlier version used.
+- Swept all seven files for credential-shaped content and widened CI permissions: none.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Verified `protected_override` against `escalations.log` — the ruling exists, predates the
+  contract, and the contract reproduces its narrow bound rather than widening it. Confirmed
+  `.claude/hooks/` is genuinely a protected prefix (`task_contract_gate.py:66`) and that routing
+  puts platform beside the CTO on that path.
+- Verified the round-cap override is recorded in PROSPECTIVE voice, and said explicitly that
+  ordering two additions inside one cumulative diff is not git-provable — evidence is consistent,
+  and it declined to claim proof it did not have.
+- Attacked the `--raw` argument for lost discriminating power across mode-only changes, add/delete,
+  renames, binaries, textconv filters and `diff.context`; could not construct a content change that
+  moves the old hash but not the new one. Binaries get STRONGER — the rendered form emits
+  "Binary files differ" with no blob SHA.
+- Ruled on the fail-open departure: the outer handler is untouched and still fails open loudly on
+  hook bugs; exactly one value now fails closed, and the alternative (`sha256(b"")` matching
+  itself) was a bypass rather than a fail-open. Declared in `decisions_taken` item 5, not smuggled
+  into a docstring.
+- On round 4: confirmed the capability removed was a FAKE exit — a tip-resolved base produced a
+  hash CI could never reproduce — and that a real, CI-consistent exit still exists (any commit in
+  HEAD's own ancestry).
+- Thresholds, dependencies, credentials, workflow permissions: nothing added, nothing widened;
+  the deferred second-git-version CI job is correctly parked in `decisions_reserved` as CPO-class
+  recurring cost.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Traced its own round-5 counterexample `pol["name"] = list(existing.values())[0]["name"]`
-  against the new `test_every_patch_targets_the_resource_named_in_its_own_body`: with
-  `_as_existing()` now assigning distinct ids, both the per-name id comparison and the
-  distinct-resource check fire. Exposed at any N >= 2, not a size-4 fluke.
-- Traced its own round-5 counterexample `written_count >= 5` against
-  `_SIZES = [1, 2, 3, 5, 8, 17]` on both the create- and update-parametrised tests: survives
-  only at exactly 5 (a conceded boundary, not a hidden one) and is caught at 8 and 17.
-- Agreed with the builder's stated limit rather than letting it pass silently: a parametrised
-  test proves the property only at the sizes tested; a bound of >= 18 would still pass. What
-  the change buys is that a surviving bound is no longer a number anyone writes by accident,
-  unlike 3 (the real count) or 5 (the suite's former single stress size, shown exploitable).
-- Attempted to construct a create+update interaction bug that hides at the mixed test's fixed
-  size of 5; could not produce a working counterexample not already subsumed by the
-  parametrised per-branch tests, and declined to report a hypothesis as a finding.
-- Checked `_as_existing`'s id extraction (`rsplit("/", 1)[1]`) is applied identically on the
-  expected and actual sides, so the comparison is not accidentally tautological.
-- Confirmed `import pytest` / `parametrize` add no dependency and need no requirements change;
-  the file is picked up by the existing unconditional `pytest tests/` in `.gitlab-ci.yml`.
-- Earlier rounds, still standing: PATCH URL construction from a real resource name; `name` set
-  on the update branch and absent on the create branch; `strip()` removing `_`-prefixed keys at
-  every nesting depth; `assert len(chans) == 1` failing closed; the removed Windows `curl`
-  warning no longer applying anywhere in the file; `tempfile`/`chdir` restored via `finally`
-  before the temp directory is deleted, on both the success and exception paths; `# noqa: S102`
-  justified because the exec'd source is a fixed version-controlled repo path and `urlopen` is
-  replaced rather than wrapped, so no live network path exists.
+- Traced both hash implementations by hand and confirmed they compute identical bytes: local
+  `git diff --staged <merge-base> --raw --no-renames --no-abbrev <pathspec>` versus CI
+  `git diff --raw --no-renames --no-abbrev <base>...HEAD <pathspec>`; three-dot IS merge-base, so
+  the two now agree on the base as well as on the bytes. The hand-mirror `branch_hash` moved to
+  `--raw` in the same commit, so the third copy does not lie.
+- Verified the round-3 finding is closed at `_base_commit`: the override resolves through
+  `merge-base HEAD <resolved>`, and both failure paths (unresolvable value, no common ancestor)
+  raise loudly rather than falling back to a different diff.
+- Verified the override test now DISCRIMINATES structurally rather than incidentally: `upstream` is
+  cut after the feature commit and gains its own file, so diffing from the tip emits an extra
+  deletion row and the two hashes cannot coincide. Also confirmed the fixture is non-vacuous.
+- Re-verified all five of its round-2 findings closed, each against the code rather than the
+  contract's narration.
+- Guard orientation: the local hook still fails OPEN on an escaping exception (handler intact);
+  the CI backstop still fails CLOSED (`check=True`). Both `_staged_diff_bytes` callers handle
+  `None`; no third caller exists.
+- Re-run and interruption safety: every changed path is a read-only git invocation with a 30s
+  timeout and no writes.
+- Listed four residuals and explicitly judged none of them grounds for a fifth round — filed as
+  **#64**, together with one PRE-EXISTING local/CI reviewer-set split it noticed in passing.
 
-## escalations
-- question: >
-    The review loop hit its documented cap of 3 rounds with an open, demonstrated finding.
-    Continue, ship a reduced scope, or park the branch?
-  CPO ANSWER: "One more round" (AskUserQuestion, 2026-08-12) — authorising round 4.
-- question: >
-    Round 4 was itself an override and failed on a new defect. Continue again?
-  CPO ANSWER: "go" (in-thread, 2026-08-12), given as part of an agreed sequencing plan that
-    named it "one small test fix and a final review round" — authorising round 5.
-- question: >
-    Round 5 failed with two more findings. The recipe fix is solid and reviewed; it is the
-    test that keeps failing. Fix both and run one scoped round, fix only the serious one, or
-    park the branch?
-  CPO ANSWER: "Fix both, one scoped round, then stop" (AskUserQuestion, 2026-08-12) —
-    authorising round 6, scoped to closing the two findings, with anything new to be filed as
-    its own issue rather than opening a seventh round.
+## Verification (all LOCAL — no CI run on this branch yet)
+
+`pytest tests/test_governance_hooks.py` **295 passed** · the five fast governance gates pass ·
+`check_task_artifacts` OK.
+
+⚠ **THE PROOF THAT MATTERS HAS NOT HAPPENED YET.** This change exists because `validate:governance`
+fails on `!33`. Until `!33` is rebound to the new hash and that job goes GREEN on the runner, this
+is a fix that passes its own tests, which is exactly what the previous implementation also did.
+`done_when` records that, and it is not satisfied by this file.
+
+⚠ **Merging this invalidates every existing `review.md` hash** — `!27` and `!33` both need
+rebinding afterwards. Stated in the contract's `impact_map` so it is planned, not discovered.

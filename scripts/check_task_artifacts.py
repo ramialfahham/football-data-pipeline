@@ -155,15 +155,23 @@ def main() -> int:
         errors.append("review.md has no well-formed diff_sha256")
     else:
         # F11 (#409): bind review.md to THIS PR's code. Recompute the hash over the
-        # branch diff EXCLUDING the bookkeeping artifacts — the same diff the local gate
-        # hashes. --no-renames + --no-abbrev so the two invocations are byte-identical for
-        # identical content (rename detection off; full 40-hex blob SHAs in index lines so
-        # the abbreviation length cannot diverge pre- vs post-commit). A code-then-stale-
-        # review ordering (the #405 false-green) now fails here.
+        # branch diff EXCLUDING the bookkeeping artifacts — the same bytes the local gate
+        # hashes. --no-renames + --no-abbrev keep rename detection off and blob SHAs full.
+        # A code-then-stale-review ordering (the #405 false-green) fails here.
+        #
+        # ⚠ `--raw`, NOT the rendered patch (#63). This is the CI HALF of a pair that must
+        # agree byte for byte with `git_discipline.py::_staged_diff_bytes`; change one and
+        # every commit is falsely rejected. The rendered patch is a PRESENTATION format
+        # whose bytes vary with git version, platform and diff settings, so this check and
+        # its local twin produced different hashes for provably identical commits and
+        # `validate:governance` could not pass at all. `--raw` emits mode, blob SHAs,
+        # status and path; blob SHAs are content hashes, identical on every platform and
+        # git version. Nothing is weakened: the rendered patch is derived FROM those blobs.
         excludes = routing.get("hash_exclude_paths") or []
         pathspec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
         diff = subprocess.run(
-            ["git", "diff", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"] + pathspec,
+            ["git", "diff", "--raw", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"]
+            + pathspec,
             capture_output=True, check=True,
         ).stdout
         recomputed = hashlib.sha256(diff).hexdigest()
