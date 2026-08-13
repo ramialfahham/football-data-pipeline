@@ -1,1064 +1,973 @@
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index 8f171ca..8c4ca0a 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -91,21 +91,47 @@ def _repo_root() -> str:
+     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+ 
+ 
+-def _staged_diff_bytes(root: str) -> bytes:
+-    import subprocess
+-    # F11 (#409): hash the staged diff EXCLUDING the bookkeeping artifacts, so the
+-    # review hash covers code + contract.md only and CI can recompute the same value
+-    # over `git diff base...HEAD` (it has no staging index). See _hash_exclude_pathspec.
+-    # --no-renames AND --no-abbrev pin the diff so the local staged hash and the CI
+-    # recompute (`git diff base...HEAD`) are byte-identical for identical content:
+-    # --no-renames removes endpoint-sensitive rename detection; --no-abbrev forces full
+-    # 40-hex blob SHAs in the `index` lines so the abbreviation length (which depends on
+-    # the repo's object count, and so differs pre- vs post-commit) cannot diverge them.
+-    return subprocess.run(
+-        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
+-        + _hash_exclude_pathspec(_load_routing(root)),
+-        cwd=root, capture_output=True, timeout=30,
+-    ).stdout
++def _staged_diff_bytes(root: str) -> bytes | None:
++    """The bytes the review hash covers: CONTENT IDENTITY of the cumulative branch diff,
++    excluding the bookkeeping artifacts (F11/#409, see _hash_exclude_pathspec).
++
++    ⚠ `--raw`, NOT the rendered patch (#63). The old form hashed `git diff`'s human-readable
++    output, which is a PRESENTATION format: its bytes depend on git version, platform and diff
++    settings, so the same content hashed two ways on two machines and `validate:governance` could
++    not pass at all — measured on one machine, identical commits, `-U3` -> 0c1ef8af and `-U0` ->
++    ca1afb7d. `--raw` emits `:mode mode <blobA> <blobB> STATUS<TAB>path`; blob SHAs ARE content
++    hashes, identical everywhere and forever. No discriminating power is lost — a rendered patch is
++    DERIVED from those blobs and cannot differ unless a blob SHA does — and mode changes and
++    add/delete/modify status are carried explicitly.
++
++    ⚠ CUMULATIVE FROM THE BASE, not `--staged` alone (#63, second half). The CI twin recomputes
++    `git diff base...HEAD`; a bare `--staged` is HEAD-vs-index, i.e. only the LAST increment, so on
++    a multi-commit branch the two compared different diffs by construction. That was a documented
++    trap ("on a SECOND commit, `--staged-hash` is the WRONG number") rather than a mystery, and it
++    is now simply false. `_cumulative_diff` already resolves the base correctly — reused here so
++    there is exactly one base resolver.
++
++    ⚠ MUST NOT RAISE, and MUST NOT return b"" on failure. `_commit_gate`'s caller FAILS OPEN on
++    exception by deliberate house rule (see the handler at the bottom of this file), so an escaping
++    exception would wave a commit through unverified. But returning b"" is WORSE, not safer, and an
++    earlier draft of this function did exactly that while claiming to be fail-closed:
++
++      `--staged-hash` would print sha256(b"") = e3b0c442… with EXIT 0; the builder pastes that into
++      `review.md`; the gate recomputes it from the same broken call, gets the same value, and the
++      two AGREE. The commit passes with a binding that covers ZERO bytes — no code, not even
++      `contract.md`. Deterministic, not a race: both calls run seconds apart in the same state.
++      Reproduced before fixing (cto-reviewer, opus).
++
++    So failure returns **None**, which is distinguishable from a genuinely empty diff, and BOTH
++    callers must handle it: the CLI refuses to emit a hash it could not compute (stderr, non-zero
++    exit) and the gate denies with its own message. The states that reach it are the ones
++    `_base_commit` already names — a `--single-branch` clone, a shallow checkout, two histories
++    with no common ancestor — and these hooks travel to other repos by design.
++    """
++    try:
++        return _cumulative_diff(root, _hash_exclude_pathspec(_load_routing(root)), raw=True)
++    except Exception:
++        return None
+ 
+ 
+ def _staged_paths(root: str) -> list[str]:
+@@ -376,7 +402,52 @@ def _base_commit(root: str) -> str:
+                            text=True, timeout=30)
+         return r.returncode, r.stdout.strip()
+ 
+-    for ref in ("main", "origin/main"):
++    # ⚠ GOVERNANCE_BASE FIRST — the escape hatch, and it must exist because the gate now DENIES
++    # when the base cannot be resolved (#63). An earlier draft's deny message told the operator to
++    # "set GOVERNANCE_BASE" while this function read no environment variable at all: half the
++    # stated remedy was fictional, and for two histories with no common ancestor the other half
++    # (fetch the base branch) does not help either, because the ref already resolves and it is the
++    # missing ancestor that fails. That left `git commit` locked with no way out — exactly the
++    # workflow lock the fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
++    # `scripts/check_task_artifacts.py:106` already honours it, so this also closes a local/CI
++    # asymmetry rather than only unblocking the operator.
++    env_base = os.environ.get("GOVERNANCE_BASE")
++    if env_base:
++        code, resolved = _git("rev-parse", "--verify", "--quiet", f"{env_base}^{{commit}}")
++        if code != 0 or not resolved:
++            raise RuntimeError(
++                f"GOVERNANCE_BASE={env_base!r} does not resolve to a commit. It is an explicit "
++                "override, so a bad value is an error rather than something to fall back from — "
++                "falling back would silently hash a different diff than the one asked for."
++            )
++        # ⚠ MERGE-BASE, NOT THE TIP. The CI twin spells this `f"{args.base}...HEAD"` — three-dot,
++        # i.e. the common ancestor — so resolving the override to a branch TIP makes the two halves
++        # hash different things the moment that branch has moved on, which is the documented use of
++        # the variable. The local diff would then carry the branch's own changes PLUS a reverse
++        # delta for everything merged upstream since the branch was cut: a red pipeline on a
++        # correct branch, and a reviewers' patch full of already-merged work. That is precisely the
++        # defect this task exists to remove, and an earlier draft reintroduced it through this very
++        # escape hatch (platform-reviewer, opus, round 3). Every other base path in the repo is
++        # merge-based, including the ref loop below.
++        code, base = _git("merge-base", "HEAD", resolved)
++        if code == 0 and base:
++            return base
++        raise RuntimeError(
++            f"GOVERNANCE_BASE={env_base!r} resolves to {resolved[:12]} but shares no history with "
++            "HEAD, so there is no common ancestor to diff from. Do not guess — a silently "
++            "different base is the failure this override exists to prevent."
++        )
++
++    # ⚠ REMOTE-TRACKING REFS FIRST, LOCAL `main` LAST (#63). A local `main` branch is a cached
++    # copy that goes stale the moment someone branches from `gitlab/main` without checking main
++    # out — which is the normal flow here. Found by this task: local `main` sat at 57175fc while
++    # `gitlab/main` was a2b4184 (two merges newer), so the hook resolved a base two commits behind
++    # CI's, the reviewers' patch showed files from an ALREADY-MERGED task, and the hash could not
++    # possibly match the CI recompute. `scripts/check_task_artifacts.py::default_base` already
++    # prefers the live remote for exactly this reason and explains that `origin` is the dormant
++    # GitHub one here; this is the same ordering, so the two halves agree on the base as well as
++    # on the bytes. Both must hold or the pair is still broken.
++    for ref in ("gitlab/main", "origin/main", "main"):
+         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] != 0:
+             continue
+         code, base = _git("merge-base", "HEAD", ref)
+@@ -400,11 +471,20 @@ def _base_commit(root: str) -> str:
+     return root_commit.split("\n")[0]
+ 
+ 
+-def _cumulative_diff(root: str, spec: list[str]) -> bytes:
++def _cumulative_diff(root: str, spec: list[str], raw: bool = False) -> bytes:
++    """The branch's cumulative staged diff, from the base.
++
++    `raw=True` asks for `--raw` (mode, blob SHAs, status, path) instead of the rendered patch —
++    used by `_staged_diff_bytes` for the review hash, where a PRESENTATION format cannot be
++    hashed (#63). The reviewers' patch keeps the rendered form, because a reviewer reads it.
++    One function builds the command either way, so the base resolution and the fail-loud
++    behaviour cannot drift between the two callers.
++    """
+     import subprocess
+     rng = [_base_commit(root)]
+     r = subprocess.run(
+-        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"] + rng + spec,
++        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
++        + (["--raw"] if raw else []) + rng + spec,
+         cwd=root, capture_output=True, timeout=30,
+     )
+     # FAIL LOUD, never silently smaller. The documented usage redirects stdout into
+@@ -657,7 +737,26 @@ def _commit_gate(root: str) -> str | None:
+         )
+     text = open(review_path, encoding="utf-8", errors="replace").read()
+     m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
+-    live = hashlib.sha256(_staged_diff_bytes(root)).hexdigest()
++    blob = _staged_diff_bytes(root)
++    # ⚠ DENY EXPLICITLY when the hash could not be computed, rather than relying on a mismatch.
++    # Letting this fall through to the comparison is what allowed sha256(b"") to match itself and
++    # bind a review to zero bytes (cto-reviewer, opus — reproduced, then fixed).
++    #
++    # ⚠ `is None`, NOT `not blob`. The two are different states and conflating them re-creates the
++    # bug one level up: `None` means the diff could not be computed, while `b""` is a LEGITIMATE
++    # empty cumulative diff — reachable because `_staged_paths` is HEAD-vs-index while this is
++    # base-vs-index, so staging a revert of an earlier commit on the same branch arrives here with
++    # staged paths and no net change. Reporting that as "the base did not resolve" names a cause
++    # that was not observed. An empty diff falls through to the normal comparison, where CI
++    # computes the same empty value and agrees — an honest binding to a net-zero branch.
++    if blob is None:
++        return (
++            "REVIEW GATE: the review hash could not be computed — the base commit did not "
++            "resolve, or git failed. review.md cannot be bound to a diff that does not exist. "
++            "Fetch the base branch (or set GOVERNANCE_BASE), re-run "
++            "`python .claude/hooks/git_discipline.py --staged-hash`, and update review.md."
++        )
++    live = hashlib.sha256(blob).hexdigest()
+     if not m or m.group(1).lower() != live:
+         return (
+             "REVIEW GATE: staged diff has changed since the reviewers ran "
+@@ -726,7 +825,24 @@ def main() -> int:
+     _CLI_MODE = "--staged-hash" in sys.argv or "--review-patch" in sys.argv
+     if "--staged-hash" in sys.argv:
+         import hashlib
+-        print(hashlib.sha256(_staged_diff_bytes(_repo_root())).hexdigest())
++        blob = _staged_diff_bytes(_repo_root())
++        # ⚠ REFUSE TO EMIT A HASH THAT WAS NOT COMPUTED. Printing sha256(b"") here is what made
++        # the earlier draft's "fail-closed" claim false: the number would be pasted into
++        # review.md, the gate would recompute the same empty value, the two would agree, and the
++        # commit would pass bound to nothing. A hash nobody can compute must stop the workflow
++        # loudly, not resolve to a constant that always matches itself.
++        # ⚠ `is None`, not `not blob` — see `_commit_gate`. A legitimately EMPTY cumulative diff
++        # is a real state with a real hash, and must not be reported as a failure to compute one.
++        if blob is None:
++            print(
++                "ERROR: could not compute the review hash. The base commit did not resolve, or "
++                "git failed — so there is no diff to bind review.md to. Fetch the base branch "
++                "(or set GOVERNANCE_BASE) and try again. Refusing to print a hash that would "
++                "bind the review to nothing.",
++                file=sys.stderr,
++            )
++            return 1
++        print(hashlib.sha256(blob).hexdigest())
+         return 0
+     if "--review-patch" in sys.argv:
+         sys.stdout.buffer.write(_review_patch_bytes(_repo_root()))
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 40b0001..fcc0054 100644
+index fcc0054..dee45f6 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,200 +1,114 @@
--# Task contract — #53: correct the Macau/Mação event mis-attribution
-+# Task contract — #61: the alert-policy apply recipe under-deploys
+@@ -1,114 +1,217 @@
+-# Task contract — #61: the alert-policy apply recipe under-deploys
++# Task contract — #63: bind the review to content identity, not to rendered diff text
  
  objective: >
--  The prod nightly has been FAILING and it recurs every 04:00 until this lands.
--  `assert_event_team_in_fixture_participants` returned 10 rows on the 2026-08-11 run, `dbt build`
--  halted on the error, and **540 of 970 nodes SKIPped**. Ingestion keeps succeeding, so `raw` is
--  current while `dbt_analytics` silently is not.
+-  `deploy/nightly/README.md` documents how to create the Cloud Monitoring alert policies. Its
+-  apply step ends in `for i in 0 1`, a HARDCODED index list, over a generator that writes one
+-  payload per policy declared in `deploy/nightly/alert-policy.json`. The file has since grown to
+-  three policies, so index 2 was written and never POSTed.
 -
--  All 10 events sit in two WCQAS fixtures (1100381, 1100382 — the same two nations home and away)
--  and every one is attributed to team 4767 (Mação, a Portuguese municipality) instead of 1544
--  (Macau, the AFC member association). This appends ONE row to the existing CPO-owned override
--  seed. **No model, macro or SQL changes** — the mechanism that consumes the seed already exists
--  (`base_apif__fixture_events`, #526) and already carries two rows of exactly this class.
--refs: >
--  GitLab #53 (the failure, the evidence and the CPO RULING comment of 2026-08-11T12:02:55Z);
--  GitLab #33 "SESSION END 2026-08-11" names this the first action. Refs #526 (the override
--  mechanism and the guard), #546 (the standing DQ scan that keeps the class covered).
-+  `deploy/nightly/README.md` documents how to create the Cloud Monitoring alert policies. Its
-+  apply step ends in `for i in 0 1`, a HARDCODED index list, over a generator that writes one
-+  payload per policy declared in `deploy/nightly/alert-policy.json`. The file has since grown to
-+  three policies, so index 2 was written and never POSTed.
+-  This was not theoretical. `fdp freshness sentinel itself stopped` — the watcher that detects
+-  the monitoring itself having died — was declared and never deployed. Found 2026-08-11 while
+-  deleting the superseded 25h bridge policy; the two together would have left the "nightly and
+-  sentinel both dead" case with no alert at all.
+-
+-  It FAILS OPEN, and that is the whole character of the bug: the dropped policy is the one whose
+-  absence is invisible, so nothing about the broken state looks broken.
+-
+-  Two defects, one cause. (a) the count is hardcoded where it should be derived; (b) the prose
+-  one line above still says the file "holds BOTH policies". Both are the same rot: a literal
+-  standing in for something the file already knows.
+-refs: GitLab #61. Found under #33 / #39 Stage 2.
++  `validate:governance` fails on `!33` and would fail on every merge request after it. The local
++  commit gate and the CI recompute produce DIFFERENT `diff_sha256` values for provably identical
++  commits, so the check that binds a review to its code cannot pass at all.
 +
-+  This was not theoretical. `fdp freshness sentinel itself stopped` — the watcher that detects
-+  the monitoring itself having died — was declared and never deployed. Found 2026-08-11 while
-+  deleting the superseded 25h bridge policy; the two together would have left the "nightly and
-+  sentinel both dead" case with no alert at all.
++  Root cause: both sides hash the RENDERED PATCH TEXT — the human-readable output of `git diff`.
++  That is a presentation format whose bytes depend on git version, platform and diff settings, so
++  the same content can hash two ways on two machines. This change hashes CONTENT IDENTITY instead
++  (`git diff --raw`: mode, blob SHAs, status, path), which is byte-identical everywhere.
 +
-+  It FAILS OPEN, and that is the whole character of the bug: the dropped policy is the one whose
-+  absence is invisible, so nothing about the broken state looks broken.
++  A second defect in the same family is fixed with it: the local side diffs `--staged`
++  (HEAD -> index) while CI diffs `base...HEAD`, so on a MULTI-COMMIT branch the local number is
++  simply the wrong diff. That is the standing `CLAUDE.md` warning that `--staged-hash` is "the
++  WRONG number" on a second commit; it cost two wasted cycles on `!33` alone.
 +
-+  Two defects, one cause. (a) the count is hardcoded where it should be derived; (b) the prose
-+  one line above still says the file "holds BOTH policies". Both are the same rot: a literal
-+  standing in for something the file already knows.
-+refs: GitLab #61. Found under #33 / #39 Stage 2.
++refs: >
++  GitLab #63 (the failure, the five ruled-out hypotheses, and the local demonstration).
++  ⚠ BLOCKS `!33` and `!27` — both are waiting on this and neither can go green until it merges.
++  Context only, not in scope: #33 item 13 (an MR pipeline can write production raw) and #2
++  (`data_paths` rebuilds prod on governance-only changes), both read while tracing the CI job.
++
++protected_override: >
++  CPO, in session 2026-08-12, recorded in `.claude/task/escalations.log` BEFORE this contract was
++  written: asked whether to fix the check as its own task, answered **"yes"**, and on method
++  **"Fix it systematically like a top-notch engineer would do it."**
++  `.claude/hooks/` is a PROTECTED prefix (`task_contract_gate.py:66`), so `git_discipline.py` may
++  not be edited inside an ordinary contract.
++  ⚠ THE AUTHORITY IS NARROW and the log says so: it covers HOW the review-binding hash is
++  computed, in the two implementations that must agree, plus the tests and docs describing it. It
++  does NOT extend to any other hook, the routing file, the reviewer briefs, or the commit-form
++  deny package. None of those is touched.
  
  scope_paths:
--  - dbt_project/seeds/fixture_event_team_overrides.csv
-+  - deploy/nightly/README.md
-+  - tests/test_alert_policy_recipe.py
+-  - deploy/nightly/README.md
+-  - tests/test_alert_policy_recipe.py
++  - .claude/hooks/git_discipline.py
++  - scripts/check_task_artifacts.py
++  - tests/test_governance_hooks.py
++  - docs/agent_guardrails.md
++  - CLAUDE.md
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
    - .claude/task/review_input.patch
++  # added by amendment 1 — see amendments
++  - .claude/active_work.md
  
  impact_map: >
--  Not strictly gate-required — `dbt_project/seeds/**` is not on the structural surface
-+  Not gate-required — neither `deploy/**` nor `tests/**` is on the structural surface
-   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
--  Written anyway, and evidenced rather than asserted, because this row CHANGES A SHIPPED NUMBER
--  in a fact table and "seed, therefore trivial" is exactly the A6 dishonest-trivial tag.
+-  Not gate-required — neither `deploy/**` nor `tests/**` is on the structural surface
+-  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, protected paths).
+-  Written short-form and evidenced anyway, because the subject is a PRODUCTION MONITORING
+-  recipe and "it is only a README" is the reading that let the bug ship.
 -
--  writers: the seed table `fixture_event_team_overrides` is written ONLY by `dbt seed`
--    (`deploy/nightly/entrypoint.sh:53`, and `.gitlab-ci.yml`'s build jobs). No Python writes it.
+-  what executes this: nothing automated. `grep -rln "alertPolicies" --include=*.py --include=*.sh
+-    --include=*.yml .` returns ZERO files — the recipe is run BY HAND by the operator, which is
+-    exactly why nothing caught the dropped policy. `.gitlab-ci.yml` and
+-    `deploy/nightly/entrypoint.sh` never touch Cloud Monitoring.
 -
--  who READS it — exactly one model, confirmed by grep across the repo:
--    `grep -rn "fixture_event_team_overrides" --include=*.sql --include=*.yml --include=*.py .`
--    -> the only `ref()` is `dbt_project/models/2_base/api_football/base_apif__fixture_events.sql:88`.
--    Every other hit is documentation (`base.yml:240`, `seeds/schema.yml:223`, a comment in
--    `fct_fixture_event.sql:49`) or a compiled artefact under `target/`.
--    NOTE `seeds/schema.yml:281` states explicitly that this seed is NOT part of the team-identity
--    chain — an `alias` row here "folds no team, removes no URL and changes no slug". So nothing
--    in `dim_team`, no page URL and no slug can move because of this change.
+-  blast_radius: none at runtime. No pipeline, no dbt model, no ingest and no deployed job reads
+-    `deploy/nightly/README.md`. Changing it cannot alter a number, a table or a schedule. The
+-    effect is entirely on what a human does the NEXT time policies are applied.
 -
--  downstream, PASTED from `dbt ls --select base_apif__fixture_events+ --resource-type model`
--    (dbt 1.7.19 from the pinned venv, `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`). **45 models**:
--    2 base, 2 core, 22 intermediate, 19 marts. A first draft of this contract asserted a 7-model
--    closure from memory and was wrong by a factor of six — the run is the evidence, the memory
--    was not.
+-  layer_rules: none engaged. No dbt model, no seed, no `league_code`.
 -
--      2_base.api_football.base_apif__fixture_events
--      2_base.api_football.base_apif__players
--      3_core.dim_player
--      3_core.fct_fixture_event
--      4_intermediate.domestic_league.team_season.int_player_season__metrics
--      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
--      4_intermediate.domestic_league.team_season.int_team_season__metrics
--      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
--      4_intermediate.shared.int_legs__player_match
--      4_intermediate.shared.int_legs__team_from_players
--      4_intermediate.shared.int_legs__team_match
--      4_intermediate.shared.int_player_club_season__metrics
--      4_intermediate.shared.int_player_competition_benchmarks
--      4_intermediate.shared.int_player_momentum__metrics
--      4_intermediate.shared.int_player_profile__contribution
--      4_intermediate.shared.int_player_profile__yoy
--      4_intermediate.shared.int_player_season__team
--      4_intermediate.shared.int_player_season_position__metrics
--      4_intermediate.shared.int_player_season_record
--      4_intermediate.shared.int_team_competition_benchmark_metrics_long
--      4_intermediate.shared.int_team_competition_benchmarks
--      4_intermediate.shared.int_team_momentum__metrics
--      4_intermediate.shared.int_team_momentum_window
--      4_intermediate.shared.int_team_profile__streaks
--      4_intermediate.shared.int_team_profile__yoy
--      4_intermediate.shared.int_team_season_record
--      5_marts.domestic_league.mart_matchday_insights
--      5_marts.domestic_league.mart_team_season_insights
--      5_marts.shared.mart_head_to_head
--      5_marts.shared.mart_leaderboards
--      5_marts.shared.mart_player_career
--      5_marts.shared.mart_player_competition_benchmarks
--      5_marts.shared.mart_player_fixture_stats
--      5_marts.shared.mart_player_match_log
--      5_marts.shared.mart_player_momentum
--      5_marts.shared.mart_player_profile
--      5_marts.shared.mart_player_season_record
--      5_marts.shared.mart_roster
--      5_marts.shared.mart_team_competition_benchmarks
--      5_marts.shared.mart_team_fixtures
--      5_marts.shared.mart_team_momentum
--      5_marts.shared.mart_team_momentum_window
--      5_marts.shared.mart_team_profile
--      5_marts.shared.mart_team_season
--      5_marts.shared.mart_team_season_record
--
--    ⚠ THE CLOSURE IS WIDE, THE CHANGE IS NOT, and the two must not be conflated. That list is
--    everything that would REBUILD, not everything whose numbers move — see blast_radius. It is
--    wide because `base_apif__fixture_events` also feeds player discovery (`base_apif__players`
--    -> `dim_player`), which pulls the whole player surface in.
--
--  layer_rules: none engaged. No model file is touched, so `check_layer_contract.py` (which bans
--    per-competition staging subdirectories and per-model materialisation overrides in `2_base`)
--    has nothing to judge here. `check_registry_var_sync.py` governs `competition_registry.csv`,
--    a different seed.
--
--  deploy_order: nothing breaks at any point and NO backfill or `--full-refresh` is needed —
--    `fct_fixture_event` is incremental, and `fct_fixture_event.sql:46-64` already carries a
--    self-heal clause written for exactly this case (#526): it re-processes any fixture whose
--    COMMITTED events violate the team-in-participants rule, so a seed-driven correction reaches
--    rows committed before the fix. Self-limiting — once corrected the fixture no longer matches.
--    ⚠ THE NIGHTLY RUNS AN IMAGE, NOT `main`. Cloud Run job `fdp-nightly` executes a container
--    built from the repo, so merging alone does NOT deploy this. It needs
--    `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` from `main`
--    (#39 Stage 3 — CI-side image build — is not built yet; #33 "Next, in order" item 5).
--
--  blast_radius: **exactly 10 rows in `fct_fixture_event`**, measured against PROD on 2026-08-11,
--    not asserted:
--      · violating rows today: 10 — fixture 1100381 (7 events) + 1100382 (3 events), all
--        `team_sk = 4767`, `league_code = WCQAS`.
--      · events attributed to 4767 ANYWHERE else in the warehouse: **0**. The override's
--        `wrong_team_api_id` matches nothing outside these two fixtures, so it cannot touch a row
--        it was not written for.
--      · fixtures where 4767 is a participant, warehouse-wide: **0**. So the
--        `reattribute_if_cohabiting` guard "wrong id is NOT a participant" can never suppress a
--        legitimate Mação event, because there are none.
--      · `team_sk` on those 10 rows moves 4767 -> 1544. Both already exist in `dim_team`
--        (4767 "Mação"/Portugal, 1544 "Macau"), so the `relationships` test on `team_sk` holds
--        before and after.
--    Downstream numbers that move: WCQAS only, and only for those two fixtures — Macau gains 10
--    events it played, Mação loses 10 it did not. `mart_team_form` / `int_team_match_events` are
--    keyed on the fixture's own participants, so a stat that was previously attributed to a
--    non-participant was already unreachable there. Nothing else in the warehouse changes.
-+  Written short-form and evidenced anyway, because the subject is a PRODUCTION MONITORING
-+  recipe and "it is only a README" is the reading that let the bug ship.
+-  deploy_order: irrelevant — nothing is deployed by this change. ⚠ AND NOTHING NEEDS TO BE: the
+-    missing policy was already created by hand on 2026-08-11 (`alertPolicies/751471063453009885`)
+-    and live state already matches `alert-policy.json`. This task fixes the RECIPE so the gap
+-    cannot recur; it does not re-fix the instance.
++  ⚠ REQUIRED HERE BECAUSE THE PATH IS PROTECTED, not because a model moved
++  (`task_contract_gate.py:195` — "a guard's blast radius is every future task in the repo, which is
++  wider than almost any model's"). `protected_override` answers "may you"; this answers "do you
++  know what breaks".
 +
-+  what executes this: nothing automated. `grep -rln "alertPolicies" --include=*.py --include=*.sh
-+    --include=*.yml .` returns ZERO files — the recipe is run BY HAND by the operator, which is
-+    exactly why nothing caught the dropped policy. `.gitlab-ci.yml` and
-+    `deploy/nightly/entrypoint.sh` never touch Cloud Monitoring.
++  who COMPUTES the hash — exactly two, and they must agree or every commit is falsely rejected:
++    `.claude/hooks/git_discipline.py::_staged_diff_bytes` (line ~94) — feeds BOTH the PreToolUse
++      commit gate (line ~659, denies `git commit` on mismatch) and the `--staged-hash` CLI
++      (line ~729), which is how `review.md`'s number is produced.
++    `scripts/check_task_artifacts.py` (line ~165) — the CI recompute, invoked by
++      `.gitlab-ci.yml`'s `validate:governance` as
++      `--base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"`.
 +
-+  blast_radius: none at runtime. No pipeline, no dbt model, no ingest and no deployed job reads
-+    `deploy/nightly/README.md`. Changing it cannot alter a number, a table or a schedule. The
-+    effect is entirely on what a human does the NEXT time policies are applied.
++  who CONSUMES it: `.claude/task/review.md`'s `diff_sha256` line, on every branch. Nothing else
++    parses it, but SIX places DESCRIBE it, and the first draft of this list missed one:
++    the two implementations, `tests/test_governance_hooks.py` (which hand-mirrors the CI command
++    in `branch_hash`), `docs/agent_guardrails.md:57`, `docs/working_agreement.md:183`, the
++    CLAUDE.md warning being deleted — and **`.claude/active_work.md:118`**, which repeated the same
++    now-false "on a multi-commit branch `--staged-hash` is the WRONG number" sentence.
++    ⚠ THAT MISS MATTERED MORE THAN THE OTHERS: `handover_in.py` injects `active_work.md` into
++    EVERY new session at SessionStart, so the sentence deleted from CLAUDE.md would have survived
++    verbatim in the one file guaranteed to be read first, and a fresh agent would have collapsed
++    commits to work around a trap that no longer exists. Found by platform-reviewer, opus, which
++    also correctly noted the completeness claim behind this list did not hold. Added under
++    amendment 1.
 +
-+  layer_rules: none engaged. No dbt model, no seed, no `league_code`.
++  ⚠ BLAST RADIUS — EVERY EXISTING `review.md` HASH BECOMES INVALID. The number is a function of
++    the algorithm, so changing the algorithm invalidates every recorded value. **`!27` and `!33`
++    both need rebinding after this merges.** Stated here so it is planned rather than discovered.
++    Nothing else in the repo, no model, no mart, no shipped number and no page is affected — this
++    file set contains no SQL, no seed and no export.
 +
-+  deploy_order: irrelevant — nothing is deployed by this change. ⚠ AND NOTHING NEEDS TO BE: the
-+    missing policy was already created by hand on 2026-08-11 (`alertPolicies/751471063453009885`)
-+    and live state already matches `alert-policy.json`. This task fixes the RECIPE so the gap
-+    cannot recur; it does not re-fix the instance.
++  deploy_order: none. No image, no schedule, no warehouse object. The hooks take effect on the
++    next tool call locally and on the next pipeline in CI, independently.
++
++  layer_rules: none engaged. `check_layer_contract.py` judges `dbt_project/models/**`, untouched.
  
  decisions_taken: >
--  CPO ruling, GitLab #53 comment of 2026-08-11T12:02:55Z, verbatim: **"add the seed row"** —
--  `reattribute_if_cohabiting`, NOT `alias`. Recorded durably in `.claude/task/escalations.log`
--  (entry "2026-08-11 — #53") BEFORE this contract was written, and published on the issue before
--  this branch existed, so a blinded reviewer can verify the ruling independently of this file.
+-  ⚠ THE AUTHORITY, STATED EXACTLY, because a first draft of this contract overstated it and
+-  `scope-auditor` FAILed that correctly. The CPO ruling is **"go ahead"**, and it was given to
+-  GitLab #61 as filed — NOT to a three-part plan, which the builder described only AFTERWARDS.
+-  The earlier wording ("approved in-thread after being shown the three proposed fixes") reversed
+-  that order and dressed a builder decision as a quoted ruling. It is corrected here and the
+-  ruling is recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #61"), which is
+-  visible to reviewers precisely so a claimed authority can be checked against something other
+-  than this file.
 -
--  The mode is part of the ruling, not a builder choice, and the two are not interchangeable:
--  `alias` replaces the id unconditionally and asserts "one club, two provider ids", which would
--  permanently conflate a Portuguese municipality with a national team. `reattribute_if_cohabiting`
--  fires only where the correct id IS a participant and the wrong id is NOT — the ASKO Kara
--  precedent already in this seed.
+-  Items 1 and 2 of #61 (derive the loop, correct the stale prose) ARE the filed bug and need no
+-  authority beyond "go ahead".
 -
--  EXTERNAL VERIFICATION, required by this repo's standing rule before asserting two entity records
--  relate: **Mação is a municipality in Portugal; Macau is an AFC member association.** A Portuguese
--  municipality cannot play in the Asian section of World Cup qualifying. Both facts are externally
--  checkable and were on #53 before the ruling. The internal evidence (0 fixtures as participant vs
--  exactly the 2 mis-tagged) was re-measured against prod by this task rather than trusted from the
--  issue text.
+-  ITEM 3 (IDEMPOTENCY) IS A BUILDER DECISION, not a ruling. #61 lists it as "consider", and the
+-  builder took it. Declared as builder-derived so it can be attacked on its merits:
+-  the README today DOCUMENTS the hazard rather than removing it — it warns that re-running
+-  creates duplicate policies and that duplicates are "how people learn to ignore alerts". A
+-  recipe that must be run carefully is the same class of defect as a count that must be updated
+-  carefully, and this task exists because that class already failed once in production. It
+-  crosses no §10 line: no new mechanism, no cost, no product or naming decision, nothing
+-  permanent. If the CPO disagrees, item 3 can be reverted on its own without touching items 1
+-  and 2.
 -
--  ONE BUILDER DECISION, declared because it changes the row's bytes: the CPO's note text contains
--  a comma ("Portuguese municipality, name collision") and this is a 4-column CSV, so unquoted it
--  parses as 5 fields (counted with `csv.reader`, not eyeballed — a first draft said 6) and the
--  seed breaks. The note is wrapped in double quotes — RFC 4180, already
--  used in `team_name_overrides.csv` and `metric_catalogue.csv`. The VALUE is byte-identical to the
--  CPO's; only the CSV framing differs.
-+  ⚠ THE AUTHORITY, STATED EXACTLY, because a first draft of this contract overstated it and
-+  `scope-auditor` FAILed that correctly. The CPO ruling is **"go ahead"**, and it was given to
-+  GitLab #61 as filed — NOT to a three-part plan, which the builder described only AFTERWARDS.
-+  The earlier wording ("approved in-thread after being shown the three proposed fixes") reversed
-+  that order and dressed a builder decision as a quoted ruling. It is corrected here and the
-+  ruling is recorded in `.claude/task/escalations.log` (entry "2026-08-12 — #61"), which is
-+  visible to reviewers precisely so a claimed authority can be checked against something other
-+  than this file.
+-  A TEST IS ADDED, and this is the point of the task rather than a nicety. The repo's standing
+-  rule is that a prose rule which recurs needs a mechanism; this one rotted silently and cost a
+-  real monitoring gap. `tests/test_nightly_entrypoint_parity.py` is the precedent — it pins a
+-  deploy artefact's step list against its twin, so pinning a deploy recipe against the file it
+-  is supposed to enumerate is an established pattern here, not a new one.
++  1. HASH `--raw`, NOT THE RENDERED PATCH. `git diff --raw` emits
++     `:mode mode <blobA> <blobB> STATUS<TAB>path`. Blob SHAs ARE content hashes, so the output is
++     identical on every platform and git version, forever. The exclusion pathspec, `--no-renames`
++     and `--no-abbrev` are all kept exactly as they were.
++     EVIDENCE, measured on this machine with identical commits (GitLab #63):
++       rendered -U3 -> 0c1ef8af...  51,628 bytes
++       rendered -U0 -> ca1afb7d...  46,687 bytes   <- same content, DIFFERENT hash
++       --raw        -> 974cd829...   1,459 bytes   <- stable
++  2. DIFF FROM THE BASE ON BOTH SIDES, so the local number is the same diff CI recomputes even on a
++     multi-commit branch. `_review_patch_bytes` already resolves the base correctly via
++     `_cumulative_diff` / `_base_commit`; those are REUSED rather than a second resolver written.
++  3. The `CLAUDE.md` warning about `--staged-hash` is DELETED, not qualified — the trap it warns
++     about stops existing. A correction replaces; it never accumulates.
++  4. ⚠ FOUND WHILE BUILDING, AND NOT IN THE APPROVED PLAN: `_base_commit` preferred a LOCAL `main`
++     branch over the remote-tracking ref. A local `main` is a cached copy that goes stale the
++     moment anyone branches from `gitlab/main` without checking main out — the normal flow here.
++     Measured on this branch: local `main` sat at `57175fc` while `gitlab/main` was `a2b4184`, two
++     merges newer. The consequences were not cosmetic — the reviewers' patch listed
++     `deploy/nightly/README.md` and `tests/test_alert_policy_recipe.py`, files from the
++     already-merged #61 that this task never touched, and the hash could not have matched the CI
++     recompute no matter what bytes were fed to it.
++     Preference order is now `gitlab/main` -> `origin/main` -> `main`, matching
++     `check_task_artifacts.py::default_base`, which already resolved the live remote for exactly
++     this reason.
++     ⚠ THIS IS INSIDE THE OBJECTIVE, NOT SCOPE DRIFT, and the distinction is worth stating: the
++     stated objective is that the local gate and the CI recompute agree. They must agree on the
++     BASE as well as on the bytes; fixing only the bytes would have shipped a change that still
++     could not pass. It is recorded here rather than folded in silently.
 +
-+  Items 1 and 2 of #61 (derive the loop, correct the stale prose) ARE the filed bug and need no
-+  authority beyond "go ahead".
++  5. ⚠ THE GUARD'S BEHAVIOUR WHEN IT CANNOT COMPUTE THE HASH AT ALL — declared here because both
++     opus reviewers were right that it is a guard-behaviour change and a docstring is the wrong
++     place to introduce one.
++     The first draft swallowed every exception and returned `b""`, calling that fail-closed. It was
++     the opposite, and it was REPRODUCED before being fixed: `--staged-hash` printed
++     `sha256(b"")` = `e3b0c442…` with EXIT 0; that value goes into `review.md`; the gate recomputes
++     it from the same broken call; the two AGREE; the commit passes bound to ZERO bytes — no code,
++     not even `contract.md`. Deterministic, not a race, and the states that reach it are the ones
++     `_base_commit` already names (a `--single-branch` clone, a shallow checkout, unrelated
++     histories) — real, because these hooks travel to other repos by design.
++     NOW: failure returns `None`, distinguishable from an empty diff. `--staged-hash` refuses to
++     print a hash it did not compute (stderr, exit 1) and the gate denies with its own message.
++     ⚠ THIS IS A DELIBERATE DEPARTURE from the file's fail-open house rule, and the case where the
++     departure is right: an unresolvable base is not a hook bug, it is the guard being unable to do
++     its job, and the deny is actionable (fetch the base branch, or set `GOVERNANCE_BASE`).
++     platform-reviewer offered the alternative — let the exception propagate so the existing loud
++     fail-open banner fires — and explicitly left the choice open. Denying is strictly stronger
++     than warning-then-allowing, so denying is what ships.
++     Pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and
++     `test_commit_gate_denies_when_the_hash_cannot_be_computed`, both shown to go RED against the
++     `b""` behaviour before being trusted green.
 +
-+  ITEM 3 (IDEMPOTENCY) IS A BUILDER DECISION, not a ruling. #61 lists it as "consider", and the
-+  builder took it. Declared as builder-derived so it can be attacked on its merits:
-+  the README today DOCUMENTS the hazard rather than removing it — it warns that re-running
-+  creates duplicate policies and that duplicates are "how people learn to ignore alerts". A
-+  recipe that must be run carefully is the same class of defect as a count that must be updated
-+  carefully, and this task exists because that class already failed once in production. It
-+  crosses no §10 line: no new mechanism, no cost, no product or naming decision, nothing
-+  permanent. If the CPO disagrees, item 3 can be reverted on its own without touching items 1
-+  and 2.
-+
-+  A TEST IS ADDED, and this is the point of the task rather than a nicety. The repo's standing
-+  rule is that a prose rule which recurs needs a mechanism; this one rotted silently and cost a
-+  real monitoring gap. `tests/test_nightly_entrypoint_parity.py` is the precedent — it pins a
-+  deploy artefact's step list against its twin, so pinning a deploy recipe against the file it
-+  is supposed to enumerate is an established pattern here, not a new one.
++  6. ⚠ `GOVERNANCE_BASE` RESOLVES THROUGH MERGE-BASE, NOT TO THE BRANCH TIP — round 4, and it is a
++     correction to item 5's own fix rather than to the original defect.
++     The escape hatch added in round 2 resolved the override with `rev-parse <ref>^{commit}`, i.e.
++     the TIP. The CI twin spells the base `f"{args.base}...HEAD"` — three-dot, the COMMON ANCESTOR.
++     Point the variable at a branch that has moved on (the documented use) and the two halves hash
++     different bytes: the local diff carries the branch's own changes PLUS a reverse delta for
++     everything merged upstream since the branch was cut. Red pipeline on a correct branch, and a
++     reviewers' patch full of already-merged work — the same symptom item 4 records as the measured
++     harm of the stale-local-`main` bug, and the exact defect this whole task exists to remove,
++     reintroduced through its own escape hatch.
++     ⚠ AND THE TEST COULD NOT SEE IT: the override was pointed at a direct ANCESTOR of HEAD, where
++     tip and merge-base are the same commit, so reverting the fix left the suite green. Third test
++     in this task that passed either way. Now uses a genuinely diverged ref and was proved RED
++     against the tip-resolving version before being trusted.
++     Every other base path in the repo is merge-based, including the ref loop directly below it.
++     Found by platform-reviewer (opus) at the round cap; round 4 authorised by the CPO ("fix it"),
++     recorded in `escalations.log` before this round ran.
  
    # THRESHOLD DECLARATIONS
--  NEW MECHANISM — **no**. The override seed, both modes, the consuming join and the guard test all
--  shipped under #526. This adds a third data row to an existing configuration table.
--  RECURRING COST — **no new spend, and it removes waste**. The change is 1 row in a 3-row seed. It
--  ends a nightly that currently burns a full ingest and 428 node builds and then throws the build
--  away at the error, and it stops the `fdp-nightly execution failed` alert firing every morning on
--  a known cause — an alert that fires daily on a known cause is one that gets muted.
--  GUARD LOOSENED — **no**. `assert_event_team_in_fixture_participants` is untouched and stays
--  `severity = 'error'`. The data is corrected so the guard passes; the guard is not moved to fit
--  the data. A future occurrence of this class still fails the build.
--  SHIPPED NUMBERS — **yes, 10 rows, quantified in blast_radius above**, which is why the impact_map
--  is written in full rather than short-form.
-+  NEW MECHANISM — no. One test file in an existing suite, run by the existing `test:python` job.
-+  No new service, dependency, lifecycle hook or workflow step. Deliberately NOT taken: turning
-+  the recipe into a `scripts/apply_alert_policies.py`. That would be a new operational mechanism
-+  and is the CPO's call, not the builder's; the test closes the same hole without one.
-+  RECURRING COST — no. No new job, schedule, API call or storage. The test is offline.
-+  GUARD LOOSENED — no; this ADDS one. Nothing today checks the recipe against the policy file.
-+  SHIPPED NUMBERS — no. Nothing downstream of a number is touched.
+-  NEW MECHANISM — no. One test file in an existing suite, run by the existing `test:python` job.
+-  No new service, dependency, lifecycle hook or workflow step. Deliberately NOT taken: turning
+-  the recipe into a `scripts/apply_alert_policies.py`. That would be a new operational mechanism
+-  and is the CPO's call, not the builder's; the test closes the same hole without one.
+-  RECURRING COST — no. No new job, schedule, API call or storage. The test is offline.
+-  GUARD LOOSENED — no; this ADDS one. Nothing today checks the recipe against the policy file.
+-  SHIPPED NUMBERS — no. Nothing downstream of a number is touched.
++  NEW MECHANISM — **no**. Same gate, same `sha256`, same `review.md` field, same failure message.
++    Only the bytes fed to the hash change.
++  RECURRING COST — **no, and it drops**. The hashed input goes from ~51,600 bytes to ~1,460 on
++    this branch's own diff. No new job, query, dependency or schedule.
++  GUARD LOOSENED — **no, and it is TIGHTENED in one place.** On discriminating power: a rendered
++    patch is DERIVED from the blobs and cannot differ unless a blob SHA differs, so every content
++    change that moved the old hash moves the new one. Mode changes and add/delete/modify status are
++    carried in `--raw` explicitly. What is removed is only the ability of a PRESENTATION setting to
++    change the value — never protection, only a false-rejection surface. cto-reviewer attacked this
++    directly (mode-only changes, add/delete, renames, binaries, textconv filters, `diff.context`)
++    and could not construct a content change that moves the old hash but not the new one.
++    ⚠ TIGHTENED: an uncomputable hash now DENIES instead of resolving to a constant that matches
++    itself (item 5). The first draft of this branch loosened it, both reviewers caught it, and the
++    fix leaves the gate stronger than it was before this task started.
++  SHIPPED NUMBERS — **no**. No SQL, seed, mart or export is touched.
  
  decisions_reserved:
--  - Whether `dim_team` should stop publishing Mação (4767) at all. It is a real Portuguese entity
--    that never plays in our data, so today it exists only as an attribution artefact and, once the
--    events move, as a team with no fixtures and no events. Product/URL surface — CPO-class, and
--    out of scope for making the nightly green.
--  - Whether the provider should be asked to correct the feed upstream. Every row in this seed is a
--    permanent local patch for a defect we do not own.
--  - Whether the two `RAW_APIF_*` snapshots behind these fixtures should be re-ingested rather than
--    corrected downstream. Not proposed: the provider re-sends the same mis-attribution, which is
--    the reason the override mechanism exists at all.
-+  - Whether the apply step should become a real script (testable end to end, idempotent by
-+    construction) instead of a documented shell recipe. That is a new operational mechanism and
-+    therefore CPO-class. Noted, not taken.
-+  - Whether `deploy/**` should route to `platform-reviewer` in `review_routing.json`. It does
-+    not today, so this diff reaches Platform only via `tests/**`. Changing routing is a
-+    protected-path governance event and is not attempted here.
-+  - Whether the notification-channel creation step (same section, same non-idempotent shape)
-+    should get the same treatment. Out of scope for #61 as filed.
+-  - Whether the apply step should become a real script (testable end to end, idempotent by
+-    construction) instead of a documented shell recipe. That is a new operational mechanism and
+-    therefore CPO-class. Noted, not taken.
+-  - Whether `deploy/**` should route to `platform-reviewer` in `review_routing.json`. It does
+-    not today, so this diff reaches Platform only via `tests/**`. Changing routing is a
+-    protected-path governance event and is not attempted here.
+-  - Whether the notification-channel creation step (same section, same non-idempotent shape)
+-    should get the same treatment. Out of scope for #61 as filed.
++  - Why CI's specific value (`be3a493d...`) differs from this machine's is NOT diagnosed, and this
++    change does not need it diagnosed: it removes the entire class by not hashing a rendering.
++    ⚠ Deliberately not chased further — the remaining candidates (git version, a platform default)
++    are unobservable from here and the fix is correct against all of them.
++  - Whether `test_local_staged_hash_equals_ci_recompute` should ALSO run under a second git
++    version in CI. That would catch the real cross-platform case rather than a proxy, but it is a
++    new CI job and therefore recurring cost — CPO-class, and out of scope here.
++  - #33 item 13 and #2, both noted in `escalations.log` and neither touched.
  
  done_when:
--  - The row is present in `dbt_project/seeds/fixture_event_team_overrides.csv` and the file still
--    parses as 4 columns for EVERY row (`csv.reader`, assert every row has len == 4), with CRLF
--    line endings and valid UTF-8 preserved.
--  - `.venv/Scripts/dbt.exe parse` exits 0 (a malformed seed or schema is a parse error).
--  - ⚠ THE MODE IS CONDITIONAL, SO THE SEED LANDING IN GIT IS NOT EVIDENCE. The override's join
--    predicate is SIMULATED against PROD, read-only, by replaying
--    `base_apif__fixture_events.sql`'s exact `reattribute_if_cohabiting` join with the proposed row
--    UNIONed onto the live seed table, and the test predicate re-run over the result:
--    **`assert_event_team_in_fixture_participants` must return 0 rows, and the 10 affected events
--    must resolve to `team_id = 1544`.**
--  - No `dbt build`, no `dbt seed`, no ingest and no `gcloud` resource is touched from this branch.
--  - POST-MERGE, and NOT satisfiable from this branch (recorded so it is not mistaken for done):
--    redeploy the `fdp-nightly` image from `main`, then run the real test SQL against prod and
--    confirm `ERROR=0` on the next nightly rather than `ERROR=1 SKIP=540`.
-+  - `pytest tests/ -q` exits 0.
-+  - `ruff --config .ruff-ci.toml tests/` exits 0.
-+  - ⚠ THE NEW TEST IS VERIFIED BY BREAKING ITS SUBJECT — restore `for i in 0 1` in the README
-+    and confirm the test goes RED, then restore the fix. A test that has never failed is
-+    decoration, and this repo has shipped ten of those.
-+  - The corrected recipe's ANTI-DUPLICATION half is verified against the LIVE API, read-only:
-+    run only its existence-check step and confirm it resolves all three declared policies to
-+    already-present, i.e. it would take the update path and POST none.
-+  - ⚠ THE POST PATH IS DELIBERATELY NOT EXECUTED. Running it would create duplicate live alert
-+    policies, which is the exact defect being fixed. The same request shape was executed
-+    successfully by hand on 2026-08-11 when the missing policy was created.
-+  - No `gcloud`/Monitoring WRITE is issued from this branch.
- 
- amendments: (none)
+-  - `pytest tests/ -q` exits 0.
+-  - `ruff --config .ruff-ci.toml tests/` exits 0.
+-  - ⚠ THE NEW TEST IS VERIFIED BY BREAKING ITS SUBJECT — restore `for i in 0 1` in the README
+-    and confirm the test goes RED, then restore the fix. A test that has never failed is
+-    decoration, and this repo has shipped ten of those.
+-  - The corrected recipe's ANTI-DUPLICATION half is verified against the LIVE API, read-only:
+-    run only its existence-check step and confirm it resolves all three declared policies to
+-    already-present, i.e. it would take the update path and POST none.
+-  - ⚠ THE POST PATH IS DELIBERATELY NOT EXECUTED. Running it would create duplicate live alert
+-    policies, which is the exact defect being fixed. The same request shape was executed
+-    successfully by hand on 2026-08-11 when the missing policy was created.
+-  - No `gcloud`/Monitoring WRITE is issued from this branch.
+-
+-amendments: (none)
++  - `.claude/hooks/git_discipline.py` and `scripts/check_task_artifacts.py` hash the SAME bytes for
++    the same content, both from the base, both `--raw`.
++  - NEW TEST, invariance: the same content hashed under two different rendering settings produces
++    ONE hash. ⚠ It must be shown to FAIL against the pre-change implementation, not merely to pass
++    after it — a test only ever seen green proves nothing.
++  - NEW TEST, multi-commit: after two commits on a branch, the local `--staged-hash` equals the CI
++    recompute. ⚠ Also shown to fail against the pre-change implementation.
++  - `test_local_staged_hash_equals_ci_recompute` (line ~1691) still passes UNCHANGED — it is the
++    existing load-bearing invariant and this change must not need it edited.
++  - `python -m pytest tests/test_governance_hooks.py -q` green, then the full suite green.
++  - `docs/agent_guardrails.md` describes the new mechanism; the CLAUDE.md warning is gone.
++  - END TO END, and the only proof that counts: `!33`'s `review.md` rebound to the new hash, and
++    `validate:governance` GREEN on the runner. Until that is observed, this is unproven.
++
++amendments:
++  - id: 1
++    date: 2026-08-12
++    authority: >
++      Not a new CPO ruling — the SAME protected-path authority already recorded in
++      `escalations.log` for this task, which covers "the tests and docs that describe" the hash.
++      `.claude/active_work.md` is one of those docs and was missed when `scope_paths` was drawn.
++      Recorded as an amendment rather than edited quietly because the gate is right that an
++      out-of-scope edit is drift however obviously it belongs.
++    adds:
++      - .claude/active_work.md
++    why: >
++      `active_work.md:118` repeated the now-false warning that `--staged-hash` is "the WRONG
++      number" on a multi-commit branch, verbatim. ⚠ `handover_in.py` injects that file into EVERY
++      session at SessionStart, so deleting the sentence from `CLAUDE.md` while leaving it there
++      would have preserved it in the one file guaranteed to be read first — and a fresh agent
++      would keep collapsing commits to dodge a trap that no longer exists. Found by
++      platform-reviewer (opus), which also caught that the impact_map's "nothing else parses it"
++      completeness claim was drawn from a grep that missed this file. Both the file and the claim
++      are corrected.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 885928f..97dfbaf 100644
+index 97dfbaf..0d1ee79 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -2041,3 +2041,140 @@ times.
-   4767 at all (it is a real Portuguese entity that our data simply never sees play), and whether
-   the provider should be asked to correct the feed. Both are separate from making the nightly
-   green.
+@@ -2178,3 +2178,68 @@ times.
+   since its own last PASS and judges that plus its prior findings"), not a lowered bar. If it
+   does not pass, the builder STOPS and the residue is filed as its own issue rather than
+   ground for a seventh round.
 +
++2026-08-12 fix/63-review-hash-content-identity — CPO authority to edit a PROTECTED path.
 +
-+2026-08-12 fix/61-alert-policy-apply-loop — #61: THE RULING IS "GO AHEAD", AND IT COVERS LESS
-+  THAN THE FIRST DRAFT OF THE CONTRACT CLAIMED
++  THE ASK. `validate:governance` fails on !33 and would fail on every MR after it: the local
++  commit gate and the CI recompute produce DIFFERENT `diff_sha256` values for provably identical
++  commits (`git ls-remote` confirms both sides hold the same two SHAs). Five candidate bases, the
++  commit count, line endings and local git config were each ruled out BY MEASUREMENT, not by
++  reasoning — the evidence table is on GitLab #63. Root cause: both sides hash the RENDERED PATCH
++  TEXT, a presentation format whose bytes depend on git version, platform and diff settings.
++  Demonstrated on one machine with identical commits: the same content hashes to `0c1ef8af` at
++  `-U3` and `ca1afb7d` at `-U0`.
 +
-+  WHY THIS ENTRY EXISTS. `scope-auditor` FAILed round 1 because `contract.md` asserted the CPO
-+  "approved in-thread ('go ahead') after being shown the three proposed fixes" and no matching
-+  record existed anywhere. It was right on both counts, and the second is the worse one: the
-+  sequence was BACKWARDS. The CPO said "go ahead" to a one-line mention of the issue; the
-+  builder described the three-part plan AFTERWARDS and then built it. Writing that up as a
-+  ruling given on a plan the CPO had seen is the Appendix A2 pattern — a decision presented as
-+  agreed. Corrected before commit.
++  THE QUESTION PUT TO THE CPO, in plain language: one automatic check keeps failing; it is not
++  the seed work; I believe the check itself is broken rather than my branch, because !33 is the
++  first MR ever to reach it (main's own pipeline and !34 both died on `ci_quota_exceeded` first).
++  Shall I fix it properly as its own task?
 +
-+  THE RULING, verbatim: **"go ahead"** — in answer to "Next up when you want to continue, in
-+  order: the alert-deploy bug I found, then the squads issue, then making staging a table."
-+  So the authority is: START #61 AS FILED. Nothing narrower, nothing wider.
++  CPO ANSWER: **"yes"** — then, on how: **"Fix it systematically like a top-notch engineer would
++  do it."**
 +
-+  WHAT #61 AS FILED CONTAINS, since that is now the whole boundary. It was written by the
-+  builder on 2026-08-11 and lists three suggested fixes: (1) derive the apply loop from the
-+  file instead of `for i in 0 1`, (2) correct the prose that says the file "holds BOTH
-+  policies", (3) "Consider making the apply step genuinely idempotent".
++  WHY THIS ENTRY EXISTS AT ALL. `.claude/hooks/` is a PROTECTED prefix
++  (`task_contract_gate.py:66`), so `git_discipline.py` may not be edited inside an ordinary task
++  contract. The contract for this branch therefore carries `protected_override` citing this entry.
++  ⚠ Recorded BEFORE the contract was written, so a blinded reviewer can verify the authority
++  independently of the file that claims it.
 +
-+  ITEMS 1 AND 2 ARE THE BUG and are covered outright.
++  SCOPE OF THE AUTHORITY, stated narrowly so it cannot be read as a general licence: it covers
++  changing HOW the review-binding hash is computed, in the two implementations that must agree
++  (`.claude/hooks/git_discipline.py` and `scripts/check_task_artifacts.py`), plus the tests and
++  docs that describe it. It does NOT authorise touching any other hook, the routing file, the
++  reviewer briefs, or the commit-form deny package.
 +
-+  ITEM 3 IS A BUILDER DECISION and is labelled as one in the contract rather than attributed to
-+  the CPO. Reasoning, recorded so it can be attacked: the README currently DOCUMENTS the hazard
-+  instead of removing it — it warns that re-running duplicates every policy and that duplicates
-+  are "how people learn to ignore alerts". A recipe that must be run carefully is the same
-+  class of defect as a count that must be updated carefully, and that class already failed in
-+  production. It crosses no §10 line: no new mechanism, no recurring cost, no product, naming
-+  or permanent decision. It is separable — item 3 can be reverted without touching 1 and 2.
++  ⚠ NOT DECIDED, and not this task's to decide: that an MR pipeline can write PRODUCTION raw
++  (#33 item 13) and that `data_paths` triggers a full prod rebuild on governance-only changes
++  (#2). Both were read while tracing the CI job and are noted here only so they are not
++  rediscovered as new.
 +
-+  EXPLICITLY NOT TAKEN, and reserved to the CPO: turning the apply step into a real script
-+  (`scripts/apply_alert_policies.py` or similar). That WOULD be a new operational mechanism. The
-+  builder wrote exactly that into the README on the first attempt, contradicting its own
-+  contract, and reverted it before review. The recipe stays an inline documented block.
++2026-08-12 fix/63 — ROUND-CAP OVERRIDE, authorising round 4.
 +
-+  WHAT THE BUG ACTUALLY WAS, for whoever reads this later: `deploy/nightly/README.md` applied
-+  the Cloud Monitoring policies with `for i in 0 1` over a generator that writes one payload per
-+  policy declared in `deploy/nightly/alert-policy.json`. The file grew to three. Index 2 was
-+  generated and never sent, so `fdp freshness sentinel itself stopped` — the policy that fires
-+  when the freshness sentinel itself dies — was never deployed. It FAILS OPEN: the dropped alert
-+  is the one whose absence nothing else can reveal. Found 2026-08-11 while deleting the
-+  superseded 25h bridge policy, and the two together would have left "nightly and sentinel both
-+  dead" with no alert at all. The instance was fixed by hand that day
-+  (`alertPolicies/751471063453009885`); this task fixes the RECIPE.
++  THE SITUATION PUT TO THE CPO. Round 3 is the documented cap. scope-auditor and cto-reviewer both
++  PASSED it; platform-reviewer FAILED with a single finding, and the finding is real and was
++  verified before being brought over rather than relayed on the reviewer's word:
 +
-+  A SECOND REVIEWER FINDING WORTH KEEPING, because the guard repeated the defect it polices.
-+  `platform-reviewer` FAILed round 1: the first version of `tests/test_alert_policy_recipe.py`
-+  matched only the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`).
-+  The fixed recipe is Python, so all three patterns were already unreachable — `["policies"][:2]`,
-+  an `islice(..., 2)` or a `break` would have dropped the third policy with every test green.
-+  A guard written against one dead idiom is a literal standing in for the real rule, which is
-+  the same defect one level up. Replaced with a STRUCTURAL check: the recipe's Python block is
-+  parsed with `ast`, the loop over the declared policies is located, and its iterable must
-+  contain no number, no slice, no `islice` and no `break`. Both Python-shaped regressions were
-+  then verified to go red.
++    `GOVERNANCE_BASE` — the escape hatch added in round 2 to answer cto-reviewer's round-2 FAIL —
++    is resolved to a branch TIP by the hook (`rev-parse <ref>^{commit}`) but through a MERGE-BASE
++    by the CI twin (`f"{args.base}...HEAD"`, three-dot). Point it at a branch that has moved on and
++    the two halves hash different things: the local side emits the branch's own changes PLUS a
++    reverse delta for everything merged upstream since the branch was cut. Red pipeline on a
++    correct branch, and a reviewers' patch full of already-merged work — which is the exact defect
++    #63 exists to remove, reintroduced through the fix for the previous round.
++    ⚠ AND THE TEST COULD NOT CATCH IT: `GOVERNANCE_BASE` was pointed at a direct ancestor, where
++    tip and merge-base are the same commit, so the missing call is invisible and reverting it would
++    leave the suite green. Third time in this task that a test of mine passed either way.
 +
-+  ROUND 2 THEN FAILED THAT TOO, correctly, with four rewrites that reproduce #61 while passing
-+  every assertion: hoisting the slice into a variable whose name contains "policies", a
-+  `continue` on one displayName, a filter baked into a generator expression, and a post-loop
-+  DELETE. The AST check only ever inspected the loop's iterable expression and the body's
-+  `break`. The docstring also claimed the check "holds for any rewording", which was simply
-+  false. THE REAL LESSON, third time in one task: a static check tests how code LOOKS and the
-+  defect is about what it DOES. Replaced by EXECUTING the recipe against a stubbed Monitoring
-+  API and asserting every declared policy receives a write. All four rewrites verified red.
++  THE OPTIONS OFFERED, with the recommendation stated: (a) one more round — the fix is one call
++  plus a test with a genuinely diverged ref; (b) drop the escape hatch, which re-opens
++  cto-reviewer's round-2 objection that a deny with no exit is a workflow lock; (c) park it, which
++  leaves every MR blocked. Recommended (a).
 +
-+  ROUND 3 CAP-OVERRIDE — CPO ASKED, ANSWERED, RECORDED BEFORE `review.md` CITES IT.
-+  Round 3 FAILed with a finding sharper than either earlier one, and it is worth keeping
-+  whatever happens to this branch: an executed test that compares the recipe against TODAY'S
-+  `alert-policy.json` cannot distinguish "iterates every policy" from "hardcoded to a bound
-+  that happens to equal today's count". `[:3]` against a 3-policy file passes all 8 tests —
-+  and that is #61's exact mechanism, because `for i in 0 1` was ALSO correct on the day it was
-+  written, when there were two policies. The bug is invisible until the next policy is added,
-+  which is the moment it does its damage.
++  CPO ANSWER: **"fix it"** — authorising round 4.
 +
-+  `docs/working_agreement.md` §2 caps the review loop at 3 rounds and requires the builder to
-+  STOP and bring open findings to the CPO rather than grind a fourth. Put to the CPO with three
-+  paths: (A) one more round applying the fix, (B) ship the recipe fix alone and file the test
-+  separately, (C) park the branch.
-+  CPO ANSWER (AskUserQuestion, 2026-08-12): **"One more round"** — path A, the builder's
-+  recommendation. `review.md` therefore carries `rounds: 4` with a `rounds_cap_override`.
-+
-+  THE FIX THE OVERRIDE BUYS: run the recipe against a SYNTHETIC policy set whose size differs
-+  from the real file, so any count baked into the recipe — a slice, a literal name list, an
-+  index bound — fails the moment it is written rather than the next time a policy is added.
-+  Count-independence is the property the deleted AST check had and the executed test lacked;
-+  this gets it without going back to inspecting source.
-+
-+  ROUND 4 THEN FOUND THE FIX WAS ASYMMETRIC, and this one is subtle enough to be worth writing
-+  down. Both new synthetic tests passed `existing=[]`, so every synthetic policy took the
-+  CREATE branch. NOTHING in the file drove the UPDATE/PATCH branch at any count other than the
-+  real file's three. A bound placed inside that branch —
-+
-+      if name in existing:
-+          if patch_count >= 3: continue
-+
-+  — passes all ten tests: the real-file update test has exactly three pre-existing policies so
-+  the counter runs out exactly as the loop ends, and the synthetic tests never enter the branch
-+  at all. It then stops reconciling the fourth policy forever, in the ordinary steady state
-+  where policies already exist. Same #61 shape, relocated one branch over. Count-independence
-+  has to hold on BOTH branches or it is not count-independence.
-+
-+  ROUND 5 AUTHORISED. Round 4 was itself an override, so a fifth needed its own decision. Put
-+  to the CPO as part of a sequencing plan that named it "one small test fix and a final review
-+  round".
-+  CPO ANSWER (in-thread, 2026-08-12): **"go"**.
-+  `review.md` carries `rounds: 5` with the `rounds_cap_override` naming both grants.
-+
-+  THE FIX: synthetic-set tests that drive the UPDATE branch (all pre-existing) and a MIXED set
-+  (some existing, some new — the real steady state after a policy is added), asserting every
-+  declared policy is reconciled on every branch regardless of set size.
-+
-+  ROUND 5: scope-auditor PASS. platform-reviewer FAIL with two more, both real.
-+  (a) EVERY "larger than today" fixture used exactly 5, so a bound of 5 — the size the test
-+      suite itself standardised on — was invisible to all twelve tests. The hardcoded number
-+      had simply MOVED from the recipe (3, today's real count) into the test (5, today's
-+      chosen stress size). Fixed by parametrising over several sizes.
-+  (b) MORE SERIOUS, and the best finding of the five rounds: no test ever inspected the URL of
-+      a PATCH, only its body. A recipe that derived the target resource id wrongly — say
-+      `list(existing.values())[0]["name"]` instead of `existing[name]["name"]` — sends one
-+      PATCH per policy, each carrying its own correct displayName, so every test passes while
-+      in production every PATCH lands on the SAME alert policy. One real policy is overwritten
-+      repeatedly and all the others silently go stale, while the recipe prints "updated" for
-+      each. That is WORSE than #61: #61 left one policy undeployed, this leaves N-1 permanently
-+      unreconciled. Fixed by asserting each PATCH URL carries the id of the policy named in its
-+      own body.
-+
-+  ROUND 6 AUTHORISED, AND SCOPED. Third time past the cap. Put to the CPO with the honest
-+  framing that the RECIPE fix is reviewed and solid and it is the TEST that keeps failing, and
-+  that the marginal value was falling while the cost was not.
-+  CPO ANSWER (AskUserQuestion, 2026-08-12): **"Fix both, one scoped round, then stop"**.
-+  The round is a DELTA judging whether those two findings are closed — which is what
-+  `docs/working_agreement.md` §2 already defines a re-review to be ("told only what changed
-+  since its own last PASS and judges that plus its prior findings"), not a lowered bar. If it
-+  does not pass, the builder STOPS and the residue is filed as its own issue rather than
-+  ground for a seventh round.
-diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
-index 84e042f..6355a53 100644
---- a/deploy/nightly/README.md
-+++ b/deploy/nightly/README.md
-@@ -228,52 +228,80 @@ nothing** — so an unverified channel is a policy that looks armed and is not.
++  ⚠ WHY THIS IS NOT AN ENDLESS LOOP, stated because that is what the cap exists to prevent: every
++  round has failed on a NARROWER thing than the last, and rounds 2 and 3 each ended with a
++  reproduced defect rather than a reviewer opinion. Round 4 is scoped to this one finding. Anything
++  new is filed as its own issue rather than opening a fifth round.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 632b210..be58b64 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -134,10 +134,15 @@ every session that learned something had to delete something. None of this is cu
+   literally, and a `verdicts:` block alone does NOT satisfy it.
+ - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
+   blocks the turn once if any fails. Do not end a turn on a red gate silently.
+-- **⚠ On a SECOND commit, `--staged-hash` is the WRONG number** — it covers only the increment,
+-  while CI recomputes over the whole branch. Use `check_task_artifacts.py` (its default now
+-  resolves the LIVE remote; `origin` is GitLab in CI but the dormant GitHub one here). A
+-  `review.md`-only commit is artifact-exempt, so rebinding the hash is free.
++- **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
++  2026-08-12). It hashes `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the
++  base, so it is byte-identical to the CI recompute on every platform and on a branch of any
++  length. ⚠ The old warning here said `--staged-hash` was "the WRONG number" on a second commit;
++  that was true of the pre-#63 implementation, which hashed the RENDERED patch of a bare
++  `--staged`. It is now simply false and has been deleted rather than qualified.
++  `check_task_artifacts.py` still resolves the LIVE remote by default (`origin` is GitLab in CI
++  but the dormant GitHub one here), and a `review.md`-only commit is artifact-exempt, so rebinding
++  is free.
+ - **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
+   the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
+   LIFO and load-bearing WIP lives in it.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 6ee3ab1..253e599 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -54,7 +54,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+-| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
++| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
  
- ### Create the alert policies
+ ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
  
--`alert-policy.json` holds BOTH policies under `policies`, plus `_comment` keys for the reader.
-+`alert-policy.json` holds EVERY policy under `policies`, plus `_comment` keys for the reader.
- The API rejects unknown fields, so strip anything beginning with `_` on the way in, and inject
--the channel id read back from the API rather than hardcoding it:
-+the channel id read back from the API rather than hardcoding it.
-+
-+⚠ **NEVER HARDCODE HOW MANY POLICIES THERE ARE.** An earlier version of this section ended in
-+`for i in 0 1` over a generator that writes one payload per declared policy. The file later grew
-+to three, so index 2 was generated and never sent, and
-+`fdp freshness sentinel itself stopped` sat undeployed — the one policy whose absence is
-+invisible, because it is the thing that watches the watcher. Found 2026-08-11, GitLab #61.
-+`tests/test_alert_policy_recipe.py` now fails the build if a literal count reappears here.
-+
-+The block below is **idempotent**: it reads what already exists, `PATCH`es a policy whose
-+`displayName` matches, and `POST`s only what is genuinely new. Re-running it is safe, which is
-+what makes it usable as a repair step rather than a one-shot. It also does the whole job in one
-+Python process over `urllib`, so there are no payload files on disk and the Windows `curl`
-+path trap below does not apply to it.
+diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
+index d032a90..9ce9996 100644
+--- a/scripts/check_task_artifacts.py
++++ b/scripts/check_task_artifacts.py
+@@ -155,15 +155,23 @@ def main() -> int:
+         errors.append("review.md has no well-formed diff_sha256")
+     else:
+         # F11 (#409): bind review.md to THIS PR's code. Recompute the hash over the
+-        # branch diff EXCLUDING the bookkeeping artifacts — the same diff the local gate
+-        # hashes. --no-renames + --no-abbrev so the two invocations are byte-identical for
+-        # identical content (rename detection off; full 40-hex blob SHAs in index lines so
+-        # the abbreviation length cannot diverge pre- vs post-commit). A code-then-stale-
+-        # review ordering (the #405 false-green) now fails here.
++        # branch diff EXCLUDING the bookkeeping artifacts — the same bytes the local gate
++        # hashes. --no-renames + --no-abbrev keep rename detection off and blob SHAs full.
++        # A code-then-stale-review ordering (the #405 false-green) fails here.
++        #
++        # ⚠ `--raw`, NOT the rendered patch (#63). This is the CI HALF of a pair that must
++        # agree byte for byte with `git_discipline.py::_staged_diff_bytes`; change one and
++        # every commit is falsely rejected. The rendered patch is a PRESENTATION format
++        # whose bytes vary with git version, platform and diff settings, so this check and
++        # its local twin produced different hashes for provably identical commits and
++        # `validate:governance` could not pass at all. `--raw` emits mode, blob SHAs,
++        # status and path; blob SHAs are content hashes, identical on every platform and
++        # git version. Nothing is weakened: the rendered patch is derived FROM those blobs.
+         excludes = routing.get("hash_exclude_paths") or []
+         pathspec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
+         diff = subprocess.run(
+-            ["git", "diff", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"] + pathspec,
++            ["git", "diff", "--raw", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"]
++            + pathspec,
+             capture_output=True, check=True,
+         ).stdout
+         recomputed = hashlib.sha256(diff).hexdigest()
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 8a19298..c3279b4 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -1608,13 +1608,17 @@ def run_ci_check(repo) -> tuple[int, str]:
  
- ```bash
--CHANNEL=$(curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
--  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
--  | python -c "import sys,json;print(json.load(sys.stdin)['notificationChannels'][0]['name'])")
-+TOKEN=$(gcloud auth print-access-token) python - <<'EOF'
-+import json, os, urllib.request
-+
-+BASE = "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp"
-+HDRS = {"Authorization": "Bearer " + os.environ["TOKEN"],
-+        "Content-Type": "application/json"}
-+
-+def api(path, data=None, method=None):
-+    req = urllib.request.Request(
-+        BASE + path,
-+        data=json.dumps(data).encode() if data is not None else None,
-+        headers=HDRS, method=method)
-+    with urllib.request.urlopen(req) as r:
-+        body = r.read().decode()
-+    return json.loads(body) if body.strip() else {}
  
--python -c "
--import json
- def strip(o):
--    if isinstance(o,dict):  return {k:strip(v) for k,v in o.items() if not k.startswith('_')}
--    if isinstance(o,list):  return [strip(v) for v in o]
-+    if isinstance(o, dict):
-+        return {k: strip(v) for k, v in o.items() if not k.startswith("_")}
-+    if isinstance(o, list):
-+        return [strip(v) for v in o]
-     return o
--for i,p in enumerate(strip(json.load(open('deploy/nightly/alert-policy.json')))['policies']):
--    p['notificationChannels'] = ['$CHANNEL']
--    json.dump(p, open('pol%d.json' % i, 'w'))
--"
--
--for i in 0 1; do
--  curl -s -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
--    -H "Content-Type: application/json" \
--    "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
--    -d @pol$i.json
--done
--rm -f pol0.json pol1.json
+ def branch_hash(repo, base="main") -> str:
+-    """The F11 hash CI recomputes: sha256 of `git diff base...HEAD` excluding the
+-    bookkeeping artifacts (--no-renames), mirroring check_task_artifacts.py."""
++    """The F11 hash CI recomputes: sha256 of `git diff --raw base...HEAD` excluding the
++    bookkeeping artifacts, mirroring check_task_artifacts.py.
 +
-+chans = api("/notificationChannels").get("notificationChannels", [])
-+assert len(chans) == 1, "expected exactly 1 notification channel, found %d" % len(chans)
-+
-+existing = {p["displayName"]: p for p in api("/alertPolicies").get("alertPolicies", [])}
-+
-+# Derived from the file, never from a literal count.
-+for pol in strip(json.load(open("deploy/nightly/alert-policy.json")))["policies"]:
-+    pol["notificationChannels"] = [chans[0]["name"]]
-+    name = pol["displayName"]
-+    if name in existing:
-+        pol["name"] = existing[name]["name"]
-+        api("/" + pol["name"].split("/", 2)[2], data=pol, method="PATCH")
-+        print("updated", name)
-+    else:
-+        api("/alertPolicies", data=pol)
-+        print("created", name)
-+EOF
- ```
++    ⚠ `--raw` since #63 — CONTENT IDENTITY (mode, blob SHAs, status, path), not the rendered
++    patch, whose bytes vary with git version, platform and diff settings. This helper mirrors
++    the script by hand, so it has to move in the same commit or the mirror lies."""
+     import hashlib
+     excludes = ROUTING["hash_exclude_paths"]
+     pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
+     diff = subprocess.run(
+-        ["git", "diff", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
++        ["git", "diff", "--raw", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
+         cwd=repo, capture_output=True,
+     ).stdout
+     return hashlib.sha256(diff).hexdigest()
+@@ -1706,6 +1710,270 @@ def test_local_staged_hash_equals_ci_recompute(ci_repo):
+     assert local == ci, f"local {local} != ci {ci}"
  
--⚠ **`curl` on Windows cannot read a Git Bash `/tmp/...` path** — write the payloads to a
--Windows-visible directory or the repo root, as above. `-d @/tmp/x.json` fails with
--*"option -d: error encountered when reading a file"*.
-+It prints one line per declared policy, so the output length is the check: if the file declares
-+three and you see two lines, something was skipped.
  
--⚠ **NEITHER command is idempotent.** Both are bare `POST`s with no existence check, so running
--this section twice creates a *second* notification channel and a *second* pair of policies —
--and you then get every alert twice, which is how people learn to ignore alerts. Check before
--re-running:
-+⚠ **The notification-channel creation step above is still a bare `POST` and is NOT idempotent** —
-+running it twice creates a second channel, and you then get every alert twice, which is how
-+people learn to ignore alerts. Check before re-running:
- 
- ```bash
- curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
--  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/alertPolicies" \
--  | python -c "import sys,json;[print(p['name'],p['displayName']) for p in json.load(sys.stdin).get('alertPolicies',[])]"
-+  "https://monitoring.googleapis.com/v3/projects/football-data-pipeline-gcp/notificationChannels" \
-+  | python -c "import sys,json;[print(c['name'],c.get('type')) for c in json.load(sys.stdin).get('notificationChannels',[])]"
- ```
- 
--To change an existing policy, `PATCH` its `name` rather than re-POSTing. To remove a duplicate,
--`DELETE` that `name`.
-+To remove a duplicate policy or channel, `DELETE` its `name`.
- 
- ### Checking and silencing it
- 
-diff --git a/tests/test_alert_policy_recipe.py b/tests/test_alert_policy_recipe.py
-new file mode 100644
-index 0000000..138d80a
---- /dev/null
-+++ b/tests/test_alert_policy_recipe.py
-@@ -0,0 +1,498 @@
-+"""The alert-policy apply recipe must apply EVERY declared policy (GitLab #61).
++def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
++    """#63 — the hash must NOT move when a PRESENTATION setting moves.
 +
-+WHY THIS EXISTS
-+---------------
-+`deploy/nightly/README.md` documents how the Cloud Monitoring alert policies get created. Its
-+apply step used to end in `for i in 0 1` — a literal index list — over a generator that writes
-+one payload per policy declared in `deploy/nightly/alert-policy.json`. The file later grew to
-+three. Index 2 was generated and never sent.
++    ⚠ THIS IS THE POINT OF THE WHOLE CHANGE, and it FAILS against the pre-#63 implementation.
++    That version hashed `git diff`'s rendered patch, so anything altering the rendering altered
++    the hash: measured on the real repo, identical commits gave 0c1ef8af at -U3 and ca1afb7d at
++    -U0. `diff.context` is a per-repo git setting a machine can legitimately carry, which is how
++    two machines hashed the same content differently and `validate:governance` could not pass.
 +
-+The policy that went missing was `fdp freshness sentinel itself stopped`: the one that fires
-+when the freshness sentinel itself dies. So the dropped alert was precisely the alert whose
-+absence nothing else can reveal. It FAILS OPEN — the broken state looks identical to the
-+working one — and it sat undeployed until found by accident on 2026-08-11.
-+
-+HOW IT IS SHAPED, AND TWO REJECTED ATTEMPTS
-+-------------------------------------------
-+This test went through two wrong versions before this one, both caught in review, and the
-+progression is the useful part:
-+
-+  v1 matched the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`). The
-+     fixed recipe is Python, so every pattern was already unreachable.
-+  v2 parsed the recipe with `ast` and forbade a number, slice, `islice` or `break` in the loop
-+     expression. Better, but still a shape test, and a reviewer produced four rewrites that
-+     reproduce #61 while passing all of it: hoisting the slice into a variable
-+     (`policies_to_apply = ...[:2]`), a `continue` that skips one policy, a filter baked into a
-+     generator expression, and a second statement that undoes the loop afterwards.
-+
-+The lesson both times: a static check on a snippet tests how the code LOOKS, and the defect is
-+about what it DOES. Any shape test can be walked around by writing the same bug differently.
-+
-+So this version RUNS the documented recipe against a stubbed Monitoring API and asserts the
-+only thing that actually matters: **every policy declared in `alert-policy.json` receives a
-+write.** Truncation, filtering, early exit, hoisting and post-hoc deletion all fail it
-+identically, because they all end in a declared policy that never got written.
-+
-+Running repo-controlled, version-controlled, reviewed documentation under `exec` is deliberate.
-+It is the only way to test a runbook snippet's behaviour rather than its spelling, and it has
-+the side benefit of proving the documented commands are executable at all — a runbook that does
-+not run is the failure mode this whole area keeps producing.
-+
-+`tests/test_nightly_entrypoint_parity.py` is the precedent for pinning a deploy artefact.
-+"""
-+
-+from __future__ import annotations
-+
-+import ast
-+import json
-+import os
-+import re
-+import tempfile
-+import urllib.request
-+from pathlib import Path
-+
-+import pytest
-+
-+REPO = Path(__file__).resolve().parents[1]
-+README = REPO / "deploy" / "nightly" / "README.md"
-+POLICY_FILE = REPO / "deploy" / "nightly" / "alert-policy.json"
-+
-+SECTION_START = "### Create the alert policies"
-+SECTION_END = "### Checking and silencing it"
-+
-+_FAKE_CHANNEL = "projects/fake/notificationChannels/1"
-+_FAKE_PROJECT = "projects/football-data-pipeline-gcp"
-+
-+
-+def _section() -> str:
-+    text = README.read_text(encoding="utf-8")
-+    assert SECTION_START in text, "the %r section is gone - retarget this test" % SECTION_START
-+    body = text.split(SECTION_START, 1)[1]
-+    assert SECTION_END in body, "the %r section is gone - retarget this test" % SECTION_END
-+    return body.split(SECTION_END, 1)[0]
-+
-+
-+def _declared_policy_names() -> list[str]:
-+    return [
-+        p["displayName"]
-+        for p in json.loads(POLICY_FILE.read_text(encoding="utf-8"))["policies"]
-+    ]
-+
-+
-+def _recipe_python_source() -> str:
-+    """The Python heredoc inside the apply block — the thing that actually does the work."""
-+    match = re.search(r"<<'EOF'\n(.*?)\nEOF\b", _section(), re.DOTALL)
-+    assert match, (
-+        "The apply recipe no longer contains a `python - <<'EOF' ... EOF` block. If it was "
-+        "deliberately reshaped, retarget this test at whatever now performs the apply - do NOT "
-+        "delete it. It is the only thing standing between this recipe and a silent repeat of "
-+        "GitLab #61."
-+    )
-+    return match.group(1)
-+
-+
-+class _FakeResponse:
-+    def __init__(self, payload: dict) -> None:
-+        self._payload = payload
-+
-+    def read(self) -> bytes:
-+        return json.dumps(self._payload).encode("utf-8")
-+
-+    def __enter__(self) -> _FakeResponse:
-+        return self
-+
-+    def __exit__(self, *exc: object) -> bool:
-+        return False
-+
-+
-+def _run_recipe(
-+    existing: list[dict],
-+    policies: list[dict] | None = None,
-+) -> list[tuple[str, str, dict | None]]:
-+    """Execute the documented recipe against a stubbed API. Returns every request it made.
-+
-+    `existing` is what the fake API reports as already deployed, so the caller can drive both
-+    the create path (empty) and the update path (everything already there).
-+
-+    `policies` replaces the CONTENT of `alert-policy.json` for the run. This is what makes the
-+    suite count-independent, and it is not a refinement — it is the whole difference between
-+    catching #61 and re-shipping it. A test that only ever runs against the real file cannot
-+    tell "iterates every policy" from "hardcoded to a bound that equals today's count", and the
-+    second is precisely what #61 was: `for i in 0 1` was CORRECT on the day it was written,
-+    when the file declared two. Running against a set of a different size makes any baked-in
-+    count fail at the moment it is written instead of silently, later, when a policy is added.
++    Cross-platform stability is the real requirement and cannot be tested from one machine; this
++    is its closest honest proxy — same content, same git, one rendering knob turned.
 +    """
-+    calls: list[tuple[str, str, dict | None]] = []
++    # ⚠ The changed line must sit BETWEEN unchanged ones, or the control is vacuous: with a new
++    # or wholly-rewritten file every line is a change, there is no context to include or exclude,
++    # and the two settings render identically. An earlier draft of this test did exactly that and
++    # passed against the very defect it exists to catch — found by running it against the old
++    # implementation rather than trusting it green.
++    model = ci_repo / "dbt_project" / "models" / "allowed.sql"
++    model.write_text("".join("select %d\n" % i for i in range(1, 11)))
++    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "ten lines"], cwd=ci_repo, check=True)
 +
-+    def fake_urlopen(req, *args, **kwargs):  # noqa: ANN001 - mirrors urlopen's loose signature
-+        method = req.get_method()
-+        url = req.full_url
-+        body = json.loads(req.data.decode("utf-8")) if req.data else None
-+        calls.append((method, url, body))
-+        if method == "GET" and url.endswith("/notificationChannels"):
-+            return _FakeResponse({"notificationChannels": [{"name": _FAKE_CHANNEL}]})
-+        if method == "GET" and url.endswith("/alertPolicies"):
-+            return _FakeResponse({"alertPolicies": existing})
-+        return _FakeResponse({})
++    lines = model.read_text().splitlines(keepends=True)
++    lines[4] = "select 99\n"                      # one line, mid-file, context on both sides
++    model.write_text("".join(lines))
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
 +
-+    source = _recipe_python_source()
-+    real_urlopen = urllib.request.urlopen
-+    real_token = os.environ.get("TOKEN")
-+    cwd = os.getcwd()
-+    urllib.request.urlopen = fake_urlopen
-+    os.environ["TOKEN"] = "fake-token-for-tests"
++    subprocess.run(["git", "config", "diff.context", "0"], cwd=ci_repo, check=True)
++    tight = staged_hash(ci_repo)
++    subprocess.run(["git", "config", "diff.context", "3"], cwd=ci_repo, check=True)
++    loose = staged_hash(ci_repo)
 +
-+    with tempfile.TemporaryDirectory() as tmp:
-+        # The recipe opens `deploy/nightly/alert-policy.json` by relative path, so the run
-+        # happens in a directory where that path holds whatever this call is testing against.
-+        root = Path(tmp)
-+        target = root / "deploy" / "nightly" / "alert-policy.json"
-+        target.parent.mkdir(parents=True)
-+        if policies is None:
-+            target.write_text(POLICY_FILE.read_text(encoding="utf-8"), encoding="utf-8")
-+        else:
-+            target.write_text(json.dumps({"policies": policies}), encoding="utf-8")
-+        os.chdir(root)
-+        try:
-+            exec(  # noqa: S102 - executing the runbook IS the test; see the module docstring
-+                compile(source, "<deploy/nightly/README.md apply recipe>", "exec"),
-+                {"__name__": "__recipe__"},
-+            )
-+        finally:
-+            os.chdir(cwd)
-+            urllib.request.urlopen = real_urlopen
-+            if real_token is None:
-+                os.environ.pop("TOKEN", None)
-+            else:
-+                os.environ["TOKEN"] = real_token
-+    return calls
++    assert tight and loose, "the hook produced no hash at all"
++    assert tight == loose, (
++        "the review hash changed when only a DIFF RENDERING setting changed "
++        f"(context=0 -> {tight[:16]}, context=3 -> {loose[:16]}); it is hashing a presentation "
++        "format, so two machines can disagree about identical content (#63)")
 +
 +
-+def _synthetic_policies(count: int) -> list[dict]:
-+    """A policy set deliberately UNLIKE the real one: different size, different names."""
-+    return [
-+        {
-+            "displayName": "synthetic policy %d" % i,
-+            "combiner": "OR",
-+            "enabled": True,
-+            "_comment": ["reader-only key, must be stripped before sending"],
-+            "conditions": [
-+                {
-+                    "displayName": "synthetic condition %d" % i,
-+                    "conditionThreshold": {
-+                        "filter": 'resource.type = "cloud_run_job"',
-+                        "comparison": "COMPARISON_GT",
-+                        "thresholdValue": 0,
-+                        "duration": "0s",
-+                        "trigger": {"count": 1},
-+                    },
-+                }
-+            ],
-+        }
-+        for i in range(count)
-+    ]
++def test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute(tmp_path):
++    """#63 — an uncomputable hash must STOP the workflow, not resolve to a constant.
 +
++    ⚠ THE HOLE THIS CLOSES WAS REAL AND WAS REPRODUCED. An earlier draft returned b"" when the
++    base could not be resolved and called that fail-closed. It was the opposite: `--staged-hash`
++    printed sha256(b"") = e3b0c442… with EXIT 0, that value went into review.md, the gate
++    recomputed the same empty value from the same broken call, the two AGREED, and the commit
++    passed bound to ZERO bytes — no code, not even contract.md. Deterministic, not a race.
 +
-+def _written_display_names(calls, method: str) -> set[str]:
-+    return {
-+        body["displayName"]
-+        for verb, _url, body in calls
-+        if verb == method and isinstance(body, dict) and "displayName" in body
-+    }
-+
-+
-+def test_recipe_creates_every_declared_policy_on_an_empty_project():
-+    """THE LOAD-BEARING CHECK, create path. Nothing declared may be silently skipped."""
-+    declared = set(_declared_policy_names())
-+    calls = _run_recipe(existing=[])
-+    created = _written_display_names(calls, "POST")
-+
-+    missing = declared - created
-+    assert not missing, (
-+        "The apply recipe never sends %s. Every policy declared in alert-policy.json must be "
-+        "applied - a declared policy that is never written is GitLab #61 exactly, and the one "
-+        "it dropped was the alert that watches the monitoring itself." % sorted(missing)
-+    )
-+    assert created == declared, "recipe wrote policies not in the file: %s" % sorted(created - declared)
-+
-+
-+def test_recipe_updates_every_declared_policy_and_creates_nothing_when_all_exist():
-+    """THE LOAD-BEARING CHECK, update path. This is the idempotency claim, executed."""
-+    declared = _declared_policy_names()
-+    existing = [
-+        {"displayName": name, "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, i)}
-+        for i, name in enumerate(declared)
-+    ]
-+    calls = _run_recipe(existing=existing)
-+
-+    updated = _written_display_names(calls, "PATCH")
-+    missing = set(declared) - updated
-+    assert not missing, (
-+        "On a re-run the recipe never updates %s. Every declared policy must be reconciled, "
-+        "not just the ones that happen to come first." % sorted(missing)
-+    )
-+
-+    posts = [url for verb, url, _ in calls if verb == "POST"]
-+    assert not posts, (
-+        "The recipe POSTed %d time(s) when every declared policy already existed. That creates "
-+        "DUPLICATE alert policies, and duplicates are how people learn to ignore alerts."
-+        % len(posts)
-+    )
-+
-+
-+# Sizes the count-independence tests run at. MORE THAN ONE, ON PURPOSE.
-+#
-+# An earlier version used 5 everywhere, and a reviewer pointed out that this had simply MOVED
-+# the hardcoded number rather than removed it: a bound of exactly 5 - the size the suite itself
-+# had standardised on - was invisible to every test. The same defect as #61, one layer up.
-+#
-+# No finite set of sizes proves a universal property. What this does is make a surviving bound
-+# absurd: it would have to be >= 17 to pass, which is not a number anyone writes by accident
-+# while a file declares 3. The odd/even mix also kills parity-based skips.
-+_SIZES = [1, 2, 3, 5, 8, 17]
-+
-+
-+@pytest.mark.parametrize("size", _SIZES)
-+def test_recipe_applies_every_policy_at_any_set_size(size: int):
-+    """COUNT-INDEPENDENCE, create path, across sizes so no single constant can hide."""
-+    synthetic = _synthetic_policies(size)
-+    declared = {p["displayName"] for p in synthetic}
-+    created = _written_display_names(_run_recipe(existing=[], policies=synthetic), "POST")
-+    assert created == declared, (
-+        "Given a %d-policy file the recipe created %d of them. It must apply every declared "
-+        "policy at any count." % (size, len(created))
-+    )
-+
-+
-+@pytest.mark.parametrize("size", _SIZES)
-+def test_recipe_reconciles_every_policy_at_any_set_size(size: int):
-+    """COUNT-INDEPENDENCE, update path, across sizes. Kills a bound inside the PATCH branch."""
-+    synthetic = _synthetic_policies(size)
-+    declared = {p["displayName"] for p in synthetic}
-+    calls = _run_recipe(existing=_as_existing(synthetic), policies=synthetic)
-+    updated = _written_display_names(calls, "PATCH")
-+    assert updated == declared, (
-+        "Given a %d-policy file where all already exist, the recipe reconciled %d of them. "
-+        "Every declared policy must be updated on a re-run, at any count." % (size, len(updated))
-+    )
-+    assert not [u for verb, u, _ in calls if verb == "POST"], "duplicate POST on a re-run"
-+
-+
-+def test_recipe_applies_a_policy_set_LARGER_than_todays_file():
-+    """COUNT-INDEPENDENCE, and the single most important test in this file.
-+
-+    Every other test compares the recipe against the real `alert-policy.json`, so a bound that
-+    happens to equal today's count — `[:3]` against three declared policies, or a hardcoded
-+    list of today's three names — passes them all. That is not a hypothetical: it is #61's
-+    exact mechanism. `for i in 0 1` was CORRECT when it was written, and became a silent
-+    data-loss bug only when a third policy was added.
-+
-+    Running against a synthetic set of a DIFFERENT size makes any baked-in count fail the
-+    moment it is written, which is the only time it is cheap to fix.
++    A directory that is not a git repository is the cheapest reproduction of "the base does not
++    resolve"; the real-world cases `_base_commit` names are a --single-branch clone, a shallow
++    checkout, and two histories with no common ancestor.
 +    """
-+    synthetic = _synthetic_policies(5)
-+    declared = {p["displayName"] for p in synthetic}
-+    calls = _run_recipe(existing=[], policies=synthetic)
-+    created = _written_display_names(calls, "POST")
-+
-+    assert created == declared, (
-+        "Given a %d-policy file the recipe applied %d of them (%s). It must apply every "
-+        "policy the file declares, whatever that number turns out to be - a bound that "
-+        "matches today's count is exactly how GitLab #61 shipped looking correct."
-+        % (len(synthetic), len(created), sorted(created))
++    import hashlib
++    empty = hashlib.sha256(b"").hexdigest()
++    # ⚠ CLAUDE_PROJECT_DIR MUST BE REMOVED, not merely left to `cwd`. `_repo_root()` prefers the
++    # env var over the working directory, so inheriting it points the hook at the REAL repository,
++    # where the base resolves fine and it exits 0 — the test would go green for a reason unrelated
++    # to the defect in any environment that exports it, which is the normal case for this repo.
++    # It happens to be unset on the machine this was written on, which is exactly why it needed a
++    # reviewer to catch (platform-reviewer, opus).
++    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
++    r = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
++        cwd=str(tmp_path), capture_output=True, text=True, timeout=60, env=env,
 +    )
++    assert r.returncode != 0, "exited 0 without computing a hash"
++    assert empty not in r.stdout, (
++        "printed sha256 of EMPTY as if it were a real hash — review.md would bind to nothing "
++        "and the gate would match it against itself")
++    assert not re.search(r"\b[0-9a-f]{64}\b", r.stdout), \
++        f"emitted a 64-hex hash it could not have computed: {r.stdout!r}"
 +
 +
-+def test_recipe_applies_a_policy_set_SMALLER_than_todays_file():
-+    """The other side of count-independence: it must not invent policies either.
++def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_repo):
++    """#63 — the gate's own half of the same hole: deny explicitly, never by accidental mismatch.
 +
-+    Catches a recipe that stopped reading the file and hardcoded today's names as literals -
-+    which the deleted static check used to catch, and which a larger-set test alone does not.
++    ⚠ `ci_repo`, not `repo`: the plain fixture carries no `review_routing.json`, and a missing
++    routing file disables the review requirement ENTIRELY, so the gate returns None long before
++    the hash is computed and the test would pass for a reason that has nothing to do with the
++    defect. Found by running it.
 +    """
-+    synthetic = _synthetic_policies(1)
-+    declared = {p["displayName"] for p in synthetic}
-+    calls = _run_recipe(existing=[], policies=synthetic)
-+    created = _written_display_names(calls, "POST")
++    repo = ci_repo
++    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
++    (repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
++    write_review(repo, "a" * 64, GOOD_BODY)
 +
-+    assert created == declared, (
-+        "Given a 1-policy file the recipe applied %s. Anything other than exactly the declared "
-+        "set means it is not reading the file - most likely the policy names are hardcoded in "
-+        "the recipe." % sorted(created)
-+    )
++    import importlib.util
++    spec = importlib.util.spec_from_file_location(
++        "gd_under_test", os.path.join(HOOKS, "git_discipline.py"))
++    gd = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(gd)
++    monkeypatch.setattr(gd, "_cumulative_diff",
++                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("base unresolvable")))
++
++    reason = gd._commit_gate(str(repo))
++    assert reason, "the gate allowed a commit whose hash could not be computed"
++    assert "could not be computed" in reason, \
++        f"denied for the wrong reason (a mismatch, not the real cause): {reason!r}"
 +
 +
-+def _as_existing(policies: list[dict]) -> list[dict]:
-+    """Turn declared policies into what the API would report as already deployed.
++def test_base_resolution_prefers_the_remote_tracking_ref_over_a_stale_local_main(ci_repo):
++    """#63 — a local `main` is a CACHED COPY and goes stale; the remote-tracking ref is the truth.
 +
-+    The ids are deliberately distinct per policy so a test can check that each PATCH is aimed
-+    at the RIGHT one - see test_every_patch_targets_the_resource_named_in_its_own_body.
++    ⚠ This pins the half of the fix that had no test. `ci_repo` creates a local `main` and NO
++    remotes, so `gitlab/main` and `origin/main` both fail to resolve and every preference order
++    gives the same answer — reverting the reorder left the whole suite green (platform-reviewer,
++    opus). The fixture is given a real `refs/remotes/gitlab/main` here, ahead of a deliberately
++    stale local `main`, so the order is observable.
++
++    Measured on the live repo when this was found: local `main` sat at 57175fc while `gitlab/main`
++    was a2b4184, two merges newer. The reviewers' patch listed files from an already-merged task,
++    and the hash could not have matched CI's no matter what bytes were fed to it.
 +    """
-+    return [
-+        {"displayName": p["displayName"], "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, 100 + i)}
-+        for i, p in enumerate(policies)
-+    ]
++    stale = subprocess.run(["git", "rev-parse", "main"], cwd=ci_repo,
++                           capture_output=True, text=True, check=True).stdout.strip()
++
++    # advance the remote-tracking ref two commits past the stale local `main`
++    for n in (1, 2):
++        (ci_repo / "dbt_project" / "models" / f"upstream{n}.sql").write_text(f"select {n}\n")
++        subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++        subprocess.run(["git", "commit", "-qm", f"upstream {n}"], cwd=ci_repo, check=True)
++    ahead = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ci_repo,
++                           capture_output=True, text=True, check=True).stdout.strip()
++    subprocess.run(["git", "update-ref", "refs/remotes/gitlab/main", ahead], cwd=ci_repo, check=True)
++    subprocess.run(["git", "update-ref", "refs/heads/main", stale], cwd=ci_repo, check=True)
++    assert stale != ahead, "fixture did not actually create a stale local main"
++
++    (ci_repo / "dbt_project" / "models" / "mine.sql").write_text("select 42\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++
++    import hashlib
++    excludes = ROUTING["hash_exclude_paths"]
++    pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
++
++    def hash_from(base):
++        d = subprocess.run(
++            ["git", "diff", "--staged", "--no-renames", "--no-abbrev", "--raw", base] + pathspec,
++            cwd=ci_repo, capture_output=True).stdout
++        return hashlib.sha256(d).hexdigest()
++
++    got = staged_hash(ci_repo)
++    assert got == hash_from(ahead), (
++        "the hook resolved a base that is not the remote-tracking ref")
++    assert got != hash_from(stale), (
++        "the hook used the STALE local `main` — the reviewers' patch and the hash would both "
++        "cover commits that are already merged upstream")
 +
 +
-+def test_every_patch_targets_the_resource_named_in_its_own_body():
-+    """Each PATCH must hit the id of the policy it is carrying, not merely SOME id.
++def test_governance_base_env_var_overrides_the_base(ci_repo):
++    """#63 — the escape hatch the deny message promises must actually exist.
 +
-+    Every other assertion in this file reads `body["displayName"]` and ignores the URL. That
-+    leaves a worse bug than #61 completely uncovered: a recipe that derives the target id
-+    wrongly - `list(existing.values())[0]["name"]` instead of `existing[name]["name"]` - still
-+    sends one PATCH per declared policy, each carrying its own correct displayName, so the
-+    counts and the name sets all come out right. In production every PATCH lands on the SAME
-+    alert policy: one gets overwritten repeatedly and the rest silently go stale forever, while
-+    the recipe prints "updated" for each of them.
++    ⚠ It did not. An earlier draft's deny told the operator to "set GOVERNANCE_BASE" while
++    `_base_commit` read no environment variable at all, so `git commit` was locked with a remedy
++    that did nothing — and for two histories with no common ancestor the other suggested remedy
++    (fetch the base branch) does not help either. A deny with no escape is the workflow lock the
++    fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
++    `scripts/check_task_artifacts.py:106` already honoured it, so this also closes a local/CI split.
 +
-+    #61 left one policy undeployed. This would leave N-1 permanently unreconciled.
++    ⚠ THE REF MUST HAVE DIVERGED. An earlier version of this test pointed GOVERNANCE_BASE at a
++    direct ANCESTOR of HEAD, where the tip and the merge-base are the same commit — so it could
++    not tell the two apart and stayed green against a hook that used the tip. The CI twin spells
++    the base `f"{args.base}...HEAD"` (three-dot, merge-base), so a tip-resolving hook diverges from
++    CI the moment the override names a branch that has moved on, which is the documented use of
++    the variable. Caught by platform-reviewer, opus, round 3 — the third test in this task that
++    passed either way.
 +    """
-+    synthetic = _synthetic_policies(4)
-+    existing = _as_existing(synthetic)
-+    id_by_name = {e["displayName"]: e["name"].rsplit("/", 1)[1] for e in existing}
++    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "branch work"], cwd=ci_repo, check=True)
 +
-+    calls = _run_recipe(existing=existing, policies=synthetic)
-+    patches = [(url, body) for verb, url, body in calls if verb == "PATCH"]
-+    assert len(patches) == len(synthetic), (
-+        "expected one PATCH per declared policy, got %d for %d" % (len(patches), len(synthetic))
-+    )
++    # an upstream ref that has MOVED ON since this branch was cut: shares an ancestor, is not one
++    subprocess.run(["git", "checkout", "-q", "-b", "upstream", "main"], cwd=ci_repo, check=True)
++    (ci_repo / "dbt_project" / "models" / "upstream_only.sql").write_text("select 99\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "upstream moved"], cwd=ci_repo, check=True)
++    tip = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ci_repo,
++                         capture_output=True, text=True, check=True).stdout.strip()
++    subprocess.run(["git", "checkout", "-q", "feature"], cwd=ci_repo, check=True)
 +
-+    for url, body in patches:
-+        name = body["displayName"]
-+        expected_id = id_by_name[name]
-+        assert url.rsplit("/", 1)[1] == expected_id, (
-+            "PATCH for %r was sent to resource id %r but that policy is %r. The recipe is "
-+            "aiming updates at the wrong resource: every policy would overwrite one victim "
-+            "and the rest would never be reconciled." % (name, url.rsplit("/", 1)[1], expected_id)
-+        )
++    ancestor = subprocess.run(["git", "merge-base", "HEAD", tip], cwd=ci_repo,
++                              capture_output=True, text=True, check=True).stdout.strip()
++    assert ancestor != tip, "fixture did not create a genuinely diverged ref"
 +
-+    targeted = {url.rsplit("/", 1)[1] for url, _ in patches}
-+    assert len(targeted) == len(synthetic), (
-+        "the %d PATCHes hit only %d distinct resources (%s) - policies are overwriting each "
-+        "other." % (len(patches), len(targeted), sorted(targeted))
-+    )
++    (ci_repo / "dbt_project" / "models" / "second.sql").write_text("select 2\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(ci_repo), GOVERNANCE_BASE="upstream")
++    overridden = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
++        cwd=str(ci_repo), capture_output=True, text=True, env=env, timeout=60)
++    assert overridden.returncode == 0, overridden.stderr
++
++    import hashlib
++    pathspec = ["--", "."] + [f":(exclude){p}" for p in ROUTING["hash_exclude_paths"]]
++
++    def hash_from(base):
++        d = subprocess.run(
++            ["git", "diff", "--staged", "--no-renames", "--no-abbrev", "--raw", base] + pathspec,
++            cwd=ci_repo, capture_output=True).stdout
++        return hashlib.sha256(d).hexdigest()
++
++    assert overridden.stdout.strip() == hash_from(ancestor), (
++        "the override did not resolve through merge-base")
++    assert overridden.stdout.strip() != hash_from(tip), (
++        "the override resolved to the branch TIP. CI diffs `base...HEAD` (merge-base), so the two "
++        "halves would hash different bytes and the local diff would carry a reverse delta for "
++        "everything merged upstream since this branch was cut — the very defect #63 removes")
 +
 +
-+def test_recipe_updates_a_policy_set_LARGER_than_todays_file():
-+    """COUNT-INDEPENDENCE ON THE UPDATE BRANCH.
++def test_an_empty_cumulative_diff_is_not_reported_as_a_failure_to_compute(ci_repo):
++    """#63 — `None` (could not compute) and `b""` (nothing changed) are different states.
 +
-+    The create-path tests above pass `existing=[]`, so they never enter `if name in existing`.
-+    A bound placed inside THAT branch — `if patch_count >= 3: continue` — passes them and also
-+    passes the real-file update test, because the real file has exactly three pre-existing
-+    policies and the counter runs out exactly as the loop ends. It then silently stops
-+    reconciling the fourth policy forever. Same #61 shape, one branch over.
++    ⚠ An earlier draft tested `if not blob`, which is true for both, so a legitimately empty
++    cumulative diff was reported as "the base commit did not resolve" — a cause that was not
++    observed, with two remedies that do not apply. Reachable in practice because `_staged_paths`
++    is HEAD-vs-index while the hash is base-vs-index: staging a revert of an earlier commit on the
++    same branch arrives with staged paths and no net change.
 +    """
-+    synthetic = _synthetic_policies(5)
-+    declared = {p["displayName"] for p in synthetic}
-+    calls = _run_recipe(existing=_as_existing(synthetic), policies=synthetic)
++    model = ci_repo / "dbt_project" / "models" / "allowed.sql"
++    original = model.read_text()
++    model.write_text("select 999\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "change it"], cwd=ci_repo, check=True)
++    model.write_text(original)                      # revert -> net-zero vs the base
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
 +
-+    updated = _written_display_names(calls, "PATCH")
-+    assert updated == declared, (
-+        "Given a %d-policy file where all %d already exist, the recipe reconciled %d of them "
-+        "(%s). Every declared policy must be updated on a re-run, whatever the count - a bound "
-+        "inside the update branch is GitLab #61 relocated, not fixed."
-+        % (len(synthetic), len(synthetic), len(updated), sorted(updated))
-+    )
-+    posts = [url for verb, url, _ in calls if verb == "POST"]
-+    assert not posts, "recipe POSTed %d duplicate(s) when everything already existed" % len(posts)
++    r = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
++        cwd=str(ci_repo), capture_output=True, text=True,
++        env=dict(os.environ, CLAUDE_PROJECT_DIR=str(ci_repo)), timeout=60)
++    assert r.returncode == 0, (
++        "a net-zero branch was treated as a failure to compute the hash: " + r.stderr)
++    import hashlib
++    assert r.stdout.strip() == hashlib.sha256(b"").hexdigest(), \
++        "an empty cumulative diff should hash to the empty digest, not be refused"
 +
 +
-+def test_recipe_reconciles_a_MIXED_set_of_existing_and_new_policies():
-+    """The real steady state: a policy is added to the file and everything else already exists.
++def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo):
++    """#63, second half — the same invariant as the single-commit test, after TWO commits.
 +
-+    This is the exact situation #61 was discovered in, and neither an all-new nor an all-existing
-+    test reproduces it - the bug needs both branches live in one run to show itself.
++    ⚠ FAILS against the pre-#63 implementation, which diffed a bare `--staged` (HEAD-vs-index).
++    Once a second commit lands, the index equals HEAD, so that diff is EMPTY while CI still sees
++    the whole branch — the local number was the hash of nothing. This was a documented trap
++    ("on a SECOND commit, --staged-hash is the WRONG number") rather than a mystery, and it cost
++    two wasted rebind cycles on !33. Diffing from the base makes it simply false.
 +    """
-+    synthetic = _synthetic_policies(5)
-+    declared = {p["displayName"] for p in synthetic}
-+    already = _as_existing(synthetic[:2])
++    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
++    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "first"], cwd=ci_repo, check=True)
 +
-+    calls = _run_recipe(existing=already, policies=synthetic)
-+    written = _written_display_names(calls, "PATCH") | _written_display_names(calls, "POST")
++    (ci_repo / "dbt_project" / "models" / "second.sql").write_text("select 8\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "second"], cwd=ci_repo, check=True)
 +
-+    missing = declared - written
-+    assert not missing, (
-+        "With 2 of 5 policies already deployed the recipe never wrote %s. Adding a policy to "
-+        "the file must apply it while the existing ones are reconciled - that is the exact "
-+        "situation #61 was found in." % sorted(missing)
-+    )
-+    assert _written_display_names(calls, "PATCH") == {p["displayName"] for p in synthetic[:2]}, (
-+        "the 2 pre-existing policies must be PATCHed, not re-created"
-+    )
-+    assert _written_display_names(calls, "POST") == {p["displayName"] for p in synthetic[2:]}, (
-+        "the 3 new policies must be POSTed, not skipped"
-+    )
++    local = staged_hash(ci_repo)     # what the commit gate would check
++    ci = branch_hash(ci_repo)        # what CI recomputes over the whole branch
++    assert local == ci, (
++        f"local {local[:16]} != ci {ci[:16]} on a two-commit branch — the local gate is hashing "
++        "only the last increment, so a locally-passing commit is rejected by CI (#63)")
 +
 +
-+def test_recipe_never_deletes_anything():
-+    """A 'cleanup' pass that removes a policy after applying it reproduces #61 from the far end."""
-+    for existing in ([], [{"displayName": n, "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, i)}
-+                          for i, n in enumerate(_declared_policy_names())]):
-+        calls = _run_recipe(existing=existing)
-+        deletes = [url for verb, url, _ in calls if verb == "DELETE"]
-+        assert not deletes, (
-+            "The apply recipe issues a DELETE (%s). Applying policies must not remove one - "
-+            "that is the same end state as never creating it." % deletes
-+        )
-+
-+
-+def test_recipe_sends_a_notification_channel_on_every_policy():
-+    """A policy with no channel is armed and silent, which is the failure this area exists for."""
-+    calls = _run_recipe(existing=[])
-+    written = [b for verb, _u, b in calls if verb in ("POST", "PATCH") and isinstance(b, dict)]
-+    assert written, "the recipe wrote nothing at all"
-+    for body in written:
-+        assert body.get("notificationChannels"), (
-+            "policy %r is applied with no notificationChannels - it would fire into nowhere."
-+            % body.get("displayName")
-+        )
-+
-+
-+def test_recipe_strips_underscore_prefixed_keys_before_sending():
-+    """`_comment` keys are for the reader; the API rejects unknown fields."""
-+    calls = _run_recipe(existing=[])
-+    for verb, _url, body in calls:
-+        if verb in ("POST", "PATCH") and isinstance(body, dict):
-+            leaked = [k for k in body if k.startswith("_")]
-+            assert not leaked, (
-+                "policy %r is sent with reader-only key(s) %s, which the Monitoring API "
-+                "rejects." % (body.get("displayName"), leaked)
-+            )
-+
-+
-+def test_recipe_python_block_is_valid_python():
-+    """A runbook whose documented snippet does not parse is a runbook that fails at 3am."""
-+    try:
-+        ast.parse(_recipe_python_source())
-+    except SyntaxError as exc:  # pragma: no cover - the message is the point
-+        raise AssertionError(
-+            "The documented apply snippet is not valid Python (%s at line %s)."
-+            % (exc.msg, exc.lineno)
-+        ) from exc
-+
-+
-+def test_prose_states_no_policy_count_that_disagrees_with_the_file():
-+    """The second half of the original rot: 'holds BOTH policies' over a three-policy file."""
-+    declared = len(_declared_policy_names())
-+    words = {2: "both", 3: "three", 4: "four", 5: "five"}
-+    section = _section().lower()
-+
-+    wrong = [
-+        word
-+        for count, word in words.items()
-+        if count != declared and re.search(r"\b%s\b[^.]{0,40}\bpolic" % word, section)
-+    ]
-+    assert not wrong, (
-+        "The apply section claims %s polic(y/ies) while alert-policy.json declares %d. "
-+        "State no number, or state the right one - a stale count is how #61 read as correct."
-+        % (" and ".join(wrong), declared)
-+    )
-+
-+
-+def test_every_declared_policy_has_a_unique_display_name():
-+    """The recipe keys create-vs-update on displayName, so a collision overwrites a policy."""
-+    names = _declared_policy_names()
-+    assert all(n and n.strip() for n in names), "a declared policy has an empty displayName"
-+    assert len(names) == len(set(names)), (
-+        "two declared policies share a displayName, so an idempotent apply cannot tell them "
-+        "apart and one would PATCH over the other: %s" % names
-+    )
+ def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/active_work.md          |   28 +-
+#    .claude/task/review_input.patch | 1841 ++++++++++++++++++---------------------
+#    2 files changed, 842 insertions(+), 1027 deletions(-)
+# ============================================================================

@@ -2178,3 +2178,68 @@ times.
   since its own last PASS and judges that plus its prior findings"), not a lowered bar. If it
   does not pass, the builder STOPS and the residue is filed as its own issue rather than
   ground for a seventh round.
+
+2026-08-12 fix/63-review-hash-content-identity — CPO authority to edit a PROTECTED path.
+
+  THE ASK. `validate:governance` fails on !33 and would fail on every MR after it: the local
+  commit gate and the CI recompute produce DIFFERENT `diff_sha256` values for provably identical
+  commits (`git ls-remote` confirms both sides hold the same two SHAs). Five candidate bases, the
+  commit count, line endings and local git config were each ruled out BY MEASUREMENT, not by
+  reasoning — the evidence table is on GitLab #63. Root cause: both sides hash the RENDERED PATCH
+  TEXT, a presentation format whose bytes depend on git version, platform and diff settings.
+  Demonstrated on one machine with identical commits: the same content hashes to `0c1ef8af` at
+  `-U3` and `ca1afb7d` at `-U0`.
+
+  THE QUESTION PUT TO THE CPO, in plain language: one automatic check keeps failing; it is not
+  the seed work; I believe the check itself is broken rather than my branch, because !33 is the
+  first MR ever to reach it (main's own pipeline and !34 both died on `ci_quota_exceeded` first).
+  Shall I fix it properly as its own task?
+
+  CPO ANSWER: **"yes"** — then, on how: **"Fix it systematically like a top-notch engineer would
+  do it."**
+
+  WHY THIS ENTRY EXISTS AT ALL. `.claude/hooks/` is a PROTECTED prefix
+  (`task_contract_gate.py:66`), so `git_discipline.py` may not be edited inside an ordinary task
+  contract. The contract for this branch therefore carries `protected_override` citing this entry.
+  ⚠ Recorded BEFORE the contract was written, so a blinded reviewer can verify the authority
+  independently of the file that claims it.
+
+  SCOPE OF THE AUTHORITY, stated narrowly so it cannot be read as a general licence: it covers
+  changing HOW the review-binding hash is computed, in the two implementations that must agree
+  (`.claude/hooks/git_discipline.py` and `scripts/check_task_artifacts.py`), plus the tests and
+  docs that describe it. It does NOT authorise touching any other hook, the routing file, the
+  reviewer briefs, or the commit-form deny package.
+
+  ⚠ NOT DECIDED, and not this task's to decide: that an MR pipeline can write PRODUCTION raw
+  (#33 item 13) and that `data_paths` triggers a full prod rebuild on governance-only changes
+  (#2). Both were read while tracing the CI job and are noted here only so they are not
+  rediscovered as new.
+
+2026-08-12 fix/63 — ROUND-CAP OVERRIDE, authorising round 4.
+
+  THE SITUATION PUT TO THE CPO. Round 3 is the documented cap. scope-auditor and cto-reviewer both
+  PASSED it; platform-reviewer FAILED with a single finding, and the finding is real and was
+  verified before being brought over rather than relayed on the reviewer's word:
+
+    `GOVERNANCE_BASE` — the escape hatch added in round 2 to answer cto-reviewer's round-2 FAIL —
+    is resolved to a branch TIP by the hook (`rev-parse <ref>^{commit}`) but through a MERGE-BASE
+    by the CI twin (`f"{args.base}...HEAD"`, three-dot). Point it at a branch that has moved on and
+    the two halves hash different things: the local side emits the branch's own changes PLUS a
+    reverse delta for everything merged upstream since the branch was cut. Red pipeline on a
+    correct branch, and a reviewers' patch full of already-merged work — which is the exact defect
+    #63 exists to remove, reintroduced through the fix for the previous round.
+    ⚠ AND THE TEST COULD NOT CATCH IT: `GOVERNANCE_BASE` was pointed at a direct ancestor, where
+    tip and merge-base are the same commit, so the missing call is invisible and reverting it would
+    leave the suite green. Third time in this task that a test of mine passed either way.
+
+  THE OPTIONS OFFERED, with the recommendation stated: (a) one more round — the fix is one call
+  plus a test with a genuinely diverged ref; (b) drop the escape hatch, which re-opens
+  cto-reviewer's round-2 objection that a deny with no exit is a workflow lock; (c) park it, which
+  leaves every MR blocked. Recommended (a).
+
+  CPO ANSWER: **"fix it"** — authorising round 4.
+
+  ⚠ WHY THIS IS NOT AN ENDLESS LOOP, stated because that is what the cap exists to prevent: every
+  round has failed on a NARROWER thing than the last, and rounds 2 and 3 each ended with a
+  reproduced defect rather than a reviewer opinion. Round 4 is scoped to this one finding. Anything
+  new is filed as its own issue rather than opening a fifth round.

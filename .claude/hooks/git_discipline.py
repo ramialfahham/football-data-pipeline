@@ -91,21 +91,47 @@ def _repo_root() -> str:
     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
 
 
-def _staged_diff_bytes(root: str) -> bytes:
-    import subprocess
-    # F11 (#409): hash the staged diff EXCLUDING the bookkeeping artifacts, so the
-    # review hash covers code + contract.md only and CI can recompute the same value
-    # over `git diff base...HEAD` (it has no staging index). See _hash_exclude_pathspec.
-    # --no-renames AND --no-abbrev pin the diff so the local staged hash and the CI
-    # recompute (`git diff base...HEAD`) are byte-identical for identical content:
-    # --no-renames removes endpoint-sensitive rename detection; --no-abbrev forces full
-    # 40-hex blob SHAs in the `index` lines so the abbreviation length (which depends on
-    # the repo's object count, and so differs pre- vs post-commit) cannot diverge them.
-    return subprocess.run(
-        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
-        + _hash_exclude_pathspec(_load_routing(root)),
-        cwd=root, capture_output=True, timeout=30,
-    ).stdout
+def _staged_diff_bytes(root: str) -> bytes | None:
+    """The bytes the review hash covers: CONTENT IDENTITY of the cumulative branch diff,
+    excluding the bookkeeping artifacts (F11/#409, see _hash_exclude_pathspec).
+
+    ⚠ `--raw`, NOT the rendered patch (#63). The old form hashed `git diff`'s human-readable
+    output, which is a PRESENTATION format: its bytes depend on git version, platform and diff
+    settings, so the same content hashed two ways on two machines and `validate:governance` could
+    not pass at all — measured on one machine, identical commits, `-U3` -> 0c1ef8af and `-U0` ->
+    ca1afb7d. `--raw` emits `:mode mode <blobA> <blobB> STATUS<TAB>path`; blob SHAs ARE content
+    hashes, identical everywhere and forever. No discriminating power is lost — a rendered patch is
+    DERIVED from those blobs and cannot differ unless a blob SHA does — and mode changes and
+    add/delete/modify status are carried explicitly.
+
+    ⚠ CUMULATIVE FROM THE BASE, not `--staged` alone (#63, second half). The CI twin recomputes
+    `git diff base...HEAD`; a bare `--staged` is HEAD-vs-index, i.e. only the LAST increment, so on
+    a multi-commit branch the two compared different diffs by construction. That was a documented
+    trap ("on a SECOND commit, `--staged-hash` is the WRONG number") rather than a mystery, and it
+    is now simply false. `_cumulative_diff` already resolves the base correctly — reused here so
+    there is exactly one base resolver.
+
+    ⚠ MUST NOT RAISE, and MUST NOT return b"" on failure. `_commit_gate`'s caller FAILS OPEN on
+    exception by deliberate house rule (see the handler at the bottom of this file), so an escaping
+    exception would wave a commit through unverified. But returning b"" is WORSE, not safer, and an
+    earlier draft of this function did exactly that while claiming to be fail-closed:
+
+      `--staged-hash` would print sha256(b"") = e3b0c442… with EXIT 0; the builder pastes that into
+      `review.md`; the gate recomputes it from the same broken call, gets the same value, and the
+      two AGREE. The commit passes with a binding that covers ZERO bytes — no code, not even
+      `contract.md`. Deterministic, not a race: both calls run seconds apart in the same state.
+      Reproduced before fixing (cto-reviewer, opus).
+
+    So failure returns **None**, which is distinguishable from a genuinely empty diff, and BOTH
+    callers must handle it: the CLI refuses to emit a hash it could not compute (stderr, non-zero
+    exit) and the gate denies with its own message. The states that reach it are the ones
+    `_base_commit` already names — a `--single-branch` clone, a shallow checkout, two histories
+    with no common ancestor — and these hooks travel to other repos by design.
+    """
+    try:
+        return _cumulative_diff(root, _hash_exclude_pathspec(_load_routing(root)), raw=True)
+    except Exception:
+        return None
 
 
 def _staged_paths(root: str) -> list[str]:
@@ -376,7 +402,52 @@ def _base_commit(root: str) -> str:
                            text=True, timeout=30)
         return r.returncode, r.stdout.strip()
 
-    for ref in ("main", "origin/main"):
+    # ⚠ GOVERNANCE_BASE FIRST — the escape hatch, and it must exist because the gate now DENIES
+    # when the base cannot be resolved (#63). An earlier draft's deny message told the operator to
+    # "set GOVERNANCE_BASE" while this function read no environment variable at all: half the
+    # stated remedy was fictional, and for two histories with no common ancestor the other half
+    # (fetch the base branch) does not help either, because the ref already resolves and it is the
+    # missing ancestor that fails. That left `git commit` locked with no way out — exactly the
+    # workflow lock the fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
+    # `scripts/check_task_artifacts.py:106` already honours it, so this also closes a local/CI
+    # asymmetry rather than only unblocking the operator.
+    env_base = os.environ.get("GOVERNANCE_BASE")
+    if env_base:
+        code, resolved = _git("rev-parse", "--verify", "--quiet", f"{env_base}^{{commit}}")
+        if code != 0 or not resolved:
+            raise RuntimeError(
+                f"GOVERNANCE_BASE={env_base!r} does not resolve to a commit. It is an explicit "
+                "override, so a bad value is an error rather than something to fall back from — "
+                "falling back would silently hash a different diff than the one asked for."
+            )
+        # ⚠ MERGE-BASE, NOT THE TIP. The CI twin spells this `f"{args.base}...HEAD"` — three-dot,
+        # i.e. the common ancestor — so resolving the override to a branch TIP makes the two halves
+        # hash different things the moment that branch has moved on, which is the documented use of
+        # the variable. The local diff would then carry the branch's own changes PLUS a reverse
+        # delta for everything merged upstream since the branch was cut: a red pipeline on a
+        # correct branch, and a reviewers' patch full of already-merged work. That is precisely the
+        # defect this task exists to remove, and an earlier draft reintroduced it through this very
+        # escape hatch (platform-reviewer, opus, round 3). Every other base path in the repo is
+        # merge-based, including the ref loop below.
+        code, base = _git("merge-base", "HEAD", resolved)
+        if code == 0 and base:
+            return base
+        raise RuntimeError(
+            f"GOVERNANCE_BASE={env_base!r} resolves to {resolved[:12]} but shares no history with "
+            "HEAD, so there is no common ancestor to diff from. Do not guess — a silently "
+            "different base is the failure this override exists to prevent."
+        )
+
+    # ⚠ REMOTE-TRACKING REFS FIRST, LOCAL `main` LAST (#63). A local `main` branch is a cached
+    # copy that goes stale the moment someone branches from `gitlab/main` without checking main
+    # out — which is the normal flow here. Found by this task: local `main` sat at 57175fc while
+    # `gitlab/main` was a2b4184 (two merges newer), so the hook resolved a base two commits behind
+    # CI's, the reviewers' patch showed files from an ALREADY-MERGED task, and the hash could not
+    # possibly match the CI recompute. `scripts/check_task_artifacts.py::default_base` already
+    # prefers the live remote for exactly this reason and explains that `origin` is the dormant
+    # GitHub one here; this is the same ordering, so the two halves agree on the base as well as
+    # on the bytes. Both must hold or the pair is still broken.
+    for ref in ("gitlab/main", "origin/main", "main"):
         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] != 0:
             continue
         code, base = _git("merge-base", "HEAD", ref)
@@ -400,11 +471,20 @@ def _base_commit(root: str) -> str:
     return root_commit.split("\n")[0]
 
 
-def _cumulative_diff(root: str, spec: list[str]) -> bytes:
+def _cumulative_diff(root: str, spec: list[str], raw: bool = False) -> bytes:
+    """The branch's cumulative staged diff, from the base.
+
+    `raw=True` asks for `--raw` (mode, blob SHAs, status, path) instead of the rendered patch —
+    used by `_staged_diff_bytes` for the review hash, where a PRESENTATION format cannot be
+    hashed (#63). The reviewers' patch keeps the rendered form, because a reviewer reads it.
+    One function builds the command either way, so the base resolution and the fail-loud
+    behaviour cannot drift between the two callers.
+    """
     import subprocess
     rng = [_base_commit(root)]
     r = subprocess.run(
-        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"] + rng + spec,
+        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
+        + (["--raw"] if raw else []) + rng + spec,
         cwd=root, capture_output=True, timeout=30,
     )
     # FAIL LOUD, never silently smaller. The documented usage redirects stdout into
@@ -657,7 +737,26 @@ def _commit_gate(root: str) -> str | None:
         )
     text = open(review_path, encoding="utf-8", errors="replace").read()
     m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
-    live = hashlib.sha256(_staged_diff_bytes(root)).hexdigest()
+    blob = _staged_diff_bytes(root)
+    # ⚠ DENY EXPLICITLY when the hash could not be computed, rather than relying on a mismatch.
+    # Letting this fall through to the comparison is what allowed sha256(b"") to match itself and
+    # bind a review to zero bytes (cto-reviewer, opus — reproduced, then fixed).
+    #
+    # ⚠ `is None`, NOT `not blob`. The two are different states and conflating them re-creates the
+    # bug one level up: `None` means the diff could not be computed, while `b""` is a LEGITIMATE
+    # empty cumulative diff — reachable because `_staged_paths` is HEAD-vs-index while this is
+    # base-vs-index, so staging a revert of an earlier commit on the same branch arrives here with
+    # staged paths and no net change. Reporting that as "the base did not resolve" names a cause
+    # that was not observed. An empty diff falls through to the normal comparison, where CI
+    # computes the same empty value and agrees — an honest binding to a net-zero branch.
+    if blob is None:
+        return (
+            "REVIEW GATE: the review hash could not be computed — the base commit did not "
+            "resolve, or git failed. review.md cannot be bound to a diff that does not exist. "
+            "Fetch the base branch (or set GOVERNANCE_BASE), re-run "
+            "`python .claude/hooks/git_discipline.py --staged-hash`, and update review.md."
+        )
+    live = hashlib.sha256(blob).hexdigest()
     if not m or m.group(1).lower() != live:
         return (
             "REVIEW GATE: staged diff has changed since the reviewers ran "
@@ -726,7 +825,24 @@ def main() -> int:
     _CLI_MODE = "--staged-hash" in sys.argv or "--review-patch" in sys.argv
     if "--staged-hash" in sys.argv:
         import hashlib
-        print(hashlib.sha256(_staged_diff_bytes(_repo_root())).hexdigest())
+        blob = _staged_diff_bytes(_repo_root())
+        # ⚠ REFUSE TO EMIT A HASH THAT WAS NOT COMPUTED. Printing sha256(b"") here is what made
+        # the earlier draft's "fail-closed" claim false: the number would be pasted into
+        # review.md, the gate would recompute the same empty value, the two would agree, and the
+        # commit would pass bound to nothing. A hash nobody can compute must stop the workflow
+        # loudly, not resolve to a constant that always matches itself.
+        # ⚠ `is None`, not `not blob` — see `_commit_gate`. A legitimately EMPTY cumulative diff
+        # is a real state with a real hash, and must not be reported as a failure to compute one.
+        if blob is None:
+            print(
+                "ERROR: could not compute the review hash. The base commit did not resolve, or "
+                "git failed — so there is no diff to bind review.md to. Fetch the base branch "
+                "(or set GOVERNANCE_BASE) and try again. Refusing to print a hash that would "
+                "bind the review to nothing.",
+                file=sys.stderr,
+            )
+            return 1
+        print(hashlib.sha256(blob).hexdigest())
         return 0
     if "--review-patch" in sys.argv:
         sys.stdout.buffer.write(_review_patch_bytes(_repo_root()))
