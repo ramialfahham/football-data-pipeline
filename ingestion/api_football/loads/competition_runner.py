@@ -1,7 +1,7 @@
 """Ingestion pipeline for a single competition.
 
 Two entry points:
-- run_cheap_phases(): catalog → fixtures → standings → teams → injuries → coaches.
+- run_cheap_phases(): catalog → fixtures → standings → teams → coaches.
   Returns CompetitionRunResult so the orchestrator can collect all competitions' state before
   running the global fanout pass.
 - run_squads_for_competition(): squad /players batch, run after global fanout.
@@ -20,7 +20,6 @@ from .context import CompetitionRunResult, PipelineContext
 from .coaches import load_coaches
 from .fixtures import fetch_merge_and_persist_fixtures
 from .catalog import fetch_catalog_persist_and_plan
-from .injuries import load_injuries
 from .squads import load_squad_players_batch
 from .player_squads import (
     captured_team_seasons,
@@ -123,8 +122,6 @@ def run_cheap_phases(
         load_teams_merge_and_extend_ids(
             ctx, league_code, league_id, seasons_list, reference_season, team_ids
         )
-        _ingestion_phase(league_code, "injuries")
-        load_injuries(ctx, league_code, league_id, seasons_list)
         # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
         # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
         #

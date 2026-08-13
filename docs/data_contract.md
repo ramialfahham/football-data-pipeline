@@ -1,6 +1,6 @@
 # Data contract: API-Football → BigQuery
 
-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eleven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same unified raw tables, discriminated by a `league_code STRING` column — see [Unified raw tables](#unified-raw-tables) below, which is the list. The registry of active competitions lives in `docs/competition_registry.yml`.
 
 API references:
 
@@ -33,7 +33,17 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
 
 ## Unified raw tables
 
-Eleven tables serve the entire fleet of competitions. No per-competition raw tables exist.
+The tables below serve the entire fleet of competitions. No per-competition raw tables exist.
+
+⚠ Deliberately no count, HERE OR ANYWHERE ELSE IN THIS FILE. This sentence said "Eleven" and went
+stale the moment `RAW_APIF_INJURIES` was removed (#33 item 15) — and it was already ambiguous,
+since `RAW_APIF_LEAGUES` is listed separately as "additional" and it was never clear whether it
+sat inside the number. The opening paragraph carried the SAME count under the OPPOSITE convention
+(eleven, only correct if `RAW_APIF_LEAGUES` IS included), so the document contradicted itself on
+its own second line; a reviewer caught that when the first fix closed only one of the two.
+`CLAUDE.md` gives the same instruction for the same reason ("do not quote a fixed number here; it
+has been wrong before") and names the commands to recount. The table IS the count. If you add or
+remove a raw table, edit the table below and nothing else.
 
 | Table | Write mode | Partition | Cluster | Merge key |
 |-------|------------|-----------|---------|-----------|
@@ -43,7 +53,6 @@ Eleven tables serve the entire fleet of competitions. No per-competition raw tab
 | `RAW_APIF_TEAMS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
 | `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
 | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_TRANSFERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
 | `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
@@ -55,7 +64,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
 
 ## Append-only writes (reference tables)
 
-Reference tables — fixtures-next, coaches, injuries, leagues, squads, player-profiles, player-teams — are written with `WRITE_APPEND`. On every pipeline run:
+Reference tables — fixtures-next, coaches, leagues, squads, player-profiles, player-teams — are written with `WRITE_APPEND`. On every pipeline run:
 
 1. The pipeline assembles the **full history window** for the competition. A full (active) run fetches every configured season from the API, reusing finished historical seasons from the previous snapshot (issue #283). A poll/idle run (a finished competition) fetches only the current season and **carries forward** the prior seasons from the latest snapshot — finished matches never change, so the carried rows stay current. Either path yields a complete response.
 2. The complete response is written as a new row with the current UTC timestamp.
@@ -181,7 +190,6 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | Standings | `/standings` | `RAW_APIF_STANDINGS` |
 | Teams | `/teams` | `RAW_APIF_TEAMS` |
 | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
-| Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
 | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
 | Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
 | Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
@@ -224,7 +232,7 @@ Mapping from a typical API-Football subscription list to what this repository in
 | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
 | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
 | Player bio, squads, career | Yes — `/players/profiles` per player (`RAW_APIF_PLAYER_PROFILES`), `/players/squads` per team (`RAW_APIF_SQUADS`), `/players/teams` per player (`RAW_APIF_PLAYER_TEAMS`); see the player-data note above |
-| Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
+| Injuries | **No — deliberately not ingested.** `/injuries` was ingested until 2026-08-13 and had no consumer: no source declaration, no model, no export. Removed under #33 item 15; `RAW_APIF_INJURIES` was the largest raw table at 1.975 GiB. It had been removed once before (2026-05-10) for the same reason and re-added without one. Do not re-add without a named downstream consumer. |
 | Player transfers | Yes — `/transfers` per team (`RAW_APIF_TRANSFERS`); dated moves feed `fct_transfer`, the affiliation-timeline source (reinstated 2026-06-14, see note above) |
 | Pre-match / in-play odds | Not in this repo (no odds ingest) |
 | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |

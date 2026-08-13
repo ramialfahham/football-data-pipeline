@@ -2330,3 +2330,43 @@ times.
   particular file from this worktree. Where the two conflict, the specific, later, file-scoped
   instruction governs. If the CPO would rather it be corrected in place, that is one word and
   this entry is the place to overturn it.
+
+
+2026-08-13 — #33 ITEM 15 (DROP /INJURIES): THE PREMISE CHECK FOUND A REMOVE/RE-ADD LOOP
+
+  The ruling stands unchanged — CPO **"yes"**, 2026-08-12, recorded above. This entry adds what
+  the premise check turned up, because it is material to the decision and nobody had it when the
+  ruling was given.
+
+  ⚠ THIS ENDPOINT HAS ALREADY BEEN REMOVED ONCE, FOR THIS EXACT REASON, AND CAME BACK.
+    · `401c1cc`, 2026-05-10, "refactor: remove injury ingestion and dbt surface project-wide" —
+      its own message: "The /injuries endpoint was being called for every competition ... but had
+      no consumer downstream ... the data was not surfaced anywhere in the product."
+    · `983d12c`, 2026-05-26, SIXTEEN DAYS LATER, "feat(ingest): add injuries and coaches endpoint
+      loaders" — re-added it. That message describes what the endpoint RETURNS and names no
+      consumer, no product surface and no issue.
+    · `178261d`, 2026-05-27, migrated it to the unified raw tables along with everything else.
+  Three months on it still has no consumer: no `sources.yml` declaration, no model, no script.
+  Verified today — the only `injur` hits in `dbt_project/models/**` are `has_coverage_injuries`,
+  which is parsed from the `/leagues` payload (`$.coverage.injuries`) and has nothing to do with
+  `RAW_APIF_INJURIES`.
+
+  WHY THAT STRENGTHENS THE RULING RATHER THAN QUESTIONING IT. Coaches was added in the SAME
+  commit and did get a consumer (`stg_apif__coaches` -> `base_apif__coaches` -> `dim_coach`).
+  Injuries is the half of that batch that never landed one. So this is not a feature waiting on
+  a downstream build; it is an endpoint that was correctly removed, re-added without a stated
+  purpose, and left running.
+
+  WHAT WOULD MAKE THIS THE WRONG CALL, stated so the CPO can overturn it cheaply: a planned
+  player-availability surface. Searched — no open issue mentions injuries as a consumer, and the
+  player-page design work (#753) does not reference it. If such a feature is coming, say so and
+  the right move is to leave the ingest alone rather than re-add it a third time.
+
+  MEASURED TODAY, not taken from #33: `RAW_APIF_INJURIES` is **1.975 GiB, the LARGEST raw table**
+  (raw totals 5.35 GiB after item 8b's merge-on-write). On the 2026-08-13 nightly the injuries
+  phase ran for **26 competitions**, taking ~9s each for roughly **4 minutes** of the run, at one
+  API call per competition per season.
+
+  ⚠ DELETING THE TABLE IS SEPARATE FROM STOPPING THE INGEST, and is deliberately NOT bundled into
+  the code change: a 1.975 GiB prod table is irreversible past BigQuery's 7-day time travel. The
+  MR stops the writes; the drop is a distinct, confirmed action afterwards.
