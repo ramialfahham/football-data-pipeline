@@ -1,1118 +1,184 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 2b06724..62f81eb 100644
+index ce1b3eb..b56bc3b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,568 +1,140 @@
--# Task contract — #367 landing page: clear the go-live stub gate
--
--> Written on a clean tree before any file was touched. Branch `feat/367-landing-page` from `main`
--> at `1f459a3`. No protected path in scope, so no `protected_override`. `scripts/export_site_data.py`
--> and `site_v2/` ARE the structural surface, so `impact_map` is present. `site_v2/src/` is in scope,
--> so `acceptance_criteria` is present and is LOCKED once the CPO approves it.
-+# Task contract — the completeness gate must know a deliberate skip is not a gap
+@@ -1,148 +1,47 @@
+-# Task contract — #62 step 1: project the registry's own fields into the seed
++# Task contract — handover write-out after #62 step 1
  
  objective: >
--  Replace the landing scaffold with the real page, so `STUB_PAGES` empties and stops being the
--  machine gate on go-live. Today `site_v2/src/config/indexability.mjs` holds
--  `STUB_PAGES = ["[lang]/index.astro"]` and the SEO audit refuses `INDEXABLE = true` while that
--  array is non-empty. The landing is the only entry in it.
--
--  Three pieces, in order: the pending blueprint screen `docs/wireframes/10_home.md` (which the
--  screen inventory says "pins the homepage spec, unblocks `landing.json`"), a `landing.json` writer
--  in the export, and the page itself.
-+  THE PROD NIGHTLY IS FAILING AGAIN, and this one is ours. The 2026-08-14 04:00 run exited 3
-+  during INGESTION, before dbt:
+-  `docs/content_architecture.md` §1 requires one block = one mart, with the export selecting and
+-  renaming but never deriving. The competitions page breaks it: rendering one row needs four
+-  sources, because `scripts/sync_dbt_vars.py` projects only three columns into the warehouse —
+-  `league_code, competition_type, parent_competition`. `confederation`, `slug`, `sort_order`,
+-  `tier` and `season_type` never reach it, so `scripts/export_site_data.py:911` opens
+-  `docs/competition_registry.yml` directly.
++  `.claude/active_work.md` is stale. It says "ONE MR OPEN: `!27`" when `!27`, `!37`, `!39` and
++  `!40` have all merged and NOTHING is in flight, and its CURRENT section describes `!27` as the
++  work in progress. `handover_in.py` injects this file into every new session at SessionStart, so
++  a stale handover is the one document a fresh chat is guaranteed to read and act on.
  
--  `INDEXABLE` STAYS `false`. Flipping it is #377 and is gated on #799, #852/#843, #845 and #861,
--  none of which this task touches.
--
--refs: >
--  #367 (landing), #368 (templates), #365 (export contract), epic #361.
--  Blueprint: `docs/wireframes/00_overview.md` row 10 (10_home, pending).
--  Gaps closed here: GAP-02 (hero feed shape). GAP-04 is WITHDRAWN, not closed — it asked which
--  signals the trending feed should rank, and there is no trending feed.
--  GAP-03 (narrative generator) is NOT built here, and 10 home is no longer one of its claimants:
--  the trending rows were its only slot on this page.
-+      Completeness gate failed: per-team gaps not healing: UCL/TRANSFERS (1 then 1 teams missing)
+-  This projects those five, extends the lockstep guard to cover them, and fixes a CSV-rendering
+-  hazard on the way. It is step 1 of #62's five. Steps 3 (the mart) and 4 (the export repoint) are
+-  separate MRs — ⚠ a seed COLUMN and its first reader cannot ship together, because the deferred DQ
+-  step resolves `ref()` to MAIN's seed. #57 shipped columns only for this reason and #38 waits on
+-  the same rule.
++  Bookkeeping only: no code, no model, no test, no shipped number.
  
--  ⛔ **MODULE COMPOSITION — read `10_home.md` §0, NOT `ui_design_brief.md` §6.3.** §6.3 records the
--  CPO's 2026-06-10 four-module page (fixtures hero, browse, trending, stats) and calls itself "the
--  reviewed, agreed version"; it has been overtaken three times since and carries no forward
--  pointer. The live composition is **next matches → Top players → Top teams → browse**
--  (CPO 2026-08-08). Reading §6.3 as current is what put trending in the first build of this PR.
--  ⚠ `docs/ui_design_brief.md` and `docs/site_architecture.md` §4/§5 are BOTH still stale — they
--  describe the four-module page including the stats teasers removed on 2026-08-08. Neither is in
--  scope here and neither is corrected by this PR; see `escalations.log`.
-+  `detect_stagnant_per_team_gaps` hard-fails when a (league, entity) pair has missing teams on TWO
-+  CONSECUTIVE RUNS. Its stated reasoning is that a single bad run "self-heals" on the next night's
-+  fetch, so two in a row means it is not healing.
- 
--  ⛔ **THE `computation_kind` GUARD IS DEFERRED TO A FOLLOW-UP MR (2026-08-09).** This PR adds the
--  `computation_kind` COLUMN to `metric_catalogue.csv` and, in the same PR, tightened
--  `assert_metric_catalogue_expr_resolvable.sql` to assert against it. `data:build:mr` failed on
--  that guard with `Unrecognized name: computation_kind`, because the deferred singular-test step
--  resolves `ref('metric_catalogue')` to MAIN's seed, which does not have the column yet.
-+  **#33 item 14 invalidated that assumption on 2026-08-11.** It put `transfers` on a 7-day
-+  per-league re-fetch cadence, skipping the phase ENTIRELY when a league is not due. A skipped
-+  league cannot heal, by construction — there is no fetch. So a real, pre-existing 1-team gap in
-+  UCL/TRANSFERS now sits unfetched for up to 7 days and trips a gate designed for a nightly fetch.
- 
--  This is a KNOWN, RULED situation, and the ruling is written in the repo — see the CI notes in
--  `dbt_project/tests/assert_metric_meaning_complete.sql` and
--  `assert_metric_direction_lower_is_better_agree.sql`: *"a change to catalogue VALUES and a guard
--  that depends on those values cannot land in the same PR — the values merge first, then the guard.
--  **Do not try to solve this with a CI workflow change.**"* Both guards were shipped that way
--  already, so this is the third instance of the same sequence, not a new problem.
-+  Nothing is wrong with the data. The gate is asking a question that stopped making sense.
- 
--  So `assert_metric_catalogue_expr_resolvable.sql` is REVERTED to main's version here. The column
--  still ships and is still covered — by its `accepted_values` SCHEMA test, which runs in the
--  `dbt build --select state:modified+` step against `ci_analytics` and passed there. The tightened
--  guard follows in its own MR once the column is in prod.
--
--  ⚠ I tried the forbidden fix first: a branch that dropped `--favor-state` from the CI test step.
--  `cto-reviewer` and `platform-reviewer` both FAILED it — my premise was wrong (the build step DOES
--  validate the branch's own seed; the DQ step merely re-tests it against prod) and the change would
--  have introduced a false-green path on the shared, never-cleaned `ci_analytics`. The branch is
--  deleted, nothing was pushed. Recorded because the diligence miss is the reusable lesson: my search
--  for prior guidance covered `docs/` only, while the ruling lived in `dbt_project/tests/`.
-+  This teaches the gate which (league, entity) pairs were deliberately skipped this run, and makes
-+  it decline to call those stagnant.
-+refs: >
-+  GitLab #33 (items 14 and the completeness work). Regression introduced by !31 (item 14),
-+  surfaced by the 2026-08-14 nightly.
+ refs: >
+-  GitLab #62 (the rule and its five steps), plus the CPO refinement recorded as a note on it
+-  2026-08-14: the rule governs DATA; copy comes from the i18n surface; where data needs a label the
+-  seed carries the KEY and the English name. All five columns here are data.
+-  GAP-28 in `docs/wireframes/99_gaps_register.md` asked for `tier` and `season_type` specifically —
+-  design approved 2026-08-08, build not started. This delivers it.
+-  ⚠ **GitLab #69 is the reason `country` is absent** — see `decisions_taken` 1.
++  Merged this session: #63 (!35), #33 items 9/14/15, #65 (!37), #57 (!33), #367 (!27),
++  #33 completeness-gate (!39), #62 step 1 (!40). main is `10fa570`.
++  New issues filed this session: #69 (countries as an entity), #70 (scan-budget guard, from the
++  other worktree), plus #64/#67/#68 earlier.
  
  scope_paths:
--  - .claude/active_work.md
--  - .gitignore
--  - dbt_project/seeds/metric_catalogue.csv
+-  - scripts/sync_dbt_vars.py
+-  - scripts/check_registry_var_sync.py
+-  - dbt_project/seeds/competition_registry.csv
 -  - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
--  - docs/wireframes/metrics_display.md
--  - dbt_project/models/5_marts/shared/mart_player_career.sql
--  - site_v2/src/data/fixtures/*.json
--  - site_v2/src/data/teams/*.json
--  - docs/wireframes/10_home.md
--  - docs/wireframes/01_fixture_page.md
--  - docs/wireframes/00_overview.md
--  - site_v2/scripts/audit-seo.test.mjs
--  - docs/wireframes/99_gaps_register.md
--  - dbt_project/models/5_marts/shared/mart_landing_trending.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - scripts/export_site_data.py
--  # AMENDED 2026-08-09, CPO authority in-conversation: "yes, add it to scope and land the fix".
--  # This branch splits `finishing_efficiency`'s player row onto its own `label_i18n_key`. That
--  # exposed a latent defect in the script below: `load_catalogue()` keys the catalogue by
--  # `metric_id` ALONE, so where a metric_id carries both a team row and a player row the LAST one
--  # silently wins. Before the split both rows held the same key and last-wins was invisible; after
--  # it, the generated legacy JSON flipped to the PLAYER key while `site/team-season/index.html:349`
--  # calls the TEAM key. `format` and `lower_is_better` ride the same entity-blind lookup.
--  # `tests/test_metric_bindings.py` catches it and CI `test:python` therefore fails.
--  # Fix is entity-aware (team-first) keying, verified to reproduce the committed
--  # `site/match-preview/metric_definitions.json` BYTE-IDENTICALLY — so `site/` stays frozen and
--  # untouched, and no file under it is added to this scope.
--  - scripts/export_metric_definitions_json.py
--  # AMENDED AGAIN 2026-08-09, CPO authority in-conversation: "yes to both, add the entity column
--  # and file the crest issue". `analytics-engineer-reviewer` FAILED round 7 on the first fix: a
--  # hardcoded "prefer the team row" default collapses the catalogue's (metric_id, entity) grain in
--  # CONSUMPTION-layer code, and entity alignment is base-layer business logic
--  # (`layering.md` §Consumption layer forbids entity derivation downstream of the marts and names
--  # `site/` scripts as inside the contract, so "it is legacy" is not an exemption). Its ruling was
--  # that byte-identical output does not cure it — the mandate for the default IS the violation.
--  # The compliant fix is the one my own docstring had named and skipped for scope convenience:
--  # carry `entity` as DATA on the bindings CSV and make the lookup a plain two-key join.
--  # ⚠ This file lives under the FROZEN `site/`. The CPO authorised the edit explicitly. It is a
--  # one-column, 13-row addition to a config CSV; no MVP behaviour is developed, and
--  # `metric_definitions.json` stays byte-identical.
--  - site/match-preview/metric_bindings.csv
--  - tests/test_export_landing.py
--  - site_v2/src/pages/*/index.astro
--  - site_v2/src/pages/*/matches/*.astro
--  - site_v2/src/components/home/*.astro
--  - site_v2/src/components/ui/Crest.astro
--  - site_v2/src/styles/system.css
--  - site_v2/src/specs/index.spec.json
--  - site_v2/src/specs/page-spec.schema.json
--  - site_v2/scripts/check-page-specs.mjs
--  - site_v2/scripts/check-page-specs.test.mjs
--  - site_v2/src/config/indexability.mjs
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/types.ts
--  - site_v2/src/data/landing.json
--  - site_v2/src/data/README.md
-+  - ingestion/api_football/completeness.py
-+  - ingestion/api_football/orchestrator.py
-+  - ingestion/api_football/loads/context.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - tests/test_per_team_completeness.py
-+  - tests/test_completeness_outcome_and_summary.py
-+  - tests/test_refetch_cadence.py
+-  - tests/test_registry_seed_projection.py
+   - .claude/active_work.md
    - .claude/task/contract.md
-+  - .claude/task/escalations.log
+   - .claude/task/escalations.log
    - .claude/task/review.md
--  - .claude/task/acceptance_evidence.md
    - .claude/task/review_input.patch
--  - .claude/task/escalations.log
- 
- impact_map: >
--  ⛔ **CORRECTED 2026-08-09.** Everything about `mart_landing_trending` below described a mart that
--    was added by the 2026-08-03 amendment and DELETED on 2026-08-09 with the trending block. This
--    paragraph was the one passage in this document never struck when that happened — found by
--    `scope-auditor` in round 7, which noted the staleness ran in the SAFE direction (the real dbt
--    surface is smaller than described) but was still the only uncorrected superseded claim here.
+-  # added by amendment 1 — see amendments
+-  - docs/competition_registry.yml
 -
--  writers, as it now stands: **NO new dbt model, and none removed relative to main.** The net dbt
--    surface of this branch is two comment-level edits — `mart_player_career.sql` and a trailing
--    blank line in `5_marts/shared/shared.yml` — plus the seed changes (`metric_catalogue.csv`,
--    `schema.yml`, `assert_metric_catalogue_expr_resolvable.sql`). `mart_landing_trending` was
--    created and deleted inside this same branch, so it never reaches main and appears in no diff
--    against it. Everything else is consumption-side: the export scripts plus the frontend.
+-impact_map: >
+-  Not gate-required — no `dbt_project/models/**` file and no PROTECTED path is touched. Written
+-  anyway, because a seed's shape is joined by 13 models and the guard's coverage is the thing #62
+-  says silently rots.
 -
--  ~~new model: `mart_landing_trending` is a LEAF. Nothing `ref()`s it; its only consumer is
--    `scripts/export_site_data.py`, which is outside dbt's graph. It reads `mart_team_profile`
--    (streak columns), `core.fct_fixture` (to restrict to league-seasons that still have a match
--    to play) and the competition registry seed for ordering. Same layer as its team-profile
--    input, which the cross-layer rule permits for a deliberate delivery-oriented model, and the
--    same shape as the existing `mart_leaderboards`: LONG, pre-ranked by the warehouse, truncated
--    for display by the consumer.~~ Deleted with the block.
-+  REQUIRED — `ingestion/**` is the structural surface.
- 
--  legacy exporter (2026-08-09 amendment): `scripts/export_metric_definitions_json.py` reads
--    `dbt_project/seeds/metric_catalogue.csv` and `site/match-preview/metric_bindings.csv` and
--    writes `site/match-preview/metric_definitions.json`. It is OUTSIDE dbt's graph and feeds the
--    retired MVP only. The join key gains an `entity` column on the bindings CSV so the lookup is
--    (metric_id, entity) — data, not a code-level default. `metric_definitions.json` is unchanged
--    byte for byte, so nothing the retired site reads moves.
-+  what fails today, traced end to end:
-+    `loads/competition_runner.py:200` — `if not should_refetch(...): _skipped_phase(...); return`
-+      (item 14). No fetch, no write, and NOTHING records that the skip happened.
-+    `orchestrator.py:281` — `per_team_missing = per_team_missing_by_league_entity(per_team)`
-+      counts missing teams for `PER_TEAM_GATED = ("PLAYERS", "SQUADS", "TRANSFERS")`.
-+    `completeness.py:403 detect_stagnant_per_team_gaps(current, prior)` — flags any pair present
-+      in BOTH, with no knowledge of whether a fetch was even attempted.
-+    `orchestrator.py:370` — a non-empty result is a hard fail, `exit(3)`, and the dbt build never
-+      runs. That is why `dbt_analytics` is stale again.
- 
--  downstream: the three marts the new writer READS are unchanged. Evidence, from
--    `cd dbt_project && dbt ls --select mart_team_profile+ mart_leaderboards+ mart_standings+
--    --resource-type model` (dbt 1.7.19, bigquery 1.7.2):
--      football_data_pipeline.5_marts.shared.mart_fixture_standing_context
--      football_data_pipeline.5_marts.shared.mart_leaderboards
--      football_data_pipeline.5_marts.domestic_league.mart_matchday_insights
--      football_data_pipeline.5_marts.shared.mart_standings
--      football_data_pipeline.5_marts.shared.mart_team_profile
--    `mart_team_profile` and `mart_leaderboards` are leaves. `mart_standings` feeds
--    `mart_fixture_standing_context` and `mart_matchday_insights`. Since no mart is MODIFIED, that
--    downstream set is informational: nothing in it changes.
-+  the near-miss that proves the shape: `COACHES` is in `PER_TEAM_ENTITIES` but deliberately NOT in
-+    `PER_TEAM_GATED` (`completeness.py:49-53`) — "a permanently-red gate trains everyone to ignore
-+    the alarm". Item 14 put coaches AND transfers on the same 7-day cadence, but only transfers
-+    gates, so only transfers breaks. The exclusion that saved coaches was written for a different
-+    reason and covered this by luck.
- 
--  layer_rules: `check_layer_contract.py` governs `dbt_project/models/**` and now applies. The new
--    model is a mart, so the rules that bind it are the mart-layer ones: it may `ref()` its own
--    layer and any upstream layer, which `mart_team_profile` and `core.fct_fixture` both satisfy.
--    The rule that forced this amendment is the CONSUMPTION-layer contract: the export may select,
--    group, rename and truncate, but never rank. That is why the ranking moved into the mart.
-+  writers: none. No loader, no raw table and no BigQuery write is touched. `should_refetch` itself
-+    is NOT modified — the cadence is a CPO ruling and stays exactly as it is.
- 
--  deploy_order: the mart must exist before the export reads it. Both land in this PR, and the
--    export's landing entity is opt-in via `--entities`, so a nightly that runs the old export
--    against the new warehouse is unaffected. `landing.json` is a NEW artifact with no existing
--    consumer, so an old frontend with a new export, or the reverse, both keep working. No column
--    is renamed on an incremental model, so no `--full-refresh` is needed.
-+  downstream: no dbt model, no mart, no page. This changes only whether the ingest process exits
-+    non-zero. Nothing reads the completeness snapshot except the gate itself and the markdown
-+    summary.
- 
--  blast_radius: no existing mart, no existing number and no existing page changes. The one
--    behavioural change outside
--    the new page is that `STUB_PAGES` goes from one entry to zero, which cannot flip anything on its
--    own: the audit's rule is that `INDEXABLE === true` AND a non-empty `STUB_PAGES` is a failure,
--    and `INDEXABLE` stays `false`.
-+  layer_rules: none engaged — no dbt file is touched.
- 
--# APPROVED BY THE CPO, 2026-08-03, in these words. LOCKED: only the CPO may move them.
--# Stated as what a reader sees, because that is what was approved. The command that settles each
--# one is named in parentheses so the evidence file can demonstrate it, but the criterion is the
--# sentence, not the command.
--acceptance_criteria:
--  - 1. Upcoming matches appear at the top, grouped by competition, and each one links to its match
--    page. A competition with nothing coming up does not appear at all, and no row is zero-filled
--    to stand in for it. (Rendered `dist/` HTML.)
--  - 2. Every competition can be browsed two ways, by type and by country, and both lists come from
--    the registry. No competition is named anywhere in the template, so a new one appears with no
--    code change. (Page source contains no league_code literal; rendered lists match `nav.json`.)
--  - 3. ~~Trending shows teams on a notable run right now: longest runs first, good and bad, at most
--    two teams from any one competition, six stories. A signal with no qualifying team is left out
--    rather than shown empty. (Rendered `dist/` HTML.)~~
--    **STRUCK 2026-08-09, CPO.** The home page's composition is next matches → Top players → Top
--    teams → browse (CPO 2026-08-08, `10_home.md` §0). Trending is not in it, so the block and
--    everything behind it — `TrendingList.astro`, the `trending[]` key, `mart_landing_trending` and
--    its `shared.yml` entry, `TrendingStory`, six i18n keys across three locales, the page-spec
--    entry, seven tests, six team payloads and their `.gitignore` allowlist rows — are removed in
--    this PR.
-+  deploy_order: nothing breaks at any point. ⚠ THE NIGHTLY RUNS AN IMAGE, so merging does not
-+    deploy this; it needs `gcloud run jobs deploy fdp-nightly --source . --region europe-west1`
-+    from `main`. Until that runs, the nightly keeps failing every 04:00.
- 
--    NOT a quiet relaxation. Two things are on the record because they are worse than the strike:
--    (a) the criterion was DEMONSTRATED GREEN in `acceptance_evidence.md` — six rows, descending
--    19/19/19/18/15/14, per-competition cap held — while describing a block the CPO had already
--    composed off the page. A passing acceptance check is not evidence that a block belongs.
--    (b) the criterion's own "good and bad" wording contradicted the CPO's 2026-08-04 ruling that
--    "winless and losing are both dropped", and the built mart served `winless` anyway. It could
--    never have been satisfied and correct at the same time.
+-  who WRITES the seed: `scripts/sync_dbt_vars.py` only, generated from
+-    `docs/competition_registry.yml`. The file carries a do-not-hand-edit note and
+-    `check_registry_var_sync.py` fails CI on drift.
 -
--    The measurements taken for it are warehouse facts and are kept in `10_home.md` §5(3).
--    GAP-04 is WITHDRAWN rather than resolved — see `99_gaps_register.md`.
--  - 3b. ADDED 2026-08-09, CPO, with the scope amendment below. The full python suite passes.
--    Specifically `tests/test_metric_bindings.py::test_regenerated_json_matches_committed`, which
--    fails on this branch today and was missed by six review rounds because no round ran the full
--    suite. (`python -m pytest tests/ -q`, whole-suite output quoted, not a filtered subset.)
--  - 4. ~~Top scorers and a league-table snippet appear. (Rendered `dist/` HTML.)~~
--    **STRUCK 2026-08-08, CPO.** It described the stats-teasers block, which he ruled useless and
--    replaced with the mart-backed Top players and Top teams blocks (`10_home.md` §0). The block,
--    its two export helpers, its component, its four i18n keys, its page-spec entry and its ten
--    tests are removed in this PR, so the criterion describes content that no longer exists.
--    NOT a quiet relaxation, and the reasoning matters: removing the block also deletes the
--    consumption-layer violation round 1 raised as findings 1 and 2 and round 2 held. The
--    alternative was a mart serving a block already scheduled for deletion. The home page now
--    ships THREE modules — next matches, trending, browse — and browse moves to the bottom per
--    the 2026-08-04 ruling, also applied here.
--  - 5. The page works in German, English and Finnish, and the three do not share an identical title
--    or description. (Read from built `dist/` HTML, never from source.)
--  - 6. Every number on the page comes from the pipeline. Where there is no data it shows a dash,
--    never an invented zero, and the template performs no arithmetic. (Page source; payload diff.)
--  - 7. The landing is no longer a stub, which is what unblocks go-live: `STUB_PAGES` is empty and
--    `index.spec.json` no longer carries `"stub": true`. `INDEXABLE` stays `false`.
--    (File contents; SEO audit.)
--  - 8. Nothing else on the site broke. (`python -m pytest tests/ -q`; `cd site_v2 && npm test`;
--    SEO audit against `dist/`.)
-+  blast_radius: **the gate stops firing on deliberately-skipped pairs and keeps firing on
-+    everything else.** No number changes anywhere.
+-  who READS it: dbt models joining `ref('competition_registry')` on `league_code`. This change is
+-    PURELY ADDITIVE — the three existing columns keep their name, order and every value, so no
+-    existing join, filter or test can see a difference. Verified by diffing the regenerated file's
+-    first three fields against the committed one for all 45 rows.
+-
+-  what does NOT change: no model, macro, snapshot or mart; no shipped number; no page. The registry
+-    YAML is not edited, so no competition's identity, `ingest_active` or `history_seasons` moves.
+-    `dbt_project.yml`'s `active_competition_league_codes` is regenerated but must come out
+-    IDENTICAL, since no row's `status` changed.
+-
+-  ⚠ RECURRING COST: none. Five narrow string columns on a 45-row seed. No job, trigger, schedule or
+-    scan is added. The seed is rebuilt by `dbt seed` in runs that already happen.
+-
+-  deploy_order: none. No image, no schedule, no warehouse object beyond the seed table itself,
+-    which `dbt seed` recreates.
+-
+-  layer_rules: `check_layer_contract.py` judges `dbt_project/models/**`, untouched here.
  
  decisions_taken: >
--  The landing modules and their order are NOT decided here — they are the CPO's, and the current
--  ruling is next matches → Top players → Top teams → browse (2026-08-08, `10_home.md` §0).
--  ~~They are already locked: CPO 2026-06-10 … fixtures hero, hybrid browse, trending, stats
--  teasers.~~ That 2026-06-10 composition is three rulings out of date and this line pointing at it
--  as authority is part of why trending shipped; the pointer is corrected in `refs` above.
+-  1. ⚠ **`country` IS DELIBERATELY NOT PROJECTED, and this reverses my own first proposal.** I had
+-     planned to carry it across and use `competition_types.single_country` to tell "England" apart
+-     from "Europe". The CPO rejected that: *"separating these entries with THIS flag is bullshit…
+-     I'd assume that these entries are somewhere in a mapping table and/or then a dim table."*
+-     He is right, and checking proved it: `dim_league` ALREADY carries `league_country` and
+-     `country_flag_url` from the provider (`stg_apif__leagues.sql:53`). The registry's hand-typed
+-     copy is a second one; projecting it would have made a THIRD and hidden the inconsistency
+-     behind a boolean instead of modelling it.
+-     Country therefore becomes its own entity under **#69** (seed + `dim_country` + FKs on four
+-     dims), and the competitions mart will take country and flag from `dim_league` at step 3.
 -
--  THIS PR SHIPS TWO OF THE FOUR: next matches, then browse. Top players and Top teams are
--  specified in `10_home.md` §0 and not built — they need GAP-24…GAP-29 and a layout the CPO
--  reviewed and did not approve. Browse holds the bottom slot so the follow-up inserts above it
--  rather than rearranging the page.
+-  2. **`csv.writer` replaces the f-string renderer.** `_render_registry_seed()` built rows with an
+-     f-string joining values on commas. With five more columns of authored text that is a
+-     corruption waiting for its first comma. No value contains one today — checked all 45 rows and
+-     the nearest miss is `North/Central America`, a slash — so this fixes the class before it fires
+-     rather than after, when the symptom would be a silently malformed seed in the warehouse.
 -
--  GAP-02, the hero feed shape, is settled in `10_home.md` by measurement rather than preference.
--  Upcoming fixtures per day, measured 2026-08-03 against `core.fct_fixture`: 4 today across 2
--  competitions, 13 / 6 / 39 / 6 / 30 / 41 on days 1-6, 1 on day 7, and 57 on day 13. A
--  calendar-day hero is empty most days in August, so the hero takes a rolling window of the next
--  fixtures grouped by competition. The register's disposition for GAP-02 is "shape decided at
--  10_home review", which is this document.
+-  3. **The guard is generalised, not extended by copy-paste.** `check_registry_var_sync.py`
+-     hardcoded the three columns in two functions. Both now derive from ONE declared column list.
+-     #62 states the risk plainly: extend the seed without extending the guard and it "silently stops
+-     covering most of the file".
 -
--  Deserved-vs-actual is EXCLUDED from trending on measured data, not on preference. For every
--  league-season that still has an upcoming fixture, `sot_points_gap` is non-null for 0 teams of
--  359. Cause, measured per league: the full-table gate in
--  `int_team_season__deserved_vs_actual.sql` requires every team to carry
--  `sot_difference_per_match`, and today KL1 is missing 12 of 12, VL 12 of 12, BSA 2 of 20 plus one
--  missing rank, LMX 2 of 18. MLS (4 missing, 15 distinct ranks for 30 teams) and APD (4 missing,
--  14 for 30) are correctly withheld as non-single-ladder. #810 additionally has two open CPO
--  decisions on mid-season rendering, so it would not be wireable even with full coverage.
+-  4. **ONE column list, imported — not two lists plus a parity test.** ⚠ REPLACES what this
+-     contract said at round 1, and the replacement is the reviewer's argument, not mine. The first
+-     draft duplicated `SEED_COLUMNS` into both scripts and justified it by claiming no single
+-     import form works in both execution contexts. platform-reviewer showed that was false:
+-     `scripts/` resolves as a namespace package, so one `sys.path.insert` makes the import work
+-     whether CI runs the guard as a script or pytest imports it, and the precedent is already in
+-     the tree at `check_task_artifacts.py:51`. The guard now imports `SEED_COLUMNS` and
+-     `_normalise` from the writer, so drift is structurally impossible rather than merely
+-     detectable, and the test became an identity check that fires if a local copy is restored.
 -
--  THRESHOLD DECLARATIONS.
--  NEW MECHANISM: yes, one. `landing.json` is a new export artifact and `shape_landing_payload` /
--  `fetch_landing_payload` are new functions, following the existing `shape_*` / `fetch_*` pattern
--  in the same file. No new dependency, no new service, no new build step.
--  RECURRING COST: yes, and measured rather than asserted. The writer adds queries to the daily
--  export. Sized before building with `bq query --dry_run`, and the figure goes in
--  `acceptance_evidence.md` before commit. For reference the whole upcoming-fixture scan measured
--  706,573 bytes today. Any read that turns out materially larger gets reshaped, not shipped.
-+  CPO ruling, in-thread 2026-08-14, after being shown the two options in plain language: **"Do as
-+  recommended"**, i.e. option 1 — teach the check to ignore nights where we skipped on purpose.
-+  Recorded in `escalations.log` before this contract.
-+
-+  THE REJECTED OPTION AND WHY IT MATTERS: option 2 was to drop `TRANSFERS` from `PER_TEAM_GATED`,
-+  matching the existing COACHES precedent. It is a smaller diff and it would work. It was
-+  recommended AGAINST and the CPO agreed, because it removes real coverage — transfers gaps would
-+  stop failing the run permanently — to work around an assumption WE broke. The repo's standing
-+  rule is to narrow a guard to where it still holds, not to delete the assertion.
-+
-+  # THRESHOLD DECLARATIONS
-+  NEW MECHANISM — no. One field on an existing dataclass, one argument on an existing function.
-+    No new service, dependency, table or lifecycle step.
-+  RECURRING COST — none. No extra API call, query or storage; this is process-exit logic.
-+  GUARD LOOSENED — ⚠ **YES, NARROWLY, AND THIS IS THE DECLARATION THAT MATTERS.** The gate will
-+    no longer fail on a (league, entity) pair that was deliberately skipped this run. That is
-+    precisely the case where it is currently WRONG, and the repo's rule is to narrow a guard to
-+    where it still holds rather than delete it. What it must keep catching, and what the tests
-+    must prove it still catches: a pair that was FETCHED on both runs and is still missing teams.
-+    A skip must never be silent — it is logged, so a permanently-skipped league cannot hide a real
-+    gap unnoticed.
-+  SHIPPED NUMBERS — no.
+-  4b. **NORMALISATION HAPPENS ONCE, IN THE WRITER — the first version got this wrong and it was a
+-     real hole.** platform-reviewer, round 1: the guard stripped the SEED side while comparing
+-     against an unstripped registry, so a seed cell of `"UEFA "` normalised to `"UEFA"` before
+-     comparison and MATCHED — the guard would have reported OK on a corrupted file. Nothing else
+-     covers that: a trailing space is neither null nor a duplicate, so `not_null` and `unique`
+-     pass, and only `confederation` carries a relationships test. The same hole was duplicated in
+-     the test written to back the guard up. Now `sync_dbt_vars._normalise` is the only place
+-     anything is stripped, the guard reads the seed VERBATIM, and
+-     `test_guard_catches_whitespace_corruption_in_the_seed` drives a corrupted copy through the
+-     guard's real reader. Proven by reverting: restore the strip and that test goes RED.
++  1. NO REVIEW ROUND IS RUN. `.claude/review_routing.json` routes only the always-on scope-auditor
++     for this path set, and the diff is a status document with no code, no guard and no number in
++     it. Paying adversarial-review price for prose is what `feedback_review_cost_discipline`
++     warns against. The write-out is verified mechanically instead: under the character cap, no
++     duplicate NEXT numbering, no conflict markers, and every MR/issue number checked against
++     `glab` rather than recalled.
  
- decisions_reserved:
--  - GAP-04, WHICH trending signals surface and how they rank. The register says "CPO selects
--    signals + ranking at 10_home review". My proposal, with each candidate's live count, goes in
--    `10_home.md`, and the CPO rules on the RENDERED page, not on prose.
--  - All copy (§10). New i18n keys ship with placeholder English until the CPO's single copy pass.
--  - GAP-03, the narrative generator, is not built here.
--  - #845 minimum-data gate, #882 season URLs vs a selector, #843/#852 slug freeze, #861 fixture URL
--    permanence, #369 SEO engine. All independent of this task and all still open.
--  - Legal routes are deliberately out of scope. A shipped route with no content is a stub by this
--    repo's own definition, so wiring three would repopulate `STUB_PAGES` and re-block the gate this
--    task exists to clear. That trade is the CPO's, brought separately.
--  - Whether `INDEXABLE` flips. It does not flip here.
-+  - Whether a league whose transfers are skipped for many consecutive runs should eventually be
-+    force-fetched so a real gap cannot hide behind the cadence indefinitely. The 7-day cadence
-+    bounds it to 7 days, which is why this is not urgent, but it is a genuine question and it is
-+    the CPO's.
-+  - Whether `TRANSFERS` belongs in `PER_TEAM_GATED` at all. Left exactly as it is here.
-+  - The UCL/TRANSFERS 1-team gap itself. This task makes the gate correct; it does not
-+    investigate whether that one team is a real ingestion defect. Filed separately if it persists
-+    once transfers are next due.
+-  5. **`tier` is `''` for the 29 non-league competitions, and that is a RULE, not a gap.** Measured:
+-     `tier` is present on exactly the 16 `domestic_league` rows and on no other competition_type. It
+-     is structurally N/A for a cup, so `not_null` would be wrong and a blank is correct. Pinned by a
+-     test asserting the biconditional, which turns "29 blanks" from a smell into a contract.
+-     `''` follows `parent_competition`, which already means "none" the same way.
++  2. The CURRENT section is REPLACED, not appended to. A handover accumulates until it lies; the
++     rule is that a correction replaces. What goes out: `!27` as in-flight, and the four MRs that
++     have since merged.
+ 
+-  6. **`confederation` gets a `relationships` test to `ref('confederations')`.** That seed is on
+-     main since #57, so the deferred DQ resolve finds it. This is not the seed-column-and-its-reader
+-     trap: the new thing here is the SOURCE column, and the TARGET it points at already exists.
++  3. The rebase-tax paragraph STAYS even though nothing is in flight, because it is the most
++     expensive recurring lesson of the session — four rebases, every one conflicting in exactly
++     the same paperwork files — and the next branch will hit it again.
  
  done_when:
--  - Every acceptance criterion above is demonstrated in `.claude/task/acceptance_evidence.md` under
--    a `criteria_demonstrated:` marker, read from built output.
--  - `python -m pytest tests/ -q` passes.
--  - `cd site_v2 && npm test` passes; the SEO audit passes against `dist/`.
--  - The dry-run byte figure for every new export query is recorded in the evidence file.
--  - The rendered page has been shown to the CPO in all three locales before commit.
-+  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ a13c16e: 789 passed,
-+    1 skipped).
-+  - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
-+  - ⚠ VERIFIED BY BREAKING THE SUBJECT, both directions, because a gate that stops failing is
-+    exactly the change that must be proven to still fail:
-+      · a pair skipped this run and missing on both runs -> NOT flagged (the fix)
-+      · a pair FETCHED on both runs and missing on both -> STILL flagged (the guard survives)
-+      · a pair skipped this run but flagged for a DIFFERENT league/entity -> still flagged
-+    Each confirmed by running the tests against the pre-fix behaviour and watching them go red.
-+  - The skip is VISIBLE: the run logs which pairs were exempted, so a permanently-skipped league
-+    cannot hide a real gap silently. Asserted by a test on the emitted text, not by eye.
-+  - POST-MERGE, and NOT satisfiable from this branch: redeploy the image from `main`, then confirm
-+    the next 04:00 run reaches the dbt build with `ERROR=0` instead of `exit(3)`.
+-  - `competition_registry.csv` carries eight columns; the three existing ones are byte-identical in
+-    name, order and value for all 45 rows.
+-  - `sync_dbt_vars.py` is IDEMPOTENT: a second run reports "already in sync".
+-  - `dbt_project.yml` is unchanged by the run.
+-  - ⚠ Both new tests SEEN RED before green — parity broken by editing one list, `tier` broken by
+-    blanking a league's value. A test only ever observed passing proves nothing; #63 shipped three
+-    such tests, each of which passed against the very defect it was written to catch.
+-  - ⚠ `check_registry_var_sync.py` shown to FAIL on a hand-broken `slug`, proving the widened
+-    comparison is live rather than decorative.
+-  - `pytest tests/ -q` green; the five offline gates green; `dbt parse` clean.
+-  - ⚠ No `dbt build` is run locally. `data:build:mr` on the MR is the CI evidence.
++  - `active_work.md` names main `10fa570`, states nothing is in flight, and lists #62's remaining
++    steps as the next work.
++  - Under 16,000 CHARACTERS measured with Python `len()`, NEXT numbering unique, zero conflict
++    markers.
++  - Every MR and issue number in it verified against `glab mr list` / `glab issue list`.
  
- amendments:
--  - 2026-08-08 (1): no new paths. `docs/wireframes/10_home.md` is already in scope (line 39).
--    AUTHORITY: CPO, this session. He judged the built stats block useless ("the stats blocks you
--    are suggesting are useless"), then designed its replacement across the conversation, then
--    answered "go" when I proposed recording the result in `10_home.md` §0 before building anything.
--    CONTENT: DOCUMENTATION ONLY. Records the player stats block (nine boards) and the team stats
--    block (six boards) with their metric sets and rank metrics, the club-league-only scope, four
--    league pools, the in-season selection rule, and two shared display rules: top 5 per board, and
--    a metric with no value is HIDDEN rather than dashed. That last one is a deliberate LOCAL
--    override of the site-wide "null → -" convention in `00_overview.md` — CPO: a column of dashes
--    reads as a bug even when it is honest — and the override is recorded as such rather than left
--    to contradict the convention silently. It also marks the 2026-08-04 "stats block STAYS, with
--    different wording" ruling as SUPERSEDED, because the block is being replaced rather than
--    reworded, and closes three of that session's open questions.
--    ⚠ THE BLOCKS ARE NOT BUILT HERE. No mart, no export, no component, no page change. Nothing this
--    amendment touches alters a single byte of rendered output, so the reviewed diff's behaviour is
--    unchanged and the round-1 findings are unaffected.
--
--    ALSO, and this part is NOT documentation: `dbt_project/seeds/metric_catalogue.csv` +
--    `dbt_project/seeds/schema.yml` (both already in scope, lines 32-33).
--    AUTHORITY: CPO, this session, on an explicitly scoped five-part plan — "My recommendation: do 1
--    and 2 now" — where 1 was the `label_en` column and 2 was splitting the two shared label keys.
--    Parts 3 to 5, deleting `METRIC_LABELS_EN`, inverting the guard and wiring the frontend, were
--    deferred to a follow-up MR because they change what a shipped page renders its labels from and
--    therefore need their own acceptance criteria.
--    CONTENT: (1) a `label_en` column carrying the approved English display name for all 80 metrics.
--    The CPO ruled the metric layer is the source of truth for display names, English being the
--    project's primary language, with translations staying in the i18n layer. 20 names are the
--    existing `METRIC_LABELS_EN` strings copied verbatim; 58 are new; 2 are approved renames —
--    `scorer_points` to "Goal contributions", and both `save_ratio` and `save_pct` to "% Shots
--    saved", replacing the shipped "% Save percentage" which said percentage twice.
--    (2) the two shared `label_i18n_key` values split so no two rows share one, following the
--    convention the catalogue already uses: `duels_won_pct` player takes
--    `playerMetrics.duels.wonPct` (mirroring the existing `playerMetrics.dribbles.successPct`) and
--    `finishing_efficiency` player takes `playerMetrics.finishingEfficiency.label`.
--    Uniqueness is per ENTITY, CPO-ruled: identical words across player and team are allowed because
--    they are separate sets. Verified against the draft — 48 distinct player names, 32 distinct team
--    names, no collision inside either.
--    ⚠ THE COLUMN IS ADDITIVE AND UNREAD. Nothing resolves a label from it yet, so no rendered output
--    moves. `schema.yml` documents it because every other column there is documented and an
--    undocumented column in the governed SSoT is a gap a reviewer would rightly raise; that is
--    completing part 1, not reaching into the deferred part 5.
--    ⚠ COST: a seed change makes `data:build:mr` run, so this branch stops being frontend-only.
--    Named for the CPO before the edit, not discovered at pipeline time.
--    ⚠ WHY ON THIS BRANCH, given it is mid-review: `10_home.md` exists ONLY on this branch, so there
--    is no other place the record can go. A branch cut from main cannot edit a file main does not
--    have. §0 of that file is already the designated record of the CPO's rulings on this screen.
--    ALSO TOUCHES `docs/wireframes/metrics_display.md` (already in scope, line 35). The CPO said
--    "write everything into 10_home.md"; I split it deliberately and am recording why rather than
--    doing it silently. The metric NAMING rulings are metric-layer, not screen-level, and that
--    document's own §"Where these strings live" already states the ownership split this session
--    changes. Putting 80 metric names into a single screen's wireframe would create the second
--    source of truth the session just spent itself removing.
--
--  - 2026-08-04 (4): + `.claude/active_work.md`.
--    AUTHORITY: CPO, this session: "write the handover". He asked whether to compact or start a new
--    chat; the honest answer was that a new chat reads `active_work.md` FIRST and it still described
--    2026-08-03, so a fresh session would start from a false picture and he would re-explain the
--    whole day. That is the failure he had already named ("we have to recap the whole context all
--    over again... you are a terrible project manager").
--    CONTENT: rewrite the handover so a cold chat continues with zero re-investigation. It carries
--    the GitHub suspension, the branch's staged-but-uncommitted state, the review verdicts, the ONE
--    open decision, the corrected routes-first build order, and the player page's real state, plus
--    pointers to the three files holding the detail. `.claude/task/SESSION_STATE_2026-08-04.md` was
--    the stopgap written when this path was NOT yet in scope; it is folded in here and deleted.
--    ⚠ REVIEWER NOTE: `.claude/active_work.md` is in `review_exclude_paths`, so
--    `git_discipline.py --review-patch` OMITS it from `review_input.patch` BY DESIGN. Its absence
--    from the patch is not evidence it was unmodified. Read it from the working tree. A previous
--    scope audit of the #899 handover did exactly that; a later one raised it as a false FAIL.
--
--  - 2026-08-04 (3): + `dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql`.
--    AUTHORITY: CPO, this session: "tighten the expr_resolvable test", after I flagged that the new
--    `computation_kind` column makes a tightening possible that was not possible before.
--    CONTENT: this is a STRICTLY TIGHTENING change to a guard — it can only start failing on rows
--    that were previously waved through, never stop failing on rows it already catches. The existing
--    guard skips any row whose `base_relation` is blank, and its own comment concedes the weakness:
--    the skip "keys on base_relation being blank, never on these names, so the list is documentation".
--    So a metric that SHOULD have a formula but has none was indistinguishable from one that
--    legitimately has none, and passed silently.
--    With `computation_kind` the intent is now declared, so the guard asserts it both ways:
--      - `computation_kind = 'expression'` with a blank `base_relation` or blank `numerator_expr`
--        is a defect (a formula that was never written).
--      - `computation_kind` in (model, sourced, cross_grain) carrying a `base_relation` or a
--        formula is also a defect (a row claiming to be unexpressible while holding an expression).
--    The pre-existing unresolved-token check is unchanged.
--    ⚠ NEVER-LOOSEN CHECK, done deliberately because this touches a guard: no existing failure mode
--    is removed. The token walk still runs on exactly the rows it ran on before, with the same
--    stoplist and the same base-relation column sets.
--
--  - 2026-08-04 (2): + `dbt_project/seeds/metric_catalogue.csv`, + `dbt_project/seeds/schema.yml`,
--    + `docs/wireframes/metrics_display.md`,
--    + `dbt_project/models/5_marts/shared/mart_player_career.sql`.
--    AUTHORITY: CPO, explicitly, this session. He judged the metric layer incomplete, said "we need
--    to complete it now, it's one of the most important files in this project", and when asked
--    whether it should be its own branch answered "no, we do it here in this branch". That is a
--    deliberate scope expansion of a PR that already covers the landing page, made with the cost
--    stated to him (the five reviewers must re-run over a much larger diff, and it is already at
--    three FAILs).
--    CONTENT — completing the metric catalogue, decided metric by metric with him:
--      1. TIERS NOW COVER PLAYERS. This OVERRIDES the 2026-06-11 ruling recorded in
--         `metrics_display.md` and in the seed's own column description that "tiers are a team-only
--         concept". His reasoning: tier expresses the IMPORTANCE of a metric, which is a judgement
--         about what a fan wants to see, not a statistical claim, and that judgement is as available
--         for players as for teams. All 48 player metrics tiered, group by group, plus the 16
--         untiered team metrics. Result: 80 of 80 rows carry a tier, against 16 before.
--      2. RUBRIC, established by his corrections rather than proposed: the core stat line is tier 1
--         (raw counts AND their headline percentage), a per-90 sits one tier below its total, and
--         breakdowns and rare events are tier 3. He also settled that REDUNDANCY IS FINE at tier 1 —
--         goals, assists and scorer_points may all be 1, because tier means importance, not
--         deduplication.
--      3. TWO NEW GROUPS. `outcomes` for the six ungrouped team metrics (points won, points capture,
--         league rank, deserved points, deserved rank, sot points gap); `playing_time` for
--         `minutes_per_appearance`, the only other ungrouped row. metric_group reaches 80 of 80.
--      4. NEW COLUMN `computation_kind`, his approval of the name. Five of 80 metrics have NO
--         formula and for three different reasons, which a blank cannot distinguish: `model` for the
--         deserved trio (an OLS fit, unexpressible as numerator/denominator), `sourced` for
--         `league_rank` (provider standings, never derived from legs), `cross_grain` for
--         `contribution_share` (player numerator over a team denominator). The other 75 are
--         `expression`. This also lets `assert_metric_catalogue_expr_resolvable` be tightened.
--      5. `group_display_order` IS REMOVED, his ruling: "I think we don't need to define the order of
--         the displayed metrics in the metric layer. This is a frontend decision which can change
--         easily." The file already conceded the point — the column's own description says "full row
--         order lives in docs/wireframes/metrics_display.md" — so the seed held a partial, half-filled
--         copy (50 of 80) of an order ruled elsewhere, which is how it came to mean a unique row
--         position for teams and a SHARED bundle position for players. The principle it settles: the
--         metric layer holds what a metric IS, not where it appears.
--    BLAST RADIUS, verified not assumed: NOTHING reads `importance_tier`, `metric_group` or
--    `group_display_order` anywhere in the repo. The only references are the seed's own `schema.yml`
--    and generated `target/` artifacts. So filling 64 tiers and 7 groups is pure metadata with zero
--    behavioural change, and dropping a column breaks no consumer. ⚠ The corollary, stated to the
--    CPO: those columns are WRITE-ONLY today. The site takes its tiers and order from hand-written
--    lists in `site_v2/src/lib/metricRows.ts`. Making the consumers read the seed is the actual
--    payoff and is NOT in this task.
--    `accepted_values` on `metric_group` must gain the two new groups or the build fails; the tier
--    test (1, 2, 3) is unchanged.
--
--  - 2026-08-04: + `.gitignore`, + `site_v2/src/data/fixtures/*.json`,
--    + `site_v2/src/data/teams/*.json`.
--    AUTHORITY: CPO, this session, answering "add the 1 MB of sample files, yes or no?" with "yes".
--    CONTENT, and it is a DEFECT I FOUND IN MY OWN WORK, not a new feature. `.gitignore:238-242`
--    ignores `site_v2/src/data/{teams,fixtures}/*.json` and allowlists exactly two sample files by
--    name. The 18 payloads generated so the landing's match and team links resolve are therefore
--    ignored: they exist on my disk and would NOT be committed. So the build is green locally and
--    would be RED in CI, where the dead-link check would find 18 links to pages that were never
--    generated. `acceptance_evidence.md` claimed the audit passes; that claim held locally and not in
--    CI, and I wrote it without checking. It is corrected there.
--    The allowlist is extended to the 13 fixtures + 7 teams the committed landing sample links to,
--    ~1.7 MB total for the directory. That is within the ignore rule's own stated intent, which is to
--    keep the SAMPLES and exclude the bulk, the bulk being a full export at hundreds of MB to >1 GB.
--    ⚠ ONGOING COST, ACCEPTED KNOWINGLY: the sample is a snapshot of whatever fixtures are next, so
--    every refresh of `landing.json` changes which entity files must be committed. The real fix is
--    for CI to build from a live export rather than stored samples, which is infrastructure work well
--    outside this PR and is filed separately.
--
--  - 2026-08-03 (5): + `site_v2/src/styles/system.css`, + `site_v2/src/components/ui/Crest.astro`.
--    AUTHORITY: CPO, reacting to the RENDERED page, verbatim: "hard to scan, looks like a wallpaper
--    of text, hard to identify the team names, no competition grouping, almost like a spreadsheet
--    overview, why do we need to put the matches in one row, why not stack the teams, then there
--    would be additional space on the right hand side of the fixture".
--    CONTENT, and MOST OF IT IS MY BUG rather than a design gap. I wrapped each competition block in
--    `.mgroup`, which is the METRIC-GROUP HEADING style: `text-transform: uppercase`,
--    `letter-spacing: .12em`, `text-align: center`, `color: var(--muted)`, `font-weight: 700`. Every
--    one of those inherits, so every team name, chip and label inside rendered uppercase, centred,
--    letterspaced and muted. That is the "wallpaper" — a container styled as a heading, not a
--    deliberate treatment. `BrowseGrid` had the same misuse.
--    The design change on top: the hero row stacks the two teams (crest + name per line) with the
--    kickoff on the right, instead of "A vs B" on one line. That is the layout every comparable site
--    uses for a fixture list, and it is what frees the right-hand space the CPO asked about.
--    I was also not rendering CRESTS at all, which is the primary recognition cue in a fixture list
--    and a direct cause of "hard to identify the team names".
--    WHY NEW CSS RATHER THAN REUSE: checked first. `.nextfx` is a single-card "next fixture" (3-col,
--    no stacking); `.mast`/`.teams`/`.team` is the fixture page's CENTRED hero at 27px names, wrong
--    for a list of twelve; `.rmatch` is a played-result row keyed to a W/D/L chip. None of the three
--    is a compact stacked fixture row, so this is a genuinely NEW component, flagged in the
--    00_overview census rather than invented silently. `Crest.astro` gains an optional size so a
--    list row can use a small crest instead of the 52px block.
--    SCOPE LIMIT: the landing's own presentation. No other page's rendering changes; `.mgroup`,
--    `.nextfx`, `.mast` and `.rmatch` are untouched, so the fixture and team pages are unaffected.
--
--  - 2026-08-03 (4): + `docs/wireframes/01_fixture_page.md`, + `site_v2/scripts/audit-seo.test.mjs`.
--    AUTHORITY: CPO, this session, choosing the descriptor wording ("preview / vorschau / ennakko")
--    after I CORRECTED my own recommendation.
--    ⚠ THE CORRECTION MATTERS MORE THAN THE AMENDMENT. Amendment (3) recorded a brand suffix
--    (`{home} - {away} | {brand}`) as approved. That recommendation was WRONG and I made it without
--    reading the file I was editing: `strings.ts` records that on 2026-07-28 the CPO REMOVED the
--    brand suffix from team titles, on seo-expert-reviewer's argument that a suffix is earned by
--    equity rather than being a way to build it, and that 3,250 identical suffixes read as
--    boilerplate. The identical argument applies to fixture pages. He approved my recommendation on
--    the incomplete picture I gave him; I found the prior ruling while editing and brought it back
--    before building on it.
--    FINAL SHAPE, consistent with the team title's `{team}: <descriptors>` and with the 07-28
--    ruling: `{home} <connector> {away}: <descriptor>`. Measured over all 26 competitions' worst
--    real upcoming fixture: EN "vs" + "Preview" 597px, DE "-" + "Vorschau" 595px, FI en dash +
--    "Ennakko" 573px. All three are 0 fail AND 0 over the 600px soft budget — the only variant that
--    fits inside the budget rather than merely under the 660px hard cap. The brand-suffix variant
--    was 645px with 2 over budget.
--    01_fixture_page.md §8 specifies the fixture title ending with the COMPETITION, so it is
--    updated here rather than left to contradict the code.
--    ⚠ "Preview" is correct only while a fixture page is a PREVIEW. Today the export writes upcoming
--    fixtures only (#861: 4,598 live vs 52,585 finished). When finished matches get pages the word
--    becomes wrong and needs a played/upcoming split. Noted in the code, not solved here.
--
--  - 2026-08-03 (3): + `site_v2/src/pages/*/matches/*.astro` (the fixture page).
--    AUTHORITY: explicit CPO ruling this session ("as recommended"), after a research pass he asked
--    for: "You should do some research to find out what is best practise in the SEO community."
--    CONTENT: committing twelve real fixtures across competitions (needed so the landing's hero has
--    no dead links) exposed a PRE-EXISTING defect on the fixture page. Its title template is
--    `{home} <connector> {away} | {competition}` and it overflows the SERP budget: 4 of 26
--    competitions FAIL the 660px hard limit, worst 886px. Neither the template nor the width check
--    is new; only the test data is, so this fails in production today for every Argentine,
--    Conference League, Libertadores and MLS match page.
--    Researched rather than guessed. Sofascore titles a match `SJK vs HJK live score, H2H and
--    lineups | Sofascore`; FBref uses `Manchester United vs. Arsenal Match Report - <date> |
--    FBref.com`; kicker uses an editorial headline with the teams only in the URL. NONE of the three
--    puts the competition in a match title, and the SEO literature agrees on the mechanics (under
--    600px, keywords first, brand last). Measured against OUR worst real fixtures, Sofascore's exact
--    pattern fails 21 of 26 because our club names are far longer than "SJK"; the pattern that
--    clears is teams + ONE short suffix. The CPO chose the brand.
--    New template: `{home} <connector> {away} | {brand}`. Per-locale connector, each measured:
--    EN "vs" 0 fail / max 655px; DE changes "gegen" to "-" (2 fail -> 0, max 645px); FI changes
--    "vs." to a tight en dash (1 fail -> 0, max 634px).
--    ⚠ THE FI CHANGE HAS THE SOURCE THE CODE DEMANDS. strings.ts says the FI "vs." is the CPO's
--    verbatim and must not be swapped for an en dash "without a Finnish source". The source is Yle
--    and MTV Uutiset, which pair Veikkausliiga teams as "KuPS–HJK". Without it I would have left FI
--    alone and brought the 1px overflow back to him.
--    SCOPE LIMIT: the title template only. No other fixture-page behaviour changes, and the
--    competition is NOT removed from the page — it stays in the H1, breadcrumb, meta description,
--    URL and structured data.
--
--  - 2026-08-03 (2): + `site_v2/src/specs/page-spec.schema.json`,
--    + `site_v2/scripts/check-page-specs.mjs`, + `site_v2/scripts/check-page-specs.test.mjs`.
--    AUTHORITY: explicit CPO ruling this session, escalated blinded per §11 and recorded in
--    `escalations.log` (2026-08-03 feat/367-landing-page). The escalation offered Path A (extend the
--    page-spec contract to name a non-mart source) and Path B (make every block mart-backed); the
--    CPO chose A. He then further directed that it be built as a GENERAL mechanism rather than as
--    two special cases, in his words: "I want a setup that is flexible enough to integrate whatever
--    additional content."
--    CONTENT: `mart` is a REQUIRED per-block field and `check-page-specs.mjs:259` rejects any value
--    that is not a file under `dbt_project/models/5_marts/**`. Two of the landing's four blocks are
--    not mart-backed and cannot be: browse reads the competition registry (which the zero-file rule
--    deliberately keeps OUT of the model layer, and which `check_registry_var_sync.py` exists to stop
--    being duplicated), and the hero reads `core.fct_fixture` (the same source the shipped fixture
--    page already uses; `mart_team_fixtures` cannot substitute because it drops `fixture_sk` per
--    GAP-19, so it cannot produce a match URL).
--    A block's source becomes `type:name`, with `mart` as the implicit type when unprefixed, so both
--    existing specs keep working unchanged. Each type resolves to a real thing on disk, so the
--    gate's actual guarantee — nothing may be declared that does not exist — is preserved, not
--    loosened. What changes is that "mart" stops being the only sayable answer, which it never
--    truly was.
--    SCOPE LIMIT: this adds the VOCABULARY for other content types. It does not add any content
--    type. A news feed or editorial surface would still need ingestion, storage and a page, and
--    none of that is in this PR. Stated to the CPO in those words before he ruled.
--
--  - 2026-08-03: + `dbt_project/models/5_marts/shared/mart_landing_trending.sql`,
--    + `dbt_project/models/5_marts/shared/shared.yml`.
--    AUTHORITY: the standing consumption-layer contract (`dbt_project/docs/layering.md`, the
--    consumption-layer guard, and the #846 precedent that moved `is_featured_season` into the
--    warehouse for exactly this reason). Not a new CPO ruling, and it does not change what the CPO
--    approved: Trending still shows "teams on a notable run right now, longest first, at most two
--    from any one competition, six stories". Only the LAYER that decides it moves.
--    CONTENT: the first draft put a `rank_trending()` in `scripts/export_site_data.py` that applied
--    per-signal minimums, ranked teams by run length across competitions, and capped two per
--    competition. Ranking is business logic, which the consumption layer may not do, and the
--    counter-precedent is in the same file: `shape_leaderboards`' own docstring says "the warehouse
--    already ranked ... the export groups by metric_key and orders by rank -- it does not rank".
--    The whole selection therefore moves into `mart_landing_trending`, which emits the final ordered
--    rows with a `trending_rank`; the export selects and truncates, which it is allowed to do.
--    Written on a clean tree: the spec and the export draft were stashed
--    (`stash@{0}`, "wip: 367 landing spec + export writer (pre-mart-correction)") for the duration
--    of this amendment, per the discrete-event rule.
-+  - 2026-08-14: `tests/test_completeness_outcome_and_summary.py` -> `tests/test_per_team_completeness.py`
-+    in `scope_paths`. No widening: one test path swapped for another, same count. Authority: none
-+    needed — the first draft named the wrong file from its title alone. `detect_stagnant_per_team_gaps`
-+    and `evaluate_completeness_outcome`'s per-team behaviour are covered in
-+    `tests/test_per_team_completeness.py` (it imports both at lines 26-29 and exercises the gate at
-+    318-324); the file originally listed covers a different part of the module and is not touched.
-+    Caught by the contract gate on the first test edit, which is the gate doing its job.
-+  - 2026-08-14: + `tests/test_completeness_outcome_and_summary.py` (so BOTH test files are now in
-+    scope, not a swap). Authority: the STANDING CPO RULE of 2026-08-08 in `escalations.log` —
-+    "Updating a reference that an approved change itself breaks is part of that change ... provided
-+    the update is confined to the reference and changes no behaviour."
-+    WHAT BROKE AND WHY IT IS RIGHT THAT IT DID: `test_skipped_report_returns_no_failures` asserts
-+    the outcome dict by EXACT EQUALITY, and its own comment says that is deliberate — "kept inside
-+    the exact-equality assertion rather than relaxed to a subset". Adding the
-+    `skipped_per_team_exempt` key therefore failed it. That is the guard working exactly as
-+    designed: a new key in the outcome contract must be a conscious act, not something that slips
-+    in. The edit adds that one key to the expected dict and changes nothing else.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index f0e6f60..425a089 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -2735,3 +2735,43 @@ here, and was right, as it was the previous five times.
-   THE REUSABLE LESSON, and it is the one this repo logs most often (#904): my search for prior
-   guidance covered `docs/` only, while the ruling lived in `dbt_project/tests/`. **A claim of
-   absence must search as wide as the claim.** The branch is deleted and nothing was pushed.
-+
-+
-+2026-08-14 — THE COMPLETENESS GATE AND THE RE-FETCH CADENCE CONTRADICT EACH OTHER (OUR OWN BUG)
-+
-+  THE RULING: **"Do as recommended"** — option 1, teach the completeness gate that a deliberate
-+  skip is not a gap. Given in-thread 2026-08-14 after the choice was put in plain language, with
-+  a recommendation and the reason for rejecting the alternative.
-+
-+  WHAT BROKE, and it is ours. The 2026-08-14 04:00 nightly exited 3 during ingestion:
-+  `Completeness gate failed: per-team gaps not healing: UCL/TRANSFERS (1 then 1 teams missing)`.
-+  `detect_stagnant_per_team_gaps` fails a run when a (league, entity) pair has missing teams on
-+  TWO CONSECUTIVE RUNS, on the explicit reasoning that one bad run self-heals on the next night's
-+  fetch. **#33 item 14 (!31, merged 2026-08-11) invalidated that** by putting transfers on a
-+  7-day per-league cadence that skips the phase ENTIRELY. A skipped league cannot heal — there is
-+  no fetch — so a pre-existing 1-team gap now trips a gate built for a nightly fetch. The data is
-+  fine; the question stopped making sense.
-+
-+  THE TWO PATHS PUT TO THE CPO:
-+    1. Make the gate skip-aware: do not call a pair stagnant if it was deliberately skipped.
-+       RECOMMENDED. Keeps the coverage, fixes the wrong assumption.
-+    2. Drop TRANSFERS from `PER_TEAM_GATED`, matching the existing COACHES precedent. Smaller,
-+       and it works, but it permanently removes real coverage to work around an assumption WE
-+       broke — the "never loosen a guard, narrow it to where it still holds" rule.
-+  CPO ANSWER: option 1.
-+
-+  ⚠ A NEAR-MISS WORTH RECORDING. `COACHES` is in `PER_TEAM_ENTITIES` but deliberately NOT in
-+  `PER_TEAM_GATED`, excluded on 2026-08-03 because ~23 of 1,265 teams genuinely have no coach and
-+  "a permanently-red gate trains everyone to ignore the alarm". Item 14 put coaches AND transfers
-+  on the same cadence. Only transfers gates, so only transfers broke. The exclusion that saved
-+  coaches was written for an unrelated reason and covered this one by luck, not by design.
-+
-+  THE GENERAL LESSON, which is the reason this entry is long: item 14 was reviewed by four
-+  reviewers across several rounds and none of us connected a change in FETCH CADENCE to a gate
-+  whose logic assumes NIGHTLY FETCHES. The two mechanisms live in different files, and the
-+  contract's impact_map traced the dbt lineage of the tables involved but not the OPERATIONAL
-+  checks that read the same tables. An impact map that stops at the data lineage misses gates.
-+
-+  STILL OPEN, and reserved to the CPO rather than decided here: whether a league skipped for many
-+  consecutive runs should eventually be force-fetched, so a real gap cannot hide behind the
-+  cadence. The 7-day bound limits the exposure, which is why it is not urgent.
-diff --git a/ingestion/api_football/completeness.py b/ingestion/api_football/completeness.py
-index 12cd9d3..98360ce 100644
---- a/ingestion/api_football/completeness.py
-+++ b/ingestion/api_football/completeness.py
-@@ -400,20 +400,60 @@ def per_team_missing_by_league_entity(
-     return out
- 
- 
-+def skipped_exemption_note(exempt: list[str] | None) -> str | None:
-+    """The line the run prints when the gate exempts a deliberately-skipped pair, or None.
-+
-+    EXTRACTED SO IT CAN BE TESTED. It began as an inline `print` in the orchestrator, and
-+    `platform-reviewer` pointed out that nothing could reach it: `_load_api_football` is
-+    deliberately never driven end to end by any test, so the contract's promise that the
-+    exemption is "asserted by a test on the emitted text" was false as written. A guarantee that
-+    an exemption is never silent is worth exactly as much as its test.
-+
-+    Returns None when there is nothing to say, so a quiet run stays quiet.
-+    """
-+    if not exempt:
-+        return None
-+    return (
-+        "[api-football] completeness: not gating "
-+        + ", ".join(exempt)
-+        + " — deliberately skipped this run by the re-fetch cadence, so a gap there cannot heal "
-+        "and is not evidence of a stalled ingest."
-+    )
-+
-+
- def detect_stagnant_per_team_gaps(
-     current: dict[str, int],
-     prior: dict[str, int] | None,
-+    skipped: set[str] | None = None,
- ) -> list[dict[str, Any]]:
-     """(league, entity) pairs still missing teams on TWO consecutive runs.
- 
-     Same window and same reasoning as ``detect_stagnant_dropped_calls``: a hard fail skips the dbt
-     build and costs daily freshness, so a single observation must not trigger it. A brand-new team
-     whose first fetch fails would otherwise fail the run on the day it appears.
-+
-+    ⚠ ``skipped`` HOLDS THE PAIRS THAT WERE NOT FETCHED AT ALL THIS RUN, and they are exempt.
-+    The whole rule above rests on "the next night's fetch would have healed it". #33 item 14 put
-+    transfers on a 7-day per-league cadence that skips the phase ENTIRELY, and a league that was
-+    never fetched cannot heal by construction — so a pre-existing gap sat unfetched and failed the
-+    2026-08-14 nightly (`UCL/TRANSFERS (1 then 1 teams missing)`), with `exit(3)` before dbt ran.
-+
-+    THIS NARROWS THE GUARD, IT DOES NOT REMOVE IT, and the distinction is the point. A pair that
-+    WAS fetched on both runs and is still short of teams is still flagged, which is the case the
-+    gate exists for. The alternative considered and rejected was dropping TRANSFERS from
-+    ``PER_TEAM_GATED`` entirely (the COACHES precedent) — that would have removed real coverage
-+    permanently to work around an assumption we broke ourselves.
-+
-+    The caller is expected to LOG what it exempted: a league skipped for many runs would otherwise
-+    hide a real gap behind the cadence, silently. The 7-day cadence bounds that to 7 days.
-     """
-     if not prior:
-         return []
-+    exempt = skipped or set()
-     stagnant: list[dict[str, Any]] = []
-     for key, count in sorted(current.items()):
-+        if key in exempt:
-+            continue
-         prev = prior.get(key, 0)
-         if count > 0 and prev > 0:
-             league_code, _, entity = key.partition("/")
-@@ -605,6 +645,7 @@ def evaluate_completeness_outcome(
-     prior_dropped_calls: dict[str, int] | None = None,
-     per_team_missing: dict[str, int] | None = None,
-     prior_per_team_missing: dict[str, int] | None = None,
-+    skipped_per_team: set[str] | None = None,
- ) -> dict[str, Any]:
-     """Decide whether the ingest run should hard-fail.
- 
-@@ -624,6 +665,7 @@ def evaluate_completeness_outcome(
-         "stagnant_statistics": [],
-         "stagnant_dropped_calls": [],
-         "stagnant_per_team_gaps": [],
-+        "skipped_per_team_exempt": [],
-     }
-     if report.get("skipped"):
-         return out
-@@ -676,7 +718,12 @@ def evaluate_completeness_outcome(
-     # (API_FOOTBALL_FAIL_ON_INCOMPLETE=0, the documented backfill override). Placing a third
-     # stagnation signal anywhere else is the exact defect review caught in the previous task.
-     out["stagnant_per_team_gaps"] = detect_stagnant_per_team_gaps(
--        per_team_missing or {}, prior_per_team_missing
-+        per_team_missing or {}, prior_per_team_missing, skipped_per_team
-+    )
-+    # Reported so an exemption can never be silent. A league whose transfers are skipped week
-+    # after week would otherwise hide a real gap behind the cadence with nothing to look at.
-+    out["skipped_per_team_exempt"] = sorted(
-+        k for k in (skipped_per_team or set()) if (per_team_missing or {}).get(k, 0) > 0
-     )
- 
-     if fail_on_incomplete() and (
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index 4dd6168..9863da4 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -138,6 +138,10 @@ def run_cheap_phases(
-             _skipped_phase(
-                 league_code, "coaches", skip_reason(league_code, coaches_seen, utcnow())
-             )
-+            # COACHES is not in PER_TEAM_GATED today, so this changes nothing right now. Recorded
-+            # anyway: if it is ever promoted to a gating entity, the skip must already be visible
-+            # to the gate — otherwise it repeats the transfers failure with a fresh cause.
-+            ctx.record_skipped(league_code, "COACHES")
-         return CompetitionRunResult(
-             league_code=league_code,
-             seasons_list=seasons_list,
-@@ -203,6 +207,12 @@ def run_transfers_for_competition(
-                 "transfers batch",
-                 skip_reason(result.league_code, seen, utcnow()),
-             )
-+            # The completeness gate fails a run when a per-team gap persists across TWO runs, on
-+            # the reasoning that one bad run heals on the next night's fetch. A skipped league
-+            # cannot heal — there is no fetch — so it must be told, or a pre-existing gap trips a
-+            # gate built for nightly fetches. That is exactly how the 2026-08-14 nightly died on
-+            # UCL/TRANSFERS.
-+            ctx.record_skipped(result.league_code, "TRANSFERS")
-             return
-         _ingestion_phase(result.league_code, "transfers batch")
-         load_transfers_batch(ctx, result.league_code, result.team_ids)
-diff --git a/ingestion/api_football/loads/context.py b/ingestion/api_football/loads/context.py
-index 88513a5..1bd569d 100644
---- a/ingestion/api_football/loads/context.py
-+++ b/ingestion/api_football/loads/context.py
-@@ -15,10 +15,21 @@ class PipelineContext:
-     headers: dict
-     errors: list[str] = field(default_factory=list)
-     tables_loaded: int = 0
-+    # "LEAGUE/ENTITY" pairs whose phase was deliberately SKIPPED this run by the #33 item 14
-+    # re-fetch cadence. The completeness gate reads this to tell a skip apart from a gap.
-+    #
-+    # WHY IT IS RECORDED HERE RATHER THAN RECOMPUTED: the gate could call `should_refetch` itself,
-+    # but then two places would decide what "due" means and they would drift. This records what
-+    # ACTUALLY happened at the call site that made the decision.
-+    skipped_per_team: set[str] = field(default_factory=set)
- 
-     def add_loaded(self, n: int = 1) -> None:
-         self.tables_loaded += n
- 
-+    def record_skipped(self, league_code: str, entity: str) -> None:
-+        """Note that `entity` was not fetched for `league_code` on this run."""
-+        self.skipped_per_team.add(f"{league_code}/{entity}")
-+
- 
- @dataclass
- class CompetitionRunResult:
-diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
-index d03e1df..3fef201 100644
---- a/ingestion/api_football/orchestrator.py
-+++ b/ingestion/api_football/orchestrator.py
-@@ -30,6 +30,7 @@ from .completeness import (
-     read_per_team_coverage,
-     read_prior_snapshot,
-     run_ingest_completeness_checks,
-+    skipped_exemption_note,
-     write_ci_output,
-     write_step_summary_if_configured,
- )
-@@ -291,7 +292,15 @@ def _load_api_football(request):
-             prior_dropped_calls=prior_dropped,
-             per_team_missing=per_team_missing,
-             prior_per_team_missing=prior_per_team,
-+            skipped_per_team=ctx.skipped_per_team,
-         )
-+        # NEVER SILENT. The gate exempts pairs that were deliberately skipped this run (#33 item
-+        # 14's 7-day cadence), and an exemption nobody can see is how a real gap hides behind the
-+        # cadence. The text lives in `skipped_exemption_note` so a test can assert it — nothing
-+        # drives this function end to end.
-+        exemption_note = skipped_exemption_note(outcome.get("skipped_per_team_exempt"))
-+        if exemption_note:
-+            print(exemption_note, flush=True)
-         persist_fixture_statistics_missing(
-             client,
-             report,
-diff --git a/tests/test_completeness_outcome_and_summary.py b/tests/test_completeness_outcome_and_summary.py
-index 0179341..2ebe47c 100644
---- a/tests/test_completeness_outcome_and_summary.py
-+++ b/tests/test_completeness_outcome_and_summary.py
-@@ -180,6 +180,11 @@ class TestEvaluateCompletenessOutcome:
-             # SKIP_COMPLETENESS_CHECK suppresses them too. Extended in place, never relaxed to a
-             # subset, so a future signal still cannot be added here unnoticed.
-             "stagnant_per_team_gaps": [],
-+            # 2026-08-14: pairs the re-fetch cadence deliberately skipped this run, which the gate
-+            # exempts from stagnation. Reported so an exemption is never silent. Added here
-+            # consciously, which is the point of the exact-equality assertion above — this key
-+            # could not slip in unnoticed, and it did not.
-+            "skipped_per_team_exempt": [],
-         }
- 
- 
-diff --git a/tests/test_per_team_completeness.py b/tests/test_per_team_completeness.py
-index c71a88c..bf63308 100644
---- a/tests/test_per_team_completeness.py
-+++ b/tests/test_per_team_completeness.py
-@@ -28,6 +28,7 @@ from ingestion.api_football.completeness import (
-     per_team_expectations_from_results,
-     per_team_missing_by_league_entity,
-     read_per_team_coverage,
-+    skipped_exemption_note,
- )
- 
- 
-@@ -329,6 +330,99 @@ class TestStagnationWindow:
-     def test_a_different_entity_is_not_stagnation(self):
-         assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, {"BL1/SQUADS": 3}) == []
- 
-+
-+class TestDeliberateSkipIsNotStagnation:
-+    """The 2026-08-14 nightly, pinned.
-+
-+    `detect_stagnant_per_team_gaps` fails a run when a pair is short of teams on two consecutive
-+    runs, because "the next night's fetch would have healed it". #33 item 14 put transfers on a
-+    7-day per-league cadence that skips the phase ENTIRELY, so a skipped league CANNOT heal — and
-+    a pre-existing 1-team gap in UCL/TRANSFERS killed the run with exit(3) before dbt.
-+
-+    ⚠ THIS NARROWS A GUARD, so the tests below must prove BOTH directions: exempt when skipped,
-+    and STILL FIRING when the pair was actually fetched. A test suite that only proved the first
-+    would be indistinguishable from deleting the check.
-+    """
-+
-+    def test_skipped_pair_is_not_stagnant(self):
-+        out = detect_stagnant_per_team_gaps(
-+            {"UCL/TRANSFERS": 1}, {"UCL/TRANSFERS": 1}, skipped={"UCL/TRANSFERS"}
-+        )
-+        assert out == [], (
-+            "a league whose transfers phase was skipped by the re-fetch cadence cannot heal, "
-+            "so a persisting gap there is not evidence of a stalled ingest"
-+        )
-+
-+    def test_fetched_pair_still_fails(self):
-+        """The guard that must survive: fetched on both runs, still missing teams."""
-+        out = detect_stagnant_per_team_gaps(
-+            {"UCL/TRANSFERS": 1}, {"UCL/TRANSFERS": 1}, skipped=set()
-+        )
-+        assert out == [
-+            {"league_code": "UCL", "entity": "TRANSFERS", "prior_count": 1, "count": 1}
-+        ]
-+
-+    def test_skipping_one_pair_does_not_exempt_another(self):
-+        """The exemption is per (league, entity), not a blanket off-switch."""
-+        out = detect_stagnant_per_team_gaps(
-+            {"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
-+            {"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
-+            skipped={"UCL/TRANSFERS"},
-+        )
-+        assert out == [
-+            {"league_code": "BL1", "entity": "PLAYERS", "prior_count": 2, "count": 2}
-+        ]
-+
-+    def test_skipping_a_league_does_not_exempt_its_other_entities(self):
-+        """UCL transfers skipped must not excuse UCL players."""
-+        out = detect_stagnant_per_team_gaps(
-+            {"UCL/PLAYERS": 4}, {"UCL/PLAYERS": 4}, skipped={"UCL/TRANSFERS"}
-+        )
-+        assert out == [
-+            {"league_code": "UCL", "entity": "PLAYERS", "prior_count": 4, "count": 4}
-+        ]
-+
-+    def test_omitting_skipped_preserves_old_behaviour(self):
-+        """Every existing caller that passes nothing must be unaffected."""
-+        out = detect_stagnant_per_team_gaps({"UCL/TRANSFERS": 1}, {"UCL/TRANSFERS": 1})
-+        assert len(out) == 1
-+
-+    def test_outcome_reports_the_exemption_so_it_is_never_silent(self):
-+        """An exemption nobody can see is how a real gap hides behind the cadence."""
-+        report = {"skipped": False, "leagues": {}}
-+        outcome = evaluate_completeness_outcome(
-+            report,
-+            per_team_missing={"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
-+            prior_per_team_missing={"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
-+            skipped_per_team={"UCL/TRANSFERS", "SPL/TRANSFERS"},
-+        )
-+        assert outcome["stagnant_per_team_gaps"] == [
-+            {"league_code": "BL1", "entity": "PLAYERS", "prior_count": 2, "count": 2}
-+        ]
-+        # SPL was skipped but has NO gap, so it is not reported — only exemptions that actually
-+        # suppressed something are worth a line in the log.
-+        assert outcome["skipped_per_team_exempt"] == ["UCL/TRANSFERS"]
-+
-+    def test_the_exemption_note_names_what_it_suppressed(self):
-+        """"Never silent" is only worth what its test is worth.
-+
-+        The message began as an inline print in the orchestrator, which no test can reach —
-+        `_load_api_football` is deliberately never driven end to end. A reviewer caught that the
-+        contract claimed this was asserted on the emitted text when nothing asserted anything, so
-+        the text moved into a function that can be called.
-+        """
-+        note = skipped_exemption_note(["UCL/TRANSFERS", "SPL/TRANSFERS"])
-+        assert note is not None
-+        assert "UCL/TRANSFERS" in note and "SPL/TRANSFERS" in note, (
-+            "an exemption that does not name what it suppressed is a silent exemption"
-+        )
-+        assert "not gating" in note
-+
-+    def test_a_quiet_run_says_nothing(self):
-+        """No exemptions must produce no line, or the log trains people to skim past it."""
-+        assert skipped_exemption_note([]) is None
-+        assert skipped_exemption_note(None) is None
-+
-     def test_no_prior_run_is_silent(self):
-         assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, None) == []
- 
-diff --git a/tests/test_refetch_cadence.py b/tests/test_refetch_cadence.py
-index 04c97b3..4e3cf58 100644
---- a/tests/test_refetch_cadence.py
-+++ b/tests/test_refetch_cadence.py
-@@ -199,7 +199,7 @@ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
-     monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: calls.append(a))
- 
-     result = type("R", (), {"league_code": "BL1", "team_ids": {1, 2}, "seasons_list": [2026]})()
--    ctx = type("C", (), {"errors": []})()
-+    ctx = _FakeCtx()
- 
-     fresh = {"BL1": datetime.now(timezone.utc) - timedelta(hours=2)}
-     cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=fresh)
-@@ -209,6 +209,64 @@ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
-     cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=stale)
-     assert len(calls) == 1, "a due league did not fetch; the cadence would never refresh"
- 
-+    # ⚠ THE BROAD `except Exception` IN run_transfers_for_competition SWALLOWS EVERYTHING.
-+    # An earlier version of this test used `type("C", (), {"errors": []})()`, a fake with no
-+    # `record_skipped`. Once the skip branch started calling it, that raised AttributeError, the
-+    # except caught it, and this test stayed green while the code under test was broken. Assert
-+    # the error sink is empty so the fake can never silently diverge from PipelineContext again.
-+    assert ctx.errors == [], f"the run path raised and it was swallowed: {ctx.errors}"
-+
-+
-+class _FakeCtx:
-+    """Stands in for PipelineContext with the surface run_transfers_for_competition uses.
-+
-+    Deliberately implements `record_skipped` the same way the real dataclass does, so a test that
-+    exercises the skip branch fails loudly if that contract changes, rather than being absorbed by
-+    the caller's broad exception handler.
-+    """
-+
-+    def __init__(self):
-+        self.errors: list[str] = []
-+        self.skipped_per_team: set[str] = set()
-+
-+    def record_skipped(self, league_code: str, entity: str) -> None:
-+        self.skipped_per_team.add(f"{league_code}/{entity}")
-+
-+
-+def test_a_skipped_league_is_recorded_for_the_completeness_gate(monkeypatch):
-+    """THE 2026-08-14 NIGHTLY, pinned at the call site that actually fixes it.
-+
-+    The completeness gate fails a run when a per-team gap persists across two runs, because a
-+    normal gap heals on the next night's fetch. A league skipped by this cadence cannot heal, so
-+    the skip MUST be recorded or the gate hard-fails on correct behaviour and the dbt build never
-+    runs — which is exactly what happened (`UCL/TRANSFERS (1 then 1 teams missing)`, exit 3).
-+
-+    The gate-side tests in test_per_team_completeness.py drive
-+    `detect_stagnant_per_team_gaps` directly with a hand-built set, so NONE of them fails if this
-+    call site is reverted. This is the test that does.
-+    """
-+    from ingestion.api_football.loads import competition_runner as cr
-+
-+    monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: None)
-+    result = type("R", (), {"league_code": "UCL", "team_ids": {1}, "seasons_list": [2026]})()
-+
-+    skipped_ctx = _FakeCtx()
-+    fresh = {"UCL": datetime.now(timezone.utc) - timedelta(hours=2)}
-+    cr.run_transfers_for_competition(skipped_ctx, result, transfers_last_ingest=fresh)
-+    assert skipped_ctx.skipped_per_team == {"UCL/TRANSFERS"}, (
-+        "a skipped league was not recorded, so the completeness gate cannot tell a deliberate "
-+        "skip from a stalled ingest and will hard-fail the run"
-+    )
-+    assert skipped_ctx.errors == []
-+
-+    # The other direction: a league that IS fetched must NOT be exempted, or the gate goes blind.
-+    fetched_ctx = _FakeCtx()
-+    stale = {"UCL": datetime.now(timezone.utc) - timedelta(days=30)}
-+    cr.run_transfers_for_competition(fetched_ctx, result, transfers_last_ingest=stale)
-+    assert fetched_ctx.skipped_per_team == set(), (
-+        "a league that was actually fetched was marked skipped; its gaps would stop gating"
-+    )
-+
- 
- def test_no_cadence_information_means_fetch(monkeypatch):
-     """Passing None (the default) must behave exactly as before this change — every league
+-amendments:
+-  - id: 1
+-    date: 2026-08-14
+-    authority: >
+-      Not a new CPO ruling — the STANDING RULE recorded in `escalations.log` on 2026-08-08: a
+-      reference broken by an approved change is part of that change. Raised by
+-      data-engineer-reviewer at round 1 as a FAIL, and it is correct.
+-      `docs/competition_registry.yml`'s own header says these fields are "consumed by the site
+-      export ONLY — not by dbt; issue #364". This branch makes that FALSE: `sync_dbt_vars.py`
+-      projects four of them into the seed and `schema.yml` attaches dbt tests that run in
+-      `dbt build`. The header is not incidental prose — `.claude/skills/onboard-competition`
+-      sources its field table from it, so an onboarder reads "not by dbt" immediately before
+-      setting a field that dbt now tests. Leaving it would ship known-false documentation at the
+-      single source of truth for onboarding.
+-    adds:
+-      - docs/competition_registry.yml
++amendments: []
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1126,7 +192,6 @@ index 04c97b3..4e3cf58 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |  422 +---
-#    .claude/task/review_input.patch | 4315 ++++++---------------------------------
-#    2 files changed, 719 insertions(+), 4018 deletions(-)
+#   .claude/active_work.md | 246 +++++++++++++++++++++++++------------------------
+#    1 file changed, 126 insertions(+), 120 deletions(-)
 # ============================================================================
