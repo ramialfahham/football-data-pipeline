@@ -653,7 +653,7 @@ models:
       - name: competition_type
         description: >
           The competition's type from the registry (domestic_league, domestic_cup,
-          continental_club, world_championship, …). Carried so the featured-season rule can prefer
+          continental_cup, world_championship, …). Carried so the featured-season rule can prefer
           a league over a cup within club football, and so a consumer can tell the two apart
           without re-joining the registry.
       - name: entity_type

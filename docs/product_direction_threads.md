@@ -35,8 +35,10 @@ Tackle one by one. Do not close a thread without explicit sign-off from Rami.
 | `domestic_cup` | Knockout bracket, multiple rounds, no standings | DFB-Pokal, FA Cup, Copa del Rey |
 | `domestic_super_cup` | One-off match(es) between domestic titleholders | DFL-Supercup, FA Community Shield, Supercoppa Italiana, Supercopa de España |
 | `club_qualifying` | Qualifying rounds feeding into a continental club competition | UCL qualifying, UEL qualifying |
-| `continental_club` | Group stage + knockout, multi-nation club squads | UCL, UEL, UECL |
+| `continental_cup` | Group stage + knockout, multi-nation club squads | UCL, UEL, UECL |
 | `continental_super_cup` | One-off match between continental titleholders | UEFA Super Cup |
+| `club_world_cup` | Global club tournament — not continental | FIFA Club World Cup |
+| `intercontinental_super_cup` | One-off match between continental titleholders from different confederations | FIFA Intercontinental Cup |
 | `club_friendly_domestic` | Pre-season or mid-season friendly between club sides (domestic context) | — taxonomy only, not ingesting |
 | `club_friendly_international` | Pre-season or mid-season friendly between club sides (cross-border) | — taxonomy only, not ingesting |
 
