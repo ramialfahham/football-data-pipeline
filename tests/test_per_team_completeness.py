@@ -28,6 +28,7 @@ from ingestion.api_football.completeness import (
     per_team_expectations_from_results,
     per_team_missing_by_league_entity,
     read_per_team_coverage,
+    skipped_exemption_note,
 )
 
 
@@ -328,6 +329,99 @@ class TestStagnationWindow:
 
     def test_a_different_entity_is_not_stagnation(self):
         assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, {"BL1/SQUADS": 3}) == []
+
+
+class TestDeliberateSkipIsNotStagnation:
+    """The 2026-08-14 nightly, pinned.
+
+    `detect_stagnant_per_team_gaps` fails a run when a pair is short of teams on two consecutive
+    runs, because "the next night's fetch would have healed it". #33 item 14 put transfers on a
+    7-day per-league cadence that skips the phase ENTIRELY, so a skipped league CANNOT heal — and
+    a pre-existing 1-team gap in UCL/TRANSFERS killed the run with exit(3) before dbt.
+
+    ⚠ THIS NARROWS A GUARD, so the tests below must prove BOTH directions: exempt when skipped,
+    and STILL FIRING when the pair was actually fetched. A test suite that only proved the first
+    would be indistinguishable from deleting the check.
+    """
+
+    def test_skipped_pair_is_not_stagnant(self):
+        out = detect_stagnant_per_team_gaps(
+            {"UCL/TRANSFERS": 1}, {"UCL/TRANSFERS": 1}, skipped={"UCL/TRANSFERS"}
+        )
+        assert out == [], (
+            "a league whose transfers phase was skipped by the re-fetch cadence cannot heal, "
+            "so a persisting gap there is not evidence of a stalled ingest"
+        )
+
+    def test_fetched_pair_still_fails(self):
+        """The guard that must survive: fetched on both runs, still missing teams."""
+        out = detect_stagnant_per_team_gaps(
+            {"UCL/TRANSFERS": 1}, {"UCL/TRANSFERS": 1}, skipped=set()
+        )
+        assert out == [
+            {"league_code": "UCL", "entity": "TRANSFERS", "prior_count": 1, "count": 1}
+        ]
+
+    def test_skipping_one_pair_does_not_exempt_another(self):
+        """The exemption is per (league, entity), not a blanket off-switch."""
+        out = detect_stagnant_per_team_gaps(
+            {"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
+            {"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
+            skipped={"UCL/TRANSFERS"},
+        )
+        assert out == [
+            {"league_code": "BL1", "entity": "PLAYERS", "prior_count": 2, "count": 2}
+        ]
+
+    def test_skipping_a_league_does_not_exempt_its_other_entities(self):
+        """UCL transfers skipped must not excuse UCL players."""
+        out = detect_stagnant_per_team_gaps(
+            {"UCL/PLAYERS": 4}, {"UCL/PLAYERS": 4}, skipped={"UCL/TRANSFERS"}
+        )
+        assert out == [
+            {"league_code": "UCL", "entity": "PLAYERS", "prior_count": 4, "count": 4}
+        ]
+
+    def test_omitting_skipped_preserves_old_behaviour(self):
+        """Every existing caller that passes nothing must be unaffected."""
+        out = detect_stagnant_per_team_gaps({"UCL/TRANSFERS": 1}, {"UCL/TRANSFERS": 1})
+        assert len(out) == 1
+
+    def test_outcome_reports_the_exemption_so_it_is_never_silent(self):
+        """An exemption nobody can see is how a real gap hides behind the cadence."""
+        report = {"skipped": False, "leagues": {}}
+        outcome = evaluate_completeness_outcome(
+            report,
+            per_team_missing={"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
+            prior_per_team_missing={"UCL/TRANSFERS": 1, "BL1/PLAYERS": 2},
+            skipped_per_team={"UCL/TRANSFERS", "SPL/TRANSFERS"},
+        )
+        assert outcome["stagnant_per_team_gaps"] == [
+            {"league_code": "BL1", "entity": "PLAYERS", "prior_count": 2, "count": 2}
+        ]
+        # SPL was skipped but has NO gap, so it is not reported — only exemptions that actually
+        # suppressed something are worth a line in the log.
+        assert outcome["skipped_per_team_exempt"] == ["UCL/TRANSFERS"]
+
+    def test_the_exemption_note_names_what_it_suppressed(self):
+        """"Never silent" is only worth what its test is worth.
+
+        The message began as an inline print in the orchestrator, which no test can reach —
+        `_load_api_football` is deliberately never driven end to end. A reviewer caught that the
+        contract claimed this was asserted on the emitted text when nothing asserted anything, so
+        the text moved into a function that can be called.
+        """
+        note = skipped_exemption_note(["UCL/TRANSFERS", "SPL/TRANSFERS"])
+        assert note is not None
+        assert "UCL/TRANSFERS" in note and "SPL/TRANSFERS" in note, (
+            "an exemption that does not name what it suppressed is a silent exemption"
+        )
+        assert "not gating" in note
+
+    def test_a_quiet_run_says_nothing(self):
+        """No exemptions must produce no line, or the log trains people to skim past it."""
+        assert skipped_exemption_note([]) is None
+        assert skipped_exemption_note(None) is None
 
     def test_no_prior_run_is_silent(self):
         assert detect_stagnant_per_team_gaps({"BL1/PLAYERS": 3}, None) == []
