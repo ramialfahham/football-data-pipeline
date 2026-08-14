@@ -48,11 +48,18 @@ seeds:
           domestic league and the Champions League are both `club`), `tier` exists only on
           domestic leagues, and reading the `domestic_` prefix off the type name is string
           sniffing that `club_friendly_domestic` breaks anyway.
-          true  -> the row shows the registry's `country`   (Premier League — England)
+          true  -> the row shows a country   (Premier League — England)
           false -> the row shows the confederation's label   (Champions League — Europe)
           The alternative was to print `country` for everything, which is what shipped: it says
           the literal "International" for 15 of the 45 registry competitions, and says it for
           COAM and AFCON while EURO — the same competition_type — says "Europe" (#54).
+          ⚠ ITS SOURCE FOR THE `true` BRANCH CHANGED, 2026-08-14 (#62 step 1, #69). This text
+          used to say "the registry's `country`". The CPO ruled that out — *"separating these
+          entries with THIS flag is bullshit… I'd assume that these entries are somewhere in a
+          mapping table and/or then a dim table"* — because `dim_league` ALREADY carries
+          provider `league_country` and `country_flag_url`, so the registry's hand-typed copy is
+          a second one and projecting it would have made a third. `country` is therefore NOT in
+          the competition_registry seed, and countries become their own entity under **#69**.
           ⚠ ADDITIVE AND NOT YET READ. `mart_competition_index` (#62) is what will resolve the
           branch; until it exists nothing consumes this column.
           ⚠ NO `accepted_values` TEST, deliberately. Every value is the literal `true`/`false`, so
@@ -135,11 +142,18 @@ seeds:
 
   - name: competition_registry
     description: >
-      league_code → (competition_type, parent_competition) mapping, generated from
-      docs/competition_registry.yml by scripts/sync_dbt_vars.py (do not hand-edit). dbt models
-      join on this to resolve a competition's type (then entity_type via the competition_types
-      seed) and its parent competition. Kept in lockstep with the registry — including the new
-      column and parent-link validity — by scripts/check_registry_var_sync.py.
+      The registry's own fields, projected into the warehouse so no page has to read an authoring
+      file to render (#62). Generated from docs/competition_registry.yml by
+      scripts/sync_dbt_vars.py (do not hand-edit). dbt models join on league_code to resolve a
+      competition's type (then entity_type via the competition_types seed), its parent
+      competition, and its display fields. Kept in lockstep with the registry over EVERY column —
+      and for parent-link validity — by scripts/check_registry_var_sync.py.
+
+      ⚠ `country` is deliberately NOT here (#69). dim_league already carries league_country and
+      country_flag_url from the provider, so projecting the registry's hand-typed copy would make
+      a third — and for 24 of 45 competitions that copy holds a region word ("Europe",
+      "International") rather than a country. Region lives in `confederation` below; country and
+      its flag come from dim_league until #69 gives countries their own seed and dim.
     columns:
       - name: league_code
         description: "Internal competition code (matches docs/competition_registry.yml)."
@@ -160,6 +174,47 @@ seeds:
           its league (e.g. DFBP → BL1). Lets the form-window selection resolve a tournament's
           qualifier competitions generically (no hardcoded code lists). Validity (every
           non-empty value is a known league_code) is enforced by check_registry_var_sync.py.
+      - name: confederation
+        description: >
+          The competition's governing confederation, and the region key for the whole platform:
+          AFC, CAF, CONCACAF, CONMEBOL, OFC, UEFA, or FIFA for worldwide competitions. Join
+          confederations for the display label. This is OUR classification — the provider does
+          not supply it — which is why it is registry-owned rather than taken from a dim. It is
+          strictly more precise than the registry's country field ever was: country says
+          "International" for both the Copa América and the Gold Cup, while confederation
+          separates CONMEBOL from CONCACAF.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+      - name: slug
+        description: >
+          The competition's URL segment, e.g. "bundesliga". Authored in the registry and assigned
+          once, never derived from a name (#852) — a rename must not silently move a URL.
+        tests:
+          - not_null
+          - unique
+      - name: sort_order
+        description: >
+          Display rank within a browse group; lower sorts first. Authored, not computed, so the
+          CPO controls competition ordering without a code change.
+        tests:
+          - not_null
+      - name: tier
+        description: >
+          Division level within its country: 1 for a top flight, 2 for a second tier. EMPTY for
+          every competition that is not a domestic_league, because a cup or tournament has no
+          division — structurally N/A rather than missing, which is why there is no not_null
+          test. The biconditional (non-empty iff domestic_league) is pinned by
+          tests/test_registry_seed_projection.py; measured at 16 of 45 competitions.
+      - name: season_type
+        description: >
+          Whether a season sits inside one calendar year ("calendar_year", e.g. MLS, Brasileirão)
+          or spans two ("split_year", e.g. the Bundesliga's 2025/26). Drives season labelling and
+          the boundaries of a season window.
+        tests:
+          - not_null
 
   - name: metric_catalogue
     description: >

@@ -17,13 +17,29 @@
 #   backlog      — considered, no timeline
 #   completed    — finished, scope doc moved to docs/archive/
 #
-# Site display metadata (consumed by the site export ONLY — not by dbt; issue #364):
+# Display metadata. ⚠ PROJECTED INTO dbt by scripts/sync_dbt_vars.py (#62) — these stopped being
+# export-only fields. What enforces each one differs, so it is spelled out per field rather than
+# claimed in one sentence:
 #   confederation : UEFA | CONMEBOL | CONCACAF | CAF | AFC | OFC | FIFA (global)
-#   tier          : league pyramid level (domestic_league only; 1 = top flight)
+#                   dbt: not_null + must exist in the confederations seed -> fails `dbt build`
 #   slug          : stable, locale-independent URL slug — NEVER change once published
 #                   (a rename gets a redirect alias, not a new canonical)
+#                   dbt: not_null + unique -> fails `dbt build`
 #   sort_order    : display order within the competition's group (groups derive from
 #                   competition_type — the type→group map lives in the site export)
+#                   dbt: not_null -> fails `dbt build`
+#   season_type   : calendar_year | split_year — whether a season sits inside one year or spans two
+#                   dbt: not_null -> fails `dbt build`
+#   tier          : league pyramid level (domestic_league only; 1 = top flight)
+#                   deliberately BLANK for every other competition_type — a cup has no division,
+#                   so this is structurally N/A rather than missing data
+#                   ⚠ NO dbt TEST, precisely because a blank is legitimate here. The rule that
+#                   makes it safe — non-empty iff domestic_league — is a PYTHON test
+#                   (tests/test_registry_seed_projection.py), which runs in the `test:python` CI
+#                   job, NOT in `dbt build`. Setting a wrong tier fails there, not in the warehouse.
+# ⚠ `country` is NOT projected (#69). dim_league already carries provider country and flag, and
+# this field holds a region word ("Europe", "International") for multi-country competitions, so
+# projecting it would make a third copy of a concept the warehouse already models.
 #
 # Update vars.active_competition_league_codes in dbt_project/dbt_project.yml for active competitions; CI checks sync.
 

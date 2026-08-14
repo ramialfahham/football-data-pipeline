@@ -2,8 +2,11 @@
 
 Checks two things against docs/competition_registry.yml:
   1. ``active_competition_league_codes`` in dbt_project.yml == registry active/in_progress.
-  2. ``seeds/competition_registry.csv`` == registry (league_code → competition_type,
-     parent_competition), and every parent_competition references a known league_code.
+  2. ``seeds/competition_registry.csv`` == registry over EVERY projected column (see
+     SEED_COLUMNS), and every parent_competition references a known league_code.
+     ⚠ This compared three columns until #62 widened the projection. Comparing a subset is the
+     failure mode #62 names: the seed grows, the guard keeps passing, and most of the file
+     stops being covered.
 
 Both are written by scripts/sync_dbt_vars.py; this script fails CI if either drifts.
 Singular tests under dbt_project/tests/ prove var ⊆ base rows. See
@@ -25,6 +28,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = REPO_ROOT / "docs" / "competition_registry.yml"
 DBT_PROJECT_PATH = REPO_ROOT / "dbt_project" / "dbt_project.yml"
 REGISTRY_SEED_PATH = REPO_ROOT / "dbt_project" / "seeds" / "competition_registry.csv"
+
+# The seed's columns come from the WRITER, imported rather than restated, so the guard cannot check
+# a different column set from the one that is written. An earlier draft duplicated the tuple here
+# and leaned on a parity test; platform-reviewer was right that the justification did not hold —
+# `scripts/` resolves as a namespace package from the repo root, so one sys.path line makes the
+# import work whether this runs as `python scripts/check_registry_var_sync.py` (CI) or under pytest.
+# A structural guarantee beats a test that detects the drift after the fact, and this is the same
+# shape `scripts/check_task_artifacts.py:51` already uses to reach the hooks package.
+sys.path.insert(0, str(REPO_ROOT))
+from scripts.sync_dbt_vars import SEED_COLUMNS, _normalise  # noqa: E402
 
 
 def _registry_active_codes() -> list[str]:
@@ -68,36 +81,47 @@ def _registry_missing_ingest_active() -> list[str]:
     return missing
 
 
-def _registry_seed_triples() -> set[tuple[str, str, str]]:
+def _registry_seed_rows() -> set[tuple[str, ...]]:
+    """The rows the seed SHOULD hold, derived from the registry over every projected column.
+
+    ⚠ This compared three columns while the seed carried more, which #62 named as the failure
+    mode: extend the seed without extending the guard and it "silently stops covering most of the
+    file". Both sides now iterate SEED_COLUMNS, so a new column is covered the moment it is
+    declared — there is no second list to remember to update.
+    """
     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     comps = data.get("competitions") or []
-    out: set[tuple[str, str, str]] = set()
+    out: set[tuple[str, ...]] = set()
     for row in comps:
         if not isinstance(row, dict):
             continue
         code = row.get("league_code")
         ctype = row.get("competition_type")
         if code and ctype:
-            parent = row.get("parent_competition") or ""
-            out.add((str(code), str(ctype), str(parent)))
+            out.add(tuple(_normalise(row.get(c)) for c in SEED_COLUMNS))
     return out
 
 
-def _seed_triples() -> set[tuple[str, str, str]]:
+def _seed_rows() -> set[tuple[str, ...]]:
+    """The rows the seed ACTUALLY holds, read verbatim.
+
+    ⚠ NOTHING IS STRIPPED HERE, deliberately. Stripping this side while the registry side was
+    unstripped is precisely the hole platform-reviewer found at round 1: a seed cell of "UEFA "
+    normalised to "UEFA", matched the registry, and the guard reported OK on a corrupted file —
+    and `not_null`/`unique` would not have caught it either, since a trailing space is neither
+    null nor a duplicate. Normalisation happens once, in the writer's `_normalise`; the comparison
+    here is exact, which is what "kept in lockstep over every column" has to mean.
+    """
     with REGISTRY_SEED_PATH.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         cols = reader.fieldnames or []
-        for required in ("league_code", "competition_type", "parent_competition"):
+        for required in SEED_COLUMNS:
             if required not in cols:
                 raise KeyError(
                     f"competition_registry.csv missing required column '{required}'"
                 )
         return {
-            (
-                r["league_code"].strip(),
-                r["competition_type"].strip(),
-                (r.get("parent_competition") or "").strip(),
-            )
+            tuple(r.get(c) or "" for c in SEED_COLUMNS)
             for r in reader
             if r.get("league_code") and r.get("competition_type")
         }
@@ -129,8 +153,8 @@ def main() -> int:
         reg = _registry_active_codes()
         var = _dbt_var_codes()
         missing_flag = _registry_missing_ingest_active()
-        reg_triples = _registry_seed_triples()
-        seed_triples = _seed_triples()
+        reg_rows = _registry_seed_rows()
+        seed_rows = _seed_rows()
         dangling_parents = _registry_dangling_parents()
     except Exception as e:
         print(f"check_registry_var_sync: {e}", file=sys.stderr)
@@ -185,14 +209,17 @@ def main() -> int:
             )
         return 1
 
-    if reg_triples != seed_triples:
-        only_reg = sorted(reg_triples - seed_triples)
-        only_seed = sorted(seed_triples - reg_triples)
+    if reg_rows != seed_rows:
+        only_reg = sorted(reg_rows - seed_rows)
+        only_seed = sorted(seed_rows - reg_rows)
         print(
             "check_registry_var_sync: competition_registry.csv is out of sync with the "
             "registry. Run `python scripts/sync_dbt_vars.py`.",
             file=sys.stderr,
         )
+        # Name the columns: with eight of them a bare tuple diff is unreadable and the reader
+        # cannot tell WHICH field drifted.
+        print(f"  columns: {', '.join(SEED_COLUMNS)}", file=sys.stderr)
         if only_reg:
             print(f"  in registry only: {only_reg}", file=sys.stderr)
         if only_seed:
@@ -201,7 +228,7 @@ def main() -> int:
 
     print(
         f"check_registry_var_sync: OK ({len(s_reg)} competitions; "
-        f"{len(seed_triples)} registry-seed rows)."
+        f"{len(seed_rows)} registry-seed rows over {len(SEED_COLUMNS)} columns)."
     )
     return 0
 

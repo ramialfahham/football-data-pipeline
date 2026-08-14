@@ -2775,3 +2775,46 @@ here, and was right, as it was the previous five times.
   STILL OPEN, and reserved to the CPO rather than decided here: whether a league skipped for many
   consecutive runs should eventually be force-fetched, so a real gap cannot hide behind the
   cadence. The 7-day bound limits the exposure, which is why it is not urgent.
+
+
+2026-08-14 feat/62-registry-seed-display-fields - CPO rulings on how the taxonomy is defined.
+
+  THE ASK. #62 step 1 projects the registry's display fields into the seed so no page has to read
+  an authoring file. The first design carried `country` across and used
+  `competition_types.single_country` to tell "England" apart from "Europe".
+
+  RULING 1 - THE RULE GOVERNS DATA, NOT EVERYTHING ON A PAGE. CPO: "if the content is related to
+  data we want to show... but there might be content where we don't pull from a mart." Correct, and
+  #62's wording overreached. Recorded as a note on #62: data comes from exactly one mart per block;
+  copy comes from the i18n surface; where data needs a label the mart carries the KEY and the
+  English name, never the translated string. `content_architecture.md` principle 4 already said the
+  first half; #57's `label_en` + `label_i18n_key` already implemented the third.
+
+  RULING 2 - WE DEFINE THE TAXONOMY; WE DO NOT INHERIT A MESS. CPO: "Our transformation layer is
+  the place where we clean, reconcile and standardize the data. We can even impute missing
+  information after researching properly... We don't need to accept this. Raw doesn't define the
+  taxonomies or categories or whatever. We do it in a way that makes sense for our purpose."
+
+  RULING 3 - AND A FLAG IS NOT A MODEL. On the proposal to split country from continent using
+  `single_country`, the CPO: "separating these entries with THIS flag is bullshit... I'd assume
+  that these entries are somewhere in a mapping table and/or then a dim table if we use them for a
+  mart."
+
+  He was right, and checking proved the proposal worse than it looked. `dim_league` ALREADY carries
+  `league_country` AND `country_flag_url`, provider-sourced via `stg_apif__leagues.sql:53`. The
+  registry's hand-typed `country` is a SECOND copy; projecting it would have made a THIRD, and the
+  flag rule would have encoded the inconsistency instead of removing it. There is no countries seed
+  and no `dim_country` anywhere, and `league_country` has no tests at all (`core.yml`: tests: None).
+
+  WHAT CHANGED AS A RESULT. `country` is dropped from this task's projection entirely - the seed
+  gets `confederation`, `slug`, `sort_order`, `tier`, `season_type` and nothing else. Countries
+  become their own entity under GitLab #69: a `countries` seed and `dim_country` on the
+  `confederations` pattern, with FKs from the four dims that hold country as free text, so "Europe"
+  and "International" fail a foreign key rather than needing a rule to catch them. First action
+  there is DISCOVERY (a priced `SELECT DISTINCT` per surface), then the canonical names go to the
+  CPO, because names are copy and copy is his.
+
+  ⚠ NOT DECIDED HERE, and left to #69 deliberately: what happens to the registry YAML's own
+  `country` values. Blanking the 24 non-country entries today would change what the site renders,
+  because `export_site_data.py:911` still reads the YAML directly - the coupling #62 exists to
+  remove. It follows step 4, not this step.
