@@ -138,6 +138,10 @@ def run_cheap_phases(
             _skipped_phase(
                 league_code, "coaches", skip_reason(league_code, coaches_seen, utcnow())
             )
+            # COACHES is not in PER_TEAM_GATED today, so this changes nothing right now. Recorded
+            # anyway: if it is ever promoted to a gating entity, the skip must already be visible
+            # to the gate — otherwise it repeats the transfers failure with a fresh cause.
+            ctx.record_skipped(league_code, "COACHES")
         return CompetitionRunResult(
             league_code=league_code,
             seasons_list=seasons_list,
@@ -203,6 +207,12 @@ def run_transfers_for_competition(
                 "transfers batch",
                 skip_reason(result.league_code, seen, utcnow()),
             )
+            # The completeness gate fails a run when a per-team gap persists across TWO runs, on
+            # the reasoning that one bad run heals on the next night's fetch. A skipped league
+            # cannot heal — there is no fetch — so it must be told, or a pre-existing gap trips a
+            # gate built for nightly fetches. That is exactly how the 2026-08-14 nightly died on
+            # UCL/TRANSFERS.
+            ctx.record_skipped(result.league_code, "TRANSFERS")
             return
         _ingestion_phase(result.league_code, "transfers batch")
         load_transfers_batch(ctx, result.league_code, result.team_ids)

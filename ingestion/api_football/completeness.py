@@ -400,20 +400,60 @@ def per_team_missing_by_league_entity(
     return out
 
 
+def skipped_exemption_note(exempt: list[str] | None) -> str | None:
+    """The line the run prints when the gate exempts a deliberately-skipped pair, or None.
+
+    EXTRACTED SO IT CAN BE TESTED. It began as an inline `print` in the orchestrator, and
+    `platform-reviewer` pointed out that nothing could reach it: `_load_api_football` is
+    deliberately never driven end to end by any test, so the contract's promise that the
+    exemption is "asserted by a test on the emitted text" was false as written. A guarantee that
+    an exemption is never silent is worth exactly as much as its test.
+
+    Returns None when there is nothing to say, so a quiet run stays quiet.
+    """
+    if not exempt:
+        return None
+    return (
+        "[api-football] completeness: not gating "
+        + ", ".join(exempt)
+        + " — deliberately skipped this run by the re-fetch cadence, so a gap there cannot heal "
+        "and is not evidence of a stalled ingest."
+    )
+
+
 def detect_stagnant_per_team_gaps(
     current: dict[str, int],
     prior: dict[str, int] | None,
+    skipped: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """(league, entity) pairs still missing teams on TWO consecutive runs.
 
     Same window and same reasoning as ``detect_stagnant_dropped_calls``: a hard fail skips the dbt
     build and costs daily freshness, so a single observation must not trigger it. A brand-new team
     whose first fetch fails would otherwise fail the run on the day it appears.
+
+    ⚠ ``skipped`` HOLDS THE PAIRS THAT WERE NOT FETCHED AT ALL THIS RUN, and they are exempt.
+    The whole rule above rests on "the next night's fetch would have healed it". #33 item 14 put
+    transfers on a 7-day per-league cadence that skips the phase ENTIRELY, and a league that was
+    never fetched cannot heal by construction — so a pre-existing gap sat unfetched and failed the
+    2026-08-14 nightly (`UCL/TRANSFERS (1 then 1 teams missing)`), with `exit(3)` before dbt ran.
+
+    THIS NARROWS THE GUARD, IT DOES NOT REMOVE IT, and the distinction is the point. A pair that
+    WAS fetched on both runs and is still short of teams is still flagged, which is the case the
+    gate exists for. The alternative considered and rejected was dropping TRANSFERS from
+    ``PER_TEAM_GATED`` entirely (the COACHES precedent) — that would have removed real coverage
+    permanently to work around an assumption we broke ourselves.
+
+    The caller is expected to LOG what it exempted: a league skipped for many runs would otherwise
+    hide a real gap behind the cadence, silently. The 7-day cadence bounds that to 7 days.
     """
     if not prior:
         return []
+    exempt = skipped or set()
     stagnant: list[dict[str, Any]] = []
     for key, count in sorted(current.items()):
+        if key in exempt:
+            continue
         prev = prior.get(key, 0)
         if count > 0 and prev > 0:
             league_code, _, entity = key.partition("/")
@@ -605,6 +645,7 @@ def evaluate_completeness_outcome(
     prior_dropped_calls: dict[str, int] | None = None,
     per_team_missing: dict[str, int] | None = None,
     prior_per_team_missing: dict[str, int] | None = None,
+    skipped_per_team: set[str] | None = None,
 ) -> dict[str, Any]:
     """Decide whether the ingest run should hard-fail.
 
@@ -624,6 +665,7 @@ def evaluate_completeness_outcome(
         "stagnant_statistics": [],
         "stagnant_dropped_calls": [],
         "stagnant_per_team_gaps": [],
+        "skipped_per_team_exempt": [],
     }
     if report.get("skipped"):
         return out
@@ -676,7 +718,12 @@ def evaluate_completeness_outcome(
     # (API_FOOTBALL_FAIL_ON_INCOMPLETE=0, the documented backfill override). Placing a third
     # stagnation signal anywhere else is the exact defect review caught in the previous task.
     out["stagnant_per_team_gaps"] = detect_stagnant_per_team_gaps(
-        per_team_missing or {}, prior_per_team_missing
+        per_team_missing or {}, prior_per_team_missing, skipped_per_team
+    )
+    # Reported so an exemption can never be silent. A league whose transfers are skipped week
+    # after week would otherwise hide a real gap behind the cadence with nothing to look at.
+    out["skipped_per_team_exempt"] = sorted(
+        k for k in (skipped_per_team or set()) if (per_team_missing or {}).get(k, 0) > 0
     )
 
     if fail_on_incomplete() and (

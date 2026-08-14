@@ -15,9 +15,20 @@ class PipelineContext:
     headers: dict
     errors: list[str] = field(default_factory=list)
     tables_loaded: int = 0
+    # "LEAGUE/ENTITY" pairs whose phase was deliberately SKIPPED this run by the #33 item 14
+    # re-fetch cadence. The completeness gate reads this to tell a skip apart from a gap.
+    #
+    # WHY IT IS RECORDED HERE RATHER THAN RECOMPUTED: the gate could call `should_refetch` itself,
+    # but then two places would decide what "due" means and they would drift. This records what
+    # ACTUALLY happened at the call site that made the decision.
+    skipped_per_team: set[str] = field(default_factory=set)
 
     def add_loaded(self, n: int = 1) -> None:
         self.tables_loaded += n
+
+    def record_skipped(self, league_code: str, entity: str) -> None:
+        """Note that `entity` was not fetched for `league_code` on this run."""
+        self.skipped_per_team.add(f"{league_code}/{entity}")
 
 
 @dataclass

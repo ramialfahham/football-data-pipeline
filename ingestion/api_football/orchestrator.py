@@ -30,6 +30,7 @@ from .completeness import (
     read_per_team_coverage,
     read_prior_snapshot,
     run_ingest_completeness_checks,
+    skipped_exemption_note,
     write_ci_output,
     write_step_summary_if_configured,
 )
@@ -291,7 +292,15 @@ def _load_api_football(request):
             prior_dropped_calls=prior_dropped,
             per_team_missing=per_team_missing,
             prior_per_team_missing=prior_per_team,
+            skipped_per_team=ctx.skipped_per_team,
         )
+        # NEVER SILENT. The gate exempts pairs that were deliberately skipped this run (#33 item
+        # 14's 7-day cadence), and an exemption nobody can see is how a real gap hides behind the
+        # cadence. The text lives in `skipped_exemption_note` so a test can assert it — nothing
+        # drives this function end to end.
+        exemption_note = skipped_exemption_note(outcome.get("skipped_per_team_exempt"))
+        if exemption_note:
+            print(exemption_note, flush=True)
         persist_fixture_statistics_missing(
             client,
             report,

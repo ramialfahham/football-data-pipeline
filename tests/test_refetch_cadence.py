@@ -199,7 +199,7 @@ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
     monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: calls.append(a))
 
     result = type("R", (), {"league_code": "BL1", "team_ids": {1, 2}, "seasons_list": [2026]})()
-    ctx = type("C", (), {"errors": []})()
+    ctx = _FakeCtx()
 
     fresh = {"BL1": datetime.now(timezone.utc) - timedelta(hours=2)}
     cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=fresh)
@@ -208,6 +208,64 @@ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
     stale = {"BL1": datetime.now(timezone.utc) - timedelta(days=30)}
     cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=stale)
     assert len(calls) == 1, "a due league did not fetch; the cadence would never refresh"
+
+    # ⚠ THE BROAD `except Exception` IN run_transfers_for_competition SWALLOWS EVERYTHING.
+    # An earlier version of this test used `type("C", (), {"errors": []})()`, a fake with no
+    # `record_skipped`. Once the skip branch started calling it, that raised AttributeError, the
+    # except caught it, and this test stayed green while the code under test was broken. Assert
+    # the error sink is empty so the fake can never silently diverge from PipelineContext again.
+    assert ctx.errors == [], f"the run path raised and it was swallowed: {ctx.errors}"
+
+
+class _FakeCtx:
+    """Stands in for PipelineContext with the surface run_transfers_for_competition uses.
+
+    Deliberately implements `record_skipped` the same way the real dataclass does, so a test that
+    exercises the skip branch fails loudly if that contract changes, rather than being absorbed by
+    the caller's broad exception handler.
+    """
+
+    def __init__(self):
+        self.errors: list[str] = []
+        self.skipped_per_team: set[str] = set()
+
+    def record_skipped(self, league_code: str, entity: str) -> None:
+        self.skipped_per_team.add(f"{league_code}/{entity}")
+
+
+def test_a_skipped_league_is_recorded_for_the_completeness_gate(monkeypatch):
+    """THE 2026-08-14 NIGHTLY, pinned at the call site that actually fixes it.
+
+    The completeness gate fails a run when a per-team gap persists across two runs, because a
+    normal gap heals on the next night's fetch. A league skipped by this cadence cannot heal, so
+    the skip MUST be recorded or the gate hard-fails on correct behaviour and the dbt build never
+    runs — which is exactly what happened (`UCL/TRANSFERS (1 then 1 teams missing)`, exit 3).
+
+    The gate-side tests in test_per_team_completeness.py drive
+    `detect_stagnant_per_team_gaps` directly with a hand-built set, so NONE of them fails if this
+    call site is reverted. This is the test that does.
+    """
+    from ingestion.api_football.loads import competition_runner as cr
+
+    monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: None)
+    result = type("R", (), {"league_code": "UCL", "team_ids": {1}, "seasons_list": [2026]})()
+
+    skipped_ctx = _FakeCtx()
+    fresh = {"UCL": datetime.now(timezone.utc) - timedelta(hours=2)}
+    cr.run_transfers_for_competition(skipped_ctx, result, transfers_last_ingest=fresh)
+    assert skipped_ctx.skipped_per_team == {"UCL/TRANSFERS"}, (
+        "a skipped league was not recorded, so the completeness gate cannot tell a deliberate "
+        "skip from a stalled ingest and will hard-fail the run"
+    )
+    assert skipped_ctx.errors == []
+
+    # The other direction: a league that IS fetched must NOT be exempted, or the gate goes blind.
+    fetched_ctx = _FakeCtx()
+    stale = {"UCL": datetime.now(timezone.utc) - timedelta(days=30)}
+    cr.run_transfers_for_competition(fetched_ctx, result, transfers_last_ingest=stale)
+    assert fetched_ctx.skipped_per_team == set(), (
+        "a league that was actually fetched was marked skipped; its gaps would stop gating"
+    )
 
 
 def test_no_cadence_information_means_fetch(monkeypatch):

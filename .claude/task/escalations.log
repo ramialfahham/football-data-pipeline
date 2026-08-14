@@ -2735,3 +2735,43 @@ here, and was right, as it was the previous five times.
   THE REUSABLE LESSON, and it is the one this repo logs most often (#904): my search for prior
   guidance covered `docs/` only, while the ruling lived in `dbt_project/tests/`. **A claim of
   absence must search as wide as the claim.** The branch is deleted and nothing was pushed.
+
+
+2026-08-14 — THE COMPLETENESS GATE AND THE RE-FETCH CADENCE CONTRADICT EACH OTHER (OUR OWN BUG)
+
+  THE RULING: **"Do as recommended"** — option 1, teach the completeness gate that a deliberate
+  skip is not a gap. Given in-thread 2026-08-14 after the choice was put in plain language, with
+  a recommendation and the reason for rejecting the alternative.
+
+  WHAT BROKE, and it is ours. The 2026-08-14 04:00 nightly exited 3 during ingestion:
+  `Completeness gate failed: per-team gaps not healing: UCL/TRANSFERS (1 then 1 teams missing)`.
+  `detect_stagnant_per_team_gaps` fails a run when a (league, entity) pair has missing teams on
+  TWO CONSECUTIVE RUNS, on the explicit reasoning that one bad run self-heals on the next night's
+  fetch. **#33 item 14 (!31, merged 2026-08-11) invalidated that** by putting transfers on a
+  7-day per-league cadence that skips the phase ENTIRELY. A skipped league cannot heal — there is
+  no fetch — so a pre-existing 1-team gap now trips a gate built for a nightly fetch. The data is
+  fine; the question stopped making sense.
+
+  THE TWO PATHS PUT TO THE CPO:
+    1. Make the gate skip-aware: do not call a pair stagnant if it was deliberately skipped.
+       RECOMMENDED. Keeps the coverage, fixes the wrong assumption.
+    2. Drop TRANSFERS from `PER_TEAM_GATED`, matching the existing COACHES precedent. Smaller,
+       and it works, but it permanently removes real coverage to work around an assumption WE
+       broke — the "never loosen a guard, narrow it to where it still holds" rule.
+  CPO ANSWER: option 1.
+
+  ⚠ A NEAR-MISS WORTH RECORDING. `COACHES` is in `PER_TEAM_ENTITIES` but deliberately NOT in
+  `PER_TEAM_GATED`, excluded on 2026-08-03 because ~23 of 1,265 teams genuinely have no coach and
+  "a permanently-red gate trains everyone to ignore the alarm". Item 14 put coaches AND transfers
+  on the same cadence. Only transfers gates, so only transfers broke. The exclusion that saved
+  coaches was written for an unrelated reason and covered this one by luck, not by design.
+
+  THE GENERAL LESSON, which is the reason this entry is long: item 14 was reviewed by four
+  reviewers across several rounds and none of us connected a change in FETCH CADENCE to a gate
+  whose logic assumes NIGHTLY FETCHES. The two mechanisms live in different files, and the
+  contract's impact_map traced the dbt lineage of the tables involved but not the OPERATIONAL
+  checks that read the same tables. An impact map that stops at the data lineage misses gates.
+
+  STILL OPEN, and reserved to the CPO rather than decided here: whether a league skipped for many
+  consecutive runs should eventually be force-fetched, so a real gap cannot hide behind the
+  cadence. The 7-day bound limits the exposure, which is why it is not urgent.
