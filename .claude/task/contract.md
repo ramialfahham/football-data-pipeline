@@ -1,18 +1,21 @@
-# Task contract — handover write-out after #62 step 1
+# Task contract — handover: #62 step 3 is blocked, and a premise I gave is false
 
 objective: >
-  `.claude/active_work.md` is stale. It says "ONE MR OPEN: `!27`" when `!27`, `!37`, `!39` and
-  `!40` have all merged and NOTHING is in flight, and its CURRENT section describes `!27` as the
-  work in progress. `handover_in.py` injects this file into every new session at SessionStart, so
-  a stale handover is the one document a fresh chat is guaranteed to read and act on.
+  `.claude/active_work.md` tells the next session to start on #62 step 3 and states that
+  `dim_league` carries country and flag. Measured 2026-08-14 against prod: `dim_league` has 45 rows
+  and **0** with `league_country`, **0** with `country_flag_url`. The columns exist and staging
+  extracts them; every value is NULL.
 
-  Bookkeeping only: no code, no model, no test, no shipped number.
+  That premise was mine, it is what the #69 country ruling was decided on, and it blocks step 3 —
+  the region sub-line's `single_country: true` branch now has no source in either the seed or the
+  warehouse. A fresh session must not start building the mart on it.
+
+  Two further claims are corrected by the same query: all 45 competitions HAVE fixtures, and all 45
+  HAVE logos.
 
 refs: >
-  Merged this session: #63 (!35), #33 items 9/14/15, #65 (!37), #57 (!33), #367 (!27),
-  #33 completeness-gate (!39), #62 step 1 (!40). main is `10fa570`.
-  New issues filed this session: #69 (countries as an entity), #70 (scan-budget guard, from the
-  other worktree), plus #64/#67/#68 earlier.
+  GitLab #62 note 2026-08-14 carries the full measurement and is the authority; this only makes the
+  handover agree with it. #54's five notes remain the page design. #69 is the country entity.
 
 scope_paths:
   - .claude/active_work.md
@@ -22,34 +25,22 @@ scope_paths:
   - .claude/task/review_input.patch
 
 decisions_taken: >
-  1. ⚠ **CORRECTED — I ARGUED FOR NO REVIEW ROUND AND THE GATE WAS RIGHT TO REFUSE IT.** The first
-     version of this item said "NO REVIEW ROUND IS RUN", reasoning that the routing yields only the
-     always-on scope-auditor, that the diff is a status document with no code or guard in it, and
-     that paying adversarial-review price for prose is what `feedback_review_cost_discipline`
-     warns against. The commit gate rejected `rounds: 0` — it counts review rounds and requires at
-     least one — so the round ran.
-     The gate was right and the argument was wrong: cost discipline is about not over-reviewing,
-     not about opting out of the mechanism. **It also earned its keep immediately** — scope-auditor
-     FAILED round 1 on this very item, because the superseded "no round is run" text was still
-     standing as though true, which is precisely the "a correction REPLACES, never accumulates"
-     rule the handover being written here states.
-     The mechanical verification still applies and is recorded in `review.md`: under the character
-     cap, unique NEXT numbering, no conflict markers, every MR/issue number checked against `glab`
-     rather than recalled.
+  1. The handover's country sentence is REPLACED, not annotated. It currently asserts a fact that
+     is false; leaving it with a caveat attached would leave a fresh session reading the false half
+     first. This is the "a correction replaces everywhere" rule the same file states.
 
-  2. The CURRENT section is REPLACED, not appended to. A handover accumulates until it lies; the
-     rule is that a correction replaces. What goes out: `!27` as in-flight, and the four MRs that
-     have since merged.
+  2. The measurement goes in the handover as NUMBERS (45 rows / 0 country / 0 flag / 45 logo, and
+     all 45 with fixtures), not as "verify this". A fresh session must not have to re-run a billed
+     query to learn what is already known.
 
-  3. The rebase-tax paragraph STAYS even though nothing is in flight, because it is the most
-     expensive recurring lesson of the session — four rebases, every one conflicting in exactly
-     the same paperwork files — and the next branch will hit it again.
+  3. NOT decided here, and deliberately left open: where the 21 single-country competitions get
+     their country from. Three candidates are named in the #62 note (fix the ingestion, project the
+     registry field after all, or #69's countries seed). Choosing is a design call on evidence that
+     does not exist yet — the cheap next step is finding out WHY the column is null.
 
 done_when:
-  - `active_work.md` names main `10fa570`, states nothing is in flight, and lists #62's remaining
-    steps as the next work.
-  - Under 16,000 CHARACTERS measured with Python `len()`, NEXT numbering unique, zero conflict
-    markers.
-  - Every MR and issue number in it verified against `glab mr list` / `glab issue list`.
+  - The handover names the blocker, the numbers, and the cheap next step, and no longer claims
+    `dim_league` supplies country.
+  - Under 16,000 CHARACTERS by Python `len()`; NEXT numbering unique; no conflict markers.
 
 amendments: []
