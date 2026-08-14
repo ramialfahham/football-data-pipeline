@@ -2,21 +2,38 @@
   "$schema": "./page-spec.schema.json",
   "page": "[lang]/index.astro",
   "entity": "home",
-  "stub": true,
   "seo": {
     "canonical": "self",
     "hreflang": "all-locales",
-    "title": "inline",
-    "description": "inline",
-    "schema_org": "none",
+    "title": "seoHomeTitle",
+    "description": "seoHomeDesc",
+    "schema_org": "WebSite",
     "links": {
       "inbound_hub": "none",
-      "outbound": []
+      "outbound": ["fixture"]
     },
-    "minimum_data": "None — this is a scaffold. #367 replaces it with the real landing, at which point stub must be removed and blocks declared.",
+    "minimum_data": "None by design, and this is the one page where that is correct rather than a waiver. The home page's block count does not depend on any entity's data depth: browse always renders (it is registry-driven), and the fixtures hero is omitted whole when it has nothing to say. #845's minimum-data gate governs the entity pages it generates thousands of, not the three locale roots.",
     "page_count_driver": "count(locales)",
     "url_permanence": "permanent",
-    "url_permanence_note": "The locale root is the most permanent URL on the site; only its CONTENT changes when #367 lands."
+    "url_permanence_note": "The locale root is the most permanent URL on the site. Its CONTENT changed here (#367 replaced the scaffold); the URL did not."
   },
-  "blocks": []
+  "blocks": [
+    {
+      "block": "Fixtures hero",
+      "mart": "core:fct_fixture",
+      "i18n_keys": ["homeNext", "homeNoFixtures"]
+    },
+    {
+      "block": "Hybrid browse",
+      "mart": "registry:competition_registry",
+      "i18n_keys": [
+        "homeBrowse",
+        "homeByCountry",
+        "groupLeagues",
+        "groupCups",
+        "groupContinentalClub",
+        "groupNationalTeams"
+      ]
+    }
+  ]
 }

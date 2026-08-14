@@ -34,8 +34,16 @@ export const INDEXABLE = false;
  * This is also the STUB EXPIRY TRIGGER. It is keyed to `INDEXABLE`, not to #377, because #377 has
  * no machine-readable signal and this does: the audit refuses to pass with `INDEXABLE === true`
  * while this array is non-empty.
+ *
+ * EMPTY since #367: the landing page was the only entry, and it is now a real page with TWO
+ * content blocks — next matches and browse. Two, not four: the CPO's composition is next matches,
+ * Top players, Top teams, browse (`10_home.md` §0), and the middle pair is specified but unbuilt.
+ * An earlier version of this comment said "four", counting the composition rather than the build.
+ * This array being empty is a PRECONDITION of go-live, not go-live itself — the other gates on
+ * `INDEXABLE` above are all still open. Adding an entry here is how a future scaffold ships
+ * honestly; it should not stay for long, because that is what re-blocks #377.
  */
-export const STUB_PAGES = ["[lang]/index.astro"];
+export const STUB_PAGES = [];
 
 /**
  * Emitted paths kept OUT of the sitemap even when indexable.

@@ -240,3 +240,65 @@ export interface Team {
   venue?: Venue | null;
   seasons: TeamSeason[];
 }
+
+// ---------------------------------------------------------------------------
+// Landing payload (scripts/export_site_data.py :: shape_landing_payload).
+// Spec: docs/wireframes/10_home.md. Four modules in their locked order.
+// ---------------------------------------------------------------------------
+
+/** One side of a hero fixture row: display identity only, no stats. */
+export interface LandingSide {
+  team_id?: number | null;
+  name?: string | null;
+  slug?: string | null;
+  crest?: string | null;
+}
+
+export interface LandingFixture {
+  fixture_id: number;
+  slug: string;
+  kickoff?: string | null;
+  round?: string | null;
+  home: LandingSide;
+  away: LandingSide;
+}
+
+/** The hero groups its fixtures by competition; group order is earliest kickoff first. */
+export interface LandingUpcomingGroup {
+  league_code: string;
+  league_name?: string | null;
+  competition_slug?: string | null;
+  season?: number | null;
+  fixtures: LandingFixture[];
+}
+
+/** A registry competition as build_nav passes it through. */
+export interface BrowseCompetition {
+  league_code?: string | null;
+  name?: string | null;
+  slug?: string | null;
+  country?: string | null;
+  tier?: number | null;
+  competition_type?: string | null;
+  display_group?: string | null;
+}
+
+/** Identical shape to nav.json, so one structure serves the nav and the home page. */
+export interface LandingBrowse {
+  groups: { key: string; competitions: BrowseCompetition[] }[];
+  countries: { country: string; competitions: BrowseCompetition[] }[];
+}
+
+/** TWO modules, of the FOUR the CPO composed on 2026-08-08 (docs/wireframes/10_home.md §0):
+ *  next matches -> Top players -> Top teams -> browse. The two middle blocks are specified and
+ *  not built (six warehouse gaps, GAP-24..GAP-29, plus an unapproved layout), so they arrive in
+ *  their own PR and add their own keys between these two.
+ *
+ *  Two interface sets were removed on 2026-08-08 and neither is coming back in this shape:
+ *  the stats teasers (LandingScorer / LandingStandingRow / LandingStats), which the CPO ruled
+ *  useless, and TrendingStory, whose block is absent from the composition above. */
+export interface Landing {
+  type: string;
+  upcoming: LandingUpcomingGroup[];
+  browse: LandingBrowse;
+}

@@ -37,7 +37,7 @@
               { "type": "string" },
               { "type": "array", "minItems": 1, "items": { "type": "string" } }
             ],
-            "description": "The backing dbt mart model name, e.g. \"mart_team_profile\" (or an array when one block is genuinely backed by more than one mart). Every value must exist as a real file under dbt_project/models/5_marts/**."
+            "description": "Where this block's data comes from, as \"type:name\" (or an array when one block genuinely has more than one source). An UNPREFIXED value means \"mart:\", so \"mart_team_profile\" and \"mart:mart_team_profile\" are the same thing and every spec written before 2026-08-03 keeps working. Known types, and what each resolves to: \"mart\" a file under dbt_project/models/5_marts/**; \"core\" a file under dbt_project/models/3_core/**; \"seed\" a .csv under dbt_project/seeds/; \"registry\" the competition registry (docs/competition_registry.yml, name \"competition_registry\"). Whatever the type, the named thing must EXIST -- that is the guarantee this field carries, and it did not change when the types were added. Types were generalised on a CPO ruling (2026-08-03) because the home page's browse block reads the competition registry, which the zero-file rule deliberately keeps out of the model layer, and its fixtures hero reads core.fct_fixture, the source the fixture page already uses; before that, the only way to satisfy this field was to duplicate the registry into a model. Adding a type is one entry in SOURCE_TYPES in check-page-specs.mjs. NOTE the field is still named \"mart\" for backwards compatibility; renaming it to \"source\" is a follow-up and a CPO naming call."
           },
           "i18n_keys": {
             "type": "array",

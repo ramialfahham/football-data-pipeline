@@ -1,0 +1,73 @@
+---
+// Landing module 1 — the fixtures hero (10_home.md §5(1)).
+//
+// The next 12 fixtures by kickoff, grouped by competition. The COUNT and the grouping are the
+// export's (GAP-02); this renders what it is given, in the order it is given, and sorts nothing.
+//
+// LAYOUT, per the CPO's reaction to the first rendered version: the two teams STACK, each with its
+// crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
+// line with no crest, which read as a spreadsheet and made the team names hard to pick out.
+// Crests are the primary recognition cue in a fixture list, so their absence was the bigger half.
+//
+// NO ROUND. An earlier version of this showed it once per group heading, which removed the
+// repetition but shipped `fixture.round` — the provider's raw English string — to all three
+// locales on the FRONT DOOR. Verified from the built output: de, en and fi all rendered
+// "Regular Season - 18", "3rd Qualifying Round". That is #866, which is open and states the fix
+// cannot live in the frontend: turning "Regular Season - 18" into a phase concept plus a number
+// is taxonomy mapping, which the consumption layer forbids. So this page would have become a
+// fourth surface for that defect, and the most visible one. The round stays on the fixture page
+// (already listed in #866) until the warehouse serves a localisable phase.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { formatShortDate, formatTime } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import type { LandingUpcomingGroup } from "../../lib/types";
+
+interface Props {
+  groups: LandingUpcomingGroup[];
+  lang: Lang;
+}
+const { groups, lang } = Astro.props;
+---
+
+<section>
+  <SectionHead label={t(lang, "homeNext")} />
+
+  {groups.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
+
+  {groups.map((group) => (
+    <div class="fxgroup">
+      {/* Plain text, NOT a link: the competition hub (/{locale}/{slug}/) is step 2 of the build
+          and does not exist yet, so linking it would emit a guaranteed 404 on every home page. */}
+      <div class="gh">
+        <span class="nm">{group.league_name ?? group.league_code}</span>
+      </div>
+
+      {group.fixtures.map((fx) => (
+        <a
+          class="fxrow"
+          href={group.competition_slug
+            ? localeHref(lang, `${group.competition_slug}/matches/${fx.slug}/`)
+            : undefined}
+        >
+          <span class="sides">
+            <span class="side">
+              <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
+              <span class="nm">{fx.home.name}</span>
+            </span>
+            <span class="side">
+              <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
+              <span class="nm">{fx.away.name}</span>
+            </span>
+          </span>
+          <span class="when">
+            <b class="t">{formatTime(fx.kickoff, lang)}</b>
+            <span class="d">{formatShortDate(fx.kickoff, lang)}</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  ))}
+</section>

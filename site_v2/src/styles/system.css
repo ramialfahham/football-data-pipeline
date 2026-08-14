@@ -147,6 +147,9 @@ section { margin-top: 36px; }
 .split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
 @container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
 .colhead { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 8px; }
+/* One step below .colhead. The browse block needs it because its country axis is two levels deep:
+   the axis label ("By country") is a .colhead and each country under it heads its own chip row. */
+.subhead { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 10px 0 2px; }
 .rmatch { display: grid; grid-template-columns: 24px 42px 1fr auto; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .rmatch:last-child { border-bottom: 0; }
 .res { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
@@ -196,7 +199,12 @@ section { margin-top: 36px; }
 /* ---- links / footer ---- */
 .linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .linkchip { font-size: 13px; font-weight: 600; color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 13px; }
-.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
+/* Hover is an affordance, so only something clickable may carry it. Every linkchip in the tree is
+   still an inert <span> (browse, the fixture links footer and the team page all wait on page types
+   that are not built), and the unscoped rule invited a click on all of them. Anchor-scoped rather
+   than marker-scoped so a chip gets the affordance back the moment it becomes a link, with no
+   second edit and no class to remember. */
+a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .footnote { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; opacity: .8; }
 .err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
 
@@ -460,5 +468,40 @@ section { margin-top: 36px; }
   .searchbox { display: flex; }
   .iconbtn.search-m { display: none; }
 }
+
+/* ---- landing: fixtures hero (#367) ----
+ * A COMPACT stacked fixture row, which none of the existing patterns provides:
+ * `.nextfx` is a single "next fixture" card (3 columns, teams on one line), `.mast`/`.teams` is the
+ * fixture page's CENTRED hero at 27px names, and `.rmatch` is a played-result row keyed to a W/D/L
+ * chip. A list of twelve upcoming matches needs its own row, so this is a new component (flagged in
+ * the 00_overview census), not a per-page restyle of an existing one.
+ *
+ * Stacking the two teams is what frees the right-hand column for the kickoff, and it is the layout
+ * every comparable fixture list uses. Names are sentence case at 15px: the first version of this
+ * block wrapped each group in `.mgroup`, whose uppercase/letter-spaced/centred/muted rules INHERIT,
+ * so every team name rendered as heading chrome. */
+.fxgroup { margin-top: 26px; }
+.fxgroup:first-of-type { margin-top: 10px; }
+.fxgroup > .gh {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding-bottom: 7px; border-bottom: 1px solid var(--div);
+}
+.fxgroup > .gh .nm { font-size: 14px; font-weight: 700; color: var(--ink); }
+.fxrow {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.fxrow:last-child { border-bottom: 0; }
+.fxrow .sides { display: grid; gap: 8px; min-width: 0; }
+.fxrow .side { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fxrow .side .nm {
+  font-size: 15px; color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fxrow .when { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fxrow .when .t { display: block; font-size: 16px; font-weight: 700; color: var(--ink); }
+.fxrow .when .d { font-size: 12px; color: var(--muted); }
+/* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
+.crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

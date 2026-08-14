@@ -152,7 +152,21 @@ const EN: Dict = {
   // Nothing is really lost — the query for a fixture page IS the two team names, "vs" already says
   // what kind of page this is, and the competition is the part that distinguishes a league meeting
   // from a cup tie. The keyword was costing the differentiator.
-  seoFixtureTitle: "{home} vs {away} | {competition}",
+  // Shape matches seoTeamTitle above — `{entity}: <descriptor>`, no brand suffix — for the SAME
+  // reason recorded there: the CPO removed the brand suffix on 2026-07-28 because a suffix is
+  // earned by equity, and an identical one on every page reads as boilerplate.
+  //
+  // The competition is NOT in the title, and that is researched rather than preferred. Sofascore
+  // ("SJK vs HJK live score, H2H and lineups | Sofascore") and FBref ("... Match Report - <date> |
+  // FBref.com") both omit it; kicker uses an editorial headline with the teams only in the URL.
+  // Keeping it failed 4 of 26 competitions against the 660px hard cap, worst 886px. It is not
+  // lost: it stays in the breadcrumb, the URL and the JSON-LD superEvent.
+  // Measured over every competition's worst real upcoming fixture: 597px, inside the 600px budget.
+  //
+  // ⚠ "Preview" is true only while a fixture page IS a preview. The export writes upcoming
+  // fixtures only today (#861). When finished matches get pages this needs a played/upcoming
+  // split, or every match report will be titled "Preview".
+  seoFixtureTitle: "{home} vs {away}: Preview",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Competitions",
   navMatches: "Matches",
@@ -168,6 +182,23 @@ const EN: Dict = {
   footerAbout: "About",
   footerImprintPending: "Imprint (pending)",
   footerDataSource: "Data: API-Football",
+  // --- landing (#367). PLACEHOLDER COPY: every string below is the CPO's (§10) and is drafted
+  // here only so the page renders for his review. The DE/FI variants are literal translations of
+  // the drafts, not authored copy — they are replaced in the same single copy pass.
+  seoHomeTitle: "Football stats and match previews",
+  seoHomeDesc: "Upcoming matches from every competition we cover, plus leagues, cups and countries to browse.",
+  homeNext: "Next matches",
+  homeBrowse: "Browse",
+  homeByCountry: "By country",
+  homeNoFixtures: "No matches scheduled right now.",
+  // Group keys are the served nav group camel-cased (`continental-club` -> `ContinentalClub`).
+  // They must stay UNQUOTED identifiers: check-page-specs.mjs extracts the EN key set with
+  // /([A-Za-z0-9_-]+):\s*"/g, so a quoted key is invisible to the gate and the spec that names it
+  // fails. That is why the hyphen cannot survive into the key.
+  groupLeagues: "Leagues",
+  groupCups: "Cups",
+  groupContinentalClub: "European club",
+  groupNationalTeams: "National teams",
 };
 
 const DE: Dict = {
@@ -290,7 +321,10 @@ const DE: Dict = {
   // German signal in this string, so it is not spare budget — it is the localisation.
   // The overrun on that one extreme pairing is accepted; the competition truncates, which is the
   // least-bad thing to lose, and the team names a reader searched for stay visible.
-  seoFixtureTitle: "{home} gegen {away} | {competition}",
+  // "gegen" becomes a dash: it is what German football writing uses for a pairing, and it is also
+  // what gets DE under the limit (2 of 26 competitions failed with "gegen", 0 with the dash).
+  // Worst real fixture: 595px, inside the 600px budget. See the EN entry for the full reasoning.
+  seoFixtureTitle: "{home} - {away}: Vorschau",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Wettbewerbe",
   navMatches: "Spiele",
@@ -306,6 +340,17 @@ const DE: Dict = {
   footerAbout: "Über uns",
   footerImprintPending: "Impressum (in Vorbereitung)",
   footerDataSource: "Daten: API-Football",
+  // --- landing (#367). PLACEHOLDER, see the EN block.
+  seoHomeTitle: "Fußballstatistiken und Spielvorschauen",
+  seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken, dazu Ligen, Pokale und Länder zum Entdecken.",
+  homeNext: "Nächste Spiele",
+  homeBrowse: "Entdecken",
+  homeByCountry: "Nach Land",
+  homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+  groupLeagues: "Ligen",
+  groupCups: "Pokale",
+  groupContinentalClub: "Europapokal",
+  groupNationalTeams: "Nationalmannschaften",
 };
 
 const FI: Dict = {
@@ -433,9 +478,13 @@ const FI: Dict = {
   // as machine translation. Parentheses instead: no case, no inflection, and they work for a
   // league name in any language. Same form as the EN and DE descriptions.
   seoTeamDesc: "{team} ({competition}): kunto, ottelut, kokoonpano ja kauden tilastot.",
-  // "vs." and the capital K are the CPO's, verbatim. Do not swap "vs." for an en dash without a
-  // Finnish source: the assumption that Finnish football writing prefers one is unverified.
-  seoFixtureTitle: "{home} vs. {away} | {competition}",
+  // The capital K is the CPO's, verbatim. The previous note here said not to swap "vs." for an en
+  // dash "without a Finnish source" — THE SOURCE NOW EXISTS: Yle and MTV Uutiset pair
+  // Veikkausliiga teams as "KuPS–HJK", tight en dash, no spaces. That is also what gets FI under
+  // the limit: "vs." overflowed by 1px on one competition (661 against a 660 hard cap), the tight
+  // en dash lands at 634px. CPO approved 2026-08-03 with the source on the table.
+  // Worst real fixture: 573px, the widest headroom of the three. See the EN entry for the reasoning.
+  seoFixtureTitle: "{home}–{away}: Ennakko",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Kilpailut",
   navMatches: "Ottelut",
@@ -454,6 +503,17 @@ const FI: Dict = {
   // toimittanut tätä arvoa", site/i18n/fi.json), so this is a real translation rather than the
   // English string left in place. CPO ruling 2026-08-06.
   footerDataSource: "Tietolähde: API-Football",
+  // --- landing (#367). PLACEHOLDER, see the EN block.
+  seoHomeTitle: "Jalkapallotilastot ja otteluennakot",
+  seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista sekä sarjat, cupit ja maat selattavaksi.",
+  homeNext: "Seuraavat ottelut",
+  homeBrowse: "Selaa",
+  homeByCountry: "Maittain",
+  homeNoFixtures: "Ei otteluita tällä hetkellä.",
+  groupLeagues: "Sarjat",
+  groupCups: "Cupit",
+  groupContinentalClub: "Euroopan seurakilpailut",
+  groupNationalTeams: "Maajoukkueet",
 };
 
 const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
