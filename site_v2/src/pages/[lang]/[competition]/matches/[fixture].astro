@@ -65,10 +65,19 @@ const compName =
   (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code]?.name ??
   fixture.league_name ??
   fixture.league_code;
+// The title carries the two teams plus a one-word descriptor, not the competition — the same
+// `{entity}: <descriptor>` shape as the team title, and no brand suffix, per the 2026-07-28
+// ruling recorded in strings.ts. Researched rather than preferred: Sofascore and FBref both omit
+// the competition from a match title. Keeping it failed 4 of 26 competitions against the 660px
+// hard cap, worst 886px; the shape below measures 597px at its worst, inside the 600px budget.
+//
+// The title was `compName`'s ONLY consumer. Dropping it here would have stranded the fix above and
+// left every remaining mention of the competition on the provider's name — the very ambiguity
+// ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
+// below now read `compName` too, and the authoritative name outlives its removal from the title.
 const title = t(lang, "seoFixtureTitle", {
   home: home.name ?? "",
   away: away.name ?? "",
-  competition: compName,
 });
 const description = t(lang, "aboutNoH2h", {
   home: home.name ?? "",
@@ -80,7 +89,7 @@ const description = t(lang, "aboutNoH2h", {
 // yet → hrefless (plain text), no dead links.
 const crumbs = [
   { label: t(lang, "crumbHome"), href: localeHref(lang) },
-  { label: fixture.league_name ?? fixture.league_code },
+  { label: compName },
   { label: t(lang, "crumbMatches") },
 ];
 
@@ -93,7 +102,7 @@ const entity = {
   sport: "Football",
   ...(fixture.kickoff ? { startDate: fixture.kickoff } : {}),
   ...(fixture.venue ? { location: { "@type": "Place", name: fixture.venue } } : {}),
-  ...(fixture.league_name ? { superEvent: { "@type": "SportsOrganization", name: fixture.league_name } } : {}),
+  ...(compName ? { superEvent: { "@type": "SportsOrganization", name: compName } } : {}),
   competitor: [home, away]
     .filter((s) => s?.name)
     .map((s) => ({ "@type": "SportsTeam", name: s.name, ...(s.crest ? { logo: s.crest } : {}) })),

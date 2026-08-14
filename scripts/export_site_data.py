@@ -37,7 +37,7 @@ GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                "leaderboards", "matchstats", "glossary")
+                "leaderboards", "matchstats", "glossary", "landing")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
@@ -73,6 +73,11 @@ _TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
 _GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
 # Only these types get a country hub (real nations); international comps live in groups only.
 _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
+
+# Landing page (10_home.md). A DISPLAY size — how much fits on the home page — which is the
+# consumption layer's business. What QUALIFIES for a block, and in what order, is decided in the
+# warehouse, never here.
+_HERO_FIXTURE_LIMIT = 12   # GAP-02: a fixed COUNT, not a calendar window (see 10_home.md §5)
 
 
 # --------------------------------------------------------------------------- #
@@ -1057,6 +1062,121 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
     return out
 
 
+def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict,
+                            limit: int = _HERO_FIXTURE_LIMIT) -> list[dict]:
+    """The landing hero: the next `limit` fixtures by kickoff, grouped by competition.
+
+    GAP-02, resolved in 10_home.md section 5: a fixed COUNT, not a calendar window. Measured
+    2026-08-03 against core.fct_fixture, upcoming fixtures per day ran from 1 (day 7 ahead) to
+    57 (day 13), so a "today's matches" hero is nearly empty on some days and floods on others.
+
+    Selection and grouping only. `fixtures` arrives kickoff-ordered from the caller, so group
+    order is first-appearance order, which is each group's earliest kickoff.
+    """
+    groups: dict = {}
+    for f in fixtures[:limit]:
+        league_code = f.get("league_code")
+        comp = meta.get(league_code) or {}
+        group = groups.setdefault(league_code, {
+            "league_code": league_code,
+            "league_name": comp.get("name"),
+            "competition_slug": comp.get("slug"),
+            "season": f.get("season_api_year"),
+            "fixtures": [],
+        })
+        home = teams.get(int(f["home_team_sk"])) if f.get("home_team_sk") is not None else None
+        away = teams.get(int(f["away_team_sk"])) if f.get("away_team_sk") is not None else None
+        fixture_id = int(f["fixture_sk"])
+        group["fixtures"].append({
+            "fixture_id": fixture_id,
+            "slug": fixture_slug(f.get("kickoff_datetime"), (home or {}).get("team_name"),
+                                 (away or {}).get("team_name"), fixture_id),
+            "kickoff": f.get("kickoff_datetime"),
+            "round": f.get("round_name"),
+            "home": _landing_side(home),
+            "away": _landing_side(away),
+        })
+    return list(groups.values())
+
+
+def _landing_side(team: dict | None) -> dict:
+    """One side of a hero fixture row: display identity only, no stats."""
+    return {
+        "team_id": int(team["team_sk"]) if team and team.get("team_sk") is not None else None,
+        "name": (team or {}).get("team_name"),
+        "slug": (team or {}).get("team_slug"),
+        "crest": (team or {}).get("team_logo_url"),
+    }
+
+
+def shape_landing_payload(upcoming: list[dict], browse: dict) -> dict:
+    """landing.json — the home modules, in the order the CPO composed them.
+
+    Pure assembly of already-shaped parts, so the whole payload is unit-testable without
+    BigQuery. Spec: docs/wireframes/10_home.md §0, which is that spec's stated authority.
+
+    TWO modules today, of a decided FOUR: next matches -> Top players -> Top teams -> browse
+    (10_home.md §0). The two middle blocks are specified and not built — they need six pieces of
+    warehouse work (GAP-24..GAP-29) and a layout the CPO has not approved — so they land in their
+    own PR and slot between the two written here. The slots are why browse stays last rather than
+    being pulled up to sit under the hero: inserting later must not rearrange what ships now.
+
+    Two blocks were removed rather than carried, and both removals deleted consumption-layer
+    violations as a side effect:
+
+    - The stats teasers (top scorers + a league-table snippet), ruled useless by the CPO on
+      2026-08-08. Their helpers `eligible_stats_competitions` and `pick_stats_competition` judged
+      season eligibility and then ranked competitions by registry sort_order — result judgement and
+      business ranking in the export, which `layering.md` forbids outright.
+    - Trending, which is not in the composition above. It was also stale against the last ruling
+      that touched it (CPO 2026-08-04: three team streak types, winning/unbeaten/clean-sheet, with
+      "winless and losing are both dropped"), while the built mart still served five signals
+      including `winless`, no player streaks and no start dates.
+    """
+    return {
+        "type": "landing",
+        "upcoming": upcoming,
+        "browse": browse,
+    }
+
+
+def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+    """Read the landing modules that exist today: upcoming fixtures, then browse.
+
+    TWO BigQuery reads remain, both for the hero: `core.fct_fixture` and `core.dim_team`. Browse is
+    registry-driven and reads nothing. Both the stats teasers (`mart_leaderboards` +
+    `mart_standings`) and trending (`mart_landing_trending`) were removed on 2026-08-08 (see
+    `shape_landing_payload`), and their queries went with them — which is why the marts dataset is
+    no longer referenced in this function at all. Per-query dry-run figures are in
+    `.claude/task/acceptance_evidence.md`.
+    """
+    meta = {
+        c["league_code"]: {
+            "name": c.get("name"), "slug": c.get("slug"), "sort_order": c.get("sort_order"),
+        }
+        for c in _registry_competitions(registry_path)
+    }
+
+    # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
+    # match that has no page.
+    fixtures = _query(client, f"""
+        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+               home_team_sk, away_team_sk
+        from `{GCP_PROJECT}.core.fct_fixture`
+        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+    """)
+    fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+
+    teams = {
+        int(r["team_sk"]): r
+        for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
+                                f"from `{GCP_PROJECT}.core.dim_team`")
+    }
+    upcoming = group_upcoming_fixtures(fixtures, teams, meta)
+
+    return shape_landing_payload(upcoming, fetch_nav(registry_path))
+
+
 def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
     """One played fixture's full stat lines (the form-window click-through):
     both teams' team-stat rows + every player's row."""
@@ -1183,6 +1303,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "metrics.json", fetch_glossary())
         entries.append({"type": "glossary", "id": "metrics", "slug": None,
                         "path": "metrics.json", "sha256": sha})
+    if "landing" in entities:
+        sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
+        entries.append({"type": "landing", "id": "landing", "slug": None,
+                        "path": "landing.json", "sha256": sha})
 
     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a

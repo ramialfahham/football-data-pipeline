@@ -13,6 +13,10 @@ import {
   validateSeo,
   collectEnI18nKeys,
   collectMartNames,
+  collectSourceNames,
+  parseSource,
+  SOURCE_TYPES,
+  DEFAULT_SOURCE_TYPE,
   ENTITY_VALUES,
   SEO_REQUIRED,
   CANONICAL_VALUES,
@@ -36,6 +40,10 @@ const SEO_OK = {
   url_permanence: "permanent",
 };
 const SEO_KEYS = ["seoTitleKey", "seoDescKey"];
+
+/** validateSpec's third argument is now a per-TYPE map of accepted names (CPO ruling 2026-08-03),
+ * not a bare Set of mart names. Most tests below only care about marts, so this builds the map. */
+const martSources = (...names) => ({ mart: new Set(names) });
 
 test("specPathFor mirrors the real page paths this repo has today", () => {
   assert.match(specPathFor("[lang]/teams/[team].astro").replace(/\\/g, "/"), /specs\/teams\/team\.spec\.json$/);
@@ -68,7 +76,7 @@ test("validateSpec: a well-formed spec produces no issues", () => {
   validateSpec(
     "fake.spec.json",
     { page: "x.astro", entity: "team", seo: SEO_OK, blocks: [{ block: "Team header", mart: "mart_team_profile", i18n_keys: ["founded"] }] },
-    new Set(["mart_team_profile"]),
+    martSources("mart_team_profile"),
     new Set(["founded", ...SEO_KEYS]),
     issues,
   );
@@ -80,7 +88,7 @@ test("validateSpec: a block mart array with multiple marts validates each one", 
   validateSpec(
     "fake.spec.json",
     { page: "x.astro", entity: "team", seo: SEO_OK, blocks: [{ block: "Squad / roster", mart: ["mart_roster", "mart_player_career"] }] },
-    new Set(["mart_roster", "mart_player_career"]),
+    martSources("mart_roster", "mart_player_career"),
     new Set(SEO_KEYS),
     issues,
   );
@@ -89,7 +97,7 @@ test("validateSpec: a block mart array with multiple marts validates each one", 
 
 test("validateSpec: flags a missing required field", () => {
   const issues = [];
-  validateSpec("fake.spec.json", { entity: "team", blocks: [{ block: "x", mart: "mart_x" }] }, new Set(["mart_x"]), new Set(), issues);
+  validateSpec("fake.spec.json", { entity: "team", blocks: [{ block: "x", mart: "mart_x" }] }, martSources("mart_x"), new Set(), issues);
   assert.ok(issues.some((i) => i.includes('missing required string field "page"')));
 });
 
@@ -98,7 +106,7 @@ test("validateSpec: flags an entity outside the enum", () => {
   validateSpec(
     "fake.spec.json",
     { page: "x.astro", entity: "nonsense", blocks: [{ block: "x", mart: "mart_x" }] },
-    new Set(["mart_x"]),
+    martSources("mart_x"),
     new Set(),
     issues,
   );
@@ -110,11 +118,11 @@ test("validateSpec: flags a mart that is not a real file, naming the block and t
   validateSpec(
     "fake.spec.json",
     { page: "x.astro", entity: "team", blocks: [{ block: "Upcoming / Results", mart: "mart_team_fixturezz" }] },
-    new Set(["mart_team_fixtures"]),
+    martSources("mart_team_fixtures"),
     new Set(),
     issues,
   );
-  assert.ok(issues.some((i) => i.includes("Upcoming / Results") && i.includes('mart "mart_team_fixturezz"')));
+  assert.ok(issues.some((i) => i.includes("Upcoming / Results") && i.includes('source "mart_team_fixturezz"')));
 });
 
 test("validateSpec: flags an i18n key that is not in the EN dict, naming the block and the bad key", () => {
@@ -122,7 +130,7 @@ test("validateSpec: flags an i18n key that is not in the EN dict, naming the blo
   validateSpec(
     "fake.spec.json",
     { page: "x.astro", entity: "team", blocks: [{ block: "Vs-benchmark", mart: "mart_x", i18n_keys: ["median", "mediant"] }] },
-    new Set(["mart_x"]),
+    martSources("mart_x"),
     new Set(["median"]),
     issues,
   );
@@ -143,7 +151,7 @@ test("validateSpec: reports every violation in one pass, not just the first", ()
         { block: "B", mart: "mart_x", i18n_keys: ["missingKey"] },
       ],
     },
-    new Set(["mart_x"]),
+    martSources("mart_x"),
     new Set(SEO_KEYS),
     issues,
   );
@@ -180,6 +188,77 @@ test("real mart directory has at least the marts both committed specs reference"
   for (const name of ["mart_team_profile", "mart_team_fixtures", "mart_roster", "mart_head_to_head"]) {
     assert.ok(marts.has(name), `expected ${name} to exist under dbt_project/models/5_marts/**`);
   }
+});
+
+// --- block source types (CPO ruling 2026-08-03) ----------------------------------------------
+// The gate used to accept only marts. The home page's browse block reads the competition registry
+// and its hero reads a core model, so the vocabulary was generalised to `type:name`. These lock
+// the two properties that ruling depended on: old specs keep working, and the guarantee that a
+// declared source must EXIST is not weakened for any type.
+
+test("parseSource: an unprefixed value still means a mart, so pre-ruling specs keep working", () => {
+  assert.deepEqual(parseSource("mart_team_profile"), {
+    type: DEFAULT_SOURCE_TYPE, name: "mart_team_profile", raw: "mart_team_profile",
+  });
+  assert.equal(DEFAULT_SOURCE_TYPE, "mart");
+});
+
+test("parseSource: splits on the FIRST colon only", () => {
+  assert.deepEqual(parseSource("registry:competition_registry"), {
+    type: "registry", name: "competition_registry", raw: "registry:competition_registry",
+  });
+});
+
+test("validateSpec: accepts a registry-backed block — the case the ruling exists for", () => {
+  const issues = [];
+  validateSpec(
+    "fake.spec.json",
+    { page: "x.astro", entity: "home", seo: { ...SEO_OK, schema_org: "WebSite" },
+      blocks: [{ block: "Hybrid browse", mart: "registry:competition_registry" }] },
+    { mart: new Set(), registry: new Set(["competition_registry"]) },
+    new Set(SEO_KEYS),
+    issues,
+  );
+  assert.deepEqual(issues, []);
+});
+
+test("validateSpec: a source that does not EXIST is still refused, whatever its type", () => {
+  // The guarantee the gate actually carries. Generalising the types must not weaken it.
+  const issues = [];
+  validateSpec(
+    "fake.spec.json",
+    { page: "x.astro", entity: "home", blocks: [{ block: "Browse", mart: "registry:no_such_registry" }] },
+    { mart: new Set(), registry: new Set(["competition_registry"]) },
+    new Set(),
+    issues,
+  );
+  assert.ok(issues.some((i) => i.includes('source "registry:no_such_registry"')));
+});
+
+test("validateSpec: an UNKNOWN type is refused and the message lists the known ones", () => {
+  const issues = [];
+  validateSpec(
+    "fake.spec.json",
+    { page: "x.astro", entity: "home", blocks: [{ block: "News", mart: "rss:some_feed" }] },
+    { mart: new Set() },
+    new Set(),
+    issues,
+  );
+  const issue = issues.find((i) => i.includes("rss:some_feed"));
+  assert.ok(issue, "an unknown source type must be reported");
+  assert.match(issue, /unknown type "rss"/);
+  for (const type of Object.keys(SOURCE_TYPES)) assert.ok(issue.includes(type));
+});
+
+test("every declared source type resolves against the REAL repo", () => {
+  // Guards the resolvers themselves: a type whose directory moved would silently accept nothing,
+  // and every spec naming it would fail with a confusing "is not a ..." message.
+  const names = collectSourceNames();
+  assert.deepEqual(Object.keys(names).sort(), Object.keys(SOURCE_TYPES).sort());
+  assert.ok(names.mart.has("mart_team_profile"));
+  assert.ok(names.core.has("fct_fixture"));
+  assert.ok(names.seed.has("metric_catalogue"));
+  assert.ok(names.registry.has("competition_registry"));
 });
 
 test("page-spec.schema.json's required/enum fields match this checker's hardcoded equivalents", () => {

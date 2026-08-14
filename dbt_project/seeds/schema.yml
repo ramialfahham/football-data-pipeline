@@ -166,9 +166,13 @@ seeds:
       Single source of truth for every metric the platform computes. One row per metric
       per entity. Captures the formula as a structured, resolvable expression
       (base_relation + numerator_expr / denominator_expr over the base's real columns), entity
-      type (team/player), i18n key, display format, the display dimensions (group, tier, order)
-      ruled in docs/wireframes/metrics_display.md, and the performance semantic (direction +
-      interpretation). Each formula aggregates over an int_legs__* per-(entity, fixture)
+      type (team/player), i18n key, display format, what it measures and how important it is
+      (group, tier), how the number is produced (computation_kind), and the performance semantic
+      (direction + interpretation). It does NOT hold display ORDER — where a metric sits on a page
+      is a frontend decision that changes with a design, and it lives in
+      docs/wireframes/metrics_display.md. `group_display_order` was removed on 2026-08-04 for that
+      reason (CPO); it had only ever been half-populated and duplicated an order ruled elsewhere.
+      The principle: this file holds what a metric IS, not where it appears. Each formula aggregates over an int_legs__* per-(entity, fixture)
       building-block leg; it is window-free — the consuming model applies the window and any
       coverage/null policy. The formula is the correctness contract every model that computes the
       metric must conform to. Window-agnostic: metric IDs carry no window suffix. Part of epic
@@ -182,7 +186,6 @@ seeds:
       +full_refresh: true
       column_types:
         importance_tier: int64
-        group_display_order: int64
     columns:
       - name: metric_id
         description: >
@@ -198,8 +201,39 @@ seeds:
           - accepted_values:
               values: ["team", "player", "team and player"]
       - name: label_i18n_key
-        description: "i18n key for the human-readable label."
-        tests: [not_null]
+        description: >
+          i18n key for the TRANSLATED label. English no longer resolves through it — see label_en.
+          Unique per ROW, never shared between a metric's team and player rows, because two rows
+          sharing a key would share one German and one Finnish string while owning separate English
+          ones, and the three could then drift apart with nothing noticing. Two rows did share a key
+          until 2026-08-08 (duels_won_pct and finishing_efficiency); the player sides now carry
+          playerMetrics.duels.wonPct and playerMetrics.finishingEfficiency.label, matching the
+          convention the other two both-entity metrics already used.
+        tests:
+          - not_null
+          - unique
+      - name: label_en
+        description: >
+          The metric's English display name — the words a reader sees, on a stats board heading, a
+          metric row and the glossary. CPO ruling 2026-08-08: the metric layer is the source of
+          truth for display names, English being the project's primary language, exactly as this
+          seed already owns the English `description` and `interpretation`. Translations stay in the
+          i18n layer keyed by label_i18n_key.
+          NAMING SYSTEM, read off the 18 labels that already existed rather than invented: a bare
+          noun is a count (`Goals`, `Clean sheets`); `Ø` prefixes an average, per match for teams and
+          per 90 for players (`Ø Goals`, `Ø Tackles per 90`); `%` prefixes a share or rate
+          (`% Duels won`). The prefix carries the unit class, so a reader never has to guess whether
+          2.9 is a total or an average.
+          UNIQUE PER ENTITY, not globally (CPO): player names are distinct among player metrics and
+          team names among team metrics, but the same words may appear on both, because
+          `% Duels won` means the same thing for a player and a team and the surrounding block says
+          which.
+          ⚠ ADDITIVE AND NOT YET READ. Nothing resolves a label from this column today; the frontend
+          still uses METRIC_LABELS_EN in site_v2/src/i18n/strings.ts, which makes English a second
+          source of truth until the follow-up MR deletes it and inverts the label guard to run off
+          this seed.
+        tests:
+          - not_null
       - name: description
         description: "Plain-English definition: what the metric measures, nullability, and source columns."
         tests: [not_null]
@@ -230,6 +264,30 @@ seeds:
           numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
           only — coverage/availability handling lives in the model, never here. Blank for raw count
           metrics and the blank-base_relation rows above.
+      - name: computation_kind
+        description: >
+          HOW the number is produced, so that an empty formula is explicit rather than ambiguous.
+          Added 2026-08-04: five metrics carry no numerator_expr, for three genuinely different
+          reasons, and a blank could not tell them apart from a formula that was simply never
+          filled in.
+            expression  — numerator_expr / denominator_expr over base_relation. 75 of 80.
+            model       — produced by a dbt model and NOT expressible as a numerator over a
+                          denominator. Today the deserved trio (deserved_points, deserved_rank,
+                          sot_points_gap): an ordinary-least-squares fit within each league-season,
+                          defined in int_team_season__deserved_vs_actual.sql. The catalogue remains
+                          the source for what these MEAN; the model is the source for how they are
+                          COMPUTED.
+            sourced     — taken from the provider, never derived from match legs (league_rank, from
+                          the standings snapshot).
+            cross_grain — numerator and denominator sit at different grains, so one base_relation
+                          cannot hold both (contribution_share: a player's goal involvement over
+                          his TEAM's goals).
+          An `expression` row without a formula is a defect, which is what lets
+          assert_metric_catalogue_expr_resolvable be tightened rather than skipping blanks.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["expression", "model", "sourced", "cross_grain"]
       - name: lower_is_better
         description: >
           True when a lower value indicates better performance. LEGACY: the boolean predecessor of
@@ -248,26 +306,34 @@ seeds:
               values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction", "count_fraction"]
       - name: metric_group
         description: >
-          Display taxonomy block (docs/wireframes/metrics_display.md). Shared across
-          entities — a metric family keeps its group on team and player. Null for
-          header/context metrics that are not metric rows (league_rank, points_won).
+          What the metric MEASURES — a taxonomy, not a layout. Shared across entities: a metric
+          family keeps its group on team and player. Populated on EVERY row as of 2026-08-04;
+          `outcomes` was added for the points/standing metrics (points won, points capture,
+          league rank, deserved points, deserved rank, sot points gap) and `playing_time` for
+          minutes_per_appearance, the two sets that previously had no group at all.
         tests:
+          - not_null
           - accepted_values:
-              values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline"]
+              values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
       - name: importance_tier
         description: >
-          Team-only display importance (1 = compact surfaces, 2 = standard, 3 = depth).
-          Tier never reorders; it gates visibility under space constraint. Null for all
-          player metrics (no player tiers — ruled) and for unrendered team metrics.
+          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth.
+          Tier never reorders; it gates visibility under space constraint (metrics_display.md).
+          Populated on EVERY row, team AND player, as of 2026-08-04.
+          ⚠ This SUPERSEDES the 2026-06-11 ruling that tiers are a team-only concept, which held
+          that player importance is position-dependent and could not be grounded. CPO override
+          2026-08-04: tier expresses what a FAN wants to see, which is a product judgement rather
+          than a statistical claim, and it is as available for players as for teams.
+          The rubric his rulings established: the core stat line is tier 1, including both the raw
+          counts and their headline percentage; a per-90 sits one tier below its own total;
+          breakdowns and rare events are tier 3. Redundancy at tier 1 is deliberate and allowed —
+          goals, assists and scorer_points are all 1, because tier means importance, not
+          deduplication.
         tests:
+          - not_null
           - accepted_values:
               values: [1, 2, 3]
               quote: false
-      - name: group_display_order
-        description: >
-          Position within the metric_group. Team: row order. Player: the bundle's
-          position within its group (atomics of one bundle share the value). Null for
-          unrendered metrics; full row order lives in docs/wireframes/metrics_display.md.
       - name: direction
         description: >
           Performance semantic (the richer successor to lower_is_better): higher_better,
@@ -291,6 +357,16 @@ seeds:
           player alike (enforced by assert_metric_meaning_complete); populated on every row as of
           2026-07-21. House style: what it captures, then a plain definition, then what a notable
           value signals, with any honest volume/style/role caveat last in parentheses.
+    tests:
+      # Display names are unique WITHIN an entity, not globally (CPO 2026-08-08). The same words on
+      # a player row and a team row are allowed — `% Duels won` means the same thing for both and
+      # the surrounding block says which — so a plain `unique` on label_en would be the wrong test
+      # and would fail today on five legitimate pairs.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - entity
+            - label_en
+          name: metric_catalogue_label_en_unique_within_entity
 
   - name: wc_team_market_value_snapshot
     description: >

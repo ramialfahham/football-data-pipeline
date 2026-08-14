@@ -1,0 +1,68 @@
+---
+// Landing module 2 — hybrid browse (10_home.md §5(2)).
+//
+// Two axes, both straight from the registry via build_nav: competition GROUPS and COUNTRY hubs.
+// NO competition is named in this file. Adding a league to docs/competition_registry.yml makes it
+// appear here with zero file edits, which is the zero-file rule applied to the home page.
+//
+// Group headings come from an i18n key built off the served group key (`groupLeagues`,
+// `groupCups`, …). That is label lookup, not taxonomy mapping: the key IS the served value, and an
+// unknown group falls back to showing the raw key rather than being silently dropped.
+import SectionHead from "../ui/SectionHead.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { LandingBrowse } from "../../lib/types";
+
+interface Props {
+  browse: LandingBrowse;
+  lang: Lang;
+}
+const { browse, lang } = Astro.props;
+
+// `continental-club` -> `groupContinentalClub`. The i18n keys must be plain identifiers (the
+// page-spec gate extracts them with a regex that skips quoted keys), so the hyphen cannot survive.
+// An unknown group falls back to its raw served key rather than rendering the lookup key.
+const groupLabel = (key: string) => {
+  const camel = key.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("");
+  const label = t(lang, `group${camel}`);
+  return label === `group${camel}` ? key : label;
+};
+---
+
+<section>
+  <SectionHead label={t(lang, "homeBrowse")} />
+
+  {browse.groups.map((group) => (
+    <div>
+      <div class="colhead">{groupLabel(group.key)}</div>
+      {/* Chips are inert TEXT this increment, on BOTH axes. The competition hub (/{locale}/{slug}/)
+          is step 2 of the build; emitting an <a> to it now would put a guaranteed 404 behind every
+          chip on the home page. They become links in the PR that ships the hub, with no other
+          change here — a <span> carries no hover affordance because system.css scopes it to
+          `a.linkchip`, so the tag swap is the whole edit. */}
+      <div class="linkrow">
+        {group.competitions
+          .filter((c) => c.slug)
+          .map((c) => <span class="linkchip">{c.name ?? c.league_code}</span>)}
+      </div>
+    </div>
+  ))}
+
+  <div>
+    <div class="colhead">{t(lang, "homeByCountry")}</div>
+    {/* The country axis lists the COMPETITIONS under each country, not just the country name.
+        Acceptance criterion 2 is "every competition can be browsed two ways", so a country row
+        that stops at the country reaches nothing and the second way does not exist. Countries are
+        already ordered by build_nav (tier, then registry sort_order); this does not re-sort. */}
+    {browse.countries.map((c) => (
+      <div>
+        <div class="subhead">{c.country}</div>
+        <div class="linkrow">
+          {c.competitions
+            .filter((comp) => comp.slug)
+            .map((comp) => <span class="linkchip">{comp.name ?? comp.league_code}</span>)}
+        </div>
+      </div>
+    ))}
+  </div>
+</section>

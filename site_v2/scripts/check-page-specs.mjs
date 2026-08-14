@@ -96,6 +96,80 @@ export function collectMartNames() {
   return new Set(files.map((f) => f.slice(f.lastIndexOf(sep) + 1).replace(/\.sql$/, "")));
 }
 
+// --- block SOURCE types (CPO ruling 2026-08-03) ----------------------------------------------
+// A block's source is `type:name`; an unprefixed value means `mart:`, so every spec written
+// before this ruling keeps working untouched.
+//
+// WHY THIS IS NOT A LOOSENING. The gate's guarantee is "nothing may be declared that does not
+// exist", and every type below still resolves to a real thing on disk. What changed is that
+// `mart` stopped being the only sayable answer, which it never truly was: the home page's browse
+// block reads the COMPETITION REGISTRY, which the zero-file rule deliberately keeps out of the
+// model layer (and which check_registry_var_sync.py exists to stop being duplicated), and its
+// fixtures hero reads `core.fct_fixture`, the same source the shipped fixture page already uses.
+// Before this, describing either honestly was impossible, and the only way to satisfy the checker
+// was to copy the registry into a model -- breaking a rule to please a gate.
+//
+// ADDING A TYPE IS ONE ENTRY HERE. That is deliberate: the CPO's instruction was "a setup that is
+// flexible enough to integrate whatever additional content". Note the scope of that flexibility:
+// this is the VOCABULARY for naming a source, not the machinery for having one. A news or
+// editorial surface would still need ingestion, storage and a page.
+export const CORE_DIR = join(REPO_ROOT, "dbt_project", "models", "3_core");
+export const SEEDS_DIR = join(REPO_ROOT, "dbt_project", "seeds");
+export const REGISTRY_FILE = join(REPO_ROOT, "docs", "competition_registry.yml");
+
+export const DEFAULT_SOURCE_TYPE = "mart";
+
+/** type -> { describe, collect }. `collect` returns the Set of names that type accepts. */
+export const SOURCE_TYPES = {
+  mart: {
+    describe: "a file under dbt_project/models/5_marts/**",
+    collect: collectMartNames,
+  },
+  core: {
+    describe: "a file under dbt_project/models/3_core/**",
+    collect: () => {
+      const files = walk(CORE_DIR, (name) => name.endsWith(".sql"));
+      return new Set(files.map((f) => f.slice(f.lastIndexOf(sep) + 1).replace(/\.sql$/, "")));
+    },
+  },
+  seed: {
+    describe: "a .csv under dbt_project/seeds/",
+    collect: () => {
+      const files = walk(SEEDS_DIR, (name) => name.endsWith(".csv"));
+      return new Set(files.map((f) => f.slice(f.lastIndexOf(sep) + 1).replace(/\.csv$/, "")));
+    },
+  },
+  registry: {
+    describe: "the competition registry (docs/competition_registry.yml)",
+    // A single named file rather than a directory listing: the zero-file rule means there is
+    // exactly ONE registry, and a second one appearing is a defect, not a new valid source.
+    collect: () => new Set(statSyncSafe(REGISTRY_FILE) ? ["competition_registry"] : []),
+  },
+};
+
+function statSyncSafe(path) {
+  try {
+    return statSync(path);
+  } catch {
+    return null;
+  }
+}
+
+/** Every accepted name, per source type. Read once per run and passed into validateSpec. */
+export function collectSourceNames() {
+  return Object.fromEntries(
+    Object.entries(SOURCE_TYPES).map(([type, def]) => [type, def.collect()]),
+  );
+}
+
+/** Split `type:name` into its parts, defaulting the type. Returns null for a non-string. */
+export function parseSource(value) {
+  if (typeof value !== "string") return null;
+  const at = value.indexOf(":");
+  if (at === -1) return { type: DEFAULT_SOURCE_TYPE, name: value, raw: value };
+  return { type: value.slice(0, at), name: value.slice(at + 1), raw: value };
+}
+
 /** Pure extraction, unit-testable without touching a real file: every key`: "` occurrence in a
  * flat (no nested objects) dict block. Several real keys are packed onto one line, comma-separated
  * (e.g. `squadGk: "Goalkeepers", squadDef: "Defenders",`) -- this must match every occurrence in
@@ -227,7 +301,7 @@ export function validateSeo(where, spec, i18nKeys, issues) {
 
 /** Shape rules here are the hand-rolled equivalent of site_v2/src/specs/page-spec.schema.json --
  * see check-page-specs.test.mjs for the cross-check that keeps them from silently diverging. */
-export function validateSpec(where, spec, martNames, i18nKeys, issues) {
+export function validateSpec(where, spec, sourceNames, i18nKeys, issues) {
   if (typeof spec.page !== "string" || !spec.page) {
     issues.push(`${where}: missing required string field "page"`);
   }
@@ -251,13 +325,29 @@ export function validateSpec(where, spec, martNames, i18nKeys, issues) {
     if (!b || typeof b.block !== "string" || !b.block) {
       issues.push(`${where}: blocks[${i}]: missing required string field "block"`);
     }
-    const marts = Array.isArray(b?.mart) ? b.mart : b?.mart != null ? [b.mart] : [];
-    if (marts.length === 0) {
+    // A source is `type:name`, defaulting to `mart:` when unprefixed — see SOURCE_TYPES.
+    const sources = Array.isArray(b?.mart) ? b.mart : b?.mart != null ? [b.mart] : [];
+    if (sources.length === 0) {
       issues.push(`${where}: blocks[${i}] (${label}): missing required field "mart" (string or array of strings)`);
     }
-    for (const mart of marts) {
-      if (typeof mart !== "string" || !martNames.has(mart)) {
-        issues.push(`${where}: blocks[${i}] (${label}): mart "${mart}" is not a real file under dbt_project/models/5_marts/**`);
+    for (const raw of sources) {
+      const parsed = parseSource(raw);
+      if (parsed === null) {
+        issues.push(`${where}: blocks[${i}] (${label}): source ${JSON.stringify(raw)} must be a string`);
+        continue;
+      }
+      const known = SOURCE_TYPES[parsed.type];
+      if (!known) {
+        issues.push(
+          `${where}: blocks[${i}] (${label}): source "${parsed.raw}" names an unknown type ` +
+            `"${parsed.type}" (known: ${Object.keys(SOURCE_TYPES).join(", ")})`,
+        );
+        continue;
+      }
+      if (!sourceNames[parsed.type]?.has(parsed.name)) {
+        issues.push(
+          `${where}: blocks[${i}] (${label}): source "${parsed.raw}" is not ${known.describe}`,
+        );
       }
     }
     if (b?.i18n_keys !== undefined) {
@@ -282,7 +372,7 @@ export function main() {
     console.error(`check-page-specs: ${i18nError}`);
     process.exit(1);
   }
-  const martNames = collectMartNames();
+  const sourceNames = collectSourceNames();
 
   const realPages = findRealPages();
   if (realPages.length === 0) {
@@ -307,7 +397,7 @@ export function main() {
       }
       continue;
     }
-    validateSpec(rel(specPath), spec, martNames, i18nKeys, issues);
+    validateSpec(rel(specPath), spec, sourceNames, i18nKeys, issues);
   }
 
   if (issues.length > 0) {

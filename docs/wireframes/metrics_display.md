@@ -10,6 +10,12 @@
 
 ## Tier semantics (ruled)
 
+> **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
+> The seed carries a tier on all 80 rows. This section keeps the SEMANTICS; the values are in
+> the seed. What this document still owns exclusively is **order**, which was deliberately
+> removed from the catalogue: where a metric sits on a page is a frontend decision that changes
+> with a design, so the seed holds what a metric IS, not where it appears.
+
 1. **Tier never orders.** Display order is fixed by this document (block sequence +
    row position within block) and is identical everywhere the list renders.
 2. **Tier = visibility under constraint.** Surfaces that cannot show the full list
@@ -19,10 +25,26 @@
    "show all stats" expander, reappearing exactly where they sit in the order.
    Design call (#366), not a data rule.
 
-Tier-1 selection principle: outcomes + the highest-signal quality metrics, and only
-rows with near-universal data coverage (scoreline/team-stat derived — never
-player-stat derived, which is the sparsest layer and would render "-" on compact
-surfaces).
+**Tier applies to players too.** This supersedes the 2026-06-11 ruling below that tiers are a
+team-only concept because player importance is position-dependent. CPO override, 2026-08-04: a
+tier states what a FAN wants to see, which is a product judgement rather than a statistical claim,
+and that judgement is as available for a player metric as for a team one.
+
+The rubric, as his rulings established it:
+
+- **Tier 1 is the core stat line** — the raw counts AND their headline percentage. Passes,
+  accurate passes and pass accuracy are all 1; so are duels, duels won and duels won %.
+- **A per-90 sits one tier below its own total.** Goals is 1, goals per 90 is 2.
+- **Tier 3 is breakdowns and rare events** — penalties won, penalties committed, own goals,
+  open-play/penalty goal splits.
+- **Redundancy at tier 1 is deliberate.** Goals, assists and scorer points are all 1. Tier means
+  importance, not deduplication.
+
+Tier-1 selection principle for TEAM metrics, unchanged from 2026-06-11: outcomes + the
+highest-signal quality metrics, and only rows with near-universal data coverage
+(scoreline/team-stat derived). The "never player-stat derived" half of that principle governed
+which TEAM rows qualify on a compact surface; it never barred player metrics from having tiers of
+their own, and does not now.
 
 ## Composite-row patterns (ruled)
 
@@ -202,11 +224,16 @@ the true value is always shown, never capped.
 ## Player rows — LOCKED (CPO, 2026-06-11)
 
 The player display unit is the **bundled row** (1–3 related atomics per row with a
-defined display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
-concept: player importance is position-dependent and the provider's metric scope
-cannot ground a per-position importance claim. Constrained surfaces use
-**per-surface rules** instead (e.g. the fixture top-players strip ranks
-goals → assists → key passes, GK variant saves + save %).
+defined display string) — NOT one metric per row. That part stands.
+
+⚠ **The "no tiers" half of this ruling was overridden on 2026-08-04.** It held that tiers are a
+team-only concept because player importance is position-dependent and the provider's metric scope
+cannot ground a per-position importance claim. Every player metric now carries a tier in
+`metric_catalogue.csv`, on the CPO's reasoning that a tier is a judgement about what a fan wants
+to see rather than a statistical claim. See the tier-semantics section above for the rubric.
+
+Per-surface rules still apply where a surface needs an ordering the tier does not give (e.g. the
+fixture top-players strip ranks goals → assists → key passes, GK variant saves + save %).
 
 Changes vs the legacy player rows (definitions / formulas now live in the
 `metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows

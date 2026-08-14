@@ -359,35 +359,39 @@ test("the REAL shipped templates fit the budget for a long club name", () => {
   }
 });
 
-test("the REAL fixture templates fit with two long names and a long competition", () => {
+test("the REAL fixture templates fit two long names inside the BUDGET, not just the hard cap", () => {
   const src = readFileSync(new URL("../src/i18n/strings.ts", import.meta.url), "utf8");
   const templates = [...src.matchAll(/seoFixtureTitle:\s*"([^"]*)"/g)].map((m) => m[1]);
   assert.equal(templates.length, 3, "expected one seoFixtureTitle per locale");
 
-  // REALISTIC worst cases: two long names that actually meet, in the competition they meet in.
-  // The first version of this test paired two German clubs with "Brasileirão Série A" — a fixture
-  // that cannot exist — and failed on 661px, which would have sent me shortening a template that
-  // was never too long. A guard that fails on impossible data is as useless as one that never fires.
+  // REALISTIC worst cases: two long names that actually meet. The first version of this test paired
+  // two German clubs with "Brasileirão Série A" — a fixture that cannot exist — and failed on 661px,
+  // which would have sent me shortening a template that was never too long. A guard that fails on
+  // impossible data is as useless as one that never fires.
+  //
+  // The pairings no longer carry a competition: the title stopped naming one on 2026-08-03. The
+  // widest real pairing in the whole upcoming set is the German cup tie below, measured across all
+  // 26 competitions rather than picked by eye.
   const pairings = [
-    ["Borussia Mönchengladbach", "Eintracht Frankfurt", "Bundesliga"],
-    ["Wolverhampton Wanderers", "Manchester United", "Premier League"],
-    ["Atletico-MG", "Palmeiras", "Brasileirão Série A"],
+    ["SG Sonnenhof Grossaspach", "Borussia Mönchengladbach"],
+    ["Wolverhampton Wanderers", "Manchester United"],
+    ["Atletico-MG", "Palmeiras"],
   ];
   let worst = 0;
   for (const tpl of templates) {
-    for (const [home, away, comp] of pairings) {
-      const rendered = tpl.replace("{home}", home).replace("{away}", away).replace("{competition}", comp);
-      const px = titleWidthPx(rendered);
-      worst = Math.max(worst, px);
-      assert.ok(px <= TITLE_PX_HARD, `~${px}px, past the ${TITLE_PX_HARD}px hard limit: ${rendered}`);
+    for (const [home, away] of pairings) {
+      const rendered = tpl.replace("{home}", home).replace("{away}", away);
+      worst = Math.max(worst, titleWidthPx(rendered));
     }
   }
-  // Locks the KNOWN state rather than pretending everything fits. The worst real pairing
-  // ("Wolverhampton Wanderers gegen Manchester United | Premier League") sits just over the ~600px
-  // budget and is accepted — see the constant's comment for why nothing can be cut. If a future
-  // edit pushes it materially worse, this fails even though the hard limit has not been reached.
-  assert.ok(worst <= 640, `worst realistic fixture title grew to ~${worst}px; it was 624px when accepted`);
-  assert.ok(worst > TITLE_PX_BUDGET, "if this now fits, delete the accepted-overrun note above");
+  // The accepted-overrun note this test used to carry is GONE, because the overrun is gone. The old
+  // shape ended with the competition and sat over the ~600px budget by design; the current shape
+  // ends with a one-word descriptor and fits inside it. Asserting the BUDGET, not the hard cap, is
+  // the point: passing the 660px cap was never the goal, it was the last line of defence.
+  assert.ok(
+    worst <= TITLE_PX_BUDGET,
+    `worst realistic fixture title is ~${worst}px, over the ${TITLE_PX_BUDGET}px budget`,
+  );
 });
 
 test("emptyPaths finds nulls, blanks and placeholders anywhere in a graph", () => {

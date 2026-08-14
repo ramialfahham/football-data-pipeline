@@ -1,81 +1,131 @@
-# Rendered-page evidence — feat/846-featured-season-from-mart
+# Rendered-page evidence — feat/367-landing-page (#367)
 
-> Required by #827 for any `site_v2/src/**` diff. Read from the BUILT output (`site_v2/dist/`),
-> never from source and never from `outerHTML`.
+> Required by #827 for any `site_v2/src/**` diff. Read from the BUILT output (`site_v2/dist/`) and
+> from the running preview, never from source and never from `outerHTML`.
+>
+> RE-MEASURED 2026-08-08 against the TWO-module page, after the trending block was cut. This file
+> has now been replaced twice for the same reason, which is the point worth carrying forward: an
+> artifact describing a superseded build cannot discharge the evidence requirement for the diff
+> under review, and a code read cannot show block order, geometry or chip counts. Replaced wholesale
+> each time, per the corrections-replace rule.
 
-## 1. What renders differently: nothing, and that is the acceptance criterion
+Build: `npm run build` in `site_v2` -> 45 pages emitted, `audit-seo: 46 built page(s) checked. OK.`
+Preview: `preview_start` name `v2` on port 4321, viewport 375x812.
 
-CPO acceptance criterion 2, approved 2026-08-02 and locked: *"Nothing a visitor sees on a team page
-changes. Every sample team opens on the same season as it does today. This is plumbing, not a
-redesign."*
+⚠ Page count fell 63 -> 45. That is 18 pages, exactly the six team payloads removed with trending
+times three locales, and it is expected rather than a regression: the trending row's team link was
+the only link to a team page anywhere on the site, so those six pages had become orphans.
 
-`site_v2/src/pages/[lang]/teams/[team].astro:56` stopped applying the opening-season rule and
-started reading a served flag:
+⚠ `preview_start` name `v2` is CORRECT this session and was NOT in the previous one. It resolves
+`.claude/launch.json` from the harness root; that root was a different worktree on 2026-08-08 and
+served its "under construction" scaffold. Confirm which tree is being served before trusting any
+measurement here — the check is that `/en/` renders "Next matches", not a scaffold.
 
-```
-- team.seasons.find((s) => s.competition_type === "domestic_league") ?? team.seasons[0]
-+ team.seasons.find((s) => s.is_featured_season)!
-```
+## 1. What renders, per locale, read out of `dist/`
 
-Every block on the page is fed from that one `season` object (`TeamHeader`, `RecordStrip`,
-`DeservedHero`, `YearOverYear`, `TeamFixtures`, `TeamPerformance`, `TeamSquad`), so if the selected
-row had moved, the whole page would have moved with it.
+| | de | en | fi |
+|---|---|---|---|
+| `<title>` | Fußballstatistiken und Spielvorschauen | Football stats and match previews | Jalkapallotilastot ja otteluennakot |
+| canonical | `/de/` | `/en/` | `/fi/` |
+| hreflang | de, en, fi, x-default | de, en, fi, x-default | de, en, fi, x-default |
+| blocks, DOM order | Nächste Spiele → Entdecken | Next matches → Browse | Seuraavat ottelut → Selaa |
+| match links | 12, all unique | 12, all unique | 12, all unique |
+| team links | **0** | **0** | **0** |
+| `.prow` rows | **0** | **0** | **0** |
+| browse chips | 66 | 66 | 66 |
+| of which anchors | 0 | 0 | 0 |
+| country headings | 15 | 15 | 15 |
+| bytes | 17,345 | 17,214 | 17,258 |
 
-## 2. The measurement: byte-identical output, all three locales
+Distinct titles 3/3, distinct descriptions 3/3 — acceptance criterion 5, from built output.
+`x-default` resolves to `https://matchdaypilot.com/en/`, not `/`.
 
-Method, because a code read cannot settle this. Built `main`'s version with the branch stashed,
-copied the three built team pages out of `dist/`, restored the branch, rebuilt, and diffed:
-
-```
-diff before_<lang>.html dist/<lang>/teams/manchester-united/index.html
-  de: IDENTICAL
-  en: IDENTICAL
-  fi: IDENTICAL
-```
-
-Not "no visible difference" and not a spot check of selected strings. The rendered HTML is
-byte-for-byte the same file in every locale, which also settles geometry, ordering and every string
-on the page at once, since none of them can differ if the bytes do not.
-
-Corroborating counts in the built `en` page, before and after: `Premier League` x10, `2025/26` x3.
-The page opens on Premier League 2025/26 in both, which is the season the old rule selected.
-
-Why it is identical rather than merely close: the flag in the committed sample was set on the row
-the old `.find()` would have returned (`PL 2025`), and the warehouse rule that produces the flag is
-the same rule the page used to apply — most recent domestic-league season.
-
-Build: `npm run build` -> 9 pages, 3 team pages x 3 locales,
-`audit-seo: 10 built page(s) checked. OK.`
-
-## 3. The missing-flag path, measured rather than argued
-
-The new code carries a non-null assertion, which removes the `?? team.seasons[0]` fallback. What
-that does was tested, not assumed: the one flagged season in the committed sample was flipped to
-`false` and the site rebuilt.
+Descriptions, all three rewritten AGAIN this round:
 
 ```
-/de/teams/manchester-united/index.html  Cannot read properties of undefined (reading 'league_code')
-[build exit 127]
+de  Kommende Spiele aus allen Wettbewerben, die wir abdecken, dazu Ligen, Pokale und Länder zum Entdecken.
+en  Upcoming matches from every competition we cover, plus leagues, cups and countries to browse.
+fi  Tulevat ottelut kaikista kattamistamme kilpailuista sekä sarjat, cupit ja maat selattavaksi.
 ```
 
-**The BUILD fails. A visitor never sees it.** These are statically generated pages, so there is no
-runtime path to a browser: the failure happens while producing the HTML, the deploy has nothing to
-publish, and the previously deployed page stays up. That is fail-closed in the correct direction
-for a data-validity problem, and it is deliberate — a fallback to "some other season" is precisely
-the defect this branch removes, so restoring one to make the build survive would reintroduce it.
+⚠ **THE SAME DEFECT, TWICE, ONE MODULE APART.** The previous round rewrote these because they
+promised "league tables, top scorers" after the stats teasers were removed. The replacement then
+promised "teams on a run" / "Teams in Form" / "vireessä olevat joukkueet" — which is the trending
+block, removed this round. Each time the block was deleted and the copy that advertised it was not.
 
-The sample was restored immediately afterwards and the byte-identical diff in section 2 was re-run
-against the restored build to prove the experiment left nothing behind:
-`de: IDENTICAL · en: IDENTICAL · fi: IDENTICAL`, `flagged: [('PL', 2025)] | exactly one: True`.
+The lesson is a check, not resolve-to-do-better: **after deleting a block, re-read the built
+`<meta description>` in all three locales.** A source grep does not surface it, because the copy
+describes the block without naming it — "teams on a run" contains neither "trending" nor any mart
+name. That is the same "a deleted module leaves traces that do not carry its name" class recorded
+in `10_home.md` §9, and it has now fired three times on this branch.
 
-Upstream of that, two things have to fail before a build can reach this state: the `not_null` test on
-the column in `shared.yml` for both marts, and the export's own `_featured_season_row`, which raises
-rather than writing a payload with no flagged season. A third guard, the singular test asserting
-exactly one flagged season per entity, is split out to #886 on the CPO's ruling — it passed against
-the real marts in this branch's CI run but cannot ship until prod carries the column (#887).
+Wording is provisional: all copy is a §10 CPO call and is on the open list.
 
-## 4. Not covered here
+## 2. Block order and geometry, measured live at 375px
 
-The player page is not built on this branch. Its Overview lives in `stash@{0}` and is held on #845,
-so there is no rendered player page to measure. The mart half it needs is included, and its own
-`.find()` is removed when that branch resumes.
+| block | top | height |
+|---|---|---|
+| Next matches | 95px | 1205px |
+| Browse | 1336px | 2531px |
+
+Page height 4126px, measured (`document.documentElement.scrollHeight`), NOT derived. A draft of the
+matching table in `10_home.md` reached 4162px by subtracting the trending block from the old total
+and was wrong; the number here is read from the running page.
+
+**Browse is last**, the 2026-08-04 CPO ruling, and it is now block 2 of a decided 4 rather than of
+3 — it holds the bottom slot so Top players and Top teams insert above it without rearranging
+anything. Browse moved up 409px (1745 -> 1336), exactly the trending block plus its margin.
+
+No horizontal overflow: `documentElement.scrollWidth` 375 equals `clientWidth` 375.
+
+## 3. Both removed blocks are gone, verified three ways each
+
+**The stats teasers** (CPO 2026-08-08: *"top scorers and table are useless, i already said it, why
+is it in the pr???"*) — block, two export helpers, component, three type interfaces, four i18n keys
+× 3 locales, page-spec entry, ten tests.
+
+**Trending** (absent from the CPO's 2026-08-08 composition) — block, `TrendingList.astro`, the
+`trending[]` key, `mart_landing_trending` and its `shared.yml` entry, `TrendingStory`, six i18n keys
+× 3 locales, page-spec entry, seven tests, six team payloads and their `.gitignore` allowlist rows.
+
+- **Rendered body, all three locales**, comments stripped and whitespace collapsed: zero occurrences
+  of `Top scorers`/`Torjäger`/`Maalintekijät`, and zero of
+  `Trending|Im Trend|Nousussa|unbeaten|ungeschlagen|winless|streak`. `.prow` count 0 — that was the
+  row primitive trending composed, and no home component uses it now.
+- **Whole tree, not just the diff**: `eligible_stats_competitions`, `pick_stats_competition`,
+  `_STATS_ROWS`, `LandingStats`, `LandingScorer`, `LandingStandingRow`, `select_trending`,
+  `TrendingStory`, `mart_landing_trending` return no hits outside explanatory comments.
+- **Payload**: `landing.json` carries `{type, upcoming, browse}` — neither removed key;
+  `index.spec.json` declares exactly two blocks and `outbound: ["fixture"]`, matching the measured
+  0 team links.
+
+⚠ Near-misses recorded, because each looked like a leak and was not. `Tabelle` and `Sarjataulukko`
+are the site header's standings nav item, a different key. `pts` appears inside `opts` in a script
+comment. `trend` appears in `system.css` as the deserved-vs-actual regression line (`.sc .trend`)
+and in `types.ts` as "on the trend line" — both belong to the team page, not this one, and neither
+was touched. Every one of these was a crude match on a value or substring rather than on the key;
+the check that settles it matches exact phrases in visible text with scripts and comments stripped.
+
+## 4. Chips are still inert, deliberately
+
+66 browse chips per locale, `a.linkchip` count 0, `span.linkchip` count 66. The competition hub
+does not exist, so linking them would emit a guaranteed 404 on the site's front door. The hover
+affordance is scoped to `a.linkchip:hover`, so an inert chip does not invite a click; that fix from
+round 1 survives this round's reorder, re-verified live rather than from CSS source.
+
+This is why `index.spec.json` declares `"outbound": ["fixture"]` and nothing else — the page
+genuinely has no competition edge yet, and since the trending cut it has no team edge either.
+
+⚠ That declaration has now been wrong twice, both times because a removed module took its links with
+it: it read `["fixture", "competition", "team"]`, then `["fixture", "team"]`, and is now
+`["fixture"]`. Each correction followed a block deletion. **Re-derive it by counting anchors in the
+built HTML, never by editing the previous value** — this round's 0 team links is a measurement, not
+an inference.
+
+## 5. Not covered here
+
+No BigQuery was queried and no dbt test was executed against real data. The three new seed tests
+are verified only to REGISTER (`dbt ls` shows them in the manifest) and to hold against the CSV as
+it stands; `data:build:mr` is where they actually run.
+
+The player page is not on this branch; its Overview lives in `stash@{1}`, held on #845.

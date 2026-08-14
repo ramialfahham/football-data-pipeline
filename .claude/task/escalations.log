@@ -1,3 +1,51 @@
+2026-08-03 feat/367-landing-page — §10 escalation (rule extension). ONE question, raised by the
+build gate rather than by a reviewer, and it blocks the landing page from building.
+
+  THE FACTS. `site_v2/src/specs/page-spec.schema.json` makes `mart` a REQUIRED field on every
+  block, and `check-page-specs.mjs:259` refuses any value that is not a real file under
+  `dbt_project/models/5_marts/**`. Two of the landing page's four blocks are not mart-backed and
+  cannot be:
+    - Hybrid browse reads the COMPETITION REGISTRY (`build_nav` over
+      `docs/competition_registry.yml`). That is deliberate architecture, not a gap: the zero-file
+      rule requires a new league to appear with a registry entry and no model. A "registry mart"
+      would duplicate a seed to satisfy a checker.
+    - The fixtures hero reads `core.fct_fixture`, the same upcoming-fixture filter
+      `fetch_fixture_payloads` already uses for the shipped fixture page. There is no mart of
+      upcoming fixtures: `mart_team_fixtures` is team-perspective and deliberately drops
+      `fixture_sk` (GAP-19), so it cannot produce a match URL.
+  Verified, not assumed: `mart` required in the schema's `blocks.items.required`; the file check at
+  check-page-specs.mjs:259; `_shape_team_fixture`'s drop set in scripts/export_site_data.py.
+
+  WHY IT IS THE CPO'S. Changing what the page-spec contract accepts is a rule extension and a
+  build-gate mechanism change (CLAUDE.md §10). The home page is the FIRST page whose blocks are not
+  all mart-backed, so this is not a defect in my spec, it is a case the contract has never had to
+  express.
+
+  PATH A — extend the contract to name a non-mart source explicitly, e.g. `registry:competitions`
+  and `core:fct_fixture`, with the checker validating those forms against the real registry file
+  and the real core model. The gate keeps its guarantee (everything declared exists) and gains the
+  vocabulary to describe a registry-backed block. Touches page-spec.schema.json,
+  check-page-specs.mjs and its test.
+
+  PATH B — leave the contract alone and make every block mart-backed. This does not actually close:
+  a fixtures mart is buildable, but a registry mart is not honest, because the registry is a seed
+  the zero-file rule deliberately keeps out of the model layer.
+
+  RECOMMENDATION: Path A. Path B cannot satisfy the browse block without duplicating the registry
+  into a model, which contradicts the rule the browse block exists to honour. Path A keeps the
+  gate's real guarantee — nothing is declared that does not exist — and stops it asserting
+  something that was never true, that every block comes from a mart.
+
+  CPO ANSWER: **Path A**, with a directed widening. Asked what happens when the site later carries
+  football analytics content, predictions or a news feed, he ruled: "I want a setup that is
+  flexible enough to integrate whatever additional content." So A is implemented as a GENERAL
+  mechanism — a block declares `type:name` and each type resolves to something real on disk — not
+  as two hardcoded special cases. Recorded as contract amendment "2026-08-03 (2)".
+  Stated to him before the ruling, and repeated here so it is not mistaken for scope: this adds
+  the VOCABULARY only. A news feed still needs ingestion, storage and a page, none of which is in
+  this PR. Predictions need no new type at all — we build our own rather than take the provider's
+  (project_no_api_predictions), so they land as a mart like everything else.
+
 2026-06-12 governance/g3-role-reviewers — blinded escalation (working_agreement §11), two §10 questions raised by the G3 blinded reviews:
   (1) Protect `.claude/agents/**` as a protected path vs leave contract-gated + routed.
       CPO ANSWER: Protect `.claude/agents/**`.
@@ -2506,3 +2554,184 @@ times.
   .claude/task/contract.md went through unchallenged earlier in this session — the same class the
   gate already blocks for heredocs. The edit itself was a mechanical rename of an already-approved
   value, but the hole is real and belongs in its own issue.
+
+================================================================================
+
+2026-08-08 feat/367-landing-page — the home page design session. SIX §10 decisions, logged here
+because `contract.md` is overwritten by the next task and a ruling recorded only there is not
+recorded. Sixth instance of the unlogged-authority class; `scope-auditor` FAILed round 2 to get
+here, and was right, as it was the previous five times.
+
+- (⭐ CPO DECISION: THE STATS-TEASERS BLOCK IS REPLACED, NOT REWORDED) On 2026-08-04 he ruled
+  "Stats block STAYS, with different wording". On 2026-08-08 he reversed that: *"the stats blocks
+  you are suggesting are useless"*, and later, on being shown they were still in the PR, *"top
+  scorers and table are useless, i already said it, why is it in the pr???"*. The block, its two
+  export helpers, its component, its four i18n keys, its page-spec entry and its ten tests are
+  DELETED in this PR. Locked acceptance criterion 4 is struck with it.
+  ⚠ Deletion, not a mart, was chosen deliberately. The helpers ranked competitions and judged
+  their eligibility in Python, which `layering.md` §Consumption layer forbids, and round 1 and
+  round 2 both raised it. Building a mart to make a block correct when the block is already
+  scheduled for deletion is work with a known expiry date. The home page now ships THREE modules.
+  ⚠ MY ERROR, recorded so the pattern is visible: I read "replaced" as licence to delete on
+  2026-08-08, he pushed back, I reversed, and he then confirmed deletion. That flip-flop cost a
+  round trip. His position had been consistent since the morning.
+
+- (⭐ CPO DECISION: THE HOME PAGE IS next matches → Top players → Top teams → browse) Browse moves
+  to the BOTTOM (first ruled 2026-08-04, reaffirmed 2026-08-08, BUILT in this PR). Top players and
+  Top teams are specified in `10_home.md` §0 and built in their own PR; their six warehouse
+  prerequisites are GAP-24 … GAP-29.
+
+- (⭐ CPO DECISION: THE METRIC LAYER OWNS THE ENGLISH DISPLAY NAME) *"the metric layer, like
+  everything else in this project already has a primary language which is English... so putting the
+  display name into the metric layer is straightforward, one place, one source of truth. the
+  translation is handled somewhere else anyway."* A `label_en` column is added to
+  `metric_catalogue.csv` for all 80 metrics; translations stay in the i18n layer keyed by
+  `label_i18n_key`. I argued AGAINST this first, on the grounds that translation has a different
+  cadence and would widen the seed; the argument was wrong because the seed already owns the
+  English `description` and `interpretation` on all 80 rows, so the display name was the one piece
+  of English metric prose living elsewhere.
+  ⚠ NOT YET COMPLETE. `METRIC_LABELS_EN` still exists in `strings.ts`, so English has two sources
+  until the follow-up MR deletes it and inverts the label guard. Deferred deliberately (parts 3-5
+  of a five-part plan the CPO scoped down to 1 and 2), because deleting it changes what a shipped
+  page renders its labels from and needs its own acceptance criteria.
+
+- (⭐ CPO DECISION: TWO METRIC RENAMES, both user-visible) `scorer_points` → "Goal contributions"
+  (his choice between that and "Scorer points"). `save_ratio` (team) AND `save_pct` (player) →
+  "% Shots saved", replacing the shipped "% Save percentage", which said percentage twice. A third
+  proposed rename was REJECTED by him: `Ø Shots on target difference` stays, and my reason for
+  shortening it — that it set a column width — was simply wrong.
+
+- (⭐ CPO DECISION: DISPLAY NAMES ARE UNIQUE PER ENTITY, NOT GLOBALLY) *"within each group player /
+  team metrics we would have unique display names"*. So identical words across a player row and a
+  team row are allowed ("% Duels won" means the same thing for both), and `label_i18n_key` must
+  still be unique per ROW so the two never share a German or Finnish string. Two rows did share a
+  key until now; the player sides of `duels_won_pct` and `finishing_efficiency` were split.
+
+- (⭐ CPO DECISION: A METRIC WITH NO VALUE IS HIDDEN, NOT DASHED) *"the user will see a bug although
+  isn't. in this case we might consider hiding it completely, so not showing the metric (name at
+  all)"*. A deliberate LOCAL override of the site-wide null-renders-as-dash convention in
+  `00_overview.md`, which still holds everywhere else. Applies per pool per board at METRIC level;
+  a single missing value inside an otherwise populated column stays a dash, because there the dash
+  is information.
+
+- (⭐ CPO DECISION: LEAGUE POOLS, and the in-season rule) Four hard-coded pools; only 1-3 are
+  home-page candidates; one pool shown at a time, chosen by which is in season, the other two
+  reachable; a pool is in season when its LEAST-PROGRESSED league has played >= 3 games, the floor
+  taken from the existing house gate at `int_team_season__deserved_vs_actual.sql:139` in preference
+  to the higher number I proposed. Membership and reasoning are in `10_home.md` §0. Rolling windows
+  were proposed and REJECTED: *"no it must be within season, that's how you compare."*
+  ⚠ Club and national-team competitions are NEVER mixed — *"if that is the case somewhere then it
+  is a defect."* Verified 2026-08-08 that no mixing exists today; the rule goes live the moment
+  pooling crosses `league_code`.
+
+  LIMIT OF THIS ENTRY. The LAYOUT of both stats blocks is NOT decided — a proposal was rendered and
+  reviewed this session and he did not approve it. Nothing about layout is recorded as settled.
+
+- (⭐ CPO DECISION: THE HOME PAGE IS FOUR BLOCKS AND TRENDING IS NOT ONE OF THEM) 2026-08-08,
+  restated 2026-08-09 when he was shown a build that still shipped it: *"that's not what we were
+  talking about in the other session. We were talking about next atches, top player, top teams, and
+  browse section"*. The composition is **next matches → Top players → Top teams → browse**, and it
+  was already written in `10_home.md` §0 on 2026-08-08. Trending is cut: block, component,
+  `trending[]` key, `mart_landing_trending`, six i18n keys × 3 locales, seven tests, six team
+  payloads.
+
+  ⚠ THIS WAS NOT A NEW DECISION — IT WAS AN EXISTING ONE I FAILED TO READ. The composition line was
+  in §0, the document's own declared authority, while §1 said "the page ships THREE modules: next
+  matches → trending → browse". I quoted §1 back to him as though it were his ruling, and had also
+  written "whether trending still earns its place (raised 2026-08-08, not ruled)" into the Open
+  list — turning a decision he had already made into a question he had left open. **A block absent
+  from a composition is decided against, not undecided.**
+
+  Two further facts, both found only after he pushed back:
+  - What was built never matched the last trending ruling either. On 2026-08-04 he set THREE team
+    signals (winning, unbeaten, clean-sheet) with *"winless and losing are both dropped"*, plus
+    player streaks and start dates. The mart served five signals INCLUDING `winless`, no player
+    streaks, no dates. My own note in §5(3) had argued winless should stay because "every football
+    site publishes it" — reasoning from convention against a ruling.
+  - The meta descriptions promised the block in all three locales ("teams on a run" / "Teams in
+    Form" / "vireessä olevat joukkueet"). The round before had rewritten those SAME descriptions
+    because they promised the stats teasers. Same defect, one module apart, both times because the
+    copy describes a block without naming it.
+
+- (⭐ CPO DECISION: TWO SCOPE AMENDMENTS FOR ONE DEFECT, and the second overturned my fix)
+  The full python suite was failing on
+  `tests/test_metric_bindings.py::test_regenerated_json_matches_committed`, PRE-EXISTING on this
+  branch and missed by six review rounds because no round ran the full suite — every one ran only
+  `test_export_landing.py` and reported "15 python tests" as if it were the suite.
+
+  Cause: the catalogue's grain is (metric_id, entity), but
+  `scripts/export_metric_definitions_json.py::load_catalogue` keyed on `metric_id` alone, so the
+  LAST row won. Invisible until this branch split `finishing_efficiency`'s player row onto its own
+  `label_i18n_key`; the generated legacy JSON then took the PLAYER key while
+  `site/team-season/index.html:349` calls the TEAM key.
+
+  FIRST AMENDMENT (*"yes, add it to scope and land the fix"*): added the script to `scope_paths`.
+  I fixed it with a hardcoded team-first preference and flagged the layering question to
+  `analytics-engineer-reviewer` rather than hoping it would pass.
+
+  ⚠ IT FAILED IT, AND WAS RIGHT. Entity alignment is business logic; `layering.md` §Consumption
+  layer forbids entity derivation downstream of the marts and names `site/` scripts as inside the
+  contract, so "it is legacy" is not an exemption. Its sentence is the one to keep: **byte-identical
+  output does not cure a rule living in the wrong layer — the mandate for the default IS the
+  violation.** My own docstring had named the compliant fix and skipped it for scope convenience,
+  which is precisely the pattern that review exists to catch.
+
+  SECOND AMENDMENT (*"yes to both, add the entity column and file the crest issue"*): added
+  `site/match-preview/metric_bindings.csv` — under the FROZEN `site/`, authorised explicitly — which
+  now carries `catalogue_entity` per row. The lookup is a plain (metric_id, entity) join with no
+  default, and an unmatched pair raises rather than falling back. `metric_definitions.json` is
+  byte-identical, so no MVP behaviour moved.
+
+  ⚠ New acceptance criterion **3b** forces WHOLE-SUITE pytest output into the evidence, so a green
+  subset can never again stand in for the suite.
+
+- (⭐ CPO DECISION: CRESTS ARE HOTLINKED — FILE IT, DO NOT FIX IT IN #367) *"file the crest issue"*.
+  `platform-reviewer` FAILED round 7: the home page emits 24 literal
+  `<img src="https://media.api-sports.io/...">` tags per locale, 72 across three, with no proxy and
+  no fallback. Its brief calls this non-negotiable — *"Hotlinking someone else's origin is the
+  defect that took the previous site offline."*
+
+  The ruling turned on scope, not on whether it is a defect. It is PRE-EXISTING (team and fixture
+  pages already do it; an earlier `platform-reviewer` PASS on this branch missed it), #367 merely
+  puts it on the home page first, `INDEXABLE` stays `false`, and self-hosting crests is new
+  infrastructure — storage, refresh cadence, cache headers, licensing. Filed as **GitLab #36**,
+  a stated blocker on **#377**, with three options and the licence precondition written up.
+
+  ⚠ The licence question is a real precondition, not a detail: whether API-Football permits caching
+  or re-hosting their images at all decides which of the three options is even available.
+
+- (⭐ NOT AN ESCALATION — A RULING I FAILED TO FIND, recorded so the next person finds it)
+  `data:build:mr` failed on this branch with
+  `Database Error in test assert_metric_catalogue_expr_resolvable / Unrecognized name:
+  computation_kind`. This PR adds the `computation_kind` COLUMN to `metric_catalogue.csv` and, in
+  the same PR, tightens the guard that reads it. The deferred singular-test step resolves
+  `ref('metric_catalogue')` to MAIN's seed, which has no such column yet.
+
+  ⛔ THE REPO HAD ALREADY RULED ON THIS, TWICE, and both rulings are written next to the code. See
+  the CI notes in `dbt_project/tests/assert_metric_meaning_complete.sql` and
+  `assert_metric_direction_lower_is_better_agree.sql`: *"a change to catalogue VALUES and a guard
+  that depends on those values cannot land in the same PR — the values merge first, then the guard.
+  Do not try to solve this with a CI workflow change."* Both of those guards shipped that way. This
+  is the THIRD instance of the same sequence.
+
+  APPLIED: `assert_metric_catalogue_expr_resolvable.sql` is reverted to main's version here. The
+  column still ships and is still covered — by its `accepted_values` SCHEMA test, which runs inside
+  `dbt build --select state:modified+` against `ci_analytics` and passed there. The tightened guard
+  follows in its own MR once the column is in prod.
+
+  ⚠ WHAT I DID FIRST, AND WHY IT WAS WRONG. I diagnosed this as a structural hole ("the DQ gate
+  cannot see an MR's own seed columns"), got CPO approval for a one-word CI change, and opened a
+  governance branch with `protected_override` to drop `--favor-state` from the DQ-test step. Both
+  routed reviewers FAILED it:
+  · `cto-reviewer` — my premise was false. The build step DOES validate the branch's own seed; the
+    log shows `10 of 41 PASS assert_metric_catalogue_expr_resolvable` against `ci_analytics`. The DQ
+    step merely re-tests it against prod. Nothing shipped unverified.
+  · `platform-reviewer` — the change would have created a FALSE GREEN. `ci_analytics` is shared
+    across every MR and never cleaned, so an untouched model could be tested against another
+    branch's stale leftover and pass while prod is broken. My contract claimed "never a false
+    green" categorically; that was asserted, not demonstrated, and it is wrong.
+  · It also found the two rulings above, which I had missed.
+
+  THE REUSABLE LESSON, and it is the one this repo logs most often (#904): my search for prior
+  guidance covered `docs/` only, while the ruling lived in `dbt_project/tests/`. **A claim of
+  absence must search as wide as the claim.** The branch is deleted and nothing was pushed.

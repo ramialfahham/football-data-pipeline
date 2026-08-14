@@ -252,8 +252,21 @@ full H2H — the SEO internal-link graph (§8).
 - `schema.org/SportsEvent`: `startDate` = `kickoff`, `competitor` = both teams
   (SportsTeam: name + crest), `location` = `venue` (when present), part of
   `league_name`.
-- Title: `{home.name} vs {away.name} — Form, Head-to-Head & Stats | {league_name}`
-  (localized template).
+- Title: `{home.name} <connector> {away.name}: {descriptor}` (localized template).
+  **The competition is NOT in the title** (CPO, 2026-08-03), and neither is the brand.
+  - *Why not the competition.* Measured over every competition's worst real upcoming fixture,
+    ending the title with the competition name failed 4 of 26 against the 660px hard cap, worst
+    886px, and Google then truncates or rewrites it. Sofascore and FBref both omit the competition
+    from a match title for the same reason; kicker uses an editorial headline with the teams only
+    in the URL. It is not lost: it stays in the breadcrumb, the URL and the JSON-LD `superEvent`.
+  - *Why not the brand.* Same ruling as the team title (2026-07-28): a suffix is earned by equity,
+    and an identical one on every match page reads as boilerplate.
+  - *Per locale*, each measured at its worst real fixture: EN `{home} vs {away}: Preview` 597px ·
+    DE `{home} - {away}: Vorschau` 595px · FI `{home}–{away}: Ennakko` 573px. All inside the 600px
+    budget, not merely under the hard cap. The German dash replaces "gegen" (also the convention in
+    German football writing); the Finnish tight en dash follows Yle/MTV's "KuPS–HJK".
+  - ⚠ "Preview" holds only while a fixture page IS a preview. The export writes upcoming fixtures
+    only (#861); when finished matches get pages this needs a played/upcoming split.
 - Meta description: templated from real fields (round, kickoff date, h2h record)
   until GAP-03 narratives.
 - `BreadcrumbList` mirroring §2; canonical per locale + hreflang set + OG/Twitter

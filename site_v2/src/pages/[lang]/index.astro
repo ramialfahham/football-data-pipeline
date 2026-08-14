@@ -1,17 +1,34 @@
 ---
-// Per-locale landing placeholder. Real landing: #367 after the design pass (#366).
+// Landing page (screen 10, #367). Spec: docs/wireframes/10_home.md.
 //
-// It now goes through Layout (#844) rather than hand-rolling its own <html>. The original plan
-// proposed EXEMPTING the scaffolds from the SEO gate; that reasoning was inverted. A scaffold is a
-// URL THAT SHIPS, so a canonical, an hreflang set and a unique title are TRUE facts about it — and
-// the exemption would have hidden the defect the gate exists to catch: all three locales were
-// emitting `<title>Matchday Pilot</title>`, byte-identical.
+// Replaces the "under construction" scaffold. That scaffold was the ONLY entry in `STUB_PAGES`,
+// and the SEO audit refuses `INDEXABLE = true` while that array is non-empty, so this page is what
+// unblocks go-live. `INDEXABLE` itself stays `false`: flipping it is #377, gated on #799, #852/#843,
+// #845 and #861, none of which this PR touches.
 //
-// Its page spec waives only `blocks`, behind `stub: true`, because it genuinely has no content
-// blocks yet. `STUB_PAGES` in src/config/indexability.mjs lists it, and the audit refuses to let
-// INDEXABLE flip to true while that list is non-empty — a stub in the index is a thin page.
+// TWO modules today, of the FOUR the CPO composed on 2026-08-08 (10_home.md §0, that spec's stated
+// authority): next matches -> Top players -> Top teams -> browse. The two middle blocks are
+// specified and NOT built — they need six pieces of warehouse work (GAP-24..GAP-29) and a layout
+// the CPO reviewed and did not approve — so they arrive in their own PR and slot in between.
+//
+// Browse therefore stays LAST here rather than being pulled up under the hero. It is not filler
+// ordering: it is the final slot, so the follow-up PR inserts and never rearranges.
+//
+// Two blocks were dropped rather than carried. The stats teasers (the 2026-06-10 order's fourth
+// module) were ruled useless on 2026-08-08 and are replaced by the two above. Trending is absent
+// from the composition, and the version built here was stale against the last ruling that touched
+// it anyway (CPO 2026-08-04 dropped winless runs; the mart still served them).
+//
+// The page COMPOSES components and holds no styling; it derives no facts and performs no
+// arithmetic. Everything it shows is a served value from landing.json, which the export shaped and
+// the warehouse decided.
 import Layout from "../../layouts/Layout.astro";
+import HeroFixtures from "../../components/home/HeroFixtures.astro";
+import BrowseGrid from "../../components/home/BrowseGrid.astro";
+import { t } from "../../i18n/strings";
 import type { Lang } from "../../lib/format";
+import type { Landing } from "../../lib/types";
+import landing from "../../data/landing.json";
 
 export function getStaticPaths() {
   return [
@@ -20,25 +37,32 @@ export function getStaticPaths() {
     { params: { lang: "fi" } },
   ];
 }
-const lang = (Astro.params.lang ?? "en") as Lang;
 
-// Not in strings.ts: these are scaffold copy that #367 deletes outright, and adding them to the
-// shared dictionaries would leave three dead keys behind in every locale.
-const headline: Record<Lang, string> = {
-  de: "Matchday Pilot v2 — im Aufbau",
-  en: "Matchday Pilot v2 — under construction",
-  fi: "Matchday Pilot v2 — rakenteilla",
-};
-const blurb: Record<Lang, string> = {
-  de: "Fußballanalysen für Fans. Diese Seite entsteht gerade.",
-  en: "Football analytics for fans. This site is being built.",
-  fi: "Jalkapalloanalytiikkaa faneille. Sivustoa rakennetaan parhaillaan.",
+const lang = (Astro.params.lang ?? "en") as Lang;
+const data = landing as unknown as Landing;
+
+// Title/description per 10_home.md §8, THROUGH t(). Not built by concatenating payload fields:
+// the payload is locale-independent, so a concatenation would ship three byte-identical <title>
+// tags — exactly the defect the scaffold had and #844's gate exists to catch. The descriptive
+// words ARE the locale signal.
+const title = t(lang, "seoHomeTitle");
+const description = t(lang, "seoHomeDesc");
+
+// schema.org/WebSite, not SportsEvent: this page is not one match. No BreadcrumbList — the home
+// page is the breadcrumb ROOT that every other page points back to, so a trail of one is noise.
+const entity = {
+  "@type": "WebSite",
+  name: "Matchday Pilot",
+  inLanguage: lang,
 };
 ---
 
-<Layout lang={lang} title={headline[lang]} description={blurb[lang]}>
+<Layout lang={lang} title={title} description={description} entity={entity}>
   <div class="inner">
-    <h1>{headline[lang]}</h1>
-    <p>{blurb[lang]}</p>
+    {/* Browse LAST, per the CPO's 2026-08-04 ruling ("moves to the BOTTOM of the page, per
+        convention on comparable sites"), reaffirmed in the 2026-08-08 composition. It was block 2
+        until now. Top players and Top teams belong between these two lines. */}
+    <HeroFixtures groups={data.upcoming} lang={lang} />
+    <BrowseGrid browse={data.browse} lang={lang} />
   </div>
 </Layout>

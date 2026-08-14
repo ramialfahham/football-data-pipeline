@@ -236,10 +236,37 @@ artifacts/site_data/
 # site_v2 real-data build: the site build enumerates src/data/{teams,fixtures}/*.json. Only the
 # committed samples are tracked; a full export populates these dirs at build time (100s MB to >1 GB)
 # and must never be committed. Keep the samples, ignore the bulk.
+#
+# THE SAMPLE SET MUST BE SELF-CONSISTENT (#367). The landing page links to the next 12 fixtures,
+# and `audit-seo.mjs` fails the build on any internal link that does not resolve to an emitted page.
+# So every entity the committed `landing.json` points at needs its payload here, or CI goes red
+# while a local build with a full export stays green -- which is exactly the trap this list sprang
+# the first time. ~1.7 MB total: samples, not bulk.
+#
+# Six team payloads (132, 463, 587, 1607, 2242, 2759) were tracked here until the trending block was
+# cut on 2026-08-08. They were listed ONLY because trending rows linked to them; with that block
+# gone nothing on the site links to a team page, so they emitted six orphans. 33.json stays -- it is
+# the team-page's own sample and predates the landing work.
+#
+# ⚠ REGENERATE AS A SET. `landing.json` is a snapshot of whatever fixtures are next, so refreshing
+# it changes WHICH ids belong below. Refresh the landing sample and these entries together, or the
+# next build fails on links to ids that are no longer here.
 site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/33.json
 site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1492306.json
+!site_v2/src/data/fixtures/1493034.json
+!site_v2/src/data/fixtures/1493039.json
+!site_v2/src/data/fixtures/1493042.json
+!site_v2/src/data/fixtures/1493045.json
+!site_v2/src/data/fixtures/1493046.json
+!site_v2/src/data/fixtures/1495750.json
+!site_v2/src/data/fixtures/1598825.json
+!site_v2/src/data/fixtures/1605370.json
+!site_v2/src/data/fixtures/1607166.json
+!site_v2/src/data/fixtures/1607167.json
+!site_v2/src/data/fixtures/1607168.json
+!site_v2/src/data/fixtures/1607573.json
 
 # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
 # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
