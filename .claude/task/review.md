@@ -1,97 +1,131 @@
-# Review — chore/33-item15-drop-injuries — 2026-08-13
+# Review — fix/65-ci-worktree-prune — 2026-08-13
 
-diff_sha256: 2f31a1c3938b751bacf70496c171d0b4ca6ab351f4642ae8e2421e2ac0480dde
+diff_sha256: 6bca53577109b13bce379e83a94d322ea581f4a59dd3d555cecf1780bb86d620
 
-rounds: 3
+rounds: 1
 
-<!--
-Round 1: all three PASS on the removal itself. platform-reviewer additionally FLAGGED, outside
-         its own territory and therefore not as a FAIL, that `docs/data_contract.md:36` still
-         said "Eleven tables" after a row was removed. scope-auditor had passed that same line
-         as "still correct".
-Round 2: the count was REMOVED rather than corrected (CLAUDE.md gives that instruction for this
-         exact class). scope-auditor PASS, and accepted the correction to its own round-1
-         reading. data-engineer-reviewer FAIL: the SAME stale count survived at line 3 of the
-         same file, under the OPPOSITE counting convention, so the document now contradicted
-         itself two lines from the top.
-Round 3: both instances closed, whole file swept, and the documented set recounted against what
-         the loaders actually write. All three PASS.
+⚠ REBOUND 2026-08-13 after rebasing onto `a13c16e`, which carries `chore/33-item15-drop-injuries`.
+The hash is a function of the BASE, so a rebase invalidates it even when not one line of the work
+changes — and none did. The verdicts below stand: the rebase conflicted ONLY in the four
+`.claude/task/*` paperwork files, resolved as MINE for contract/review/review_input (single-owner
+per task) and `escalations.log` UNIONed and checked by ARITHMETIC (base 299,989 + main's item 15
+2,694 + this branch's #65 3,214 = 305,897, written 305,897), never by eye. `.gitlab-ci.yml` and
+`tests/test_ci_data_job_invariants.py` merged CLEANLY — the reviewed change did not move.
 
-Worth keeping: the round-2 FAIL was "you fixed the instance, not the class" applied INSIDE a
-single file. The first fix was itself the defect it was fixing.
--->
+Three routed reviewers, blinded (patch + `contract.md` + `escalations.log`; no builder narrative).
+Routing per `.claude/review_routing.json`: scope-auditor (always), plus cto-reviewer and
+platform-reviewer for `.gitlab-ci.yml`, which is a PROTECTED file. All three PASS at round 1.
+
+⚠ Two things the reviewers established that the builder had NOT: that `.github/workflows/` runs on
+`ubuntu-latest` (ephemeral), so leaving the twin line unedited is diagnostically correct and not
+merely policy-correct; and that `test:python` runs on every non-scheduled pipeline, so the new guard
+fails closed on every future MR rather than only locally. Both are recorded below in the reviewer's
+own territory rather than restated as builder claims.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- CPO authority verified in `.claude/task/escalations.log` independently of `contract.md` — the
-  question put ("drop `/injuries` as a second task?") and the answer ("yes") are both in the
-  committed log, as is the 2026-08-13 premise check.
-- The `readers: NONE` claim checked directly rather than accepted: `sources.yml` has no injuries
-  entry, and the only `injur` hits under `dbt_project/models/**` are `has_coverage_injuries`,
-  parsed from the `/leagues` coverage flag and untouched by this diff.
-- Every `diff --git` header maps onto an entry in `scope_paths`; no file outside the allowlist.
-- Dangling-reference sweep across `ingestion/**` and `scripts/**`: no surviving import of
-  `load_injuries` and no reference to `RAW_APIF_INJURIES` outside the deliberately-updated drop
-  script; the runner's docstring phase list and import list dropped the step consistently.
-- Test deletion judged against the "guard loosened" threshold: `TestLoadInjuries` went with its
-  subject, `TestLoadCoaches` is preserved verbatim, and the surviving envelope-stability guard in
-  `test_incomplete_fetch_no_supersede.py` lost only a docstring mention, not an assertion.
-- The physical table drop is confirmed NOT in this diff, matching `decisions_reserved`.
-- Classified the round-2 count removal against §10: no table, write mode, partition, cluster or
-  merge key changes, so a builder-level doc-hygiene call, consistent with the precedent CLAUDE.md
-  already sets — not a fresh unilateral pattern.
-- ⚠ Its round-1 reading of the "Eleven tables" line as "still correct" was wrong and it accepted
-  the correction at round 2. Recorded because a reviewer PASS is not evidence a claim is true.
+- `protected_override` authority is real and correctly ORDERED: `.gitlab-ci.yml` confirmed present
+  in `PROTECTED_FILES` (`task_contract_gate.py:77`), and the 2026-08-13 `escalations.log` entry
+  recording the CPO's "yes" plus the premise interrogation ("Does it conflict with the other
+  worktree?") is appended BEFORE `contract.md` cites it.
+- Narrowness of the override checked against the file, not the claim: `git worktree` appears only in
+  `data:build:mr`; no `rules:`/`changes:` anchor, no other job, no resource group and nothing under
+  `.github/workflows/` is touched.
+- `scope_paths` matches the diffed file set EXACTLY — four files, none undeclared.
+- The `.claude/active_work.md` exclusion (`decisions_taken` 6) judged as a documented decision
+  rather than a handover-discipline violation: it gives a concrete reason (main's copy is stale,
+  the live copy is on `!33`, editing it would manufacture a conflict) and states how to reverse it.
+- No new mechanism and no recurring cost: `git worktree prune` is a stateless local git metadata
+  operation, adding no job, schedule, service or BigQuery object; the added test pins a CLASS rather
+  than a line number.
 
-## data-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- ⚠ THE CRITICAL SAFETY CHECK: `has_coverage_injuries` is parsed at `stg_apif__leagues.sql:88`
-  from `$.coverage.injuries` (the `/leagues` payload), used in `base_apif__leagues.sql:23,62`,
-  `dim_competition_season.sql:25` and declared in `core.yml:143-144`. None of those files appears
-  in the patch, so the column is untouched and `dim_competition_season` cannot break.
-- Sole-writer claim verified by grepping all of `ingestion/api_football` — `load_injuries` was the
-  only writer of `RAW_APIF_INJURIES` and was called from exactly one site.
-- `run_cheap_phases` read in full after the change: import, phase log and call cleanly removed, no
-  orphaned variable, no unused import, try/except and the following coaches phase unaffected, and
-  the module docstring's phase list matches the code exactly.
-- Hidden dependents ruled out by reading `completeness.py` (`FANOUT_ENTITIES`, `PER_TEAM_ENTITIES`,
-  `PER_TEAM_GATED`, the snapshot table), `orchestrator.py`, `quota.py`, `settings.py`,
-  `bigquery.py` and `.gitlab-ci.yml` — no completeness gate, quota accounting or scheduler config
-  depends on the removed phase.
-- The `http_client.py` "four -> three" comment edit verified by ENUMERATING the loaders that copy
-  the envelope wholesale: `standings.py` and `fixtures.py` via `_merge_merged_paged`, plus
-  `teams.py`'s manual comprehension. Three, and `coaches.py` was never in that set because it
-  builds its payload from explicit named keys.
-- ⚠ FAILED round 2: the stale count at `docs/data_contract.md:3` survived the round-2 fix under
-  the opposite convention to the one the new caveat described, leaving the document
-  self-contradicting. Re-verified at round 3 that both instances are closed, the whole file is
-  free of number-words adjacent to "table", and the documented set matches reality — an
-  independent recount of `raw_table(...)` call sites gives 11 entities, exactly the 10 rows plus
-  `RAW_APIF_LEAGUES`.
+- The gate's own requirements are satisfied for a protected path: `_is_structural`
+  (`task_contract_gate.py:193-208`) makes `impact_map` mandatory alongside a non-placeholder
+  `protected_override`, and the contract carries both.
+- The escalation entry was compared against the two prior protected-path entries (#61, #63) and
+  matches their shape — ask, premise check, ruling, explicit narrowing — rather than being an
+  outlier written to fit.
+- NO GUARD INVARIANT IS WEAKENED. `prune` removes only registrations whose directory is gone, so a
+  genuine live collision still fails loudly; `add -f`, which would have silently overridden one, was
+  explicitly rejected. No test, lint or DQ step is skipped, reordered or narrowed.
+- The instrument was challenged: does this paper over a runner misconfiguration that should be fixed
+  at the runner instead? Judged reasonable — reconfiguring a shared self-hosted runner's workspace
+  strategy is a materially larger and riskier change, and the contract defers it explicitly rather
+  than smuggling it in.
+- ⭐ THE GUARD FAILS CLOSED GOING FORWARD, verified rather than assumed: `test:python`
+  (`.gitlab-ci.yml:430-437`) runs `pytest tests/` on every non-scheduled pipeline, so dropping the
+  prune line reddens every future MR and main pipeline.
+- Recurring cost: none. No trigger, schedule, BigQuery scan or network call added;
+  `.data_paths_mr`/`.data_paths_prod` untouched, so WHICH changes cause a build is unchanged.
+- The still-red pipeline was tested against the "verify by running" standard and judged DISCLOSURE
+  rather than evasion: #66 is named separately in both `done_when` and the escalation, with the
+  reason, instead of a false green being claimed.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- `tests/test_coaches.py` compared BYTE-FOR-BYTE against the `TestLoadCoaches` block in the
-  deleted file at `main` — all 9 methods and both helpers identical; no assertion, mock target or
-  fixture value changed, and nothing in the survivors referenced the deleted class or shared state
-  with it. The file was reconstructed rather than edited, so this was the check that mattered.
-- Test-count arithmetic confirmed by enumerating `TestLoadInjuries`' 9 methods: 798 − 9 = 789,
-  matching the run exactly. Nothing else was lost.
-- `scripts/drop_injuries_raw_tables.py` matching logic confirmed byte-identical (docstring only).
-  Verified `"RAW_APIF_INJURIES"` satisfies both `startswith("RAW_APIF_")` and
-  `endswith("_INJURIES")`, so the docstring's claim that one pattern covers both the retired
-  per-competition naming and the unified table is true. Dry-run path never calls `delete_table`;
-  a second run finds nothing and exits 0; per-table failures are collected and the script exits 1
-  on any error, so it fails closed rather than reporting false success.
-- Confirmed no dependency file, CI config, hook or `site_v2` path appears anywhere in the diff,
-  and no credential-shaped content beyond a pre-existing mock header value.
-- Flagged (outside its territory, hence not a FAIL) the stale "Eleven tables" line that
-  data-engineer-reviewer then FAILed on — the flag was correct and is what started round 2.
+- Placement traced through the real script order (`.gitlab-ci.yml:517-577`): prune and add are
+  adjacent, nothing runs between them, and `resource_group: ci-data-build-write-ci` plus the absence
+  of any other worktree-using job means no concurrent job can re-register the stale entry in the
+  gap.
+- The diagnosis was tested against the config rather than taken on trust: `GIT_STRATEGY` and
+  `GIT_CLEAN_FLAGS` are unset (so nothing in-repo overrides the runner default that would falsify
+  "the project dir persists"), `GIT_DEPTH` affects fetch depth only, and `cache:` covers
+  `.cache/pip`/`.npm` and never `/tmp` or `.git/worktrees`. ⚠ Nothing in the file CONTRADICTS the
+  diagnosis and nothing in it CONFIRMS the diagnosis — it rests on the two cited job logs, which is
+  outside what the diff can show.
+- ⚠ A STATE THE FIX DOES NOT CLEAR, stated rather than glossed: `/tmp/main-src` existing with stale
+  CONTENT while still registered. `prune` only clears registrations whose directory is gone, so that
+  case would fail with "already exists". It is consistent with `decisions_taken` 2 (fail loudly on a
+  genuine collision) and is NOT a regression — the behaviour is identical before and after.
+- The new test is real, not decoration: `_script_lines_by_job` was traced against the actual YAML
+  merge structure (`<<: [*python, *gcp_job]` inside `.data_build_base`, then `<<: *data_build_base`)
+  — PyYAML resolves merge keys before the alias is reused, so the job's own `script:` is captured
+  intact and in execution order. Removing the prune line was traced through the assertion: `add_at`
+  found, `prune_at` None, job flagged, test fails.
+- No false positives: every job without `git worktree add` is skipped by the `continue` and never
+  reaches the assertion.
+- ⚠ LATENT LIMITATION OF THE GUARD, disclosed rather than left to be discovered: `extends:`,
+  `!reference` and `include:` are grepped and none is used in this file today, so the test sees
+  everything. A template whose `script:` lived in an `include:`-ed file WOULD be invisible to it.
+  Not triggered by anything in this repo now; recorded so the next person adding an `include:` knows.
+- ⭐ Leaving `.github/workflows/ci-data-build.yml:191` unedited is DIAGNOSTICALLY correct, not just
+  policy-correct: that workflow declares `runs-on: ubuntu-latest`, i.e. ephemeral GitHub-hosted
+  runners, where a persisted project directory cannot occur. The dormant-workflow README already
+  carries a pre-reactivation audit section, so a future re-arm does not depend on silence here.
+- Re-run and interruption safety: prune is idempotent, and a job dying after a successful `add`
+  leaves a registration that self-heals on the next run through the same prune.
+- Nothing else engaged: no secrets, no permission widening, no dependency/lockfile/site-build/hosting
+  file touched, and `git worktree` logic exists in neither `git_discipline.py` nor
+  `check_task_artifacts.py`.
 
-## escalations
-(none — the CPO ruling "yes" (2026-08-12) and the 2026-08-13 premise check are both recorded in
-`.claude/task/escalations.log` and were verified there by `scope-auditor`. No question was put to
-the CPO during the review cycle.)
+## Verification (LOCAL — CI evidence is the pipeline on this MR)
+
+- ⭐ The new test was SEEN RED before it was trusted green. Against the unfixed `.gitlab-ci.yml` it
+  failed naming the real offender: `data:build:mr: git worktree add at script index 76, prune
+  absent`. After the fix, green.
+- ⭐ BOTH of its failure branches were proved live, because one of them ("prune present but AFTER the
+  add") could otherwise have been dead code. Driven over four synthetic configs: prune absent →
+  flagged; prune after the add → flagged; prune before the add → clean; prune in a DIFFERENT job →
+  flagged. The last case is what stops a prune elsewhere in the file from satisfying the check.
+- ⭐ The MECHANISM was run against real git, not read off the manual (`scratchpad/wt_repro.py`):
+  unfixed `add` exits 128 reproducing CI's error text, `prune` then `add` exits 0, and a repeat prune
+  with nothing stale is a no-op that still leaves `add` working.
+- `git worktree prune --dry-run -v` on this machine removes NONE of the three registered worktrees,
+  which is the evidence behind the CPO's "does it conflict with the other worktree?" question.
+- `pytest tests/` — 799 passed, 1 skipped, 15 subtests passed. `dbt parse` clean.
+- Offline gates all PASS: `check_layer_contract`, `check_registry_var_sync`,
+  `check_competition_type_seed`, `check_copy_gate`, `check_ui_i18n_metrics`, and all five JSON
+  manifests parse.
+- `sqlfluff lint` NOT run and NOT claimed: this diff contains zero `.sql` files, so it would have
+  been uninformative.
+
+⚠ **This is LOCAL evidence and is never CI evidence.** The pipeline on this MR is the CI evidence.
+It is EXPECTED to go past the worktree step and then FAIL further down on **#66** — prod data has
+not been rebuilt since 08-09, so `assert_event_team_in_fixture_participants` still returns its 10
+rows through `--defer --favor-state`. That is a different defect and not evidence this fix failed.
+Read the log, not the colour.
