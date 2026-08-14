@@ -1,7 +1,43 @@
 # Review — feat/367-landing-page — rounds 1-8, closed 2026-08-09
 
 branch: feat/367-landing-page
-diff_sha256: 5524939f8b17591e6eb271efaf5711725e26d6bc9fb475c33fc574fbf89a17bc
+diff_sha256: d294d7c1c04b41fe5acebd90af71af68e252061ae1da83f574f60d5b2659dc76
+
+# ⚠ REBOUND 2026-08-14, rebased onto main `2644989`, and the old number was dead for TWO
+# independent reasons. (1) The base moved: main gained #53, #61, #63, #33 items 9/14/15, #65 and
+# #57 while this branch sat open. (2) **#63 CHANGED THE ALGORITHM** — from hashing the RENDERED
+# patch text to hashing CONTENT IDENTITY (`git diff --raw`). The recorded `5524939f…` was the
+# rendered-text number and is not comparable to anything CI computes now.
+#
+# ⚠ A TRAP THIS BRANCH WALKED INTO, recorded because it will recur on any pre-#63 branch: the
+# hook runs FROM THE BRANCH, so before the rebase `--staged-hash` was still the OLD implementation
+# and cheerfully reproduced `5524939f…`. That looks like agreement and is not. Verified explicitly
+# by computing both ways on the same tree: rendered = `5524939f…` (514,774 bytes), raw =
+# `73e50633…` (5,697 bytes). **Compute the binding AFTER the rebase, never before.**
+#
+# The branch was COLLAPSED to one commit before rebasing — the method this branch's own handover
+# documents — because 13 of its 15 commits were handover-only edits that would each have re-fought
+# the same paperwork conflicts.
+#
+# Conflicts were the four `.claude/task/*` artifacts plus `.claude/active_work.md`. No code
+# conflict. `shared.yml` and `seeds/schema.yml` were touched by BOTH sides and auto-merged; both
+# were checked SEMANTICALLY rather than trusted — #57's `confederations`/`competition_types`/
+# `single_country`/`label_i18n_key` and this branch's `label_en`/`computation_kind` all survive,
+# and this branch's only `shared.yml` change was a trailing blank line.
+#
+# ⚠ `escalations.log` UNION: this branch does NOT follow the append-only shape the others use. It
+# INSERTS 48 lines at the TOP and appends 181 at the BOTTOM. The two-part `main + (mine − base)`
+# union that is correct everywhere else would have silently dropped the head block; an assertion
+# caught it. Resolved three-part and checked by ARITHMETIC: 48 + 2,508 + 181 = 2,737 lines written,
+# with #367, #57, #65, #63, #61 and the oldest 2026-06-12 entry all verified present.
+#
+# ⚠ `.claude/active_work.md` took MAIN's side, NOT this branch's — the opposite of the rule for the
+# other three artifacts, and deliberately. It is not single-owner-per-task: main's copy is current
+# (08-14) while this branch's was four days stale and still said "CI IS OUT OF MINUTES". Before
+# discarding it, its unique content was checked against the tracker: the design decisions it
+# summarised are in **#40** (12,976 chars) and **#41** (13,756 chars), which it names as the
+# authority, plus #36/#42/#43/#44/#45 — all confirmed to exist with full bodies. Nothing was lost;
+# a compact pointer block replaces the summary.
 
 # ⚠ REBOUND AGAIN 2026-08-09 after REBASING onto `main` at `4ad4513`. The MR reported a merge
 # conflict; `main` had merged `perf/33-raw-merge-on-write`. The conflicts were ONLY in the four task
