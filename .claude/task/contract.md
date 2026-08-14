@@ -1,140 +1,148 @@
-# Task contract — the completeness gate must know a deliberate skip is not a gap
+# Task contract — #62 step 1: project the registry's own fields into the seed
 
 objective: >
-  THE PROD NIGHTLY IS FAILING AGAIN, and this one is ours. The 2026-08-14 04:00 run exited 3
-  during INGESTION, before dbt:
+  `docs/content_architecture.md` §1 requires one block = one mart, with the export selecting and
+  renaming but never deriving. The competitions page breaks it: rendering one row needs four
+  sources, because `scripts/sync_dbt_vars.py` projects only three columns into the warehouse —
+  `league_code, competition_type, parent_competition`. `confederation`, `slug`, `sort_order`,
+  `tier` and `season_type` never reach it, so `scripts/export_site_data.py:911` opens
+  `docs/competition_registry.yml` directly.
 
-      Completeness gate failed: per-team gaps not healing: UCL/TRANSFERS (1 then 1 teams missing)
+  This projects those five, extends the lockstep guard to cover them, and fixes a CSV-rendering
+  hazard on the way. It is step 1 of #62's five. Steps 3 (the mart) and 4 (the export repoint) are
+  separate MRs — ⚠ a seed COLUMN and its first reader cannot ship together, because the deferred DQ
+  step resolves `ref()` to MAIN's seed. #57 shipped columns only for this reason and #38 waits on
+  the same rule.
 
-  `detect_stagnant_per_team_gaps` hard-fails when a (league, entity) pair has missing teams on TWO
-  CONSECUTIVE RUNS. Its stated reasoning is that a single bad run "self-heals" on the next night's
-  fetch, so two in a row means it is not healing.
-
-  **#33 item 14 invalidated that assumption on 2026-08-11.** It put `transfers` on a 7-day
-  per-league re-fetch cadence, skipping the phase ENTIRELY when a league is not due. A skipped
-  league cannot heal, by construction — there is no fetch. So a real, pre-existing 1-team gap in
-  UCL/TRANSFERS now sits unfetched for up to 7 days and trips a gate designed for a nightly fetch.
-
-  Nothing is wrong with the data. The gate is asking a question that stopped making sense.
-
-  This teaches the gate which (league, entity) pairs were deliberately skipped this run, and makes
-  it decline to call those stagnant.
 refs: >
-  GitLab #33 (items 14 and the completeness work). Regression introduced by !31 (item 14),
-  surfaced by the 2026-08-14 nightly.
+  GitLab #62 (the rule and its five steps), plus the CPO refinement recorded as a note on it
+  2026-08-14: the rule governs DATA; copy comes from the i18n surface; where data needs a label the
+  seed carries the KEY and the English name. All five columns here are data.
+  GAP-28 in `docs/wireframes/99_gaps_register.md` asked for `tier` and `season_type` specifically —
+  design approved 2026-08-08, build not started. This delivers it.
+  ⚠ **GitLab #69 is the reason `country` is absent** — see `decisions_taken` 1.
 
 scope_paths:
-  - ingestion/api_football/completeness.py
-  - ingestion/api_football/orchestrator.py
-  - ingestion/api_football/loads/context.py
-  - ingestion/api_football/loads/competition_runner.py
-  - tests/test_per_team_completeness.py
-  - tests/test_completeness_outcome_and_summary.py
-  - tests/test_refetch_cadence.py
+  - scripts/sync_dbt_vars.py
+  - scripts/check_registry_var_sync.py
+  - dbt_project/seeds/competition_registry.csv
+  - dbt_project/seeds/schema.yml
+  - tests/test_registry_seed_projection.py
+  - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
   - .claude/task/review_input.patch
+  # added by amendment 1 — see amendments
+  - docs/competition_registry.yml
 
 impact_map: >
-  REQUIRED — `ingestion/**` is the structural surface.
+  Not gate-required — no `dbt_project/models/**` file and no PROTECTED path is touched. Written
+  anyway, because a seed's shape is joined by 13 models and the guard's coverage is the thing #62
+  says silently rots.
 
-  what fails today, traced end to end:
-    `loads/competition_runner.py:200` — `if not should_refetch(...): _skipped_phase(...); return`
-      (item 14). No fetch, no write, and NOTHING records that the skip happened.
-    `orchestrator.py:281` — `per_team_missing = per_team_missing_by_league_entity(per_team)`
-      counts missing teams for `PER_TEAM_GATED = ("PLAYERS", "SQUADS", "TRANSFERS")`.
-    `completeness.py:403 detect_stagnant_per_team_gaps(current, prior)` — flags any pair present
-      in BOTH, with no knowledge of whether a fetch was even attempted.
-    `orchestrator.py:370` — a non-empty result is a hard fail, `exit(3)`, and the dbt build never
-      runs. That is why `dbt_analytics` is stale again.
+  who WRITES the seed: `scripts/sync_dbt_vars.py` only, generated from
+    `docs/competition_registry.yml`. The file carries a do-not-hand-edit note and
+    `check_registry_var_sync.py` fails CI on drift.
 
-  the near-miss that proves the shape: `COACHES` is in `PER_TEAM_ENTITIES` but deliberately NOT in
-    `PER_TEAM_GATED` (`completeness.py:49-53`) — "a permanently-red gate trains everyone to ignore
-    the alarm". Item 14 put coaches AND transfers on the same 7-day cadence, but only transfers
-    gates, so only transfers breaks. The exclusion that saved coaches was written for a different
-    reason and covered this by luck.
+  who READS it: dbt models joining `ref('competition_registry')` on `league_code`. This change is
+    PURELY ADDITIVE — the three existing columns keep their name, order and every value, so no
+    existing join, filter or test can see a difference. Verified by diffing the regenerated file's
+    first three fields against the committed one for all 45 rows.
 
-  writers: none. No loader, no raw table and no BigQuery write is touched. `should_refetch` itself
-    is NOT modified — the cadence is a CPO ruling and stays exactly as it is.
+  what does NOT change: no model, macro, snapshot or mart; no shipped number; no page. The registry
+    YAML is not edited, so no competition's identity, `ingest_active` or `history_seasons` moves.
+    `dbt_project.yml`'s `active_competition_league_codes` is regenerated but must come out
+    IDENTICAL, since no row's `status` changed.
 
-  downstream: no dbt model, no mart, no page. This changes only whether the ingest process exits
-    non-zero. Nothing reads the completeness snapshot except the gate itself and the markdown
-    summary.
+  ⚠ RECURRING COST: none. Five narrow string columns on a 45-row seed. No job, trigger, schedule or
+    scan is added. The seed is rebuilt by `dbt seed` in runs that already happen.
 
-  layer_rules: none engaged — no dbt file is touched.
+  deploy_order: none. No image, no schedule, no warehouse object beyond the seed table itself,
+    which `dbt seed` recreates.
 
-  deploy_order: nothing breaks at any point. ⚠ THE NIGHTLY RUNS AN IMAGE, so merging does not
-    deploy this; it needs `gcloud run jobs deploy fdp-nightly --source . --region europe-west1`
-    from `main`. Until that runs, the nightly keeps failing every 04:00.
-
-  blast_radius: **the gate stops firing on deliberately-skipped pairs and keeps firing on
-    everything else.** No number changes anywhere.
+  layer_rules: `check_layer_contract.py` judges `dbt_project/models/**`, untouched here.
 
 decisions_taken: >
-  CPO ruling, in-thread 2026-08-14, after being shown the two options in plain language: **"Do as
-  recommended"**, i.e. option 1 — teach the check to ignore nights where we skipped on purpose.
-  Recorded in `escalations.log` before this contract.
+  1. ⚠ **`country` IS DELIBERATELY NOT PROJECTED, and this reverses my own first proposal.** I had
+     planned to carry it across and use `competition_types.single_country` to tell "England" apart
+     from "Europe". The CPO rejected that: *"separating these entries with THIS flag is bullshit…
+     I'd assume that these entries are somewhere in a mapping table and/or then a dim table."*
+     He is right, and checking proved it: `dim_league` ALREADY carries `league_country` and
+     `country_flag_url` from the provider (`stg_apif__leagues.sql:53`). The registry's hand-typed
+     copy is a second one; projecting it would have made a THIRD and hidden the inconsistency
+     behind a boolean instead of modelling it.
+     Country therefore becomes its own entity under **#69** (seed + `dim_country` + FKs on four
+     dims), and the competitions mart will take country and flag from `dim_league` at step 3.
 
-  THE REJECTED OPTION AND WHY IT MATTERS: option 2 was to drop `TRANSFERS` from `PER_TEAM_GATED`,
-  matching the existing COACHES precedent. It is a smaller diff and it would work. It was
-  recommended AGAINST and the CPO agreed, because it removes real coverage — transfers gaps would
-  stop failing the run permanently — to work around an assumption WE broke. The repo's standing
-  rule is to narrow a guard to where it still holds, not to delete the assertion.
+  2. **`csv.writer` replaces the f-string renderer.** `_render_registry_seed()` built rows with an
+     f-string joining values on commas. With five more columns of authored text that is a
+     corruption waiting for its first comma. No value contains one today — checked all 45 rows and
+     the nearest miss is `North/Central America`, a slash — so this fixes the class before it fires
+     rather than after, when the symptom would be a silently malformed seed in the warehouse.
 
-  # THRESHOLD DECLARATIONS
-  NEW MECHANISM — no. One field on an existing dataclass, one argument on an existing function.
-    No new service, dependency, table or lifecycle step.
-  RECURRING COST — none. No extra API call, query or storage; this is process-exit logic.
-  GUARD LOOSENED — ⚠ **YES, NARROWLY, AND THIS IS THE DECLARATION THAT MATTERS.** The gate will
-    no longer fail on a (league, entity) pair that was deliberately skipped this run. That is
-    precisely the case where it is currently WRONG, and the repo's rule is to narrow a guard to
-    where it still holds rather than delete it. What it must keep catching, and what the tests
-    must prove it still catches: a pair that was FETCHED on both runs and is still missing teams.
-    A skip must never be silent — it is logged, so a permanently-skipped league cannot hide a real
-    gap unnoticed.
-  SHIPPED NUMBERS — no.
+  3. **The guard is generalised, not extended by copy-paste.** `check_registry_var_sync.py`
+     hardcoded the three columns in two functions. Both now derive from ONE declared column list.
+     #62 states the risk plainly: extend the seed without extending the guard and it "silently stops
+     covering most of the file".
 
-decisions_reserved:
-  - Whether a league whose transfers are skipped for many consecutive runs should eventually be
-    force-fetched so a real gap cannot hide behind the cadence indefinitely. The 7-day cadence
-    bounds it to 7 days, which is why this is not urgent, but it is a genuine question and it is
-    the CPO's.
-  - Whether `TRANSFERS` belongs in `PER_TEAM_GATED` at all. Left exactly as it is here.
-  - The UCL/TRANSFERS 1-team gap itself. This task makes the gate correct; it does not
-    investigate whether that one team is a real ingestion defect. Filed separately if it persists
-    once transfers are next due.
+  4. **ONE column list, imported — not two lists plus a parity test.** ⚠ REPLACES what this
+     contract said at round 1, and the replacement is the reviewer's argument, not mine. The first
+     draft duplicated `SEED_COLUMNS` into both scripts and justified it by claiming no single
+     import form works in both execution contexts. platform-reviewer showed that was false:
+     `scripts/` resolves as a namespace package, so one `sys.path.insert` makes the import work
+     whether CI runs the guard as a script or pytest imports it, and the precedent is already in
+     the tree at `check_task_artifacts.py:51`. The guard now imports `SEED_COLUMNS` and
+     `_normalise` from the writer, so drift is structurally impossible rather than merely
+     detectable, and the test became an identity check that fires if a local copy is restored.
+
+  4b. **NORMALISATION HAPPENS ONCE, IN THE WRITER — the first version got this wrong and it was a
+     real hole.** platform-reviewer, round 1: the guard stripped the SEED side while comparing
+     against an unstripped registry, so a seed cell of `"UEFA "` normalised to `"UEFA"` before
+     comparison and MATCHED — the guard would have reported OK on a corrupted file. Nothing else
+     covers that: a trailing space is neither null nor a duplicate, so `not_null` and `unique`
+     pass, and only `confederation` carries a relationships test. The same hole was duplicated in
+     the test written to back the guard up. Now `sync_dbt_vars._normalise` is the only place
+     anything is stripped, the guard reads the seed VERBATIM, and
+     `test_guard_catches_whitespace_corruption_in_the_seed` drives a corrupted copy through the
+     guard's real reader. Proven by reverting: restore the strip and that test goes RED.
+
+  5. **`tier` is `''` for the 29 non-league competitions, and that is a RULE, not a gap.** Measured:
+     `tier` is present on exactly the 16 `domestic_league` rows and on no other competition_type. It
+     is structurally N/A for a cup, so `not_null` would be wrong and a blank is correct. Pinned by a
+     test asserting the biconditional, which turns "29 blanks" from a smell into a contract.
+     `''` follows `parent_competition`, which already means "none" the same way.
+
+  6. **`confederation` gets a `relationships` test to `ref('confederations')`.** That seed is on
+     main since #57, so the deferred DQ resolve finds it. This is not the seed-column-and-its-reader
+     trap: the new thing here is the SOURCE column, and the TARGET it points at already exists.
 
 done_when:
-  - `pytest tests/ -q` exits 0 (baseline on this branch's base, main @ a13c16e: 789 passed,
-    1 skipped).
-  - `ruff --config .ruff-ci.toml ingestion/ tests/` exits 0.
-  - ⚠ VERIFIED BY BREAKING THE SUBJECT, both directions, because a gate that stops failing is
-    exactly the change that must be proven to still fail:
-      · a pair skipped this run and missing on both runs -> NOT flagged (the fix)
-      · a pair FETCHED on both runs and missing on both -> STILL flagged (the guard survives)
-      · a pair skipped this run but flagged for a DIFFERENT league/entity -> still flagged
-    Each confirmed by running the tests against the pre-fix behaviour and watching them go red.
-  - The skip is VISIBLE: the run logs which pairs were exempted, so a permanently-skipped league
-    cannot hide a real gap silently. Asserted by a test on the emitted text, not by eye.
-  - POST-MERGE, and NOT satisfiable from this branch: redeploy the image from `main`, then confirm
-    the next 04:00 run reaches the dbt build with `ERROR=0` instead of `exit(3)`.
+  - `competition_registry.csv` carries eight columns; the three existing ones are byte-identical in
+    name, order and value for all 45 rows.
+  - `sync_dbt_vars.py` is IDEMPOTENT: a second run reports "already in sync".
+  - `dbt_project.yml` is unchanged by the run.
+  - ⚠ Both new tests SEEN RED before green — parity broken by editing one list, `tier` broken by
+    blanking a league's value. A test only ever observed passing proves nothing; #63 shipped three
+    such tests, each of which passed against the very defect it was written to catch.
+  - ⚠ `check_registry_var_sync.py` shown to FAIL on a hand-broken `slug`, proving the widened
+    comparison is live rather than decorative.
+  - `pytest tests/ -q` green; the five offline gates green; `dbt parse` clean.
+  - ⚠ No `dbt build` is run locally. `data:build:mr` on the MR is the CI evidence.
 
 amendments:
-  - 2026-08-14: `tests/test_completeness_outcome_and_summary.py` -> `tests/test_per_team_completeness.py`
-    in `scope_paths`. No widening: one test path swapped for another, same count. Authority: none
-    needed — the first draft named the wrong file from its title alone. `detect_stagnant_per_team_gaps`
-    and `evaluate_completeness_outcome`'s per-team behaviour are covered in
-    `tests/test_per_team_completeness.py` (it imports both at lines 26-29 and exercises the gate at
-    318-324); the file originally listed covers a different part of the module and is not touched.
-    Caught by the contract gate on the first test edit, which is the gate doing its job.
-  - 2026-08-14: + `tests/test_completeness_outcome_and_summary.py` (so BOTH test files are now in
-    scope, not a swap). Authority: the STANDING CPO RULE of 2026-08-08 in `escalations.log` —
-    "Updating a reference that an approved change itself breaks is part of that change ... provided
-    the update is confined to the reference and changes no behaviour."
-    WHAT BROKE AND WHY IT IS RIGHT THAT IT DID: `test_skipped_report_returns_no_failures` asserts
-    the outcome dict by EXACT EQUALITY, and its own comment says that is deliberate — "kept inside
-    the exact-equality assertion rather than relaxed to a subset". Adding the
-    `skipped_per_team_exempt` key therefore failed it. That is the guard working exactly as
-    designed: a new key in the outcome contract must be a conscious act, not something that slips
-    in. The edit adds that one key to the expected dict and changes nothing else.
+  - id: 1
+    date: 2026-08-14
+    authority: >
+      Not a new CPO ruling — the STANDING RULE recorded in `escalations.log` on 2026-08-08: a
+      reference broken by an approved change is part of that change. Raised by
+      data-engineer-reviewer at round 1 as a FAIL, and it is correct.
+      `docs/competition_registry.yml`'s own header says these fields are "consumed by the site
+      export ONLY — not by dbt; issue #364". This branch makes that FALSE: `sync_dbt_vars.py`
+      projects four of them into the seed and `schema.yml` attaches dbt tests that run in
+      `dbt build`. The header is not incidental prose — `.claude/skills/onboard-competition`
+      sources its field table from it, so an onboarder reads "not by dbt" immediately before
+      setting a field that dbt now tests. Leaving it would ship known-false documentation at the
+      single source of truth for onboarding.
+    adds:
+      - docs/competition_registry.yml
