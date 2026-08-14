@@ -1,8 +1,19 @@
 # Review — feat/62-registry-seed-display-fields — 2026-08-14
 
-diff_sha256: cda3ac77917069cc205c448f0548d16753db20c5c2c1f439cbab16b2ce83cff1
+diff_sha256: 60eb1616394fd173941d5216cd0583a57311c9e85c062eb3b2bb5a18de9a5feb
 
 rounds: 3
+
+⚠ REBOUND 2026-08-14 after rebasing onto main `f630e30`, which carries `fix/33-completeness-gate-
+refetch-skip`. The hash is a function of the base, so a rebase invalidates it even though not one
+line of the reviewed work moved. Conflicts were the three `.claude/task/*` paperwork files and
+nothing else — the scripts, seed, schema, registry header and test merged CLEANLY. Resolved as MINE
+for contract/review (single-owner per task) and `escalations.log` UNIONed and checked by ARITHMETIC
+(2,737 base + 40 main + 43 mine = 2,820 lines written).
+⚠ Both sides were verified PURE APPENDS with a SequenceMatcher before the two-part union was
+applied, rather than assumed: `!27` turned out to insert at the TOP as well as append, where a
+two-part union would have silently dropped its head block. A probe for main's entry also came back
+False and was chased down — the entry is present; the probe string was wrong.
 
 Four routed reviewers, blinded (patch + `contract.md` + `escalations.log`; no builder narrative).
 Routing per `.claude/review_routing.json`: scope-auditor (always), platform-reviewer
