@@ -1,8 +1,16 @@
 # Review — fix/65-ci-worktree-prune — 2026-08-13
 
-diff_sha256: b1b3a6465a8b8ae1ef070c1ccfc41ef76b7dbb9b7191980278c71232f0c46fcb
+diff_sha256: 6bca53577109b13bce379e83a94d322ea581f4a59dd3d555cecf1780bb86d620
 
 rounds: 1
+
+⚠ REBOUND 2026-08-13 after rebasing onto `a13c16e`, which carries `chore/33-item15-drop-injuries`.
+The hash is a function of the BASE, so a rebase invalidates it even when not one line of the work
+changes — and none did. The verdicts below stand: the rebase conflicted ONLY in the four
+`.claude/task/*` paperwork files, resolved as MINE for contract/review/review_input (single-owner
+per task) and `escalations.log` UNIONed and checked by ARITHMETIC (base 299,989 + main's item 15
+2,694 + this branch's #65 3,214 = 305,897, written 305,897), never by eye. `.gitlab-ci.yml` and
+`tests/test_ci_data_job_invariants.py` merged CLEANLY — the reviewed change did not move.
 
 Three routed reviewers, blinded (patch + `contract.md` + `escalations.log`; no builder narrative).
 Routing per `.claude/review_routing.json`: scope-auditor (always), plus cto-reviewer and
