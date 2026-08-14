@@ -1,21 +1,28 @@
 # Review — feat/57-competition-taxonomy-seed — 2026-08-12
 
-diff_sha256: 1ccafbfc690df9fc7c9467ff341c9c036b1b6c8f340556ee09f023aae94251f3
+diff_sha256: 2e0036a205bac76a90c863208613624e1c28096f6f9a43d82d7b64d1e695686f
 
 rounds: 3
 
 ⚠ `diff_sha256` above is the CUMULATIVE branch number over `base...HEAD`, and since **#63** it
 hashes `git diff --raw` — CONTENT IDENTITY (mode, blob SHAs, status, path), not rendered patch
-text. `--staged-hash` now produces exactly this number on any commit; both were verified equal
-here (`1ccafbfc…`, 1,459 bytes). The older warning that `--staged-hash` was "the wrong number on a
-second commit" described the pre-#63 implementation and no longer applies.
+text. `--staged-hash` produces exactly this number on any commit. The older warning that it was
+"the wrong number on a second commit" described the pre-#63 implementation and no longer applies.
 
-⚠ REBOUND 2026-08-13 after rebasing onto main `b4b2414`, which carries **!35/#63**. TWO reasons the
-old number is dead: the base moved, and the ALGORITHM changed. The verdicts below stand — the
-rebase touched only the four `.claude/task/*` paperwork files, resolved as MINE for
-contract/review/review_input (single-owner), and `escalations.log` UNIONed and checked by
-ARITHMETIC (base 289,386 + main's #63 4,392 + this branch's #57 7,224 = 301,002, written 301,002),
-never by eye. No code, seed, model or doc content moved in the rebase.
+⚠ REBOUND 2026-08-14 after rebasing onto main `37605fd`, which carries **#33 item 15** (drop
+`/injuries`) and **#65** (the CI worktree fix). This is the branch's THIRD rebase; the hash is a
+function of the base, so each one kills it even though no line of the reviewed work has moved.
+The verdicts below stand. Every rebase has conflicted in the SAME four `.claude/task/*` paperwork
+files and nowhere else, resolved the same way: MINE for contract/review/review_input (single-owner
+per task), and `escalations.log` UNIONed and checked by ARITHMETIC — this time base 293,778 +
+main's 12,119 + this branch's #57 7,224 = 313,121, written 313,121, never checked by eye. The seed,
+model, doc and test changes replayed CLEANLY: no reviewed content moved.
+
+⚠ The handover `.claude/active_work.md` IS edited in this rebase (it is in `scope_paths` via
+amendment 1) because it still named #65 and #66 as blockers on this MR. Both are now resolved, so
+leaving it would have shipped a false statement into the one file every new session reads first.
+It also carried two stale claims that this rebase makes visible and that are now corrected: that
+prod had not built since 08-09, and that staging is still a view.
 
 Four routed reviewers, blinded (patch + contract.md + escalations.log; no builder narrative).
 Routing per `.claude/review_routing.json`: scope-auditor (always), analytics-engineer-reviewer

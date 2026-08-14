@@ -5,32 +5,35 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`; `wc -c` counts BYTES and
 > over-reports by ~220 here, which will send you trimming content that fits.
 
-_Last updated **2026-08-13**. **TWO MRs OPEN: `!27`** (home page, done, waiting on the CPO) and
-**`!33`** (#57 taxonomy seed). **`!35`/#63 MERGED.** The product is **Matchday Pilot**; the repo is
-on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — its Actions run nothing
-and its 114 issues are unreachable; `.github/workflows/README.md` says what re-arms it.
+_Last updated **2026-08-14**. **TWO MRs OPEN: `!33`** (#57 taxonomy seed, rebased and green) and
+**`!27`** (home page, done, waiting on the CPO). Merged since: **#63**, **#33 item 15** (drop
+`/injuries`), **#65**. The product is **Matchday Pilot**; the repo is on **GITLAB** (`glab`, MRs,
+`.gitlab-ci.yml`). GitHub is KEPT but dormant — its Actions run nothing and its 114 issues
+unreachable; `.github/workflows/README.md` says what re-arms it.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
 GitLab minutes; the old "no minutes" note is dead. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
 hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anything path-dependent._
 
-## ⭐ CURRENT — `!33` REBASED AND GOVERNANCE-GREEN; TWO NEW BLOCKERS (2026-08-13)
+## ⭐ CURRENT — `!33` IS GREEN AND WAITING ON THE CPO TO MERGE (2026-08-14)
 
-`feat/57-competition-taxonomy-seed` → **!33** @ `a4db1d0`, rebased onto `b4b2414` (carries #63),
-rebound to `1ccafbfc…`. Config + docs only. 3 rounds, 4 reviewers, all PASS. **The eleven CPO
-rulings are verbatim in `.claude/task/escalations.log` — that entry is the authority, not this
-summary.** ✅ **`validate:governance` PASSES ON CI for the first time ever** (job 15874286036),
-which closes #63 end to end.
+`feat/57-competition-taxonomy-seed` → **!33**, rebased onto `37605fd`. Config + docs only. 3 rounds,
+4 reviewers, all PASS. **The eleven CPO rulings are verbatim in `.claude/task/escalations.log` —
+that entry is the authority, not this summary.** ✅ Both blockers GONE: **#63** made the review hash
+content-identity, **#65** added `git worktree prune`. **#66 closed itself** — a merge fired
+`data:build:main`, the first good prod build since 08-09, applying #53's Macau fix
+(`assert_event_team_in_fixture_participants` PASSes 28/28).
 
-⛔ **!33 STILL CANNOT MERGE — `data:build:mr` is red for two reasons that are NOT #57's, and
-neither may be fixed inside !33:** **#65** every MR dies at `git worktree add /tmp/main-src`
-(`.gitlab-ci.yml:555`) — the runner persists the project dir but not `/tmp`, so the registration
-outlives its directory; fix is `git worktree prune` before the add, NOT `-f`. **#66** prod data is
-stale since **08-09** — every data job on main since failed `ci_quota_exceeded`, **#53's own merge
-build included**, so the Macau fix never reached prod and `assert_event_team_in_fixture_participants`
-still returns its 10 rows via `--defer --favor-state`. #66 needs a billed run = **the CPO's call**.
+⚠ **THE REBASE TAX IS THE STANDING COST, and it is paperwork-only.** Every merge to main rewrites
+the four `.claude/task/*` artifacts, so EVERY open branch conflicts there and nowhere else. The
+resolution is FIXED — do not re-derive it: **MINE** for contract/review/review_input (single-owner
+per task), **UNION** for `escalations.log` checked by ARITHMETIC never by eye (latest 293,778 +
+12,119 + 7,224 = 313,121). Then REBIND `review.md`'s `diff_sha256` — it is a function of the base,
+so a rebase kills it even when no line of work moves.
 
-⚠ **`!27` needs its hash rebound too** — dead for two reasons (base + algorithm), like !33's was.
+⚠ **`!27` NEEDS THAT SAME TREATMENT and has not had it**: it conflicts on the four artifacts **plus
+`active_work.md`**, its merge-base `4ad45132` is from 08-10, and its hash predates #63 — dead for
+base AND algorithm.
 
 ⚠ **DEFERRED ON PURPOSE — do not "fix":** `world_championship` keeps its name (branched on at
 `int_team_momentum_window.sql:135` behind a `coalesce`, so renaming without the SQL edit silently
@@ -44,17 +47,13 @@ drop `continental_club` from `RENAMED_TYPES` and `CWC` from `RETYPED` before re-
 
 ## ⭐ AN AUDIT FINDS; IT DOES NOT DECIDE
 
-The 59-finding audit and its cold re-run are in **GitLab #30**. Durable lesson: **findings
-replicate, prioritisation does not** — the cold run's first recommendation was deletion where the
-first run's was addition. **An audit's output is LEADS TO VERIFY, never a work list.** Two of four
-deletion targets failed checking.
-
-Remaining: BUILD **#20** + a contract-claims-vs-tree check (unfiled). The rest are the CPO's: **#15,
-#16, #21, #27, #5, #14, #18, #26, #28**. **#26**: a keyword matcher was tried and WITHDRAWN — a
-false hit fires on a real RULE. **#28**: cause is SEQUENCING; log entry and override as ONE action.
-**Why mechanism beats wording, measured in #30:** of 50 recorded corrections, **33 are prose only,
-22 recurred, and every rule that got a mechanism stopped recurring.** Still unmechanised:
-VERIFICATION and ESCALATION.
+The 59-finding audit and its cold re-run are in **GitLab #30**. Durable lesson: **findings replicate,
+prioritisation does not** — the cold run's first recommendation was deletion where the first run's
+was addition. **An audit's output is LEADS TO VERIFY, never a work list**; 2 of 4 deletion targets
+failed checking. Remaining work is ON THE TRACKER, not here — BUILD **#20** plus a
+contract-claims-vs-tree check (unfiled); the rest are the CPO's and #30 lists them.
+**Why mechanism beats wording (#30):** of 50 corrections, **33 are prose only, 22 recurred, and
+every rule that got a mechanism stopped recurring.** Unmechanised: VERIFY, ESCALATE.
 
 **⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
 CWD/fnmatch/heredoc/grep traps. **Do not copy them back**: that file is not capped._
@@ -65,43 +64,40 @@ indices move on every stash. The one that must not be rebuilt contains
 
 ## ⭐ The ingest cluster is CLOSED but UNVERIFIED
 
-Four fixes merged and live; **NO PRODUCTION RUN HAS EXERCISED ANY OF THEM.** `data:nightly` has
-**no SCHEDULE** (manual dispatch only) and prod has not built since **08-09** — see **#66**.
+Four fixes merged and live; **NO `data:nightly` RUN HAS EXERCISED ANY OF THEM** — it has **no
+SCHEDULE** (manual dispatch only). ⚠ `data:build:main` DID run on 08-13, so prod is fresh; that is a
+different job and does not exercise ingest pacing. Verify with `glab ci trace <id>`, grepping
+`data:nightly` for `rateLimit: Too many requests`. Expect **zero** drops and ~**98 min** rather than
+63; if materially off, the 1.55x pacing estimate was wrong — say so with the log output.
 
-Verify with `glab ci trace <id>`, grepping `data:nightly` for `rateLimit: Too many requests`. Expect
-**zero** drops and ~**98 min** rather than 63. If materially off, the 1.55x pacing estimate was
-wrong — say so with the log output.
-
-**What each does NOT do:** #897 cuts the failure RATE only · #896 stops the LOSS but does not make
-failure visible · #898 hard-fails on STAGNATION, not completeness · cause 3 gates
-players/squads/transfers but **COACHES reports only**.
-
-**Facts that each corrected a wrong assumption:** Ultra plan **450/min, 75,000/day**, daily draw
-~8,300, so the PER-MINUTE limit binds, never the daily · transfers healing is OBSERVED
-(append-only). **No public site, so no user impact** — never present this as a live incident.
+⚠ **None of the four does what its title suggests** — the per-issue caveats are on #896-#898; read
+them before claiming coverage. **Facts that each corrected a wrong assumption:** Ultra plan
+**450/min, 75,000/day**, daily draw ~8,300, so the PER-MINUTE limit binds, never the daily ·
+transfers healing is OBSERVED (append-only). **No public site, so no user impact** — never present
+this as a live incident.
 
 ## ⭐ COST — read **GitLab issue #3** before touching anything
 
 #547's comment is unreachable (GitHub). Everything recoverable is in **GitLab #3** — baselines, the
 ranked list **in ITS order**, the free tools, MEASURED vs UNMEASURED. Read it; do not redo it. Traps:
 
-- **⚠ NEVER set a time-based partition expiry on raw** (#892). Nine biennial/quadrennial
-  tournaments are `ingest_active` and go months without a refresh; expiry would delete the ONLY
-  surviving row and staging's `qualify` would silently return zero rows for that league. Use
+- **⚠ NEVER set a time-based partition expiry on raw** (#892). Nine biennial/quadrennial tournaments
+  are `ingest_active` and go months without a refresh; expiry would delete the ONLY surviving row and
+  staging's `qualify` would silently return zero rows for that league. Use
   keep-latest-per-`(table, league_code)`. **A fixed lookback window has the same defect.**
 - **⚠ Do NOT claim the API quota "breaks first"** — claimed once without evidence, withdrawn. The
-  daily quota number is not in the repo and #547 assessed the API budget as fine. (`standings.py:30`
-  and `teams.py:28` DO loop every configured season daily with no skip — real, worth fixing.)
+  number is not in the repo and #547 assessed the API budget as fine. (`standings.py:30` and
+  `teams.py:28` DO loop every configured season daily with no skip — real, worth fixing.)
 - **⭐ Two FREE tools: `bq query --dry_run`** (exact bytes, nothing runs) and
   **`scripts/report_bq_cost.py`** (read-only INFORMATION_SCHEMA; the 08-06 stop was LIFTED 08-07).
   ⚠ **Paste the output or do not claim it** — three completeness claims in #547 were wrong.
-- **MEASURED 08-03: $2.73/day**, prod tests $1.46 vs models $0.75; top single cost is a `not_null`
-  test on a STAGING VIEW rescanning 6.99 GiB ($0.30/day) — staging is still a view, the defect
-  already fixed for base on 08-02.
-- **⚠ #2 IS LIVE AND IT FIRED ON 08-07.** `data:build:main` triggers on `data_paths`
-  (`.gitlab-ci.yml:230`), which includes `.gitlab-ci.yml` and `scripts/check_*.py` — so !15, a
-  governance/docs MR changing a COMMENT and a gate script, rebuilt the whole prod warehouse.
-  **Check `data_paths` before putting those files in an MR.**
+- **MEASURED 08-03: $2.73/day**, prod tests $1.46 vs models $0.75. ⚠ That baseline PREDATES both
+  fixes to its top item — staging became a TABLE on 08-13 (#33 item 9) and `/injuries` ingest is
+  gone (item 15). **Re-measure before ranking anything; do not quote 08-03 as current.**
+- **⚠ #2 IS LIVE; it fired on 08-07 and again on 08-13.** `data:build:main` triggers on `data_paths`,
+  which includes `.gitlab-ci.yml` and `scripts/check_*.py`, so a governance-only MR rebuilds the
+  whole prod warehouse. Costly by default — though on 08-13 it is what un-staled prod and closed
+  #66. **Check `data_paths` before putting those files in an MR.**
 
 ## ⭐ REVIEW MECHANICS — what the working agreement does not give you
 
@@ -113,9 +109,10 @@ Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
   not see task notes; `contract.md` + `escalations.log` ARE delivered, because they carry authority.
   `site_v2/src/data/**` is a MANIFEST — grep those directly. A trailer names any excluded file that
   IS edited (#25/!19), so absence is not evidence a file was untouched.
-- **Run `check_task_artifacts.py` BARE** (#24, !15) — it resolves the live remote, and so does the
-  hook since **#63**; `GOVERNANCE_BASE` overrides both. `--staged-hash` is `git diff --raw` from
-  the base and matches CI at any branch length.
+- **Run `check_task_artifacts.py` BARE** (#24, !15) — it resolves the live remote, as does the hook
+  since **#63**; `GOVERNANCE_BASE` overrides both. `--staged-hash` is `git diff --raw` from the base
+  and matches CI at any branch length. ⚠ On an UNCOMMITTED branch it prints "empty diff — OK", which
+  is vacuous, not green.
 - **A PASS may find nothing.** One `risks_checked:` entry is enough; never invent one. Cap is 3
   rounds, then STOP and bring findings to the CPO.
 - **`.claude/task/**` is scope-exempt; `active_work.md` is NOT** — it must be in `scope_paths`.
@@ -135,39 +132,35 @@ gets a URL or a control. Deciding apart sets the URL shape twice. Measured (×3 
 51,589→154,767; **matches are BIGGER at 176,235**; h2h 51,903; teams 9,669. A 5-match per-season
 gate leaves 1,274 teams and 21,979 players. Bring counts, not a general question.
 
-**The player Overview is BUILT but UNCOMMITTED** in the stash named above, with a known-wrong
-default (`seasons[0]` = most recent of ANY competition, so both samples open on WC 2026). Its mart
-half IS shipped, so it is a one-line change when it resumes. Held on #845. **#848: the page is FOUR
-tabs**, International a national-lens TAB not a toggle (a crawler cannot follow a control). Read
-#848 first — four CPO-class consequences are open.
+**The player Overview is BUILT but UNCOMMITTED** in the stash named above, with a known-wrong default
+(`seasons[0]` = most recent of ANY competition, so both samples open on WC 2026). Its mart half IS
+shipped, so it is a one-line change when it resumes. Held on #845. **#848: the page is FOUR tabs**,
+International a national-lens TAB not a toggle (a crawler cannot follow a control) — read #848
+first, four CPO-class consequences are open.
 
 ## DESIGN DISCIPLINE (the weak spot)
-Never design off the cuff; use approved wireframes and the role briefs. Never invent a block to fill
-a slot, never design the canonical page around an edge case, build ONE tab at a time. **Show
-rendered output, not prose; copy is ALWAYS his (§10)** — gather copy decisions BEFORE the branch.
+Never design off the cuff. Approved wireframes + role briefs; never invent a block to fill a slot,
+never design the canonical page around an edge case, build ONE tab at a time. **Rendered output not
+prose; copy is ALWAYS his (§10)** — gather copy decisions BEFORE the branch.
 
 ## OWED — deferred, not forgotten
 - **Guard telemetry is absent** — 2,684 lines of enforcement, zero records of a gate firing (#30
   finding 4) — and **the round cap only RECORDS** a builder-typed number, so nothing stops a fourth
-  round. Both unfixed.
-- Delete `macros/apif_latest_source_partition.sql` — zero callers. A metric-change skill · mirror
-  the crests · reviewers as peers (#822 shipped only the model half).
+  round. Both unfixed. Also: delete `macros/apif_latest_source_partition.sql` (zero callers) · a
+  metric-change skill · mirror the crests · reviewers as peers (#822 shipped only the model half).
 - **⭐ #904 IS THE DOMINANT FAILURE — six times on 08-07, repeatedly on 08-12** — a claim about the
   code asserted rather than run, usually a grep scoped narrower than the sentence it supported
   ("this repo has NO linter"; `--include` omitting `.json`, so a `done_when` claimed a clean tree
   while a committed sample still held the old value). ⚠ **Its other face is a TEST that passes
-  either way**: in #63, THREE tests written to catch a defect passed against that very defect, each
-  caught only by running them against a reverted copy. **A claim of ABSENCE must state where it
-  looked; a test must be seen RED before it is trusted GREEN.** Prose has failed 7× — the strongest
-  candidate for the next mechanism.
-- **#900: blueprint §4 says a daily run is 20-50 API calls; measured ~8,300.**
+  either way**: in #63, THREE tests written to catch a defect passed against that very defect. **A
+  claim of ABSENCE must state where it looked; a test must be seen RED before it is trusted GREEN.**
+  Prose has failed 7× — the strongest candidate for the next mechanism.
 
 ## NEXT
-0. **⛔ #65 THEN #66 — nothing merges until both clear** (detail in ⭐ CURRENT). #65 is a one-line
-   CI fix and mine; #66 is a billed `data:build:main` run and the **CPO's**. Still open and
-   related: **no nightly SCHEDULE** exists, so data goes stale silently — also a COST decision;
-   bring a recipe, not a question. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT
-   branch's code.
+0. **⚠ NO NIGHTLY SCHEDULE exists**, so data refreshes only when a merge matches `.data_paths_prod`
+   — exactly how prod went stale for four days. Creating one is a recurring-COST decision, so the
+   **CPO's**; bring a recipe, not a question. ⚠ **#4**: a web dispatch from ANY branch builds prod
+   from THAT branch's code.
 1. **`!33` merges (the CPO's), then #62** — project `country`/`confederation`/`slug`/`sort_order`
    into `competition_registry.csv` via `sync_dbt_vars.py` (⚠ extend `check_registry_var_sync.py`
    with them or the guard stops covering most of the file), build `mart_competition_index`, then
@@ -189,13 +182,14 @@ rendered output, not prose; copy is ALWAYS his (§10)** — gather copy decision
 6. Follow-ups — GITHUB numbers, **bodies UNREACHABLE**; re-derive from code, re-file as picked up.
    **#875** metric GROUP headings English on DE/FI · **#877** `GD`, `W/D/L`, `T·I·B` need DE/FI ·
    **#876** rows break mid-word · **#863** PROTECTED path editable with no `protected_override` ·
-   **#866** `Regular Season - 20` is provider text, invisible to the copy gate · **#873** routing
+   **#866** `Regular Season - 20` is provider text the copy gate cannot see · **#873** routing
    matcher hand-copied, no parity test · **#887** MR-time DQ cannot see its own models · **#883**
    blank `competition_type` skipped by all 3 guards.
 7. Filed 08-13, all mine to build: **#64** #63's residuals · **#67** the contract gate enforces on
    the Edit tool only, so `sed -i` bypasses it · **#68** the form-window CODE diverges from
-   `metrics_context_model.md` §4 in two places. ⚠ On #68 **the agreement is the authority** — never
-   fix it by editing the doc to match the code.
+   `metrics_context_model.md` §4 in 2 places. ⚠ On #68 **the agreement is the authority** — never
+   fix it by editing the doc to match the code. Also **#60**: the canonical clone is parked on a
+   feature branch, so `.venv` is not where `CLAUDE.md` implies.
 
 ## OPEN — the CPO's alone
 **Imprint operator + address** (#799), blocks publication, never conclude it · hosting recurring
@@ -203,7 +197,7 @@ run · the feedback Apps Script (#687) · **#850**'s alias decision · **#875** 
 lives · **#895 slim-vs-drop, blocking the biggest remaining cost item** · **#21** (see NEXT 1).
 
 ## DO NOT (standing)
-- Do NOT treat the tracker as agreed work; re-validate before acting.
+- Do NOT treat the tracker as agreed work; re-validate first.
 - Do NOT write another planning doc. Do NOT touch `site/` (retired/frozen).
 - Do NOT derive facts in the export or frontend — select/group/rename only.
 - **Never merge a PR. The CPO merges. Branch from main; never commit to main.**
