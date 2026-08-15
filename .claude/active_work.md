@@ -5,11 +5,11 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-15**. **NOTHING IN FLIGHT — no open MRs**; main is **`8216c04`**. Merged
-08-12→08-15: **#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**
-(the home page), **#62 step 1**, **`!43`** + **`!45`** (⭐ below). The product is **Matchday
-Pilot**; the repo is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant —
-Actions run nothing, its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
+_Last updated **2026-08-15**. **ONE MR IN FLIGHT**: `fix/54-provenance-column-count`; main is
+**`2fb857e`**. Merged 08-12→08-15: **#63**, **#33 items 9/14/15 + the completeness-gate fix**,
+**#65**, **#57**, **#367**, **#62 step 1**, **`!43`** + **`!45`** + **`!46`**. Product **Matchday
+Pilot**; repo on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub KEPT but dormant — Actions run
+nothing, its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
 GitLab minutes; the old "no minutes" note is dead. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
@@ -22,24 +22,20 @@ hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anythin
 is `mart_competition_index`**, 4 repoints the export, 5 the page spec. ⚠ A seed COLUMN and its
 first reader cannot ship together, so step 3 is its own MR.
 
-✅ **`!43` MERGED — the blocker was ONE WRONG JSON PATH.** The `/leagues` payload puts country as a
-**SIBLING** of `league`, so staging read `$.league.country` / `$.league.flag`, which do not exist.
-Now `$.country.name` **45/45**, `.code` / `.flag` **21/45** — the 21 are exactly the domestic
+✅ **`!43` MERGED — the blocker was ONE WRONG JSON PATH.** `/leagues` puts country as a **SIBLING**
+of `league`. Now `$.country.name` **45/45**, `.flag` **21/45**: the 21 are exactly the domestic
 competitions, the other 24 return literal `World`, so **the provider itself marks the split
-`single_country` was invented for**. `not_null` added, seen RED first. ⚠ **Does NOT reverse the #69
-ruling**, and `sync_dbt_vars.py:45` is now accurate — do not "fix" it. Evidence: the 08-15 notes
-on **#62**.
+`single_country` was invented for**. ⚠ **Does NOT reverse the #69 ruling**, and
+`sync_dbt_vars.py:45` is now accurate — do not "fix" it. Evidence: the 08-15 notes on **#62**.
 ✅ **`!45` MERGED — the string is settled too**, `country_name_overrides` applied in base. ⚠ I
-wrongly called this a §10 fork and offered him the provider spellings to choose between; the CPO
-corrected it — **"we standardize in base"**, the 2026-08-14 ruling already covered it. **The
+wrongly called this a §10 fork; the CPO corrected it — **"we standardize in base"**. **The
 transformation layer decides the FORM, the CPO decides the NAME.** Only `USA` ->
-**United States of America** was his (verbatim). 15 distinct countries, 3 corrected, no hyphens.
-⚠ **NOT a hyphen-to-space rule** — `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated, so
-a regex corrupts them; the mapping cannot. Residual gap (a NEW hyphenated country arriving
-unnoticed) closes with **#69**'s FK, not a wider regex here. **Step 3 waits on nothing now.**
+**United States of America** was his. 15 distinct countries, 3 corrected. ⚠ **NOT a hyphen-to-space
+rule** — `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated, so a regex corrupts them; the
+mapping cannot. Residual gap closes with **#69**'s FK. **Step 3 waits on nothing now.**
 
-✅ **Membership is 45 rows** — all have fixtures (FAC 4,381 → WCQIP 4) and logos; "33 of 45 have no
-logo" is struck, registry `status` useless here.
+✅ **Membership is 45 rows** — all have fixtures and logos; "33 of 45 have no logo" is struck,
+registry `status` useless here.
 
 ⛔ **HOME PAGE: THE DESIGN AUTHORITY IS #40 (players) AND #41 (teams), NOT `10_home.md` §0**, which
 is wrong on both (it says nine and six boards, top 5; the truth is FOUR boards of ONE metric each,
@@ -57,13 +53,16 @@ pure insertion. Then REBIND `diff_sha256`. ⚠ A False probe is not proof of los
 
 ⚠ **DEFERRED ON PURPOSE by #57 — do not "fix":** `world_championship` keeps its name (branched on at
 `int_team_momentum_window.sql:135` behind a `coalesce`, so renaming without the SQL edit silently
-gives the World Cup a last-5 window, every test green) · `display_group` kept for **#44** ·
-`confederations.csv` unread until **#62** step 3.
+gives the World Cup a last-5 window, every test green) · `display_group` kept for **#44**.
 
-**#54 the competitions page is DESIGNED AND CLOSED** — its five notes supersede the description, and
-note 4 is the mart's 16-column contract. Mocks are OUTSIDE the repo in `design-mocks/`;
+**#54 the competitions page is DESIGNED AND CLOSED** — its five notes supersede the description;
+note 4 is the provenance table. ⚠ **Its 16 is ELEMENTS, not mart columns** — the "16-column
+contract" phrasing is WRONG. The mart is **9 data columns + `league_code`** (`category_label`,
+`competition_type`, `entity_type`, `sort_order`, `competition_name`, `logo_url`, `region_label`,
+`slug`, `confederation`). The rest is **i18n chrome** (`crumbHome`, `navCompetitions`) and must NOT
+become columns — building 16 would violate #62's 2026-08-14 data-vs-copy boundary. Mocks are OUTSIDE the repo in `design-mocks/`;
 `gen_competitions.py`'s `check_registry_still_unedited()` **fires by design now #57 merged** — drop
-`continental_club` from `RENAMED_TYPES` and `CWC` from `RETYPED` first.
+`continental_club` from `RENAMED_TYPES`, `CWC` from `RETYPED` first.
 
 ## ⭐ AN AUDIT FINDS; IT DOES NOT DECIDE
 
