@@ -2818,3 +2818,47 @@ here, and was right, as it was the previous five times.
   `country` values. Blanking the 24 non-country entries today would change what the site renders,
   because `export_site_data.py:911` still reads the YAML directly - the coupling #62 exists to
   remove. It follows step 4, not this step.
+
+
+2026-08-15 fix/62-standardize-country-names - CPO rulings on country names, and one of mine
+  withdrawn.
+
+  ⚠ FIRST, A CORRECTION TO THE ENTRY ABOVE. Ruling 3's supporting paragraph states `dim_league`
+  ALREADY carries `league_country` AND `country_flag_url`, provider-sourced. That was true of the
+  COLUMNS and false of the VALUES: all 45 rows were NULL, because `stg_apif__leagues.sql` read
+  `$.league.country` and `$.league.flag`, paths that do not exist in the payload - the provider
+  puts country as a SIBLING of `league`. `!43` repointed both paths, so the sentence is true NOW.
+  Left standing rather than edited, because this log records what was said when it was said; the
+  correction belongs here, appended. Ruling 3's CONCLUSION is unaffected and in fact strengthened -
+  a real provider source makes the registry's hand-typed copy more redundant, not less.
+
+  THE ASK, and it should not have been one. Having fixed the path, I found the provider's strings
+  were not display-ready: `Saudi-Arabia`, `South-Korea`, `USA`. I put those three to the CPO as a
+  copy choice under §10 and marked #62 step 3 blocked on his answer.
+
+  RULING 1 - THAT WAS NOT A QUESTION. CPO: "As said earlier, we standardize in base." Ruling 2 of
+  2026-08-14 already covered it. Standardising a provider's spelling is the transformation layer's
+  job; it is not copy, and asking which spelling to render was asking him to adjudicate what a rule
+  settles. The line: the transformation layer decides the FORM, the CPO decides the NAME. Only a
+  genuine naming choice crosses into §10.
+
+  RULING 2 - THE ONE PART THAT WAS HIS. CPO: "United States of America", verbatim, chosen over the
+  shorter "United States" I had proposed. Recorded in the seed row's `source` column, because that
+  is a naming choice and naming choices are his.
+
+  WHAT CHANGED AS A RESULT. `country_name_overrides.csv` + a left join and `coalesce` in
+  `base_apif__leagues` + `assert_country_name_overrides_still_needed`. Three parts, all copied from
+  `team_name_overrides`; no new mechanism. `dim_league` unchanged - base corrects, the dim
+  publishes. Shipped as `!45`.
+
+  ⚠ NOT a hyphen-to-space rule, and this is the part worth remembering. It looks like the
+  class-level fix and is wrong: `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated country
+  names, so a blanket replace corrupts them the moment either is onboarded. "Fix the class, not the
+  instance" does NOT mean reach for the pattern - it means find the mechanism that cannot be holed.
+  Here the explicit mapping is safe and the regex is not, and the real class-level fix is #69's
+  foreign key, where an unknown country fails rather than renders.
+
+  ⚠ NOT DECIDED HERE: `dim_team.team_country`, `dim_player.player_birth_country` and
+  `dim_coach.coach_birth_country` carry 217/222/213 distinct values and very likely the same
+  defect. Deliberately untouched - extrapolating across three dims from three known examples is
+  what #69's DISCOVERY step exists to prevent.
