@@ -5,12 +5,11 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-15**. **ONE MR IN FLIGHT**: `fix/62-standardize-country-names` (⭐ below);
-main is **`88181d3`**. Merged
+_Last updated **2026-08-15**. **NOTHING IN FLIGHT — no open MRs**; main is **`8216c04`**. Merged
 08-12→08-15: **#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**
-(the home page), **#62 step 1**, **`!43`** (⭐ below). The product is **Matchday Pilot**; the repo
-is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — Actions run nothing,
-its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
+(the home page), **#62 step 1**, **`!43`** + **`!45`** (⭐ below). The product is **Matchday
+Pilot**; the repo is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant —
+Actions run nothing, its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
 GitLab minutes; the old "no minutes" note is dead. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
@@ -23,16 +22,17 @@ hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anythin
 is `mart_competition_index`**, 4 repoints the export, 5 the page spec. ⚠ A seed COLUMN and its
 first reader cannot ship together, so step 3 is its own MR.
 
-✅ **`!43` MERGED — the blocker was ONE WRONG JSON PATH, not the ingestion.** The `/leagues` payload
-puts country as a **SIBLING** of `league`, so staging read `$.league.country` / `$.league.flag`,
-which do not exist; logo was fine because `$.league.logo` does. Now `$.country.name` **45/45**,
-`.code` / `.flag` **21/45** — the 21 are exactly the domestic competitions, the other 24 return
-literal `World`, so **the provider itself marks the split `single_country` was invented for**.
-`not_null` added, seen RED first. ⚠ **Does NOT reverse the #69 ruling**, and `sync_dbt_vars.py:45`
-is now accurate — do not "fix" it. Full evidence: the 08-15 note on **#62**.
-✅ **THE STRING IS SETTLED TOO — `country_name_overrides` seed applied in base.** ⚠ I wrongly
-called this a §10 fork and offered him the provider spellings to choose between; the CPO corrected
-it — **"we standardize in base"**, the 2026-08-14 ruling already covered it. Only `USA` ->
+✅ **`!43` MERGED — the blocker was ONE WRONG JSON PATH.** The `/leagues` payload puts country as a
+**SIBLING** of `league`, so staging read `$.league.country` / `$.league.flag`, which do not exist.
+Now `$.country.name` **45/45**, `.code` / `.flag` **21/45** — the 21 are exactly the domestic
+competitions, the other 24 return literal `World`, so **the provider itself marks the split
+`single_country` was invented for**. `not_null` added, seen RED first. ⚠ **Does NOT reverse the #69
+ruling**, and `sync_dbt_vars.py:45` is now accurate — do not "fix" it. Evidence: the 08-15 notes
+on **#62**.
+✅ **`!45` MERGED — the string is settled too**, `country_name_overrides` applied in base. ⚠ I
+wrongly called this a §10 fork and offered him the provider spellings to choose between; the CPO
+corrected it — **"we standardize in base"**, the 2026-08-14 ruling already covered it. **The
+transformation layer decides the FORM, the CPO decides the NAME.** Only `USA` ->
 **United States of America** was his (verbatim). 15 distinct countries, 3 corrected, no hyphens.
 ⚠ **NOT a hyphen-to-space rule** — `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated, so
 a regex corrupts them; the mapping cannot. Residual gap (a NEW hyphenated country arriving
