@@ -5,17 +5,17 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-15**. **ONE MR IN FLIGHT**: `fix/62-leagues-country-json-path` (⭐ below);
-main is **`062039d`**. Merged 08-12→08-14: **#63**, **#33 items 9/14/15 + the completeness-gate
-fix**, **#65**, **#57**, **#367** (the home page), **#62 step 1**. The product is **Matchday
-Pilot**; the repo is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant —
-its Actions run nothing and its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
+_Last updated **2026-08-15**. **NOTHING IN FLIGHT — no open MRs**; main is **`86a1344`**. Merged
+08-12→08-15: **#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**
+(the home page), **#62 step 1**, **`!43`** (⭐ below). The product is **Matchday Pilot**; the repo
+is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — Actions run nothing,
+its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
 GitLab minutes; the old "no minutes" note is dead. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
 hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anything path-dependent._
 
-## ⭐ CURRENT — #62 STEP 3 IS UNBLOCKED; THE COUNTRY FIX IS IN FLIGHT (2026-08-15)
+## ⭐ CURRENT — #62 STEP 3: THE DATA IS FIXED, THE STRING IS THE CPO's (2026-08-15)
 
 **#62 is the live thread, five steps.** Steps 1 (`!40` — the seed carries `confederation`, `slug`,
 `sort_order`, `tier`, `season_type`; the guard compares EVERY column) and 2 (#57) are done. **Step 3
@@ -28,14 +28,14 @@ payload puts country as a **SIBLING** of `league`: `$.league` = {id, name, type,
 0/45 — while `$.league.logo` does, hence 45/45. Base and dim drop nothing. Measured on RAW (priced,
 2,325,889 bytes, whole population): `$.country.name` **45/45**, `.code` and `.flag` **21/45**. The
 21 are exactly the domestic competitions; the other 24 return literal `World` with null code and
-flag, so **the provider itself marks the split `single_country` was invented for**. Branch
-`fix/62-leagues-country-json-path` repoints both and adds the missing `not_null` (seen RED first:
-45 failures old, 0 new). ⚠ **ISOLATED** — `dim_team`, `dim_coach` and `dim_player` all read correct
-country paths and are populated (counts in the MR). ⚠ **Does NOT reverse the #69 ruling**; a real
-provider source strengthens it, and `sync_dbt_vars.py:45`'s comment becomes accurate on merge.
-⛔ **STILL OPEN AND HIS: the rendered STRING.** The provider's names are not display-ready —
+flag, so **the provider itself marks the split `single_country` was invented for**. **`!43` MERGED**
+— both paths repointed plus the missing `not_null` (seen RED first: 45 failures old, 0 new; green in
+CI). ⚠ **ISOLATED** — `dim_team`, `dim_coach` and `dim_player` read correct country paths already. ⚠ **Does NOT reverse the #69
+ruling**; a real provider source strengthens it, and `sync_dbt_vars.py:45` is now accurate — do not
+"fix" it. Full evidence: the 08-15 note on **#62**.
+⛔ **STILL OPEN AND HIS: the rendered STRING.** The provider names are not display-ready —
 `Saudi-Arabia`, `South-Korea`, `USA`, `World` ×24. Copy is §10, so step 3 must not render provider
-text silently. That is the one thing left between here and the mart.
+text silently. The one thing left between here and the mart.
 
 ✅ **Membership is 45 rows** — all have fixtures (FAC 4,381 → WCQIP 4) and logos; "33 of 45 have no
 logo" is struck, registry `status` useless here.
@@ -174,7 +174,7 @@ copy is ALWAYS his (§10)** — gather copy decisions BEFORE the branch.
    SCHEDULE exists**, so data refreshes only on a merge matching `.data_paths_prod` (how prod went
    stale for four days). A schedule is a recurring-COST decision, so the **CPO's**; bring a recipe.
    ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT branch's code.
-1. **#62 step 3, once the country MR merges and the STRING decision lands** (⭐ CURRENT). Then step 4
+1. **#62 step 3, once the STRING decision lands** (⭐ CURRENT) — the data half is merged. Then step 4
    repoints the export, step 5 the page spec. Then **#55** and **#69**.
 2. **The audit stream — see the ⭐ block above.** ⚠ **Do NOT mix it with cost.** Also the CPO's, one
    command each: **Q2 of #21** (set `main`'s push access to No one — the SERVER should protect it,
