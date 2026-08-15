@@ -5,7 +5,8 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-15**. **NOTHING IN FLIGHT — no open MRs**; main is **`86a1344`**. Merged
+_Last updated **2026-08-15**. **ONE MR IN FLIGHT**: `fix/62-standardize-country-names` (⭐ below);
+main is **`88181d3`**. Merged
 08-12→08-15: **#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**
 (the home page), **#62 step 1**, **`!43`** (⭐ below). The product is **Matchday Pilot**; the repo
 is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — Actions run nothing,
@@ -15,27 +16,27 @@ GitLab minutes; the old "no minutes" note is dead. ⚠ **A GROUP MOVE IS COMING*
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
 hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anything path-dependent._
 
-## ⭐ CURRENT — #62 STEP 3: THE DATA IS FIXED, THE STRING IS THE CPO's (2026-08-15)
+## ⭐ CURRENT — #62 STEP 3 IS FULLY UNBLOCKED; BUILD THE MART (2026-08-15)
 
 **#62 is the live thread, five steps.** Steps 1 (`!40` — the seed carries `confederation`, `slug`,
 `sort_order`, `tier`, `season_type`; the guard compares EVERY column) and 2 (#57) are done. **Step 3
 is `mart_competition_index`**, 4 repoints the export, 5 the page spec. ⚠ A seed COLUMN and its
 first reader cannot ship together, so step 3 is its own MR.
 
-✅ **THE BLOCKER IS DIAGNOSED AND FIXED — ONE WRONG JSON PATH, not the ingestion.** The `/leagues`
-payload puts country as a **SIBLING** of `league`: `$.league` = {id, name, type, logo}, `$.country`
-= {name, code, flag}. Staging read `$.league.country` / `$.league.flag`, which do not exist — hence
-0/45 — while `$.league.logo` does, hence 45/45. Base and dim drop nothing. Measured on RAW (priced,
-2,325,889 bytes, whole population): `$.country.name` **45/45**, `.code` and `.flag` **21/45**. The
-21 are exactly the domestic competitions; the other 24 return literal `World` with null code and
-flag, so **the provider itself marks the split `single_country` was invented for**. **`!43` MERGED**
-— both paths repointed plus the missing `not_null` (seen RED first: 45 failures old, 0 new; green in
-CI). ⚠ **ISOLATED** — `dim_team`, `dim_coach` and `dim_player` read correct country paths already. ⚠ **Does NOT reverse the #69
-ruling**; a real provider source strengthens it, and `sync_dbt_vars.py:45` is now accurate — do not
-"fix" it. Full evidence: the 08-15 note on **#62**.
-⛔ **STILL OPEN AND HIS: the rendered STRING.** The provider names are not display-ready —
-`Saudi-Arabia`, `South-Korea`, `USA`, `World` ×24. Copy is §10, so step 3 must not render provider
-text silently. The one thing left between here and the mart.
+✅ **`!43` MERGED — the blocker was ONE WRONG JSON PATH, not the ingestion.** The `/leagues` payload
+puts country as a **SIBLING** of `league`, so staging read `$.league.country` / `$.league.flag`,
+which do not exist; logo was fine because `$.league.logo` does. Now `$.country.name` **45/45**,
+`.code` / `.flag` **21/45** — the 21 are exactly the domestic competitions, the other 24 return
+literal `World`, so **the provider itself marks the split `single_country` was invented for**.
+`not_null` added, seen RED first. ⚠ **Does NOT reverse the #69 ruling**, and `sync_dbt_vars.py:45`
+is now accurate — do not "fix" it. Full evidence: the 08-15 note on **#62**.
+✅ **THE STRING IS SETTLED TOO — `country_name_overrides` seed applied in base.** ⚠ I wrongly
+called this a §10 fork and offered him the provider spellings to choose between; the CPO corrected
+it — **"we standardize in base"**, the 2026-08-14 ruling already covered it. Only `USA` ->
+**United States of America** was his (verbatim). 15 distinct countries, 3 corrected, no hyphens.
+⚠ **NOT a hyphen-to-space rule** — `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated, so
+a regex corrupts them; the mapping cannot. Residual gap (a NEW hyphenated country arriving
+unnoticed) closes with **#69**'s FK, not a wider regex here. **Step 3 waits on nothing now.**
 
 ✅ **Membership is 45 rows** — all have fixtures (FAC 4,381 → WCQIP 4) and logos; "33 of 45 have no
 logo" is struck, registry `status` useless here.
