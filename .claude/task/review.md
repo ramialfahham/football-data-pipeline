@@ -1,57 +1,51 @@
-# Review — chore/handover-step3-blocked — 2026-08-14
+# Review — fix/62-leagues-country-json-path — 2026-08-15
 
-diff_sha256: 477d82c68255035817819d0af000646676a7dd0dfe1d5ce96161f24d8f5c1395
+diff_sha256: 591b6f9ff24f6471bfffc8180f8f2ca717f8a7b09bc9f8a1c8545610b3055559
 
 rounds: 1
-
-One reviewer routed for this path set: **scope-auditor** (always-on). No code, model, script or
-test is touched, so nothing else fires.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: only `.claude/active_work.md` and `.claude/task/contract.md` touched, both declared. The
-  excluded-file trailer confirms `active_work.md` was edited rather than merely absent from the
-  patch.
-- ⚠ THE CENTRAL RISK — is the false claim GONE or merely annotated? Grepped `country` across the
-  whole handover: the only surviving references are the corrected blocker, the NEXT pointer, and
-  the unrelated #69 item. **No sentence still asserts `dim_league` supplies country.**
-- The §10 non-decision is preserved: `decisions_taken` 3 leaves the country SOURCE open, and the
-  handover mirrors it ("the cheap next step is a LOOKUP, not a decision") rather than quietly
-  picking ingestion, the registry field or #69 on the CPO's behalf.
-- The measured numbers transcribed accurately — 45 rows / 0 country / 0 flag / 45 logo / all 45
-  with fixtures — matching the contract in substance rather than being restated loosely.
-- Structural completeness after a 71-line rewrite: rebase tax, the nightly trap, cost traps, review
-  mechanics, player-page decisions, design discipline, OWED, NEXT, OPEN, DO NOT and Verified state
-  all still present. Nothing silently dropped to fit the cap.
-- Format hygiene: no conflict markers; NEXT numbering 0-7 unique and sequential, and correctly
-  REPRIORITISED (0 = deploy the nightly image, 1 = the `league_country` lookup gating #62 step 3).
-- ⚠ STATED LIMITATION, not converted into a finding: it could not diff `active_work.md` against its
-  prior commit (excluded from the patch by design, and it had no git tool), so "nothing load-bearing
-  lost" rests on structural inspection of the current file plus the contract's account, not on a
-  line-by-line removal diff.
+- Scope: the diff touches `stg_apif__leagues.sql`, `core.yml` and `contract.md`, all listed in
+  `scope_paths`; `.claude/active_work.md` is also listed and is excluded from the reviewed patch
+  by `review_exclude_paths`, declared in the patch trailer. No out-of-scope file.
+- §10/A1 metric-definition risk: this corrects a JSON extraction path
+  (`$.league.country` → `$.country.name`, `$.league.flag` → `$.country.flag`), not a metric or a
+  formula. The impact_map shows a value-only change with zero downstream consumers of the two
+  columns (grep evidence), so no shipped number moves.
+- Naming/display (A2): the rendered string for the 21 single-country competitions, and whether
+  `mart_competition_index` reads `dim_league.league_country` directly or waits for #69's
+  `dim_country`, are both in `decisions_reserved` and are not decided in this diff.
+- Prior CPO ruling consistency: verified against `escalations.log` 2026-08-14
+  (`feat/62-registry-seed-display-fields`) ruling 3 — the contract's account matches the log, and
+  this MR does not reverse it; it fixes the provider-sourced path that ruling already assumed.
+- New mechanism / recurring cost: a `not_null` test on an existing column using the model's own
+  existing convention (five other columns already tested) is not a new mechanism; no new model,
+  table or schedule.
+- Credentials: no key/token/password-shaped string anywhere in the diff.
 
-## Verification (mechanical)
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Layer placement: the `stg_apif__leagues.sql` change is a JSON path correction only, still within
+  staging's faithful 1:1 flatten allowance per `dbt_project/docs/layering.md` §1_staging — no
+  dedup, aggregation or cross-source logic added. `base_apif__leagues.sql` and `dim_league.sql`
+  remain pure pass-throughs of the corrected columns.
+- Blast radius / A6: independently grepped `league_country|country_flag_url` across
+  `4_intermediate/` and `5_marts/` (zero hits) and confirmed the only files touching the columns
+  are the staging model, `base_apif__leagues.sql`, `dim_league.sql` and `core.yml` — matching the
+  contract. The pasted `dbt ls` lineage was spot-checked by grepping the `ref()` chain and holds.
+  The impact_map is real pasted lineage, not an asserted-trivial shortcut.
+- Test placement and testing policy: the new `not_null` on `dim_league.league_country`, and the
+  deliberate absence of a nullity test on `country_flag_url` (24 international rows carry no
+  provider flag, documented in the column description), are consistent with
+  `engineering_standards.md` §3. No test was weakened or deleted.
+- Catalogue governance and competition-agnosticism: no metric created or redefined — these are
+  dimensional attributes, not catalogue metrics — and no hardcoded competition identifier appears.
+- Cross-checked the contract's narrative against `escalations.log` ruling 3: the fix corrects
+  exactly the extraction bug that ruling's own investigation surfaced, and copy/consumption
+  decisions are reserved to the CPO rather than decided here.
 
-- **15,998 characters**, under the 16,000 cap, by Python `len()`.
-- NEXT numbering unique; zero conflict markers; `ALREADY carries` (the false claim's phrasing) no
-  longer appears anywhere.
-- The measurement itself was priced before running: `bq query --dry_run` reported 283,850 bytes,
-  under BigQuery's minimum billing unit. Both results are pasted in the #62 note rather than
-  summarised.
-
-## Why this change exists
-
-The handover told the next session to start #62 step 3 and stated that `dim_league` carries country
-and flag. Measured against prod: 45 rows, **0** with `league_country`, **0** with
-`country_flag_url`. The columns exist and `stg_apif__leagues.sql:53` extracts them; every value is
-NULL. That premise was mine and it is what the #69 country ruling was decided on, so a fresh session
-would have started building on it.
-
-Two further claims of mine are corrected by the same query, both in the generous direction: all 45
-competitions HAVE fixtures, and all 45 HAVE logos — so membership yields 45 rows and the "33 of 45
-have no logo" line is struck.
-
-⚠ The failure class is the one this repo calls dominant (#904): **I read the column in the model and
-never read its values.** The handover now carries that third face of it explicitly — "a column is
-not data" — alongside the grep-too-narrow and test-passes-either-way faces.
+## escalations
+(none)

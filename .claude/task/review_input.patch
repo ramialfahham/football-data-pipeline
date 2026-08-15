@@ -1,89 +1,201 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 9fc1fe1..650a6ae 100644
+index 650a6ae..c23b026 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,18 +1,21 @@
--# Task contract — handover write-out after #62 step 1
-+# Task contract — handover: #62 step 3 is blocked, and a premise I gave is false
+@@ -1,46 +1,123 @@
+-# Task contract — handover: #62 step 3 is blocked, and a premise I gave is false
++# Task contract — fix the leagues country/flag JSON path
  
  objective: >
--  `.claude/active_work.md` is stale. It says "ONE MR OPEN: `!27`" when `!27`, `!37`, `!39` and
--  `!40` have all merged and NOTHING is in flight, and its CURRENT section describes `!27` as the
--  work in progress. `handover_in.py` injects this file into every new session at SessionStart, so
--  a stale handover is the one document a fresh chat is guaranteed to read and act on.
-+  `.claude/active_work.md` tells the next session to start on #62 step 3 and states that
-+  `dim_league` carries country and flag. Measured 2026-08-14 against prod: `dim_league` has 45 rows
-+  and **0** with `league_country`, **0** with `country_flag_url`. The columns exist and staging
-+  extracts them; every value is NULL.
+-  `.claude/active_work.md` tells the next session to start on #62 step 3 and states that
+-  `dim_league` carries country and flag. Measured 2026-08-14 against prod: `dim_league` has 45 rows
+-  and **0** with `league_country`, **0** with `country_flag_url`. The columns exist and staging
+-  extracts them; every value is NULL.
++  `dim_league.league_country` and `country_flag_url` are NULL on all 45 rows because
++  `stg_apif__leagues.sql` reads `$.league.country` and `$.league.flag`, paths that do not exist
++  in the API-Football `/leagues` payload. The provider returns `country` as a SIBLING of
++  `league` (`$.country.{name,code,flag}`). Repoint the two extractions and add the `not_null`
++  test whose absence let this ship silently. This unblocks #62 step 3 (`mart_competition_index`),
++  whose region column had no source for its single-country branch.
++refs: GitLab #62 (step 3 blocker, 2026-08-14 note), #69 (countries entity), #54 (page design)
  
--  Bookkeeping only: no code, no model, no test, no shipped number.
-+  That premise was mine, it is what the #69 country ruling was decided on, and it blocks step 3 —
-+  the region sub-line's `single_country: true` branch now has no source in either the seed or the
-+  warehouse. A fresh session must not start building the mart on it.
+-  That premise was mine, it is what the #69 country ruling was decided on, and it blocks step 3 —
+-  the region sub-line's `single_country: true` branch now has no source in either the seed or the
+-  warehouse. A fresh session must not start building the mart on it.
++scope_paths:
++  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
++  - dbt_project/models/3_core/core.yml
++  - .claude/active_work.md
+ 
+-  Two further claims are corrected by the same query: all 45 competitions HAVE fixtures, and all 45
+-  HAVE logos.
++impact_map: >
++  writers: ONE. `ingestion/api_football/loads/catalog.py:38` writes `RAW_APIF_LEAGUES`
++    (WRITE_APPEND) with the whole `/leagues` response as a JSON `payload` column. It is the
++    only `raw_table("LEAGUES")` call in the repo (`grep -rn "LEAGUES" ingestion/ --include=*.py`
++    → `ingest_plan.py:134`, `loads/catalog.py:1,38`). The loader is NOT changed — it already
++    stores the field; only the extraction path in staging is wrong.
+ 
+-refs: >
+-  GitLab #62 note 2026-08-14 carries the full measurement and is the authority; this only makes the
+-  handover agree with it. #54's five notes remain the page design. #69 is the country entity.
++  downstream: `dbt ls --select stg_apif__leagues+ --resource-type model` (dbt 1.7.19,
++    .venv/Scripts/dbt.exe, run 2026-08-15) → 17 models:
++      1_staging.api_football.stg_apif__leagues
++      2_base.api_football.base_apif__leagues
++      2_base.api_football.base_apif__league_entity
++      2_base.api_football.base_apif__competition_seasons
++      3_core.dim_league
++      3_core.dim_competition_season
++      3_core.dim_player_team_season_mapping
++      3_core.fct_standings
++      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
++      4_intermediate.domestic_league.team_season.int_team_season__standings_primary
++      5_marts.shared.mart_fixture_standing_context
++      5_marts.shared.mart_roster
++      5_marts.shared.mart_standings
++      5_marts.shared.mart_team_profile
++      5_marts.shared.mart_team_season
++      5_marts.domestic_league.mart_matchday_insights
++      5_marts.domestic_league.mart_team_season_insights
+ 
+-scope_paths:
+-  - .claude/active_work.md
+-  - .claude/task/contract.md
+-  - .claude/task/escalations.log
+-  - .claude/task/review.md
+-  - .claude/task/review_input.patch
++  blast_radius: NO mart number changes. The two columns are read by NOTHING downstream of
++    `dim_league`: `grep -rn "league_country\|country_flag_url" dbt_project/models/4_intermediate/
++    dbt_project/models/5_marts/` → zero hits; the same grep over `base_apif__competition_seasons`
++    and `dim_competition_season` → zero hits. The full-repo grep finds them only in
++    `stg_apif__leagues.sql`, `base_apif__leagues.sql`, `dim_league.sql`, `core.yml` and a comment
++    in `scripts/sync_dbt_vars.py:45`. The 15 other downstream models are reached through the
++    season/coverage columns, which this change does not touch.
++    This is a VALUE change, not a SCHEMA change — both columns already exist with the same
++    names and types, so no `select *` consumer gains or loses a column. Measured effect on
++    `dim_league` (45 rows): `league_country` 0 → 45 non-null, `country_flag_url` 0 → 21 non-null.
++    The 24 rows that stay NULL on flag are the international competitions, which the provider
++    returns as `{"name":"World","code":null,"flag":null}` — hence `not_null` on `league_country`
++    only, never on `country_flag_url`.
 +
-+  Two further claims are corrected by the same query: all 45 competitions HAVE fixtures, and all 45
-+  HAVE logos.
- 
- refs: >
--  Merged this session: #63 (!35), #33 items 9/14/15, #65 (!37), #57 (!33), #367 (!27),
--  #33 completeness-gate (!39), #62 step 1 (!40). main is `10fa570`.
--  New issues filed this session: #69 (countries as an entity), #70 (scan-budget guard, from the
--  other worktree), plus #64/#67/#68 earlier.
-+  GitLab #62 note 2026-08-14 carries the full measurement and is the authority; this only makes the
-+  handover agree with it. #54's five notes remain the page design. #69 is the country entity.
- 
- scope_paths:
-   - .claude/active_work.md
-@@ -22,34 +25,22 @@ scope_paths:
-   - .claude/task/review_input.patch
++  layer_rules: `scripts/check_layer_contract.py` — staging stays raw cleanup only (this is a JSON
++    path correction, no logic added), and staging/base materialisation is a LAYER setting in
++    `dbt_project.yml`; no per-model override is introduced. No per-competition file is added, so
++    the no-new-model rule is untouched. `league_code` handling is unchanged.
++
++  deploy_order: no migration ordering problem. Staging and base are TABLES, so the corrected
++    values appear only after the models rebuild; until then `dim_league` keeps today's NULLs,
++    which is what every consumer already tolerates (nothing reads the columns). A dbt model path
++    is inside `.data_paths_prod`, so merging triggers `data:build:main` and prod picks the fix up
++    on that run — no manual step, and no dependency on the 04:00 nightly, which has no schedule.
++    The new `not_null` test runs in the same build; it can only go red if the provider stops
++    returning `$.country.name`, which is the signal it exists to give.
  
  decisions_taken: >
--  1. ⚠ **CORRECTED — I ARGUED FOR NO REVIEW ROUND AND THE GATE WAS RIGHT TO REFUSE IT.** The first
--     version of this item said "NO REVIEW ROUND IS RUN", reasoning that the routing yields only the
--     always-on scope-auditor, that the diff is a status document with no code or guard in it, and
--     that paying adversarial-review price for prose is what `feedback_review_cost_discipline`
--     warns against. The commit gate rejected `rounds: 0` — it counts review rounds and requires at
--     least one — so the round ran.
--     The gate was right and the argument was wrong: cost discipline is about not over-reviewing,
--     not about opting out of the mechanism. **It also earned its keep immediately** — scope-auditor
--     FAILED round 1 on this very item, because the superseded "no round is run" text was still
--     standing as though true, which is precisely the "a correction REPLACES, never accumulates"
--     rule the handover being written here states.
--     The mechanical verification still applies and is recorded in `review.md`: under the character
--     cap, unique NEXT numbering, no conflict markers, every MR/issue number checked against `glab`
--     rather than recalled.
--
--  2. The CURRENT section is REPLACED, not appended to. A handover accumulates until it lies; the
--     rule is that a correction replaces. What goes out: `!27` as in-flight, and the four MRs that
--     have since merged.
--
--  3. The rebase-tax paragraph STAYS even though nothing is in flight, because it is the most
--     expensive recurring lesson of the session — four rebases, every one conflicting in exactly
--     the same paperwork files — and the next branch will hit it again.
-+  1. The handover's country sentence is REPLACED, not annotated. It currently asserts a fact that
-+     is false; leaving it with a caveat attached would leave a fresh session reading the false half
-+     first. This is the "a correction replaces everywhere" rule the same file states.
+-  1. The handover's country sentence is REPLACED, not annotated. It currently asserts a fact that
+-     is false; leaving it with a caveat attached would leave a fresh session reading the false half
+-     first. This is the "a correction replaces everywhere" rule the same file states.
++  CPO go, 2026-08-15, in this conversation: "fix the staging path, own MR" — given after the
++  measured lookup below was presented with three named alternatives (fix the extraction, project
++  the registry's `country`, or wait for #69's countries seed).
 +
-+  2. The measurement goes in the handover as NUMBERS (45 rows / 0 country / 0 flag / 45 logo, and
-+     all 45 with fixtures), not as "verify this". A fresh session must not have to re-run a billed
-+     query to learn what is already known.
++  EVIDENCE the fix rests on (priced with `bq query --dry_run` first, 2,325,889 bytes, whole
++  population not a sample — latest payload per `league_code`, 45 rows):
++    $.league.country  0/45   <- what staging reads today
++    $.league.flag     0/45   <- what staging reads today
++    $.league.logo    45/45   <- same object, correct path, which is why logos work
++    $.country.name   45/45
++    $.country.code   21/45
++    $.country.flag   21/45
++  Sample payload: `$.league` = {"id":32,"logo":"...","name":"World Cup - Qualification Europe",
++  "type":"Cup"}; `$.country` = {"code":null,"flag":null,"name":"World"}.
 +
-+  3. NOT decided here, and deliberately left open: where the 21 single-country competitions get
-+     their country from. Three candidates are named in the #62 note (fix the ingestion, project the
-+     registry field after all, or #69's countries seed). Choosing is a design call on evidence that
-+     does not exist yet — the cheap next step is finding out WHY the column is null.
++  The defect is ISOLATED, not systemic (`bq` 460,819 bytes): the other three country columns read
++  correct paths and are populated — `dim_team.team_country` 3,241/3,271,
++  `dim_coach.coach_birth_country` 6,400/8,368, `dim_player.player_birth_country` 39,035/135,269.
++  So this MR does not touch them; #69 still owns reconciling their values.
++
++  This does NOT reverse the CPO's ruling 3 of 2026-08-14 (`escalations.log`), that the registry's
++  hand-typed `country` stays out of the seed and countries become their own entity under #69. That
++  ruling reasoned the registry copy would be a third copy of provider-sourced data; confirming a
++  real provider source strengthens it. `sync_dbt_vars.py:45`'s comment becomes accurate once this
++  merges, so it is deliberately NOT edited.
+ 
+-  2. The measurement goes in the handover as NUMBERS (45 rows / 0 country / 0 flag / 45 logo, and
+-     all 45 with fixtures), not as "verify this". A fresh session must not have to re-run a billed
+-     query to learn what is already known.
++  NEW MECHANISM: none. A `not_null` test is the existing dbt test convention already used on five
++  columns of this same model in this same file.
++  RECURRING COST: none material. No new model, no new table, no extra scheduled run. The added
++  test scans `dim_league`, 45 rows.
+ 
+-  3. NOT decided here, and deliberately left open: where the 21 single-country competitions get
+-     their country from. Three candidates are named in the #62 note (fix the ingestion, project the
+-     registry field after all, or #69's countries seed). Choosing is a design call on evidence that
+-     does not exist yet — the cheap next step is finding out WHY the column is null.
++decisions_reserved:
++  - Which string the competitions page renders for the 21 single-country competitions. The
++    provider's names are not display-ready — `Saudi-Arabia`, `South-Korea`, `USA` — and the other
++    24 read `World`. Names are copy and copy is the CPO's (§10). This MR lands the SOURCE only;
++    it does not decide the rendered text, and #62 step 3 must not assume it.
++  - Whether `mart_competition_index` reads `dim_league.league_country` directly at step 3 or waits
++    for #69's `dim_country` to supply canonical names. Reserved to the CPO; not decided here.
  
  done_when:
--  - `active_work.md` names main `10fa570`, states nothing is in flight, and lists #62's remaining
--    steps as the next work.
--  - Under 16,000 CHARACTERS measured with Python `len()`, NEXT numbering unique, zero conflict
--    markers.
--  - Every MR and issue number in it verified against `glab mr list` / `glab issue list`.
-+  - The handover names the blocker, the numbers, and the cheap next step, and no longer claims
-+    `dim_league` supplies country.
-+  - Under 16,000 CHARACTERS by Python `len()`; NEXT numbering unique; no conflict markers.
+-  - The handover names the blocker, the numbers, and the cheap next step, and no longer claims
+-    `dim_league` supplies country.
+-  - Under 16,000 CHARACTERS by Python `len()`; NEXT numbering unique; no conflict markers.
++  - `stg_apif__leagues.sql` extracts `$.country.name` and `$.country.flag`; no other line changes.
++  - `dbt parse` succeeds against the .venv dbt (1.7.19).
++  - `python -m sqlfluff lint dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
++    --templater jinja --dialect bigquery` from the repo root is clean, full rule set.
++  - The compiled SELECT, run against RAW in BigQuery and priced first, returns 45/45 non-null
++    `country` and 21/45 non-null `country_flag_url`.
++  - The `not_null` test is shown RED against the CURRENT (broken) extraction before being
++    accepted — a test that cannot fail is decoration.
++  - `python .claude/hooks/git_discipline.py --review-patch` builds the patch; the review cycle
++    runs with `analytics-engineer-reviewer` (routed by `dbt_project/**`) and `scope-auditor`.
  
- amendments: []
+-amendments: []
++amendments: (none)
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+index 5cdf9b8..15f125b 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+@@ -50,9 +50,11 @@ season_rows as (
+         safe_cast(json_value(row_json, '$.league.id') as int64) as league_api_id,
+         json_value(row_json, '$.league.name') as league_name,
+         json_value(row_json, '$.league.type') as league_type,
+-        json_value(row_json, '$.league.country') as country,
++        -- Country is a SIBLING of `league` in the /leagues response, not a child:
++        -- $.league = {id, name, type, logo}; $.country = {name, code, flag}.
++        json_value(row_json, '$.country.name') as country,
+         json_value(row_json, '$.league.logo') as league_logo_url,
+-        json_value(row_json, '$.league.flag') as country_flag_url
++        json_value(row_json, '$.country.flag') as country_flag_url
+     from season_rows_raw
+ )
+ 
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 2703dde..479b27f 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -79,11 +79,12 @@ models:
+               values: ['League', 'Cup']
+               severity: warn
+       - name: league_country
+-        description: "Country the league belongs to."
++        description: "Country the league belongs to, from the provider's `$.country.name`. International competitions carry the literal 'World'; canonical names are #69's."
++        tests: [not_null]
+       - name: league_logo_url
+         description: "League logo URL."
+       - name: country_flag_url
+-        description: "Country flag URL."
++        description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
+       - name: raw_ingested_at
+         description: "UTC timestamp of the raw row this dimension row was derived from."
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -97,6 +209,6 @@ index 9fc1fe1..650a6ae 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md | 142 ++++++++++++++++++++++++-------------------------
-#    1 file changed, 71 insertions(+), 71 deletions(-)
+#   .claude/active_work.md | 108 +++++++++++++++++++++++++------------------------
+#    1 file changed, 55 insertions(+), 53 deletions(-)
 # ============================================================================

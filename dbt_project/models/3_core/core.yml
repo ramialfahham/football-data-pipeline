@@ -79,11 +79,12 @@ models:
               values: ['League', 'Cup']
               severity: warn
       - name: league_country
-        description: "Country the league belongs to."
+        description: "Country the league belongs to, from the provider's `$.country.name`. International competitions carry the literal 'World'; canonical names are #69's."
+        tests: [not_null]
       - name: league_logo_url
         description: "League logo URL."
       - name: country_flag_url
-        description: "Country flag URL."
+        description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
       - name: raw_ingested_at
         description: "UTC timestamp of the raw row this dimension row was derived from."
 

@@ -2,39 +2,43 @@
 
 > The single handover contract. A fresh chat continues from here. Do not re-scope or infer the task
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
-> **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`; `wc -c` counts BYTES and
-> over-reports by ~220 here, which will send you trimming content that fits.
+> **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
+> over, which sends you trimming content that fits).
 
-_Last updated **2026-08-14**. **NOTHING IN FLIGHT — no open MRs**; main is **`10fa570`**. Merged
-08-12→08-14: **#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**
-(the home page), **#62 step 1**. The product is **Matchday Pilot**; the repo is on **GITLAB**
-(`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant — its Actions run nothing and its 114
-issues unreachable; `.github/workflows/README.md` re-arms it.
+_Last updated **2026-08-15**. **ONE MR IN FLIGHT**: `fix/62-leagues-country-json-path` (⭐ below);
+main is **`062039d`**. Merged 08-12→08-14: **#63**, **#33 items 9/14/15 + the completeness-gate
+fix**, **#65**, **#57**, **#367** (the home page), **#62 step 1**. The product is **Matchday
+Pilot**; the repo is on **GITLAB** (`glab`, MRs, `.gitlab-ci.yml`). GitHub is KEPT but dormant —
+its Actions run nothing and its 114 issues unreachable; `.github/workflows/README.md` re-arms it.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
 GitLab minutes; the old "no minutes" note is dead. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
 hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anything path-dependent._
 
-## ⭐ CURRENT — #62 STEP 3 IS BLOCKED ON A MEASURED FACT (2026-08-14)
+## ⭐ CURRENT — #62 STEP 3 IS UNBLOCKED; THE COUNTRY FIX IS IN FLIGHT (2026-08-15)
 
 **#62 is the live thread, five steps.** Steps 1 (`!40` — the seed carries `confederation`, `slug`,
 `sort_order`, `tier`, `season_type`; the guard compares EVERY column) and 2 (#57) are done. **Step 3
-is `mart_competition_index`**, 4 repoints the export, 5 the page spec. ⚠ A seed COLUMN and its first
-reader cannot ship together, so step 3 is its own MR.
+is `mart_competition_index`**, 4 repoints the export, 5 the page spec. ⚠ A seed COLUMN and its
+first reader cannot ship together, so step 3 is its own MR.
 
-⛔ **DO NOT START THE MART. `dim_league.league_country` IS EMPTY — measured, 45 rows, 0 country,
-0 flag, 45 logo.** The columns exist and `stg_apif__leagues.sql:53` extracts them; every value is
-NULL. ⚠ **This was MY premise for the #69 country ruling and it was false — I read the code, not
-the data (#904).** So the region sub-line's rule (#54 note 3: `single_country: true` → country,
-else the confederation label) has **no source for its first branch**: the registry copy is
-deliberately unprojected and the warehouse copy is empty. The confederation branch is fine.
-⚠ **The cheap next step is a LOOKUP, not a decision: find out WHY it is null** — provider payload,
-or something between staging and the dim. That picks between fixing the ingestion, projecting the
-registry field after all, or **#69**'s seed. The 2026-08-14 note on **#62** is the authority.
+✅ **THE BLOCKER IS DIAGNOSED AND FIXED — ONE WRONG JSON PATH, not the ingestion.** The `/leagues`
+payload puts country as a **SIBLING** of `league`: `$.league` = {id, name, type, logo}, `$.country`
+= {name, code, flag}. Staging read `$.league.country` / `$.league.flag`, which do not exist — hence
+0/45 — while `$.league.logo` does, hence 45/45. Base and dim drop nothing. Measured on RAW (priced,
+2,325,889 bytes, whole population): `$.country.name` **45/45**, `.code` and `.flag` **21/45**. The
+21 are exactly the domestic competitions; the other 24 return literal `World` with null code and
+flag, so **the provider itself marks the split `single_country` was invented for**. Branch
+`fix/62-leagues-country-json-path` repoints both and adds the missing `not_null` (seen RED first:
+45 failures old, 0 new). ⚠ **ISOLATED** — `dim_team`, `dim_coach` and `dim_player` all read correct
+country paths and are populated (counts in the MR). ⚠ **Does NOT reverse the #69 ruling**; a real
+provider source strengthens it, and `sync_dbt_vars.py:45`'s comment becomes accurate on merge.
+⛔ **STILL OPEN AND HIS: the rendered STRING.** The provider's names are not display-ready —
+`Saudi-Arabia`, `South-Korea`, `USA`, `World` ×24. Copy is §10, so step 3 must not render provider
+text silently. That is the one thing left between here and the mart.
 
-✅ **Also measured, correcting two earlier claims of mine:** ALL 45 competitions have fixtures
-(FAC 4,381 → WCQIP 4) and ALL 45 have logos. So membership ("if it is ingested, it shows", CPO)
-yields **45 rows**, and "33 of 45 have no logo" is struck. Registry `status` is useless here.
+✅ **Membership is 45 rows** — all have fixtures (FAC 4,381 → WCQIP 4) and logos; "33 of 45 have no
+logo" is struck, registry `status` useless here.
 
 ⛔ **HOME PAGE: THE DESIGN AUTHORITY IS #40 (players) AND #41 (teams), NOT `10_home.md` §0**, which
 is wrong on both (it says nine and six boards, top 5; the truth is FOUR boards of ONE metric each,
@@ -42,14 +46,13 @@ top 7). #367 shipped next matches → browse only; Top players and Top teams are
 and slot BETWEEN them. Follow-ups: **#36** (blocks #377) · **#38** · **#42** · **#43** · **#44** ·
 **#45**.
 
-⚠ **THE REBASE TAX, paperwork-only:** four rebases in one session, each conflicting ONLY in
-`.claude/task/*`. **MINE** for contract/review/review_input; **UNION** `escalations.log` by
-ARITHMETIC. ⚠ Not always `main + (mine − base)` — !27 inserted at the TOP too, so diff the opcodes
-and refuse anything not a pure insertion. Then REBIND `diff_sha256`. ⚠ A False probe is not proof
-of loss — chase it.
+⚠ **THE REBASE TAX, paperwork-only:** conflicts land ONLY in `.claude/task/*`. **MINE** for
+contract/review/review_input; **UNION** `escalations.log` by ARITHMETIC — not always
+`main + (mine − base)` (!27 inserted at the TOP too), so diff the opcodes and refuse anything not a
+pure insertion. Then REBIND `diff_sha256`. ⚠ A False probe is not proof of loss — chase it.
 ⚠ **NEVER restore uncommitted work with `git checkout --`** (in a probe, or after a failed
 `checkout`): it restores from HEAD and wipes the edits. Snapshot bytes in-process; restore in a
-`finally`. Bit me twice — once destroying two scripts, once a commit (recovered from the remote).
+`finally`. Bit me twice.
 
 ⚠ **DEFERRED ON PURPOSE by #57 — do not "fix":** `world_championship` keeps its name (branched on at
 `int_team_momentum_window.sql:135` behind a `coalesce`, so renaming without the SQL edit silently
@@ -64,10 +67,10 @@ note 4 is the mart's 16-column contract. Mocks are OUTSIDE the repo in `design-m
 ## ⭐ AN AUDIT FINDS; IT DOES NOT DECIDE
 
 The audit and its cold re-run are in **GitLab #30**; the work list is on the tracker, not here.
-Durable lesson: **findings replicate, prioritisation does not** — the cold run's first move was
-deletion where the first run's was addition, so **an audit's output is LEADS TO VERIFY, never a
-work list**. **Why mechanism beats wording (#30):** of 50 corrections, **33 were prose only, 22
-recurred, and every rule that got a mechanism stopped.** Unmechanised: VERIFY, ESCALATE.
+Durable lesson: **findings replicate, prioritisation does not**, so **an audit's output is LEADS TO
+VERIFY, never a work list**. **Why mechanism beats wording (#30):** of 50 corrections, **33 were
+prose only, 22 recurred, and every rule that got a mechanism stopped.** Unmechanised: VERIFY,
+ESCALATE.
 
 **⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
 CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped._
@@ -80,21 +83,20 @@ that must not be rebuilt contains **`feat/player-overview-tab: Overview BUILT`**
 ⛔ **THE 04:00 NIGHTLY IS FAILING AND MERGING `!39` DID NOT FIX IT.** The completeness gate treats a
 DELIBERATE 7-day re-fetch skip (#33 item 14) as a stalled ingest and exits 3 before dbt runs. The fix
 is merged, but **the nightly runs an IMAGE**: it needs `gcloud run jobs deploy fdp-nightly --source .
---region europe-west1` from main. ⚠ And there is still **no SCHEDULE** — manual dispatch only.
-(`data:build:main` DID run 08-13, so prod itself is fresh; different job.)
+--region europe-west1` from main. (`data:build:main` DID run 08-13, so prod is fresh; different job.)
 
-⚠ **The lesson, which outlives the nightly:** item 14 passed four reviewers and nobody connected a
-change in FETCH CADENCE to a gate assuming NIGHTLY FETCHES — its impact map traced dbt lineage but
-not the OPERATIONAL checks on the same tables. **An impact map that stops at lineage misses gates.**
+⚠ **Lesson, also in memory: an impact map that stops at LINEAGE misses GATES.** Item 14 changed
+FETCH CADENCE and broke a gate assuming nightly fetches, past four reviewers: its map traced dbt
+lineage, not the OPERATIONAL checks on the same tables.
 
 ⚠ **None of the four ingest fixes does what its title suggests** — caveats on #896-#898. Ultra plan
-**450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds. **No public site, so no user
-impact** — never present this as a live incident.
+**450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds. **No public site** — never
+present this as a live incident.
 
 ## ⭐ COST — read **GitLab issue #3** before touching anything
 
-Everything recoverable from #547 (its GitHub comment is gone) is in **GitLab #3** — baselines, the
-ranked list **in ITS order**, the free tools, MEASURED vs UNMEASURED. Read it; do not redo it.
+Everything recoverable from #547 is in **GitLab #3** — baselines, the ranked list **in ITS order**,
+the free tools, MEASURED vs UNMEASURED. Read it; do not redo it.
 ⚠ **#70** adds a scan-budget guard there. Traps:
 
 - **⚠ NEVER set a time-based partition expiry on raw** (#892). Nine biennial/quadrennial tournaments
@@ -159,7 +161,7 @@ copy is ALWAYS his (§10)** — gather copy decisions BEFORE the branch.
 - **Guard telemetry is absent** — 2,684 lines of enforcement, zero records of a gate firing (#30
   finding 4) — and **the round cap only RECORDS** a builder-typed number, so nothing stops a fourth
   round. Both unfixed. Also: delete `macros/apif_latest_source_partition.sql` · a metric-change
-  skill · mirror the crests · reviewers as peers (#822 shipped the model half).
+  skill · mirror the crests · reviewers as peers (#822 shipped half).
 - **⭐ #904 IS THE DOMINANT FAILURE** — a claim about the code asserted rather than RUN. Three
   faces, all seen: a grep scoped narrower than the sentence it supported; a TEST that passes either
   way (#63 shipped three that passed against the very defect they targeted); and **reading a column
@@ -168,12 +170,12 @@ copy is ALWAYS his (§10)** — gather copy decisions BEFORE the branch.
   Prose has failed 8×; the mechanism is **#71**.
 
 ## NEXT
-0. **⚠ DEPLOY THE NIGHTLY IMAGE** (⭐ block above) — !39's fix is merged but not live. Then: **no
-   SCHEDULE exists**, so data refreshes only when a merge matches `.data_paths_prod`, which is how
-   prod went stale for four days. Creating one is a recurring-COST decision, so the **CPO's**;
-   bring a recipe. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT branch's code.
-1. **#62: find out why `league_country` is NULL, THEN step 3** (⭐ CURRENT). Then step 4 repoints the
-   export, step 5 the page spec. Then **#55** and **#69**.
+0. **⚠ DEPLOY THE NIGHTLY IMAGE** (⭐ block above) — !39's fix is merged but not live, and **no
+   SCHEDULE exists**, so data refreshes only on a merge matching `.data_paths_prod` (how prod went
+   stale for four days). A schedule is a recurring-COST decision, so the **CPO's**; bring a recipe.
+   ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT branch's code.
+1. **#62 step 3, once the country MR merges and the STRING decision lands** (⭐ CURRENT). Then step 4
+   repoints the export, step 5 the page spec. Then **#55** and **#69**.
 2. **The audit stream — see the ⭐ block above.** ⚠ **Do NOT mix it with cost.** Also the CPO's, one
    command each: **Q2 of #21** (set `main`'s push access to No one — the SERVER should protect it,
    not a client hook; a branch cut from `gitlab/main` INHERITS that upstream, so always push an
@@ -215,7 +217,7 @@ copy is ALWAYS his (§10)** — gather copy decisions BEFORE the branch.
   (next matches → browse)**, page-spec + SEO contract (#826/#844), per-locale metric labels.
 - **Tests: 814 passed + 1 skipped python** (~7 min, measured 08-14 on main), plus 59 site
   (`cd site_v2 && npm test`). ⚠ MEASURE, never predict (#904) — this was 665 two weeks ago.
-- **`ruff` runs in CI** as `lint:python` (!20), config **`.ruff-ci.toml`** — the filename is
-  load-bearing; `tests/test_lint_config.py` pins it.
+- **`ruff` runs in CI** as `lint:python` (!20), config **`.ruff-ci.toml`** — filename load-bearing,
+  pinned by `tests/test_lint_config.py`.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.
