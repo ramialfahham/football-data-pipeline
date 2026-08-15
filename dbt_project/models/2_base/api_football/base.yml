@@ -66,9 +66,11 @@ models:
 
   - name: base_apif__leagues
     description: >
-      Unified league-season rows across all onboarded competitions (explicit
-      ref() per competition staging). Deduplicated per
-      (league_code, league_api_id, season_api_year). Feeds base_apif__league_entity,
+      Unified league-season rows across all onboarded competitions, read from the generic
+      staging model with league_code flowing through as a column. Deduplicated per
+      (league_code, league_api_id, season_api_year). Also applies the country-name corrections
+      from the country_name_overrides seed (#62), so league_country is display-ready before
+      dim_league publishes it. Feeds base_apif__league_entity,
       base_apif__competition_seasons, and core dims built from those. Output grain:
       (league_code, league_api_id, season_api_year).
     config:

@@ -548,3 +548,60 @@ seeds:
         description: "Why the provider's value is wrong, and what this row collides with."
         tests:
           - not_null
+
+  - name: country_name_overrides
+    description: >
+      Corrections to the provider's COUNTRY string, applied in base_apif__leagues (#62). The
+      API-Football /leagues payload hyphenates multi-word country names (`Saudi-Arabia`,
+      `South-Korea`) and abbreviates one (`USA`), so 3 of the 15 distinct countries across the 21
+      single-country competitions are not display-ready. `dim_league.league_country` is the region
+      sub-line on the competitions page, so the provider spelling would be read by a visitor.
+
+      WHY THIS IS A MAPPING AND NOT A HYPHEN-TO-SPACE RULE. A pattern rule looks like the
+      class-level fix and is wrong: `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated
+      country names and a blanket replace corrupts them the moment either is onboarded. An
+      explicit mapping cannot.
+
+      ⚠ KNOWN RESIDUAL GAP, stated rather than implied: this seed corrects only the strings it
+      lists. A NEW multi-word country arriving hyphenated is not caught here and would reach the
+      page. Closing that is #69's foreign key to `dim_country` — an unknown country fails the FK
+      instead of rendering — not a wider regex here.
+
+      GOVERNANCE: the register is the CPO's (§10) — these are display names and copy is his. Add a
+      row only for a provider defect, never a locale preference: this is the same rule that keeps
+      `Bayern München` out of `team_name_overrides`. Where an external standard is cited it must
+      be checked, never recalled; `South Korea` is deliberately NOT the ISO 3166 form, because the
+      other twelve names are common English usage and the register must be consistent.
+
+      SCOPE: leagues only. `dim_team.team_country`, `dim_player.player_birth_country` and
+      `dim_coach.coach_birth_country` carry 217/222/213 distinct values that very likely have the
+      same defect, and they are deliberately NOT corrected from three known examples — that is
+      #69's discovery step.
+
+      assert_country_name_overrides_still_needed fails the build if a row equals the provider's
+      current string, or if the provider string has disappeared entirely, so a correction the
+      provider has since adopted is removed rather than left to rot.
+    config:
+      column_types:
+        provider_country: string
+        country_name: string
+        source: string
+        note: string
+    columns:
+      - name: provider_country
+        description: "The exact string API-Football sends in `$.country.name`, and the join key."
+        tests:
+          - not_null
+          - unique
+      - name: country_name
+        description: "The name the product displays."
+        tests:
+          - not_null
+      - name: source
+        description: "The authority for this name (required — the governance control). For a display register that is the CPO ruling; for a factual identity claim it is an external source of record."
+        tests:
+          - not_null
+      - name: note
+        description: "Why the provider's value is not usable as-is."
+        tests:
+          - not_null

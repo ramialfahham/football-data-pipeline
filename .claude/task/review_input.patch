@@ -1,201 +1,410 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 650a6ae..c23b026 100644
+index c23b026..596e522 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,46 +1,123 @@
--# Task contract — handover: #62 step 3 is blocked, and a premise I gave is false
-+# Task contract — fix the leagues country/flag JSON path
+@@ -1,29 +1,29 @@
+-# Task contract — fix the leagues country/flag JSON path
++# Task contract — standardize country names in base
  
  objective: >
--  `.claude/active_work.md` tells the next session to start on #62 step 3 and states that
--  `dim_league` carries country and flag. Measured 2026-08-14 against prod: `dim_league` has 45 rows
--  and **0** with `league_country`, **0** with `country_flag_url`. The columns exist and staging
--  extracts them; every value is NULL.
-+  `dim_league.league_country` and `country_flag_url` are NULL on all 45 rows because
-+  `stg_apif__leagues.sql` reads `$.league.country` and `$.league.flag`, paths that do not exist
-+  in the API-Football `/leagues` payload. The provider returns `country` as a SIBLING of
-+  `league` (`$.country.{name,code,flag}`). Repoint the two extractions and add the `not_null`
-+  test whose absence let this ship silently. This unblocks #62 step 3 (`mart_competition_index`),
-+  whose region column had no source for its single-country branch.
-+refs: GitLab #62 (step 3 blocker, 2026-08-14 note), #69 (countries entity), #54 (page design)
+-  `dim_league.league_country` and `country_flag_url` are NULL on all 45 rows because
+-  `stg_apif__leagues.sql` reads `$.league.country` and `$.league.flag`, paths that do not exist
+-  in the API-Football `/leagues` payload. The provider returns `country` as a SIBLING of
+-  `league` (`$.country.{name,code,flag}`). Repoint the two extractions and add the `not_null`
+-  test whose absence let this ship silently. This unblocks #62 step 3 (`mart_competition_index`),
+-  whose region column had no source for its single-country branch.
+-refs: GitLab #62 (step 3 blocker, 2026-08-14 note), #69 (countries entity), #54 (page design)
++  `!43` gave `dim_league.league_country` a real provider source, but the provider's strings are not
++  display-ready: it hyphenates multi-word country names (`Saudi-Arabia`, `South-Korea`) and
++  abbreviates one (`USA`). Per the CPO ruling of 2026-08-14 ("Our transformation layer is the place
++  where we clean, reconcile and standardize the data"), restated 2026-08-15 as "we standardize in
++  base", correct these in the base layer so `dim_league` publishes a finished name. This removes
++  the last thing standing between #62 step 3 and `mart_competition_index`.
++refs: GitLab #62 (step 3), #69 (countries entity, supersedes this later), #54 (page design)
  
--  That premise was mine, it is what the #69 country ruling was decided on, and it blocks step 3 —
--  the region sub-line's `single_country: true` branch now has no source in either the seed or the
--  warehouse. A fresh session must not start building the mart on it.
-+scope_paths:
-+  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-+  - dbt_project/models/3_core/core.yml
-+  - .claude/active_work.md
+ scope_paths:
+-  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+-  - dbt_project/models/3_core/core.yml
++  - dbt_project/seeds/country_name_overrides.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/2_base/api_football/base_apif__leagues.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/tests/assert_country_name_overrides_still_needed.sql
+   - .claude/active_work.md
  
--  Two further claims are corrected by the same query: all 45 competitions HAVE fixtures, and all 45
--  HAVE logos.
-+impact_map: >
-+  writers: ONE. `ingestion/api_football/loads/catalog.py:38` writes `RAW_APIF_LEAGUES`
-+    (WRITE_APPEND) with the whole `/leagues` response as a JSON `payload` column. It is the
-+    only `raw_table("LEAGUES")` call in the repo (`grep -rn "LEAGUES" ingestion/ --include=*.py`
-+    → `ingest_plan.py:134`, `loads/catalog.py:1,38`). The loader is NOT changed — it already
-+    stores the field; only the extraction path in staging is wrong.
+ impact_map: >
+-  writers: ONE. `ingestion/api_football/loads/catalog.py:38` writes `RAW_APIF_LEAGUES`
+-    (WRITE_APPEND) with the whole `/leagues` response as a JSON `payload` column. It is the
+-    only `raw_table("LEAGUES")` call in the repo (`grep -rn "LEAGUES" ingestion/ --include=*.py`
+-    → `ingest_plan.py:134`, `loads/catalog.py:1,38`). The loader is NOT changed — it already
+-    stores the field; only the extraction path in staging is wrong.
++  writers: the seed is authored by hand; `dim_league.league_country` is written only by
++    `base_apif__leagues` -> `base_apif__league_entity` -> `dim_league`. `RAW_APIF_LEAGUES` is
++    written by `ingestion/api_football/loads/catalog.py:38` and is NOT touched here.
  
--refs: >
--  GitLab #62 note 2026-08-14 carries the full measurement and is the authority; this only makes the
--  handover agree with it. #54's five notes remain the page design. #69 is the country entity.
-+  downstream: `dbt ls --select stg_apif__leagues+ --resource-type model` (dbt 1.7.19,
-+    .venv/Scripts/dbt.exe, run 2026-08-15) → 17 models:
-+      1_staging.api_football.stg_apif__leagues
-+      2_base.api_football.base_apif__leagues
-+      2_base.api_football.base_apif__league_entity
-+      2_base.api_football.base_apif__competition_seasons
-+      3_core.dim_league
-+      3_core.dim_competition_season
-+      3_core.dim_player_team_season_mapping
-+      3_core.fct_standings
-+      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
-+      4_intermediate.domestic_league.team_season.int_team_season__standings_primary
-+      5_marts.shared.mart_fixture_standing_context
-+      5_marts.shared.mart_roster
-+      5_marts.shared.mart_standings
-+      5_marts.shared.mart_team_profile
-+      5_marts.shared.mart_team_season
-+      5_marts.domestic_league.mart_matchday_insights
-+      5_marts.domestic_league.mart_team_season_insights
+-  downstream: `dbt ls --select stg_apif__leagues+ --resource-type model` (dbt 1.7.19,
+-    .venv/Scripts/dbt.exe, run 2026-08-15) → 17 models:
+-      1_staging.api_football.stg_apif__leagues
++  downstream: `dbt ls --select base_apif__leagues+ --resource-type model` (dbt 1.7.19,
++    .venv/Scripts/dbt.exe, run 2026-08-15) -> 16 models:
+       2_base.api_football.base_apif__leagues
+       2_base.api_football.base_apif__league_entity
+       2_base.api_football.base_apif__competition_seasons
+@@ -41,83 +41,73 @@ impact_map: >
+       5_marts.domestic_league.mart_matchday_insights
+       5_marts.domestic_league.mart_team_season_insights
  
--scope_paths:
--  - .claude/active_work.md
--  - .claude/task/contract.md
--  - .claude/task/escalations.log
--  - .claude/task/review.md
--  - .claude/task/review_input.patch
-+  blast_radius: NO mart number changes. The two columns are read by NOTHING downstream of
-+    `dim_league`: `grep -rn "league_country\|country_flag_url" dbt_project/models/4_intermediate/
-+    dbt_project/models/5_marts/` → zero hits; the same grep over `base_apif__competition_seasons`
-+    and `dim_competition_season` → zero hits. The full-repo grep finds them only in
-+    `stg_apif__leagues.sql`, `base_apif__leagues.sql`, `dim_league.sql`, `core.yml` and a comment
-+    in `scripts/sync_dbt_vars.py:45`. The 15 other downstream models are reached through the
-+    season/coverage columns, which this change does not touch.
-+    This is a VALUE change, not a SCHEMA change — both columns already exist with the same
-+    names and types, so no `select *` consumer gains or loses a column. Measured effect on
-+    `dim_league` (45 rows): `league_country` 0 → 45 non-null, `country_flag_url` 0 → 21 non-null.
-+    The 24 rows that stay NULL on flag are the international competitions, which the provider
-+    returns as `{"name":"World","code":null,"flag":null}` — hence `not_null` on `league_country`
-+    only, never on `country_flag_url`.
-+
-+  layer_rules: `scripts/check_layer_contract.py` — staging stays raw cleanup only (this is a JSON
-+    path correction, no logic added), and staging/base materialisation is a LAYER setting in
-+    `dbt_project.yml`; no per-model override is introduced. No per-competition file is added, so
-+    the no-new-model rule is untouched. `league_code` handling is unchanged.
-+
-+  deploy_order: no migration ordering problem. Staging and base are TABLES, so the corrected
-+    values appear only after the models rebuild; until then `dim_league` keeps today's NULLs,
-+    which is what every consumer already tolerates (nothing reads the columns). A dbt model path
-+    is inside `.data_paths_prod`, so merging triggers `data:build:main` and prod picks the fix up
-+    on that run — no manual step, and no dependency on the 04:00 nightly, which has no schedule.
-+    The new `not_null` test runs in the same build; it can only go red if the provider stops
-+    returning `$.country.name`, which is the signal it exists to give.
+-  blast_radius: NO mart number changes. The two columns are read by NOTHING downstream of
+-    `dim_league`: `grep -rn "league_country\|country_flag_url" dbt_project/models/4_intermediate/
+-    dbt_project/models/5_marts/` → zero hits; the same grep over `base_apif__competition_seasons`
+-    and `dim_competition_season` → zero hits. The full-repo grep finds them only in
+-    `stg_apif__leagues.sql`, `base_apif__leagues.sql`, `dim_league.sql`, `core.yml` and a comment
+-    in `scripts/sync_dbt_vars.py:45`. The 15 other downstream models are reached through the
+-    season/coverage columns, which this change does not touch.
+-    This is a VALUE change, not a SCHEMA change — both columns already exist with the same
+-    names and types, so no `select *` consumer gains or loses a column. Measured effect on
+-    `dim_league` (45 rows): `league_country` 0 → 45 non-null, `country_flag_url` 0 → 21 non-null.
+-    The 24 rows that stay NULL on flag are the international competitions, which the provider
+-    returns as `{"name":"World","code":null,"flag":null}` — hence `not_null` on `league_country`
+-    only, never on `country_flag_url`.
++  blast_radius: THREE STRINGS in `dim_league.league_country`, on 3 of 45 rows (SPL, KL1, MLS).
++    No mart number changes and no mart string changes: `grep -rn "league_country|country_flag_url"
++    dbt_project/models/4_intermediate/ dbt_project/models/5_marts/` returns zero hits, so nothing
++    downstream of `dim_league` reads the column yet. The 15 other downstream models are reached
++    through the season/coverage columns, untouched here. No schema change — the column already
++    exists with the same name and type.
+ 
+-  layer_rules: `scripts/check_layer_contract.py` — staging stays raw cleanup only (this is a JSON
+-    path correction, no logic added), and staging/base materialisation is a LAYER setting in
+-    `dbt_project.yml`; no per-model override is introduced. No per-competition file is added, so
+-    the no-new-model rule is untouched. `league_code` handling is unchanged.
++  layer_rules: `scripts/check_layer_contract.py`. The correction goes in BASE, not in the core dim
++    (`feedback_entity_corrections_in_base`: base prepares the override, the dim publishes; never
++    `coalesce` in the dim) and not in staging, which stays a faithful 1:1 flatten. This mirrors
++    `team_name_overrides` applied in `base_apif__teams_global.sql:50` exactly — seed + left join +
++    `coalesce(override, provider)` + a singular test that fails when a row stops being a
++    correction. Materialisation is a LAYER setting; no per-model override is added. No
++    per-competition file, so the no-new-model rule is untouched.
+ 
+-  deploy_order: no migration ordering problem. Staging and base are TABLES, so the corrected
+-    values appear only after the models rebuild; until then `dim_league` keeps today's NULLs,
+-    which is what every consumer already tolerates (nothing reads the columns). A dbt model path
+-    is inside `.data_paths_prod`, so merging triggers `data:build:main` and prod picks the fix up
+-    on that run — no manual step, and no dependency on the 04:00 nightly, which has no schedule.
+-    The new `not_null` test runs in the same build; it can only go red if the provider stops
+-    returning `$.country.name`, which is the signal it exists to give.
++  deploy_order: no ordering problem. Base is a TABLE, so corrected values appear on the next
++    rebuild; until then `dim_league` keeps the provider spellings, which nothing reads. A dbt
++    model and seed path are inside `.data_paths_prod`, so merging triggers `data:build:main` and
++    prod picks it up on that run. The new singular test runs in the same build.
  
  decisions_taken: >
--  1. The handover's country sentence is REPLACED, not annotated. It currently asserts a fact that
--     is false; leaving it with a caveat attached would leave a fresh session reading the false half
--     first. This is the "a correction replaces everywhere" rule the same file states.
-+  CPO go, 2026-08-15, in this conversation: "fix the staging path, own MR" — given after the
-+  measured lookup below was presented with three named alternatives (fix the extraction, project
-+  the registry's `country`, or wait for #69's countries seed).
-+
-+  EVIDENCE the fix rests on (priced with `bq query --dry_run` first, 2,325,889 bytes, whole
-+  population not a sample — latest payload per `league_code`, 45 rows):
-+    $.league.country  0/45   <- what staging reads today
-+    $.league.flag     0/45   <- what staging reads today
-+    $.league.logo    45/45   <- same object, correct path, which is why logos work
-+    $.country.name   45/45
-+    $.country.code   21/45
-+    $.country.flag   21/45
-+  Sample payload: `$.league` = {"id":32,"logo":"...","name":"World Cup - Qualification Europe",
-+  "type":"Cup"}; `$.country` = {"code":null,"flag":null,"name":"World"}.
-+
-+  The defect is ISOLATED, not systemic (`bq` 460,819 bytes): the other three country columns read
-+  correct paths and are populated — `dim_team.team_country` 3,241/3,271,
-+  `dim_coach.coach_birth_country` 6,400/8,368, `dim_player.player_birth_country` 39,035/135,269.
-+  So this MR does not touch them; #69 still owns reconciling their values.
-+
-+  This does NOT reverse the CPO's ruling 3 of 2026-08-14 (`escalations.log`), that the registry's
-+  hand-typed `country` stays out of the seed and countries become their own entity under #69. That
-+  ruling reasoned the registry copy would be a third copy of provider-sourced data; confirming a
-+  real provider source strengthens it. `sync_dbt_vars.py:45`'s comment becomes accurate once this
-+  merges, so it is deliberately NOT edited.
+-  CPO go, 2026-08-15, in this conversation: "fix the staging path, own MR" — given after the
+-  measured lookup below was presented with three named alternatives (fix the extraction, project
+-  the registry's `country`, or wait for #69's countries seed).
++  CPO ruling 2026-08-14 (`escalations.log`, ruling 2): "Our transformation layer is the place where
++  we clean, reconcile and standardize the data. We can even impute missing information after
++  researching properly... Raw doesn't define the taxonomies or categories or whatever. We do it in
++  a way that makes sense for our purpose." Restated by the CPO 2026-08-15 in this conversation as
++  "As said earlier, we standardize in base" — given in direct correction of my having offered the
++  provider spellings as a display choice for him to make. It was not his to make; the rule already
++  settled it.
  
--  2. The measurement goes in the handover as NUMBERS (45 rows / 0 country / 0 flag / 45 logo, and
--     all 45 with fixtures), not as "verify this". A fresh session must not have to re-run a billed
--     query to learn what is already known.
-+  NEW MECHANISM: none. A `not_null` test is the existing dbt test convention already used on five
-+  columns of this same model in this same file.
-+  RECURRING COST: none material. No new model, no new table, no extra scheduled run. The added
-+  test scans `dim_league`, 45 rows.
+-  EVIDENCE the fix rests on (priced with `bq query --dry_run` first, 2,325,889 bytes, whole
+-  population not a sample — latest payload per `league_code`, 45 rows):
+-    $.league.country  0/45   <- what staging reads today
+-    $.league.flag     0/45   <- what staging reads today
+-    $.league.logo    45/45   <- same object, correct path, which is why logos work
+-    $.country.name   45/45
+-    $.country.code   21/45
+-    $.country.flag   21/45
+-  Sample payload: `$.league` = {"id":32,"logo":"...","name":"World Cup - Qualification Europe",
+-  "type":"Cup"}; `$.country` = {"code":null,"flag":null,"name":"World"}.
++  CPO ruling 2026-08-15, the one genuinely reserved item: `USA` renders as **United States of
++  America**, his words verbatim. Copy is §10 and this is the only part of the change he decided.
++  The other two rows are the same correction applied consistently: `Saudi-Arabia` -> `Saudi
++  Arabia`, `South-Korea` -> `South Korea`.
  
--  3. NOT decided here, and deliberately left open: where the 21 single-country competitions get
--     their country from. Three candidates are named in the #62 note (fix the ingestion, project the
--     registry field after all, or #69's countries seed). Choosing is a design call on evidence that
--     does not exist yet — the cheap next step is finding out WHY the column is null.
-+decisions_reserved:
-+  - Which string the competitions page renders for the 21 single-country competitions. The
-+    provider's names are not display-ready — `Saudi-Arabia`, `South-Korea`, `USA` — and the other
-+    24 read `World`. Names are copy and copy is the CPO's (§10). This MR lands the SOURCE only;
-+    it does not decide the rendered text, and #62 step 3 must not assume it.
-+  - Whether `mart_competition_index` reads `dim_league.league_country` directly at step 3 or waits
-+    for #69's `dim_country` to supply canonical names. Reserved to the CPO; not decided here.
+-  The defect is ISOLATED, not systemic (`bq` 460,819 bytes): the other three country columns read
+-  correct paths and are populated — `dim_team.team_country` 3,241/3,271,
+-  `dim_coach.coach_birth_country` 6,400/8,368, `dim_player.player_birth_country` 39,035/135,269.
+-  So this MR does not touch them; #69 still owns reconciling their values.
++  MEASURED, on the whole population (priced with `bq query --dry_run` first, 2,325,889 bytes):
++  the provider returns 15 distinct country names for the 21 single-country competitions. Twelve
++  need no correction (Argentina, Brazil, England, Finland, France, Germany, Italy, Japan, Mexico,
++  Netherlands, Portugal, Spain). Three do, and they are the three rows of this seed.
+ 
+-  This does NOT reverse the CPO's ruling 3 of 2026-08-14 (`escalations.log`), that the registry's
+-  hand-typed `country` stays out of the seed and countries become their own entity under #69. That
+-  ruling reasoned the registry copy would be a third copy of provider-sourced data; confirming a
+-  real provider source strengthens it. `sync_dbt_vars.py:45`'s comment becomes accurate once this
+-  merges, so it is deliberately NOT edited.
++  WHY A MAPPING SEED AND NOT A HYPHEN-TO-SPACE RULE. A pattern rule would look like the
++  class-level fix and is actively wrong: `Guinea-Bissau` and `Timor-Leste` are correctly
++  hyphenated country names, so a blanket replace corrupts them the moment either is onboarded. An
++  explicit mapping cannot. The residual gap — a NEW multi-word country arriving hyphenated and
++  nobody noticing — is closed by #69's foreign key, not by this seed, and that is stated in the
++  seed description rather than left implied.
+ 
+-  NEW MECHANISM: none. A `not_null` test is the existing dbt test convention already used on five
+-  columns of this same model in this same file.
+-  RECURRING COST: none material. No new model, no new table, no extra scheduled run. The added
+-  test scans `dim_league`, 45 rows.
++  NEW MECHANISM: none. This is `team_name_overrides` (seed + base join + still-needed test),
++  applied to a second column, using the same three parts in the same layer.
++  RECURRING COST: none material. One 3-row seed, one left join on a 45-row table, one test.
+ 
+ decisions_reserved:
+-  - Which string the competitions page renders for the 21 single-country competitions. The
+-    provider's names are not display-ready — `Saudi-Arabia`, `South-Korea`, `USA` — and the other
+-    24 read `World`. Names are copy and copy is the CPO's (§10). This MR lands the SOURCE only;
+-    it does not decide the rendered text, and #62 step 3 must not assume it.
+-  - Whether `mart_competition_index` reads `dim_league.league_country` directly at step 3 or waits
+-    for #69's `dim_country` to supply canonical names. Reserved to the CPO; not decided here.
++  - Whether #69's `countries.csv` + `dim_country` eventually absorbs this seed or sits beside it,
++    the way `team_name_overrides` sits beside `dim_team`. Not decided here; this seed is scoped to
++    normalising the provider string and takes no position on the entity model.
++  - The other three country columns (`dim_team.team_country`, `dim_player.player_birth_country`,
++    `dim_coach.coach_birth_country`) almost certainly carry the same provider hyphenation across
++    217/222/213 distinct values. NOT corrected here — that is #69's discovery step, and doing it
++    blind from three known examples is the failure #69 exists to prevent.
  
  done_when:
--  - The handover names the blocker, the numbers, and the cheap next step, and no longer claims
--    `dim_league` supplies country.
--  - Under 16,000 CHARACTERS by Python `len()`; NEXT numbering unique; no conflict markers.
-+  - `stg_apif__leagues.sql` extracts `$.country.name` and `$.country.flag`; no other line changes.
-+  - `dbt parse` succeeds against the .venv dbt (1.7.19).
-+  - `python -m sqlfluff lint dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-+    --templater jinja --dialect bigquery` from the repo root is clean, full rule set.
-+  - The compiled SELECT, run against RAW in BigQuery and priced first, returns 45/45 non-null
-+    `country` and 21/45 non-null `country_flag_url`.
-+  - The `not_null` test is shown RED against the CURRENT (broken) extraction before being
-+    accepted — a test that cannot fail is decoration.
-+  - `python .claude/hooks/git_discipline.py --review-patch` builds the patch; the review cycle
-+    runs with `analytics-engineer-reviewer` (routed by `dbt_project/**`) and `scope-auditor`.
+-  - `stg_apif__leagues.sql` extracts `$.country.name` and `$.country.flag`; no other line changes.
+-  - `dbt parse` succeeds against the .venv dbt (1.7.19).
+-  - `python -m sqlfluff lint dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+-    --templater jinja --dialect bigquery` from the repo root is clean, full rule set.
+-  - The compiled SELECT, run against RAW in BigQuery and priced first, returns 45/45 non-null
+-    `country` and 21/45 non-null `country_flag_url`.
+-  - The `not_null` test is shown RED against the CURRENT (broken) extraction before being
+-    accepted — a test that cannot fail is decoration.
+-  - `python .claude/hooks/git_discipline.py --review-patch` builds the patch; the review cycle
+-    runs with `analytics-engineer-reviewer` (routed by `dbt_project/**`) and `scope-auditor`.
++  - The seed carries exactly 3 rows, each with a `source` and a `note`.
++  - `base_apif__leagues.sql` applies it by left join + coalesce; `dim_league.sql` is UNCHANGED.
++  - `dbt parse` succeeds; SQLFluff is clean on both changed .sql files, full rule set, from root.
++  - The still-needed test is shown RED first by proving it fires on a no-op row, then green.
++  - Verified against RAW, priced first: the 21 single-country competitions yield 15 distinct names
++    with `Saudi Arabia`, `South Korea` and `United States of America` among them and no hyphen.
++  - The two stale claims from the last task are corrected: the #62 note and `active_work.md` both
++    say the rendered string is a §10 decision blocking step 3. It is not.
  
--amendments: []
-+amendments: (none)
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-index 5cdf9b8..15f125b 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
-@@ -50,9 +50,11 @@ season_rows as (
-         safe_cast(json_value(row_json, '$.league.id') as int64) as league_api_id,
-         json_value(row_json, '$.league.name') as league_name,
-         json_value(row_json, '$.league.type') as league_type,
--        json_value(row_json, '$.league.country') as country,
-+        -- Country is a SIBLING of `league` in the /leagues response, not a child:
-+        -- $.league = {id, name, type, logo}; $.country = {name, code, flag}.
-+        json_value(row_json, '$.country.name') as country,
-         json_value(row_json, '$.league.logo') as league_logo_url,
--        json_value(row_json, '$.league.flag') as country_flag_url
-+        json_value(row_json, '$.country.flag') as country_flag_url
-     from season_rows_raw
- )
+ amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 80f1e6f..6791372 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -66,9 +66,11 @@ models:
  
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 2703dde..479b27f 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -79,11 +79,12 @@ models:
-               values: ['League', 'Cup']
-               severity: warn
-       - name: league_country
--        description: "Country the league belongs to."
-+        description: "Country the league belongs to, from the provider's `$.country.name`. International competitions carry the literal 'World'; canonical names are #69's."
-+        tests: [not_null]
-       - name: league_logo_url
-         description: "League logo URL."
-       - name: country_flag_url
--        description: "Country flag URL."
-+        description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
-       - name: raw_ingested_at
-         description: "UTC timestamp of the raw row this dimension row was derived from."
+   - name: base_apif__leagues
+     description: >
+-      Unified league-season rows across all onboarded competitions (explicit
+-      ref() per competition staging). Deduplicated per
+-      (league_code, league_api_id, season_api_year). Feeds base_apif__league_entity,
++      Unified league-season rows across all onboarded competitions, read from the generic
++      staging model with league_code flowing through as a column. Deduplicated per
++      (league_code, league_api_id, season_api_year). Also applies the country-name corrections
++      from the country_name_overrides seed (#62), so league_country is display-ready before
++      dim_league publishes it. Feeds base_apif__league_entity,
+       base_apif__competition_seasons, and core dims built from those. Output grain:
+       (league_code, league_api_id, season_api_year).
+     config:
+diff --git a/dbt_project/models/2_base/api_football/base_apif__leagues.sql b/dbt_project/models/2_base/api_football/base_apif__leagues.sql
+index b8bf140..2bf9447 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__leagues.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__leagues.sql
+@@ -1,31 +1,47 @@
+-with src as (
++with import_stg_apif__leagues as (
++    select * from {{ ref('stg_apif__leagues') }}
++),
++
++import_country_name_overrides as (
++    select * from {{ ref('country_name_overrides') }}
++),
++
++-- The provider's country string is not display-ready: it hyphenates multi-word names
++-- (Saudi-Arabia, South-Korea) and abbreviates one (USA). Standardised HERE, in base, because
++-- the transformation layer is where we clean and reconcile (CPO 2026-08-14) and because the
++-- core dim publishes rather than corrects -- there is no coalesce in dim_league. Same three
++-- parts as team_name_overrides: seed, left join, and a singular test that fails when a row
++-- stops being a correction.
++src as (
+     select
+-        league_code,
+-        league_api_id,
+-        league_name,
+-        league_type,
+-        country as league_country,
+-        league_logo_url,
+-        country_flag_url,
+-        season_api_year,
+-        season_start_date,
+-        season_end_date,
+-        season_is_current,
+-        has_coverage_fixture_events,
+-        has_coverage_fixture_lineups,
+-        has_coverage_fixture_statistics,
+-        has_coverage_fixture_players,
+-        has_coverage_standings,
+-        has_coverage_players,
+-        has_coverage_top_scorers,
+-        has_coverage_top_assists,
+-        has_coverage_top_cards,
+-        has_coverage_injuries,
+-        has_coverage_predictions,
+-        has_coverage_odds,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__leagues') }}
+-    where league_api_id is not null and season_api_year is not null
++        leagues.league_code,
++        leagues.league_api_id,
++        leagues.league_name,
++        leagues.league_type,
++        leagues.league_logo_url,
++        leagues.country_flag_url,
++        leagues.season_api_year,
++        leagues.season_start_date,
++        leagues.season_end_date,
++        leagues.season_is_current,
++        leagues.has_coverage_fixture_events,
++        leagues.has_coverage_fixture_lineups,
++        leagues.has_coverage_fixture_statistics,
++        leagues.has_coverage_fixture_players,
++        leagues.has_coverage_standings,
++        leagues.has_coverage_players,
++        leagues.has_coverage_top_scorers,
++        leagues.has_coverage_top_assists,
++        leagues.has_coverage_top_cards,
++        leagues.has_coverage_injuries,
++        leagues.has_coverage_predictions,
++        leagues.has_coverage_odds,
++        leagues.raw_ingested_at,
++        coalesce(overrides.country_name, leagues.country) as league_country
++    from import_stg_apif__leagues as leagues
++    left join import_country_name_overrides as overrides
++        on leagues.country = overrides.provider_country
++    where leagues.league_api_id is not null and leagues.season_api_year is not null
+ ),
  
+ deduped as (
+diff --git a/dbt_project/seeds/country_name_overrides.csv b/dbt_project/seeds/country_name_overrides.csv
+new file mode 100644
+index 0000000..287ffad
+--- /dev/null
++++ b/dbt_project/seeds/country_name_overrides.csv
+@@ -0,0 +1,4 @@
++provider_country,country_name,source,note
++Saudi-Arabia,Saudi Arabia,CPO ruling 2026-08-15 (#62): standardize in base,"Provider hyphenates multi-word country names. Not corrected by a hyphen-to-space rule: Guinea-Bissau and Timor-Leste are correctly hyphenated."
++South-Korea,South Korea,CPO ruling 2026-08-15 (#62): standardize in base,"Provider hyphenates multi-word country names. Common English usage, not the ISO 3166 form (Korea, Republic of), which is not the register the other 12 names use."
++USA,United States of America,CPO ruling 2026-08-15 (#62): verbatim CPO wording,"Provider abbreviates where every other value is a full name. The CPO chose the long form over United States."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 85aa021..2517666 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -548,3 +548,60 @@ seeds:
+         description: "Why the provider's value is wrong, and what this row collides with."
+         tests:
+           - not_null
++
++  - name: country_name_overrides
++    description: >
++      Corrections to the provider's COUNTRY string, applied in base_apif__leagues (#62). The
++      API-Football /leagues payload hyphenates multi-word country names (`Saudi-Arabia`,
++      `South-Korea`) and abbreviates one (`USA`), so 3 of the 15 distinct countries across the 21
++      single-country competitions are not display-ready. `dim_league.league_country` is the region
++      sub-line on the competitions page, so the provider spelling would be read by a visitor.
++
++      WHY THIS IS A MAPPING AND NOT A HYPHEN-TO-SPACE RULE. A pattern rule looks like the
++      class-level fix and is wrong: `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated
++      country names and a blanket replace corrupts them the moment either is onboarded. An
++      explicit mapping cannot.
++
++      ⚠ KNOWN RESIDUAL GAP, stated rather than implied: this seed corrects only the strings it
++      lists. A NEW multi-word country arriving hyphenated is not caught here and would reach the
++      page. Closing that is #69's foreign key to `dim_country` — an unknown country fails the FK
++      instead of rendering — not a wider regex here.
++
++      GOVERNANCE: the register is the CPO's (§10) — these are display names and copy is his. Add a
++      row only for a provider defect, never a locale preference: this is the same rule that keeps
++      `Bayern München` out of `team_name_overrides`. Where an external standard is cited it must
++      be checked, never recalled; `South Korea` is deliberately NOT the ISO 3166 form, because the
++      other twelve names are common English usage and the register must be consistent.
++
++      SCOPE: leagues only. `dim_team.team_country`, `dim_player.player_birth_country` and
++      `dim_coach.coach_birth_country` carry 217/222/213 distinct values that very likely have the
++      same defect, and they are deliberately NOT corrected from three known examples — that is
++      #69's discovery step.
++
++      assert_country_name_overrides_still_needed fails the build if a row equals the provider's
++      current string, or if the provider string has disappeared entirely, so a correction the
++      provider has since adopted is removed rather than left to rot.
++    config:
++      column_types:
++        provider_country: string
++        country_name: string
++        source: string
++        note: string
++    columns:
++      - name: provider_country
++        description: "The exact string API-Football sends in `$.country.name`, and the join key."
++        tests:
++          - not_null
++          - unique
++      - name: country_name
++        description: "The name the product displays."
++        tests:
++          - not_null
++      - name: source
++        description: "The authority for this name (required — the governance control). For a display register that is the CPO ruling; for a factual identity claim it is an external source of record."
++        tests:
++          - not_null
++      - name: note
++        description: "Why the provider's value is not usable as-is."
++        tests:
++          - not_null
+diff --git a/dbt_project/tests/assert_country_name_overrides_still_needed.sql b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
+new file mode 100644
+index 0000000..0190b45
+--- /dev/null
++++ b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
+@@ -0,0 +1,36 @@
++-- A country name override must still be a CORRECTION. Two ways a row stops being one, and
++-- both mean "delete it" rather than "leave it and hope":
++--
++--   1. The override equals the provider's own string. It silently does nothing, and the next
++--      reader cannot tell whether it is load-bearing or dead weight.
++--   2. The provider string no longer appears at all -- because the provider fixed its own
++--      spelling, or because the only competition that carried it was offboarded. The row then
++--      matches nothing and the seed slowly fills with fiction.
++--
++-- Compares against stg_apif__leagues (PRE-override) rather than base_apif__leagues, which is
++-- where the coalesce is applied and would therefore always agree with the seed.
++
++with import_stg_apif__leagues as (
++    select * from {{ ref('stg_apif__leagues') }}
++),
++
++import_country_name_overrides as (
++    select * from {{ ref('country_name_overrides') }}
++),
++
++provider_countries as (
++    select distinct country
++    from import_stg_apif__leagues
++    where country is not null
++)
++
++select
++    overrides.provider_country,
++    overrides.country_name as override_name,
++    provider.country as provider_country_seen
++from import_country_name_overrides as overrides
++left join provider_countries as provider
++    on overrides.provider_country = provider.country
++where
++    provider.country is null
++    or overrides.provider_country = overrides.country_name
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -209,6 +418,6 @@ index 2703dde..479b27f 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md | 108 +++++++++++++++++++++++++------------------------
-#    1 file changed, 55 insertions(+), 53 deletions(-)
+#   .claude/active_work.md | 33 +++++++++++++++++----------------
+#    1 file changed, 17 insertions(+), 16 deletions(-)
 # ============================================================================
