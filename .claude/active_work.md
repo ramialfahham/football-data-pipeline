@@ -31,10 +31,11 @@ flag (`seeds/schema.yml:99` says so itself).
 `confederations.csv` (**exists, 7 rows, read by nothing**) + `dim_country` built new. A competition
 POINTS AT one; **which relationship is populated IS the answer** — no flag, no branch. Cost: the
 registry's `country` mixes 21 countries with 24 region words; those 24 become NULL. Deletes
-`single_country`. ✅ **DISCOVERY IS DONE — its 08-16 note on #69.** 282 distinct values, and the
-defect is ONE endpoint: `/teams` hyphenates 37 countries that `/players` and `/coachs` spell with
-spaces. ⚠ `dim_league` contributed nothing to that run (prod was stale) — **re-run it now prod is
-repaired**, then names to the CPO.
+`single_country`. ✅ **DISCOVERY COMPLETE — the 08-16 notes on #69.** 285 values; the defect is ONE
+endpoint: `/teams` hyphenates 37 countries that `/players`/`/coachs` spell with spaces.
+⛔ **`!45` made `USA` WORSE:** leagues now read `United States of America`, the other three still
+`USA` (28/816/45), so `countries.csv` must map it for EVERY surface. `World` is league-only (24)
+and never becomes a country row. **NEXT: canonical names, HIS.**
 
 ✅ **`!43` + `!45` LIVE IN PROD.** ⚠ `sync_dbt_vars.py:45` is now accurate — do not "fix" it.
 ⚠ **Never normalise country names by regex** — `Guinea-Bissau`/`Timor-Leste` are correctly
@@ -90,17 +91,16 @@ working tree and nothing redeploys it (no trigger, no CI job — verified). It r
 days and **rebuilt prod nightly from it, REVERTING `!43`/`!45`** after `data:build:main` had written
 them correctly. Redeployed by hand 08-16; **stale again on the next merge.**
 ⛔ **#75 — red nights are DATA QUALITY.** 08-16 failed on ONE orphan row (`player_sk` 544602, CIT),
-skipping **103 nodes**; 08-12 on a different fixture-event test, **540**. The skip is the gate
-working — prod keeps its last good data.
+skipping **103 nodes**; 08-12 on another fixture-event test, **540**. The skip is the gate working.
 ⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
 ⚠ **Lesson, in memory: an impact map that stops at LINEAGE misses GATES** (#33 item 14).
 ⚠ **None of the four ingest fixes does what its title suggests** — caveats on #896-#898. Ultra plan
-**450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds. **No public site.**
+**450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds.
 
 ## ⭐ COST — read **GitLab issue #3** before touching anything
 Everything recoverable from #547 is in **GitLab #3** — baselines, the ranked list **in ITS order**,
-the free tools, MEASURED vs UNMEASURED. Read it; do not redo it. ⚠ **#70** adds a scan-budget guard
-there. Traps:
+the free tools, MEASURED vs UNMEASURED. Read it; do not redo it. ⚠ **#70** adds a scan-budget
+guard. Traps:
 
 - **⚠ NEVER set a time-based partition expiry on raw** (#892). Nine biennial/quadrennial tournaments
   go months without a refresh; expiry would delete the ONLY surviving row and staging's `qualify`
@@ -111,10 +111,10 @@ there. Traps:
 - **⭐ FREE: `bq query --dry_run`** (exact bytes, nothing runs) and **`report_bq_cost.py`**.
   ⚠ **Paste the output or do not claim it.**
 - **MEASURED 08-03: $2.73/day**, prod tests $1.46 vs models $0.75. ⚠ PREDATES both fixes to its top
-  item (#33 items 9/15). **Re-measure; never quote 08-03 as current.**
-- **⚠ #2 IS LIVE; it fired 08-07 and 08-13.** `data:build:main` triggers on `data_paths`, which
-  includes `.gitlab-ci.yml` and `scripts/check_*.py`, so a governance-only MR rebuilds the whole
-  prod warehouse. **Check `data_paths` first.**
+  item (#33 items 9/15). **Re-measure; never quote it as current.**
+- **⚠ #2 IS LIVE** (fired 08-07, 08-13). `data:build:main` triggers on `data_paths`, which includes
+  `.gitlab-ci.yml` and `scripts/check_*.py`, so a governance-only MR rebuilds all of prod.
+  **Check `data_paths` first.**
 
 ## ⭐ REVIEW MECHANICS — what the working agreement does not give you
 Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
@@ -142,7 +142,7 @@ guarded). **CPO: the pipeline picks, not the page**, by the tab's LENS.
 **#845 + #882 are ONE decision and his** — which entities earn a page, and whether a past season
 gets a URL or a control. Deciding apart sets the URL shape twice. Measured (×3 locales): players
 51,589→154,767; **matches BIGGER at 176,235**; h2h 51,903; teams 9,669. A 5-match gate leaves 1,274
-teams and 21,979 players. Bring counts, not a general question.
+teams and 21,979 players. Bring counts, not a question.
 
 **The player Overview is BUILT but UNCOMMITTED** in the stash `feat/player-overview-tab: Overview
 BUILT` (⚠ NOT the #62 mart stash), with a known-wrong default (`seasons[0]` = most recent of ANY
@@ -167,8 +167,8 @@ follow a control); four CPO-class consequences open.
    — redeployed 08-16 but it goes stale on the next merge, so prod silently reverts. **#75**
    fixture-event integrity turns it red and skips 103–540 nodes. ⚠ **#4**: a web dispatch from ANY
    branch builds prod from THAT branch's code.
-1. **#69 FIRST, then #62 step 3** (⭐ CURRENT). Discovery is DONE; next is re-running it with
-   `dim_league` included, then names to the CPO. Then step 4 repoints the export, 5 the page spec.
+1. **#69 FIRST, then #62 step 3** (⭐ CURRENT). Discovery COMPLETE; next is **canonical names to the
+   CPO**, then the two dims. Then step 4 repoints the export, 5 the page spec.
 2. **The audit stream (⭐ above).** ⚠ Do NOT mix with cost. The CPO's, one command each: **Q2 of
    #21** (set `main`'s push access to No one — the SERVER should protect it, not a client hook;
    ⚠ a branch cut from `gitlab/main` INHERITS that upstream, so unset it) · delete the 2 dead
