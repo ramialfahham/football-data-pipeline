@@ -26,6 +26,7 @@ scope_paths:
   - site/i18n/de.json
   - site/i18n/fi.json
   - .claude/task/escalations.log
+  - .claude/active_work.md
 
 decisions_taken: >
   Three CPO decisions made in this conversation (2026-08-16), escalated blinded per §11, recorded
@@ -77,4 +78,7 @@ done_when:
     risk on first ingest. Flagged by data-engineer-reviewer round 1; report clean --strict output
     (or triage findings) before treating BPL/TSL/EKS as onboarded-and-healthy.
 
-amendments: (none)
+amendments:
+  - 2026-08-16: + .claude/active_work.md — authority: standing rule (working_agreement.md §3);
+    content: rebase onto gitlab/main pulls in a real conflict on active_work.md (main's nightly-
+    status correction overlaps this branch's MR #50/#73 notes) that needs manual resolution.
