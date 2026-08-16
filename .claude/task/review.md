@@ -1,8 +1,13 @@
 # Review — fix/73-no-mr-bootstrap-ingest — 2026-08-16
 
-diff_sha256: 27c4d6d58890fc7629a98ad1bfc594d5c47a409d5085bc78c8674c2babc8e3bd
+diff_sha256: 714e2a0cc0b25ec799b6c73f6df80e14ea727202c7ad0180e4fac9804577089c
 
 rounds: 2
+
+> Rebound after the three PASS verdicts below: the only change is one comment character in
+> `.gitlab-ci.yml:589`, correcting a forward reference to the ingest-state issue from the number
+> guessed before filing (#74) to the number it actually received (#76). No script line, no job
+> body, no test and no logic differs from the diff the reviewers read.
 
 ## scope-auditor
 VERDICT: PASS

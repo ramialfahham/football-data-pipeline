@@ -586,7 +586,7 @@ data:build:mr:
     # coverage cut — the CPO's ruling was to ship the ingest removal and fix the cause properly
     # instead. The cause is that nothing records whether a league has been INGESTED (the registry
     # records only that it SHOULD be), so the tests cannot ask "should this have data YET?".
-    # That is issue #74. Until it lands, an onboarding MR shows red here and is merged on
+    # That is issue #76. Until it lands, an onboarding MR shows red here and is merged on
     # judgement, exactly as !50 was.
     - >-
       dbt test --select test_type:singular --exclude tag:freshness_check
