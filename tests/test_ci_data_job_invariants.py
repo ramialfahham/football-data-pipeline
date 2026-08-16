@@ -213,3 +213,44 @@ def test_every_worktree_add_is_preceded_by_a_prune():
         "pipeline that removes the prune — it fails the NEXT one on that runner slot. "
         f"Offending: {offenders}"
     )
+
+
+def test_mr_data_build_never_ingests():
+    """GitLab #73. `data:build:mr` must never run the API-Football ingest.
+
+    An ingest from an MR pipeline writes the PRODUCTION `raw` dataset
+    (`ingestion/api_football/settings.py:31` defaults it, and `API_FOOTBALL_BIGQUERY_DATASET` is
+    set nowhere in CI) from an UNMERGED branch. `.gitlab-ci.yml` flagged that as open under #33
+    item 13; #73 closed it for the MR path by deleting the bootstrap step.
+
+    NOTHING IS LOST BY THE DELETION, which is why re-adding it is pure regression rather than a
+    trade: `data:build:main` runs the identical `get_new_league_codes.py` + ingest sequence before
+    its dbt builds, on a protected branch that legitimately holds `API_FOOTBALL_API_KEY`.
+
+    This is pinned rather than left to prose because the failure is INVISIBLE. Re-adding the step
+    turns the pipeline red only when the protected variable is withheld; on any branch that DOES
+    receive the key it would silently write prod again. The repo's own record is that prose-only
+    corrections recur (33 of 50) and mechanised ones do not.
+
+    Asserted per JOB, not across the file: `data:build:main` and `data:nightly` legitimately
+    contain both tokens, so a file-wide grep would be wrong in both directions.
+    """
+    jobs = _script_lines_by_job(_ci_config())
+    assert "data:build:mr" in jobs, (
+        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
+        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
+    )
+
+    forbidden = ("ingestion.api_football.main", "get_new_league_codes")
+    offenders = [
+        line.strip()
+        for line in jobs["data:build:mr"]
+        if any(token in line for token in forbidden)
+    ]
+
+    assert offenders == [], (
+        "data:build:mr invokes the API-Football ingest. That writes the PRODUCTION `raw` dataset "
+        "from an unmerged branch — the hazard #73 removed and #33 item 13 named. The post-merge "
+        "`data:build:main` job already ingests any new league, so nothing needs this here. "
+        f"Offending: {offenders}"
+    )

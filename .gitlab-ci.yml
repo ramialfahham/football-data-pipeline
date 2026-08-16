@@ -526,28 +526,31 @@ data:build:mr:
     - sqlfluff lint models
     - dbt seed --target ci
     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
-    # The GitHub original gated this on a separate `ingest` path filter. GitLab
-    # rules cannot express two independent change-flags for one job, so the
-    # check always runs. It returns empty (and ingests nothing) whenever every
-    # league already has raw tables.
+    # ⛔ THIS JOB DOES NOT INGEST, AND MUST NOT (#73, 2026-08-16). A bootstrap-ingest
+    # step lived here — `get_new_league_codes.py` then `python -m
+    # ingestion.api_football.main` — and it wrote PRODUCTION raw from an UNMERGED
+    # branch: settings.py:31 defaults the raw dataset to `raw` and
+    # API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file. The comment block
+    # above already flagged that as "a separate, still open question — #33 item 13";
+    # this closes it for the MR path.
     #
-    # It is NOT a "cheap metadata lookup" — that claim was wrong and is corrected
-    # here (#33). get_new_league_codes.py:50 runs
-    # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT`, a BILLED column
-    # scan. It stays unbounded on purpose: the column is narrow and clustered and
-    # lands under BigQuery's 10 MB minimum billing anyway, while any `ingested_at`
-    # predicate would reintroduce the #892 hazard and silently hide the nine
-    # biennial/quadrennial competitions. Cheap, yes. Metadata, no.
-    - NEW_CODES=$(python scripts/get_new_league_codes.py)
-    - |
-      if [ -n "$NEW_CODES" ]; then
-        echo "Leagues needing bootstrap: $NEW_CODES"
-        API_FOOTBALL_LEAGUE_CODES="$NEW_CODES" \
-        API_FOOTBALL_INCLUDE_IN_PROGRESS=1 \
-        python -m ingestion.api_football.main
-      else
-        echo "All leagues already have raw tables — skipping bootstrap ingest."
-      fi
+    # It surfaced when GitLab REFUSED to hand a feature branch the key:
+    # API_FOOTBALL_API_KEY is a PROTECTED CI/CD variable and only protected branches
+    # (here: main alone) receive it, so the step died with "Missing
+    # API_FOOTBALL_API_KEY" on !50. GitLab was right. Under the GitHub original the
+    # same step "worked" only because the secret reached every branch — the unsafe
+    # write succeeded silently instead of failing loudly. Do not "fix" that by
+    # unprotecting the variable; the CPO rejected exactly that on 2026-08-16.
+    #
+    # NOTHING IS LOST: `data:build:main` runs the identical get_new_league_codes +
+    # ingest sequence BEFORE its dbt builds, on main, which legitimately holds the
+    # key. A newly onboarded league is ingested exactly once, post-merge, from the
+    # authoritative branch. `data:nightly` is the other prod writer. Consequence,
+    # accepted deliberately: a new league is not validated until AFTER merge, so a
+    # failed post-merge ingest turns main red — which is where prod state belongs.
+    # This job therefore needs no API key at all, and one billed
+    # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR is gone with it.
+    #
     # Compile the target branch's project into a state dir (manifest only — no
     # model execution). PROD target so deferred refs resolve to prod's bare
     # datasets, not ci_*.
@@ -572,6 +575,19 @@ data:build:mr:
     # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
     # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
     # only, never to the DQ gate.
+    #
+    # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
+    # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
+    # assert_base_fixtures_next / assert_fct_fixture `_covers_active_competition_var`. They assert
+    # "every code in vars.active_competition_league_codes has rows", the onboarding MR adds the
+    # code, and this job no longer ingests, so the rows cannot exist until the post-merge run.
+    # The tests are telling the TRUTH; the data really is absent.
+    # ⛔ DO NOT silence them with a tag/exclude here. That was built, reviewed and REJECTED as a
+    # coverage cut — the CPO's ruling was to ship the ingest removal and fix the cause properly
+    # instead. The cause is that nothing records whether a league has been INGESTED (the registry
+    # records only that it SHOULD be), so the tests cannot ask "should this have data YET?".
+    # That is issue #74. Until it lands, an onboarding MR shows red here and is merged on
+    # judgement, exactly as !50 was.
     - >-
       dbt test --select test_type:singular --exclude tag:freshness_check
       --defer --favor-state --state /tmp/main-state --target ci

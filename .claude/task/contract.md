@@ -1,84 +1,116 @@
-# Task contract — onboard 3 men's domestic leagues (#72)
+# Task contract — data:build:mr must not bootstrap-ingest (#73)
 
 objective: >
-  Onboard Belgian Pro League, Süper Lig, and Ekstraklasa per GitLab #72. Path B: registry entry +
-  generated dbt vars/seed + i18n labels only — zero SQL file changes (no-new-model rule). Women's
-  leagues and Liga MX Femenil evaluated in the same issue are explicitly OUT OF SCOPE for this
-  task; see decisions_taken.
-refs: GitLab #72
+  Remove the bootstrap-ingest step from `data:build:mr`. It writes PRODUCTION raw from an
+  unmerged branch (settings.py:31 defaults the dataset to `raw`; nothing overrides it in CI), it
+  is redundant with the identical step already in `data:build:main`, and GitLab's protected-
+  variable rule correctly refuses to give a feature branch the API key — which is what made MR
+  !50 fail. Closes #33 item 13 for the MR path. Pin the removal with a test so the step cannot
+  return silently.
+
+  ⛔ SCOPE NARROWED BY THE CPO, 2026-08-16. An earlier revision of this branch ALSO tagged
+  `assert_base_leagues_covers_active_competition_var` `prod_state` and excluded it from
+  `data:build:mr`. All four routed reviewers FAILED that, and the CPO ruled it out in plain
+  terms after asking whether the change was "a systematic fix or a hack": it was a hack. It is
+  fully reverted here. The underlying cause — nothing records whether a league has been
+  INGESTED, only that it SHOULD be — is filed as its own issue and is NOT addressed here.
+refs: GitLab #73, #33 item 13, #72, !50
+
+protected_override: >
+  CPO approval 2026-08-16, in-thread, verbatim: **"yes, rewrite #73 to option 2 only and fix it"**,
+  given after I laid out option 2 as "delete the bootstrap-ingest block from data:build:mr ...
+  that's the professional, economic, secure answer". The same message rejected the unprotect-the-
+  key option: **"it is 100% bullshit in terms of security."** `.gitlab-ci.yml` is a PROTECTED path
+  (the file that decides what CI enforces), hence this override.
 
 impact_map: >
-  Leaf/cosmetic short-form: site/i18n/{en,de,fi}.json `competitions` blocks are a flat
-  label lookup (league_code -> display string), consumed by the export/frontend for
-  rendering only. Adding 3 new keys (BPL/TSL/EKS) does not change any existing key's
-  value, does not add computation, and matches the exact pattern of every prior
-  domestic-league onboard's i18n step (VL/LMX/LP/MLS/SPL/ED all added the same 3-file,
-  1-key-each diff). `grep -rn "i18n" dbt_project/` returns zero hits — dbt has no
-  dependency on this file. No mart/number changes; nothing downstream reads these new
-  keys except the label lookup itself, which fails closed (missing key = fallback to
-  the code) rather than silently computing anything.
+  writers: `.gitlab-ci.yml` is not a data writer. The step being DELETED is the only thing in
+    `data:build:mr` that writes raw tables — `python -m ingestion.api_football.main` with
+    `API_FOOTBALL_LEAGUE_CODES` set. After this change `data:build:mr` writes ONLY `ci_*` datasets
+    (via `dbt seed/build --target ci`) and reads prod via `--defer --favor-state`.
+
+  what still ingests, and where: `data:build:main:597` runs the SAME
+    `get_new_league_codes.py` + `python -m ingestion.api_football.main` sequence, BEFORE its
+    `dbt build --selector staging/downstream --target prod` lines. `data:nightly` is the other
+    prod writer. Neither is touched here, so a newly onboarded league is still ingested exactly
+    once, post-merge, from a protected branch that legitimately holds the key. Verified by reading
+    both job bodies in this file, not assumed.
+
+  guards NOT touched, and the accepted consequence: NO dbt test is modified by this branch.
+    Four singular tests — `assert_base_leagues` / `assert_base_teams` /
+    `assert_base_fixtures_next` / `assert_fct_fixture` `_covers_active_competition_var` — assert
+    "every code in `vars.active_competition_league_codes` has rows". All four are unconditional
+    (`left join ... where null`); I read all eight `*_covers_active_competition_var` tests and the
+    other four self-exclude via an `inner join base_apif__leagues` on a coverage flag. On an
+    ONBOARDING MR those four now fail, because the var names the new league and this job no longer
+    ingests it. That is ACCEPTED (CPO 2026-08-16): the tests are stating a true fact, and
+    silencing them was rejected as a hack. Onboarding MRs show red here and are merged on
+    judgement until the ingest-state issue lands.
+    ⚠ REASONED FROM THE TEST BODIES, NOT OBSERVED (#904): `data:build:mr` on !50 died at the
+    ingest step and never reached the dbt steps, so these four have not been SEEN failing for this
+    reason. `dbt build` is never run locally (CLAUDE.md), so this branch's own pipeline is the
+    first place it is exercised.
+
+  layer_rules: `scripts/check_layer_contract.py` — untouched; no model, no layer, no
+    materialisation changes. No new model, macro or SQL file. NO dbt file of any kind is in this
+    diff.
+
+  deploy_order: no warehouse migration. The CI change takes effect on the next pipeline. ⚠ Merge
+    order matters for !50: this MR should merge FIRST, then !50 rebases onto it and its
+    `data:build:mr` goes green. If !50 merged first instead, `data:build:main` would bootstrap
+    BPL/TSL/EKS on main — also correct, just via the other path.
+
+  blast_radius: no mart, no number, no row changes anywhere. One behaviour change:
+    `data:build:mr` no longer ingests, so it no longer needs `API_FOOTBALL_API_KEY` and no longer
+    runs a billed `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR. No test's
+    selection, severity or logic changes anywhere.
 
 scope_paths:
-  - docs/competition_registry.yml
-  - dbt_project/dbt_project.yml
-  - dbt_project/seeds/competition_registry.csv
-  - site/i18n/en.json
-  - site/i18n/de.json
-  - site/i18n/fi.json
+  - .gitlab-ci.yml
+  - tests/test_ci_data_job_invariants.py
   - .claude/task/escalations.log
   - .claude/active_work.md
 
 decisions_taken: >
-  Three CPO decisions made in this conversation (2026-08-16), escalated blinded per §11, recorded
-  in full in escalations.log as part of this same commit:
+  CPO ruling 2026-08-16 (quoted in full under protected_override): fix via option 2 only, and the
+  unprotect-the-key option is rejected on security grounds. The CPO also asked the framing
+  question this task answers — *"Why do we always need to touch ingestion again and again?"* — and
+  the answer encoded here is that we do NOT: no ingestion code changes, the fix is a CI job that
+  should never have carried this step.
 
-  1. history_seasons: 5 for all three leagues. CPO answer: "1. 5" — matches the pattern used for
-     every non-Big-5 domestic league onboarded recently (VL, LMX, LP, MLS, SPL, ED all use 5).
+  NEW MECHANISM: none. Deleting a step, and adding an assertion to an EXISTING pytest module
+  whose stated purpose is pinning exactly these CI invariants.
 
-  2. Women's leagues (NWSL, Frauen-Bundesliga, Serie A Women, Liga F, Première Ligue, FA WSL) and
-     Liga MX Femenil: CPO ruling "drop the women's league all" — none onboarded in this task, no
-     exceptions (NWSL had full coverage but is dropped with the rest of the batch). This followed
-     live per-fixture verification (not just the season-level coverage flag, which reads
-     misleadingly "full" at the season-metadata level): dense sampling of the most recently
-     completed season showed real fixture-stats/player-stats presence of 45-60% for four of the
-     five European leagues and 0% (0/30 sampled fixtures) for Liga F. The 2026/27 season has not
-     started for any of them (all fixtures NS as of 2026-08-16), so "current season" coverage is
-     not yet checkable.
+  RECURRING COST: strictly NEGATIVE (a saving). Removes one billed BigQuery `SELECT DISTINCT` per
+  MR pipeline, plus the API-quota draw of any bootstrap ingest an unmerged branch would have run.
+  Nothing is added.
 
-  3. WSL: exists in the provider catalog as "FA WSL", provider_league_id 44, England — the original
-     #72 research's "not in the provider catalog" finding was a naming-search miss, not an actual
-     absence. Moot for this task since it falls under decision 2 (dropped with the women's batch).
-
-  NEW MECHANISM: none — same registry-entry + sync_dbt_vars.py + i18n pattern used for every prior
-  domestic-league onboard (issue #260 wave, VL, LMX, LP, MLS, SPL, ED).
-  RECURRING COST: 3 new `ingest_active: true` leagues added to the nightly 04:00 UTC pipeline, full
-  fanout (fixtures/standings/lineups/stats/events), 5-season backfill each. In line with the cost
-  profile of the other domestic-league onboards in this registry.
+  NO GUARD IS LOOSENED, because none is touched. The previous revision of this branch narrowed
+  one and was FAILED by all four routed reviewers and then by the CPO. The standing rule held.
 
 decisions_reserved:
-  - none: the three CPO-class questions in #72 (history_seasons depth, women's-leagues coverage
-    verdict, WSL catalog existence) are all resolved above; nothing about this task's scope is open.
+  - Whether `data:build:mr` should ALSO be prevented from writing prod raw structurally (setting
+    `API_FOOTBALL_BIGQUERY_DATASET` to a ci-scoped dataset) rather than only by removing the one
+    step that did it. #33 item 13 is broader than the MR path; this task closes the MR path only
+    and takes no position on the rest.
+  - The ingest-state model itself (recording that a league HAS been ingested, not merely that it
+    should be) is deliberately NOT designed here. It is the cause behind the four failing
+    onboarding-MR tests AND behind `get_new_league_codes.py` having to rediscover that fact from
+    BigQuery every run. Filed as its own issue per the CPO's instruction, "ship part 1 and file
+    the state fix as its own issue".
 
 done_when:
-  - Three new registry entries (BPL, TSL, EKS) in docs/competition_registry.yml, each with a live
-    verified provider_league_id, history_seasons: 5, ingest_active: true, status: active.
-  - `python scripts/sync_dbt_vars.py` run; dbt_project.yml and seeds/competition_registry.csv both
-    regenerated and committed.
-  - i18n labels added for BPL/TSL/EKS in en.json, de.json, fi.json.
-  - `python scripts/check_registry_var_sync.py` reports OK.
-  - `discover_competition.py --audit <code>` reports OK (no `!!!` collision) for each of the 3.
-  - escalations.log carries the #72 blinded-escalation entry with the CPO's actual answers.
-  - MR opened against main with cost-gate answers and verified IDs in the description.
-  - Post-merge operational follow-up (not gated by this commit, but committed to): once the first
-    nightly ingest + build have run for BPL/TSL/EKS, run
-    `python scripts/diagnostics/verify_competition_ingest.py --league <code> --strict` for each of
-    the three per the onboard-competition skill's documented "Operational follow-up after merge"
-    step — the check that catches NULL fixture_id (#297), stale wrong-ID fixture-details rows
-    (#296), and teams missing from dim_team, exactly the defect class 3 brand-new provider IDs
-    risk on first ingest. Flagged by data-engineer-reviewer round 1; report clean --strict output
-    (or triage findings) before treating BPL/TSL/EKS as onboarded-and-healthy.
+  - `data:build:mr` contains no `get_new_league_codes.py` call and no
+    `python -m ingestion.api_football.main` invocation; `data:build:main` and `data:nightly` still
+    do, unchanged.
+  - The removal is explained in a `.gitlab-ci.yml` comment that names #73 and #33 item 13, so the
+    step is not "restored as an oversight" later.
+  - NO dbt file is modified: `git diff --stat` shows no path under `dbt_project/`.
+  - A NEW test in `tests/test_ci_data_job_invariants.py` FAILS if `data:build:mr` ever invokes
+    `ingestion.api_football.main` or `get_new_league_codes.py` again, and it is demonstrated RED
+    first (per the standing rule that a passing test proves nothing until it has been seen fail).
+  - `python -m pytest tests/test_ci_data_job_invariants.py` passes.
+  - escalations.log records the #73 ruling and the rejected option.
+  - MR opened against main; !50 rebases onto it afterwards.
 
-amendments:
-  - 2026-08-16: + .claude/active_work.md — authority: standing rule (working_agreement.md §3);
-    content: rebase onto gitlab/main pulls in a real conflict on active_work.md (main's nightly-
-    status correction overlaps this branch's MR #50/#73 notes) that needs manual resolution.
+amendments: (none)
