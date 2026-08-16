@@ -7,21 +7,42 @@
 --      spelling, or because the only competition that carried it was offboarded. The row then
 --      matches nothing and the seed slowly fills with fiction.
 --
--- Compares against stg_apif__leagues (PRE-override) rather than base_apif__leagues, which is
--- where the coalesce is applied and would therefore always agree with the seed.
+-- ⚠ WIDENED FOR #69. The first version compared against stg_apif__leagues ALONE, because the
+-- seed was leagues-only (3 rows). The seed now maps strings from all four provider surfaces, and
+-- `stg_apif__leagues.country` holds just 19 distinct values -- so a leagues-only comparison would
+-- report 64 of the 67 rows as dead when they are real corrections for team, player and coach
+-- values. Narrowed to where the assertion still holds, rather than downgraded: every row must
+-- still match a string the provider actually sends SOMEWHERE.
+--
+-- Compares against STAGING (pre-override) rather than base or core, which is where the coalesce
+-- is applied and would therefore always agree with the seed.
 
-with import_stg_apif__leagues as (
-    select * from {{ ref('stg_apif__leagues') }}
-),
-
-import_country_name_overrides as (
+with import_country_name_overrides as (
     select * from {{ ref('country_name_overrides') }}
 ),
 
 provider_countries as (
-    select distinct country
-    from import_stg_apif__leagues
+    select country
+    from {{ ref('stg_apif__leagues') }}
     where country is not null
+
+    union distinct
+
+    select team_country
+    from {{ ref('stg_apif__teams') }}
+    where team_country is not null
+
+    union distinct
+
+    select coach_birth_country
+    from {{ ref('stg_apif__coaches') }}
+    where coach_birth_country is not null
+
+    union distinct
+
+    select birth_country
+    from {{ ref('stg_apif__player_profiles') }}
+    where birth_country is not null
 )
 
 select

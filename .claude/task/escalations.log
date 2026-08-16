@@ -2930,3 +2930,56 @@ provider catalog per the original issue research).
   ingest_active=true. 6 women's leagues + Liga MX Femenil: none onboarded this round. WSL
   confirmed to exist as "FA WSL" (id 44) for whenever the women's-league question is revisited —
   the catalog-absence blocker from #72 no longer applies, only the coverage-quality one does.
+
+
+2026-08-16 feat/69-country-name-overrides - the canonical country naming register (#69).
+
+  ⚠ THIS ENTRY WAS MISSING AND A REVIEWER CAUGHT IT. The four rulings below were taken, applied to
+  67 rows, and submitted with only the contract's own prose as authority. scope-auditor FAILED the
+  branch: §11 requires every escalation to land here, and §2 states why — "a reviewer cannot check
+  whether a claimed ruling exists without it." It was right. I had myself relied on this log twice
+  the same day to verify the CPO's 2026-08-14 rulings; I did not write my own.
+
+  THE ASK. #69's discovery found 245 distinct provider country strings across four dims resolving
+  to 224 entities, with the same country spelled up to three ways. The canonical NAME is copy and
+  copy is §10, so the register went to the CPO. He supplied a UN list (197 English short names,
+  six languages) as the reference this issue had said was missing.
+
+  RULING 1 - THE REGISTER IS THE OFFICIAL FORM. CPO: "official form". Applied as the UN English
+  short name with the diplomatic qualifier stripped (`Netherlands (Kingdom of the)` ->
+  `Netherlands`).
+
+  RULING 2 - ONE EXCEPTION, IRELAND. CPO, on seeing the merged table: "Republic of Ireland, keep
+  the long form". The UN short name is `Ireland`; the page renders it beside `Northern Ireland`
+  and football keeps the longer form so the contrast reads.
+
+  RULING 3 - NOT THE FORMAL STATE TITLE. CPO: "modern correct name, keep the everyday short form",
+  given on being shown that ruling 1 produced `Russian Federation`, `Syrian Arab Republic`,
+  `Lao People's Democratic Republic` and `Republic of Korea` under a fixture. The distinction that
+  survives: a genuine RENAME stands (Czechia, North Macedonia, Eswatini, Myanmar); a FORMAL STATE
+  TITLE is shortened. Both shapes sit in the same UN column and only their form tells them apart.
+
+  RULING 4 - ENGLISH, NOT THE ENDONYM. CPO: "the single source of truth is always english". Asked
+  how the UN itself handles it, the measured answer was that 195 of its 197 English names are plain
+  ASCII and exactly two are endonyms honoured at those states' request — `Türkiye` and
+  `Côte d'Ivoire`. CPO: "No, Ivory Coast and Turkey". So no label carries a diacritic, and
+  `Cabo Verde` -> `Cape Verde`, `Timor-Leste` -> `East Timor` follow the same rule.
+
+  ⚠ A FIFTH DECISION, ON SHAPE RATHER THAN NAMES. Shown a 7-column draft carrying `entity_type`
+  and per-surface counts, the CPO: "we only need a mapping between what the provider gives us and
+  what we turn into the single source of truth name". The seed is TWO data columns. `entity_type`,
+  `label_i18n_key` and confederation are out - the first was my invention, the second is a copy
+  cost he has not authorised, and the third has NO SOURCE (the registry gives confederation per
+  COMPETITION, and the UN file none).
+
+  WHAT CHANGED AS A RESULT. `country_name_overrides.csv` 3 rows -> 67. Two rows are deliberate
+  exceptions and cite their own authority in `source` rather than the general rule: `USA` ->
+  `United States of America` (the rule would give `United States`) and `Ireland` ->
+  `Republic of Ireland`.
+
+  ⚠ AND A GUARD HAD TO BE WIDENED, NOT WEAKENED. `assert_country_name_overrides_still_needed`
+  compared each row against `stg_apif__leagues` alone, because the seed was leagues-only. Measured
+  against prod: that column holds 19 distinct values, so 64 of the 67 rows would have been reported
+  as dead when they are real corrections for team/player/coach strings. Widened to the union of all
+  four provider surfaces; the assertion itself is unchanged and nothing was downgraded to `warn`.
+  Verified after: 67 of 67 keys match a live provider string, 3 of 67 under the old scope.

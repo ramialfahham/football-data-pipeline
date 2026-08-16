@@ -21,26 +21,25 @@ hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anythin
 export, 5 the page spec. ⚠ A seed COLUMN and its first reader cannot ship together, so 3 is its own
 MR.
 
-⛔ **THE MART IS WRITTEN AND PARKED** — `git stash list`, message `feat/62-mart-competition-index:
-mart + confederations region_rank; region_label BLOCKED on #69`. Match by MESSAGE. `region_label` is
-the blocker: it puts a COUNTRY and a CONTINENT in one column and branches on
-`competition_types.single_country`. **CPO: *"You don't mix up countries and continents or regions in
-one column and add a flag 'single country'. That's really bad modeling."*** ⚠ Nothing ever read that
-flag (`seeds/schema.yml:99` says so itself).
-⛔ **#69 IS RESCOPED to TWO dimensions** (its 08-16 note is the authority): `dim_region` from
-`confederations.csv` (**exists, 7 rows, read by nothing**) + `dim_country` built new. A competition
-POINTS AT one; **which relationship is populated IS the answer** — no flag, no branch. Cost: the
-registry's `country` mixes 21 countries with 24 region words; those 24 become NULL. Deletes
-`single_country`. ✅ **DISCOVERY COMPLETE — the 08-16 notes on #69.** 285 values; the defect is ONE
-endpoint: `/teams` hyphenates 37 countries that `/players`/`/coachs` spell with spaces.
-⛔ **`!45` made `USA` WORSE:** leagues now read `United States of America`, the other three still
-`USA` (28/816/45), so `countries.csv` must map it for EVERY surface. `World` is league-only (24)
-and never becomes a country row. **NEXT: canonical names, HIS.**
+⛔ **THE MART IS WRITTEN AND PARKED** — `git stash list`, message `feat/62-mart-competition-index`.
+Match by MESSAGE. `region_label` is the blocker: it puts a COUNTRY and a CONTINENT in one column and
+branches on `competition_types.single_country`. **CPO: *"You don't mix up countries and continents
+or regions in one column and add a flag 'single country'. That's really bad modeling."*** ⚠ Nothing
+ever read that flag (`seeds/schema.yml:99` says so itself).
+⛔ **#69 IS RESCOPED to TWO dimensions**: `dim_region` from `confederations.csv` (**exists, read by
+nothing**) + `dim_country` built new. A competition POINTS AT one; **which relationship is
+populated IS the answer** — no flag, no branch. Cost: the registry's `country` mixes 21 countries
+with 24 region words; those 24 become NULL. Deletes
+`single_country`. ✅ **DISCOVERY + NAMES DONE — the 08-16 notes on #69 are the authority.** 285
+provider values → **224 entities**. ⚠ NOT one endpoint: `/teams` hyphenates AND `/players`/
+`/coachs` are inconsistent with themselves (`Czechia` beside `Czech Republic`). **Rule: English,
+everyday short form, no diacritics** — Turkey/Ivory Coast, not the UN's two endonyms; Russia not
+Russian Federation. Exceptions `Republic of Ireland` + `United States of America`. `World` is
+league-only (24) and never becomes a country. **NEXT: `dim_country` + `dim_region`, then FKs.**
 
 ✅ **`!43` + `!45` LIVE IN PROD.** ⚠ `sync_dbt_vars.py:45` is now accurate — do not "fix" it.
-⚠ **Never normalise country names by regex** — `Guinea-Bissau`/`Timor-Leste` are correctly
-hyphenated, now MEASURED (#69 note). **The transformation layer decides the FORM, the CPO the
-NAME.**
+⚠ **Never normalise country names by regex** — `Guinea-Bissau` is correctly hyphenated, MEASURED
+on the player surface. **The transformation layer decides the FORM, the CPO the NAME.**
 
 ⛔ **`sort_order` IS OBSOLETE (CPO 2026-08-16)**; the mart must not read it. **The full rule is the
 08-16 ordering note on #54 — read it, do not reconstruct it.** In one line: has-upcoming-fixture →
@@ -50,7 +49,7 @@ nothing upcoming last, most-recently-played first. ⚠ **Mart carries FACTS, the
 ORDER BY** — sorting is arrangement, not a fact. ⚠ Retiring `sort_order` reaches past #54 into
 `export_site_data.py`, `BrowseGrid.astro`, `landing.json` (#44, #367) — NOT scoped yet.
 
-✅ **Membership is 45 rows** — all have fixtures and logos; registry `status` useless here.
+✅ **Every registry competition has fixtures and a logo**; `status` useless here.
 
 ⛔ **HOME PAGE: authority is #40 + #41, NOT `10_home.md` §0** (it says nine/six boards top 5; truth
 is FOUR boards of ONE metric, top 7). #367 shipped next matches → browse; Top players/teams designed
