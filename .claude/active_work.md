@@ -5,9 +5,9 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-16**. **MR #50 OPEN** (#72 BPL/TSL/EKS; women's dropped/CPO);
-`data:build:mr` RED BY DESIGN, see **#73**. main `217b321` — see `git log` for what merged
-08-12→08-16, this file no longer enumerates it. Product **Matchday Pilot**; repo on **GITLAB**
+_Last updated **2026-08-16**. **NOTHING IN FLIGHT** — `!50` merged (#72 BPL/TSL/EKS; women's
+dropped/CPO); `data:build:mr` RED BY DESIGN, see **#73**. main `3c8492b` — see `git log` for what
+merged, this file no longer enumerates it. Product **Matchday Pilot**; repo on **GITLAB**
 (`glab`, MRs, `.gitlab-ci.yml`). GitHub KEPT but dormant — Actions run nothing, its 114 issues
 unreachable.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
@@ -25,42 +25,39 @@ MR.
 mart + confederations region_rank; region_label BLOCKED on #69`. Match by MESSAGE. `region_label` is
 the blocker: it puts a COUNTRY and a CONTINENT in one column and branches on
 `competition_types.single_country`. **CPO: *"You don't mix up countries and continents or regions in
-one column and add a flag 'single country'. That's really bad modeling."*** ⚠ Nothing has ever read
-that flag (`seeds/schema.yml:99` says so itself).
+one column and add a flag 'single country'. That's really bad modeling."*** ⚠ Nothing ever read that
+flag (`seeds/schema.yml:99` says so itself).
 ⛔ **#69 IS RESCOPED to TWO dimensions** (its 08-16 note is the authority): `dim_region` from
 `confederations.csv` (**exists, 7 rows, read by nothing**) + `dim_country` built new. A competition
 POINTS AT one; **which relationship is populated IS the answer** — no flag, no branch. Cost: the
 registry's `country` mixes 21 countries with 24 region words; those 24 become NULL. Deletes
-`single_country`. DISCOVERY first, then names to the CPO.
+`single_country`. ✅ **DISCOVERY IS DONE — its 08-16 note on #69.** 282 distinct values, and the
+defect is ONE endpoint: `/teams` hyphenates 37 countries that `/players` and `/coachs` spell with
+spaces. ⚠ `dim_league` contributed nothing to that run (prod was stale) — **re-run it now prod is
+repaired**, then names to the CPO.
 
-✅ **`!43` + `!45` MERGED — country fixed at source (wrong JSON path) and standardised in base**,
-45/45. ⚠ `sync_dbt_vars.py:45` is now accurate — do not "fix" it. ⚠ **Never normalise country
-names by regex** — `Guinea-Bissau` and `Timor-Leste`
-are correctly hyphenated. **The transformation layer decides the FORM, the CPO decides the NAME.**
+✅ **`!43` + `!45` LIVE IN PROD.** ⚠ `sync_dbt_vars.py:45` is now accurate — do not "fix" it.
+⚠ **Never normalise country names by regex** — `Guinea-Bissau`/`Timor-Leste` are correctly
+hyphenated, now MEASURED (#69 note). **The transformation layer decides the FORM, the CPO the
+NAME.**
 
-⛔ **`sort_order` IS OBSOLETE (CPO 2026-08-16)**; the mart must not read it. Values are incoherent
-(restart in some types, run through in others, 110/120/130 in two) — that collision forced #54 note
-3's `min(sort_order)` workaround. **Approved rule:** has-upcoming-fixture → days to next kickoff
-**BUCKETED BY DAY** (raw clock ranks ED 10:15 over PL 19:00 — noise) → **region_rank** → kickoff
-time → `league_code`; nothing upcoming last, most-recently-played first. National teams rise during
-a break with no special case. Measured 25/45 upcoming, 20 none, 11 today. `region_rank` (UEFA 1 ·
-FIFA 2 · CONMEBOL 3 · CONCACAF 4 · AFC 5 · CAF 6 · OFC 7) is HIS judgement. ⚠ Mart carries FACTS,
-the spec declares the ORDER BY — **sorting is arrangement, not a fact**. ⚠ Retiring it reaches past
-#54 — `export_site_data.py:583`/`:586`, `BrowseGrid.astro`, `landing.json` (#44, #367). ⚠ Order is
-only as fresh as the last build; the nightly covers that (⭐ above) but is FLAKY.
+⛔ **`sort_order` IS OBSOLETE (CPO 2026-08-16)**; the mart must not read it. **The full rule is the
+08-16 ordering note on #54 — read it, do not reconstruct it.** In one line: has-upcoming-fixture →
+days to next kickoff **BUCKETED BY DAY** → **region_rank** (UEFA 1 · FIFA 2 · CONMEBOL 3 · CONCACAF
+4 · AFC 5 · CAF 6 · OFC 7, HIS judgement, on `confederations.csv`) → kickoff time → `league_code`;
+nothing upcoming last, most-recently-played first. ⚠ **Mart carries FACTS, the spec declares the
+ORDER BY** — sorting is arrangement, not a fact. ⚠ Retiring `sort_order` reaches past #54 into
+`export_site_data.py`, `BrowseGrid.astro`, `landing.json` (#44, #367) — NOT scoped yet.
 
 ✅ **Membership is 45 rows** — all have fixtures and logos; registry `status` useless here.
 
-⛔ **HOME PAGE: design authority is #40 (players) + #41 (teams), NOT `10_home.md` §0**, wrong on both
-(nine/six boards top 5; truth is FOUR boards of ONE metric, top 7). #367 shipped next matches →
-browse; Top players/teams designed NOT built, slot BETWEEN. Follow-ups **#36** (blocks #377) ·
-**#38** · **#42** · **#43** · **#44** · **#45**.
+⛔ **HOME PAGE: authority is #40 + #41, NOT `10_home.md` §0** (it says nine/six boards top 5; truth
+is FOUR boards of ONE metric, top 7). #367 shipped next matches → browse; Top players/teams designed
+NOT built, slot BETWEEN. Follow-ups **#36** (blocks #377) · **#38** · **#42**–**#45**.
 
-⚠ **REBASE TAX, paperwork-only:** conflicts land ONLY in `.claude/task/*`. **MINE** for
-contract/review/review_input; **UNION** `escalations.log` by ARITHMETIC (not always
-`main + (mine − base)` — !27 inserted at the TOP), then REBIND `diff_sha256`.
-⚠ **NEVER restore uncommitted work with `git checkout --`** — it restores from HEAD and wipes the
-edits. Bit me twice.
+⚠ **REBASE TAX:** conflicts land ONLY in `.claude/task/*` — **MINE** for contract/review, **UNION**
+`escalations.log` by ARITHMETIC (not always `main + (mine − base)`), then REBIND `diff_sha256`.
+⚠ **NEVER `git checkout --` to restore uncommitted work** — it restores from HEAD and wipes it.
 
 ⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name (branched on at
 `int_team_momentum_window.sql:135` behind a `coalesce`; renaming without the SQL edit silently gives
@@ -77,7 +74,6 @@ is the provenance table. ⚠ **Its 16 is ELEMENTS, not mart columns** ("16-colum
 Audit + cold re-run in **GitLab #30**. **Findings replicate, prioritisation does not** — output is
 LEADS TO VERIFY, never a work list. **Mechanism beats wording:** of 50 corrections, **33 prose-only,
 22 recurred, every rule that got a mechanism stopped.**
-
 **⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
 CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped._
 
@@ -85,29 +81,31 @@ CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped._
 must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** and the **#62 mart** (⭐ above)._
 
 ## ⭐ The ingest cluster
-✅ **THE NIGHTLY IS LIVE — verified 08-16; the old entry was WRONG on all three counts** (said
-failing, no schedule, image needs deploying). **TWO nightlies exist:** the GitLab CI `data:nightly`
-moved to **Cloud Run under #39** because CI kept killing it, so its GitLab schedule (id 4379625) is
-**paused ON PURPOSE — do not re-enable.** Runbook `deploy/nightly/README.md`. `fdp-nightly` is
-Ready, fired by Cloud Scheduler 04:00 UTC; raw written 04:15 on 08-16. ⚠ **FLAKY: 3 of the last 6
-nights failed** (11/12/14; 13/15/16 green) — do not call it fixed. ⚠ Unverified: whether the dbt
-build runs or only the ingest. Check:
-`gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 7`
-⚠ **Lesson, also in memory: an impact map that stops at LINEAGE misses GATES.** Item 14 changed
-FETCH CADENCE and broke a gate assuming nightly fetches, past four reviewers.
+✅ **PROD IS CURRENT as of 08-16 13:40 UTC** — `dim_league` reads **45/45 country, 21/21 flag**
+(`Saudi Arabia · South Korea · United States of America · World ×24`). **TWO nightlies:** GitLab CI
+`data:nightly` moved to **Cloud Run under #39**, so its GitLab schedule (id 4379625) is **paused ON
+PURPOSE — do not re-enable.** Runbook `deploy/nightly/README.md`.
+⛔ **#74 — THE IMAGE NEVER TRACKED `main`.** `gcloud run jobs deploy --source .` packages the
+working tree and nothing redeploys it (no trigger, no CI job — verified). It ran 08-14 code for two
+days and **rebuilt prod nightly from it, REVERTING `!43`/`!45`** after `data:build:main` had written
+them correctly. Redeployed by hand 08-16; **stale again on the next merge.**
+⛔ **#75 — red nights are DATA QUALITY.** 08-16 failed on ONE orphan row (`player_sk` 544602, CIT),
+skipping **103 nodes**; 08-12 on a different fixture-event test, **540**. The skip is the gate
+working — prod keeps its last good data.
+⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
+⚠ **Lesson, in memory: an impact map that stops at LINEAGE misses GATES** (#33 item 14).
 ⚠ **None of the four ingest fixes does what its title suggests** — caveats on #896-#898. Ultra plan
 **450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds. **No public site.**
 
 ## ⭐ COST — read **GitLab issue #3** before touching anything
-
 Everything recoverable from #547 is in **GitLab #3** — baselines, the ranked list **in ITS order**,
-the free tools, MEASURED vs UNMEASURED. Read it; do not redo it.
-⚠ **#70** adds a scan-budget guard there. Traps:
+the free tools, MEASURED vs UNMEASURED. Read it; do not redo it. ⚠ **#70** adds a scan-budget guard
+there. Traps:
 
 - **⚠ NEVER set a time-based partition expiry on raw** (#892). Nine biennial/quadrennial tournaments
-  are `ingest_active` and go months without a refresh; expiry would delete the ONLY surviving row and
-  staging's `qualify` would return zero rows. Use keep-latest-per-`(table, league_code)`. **A fixed
-  lookback window has the same defect.**
+  go months without a refresh; expiry would delete the ONLY surviving row and staging's `qualify`
+  would return zero. Use keep-latest-per-`(table, league_code)`. **A fixed lookback window is the
+  same defect.**
 - **⚠ Do NOT claim the API quota "breaks first"** — claimed once without evidence, withdrawn.
   (`standings.py:30` and `teams.py:28` DO loop every season daily with no skip — real, worth fixing.)
 - **⭐ FREE: `bq query --dry_run`** (exact bytes, nothing runs) and **`report_bq_cost.py`**.
@@ -120,7 +118,6 @@ the free tools, MEASURED vs UNMEASURED. Read it; do not redo it.
 
 ## ⭐ REVIEW MECHANICS — what the working agreement does not give you
 Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
-
 - **Build the patch with the hook, never by hand:**
   `python .claude/hooks/git_discipline.py --review-patch > .claude/task/review_input.patch`
   ⚠ It is `git diff --staged <base>`, so **`git add` FIRST or it comes out EMPTY**. `contract.md` +
@@ -155,23 +152,23 @@ follow a control); four CPO-class consequences open.
 
 ## OWED — deferred
 - **Guard telemetry is absent** — 2,684 lines of enforcement, zero records of a gate firing (#30
-  finding 4); **the round cap only RECORDS** a builder-typed number. Both unfixed. Also: delete
+  finding 4); **the round cap only RECORDS** a typed number. Both unfixed. Also: delete
   `macros/apif_latest_source_partition.sql` · metric-change skill · mirror crests · reviewers as
   peers.
-- **⭐ #904 IS THE DOMINANT FAILURE** — a claim about the code asserted rather than RUN. Faces all
-  seen: a grep scoped narrower than the sentence it supported; a TEST that passes either way (#63
-  shipped three); **reading a column while never reading its VALUES** (`!43`); and **repeating a
-  number out of this file without opening the source** (`!47`, the "16-column contract"). **A claim
-  of ABSENCE must state where it looked; a test must be seen RED first; a column is not data.**
-  Prose has failed 8×; the mechanism is **#71**.
+- **⭐ #904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. Faces all seen: a grep
+  scoped narrower than its sentence; a TEST that passes either way (#63 shipped three); **a column
+  read without its VALUES** (`!43`); **a number repeated out of this file** (`!47`); and **a JOB
+  STATUS read instead of the data** (`!49`, which declared the nightly fine while it ran two-day-old
+  code). **Absence must state where it looked; a test must be seen RED; a column is not data; green
+  is not evidence.** Prose has failed 8×; the mechanism is **#71**.
 
 ## NEXT
-0. **THE NIGHTLY IS DONE — nothing to build** (⭐ above). #39's Cloud Run move already satisfied the
-   CPO's *"there should be a nightly"*. **What remains is its FLAKINESS** and confirming the dbt
-   build runs, not the ingest alone. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT
-   branch's code.
-1. **#69 FIRST, then #62 step 3** (⭐ CURRENT) — step 3's `region_label` needs #69's two dimensions;
-   the mart is written and stashed. Then step 4 repoints the export, 5 the page spec.
+0. **THE NIGHTLY: two REAL defects, both filed** (⭐ above). **#74** the image does not track `main`
+   — redeployed 08-16 but it goes stale on the next merge, so prod silently reverts. **#75**
+   fixture-event integrity turns it red and skips 103–540 nodes. ⚠ **#4**: a web dispatch from ANY
+   branch builds prod from THAT branch's code.
+1. **#69 FIRST, then #62 step 3** (⭐ CURRENT). Discovery is DONE; next is re-running it with
+   `dim_league` included, then names to the CPO. Then step 4 repoints the export, 5 the page spec.
 2. **The audit stream (⭐ above).** ⚠ Do NOT mix with cost. The CPO's, one command each: **Q2 of
    #21** (set `main`'s push access to No one — the SERVER should protect it, not a client hook;
    ⚠ a branch cut from `gitlab/main` INHERITS that upstream, so unset it) · delete the 2 dead
@@ -202,8 +199,8 @@ slim-vs-drop, blocking the biggest cost item** · **#21** · **#69** canonical c
 - **DESIGN, the weak spot:** never off the cuff — approved wireframes + role briefs, no block
   invented to fill a slot, never the canonical page built around an edge case, ONE tab at a time.
   Rendered output not prose; gather copy decisions BEFORE the branch.
-- Do NOT treat the tracker as agreed work; re-validate. No new planning docs.
-- Do NOT touch `site/` (retired). Do NOT derive facts in the export or frontend.
+- Do NOT treat the tracker as agreed work; re-validate. No new planning docs. Do NOT touch `site/`
+  (retired). Do NOT derive facts in the export or frontend.
 - **Never merge an MR. The CPO merges. Branch from main; never commit to main.**
 - Plain language, lead with the decision, **no em dashes**, no walls of text.
 - Do NOT ask him to adjudicate what a rule settles. **But copy is ALWAYS his (§10).**
@@ -213,8 +210,8 @@ slim-vs-drop, blocking the biggest cost item** · **#21** · **#69** canonical c
 - **No PUBLIC site.** v2 unlisted, every page `noindex` — why URLs are still free.
 - **v2 built:** design system + 26 components, fixture page, team page (3 tabs), **home page (next
   matches → browse)**, page-spec + SEO contract (#826/#844), per-locale metric labels.
-- **Tests: 814 python + 1 skipped** (measured 08-14 on main), plus 59 site (`cd site_v2 && npm
-  test`); **219 dbt** after `!45`. ⚠ MEASURE, never predict (#904) — python was 665 two weeks ago.
+- **Tests: 814 python + 1 skipped** (08-14 on main), 59 site, **1004 dbt in prod**. ⚠ MEASURE,
+  never predict (#904) — python was 665 two weeks ago.
 - **`ruff` runs in CI** as `lint:python` (!20), config **`.ruff-ci.toml`** — filename load-bearing,
   pinned by `tests/test_lint_config.py`.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
