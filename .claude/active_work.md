@@ -5,8 +5,8 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-16**. **MR #50 OPEN** (#72: BPL/TSL/EKS onboarded; women's leagues
-dropped/CPO), awaiting merge. main `1c4199f`. Merged 08-12→08-16:
+_Last updated **2026-08-16**. **MR #50 OPEN** (#72 BPL/TSL/EKS; women's dropped/CPO);
+`data:build:mr` RED BY DESIGN, left as-is, see **#73**. main `1c4199f`. Merged 08-12→08-16:
 **#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**, **#62 step
 1**, **`!43`** `!45` `!46` `!47`. Product **Matchday Pilot**; repo on **GITLAB** (`glab`, MRs,
 `.gitlab-ci.yml`). GitHub KEPT but dormant — Actions run nothing, its 114 issues unreachable.
@@ -165,7 +165,7 @@ follow a control); four CPO-class consequences open.
 
 ## NEXT
 0. **⚠ THE NIGHTLY — now DECIDED, build it.** CPO 2026-08-16: *"there should be a nightly"* — the
-   recurring cost is approved, no longer his to rule on. Two parts: deploy the image (`gcloud run
+   recurring cost is approved, closed. Two parts: deploy image (`gcloud run
    jobs deploy fdp-nightly --source . --region europe-west1` from main; !39's fix is merged but not
    live) AND create the missing GitLab SCHEDULE. ⚠ **#4**: a web dispatch from ANY branch builds
    prod from THAT branch's code. The #62 ordering rule DEPENDS on this.
