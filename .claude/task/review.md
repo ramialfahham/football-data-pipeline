@@ -1,54 +1,50 @@
-# Review — fix/62-standardize-country-names — 2026-08-15
+# Review — feat/72-onboard-mens-leagues — 2026-08-16
 
-diff_sha256: 9fe213cf246da05581fc071319f7fb4b0ea4acd8b1a0b8b80049d820dd6411f5
+diff_sha256: 7ebfe1c7414d5f6bebd414b11f6a78ce68cb33cc28085718ebe5e5623ba3c377
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The diff's file set matches `scope_paths` exactly — `seeds/country_name_overrides.csv`,
-  `seeds/schema.yml`, `base_apif__leagues.sql`, `base.yml`, the new singular test, and
-  `active_work.md`. No out-of-scope file touched.
-- The cited CPO ruling exists verbatim in `.claude/task/escalations.log` (2026-08-14: "Our
-  transformation layer is the place where we clean, reconcile and standardize the data... Raw
-  doesn't define the taxonomies"), so the claimed authority for standardizing in base is real.
-- Checked for scope creep into the other country columns (`dim_team.team_country`,
-  `dim_player.player_birth_country`, `dim_coach.coach_birth_country`): the diff touches only
-  `league_country`, `decisions_reserved` excludes the other three explicitly, and no teams,
-  players or coaches file appears in the patch.
-- Checked whether this is a NEW mechanism needing fresh authority: `team_name_overrides` (seed +
-  left join + coalesce + `assert_..._still_needed`) already exists in `base_apif__teams_global.sql`.
-  This is a literal reapplication of that pattern to a second column, so A3 does not apply.
-- Verified `dim_league.sql` still passes `league_country` through unmodified and `core.yml` adds no
-  coalesce — base corrects, the core dim publishes.
-- The one genuinely reserved §10 item (`USA` -> "United States of America") is flagged as a CPO copy
-  decision in `decisions_taken` and in the seed's `source`/`note`, not silently taken.
-- Swept the patch for credential-shaped strings — none.
+- Diff file set vs `scope_paths`: all changed files fall inside scope_paths; no SQL/model file touched, confirming the Path B / zero-SQL-changes claim.
+- Scope creep / 4th league or existing-row mutation: exactly 3 new entries (BPL/TSL/EKS) added identically across registry.yml, dbt_project.yml var list, and competition_registry.csv; i18n files get exactly 3 new keys each; no existing key/entry value changed. No WSL/NWSL/Liga-Mx-Femenil/women's-league entries appear anywhere in the diff, consistent with decisions_taken §2.
+- `sort_order` collision check across the full registry.yml: 170/180/190 are each unique.
+- decisions_taken vs escalations.log: the three ruling summaries in contract.md match the escalation log entry line-for-line, with the CPO's verbatim quotes ("1. 5", "drop the women's league all").
+- §10 decision-class check: history_seasons depth, women's-league inclusion, and provider-catalog existence are all named CPO-class calls in decisions_taken, each with an escalation record — none silently assumed by the diff.
+- Credentials/secrets sweep across the full patch: none present.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: the correction lives in `base_apif__leagues.sql` via seed + `left join` +
-  `coalesce`, matching `layering.md` §2_base, and keeps country an ATTRIBUTE rather than promoting
-  it to a dim before a rollup consumer exists. `dim_league.sql` is confirmed unchanged — still a
-  bare `select league_country` pass-through — so core publishes rather than corrects, per
-  `feedback_entity_corrections_in_base`. No hardcoded `league_code` in the new SQL.
-- Fidelity to the existing pattern: compared `base_apif__teams_global.sql:12-52` against the new
-  `base_apif__leagues.sql:1-44` — same three-part shape. The one structural divergence, keying on a
-  provider STRING rather than a stable numeric id and adding a "provider string disappeared" branch
-  to the test, is forced by the absence of a country dim today, is stated explicitly in both the
-  seed description and `decisions_reserved`, and is a SUPERSET of the team test's coverage, not a gap.
-- The test can actually fail: it fires when the override equals the provider string (no-op row) or
-  when the provider string no longer appears in `stg_apif__leagues.country` at all. Checked all 3
-  seed rows against both conditions — green today with a demonstrable path to red, not decoration.
-- Grain safety: `provider_country` carries a `unique` test, so the new `left join` cannot fan out
-  rows and the model's existing `unique_combination_of_columns` grain test still holds.
-- Catalogue, consumption and config-as-code: not a metric, no export script touched, no
-  `dbt_project.yml` change, no per-model materialization override — A1/A5 do not apply.
-- Residual-gap honesty: the seed's schema entry states plainly that a newly onboarded hyphenated
-  country is NOT caught by this mapping and closes only with #69's FK, rather than implying full
-  coverage.
+- `dbt_project/dbt_project.yml`: adds exactly BPL/EKS/TSL to `active_competition_league_codes` in correct alphabetical position, matching `sorted(_registry_active_codes())` in `scripts/sync_dbt_vars.py`. No other line touched.
+- `dbt_project/seeds/competition_registry.csv`: three new rows match `SEED_COLUMNS` order and lexicographic placement; cross-checked field-for-field against each `docs/competition_registry.yml` entry — all match.
+- `sort_order` collision check: 170/180/190 confirmed as the next free slots after VL=160, no duplicates in CSV or registry.yml.
+- Zero hits under `dbt_project/models/**` — no-new-model rule satisfied.
+- i18n additions are static label lookups, no computation — consistent with the Consumption-layer rule.
+- No hardcoded league/competition identifier introduced in any business-logic layer.
+- Impact-map applicability: no model file/grain/staging model changed; the documented no-new-model extensibility mechanism covers this, so a full lineage impact map isn't required — the contract's impact_map correctly scopes to the one piece (i18n) not covered by that mechanism.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- provider_league_id collisions: all existing IDs enumerated against the new 144 (BPL), 203 (TSL), 106 (EKS) — no collisions.
+- league_code collisions and format: BPL/TSL/EKS checked against every existing code — no collision, within the 2-6 uppercase char rule; TSL correctly avoids reusing SPL (Saudi Pro League).
+- Required-field completeness: each new entry carries every field the sibling pattern (VL/LMX/LP/MLS/SPL/ED) carries.
+- history_seasons cost rule: value is 5, with rationale in both `notes` and `escalations.log` citing the CPO's explicit "1. 5" answer — satisfies the registry's "never increase without explicit approval, state the rationale" rule.
+- api_coverage_verified dated 2026-08-16 for all three; pattern (no `api_coverage:` sub-block) matches sibling non-Big-5 entries.
+- `raw_table_prefix` absent, per rule 4.
+- dbt vars/seed sync: both files gained BPL/EKS/TSL in the same diff as the registry entries (single-source rule honored).
+- ROUND 1 FINDING, FIXED: `done_when` originally had no line requiring the post-merge `verify_competition_ingest.py --strict` check that the onboard-competition skill documents as the gate against NULL fixture_id / stale wrong-ID fixture-details / orphaned dim_team rows — exactly the risk three brand-new provider IDs carry on first ingest. Fixed by adding a `done_when` bullet committing to that check per league before BPL/TSL/EKS are treated as onboarded-and-healthy. Re-read the amended contract: the gap is closed.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Parsed all three of `site/i18n/{en,de,fi}.json` in full: valid JSON, no trailing commas, no duplicate keys; BPL/TSL/EKS inserted inside the `competitions` block before `WC`, matching the documented skill convention.
+- All three new keys present in every locale; display string identical across en/de/fi for all three, consistent with the untranslated-proper-noun convention already used for PD/SA/L1/MLS/SPL/ED.
+- Cross-checked each new label against `docs/competition_registry.yml`'s `name` field — exact match, no divergence.
+- No existing key's value touched, no unrelated block edited.
+- `site/i18n/*.json` is the legacy retired-MVP label dictionary, disconnected from `export_site_data.py` and from site_v2 — no `rendered_page_evidence.md` required.
 
 ## escalations
-(none)
+(none — the three #72 CPO-class questions were escalated and answered before this diff was written; see `.claude/task/escalations.log`, 2026-08-16 entry. Nothing new escalated during review.)
