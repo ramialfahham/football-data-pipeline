@@ -46,7 +46,7 @@ a break with no special case. Measured 25/45 upcoming, 20 none, 11 today. `regio
 FIFA 2 · CONMEBOL 3 · CONCACAF 4 · AFC 5 · CAF 6 · OFC 7) is HIS judgement. ⚠ Mart carries FACTS,
 the spec declares the ORDER BY — **sorting is arrangement, not a fact**. ⚠ Retiring it reaches past
 #54 — `export_site_data.py:583`/`:586`, `BrowseGrid.astro`, `landing.json` (#44, #367). ⚠ Order is
-only as fresh as the last build → the nightly (NEXT 0) is its dependency.
+only as fresh as the last build; the nightly covers that (⭐ above) but is FLAKY.
 
 ✅ **Membership is 45 rows** — all have fixtures and logos; registry `status` useless here.
 
@@ -83,17 +83,19 @@ CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped._
 **FIRST ACTION: `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX. TWO
 must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** and the **#62 mart** (⭐ above)._
 
-## ⭐ The ingest cluster is CLOSED but UNVERIFIED
-
-⛔ **THE 04:00 NIGHTLY IS FAILING; `!39` DID NOT FIX IT.** The completeness gate reads a DELIBERATE
-7-day re-fetch skip (#33 item 14) as a stalled ingest and exits 3 before dbt. Fix merged, but **the
-nightly runs an IMAGE** — needs `gcloud run jobs deploy fdp-nightly --source . --region
-europe-west1` from main. (`data:build:main` ran 08-13, so prod is fresh; different job.)
+## ⭐ The ingest cluster
+✅ **THE NIGHTLY IS LIVE — verified 08-16; the old entry was WRONG on all three counts** (said
+failing, no schedule, image needs deploying). **TWO nightlies exist:** the GitLab CI `data:nightly`
+moved to **Cloud Run under #39** because CI kept killing it, so its GitLab schedule (id 4379625) is
+**paused ON PURPOSE — do not re-enable.** Runbook `deploy/nightly/README.md`. `fdp-nightly` is
+Ready, fired by Cloud Scheduler 04:00 UTC; raw written 04:15 on 08-16. ⚠ **FLAKY: 3 of the last 6
+nights failed** (11/12/14; 13/15/16 green) — do not call it fixed. ⚠ Unverified: whether the dbt
+build runs or only the ingest. Check:
+`gcloud run jobs executions list --job fdp-nightly --region europe-west1 --limit 7`
 ⚠ **Lesson, also in memory: an impact map that stops at LINEAGE misses GATES.** Item 14 changed
 FETCH CADENCE and broke a gate assuming nightly fetches, past four reviewers.
 ⚠ **None of the four ingest fixes does what its title suggests** — caveats on #896-#898. Ultra plan
-**450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds. **No public site** — not a live
-incident.
+**450/min, 75,000/day**, draw ~8,300, so the PER-MINUTE limit binds. **No public site.**
 
 ## ⭐ COST — read **GitLab issue #3** before touching anything
 
@@ -112,8 +114,8 @@ the free tools, MEASURED vs UNMEASURED. Read it; do not redo it.
 - **MEASURED 08-03: $2.73/day**, prod tests $1.46 vs models $0.75. ⚠ PREDATES both fixes to its top
   item (#33 items 9/15). **Re-measure; never quote 08-03 as current.**
 - **⚠ #2 IS LIVE; it fired 08-07 and 08-13.** `data:build:main` triggers on `data_paths`, which
-  includes `.gitlab-ci.yml` and `scripts/check_*.py`, so a governance-only MR rebuilds the whole prod
-  warehouse — costly, though on 08-13 it is what un-staled prod. **Check `data_paths` first.**
+  includes `.gitlab-ci.yml` and `scripts/check_*.py`, so a governance-only MR rebuilds the whole
+  prod warehouse. **Check `data_paths` first.**
 
 ## ⭐ REVIEW MECHANICS — what the working agreement does not give you
 Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
@@ -122,7 +124,7 @@ Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
   `python .claude/hooks/git_discipline.py --review-patch > .claude/task/review_input.patch`
   ⚠ It is `git diff --staged <base>`, so **`git add` FIRST or it comes out EMPTY**. `contract.md` +
   `escalations.log` ARE delivered; task notes are not. A trailer names any excluded file that IS
-  edited (#25/!19), so absence is not evidence of untouched.
+  edited (#25), so absence is not evidence of untouched.
 - **Run `check_task_artifacts.py` BARE** (#24, !15) — it resolves the live remote, as does the hook
   since **#63**; `GOVERNANCE_BASE` overrides both. `--staged-hash` matches CI at any length. ⚠ On an
   UNCOMMITTED branch it prints "empty diff — OK": vacuous, not green.
@@ -130,19 +132,19 @@ Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
   rounds then STOP. ⚠ `rounds: 0` is REFUSED — you do not get to skip the cycle.
 - **`.claude/task/**` is scope-exempt; `active_work.md` is NOT** — it must be in `scope_paths`, and
   a commit touching `contract.md` is **never** artifact-exempt.
-- **The org does NOT change** (CPO): low activation is not a defect; keep all reviewers.
+- **The org does NOT change** (CPO): low activation is not a defect.
 - **⭐ A correction REPLACES, never accumulates, and must replace EVERYWHERE.** ⚠ Four occurrences
   on 08-14 cost five review rounds — corrected in one artifact, alive in another as a PARAPHRASE.
   **Sweep the CLASS semantically, not the phrase you wrote.** Mechanism: **#71**.
 
 ## Player page + the next CPO decision
 **#846 + #886 merged:** the season a page opens on is a warehouse fact (`is_featured_season`, DQ
-guarded). **CPO: the pipeline picks, not the page**, scoped by the tab's LENS.
+guarded). **CPO: the pipeline picks, not the page**, by the tab's LENS.
 
 **#845 + #882 are ONE decision and his** — which entities earn a page, and whether a past season
 gets a URL or a control. Deciding apart sets the URL shape twice. Measured (×3 locales): players
-51,589→154,767; **matches are BIGGER at 176,235**; h2h 51,903; teams 9,669. A 5-match gate leaves
-1,274 teams and 21,979 players. Bring counts, not a general question.
+51,589→154,767; **matches BIGGER at 176,235**; h2h 51,903; teams 9,669. A 5-match gate leaves 1,274
+teams and 21,979 players. Bring counts, not a general question.
 
 **The player Overview is BUILT but UNCOMMITTED** in the stash `feat/player-overview-tab: Overview
 BUILT` (⚠ NOT the #62 mart stash), with a known-wrong default (`seasons[0]` = most recent of ANY
@@ -154,7 +156,7 @@ follow a control); four CPO-class consequences open.
 - **Guard telemetry is absent** — 2,684 lines of enforcement, zero records of a gate firing (#30
   finding 4); **the round cap only RECORDS** a builder-typed number. Both unfixed. Also: delete
   `macros/apif_latest_source_partition.sql` · metric-change skill · mirror crests · reviewers as
-  peers (#822 shipped half).
+  peers.
 - **⭐ #904 IS THE DOMINANT FAILURE** — a claim about the code asserted rather than RUN. Faces all
   seen: a grep scoped narrower than the sentence it supported; a TEST that passes either way (#63
   shipped three); **reading a column while never reading its VALUES** (`!43`); and **repeating a
@@ -163,29 +165,28 @@ follow a control); four CPO-class consequences open.
   Prose has failed 8×; the mechanism is **#71**.
 
 ## NEXT
-0. **⚠ THE NIGHTLY — now DECIDED, build it.** CPO 2026-08-16: *"there should be a nightly"* — the
-   recurring cost is approved, no longer his to rule on. Two parts: deploy the image (`gcloud run
-   jobs deploy fdp-nightly --source . --region europe-west1` from main; !39's fix is merged but not
-   live) AND create the missing GitLab SCHEDULE. ⚠ **#4**: a web dispatch from ANY branch builds
-   prod from THAT branch's code. The #62 ordering rule DEPENDS on this.
+0. **THE NIGHTLY IS DONE — nothing to build** (⭐ above). #39's Cloud Run move already satisfied the
+   CPO's *"there should be a nightly"*. **What remains is its FLAKINESS** and confirming the dbt
+   build runs, not the ingest alone. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT
+   branch's code.
 1. **#69 FIRST, then #62 step 3** (⭐ CURRENT) — step 3's `region_label` needs #69's two dimensions;
    the mart is written and stashed. Then step 4 repoints the export, 5 the page spec.
-2. **The audit stream (⭐ above).** ⚠ Do NOT mix it with cost. The CPO's, one command each: **Q2 of
+2. **The audit stream (⭐ above).** ⚠ Do NOT mix with cost. The CPO's, one command each: **Q2 of
    #21** (set `main`'s push access to No one — the SERVER should protect it, not a client hook;
-   ⚠ a branch cut from `gitlab/main` INHERITS that upstream, so unset it or push an explicit
-   refspec) · delete the 2 dead `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
+   ⚠ a branch cut from `gitlab/main` INHERITS that upstream, so unset it) · delete the 2 dead
+   `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
 3. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
    when, where** (CPO). Trigger/cost map FIRST, rank by real spend, fix in that order; the map goes
-   in a GitLab ISSUE, never a doc. `data_paths` (#2) ranks ~4th.
-4. **#845 + #882 — the CPO's decision.** Counts are measured and in this file: bring them, not a
-   general question. Unblocks the player page off the stash.
-5. First green nightly · **then legal/imprint**, then launch.
-6. Follow-ups — GITHUB numbers, **bodies UNREACHABLE**; re-derive from code, re-file as picked up.
+   in a GitLab ISSUE, not a doc. `data_paths` (#2) ranks ~4th.
+4. **#845 + #882 — the CPO's decision.** Counts are in this file: bring them, not a general
+   question. Unblocks the player page off the stash.
+5. **Legal/imprint**, then launch. (The "first green nightly" gate is MET — 08-15 and 08-16.)
+6. Follow-ups — GITHUB numbers, **bodies UNREACHABLE**; re-derive from code, re-file when picked up.
    **#875** metric GROUP headings English on DE/FI · **#877** `GD`, `W/D/L`, `T·I·B` need DE/FI ·
    **#876** rows break mid-word · **#863** PROTECTED path editable with no `protected_override` ·
    **#866** `Regular Season - 20` is provider text the copy gate cannot see · **#887** MR-time DQ
    cannot see its own models · **#883** blank `competition_type` skipped by all 3 guards.
-7. Mine to build, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit
+7. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit
    tool only, so `sed -i` bypasses it · **#68** the form-window CODE diverges from
    `metrics_context_model.md` §4 in 2 places (⚠ **the agreement is the authority**; never fix it by
    editing the doc) · **#60** the canonical clone sits on a feature branch, so `.venv` is not where
