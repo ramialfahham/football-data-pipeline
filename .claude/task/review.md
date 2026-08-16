@@ -1,54 +1,30 @@
-# Review — fix/62-standardize-country-names — 2026-08-15
+# Review — feat/72-onboard-mens-leagues — 2026-08-16
 
-diff_sha256: 9fe213cf246da05581fc071319f7fb4b0ea4acd8b1a0b8b80049d820dd6411f5
+diff_sha256: 5e83fb7066512a8f5e1689d70b112724f9ed98cf3c9486bf199008cc43a32392
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The diff's file set matches `scope_paths` exactly — `seeds/country_name_overrides.csv`,
-  `seeds/schema.yml`, `base_apif__leagues.sql`, `base.yml`, the new singular test, and
-  `active_work.md`. No out-of-scope file touched.
-- The cited CPO ruling exists verbatim in `.claude/task/escalations.log` (2026-08-14: "Our
-  transformation layer is the place where we clean, reconcile and standardize the data... Raw
-  doesn't define the taxonomies"), so the claimed authority for standardizing in base is real.
-- Checked for scope creep into the other country columns (`dim_team.team_country`,
-  `dim_player.player_birth_country`, `dim_coach.coach_birth_country`): the diff touches only
-  `league_country`, `decisions_reserved` excludes the other three explicitly, and no teams,
-  players or coaches file appears in the patch.
-- Checked whether this is a NEW mechanism needing fresh authority: `team_name_overrides` (seed +
-  left join + coalesce + `assert_..._still_needed`) already exists in `base_apif__teams_global.sql`.
-  This is a literal reapplication of that pattern to a second column, so A3 does not apply.
-- Verified `dim_league.sql` still passes `league_country` through unmodified and `core.yml` adds no
-  coalesce — base corrects, the core dim publishes.
-- The one genuinely reserved §10 item (`USA` -> "United States of America") is flagged as a CPO copy
-  decision in `decisions_taken` and in the seed's `source`/`note`, not silently taken.
-- Swept the patch for credential-shaped strings — none.
+- ROUND 2: the only change since round 1's reviewed diff is `contract.md` gaining `.claude/active_work.md` in `scope_paths` plus an `amendments:` entry recording why (a rebase onto a moved `gitlab/main` surfaced a real content conflict in `active_work.md` that needs hand-resolution, and the contract-edit gate requires the path to be in scope before that edit can happen). No code/config file changed in this step — confirmed via `git diff --staged --stat gitlab/main`, which shows only `.claude/task/{contract.md,escalations.log,review.md}` and `.claude/active_work.md` differing from the prior reviewed state; `docs/competition_registry.yml`, `dbt_project/dbt_project.yml`, `dbt_project/seeds/competition_registry.csv`, `site/i18n/{en,de,fi}.json` are byte-identical to what round 1 reviewed.
+- The `amendments:` entry cites real, checkable authority (working_agreement.md §3's standing handover-update rule) and states the actual reason (rebase conflict), not a vague placeholder.
+- No scope creep: the only new scope_paths entry is `.claude/active_work.md`, which is the exact file this task's own post-commit hook instructs the agent to keep current.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: the correction lives in `base_apif__leagues.sql` via seed + `left join` +
-  `coalesce`, matching `layering.md` §2_base, and keeps country an ATTRIBUTE rather than promoting
-  it to a dim before a rollup consumer exists. `dim_league.sql` is confirmed unchanged — still a
-  bare `select league_country` pass-through — so core publishes rather than corrects, per
-  `feedback_entity_corrections_in_base`. No hardcoded `league_code` in the new SQL.
-- Fidelity to the existing pattern: compared `base_apif__teams_global.sql:12-52` against the new
-  `base_apif__leagues.sql:1-44` — same three-part shape. The one structural divergence, keying on a
-  provider STRING rather than a stable numeric id and adding a "provider string disappeared" branch
-  to the test, is forced by the absence of a country dim today, is stated explicitly in both the
-  seed description and `decisions_reserved`, and is a SUPERSET of the team test's coverage, not a gap.
-- The test can actually fail: it fires when the override equals the provider string (no-op row) or
-  when the provider string no longer appears in `stg_apif__leagues.country` at all. Checked all 3
-  seed rows against both conditions — green today with a demonstrable path to red, not decoration.
-- Grain safety: `provider_country` carries a `unique` test, so the new `left join` cannot fan out
-  rows and the model's existing `unique_combination_of_columns` grain test still holds.
-- Catalogue, consumption and config-as-code: not a metric, no export script touched, no
-  `dbt_project.yml` change, no per-model materialization override — A1/A5 do not apply.
-- Residual-gap honesty: the seed's schema entry states plainly that a newly onboarded hyphenated
-  country is NOT caught by this mapping and closes only with #69's FK, rather than implying full
-  coverage.
+- Carried forward from round 1 (unchanged content, re-confirmed via the stat diff above): `dbt_project/dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` still contain exactly the BPL/EKS/TSL additions in correct alphabetical/lexicographic position, zero hits under `dbt_project/models/**`, no-new-model rule intact.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Carried forward from round 1 (unchanged content): `docs/competition_registry.yml`'s three new entries (BPL/TSL/EKS) still carry no provider_league_id or league_code collisions, history_seasons=5 with stated rationale, no `raw_table_prefix`. The round-1 finding (missing post-merge `verify_competition_ingest.py --strict` commitment) remains fixed in `contract.md`'s `done_when`, unchanged by this round's edit.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Carried forward from round 1 (unchanged content): `site/i18n/{en,de,fi}.json` still carry the same 3 new keys (BPL/TSL/EKS), identical across locales, matching the registry's `name` field, no unrelated key touched.
 
 ## escalations
-(none)
+(none — no new CPO-class question raised by this round's edit)

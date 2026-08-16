@@ -5,10 +5,11 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-16**. **NOTHING IN FLIGHT**; main is **`1c4199f`**. Merged 08-12→08-16:
-**#63**, **#33 items 9/14/15 + the completeness-gate fix**, **#65**, **#57**, **#367**, **#62 step
-1**, **`!43`** `!45` `!46` `!47`. Product **Matchday Pilot**; repo on **GITLAB** (`glab`, MRs,
-`.gitlab-ci.yml`). GitHub KEPT but dormant — Actions run nothing, its 114 issues unreachable.
+_Last updated **2026-08-16**. **MR #50 OPEN** (#72 BPL/TSL/EKS; women's dropped/CPO);
+`data:build:mr` RED BY DESIGN, see **#73**. main `217b321` — see `git log` for what merged
+08-12→08-16, this file no longer enumerates it. Product **Matchday Pilot**; repo on **GITLAB**
+(`glab`, MRs, `.gitlab-ci.yml`). GitHub KEPT but dormant — Actions run nothing, its 114 issues
+unreachable.
 ⚠ **CI WORKS AGAIN** — a self-hosted runner (`ci-runner-01`) serves this project, so jobs burn ZERO
 GitLab minutes. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
@@ -33,8 +34,8 @@ registry's `country` mixes 21 countries with 24 region words; those 24 become NU
 `single_country`. DISCOVERY first, then names to the CPO.
 
 ✅ **`!43` + `!45` MERGED — country fixed at source (wrong JSON path) and standardised in base**,
-45/45; the 24 international ones return literal `World`. ⚠ `sync_dbt_vars.py:45` is now accurate —
-do not "fix" it. ⚠ **Never normalise country names by regex** — `Guinea-Bissau` and `Timor-Leste`
+45/45. ⚠ `sync_dbt_vars.py:45` is now accurate — do not "fix" it. ⚠ **Never normalise country
+names by regex** — `Guinea-Bissau` and `Timor-Leste`
 are correctly hyphenated. **The transformation layer decides the FORM, the CPO decides the NAME.**
 
 ⛔ **`sort_order` IS OBSOLETE (CPO 2026-08-16)**; the mart must not read it. Values are incoherent
