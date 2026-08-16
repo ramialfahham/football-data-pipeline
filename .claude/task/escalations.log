@@ -2983,3 +2983,60 @@ provider catalog per the original issue research).
   as dead when they are real corrections for team/player/coach strings. Widened to the union of all
   four provider surfaces; the assertion itself is unchanged and nothing was downgraded to `warn`.
   Verified after: 67 of 67 keys match a live provider string, 3 of 67 under the old scope.
+
+
+2026-08-16 fix/75-batch-fixtures-896-guard — #896 PORTED TO batch_fixtures, AND FOUR OF MY OWN
+WRONG ANSWERS RECORDED SO THE NEXT SESSION DOES NOT REPEAT THEM (#75)
+
+  THE CPO'S RULING, and it is about PROCESS, not this defect: *"your answers are too fast. i want a
+  well grounded approach. and a suggestion that is replicable. you are always coming up with
+  something new. THAT is the real defect."* Said twice, verbatim, because the first time I answered
+  it with a fifth proposal instead of hearing it.
+
+  WHAT I PROPOSED, IN ORDER, AND WHY EACH WAS WRONG. Every one was invented from whichever file I
+  had just read, and emitted before Explore was finished (§1 Explore -> Plan -> Confirm):
+    1. "Let dim_player include players observed in events." ALREADY EXISTS — `base_apif__players`
+       has unioned `base_apif__fixture_events` at `source_priority 3` since before this task. I had
+       read `dim_player.sql` and not its source.
+    2. "Make `fct_fixture_event` mirror base." MEASURED: that deletes 13 real events from fixture
+       1564793 alone, including an entire penalty shootout. The FACT is the correct record; base is
+       the damaged one.
+    3. "Guard the retry on event count." Patches the symptom of a key that is too coarse, and would
+       block legitimate provider corrections forever — silent staleness traded for silent loss.
+    4. "Refine the merge key to (league_code, fixture_id, section)." Dressed in the
+       `RAW_APIF_PLAYERS` reshape precedent, but still a fresh invention, and a migration-sized one.
+
+  WHAT THE REPO HAD ALREADY DECIDED, which none of the four consulted:
+  **#896, ruled 2026-08-03: "an incomplete fetch must never supersede good data"**, implemented as
+  `result_is_complete()` (`http_client.py:83`) — no body error AND no latched quota flag. Ported
+  under #33 item 8a to `coaches`, `standings`, `teams`. **`batch_fixtures.py` never got it**
+  (verified: zero references). The 8a/8b split exists for precisely this hazard, in this log's own
+  words: *"Under append-only that is RECOVERABLE ... Under merge-on-write the partial write DELETES
+  the complete prior row."*
+
+  APPLIED, and it is a PORT of an existing guard rather than anything new:
+    · `result_is_complete()` checked before any delete; incomplete batch is discarded whole and
+      retries next run, matching `coaches.py`'s complete-or-discard shape.
+    · the delete is limited to fixtures the response actually RETURNED — an error-free, quota-clean
+      response can still omit an id, and deleting that fixture supersedes a stored payload with
+      nothing. Same ruling, different shape; `result_is_complete()` cannot see it.
+    · `_read_fetched_coverage` now aggregates with `LOGICAL_OR ... GROUP BY fixture_id`, because
+      the guard makes a transient second row per fixture possible and a dict-per-row read would let
+      an older empty-statistics row mask a newer complete one, re-fetching that fixture every run.
+    · module docstring corrected: one row per fixture is the STEADY STATE, no longer an invariant.
+
+  ⚠ TEST STRENGTHENED AFTER SEEING IT PASS FOR THE WRONG REASON. The first version of
+  `test_incomplete_fetch_does_not_delete_the_stored_payload` used an EMPTY response, which returns
+  early at `if not response` even unguarded — so it proved the log line, not the delete. Rewritten
+  to a PARTIAL batch (111 returned, 222 not, rate limit in the body) and re-run against the reverted
+  guard: it now fails on `deleted=[111]`, the destructive act itself. This repo has shipped three
+  tests that passed either way (#63); that is why it was re-checked rather than accepted green.
+
+  ⛔ WHAT THIS DOES NOT FIX, stated plainly. The standing orphan (player 544602, `fct_fixture_event`
+  -> `dim_player`) is NOT cleared. Measured: 5 fixtures, 29 surplus event rows, and the provider now
+  returns 17 events for 1564795 where the fact holds 27 — the data is gone at source and no ingest
+  guard restores it. Clearing it needs a decision that is the CPO's, not mine: whether a COMPLETE
+  response carrying strictly less data than what is stored may supersede it. #896 explicitly rules
+  the ambiguous case the other way today — *"An empty response with no error counts as COMPLETE:
+  that is the provider reporting no rows, and it is indistinguishable from one (CPO decision,
+  2026-08-03)"* — so changing it reverses part of that ruling. Left open, with the evidence.

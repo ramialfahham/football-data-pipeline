@@ -1,60 +1,31 @@
-# Review — feat/69-country-name-overrides — 2026-08-16
+# Review — fix/75-batch-fixtures-896-guard — 2026-08-16
 
-diff_sha256: 29cff0bb9c6c59e18ecafe63b7fedf02dae714d0a74ea75dca661882b40e379b
+diff_sha256: af1c8e6098330e575c26776ed128b82374fb825f28239a187efc2dd62772f8a1
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- ⛔ ROUND 1 FAILED, correctly. The whole task rests on four CPO rulings governing a §10 naming
-  register, and `.claude/task/escalations.log` carried no entry for them — the only 2026-08-16
-  entry belonged to a different branch (#72). §11 requires every escalation to land in the log and
-  §2 states why: "a reviewer cannot check whether a claimed ruling exists without it." Fixed by
-  appending the entry, not by arguing.
-- ROUND 2: the new `escalations.log` block covers all four naming rulings plus the fifth
-  (seed shape) with the same quotes and reasoning `contract.md` cites — nothing claimed in the
-  contract lacks a matching paragraph in the log, and nothing in the log invents authority beyond
-  what the contract claims. The entry names the miss plainly ("THIS ENTRY WAS MISSING AND A
-  REVIEWER CAUGHT IT") rather than minimising it.
-- No code file changed between rounds — verified against `git diff --staged --stat gitlab/main`.
-  Round 1's failure was solely the missing log entry, not a finding against the CSV, schema or test.
-- `decisions_reserved` keeps `entity_type`, `label_i18n_key`, confederation and the `dim_country`
-  supersession question open rather than deciding them. Confirmed they appear as no column in the
-  diff: the CSV header stays `provider_country,country_name,source,note`.
-- `NEW MECHANISM: none` / `RECURRING COST: none` hold — seed data plus an existing left join, no
-  new object, no schedule change.
-- Credential sweep of the whole diff: nothing credential-shaped.
+- Diff file set vs `scope_paths`: `batch_fixtures.py`, `tests/test_incomplete_fetch_no_supersede.py`, `docs/data_contract.md`, `contract.md`, `escalations.log`. `docs/data_contract.md` was added mid-task via a recorded `amendments:` entry citing Class-1 rule 5, raised by data-engineer-reviewer round 1 — not a silent widening.
+- No dbt file, no model, no seed, no CI file in the diff. The change is one loader plus its guard test plus the raw contract doc.
+- `decisions_reserved` is honest and not used to launder an executed decision: the standing orphan is explicitly NOT cleared, and the "may a complete-but-smaller response supersede" question is left to the CPO with the reason (#896's 2026-08-03 ruling says the opposite today).
+- The four rejected proposals are recorded in `escalations.log` with why each was wrong, rather than quietly dropped. `_STATS_RETRY_DAYS` untouched.
+- Credential sweep of the whole diff: none.
 
-## analytics-engineer-reviewer
+## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: `base_apif__leagues.sql` is confirmed the seed's only reader and applies
-  `coalesce(overrides.country_name, leagues.country)`; `dim_league.sql` passes `league_country`
-  through with no correction logic. Matches base-corrects / core-publishes
-  (`feedback_entity_corrections_in_base`). `grep -rn "league_country"` over `4_intermediate/` and
-  `5_marts/` returns zero, confirming the contract's blast-radius claim.
-- Test widening: verified the three added staging columns exist with exactly those names by reading
-  the models (`stg_apif__teams.team_country`, `stg_apif__coaches.coach_birth_country`,
-  `stg_apif__player_profiles.birth_country`). The assertion itself is unchanged — the population it
-  compares against grew to match the seed's declared scope. Broadened, not relaxed; no severity
-  downgrade.
-- Seed content: scanned all 67 `provider_country` values — no duplicates (satisfies the `unique`
-  test), no diacritics in any `country_name` (satisfies `done_when`), and duplicate spellings of the
-  same country map to identical canonical targets.
-- The `Timor-Leste` claim: `!45`'s text calling it "correctly hyphenated, not to be touched" is
-  fully removed, the CSV now maps it to `East Timor`, and the new schema text flags the change
-  explicitly rather than leaving a stale claim beside contradicting data.
-- The two CPO exception rows each cite their own authority in `source`, distinct from the #69 rule
-  the other 65 cite.
-- Catalogue governance, competition-agnosticism, consumption layer: none apply — no metric, no
-  hardcoded league code, no export or frontend file touched.
+- Traced all four paths in `_fetch_and_persist_batch`: incomplete → return before any write; empty-but-complete → return before the delete block; retry returned → delete then re-insert from the same response (net one row); retry omitted → excluded from `retries_in_batch` and absent from the insert, old row untouched. The docstring claim that delete and insert stay paired, so no second row is created, holds on every path.
+- ROUND 1 FINDING 1 FIXED: `docs/data_contract.md` now says the row is the latest COMPLETE payload, names the #896 guard, and matches the traced code. No contradiction with `layering.md` or the RAW_APIF_PLAYERS section.
+- ROUND 1 FINDING 2 FIXED: `returned_ids` is now an explicit loop with `isinstance` guards, chained `.get()`, and `try/except (TypeError, ValueError)`, matching `_extract_fixture_id`'s shape.
+- FABRICATED JUSTIFICATION CORRECTED: round 1 observed the guard cannot produce a duplicate row. The builder's "transient two rows" claim in both the module docstring and the LOGICAL_OR comment was wrong and has been rewritten. The LOGICAL_OR now rests on the true reasons — BigQuery promises no row order for a per-row dict read, and `_insert_fixture_rows` does not dedup a response repeating an id (a pre-existing risk, not introduced here). It is a no-op for the single-row case.
+- Guard placement: `result_is_complete(data)` is called immediately after `fetch_json` and before any delete, satisfying its documented latch requirement and matching `coaches.py`.
+- Whole-batch discard delays new fixtures by one run rather than losing them — the accepted `coaches`/`squads` precedent.
+- Both new tests hand-traced as genuinely red-then-green, not vacuous: reverting the guard deletes both ids; reverting the `returned_ids` filter deletes `[111, 222]`.
+- No `WRITE_TRUNCATE` introduced; still `WRITE_APPEND` with DELETE+INSERT, merge-on-write and the raw cost bound (#33 item 8) preserved; growth still bounded to retried fixtures.
+- No cadence, fanout or history-window change; `_STATS_RETRY_DAYS` unchanged and flagged open in `decisions_reserved`.
 
 ## escalations
-- question: The canonical display name for every country the provider sends — a §10 naming
-  register covering 224 entities across four dims.
-  CPO ANSWER: recorded in full in `escalations.log` (2026-08-16, feat/69-country-name-overrides).
-  Four rulings: "official form"; "Republic of Ireland, keep the long form"; "modern correct name,
-  keep the everyday short form"; "the single source of truth is always english" then "No, Ivory
-  Coast and Turkey". Plus a fifth on shape: "we only need a mapping between what the provider gives
-  us and what we turn into the single source of truth name".
+- question: May a COMPLETE provider response carrying strictly less data than what is stored supersede it? Measured: 5 fixtures, 29 events, and the provider now returns 17 events for 1564795 where the fact holds 27.
+  CPO ANSWER: NOT TAKEN — deliberately left open. #896's ruling of 2026-08-03 decides the ambiguous case the other way ("an empty response with no error counts as COMPLETE ... indistinguishable"), so changing it reverses part of that ruling and is the CPO's call. Recorded in `escalations.log` and in `decisions_reserved`; this MR does not touch it.
