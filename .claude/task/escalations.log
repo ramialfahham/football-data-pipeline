@@ -2862,3 +2862,71 @@ here, and was right, as it was the previous five times.
   `dim_coach.coach_birth_country` carry 217/222/213 distinct values and very likely the same
   defect. Deliberately untouched - extrapolating across three dims from three known examples is
   what #69's DISCOVERY step exists to prevent.
+
+2026-08-16 feat/72-onboard-mens-leagues — §11 blinded escalation, THREE questions, GitLab #72
+(onboard 3 men's leagues, full coverage; evaluate 6 women's leagues, flagged weak; WSL not in the
+provider catalog per the original issue research).
+
+  PREMISE CHECK, before escalating: #72's research checked provider coverage at the SEASON level
+  (the `/leagues` endpoint's `coverage.fixtures.*` booleans) for the CURRENT season only. That
+  premise turned out to be materially incomplete for two of the three questions below — corrected
+  in-thread before the CPO ruled, not after.
+
+  QUESTION 1 — history_seasons for the 3 men's leagues (Belgian Pro League / Jupiler Pro League,
+  Süper Lig, Ekstraklasa), all three verified live with full coverage (stats_fixtures,
+  stats_players, lineups, events all True across recent seasons).
+    Path A: 5 seasons — matches every non-Big-5 domestic league onboarded recently (VL, LMX, LP,
+      MLS, SPL, ED all landed at 5). Cheaper backfill, consistent with the current default.
+    Path B: 10-11 seasons — matches the "Big 5 parity" tier (BL1/PL/PD/SA/L1), more history for
+      trend metrics, materially bigger one-time backfill; these three aren't Big-5-tier leagues.
+    RECOMMENDED: Path A (5 seasons) — the 10-11 season depth was a deliberate call for the Big-5
+    parity tier specifically; nothing about these three argues for repeating it.
+    CPO ANSWER: 5. (Path A, as recommended.)
+
+  QUESTION 2 — the 6 women's leagues in #72's scope (NWSL, Frauen-Bundesliga, Serie A Women,
+  Liga F, Première Ligue, FA WSL) plus Liga MX Femenil, all originally flagged "weak coverage
+  (fixtures+standings only)" from the current-season-only check.
+    RE-VERIFIED THREE TIMES IN-THREAD as the CPO pushed back on each round, each time with live
+    per-fixture data, not the season-level flag:
+      Round 1 (season-level flags, all seasons not just current): the "ALL False" claim was
+        wrong — 2023-2025 seasons show full True coverage for 5 of 6 leagues (not NWSL, which was
+        always full); the flag is a season-eligibility declaration, not a per-match guarantee.
+      Round 2 (5-fixture sample per league, most recent completed season, spread across the
+        season): real per-match stats presence 45-60% for 4 leagues, 0/5 for Liga F, 5/5 for
+        NWSL both seasons. Not a "season hasn't started" artifact — the season had fully finished.
+      Round 3 (CPO: "check again, I don't believe it, API-Football says full coverage" — dense
+        30+ fixture sample, evenly spaced, not just the boundary points from round 2): confirmed
+        round 2 was not a sampling artifact. Most recently completed season (2025/26, ended
+        Apr-May 2026): FA WSL 60%, Frauen-Bundesliga 45%, Serie A Women 57%, Première Ligue 57%,
+        Liga F 0% (0/30). NWSL not re-checked in round 3 (already 5/5 twice). Current 2026/27
+        season: not started for any of the 5 (all fixtures NS as of 2026-08-16) — "current season
+        up to date" was not yet checkable, there is no live data yet to be behind on.
+    Path A: onboard anyway — fixtures/standings/lineups/events are solid; stats-dependent
+      metrics/marts would show real, uneven gaps (0-60% by league) that the pipeline has no
+      established pattern for surfacing gracefully.
+    Path B: drop the women's leagues from this batch entirely, revisit if provider coverage
+      recovers.
+    RECOMMENDED: Path B for the 5 leagues with confirmed gaps; NWSL (fully covered both seasons,
+    no gap) read differently and was flagged as a distinct case worth asking about explicitly.
+    CPO ANSWER: drop all 6, including NWSL. ("Then we can't onboard them at all" / "drop the
+    women's league all.") Liga MX Femenil dropped in the same reply, no separate ruling needed —
+    it was already the weakest of the batch (no stats_fixtures/stats_players at all, even current).
+
+  QUESTION 3 — WSL: #72's original research reported it "NOT FOUND" after an exhaustive name
+  search ("Women", "Women Super League", "WSL", "WSL1", "Super League", "FA Women", "Barclays",
+  "Championship"), concluding either drop it or pursue a second provider (a new mechanism, §10).
+    RE-CHECKED live: WSL exists in the catalog as **"FA WSL"**, provider_league_id 44, England,
+    tier 1 — the CPO's own instinct ("wsl is there... under FA WSL or WSL FA") was correct, and
+    the original research's "not in the catalog" finding was a naming-search miss, not an actual
+    absence. Full per-match coverage check (round 3 methodology): 2025/26 season 60% stats
+    presence — same profile as the other 4 non-Liga-F European women's leagues.
+    Path A: drop it (no second-provider question ever arises).
+    Path B: pursue a second provider for this one league (moot once Path A of Q3 is confirmed —
+      no second provider needed, since the league does exist on the current provider).
+    CPO ANSWER: moot — WSL falls under the Q2 "drop all women's leagues" ruling. No second-provider
+    decision was ever reached because the underlying premise (WSL doesn't exist here) was false.
+
+  NET RESULT: 3 men's leagues onboarded (BPL, TSL, EKS), history_seasons=5, full fanout,
+  ingest_active=true. 6 women's leagues + Liga MX Femenil: none onboarded this round. WSL
+  confirmed to exist as "FA WSL" (id 44) for whenever the women's-league question is revisited —
+  the catalog-absence blocker from #72 no longer applies, only the coverage-quality one does.

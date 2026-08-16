@@ -466,6 +466,67 @@ competitions:
     ingest_completeness_gate: soft
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 Netherlands squad player coverage. Split-year league (2025/2026 season)."
+
+  - league_code: "BPL"
+    name: "Belgian Pro League"
+    country: "Belgium"
+    competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "belgian-pro-league"
+    sort_order: 170
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 144
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 5
+    status: "active"
+    ingest_active: true
+    ingest_completeness_gate: soft
+    api_coverage_verified: "2026-08-16"
+    notes: "Onboarded per GitLab #72. API name 'Jupiler Pro League'. hs=5 per CPO ruling, matching the recent non-Big-5 domestic-league pattern (VL/LMX/LP/MLS/SPL/ED). current_season=2025 offsets the provider's current flag (season=2026, 2026/27 not yet started as of onboarding)."
+
+  - league_code: "TSL"
+    name: "Süper Lig"
+    country: "Turkey"
+    competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "super-lig"
+    sort_order: 180
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 203
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 5
+    status: "active"
+    ingest_active: true
+    ingest_completeness_gate: soft
+    api_coverage_verified: "2026-08-16"
+    notes: "Onboarded per GitLab #72. hs=5 per CPO ruling, matching the recent non-Big-5 domestic-league pattern (VL/LMX/LP/MLS/SPL/ED). current_season=2025 offsets the provider's current flag (season=2026, 2026/27 not yet started as of onboarding). league_code TSL, not SPL — SPL is already Saudi Pro League."
+
+  - league_code: "EKS"
+    name: "Ekstraklasa"
+    country: "Poland"
+    competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "ekstraklasa"
+    sort_order: 190
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 106
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 5
+    status: "active"
+    ingest_active: true
+    ingest_completeness_gate: soft
+    api_coverage_verified: "2026-08-16"
+    notes: "Onboarded per GitLab #72. hs=5 per CPO ruling, matching the recent non-Big-5 domestic-league pattern (VL/LMX/LP/MLS/SPL/ED). current_season=2025 offsets the provider's current flag (season=2026, 2026/27 not yet started as of onboarding)."
+
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)
   # -------------------------------------------------------------------------
