@@ -127,6 +127,43 @@ From the results:
    "
    ```
    Confirm the returned teams are the expected elite clubs/nations for this competition.
+7. **Check the COUNTRY STRING the provider will store** — a new competition can bring a country
+   the pipeline has never seen, and **nothing catches a wrong one**.
+   `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an unmatched
+   provider string falls straight through to the page. No test fails. No warning appears.
+
+   The provider is inconsistent about this: it hyphenates multi-word names (`Saudi-Arabia`), uses
+   endonyms (`Türkiye`), FIFA forms (`Korea Republic`) and formal state titles
+   (`Lao People's Democratic Republic`) — and it is not even consistent between its own endpoints.
+
+   ```bash
+   PYTHONUTF8=1 python -c "
+   import sys, csv, io; sys.path.insert(0,'.')
+   from ingestion.api_football.settings import get_headers, base_url
+   import requests
+   c = requests.get(f'{base_url()}/leagues', headers=get_headers(),
+                    params={'id': <ID>}, timeout=30).json()['response'][0]['country']['name']
+   seed = {r['provider_country']: r['country_name'] for r in
+           csv.DictReader(io.open('dbt_project/seeds/country_name_overrides.csv', encoding='utf-8'))}
+   print('provider sends:', repr(c))
+   print('seed maps it to:', repr(seed[c]) if c in seed
+         else 'NOTHING - add a row unless this is already the canonical English name')
+   "
+   ```
+
+   If the provider's string is not already the canonical name and has no row, **add one in this
+   MR**. The registry entry and its override belong in the same change: caught here, the page is
+   never wrong; caught after merge, it is wrong until somebody notices.
+
+   The rule (CPO 2026-08-16, #69): **English, everyday short form, no diacritics.** A genuine
+   rename stands (`Czechia`, `North Macedonia`); a formal state title is shortened (`Russia`, not
+   `Russian Federation`). Two rows are standing exceptions and say so in their own `source`.
+
+   ⚠ **This step is a mitigation, not a guard.** The real mechanism is #69's foreign key to
+   `dim_country`, where an unknown country fails the key rather than rendering. Until that lands,
+   this checklist item is the only thing standing between a new country and the live page — and a
+   prose rule is exactly the kind of control this repo has measured as unreliable (#30). Do not
+   read its presence here as the problem being solved.
 
 Also confirm `league_code` does NOT already appear in `docs/competition_registry.yml`.
 
@@ -253,6 +290,17 @@ no SQL files were added (zero-file rule).
 4. Trigger the pages export workflow to refresh the deployed JSON.
 5. Spot-check the deployed fixture list for the new league to confirm data
    flows end to end.
+6. **Confirm the country renders correctly.** Check `dim_league.league_country` for the new
+   `league_code`:
+
+   ```bash
+   bq query --use_legacy_sql=false \
+     'select league_code, league_country from `football-data-pipeline-gcp.core.dim_league`
+      where league_code = "{LEAGUE_CODE}"'
+   ```
+
+   A hyphen, a diacritic or a formal state title means the step 0b override row was missed — add
+   it now (#69). This is a confirmation; step 0b is where the defect is actually prevented.
 
 ## Known edge cases
 

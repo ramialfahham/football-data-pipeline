@@ -1,50 +1,33 @@
-# Review — fix/73-no-mr-bootstrap-ingest — 2026-08-16
+# Review — feat/69-onboard-skill-country-check — 2026-08-16
 
-diff_sha256: 8df9402506bed5579a1f72ee983ed463e3a528919fa536ec56888aba82c6cfff
+diff_sha256: 76ab2b2bc7134cad3d48936edb18ea356294b9a1a08e96d0d7a54b188b84ac3e
 
-rounds: 2
-
-> REBOUND TWICE, both times for reasons that changed no reviewed content:
-> 1. one comment character in `.gitlab-ci.yml`, correcting a forward reference to the ingest-state
->    issue from the number guessed before filing (#74) to the one it received (#76).
-> 2. 2026-08-17, after `!56` and `!69` merged: `gitlab/main` moved, so the cumulative diff this
->    hash is computed over has a new base. `main` was merged in and the four task-artifact
->    conflicts resolved per the documented rebase tax — MINE for `contract.md`/`review.md`, UNION
->    for `escalations.log` (all three entries verified present), THEIRS for `active_work.md` with
->    this branch's delta re-applied. **No file this branch owns changed**: `.gitlab-ci.yml` and
->    `tests/test_ci_data_job_invariants.py` are byte-identical to what the reviewers below read.
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Confirmed the round-1 guard-narrowing is fully reverted: the only `--exclude tag:freshness_check` present is an unchanged context line, no `prod_state` tag or per-job test exclusion appears anywhere in the diff, and zero paths under `dbt_project/` are touched.
-- `scope_paths` vs changed files: diff touches `.claude/task/contract.md`, `.claude/task/escalations.log`, `.gitlab-ci.yml`, `tests/test_ci_data_job_invariants.py`. The latter three are listed in the round-2 `scope_paths`.
-- Attribution of the accepted four-test-failure consequence is consistent across all three artifacts (contract impact_map, the `.gitlab-ci.yml` comment, escalations.log): all say CPO 2026-08-16, not the builder.
-- escalations.log honesty: the entry names all three reviewer grounds verbatim including "the scope claim was FALSE. I wrote 'today exactly one' test. There are EIGHT... FOUR fail by construction". It does not launder the round-1 failure.
-- `protected_override` cites the verbatim CPO approval for exactly the step being deleted — the same scope round 1 already judged authorized. No new mechanism smuggled in this round.
-- Swept the full diff for credential-shaped strings: only env var NAMES appear, no values; no widened permissions.
-- `decisions_reserved` contains nothing that is actually implemented in this diff.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Verified part 2 fully reverted: `grep -rn "prod_state" .gitlab-ci.yml` returns zero hits; the diff touches exactly 4 files and no path under `dbt_project/`.
-- Read `.gitlab-ci.yml` directly rather than trusting the contract: `data:build:mr` now contains no ingest call; `data:build:main` still runs `get_new_league_codes.py` then `python -m ingestion.api_football.main` unchanged. The redundancy claim holds.
-- `protected_override` covers exactly what remains; `impact_map` is non-placeholder and its line references check out.
-- Guard invariant: no dbt test, macro or selector is touched. The four `*_covers_active_competition_var` tests stay unconditional and fail-closed on an onboarding MR. The consequence is stated three times independently and is not minimised. No guard is loosened.
-- New mechanism / recurring cost: none introduced; recurring cost is strictly negative (drops one billed `SELECT DISTINCT` per MR).
-- Pinning test scoping: uses `_script_lines_by_job` (parsed YAML, per job), asserts only against `data:build:mr`, so it cannot false-positive on `data:build:main`/`data:nightly` which legitimately contain both tokens. The explanatory YAML comment naming those tokens is stripped by `yaml.safe_load` before the assertion sees it.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round-1 finding addressed: `test_mr_data_build_never_ingests` reads the parsed job body, checks only `data:build:mr`, and asserts `"data:build:mr" in jobs` first so a rename fails loudly rather than passing vacuously.
-- RED-then-green demonstrated: the test was run against a re-injected `- python -m ingestion.api_football.main` line, failed with the intended message, then reverted to green. Satisfies the "verify the test fails" rule.
-- Both `dbt` invocations in `data:build:mr` are back to their original `--exclude tag:freshness_check` form; `prod_state` has zero hits across `.gitlab-ci.yml` and `dbt_project/`, so the revert is total.
-- No dead `$NEW_CODES` reference remains in `data:build:mr`; all three occurrences belong to `data:build:main`. `scripts/get_new_league_codes.py` is not orphaned.
-- Re-run safety: the deleted step was the only prod-writing action in the job; nothing after it depends on an ingest having run, since both dbt steps read prod via `--defer --favor-state`.
-- The new test runs in `test:python`, which executes unconditionally on every pipeline, so the invariant fails closed.
-- No credentials or permission widening in the diff.
+- Protected-path claim verified against `docs/working_agreement.md` lines 96-98 rather than taken
+  from the contract: the enumerated list is `.claude/hooks/`, `.claude/agents/`,
+  `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
+  `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`. `.claude/skills/**` is genuinely
+  absent, so no `protected_override` was required.
+- Review routing: `.claude/review_routing.json`'s `paths` has no entry for `.claude/skills/**`,
+  confirming scope-auditor is the sole required reviewer.
+- The deferred governance question (should `.claude/skills/**` join the protected list, since a
+  skill can embed shell exactly as a command can) is documented in `decisions_reserved` and NOT
+  decided in the diff. The written rule is an enumerated list, not an analogised boundary, so
+  editing the file without an override is not itself a violation — correctly deferred rather than
+  silently decided.
+- The step's central factual claim was checked against the model, not accepted:
+  `base_apif__leagues.sql:40` is `coalesce(overrides.country_name, leagues.country)` behind a
+  `left join`, so an unmatched provider string does pass through unchanged with no test failure.
+  The claim is accurate, not exaggerated to justify the change.
+- Mitigation-vs-guard framing: the added text flags itself as "a mitigation, not a guard" and names
+  #69's FK to `dim_country` as the real fix — honest about its own limits.
+- `scope_paths` conformance: the diff touches only `SKILL.md` and `contract.md`, both in scope.
+- No new mechanism, no recurring cost — a checklist addition to an existing skill.
 
 ## escalations
-(none new this round. The #73 ruling and the CPO's rejection of the guard-narrowing are recorded in `.claude/task/escalations.log`, 2026-08-16 entry.)
+(none — the `.claude/skills/**` protection question is recorded in `decisions_reserved` as a CPO
+governance item, deliberately not raised as a blocker for this change)
