@@ -107,7 +107,9 @@ Nothing is lost: the three staging models already selected only the latest row p
 
 ## Fixture details (merge-on-write)
 
-`RAW_APIF_FIXTURE_DETAILS` uses merge-on-write. Each run fetches only the fixtures that are missing data (not the full history), then upserts into the unified table keyed on `(league_code, fixture_id)`. The table always holds the latest payload per fixture, without accumulating duplicate rows.
+`RAW_APIF_FIXTURE_DETAILS` uses merge-on-write. Each run fetches only the fixtures that are missing data (not the full history), then upserts into the unified table keyed on `(league_code, fixture_id)`. The table holds one row per fixture, without accumulating duplicate rows.
+
+**That row is the latest COMPLETE payload, not the latest attempt (#896, ported here under GitLab #75).** The retry path deletes the stored row before re-inserting, and this bundle carries lineups, events, statistics and player stats *together* — so one bad retry destroys all four at once, permanently, exactly the merge-on-write hazard that forced the #33 item 8a/8b split. `_fetch_and_persist_batch` therefore refuses to delete when the replacing fetch is not `result_is_complete()`, and never deletes a retried fixture the response did not actually return. In both cases the stored payload is kept, nothing is written, and the fixture retries next run. The delete and the insert stay paired, so no second row is created.
 
 The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
 
