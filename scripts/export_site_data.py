@@ -37,7 +37,7 @@ GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                "leaderboards", "matchstats", "glossary", "landing")
+                "leaderboards", "matchstats", "glossary", "landing", "competition_index")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
@@ -940,6 +940,36 @@ def _competitions_index(registry_path: str = REGISTRY_PATH) -> dict:
     }
 
 
+_COMPETITION_INDEX_KEEP = (
+    "league_code", "competition_type", "entity_type", "slug",
+    "category_label_en", "category_label_i18n_key", "confederation", "region_rank",
+    "competition_name", "logo_url", "next_kickoff_datetime", "last_kickoff_datetime",
+    "region_label_en", "region_label_i18n_key",
+)
+
+
+def shape_competition_index(rows: list[dict]) -> list[dict]:
+    """mart_competition_index rows, projected to the columns the competitions index page (#54)
+    renders. Pure passthrough otherwise -- the mart already resolves the category label, the
+    region label and the ordering FACTS (region_rank, next/last kickoff); this function adds no
+    logic. It does not sort or filter: the mart carries facts, the page spec declares the ORDER BY
+    (#62 step 4, escalations.log 2026-08-16)."""
+    return [{k: r.get(k) for k in _COMPETITION_INDEX_KEEP} for r in rows]
+
+
+def fetch_competition_index(client) -> dict:
+    """competition_index.json -- mart_competition_index, one row per competition: the single
+    source for the competitions index page (#54, #62 step 4). Ordered by league_code only, for a
+    deterministic export diff -- NOT the page's display order, which the page spec applies at
+    render time from the ordering facts this mart carries (region_rank, next/last kickoff)."""
+    rows = _query(
+        client,
+        f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index` "
+        f"order by league_code",
+    )
+    return {"type": "competition_index", "competitions": shape_competition_index(rows)}
+
+
 def _group2(rows: list[dict], k1: str, k2: str) -> dict:
     g: dict = {}
     for r in rows:
@@ -1307,6 +1337,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
         entries.append({"type": "landing", "id": "landing", "slug": None,
                         "path": "landing.json", "sha256": sha})
+    if "competition_index" in entities:
+        sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
+        entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
+                        "path": "competition_index.json", "sha256": sha})
 
     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a

@@ -1,196 +1,262 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6d9c270..217a017 100644
+index 217a017..55c90be 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,148 +1,33 @@
--# Task contract — #69 step 5 (country FKs) + #62 step 3 (mart_competition_index)
-+# Task contract — fix stale "no reader" claims in layering.md for dim_country/dim_region
+@@ -1,33 +1,83 @@
+-# Task contract — fix stale "no reader" claims in layering.md for dim_country/dim_region
++# Task contract — #62 step 4: repoint the export at mart_competition_index
  
  objective: >
--  Wire the four free-text country columns (`dim_league.league_country`, `dim_team.team_country`,
--  `dim_player.player_birth_country`, `dim_coach.coach_birth_country`) to `dim_country` via
--  relationships tests (#69 step 5), which is what deletes `competition_types.single_country` and
--  makes "which relationship is populated" a real, enforced answer instead of a hand-typed flag.
--  Then unpark and fix `mart_competition_index` (#62 step 3), the single mart the competitions page
--  (#54) will read, whose `region_label` column was blocked on exactly this flag.
--refs: GitLab #69 (country/region dims, step 5 of its own order of work), #62 (step 3 of 5), #54
--  (page design, the region-resolution note)
-+  `dbt_project/docs/layering.md` records dim_country/dim_region (#69) as a documented exception to
-+  the layer-contract rules requiring reuse/rollup consumers before a table earns `dim_` status,
-+  because at the time they shipped with zero readers. MR !65 (merged 2026-08-17, #69 step 5 + #62
-+  step 3) gave them real readers the same day: four `relationships` tests and
-+  `mart_competition_index`. The doc's "no reader at all" / "zero consumers" claims are now false.
-+  Fix them in place; the historical record of the exception itself stays, only the still-current-
-+  ness of "no reader" is corrected.
-+refs: GitLab #69, #62, MR !65 (already merged)
+-  `dbt_project/docs/layering.md` records dim_country/dim_region (#69) as a documented exception to
+-  the layer-contract rules requiring reuse/rollup consumers before a table earns `dim_` status,
+-  because at the time they shipped with zero readers. MR !65 (merged 2026-08-17, #69 step 5 + #62
+-  step 3) gave them real readers the same day: four `relationships` tests and
+-  `mart_competition_index`. The doc's "no reader at all" / "zero consumers" claims are now false.
+-  Fix them in place; the historical record of the exception itself stays, only the still-current-
+-  ness of "no reader" is corrected.
+-refs: GitLab #69, #62, MR !65 (already merged)
++  Give the competitions index page (#54, not yet built) a real, mart-backed JSON export. Add a new
++  `fetch_competition_index()`/`shape_competition_index()` pair to `scripts/export_site_data.py`
++  that queries `mart_competition_index` (live in prod since !65) and writes `competition_index.json`
++  under a new `"competition_index"` entity type. This is #62 step 4; step 5 (the Astro page, its
++  page-spec, the nav-item anchor swap) is a separate, later MR.
++refs: GitLab #62 (step 4 of 5), #54 (page design), MR !65 (the mart, merged), MR !66 (a doc fix,
++  merged)
  
  scope_paths:
--  - dbt_project/models/2_base/api_football/base_apif__leagues.sql
--  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
--  - dbt_project/models/2_base/api_football/base_apif__coaches.sql
--  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
--  - dbt_project/models/3_core/core.yml
--  - dbt_project/models/3_core/dim_country.sql
--  - dbt_project/models/3_core/dim_region.sql
--  - dbt_project/models/5_marts/shared/mart_competition_index.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/seeds/competition_types.csv
--  - dbt_project/seeds/confederations.csv
--  - dbt_project/seeds/schema.yml
--  - .claude/active_work.md
--
--impact_map: >
--  writers: `league.country` is written by `ingestion/api_football/loads/catalog.py:38` into
--    `RAW_APIF_LEAGUES`; `team_country`/`player_birth_country`/`coach_birth_country` by the
--    teams/players-profiles/coaches loaders into `RAW_APIF_TEAMS`, `RAW_APIF_PLAYER_PROFILES`,
--    `RAW_APIF_COACHES` respectively. None of those loaders change here — only the base-layer
--    reconciliation (seed join) applied to the values already landing.
--
--  downstream (dbt 1.7.19, .venv/Scripts/dbt.exe, run 2026-08-17, `dbt ls --select <model>+`,
--    pasted verbatim):
--
--    base_apif__leagues+ (17 models) includes mart_competition_index (this task's new leaf, already
--    dependent because it's staged), mart_fixture_standing_context, mart_matchday_insights,
--    mart_roster, mart_standings, mart_team_profile, mart_team_season, mart_team_season_insights,
--    dim_league, dim_competition_season, dim_player_team_season_mapping, fct_standings,
--    int_team_season__deserved_vs_actual, int_team_season__standings_primary,
--    base_apif__league_entity, base_apif__competition_seasons.
--
--    base_apif__teams_global+ (19 models) includes dim_team, dim_player_team_season_mapping, and
--    every mart that reads dim_team: mart_fixture_standing_context, mart_matchday_insights,
--    mart_player_career, mart_player_fixture_stats, mart_player_match_log, mart_player_profile,
--    mart_roster, mart_standings, mart_team_competition_benchmarks, mart_team_fixture_stats,
--    mart_team_fixtures, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
--    mart_team_season, mart_team_season_insights.
--
--    base_apif__coaches+ (2 models): base_apif__coaches, dim_coach. Nothing reads
--    dim_coach.coach_birth_country downstream yet — grep confirms zero hits outside dim_coach
--    itself and this contract's own core.yml edit.
--
--    base_apif__player_profiles+ (10 models) includes dim_player and the marts that read it:
--    mart_leaderboards, mart_player_career, mart_player_competition_benchmarks,
--    mart_player_fixture_stats, mart_player_match_log, mart_player_profile, mart_roster,
--    mart_team_momentum_window.
--
--    mart_competition_index+ (1 model): itself only — confirmed LEAF, step 4 (export repoint)
--    has not landed.
--
--  blast_radius: every downstream consumer of team_country/player_birth_country/coach_birth_country
--    was checked (`grep -n` across `dbt_project/models/5_marts/`) and every hit is a plain
--    SELECT/pass-through display column — mart_player_career, mart_player_profile,
--    mart_team_market_value, mart_team_profile, mart_team_season, mart_team_season_insights. None
--    joins or filters on the column's string value, so correcting the spelling changes what
--    renders, never which rows join. league_country gains new NULLs (the 24 international rows,
--    previously the literal string `'World'`) — grep confirms nothing downstream reads
--    league_country today (mart_competition_index, staged in this same commit, is the first real
--    reader), so this is additive rather than a behaviour change to a shipped feature.
--    `single_country` is deleted from `competition_types.csv`; grep confirms its only reader
--    anywhere in the repo was the parked (uncommitted) mart being fixed in this same task.
--
--  layer_rules: `scripts/check_layer_contract.py`. The override join is applied in BASE
--    (`feedback_entity_corrections_in_base`: base prepares, the core dim publishes) — same pattern
--    `base_apif__leagues.sql` and `base_apif__teams_global.sql`'s `team_name_overrides` join already
--    use, applied to a second/third/fourth column rather than a new mechanism. `mart_competition_index`
--    reads only core dims and seeds (`dim_league`, `fct_fixture`, `competition_registry`,
--    `competition_types`, `confederations`), never staging or raw — the marts layer rule holds.
--
--  deploy_order: base and staging are TABLES, so corrected values land on the next
--    `data:build:main` after merge; until then the four dims keep today's provider spellings, which
--    nothing downstream reads by predicate (see blast_radius). The new relationships tests run in
--    the same build and are what actually proves the override coverage — `data:build:mr` on this
--    MR's pipeline is the first real check. `mart_competition_index` is additive (new table); its
--    reader (#62 step 4, `export_site_data.py`) is explicitly NOT in this task and ships after this
--    merges and prod rebuilds.
-+  - dbt_project/docs/layering.md
+-  - dbt_project/docs/layering.md
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - docs/site_architecture.md
++  - .claude/active_work.md
++
++impact_map: >
++  writers: `mart_competition_index` (read-only SELECT, no write) is built by `data:build:main`/
++    `data:build:mr` from the model merged in !65. `scripts/export_site_data.py` itself is invoked
++    two ways: `.gitlab-ci.yml:767` and `.github/workflows/deploy-site-v2.yml:65`, both
++    `python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data` — an
++    EXPLICIT entities list that does not include "nav", "landing", "competitions" or any other
++    existing entity type either. Adding `"competition_index"` to `ENTITY_TYPES` does not change
++    what either CI job runs; the new path stays dormant until something explicitly asks for it via
++    `--entities`. Local/manual invocation (`python scripts/export_site_data.py` with no
++    `--entities` flag, or `main()`'s own default) DOES pick up every entry in `ENTITY_TYPES`,
++    including the new one.
++
++  downstream: NONE today. `grep -rn "competition_index" site_v2/src` returns zero hits — no Astro
++    page, component or spec reads this file yet, because step 5 (the page that would) is not built.
++    `competition_index.json` is a new, additive output; nothing existing reads it, and nothing
++    existing stops reading anything it read before.
++
++  layer_rules: this is the consumption layer (`scripts/export_*.py`), not a dbt model — no
++    `check_layer_contract.py` surface. The new `shape_competition_index()` does select/project
++    only (a keep-list, mirroring `shape_leaderboards`' `_LB_KEEP` pattern at
++    `export_site_data.py:51-55`) — no ranking, no joining, no derived field, consistent with the
++    repo's own audit findings (`docs/audits/2026-06_alignment_audit.md` F4/F6/F7) about what NOT to
++    do in this file. `fetch_competition_index()` adds one `order by league_code` for a
++    deterministic export diff, explicitly NOT the page's display order (`escalations.log`,
++    2026-08-16: the mart carries facts, the page spec declares the ORDER BY) — a comment states
++    this so step 5 doesn't mistake it for the real sort.
++
++  deploy_order: none. This is a script change with no BigQuery write and no CI wiring change (see
++    writers above) — nothing about existing deploys is affected. The new function can be verified
++    by running it directly against prod (read-only SELECT, priced at 10,067 bytes) without going
++    through CI at all.
++
++  blast_radius: additive only. `ENTITY_TYPES` gains one new string; every existing entity type's
++    code is untouched. `_registry_competitions()`, `fetch_nav()`/`build_nav()`, `_competitions_index()`
++    (the small `{league_code: {name, slug}}` lookup feeding the fixture page and `TeamHeader.astro`),
++    and `fetch_competition_payloads()` (the unrelated `"competitions"` entity type, per-league-season
++    detail payloads for #47) are all read-only reference points for this task and are NOT modified.
  
  decisions_taken: >
--  CPO ruling 2026-08-16 (#69, quoted on the issue): "These things should have been already decided
--  in cleanly defined dimensional tables with clear columns. You don't mix up countries and
--  continents or regions in one column and add a flag 'single country'. That's really bad
--  modeling." This is the ruling `single_country` is deleted under.
--
--  CPO ruling 2026-08-16 (#69, canonical names note): the 225-entry canonical country list, the
--  "official form" (UN English short name) rule, and the Ireland/Yugoslavia exceptions are already
--  approved and already built into `countries.csv` + `country_name_overrides.csv` on main (merged
--  in `!61`). Nothing about the NAMES is decided in this task — this task only WIRES the existing,
--  CPO-approved seed to the three remaining surfaces and adds the foreign keys #69's own "order of
--  work" lists as step 5.
--
--  MEASURED (#69 note, 2026-08-16, priced with `bq query --dry_run`, 474,334 bytes): `league.country`
--  carries the literal sentinel `'World'` for exactly 24 rows, all international/continental
--  competitions, and `'World'` appears on no other surface. Under the two-dimension model those rows
--  carry no country and take their region from `confederation` instead — so `league_country` becomes
--  NULL for them rather than a corrected string. This is re-verified fresh in this task's `done_when`
--  before pushing, since the note is a day old and league onboarding has changed counts before.
--
--  WHERE THE REGION BRANCH LIVES (#54 note, 2026-08-16, and #69's rescope note): "which relationship
--  is populated IS the answer" — `mart_competition_index.region_label` branches on
--  `leagues.league_country is not null`, not on a competition_type-level flag. This mart already
--  reads `dim_league` (parked, unpark unchanged), so no new join is added — only the case
--  expression's condition changes.
--
--  NEW MECHANISM: none. `country_name_overrides` applied in base is the same three-part pattern
--  (seed + left join + coalesce) `team_name_overrides` already uses in the same two files
--  (`base_apif__leagues.sql`, `base_apif__teams_global.sql`); this task only widens its application
--  to the two files that don't have it yet (`base_apif__coaches.sql`, `base_apif__player_profiles.sql`)
--  and adds the World-sentinel case on the one surface that needs it. RECURRING COST: none — no new
--  seed, no new schedule; `confederations.csv` and `country_name_overrides.csv` already exist.
-+  No new CPO decision. This corrects a factual claim in documentation to match a change already
-+  reviewed, approved and merged in !65 — the exception itself (that these dims were allowed to
-+  ship ahead of a consumer) is CPO-ruled and already recorded in `escalations.log`
-+  (2026-08-17, `feat/69-country-region-dims`); this task does not revisit that ruling, only the
-+  doc's now-stale "still has no reader" wording.
-+  NEW MECHANISM: none. RECURRING COST: none.
+-  No new CPO decision. This corrects a factual claim in documentation to match a change already
+-  reviewed, approved and merged in !65 — the exception itself (that these dims were allowed to
+-  ship ahead of a consumer) is CPO-ruled and already recorded in `escalations.log`
+-  (2026-08-17, `feat/69-country-region-dims`); this task does not revisit that ruling, only the
+-  doc's now-stale "still has no reader" wording.
+-  NEW MECHANISM: none. RECURRING COST: none.
++  This wires a mart the CPO already approved (!65) into the export layer using the file's own
++  established pattern (a `shape_*` pure function + a `fetch_*` BigQuery function + one block in
++  `export_all()`) — no new mechanism, no new CPO decision. The ordering stance (mart/export carry
++  facts, page spec carries the ORDER BY) is the CPO ruling already recorded in `escalations.log`,
++  2026-08-16 — restated here as an implementation constraint, not re-decided.
++  NEW MECHANISM: none. RECURRING COST: none — one more `SELECT` against a 48-row table in a script
++  that already runs.
  
  decisions_reserved:
--  - none: this task executes #69's own already-approved "order of work" step 5 and #62's already
--    -designed step 3 as parked on 2026-08-16. No new CPO-class question surfaces in wiring an
--    approved FK or fixing a case expression to match an approved rule.
-+  - none: a doc correction against an already-merged, already-reviewed fact.
+-  - none: a doc correction against an already-merged, already-reviewed fact.
++  - Whether/when `.gitlab-ci.yml`/`deploy-site-v2.yml`'s explicit `--entities teams,fixtures` list
++    grows to include `competition_index` is deliberately NOT decided here — that is step 5's
++    concern, when a page actually consumes the file. Wiring it into CI now would commit a file
++    nothing reads.
  
  done_when:
--  - `dbt parse` succeeds against the full changed model set.
--  - SQLFluff clean, full rule set, from the repo root, on every changed `.sql` file.
--  - `dbt ls --select mart_competition_index+ --resource-type model` still returns only itself
--    (still a leaf — step 4 has not landed).
--  - A fresh priced `bq query --dry_run` + real read confirms `'World'` is still exactly the
--    international/continental league rows and nothing else on the league surface.
--  - A priced read-only query simulating the override join for team/player/coach against RAW or
--    staging confirms zero values fail to resolve against `countries.csv`'s canonical set (proves
--    the new relationships tests will pass in CI before pushing, rather than discovering it after).
--  - `grep -rn "single_country" dbt_project/ .claude/` returns no live column reference — only
--    historical-rationale prose, if any, explaining why it was removed.
--  - `.claude/active_work.md` updated in this same commit, `len()` under 16,000 characters, rebased
--    on the 2026-08-17 #74 handover-pointer update (main @ 67924ef) so a parallel session's edit
--    isn't clobbered.
--  - CI's `data:build:mr` (the actual dbt build + the new relationships tests, on real BigQuery) is
--    the authoritative pass/fail for the FK coverage claim above — this task never runs `dbt build`
--    locally.
-+  - Both stale "no reader"/"zero consumers" claims for dim_country/dim_region in layering.md are
-+    corrected to state they are now read, without erasing the historical record of why the
-+    exception was granted.
-+  - No other content in the file changes.
+-  - Both stale "no reader"/"zero consumers" claims for dim_country/dim_region in layering.md are
+-    corrected to state they are now read, without erasing the historical record of why the
+-    exception was granted.
+-  - No other content in the file changes.
++  - `shape_competition_index()` has a passing unit test (no BigQuery) mirroring
++    `test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank`'s pattern.
++  - `python scripts/export_site_data.py --entities competition_index --out artifacts/site_data` run
++    for real against prod (priced first) produces `competition_index.json` with all 48 competitions,
++    the expected keys, and a resolved `region_label_en` on both a domestic and an international row.
++  - `ruff` clean on the changed Python files.
++  - Full `pytest` run stays green (no regression from the `ENTITY_TYPES` tuple change).
++  - `docs/site_architecture.md`'s competitions-index row names `competition_index.json` /
++    `mart_competition_index` instead of the stale `nav.json` claim.
++  - `.claude/active_work.md` updated in the same commit, under 16,000 characters.
  
  amendments: (none)
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 2c21fbc..b473284 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -211,7 +211,7 @@ A table earns `dim_` status only when **all three** conditions hold:
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index f1a9ea4..f5c37a0 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -163,7 +163,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
+ | Template | Export file(s) (`data/…`) | Upstream marts |
+ |---|---|---|
+ | Landing | `landing.json` | landing feed (#365; next rounds, kickoff, trending from `mart_team_profile`) |
+-| Competitions index / country hub | `nav.json` (registry-derived) | registry seed + grouping fields |
++| Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
+ | Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 3a3278c..f03926b 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -37,7 +37,7 @@ GCP_PROJECT = "football-data-pipeline-gcp"
+ MARTS_DATASET = "marts"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+-                "leaderboards", "matchstats", "glossary", "landing")
++                "leaderboards", "matchstats", "glossary", "landing", "competition_index")
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
+@@ -940,6 +940,36 @@ def _competitions_index(registry_path: str = REGISTRY_PATH) -> dict:
+     }
  
- 1. **Entity.** It represents a real-world thing the business talks about by name (team, player, season, date, league). A lookup table for a closed enum does not qualify on its own.
- 2. **Reuse.** Its attributes are shared across more than one fact or mart. If an attribute set is consumed by exactly one consumer, denormalize it onto that consumer's fact or mart instead.
--   - ⚠ `dim_country` and `dim_region` (#69) are a RECORDED EXCEPTION to this condition too, not just to the "attribute masquerading as entity" bullet below: they shipped with **zero** consumers. Same ruling, same authority — `escalations.log`, 2026-08-17, `feat/69-country-region-dims`. Noted in both places deliberately: a reader who checks only this rule would otherwise find the contradiction with nothing explaining it.
-+   - ⚠ `dim_country` and `dim_region` (#69) were a RECORDED EXCEPTION to this condition too, not just to the "attribute masquerading as entity" bullet below: they shipped with **zero** consumers on 2026-08-17. `dim_country` gained real ones the same day — #69 step 5's four `relationships` tests (`core.yml`). **`dim_region` did not**: `mart_competition_index` (#62 step 3, MR !65) reads `confederations`, the seed `dim_region` itself publishes from, not `dim_region` — the two are siblings off the same seed, and `dim_region` is still, today, a genuine zero-consumer exception. Same ruling, same authority — `escalations.log`, 2026-08-17, `feat/69-country-region-dims`. Noted in both places deliberately: a reader who checks only this rule would otherwise find the contradiction with nothing explaining it.
- 3. **Conformance.** The vocabulary is one the whole warehouse agrees on. If two sources disagree on what the same entity is, resolve the conflict in `2_base` before the dimension crystallizes in `3_core`.
  
- Patterns that look like dimensions but are not:
-@@ -219,7 +219,7 @@ Patterns that look like dimensions but are not:
- - **Degenerate dimension.** A natural key with no independent attributes (e.g. a round name, an invoice number): keep the key on the fact; do not build a table.
- - **Closed enum.** A small, stable vocabulary (fixture status, event type, card colour): enforce with `accepted_values` on the fact; a dim adds maintenance without adding information.
- - **Attribute masquerading as entity.** Country, nationality, position, language: keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation, position group). Promote to a dim when the rollup logic appears, not before.
--  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**, and the rollup this bullet names as the trigger — confederation on the country — is exactly what they leave out, because there is no source for it. The reason is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. CPO 2026-08-16: *"You don't mix up countries and continents or regions in one column and add a flag 'single country'. That's really bad modeling."* The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
-+  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**. `dim_country` gained real ones the same day, once #69 step 5 landed — the four FK `relationships` tests in `core.yml` (`league_country`, `team_country`, `player_birth_country`, `coach_birth_country`, each `to: ref('dim_country')`). **`dim_region` still has none**: `mart_competition_index` (#62 step 3, MR !65) resolves its region sub-line from `confederations`, the seed `dim_region.sql` itself is published from — a sibling consumer, not a consumer of `dim_region` — so `grep -rn "ref('dim_region')" dbt_project/models/` returns zero hits and the exception below is still live for that dim alone. The rollup this bullet names as the trigger — confederation on the country — is STILL what `dim_country` leaves out either way: it carries no confederation column, because there is no source for one at the country grain (the registry gives a confederation per COMPETITION, not per country). The reason the exception was granted is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. CPO 2026-08-16: *"You don't mix up countries and continents or regions in one column and add a flag 'single country'. That's really bad modeling."* The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
- - **Entity requiring cross-source resolution.** If consolidating the entity requires reconciling identifiers across sources (e.g. venue from `/teams` vs `/fixtures`), that work lives in `2_base`; `3_core` receives the already-conformed version.
++_COMPETITION_INDEX_KEEP = (
++    "league_code", "competition_type", "entity_type", "slug",
++    "category_label_en", "category_label_i18n_key", "confederation", "region_rank",
++    "competition_name", "logo_url", "next_kickoff_datetime", "last_kickoff_datetime",
++    "region_label_en", "region_label_i18n_key",
++)
++
++
++def shape_competition_index(rows: list[dict]) -> list[dict]:
++    """mart_competition_index rows, projected to the columns the competitions index page (#54)
++    renders. Pure passthrough otherwise -- the mart already resolves the category label, the
++    region label and the ordering FACTS (region_rank, next/last kickoff); this function adds no
++    logic. It does not sort or filter: the mart carries facts, the page spec declares the ORDER BY
++    (#62 step 4, escalations.log 2026-08-16)."""
++    return [{k: r.get(k) for k in _COMPETITION_INDEX_KEEP} for r in rows]
++
++
++def fetch_competition_index(client) -> dict:
++    """competition_index.json -- mart_competition_index, one row per competition: the single
++    source for the competitions index page (#54, #62 step 4). Ordered by league_code only, for a
++    deterministic export diff -- NOT the page's display order, which the page spec applies at
++    render time from the ordering facts this mart carries (region_rank, next/last kickoff)."""
++    rows = _query(
++        client,
++        f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index` "
++        f"order by league_code",
++    )
++    return {"type": "competition_index", "competitions": shape_competition_index(rows)}
++
++
+ def _group2(rows: list[dict], k1: str, k2: str) -> dict:
+     g: dict = {}
+     for r in rows:
+@@ -1307,6 +1337,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
+         entries.append({"type": "landing", "id": "landing", "slug": None,
+                         "path": "landing.json", "sha256": sha})
++    if "competition_index" in entities:
++        sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
++        entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
++                        "path": "competition_index.json", "sha256": sha})
  
- **Relationship (mapping) dimensions.** A `dim_…_mapping` may also be a *conformed relationship table* resolving a many-to-many association between existing dimensions — e.g. `dim_player_team_season_mapping`, recording which players were rostered to which team in which season. This is the one sanctioned exception to qualification rule #1 (Entity) and to the degenerate-dimension exclusion: the "thing" it represents is the association itself, so it legitimately carries only the participating keys (plus lineage), with no independent descriptive attributes. It must still satisfy **Reuse** and **Conformance**, and — like every core table — have a single **tested, unique grain key** (its surrogate over the full grain). That uniquely-keyed grain is precisely what qualifies it as a system-of-record object; on that key it is a clean one-row-per-key lookup. The `_mapping` suffix marks its grain and role: each row is an *association across dimensions*, not a single entity, so joining on one participating key (e.g. `player_sk`) resolves a many-to-many relationship and returns many rows by design.
+     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
+     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index e6d4965..a095bfb 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -17,6 +17,7 @@ from scripts.export_site_data import (
+     build_nav,
+     fetch_glossary,
+     fixture_slug,
++    shape_competition_index,
+     shape_competition_payload,
+     shape_fixture_payload,
+     shape_leaderboards,
+@@ -745,6 +746,50 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
+     assert idx["BL1"]["slug"]
+ 
+ 
++def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
++    # mart_competition_index already resolves the category label, the region label and the
++    # ordering facts (#62 step 4) — this function only projects to the columns the page renders,
++    # it must not rank, sort, filter or derive anything.
++    #
++    # WC is listed FIRST here despite league_code "WC" > "PL" (alphabetical) and region_rank
++    # 2 > 1 (ascending): both are the plausible accidental sorts this test needs to catch, and
++    # both would put PL first. Only "preserve input order" produces WC, PL — deliberately, so
++    # the order assertion below can't pass by coincidence the way an [PL, WC] fixture would.
++    rows = [
++        {
++            "league_code": "WC", "competition_type": "world_championship", "entity_type": "national",
++            "slug": "fifa-world-cup", "category_label_en": "World Cup",
++            "category_label_i18n_key": "compTypeWorldChampionship", "confederation": "FIFA",
++            "region_rank": 2, "competition_name": "FIFA World Cup 2026", "logo_url": None,
++            "next_kickoff_datetime": None, "last_kickoff_datetime": "2026-06-14T18:00:00+00:00",
++            "region_label_en": "World", "region_label_i18n_key": "confedFifa",
++        },
++        {
++            "league_code": "PL", "competition_type": "domestic_league", "entity_type": "club",
++            "slug": "premier-league", "category_label_en": "Domestic leagues",
++            "category_label_i18n_key": "compTypeDomesticLeague", "confederation": "UEFA",
++            "region_rank": 1, "competition_name": "Premier League",
++            "logo_url": "https://example.test/pl.png",
++            "next_kickoff_datetime": "2026-08-22T19:00:00+00:00", "last_kickoff_datetime": None,
++            "region_label_en": "England", "region_label_i18n_key": None,
++            "some_column_the_page_does_not_render": "must be dropped",
++        },
++    ]
++    shaped = shape_competition_index(rows)
++    assert [c["league_code"] for c in shaped] == ["WC", "PL"]   # input order, not alphabetical
++                                                                 # or region_rank order
++
++    wc = shaped[0]
++    assert wc["region_label_en"] == "World"             # the confederation-region case
++    assert wc["region_label_i18n_key"] == "confedFifa"
++    assert wc["logo_url"] is None                       # nulls preserved, never coerced
++
++    pl = shaped[1]
++    assert "some_column_the_page_does_not_render" not in pl   # projected, not passed through raw
++    assert pl["region_label_en"] == "England"          # the domestic-country case
++    assert pl["region_label_i18n_key"] is None          # a country name is not chrome
++
++
+ def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
+     """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/active_work.md | 65 ++++++++++++++++++++++++--------------------------
+#    1 file changed, 31 insertions(+), 34 deletions(-)
+# ============================================================================

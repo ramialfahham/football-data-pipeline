@@ -1,50 +1,74 @@
-# Review — chore/layering-doc-country-region-reader — 2026-08-17
+# Review — feat/62-4-export-competition-index — 2026-08-17
 
-diff_sha256: d3af836c0efa4b9bf069ea762c6e379d0b6cec3658307594e95fac140e488f33
+diff_sha256: 9c94e26a611e26a65b2498fcdabe7e537e47bce3e210cb0f1fcf8d05228a6383
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: diff touches only dbt_project/docs/layering.md and .claude/task/contract.md, matching
-  contract.md's scope_paths; no code/model/seed files touched.
-- §10 decision-smuggling: checked both edited paragraphs for any new product/metric/mechanism
-  decision — found none; the added clause about dim_country lacking a confederation column is a
-  verifiable factual statement (confirmed against dbt_project/models/3_core/dim_country.sql, which
-  selects only country_key, country_name, and docs/competition_registry.yml, which carries
-  confederation per competition entry, not per country), not a new ruling.
-- Cited authority: verified .claude/task/escalations.log line 3389
-  (2026-08-17 feat/69-country-region-dims) exists and is the CPO ruling for the dim_country/
-  dim_region exception; verified core.yml contains exactly four relationships tests to dim_country
-  (lines 150, 268, 330, 907) and mart_competition_index.sql exists, matching the claim added to
-  the doc.
-- decisions_reserved: listed as "none" and nothing in the diff decides anything reserved.
-- Historical record preservation: confirmed the doc still records "shipped with no reader at all"
-  as a historical fact (not erased), satisfying the contract's instruction to correct only
-  present-tense staleness, not the historical account.
+- Scope: diffed files (contract.md, docs/site_architecture.md, scripts/export_site_data.py,
+  tests/test_export_site_data.py, plus excluded .claude/active_work.md) all match contract's
+  scope_paths exactly — no extra file touched.
+- §10 silent decision: checked shape_competition_index/fetch_competition_index against the cited
+  escalations.log 2026-08-16 entry ("feat/69-5-62-3-country-fk-and-mart", Ruling 4 — "THE MART
+  CARRIES FACTS, THE SPEC DECLARES THE ORDER BY") — the code's `order by league_code` and its
+  comment explicitly disclaiming it as display order match that ruling; no re-decision of sort
+  order occurred here.
+- Named-untouched functions: grepped _registry_competitions, fetch_nav/build_nav,
+  _competitions_index, fetch_competition_payloads in the patch — all only appear as unmodified
+  context lines, confirming the impact_map's "read-only reference points, NOT modified" claim.
+- decisions_reserved (deferring CI --entities wiring to step 5): verified .gitlab-ci.yml/
+  deploy-site-v2.yml invocations are unchanged in the diff and the new entity type stays dormant
+  unless explicitly requested — an honest engineering deferral, not scope-dodging, since nothing
+  downstream reads the file yet.
+- Credentials/secrets: swept the full patch for key/token/secret/password/credential/permission
+  patterns — only benign dict-key literals, nothing credential-shaped.
+- Doc-sync: docs/site_architecture.md's competitions-index row is updated in this same branch to
+  name competition_index.json/mart_competition_index, satisfying done_when.
+- New mechanism / recurring cost: shape_competition_index is a pure keep-list projection, one more
+  read-only SELECT in a script that already runs — no new warehouse object, library, service, or
+  schedule introduced.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Re-ran `grep -rn "ref('dim_region')" dbt_project/models/` independently: zero hits. All other
-  dim_region mentions repo-wide are prose (comments in dim_country.sql, core.yml,
-  base_apif__leagues.sql) or the doc itself — none is an actual ref() call, matching the round-2
-  rewritten claim exactly (round-1 finding: both edited bullets falsely claimed dim_region gained
-  a real reader too — now corrected to state the asymmetry).
-- Verified the four dim_country relationships tests by line: core.yml:141-152 (league_country),
-  :263-270 (team_country), :325-332 (player_birth_country), :902-909 (coach_birth_country) — all
-  four are relationships: to: ref('dim_country'), field: country_name.
-- Read mart_competition_index.sql in full: it imports confederations directly and joins on
-  browsable.confederation = confed.confederation — never references dim_region. dim_region.sql
-  also selects from ref('confederations'), confirming the doc's "siblings off the same seed"
-  characterization.
-- Read dim_country.sql: columns are only country_key, country_name — no confederation column,
-  consistent with the doc's claim that the country grain has no confederation source.
-- Diffed review_input.patch hunk boundaries against layering.md: only the two contracted bullets
-  changed, nothing else in the file — matches contract's done_when ("No other content changes").
-- Confirmed contract.md's scope (doc-only correction, scope_paths = layering.md only, no new CPO
-  decision claimed) — no unauthorized scope creep.
+- Keep-list column parity: _COMPETITION_INDEX_KEEP vs mart_competition_index.sql select list and
+  shared.yml column docs — exact 14/14 match, no defect.
+- shape_competition_index() computation check: dict-projection only, no rank/sort/filter/derive;
+  unit test asserts order preservation and non-passthrough of unlisted columns.
+- order by league_code in fetch_competition_index(): checked against escalations.log 2026-08-16
+  CPO ruling on the approved display sort — confirmed this is a diff-determinism sort, not the
+  real page order, documented as such in code.
+- Claimed-untouched functions (_registry_competitions, fetch_nav, _competitions_index/
+  competitions.json, fetch_competition_payloads/"competitions") — verified all sit outside the
+  diff and are structurally unchanged.
+- Downstream dormancy: grep site_v2/src for "competition_index" (zero hits) and CI entities lists
+  in .gitlab-ci.yml:767 / deploy-site-v2.yml:65 (still teams,fixtures only) — confirmed new path
+  is inert in deployed pipelines.
+- Catalogue governance / hardcoded competition identifiers / same-window ratio rule — not
+  applicable, no metric or ratio introduced.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round-1 gap (ambiguous fixture order in test_shape_competition_index_projects_the_keep_list_and_
+  changes_nothing): re-derived both accidental-sort outcomes against the corrected fixture. Input
+  order is [WC, PL]; alphabetical league_code sort and ascending region_rank sort both yield
+  [PL, WC] — differing from the asserted ["WC", "PL"], so the assertion can only pass if the
+  implementation preserves input order, which it does. Gap closed (also independently verified by
+  the builder: temporarily sorting the function made the test go red, reverting made it green
+  again).
+- shape_competition_index implementation: confirmed select/project only, no sorted()/filter/
+  derived field.
+- Test also exercises null preservation, key-projection (unlisted column dropped), and both
+  label-resolution branches — not happy-path-only coverage.
+- CI/deploy wiring: grepped .gitlab-ci.yml and deploy-site-v2.yml for competition_index — zero
+  hits in both, confirming dormancy.
+- ENTITY_TYPES tuple change and the new export_all() block: additive only, follows the exact same
+  write pattern as the immediately preceding landing block.
+- Dependency/credential/build-health/hosting surfaces: no requirements/package/hook/workflow files
+  in the diff; no secrets or permission widening.
 
 ## escalations
 (none)

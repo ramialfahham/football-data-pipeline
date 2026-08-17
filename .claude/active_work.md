@@ -4,9 +4,10 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-17**. **main `67924ef`** — `!61` (#69 dims), `!62`, `!60`, `!57`, `!59`,
-`!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN** (#75 closed). **ONE MR OPEN**
-(branch `feat/69-5-62-3-country-fk-and-mart`, unmerged — see CURRENT). Product **Matchday
+_Last updated **2026-08-17**. **main `681fe37`** — `!65` (#69 step5+#62 step3), `!66` (layering.md
+fix), `!61`, `!62`, `!60`, `!57`, `!59`, `!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN**
+(#75 closed). `mart_competition_index` CONFIRMED live in prod (`bq show`: 48 rows). **ONE MR OPEN**
+(branch `feat/62-4-export-competition-index`, unmerged — see CURRENT). Product **Matchday
 Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes. ⚠ **A GROUP MOVE IS
 COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
@@ -18,35 +19,31 @@ product, 7 paperwork ABOUT the product**, a whole day on the substrate behind ON
 ⛔ **PUT `active_work.md` IN `scope_paths` ON EVERY CODE MR**, updated in the SAME commit. Seven
 separate handover MRs each cost a contract + a review round; two conflicted. Biggest waste.
 ⛔ **Over the cap? DELETE ONE STALE SECTION** — do not shave clauses; that burned much of 08-17.
-⛔ **Step 3 is DONE (below). Do NOT start step 4 before this MR merges** — it needs the mart LIVE
-IN PROD, which needs `data:build:main` to run on `main` after merge.
+⛔ **Steps 3 and 4 are DONE (below). Step 5 is next**: the page spec + the actual Astro page +
+the nav-item anchor swap, using the 08-16 ordering note (⭐ below).
 
-## ⭐ CURRENT — #69 STEP 5 + #62 STEP 3 SHIPPED IN ONE MR, UNMERGED (2026-08-17)
+## ⭐ CURRENT — #62 STEP 4 SHIPPED, UNMERGED (2026-08-17)
 
-✅ **#69 step 5 (the four FKs) + #62 step 3 (`mart_competition_index`) — ONE MR**, branch
-`feat/69-5-62-3-country-fk-and-mart`. `single_country` DELETED from `competition_types.csv`.
-`league_country`/`team_country`/`player_birth_country`/`coach_birth_country` each carry a
-`relationships` test to `dim_country`. League's provider `'World'` sentinel (24 rows, MEASURED
-fresh today) now resolves to NULL, not a corrected string — that NULL is the FK, replacing the
-flag. Mart's `region_label` branches on `league_country is not null`: which relationship is
-populated IS the answer. Zero orphans verified against real prod data before push (`bq --dry_run`
-priced: league check 8,718 bytes, team/player/coach check 3,681,771 bytes) — both empty.
-⚠ **`team_slug` (#852) is UNTOUCHED, deliberately.** The slug ladder in
-`base_apif__teams_global.sql` anchors on the RAW pre-override country text (a new
-`team_country_raw` column, dropped before the terminal select), not the corrected value —
-`kebab_slug` already folds the hyphenation defect to the same anchor either way, but a few
-overrides are semantic renames (`USA` → `United States of America`, `Congo-DR` → `DR Congo`) that
-would otherwise silently reshuffle a contested team's already-assigned slug.
-⛔ **NOT MERGED — the CPO merges.** #62 step 4 (repoint `export_site_data.py` at the mart) needs
-the mart built in prod first. Do not touch the export until this merges and prod rebuilds.
+✅ **#62 step 4 — `scripts/export_site_data.py` repointed at `mart_competition_index`**, branch
+`feat/62-4-export-competition-index`. New `fetch_competition_index()`/`shape_competition_index()`
++ entity type `"competition_index"` → `competition_index.json`, one row per competition (48 today).
+Verified by RUNNING it for real against prod (not just a passing test): 48/48 rows, `PL` resolves
+`region_label_en="England"` (i18n key `None`), `WC` resolves `"World"` (`confedFifa`) — the
+country-vs-region branch from step 3 confirmed end to end.
+⛔ **DO NOT CONFUSE THIS WITH TWO EXISTING, UNTOUCHED THINGS**, same file: the `"competitions"`
+entity type (`fetch_competition_payloads`, per-`(league_code,season)` DETAIL pages for #47) and
+`_competitions_index()`/`competitions.json` (a tiny `{league_code:{name,slug}}` lookup feeding the
+fixture page's URL resolution + `TeamHeader.astro`, unconditionally emitted). Neither was touched;
+neither is what the competitions INDEX page (#54) will read.
+⚠ **NOT wired into CI's `--entities` list yet, on purpose** (`.gitlab-ci.yml:767`,
+`deploy-site-v2.yml:65` both still say `teams,fixtures` only). Wiring it in now would commit a file
+nothing reads. **That's step 5's job**, the moment the page exists to consume it.
 ⚠ **The 08-16 ordering note on #54 supersedes note 4's Row order / Group order rows** — read it
-before step 5 (the page spec), do not reconstruct: sort key is has-upcoming-fixture →
-days-to-kickoff (bucketed by CALENDAR DAY) → `region_rank` → kickoff time → `league_code`.
-`sort_order` is OBSOLETE and the mart does not carry it — **mart carries FACTS, the spec declares
-the ORDER BY.** ⚠ **#54's 16 is ELEMENTS, not mart columns.**
-⚠ **`dbt_project/docs/layering.md:222`'s "no reader at all" claim for `dim_country`/`dim_region`
-is now STALE** (this MR is their first reader) — fix in the MR that touches that file next, not
-scoped here.
+before step 5, do not reconstruct: sort key is has-upcoming-fixture → days-to-kickoff (bucketed by
+CALENDAR DAY) → `region_rank` → kickoff time → `league_code`. `sort_order` is OBSOLETE and neither
+the mart nor the export carries it — **mart/export carry FACTS, the page spec declares the
+ORDER BY.** The export's own `order by league_code` is for a deterministic diff only, NOT display
+order — do not mistake it for one. ⚠ **#54's 16 is ELEMENTS, not mart columns.**
 ⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name (branched on at
 `int_team_momentum_window.sql:135`; renaming without that edit silently gives the WC a last-5
 window, every test green) · `display_group` for **#44**.
@@ -147,9 +144,9 @@ which is now popped and shipped); default is known-wrong (`seasons[0]` = newest 
 0. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests). It is **FALSE**, so every MR
    has been mergeable while RED since the migration. CPO's, one toggle. Pairs with **#21 Q2**.
 1. **THE NIGHTLY: #74** (⭐ ingest cluster above).
-2. ✅ **#69 step 5 + #62 step 3 DONE, MR open** (⭐ CURRENT). Once merged + prod rebuilds: **#62
-   step 4** (repoint the export at `mart_competition_index`), then **step 5** (the page spec,
-   using the 08-16 ordering note).
+2. ✅ **#62 steps 3 + 4 DONE, MR open** (⭐ CURRENT). Once merged: **#62 step 5** — the page spec,
+   the Astro page, and the nav-item anchor swap, using the 08-16 ordering note. Wire
+   `competition_index` into CI's `--entities` list in the SAME MR (currently dormant on purpose).
 3. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
    to No one) · delete the 2 dead `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
 4. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
