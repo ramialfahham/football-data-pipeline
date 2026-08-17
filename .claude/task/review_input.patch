@@ -65,20 +65,77 @@ index f70cee8..7cbfdc0 100644
  ## Known edge cases
  
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3c21ed4..b5856b3 100644
+index 100a92c..b5856b3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,112 +1,62 @@
--# Task contract — extend country_name_overrides to the full provider set (#69)
+@@ -1,116 +1,62 @@
+-# Task contract — data:build:mr must not bootstrap-ingest (#73)
 +# Task contract — onboard-competition must check the country string (#69)
  
  objective: >
--  `country_name_overrides.csv` carries 3 rows from `!45`, covering only the league surface. #69's
--  discovery found the provider sends 245 distinct country strings that resolve to 224 real
--  entities, across four dims. Extend the seed to the full set — 67 rows — so every provider
--  spelling maps to one canonical English name. This is step 2 of #69's order of work landing as
--  data; `dim_country` and the foreign keys are the NEXT unit, not this one.
--refs: GitLab #69 (discovery + the naming rulings), #62 (the page that needs it), `!45` (the 3-row seed)
+-  Remove the bootstrap-ingest step from `data:build:mr`. It writes PRODUCTION raw from an
+-  unmerged branch (settings.py:31 defaults the dataset to `raw`; nothing overrides it in CI), it
+-  is redundant with the identical step already in `data:build:main`, and GitLab's protected-
+-  variable rule correctly refuses to give a feature branch the API key — which is what made MR
+-  !50 fail. Closes #33 item 13 for the MR path. Pin the removal with a test so the step cannot
+-  return silently.
+-
+-  ⛔ SCOPE NARROWED BY THE CPO, 2026-08-16. An earlier revision of this branch ALSO tagged
+-  `assert_base_leagues_covers_active_competition_var` `prod_state` and excluded it from
+-  `data:build:mr`. All four routed reviewers FAILED that, and the CPO ruled it out in plain
+-  terms after asking whether the change was "a systematic fix or a hack": it was a hack. It is
+-  fully reverted here. The underlying cause — nothing records whether a league has been
+-  INGESTED, only that it SHOULD be — is filed as its own issue and is NOT addressed here.
+-refs: GitLab #73, #33 item 13, #72, !50
+-
+-protected_override: >
+-  CPO approval 2026-08-16, in-thread, verbatim: **"yes, rewrite #73 to option 2 only and fix it"**,
+-  given after I laid out option 2 as "delete the bootstrap-ingest block from data:build:mr ...
+-  that's the professional, economic, secure answer". The same message rejected the unprotect-the-
+-  key option: **"it is 100% bullshit in terms of security."** `.gitlab-ci.yml` is a PROTECTED path
+-  (the file that decides what CI enforces), hence this override.
+-
+-impact_map: >
+-  writers: `.gitlab-ci.yml` is not a data writer. The step being DELETED is the only thing in
+-    `data:build:mr` that writes raw tables — `python -m ingestion.api_football.main` with
+-    `API_FOOTBALL_LEAGUE_CODES` set. After this change `data:build:mr` writes ONLY `ci_*` datasets
+-    (via `dbt seed/build --target ci`) and reads prod via `--defer --favor-state`.
+-
+-  what still ingests, and where: `data:build:main:597` runs the SAME
+-    `get_new_league_codes.py` + `python -m ingestion.api_football.main` sequence, BEFORE its
+-    `dbt build --selector staging/downstream --target prod` lines. `data:nightly` is the other
+-    prod writer. Neither is touched here, so a newly onboarded league is still ingested exactly
+-    once, post-merge, from a protected branch that legitimately holds the key. Verified by reading
+-    both job bodies in this file, not assumed.
+-
+-  guards NOT touched, and the accepted consequence: NO dbt test is modified by this branch.
+-    Four singular tests — `assert_base_leagues` / `assert_base_teams` /
+-    `assert_base_fixtures_next` / `assert_fct_fixture` `_covers_active_competition_var` — assert
+-    "every code in `vars.active_competition_league_codes` has rows". All four are unconditional
+-    (`left join ... where null`); I read all eight `*_covers_active_competition_var` tests and the
+-    other four self-exclude via an `inner join base_apif__leagues` on a coverage flag. On an
+-    ONBOARDING MR those four now fail, because the var names the new league and this job no longer
+-    ingests it. That is ACCEPTED (CPO 2026-08-16): the tests are stating a true fact, and
+-    silencing them was rejected as a hack. Onboarding MRs show red here and are merged on
+-    judgement until the ingest-state issue lands.
+-    ⚠ REASONED FROM THE TEST BODIES, NOT OBSERVED (#904): `data:build:mr` on !50 died at the
+-    ingest step and never reached the dbt steps, so these four have not been SEEN failing for this
+-    reason. `dbt build` is never run locally (CLAUDE.md), so this branch's own pipeline is the
+-    first place it is exercised.
+-
+-  layer_rules: `scripts/check_layer_contract.py` — untouched; no model, no layer, no
+-    materialisation changes. No new model, macro or SQL file. NO dbt file of any kind is in this
+-    diff.
+-
+-  deploy_order: no warehouse migration. The CI change takes effect on the next pipeline. ⚠ Merge
+-    order matters for !50: this MR should merge FIRST, then !50 rebases onto it and its
+-    `data:build:mr` goes green. If !50 merged first instead, `data:build:main` would bootstrap
+-    BPL/TSL/EKS on main — also correct, just via the other path.
+-
+-  blast_radius: no mart, no number, no row changes anywhere. One behaviour change:
+-    `data:build:mr` no longer ingests, so it no longer needs `API_FOOTBALL_API_KEY` and no longer
+-    runs a billed `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR. No test's
+-    selection, severity or logic changes anywhere.
 +  Onboarding a competition can introduce a country the pipeline has never seen, and nothing
 +  catches it. `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an
 +  unmatched provider string falls through to the page unchanged — silently. Add the check to
@@ -87,40 +144,13 @@ index 3c21ed4..b5856b3 100644
 +refs: GitLab #69 (the naming rulings and the seed), `!54` (the 67-row seed this checks against)
  
  scope_paths:
--  - dbt_project/seeds/country_name_overrides.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_country_name_overrides_still_needed.sql
+-  - .gitlab-ci.yml
+-  - tests/test_ci_data_job_invariants.py
+-  - .claude/task/escalations.log
 +  - .claude/skills/onboard-competition/SKILL.md
    - .claude/active_work.md
  
- impact_map: >
--  writers: the seed is authored by hand. Its ONLY reader is `base_apif__leagues.sql`, which joins
--    it on `provider_country` and `coalesce`s over `stg_apif__leagues.country` (added by `!45`).
--
--  downstream: `dbt ls --select country_name_overrides+ --resource-type model` — the seed feeds
--    `base_apif__leagues` and everything below it, the same 16 models `!45`'s contract listed.
--    ⚠ In practice the blast radius is far narrower: only `dim_league.league_country` changes,
--    because `grep -rn "league_country" dbt_project/models/4_intermediate/ dbt_project/models/5_marts/`
--    still returns zero — nothing downstream of `dim_league` reads the column.
--
--  blast_radius: MEASURED against prod. `dim_league.league_country` today holds 15 countries plus
--    `World` across 45 rows. Of the 67 new rows, exactly TWO change a value that is currently live:
--      Turkey  -> Turkey   (unchanged: provider already sends 'Turkey' for TSL)
--      South-Korea / Korea Republic -> South Korea (unchanged from `!45`)
--    The other 65 rows target `dim_team`, `dim_player` and `dim_coach`, which **do not read this
--    seed yet** — so they are inert until `dim_country` lands. Stated plainly because a 67-row seed
--    looks like a 67-row change and is not.
--    ⚠ ONE row changes an existing mapping's TARGET rather than adding one: nothing. `!45`'s three
--    rows keep their targets (Saudi Arabia, South Korea, United States of America) under the new
--    rule; only their `source`/`note` text is restated.
--
--  layer_rules: `scripts/check_layer_contract.py`. A seed is configuration, read in BASE where the
--    correction already lives (`feedback_entity_corrections_in_base`) — the core dim publishes and
--    does not correct. No model changes at all in this MR.
--
--  deploy_order: additive and safe. `dbt seed` runs before the models in every build path, and the
--    join is a left join with `coalesce`, so an unmatched provider string falls through to its
--    original value exactly as today.
++impact_map: >
 +  Leaf/documentation short-form. `.claude/skills/**` is instructions an agent reads, not code any
 +  job executes: `grep -rn "skills/" .gitlab-ci.yml scripts/ dbt_project/` returns nothing, so no
 +  pipeline, model or test depends on this file. It is NOT a protected path — the protected list is
@@ -128,95 +158,70 @@ index 3c21ed4..b5856b3 100644
 +  `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`,
 +  `.gitlab-ci.yml` — and it is not in `review_routing.json`'s `paths`, so scope-auditor is the only
 +  required reviewer. Blast radius: the next person who onboards a competition reads one more step.
- 
++
  decisions_taken: >
--  FOUR CPO rulings, 2026-08-16, recorded in full in `escalations.log` as part of this same commit.
--  ⚠ That entry was MISSING from review round 1 and scope-auditor FAILED the branch for it —
--  correctly. §11 requires every escalation to land in the log, and §2 says why: "a reviewer cannot
--  check whether a claimed ruling exists without it." Each ruling was given after seeing what the
--  previous one produced, and the sequence matters because each corrected the one before:
+-  CPO ruling 2026-08-16 (quoted in full under protected_override): fix via option 2 only, and the
+-  unprotect-the-key option is rejected on security grounds. The CPO also asked the framing
+-  question this task answers — *"Why do we always need to touch ingestion again and again?"* — and
+-  the answer encoded here is that we do NOT: no ingestion code changes, the fix is a CI job that
+-  should never have carried this step.
 +  CPO instruction, 2026-08-16, in this conversation: "now add the country check to the onboard
 +  skill" — after I reported that the approach is NOT prepared for new countries and named this
 +  file as the cheap mitigation.
- 
--  1. "official form" — the register is the UN English short name, from the UN list the CPO
--     supplied (197 entries, six languages), with the diplomatic qualifier stripped.
--  2. "Republic of Ireland, keep the long form" — one exception; it renders beside Northern Ireland.
--  3. "modern correct name, keep the everyday short form" — given on seeing that rule 1 produced
--     `Russian Federation`, `Syrian Arab Republic`, `Lao People's Democratic Republic`. A genuine
--     RENAME stands (Czechia, North Macedonia, Eswatini); a FORMAL STATE TITLE is shortened.
--  4. "the single source of truth is always english" then, shown that the UN keeps exactly two
--     endonyms in its English column, "No, Ivory Coast and Turkey" — so `Türkiye` -> `Turkey`,
--     `Côte d'Ivoire` -> `Ivory Coast`, and no label carries a diacritic.
++
 +  MEASURED, the defect this prevents: `!50` onboarded the Süper Lig on 2026-08-16. The provider
 +  sends `Turkey` on the leagues surface and `Türkiye` on the player and coach surfaces (455
 +  players, 105 coaches). The page reads the leagues surface, so the clean spelling landed there
 +  BY LUCK. Had it been the other way round, `Türkiye` would have rendered and no guard would have
 +  fired.
  
--  MEASURED, priced first (461,533 + 474,334 bytes, whole population): 245 distinct provider
--  strings across the four dims; 224 canonical entities; 67 rows where the provider string differs
--  from the canonical name. 188 of the 224 are UN states — the rest are football associations
--  (England n=2723, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei), territories, one
--  unrecognised state and one historical (Yugoslavia, CPO: "stays as historical").
+-  NEW MECHANISM: none. Deleting a step, and adding an assertion to an EXISTING pytest module
+-  whose stated purpose is pinning exactly these CI invariants.
 +  PLACEMENT, and why it is not the post-merge list alone: caught at Step 0b the override row ships
 +  in the SAME MR as the registry entry, so the page is never wrong. Caught after merge, the page is
 +  wrong until somebody looks. The post-merge item is a confirmation, not the control.
  
--  ⚠ TWO ROWS ARE EXCEPTIONS TO THE RULE AND SAY SO IN THEIR OWN `source`: `USA` ->
--  `United States of America` (the everyday short form would be `United States`) and `Ireland` ->
--  `Republic of Ireland`. Citing the general rule as their authority would have been false.
+-  RECURRING COST: strictly NEGATIVE (a saving). Removes one billed BigQuery `SELECT DISTINCT` per
+-  MR pipeline, plus the API-quota draw of any bootstrap ingest an unmerged branch would have run.
+-  Nothing is added.
 +  ⚠ This is a MITIGATION, not the fix. The real mechanism is #69's foreign key to `dim_country`,
 +  where an unknown country fails the key instead of rendering. A skill step is a prose rule and
 +  this repo has measured that prose rules recur (#30: 33 of 50 corrections were prose-only, 22
 +  recurred). Recorded in the skill itself so the next reader does not mistake it for the guard.
  
--  NEW MECHANISM: none. Same seed, same join, same still-needed test as `!45` — 3 rows to 67.
--  RECURRING COST: none. One seed, one left join on a 45-row table.
+-  NO GUARD IS LOOSENED, because none is touched. The previous revision of this branch narrowed
+-  one and was FAILED by all four routed reviewers and then by the CPO. The standing rule held.
 +  NEW MECHANISM: none — a step in an existing skill.
 +  RECURRING COST: none.
  
  decisions_reserved:
--  - `entity_type` (un_state / association / territory / unrecognised / historical) exists in the
--    discovery analysis and is deliberately NOT a column here. The CPO's words on being shown a
--    7-column draft: "we only need a mapping between what the provider gives us and what we turn
--    into the single source of truth name". It belongs to `dim_country` if anything reads it.
--  - `label_i18n_key` per country — 224 keys x 3 locales is a real copy cost and the CPO's to
--    authorise. Absent, not forgotten.
--  - Confederation per country. #69's shape proposes `dim_country` carries its region, but there is
--    NO SOURCE: the registry gives confederation per COMPETITION and the UN file has none.
--  - Whether `dim_country` supersedes this seed or sits beside it, as `team_name_overrides` sits
--    beside `dim_team`. Next unit.
+-  - Whether `data:build:mr` should ALSO be prevented from writing prod raw structurally (setting
+-    `API_FOOTBALL_BIGQUERY_DATASET` to a ci-scoped dataset) rather than only by removing the one
+-    step that did it. #33 item 13 is broader than the MR path; this task closes the MR path only
+-    and takes no position on the rest.
+-  - The ingest-state model itself (recording that a league HAS been ingested, not merely that it
+-    should be) is deliberately NOT designed here. It is the cause behind the four failing
+-    onboarding-MR tests AND behind `get_new_league_codes.py` having to rediscover that fact from
+-    BigQuery every run. Filed as its own issue per the CPO's instruction, "ship part 1 and file
+-    the state fix as its own issue".
 +  - Whether `.claude/skills/**` should join the protected-path list. `.claude/commands/**` is
 +    protected because a command file can embed shell; a skill file can carry shell too, and this
 +    one does. That is a governance question and the CPO's, not something to decide inside an
 +    unrelated task. NOT raised as a blocker — the current list is explicit and skills are not on it.
  
  done_when:
--  - The seed carries 67 rows plus the header; `provider_country` is unique.
--  - Every row has a `source` and a `note`; the two exception rows cite their own authority.
--  - No `country_name` value carries a diacritic.
--  - `assert_country_name_overrides_still_needed` passes — no row where override == provider, and
--    no row whose provider string has vanished from staging.
--  - The seed's `schema.yml` description is corrected: `!45`'s text cites `Timor-Leste` as correctly
--    hyphenated and NOT to be touched, and this MR renames it to `East Timor`. Leaving that would
--    be a stale claim contradicting the data beneath it.
--  - `dbt parse` succeeds; `python scripts/check_layer_contract.py` passes.
--
--amendments:
--  - 2026-08-16: + dbt_project/tests/assert_country_name_overrides_still_needed.sql — authority:
--    standing rule `feedback_never_loosen_a_guard` (when my change breaks a test, narrow it to
--    where it still holds; deleting the assertion ships a silent hole).
--    content: `!45` wrote that test to check each override's provider string against
--    `stg_apif__leagues.country` ALONE, because the seed was leagues-only. MEASURED against prod:
--    that staging column holds just 19 distinct values, of which only 3 are correctable forms
--    (`Saudi-Arabia`, `South-Korea`, `USA`). Extending the seed to 67 rows therefore makes **64 of
--    them fail** the `provider.country is null` branch — they are real corrections for strings the
--    provider sends on the TEAM, PLAYER and COACH surfaces, which that test never looked at.
--    The test is widened to the union of all four provider surfaces
--    (`stg_apif__leagues.country`, `stg_apif__teams.team_country`,
--    `stg_apif__coaches.coach_birth_country`, `stg_apif__player_profiles.birth_country`), matching
--    the scope the seed now has. The assertion is unchanged and nothing is downgraded to `warn`.
+-  - `data:build:mr` contains no `get_new_league_codes.py` call and no
+-    `python -m ingestion.api_football.main` invocation; `data:build:main` and `data:nightly` still
+-    do, unchanged.
+-  - The removal is explained in a `.gitlab-ci.yml` comment that names #73 and #33 item 13, so the
+-    step is not "restored as an oversight" later.
+-  - NO dbt file is modified: `git diff --stat` shows no path under `dbt_project/`.
+-  - A NEW test in `tests/test_ci_data_job_invariants.py` FAILS if `data:build:mr` ever invokes
+-    `ingestion.api_football.main` or `get_new_league_codes.py` again, and it is demonstrated RED
+-    first (per the standing rule that a passing test proves nothing until it has been seen fail).
+-  - `python -m pytest tests/test_ci_data_job_invariants.py` passes.
+-  - escalations.log records the #73 ruling and the rejected option.
+-  - MR opened against main; !50 rebases onto it afterwards.
 +  - Step 0b gains a numbered check with a runnable command that prints what the provider sends and
 +    whether the seed already maps it.
 +  - The step states the rule (English, everyday short form, no diacritics) and says the override
@@ -224,5 +229,22 @@ index 3c21ed4..b5856b3 100644
 +  - It states plainly that nothing catches a missing row today, and names #69's FK as the real fix.
 +  - The post-merge list gains a confirmation item.
 +  - No other section of the skill changes.
-+
-+amendments: (none)
+ 
+ amendments: (none)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |  67 ++--
+#    .claude/task/review_input.patch | 655 +++++++++++++---------------------------
+#    2 files changed, 238 insertions(+), 484 deletions(-)
+# ============================================================================

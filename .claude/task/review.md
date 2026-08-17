@@ -1,8 +1,16 @@
 # Review — feat/69-onboard-skill-country-check — 2026-08-16
 
-diff_sha256: 76ab2b2bc7134cad3d48936edb18ea356294b9a1a08e96d0d7a54b188b84ac3e
+diff_sha256: a2e050d95185482b200e7fc9be1460d9377a29e273e1f04bd5080d905a923921
 
 rounds: 1
+
+> REBOUND 2026-08-17. `gitlab/main` moved (`!56` #75, then `!53` #73), so the cumulative diff this
+> hash is computed over has a new base. Rebased and the two task-artifact conflicts resolved per the
+> documented rebase tax — MINE for `contract.md` and `review.md`. `escalations.log` and
+> `active_work.md` did not conflict: this branch touches neither.
+> **The reviewed file did not change.** `.claude/skills/onboard-competition/SKILL.md` is
+> byte-identical to what scope-auditor read — verified with
+> `git diff gitlab/main...HEAD -- .claude/skills/` against the pre-rebase blob.
 
 ## scope-auditor
 VERDICT: PASS
