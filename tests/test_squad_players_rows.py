@@ -52,12 +52,7 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
         captured["ingested_at"] = ingested_at
         return len(rows)
 
-    def fake_delete(client, table, league_code, keys, before):
-        captured["delete_keys"] = keys
-        captured["delete_before"] = before
-
     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", fake_loader)
-    monkeypatch.setattr(sq, "_delete_superseded_player_rows", fake_delete)
 
     ctx = types.SimpleNamespace(
         headers={}, errors=[], client=None, add_loaded=lambda n: None
@@ -82,10 +77,6 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
         for p in e["players_payload"]
     )
     assert ids == [54, 281]
-    # Merge-on-write: the superseded prior rows for exactly the written keys are deleted,
-    # using the same ingested_at the rows were written with.
-    assert sorted(captured["delete_keys"]) == ["40-2016", "49-2016"]
-    assert captured["delete_before"].isoformat() == captured["ingested_at"]
     assert ctx.errors == []
 
 
@@ -115,7 +106,6 @@ def test_quota_cut_logs_partial_warning(monkeypatch):
 
     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", lambda *a, **k: 1)
-    monkeypatch.setattr(sq, "_delete_superseded_player_rows", lambda *a, **k: None)
     ctx = types.SimpleNamespace(headers={}, errors=[], client=None, add_loaded=lambda n: None)
     sq.load_squad_players_batch(ctx, "CWC", [2016], {40, 49})
     assert any("PARTIAL" in e for e in ctx.errors)

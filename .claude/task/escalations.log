@@ -3233,3 +3233,55 @@ WRONG ANSWERS RECORDED SO THE NEXT SESSION DOES NOT REPEAT THEM (#75)
   (§1_staging describes the retry delete); pin the deletion with a test. ⚠ The known 5-fixture
   backlog is NOT repaired by this — those events are gone from the provider — so `!57`'s cutoff
   stays as shipped.
+  ⛔ SUPERSEDED THE SAME DAY, and widened — see the next entry. Part A as scoped here (one table)
+  was overtaken by the ruling that raw stops deleting EVERYWHERE. Do not build the narrow version.
+
+
+2026-08-17 fix/75-raw-append-only — ⭐ RAW APPENDS AND NEVER DELETES, FOR EVERY TABLE (#75; reverses
+#33 item 8b and the delete half of #539)
+
+  HOW THIS ONE WAS DECIDED, and the process point matters more than the ruling. The CPO stopped the
+  work: *"it sounds highly inconsistent what you are doing just driven by this one observation …
+  I also get the impression that you're not capable of implementing a consistent ingestion strategy.
+  Everything is ad hoc; you don't do thorough research. If we're already failing at ingestion, the
+  entire project is at risk."* He then ordered **two independent agents, unbiased, as experienced
+  lead data engineers**, and an assessment before any plan.
+
+  BOTH RETURNED "NOT COHERENT ENOUGH TO BUILD ON", independently, with the same root cause in
+  different words: **raw deletes its own history at write time, so base cannot decide, and the only
+  guard tests whether the provider ERRORED, never whether the answer SHRANK.**
+  `http_client.py:104-107` documents that an empty error-free response counts as COMPLETE;
+  `bigquery.py:262-300` then deletes every stored row for that league. That is the CPO's own layer
+  model inverted.
+
+  FINDINGS I RE-VERIFIED MYSELF rather than relaying (both agents can be wrong):
+    · `transfers.py` has NO `if not team_ids: return`, which its sibling `coaches.py:38` does have.
+      With an empty team set the loop never runs, `complete` stays True, an empty payload is written
+      and `:88` deletes the league's entire transfer history. CONFIRMED by reading `:30-90`.
+    · `load_json_to_bq` defaults to `append=False`, i.e. **WRITE_TRUNCATE** (`bigquery.py:137`,
+      `:195`). One omitted kwarg truncates a table shared by 45 competitions.
+    · `raw_archive`, the backup that was the STATED CONDITION of approving merge-on-write
+      (`escalations.log` 2026-08-08), was never built. **Zero references in the entire repo.**
+    · the three player loaders (`player_squads`, `player_profiles`, `player_teams`) never import
+      `result_is_complete`, and a rate-limited empty answer is recorded as "captured" forever.
+    · `event_loss_detector_from` is `'2026-08-19'`, two days in the FUTURE, so the detector I
+      shipped in `!57` is inert today. Mine, and mine to fix in MR3.
+  WHERE AN AGENT WAS WRONG, recorded so neither is treated as an oracle: one claimed
+  `check_raw_freshness.py` is wired to nothing. It runs as its own Cloud Run job
+  (`deploy/nightly/README.md:188`). The other listed `squads.py` and `transfers.py` as unguarded;
+  both reach the guard indirectly through `fixture_scheduling`.
+
+  **CPO RULING: raw stops deleting old rows EVERYWHERE, not only for fixture details.** Asked as one
+  question with the cost on both options; he chose "Everywhere". It extends *"raw keeps both
+  versions"* from one table to all of them.
+
+  WHY THE OLD JUSTIFICATION IS DEAD. The deletes existed for scan cost and 8b really did take
+  `RAW_APIF_TRANSFERS` from 6.99 GiB to 0.178 GiB. But staging became a stored TABLE on 2026-08-13
+  (#33 items 9/10), so each raw table is now parsed **once a night** instead of once per test. The
+  multiplier the deletes were bought to kill no longer exists. Append-only costs ~$1-2/month in
+  scanning plus cents of storage, against a path that can silently erase a competition's history.
+
+  ⚠ RECORDED AS A REVERSAL, TAKEN KNOWINGLY. Nobody may later restore a delete as a regression fix.
+  ⚠ The 5-fixture / 29-event backlog is still NOT repaired; those events are gone at source.
+  ⚠ The volume-delta threshold (how much smaller an answer may be before it is flagged) is the
+  CPO's and is MR3. Append-only is what makes that decision affordable to take calmly.

@@ -1,9 +1,10 @@
--- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
--- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
--- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
--- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
--- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
--- (merge-on-write tables).
+-- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
+-- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
+-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
+-- keeps both versions"). So it carries many fixtures per league_code AND several versions per
+-- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
+-- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
+-- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
 with src as (
     select *
     from {{ source('api_football', 'raw_apif_fixture_details') }}

@@ -18,14 +18,14 @@ Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors
 | `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
 | `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (squads also carries a `season` stamp; see the Landing-zone note above) |
 | `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
-| `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
+| `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — a top-level key for per-fixture lookups, extracted from `payload` `$.fixture.id`. It is NOT a uniqueness key: the table is append-only, so a retried fixture has one row per fetch |
 
 No `response` data is discarded at ingest, so new fields surface in modelling without refetching; the reshape loaders above drop only the per-call envelope metadata (`get`/`parameters`/`errors`/`results`/`paging`), not the response items.
 
 Raw tables are **created** partitioned by `DATE(ingested_at)` and clustered by `league_code` (`ingestion/api_football/bigquery.py:88-93`). Two cautions go with that, and the second one has cost real money:
 
 - Creation uses `exists_ok=True`, so a table that predates the partitioning code is **never retro-fitted**. Do not assume a given raw table is partitioned — check it: `bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_<ENTITY>` and read `timePartitioning` (metadata only, free).
-- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. The way to keep raw scans bounded is to bound the table itself (merge-on-write keyed on `league_code`, #33 item 8), not to filter by time.
+- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. Bounding the table by deleting at write time was tried (#33 item 8) and **reversed on 2026-08-17** — see [Raw appends and never deletes](#raw-appends-and-never-deletes). The way scan cost is actually bounded today is that staging is materialised as a **table**, so each raw table is parsed once a night rather than once per test (#33 items 9/10). If the raw tables ever need bounding again it is compaction by **version count** per key in a separate job, never a delete at write time, and never keyed on time (#892).
 
 dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
 
@@ -45,18 +45,22 @@ its own second line; a reviewer caught that when the first fix closed only one o
 has been wrong before") and names the commands to recount. The table IS the count. If you add or
 remove a raw table, edit the table below and nothing else.
 
-| Table | Write mode | Partition | Cluster | Merge key |
-|-------|------------|-----------|---------|-----------|
-| `RAW_APIF_FIXTURE_DETAILS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, fixture_id)` |
-| `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_STANDINGS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
-| `RAW_APIF_TEAMS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
-| `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
-| `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_TRANSFERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
-| `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+**Every entity table is `append`. There is no other write mode**, and the "Row grain" column below
+describes what one row COVERS, never a uniqueness guarantee. Since 2026-08-17 nothing in ingestion
+deletes from raw.
+
+| Table | Write mode | Partition | Cluster | Row grain (per write) |
+|-------|------------|-----------|---------|-----------------------|
+| `RAW_APIF_FIXTURE_DETAILS` | append | `DATE(ingested_at)` | `league_code` | one fixture |
+| `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | whole league |
+| `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | whole league |
+| `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | whole league |
+| `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | one `(team, season)` |
+| `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | whole league |
+| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | whole league |
+| `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | team subset |
+| `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | new players only |
+| `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | new players only |
 
 Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
 
@@ -78,38 +82,61 @@ qualify row_number() over (
 ) = 1
 ```
 
-This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: the merge-on-write tables (`RAW_APIF_FIXTURE_DETAILS`, `RAW_APIF_PLAYERS`) already hold one row per entity key, and a latest-snapshot window there would drop fixtures and players rather than deduplicate them.
+This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` are keyed BELOW `league_code` (one row per fixture, one row per `(team, season)`), so a latest-per-league window there would keep one fixture or one team-season and drop every other. Those models read all rows and base resolves the entity.
 
 **No staging model carries a `DATE(ingested_at)` pre-filter, and none should.** This document used to prescribe a 7-day one here. No model ever implemented it, and it would have been a live defect if one had — see the second bullet under raw partitioning above (#892). Ranking cannot prune a partition, so the pre-filter bought nothing it claimed to buy.
 
-**`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
+**`RAW_APIF_PLAYERS` grain (one row per team×season per fetch).** The `/players` roster snapshot is written as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows and removes nothing, so a re-fetched key accumulates one row per fetch and the earlier version stays available to base. Because it is keyed below `league_code` (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
 
 This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
 
 ---
 
-## Whole-league merge-on-write (`TRANSFERS`, `STANDINGS`, `TEAMS`)
+## Raw appends and never deletes
 
-Since **#33 item 8b**, these three write **merge-on-write keyed on `league_code` alone**. Each loader writes ONE row covering the entire competition, so the row it appends fully supersedes every earlier one. Each run appends its snapshot with an explicit `ingested_at`, then deletes that league's rows written strictly before it (`ingestion/api_football/bigquery.py:delete_superseded_league_rows`). The table settles at one row per competition — O(competitions), not O(competitions × runs).
+**CPO ruling, 2026-08-17: raw keeps every version the provider ever gave us. Base decides which one
+wins.** No loader deletes from a raw table, for any table, under any condition. This reverses the
+delete half of #539 (2026-06-22) and all of #33 item 8b (2026-08-09), knowingly and on the record.
 
-Nothing is lost: the three staging models already selected only the latest row per `league_code`, so every deleted row was one the `qualify` was discarding. The saving is **scan cost**, not storage — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on 2026-08-09 (59% of all raw) and was re-read in full by every test and base model on every build.
+The rule exists because "should this answer replace what we already hold" is a question ingestion
+cannot answer. The only signal available at write time is `result_is_complete()`, which tests
+whether the CALL failed, not whether the ANSWER shrank — and an empty error-free response counts as
+complete by deliberate decision (2026-08-03), because the provider genuinely reporting no rows is
+indistinguishable from it. Three deletes were built on that signal and all three destroyed data:
 
-**The delete is reachable only past the #896 completeness guard** (#33 item 8a). A quota-truncated fetch returns before the write, so a partial snapshot can never delete the good stored row. The guard and the merge are one mechanism; do not port one without the other.
+| Deleted mechanism | What it cost |
+|---|---|
+| `_delete_fixtures` (retry, per fixture) | 29 events across 5 fixtures, including a whole penalty shootout, unrecoverable |
+| `_delete_superseded_player_rows` (per `(team, season)`) | 4 squads on 2026-08-02: UCL 340 went 25 players to 0 |
+| `delete_superseded_league_rows` (per league) | never fired destructively that we know of; it would have wiped a competition's entire standings/teams/transfers history in one run |
 
-**Do not extend this to another table without re-deriving that it writes a complete per-league row AND that no consumer reads snapshot history.** The set is pinned by `tests/test_raw_merge_on_write.py`. Specifically excluded:
+The scan-cost argument that bought them is spent. `RAW_APIF_TRANSFERS` really did fall from 6.99 GiB
+to 0.178 GiB under 8b, but staging became a materialised **table** four days later (#33 items 9/10),
+so each raw table is now parsed once a night instead of once per test. Append-only costs roughly
+$1-2/month in scanning plus cents of storage.
 
-- **`RAW_APIF_COACHES`** — `stg_apif__coaches` reads **all** snapshots by CPO ruling (`escalations.log`, 2026-06-23) to preserve every coach ever seen; a league-keyed delete destroys ~120 coaches whose teams later left our pull.
-- **`RAW_APIF_SQUADS`** — the loader writes a team **subset**, not a whole-league row (#37).
-- **`RAW_APIF_FIXTURES_NEXT`** — complete only via carry-forward, and it has no #896 guard.
-- **`RAW_APIF_PLAYER_PROFILES` / `_PLAYER_TEAMS`** — accumulate per player; a league-keyed delete erases every player ingested on an earlier run. **Never.**
+**Do not reintroduce a delete to bound a table.** If growth needs bounding, compact by **version
+count** per key in a separate job: it prunes on the clustering key and is competition-frequency
+agnostic, where a time-based rule silently drops biennial and quadrennial competitions that go
+months between ingests (#892). The removal is pinned behaviourally by
+`tests/test_raw_merge_on_write.py`, which asserts no loader issues DML at all.
+
+**What did NOT change: the #896 completeness guard.** A fetch that errored or was cut short by the
+quota is still discarded whole and retried next run, in `batch_fixtures`, `coaches`, `standings`,
+`teams` and `squads`. Append-only makes a bad write recoverable; it is not a reason to make one.
 
 ---
 
-## Fixture details (merge-on-write)
+## Fixture details (append-only, one row per fetch)
 
-`RAW_APIF_FIXTURE_DETAILS` uses merge-on-write. Each run fetches only the fixtures that are missing data (not the full history), then upserts into the unified table keyed on `(league_code, fixture_id)`. The table holds one row per fixture, without accumulating duplicate rows.
+`RAW_APIF_FIXTURE_DETAILS` appends. Each run fetches only the fixtures that are missing data (not the full history) and appends one row per fixture returned. A fixture that is retried — empty statistics within the 3-day window from kickoff — gains a **second row**; nothing is removed.
 
-**That row is the latest COMPLETE payload, not the latest attempt (#896, ported here under GitLab #75).** The retry path deletes the stored row before re-inserting, and this bundle carries lineups, events, statistics and player stats *together* — so one bad retry destroys all four at once, permanently, exactly the merge-on-write hazard that forced the #33 item 8a/8b split. `_fetch_and_persist_batch` therefore refuses to delete when the replacing fetch is not `result_is_complete()`, and never deletes a retried fixture the response did not actually return. In both cases the stored payload is kept, nothing is written, and the fixture retries next run. The delete and the insert stay paired, so no second row is created.
+**Both versions are kept deliberately, and base picks per entity.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_events` dedups newest-per-`(league_code, fixture_id, event_index)`, `base_apif__fixture_players` per `(…, team_id, player_id)`, `base_apif__fixture_statistics` per `(…, team_id)` — so an entity present only in the older payload survives, and one present in both takes the newer. On fixture 1564795 that yields 27 events: indices 0-16 from the retry, 17-26 from the payload it would have replaced.
+
+Two consequences worth stating rather than discovering:
+
+- `fixture_id` is **not** a uniqueness key on this table. Any reader that assumes one row per fixture must aggregate — `coverage.read_coverage` and `batch_fixtures._read_fetched_coverage` both use `LOGICAL_OR ... GROUP BY fixture_id` for exactly this reason.
+- `stg_apif__lineups` has **no consumer**, so nothing downstream resolves its versions today.
 
 The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
 
@@ -183,7 +210,7 @@ Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`
 
 ## Endpoints and raw tables
 
-Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` use merge-on-write on an entity key, and `RAW_APIF_TRANSFERS`, `RAW_APIF_STANDINGS` and `RAW_APIF_TEAMS` on `league_code` alone (#33 item 8b) — see the write-mode table above.
+Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Every entity table uses `WRITE_APPEND` and nothing deletes — see the write-mode table above and [Raw appends and never deletes](#raw-appends-and-never-deletes). What differs between tables is only what one written row COVERS: a whole league, one fixture, or one `(team, season)`.
 
 | Area | Endpoint(s) | BigQuery raw table |
 |------|-------------|-------------------|
@@ -197,11 +224,11 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
 | Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
 | Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
-| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fetch of a fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
 
 **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
 
-**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; a full-history snapshot per run written merge-on-write on `league_code` since #33 item 8b, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
+**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; a full-history snapshot appended per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
 
 **Added 2026-06-15 (player-data initiative, PR-a):** three player endpoints. `/players/squads` per team → `RAW_APIF_SQUADS` (present-day squad + shirt number; distinct from the `/players` roster pull that lands `RAW_APIF_PLAYERS`). `/players/profiles` per player → `RAW_APIF_PLAYER_PROFILES` (bio) and `/players/teams` per player → `RAW_APIF_PLAYER_TEAMS` (career team×seasons) run as a **global per-player phase** over the current universe (players rostered in season ≥ `API_FOOTBALL_PLAYER_UNIVERSE_MIN_SEASON`, default 2025), derived from `RAW_APIF_PLAYERS`. Each player is grouped under a deterministic provenance `league_code` (MIN over the leagues that surfaced them — provenance, not identity, as with transfers). Already-ingested players are skipped (bio/career are static/slow-moving), so the first run is the quota-guarded backfill and later runs fetch only newly-rostered players. CPO scope ruling (2026-06-15): profiles + teams + squads; `/players/seasons` was evaluated and **not** ingested (a bare list of years, redundant with `/players/teams`).
 

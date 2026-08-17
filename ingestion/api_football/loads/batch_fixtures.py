@@ -4,26 +4,27 @@ Step 2 of the documented two-step ingestion pattern (Step 1 is loads/fixtures.py
 One API call per 20 finished fixtures returns events, lineups, statistics, and players
 embedded in the response — replacing the old 5-endpoint-per-fixture fanout.
 
-Storage model: one row per fixture in RAW_APIF_FIXTURE_DETAILS (unified, all leagues).
+Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unified, all leagues).
   league_code STRING    — competition discriminator
-  fixture_id  INT64     — for merge-key lookups (partitioned by DATE(ingested_at))
+  fixture_id  INT64     — for per-fixture lookups (partitioned by DATE(ingested_at))
   payload     JSON      — the single fixture object from $.response[n]
   ingested_at TIMESTAMP — when this row was written (UTC)
 
-On the first fetch of a fixture the row is inserted. On retry (empty stats
-within STATS_RETRY_DAYS of kickoff) the old row is deleted first, so the table
-settles at one row per (league_code, fixture_id). Staging models read payload
-directly — no $.response unnesting needed.
+APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
+within STATS_RETRY_DAYS of kickoff) another row is inserted and NOTHING is removed, so
+a retried fixture holds one row per attempt. Staging models read payload directly and
+faithfully — no $.response unnesting, no dedup — and base resolves the versions by
+entity key with latest-ingest-wins.
 
-⚠ What that row holds is the latest COMPLETE payload, not the latest attempt
-(GitLab #75). The #896 guard in _fetch_and_persist_batch refuses to delete when
-the replacing fetch came back incomplete: the stored payload is kept and nothing
-is written, so the fixture retries next run rather than being destroyed. The
-delete and the insert are always paired, so this does NOT create a second row.
+⚠ Raw therefore holds every version the provider ever gave us, including versions that
+contradict each other. That is deliberate (CPO 2026-08-17: "raw keeps both versions").
+The delete that used to run here destroyed 29 real events across 5 fixtures because a
+retry chasing late statistics returned fewer events, and one row bundles lineups, events,
+statistics and player stats together.
 
 Coverage is derived by querying RAW_APIF_FIXTURE_DETAILS directly, filtered by
 league_code: a fixture is done once ANY stored row for it carries non-empty
-statistics.
+statistics. That LOGICAL_OR aggregation is what makes the multi-row state safe to read.
 
 Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
 API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
@@ -69,15 +70,16 @@ def _read_fetched_coverage(
     has_statistics is True when the fixture's statistics array is non-empty.
     Returns an empty dict when the table does not exist (first run).
 
-    AGGREGATED PER FIXTURE, deliberately — and NOT because the #896 guard creates duplicates; it
-    does not (delete and insert are paired). It is because reading row-by-row into a dict makes the
-    answer depend on which row happened to land last, and BigQuery does not promise an order. The
-    one duplicate source that already exists is `_insert_fixture_rows`, which does not dedup a
-    response that repeats an id. Under a per-row read an older empty-statistics row could then mask
-    a complete one and the fixture would be re-fetched every run until its window closed, burning
-    quota to no effect. LOGICAL_OR answers the question actually being asked — "do we hold
-    statistics for this fixture anywhere" — and is order-independent. For the normal single-row
-    case it is a no-op.
+    AGGREGATED PER FIXTURE, and since 2026-08-17 that is load-bearing rather than defensive:
+    the table is append-only, so a retried fixture holds one row per attempt as a matter of
+    course. Reading row-by-row into a dict would make the answer depend on which row happened to
+    land last, and BigQuery does not promise an order — an older empty-statistics row could mask
+    a complete one, and the fixture would be re-fetched every run until its window closed,
+    burning quota to no effect. LOGICAL_OR answers the question actually being asked, "do we hold
+    statistics for this fixture anywhere", and is order-independent.
+
+    ⚠ This aggregation shipped in `!56` for a narrower reason and turned out to be the
+    precondition the append-only ruling needed. Do not "simplify" it back to a per-row read.
     """
     table_id = _fixture_details_table_id()
     try:
@@ -152,24 +154,18 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
     return out
 
 
-def _delete_fixtures(
-    client: bigquery.Client,
-    table_id: str,
-    fixture_ids: list[int],
-    league_code: str,
-) -> None:
-    """Delete existing rows for the given fixture IDs before re-inserting.
-
-    Used when retrying fixtures that previously had empty statistics, so that
-    the table always holds exactly one row per (league_code, fixture_id).
-    """
-    ids_sql = ", ".join(str(fid) for fid in fixture_ids)
-    q = f"""
-        DELETE FROM `{table_id}`
-        WHERE CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) IN ({ids_sql})
-          AND league_code = '{league_code}'
-    """
-    client.query(q).result()
+# REMOVED 2026-08-17: `_delete_fixtures`, the delete-on-retry. This is the one that cost real
+# data. A fixture row bundles lineups, events, statistics and player stats TOGETHER, so a retry
+# chasing late statistics could come back richer in one section and poorer in another, and the
+# delete made the poorer answer the only surviving one. MEASURED on fixture 1564795: 27 events
+# stored, 17 returned by the retry, an entire penalty shootout destroyed and unrecoverable
+# because the provider no longer returns it.
+#
+# CPO ruling 2026-08-17, verbatim: "raw keeps both versions." Extended the same day to every raw
+# table. Both payloads now land and BASE decides: `base_apif__fixture_events` dedups
+# `partition by (league_code, fixture_id, event_index) order by raw_ingested_at desc`, which on
+# that fixture yields 27 — indices 0-16 from the new payload, 17-26 surviving from the old.
+# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
 
 
 def _insert_fixture_rows(
@@ -231,27 +227,26 @@ def _fetch_and_persist_batch(
     ctx: PipelineContext,
     league_code: str,
     fixture_ids: list[int],
-    retry_ids: set[int],
 ) -> None:
-    """Call GET /fixtures?ids=... and persist one row per fixture.
+    """Call GET /fixtures?ids=... and append one row per fixture returned.
 
-    For retries (empty stats previously stored), delete the old row first so
-    FIXTURE_DETAILS always holds exactly one row per fixture_id.
+    Nothing is deleted. A retried fixture gains a second row and base resolves the two by
+    entity key (CPO 2026-08-17, "raw keeps both versions" — see the note above
+    `_insert_fixture_rows`).
 
-    #896 applies here with teeth, because this table is MERGE-ON-WRITE: the retry path
-    DELETES the stored payload before re-inserting. `escalations.log` (2026-08-08, the 8a/8b
-    split) states the hazard exactly — "Under append-only that is RECOVERABLE ... Under
-    merge-on-write the partial write DELETES the complete prior row." A fixture's payload
-    carries events, lineups, players and statistics together, so one bad retry destroys all
-    four. Hence: complete or discard, and never delete a fixture the response did not return.
+    #896 still applies, and still returns before the write: a batch the provider did not answer
+    cleanly is discarded whole and retried next run. It is no longer the thing standing between
+    a shrunken answer and permanent loss — append-only is — but writing a known-partial payload
+    would still put a worse row in front of base for no reason, and the fixture would look
+    touched when it was not.
     """
     ids_param = "-".join(str(fid) for fid in fixture_ids)
     data = fetch_json("/fixtures", headers=ctx.headers, params={"ids": ids_param})
     append_api_errors(data, f"fixture_details {league_code}", ctx.errors)
 
-    # #896: an incomplete fetch must never supersede good data. Checked BEFORE any delete and
-    # immediately after the fetch — the quota flag is process-global and latches for the rest
-    # of the run, so a later check would misreport this batch.
+    # #896: an incomplete fetch must never be written. Checked immediately after the fetch —
+    # the quota flag is process-global and latches for the rest of the run, so a later check
+    # would misreport this batch.
     if not result_is_complete(data):
         ctx.errors.append(
             f"fixture_details {league_code}: INCOMPLETE fetch — batch DISCARDED, prior "
@@ -264,33 +259,7 @@ def _fetch_and_persist_batch(
         return
 
     table_name = raw_table("FIXTURE_DETAILS")
-    table_id = _fixture_details_table_id()
     ensure_unified_raw_table(ctx.client, table_name, include_fixture_id=True)
-
-    # Delete stale rows only for retried fixtures the response actually RETURNED. Deleting one
-    # the provider omitted would supersede a stored payload with nothing — the same #896
-    # hazard in a different shape, and not covered by the completeness check above, because a
-    # response can be error-free and quota-clean yet still omit an id we asked for.
-    # Reuses the same defensive extraction shape as `_insert_fixture_rows._extract_fixture_id`:
-    # a malformed id must not raise here, or the generic handler upstairs would discard the whole
-    # batch — including well-formed new fixtures — under an opaque error instead of this module's
-    # own INCOMPLETE signal (data-engineer-reviewer, round 1).
-    returned_ids: set[int] = set()
-    for item in response:
-        if not isinstance(item, dict):
-            continue
-        fid = (item.get("fixture") or {}).get("id")
-        if fid is None:
-            continue
-        try:
-            returned_ids.add(int(fid))
-        except (TypeError, ValueError):
-            continue
-    retries_in_batch = [
-        fid for fid in fixture_ids if fid in retry_ids and fid in returned_ids
-    ]
-    if retries_in_batch:
-        _delete_fixtures(ctx.client, table_id, retries_in_batch, league_code)
 
     _insert_fixture_rows(
         ctx.client,
@@ -313,8 +282,8 @@ def run_batch_fixture_fanout_and_persist(
          finished fixtures already have good statistics. Fixtures missing entirely or
          with empty stats within the 3-day retry window are queued for fetching.
       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
-         Each fixture in the response is stored as one row in FIXTURE_DETAILS.
-         Retried fixtures (previously empty stats) have their old row deleted first.
+         Each fixture in the response is appended as one row in FIXTURE_DETAILS.
+         Retried fixtures (previously empty stats) keep their earlier row as well.
 
     All competitions are planned before any HTTP calls are made.
     """
@@ -377,6 +346,6 @@ def run_batch_fixture_fanout_and_persist(
                 time.sleep(sleep_s)
             first_call = False
             try:
-                _fetch_and_persist_batch(ctx, league_code, batch, retry_ids)
+                _fetch_and_persist_batch(ctx, league_code, batch)
             except Exception as e:
                 ctx.errors.append(f"batch_fixtures {league_code}: {e}")

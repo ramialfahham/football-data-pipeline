@@ -17,15 +17,17 @@ Both loaders write one row per league per run, so fetching a subset of teams and
 would persist a partial snapshot. What that costs differs, and an earlier version of this
 docstring got COACHES wrong by asserting both were the same:
 
-  RAW_APIF_TRANSFERS — MERGE-ON-WRITE since #33 item 8b, and `stg_apif__transfers` reads
-  latest-per-league. A partial write DELETES the complete row it supersedes. Unrecoverable
-  past time travel — the #37 shape.
+  RAW_APIF_TRANSFERS — `stg_apif__transfers` reads latest-per-league, so a partial write HIDES
+  the complete snapshot from every model downstream. ⚠ It no longer DESTROYS it: this table was
+  merge-on-write under #33 item 8b, and that was REVERSED on 2026-08-17 (CPO: raw appends and
+  never deletes), so the complete row survives in raw and a bad write is recoverable by
+  re-running rather than unrecoverable past time travel. The reason to keep the skip is
+  unchanged — a hidden snapshot is still a wrong warehouse until the next good run.
 
-  RAW_APIF_COACHES — APPEND-ONLY. It was deliberately EXCLUDED from 8b (`data_contract.md`,
-  and the CPO ruling of 2026-06-23) because `stg_apif__coaches` reads ALL snapshots to preserve
-  every coach ever seen; a league-keyed delete would drop ~120 coaches whose teams later left
-  our pull. So a partial write here destroys nothing — it appends a thin snapshot that base
-  then dedups. Still not something to do on purpose, but the consequence is noise, not loss.
+  RAW_APIF_COACHES — the same, and it always was. `stg_apif__coaches` reads ALL snapshots to
+  preserve every coach ever seen (CPO ruling 2026-06-23), so a partial write appends a thin
+  snapshot that base then dedups. Coaches was the one table 8b never touched; since 2026-08-17
+  every table has the property that used to make it special.
 
 Either way a league that is not due is skipped ENTIRELY at the call site: no fetch, no write.
 Its stored rows are untouched and staging reads exactly what it read yesterday. That is why no

@@ -89,10 +89,10 @@ models:
 
   - name: stg_apif__players
     description: >
-      One row per player per team per season per league from GET /players. RAW_APIF_PLAYERS
-      stores one merge-on-write row per (team, season), so staging reads ALL rows faithfully
-      (no latest-snapshot qualify); current-per-entity is assembled in base. Grain after base:
-      (league_code, team_id, season_year, player_id).
+      One row per player per team per season per league from GET /players. RAW_APIF_PLAYERS is
+      append-only and stores one row per (team, season) PER FETCH, so staging reads ALL rows
+      faithfully (no latest-snapshot qualify); current-per-entity is assembled in base. Grain
+      after base: (league_code, team_id, season_year, player_id).
     columns:
       - name: league_code
         tests: [not_null]
@@ -105,12 +105,12 @@ models:
 
   - name: stg_apif__fixture_events
     description: >
-      One row per event per fixture from the $.events array in raw_apif_fixture_details — a
-      merge-on-write table (one bounded row per (league_code, fixture_id); see layering.md
-      §1_staging). Staging reads ALL rows faithfully — no latest-snapshot qualify, the grain is
-      sub-league (one row per fixture); current-per-entity is assembled in base_apif__fixture_events,
-      which dedups defensively (robust to any transient duplicate). Grain at staging:
-      (fixture_id, event_index, raw_ingested_at).
+      One row per event per fixture from the $.events array in raw_apif_fixture_details — an
+      append-only table holding one row per FETCH of a fixture, so a retried fixture contributes
+      several versions (see layering.md §1_staging). Staging reads ALL rows faithfully — no
+      latest-snapshot qualify, the grain is sub-league; choosing between versions is
+      base_apif__fixture_events' job, newest per (league_code, fixture_id, event_index). Grain at
+      staging: (fixture_id, event_index, raw_ingested_at).
     columns:
       - name: league_code
         tests: [not_null]
@@ -123,11 +123,11 @@ models:
 
   - name: stg_apif__fixture_players
     description: >
-      One row per player per team per fixture from $.players in raw_apif_fixture_details — a
-      merge-on-write table (one bounded row per (league_code, fixture_id)). Staging reads ALL rows
-      faithfully (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled
-      in base_apif__fixture_players (defensive dedup). Grain at staging:
-      (fixture_id, team_id, player_id, raw_ingested_at).
+      One row per player per team per fixture from $.players in raw_apif_fixture_details — an
+      append-only table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully
+      (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled in
+      base_apif__fixture_players, newest per (league_code, fixture_id, team_id, player_id). Grain
+      at staging: (fixture_id, team_id, player_id, raw_ingested_at).
     columns:
       - name: league_code
         tests: [not_null]
@@ -143,11 +143,10 @@ models:
   - name: stg_apif__fixture_statistics
     description: >
       Long format — one row per statistic line per team per fixture from $.statistics in
-      raw_apif_fixture_details (a merge-on-write table, one bounded row per (league_code,
-      fixture_id)). Faithful 1:1 flatten only — staging reads ALL rows (no latest-snapshot qualify,
-      sub-league grain); the pivot to wide columns and the dedup both happen in
-      base_apif__fixture_statistics (business reshaping belongs in base). Grain at staging:
-      (fixture_id, team_id, stat_type, raw_ingested_at).
+      raw_apif_fixture_details (append-only, one row per FETCH of a fixture). Faithful 1:1 flatten
+      only — staging reads ALL rows (no latest-snapshot qualify, sub-league grain); the pivot to
+      wide columns and the dedup both happen in base_apif__fixture_statistics (business reshaping
+      belongs in base). Grain at staging: (fixture_id, team_id, stat_type, raw_ingested_at).
     columns:
       - name: league_code
         tests: [not_null]
@@ -160,10 +159,10 @@ models:
 
   - name: stg_apif__lineups
     description: >
-      One row per team per fixture from $.lineups in raw_apif_fixture_details — a merge-on-write
-      table (one bounded row per (league_code, fixture_id)). Staging reads ALL rows faithfully (no
-      latest-snapshot qualify — sub-league grain); current-per-entity is assembled in base
-      (defensive dedup). Grain at staging: (fixture_id, team_id, raw_ingested_at).
+      One row per team per fixture from $.lineups in raw_apif_fixture_details — an append-only
+      table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully (no
+      latest-snapshot qualify — sub-league grain). ⚠ This model has NO consumer today, so nothing
+      downstream resolves its versions. Grain at staging: (fixture_id, team_id, raw_ingested_at).
     columns:
       - name: league_code
         tests: [not_null]
