@@ -31,6 +31,20 @@ def load_transfers_batch(
     league_code: str,
     team_ids: set[int],
 ) -> None:
+    # ⚠ THE GUARD `coaches.py:38` HAS AND THIS ONE DID NOT, until 2026-08-17. With an empty
+    # `team_ids` the fetch loop below never runs, `complete` stays True, and an EMPTY whole-league
+    # payload is written as fact. `stg_apif__transfers` reads the latest row per league, so that
+    # empty snapshot hides the real transfer history from every model downstream. Under the
+    # merge-on-write this loader carried until `!59` it also DELETED it outright.
+    # Reachable: `fixtures.py` returns an empty team set on an empty fixtures response, and
+    # `competition_runner.py` calls this unconditionally. Compounding it, `completeness.py` drops
+    # leagues with no `team_ids` from the expected set, so the check that exists to catch this is
+    # blind to exactly this case.
+    if not team_ids:
+        ctx.errors.append(
+            f"transfers {league_code}: no team ids this run — SKIPPED, prior snapshot kept"
+        )
+        return
     transfers_payload = {"league_code": league_code, "response": []}
     if os.getenv("API_FOOTBALL_SKIP_TRANSFERS", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(

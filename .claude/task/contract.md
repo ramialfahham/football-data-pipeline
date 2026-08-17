@@ -1,110 +1,105 @@
-# Task contract — dim_country + dim_region (#69 step 3)
+# Task contract — never record a gap as captured (#75 MR2)
 
 objective: >
-  Publish the two dimensions #69's rescope calls for. `dim_country` is genuinely new: countries
-  exist nowhere in the model layer today, only as free text in four dims. `dim_region` publishes
-  `confederations.csv`, which has existed since #57 and is read by nothing. Together they let a
-  competition POINT AT one or the other, so which relationship is populated is the answer and no
-  `single_country` flag is needed.
-  ⚠ THIS UNIT IS THE DIMS ONLY. The foreign keys from the four free-text columns are #69 step 5
-  and a separate MR — a dim and its first reader cannot ship together, the same rule that keeps
-  #62 step 3 apart from step 1.
-refs: GitLab #69 (rescope + the naming rulings), #62 step 3 (the page that needs `dim_country`)
+  Four fixes of ONE class: a fetch that failed is written as fact, and the key it names is then
+  treated as done forever. Unlike #75 nothing here DELETES — the damage is a permanent hole that
+  no later run re-fetches, which is why no existing test or DQ check can see it. Append-only
+  (`!59`) made bad writes recoverable; it did not stop us recording them.
+refs: GitLab #75 (MR2 of the plan recorded in `escalations.log` 2026-08-17); the four sites were
+  found by the two blind lead-DE assessments the CPO ordered.
 
 scope_paths:
-  - dbt_project/seeds/countries.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/3_core/dim_country.sql
-  - dbt_project/models/3_core/dim_region.sql
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/docs/layering.md
+  - ingestion/api_football/bigquery.py
+  - ingestion/api_football/completeness.py
+  - ingestion/api_football/fixture_scheduling.py
+  - ingestion/api_football/loads/player_profiles.py
+  - ingestion/api_football/loads/player_squads.py
+  - ingestion/api_football/loads/player_teams.py
+  - ingestion/api_football/loads/transfers.py
+  - tests/test_never_record_a_gap.py
+  - tests/test_incomplete_fetch_no_supersede.py
+  - tests/test_player_squads_catchup.py
+  - .claude/active_work.md
 
 impact_map: >
-  writers: both dims are NEW and seed-published. `countries.csv` is authored here from #69's
-    recorded discovery; `confederations.csv` already exists and is NOT edited.
+  WRITERS TOUCHED, and what each currently records as fact:
+    `loads/player_squads.py:75`   -> RAW_APIF_SQUADS. Marks `(team, season)` captured via
+      `captured_team_seasons`, which reads `$.team_id` PRESENCE over ALL rows (no latest filter).
+    `loads/player_profiles.py:68` -> RAW_APIF_PLAYER_PROFILES. Marks the player ingested via
+      `player_universe._existing_player_ids`, which reads `$.player_id` presence.
+    `loads/player_teams.py:68`    -> RAW_APIF_PLAYER_TEAMS. Same reader, same effect.
+    `loads/transfers.py:86`       -> RAW_APIF_TRANSFERS, one row for the WHOLE league.
+  Because all three "captured" readers key on PRESENCE of the id and not on the payload being
+  non-empty, a rate-limited empty answer is indistinguishable from a real one and the key is
+  never re-fetched. That is the permanent hole.
 
-  downstream: NONE — both are LEAVES. Nothing reads either until #69 step 5 adds the foreign keys
-    and #62 step 3 builds `mart_competition_index`. Deliberate: this is the "additive and not yet
-    read" pattern `confederations.csv` itself shipped under in #57, and the same reason
-    `mart_competition_index` is parked rather than built.
+  THE FETCH HELPERS, verified by reading them, not assumed:
+    guarded, return `tuple[list, bool]`: `players_response_for_team` (:457),
+      `transfers_response_for_team` (:487)
+    UNGUARDED, return a bare `list`: `squads_response_for_team` (:520),
+      `profiles_response_for_player` (:545), `player_teams_response_for_player` (:569)
+  So the completeness signal exists and three siblings simply never got it.
 
-  blast_radius: NONE on any existing number, string or row. No existing model is modified. The diff
-    adds two models, one seed and their schema entries; it touches no file under `2_base/`,
-    `4_intermediate/` or `5_marts/` and no existing `3_core` model.
+  `load_json_to_bq` DEFAULT, enumerated across every call site
+  (`grep -rn "load_json_to_bq(" ingestion/ scripts/` -> 11 callers):
+    9 pass `append=True` explicitly. TWO omit it and rely on the `False` default, i.e.
+    WRITE_TRUNCATE, and both do so DELIBERATELY because their tables hold a single current-state
+    row: `completeness.py:602` (RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT) and
+    `fixture_scheduling.py:345` (RAW_APIF_{lc}_INGEST_CURSOR).
+    Making the parameter REQUIRED therefore changes no behaviour anywhere; it forces the
+    destructive choice to be written down at the two places that make it. `fixture_scheduling.py`
+    is in scope for that one-word edit.
 
-  ⚠ WHAT dim_region DOES AND DOES NOT ADD, stated because it is easy to overstate:
-    `competition_registry.confederation` ALREADY carries a `relationships` test to
-    `ref('confederations')` (`dbt_project/seeds/schema.yml:188`), so the competition->region guard
-    exists today at seed level. `dim_region` buys PUBLICATION and SYMMETRY with `dim_country`, not
-    a new guard. The symmetry is the point of the rescope — two relationships of the same kind —
-    but calling it a new safety net would be false.
-
-  layer_rules: `scripts/check_layer_contract.py`. Both are core dims published from seeds, which is
-    the layer's job: seeds author, `3_core` publishes. Neither derives a fact. No per-competition
-    file and no `league_code` involvement, so the no-new-model rule is untouched. Materialisation
-    follows the layer setting in `dbt_project.yml`; no per-model override.
-
-  deploy_order: additive and order-free. `dbt seed` runs before models in every build path, and
-    both dims are leaves so they can be built before a reader exists. A seed and a `3_core` model
-    path are inside `.data_paths_prod`, so merging triggers `data:build:main` and the tables appear
-    on that run.
+  DOWNSTREAM: none of this changes a model, a grain or a number. It changes WHICH KEYS GET
+  RE-FETCHED, so the observable effect is more API calls on runs following a rate limit, and
+  players/squads that previously stayed permanently blank getting filled on a later run. No dbt
+  file is touched, so `dbt ls` lineage is not the relevant evidence here and is deliberately not
+  pasted — the blast radius is the ingest planner, not the warehouse graph.
+  DEPLOY ORDER: ⚠ `.data_paths_prod` EXCLUDES `ingestion/**`, so merging does NOT rebuild prod.
+  ⚠ #74: nothing redeploys the Cloud Run image on merge, so this is INERT in production until the
+  nightly image is rebuilt from main by hand — the same gap that left `!59` inert for six hours.
 
 decisions_taken: >
-  CPO rescope of #69, 2026-08-16 (its note is the authority): "dim_region from confederations.csv
-  (publish what exists) + dim_country built new. A competition POINTS AT one; which relationship is
-  populated IS the answer." And on the modelling this replaces: "You don't mix up countries and
-  continents or regions in one column and add a flag 'single country'. That's really bad modeling."
+  CPO instruction, 2026-08-17, in this conversation: "go ahead as recommended", against a
+  recommendation that named these four fixes explicitly. MR2 of the plan the CPO approved earlier
+  the same day when he chose "Everywhere" for the append-only rule.
 
-  `countries.csv` CONTENT is the 224-entity canonical list from #69's discovery, under the four
-  naming rulings of 2026-08-16 recorded in `escalations.log`: English, everyday short form, no
-  diacritics, with `Republic of Ireland` and `United States of America` as the two stated
-  exceptions.
+  NOT LOOSENED, and this is the trap to avoid: the fix is to WITHHOLD THE WRITE, never to widen
+  what counts as complete. `result_is_complete` keeps its exact meaning, including the CPO ruling
+  of 2026-08-03 that an empty error-free response IS complete. An empty answer from a healthy
+  provider still gets written and still marks the key captured — that is correct and it is what
+  keeps 3,539 historical team-seasons out of a nightly re-fetch.
 
-  VERIFIED AGAINST CURRENT PROD BEFORE AUTHORING, priced first (3,681,429 bytes): 284 distinct
-  provider country strings across the four staging surfaces today; excluding the `World` sentinel,
-  **283 of 283 resolve into the 224 via `country_name_overrides`** — nothing uncovered. That check
-  matters because #69 step 5's foreign keys will fail on anything this seed misses, and it was run
-  against today's data rather than reused from the 08-16 discovery.
-
-  NEW MECHANISM: none. Two seed-published dims, the shape `dim_league` and the other core dims
-  already use.
-  RECURRING COST: negligible. A 224-row table and a 7-row table built once per run.
+  NEW MECHANISM: none. Three helpers gain the return shape two siblings already have.
+  RECURRING COST: a small INCREASE in API calls is the intended effect — keys that were wrongly
+  marked captured will now be re-fetched once. Bounded by the existing skip logic and the daily
+  quota guard; no change to cadence, fanout caps or history depth.
 
 decisions_reserved:
-  - `entity_type` (un_state / association / territory / historical) is NOT a column. The CPO on
-    being shown a 7-column draft: "we only need a mapping between what the provider gives us and
-    what we turn into the single source of truth name". The distinction is preserved in #69's
-    discovery note if a consumer ever needs it; nothing needs it to render a country name.
-  - `label_i18n_key` per country is NOT a column — 224 keys x 3 locales is a copy cost and the
-    CPO's to authorise. `dim_region` HAS one only because `confederations.csv` already shipped with
-    it.
-  - Confederation per country is NOT a column, and there is NO SOURCE for it: the registry gives
-    confederation per COMPETITION and the UN list the CPO supplied has none. ⚠ It is also not
-    needed — the competitions page takes the region from the competition's own `confederation`,
-    never from the country's.
-  - The four foreign keys (#69 step 5), and whether `dim_country` supersedes
-    `country_name_overrides` or sits beside it as `team_name_overrides` sits beside `dim_team`.
-  - Whether the registry's `country` field is blanked for the 24 competitions holding a region
-    word. #69 names it; it changes what the export renders and belongs with step 4.
+  - The volume-delta threshold stays MR3 and stays the CPO's. This task only stops us recording a
+    FAILED fetch as fact; it does not judge a SUCCESSFUL fetch that came back smaller.
+  - Whether `event_loss_detector_from` should be lowered now that the backlog is triaged. It is
+    2026-08-19 and therefore inert. Deliberately NOT bundled here: it is a dbt change with its own
+    blast radius and it needs its own measurement (zero rows at the new cutoff) before it moves.
 
 done_when:
-  - `countries.csv` carries 224 rows; `country_key` unique; no `country_name` with a diacritic.
-  - Both dims exist in `3_core`, are pass-throughs of their seed, and derive nothing.
-  - `dbt parse` succeeds; SQLFluff clean on both new .sql files, full rule set, from the repo root.
-  - `dbt ls --select dim_country+ dim_region+ --resource-type model` shows both are LEAVES.
-  - `core.yml` documents both with not_null + unique on the keys.
-  - `check_layer_contract.py` and `check_registry_var_sync.py` pass.
+  - `grep -rn "-> list:" ingestion/api_football/fixture_scheduling.py` shows no per-entity fetch
+    helper returning a bare list.
+  - `load_json_to_bq` cannot be called without stating `append`; the two deliberate WRITE_TRUNCATE
+    callers say so explicitly.
+  - A test proves each of the four holes RED against the current code before the fix, pasted into
+    `.claude/task/acceptance_evidence.md`.
+  - `python -m pytest tests/ -q` passes in full; `ruff --config .ruff-ci.toml` clean.
+  - No change to `result_is_complete` or to what counts as complete.
 
 amendments:
-  - 2026-08-17: + dbt_project/docs/layering.md — authority: scope-auditor FAIL, round 1, finding 2.
-    content: `layering.md`'s "Attribute masquerading as entity" bullet names COUNTRY explicitly —
-    "keep as attributes until a consumer needs rollups or hierarchies (e.g. continent,
-    confederation, position group). Promote to a dim when the rollup logic appears, not before."
-    This MR promotes country AND region to dims while stating in three places that nothing reads
-    them, and the rollup the doc names as the trigger — confederation on the country — is precisely
-    what this task leaves out for want of a source. So the doc's condition is NOT met; the doc is
-    being OVERRIDDEN by the CPO's design. The reviewer was right that an unrecorded override plus
-    an unchanged doc is a doc-sync failure: the next reader would find a rule and a violation with
-    nothing connecting them. The bullet gains a pointer to the ruling. The RULE IS NOT WEAKENED —
-    it still says promote on the rollup, and the exception names its authority rather than
-    generalising.
+  - 2026-08-17: + `tests/test_player_squads_catchup.py` — authority: the same CPO go for MR2; no new
+    decision. `squads_response_for_team` gains a second return value, and that file holds the one
+    test double for it in the repo (`grep -rn "squads_response_for_team" tests/` → exactly one hit,
+    line 176), still returning a bare list. Left alone it raises "not enough values to unpack",
+    which the loader's own `except` swallows into an error string — so the suite would go red for a
+    reason unrelated to the defect. Harness-only change: the fake returns `(rows, True)`; no
+    assertion moves.
+    ⚠ FOUND BY RUNNING THE SUITE, not by reading the diff. The signature change is invisible to a
+    grep of the changed files, because the breakage lives in a file this task never intended to
+    touch.

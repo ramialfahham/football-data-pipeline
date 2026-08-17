@@ -134,7 +134,7 @@ def load_json_to_bq(
     payload: dict,
     *,
     as_json_payload: bool = False,
-    append: bool = False,
+    append: bool,
     league_code: str | None = None,
     ingested_at: str | None = None,
 ) -> None:
@@ -152,8 +152,13 @@ def load_json_to_bq(
         and the table is created with date partitioning if it does not exist yet.
         This is the standard mode for reference tables (fixtures, standings, etc.).
 
-        When append=False (legacy), the table is overwritten (WRITE_TRUNCATE).
-        This is still used by the fanout tables until issue #221 is complete.
+        When append=False, the table is OVERWRITTEN (WRITE_TRUNCATE) — every row, every
+        competition. ⚠ `append` is a REQUIRED keyword since 2026-08-17 and must stay one: it
+        defaulted to False, so a single omitted argument truncated a table shared by 45
+        competitions, silently and with no DELETE to notice. Exactly two callers pass False and
+        both mean it, because their tables hold one current-state row: `completeness.py`
+        (INGEST_COMPLETENESS_SNAPSHOT) and `fixture_scheduling.py` (INGEST_CURSOR). Do not
+        reintroduce a default.
 
     as_json_payload=False (used for operational tables like INGEST_LOCK):
         Writes the payload dict directly with BigQuery autodetect schema.

@@ -604,6 +604,11 @@ def persist_fixture_statistics_missing(
         COMPLETENESS_SNAPSHOT_TABLE,
         payload,
         as_json_payload=True,
+        # DELIBERATE WRITE_TRUNCATE: this table holds one current-state row, and the stagnation
+        # check compares this run against the stored one. Stated explicitly since `append` became
+        # a required keyword (2026-08-17) — the destructive mode must be written down, not
+        # inherited from a default.
+        append=False,
     )
 
 

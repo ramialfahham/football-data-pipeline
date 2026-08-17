@@ -48,12 +48,21 @@ def load_player_teams_global(
             if errors_quota._http_quota_exhausted:
                 break
             try:
-                team_rows = player_teams_response_for_player(
+                team_rows, complete = player_teams_response_for_player(
                     ctx.headers,
                     player_id,
                     ctx.errors,
                     error_context=f"player_teams {league_code} player_id={player_id}",
                 )
+                # #896 applied to the CAPTURE side (2026-08-17), same reader and same permanence as
+                # player_profiles: `_existing_player_ids` keys on `$.player_id` presence, so an
+                # empty career stored from a rate-limited call is never re-fetched.
+                if not complete:
+                    ctx.errors.append(
+                        f"player_teams {league_code} player {player_id}: INCOMPLETE fetch — "
+                        f"player SKIPPED, not marked ingested; retries next run"
+                    )
+                    continue
                 teams_payload["response"].append(
                     {
                         "player_id": player_id,

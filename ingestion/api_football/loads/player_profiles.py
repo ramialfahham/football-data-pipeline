@@ -48,12 +48,22 @@ def load_player_profiles_global(
             if errors_quota._http_quota_exhausted:
                 break
             try:
-                profile_rows = profiles_response_for_player(
+                profile_rows, complete = profiles_response_for_player(
                     ctx.headers,
                     player_id,
                     ctx.errors,
                     error_context=f"player_profiles {league_code} player_id={player_id}",
                 )
+                # #896 applied to the CAPTURE side (2026-08-17). `_existing_player_ids` keys on
+                # `$.player_id` presence, so writing a rate-limited empty bio retires this player
+                # permanently — name, DOB and nationality stay blank on the surface that also
+                # drives the slug. Withhold the entry so the player is fetched again.
+                if not complete:
+                    ctx.errors.append(
+                        f"player_profiles {league_code} player {player_id}: INCOMPLETE fetch — "
+                        f"player SKIPPED, not marked ingested; retries next run"
+                    )
+                    continue
                 profiles_payload["response"].append(
                     {
                         "player_id": player_id,
