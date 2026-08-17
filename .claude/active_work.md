@@ -83,10 +83,12 @@ shootout: **371/753** have none) — read `escalations.log` before re-proposing.
 ## ⭐ The ingest cluster
 **TWO nightlies:** `data:nightly` moved to **Cloud Run under #39**; the GitLab schedule (4379625)
 is **paused ON PURPOSE.** Runbook `deploy/nightly/README.md`. ⚠ 04:00 FAILED 08-17.
-⛔ **#74 — THE IMAGE NEVER TRACKED `main`.** `--source .` packages the WORKING TREE and nothing
-redeploys on merge (verified). It once ran 08-14 code for two days and **rebuilt prod from it,
-REVERTING `!43`/`!45`**. Hand-redeployed 08-16 and **08-17 (`a8ef51d66a14`, carries `!59`)**;
-**stale again on the next merge — redeploy from a clean `main` after every ingestion merge.**
+⛔ **#74 — THE IMAGE NEVER TRACKED `main`.** `--source .` packages the WORKING TREE; nothing
+redeploys on merge. It once ran 08-14 code for two days and **rebuilt prod from it, REVERTING
+`!43`/`!45`**. ⭐ **THE FULL SPEC IS ON ISSUE #74 (note 3695790497): ready to implement, DO NOT
+re-derive it.** Protected path → `protected_override` + impact_map + **2 OPUS reviewers**.
+Redeployed by hand 08-16 and twice on 08-17 (now `d47862434f71`, carries `!62`); **until #74 ships,
+redeploy from a clean `main` after EVERY ingestion merge or the fix never reaches prod.**
 ⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
 ⚠ **None of the four ingest fixes does what its title says** — caveats on #896-#898.
 
@@ -149,14 +151,11 @@ TAB not a toggle.
    has been mergeable while RED since the migration — the enforcement never came across with the
    jobs. Unsafe while the orphan blocked every build; **now cleared, so this is the moment.**
    CPO's, one toggle. Pairs with **#21 Q2**: both are "the server should enforce it".
-0b. **MR2, scoped, NOT started — "never record a gap as captured"**, all one class (a failed fetch
-   written as fact, then skipped forever): `transfers.py` lacks the `if not team_ids: return` that
-   `coaches.py:38` has, so an empty team set writes an empty snapshot with `complete=True` (ONE
-   LINE) · `fixture_scheduling.py` :520/:545/:569 return a **bare list with no completeness flag**
-   unlike :457/:487, so a rate-limited empty marks that player/squad captured **forever** ·
-   `bigquery.py:137` `append` defaults **False = WRITE_TRUNCATE**. **MR3 = detection:**
-   `event_loss_detector_from` is **'2026-08-19', in the FUTURE, so `!57`'s test is inert today**;
-   **volume-delta threshold is the CPO's**. **MR4 = compaction, only if growth is MEASURED.**
+0b. ✅ **MR2 (`!62`) MERGED 08-17** — the four "gap recorded as fact" holes are closed and the image
+   was redeployed. **MR3 = detection, NOT started:** lower `event_loss_detector_from` (still
+   **'2026-08-19', in the FUTURE, so `!57`'s test is inert**) and extend loss detection past events;
+   ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 = compaction, only if growth
+   is MEASURED.**
 1. ✅ **PROD IS HEALED** (✅ #75 above) — rebuilt green 08-17 by retrying `data:build:main` on
    `main`. ⚠ `.data_paths_prod` EXCLUDES `.gitlab-ci.yml` and `ingestion/**` but INCLUDES
    `dbt_project/models/**`. ⚠ **#4: a web dispatch from ANY branch builds prod from THAT branch's
