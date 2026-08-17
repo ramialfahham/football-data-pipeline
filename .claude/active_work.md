@@ -2,27 +2,29 @@
 
 > The single handover contract. A fresh chat continues from here. Do not re-scope or infer the task
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
-> **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
-> over, which sends you trimming content that fits).
+> **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
 _Last updated **2026-08-17**. **ONE MR OPEN: `!57`** (#75 part C, the event-loss detector;
 reviewed round 2, PASS). **`!53`, `!56`, `!50` all merged.** ⚠ `data:build:mr` on any MR is red on
 a PRE-EXISTING orphan, not on the diff (⭐ below). Product **Matchday Pilot**; repo on **GITLAB**
 (`glab`, MRs). GitHub KEPT but dormant.
-Self-hosted runner `ci-runner-01`; jobs burn ZERO GitLab minutes. ⚠ **A GROUP MOVE IS COMING** and it changes the
-project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
-hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anything path-dependent._
+Self-hosted runner `ci-runner-01`; jobs burn ZERO GitLab minutes. ⚠ **A GROUP MOVE IS COMING**; it
+changes the project PATH, breaking remote URLs, the WIF binding on `attribute.project_path`, and
+every hardcoded `rami.al-fahham/football-data-pipeline`. Check before path-dependent work._
+
+⚠ **START HERE: the tree is on `fix/75c-event-consistency-tests` (that is `!57`), and THIS FILE's
+current version lives on that branch, NOT on main.** Merge `!57` first, or carry this file across
+when you branch — otherwise you will read a stale handover and re-open decided questions.
 
 ## ⭐ CURRENT — #62 STEP 3 IS BLOCKED ON #69'S DIMENSIONS. DO NOT BUILD THE MART (2026-08-16)
 
 **#62, five steps.** 1 (`!40`) and 2 (#57) done. **3 is `mart_competition_index`**, 4 repoints the
 export, 5 the page spec. ⚠ A seed COLUMN and its reader cannot ship together — 3 is its own MR.
-
 ⛔ **THE MART IS WRITTEN AND PARKED** — `git stash list`, message `feat/62-mart-competition-index`.
 Match by MESSAGE. `region_label` is the blocker: COUNTRY and CONTINENT in one column, branching on
 `single_country`. **CPO: *"You don't mix up countries and continents in one column and add a flag
 'single country'."*** ⚠ Nothing ever read that flag.
-⛔ **#69 IS RESCOPED to TWO dimensions**: `dim_region` from `confederations.csv` (**exists, read by
+⛔ **#69 IS RESCOPED to TWO dims**: `dim_region` from `confederations.csv` (**exists, read by
 nothing**) + `dim_country` built new. A competition POINTS AT one; **which relationship is
 populated IS the answer** — no flag, no branch. The registry's `country` mixes 21 countries with 24
 region words; those 24 become NULL. Deletes `single_country`. ✅ **DISCOVERY + NAMES DONE — the
@@ -70,24 +72,24 @@ the `!50` merge hit the `fct_fixture_event.player_sk -> dim_player` orphan and *
 nodes** — `mart_team_momentum_window` skipped while `mart_team_momentum` was NOT, so MRs fail
 `assert_momentum_window_matches_momentum` (1641 rows) on unrelated diffs.
 ⚠ Layers for 1564795: raw 17 · staging 17 · base 17 · **core 27**. Core was the accidental archive;
-base was not failing, it was STARVED.
+base was STARVED, not failing.
 ✅ **`!56` MERGED — the retry DELETED the row but only checked *statistics*, so it destroyed
-events.** MEASURED: 5 fixtures, 29 events, incl. a full shootout. Ports **#896**.
-⛔ **The backlog is UNREPAIRABLE** — the provider now returns 17 events for 1564795 where the fact
-holds 27, gone at source. ⚠ **`fct_fixture_event` is INCREMENTAL: the RICHEST record, and RIGHT. Do
-NOT make the fact mirror base** — measured, that deletes 13 real events from 1564793 alone.
+events.** MEASURED: 5 fixtures, 29 events. Ports **#896**.
+⛔ **The backlog is UNREPAIRABLE** — the provider now returns 17 events for 1564795, gone at source.
+⚠ **`fct_fixture_event` is INCREMENTAL: the RICHEST record, and RIGHT. Do NOT make the fact mirror
+base** — measured, that deletes 13 real events from 1564793 alone.
 ⭐ **DECIDED 08-17 — CPO: *"raw keeps both versions."*** `RAW_APIF_FIXTURE_DETAILS` STOPS being
 merge-on-write; the retry no longer deletes, both payloads land, and **BASE decides** (its existing
 newest-per-`event_index` rule then yields 27, not 17). A deliberate partial reversal of #539 /
 #33 item 8 FOR THIS TABLE — do not "restore" the delete as a regression fix. Verified safe before
 the ruling: staging reads faithfully, base dedups on entity keys, `!56` already made the coverage
 read order-independent. Cost ~cents.
-⛔ **NOT BUILT YET** — remove `_delete_fixtures` from `batch_fixtures.py`; update
+⛔ **NOT BUILT** — remove `_delete_fixtures` from `batch_fixtures.py`; update
 `docs/data_contract.md` + `layering.md` §1_staging (both describe the delete); pin it.
 ✅ **`!57` (part C) adds the DETECTOR** — `assert_no_event_loss_since_cutoff` flags any event the
 fact holds that base lost. Scoped by KICKOFF DATE (`event_loss_detector_from`); ⚠ **never raise
 that var to go green.** ⛔ Two sibling tests were KILLED by measurement ("PEN implies shootout
-events" — **371 of 753** PEN fixtures have none); see `escalations.log` before re-proposing.
+events" — **371/753** PEN fixtures have none); see `escalations.log` before re-proposing.
 
 ## ⭐ The ingest cluster
 **TWO nightlies:** GitLab CI `data:nightly` moved to **Cloud Run under #39**, so its GitLab
@@ -112,7 +114,7 @@ guard; #3 item 6: `require_partition_filter` + `maximum_bytes_billed` are **NEIT
 - **⚠ Current spend UNKNOWN.** Last measure 08-03 ($2.73/day) PREDATES #33 items 9/15. Never quote
   as current.
 - **⚠ #2** — check `.data_paths_prod` before assuming what triggers a prod rebuild; it is NARROWER
-  than the MR anchor (see NEXT 0).
+  than the MR anchor.
 - **⚠ Do NOT claim the API quota "breaks first"** — claimed once without evidence, withdrawn.
   (`standings.py:30` / `teams.py:28` DO loop every season daily with no skip — real.)
 
@@ -154,28 +156,27 @@ cannot follow a control).
 - **⭐ #904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. Faces seen: a grep scoped
   narrower than its sentence; a TEST that passes either way (#63 shipped three); a column read
   without its VALUES (`!43`); a number repeated out of this file (`!47`); a JOB STATUS read instead
-  of the data (`!49`). **Absence must state where it looked; a test must be seen RED; a column is
-  not data; green is not evidence.** Prose has failed 8×; the mechanism is **#71**.
+  of the data (`!49`). **Absence must state where it looked; a test must be seen RED; green is not
+  evidence.** Prose has failed 8×; the mechanism is **#71**.
 
 ## NEXT
 0. ⭐ **BUILD PART A — "raw keeps both versions" is DECIDED** (⭐ #75 has the scope). Then merge
    `!57`.
 1. ⛔ **PROD IS HALF-BUILT and nothing heals it on its own.** MEASURED 08-17: 1641 mismatched rows.
    ⚠ `.data_paths_prod` EXCLUDES `.gitlab-ci.yml` — **the old claim that a CI-only MR rebuilds prod
-   is FALSE.** The nightly also FAILED. ⚠ **A rebuild still dies on the orphan even after part A**
-   — those events are gone at source; part A stops FUTURE loss. Clearing the backlog is a separate
-   call.
+   is FALSE.** The nightly also FAILED. ⚠ **A rebuild still dies on the orphan even after part A**;
+   part A stops FUTURE loss. Clearing the backlog is a separate call.
 2. **THE NIGHTLY: #74** the image does not track `main` — redeployed 08-16 but stale on the next
-   merge, so prod silently reverts. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT
+   merge, so prod silently reverts. ⚠ **#4**: a web dispatch from ANY branch builds prod from that
    branch's code.
 3. **#69 FIRST, then #62 step 3** (⭐ CURRENT). Discovery COMPLETE; next is **canonical names to the
    CPO**, then the two dims. Then step 4 repoints the export, 5 the page spec.
 4. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
-   to No one — the SERVER should protect it, not a client hook) · delete the 2 dead
-   `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
+   to No one — the SERVER should protect it) · delete the 2 dead `~/.claude/hooks/` copies · route
+   or delete `seo-expert-reviewer`.
 5. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
    when, where** (CPO). Trigger/cost map FIRST, rank by real spend, fix in that order; the map goes
-   in a GitLab ISSUE, not a doc.
+   in a GitLab ISSUE.
 6. **#845 + #882 — the CPO's decision.** Counts are in this file: bring them, not a general
    question. Unblocks the player page off the stash.
 7. **Legal/imprint**, then launch.
