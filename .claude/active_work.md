@@ -5,11 +5,11 @@
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES, ~220
 > over, which sends you trimming content that fits).
 
-_Last updated **2026-08-16**. **TWO MRs OPEN: `!53`** (#73, stops `data:build:mr` bootstrap-
-ingesting, which wrote PROD raw from an unmerged branch) and **`!56`** (#75, ports the #896 guard
-to `batch_fixtures`). Both reviewed, both PASS, both merge on judgement — `data:build:mr` is red on
-a PRE-EXISTING orphan, not on their diffs (⭐ below). `!50` merged. main `ad918be`. Product
-**Matchday Pilot**; repo on **GITLAB** (`glab`, MRs). GitHub KEPT but dormant.
+_Last updated **2026-08-17**. **ONE MR OPEN: `!53`** (#73, stops `data:build:mr` bootstrap-
+ingesting, which wrote PROD raw from an unmerged branch). Reviewed, PASS, merges on judgement —
+`data:build:mr` is red on a PRE-EXISTING orphan, not on its diff (⭐ below). **`!56` merged**
+(#75, the #896 guard). `!50` merged. Product **Matchday Pilot**; repo on **GITLAB** (`glab`, MRs).
+GitHub KEPT but dormant.
 Self-hosted runner `ci-runner-01`; jobs burn ZERO GitLab minutes. ⚠ **A GROUP MOVE IS COMING** and it changes the
 project PATH — breaking remote URLs, the WIF binding pinned to `attribute.project_path`, and every
 hardcoded `rami.al-fahham/football-data-pipeline`. Check before starting anything path-dependent._
@@ -75,7 +75,7 @@ must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** and the **#6
 the `!50` merge hit the `fct_fixture_event.player_sk -> dim_player` orphan and **SKIPPED 103
 nodes** — `mart_team_momentum_window` skipped while `mart_team_momentum` was NOT, so prod disagrees
 with itself and MRs fail `assert_momentum_window_matches_momentum` (1641 rows) on unrelated diffs.
-✅ **`!56` fixes the CAUSE of new damage**: the merge-on-write retry DELETED the stored fixture row
+✅ **`!56` MERGED — it fixes the CAUSE of new damage**: the merge-on-write retry DELETED the row
 but only ever checked *statistics*, so it destroyed events. MEASURED: 5 fixtures, 29 events, incl. a
 full shootout. Ports **#896** (`result_is_complete`; batch_fixtures never had it).
 ⛔ **It does NOT clear the orphan** — the provider now returns 17 events for 1564795 where the fact
@@ -157,9 +157,9 @@ International a national-lens TAB not a toggle (a crawler cannot follow a contro
   column is not data; green is not evidence.** Prose has failed 8×; the mechanism is **#71**.
 
 ## NEXT
-0. **MERGE `!53` + `!56`, then RE-RUN `data:build:main`** — prod is half-built (⭐ #75 above) and
-   stays that way, reddening every MR, until a build completes. ⚠ It will fail again on the same
-   orphan unless the open CPO question there is answered first.
+0. **MERGE `!53`, then RE-RUN `data:build:main`** — prod is half-built (⭐ #75 above) and stays
+   that way, reddening every MR, until a build completes. ⚠ It will fail again on the same orphan
+   unless the open CPO question there is answered first.
 1. **THE NIGHTLY: #74** the image does not track `main` — redeployed 08-16 but stale on the next
    merge, so prod silently reverts. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT
    branch's code.

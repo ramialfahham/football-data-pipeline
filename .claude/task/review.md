@@ -1,31 +1,50 @@
-# Review — fix/75-batch-fixtures-896-guard — 2026-08-16
+# Review — fix/73-no-mr-bootstrap-ingest — 2026-08-16
 
-diff_sha256: af1c8e6098330e575c26776ed128b82374fb825f28239a187efc2dd62772f8a1
+diff_sha256: 8df9402506bed5579a1f72ee983ed463e3a528919fa536ec56888aba82c6cfff
 
 rounds: 2
+
+> REBOUND TWICE, both times for reasons that changed no reviewed content:
+> 1. one comment character in `.gitlab-ci.yml`, correcting a forward reference to the ingest-state
+>    issue from the number guessed before filing (#74) to the one it received (#76).
+> 2. 2026-08-17, after `!56` and `!69` merged: `gitlab/main` moved, so the cumulative diff this
+>    hash is computed over has a new base. `main` was merged in and the four task-artifact
+>    conflicts resolved per the documented rebase tax — MINE for `contract.md`/`review.md`, UNION
+>    for `escalations.log` (all three entries verified present), THEIRS for `active_work.md` with
+>    this branch's delta re-applied. **No file this branch owns changed**: `.gitlab-ci.yml` and
+>    `tests/test_ci_data_job_invariants.py` are byte-identical to what the reviewers below read.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Diff file set vs `scope_paths`: `batch_fixtures.py`, `tests/test_incomplete_fetch_no_supersede.py`, `docs/data_contract.md`, `contract.md`, `escalations.log`. `docs/data_contract.md` was added mid-task via a recorded `amendments:` entry citing Class-1 rule 5, raised by data-engineer-reviewer round 1 — not a silent widening.
-- No dbt file, no model, no seed, no CI file in the diff. The change is one loader plus its guard test plus the raw contract doc.
-- `decisions_reserved` is honest and not used to launder an executed decision: the standing orphan is explicitly NOT cleared, and the "may a complete-but-smaller response supersede" question is left to the CPO with the reason (#896's 2026-08-03 ruling says the opposite today).
-- The four rejected proposals are recorded in `escalations.log` with why each was wrong, rather than quietly dropped. `_STATS_RETRY_DAYS` untouched.
-- Credential sweep of the whole diff: none.
+- Confirmed the round-1 guard-narrowing is fully reverted: the only `--exclude tag:freshness_check` present is an unchanged context line, no `prod_state` tag or per-job test exclusion appears anywhere in the diff, and zero paths under `dbt_project/` are touched.
+- `scope_paths` vs changed files: diff touches `.claude/task/contract.md`, `.claude/task/escalations.log`, `.gitlab-ci.yml`, `tests/test_ci_data_job_invariants.py`. The latter three are listed in the round-2 `scope_paths`.
+- Attribution of the accepted four-test-failure consequence is consistent across all three artifacts (contract impact_map, the `.gitlab-ci.yml` comment, escalations.log): all say CPO 2026-08-16, not the builder.
+- escalations.log honesty: the entry names all three reviewer grounds verbatim including "the scope claim was FALSE. I wrote 'today exactly one' test. There are EIGHT... FOUR fail by construction". It does not launder the round-1 failure.
+- `protected_override` cites the verbatim CPO approval for exactly the step being deleted — the same scope round 1 already judged authorized. No new mechanism smuggled in this round.
+- Swept the full diff for credential-shaped strings: only env var NAMES appear, no values; no widened permissions.
+- `decisions_reserved` contains nothing that is actually implemented in this diff.
 
-## data-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Traced all four paths in `_fetch_and_persist_batch`: incomplete → return before any write; empty-but-complete → return before the delete block; retry returned → delete then re-insert from the same response (net one row); retry omitted → excluded from `retries_in_batch` and absent from the insert, old row untouched. The docstring claim that delete and insert stay paired, so no second row is created, holds on every path.
-- ROUND 1 FINDING 1 FIXED: `docs/data_contract.md` now says the row is the latest COMPLETE payload, names the #896 guard, and matches the traced code. No contradiction with `layering.md` or the RAW_APIF_PLAYERS section.
-- ROUND 1 FINDING 2 FIXED: `returned_ids` is now an explicit loop with `isinstance` guards, chained `.get()`, and `try/except (TypeError, ValueError)`, matching `_extract_fixture_id`'s shape.
-- FABRICATED JUSTIFICATION CORRECTED: round 1 observed the guard cannot produce a duplicate row. The builder's "transient two rows" claim in both the module docstring and the LOGICAL_OR comment was wrong and has been rewritten. The LOGICAL_OR now rests on the true reasons — BigQuery promises no row order for a per-row dict read, and `_insert_fixture_rows` does not dedup a response repeating an id (a pre-existing risk, not introduced here). It is a no-op for the single-row case.
-- Guard placement: `result_is_complete(data)` is called immediately after `fetch_json` and before any delete, satisfying its documented latch requirement and matching `coaches.py`.
-- Whole-batch discard delays new fixtures by one run rather than losing them — the accepted `coaches`/`squads` precedent.
-- Both new tests hand-traced as genuinely red-then-green, not vacuous: reverting the guard deletes both ids; reverting the `returned_ids` filter deletes `[111, 222]`.
-- No `WRITE_TRUNCATE` introduced; still `WRITE_APPEND` with DELETE+INSERT, merge-on-write and the raw cost bound (#33 item 8) preserved; growth still bounded to retried fixtures.
-- No cadence, fanout or history-window change; `_STATS_RETRY_DAYS` unchanged and flagged open in `decisions_reserved`.
+- Verified part 2 fully reverted: `grep -rn "prod_state" .gitlab-ci.yml` returns zero hits; the diff touches exactly 4 files and no path under `dbt_project/`.
+- Read `.gitlab-ci.yml` directly rather than trusting the contract: `data:build:mr` now contains no ingest call; `data:build:main` still runs `get_new_league_codes.py` then `python -m ingestion.api_football.main` unchanged. The redundancy claim holds.
+- `protected_override` covers exactly what remains; `impact_map` is non-placeholder and its line references check out.
+- Guard invariant: no dbt test, macro or selector is touched. The four `*_covers_active_competition_var` tests stay unconditional and fail-closed on an onboarding MR. The consequence is stated three times independently and is not minimised. No guard is loosened.
+- New mechanism / recurring cost: none introduced; recurring cost is strictly negative (drops one billed `SELECT DISTINCT` per MR).
+- Pinning test scoping: uses `_script_lines_by_job` (parsed YAML, per job), asserts only against `data:build:mr`, so it cannot false-positive on `data:build:main`/`data:nightly` which legitimately contain both tokens. The explanatory YAML comment naming those tokens is stripped by `yaml.safe_load` before the assertion sees it.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round-1 finding addressed: `test_mr_data_build_never_ingests` reads the parsed job body, checks only `data:build:mr`, and asserts `"data:build:mr" in jobs` first so a rename fails loudly rather than passing vacuously.
+- RED-then-green demonstrated: the test was run against a re-injected `- python -m ingestion.api_football.main` line, failed with the intended message, then reverted to green. Satisfies the "verify the test fails" rule.
+- Both `dbt` invocations in `data:build:mr` are back to their original `--exclude tag:freshness_check` form; `prod_state` has zero hits across `.gitlab-ci.yml` and `dbt_project/`, so the revert is total.
+- No dead `$NEW_CODES` reference remains in `data:build:mr`; all three occurrences belong to `data:build:main`. `scripts/get_new_league_codes.py` is not orphaned.
+- Re-run safety: the deleted step was the only prod-writing action in the job; nothing after it depends on an ingest having run, since both dbt steps read prod via `--defer --favor-state`.
+- The new test runs in `test:python`, which executes unconditionally on every pipeline, so the invariant fails closed.
+- No credentials or permission widening in the diff.
 
 ## escalations
-- question: May a COMPLETE provider response carrying strictly less data than what is stored supersede it? Measured: 5 fixtures, 29 events, and the provider now returns 17 events for 1564795 where the fact holds 27.
-  CPO ANSWER: NOT TAKEN — deliberately left open. #896's ruling of 2026-08-03 decides the ambiguous case the other way ("an empty response with no error counts as COMPLETE ... indistinguishable"), so changing it reverses part of that ruling and is the CPO's call. Recorded in `escalations.log` and in `decisions_reserved`; this MR does not touch it.
+(none new this round. The #73 ruling and the CPO's rejection of the guard-narrowing are recorded in `.claude/task/escalations.log`, 2026-08-16 entry.)
