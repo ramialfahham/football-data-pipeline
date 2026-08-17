@@ -4,10 +4,9 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-17**. **TWO MRs OPEN: `!57`** (#75 part C, the event-loss detector; PASS)
-and **`!58`** (raw appends and never deletes — ⭐⭐ below); both edit `active_work.md` +
-`escalations.log`, so the second to merge conflicts there (REBASE TAX below).
-**`!53`, `!56`, `!50` merged.** ⚠ `data:build:mr` on any MR is red on a PRE-EXISTING
+_Last updated **2026-08-17**. **ONE MR OPEN: `!57`** (#75 part C, event-loss detector; PASS, main
+merged in and hash rebound). **`!59` (⭐⭐ below), `!58`, `!53`, `!56`, `!50` merged.**
+⚠ `data:build:mr` is red on a PRE-EXISTING
 orphan, not on the diff. Product **Matchday Pilot**; repo on **GITLAB** (`glab`, MRs).
 Self-hosted runner `ci-runner-01`; jobs burn ZERO GitLab minutes. ⚠ **A GROUP MOVE IS COMING**; it
 changes the project PATH, breaking remote URLs, the WIF binding on `attribute.project_path`, and
@@ -58,9 +57,10 @@ CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped.
 must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** and the **#62 mart** (⭐ above)._
 
 ## ⭐⭐ THE RULE, 2026-08-17: **RAW APPENDS AND NEVER DELETES. BASE DECIDES.**
-**`!58` IS this rule** — all three delete paths gone (`_delete_fixtures`,
-`delete_superseded_league_rows`, `_delete_superseded_player_rows`). **A deliberate reversal of 8b
-and #539's delete half — never "restore" a delete as a regression fix.** Full record:
+**`!59` IS this rule, MERGED 08-17** — all three delete paths gone (`_delete_fixtures`,
+`delete_superseded_league_rows`, `_delete_superseded_player_rows`). ✅ **Nightly image redeployed
+from main same day** (`a8ef51d66a14`) — without that the fix is on main but NOT in prod (#74).
+**A reversal of 8b and #539's delete half — never "restore" a delete as a regression fix.** Record:
 `docs/data_contract.md` § "Raw appends and never deletes" + `escalations.log` 08-17 (which also
 records HOW: the CPO ordered two blind lead-DE assessments after rejecting ad-hoc fixes).
 ⚠ **Cost approved, ~$1-2/month.** The scan-cost case for deleting died when staging became a TABLE
