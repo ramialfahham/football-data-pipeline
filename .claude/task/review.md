@@ -1,8 +1,17 @@
 # Review — chore/69-dims-merged — 2026-08-17
 
-diff_sha256: 48fbbe9a3102db2dfe0358cd4a349705100d1d69f0e9b3f004c317591b104415
+diff_sha256: 920f3cca9b2ec09731a13a5e53dda71415af80685dd6ad826974b87952269a1c
 
 rounds: 2
+
+> REBASED onto `5bb3b2e` (`!62`, #75 MR2). Only the three task artifacts conflicted —
+> `contract.md`, `review.md`, `review_input.patch` — all resolved MINE per the rebase tax, since each
+> MR carries its own. ⚠ **`active_work.md` did NOT conflict**, and is verified intact after the
+> rebase: 15,987 chars, the NEXT-JOB block present. Hash rebound 48fbbe9a -> 920f3cca because the
+> BASE contract changed, not because this branch's content did.
+> ⚠ Mid-rebase the contract gate reported `active_work.md` "outside scope" and advised
+> `git checkout -- <file>`. That is the known false positive in this repo's OWED list, and following
+> it would have DELETED the handover. Ignored deliberately.
 
 > ⚠ `active_work.md` is in `hash_exclude_paths`, so this hash covers `contract.md` only. The
 > handover change is real but deliberately outside the binding — that is the routing config's
