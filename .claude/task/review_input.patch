@@ -1,443 +1,236 @@
+diff --git a/.claude/skills/onboard-competition/SKILL.md b/.claude/skills/onboard-competition/SKILL.md
+index f70cee8..7cbfdc0 100644
+--- a/.claude/skills/onboard-competition/SKILL.md
++++ b/.claude/skills/onboard-competition/SKILL.md
+@@ -127,6 +127,43 @@ From the results:
+    "
+    ```
+    Confirm the returned teams are the expected elite clubs/nations for this competition.
++7. **Check the COUNTRY STRING the provider will store** — a new competition can bring a country
++   the pipeline has never seen, and **nothing catches a wrong one**.
++   `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an unmatched
++   provider string falls straight through to the page. No test fails. No warning appears.
++
++   The provider is inconsistent about this: it hyphenates multi-word names (`Saudi-Arabia`), uses
++   endonyms (`Türkiye`), FIFA forms (`Korea Republic`) and formal state titles
++   (`Lao People's Democratic Republic`) — and it is not even consistent between its own endpoints.
++
++   ```bash
++   PYTHONUTF8=1 python -c "
++   import sys, csv, io; sys.path.insert(0,'.')
++   from ingestion.api_football.settings import get_headers, base_url
++   import requests
++   c = requests.get(f'{base_url()}/leagues', headers=get_headers(),
++                    params={'id': <ID>}, timeout=30).json()['response'][0]['country']['name']
++   seed = {r['provider_country']: r['country_name'] for r in
++           csv.DictReader(io.open('dbt_project/seeds/country_name_overrides.csv', encoding='utf-8'))}
++   print('provider sends:', repr(c))
++   print('seed maps it to:', repr(seed[c]) if c in seed
++         else 'NOTHING - add a row unless this is already the canonical English name')
++   "
++   ```
++
++   If the provider's string is not already the canonical name and has no row, **add one in this
++   MR**. The registry entry and its override belong in the same change: caught here, the page is
++   never wrong; caught after merge, it is wrong until somebody notices.
++
++   The rule (CPO 2026-08-16, #69): **English, everyday short form, no diacritics.** A genuine
++   rename stands (`Czechia`, `North Macedonia`); a formal state title is shortened (`Russia`, not
++   `Russian Federation`). Two rows are standing exceptions and say so in their own `source`.
++
++   ⚠ **This step is a mitigation, not a guard.** The real mechanism is #69's foreign key to
++   `dim_country`, where an unknown country fails the key rather than rendering. Until that lands,
++   this checklist item is the only thing standing between a new country and the live page — and a
++   prose rule is exactly the kind of control this repo has measured as unreliable (#30). Do not
++   read its presence here as the problem being solved.
+ 
+ Also confirm `league_code` does NOT already appear in `docs/competition_registry.yml`.
+ 
+@@ -253,6 +290,17 @@ no SQL files were added (zero-file rule).
+ 4. Trigger the pages export workflow to refresh the deployed JSON.
+ 5. Spot-check the deployed fixture list for the new league to confirm data
+    flows end to end.
++6. **Confirm the country renders correctly.** Check `dim_league.league_country` for the new
++   `league_code`:
++
++   ```bash
++   bq query --use_legacy_sql=false \
++     'select league_code, league_country from `football-data-pipeline-gcp.core.dim_league`
++      where league_code = "{LEAGUE_CODE}"'
++   ```
++
++   A hyphen, a diacritic or a formal state title means the step 0b override row was missed — add
++   it now (#69). This is a confirmation; step 0b is where the defect is actually prevented.
+ 
+ ## Known edge cases
+ 
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 73244c1..3c21ed4 100644
+index 100a92c..b5856b3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,84 +1,112 @@
--# Task contract — onboard 3 men's domestic leagues (#72)
-+# Task contract — extend country_name_overrides to the full provider set (#69)
+@@ -1,116 +1,62 @@
+-# Task contract — data:build:mr must not bootstrap-ingest (#73)
++# Task contract — onboard-competition must check the country string (#69)
  
  objective: >
--  Onboard Belgian Pro League, Süper Lig, and Ekstraklasa per GitLab #72. Path B: registry entry +
--  generated dbt vars/seed + i18n labels only — zero SQL file changes (no-new-model rule). Women's
--  leagues and Liga MX Femenil evaluated in the same issue are explicitly OUT OF SCOPE for this
--  task; see decisions_taken.
--refs: GitLab #72
+-  Remove the bootstrap-ingest step from `data:build:mr`. It writes PRODUCTION raw from an
+-  unmerged branch (settings.py:31 defaults the dataset to `raw`; nothing overrides it in CI), it
+-  is redundant with the identical step already in `data:build:main`, and GitLab's protected-
+-  variable rule correctly refuses to give a feature branch the API key — which is what made MR
+-  !50 fail. Closes #33 item 13 for the MR path. Pin the removal with a test so the step cannot
+-  return silently.
+-
+-  ⛔ SCOPE NARROWED BY THE CPO, 2026-08-16. An earlier revision of this branch ALSO tagged
+-  `assert_base_leagues_covers_active_competition_var` `prod_state` and excluded it from
+-  `data:build:mr`. All four routed reviewers FAILED that, and the CPO ruled it out in plain
+-  terms after asking whether the change was "a systematic fix or a hack": it was a hack. It is
+-  fully reverted here. The underlying cause — nothing records whether a league has been
+-  INGESTED, only that it SHOULD be — is filed as its own issue and is NOT addressed here.
+-refs: GitLab #73, #33 item 13, #72, !50
+-
+-protected_override: >
+-  CPO approval 2026-08-16, in-thread, verbatim: **"yes, rewrite #73 to option 2 only and fix it"**,
+-  given after I laid out option 2 as "delete the bootstrap-ingest block from data:build:mr ...
+-  that's the professional, economic, secure answer". The same message rejected the unprotect-the-
+-  key option: **"it is 100% bullshit in terms of security."** `.gitlab-ci.yml` is a PROTECTED path
+-  (the file that decides what CI enforces), hence this override.
 -
 -impact_map: >
--  Leaf/cosmetic short-form: site/i18n/{en,de,fi}.json `competitions` blocks are a flat
--  label lookup (league_code -> display string), consumed by the export/frontend for
--  rendering only. Adding 3 new keys (BPL/TSL/EKS) does not change any existing key's
--  value, does not add computation, and matches the exact pattern of every prior
--  domestic-league onboard's i18n step (VL/LMX/LP/MLS/SPL/ED all added the same 3-file,
--  1-key-each diff). `grep -rn "i18n" dbt_project/` returns zero hits — dbt has no
--  dependency on this file. No mart/number changes; nothing downstream reads these new
--  keys except the label lookup itself, which fails closed (missing key = fallback to
--  the code) rather than silently computing anything.
-+  `country_name_overrides.csv` carries 3 rows from `!45`, covering only the league surface. #69's
-+  discovery found the provider sends 245 distinct country strings that resolve to 224 real
-+  entities, across four dims. Extend the seed to the full set — 67 rows — so every provider
-+  spelling maps to one canonical English name. This is step 2 of #69's order of work landing as
-+  data; `dim_country` and the foreign keys are the NEXT unit, not this one.
-+refs: GitLab #69 (discovery + the naming rulings), #62 (the page that needs it), `!45` (the 3-row seed)
+-  writers: `.gitlab-ci.yml` is not a data writer. The step being DELETED is the only thing in
+-    `data:build:mr` that writes raw tables — `python -m ingestion.api_football.main` with
+-    `API_FOOTBALL_LEAGUE_CODES` set. After this change `data:build:mr` writes ONLY `ci_*` datasets
+-    (via `dbt seed/build --target ci`) and reads prod via `--defer --favor-state`.
+-
+-  what still ingests, and where: `data:build:main:597` runs the SAME
+-    `get_new_league_codes.py` + `python -m ingestion.api_football.main` sequence, BEFORE its
+-    `dbt build --selector staging/downstream --target prod` lines. `data:nightly` is the other
+-    prod writer. Neither is touched here, so a newly onboarded league is still ingested exactly
+-    once, post-merge, from a protected branch that legitimately holds the key. Verified by reading
+-    both job bodies in this file, not assumed.
+-
+-  guards NOT touched, and the accepted consequence: NO dbt test is modified by this branch.
+-    Four singular tests — `assert_base_leagues` / `assert_base_teams` /
+-    `assert_base_fixtures_next` / `assert_fct_fixture` `_covers_active_competition_var` — assert
+-    "every code in `vars.active_competition_league_codes` has rows". All four are unconditional
+-    (`left join ... where null`); I read all eight `*_covers_active_competition_var` tests and the
+-    other four self-exclude via an `inner join base_apif__leagues` on a coverage flag. On an
+-    ONBOARDING MR those four now fail, because the var names the new league and this job no longer
+-    ingests it. That is ACCEPTED (CPO 2026-08-16): the tests are stating a true fact, and
+-    silencing them was rejected as a hack. Onboarding MRs show red here and are merged on
+-    judgement until the ingest-state issue lands.
+-    ⚠ REASONED FROM THE TEST BODIES, NOT OBSERVED (#904): `data:build:mr` on !50 died at the
+-    ingest step and never reached the dbt steps, so these four have not been SEEN failing for this
+-    reason. `dbt build` is never run locally (CLAUDE.md), so this branch's own pipeline is the
+-    first place it is exercised.
+-
+-  layer_rules: `scripts/check_layer_contract.py` — untouched; no model, no layer, no
+-    materialisation changes. No new model, macro or SQL file. NO dbt file of any kind is in this
+-    diff.
+-
+-  deploy_order: no warehouse migration. The CI change takes effect on the next pipeline. ⚠ Merge
+-    order matters for !50: this MR should merge FIRST, then !50 rebases onto it and its
+-    `data:build:mr` goes green. If !50 merged first instead, `data:build:main` would bootstrap
+-    BPL/TSL/EKS on main — also correct, just via the other path.
+-
+-  blast_radius: no mart, no number, no row changes anywhere. One behaviour change:
+-    `data:build:mr` no longer ingests, so it no longer needs `API_FOOTBALL_API_KEY` and no longer
+-    runs a billed `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR. No test's
+-    selection, severity or logic changes anywhere.
++  Onboarding a competition can introduce a country the pipeline has never seen, and nothing
++  catches it. `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an
++  unmatched provider string falls through to the page unchanged — silently. Add the check to
++  `onboard-competition` at DISCOVERY, where the provider payload is already open and the override
++  row can ship in the same MR as the registry entry, plus a confirmation in the post-merge list.
++refs: GitLab #69 (the naming rulings and the seed), `!54` (the 67-row seed this checks against)
  
  scope_paths:
--  - docs/competition_registry.yml
--  - dbt_project/dbt_project.yml
--  - dbt_project/seeds/competition_registry.csv
--  - site/i18n/en.json
--  - site/i18n/de.json
--  - site/i18n/fi.json
+-  - .gitlab-ci.yml
+-  - tests/test_ci_data_job_invariants.py
 -  - .claude/task/escalations.log
-+  - dbt_project/seeds/country_name_overrides.csv
-+  - dbt_project/seeds/schema.yml
-+  - dbt_project/tests/assert_country_name_overrides_still_needed.sql
++  - .claude/skills/onboard-competition/SKILL.md
    - .claude/active_work.md
  
 +impact_map: >
-+  writers: the seed is authored by hand. Its ONLY reader is `base_apif__leagues.sql`, which joins
-+    it on `provider_country` and `coalesce`s over `stg_apif__leagues.country` (added by `!45`).
-+
-+  downstream: `dbt ls --select country_name_overrides+ --resource-type model` — the seed feeds
-+    `base_apif__leagues` and everything below it, the same 16 models `!45`'s contract listed.
-+    ⚠ In practice the blast radius is far narrower: only `dim_league.league_country` changes,
-+    because `grep -rn "league_country" dbt_project/models/4_intermediate/ dbt_project/models/5_marts/`
-+    still returns zero — nothing downstream of `dim_league` reads the column.
-+
-+  blast_radius: MEASURED against prod. `dim_league.league_country` today holds 15 countries plus
-+    `World` across 45 rows. Of the 67 new rows, exactly TWO change a value that is currently live:
-+      Turkey  -> Turkey   (unchanged: provider already sends 'Turkey' for TSL)
-+      South-Korea / Korea Republic -> South Korea (unchanged from `!45`)
-+    The other 65 rows target `dim_team`, `dim_player` and `dim_coach`, which **do not read this
-+    seed yet** — so they are inert until `dim_country` lands. Stated plainly because a 67-row seed
-+    looks like a 67-row change and is not.
-+    ⚠ ONE row changes an existing mapping's TARGET rather than adding one: nothing. `!45`'s three
-+    rows keep their targets (Saudi Arabia, South Korea, United States of America) under the new
-+    rule; only their `source`/`note` text is restated.
-+
-+  layer_rules: `scripts/check_layer_contract.py`. A seed is configuration, read in BASE where the
-+    correction already lives (`feedback_entity_corrections_in_base`) — the core dim publishes and
-+    does not correct. No model changes at all in this MR.
-+
-+  deploy_order: additive and safe. `dbt seed` runs before the models in every build path, and the
-+    join is a left join with `coalesce`, so an unmatched provider string falls through to its
-+    original value exactly as today.
++  Leaf/documentation short-form. `.claude/skills/**` is instructions an agent reads, not code any
++  job executes: `grep -rn "skills/" .gitlab-ci.yml scripts/ dbt_project/` returns nothing, so no
++  pipeline, model or test depends on this file. It is NOT a protected path — the protected list is
++  `.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`,
++  `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`,
++  `.gitlab-ci.yml` — and it is not in `review_routing.json`'s `paths`, so scope-auditor is the only
++  required reviewer. Blast radius: the next person who onboards a competition reads one more step.
 +
  decisions_taken: >
--  Three CPO decisions made in this conversation (2026-08-16), escalated blinded per §11, recorded
--  in full in escalations.log as part of this same commit:
-+  FOUR CPO rulings, 2026-08-16, recorded in full in `escalations.log` as part of this same commit.
-+  ⚠ That entry was MISSING from review round 1 and scope-auditor FAILED the branch for it —
-+  correctly. §11 requires every escalation to land in the log, and §2 says why: "a reviewer cannot
-+  check whether a claimed ruling exists without it." Each ruling was given after seeing what the
-+  previous one produced, and the sequence matters because each corrected the one before:
+-  CPO ruling 2026-08-16 (quoted in full under protected_override): fix via option 2 only, and the
+-  unprotect-the-key option is rejected on security grounds. The CPO also asked the framing
+-  question this task answers — *"Why do we always need to touch ingestion again and again?"* — and
+-  the answer encoded here is that we do NOT: no ingestion code changes, the fix is a CI job that
+-  should never have carried this step.
++  CPO instruction, 2026-08-16, in this conversation: "now add the country check to the onboard
++  skill" — after I reported that the approach is NOT prepared for new countries and named this
++  file as the cheap mitigation.
++
++  MEASURED, the defect this prevents: `!50` onboarded the Süper Lig on 2026-08-16. The provider
++  sends `Turkey` on the leagues surface and `Türkiye` on the player and coach surfaces (455
++  players, 105 coaches). The page reads the leagues surface, so the clean spelling landed there
++  BY LUCK. Had it been the other way round, `Türkiye` would have rendered and no guard would have
++  fired.
  
--  1. history_seasons: 5 for all three leagues. CPO answer: "1. 5" — matches the pattern used for
--     every non-Big-5 domestic league onboarded recently (VL, LMX, LP, MLS, SPL, ED all use 5).
-+  1. "official form" — the register is the UN English short name, from the UN list the CPO
-+     supplied (197 entries, six languages), with the diplomatic qualifier stripped.
-+  2. "Republic of Ireland, keep the long form" — one exception; it renders beside Northern Ireland.
-+  3. "modern correct name, keep the everyday short form" — given on seeing that rule 1 produced
-+     `Russian Federation`, `Syrian Arab Republic`, `Lao People's Democratic Republic`. A genuine
-+     RENAME stands (Czechia, North Macedonia, Eswatini); a FORMAL STATE TITLE is shortened.
-+  4. "the single source of truth is always english" then, shown that the UN keeps exactly two
-+     endonyms in its English column, "No, Ivory Coast and Turkey" — so `Türkiye` -> `Turkey`,
-+     `Côte d'Ivoire` -> `Ivory Coast`, and no label carries a diacritic.
+-  NEW MECHANISM: none. Deleting a step, and adding an assertion to an EXISTING pytest module
+-  whose stated purpose is pinning exactly these CI invariants.
++  PLACEMENT, and why it is not the post-merge list alone: caught at Step 0b the override row ships
++  in the SAME MR as the registry entry, so the page is never wrong. Caught after merge, the page is
++  wrong until somebody looks. The post-merge item is a confirmation, not the control.
  
--  2. Women's leagues (NWSL, Frauen-Bundesliga, Serie A Women, Liga F, Première Ligue, FA WSL) and
--     Liga MX Femenil: CPO ruling "drop the women's league all" — none onboarded in this task, no
--     exceptions (NWSL had full coverage but is dropped with the rest of the batch). This followed
--     live per-fixture verification (not just the season-level coverage flag, which reads
--     misleadingly "full" at the season-metadata level): dense sampling of the most recently
--     completed season showed real fixture-stats/player-stats presence of 45-60% for four of the
--     five European leagues and 0% (0/30 sampled fixtures) for Liga F. The 2026/27 season has not
--     started for any of them (all fixtures NS as of 2026-08-16), so "current season" coverage is
--     not yet checkable.
-+  MEASURED, priced first (461,533 + 474,334 bytes, whole population): 245 distinct provider
-+  strings across the four dims; 224 canonical entities; 67 rows where the provider string differs
-+  from the canonical name. 188 of the 224 are UN states — the rest are football associations
-+  (England n=2723, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei), territories, one
-+  unrecognised state and one historical (Yugoslavia, CPO: "stays as historical").
+-  RECURRING COST: strictly NEGATIVE (a saving). Removes one billed BigQuery `SELECT DISTINCT` per
+-  MR pipeline, plus the API-quota draw of any bootstrap ingest an unmerged branch would have run.
+-  Nothing is added.
++  ⚠ This is a MITIGATION, not the fix. The real mechanism is #69's foreign key to `dim_country`,
++  where an unknown country fails the key instead of rendering. A skill step is a prose rule and
++  this repo has measured that prose rules recur (#30: 33 of 50 corrections were prose-only, 22
++  recurred). Recorded in the skill itself so the next reader does not mistake it for the guard.
  
--  3. WSL: exists in the provider catalog as "FA WSL", provider_league_id 44, England — the original
--     #72 research's "not in the provider catalog" finding was a naming-search miss, not an actual
--     absence. Moot for this task since it falls under decision 2 (dropped with the women's batch).
-+  ⚠ TWO ROWS ARE EXCEPTIONS TO THE RULE AND SAY SO IN THEIR OWN `source`: `USA` ->
-+  `United States of America` (the everyday short form would be `United States`) and `Ireland` ->
-+  `Republic of Ireland`. Citing the general rule as their authority would have been false.
- 
--  NEW MECHANISM: none — same registry-entry + sync_dbt_vars.py + i18n pattern used for every prior
--  domestic-league onboard (issue #260 wave, VL, LMX, LP, MLS, SPL, ED).
--  RECURRING COST: 3 new `ingest_active: true` leagues added to the nightly 04:00 UTC pipeline, full
--  fanout (fixtures/standings/lineups/stats/events), 5-season backfill each. In line with the cost
--  profile of the other domestic-league onboards in this registry.
-+  NEW MECHANISM: none. Same seed, same join, same still-needed test as `!45` — 3 rows to 67.
-+  RECURRING COST: none. One seed, one left join on a 45-row table.
+-  NO GUARD IS LOOSENED, because none is touched. The previous revision of this branch narrowed
+-  one and was FAILED by all four routed reviewers and then by the CPO. The standing rule held.
++  NEW MECHANISM: none — a step in an existing skill.
++  RECURRING COST: none.
  
  decisions_reserved:
--  - none: the three CPO-class questions in #72 (history_seasons depth, women's-leagues coverage
--    verdict, WSL catalog existence) are all resolved above; nothing about this task's scope is open.
-+  - `entity_type` (un_state / association / territory / unrecognised / historical) exists in the
-+    discovery analysis and is deliberately NOT a column here. The CPO's words on being shown a
-+    7-column draft: "we only need a mapping between what the provider gives us and what we turn
-+    into the single source of truth name". It belongs to `dim_country` if anything reads it.
-+  - `label_i18n_key` per country — 224 keys x 3 locales is a real copy cost and the CPO's to
-+    authorise. Absent, not forgotten.
-+  - Confederation per country. #69's shape proposes `dim_country` carries its region, but there is
-+    NO SOURCE: the registry gives confederation per COMPETITION and the UN file has none.
-+  - Whether `dim_country` supersedes this seed or sits beside it, as `team_name_overrides` sits
-+    beside `dim_team`. Next unit.
+-  - Whether `data:build:mr` should ALSO be prevented from writing prod raw structurally (setting
+-    `API_FOOTBALL_BIGQUERY_DATASET` to a ci-scoped dataset) rather than only by removing the one
+-    step that did it. #33 item 13 is broader than the MR path; this task closes the MR path only
+-    and takes no position on the rest.
+-  - The ingest-state model itself (recording that a league HAS been ingested, not merely that it
+-    should be) is deliberately NOT designed here. It is the cause behind the four failing
+-    onboarding-MR tests AND behind `get_new_league_codes.py` having to rediscover that fact from
+-    BigQuery every run. Filed as its own issue per the CPO's instruction, "ship part 1 and file
+-    the state fix as its own issue".
++  - Whether `.claude/skills/**` should join the protected-path list. `.claude/commands/**` is
++    protected because a command file can embed shell; a skill file can carry shell too, and this
++    one does. That is a governance question and the CPO's, not something to decide inside an
++    unrelated task. NOT raised as a blocker — the current list is explicit and skills are not on it.
  
  done_when:
--  - Three new registry entries (BPL, TSL, EKS) in docs/competition_registry.yml, each with a live
--    verified provider_league_id, history_seasons: 5, ingest_active: true, status: active.
--  - `python scripts/sync_dbt_vars.py` run; dbt_project.yml and seeds/competition_registry.csv both
--    regenerated and committed.
--  - i18n labels added for BPL/TSL/EKS in en.json, de.json, fi.json.
--  - `python scripts/check_registry_var_sync.py` reports OK.
--  - `discover_competition.py --audit <code>` reports OK (no `!!!` collision) for each of the 3.
--  - escalations.log carries the #72 blinded-escalation entry with the CPO's actual answers.
--  - MR opened against main with cost-gate answers and verified IDs in the description.
--  - Post-merge operational follow-up (not gated by this commit, but committed to): once the first
--    nightly ingest + build have run for BPL/TSL/EKS, run
--    `python scripts/diagnostics/verify_competition_ingest.py --league <code> --strict` for each of
--    the three per the onboard-competition skill's documented "Operational follow-up after merge"
--    step — the check that catches NULL fixture_id (#297), stale wrong-ID fixture-details rows
--    (#296), and teams missing from dim_team, exactly the defect class 3 brand-new provider IDs
--    risk on first ingest. Flagged by data-engineer-reviewer round 1; report clean --strict output
--    (or triage findings) before treating BPL/TSL/EKS as onboarded-and-healthy.
-+  - The seed carries 67 rows plus the header; `provider_country` is unique.
-+  - Every row has a `source` and a `note`; the two exception rows cite their own authority.
-+  - No `country_name` value carries a diacritic.
-+  - `assert_country_name_overrides_still_needed` passes — no row where override == provider, and
-+    no row whose provider string has vanished from staging.
-+  - The seed's `schema.yml` description is corrected: `!45`'s text cites `Timor-Leste` as correctly
-+    hyphenated and NOT to be touched, and this MR renames it to `East Timor`. Leaving that would
-+    be a stale claim contradicting the data beneath it.
-+  - `dbt parse` succeeds; `python scripts/check_layer_contract.py` passes.
+-  - `data:build:mr` contains no `get_new_league_codes.py` call and no
+-    `python -m ingestion.api_football.main` invocation; `data:build:main` and `data:nightly` still
+-    do, unchanged.
+-  - The removal is explained in a `.gitlab-ci.yml` comment that names #73 and #33 item 13, so the
+-    step is not "restored as an oversight" later.
+-  - NO dbt file is modified: `git diff --stat` shows no path under `dbt_project/`.
+-  - A NEW test in `tests/test_ci_data_job_invariants.py` FAILS if `data:build:mr` ever invokes
+-    `ingestion.api_football.main` or `get_new_league_codes.py` again, and it is demonstrated RED
+-    first (per the standing rule that a passing test proves nothing until it has been seen fail).
+-  - `python -m pytest tests/test_ci_data_job_invariants.py` passes.
+-  - escalations.log records the #73 ruling and the rejected option.
+-  - MR opened against main; !50 rebases onto it afterwards.
++  - Step 0b gains a numbered check with a runnable command that prints what the provider sends and
++    whether the seed already maps it.
++  - The step states the rule (English, everyday short form, no diacritics) and says the override
++    row belongs in the SAME MR.
++  - It states plainly that nothing catches a missing row today, and names #69's FK as the real fix.
++  - The post-merge list gains a confirmation item.
++  - No other section of the skill changes.
  
- amendments:
--  - 2026-08-16: + .claude/active_work.md — authority: standing rule (working_agreement.md §3);
--    content: rebase onto gitlab/main pulls in a real conflict on active_work.md (main's nightly-
--    status correction overlaps this branch's MR #50/#73 notes) that needs manual resolution.
-+  - 2026-08-16: + dbt_project/tests/assert_country_name_overrides_still_needed.sql — authority:
-+    standing rule `feedback_never_loosen_a_guard` (when my change breaks a test, narrow it to
-+    where it still holds; deleting the assertion ships a silent hole).
-+    content: `!45` wrote that test to check each override's provider string against
-+    `stg_apif__leagues.country` ALONE, because the seed was leagues-only. MEASURED against prod:
-+    that staging column holds just 19 distinct values, of which only 3 are correctable forms
-+    (`Saudi-Arabia`, `South-Korea`, `USA`). Extending the seed to 67 rows therefore makes **64 of
-+    them fail** the `provider.country is null` branch — they are real corrections for strings the
-+    provider sends on the TEAM, PLAYER and COACH surfaces, which that test never looked at.
-+    The test is widened to the union of all four provider surfaces
-+    (`stg_apif__leagues.country`, `stg_apif__teams.team_country`,
-+    `stg_apif__coaches.coach_birth_country`, `stg_apif__player_profiles.birth_country`), matching
-+    the scope the seed now has. The assertion is unchanged and nothing is downgraded to `warn`.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index e38967a..49af02f 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -2930,3 +2930,56 @@ provider catalog per the original issue research).
-   ingest_active=true. 6 women's leagues + Liga MX Femenil: none onboarded this round. WSL
-   confirmed to exist as "FA WSL" (id 44) for whenever the women's-league question is revisited —
-   the catalog-absence blocker from #72 no longer applies, only the coverage-quality one does.
-+
-+
-+2026-08-16 feat/69-country-name-overrides - the canonical country naming register (#69).
-+
-+  ⚠ THIS ENTRY WAS MISSING AND A REVIEWER CAUGHT IT. The four rulings below were taken, applied to
-+  67 rows, and submitted with only the contract's own prose as authority. scope-auditor FAILED the
-+  branch: §11 requires every escalation to land here, and §2 states why — "a reviewer cannot check
-+  whether a claimed ruling exists without it." It was right. I had myself relied on this log twice
-+  the same day to verify the CPO's 2026-08-14 rulings; I did not write my own.
-+
-+  THE ASK. #69's discovery found 245 distinct provider country strings across four dims resolving
-+  to 224 entities, with the same country spelled up to three ways. The canonical NAME is copy and
-+  copy is §10, so the register went to the CPO. He supplied a UN list (197 English short names,
-+  six languages) as the reference this issue had said was missing.
-+
-+  RULING 1 - THE REGISTER IS THE OFFICIAL FORM. CPO: "official form". Applied as the UN English
-+  short name with the diplomatic qualifier stripped (`Netherlands (Kingdom of the)` ->
-+  `Netherlands`).
-+
-+  RULING 2 - ONE EXCEPTION, IRELAND. CPO, on seeing the merged table: "Republic of Ireland, keep
-+  the long form". The UN short name is `Ireland`; the page renders it beside `Northern Ireland`
-+  and football keeps the longer form so the contrast reads.
-+
-+  RULING 3 - NOT THE FORMAL STATE TITLE. CPO: "modern correct name, keep the everyday short form",
-+  given on being shown that ruling 1 produced `Russian Federation`, `Syrian Arab Republic`,
-+  `Lao People's Democratic Republic` and `Republic of Korea` under a fixture. The distinction that
-+  survives: a genuine RENAME stands (Czechia, North Macedonia, Eswatini, Myanmar); a FORMAL STATE
-+  TITLE is shortened. Both shapes sit in the same UN column and only their form tells them apart.
-+
-+  RULING 4 - ENGLISH, NOT THE ENDONYM. CPO: "the single source of truth is always english". Asked
-+  how the UN itself handles it, the measured answer was that 195 of its 197 English names are plain
-+  ASCII and exactly two are endonyms honoured at those states' request — `Türkiye` and
-+  `Côte d'Ivoire`. CPO: "No, Ivory Coast and Turkey". So no label carries a diacritic, and
-+  `Cabo Verde` -> `Cape Verde`, `Timor-Leste` -> `East Timor` follow the same rule.
-+
-+  ⚠ A FIFTH DECISION, ON SHAPE RATHER THAN NAMES. Shown a 7-column draft carrying `entity_type`
-+  and per-surface counts, the CPO: "we only need a mapping between what the provider gives us and
-+  what we turn into the single source of truth name". The seed is TWO data columns. `entity_type`,
-+  `label_i18n_key` and confederation are out - the first was my invention, the second is a copy
-+  cost he has not authorised, and the third has NO SOURCE (the registry gives confederation per
-+  COMPETITION, and the UN file none).
-+
-+  WHAT CHANGED AS A RESULT. `country_name_overrides.csv` 3 rows -> 67. Two rows are deliberate
-+  exceptions and cite their own authority in `source` rather than the general rule: `USA` ->
-+  `United States of America` (the rule would give `United States`) and `Ireland` ->
-+  `Republic of Ireland`.
-+
-+  ⚠ AND A GUARD HAD TO BE WIDENED, NOT WEAKENED. `assert_country_name_overrides_still_needed`
-+  compared each row against `stg_apif__leagues` alone, because the seed was leagues-only. Measured
-+  against prod: that column holds 19 distinct values, so 64 of the 67 rows would have been reported
-+  as dead when they are real corrections for team/player/coach strings. Widened to the union of all
-+  four provider surfaces; the assertion itself is unchanged and nothing was downgraded to `warn`.
-+  Verified after: 67 of 67 keys match a live provider string, 3 of 67 under the old scope.
-diff --git a/dbt_project/seeds/country_name_overrides.csv b/dbt_project/seeds/country_name_overrides.csv
-index 287ffad..7f39835 100644
---- a/dbt_project/seeds/country_name_overrides.csv
-+++ b/dbt_project/seeds/country_name_overrides.csv
-@@ -1,4 +1,68 @@
- provider_country,country_name,source,note
--Saudi-Arabia,Saudi Arabia,CPO ruling 2026-08-15 (#62): standardize in base,"Provider hyphenates multi-word country names. Not corrected by a hyphen-to-space rule: Guinea-Bissau and Timor-Leste are correctly hyphenated."
--South-Korea,South Korea,CPO ruling 2026-08-15 (#62): standardize in base,"Provider hyphenates multi-word country names. Common English usage, not the ISO 3166 form (Korea, Republic of), which is not the register the other 12 names use."
--USA,United States of America,CPO ruling 2026-08-15 (#62): verbatim CPO wording,"Provider abbreviates where every other value is a full name. The CPO chose the long form over United States."
-+American-Samoa,American Samoa,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Antigua-and-Barbuda,Antigua and Barbuda,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Bosnia,Bosnia and Herzegovina,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+British-Virgin-Islands,British Virgin Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Brunei Darussalam,Brunei,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the formal state title; canonical is the everyday short form.
-+Burkina-Faso,Burkina Faso,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Cape Verde Islands,Cape Verde,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+Cape-Verde-Islands,Cape Verde,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+Cayman-Islands,Cayman Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Central-African-Republic,Central African Republic,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+China PR,China,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the FIFA form.
-+Chinese-Taipei,Chinese Taipei,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Congo DR,DR Congo,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the formal state title; canonical is the everyday short form.
-+Congo-DR,DR Congo,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the formal state title; canonical is the everyday short form.
-+Cook-Islands,Cook Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Costa-Rica,Costa Rica,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Curaçao,Curacao,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider spelling carries a diacritic; canonical is ASCII English.
-+Czech Republic,Czechia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
-+Czech-Republic,Czechia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
-+Côte d'Ivoire,Ivory Coast,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+Dominican-Republic,Dominican Republic,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+East-Timor,East Timor,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+El-Salvador,El Salvador,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Equatorial-Guinea,Equatorial Guinea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Faroe-Islands,Faroe Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+French-Guiana,French Guiana,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+FYR Macedonia,North Macedonia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
-+"Hong Kong, China",Hong Kong,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+Hong-Kong,Hong Kong,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Ireland,Republic of Ireland,CPO ruling 2026-08-16 (#69): explicit exception,"Deliberate EXCEPTION to the everyday-short-form rule. It renders beside Northern Ireland and football keeps the contrast readable."
-+Ivory-Coast,Ivory Coast,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Korea DPR,North Korea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the FIFA form.
-+Korea Republic,South Korea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the FIFA form.
-+Kyrgyz Republic,Kyrgyzstan,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the formal state title; canonical is the everyday short form.
-+Macedonia,North Macedonia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
-+New-Caledonia,New Caledonia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+New-Zealand,New Zealand,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+North-Korea,North Korea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Northern-Ireland,Northern Ireland,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Papua-New-Guinea,Papua New Guinea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Puerto-Rico,Puerto Rico,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Republic of the Congo,Congo,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the formal state title; canonical is the everyday short form.
-+Réunion,Reunion,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider spelling carries a diacritic; canonical is ASCII English.
-+Saint-Kitts-and-Nevis,Saint Kitts and Nevis,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Saint-Lucia,Saint Lucia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Saint-Martin,Saint Martin,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Saint-Vincent-and-the-Grenadin,Saint Vincent and the Grenadines,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider truncates the name.
-+San-Marino,San Marino,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Saudi-Arabia,Saudi Arabia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Sierra-Leone,Sierra Leone,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Solomon-Islands,Solomon Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+South-Africa,South Africa,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+South-Korea,South Korea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+South-Sudan,South Sudan,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Sri-Lanka,Sri Lanka,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+St. Kitts and Nevis,Saint Kitts and Nevis,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider abbreviates Saint.
-+St. Lucia,Saint Lucia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider abbreviates Saint.
-+St. Vincent and the Grenadines,Saint Vincent and the Grenadines,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider abbreviates Saint.
-+São Tomé e Príncipe,Sao Tome and Principe,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+São-Tomé-e-Príncipe,Sao Tome and Principe,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+Timor-Leste,East Timor,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+Trinidad-And-Tobago,Trinidad and Tobago,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider capitalises the conjunction.
-+Turks-and-Caicos-Islands,Turks and Caicos Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+Türkiye,Turkey,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
-+United-Arab-Emirates,United Arab Emirates,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+US-Virgin-Islands,US Virgin Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
-+USA,United States of America,CPO ruling 2026-08-15 (#62): verbatim CPO wording,"Deliberate EXCEPTION to the #69 rule, which would give United States. The CPO chose the long form and it stands."
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 2517666..e112af7 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -551,16 +551,28 @@ seeds:
- 
-   - name: country_name_overrides
-     description: >
--      Corrections to the provider's COUNTRY string, applied in base_apif__leagues (#62). The
--      API-Football /leagues payload hyphenates multi-word country names (`Saudi-Arabia`,
--      `South-Korea`) and abbreviates one (`USA`), so 3 of the 15 distinct countries across the 21
--      single-country competitions are not display-ready. `dim_league.league_country` is the region
--      sub-line on the competitions page, so the provider spelling would be read by a visitor.
-+      Maps every provider COUNTRY string to one canonical English name. Applied in
-+      base_apif__leagues (#62); extended from 3 rows to 67 by #69's discovery.
-+
-+      THE RULE, four CPO rulings on 2026-08-16, each given after seeing what the previous produced:
-+      **English, everyday short form, no diacritics.**
-+        - English, never the endonym — `Türkiye` -> `Turkey`, `Côte d'Ivoire` -> `Ivory Coast`.
-+          ⚠ The UN's own English column keeps those two, for the states that asked it to; we do
-+          not. It strips diacritics for the other 195 of its 197 names.
-+        - Everyday short form, not the formal state title — `Russian Federation` -> `Russia`,
-+          `Lao People's Democratic Republic` -> `Laos`, `Korea Republic` -> `South Korea`.
-+        - A genuine RENAME stands: `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
-+      TWO ROWS ARE DELIBERATE EXCEPTIONS and cite their own authority in `source`: `USA` ->
-+      `United States of America` (the rule would give `United States`) and `Ireland` ->
-+      `Republic of Ireland` (it renders beside Northern Ireland).
- 
-       WHY THIS IS A MAPPING AND NOT A HYPHEN-TO-SPACE RULE. A pattern rule looks like the
--      class-level fix and is wrong: `Guinea-Bissau` and `Timor-Leste` are correctly hyphenated
--      country names and a blanket replace corrupts them the moment either is onboarded. An
--      explicit mapping cannot.
-+      class-level fix and is wrong: `Guinea-Bissau` is a correctly hyphenated country name and a
-+      blanket replace corrupts it. MEASURED, not argued — it appears hyphenated on the player
-+      surface (38 players) where hyphenation is right, and hyphenated on the team surface where it
-+      is also right. An explicit mapping cannot get that wrong.
-+      ⚠ `Timor-Leste` was the second example in this paragraph until #69. It is now renamed to
-+      `East Timor` — for being non-English, NOT for its hyphen — so it no longer illustrates it.
- 
-       ⚠ KNOWN RESIDUAL GAP, stated rather than implied: this seed corrects only the strings it
-       lists. A NEW multi-word country arriving hyphenated is not caught here and would reach the
-@@ -570,13 +582,15 @@ seeds:
-       GOVERNANCE: the register is the CPO's (§10) — these are display names and copy is his. Add a
-       row only for a provider defect, never a locale preference: this is the same rule that keeps
-       `Bayern München` out of `team_name_overrides`. Where an external standard is cited it must
--      be checked, never recalled; `South Korea` is deliberately NOT the ISO 3166 form, because the
--      other twelve names are common English usage and the register must be consistent.
-+      be checked, never recalled — the UN list backing these names was supplied by the CPO and
-+      read directly, and two of its rows turned out to be a footnote legend rather than countries.
- 
--      SCOPE: leagues only. `dim_team.team_country`, `dim_player.player_birth_country` and
--      `dim_coach.coach_birth_country` carry 217/222/213 distinct values that very likely have the
--      same defect, and they are deliberately NOT corrected from three known examples — that is
--      #69's discovery step.
-+      SCOPE: the seed now covers strings from ALL FOUR surfaces (`dim_league`, `dim_team`,
-+      `dim_player`, `dim_coach`) — 245 distinct provider values resolving to 224 entities. ⚠ Only
-+      `dim_league` READS it today, so 65 of the 67 rows are inert until `dim_country` lands. The
-+      provider defect is not one endpoint: `/teams` hyphenates, and `/players` + `/coachs` are
-+      inconsistent with themselves, carrying `Czechia` and `Czech Republic`, `Korea Republic` and
-+      `South Korea` side by side.
- 
-       assert_country_name_overrides_still_needed fails the build if a row equals the provider's
-       current string, or if the provider string has disappeared entirely, so a correction the
-diff --git a/dbt_project/tests/assert_country_name_overrides_still_needed.sql b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
-index 0190b45..3c9f9d1 100644
---- a/dbt_project/tests/assert_country_name_overrides_still_needed.sql
-+++ b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
-@@ -7,21 +7,42 @@
- --      spelling, or because the only competition that carried it was offboarded. The row then
- --      matches nothing and the seed slowly fills with fiction.
- --
---- Compares against stg_apif__leagues (PRE-override) rather than base_apif__leagues, which is
---- where the coalesce is applied and would therefore always agree with the seed.
--
--with import_stg_apif__leagues as (
--    select * from {{ ref('stg_apif__leagues') }}
--),
-+-- ⚠ WIDENED FOR #69. The first version compared against stg_apif__leagues ALONE, because the
-+-- seed was leagues-only (3 rows). The seed now maps strings from all four provider surfaces, and
-+-- `stg_apif__leagues.country` holds just 19 distinct values -- so a leagues-only comparison would
-+-- report 64 of the 67 rows as dead when they are real corrections for team, player and coach
-+-- values. Narrowed to where the assertion still holds, rather than downgraded: every row must
-+-- still match a string the provider actually sends SOMEWHERE.
-+--
-+-- Compares against STAGING (pre-override) rather than base or core, which is where the coalesce
-+-- is applied and would therefore always agree with the seed.
- 
--import_country_name_overrides as (
-+with import_country_name_overrides as (
-     select * from {{ ref('country_name_overrides') }}
- ),
- 
- provider_countries as (
--    select distinct country
--    from import_stg_apif__leagues
-+    select country
-+    from {{ ref('stg_apif__leagues') }}
-     where country is not null
-+
-+    union distinct
-+
-+    select team_country
-+    from {{ ref('stg_apif__teams') }}
-+    where team_country is not null
-+
-+    union distinct
-+
-+    select coach_birth_country
-+    from {{ ref('stg_apif__coaches') }}
-+    where coach_birth_country is not null
-+
-+    union distinct
-+
-+    select birth_country
-+    from {{ ref('stg_apif__player_profiles') }}
-+    where birth_country is not null
- )
- 
- select
+ amendments: (none)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -451,7 +244,7 @@ index 0190b45..3c9f9d1 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |  37 +--
-#    .claude/task/review_input.patch | 717 +++++++++++++++++++---------------------
-#    2 files changed, 361 insertions(+), 393 deletions(-)
+#   .claude/task/review.md          |  67 ++--
+#    .claude/task/review_input.patch | 655 +++++++++++++---------------------------
+#    2 files changed, 238 insertions(+), 484 deletions(-)
 # ============================================================================
