@@ -17,6 +17,10 @@ import_team_name_overrides as (
     select * from {{ ref('team_name_overrides') }}
 ),
 
+import_country_name_overrides as (
+    select * from {{ ref('country_name_overrides') }}
+),
+
 latest_per_team as (
     select *
     from import_base_apif__teams
@@ -31,12 +35,20 @@ latest_per_team as (
 -- columns"), and this repo suppresses no lint rule anywhere -- there is not a single `noqa`
 -- in it. Nothing is lost by listing them: dim_team is the only consumer and already projects
 -- its columns explicitly, so a new upstream column needs an edit there regardless.
+-- team_country_raw is kept alongside the corrected team_country and flows through the slug CTEs
+-- below unexported (the terminal select is an explicit column list, not a wildcard, so it never
+-- reaches dim_team). The slug ladder anchors on team_country_raw, not the corrected value:
+-- kebab_slug already normalises the team-surface hyphenation defect to the same anchor either
+-- way, but a handful of overrides are semantic renames (USA -> United States of America, Congo-DR
+-- -> DR Congo), and #852's slugs are assigned once and never re-derived -- anchoring on the
+-- corrected value would silently reshuffle any contested team's slug the day its country's
+-- canonical spelling changes, which is exactly what that guard exists to prevent.
 corrected as (
     select
         teams.league_code,
         teams.team_api_id,
         teams.team_code,
-        teams.team_country,
+        teams.team_country as team_country_raw,
         teams.team_founded_year,
         teams.team_logo_url,
         teams.venue_api_id,
@@ -45,10 +57,13 @@ corrected as (
         teams.venue_city,
         teams.venue_capacity,
         teams.raw_ingested_at,
-        coalesce(overrides.team_name, teams.team_name) as team_name
+        coalesce(overrides.team_name, teams.team_name) as team_name,
+        coalesce(country_overrides.country_name, teams.team_country) as team_country
     from latest_per_team as teams
     left join import_team_name_overrides as overrides
         on teams.team_api_id = overrides.team_api_id
+    left join import_country_name_overrides as country_overrides
+        on teams.team_country = country_overrides.provider_country
 ),
 
 -- team_slug: the permanent, locale-independent team URL (#852). Derived HERE and not in the
@@ -81,7 +96,7 @@ prepared as (
     select
         corrected.*,
         {{ slug_prepare('team_name') }} as name_prepared,
-        {{ slug_prepare('team_country') }} as country_prepared
+        {{ slug_prepare('team_country_raw') }} as country_prepared
     from corrected
 ),
 

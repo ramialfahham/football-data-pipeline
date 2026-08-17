@@ -19,7 +19,8 @@
     seed level today. This dim buys publication and symmetry with dim_country, not a new guard.
     Saying otherwise would overstate it.
 
-    ⚠ NOTHING READS THIS YET — see dim_country's note.
+    READ by mart_competition_index.region_label for the competitions with no country — see
+    dim_country's note.
 #}
 
 with import_confederations as (
