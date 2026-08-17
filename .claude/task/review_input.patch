@@ -1,1196 +1,144 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4cae619..3ef4e95 100644
+index 7243ae5..d32e063 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,86 +1,105 @@
--# Task contract — a test that detects EVENT LOSS (#75 part C)
-+# Task contract — never record a gap as captured (#75 MR2)
+@@ -1,110 +1,41 @@
+-# Task contract — dim_country + dim_region (#69 step 3)
++# Task contract — handover: the #69 dims are merged (bookkeeping)
  
  objective: >
--  Add the one guard whose absence is why #75 was found by accident. `fct_fixture_event` is
--  incremental and accumulates; `base_apif__fixture_events` is rebuilt from current raw. When a
--  fixture's raw payload loses events, the fact keeps them and base does not — and NOTHING in the
--  test suite notices. The 29 lost events sat undetected for days and surfaced only as an unrelated
--  `dim_player` FK orphan, which is why it first looked like a player problem.
-+  Four fixes of ONE class: a fetch that failed is written as fact, and the key it names is then
-+  treated as done forever. Unlike #75 nothing here DELETES — the damage is a permanent hole that
-+  no later run re-fetches, which is why no existing test or DQ check can see it. Append-only
-+  (`!59`) made bad writes recoverable; it did not stop us recording them.
-+refs: GitLab #75 (MR2 of the plan recorded in `escalations.log` 2026-08-17); the four sites were
-+  found by the two blind lead-DE assessments the CPO ordered.
+-  Publish the two dimensions #69's rescope calls for. `dim_country` is genuinely new: countries
+-  exist nowhere in the model layer today, only as free text in four dims. `dim_region` publishes
+-  `confederations.csv`, which has existed since #57 and is read by nothing. Together they let a
+-  competition POINT AT one or the other, so which relationship is populated is the answer and no
+-  `single_country` flag is needed.
+-  ⚠ THIS UNIT IS THE DIMS ONLY. The foreign keys from the four free-text columns are #69 step 5
+-  and a separate MR — a dim and its first reader cannot ship together, the same rule that keeps
+-  #62 step 3 apart from step 1.
+-refs: GitLab #69 (rescope + the naming rulings), #62 step 3 (the page that needs `dim_country`)
++  `active_work.md` still reads "NEXT: `dim_country` + `dim_region`, then FKs". Both are built,
++  reviewed and merged (`!61`). That is a WRONG LIVE INSTRUCTION, not stale trivia — a fresh session
++  is handed this file and nothing else, and would set out to build what already exists. Correct it
++  to name step 5 (the four foreign keys) as the next action.
++refs: GitLab #69 step 3 (`!61`), #62 step 3 (still blocked on step 5)
  
--  This adds a singular test that flags any event the fact holds which base no longer has.
--refs: GitLab #75, !56 (the ingestion guard), !53
-+scope_paths:
-+  - ingestion/api_football/bigquery.py
-+  - ingestion/api_football/completeness.py
-+  - ingestion/api_football/fixture_scheduling.py
-+  - ingestion/api_football/loads/player_profiles.py
-+  - ingestion/api_football/loads/player_squads.py
-+  - ingestion/api_football/loads/player_teams.py
-+  - ingestion/api_football/loads/transfers.py
-+  - tests/test_never_record_a_gap.py
-+  - tests/test_incomplete_fetch_no_supersede.py
-+  - tests/test_player_squads_catchup.py
+ scope_paths:
+-  - dbt_project/seeds/countries.csv
+-  - dbt_project/seeds/schema.yml
+-  - dbt_project/models/3_core/dim_country.sql
+-  - dbt_project/models/3_core/dim_region.sql
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/docs/layering.md
 +  - .claude/active_work.md
  
  impact_map: >
--  WHAT THIS TEST READS: `fct_fixture_event` (core, incremental) and `base_apif__fixture_events`
--  (base, table). It is a leaf assertion — nothing reads it, it writes nothing, and it changes no
--  model, column, grain or materialisation. `dbt ls` could not be run (broken dbt on PATH, no
--  `.venv` — #60), so this is read off the model files; stated rather than hidden (#904).
+-  writers: both dims are NEW and seed-published. `countries.csv` is authored here from #69's
+-    recorded discovery; `confederations.csv` already exists and is NOT edited.
 -
--  MEASURED AGAINST PROD, 2026-08-17, before writing the assertion:
--    · Event-index-level comparison finds **29 lost events across exactly 5 fixtures**
--      (1564793 CIT, 1564791 CIT, 1564795 CIT, 1490377 MLS, 1507028 KL1) — the same set #75
--      documents, reproduced independently by this test's own logic.
--    · With the cutoff at 2026-08-17, **1 row still flags**: one damaged fixture was re-ingested
--      this morning because its 3-day retry window (kickoff 2026-08-15) is still open.
+-  downstream: NONE — both are LEAVES. Nothing reads either until #69 step 5 adds the foreign keys
+-    and #62 step 3 builds `mart_competition_index`. Deliberate: this is the "additive and not yet
+-    read" pattern `confederations.csv` itself shipped under in #57, and the same reason
+-    `mart_competition_index` is parked rather than built.
 -
--  SCOPE IS TAKEN FROM THE FIXTURE (kickoff date), NOT FROM BASE — corrected in round 1.
--  analytics-engineer-reviewer FAILED the first draft, which grouped `max(raw_ingested_at)` over
--  `base_apif__fixture_events` itself: if a fixture loses ALL its events base holds zero rows, the
--  grouped CTE yields nothing, and the inner join silently drops that fixture — the TOTAL-loss case,
--  undetectable at any cutoff, forever. My prod measurement could NOT have caught it (the known
--  incident was PARTIAL for all 5 fixtures); it was found by reading the join. Scoping on
--  `fct_fixture` (one row per fixture, always present) removes the dependency on base surviving.
--  A kickoff date also never moves, unlike an ingest timestamp — the damaged fixtures kept
--  refreshing `raw_ingested_at` while their retry window stayed open, which is why the ingest-time
--  cutoff still flagged 1 row when measured on 2026-08-17.
--  ⚠ CONSEQUENCE, STATED NOT HIDDEN: the test is **inert for fixtures before the cutoff**. Its logic
--  is proven against real damage (29 rows across 5 fixtures at an earlier cutoff, under BOTH scoping
--  designs), but a green run over a window containing no fixtures is not evidence.
+-  blast_radius: NONE on any existing number, string or row. No existing model is modified. The diff
+-    adds two models, one seed and their schema entries; it touches no file under `2_base/`,
+-    `4_intermediate/` or `5_marts/` and no existing `3_core` model.
 -
--  TWO SIBLING TESTS WERE DESIGNED AND REJECTED ON THE DATA, recorded so they are not re-proposed:
--    · "a PEN fixture must carry shootout events" — **371 of 753** PEN fixtures in prod have none.
--      The provider does not supply them for many competitions. It would have turned half the
--      penalty shootouts in the warehouse red.
--    · "goal events must reconcile with the fixture score" — not written. After the PEN result there
--      is no evidence it is clean across own goals, disallowed goals and shootout exclusion, and
--      shipping it unverified would repeat the same mistake.
-+  WRITERS TOUCHED, and what each currently records as fact:
-+    `loads/player_squads.py:75`   -> RAW_APIF_SQUADS. Marks `(team, season)` captured via
-+      `captured_team_seasons`, which reads `$.team_id` PRESENCE over ALL rows (no latest filter).
-+    `loads/player_profiles.py:68` -> RAW_APIF_PLAYER_PROFILES. Marks the player ingested via
-+      `player_universe._existing_player_ids`, which reads `$.player_id` presence.
-+    `loads/player_teams.py:68`    -> RAW_APIF_PLAYER_TEAMS. Same reader, same effect.
-+    `loads/transfers.py:86`       -> RAW_APIF_TRANSFERS, one row for the WHOLE league.
-+  Because all three "captured" readers key on PRESENCE of the id and not on the payload being
-+  non-empty, a rate-limited empty answer is indistinguishable from a real one and the key is
-+  never re-fetched. That is the permanent hole.
- 
--  layer_rules: `scripts/check_layer_contract.py` / `.claude/hooks/dbt_layer_gate.py` — a singular
--  test in `dbt_project/tests/` touches no layer. `severity = 'error'`, consistent with the other
--  integrity guards (`assert_event_team_in_fixture_participants`).
-+  THE FETCH HELPERS, verified by reading them, not assumed:
-+    guarded, return `tuple[list, bool]`: `players_response_for_team` (:457),
-+      `transfers_response_for_team` (:487)
-+    UNGUARDED, return a bare `list`: `squads_response_for_team` (:520),
-+      `profiles_response_for_player` (:545), `player_teams_response_for_player` (:569)
-+  So the completeness signal exists and three siblings simply never got it.
- 
--  deploy_order: none. It runs in the existing singular-test steps of `data:build:mr`,
--  `data:build:main` and the nightly. No backfill, no migration.
-+  `load_json_to_bq` DEFAULT, enumerated across every call site
-+  (`grep -rn "load_json_to_bq(" ingestion/ scripts/` -> 11 callers):
-+    9 pass `append=True` explicitly. TWO omit it and rely on the `False` default, i.e.
-+    WRITE_TRUNCATE, and both do so DELIBERATELY because their tables hold a single current-state
-+    row: `completeness.py:602` (RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT) and
-+    `fixture_scheduling.py:345` (RAW_APIF_{lc}_INGEST_CURSOR).
-+    Making the parameter REQUIRED therefore changes no behaviour anywhere; it forces the
-+    destructive choice to be written down at the two places that make it. `fixture_scheduling.py`
-+    is in scope for that one-word edit.
- 
--  blast_radius: no mart, no column, no row changes. One new assertion.
+-  ⚠ WHAT dim_region DOES AND DOES NOT ADD, stated because it is easy to overstate:
+-    `competition_registry.confederation` ALREADY carries a `relationships` test to
+-    `ref('confederations')` (`dbt_project/seeds/schema.yml:188`), so the competition->region guard
+-    exists today at seed level. `dim_region` buys PUBLICATION and SYMMETRY with `dim_country`, not
+-    a new guard. The symmetry is the point of the rescope — two relationships of the same kind —
+-    but calling it a new safety net would be false.
 -
--scope_paths:
--  - dbt_project/tests/assert_no_event_loss_since_cutoff.sql
--  - dbt_project/dbt_project.yml
--  - .claude/task/escalations.log
--  - .claude/active_work.md
-+  DOWNSTREAM: none of this changes a model, a grain or a number. It changes WHICH KEYS GET
-+  RE-FETCHED, so the observable effect is more API calls on runs following a rate limit, and
-+  players/squads that previously stayed permanently blank getting filled on a later run. No dbt
-+  file is touched, so `dbt ls` lineage is not the relevant evidence here and is deliberately not
-+  pasted — the blast radius is the ingest planner, not the warehouse graph.
-+  DEPLOY ORDER: ⚠ `.data_paths_prod` EXCLUDES `ingestion/**`, so merging does NOT rebuild prod.
-+  ⚠ #74: nothing redeploys the Cloud Run image on merge, so this is INERT in production until the
-+  nightly image is rebuilt from main by hand — the same gap that left `!59` inert for six hours.
+-  layer_rules: `scripts/check_layer_contract.py`. Both are core dims published from seeds, which is
+-    the layer's job: seeds author, `3_core` publishes. Neither derives a fact. No per-competition
+-    file and no `league_code` involvement, so the no-new-model rule is untouched. Materialisation
+-    follows the layer setting in `dbt_project.yml`; no per-model override.
+-
+-  deploy_order: additive and order-free. `dbt seed` runs before models in every build path, and
+-    both dims are leaves so they can be built before a reader exists. A seed and a `3_core` model
+-    path are inside `.data_paths_prod`, so merging triggers `data:build:main` and the tables appear
+-    on that run.
++  Bookkeeping short-form. `.claude/active_work.md` is read by the session-start hook and by humans;
++  no job, model, test or script reads it (`grep -rn "active_work" .gitlab-ci.yml scripts/
++  dbt_project/` returns nothing outside the governance hooks that only enforce its character cap).
++  Blast radius: what the next session is told to do. No code, no data, no cost.
  
  decisions_taken: >
--  CPO 2026-08-17: "do C", then — on being shown that two of the three designed tests died against
--  the data and the third goes red on the existing backlog — "scope it to new data". This builds the
--  third test only, scoped by ingest time, as instructed.
-+  CPO instruction, 2026-08-17, in this conversation: "go ahead as recommended", against a
-+  recommendation that named these four fixes explicitly. MR2 of the plan the CPO approved earlier
-+  the same day when he chose "Everywhere" for the append-only rule.
-+
-+  NOT LOOSENED, and this is the trap to avoid: the fix is to WITHHOLD THE WRITE, never to widen
-+  what counts as complete. `result_is_complete` keeps its exact meaning, including the CPO ruling
-+  of 2026-08-03 that an empty error-free response IS complete. An empty answer from a healthy
-+  provider still gets written and still marks the key captured — that is correct and it is what
-+  keeps 3,539 historical team-seasons out of a nightly re-fetch.
+-  CPO rescope of #69, 2026-08-16 (its note is the authority): "dim_region from confederations.csv
+-  (publish what exists) + dim_country built new. A competition POINTS AT one; which relationship is
+-  populated IS the answer." And on the modelling this replaces: "You don't mix up countries and
+-  continents or regions in one column and add a flag 'single country'. That's really bad modeling."
+-
+-  `countries.csv` CONTENT is the 224-entity canonical list from #69's discovery, under the four
+-  naming rulings of 2026-08-16 recorded in `escalations.log`: English, everyday short form, no
+-  diacritics, with `Republic of Ireland` and `United States of America` as the two stated
+-  exceptions.
++  No decision. This records an already-merged state.
  
--  NEW MECHANISM: none. A singular test, the same shape as the existing integrity guards.
--  RECURRING COST: one additional singular test per build. It reads two existing tables; no new
--  object, no schedule change.
-+  NEW MECHANISM: none. Three helpers gain the return shape two siblings already have.
-+  RECURRING COST: a small INCREASE in API calls is the intended effect — keys that were wrongly
-+  marked captured will now be re-fetched once. Bounded by the existing skip logic and the daily
-+  quota guard; no change to cadence, fanout caps or history depth.
+-  VERIFIED AGAINST CURRENT PROD BEFORE AUTHORING, priced first (3,681,429 bytes): 284 distinct
+-  provider country strings across the four staging surfaces today; excluding the `World` sentinel,
+-  **283 of 283 resolve into the 224 via `country_name_overrides`** — nothing uncovered. That check
+-  matters because #69 step 5's foreign keys will fail on anything this seed misses, and it was run
+-  against today's data rather than reused from the 08-16 discovery.
++  ⚠ WHY THIS IS A SEPARATE MR RATHER THAN PART OF `!61`: another chat has been editing this file
++  throughout the day and owns the #75 thread in it. `!61` deliberately left it out to avoid racing
++  a 16,000-character capped file, which had already produced two rebase conflicts. There are ZERO
++  open MRs at the time of writing, so this is the safe window.
+ 
+-  NEW MECHANISM: none. Two seed-published dims, the shape `dim_league` and the other core dims
+-  already use.
+-  RECURRING COST: negligible. A 224-row table and a 7-row table built once per run.
++  ⚠ A COMMIT TOUCHING `contract.md` IS NEVER ARTIFACT-EXEMPT (`artifact_only_never`), so this
++  bookkeeping change takes a review round it would otherwise skip. That is the rule working as
++  intended, not overhead to route around: `active_work.md` must be in `scope_paths` to be edited,
++  and putting it there means editing the contract.
  
  decisions_reserved:
--  - The 5 damaged fixtures are NOT repaired by this and are deliberately outside the cutoff. Whether
--    a COMPLETE provider response carrying strictly less data may supersede stored data remains the
--    CPO's open question (#896 rules it the other way today) — that is plan part A, not this.
--  - Whether the cutoff should later be lowered once the backlog is resolved. Left as a var so it is
--    a one-line change with a recorded reason, not a code rewrite.
-+  - The volume-delta threshold stays MR3 and stays the CPO's. This task only stops us recording a
-+    FAILED fetch as fact; it does not judge a SUCCESSFUL fetch that came back smaller.
-+  - Whether `event_loss_detector_from` should be lowered now that the backlog is triaged. It is
-+    2026-08-19 and therefore inert. Deliberately NOT bundled here: it is a dbt change with its own
-+    blast radius and it needs its own measurement (zero rows at the new cutoff) before it moves.
+-  - `entity_type` (un_state / association / territory / historical) is NOT a column. The CPO on
+-    being shown a 7-column draft: "we only need a mapping between what the provider gives us and
+-    what we turn into the single source of truth name". The distinction is preserved in #69's
+-    discovery note if a consumer ever needs it; nothing needs it to render a country name.
+-  - `label_i18n_key` per country is NOT a column — 224 keys x 3 locales is a copy cost and the
+-    CPO's to authorise. `dim_region` HAS one only because `confederations.csv` already shipped with
+-    it.
+-  - Confederation per country is NOT a column, and there is NO SOURCE for it: the registry gives
+-    confederation per COMPETITION and the UN list the CPO supplied has none. ⚠ It is also not
+-    needed — the competitions page takes the region from the competition's own `confederation`,
+-    never from the country's.
+-  - The four foreign keys (#69 step 5), and whether `dim_country` supersedes
+-    `country_name_overrides` or sits beside it as `team_name_overrides` sits beside `dim_team`.
+-  - Whether the registry's `country` field is blanked for the 24 competitions holding a region
+-    word. #69 names it; it changes what the export renders and belongs with step 4.
++  - Nothing. #69 step 5 (the four foreign keys) and #62 step 3 (`mart_competition_index`, still
++    parked in the stash) are named as next actions, not decided here.
  
  done_when:
--  - The test returns 0 rows against prod at the shipped cutoff, and returns the 29 known rows when
--    the cutoff is moved back — demonstrated by running BOTH, not asserted.
--  - `python scripts/check_layer_contract.py` passes; SQLFluff clean on the new file from the repo
--    root with the full rule set.
--  - escalations.log records the two rejected sibling tests with their measured reasons.
-+  - `grep -rn "-> list:" ingestion/api_football/fixture_scheduling.py` shows no per-entity fetch
-+    helper returning a bare list.
-+  - `load_json_to_bq` cannot be called without stating `append`; the two deliberate WRITE_TRUNCATE
-+    callers say so explicitly.
-+  - A test proves each of the four holes RED against the current code before the fix, pasted into
-+    `.claude/task/acceptance_evidence.md`.
-+  - `python -m pytest tests/ -q` passes in full; `ruff --config .ruff-ci.toml` clean.
-+  - No change to `result_is_complete` or to what counts as complete.
+-  - `countries.csv` carries 224 rows; `country_key` unique; no `country_name` with a diacritic.
+-  - Both dims exist in `3_core`, are pass-throughs of their seed, and derive nothing.
+-  - `dbt parse` succeeds; SQLFluff clean on both new .sql files, full rule set, from the repo root.
+-  - `dbt ls --select dim_country+ dim_region+ --resource-type model` shows both are LEAVES.
+-  - `core.yml` documents both with not_null + unique on the keys.
+-  - `check_layer_contract.py` and `check_registry_var_sync.py` pass.
++  - The `NEXT:` line names step 5, not the merged dims.
++  - `dim_country` / `dim_region` are recorded as merged, with what they do and do not guarantee.
++  - The file stays under 16,000 CHARACTERS, measured with Python `len()`.
  
--amendments: (none)
-+amendments:
-+  - 2026-08-17: + `tests/test_player_squads_catchup.py` — authority: the same CPO go for MR2; no new
-+    decision. `squads_response_for_team` gains a second return value, and that file holds the one
-+    test double for it in the repo (`grep -rn "squads_response_for_team" tests/` → exactly one hit,
-+    line 176), still returning a bare list. Left alone it raises "not enough values to unpack",
-+    which the loader's own `except` swallows into an error string — so the suite would go red for a
-+    reason unrelated to the defect. Harness-only change: the fake returns `(rows, True)`; no
-+    assertion moves.
-+    ⚠ FOUND BY RUNNING THE SUITE, not by reading the diff. The signature change is invisible to a
-+    grep of the changed files, because the breakage lives in a file this task never intended to
-+    touch.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 1aa0b29..c8f845a 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -3384,3 +3384,46 @@ OF THE 29 DESTROYED EVENTS
-   the expiry the moment you find the loss and say it out loud, because the window closes silently.
-   ⚠ `!57`'s kickoff cutoff STAYS as shipped: 17 events on 1564791/1564793 are still gone, so
-   lowering it would redden every build on damage nobody can fix.
-+
-+
-+2026-08-17 feat/69-country-region-dims - the TWO-DIMENSION rescope of #69 (dim_country + dim_region).
-+
-+  ⚠ MISSING AGAIN, AND THE SAME REVIEWER CAUGHT IT AGAIN. The 2026-08-16 entry above recorded the
-+  four NAMING rulings after scope-auditor failed the branch for their absence. It did not record the
-+  RESCOPE — the decision that licenses building two dims at all, and `dim_region` in particular.
-+  scope-auditor FAILED this branch for exactly that, searching this file for "rescope", "dim_region",
-+  "POINTS AT" and "bad modeling" and finding nothing. Correct twice over: I fixed the instance and
-+  not the class, which is the failure `feedback_fix_the_class_not_the_instance` names.
-+  The authority existed only as a note I wrote on GitLab #69. An issue note is not this log.
-+
-+  THE ASK. `mart_competition_index` needed a region sub-line: the country for a domestic
-+  competition, the confederation label otherwise. My draft resolved that branch with
-+  `competition_types.single_country`, a boolean on the competition TYPE.
-+
-+  RULING 1 - A FLAG IS NOT A MODEL. CPO: "These things should have been already decided in cleanly
-+  defined dimensional tables with clear columns. You don't mix up countries and continents or
-+  regions in one column and add a flag 'single country'. That's really bad modeling."
-+  He was right, and checking made it worse than it looked: NOTHING had ever read that flag —
-+  `seeds/schema.yml` says so in its own text — so my draft would have been its first consumer,
-+  reviving the mechanism the 2026-08-14 ruling had already rejected.
-+
-+  RULING 2 - TWO DIMENSIONS, AND THE RELATIONSHIP IS THE ANSWER. CPO: "yes, scope #69 that way",
-+  on the shape put to him: `dim_region` published from `confederations.csv` (which exists and is
-+  read by nothing) plus `dim_country` built new; a competition POINTS AT one of them, so which
-+  relationship is populated IS the answer and no flag or branch is needed. Recorded as the
-+  2026-08-16 rescope note on #69.
-+
-+  RULING 3 - THE SEED IS TWO COLUMNS. Shown a 7-column draft carrying an `entity_type` I had
-+  invented plus per-surface counts, the CPO: "we only need a mapping between what the provider gives
-+  us and what we turn into the single source of truth name." `entity_type`, `label_i18n_key` and
-+  per-country confederation are therefore all ABSENT — the first was my invention, the second is a
-+  copy cost he has not authorised, the third has NO SOURCE.
-+
-+  ⚠ AND A DOCUMENTED LAYER RULE IS BEING OVERRIDDEN, which the second reviewer finding is about.
-+  `dbt_project/docs/layering.md` "Attribute masquerading as entity" names COUNTRY explicitly:
-+  "keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation,
-+  position group). Promote to a dim when the rollup logic appears, not before." Both dims ship with
-+  NO reader, and the rollup the doc names as the qualifying trigger — confederation on the country —
-+  is precisely what we left out for want of a source. So this is not the doc's condition being met;
-+  it is the doc being overridden by a CPO design decision. Recorded here and noted in `layering.md`
-+  itself rather than left as a silent contradiction for the next reader to trip over.
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index c3a2ce4..2c21fbc 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -211,6 +211,7 @@ A table earns `dim_` status only when **all three** conditions hold:
- 
- 1. **Entity.** It represents a real-world thing the business talks about by name (team, player, season, date, league). A lookup table for a closed enum does not qualify on its own.
- 2. **Reuse.** Its attributes are shared across more than one fact or mart. If an attribute set is consumed by exactly one consumer, denormalize it onto that consumer's fact or mart instead.
-+   - ⚠ `dim_country` and `dim_region` (#69) are a RECORDED EXCEPTION to this condition too, not just to the "attribute masquerading as entity" bullet below: they shipped with **zero** consumers. Same ruling, same authority — `escalations.log`, 2026-08-17, `feat/69-country-region-dims`. Noted in both places deliberately: a reader who checks only this rule would otherwise find the contradiction with nothing explaining it.
- 3. **Conformance.** The vocabulary is one the whole warehouse agrees on. If two sources disagree on what the same entity is, resolve the conflict in `2_base` before the dimension crystallizes in `3_core`.
- 
- Patterns that look like dimensions but are not:
-@@ -218,6 +219,7 @@ Patterns that look like dimensions but are not:
- - **Degenerate dimension.** A natural key with no independent attributes (e.g. a round name, an invoice number): keep the key on the fact; do not build a table.
- - **Closed enum.** A small, stable vocabulary (fixture status, event type, card colour): enforce with `accepted_values` on the fact; a dim adds maintenance without adding information.
- - **Attribute masquerading as entity.** Country, nationality, position, language: keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation, position group). Promote to a dim when the rollup logic appears, not before.
-+  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**, and the rollup this bullet names as the trigger — confederation on the country — is exactly what they leave out, because there is no source for it. The reason is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. CPO 2026-08-16: *"You don't mix up countries and continents or regions in one column and add a flag 'single country'. That's really bad modeling."* The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
- - **Entity requiring cross-source resolution.** If consolidating the entity requires reconciling identifiers across sources (e.g. venue from `/teams` vs `/fixtures`), that work lives in `2_base`; `3_core` receives the already-conformed version.
- 
- **Relationship (mapping) dimensions.** A `dim_…_mapping` may also be a *conformed relationship table* resolving a many-to-many association between existing dimensions — e.g. `dim_player_team_season_mapping`, recording which players were rostered to which team in which season. This is the one sanctioned exception to qualification rule #1 (Entity) and to the degenerate-dimension exclusion: the "thing" it represents is the association itself, so it legitimately carries only the participating keys (plus lineage), with no independent descriptive attributes. It must still satisfy **Reuse** and **Conformance**, and — like every core table — have a single **tested, unique grain key** (its surrogate over the full grain). That uniquely-keyed grain is precisely what qualifies it as a system-of-record object; on that key it is a clean one-row-per-key lookup. The `_mapping` suffix marks its grain and role: each row is an *association across dimensions*, not a single entity, so joining on one participating key (e.g. `player_sk`) resolves a many-to-many relationship and returns many rows by design.
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 479b27f..c573307 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -51,6 +51,65 @@ models:
-       - name: is_weekend
-         description: "True when day_of_week is Sunday or Saturday."
- 
-+  - name: dim_country
-+    description: >
-+      Canonical country dimension. Grain: country_key. Published from the `countries` seed (#69);
-+      the provider's spellings are mapped onto these names by `country_name_overrides` in BASE, so
-+      this dim publishes and never corrects.
-+      ⚠ NOT a list of UN countries — 188 of 224 rows are UN states, the rest are football
-+      associations (England, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei …),
-+      player-producing territories, one unrecognised state and one historical (Yugoslavia). None is
-+      droppable; England is the most common value in the dataset.
-+      ⚠ NO SURROGATE KEY: a country has no provider id, so `country_key` is the key. Inventing a
-+      synthetic integer would add a join without adding identity.
-+      ⚠ ADDITIVE AND NOT YET READ — the foreign keys from `dim_league.league_country`,
-+      `dim_team.team_country`, `dim_player.player_birth_country` and `dim_coach.coach_birth_country`
-+      are #69 step 5 and a separate MR.
-+    meta:
-+      owner: "data-platform"
-+      domain: "football"
-+      criticality: "medium"
-+    config:
-+      tags: ["core", "dimension"]
-+    columns:
-+      - name: country_key
-+        description: "Stable assigned slug of the canonical name. Never re-derived on a rename."
-+        tests: [not_null, unique]
-+      - name: country_name
-+        description: "The canonical English name the product displays. ASCII only."
-+        tests: [not_null, unique]
-+
-+  - name: dim_region
-+    description: >
-+      Region dimension — the counterpart to `dim_country` (#69). A competition points at ONE of the
-+      two: a domestic competition has a country, a continental or international one has a region.
-+      Which relationship is populated IS the answer, which is what removes the need for
-+      `competition_types.single_country`. Grain: region_key. Published from `confederations.csv`
-+      (#57), which nothing read before this.
-+      ⚠ `region_key` holds a CONFEDERATION CODE (UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA).
-+      The seed keeps `confederation` as its column name because it is the authoring surface; the dim
-+      publishes it under the name its consumers read. `FIFA -> World` is a judgement, not geography.
-+      ⚠ This adds PUBLICATION and symmetry, NOT a new guard:
-+      `competition_registry.confederation` already carries a `relationships` test to
-+      `ref('confederations')`, so the competition-to-region check exists at seed level today.
-+      ⚠ ADDITIVE AND NOT YET READ — see `dim_country`.
-+    meta:
-+      owner: "data-platform"
-+      domain: "football"
-+      criticality: "low"
-+    config:
-+      tags: ["core", "dimension"]
-+    columns:
-+      - name: region_key
-+        description: "Confederation code, matching `competition_registry.confederation`."
-+        tests: [not_null, unique]
-+      - name: region_name
-+        description: "English display name for the region, e.g. UEFA -> Europe."
-+        tests: [not_null, unique]
-+      - name: region_name_i18n_key
-+        description: "i18n key for the translated region label. English resolves from region_name, not through this."
-+        tests: [not_null, unique]
-+
-   - name: dim_league
-     description: "Canonical league dimension. Grain: league_api_id. Sourced from base_apif__league_entity (latest season row per league_api_id); surrogate key is the API integer directly."
-     meta:
-diff --git a/dbt_project/models/3_core/dim_country.sql b/dbt_project/models/3_core/dim_country.sql
-new file mode 100644
-index 0000000..368982a
---- /dev/null
-+++ b/dbt_project/models/3_core/dim_country.sql
-@@ -0,0 +1,34 @@
-+{{ config(materialized='table') }}
-+
-+{#
-+    The canonical country dimension (#69). Countries existed nowhere in the model layer before
-+    this: they were free text in four dims (dim_league, dim_team, dim_player, dim_coach), spelled
-+    up to three ways for the same country, with no list of what "valid" looked like.
-+
-+    Published from the countries seed, which is the authoring surface. The provider's own spellings
-+    are mapped onto these names by country_name_overrides, applied in base — this dim publishes,
-+    it does not correct (feedback_entity_corrections_in_base).
-+
-+    NO SURROGATE KEY. Every other core dim casts a provider integer id into a _sk; a country has
-+    no provider id, so country_key IS the key. Inventing a synthetic integer would add a join
-+    without adding identity.
-+
-+    ⚠ NOT "UN countries". 188 of the 224 rows are UN states; the rest are football associations
-+    (England n=2723, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei), territories that
-+    produce players, one unrecognised state and one historical (Yugoslavia, for players born
-+    before 1992). Dropping any of them is not an option — England is the single most common value
-+    in the whole dataset. #69's discovery note carries the breakdown.
-+
-+    ⚠ NOTHING READS THIS YET. The foreign keys from the four free-text columns are #69 step 5 and
-+    a separate MR; mart_competition_index is #62 step 3. Additive and not yet read, the same
-+    pattern confederations.csv shipped under in #57.
-+#}
-+
-+with import_countries as (
-+    select * from {{ ref('countries') }}
-+)
-+
-+select
-+    country_key,
-+    country_name
-+from import_countries
-diff --git a/dbt_project/models/3_core/dim_region.sql b/dbt_project/models/3_core/dim_region.sql
-new file mode 100644
-index 0000000..1d6e229
---- /dev/null
-+++ b/dbt_project/models/3_core/dim_region.sql
-@@ -0,0 +1,33 @@
-+{{ config(materialized='table') }}
-+
-+{#
-+    The region dimension (#69) — the counterpart to dim_country. A competition points at ONE of the
-+    two: a domestic competition has a country, a continental or international one has a region.
-+    Which relationship is populated IS the answer, which is what removes the need for the
-+    competition_types.single_country flag the CPO rejected on 2026-08-16.
-+
-+    Published from confederations.csv, which shipped in #57 and has been read by nothing since.
-+
-+    ⚠ region_key HOLDS A CONFEDERATION CODE — UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA. The
-+    seed keeps `confederation` as its column name because it is the authoring surface and #57
-+    shipped it that way; the dim publishes it under the name its consumers read, which is a region.
-+    FIFA -> World is the one row that is a judgement rather than geography (the CPO's, recorded on
-+    the seed).
-+
-+    ⚠ WHAT THIS DOES NOT ADD. competition_registry.confederation ALREADY carries a relationships
-+    test to ref('confederations') (seeds/schema.yml), so the competition->region guard exists at
-+    seed level today. This dim buys publication and symmetry with dim_country, not a new guard.
-+    Saying otherwise would overstate it.
-+
-+    ⚠ NOTHING READS THIS YET — see dim_country's note.
-+#}
-+
-+with import_confederations as (
-+    select * from {{ ref('confederations') }}
-+)
-+
-+select
-+    confederation as region_key,
-+    label_en as region_name,
-+    label_i18n_key as region_name_i18n_key
-+from import_confederations
-diff --git a/dbt_project/seeds/countries.csv b/dbt_project/seeds/countries.csv
-new file mode 100644
-index 0000000..db560d4
---- /dev/null
-+++ b/dbt_project/seeds/countries.csv
-@@ -0,0 +1,225 @@
-+country_key,country_name
-+afghanistan,Afghanistan
-+albania,Albania
-+algeria,Algeria
-+american-samoa,American Samoa
-+andorra,Andorra
-+angola,Angola
-+anguilla,Anguilla
-+antigua-and-barbuda,Antigua and Barbuda
-+argentina,Argentina
-+armenia,Armenia
-+aruba,Aruba
-+australia,Australia
-+austria,Austria
-+azerbaijan,Azerbaijan
-+bahamas,Bahamas
-+bahrain,Bahrain
-+bangladesh,Bangladesh
-+barbados,Barbados
-+belarus,Belarus
-+belgium,Belgium
-+belize,Belize
-+benin,Benin
-+bermuda,Bermuda
-+bhutan,Bhutan
-+bolivia,Bolivia
-+bonaire,Bonaire
-+bosnia-and-herzegovina,Bosnia and Herzegovina
-+botswana,Botswana
-+brazil,Brazil
-+british-virgin-islands,British Virgin Islands
-+brunei,Brunei
-+bulgaria,Bulgaria
-+burkina-faso,Burkina Faso
-+burundi,Burundi
-+cambodia,Cambodia
-+cameroon,Cameroon
-+canada,Canada
-+cape-verde,Cape Verde
-+cayman-islands,Cayman Islands
-+central-african-republic,Central African Republic
-+chad,Chad
-+chile,Chile
-+china,China
-+chinese-taipei,Chinese Taipei
-+colombia,Colombia
-+comoros,Comoros
-+congo,Congo
-+cook-islands,Cook Islands
-+costa-rica,Costa Rica
-+croatia,Croatia
-+cuba,Cuba
-+curacao,Curacao
-+cyprus,Cyprus
-+czechia,Czechia
-+denmark,Denmark
-+djibouti,Djibouti
-+dominica,Dominica
-+dominican-republic,Dominican Republic
-+dr-congo,DR Congo
-+east-timor,East Timor
-+ecuador,Ecuador
-+egypt,Egypt
-+el-salvador,El Salvador
-+england,England
-+equatorial-guinea,Equatorial Guinea
-+eritrea,Eritrea
-+estonia,Estonia
-+eswatini,Eswatini
-+ethiopia,Ethiopia
-+faroe-islands,Faroe Islands
-+fiji,Fiji
-+finland,Finland
-+france,France
-+french-guiana,French Guiana
-+gabon,Gabon
-+gambia,Gambia
-+georgia,Georgia
-+germany,Germany
-+ghana,Ghana
-+gibraltar,Gibraltar
-+great-britain,Great Britain
-+greece,Greece
-+grenada,Grenada
-+guadeloupe,Guadeloupe
-+guam,Guam
-+guatemala,Guatemala
-+guinea,Guinea
-+guinea-bissau,Guinea-Bissau
-+guyana,Guyana
-+haiti,Haiti
-+honduras,Honduras
-+hong-kong,Hong Kong
-+hungary,Hungary
-+iceland,Iceland
-+india,India
-+indonesia,Indonesia
-+iran,Iran
-+iraq,Iraq
-+israel,Israel
-+italy,Italy
-+ivory-coast,Ivory Coast
-+jamaica,Jamaica
-+japan,Japan
-+jersey,Jersey
-+jordan,Jordan
-+kazakhstan,Kazakhstan
-+kenya,Kenya
-+kosovo,Kosovo
-+kuwait,Kuwait
-+kyrgyzstan,Kyrgyzstan
-+laos,Laos
-+latvia,Latvia
-+lebanon,Lebanon
-+lesotho,Lesotho
-+liberia,Liberia
-+libya,Libya
-+liechtenstein,Liechtenstein
-+lithuania,Lithuania
-+luxembourg,Luxembourg
-+macao,Macao
-+madagascar,Madagascar
-+malawi,Malawi
-+malaysia,Malaysia
-+maldives,Maldives
-+mali,Mali
-+malta,Malta
-+martinique,Martinique
-+mauritania,Mauritania
-+mauritius,Mauritius
-+mayotte,Mayotte
-+mexico,Mexico
-+moldova,Moldova
-+monaco,Monaco
-+mongolia,Mongolia
-+montenegro,Montenegro
-+montserrat,Montserrat
-+morocco,Morocco
-+mozambique,Mozambique
-+myanmar,Myanmar
-+namibia,Namibia
-+nepal,Nepal
-+netherlands,Netherlands
-+new-caledonia,New Caledonia
-+new-zealand,New Zealand
-+nicaragua,Nicaragua
-+niger,Niger
-+nigeria,Nigeria
-+north-korea,North Korea
-+north-macedonia,North Macedonia
-+northern-cyprus,Northern Cyprus
-+northern-ireland,Northern Ireland
-+norway,Norway
-+oman,Oman
-+pakistan,Pakistan
-+palestine,Palestine
-+panama,Panama
-+papua-new-guinea,Papua New Guinea
-+paraguay,Paraguay
-+peru,Peru
-+philippines,Philippines
-+poland,Poland
-+portugal,Portugal
-+puerto-rico,Puerto Rico
-+qatar,Qatar
-+republic-of-ireland,Republic of Ireland
-+reunion,Reunion
-+romania,Romania
-+russia,Russia
-+rwanda,Rwanda
-+saint-kitts-and-nevis,Saint Kitts and Nevis
-+saint-lucia,Saint Lucia
-+saint-martin,Saint Martin
-+saint-vincent-and-the-grenadines,Saint Vincent and the Grenadines
-+samoa,Samoa
-+san-marino,San Marino
-+sao-tome-and-principe,Sao Tome and Principe
-+saudi-arabia,Saudi Arabia
-+scotland,Scotland
-+senegal,Senegal
-+serbia,Serbia
-+seychelles,Seychelles
-+sierra-leone,Sierra Leone
-+singapore,Singapore
-+slovakia,Slovakia
-+slovenia,Slovenia
-+solomon-islands,Solomon Islands
-+somalia,Somalia
-+south-africa,South Africa
-+south-korea,South Korea
-+south-sudan,South Sudan
-+spain,Spain
-+sri-lanka,Sri Lanka
-+sudan,Sudan
-+suriname,Suriname
-+sweden,Sweden
-+switzerland,Switzerland
-+syria,Syria
-+tahiti,Tahiti
-+tajikistan,Tajikistan
-+tanzania,Tanzania
-+thailand,Thailand
-+togo,Togo
-+tonga,Tonga
-+trinidad-and-tobago,Trinidad and Tobago
-+tunisia,Tunisia
-+turkey,Turkey
-+turkmenistan,Turkmenistan
-+turks-and-caicos-islands,Turks and Caicos Islands
-+uganda,Uganda
-+ukraine,Ukraine
-+united-arab-emirates,United Arab Emirates
-+united-states-of-america,United States of America
-+uruguay,Uruguay
-+us-virgin-islands,US Virgin Islands
-+uzbekistan,Uzbekistan
-+vanuatu,Vanuatu
-+venezuela,Venezuela
-+vietnam,Vietnam
-+wales,Wales
-+yemen,Yemen
-+yugoslavia,Yugoslavia
-+zambia,Zambia
-+zanzibar,Zanzibar
-+zimbabwe,Zimbabwe
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index e112af7..c13f444 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -619,3 +619,57 @@ seeds:
-         description: "Why the provider's value is not usable as-is."
-         tests:
-           - not_null
-+
-+  - name: countries
-+    description: >
-+      The canonical country list — the authoring surface behind `dim_country` (#69). Countries
-+      existed nowhere in the model layer before this: free text in four dims, the same country
-+      spelled up to three ways, and no list of what "valid" looked like. That absence is why a
-+      `single_country` boolean got invented to tell "England" from "Europe", which the CPO
-+      rejected on 2026-08-16 as "really bad modeling".
-+
-+      CONTENT is #69's measured discovery, not an authored guess: 285 distinct provider strings
-+      across the four surfaces resolving to these 224 entities, verified again against prod on
-+      2026-08-16 (283 of 283 non-`World` values resolve via `country_name_overrides`, nothing
-+      uncovered). The provider's spellings map onto these names in BASE; this seed holds only the
-+      canonical side.
-+
-+      THE NAMING RULE, four CPO rulings of 2026-08-16 recorded in `escalations.log`:
-+      **English, everyday short form, no diacritics.**
-+        - English, never the endonym — `Turkey` not `Türkiye`, `Ivory Coast` not `Côte d'Ivoire`.
-+          ⚠ The UN's own English column keeps those two for the states that asked it to; we do not.
-+        - Everyday short form, not the formal state title — `Russia`, `Laos`, `South Korea`.
-+        - A genuine rename stands — `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
-+      Two names are standing exceptions: `Republic of Ireland` (it renders beside Northern Ireland
-+      and football keeps the contrast readable) and `United States of America` (the rule would give
-+      `United States`; the CPO chose the long form).
-+
-+      ⚠ THIS IS NOT A LIST OF UN COUNTRIES. 188 rows are UN states; the remaining 36 are football
-+      associations (**England, the single most common value in the whole dataset**, Scotland, Wales,
-+      Northern Ireland, Kosovo, Chinese Taipei, Hong Kong, Gibraltar, Curacao …), territories that
-+      produce players (Guadeloupe, Martinique, Reunion, French Guiana, Mayotte, Jersey, Zanzibar),
-+      one unrecognised state (Northern Cyprus) and one historical (Yugoslavia, for players born
-+      before 1992 — CPO: "Yugoslavia stays as historical"). None is droppable.
-+
-+      NO `label_i18n_key`, deliberately: 224 keys x 3 locales is a copy cost and the CPO's to
-+      authorise. NO confederation column: there is NO SOURCE for it — the registry gives
-+      confederation per COMPETITION and the UN list has none — and the competitions page takes its
-+      region from the competition, never from the country.
-+    config:
-+      column_types:
-+        country_key: string
-+        country_name: string
-+    columns:
-+      - name: country_key
-+        description: >
-+          Stable slug of the canonical name, ASSIGNED once. ⚠ Do NOT re-derive it if a name ever
-+          changes — the point of a key is that a rename does not move it, the same rule #852 sets
-+          for slugs.
-+        tests:
-+          - not_null
-+          - unique
-+      - name: country_name
-+        description: "The canonical English name the product displays. ASCII only."
-+        tests:
-+          - not_null
-+          - unique
-diff --git a/ingestion/api_football/bigquery.py b/ingestion/api_football/bigquery.py
-index a7b2a7d..e1dfb0e 100644
---- a/ingestion/api_football/bigquery.py
-+++ b/ingestion/api_football/bigquery.py
-@@ -134,7 +134,7 @@ def load_json_to_bq(
-     payload: dict,
-     *,
-     as_json_payload: bool = False,
--    append: bool = False,
-+    append: bool,
-     league_code: str | None = None,
-     ingested_at: str | None = None,
- ) -> None:
-@@ -152,8 +152,13 @@ def load_json_to_bq(
-         and the table is created with date partitioning if it does not exist yet.
-         This is the standard mode for reference tables (fixtures, standings, etc.).
- 
--        When append=False (legacy), the table is overwritten (WRITE_TRUNCATE).
--        This is still used by the fanout tables until issue #221 is complete.
-+        When append=False, the table is OVERWRITTEN (WRITE_TRUNCATE) — every row, every
-+        competition. ⚠ `append` is a REQUIRED keyword since 2026-08-17 and must stay one: it
-+        defaulted to False, so a single omitted argument truncated a table shared by 45
-+        competitions, silently and with no DELETE to notice. Exactly two callers pass False and
-+        both mean it, because their tables hold one current-state row: `completeness.py`
-+        (INGEST_COMPLETENESS_SNAPSHOT) and `fixture_scheduling.py` (INGEST_CURSOR). Do not
-+        reintroduce a default.
- 
-     as_json_payload=False (used for operational tables like INGEST_LOCK):
-         Writes the payload dict directly with BigQuery autodetect schema.
-diff --git a/ingestion/api_football/completeness.py b/ingestion/api_football/completeness.py
-index 7dfb1b6..73af97e 100644
---- a/ingestion/api_football/completeness.py
-+++ b/ingestion/api_football/completeness.py
-@@ -604,6 +604,11 @@ def persist_fixture_statistics_missing(
-         COMPLETENESS_SNAPSHOT_TABLE,
-         payload,
-         as_json_payload=True,
-+        # DELIBERATE WRITE_TRUNCATE: this table holds one current-state row, and the stagnation
-+        # check compares this run against the stored one. Stated explicitly since `append` became
-+        # a required keyword (2026-08-17) — the destructive mode must be written down, not
-+        # inherited from a default.
-+        append=False,
-     )
- 
- 
-diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
-index a4bcd4f..37c1aaf 100644
---- a/ingestion/api_football/fixture_scheduling.py
-+++ b/ingestion/api_football/fixture_scheduling.py
-@@ -347,6 +347,9 @@ def _write_fanout_cursor(
-         raw_league_table(league_code, "INGEST_CURSOR"),
-         payload,
-         as_json_payload=True,
-+        # DELIBERATE WRITE_TRUNCATE: the cursor is pipeline state, one current row per league, not
-+        # entity data. Stated explicitly since `append` became required (2026-08-17).
-+        append=False,
-     )
- 
- 
-@@ -523,13 +526,19 @@ def squads_response_for_team(
-     errors: list[str] | None = None,
-     *,
-     error_context: str = "",
--) -> list:
-+) -> tuple[list, bool]:
-     """Current squad for a team from /players/squads (id, name, age, number, position, photo).
- 
-     One call returns the whole squad. paginate=False: /players/squads is single-page for a
-     `team=` query (verified team=157 → paging.total=1). Distinct from `players_response_for_team`
-     (which pulls /players per team×season into RAW_APIF_PLAYERS); this is the cheaper current-squad
--    endpoint and carries the shirt number."""
-+    endpoint and carries the shirt number.
-+
-+    Returns ``(rows, complete)``. ⚠ It returned a BARE LIST until 2026-08-17, unlike its two
-+    siblings above, and that is what made the hole: a rate-limited answer arrives as HTTP 200 with
-+    the error in the body, so `rows` came back empty and looked successful. The caller wrote it,
-+    which marked the `(team, season)` captured in `captured_team_seasons` — and that reader keys on
-+    `$.team_id` PRESENCE, so the team was never fetched again."""
-     data = fetch_merged_paged(
-         "/players/squads",
-         headers,
-@@ -539,7 +548,7 @@ def squads_response_for_team(
-     if errors is not None:
-         ctx = error_context or f"squads team_id={team_id}"
-         append_api_errors(data, ctx, errors)
--    return list(data.get("response") or [])
-+    return list(data.get("response") or []), result_is_complete(data)
- 
- 
- def profiles_response_for_player(
-@@ -548,12 +557,17 @@ def profiles_response_for_player(
-     errors: list[str] | None = None,
-     *,
-     error_context: str = "",
--) -> list:
-+) -> tuple[list, bool]:
-     """Bio for one player from /players/profiles?player= (name, DOB, birthplace, nationality,
-     height, weight, number, position, photo).
- 
-     paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1). The
--    page-keyed directory form is far thinner; the per-player form carries the full bio."""
-+    page-keyed directory form is far thinner; the per-player form carries the full bio.
-+
-+    Returns ``(rows, complete)`` since 2026-08-17. A bare list here meant a rate-limited answer was
-+    stored as an empty bio, and `_existing_player_ids` keys on `$.player_id` presence — so that
-+    player's name, DOB and nationality stayed blank forever, on the surface that also drives the
-+    URL slug."""
-     data = fetch_merged_paged(
-         "/players/profiles",
-         headers,
-@@ -563,7 +577,7 @@ def profiles_response_for_player(
-     if errors is not None:
-         ctx = error_context or f"profiles player_id={player_id}"
-         append_api_errors(data, ctx, errors)
--    return list(data.get("response") or [])
-+    return list(data.get("response") or []), result_is_complete(data)
- 
- 
- def player_teams_response_for_player(
-@@ -572,11 +586,15 @@ def player_teams_response_for_player(
-     errors: list[str] | None = None,
-     *,
-     error_context: str = "",
--) -> list:
-+) -> tuple[list, bool]:
-     """Career club/national history for one player from /players/teams?player= — a list of
-     {team, seasons[]} entries.
- 
--    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1)."""
-+    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1).
-+
-+    Returns ``(rows, complete)`` since 2026-08-17, for the same reason as the profiles helper
-+    above: an empty career stored from a rate-limited call is permanent, because the player is
-+    then skipped by `_existing_player_ids` on every later run."""
-     data = fetch_merged_paged(
-         "/players/teams",
-         headers,
-@@ -586,4 +604,4 @@ def player_teams_response_for_player(
-     if errors is not None:
-         ctx = error_context or f"player_teams player_id={player_id}"
-         append_api_errors(data, ctx, errors)
--    return list(data.get("response") or [])
-+    return list(data.get("response") or []), result_is_complete(data)
-diff --git a/ingestion/api_football/loads/player_profiles.py b/ingestion/api_football/loads/player_profiles.py
-index d224de9..e3acb57 100644
---- a/ingestion/api_football/loads/player_profiles.py
-+++ b/ingestion/api_football/loads/player_profiles.py
-@@ -48,12 +48,22 @@ def load_player_profiles_global(
-             if errors_quota._http_quota_exhausted:
-                 break
-             try:
--                profile_rows = profiles_response_for_player(
-+                profile_rows, complete = profiles_response_for_player(
-                     ctx.headers,
-                     player_id,
-                     ctx.errors,
-                     error_context=f"player_profiles {league_code} player_id={player_id}",
-                 )
-+                # #896 applied to the CAPTURE side (2026-08-17). `_existing_player_ids` keys on
-+                # `$.player_id` presence, so writing a rate-limited empty bio retires this player
-+                # permanently — name, DOB and nationality stay blank on the surface that also
-+                # drives the slug. Withhold the entry so the player is fetched again.
-+                if not complete:
-+                    ctx.errors.append(
-+                        f"player_profiles {league_code} player {player_id}: INCOMPLETE fetch — "
-+                        f"player SKIPPED, not marked ingested; retries next run"
-+                    )
-+                    continue
-                 profiles_payload["response"].append(
-                     {
-                         "player_id": player_id,
-diff --git a/ingestion/api_football/loads/player_squads.py b/ingestion/api_football/loads/player_squads.py
-index 296bcdb..55b4f7a 100644
---- a/ingestion/api_football/loads/player_squads.py
-+++ b/ingestion/api_football/loads/player_squads.py
-@@ -44,12 +44,23 @@ def load_player_squads_batch(
-             quota_cut = True
-             break
-         try:
--            squad_rows = squads_response_for_team(
-+            squad_rows, complete = squads_response_for_team(
-                 ctx.headers,
-                 team_id,
-                 ctx.errors,
-                 error_context=f"player_squads {league_code} team_id={team_id}",
-             )
-+            # #896 applied to the CAPTURE side (2026-08-17). Withhold the entry, not just the
-+            # write: `captured_team_seasons` reads `$.team_id` PRESENCE over all rows, so storing a
-+            # rate-limited empty squad marks this team done and no later run ever re-fetches it.
-+            # Nothing is deleted here — the damage is a permanent hole, which is why no row-count,
-+            # freshness or not-null check could ever see it.
-+            if not complete:
-+                ctx.errors.append(
-+                    f"player_squads {league_code} team {team_id}: INCOMPLETE fetch — team SKIPPED, "
-+                    f"not marked captured; retries next run"
-+                )
-+                continue
-             squads_payload["response"].append(
-                 {
-                     "team_id": team_id,
-diff --git a/ingestion/api_football/loads/player_teams.py b/ingestion/api_football/loads/player_teams.py
-index 8aed46f..a764c18 100644
---- a/ingestion/api_football/loads/player_teams.py
-+++ b/ingestion/api_football/loads/player_teams.py
-@@ -48,12 +48,21 @@ def load_player_teams_global(
-             if errors_quota._http_quota_exhausted:
-                 break
-             try:
--                team_rows = player_teams_response_for_player(
-+                team_rows, complete = player_teams_response_for_player(
-                     ctx.headers,
-                     player_id,
-                     ctx.errors,
-                     error_context=f"player_teams {league_code} player_id={player_id}",
-                 )
-+                # #896 applied to the CAPTURE side (2026-08-17), same reader and same permanence as
-+                # player_profiles: `_existing_player_ids` keys on `$.player_id` presence, so an
-+                # empty career stored from a rate-limited call is never re-fetched.
-+                if not complete:
-+                    ctx.errors.append(
-+                        f"player_teams {league_code} player {player_id}: INCOMPLETE fetch — "
-+                        f"player SKIPPED, not marked ingested; retries next run"
-+                    )
-+                    continue
-                 teams_payload["response"].append(
-                     {
-                         "player_id": player_id,
-diff --git a/ingestion/api_football/loads/transfers.py b/ingestion/api_football/loads/transfers.py
-index 4498ef1..5ffb38a 100644
---- a/ingestion/api_football/loads/transfers.py
-+++ b/ingestion/api_football/loads/transfers.py
-@@ -31,6 +31,20 @@ def load_transfers_batch(
-     league_code: str,
-     team_ids: set[int],
- ) -> None:
-+    # ⚠ THE GUARD `coaches.py:38` HAS AND THIS ONE DID NOT, until 2026-08-17. With an empty
-+    # `team_ids` the fetch loop below never runs, `complete` stays True, and an EMPTY whole-league
-+    # payload is written as fact. `stg_apif__transfers` reads the latest row per league, so that
-+    # empty snapshot hides the real transfer history from every model downstream. Under the
-+    # merge-on-write this loader carried until `!59` it also DELETED it outright.
-+    # Reachable: `fixtures.py` returns an empty team set on an empty fixtures response, and
-+    # `competition_runner.py` calls this unconditionally. Compounding it, `completeness.py` drops
-+    # leagues with no `team_ids` from the expected set, so the check that exists to catch this is
-+    # blind to exactly this case.
-+    if not team_ids:
-+        ctx.errors.append(
-+            f"transfers {league_code}: no team ids this run — SKIPPED, prior snapshot kept"
-+        )
-+        return
-     transfers_payload = {"league_code": league_code, "response": []}
-     if os.getenv("API_FOOTBALL_SKIP_TRANSFERS", "").strip().lower() in ("1", "true", "yes"):
-         ctx.errors.append(
-diff --git a/tests/test_never_record_a_gap.py b/tests/test_never_record_a_gap.py
-new file mode 100644
-index 0000000..6ec17ee
---- /dev/null
-+++ b/tests/test_never_record_a_gap.py
-@@ -0,0 +1,227 @@
-+"""A failed fetch must never be recorded as fact (#75 MR2).
-+
-+THE CLASS, and why nothing caught it. #75 was about DELETION and was at least visible once you
-+compared layers. This is the quieter twin: a rate-limited call returns HTTP 200 with the error in
-+the body, so `rows` comes back EMPTY while looking successful. The loader writes it, and the key it
-+names is then treated as done — forever, because every "already captured" reader keys on the mere
-+PRESENCE of the id:
-+
-+    captured_team_seasons        reads $.team_id     over ALL rows (player_squads.py)
-+    _existing_player_ids         reads $.player_id   over ALL rows (player_universe.py)
-+
-+So the row exists, the table grew, freshness is fine, not-null is fine, row counts went UP — and
-+that player has no name, no date of birth and no nationality, on the surface that also drives the
-+URL slug. Nothing deletes anything. There is no orphan to trip a relationship test. The only
-+symptom is an absence, and absences are exactly what this repo's tests do not look for.
-+
-+WHAT THE FIX IS, and what it deliberately is NOT. The fix is to WITHHOLD THE WRITE when the fetch
-+was incomplete. It is NOT to widen what counts as complete: an EMPTY response with NO error stays
-+complete and is still written, per the CPO ruling of 2026-08-03, because that is the provider
-+genuinely reporting nothing and refusing it would re-fetch 3,539 historical team-seasons nightly
-+forever. `test_empty_but_clean_response_is_still_complete` pins that half, without which a "fix"
-+that simply refuses empty answers would pass every other test here.
-+"""
-+
-+from __future__ import annotations
-+
-+import types
-+
-+import pytest
-+
-+from ingestion.api_football import fixture_scheduling as fs
-+from ingestion.api_football import quota as errors_quota
-+from ingestion.api_football.loads import (
-+    player_profiles as pp,
-+    player_squads as psq,
-+    player_teams as pt,
-+    transfers as tr,
-+)
-+
-+
-+@pytest.fixture(autouse=True)
-+def _reset_quota():
-+    errors_quota.reset_http_quota_exhausted()
-+    yield
-+    errors_quota.reset_http_quota_exhausted()
-+
-+
-+def _ctx():
-+    return types.SimpleNamespace(
-+        headers={}, errors=[], client=None, add_loaded=lambda n=1: None
-+    )
-+
-+
-+def _rate_limited():
-+    """HTTP 200, error in the BODY, empty response — indistinguishable from a real empty."""
-+    return {"response": [], "errors": {"rateLimit": "Too many requests"}, "results": 0,
-+            "paging": {"current": 1, "total": 1}}
-+
-+
-+def _clean_empty():
-+    """Empty and error-free — the provider genuinely has nothing. COMPLETE by CPO ruling."""
-+    return {"response": [], "errors": [], "results": 0, "paging": {"current": 1, "total": 1}}
-+
-+
-+# --- the three helpers must report completeness at all, like their two siblings ---
-+
-+@pytest.mark.parametrize(
-+    "helper, args",
-+    [
-+        (fs.squads_response_for_team, ({}, 40)),
-+        (fs.profiles_response_for_player, ({}, 7)),
-+        (fs.player_teams_response_for_player, ({}, 7)),
-+    ],
-+    ids=["squads", "profiles", "player_teams"],
-+)
-+def test_per_entity_helpers_report_incompleteness(helper, args, monkeypatch):
-+    """Each returns (rows, complete) and says False on a body-level error.
-+
-+    Before this, all three returned a bare list, so the caller had NOTHING to branch on — the
-+    information simply did not reach it. Their siblings `players_response_for_team` and
-+    `transfers_response_for_team` have reported it since #896.
-+    """
-+    monkeypatch.setattr(fs, "fetch_merged_paged", lambda *a, **k: _rate_limited())
-+    rows, complete = helper(*args)
-+    assert rows == []
-+    assert complete is False, (
-+        f"{helper.__name__} reported a rate-limited answer as complete; the caller will store it "
-+        "and the key will never be fetched again"
-+    )
-+
-+
-+@pytest.mark.parametrize(
-+    "helper, args",
-+    [
-+        (fs.squads_response_for_team, ({}, 40)),
-+        (fs.profiles_response_for_player, ({}, 7)),
-+        (fs.player_teams_response_for_player, ({}, 7)),
-+    ],
-+    ids=["squads", "profiles", "player_teams"],
-+)
-+def test_empty_but_clean_response_is_still_complete(helper, args, monkeypatch):
-+    """The other half of the rule (CPO 2026-08-03), and it must not be collateral damage.
-+
-+    An empty error-free answer IS complete. Without this, a "fix" that refused every empty
-+    response would pass the test above and quietly re-fetch thousands of keys every night.
-+    """
-+    monkeypatch.setattr(fs, "fetch_merged_paged", lambda *a, **k: _clean_empty())
-+    rows, complete = helper(*args)
-+    assert rows == []
-+    assert complete is True
-+
-+
-+# --- the three loaders must withhold the entry, not merely the write ---
-+
-+def test_squads_incomplete_team_is_not_recorded(monkeypatch):
-+    """Withholding the ENTRY is the point, not withholding the load job.
-+
-+    `captured_team_seasons` reads `$.team_id` presence over all rows, so a stored entry with an
-+    empty `squad_payload` marks the team done. Asserting only "no write happened" would pass a fix
-+    that still appended the entry whenever another team in the same batch succeeded.
-+    """
-+    monkeypatch.setattr(psq.errors_quota, "_http_quota_exhausted", False)
-+    monkeypatch.setattr(
-+        psq, "squads_response_for_team",
-+        lambda h, tid, errs, error_context="": (([], False) if tid == 10 else ([{"p": 1}], True)),
-+    )
-+    written: list = []
-+    # The payload is the THIRD POSITIONAL argument, so a kwargs-only recorder would capture
-+    # nothing and this test would pass while asserting about an empty list.
-+    monkeypatch.setattr(psq, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
-+
-+    ctx = _ctx()
-+    psq.load_player_squads_batch(ctx, "PL", {10, 11}, season=2025, require_complete=False)
-+
-+    assert written, "the loader wrote nothing at all; the test is not exercising the write path"
-+    team_ids = [e["team_id"] for p in written for e in p["response"]]
-+    assert 10 not in team_ids, (
-+        f"team 10's rate-limited empty squad was recorded ({team_ids}); `captured_team_seasons` "
-+        "keys on team_id presence, so that team is now never re-fetched"
-+    )
-+    assert 11 in team_ids, "the healthy team must still be written"
-+    assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
-+
-+
-+@pytest.mark.parametrize(
-+    "mod, helper_name, loader",
-+    [
-+        (pp, "profiles_response_for_player", "load_player_profiles_global"),
-+        (pt, "player_teams_response_for_player", "load_player_teams_global"),
-+    ],
-+    ids=["profiles", "player_teams"],
-+)
-+def test_player_entity_incomplete_is_not_recorded(mod, helper_name, loader, monkeypatch):
-+    """Same class, same reader: `_existing_player_ids` keys on `$.player_id` presence.
-+
-+    A stored empty bio retires the player permanently — this is the one that leaves a name blank
-+    on a page whose URL is built from that name.
-+    """
-+    monkeypatch.setattr(mod.errors_quota, "_http_quota_exhausted", False)
-+    monkeypatch.setattr(mod, "players_needing", lambda *a, **k: {"PL": [7, 8]})
-+    monkeypatch.setattr(
-+        mod, helper_name,
-+        lambda h, pid, errs, error_context="": (([], False) if pid == 7 else ([{"x": 1}], True)),
-+    )
-+    written: list = []
-+    monkeypatch.setattr(mod, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
-+
-+    ctx = _ctx()
-+    getattr(mod, loader)(ctx, None)
-+
-+    assert written, "the loader wrote nothing at all; the test is not exercising the write path"
-+    ids = [e["player_id"] for p in written for e in p["response"]]
-+    assert 7 not in ids, (
-+        f"player 7's rate-limited empty payload was recorded ({ids}); `_existing_player_ids` keys "
-+        "on player_id presence, so that player is never fetched again"
-+    )
-+    assert 8 in ids, "the healthy player must still be written"
-+    assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
-+
-+
-+# --- transfers: the guard its sibling already had ---
-+
-+def test_transfers_with_no_team_ids_writes_nothing(monkeypatch):
-+    """`coaches.py:38` has `if not team_ids: return`; this loader did not.
-+
-+    With an empty team set the fetch loop never runs, so `complete` stays True and an EMPTY
-+    whole-league payload is written as fact. `stg_apif__transfers` reads the latest row per league,
-+    so that empty snapshot hides the real transfer history from every model downstream — and under
-+    the merge-on-write this loader carried until `!59`, it deleted that history outright.
-+    """
-+    written: list = []
-+    monkeypatch.setattr(tr, "load_json_to_bq", lambda *a, **k: written.append(k))
-+    monkeypatch.setattr(
-+        tr, "transfers_response_for_team",
-+        lambda *a, **k: pytest.fail("must not fetch when there are no team ids"),
-+    )
-+
-+    ctx = _ctx()
-+    tr.load_transfers_batch(ctx, "BL1", set())
-+
-+    assert written == [], (
-+        "an empty whole-league transfers snapshot was written; it becomes the latest row and "
-+        f"hides every stored move for that competition. wrote={written}"
-+    )
-+    assert any("no team ids" in e for e in ctx.errors), ctx.errors
-+
-+
-+# --- the destructive write mode must be stated, never inherited ---
-+
-+def test_load_json_to_bq_requires_an_explicit_append():
-+    """`append` defaulted to False, i.e. WRITE_TRUNCATE, on a table shared by 45 competitions.
-+
-+    One omitted keyword erased everything, with no DELETE anywhere to notice. Making it required
-+    means the destructive mode has to be written down at the call site. Checked on the signature
-+    rather than by calling it, so the test cannot be satisfied by a runtime guard that a later
-+    refactor drops.
-+    """
-+    import inspect
-+
-+    from ingestion.api_football.bigquery import load_json_to_bq
-+
-+    param = inspect.signature(load_json_to_bq).parameters["append"]
-+    assert param.default is inspect.Parameter.empty, (
-+        "`append` has a default again. It must stay required: with a default of False a single "
-+        "omitted argument WRITE_TRUNCATEs a raw table for every competition at once."
-+    )
-+    assert param.kind is inspect.Parameter.KEYWORD_ONLY
-diff --git a/tests/test_player_squads_catchup.py b/tests/test_player_squads_catchup.py
-index fa96f57..a04adca 100644
---- a/tests/test_player_squads_catchup.py
-+++ b/tests/test_player_squads_catchup.py
-@@ -171,7 +171,9 @@ def _patch_quota_cut_after_first(monkeypatch):
- 
-     def fake_squad(headers, team_id, errors, error_context=""):
-         monkeypatch.setattr(q, "_http_quota_exhausted", True)  # exhaust after the first fetch
--        return [{"players": []}]
-+        # (rows, complete) since 2026-08-17. COMPLETE deliberately: this test is about the QUOTA
-+        # cut mid-competition, not about a failed fetch, and the two paths must stay separable.
-+        return [{"players": []}], True
- 
-     monkeypatch.setattr(ps, "squads_response_for_team", fake_squad)
-     written = []
+-amendments:
+-  - 2026-08-17: + dbt_project/docs/layering.md — authority: scope-auditor FAIL, round 1, finding 2.
+-    content: `layering.md`'s "Attribute masquerading as entity" bullet names COUNTRY explicitly —
+-    "keep as attributes until a consumer needs rollups or hierarchies (e.g. continent,
+-    confederation, position group). Promote to a dim when the rollup logic appears, not before."
+-    This MR promotes country AND region to dims while stating in three places that nothing reads
+-    them, and the rollup the doc names as the trigger — confederation on the country — is precisely
+-    what this task leaves out for want of a source. So the doc's condition is NOT met; the doc is
+-    being OVERRIDDEN by the CPO's design. The reviewer was right that an unrecorded override plus
+-    an unchanged doc is a doc-sync failure: the next reader would find a rule and a violation with
+-    nothing connecting them. The bullet gains a pointer to the ruling. The RULE IS NOT WEAKENED —
+-    it still says promote on the rollup, and the exception names its authority rather than
+-    generalising.
++amendments: (none)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1204,8 +152,7 @@ index fa96f57..a04adca 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  139 +-
-#    .claude/task/review.md              |  190 +--
-#    .claude/task/review_input.patch     | 3018 +++++++----------------------------
-#    3 files changed, 747 insertions(+), 2600 deletions(-)
+#   .claude/active_work.md          | 136 ++++---
+#    .claude/task/review_input.patch | 819 +++++++---------------------------------
+#    2 files changed, 199 insertions(+), 756 deletions(-)
 # ============================================================================
