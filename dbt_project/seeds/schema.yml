@@ -40,38 +40,6 @@ seeds:
         tests:
           - accepted_values:
               values: ["leagues", "cups", "continental-club", "national-teams"]
-      - name: single_country
-        description: >
-          Whether this kind of competition is played inside ONE country. It answers exactly one
-          question — which registry field a competition's region sub-line reads — and it exists
-          because nothing else in the model could: `entity_type` does not separate them (a
-          domestic league and the Champions League are both `club`), `tier` exists only on
-          domestic leagues, and reading the `domestic_` prefix off the type name is string
-          sniffing that `club_friendly_domestic` breaks anyway.
-          true  -> the row shows a country   (Premier League — England)
-          false -> the row shows the confederation's label   (Champions League — Europe)
-          The alternative was to print `country` for everything, which is what shipped: it says
-          the literal "International" for 15 of the 45 registry competitions, and says it for
-          COAM and AFCON while EURO — the same competition_type — says "Europe" (#54).
-          ⚠ ITS SOURCE FOR THE `true` BRANCH CHANGED, 2026-08-14 (#62 step 1, #69). This text
-          used to say "the registry's `country`". The CPO ruled that out — *"separating these
-          entries with THIS flag is bullshit… I'd assume that these entries are somewhere in a
-          mapping table and/or then a dim table"* — because `dim_league` ALREADY carries
-          provider `league_country` and `country_flag_url`, so the registry's hand-typed copy is
-          a second one and projecting it would have made a third. `country` is therefore NOT in
-          the competition_registry seed, and countries become their own entity under **#69**.
-          ⚠ ADDITIVE AND NOT YET READ. `mart_competition_index` (#62) is what will resolve the
-          branch; until it exists nothing consumes this column.
-          ⚠ NO `accepted_values` TEST, deliberately. Every value is the literal `true`/`false`, so
-          dbt's seed type inference loads this as a native BigQuery BOOL — no `column_types`
-          override is declared for this seed. BigQuery has no implicit BOOL↔STRING coercion, so
-          `accepted_values: ["true","false"]` would not merely fail, it would fail to COMPILE. The
-          type already constrains the column to true/false/null, which is what such a test would
-          have asserted. `metric_catalogue.lower_is_better` is the same literal pattern and carries
-          `not_null` alone for the same reason — that precedent was missed on the first draft and
-          caught in review.
-        tests:
-          - not_null
       - name: label_i18n_key
         description: >
           i18n key for the TRANSLATED category heading. English does NOT resolve through it — see
@@ -96,7 +64,7 @@ seeds:
           it — "Club World Cup", "Intercontinental Cup", "World Cup"; a type that holds a CLASS
           takes a plural noun phrase — "Domestic leagues", "Continental club cups". Three types
           are singular by nature and all three are FIFA's.
-          ⚠ ADDITIVE AND NOT YET READ, same as single_country.
+          READ by `mart_competition_index.category_label_en` (#62 step 3).
         tests:
           - not_null
           - unique
@@ -113,7 +81,9 @@ seeds:
       America and Europe.
       CPO 2026-08-11, on whether seven display strings justify a seed rather than living in
       strings.ts: *"keep the seed, we may need it the warehouse later if not now."*
-      ⚠ ADDITIVE AND NOT YET READ — `mart_competition_index` (#62) is the intended consumer.
+      READ by `mart_competition_index` (#62 step 3): `region_label_en`/`region_label_i18n_key`
+      resolve `label_en`/`label_i18n_key` here for a competition with no country, and
+      `region_rank` orders the page (#54, 2026-08-16).
       ⚠ The seven English labels are the CPO's to change; `FIFA -> World` is the one that is a
       judgement rather than geography, since FIFA is a global body and not a region.
     columns:
@@ -136,6 +106,17 @@ seeds:
           The region's English display name. CONCACAF's "North & Central America" is the
           normalised form — the registry's own `country` field writes it "North/Central America"
           for CCCU, which is one of the inconsistencies this seed removes.
+        tests:
+          - not_null
+          - unique
+      - name: region_rank
+        description: >
+          The competitions page's row-order tiebreak within a shared kickoff day — the one
+          hand-set input in the CPO-approved ordering rule (#54, 2026-08-16, `escalations.log`):
+          has-upcoming-fixture, then days to next kickoff (bucketed by calendar day), then this
+          column, then kickoff time, then league_code. A JUDGEMENT, not geography — UEFA=1
+          through OFC=7 — and the CPO's to change, the same status this seed already records for
+          `FIFA -> World`.
         tests:
           - not_null
           - unique

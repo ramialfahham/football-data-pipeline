@@ -4,8 +4,9 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-17**. **NO MRs OPEN**; main **`f00ab21`** — `!61` (#69 dims), `!60`, `!57`,
-`!59`, `!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN** (✅ #75 below). Product **Matchday
+_Last updated **2026-08-17**. **main `67924ef`** — `!61` (#69 dims), `!62`, `!60`, `!57`, `!59`,
+`!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN** (#75 closed). **ONE MR OPEN**
+(branch `feat/69-5-62-3-country-fk-and-mart`, unmerged — see CURRENT). Product **Matchday
 Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes. ⚠ **A GROUP MOVE IS
 COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
@@ -17,39 +18,47 @@ product, 7 paperwork ABOUT the product**, a whole day on the substrate behind ON
 ⛔ **PUT `active_work.md` IN `scope_paths` ON EVERY CODE MR**, updated in the SAME commit. Seven
 separate handover MRs each cost a contract + a review round; two conflicted. Biggest waste.
 ⛔ **Over the cap? DELETE ONE STALE SECTION** — do not shave clauses; that burned much of 08-17.
-⛔ **Do NOT re-perfect the substrate.** Step 5 is mechanical now the dims exist; the mart is
-WRITTEN. Build, do not redesign.
+⛔ **Step 3 is DONE (below). Do NOT start step 4 before this MR merges** — it needs the mart LIVE
+IN PROD, which needs `data:build:main` to run on `main` after merge.
 
-## ⭐ CURRENT — #62 STEP 3 IS BLOCKED ON #69'S FKs (step 5). DO NOT BUILD THE MART (2026-08-17)
+## ⭐ CURRENT — #69 STEP 5 + #62 STEP 3 SHIPPED IN ONE MR, UNMERGED (2026-08-17)
 
-**#62, five steps.** 1 (`!40`) and 2 (#57) done. **3 is `mart_competition_index`**, 4 repoints the
-export, 5 the page spec. ⚠ A seed COLUMN and its reader cannot ship together — 3 is its own MR.
-⛔ **THE MART IS WRITTEN AND PARKED** — `git stash list`, match by MESSAGE
-`feat/62-mart-competition-index`. `region_label` was the blocker. **CPO: *"You don't mix up countries
-and continents in one column and add a flag 'single country'."***
-✅ **#69 STEPS 1-3 DONE — `!61` MERGED: `dim_country` (224 rows) + `dim_region`.** A competition
-POINTS AT one; **which relationship is populated IS the answer** — no flag. **The 08-16/17 notes on
-#69 are the authority.** ⚠ **Both dims are LEAVES guaranteeing NOTHING yet** — no FK, so an unknown
-country still reaches the page silently. **STEP 5 = the four FKs** (league/team/player/coach country
-cols): makes an unknown country FAIL rather than render, deletes `single_country`, unblocks step 3.
-⚠ `countries.csv` has **no i18n key** (224x3, a copy cost, HIS) and **no confederation** (NO SOURCE).
-⚠ **`layering.md` OVERRIDDEN in two places, recorded** — do not "restore" it. ⚠ **Never normalise
-country names by regex** (`Guinea-Bissau` is correct, MEASURED). **The transformation layer decides
-the FORM, the CPO the NAME.**
-⛔ **`sort_order` IS OBSOLETE (CPO 08-16)**; the mart must not read it. **The full rule is the 08-16
-ordering note on #54 — read it, do not reconstruct.** ⚠ **Mart carries FACTS, the spec declares the
-ORDER BY.** ⚠ Retiring it reaches into `export_site_data.py`, `BrowseGrid.astro`, `landing.json` —
-NOT scoped. ⚠ **#54's 16 is ELEMENTS, not mart columns.**
+✅ **#69 step 5 (the four FKs) + #62 step 3 (`mart_competition_index`) — ONE MR**, branch
+`feat/69-5-62-3-country-fk-and-mart`. `single_country` DELETED from `competition_types.csv`.
+`league_country`/`team_country`/`player_birth_country`/`coach_birth_country` each carry a
+`relationships` test to `dim_country`. League's provider `'World'` sentinel (24 rows, MEASURED
+fresh today) now resolves to NULL, not a corrected string — that NULL is the FK, replacing the
+flag. Mart's `region_label` branches on `league_country is not null`: which relationship is
+populated IS the answer. Zero orphans verified against real prod data before push (`bq --dry_run`
+priced: league check 8,718 bytes, team/player/coach check 3,681,771 bytes) — both empty.
+⚠ **`team_slug` (#852) is UNTOUCHED, deliberately.** The slug ladder in
+`base_apif__teams_global.sql` anchors on the RAW pre-override country text (a new
+`team_country_raw` column, dropped before the terminal select), not the corrected value —
+`kebab_slug` already folds the hyphenation defect to the same anchor either way, but a few
+overrides are semantic renames (`USA` → `United States of America`, `Congo-DR` → `DR Congo`) that
+would otherwise silently reshuffle a contested team's already-assigned slug.
+⛔ **NOT MERGED — the CPO merges.** #62 step 4 (repoint `export_site_data.py` at the mart) needs
+the mart built in prod first. Do not touch the export until this merges and prod rebuilds.
+⚠ **The 08-16 ordering note on #54 supersedes note 4's Row order / Group order rows** — read it
+before step 5 (the page spec), do not reconstruct: sort key is has-upcoming-fixture →
+days-to-kickoff (bucketed by CALENDAR DAY) → `region_rank` → kickoff time → `league_code`.
+`sort_order` is OBSOLETE and the mart does not carry it — **mart carries FACTS, the spec declares
+the ORDER BY.** ⚠ **#54's 16 is ELEMENTS, not mart columns.**
+⚠ **`dbt_project/docs/layering.md:222`'s "no reader at all" claim for `dim_country`/`dim_region`
+is now STALE** (this MR is their first reader) — fix in the MR that touches that file next, not
+scoped here.
+⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name (branched on at
+`int_team_momentum_window.sql:135`; renaming without that edit silently gives the WC a last-5
+window, every test green) · `display_group` for **#44**.
 
 ⛔ **HOME PAGE: authority is #40 + #41, NOT `10_home.md` §0** (truth is FOUR boards of ONE metric,
 top 7). #367 shipped next matches → browse; Top players/teams designed NOT built, slot BETWEEN.
 Follow-ups **#36** (blocks #377) · **#38** · **#42**–**#45**.
 ⚠ **REBASE TAX:** conflicts land in `.claude/task/*` and `active_work.md` — **MINE** for
 contract/review, **UNION** `escalations.log`, then REBIND `diff_sha256`. ⚠ **NEVER `git checkout --`
-to restore uncommitted work** — it restores from HEAD and wipes it.
-⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name (branched on at
-`int_team_momentum_window.sql:135`; renaming without that edit silently gives the WC a last-5
-window, every test green) · `display_group` for **#44**.
+to restore uncommitted work** — it restores from HEAD and wipes it. ⛔ **The contract/Stop gates do
+NOT understand a stash-pop conflict either** — mid-pop they call the popped files "out of scope"
+against the stale contract; write the fresh contract FIRST (clean tree), THEN pop.
 
 ## ⭐ ORIENTATION
 **Audits: GitLab #30, DO NOT run another** (rejected 08-16; a TARGETED blind assessment is different
@@ -57,8 +66,9 @@ and IS allowed — `!59` came from two). **Mechanism beats wording:** of 50 corr
 22 recurred.
 **⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
 CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped.
-**FIRST ACTION: `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX. TWO
-must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** and the **#62 mart** (⭐ above)._
+**FIRST ACTION: `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX. ONE
+must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** (the #62 mart stash is now
+popped and shipped, ⭐ above).
 
 ## ⭐⭐ THE RULE, 2026-08-17: **RAW APPENDS AND NEVER DELETES. BASE DECIDES.**
 **`!59` IS this rule, MERGED** — all three delete paths gone. A reversal of 8b and #539's delete
@@ -68,17 +78,7 @@ appends and never deletes" + `escalations.log` 08-17. Cost approved ~$1-2/mo.
 (#892). ⚠ **The `LOGICAL_OR` in `_read_fetched_coverage` + `coverage.read_coverage` is LOAD-BEARING
 — never "simplify" to a per-row read.**
 ⭐ **THE REPO IS NOT THE SYSTEM**: for warehouse/cloud/scheduler facts check the system that owns
-them (`bq ls`, `gcloud run jobs describe` — free metadata). `raw_archive` was called "never built"
-from zero repo refs; it EXISTS (`*_20260808` snapshot) — true of the repo, false as a conclusion.
-
-## ✅ #75 IS CLOSED — prod whole, `PASS=849 ERROR=0 SKIP=0` (08-17). Detail: #75 + `escalations.log`
-⭐ **Recovered by BigQuery TIME TRAVEL, not the provider** — "gone at source" was true of the
-provider and wrong as a conclusion; our copy sat in the 7-day window. ⚠ **A delete at T is
-recoverable until T+7d — compute the expiry the moment you find loss.** Recipe in `escalations.log`.
-⛔ **17 events on 1564791/1564793 are permanently gone**, so **`!57`'s kickoff cutoff STAYS — never
-raise it to go green.** ⚠ **`fct_fixture_event` is INCREMENTAL: the RICHEST record, and RIGHT — do
-NOT make the fact mirror base.** ⛔ Two sibling tests were KILLED by measurement (PEN-implies-
-shootout: **371/753** have none) — read `escalations.log` before re-proposing.
+them (`bq ls`, `gcloud run jobs describe` — free metadata).
 
 ## ⭐ The ingest cluster
 **TWO nightlies:** `data:nightly` moved to **Cloud Run under #39**; the GitLab schedule (4379625)
@@ -91,6 +91,10 @@ Redeployed by hand 08-16 and twice on 08-17 (now `d47862434f71`, carries `!62`);
 redeploy from a clean `main` after EVERY ingestion merge or the fix never reaches prod.**
 ⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
 ⚠ **None of the four ingest fixes does what its title says** — caveats on #896-#898.
+✅ **MR2 (`!62`) MERGED 08-17** — the four "gap recorded as fact" holes are closed. **MR3 =
+detection, NOT started:** lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so
+`!57`'s test is inert**); ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 =
+compaction, only if growth is MEASURED.**
 
 ## ⭐ COST — read **GitLab issue #3** first
 **#3 holds it all** — baselines, #547's ranked list IN ITS ORDER, the free tools (`bq query
@@ -98,10 +102,8 @@ redeploy from a clean `main` after EVERY ingestion merge or the fix never reache
 time-based partition expiry on raw**, #892). Read it; do not redo it. ⚠ **#70** is the scan-budget
 guard; `require_partition_filter` + `maximum_bytes_billed` are **NEITHER set**.
 - **⚠ STORAGE NEVER MEASURED** (**0×** in #3); every figure is bytes SCANNED. `bq show` is free.
-  ⚠ **`!59` makes raw grow again** — no post-8b figure is a size, only a floor.
 - **⚠ Spend UNKNOWN.** Last measure 08-03 ($2.73/day) PREDATES #33 items 9/15.
 - **⚠ Do NOT claim the API quota "breaks first"** — claimed once without evidence, withdrawn.
-  (`standings.py:30`/`teams.py:28` DO loop every season daily with no skip — real.)
 
 ## ⭐ REVIEW MECHANICS — traps only; rules are `docs/working_agreement.md` §2 (#878)
 - **Build the patch with the hook, never by hand:** `git_discipline.py --review-patch >
@@ -110,18 +112,16 @@ guard; `require_partition_filter` + `maximum_bytes_billed` are **NEITHER set**.
   are not, and a trailer names any excluded file that IS edited (#25).
 - **Run `check_task_artifacts.py` BARE** (#24) — `--base origin/main` resolves the DORMANT GitHub
   remote and returns a fictitious hash. ⚠ **On a MERGE commit, rebind `diff_sha256` AFTER the merge
-  is committed**: the merge moves its own base, so a hash taken from the staged index binds nothing
-  and CI fails F11. `--staged-hash` matches CI on ordinary commits (#63).
+  is committed**: the merge moves its own base. **`--staged-hash` matches CI on ordinary commits.**
 - **A PASS may find nothing.** One `risks_checked:` entry is enough; never invent one. Cap 3 rounds
   then STOP. ⚠ `rounds: 0` is REFUSED.
 - **`.claude/task/**` is scope-exempt; `active_work.md` is NOT** — it must be in `scope_paths`; a
   commit touching `contract.md` is **never** artifact-exempt. ⚠ **The contract needs a CLEAN tree**,
-  so an amendment mid-task = stash with EXPLICIT PATHS, edit, pop, check `git stash list`.
-- ⚠ **`git rebase` replays commits IN ORDER**, so a scope amendment committed LAST does not apply
-  to an earlier commit's conflict. **`git merge` applies the tip at once — use it.**
+  so a write mid-task = stash with EXPLICIT PATHS (`-u` if untracked), write, pop, check
+  `git stash list`.
 - **⭐ A correction REPLACES, never accumulates, and must replace EVERYWHERE.** ⚠ 08-14: four
   occurrences cost five rounds. **Sweep the CLASS repo-wide BEFORE review**, not the reviewer's
-  list of examples: on `!59` fixing the three files a reviewer NAMED left six more. **#71**.
+  list of examples.
 
 ## Player page — HELD on #845
 **#846 + #886 merged:** the season a page opens on is a warehouse fact (`is_featured_season`, DQ
@@ -130,51 +130,38 @@ guarded). **CPO: the pipeline picks, not the page.**
 gets a URL or a control; deciding apart sets the URL shape twice. Measured (×3 locales): players
 51,589→154,767; **matches BIGGER at 176,235**; h2h 51,903; teams 9,669; a 5-match gate leaves 1,274
 teams / 21,979 players. **Bring the counts.**
-**Overview is BUILT but UNCOMMITTED** in stash `feat/player-overview-tab` (⚠ NOT the #62 stash);
-default is known-wrong (`seasons[0]` = newest of ANY comp). **#848: FOUR tabs**, International a
-TAB not a toggle.
+**Overview is BUILT but UNCOMMITTED** in stash `feat/player-overview-tab` (⚠ NOT the #62 stash,
+which is now popped and shipped); default is known-wrong (`seasons[0]` = newest of ANY comp).
+**#848: FOUR tabs**, International a TAB not a toggle.
 
 ## OWED — deferred
 - **Guard telemetry is absent** (#30 finding 4) — 2,684 lines of enforcement, zero records of a gate
   firing. Also: delete `macros/apif_latest_source_partition.sql` · mirror crests.
-- ⛔ **The contract/Stop gates do NOT understand a MERGE.** Mid-merge they call what the other
-  branch brings in "out of scope" and say `git checkout -- <file>` — which DELETES it. Needs a
-  `MERGE_HEAD`-aware skip; protected path, own task.
-- **⭐ #904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. Faces seen: a grep scoped
-  narrower than its sentence (`!59`); a TEST that passes either way (#63 shipped three); a column
-  read without its VALUES (`!43`); a number repeated out of this file (`!47`); a JOB STATUS read
-  instead of the data (`!49`); a "verified" absence that only checked the REPO (`raw_archive`).
-  **Absence must state where it looked; a test must be seen RED; green is not evidence.**
+- ⛔ **The contract/Stop gates do NOT understand a MERGE or a stash-pop conflict.** Mid-merge they
+  call what the other branch brings in "out of scope" and say `git checkout -- <file>` — DELETES
+  it. Needs a `MERGE_HEAD`-aware skip; protected path, own task.
+- **⭐ #904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. **Absence must state where
+  it looked; a test must be seen RED; green is not evidence.**
 
 ## NEXT
 0. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests). It is **FALSE**, so every MR
-   has been mergeable while RED since the migration — the enforcement never came across with the
-   jobs. Unsafe while the orphan blocked every build; **now cleared, so this is the moment.**
-   CPO's, one toggle. Pairs with **#21 Q2**: both are "the server should enforce it".
-0b. ✅ **MR2 (`!62`) MERGED 08-17** — the four "gap recorded as fact" holes are closed and the image
-   was redeployed. **MR3 = detection, NOT started:** lower `event_loss_detector_from` (still
-   **'2026-08-19', in the FUTURE, so `!57`'s test is inert**) and extend loss detection past events;
-   ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 = compaction, only if growth
-   is MEASURED.**
-1. ✅ **PROD IS HEALED** (✅ #75 above) — rebuilt green 08-17 by retrying `data:build:main` on
-   `main`. ⚠ `.data_paths_prod` EXCLUDES `.gitlab-ci.yml` and `ingestion/**` but INCLUDES
-   `dbt_project/models/**`. ⚠ **#4: a web dispatch from ANY branch builds prod from THAT branch's
-   code** — retry the job on `main` instead.
-2. **THE NIGHTLY: #74** (⭐ ingest cluster above).
-3. **#69 STEP 5 (the four FKs), then #62 step 3** (⭐ CURRENT). Steps 1-3 are merged. Then #62
-   step 4 repoints the export, 5 the page spec.
-4. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
+   has been mergeable while RED since the migration. CPO's, one toggle. Pairs with **#21 Q2**.
+1. **THE NIGHTLY: #74** (⭐ ingest cluster above).
+2. ✅ **#69 step 5 + #62 step 3 DONE, MR open** (⭐ CURRENT). Once merged + prod rebuilds: **#62
+   step 4** (repoint the export at `mart_competition_index`), then **step 5** (the page spec,
+   using the 08-16 ordering note).
+3. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
    to No one) · delete the 2 dead `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
-5. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
+4. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
    when, where** (CPO). Trigger/cost map FIRST, rank by real spend, fix in that order; the map goes
    in a GitLab ISSUE.
-6. **#845 + #882 — the CPO's decision.** Counts are in this file: bring them, not a general
+5. **#845 + #882 — the CPO's decision.** Counts are in this file: bring them, not a general
    question. Unblocks the player page off the stash.
-7. **Legal/imprint**, then launch.
-8. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
+6. **Legal/imprint**, then launch.
+7. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
    PROTECTED path editable with no `protected_override` · `Regular Season - 20` provider text the
    copy gate cannot see · blank `competition_type` skipped by all 3 guards.
-9. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit tool
+8. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit tool
    only, so `sed -i` bypasses it · **#68** the form-window CODE diverges from
    `metrics_context_model.md` §4 (⚠ **the agreement is the authority**; never fix it by editing the
    doc) · **#60** `.venv` is not where `CLAUDE.md` implies · **#70** scan-budget guard.
@@ -191,8 +178,7 @@ lives · **#895 slim-vs-drop** · **#21**.
 - Do NOT treat the tracker as agreed work; re-validate. **No new planning docs, no fresh audits.**
   Do NOT touch `site/` (retired). Do NOT derive facts in the export or frontend.
 - ⛔ **VERIFY BEFORE ASSERTING; FINISH EXPLORE BEFORE PROPOSING.** Search `escalations.log` + docs
-  for a prior ruling FIRST — on #75 four fixes were invented while **#896** already answered it
-  (CPO: *"you are always coming up with something new. THAT is the real defect"*).
+  for a prior ruling FIRST.
 - **Never merge an MR. The CPO merges. Branch from main; never commit to main.**
 - Plain language, lead with the decision, **no em dashes**, no walls of text. Do NOT ask him to
   adjudicate what a rule settles (**but copy is ALWAYS his, §10**), and do NOT bring him a fix for a
@@ -202,6 +188,7 @@ lives · **#895 slim-vs-drop** · **#21**.
 - **v2 built:** design system + 26 components, fixture page, team page (3 tabs), home page (next
   matches → browse), page-spec + SEO contract (#826/#844), per-locale metric labels.
 - **Tests: 813 python + 1 skipped** (08-17; 818 collected on main), 59 site, **~1010 dbt in prod**
-  (`!61` added 11). ⚠ MEASURE, never predict (#904). `ruff` = `lint:python`, `.ruff-ci.toml`.
+  (`!61` added 11; this MR adds 17 more, unbuilt until merge). ⚠ MEASURE, never predict (#904).
+  `ruff` = `lint:python`, `.ruff-ci.toml`.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.

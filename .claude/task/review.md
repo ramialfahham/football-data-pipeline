@@ -1,42 +1,51 @@
-# Review — chore/69-dims-merged — 2026-08-17
+# Review — feat/69-5-62-3-country-fk-and-mart — 2026-08-17
 
-diff_sha256: 920f3cca9b2ec09731a13a5e53dda71415af80685dd6ad826974b87952269a1c
+diff_sha256: 60458ded2e3baba86e948a9ebc8e55fc13dd5cf7ce71a3074b1695bfcf118de0
 
 rounds: 2
-
-> REBASED onto `5bb3b2e` (`!62`, #75 MR2). Only the three task artifacts conflicted —
-> `contract.md`, `review.md`, `review_input.patch` — all resolved MINE per the rebase tax, since each
-> MR carries its own. ⚠ **`active_work.md` did NOT conflict**, and is verified intact after the
-> rebase: 15,987 chars, the NEXT-JOB block present. Hash rebound 48fbbe9a -> 920f3cca because the
-> BASE contract changed, not because this branch's content did.
-> ⚠ Mid-rebase the contract gate reported `active_work.md` "outside scope" and advised
-> `git checkout -- <file>`. That is the known false positive in this repo's OWED list, and following
-> it would have DELETED the handover. Ignored deliberately.
-
-> ⚠ `active_work.md` is in `hash_exclude_paths`, so this hash covers `contract.md` only. The
-> handover change is real but deliberately outside the binding — that is the routing config's
-> choice, not an omission here.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- ⛔ ROUND 1 FAILED on the character cap and was RIGHT. `active_work.md` was at **16,038** against a
-  16,000 cap. I had measured it, misread my own output, and reported "under the cap at 16,037" —
-  which is itself over. The reviewer had no Python and reconstructed ~16,036 from exact grep counts
-  of non-whitespace codepoints, word tokens, indentation and newlines, then refused to dismiss a
-  36-char overage as noise. Fixed by trimming three passages in the block I had added.
-- ROUND 2: cap verified INDEPENDENTLY, not re-asserted — raw character count 16,195 including CRLF
-  pairs, minus 208 line-break normalisations = **15,987**, matching Python `len()` semantics and the
-  figure in the brief. Two measurement paths agree. Margin 13, flagged as thin for the next edit.
-- Load-bearing content survived the cut: both named stashes (`feat/62-mart-competition-index`,
-  `feat/player-overview-tab`), the rebase tax, the #904 block, the cost traps and the
-  raw-appends-never-deletes rule are all present verbatim. Re-checked after the round-2 trim.
-- Scope: `.claude/active_work.md` only, plus `contract.md` which is always in scope. No code.
-- No §10 decision taken. `decisions_taken` says "No decision. This records an already-merged state",
-  and the file names next steps as next steps rather than deciding anything new.
-- The CPO pace quote is exact — *"With this speed the website will never get done."* — with the
-  quotation marks isolating only what was said; the surrounding 12-MRs / 5-product / 7-paperwork
-  breakdown is presented as my own gloss, not as his words.
+- Traced every ordering/region_rank citation in mart_competition_index.sql, shared.yml,
+  confederations.csv and schema.yml back to the new 2026-08-16 escalations.log entry (lines
+  3432-3477) — quoted rulings 1-4 match the code's claims exactly (sort_order obsolete, the
+  sort-key sequence, region_rank's 1-7 values, mart-carries-facts/spec-declares-order-by),
+  resolving round-1's finding (an issue note cited as authority instead of this log).
+- Checked contract.md's decisions_taken for any residual unbacked authority claim on
+  ordering/region_rank — found none; it restricts itself to the country-FK/region_label decision,
+  backed by prior #69 quotes already in escalations.log.
+- Swept the full cumulative patch for credential-shaped strings and widened permissions — none
+  found.
+- Confirmed every file touched in the diff is listed in contract.md's scope_paths, and that the
+  country-override join pattern added to the four base models is the same seed+join+coalesce
+  mechanism already approved for team_name_overrides (no new mechanism), consistent with
+  decisions_taken's "NEW MECHANISM: none" claim.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- dbt_project/seeds/schema.yml lines 112-122: region_rank now has a schema entry with not_null +
+  unique tests, matching sibling-column coverage in the same seed (round-1 finding closed).
+- dbt_project/seeds/confederations.csv values (UEFA=1...OFC=7) cross-checked against
+  .claude/task/escalations.log's 2026-08-16 Ruling 3 — match exactly.
+- dbt_project/seeds/schema.yml line 84 confederations description no longer claims "ADDITIVE AND
+  NOT YET READ"; now correctly names mart_competition_index as reader (round-1 secondary note
+  closed).
+- mart_competition_index.sql (region_rank selected as a bare fact, no pre-baked ORDER BY) and
+  shared.yml (region_rank column test/description) checked for consistency with the seed-side fix
+  — consistent.
+- Full review_input.patch file list re-scanned to confirm the round-2 delta touched only
+  dbt_project/seeds/schema.yml and .claude/task/escalations.log beyond the round-1 diff — no
+  unreviewed surface introduced.
+- region_rank change checked against catalogue-governance (A1): not a metric_catalogue row, so no
+  catalogue-row requirement applies.
+- (Round 1, still standing — delta did not touch these): layer placement of the country-override
+  join in base (feedback_entity_corrections_in_base pattern, matches the existing
+  team_name_overrides precedent in the same two files); mart_competition_index reads only core
+  dims/seeds, no staging/raw refs; single_country removal complete and consistent across
+  competition_types.csv and its schema.yml test block; new relationships tests on the four country
+  columns correctly permit NULL, matching the "can be NULL" column docs.
 
 ## escalations
-(none — this records already-taken decisions)
+(none)

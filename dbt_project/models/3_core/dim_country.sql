@@ -19,9 +19,10 @@
     before 1992). Dropping any of them is not an option — England is the single most common value
     in the whole dataset. #69's discovery note carries the breakdown.
 
-    ⚠ NOTHING READS THIS YET. The foreign keys from the four free-text columns are #69 step 5 and
-    a separate MR; mart_competition_index is #62 step 3. Additive and not yet read, the same
-    pattern confederations.csv shipped under in #57.
+    READ by dim_league.league_country, dim_team.team_country, dim_player.player_birth_country and
+    dim_coach.coach_birth_country, each a `relationships` test to country_name (#69 step 5); and by
+    mart_competition_index.region_label, which relationship (this dim, or dim_region) is populated
+    for a competition IS the answer to whether its sub-line shows a country or a region (#62 step 3).
 #}
 
 with import_countries as (

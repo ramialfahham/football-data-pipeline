@@ -3427,3 +3427,50 @@ OF THE 29 DESTROYED EVENTS
   is precisely what we left out for want of a source. So this is not the doc's condition being met;
   it is the doc being overridden by a CPO design decision. Recorded here and noted in `layering.md`
   itself rather than left as a silent contradiction for the next reader to trip over.
+
+
+2026-08-16 feat/69-5-62-3-country-fk-and-mart - the competitions-page ordering rule, sort_order
+obsolete (#54).
+
+  ⚠ MISSING AGAIN, THIRD TIME ON THIS ISSUE PAIR, AND scope-auditor CAUGHT IT AGAIN. The two
+  entries above record the #69 model rescope. Neither records this separate ruling, made the same
+  day on #54: the competitions page's ROW ORDER. The authority existed only as a note I (a prior
+  session) wrote on GitLab #54, cited from `mart_competition_index.sql`'s header comment and
+  `contract.md`'s decisions_taken with no escalations.log entry to back it. scope-auditor FAILED
+  the `feat/69-5-62-3-country-fk-and-mart` branch for exactly that, searching this file for
+  "region_rank", "sort_order", "obsolete" and every 2026-08-16 entry and finding nothing. Same
+  class as the entry above (`feedback_fix_the_class_not_the_instance`): a GitLab issue note is not
+  this log, and that lesson evidently needs a THIRD instance before it generalises.
+
+  THE ASK. Note 3 on #54 built a provenance table naming `.sort_order` as the row-order source.
+  Reading the registry's actual `sort_order` values showed they were not a coherent rank: values
+  restart in some competition_types, run through in others, collide across them (110/120/130
+  appear twice), with unexplained gaps.
+
+  RULING 1 - SORT_ORDER IS OBSOLETE. CPO: "sort order is obsolete. The ranking has to be flexible
+  depending on kickoff times of the upcoming matches, so even matches from national teams can rank
+  occasionally before club league matches... a rule that uses kick-off date and a judgement
+  regarding ranking of regions (continents)." The registry's hand-typed `sort_order` is retired as
+  an ordering basis; `mart_competition_index` does not carry it.
+
+  RULING 2 - THE APPROVED SORT KEY. Proposed and approved: has-an-upcoming-fixture, then days to
+  next kickoff BUCKETED BY CALENDAR DAY (not by timestamp — a raw-clock tiebreak would rank the
+  Eredivisie above the Premier League for kicking off at 10:15 instead of 19:00, which is noise),
+  then `region_rank`, then next kickoff time, then `league_code`. Competitions with nothing
+  upcoming sort last, most-recently-played first. MEASURED before proposing (`bq query --dry_run`,
+  755,625 bytes, whole population, 2026-08-16): 25 of 45 competitions have an upcoming fixture, 20
+  do not — the no-fixture branch is 44% of the page, not an edge case; 11 kick off the same day, so
+  region_rank is not a rare tiebreak.
+
+  RULING 3 - REGION_RANK, THE ONE HAND-SET INPUT. Proposed and CPO-approved: UEFA=1, FIFA=2,
+  CONMEBOL=3, CONCACAF=4, AFC=5, CAF=6, OFC=7. A JUDGEMENT, not geography, and his to change —
+  landed on `confederations.csv`, the seed that already records `FIFA -> World` as the same class
+  of judgement.
+
+  RULING 4 - THE MART CARRIES FACTS, THE SPEC DECLARES THE ORDER BY. CPO, correcting a draft that
+  wanted a precomputed `group_sort_order` column baked into the mart: "I don't agree that sorting
+  has to be decided in the mart." Sorting is arrangement, not a fact a visitor reads, so
+  `mart_competition_index` carries `next_kickoff_datetime`, `last_kickoff_datetime` and
+  `region_rank` as facts and does not pre-bake the ORDER BY — the page spec (#62 step 5) declares
+  it. `region_label` is the opposite case and DOES resolve in the mart, because it is text a
+  visitor reads.

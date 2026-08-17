@@ -12,6 +12,13 @@ import_country_name_overrides as (
 -- core dim publishes rather than corrects -- there is no coalesce in dim_league. Same three
 -- parts as team_name_overrides: seed, left join, and a singular test that fails when a row
 -- stops being a correction.
+--
+-- 'World' is a distinct case from a misspelling (#69): it is the provider's sentinel for every
+-- international/continental competition (24 rows) and is not a country at all. Under the
+-- two-dimension model (dim_country + dim_region) those competitions carry NO country and take
+-- their region from confederation instead, so league_country becomes NULL for them rather than
+-- a corrected string -- that NULL is what lets mart_competition_index tell "has a country" from
+-- "has a region" without a hand-typed flag.
 src as (
     select
         leagues.league_code,
@@ -37,7 +44,10 @@ src as (
         leagues.has_coverage_predictions,
         leagues.has_coverage_odds,
         leagues.raw_ingested_at,
-        coalesce(overrides.country_name, leagues.country) as league_country
+        case
+            when leagues.country = 'World' then null
+            else coalesce(overrides.country_name, leagues.country)
+        end as league_country
     from import_stg_apif__leagues as leagues
     left join import_country_name_overrides as overrides
         on leagues.country = overrides.provider_country

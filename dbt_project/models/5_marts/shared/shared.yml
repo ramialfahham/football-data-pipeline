@@ -11,6 +11,84 @@ version: 2
 #   - one semantic assertion per rollup (e.g. wins + draws + losses = played)
 
 models:
+  - name: mart_competition_index
+    description: >
+      One row per competition — the single mart the competitions page (#54) reads. Replaces the
+      four sources that page would otherwise read directly (docs/competition_registry.yml,
+      competition_types.csv, confederations.csv, dim_league), which content_architecture.md §1
+      forbids (#62 step 3). Carries the CPO-approved ordering INPUTS as facts
+      (next_kickoff_datetime, last_kickoff_datetime, region_rank) without pre-baking the ORDER BY,
+      which the page spec declares (CPO, 2026-08-16: sorting is arrangement, not a fact a visitor
+      reads). region_label resolves the country-vs-region branch here: league_country is NULL for
+      every international/continental competition (#69 step 5), so which of league_country /
+      confed.label_en is populated IS the answer, with no flag. Grain: league_code. LEAF — #62
+      step 4 (export repoint) is its first reader and is not built yet.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code]
+    columns:
+      - name: league_code
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
+      - name: competition_type
+        tests:
+          - not_null
+          - relationships:
+              to: ref('competition_types')
+              field: competition_type
+      - name: entity_type
+        description: "From competition_types.entity_type — club or national. Also a page filter axis."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: slug
+        description: "From competition_registry.slug — the row's link target."
+        tests: [not_null]
+      - name: category_label_en
+        description: "From competition_types.label_en — the category heading text."
+        tests: [not_null]
+      - name: category_label_i18n_key
+        description: "From competition_types.label_i18n_key — the category heading's i18n key."
+        tests: [not_null]
+      - name: confederation
+        description: "From competition_registry.confederation — also a page filter axis."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+      - name: region_rank
+        description: "From confederations.region_rank — the one hand-set ordering input (#54, 2026-08-16)."
+        tests: [not_null]
+      - name: competition_name
+        description: >
+          From dim_league.league_name. NULL when the competition has never been ingested — #55's
+          display-name gap is not fixed here.
+      - name: logo_url
+        description: >
+          From dim_league.league_logo_url. NULL for a competition with no crest ingested (#36's
+          gap) or never ingested at all.
+      - name: region_label_en
+        description: >
+          The competition's country if it has one (league_country), else its region's English
+          label (confederation's label_en). Resolves the country-vs-region branch (#69 step 5) —
+          never both, never neither, because every registry row's confederation is FK-guaranteed
+          to resolve.
+        tests: [not_null]
+      - name: region_label_i18n_key
+        description: >
+          The region's i18n key, or NULL when region_label_en is a country name — a country name
+          is an entity name, not chrome (#62, 2026-08-14).
+      - name: next_kickoff_datetime
+        description: "Earliest upcoming fixture kickoff for this league_code. NULL when nothing is scheduled."
+      - name: last_kickoff_datetime
+        description: "Most recent past fixture kickoff for this league_code. NULL when nothing has ever been played."
+
   - name: mart_team_momentum
     description: >
       W1 last-5 momentum mart — team. One row per upcoming fixture side. Computes all
