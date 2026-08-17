@@ -1,14 +1,18 @@
 # Review — fix/75-mr2-never-record-a-gap — 2026-08-17
 
-diff_sha256: e51e5db9f2fbdf04c3375c443b06c721749eb7f32a669aa8a8bad964997b3453
+diff_sha256: 39563ba4338c968174621e7fb31c7f9e61e396468f54c9da974fa096a2b4e580
 
 rounds: 1
 
 <!--
-⚠ HASH BOUND TWICE ON THIS BRANCH, and the second bind is in the FOLLOWING commit, not this one.
+⚠ HASH BOUND THREE TIMES ON THIS BRANCH, and the sequence is the point:
   3d0296ad… the reviewed code diff, before main was merged in
-  e51e5db9… this value: the staged merge, which is what the local commit gate checks
-  (a third, final value is bound after the merge commit exists — see that commit)
+  e51e5db9… the STAGED merge — what the local commit gate checks, and dead the instant the merge
+            commit exists
+  39563ba4… THIS value, computed after the merge was committed. It is what CI recomputes from
+            `origin/main...HEAD`, and it is the only one that binds.
+Confirmed rather than assumed: `check_task_artifacts.py` run bare against the committed merge
+reported FAIL with "recomputed 39563ba4…", i.e. it named this number before it was written here.
 
 A MERGE COMMIT MOVES ITS OWN MERGE-BASE, so a hash taken from the staged index binds nothing once
 the merge is committed, and CI recomputing `origin/main...HEAD` gets a different number. That trap
