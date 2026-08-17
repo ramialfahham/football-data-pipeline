@@ -1,51 +1,50 @@
-# Review — feat/69-5-62-3-country-fk-and-mart — 2026-08-17
+# Review — chore/layering-doc-country-region-reader — 2026-08-17
 
-diff_sha256: 60458ded2e3baba86e948a9ebc8e55fc13dd5cf7ce71a3074b1695bfcf118de0
+diff_sha256: d3af836c0efa4b9bf069ea762c6e379d0b6cec3658307594e95fac140e488f33
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Traced every ordering/region_rank citation in mart_competition_index.sql, shared.yml,
-  confederations.csv and schema.yml back to the new 2026-08-16 escalations.log entry (lines
-  3432-3477) — quoted rulings 1-4 match the code's claims exactly (sort_order obsolete, the
-  sort-key sequence, region_rank's 1-7 values, mart-carries-facts/spec-declares-order-by),
-  resolving round-1's finding (an issue note cited as authority instead of this log).
-- Checked contract.md's decisions_taken for any residual unbacked authority claim on
-  ordering/region_rank — found none; it restricts itself to the country-FK/region_label decision,
-  backed by prior #69 quotes already in escalations.log.
-- Swept the full cumulative patch for credential-shaped strings and widened permissions — none
-  found.
-- Confirmed every file touched in the diff is listed in contract.md's scope_paths, and that the
-  country-override join pattern added to the four base models is the same seed+join+coalesce
-  mechanism already approved for team_name_overrides (no new mechanism), consistent with
-  decisions_taken's "NEW MECHANISM: none" claim.
+- Scope: diff touches only dbt_project/docs/layering.md and .claude/task/contract.md, matching
+  contract.md's scope_paths; no code/model/seed files touched.
+- §10 decision-smuggling: checked both edited paragraphs for any new product/metric/mechanism
+  decision — found none; the added clause about dim_country lacking a confederation column is a
+  verifiable factual statement (confirmed against dbt_project/models/3_core/dim_country.sql, which
+  selects only country_key, country_name, and docs/competition_registry.yml, which carries
+  confederation per competition entry, not per country), not a new ruling.
+- Cited authority: verified .claude/task/escalations.log line 3389
+  (2026-08-17 feat/69-country-region-dims) exists and is the CPO ruling for the dim_country/
+  dim_region exception; verified core.yml contains exactly four relationships tests to dim_country
+  (lines 150, 268, 330, 907) and mart_competition_index.sql exists, matching the claim added to
+  the doc.
+- decisions_reserved: listed as "none" and nothing in the diff decides anything reserved.
+- Historical record preservation: confirmed the doc still records "shipped with no reader at all"
+  as a historical fact (not erased), satisfying the contract's instruction to correct only
+  present-tense staleness, not the historical account.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- dbt_project/seeds/schema.yml lines 112-122: region_rank now has a schema entry with not_null +
-  unique tests, matching sibling-column coverage in the same seed (round-1 finding closed).
-- dbt_project/seeds/confederations.csv values (UEFA=1...OFC=7) cross-checked against
-  .claude/task/escalations.log's 2026-08-16 Ruling 3 — match exactly.
-- dbt_project/seeds/schema.yml line 84 confederations description no longer claims "ADDITIVE AND
-  NOT YET READ"; now correctly names mart_competition_index as reader (round-1 secondary note
-  closed).
-- mart_competition_index.sql (region_rank selected as a bare fact, no pre-baked ORDER BY) and
-  shared.yml (region_rank column test/description) checked for consistency with the seed-side fix
-  — consistent.
-- Full review_input.patch file list re-scanned to confirm the round-2 delta touched only
-  dbt_project/seeds/schema.yml and .claude/task/escalations.log beyond the round-1 diff — no
-  unreviewed surface introduced.
-- region_rank change checked against catalogue-governance (A1): not a metric_catalogue row, so no
-  catalogue-row requirement applies.
-- (Round 1, still standing — delta did not touch these): layer placement of the country-override
-  join in base (feedback_entity_corrections_in_base pattern, matches the existing
-  team_name_overrides precedent in the same two files); mart_competition_index reads only core
-  dims/seeds, no staging/raw refs; single_country removal complete and consistent across
-  competition_types.csv and its schema.yml test block; new relationships tests on the four country
-  columns correctly permit NULL, matching the "can be NULL" column docs.
+- Re-ran `grep -rn "ref('dim_region')" dbt_project/models/` independently: zero hits. All other
+  dim_region mentions repo-wide are prose (comments in dim_country.sql, core.yml,
+  base_apif__leagues.sql) or the doc itself — none is an actual ref() call, matching the round-2
+  rewritten claim exactly (round-1 finding: both edited bullets falsely claimed dim_region gained
+  a real reader too — now corrected to state the asymmetry).
+- Verified the four dim_country relationships tests by line: core.yml:141-152 (league_country),
+  :263-270 (team_country), :325-332 (player_birth_country), :902-909 (coach_birth_country) — all
+  four are relationships: to: ref('dim_country'), field: country_name.
+- Read mart_competition_index.sql in full: it imports confederations directly and joins on
+  browsable.confederation = confed.confederation — never references dim_region. dim_region.sql
+  also selects from ref('confederations'), confirming the doc's "siblings off the same seed"
+  characterization.
+- Read dim_country.sql: columns are only country_key, country_name — no confederation column,
+  consistent with the doc's claim that the country grain has no confederation source.
+- Diffed review_input.patch hunk boundaries against layering.md: only the two contracted bullets
+  changed, nothing else in the file — matches contract's done_when ("No other content changes").
+- Confirmed contract.md's scope (doc-only correction, scope_paths = layering.md only, no new CPO
+  decision claimed) — no unauthorized scope creep.
 
 ## escalations
 (none)
