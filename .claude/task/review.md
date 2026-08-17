@@ -1,139 +1,92 @@
-# Review — fix/75c-event-consistency-tests — 2026-08-17
+# Review — feat/69-country-region-dims — 2026-08-17
 
-diff_sha256: a3a503e8567de56ecd13ebd7a9163f03f60d0ba3d55fbbbf032617d5aa6e4662
+diff_sha256: d88311e43a2df18e1fccdba29f0a03b2461ed853e63ecbc2b61ff4627809e90d
 
 rounds: 2
 
-<!--
-⚠ REBOUND TWICE, and the second time is a TRAP WORTH KEEPING.
-  20af9490… original, pre-merge
-  a0236b3c… computed from the STAGED index while the merge was still uncommitted — WRONG
-  a3a503e8… computed after the merge was COMMITTED — correct, and what CI recomputes
-
-A MERGE COMMIT MOVES ITS OWN MERGE-BASE. `--staged-hash` diffs from the base, and until the merge
-is committed the base is still the pre-merge one, so the number it returns binds nothing. CI
-recomputes from `origin/main...HEAD`, where the merge-base is now main's tip, and got a3a503e8 —
-which local `--staged-hash` also returns once the merge exists. The commit gate accepted a0236b3c
-because at that instant it agreed with the staged state; `validate:governance` then correctly
-FAILED the MR with "the review is not bound to this PR (F11)". The gate did its job.
-⭐ RULE: on a merge commit, rebind the hash AFTER committing the merge, then amend the artifact in
-a follow-up commit (review.md alone is artifact-exempt). The handover's "--staged-hash matches CI
-at any length" holds for ordinary commits and NOT for the commit that performs a merge.
-⚠ Locally, run `check_task_artifacts.py` BARE. With `--base origin/main` it resolves the DORMANT
-GitHub remote, not GitLab, and returns a fictitious hash (f692a280…) plus three bogus
-"required reviewer has no verdict" lines for site_v2 paths this branch never touched.
-
-The merge itself: `gitlab/main` merged in to clear the conflict left by `!59`.
-Was 20af9490d83e9ba7abdab975e9d195e59fb16bd60d6409ce814e3e8ca6e2b287 before that.
-
-The verdicts below still stand and this is NOT a new review round. What changed on the branch is
-only the merge itself: `!59` (raw appends and never deletes) landed on main and touched the two
-artifacts this branch also touches, so `active_work.md` and `escalations.log` conflicted.
-Resolution, per file rather than wholesale:
-  active_work.md   -> MAIN's (it is the newer handover), then its header corrected for the
-                      merged state. In this branch's scope_paths, so editable.
-  escalations.log  -> MAIN's, which is a strict SUPERSET (3287 lines vs 3235): it already
-                      contains THIS branch's 2026-08-17 entry, carried over by !58, plus !59's.
-                      Verified by grepping for both entries rather than assumed.
-  contract.md      -> OURS. It describes THIS task and must not become !59's.
-  review.md        -> OURS, hash rebound (this block).
-No reviewed CODE changed: the only code on this branch is
-`dbt_project/tests/assert_no_event_loss_since_cutoff.sql` and one `dbt_project.yml` var, and
-neither appears in the merge. The hash moved because the base moved, not because the diff did.
--->
-
+> REBASED 2026-08-17 onto `4287be9` (`!60`, #75's write-back records). ONE conflict,
+> `escalations.log`, resolved by UNION per the documented rebase tax rather than by taking a side:
+> both edits were verified to be PURE INSERTIONS against the merge base (difflib opcodes — mine one
+> insert at 3288, main's two at 3285 and 3288), so main's version was taken and this branch's
+> 43-line block appended. Verified after: result-vs-main is a single pure insertion of exactly those
+> 43 lines, main's own entries intact, zero git conflict markers (the `====` lines that a naive
+> check flags are the log's own pre-existing section dividers at 921-2558).
+> ⚠ **THE HASH DID NOT MOVE, and that is correct, not a stale rebind.** `escalations.log` is in
+> `hash_exclude_paths`, and every other file's blob is byte-identical across the rebase — verified
+> with `git rev-parse` on `dim_country.sql`, `dim_region.sql` and `countries.csv`, all three the same
+> object before and after. `check_task_artifacts.py` passes bare on the rebased branch.
+>
+> ROUND 2 closed two scope-auditor findings, both verified before being fixed rather than argued
+> with. No model, seed or schema file changed between rounds — only `escalations.log`,
+> `layering.md` and the paperwork.
+> After round 2 passed, `layering.md` gained ONE further edit that no reviewer demanded: the
+> analytics reviewer noted the **Reuse** qualification rule tests the same thing as the bullet that
+> was fixed and still had no pointer, judging it pre-existing. That is the fix-one-place-leave-the-
+> paraphrase pattern the repo has been bitten by, so the pointer was added there too. It weakens
+> nothing — it points at the same ruling.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Diff file set vs `scope_paths`: the new singular test, `dbt_project.yml` (one var), `contract.md`, `escalations.log`. No model, no seed, no mart, no ingestion file — this adds an assertion and nothing else.
-- The task was reduced, not expanded, against the plan the CPO approved: three designed tests became ONE, because two died against prod data. Both rejections are recorded with their measured reasons rather than dropped silently.
-- `decisions_reserved` does not launder anything: the 5 damaged fixtures are explicitly NOT repaired here, and the "may a complete-but-smaller response supersede" question stays with the CPO (#896 rules it the other way today).
-- The var is config-as-code and carries an explicit "never raise this to make a build green" warning, so the one way to abuse it is named in the file that holds it.
-- Credential sweep of the diff: none.
+- ⛔ ROUND 1 FAILED on TWO findings, both correct.
+  **(1)** `contract.md` cited a "CPO rescope of #69, 2026-08-16" authorising `dim_region`, and no
+  such entry existed in `escalations.log` — searched for "rescope", "dim_region", "POINTS AT",
+  "bad modeling"; the only hit in the file was an unrelated line 1195. The authority existed only
+  as a GitLab issue note. **This was the SAME defect the predecessor branch was failed for**: that
+  fix covered the naming rulings and not the rescope, so the instance was fixed and the class was
+  not.
+  **(2)** `dbt_project/docs/layering.md` names COUNTRY explicitly — "keep as attributes until a
+  consumer needs rollups… Promote to a dim when the rollup logic appears, not before" — and this MR
+  promotes it with no reader while omitting the very rollup (confederation) the doc names as the
+  trigger. An unrecorded override plus an unchanged doc is a doc-sync failure.
+- ROUND 2: the new `escalations.log` entry (2026-08-17) names `dim_region` and the POINTS-AT
+  mechanism specifically in Ruling 2 — not a `dim_country`-only entry — and matches what
+  `decisions_taken` cites. It self-reports the repeated omission rather than glossing it.
+- ROUND 2: `layering.md`'s new sub-bullet is an attributed, scoped exception. The base sentence is
+  unchanged; the exception names its authority and states the rule still governs position, language
+  and nationality, so it cannot be stretched into a general licence.
+- No code drift between rounds: `dim_country.sql`, `dim_region.sql`, `countries.csv`,
+  `seeds/schema.yml` and `core.yml` are unchanged from what round 1 read.
+- `decisions_reserved` still excludes `entity_type`, per-country `label_i18n_key`, per-country
+  confederation, the FK step and the registry-blanking question — none silently decided.
+- `NEW MECHANISM` / `RECURRING COST` claims hold; no credential-shaped content.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- ROUND 1 FAILED and the finding was real: the scope CTE grouped `max(raw_ingested_at)` over `base_apif__fixture_events` itself, so a fixture losing ALL its events produced no CTE row and the inner join dropped it — the TOTAL-loss case, undetectable at any cutoff, forever. Measurement could not have caught it, because the known incident was PARTIAL for all 5 fixtures; it was found by reading the join.
-- ROUND 2 FIX TRACED END TO END: `in_scope` now reads `fct_fixture`, independent of base. A fixture that loses every event keeps its `fct_fixture` header row, stays in scope, and all of its accumulated fact rows flag. The dependency on base surviving is gone.
-- `fct_fixture` verified as the scope source rather than assumed: `fixture_sk` not_null+unique, `fixture_date` not_null, and upstream `loads/fixtures.py:185-197` refuses to write an empty fetch while 206-236 carry forward unrefreshed seasons — so the header row is genuinely always present.
-- NEW BLIND SPOT NAMED AND ACCEPTED: a fixture kicking off before the cutoff but damaged after it is permanently out of scope. That is precisely the CPO's "scope it to new data" instruction, and it is disclosed in matching language in three places (test header, contract impact_map, escalations.log).
-- Direction: the query is driven FROM the fact, so only fact>base can produce a row; incremental lag (base ahead) structurally cannot fail. Join keys are the models' declared, tested grains; no NULL-comparison hazard.
-- Omitting `league_code` from the anti-join is safe — `fixture_sk`/`fixture_id` is globally unique in API-Football and both sides are int64.
-- Var placement sits outside the `sync_dbt_vars.py`-generated block; `check_registry_var_sync.py` passes.
-- Layer rules: a leaf singular test, no model/grain/materialisation change.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- MERGE CHECK only, not a fresh review of this branch's code. Routing required this reviewer
-  because merging `gitlab/main` in stages main's `ingestion/**` and `docs/data_contract.md` paths;
-  the question asked was solely whether the merge altered, reverted or damaged anything already
-  reviewed and merged under `!59`.
-- Confirmed via the worktree's `MERGE_MSG` and `AUTO_MERGE` that the conflicts were confined to
-  `.claude/task/*` and `.claude/active_work.md`; no conflict marker or manual resolution touched
-  `ingestion/`, `docs/`, `dbt_project/` or `scripts/`.
-- Read the staged tree of `bigquery.py`, `loads/squads.py` and `loads/batch_fixtures.py`: all three
-  delete helpers (`_delete_fixtures`, `delete_superseded_league_rows`,
-  `_delete_superseded_player_rows`) are still ABSENT, present only as the dated
-  "REMOVED 2026-08-17" comments. The merge did not resurrect them.
-- `bigquery.py` still reads `"WRITE_APPEND" if append else "WRITE_TRUNCATE"` with WRITE_TRUNCATE
-  reserved to single-current-state tables — matching `!59`, not reverted to unconditional truncate.
-- `docs/data_contract.md` still carries the append-only write-mode table and the sentence "Since
-  2026-08-17 nothing in ingestion deletes from raw", verbatim as reviewed.
-- Cross-checked this branch's own `scope_paths`: nothing under `ingestion/` or `docs/`, corroborating
-  that its real diff against main is the dbt test plus one var.
-
-### analytics-engineer-reviewer — merge check (same reviewer, second pass)
-- MERGE CHECK only, run when `gitlab/main` was merged in. Routing required this reviewer because
-  the merge stages main's `dbt_project/**`; the question was whether it reverted any model or doc
-  already reviewed under `!59`, and whether this branch's own dbt contribution survived. PASS.
-- Read all four fixture-details staging model headers off the staged tree: every one says
-  "APPEND-ONLY … a retry appends a second version rather than replacing the first", NOT the
-  pre-`!59` "merge-on-write / deletes-on-retry" wording. No reversion.
-- Read all five affected `stg_apif__generic.yml` descriptions: all say append-only, none asserts
-  merge-on-write as current behaviour.
-- `layering.md`'s only surviving "merge-on-write" is the past-tense item 8b reference, which is the
-  documented exception; `data_contract.md` describes RAW_APIF_FIXTURE_DETAILS as append-only, one
-  row per fetch.
-- Read `assert_no_event_loss_since_cutoff.sql` in full — this branch's own contribution is intact
-  byte-for-byte (kickoff-date scoping via `fct_fixture`, direction-only loss check, the stated
-  inert-before-cutoff caveat). `event_loss_detector_from: '2026-08-19'` present exactly once.
-- Grepped `dbt_project/`, `ingestion/`, `docs/` for conflict markers — none; the merge is fully
-  resolved, not left mid-conflict.
-- ⚠ STATED LIMIT, the reviewer's own: it has no Bash tool, so it could not run
-  `git diff --cached gitlab/main`. It verified by reading the staged files on disk and
-  cross-checking the merge's hunks in `review_input.patch` — a different route to the same
-  conclusion, recorded rather than glossed.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- MERGE CHECK only. Routing required this reviewer because the merge stages main's `tests/**` and
-  `scripts/**`; the question was whether it weakened or reverted any test already reviewed in `!59`.
-- Confirmed `tests/test_raw_merge_on_write.py` in the staged tree is `!59`'s REWRITTEN version —
-  it asserts `client.dml() == []` via `test_a_clean_run_appends_and_issues_no_dml` and
-  `test_no_loader_module_carries_a_delete_helper`, NOT the pre-`!59` version that demanded the
-  deletes happen. A wrong resolution here would have silently restored a test requiring the
-  deleted behaviour; it did not.
-- Swept every file under `tests/` for delete/merge residue and checked the seven hits individually:
-  all read consistently with the append-only reversal; none demands a delete.
-- `dbt_project.yml` carries exactly the one claimed var with its "never raise to make a build green"
-  warning intact; the detector SQL matches what was already PASSed.
-- Verified the `escalations.log` SUPERSET claim by locating BOTH entries rather than assuming it:
-  this branch's at line 3129 and `!59`'s at line 3240.
-- Grepped repo-wide for unresolved conflict markers — none.
-- ⚠ STATED LIMIT, the reviewer's own: Read/Grep/Glob only, no shell, so it could not execute
-  `git diff --cached` or recompute `--staged-hash` numerically; it substituted direct inspection of
-  the staged working tree.
-  ⭐ THAT GAP IS CLOSED BY EVIDENCE, not left open: the builder ran
-  `python .claude/hooks/git_discipline.py --staged-hash` against the staged merge and it returned
-  `a0236b3c97114d9eeb33034321103fe3f045b2cd36d0200350cc4a78004f9d53`, identical to the value
-  recorded above, and `git diff --cached gitlab/main -- ingestion dbt_project scripts tests docs`
-  returned only `assert_no_event_loss_since_cutoff.sql` and the `dbt_project.yml` var. Recorded
-  here because "a reviewer could not run the check" is not the same as "the check passed".
+- Layer placement: both dims publish seeds directly into `3_core`. Checked `layering.md`'s fact
+  inventory — `fct_team_market_value_snapshot` is precedent for a core table sourced from a seed —
+  and `check_layer_contract.py` forbids core `ref()`-ing `stg_*`/`mart_*`, not seeds. No violation.
+- Premature promotion, raised by this reviewer in round 1 before scope-auditor found it: traced to
+  `escalations.log` 2026-08-14, where the CPO directs "a `countries` seed and `dim_country` on the
+  confederations pattern, with FKs from the four dims". CPO-decided, with four named future FK
+  readers plus `mart_competition_index`, deliberately split per "a dim and its first reader cannot
+  ship together".
+- `dim_country` has no surrogate key, unlike every other core dim: documented in the model and in
+  `core.yml` — a country has no provider id, so `country_key` is the key, mirroring #852's
+  assigned-not-derived slug rule. Deliberate and explained, not an unexplained inconsistency.
+- `dim_region`'s `confederation` -> `region_key` rename happens only at publish time; the seed keeps
+  its column name and its existing `relationships` test is untouched, so the later FK is not
+  obscured.
+- The contract's "no new guard" claim about `dim_region` VERIFIED, not accepted:
+  `competition_registry.confederation` already carries a `relationships` test to
+  `ref('confederations')` independent of this diff.
+- Leaf status VERIFIED independently: grepped the whole `dbt_project` tree for `ref('dim_country')`
+  and `ref('dim_region')` — zero matches in marts, intermediate, base or tests.
+- Seed internal consistency: read all 224 rows — keys unique and sorted, no diacritics
+  (`Curacao`, `Sao Tome and Principe` ASCII as claimed), and every `country_name` target in the
+  67-row `country_name_overrides` resolves into the list with no unlisted name introduced.
+- ROUND 2, the `layering.md` override in this reviewer's own territory: every factual claim in the
+  new sub-bullet matches the recorded ruling (no reader; confederation deliberately absent for lack
+  of a source; scope limited to country), and it does not generalise. Flagged that the **Reuse**
+  condition tests the same thing and had no pointer — judged pre-existing rather than newly opened;
+  a pointer was added there anyway.
 
 ## escalations
-- question: May a COMPLETE provider response carrying strictly less data than what is stored supersede it?
-  CPO ANSWER: NOT TAKEN — still open, and deliberately so. This test makes the loss VISIBLE; it does not decide who wins. #896 rules the ambiguous case the other way today (2026-08-03), so changing it reverses part of that ruling. Recorded in `escalations.log` and `decisions_reserved`.
+- question: May country and region be promoted to dimensions, replacing the `single_country` flag,
+  and in what shape?
+  CPO ANSWER: recorded in `escalations.log` (2026-08-17, `feat/69-country-region-dims`), three
+  rulings — "You don't mix up countries and continents or regions in one column and add a flag
+  'single country'. That's really bad modeling."; "yes, scope #69 that way" for the two-dimension
+  design; and "we only need a mapping between what the provider gives us and what we turn into the
+  single source of truth name" for the seed shape.

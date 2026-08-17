@@ -3384,3 +3384,46 @@ OF THE 29 DESTROYED EVENTS
   the expiry the moment you find the loss and say it out loud, because the window closes silently.
   ⚠ `!57`'s kickoff cutoff STAYS as shipped: 17 events on 1564791/1564793 are still gone, so
   lowering it would redden every build on damage nobody can fix.
+
+
+2026-08-17 feat/69-country-region-dims - the TWO-DIMENSION rescope of #69 (dim_country + dim_region).
+
+  ⚠ MISSING AGAIN, AND THE SAME REVIEWER CAUGHT IT AGAIN. The 2026-08-16 entry above recorded the
+  four NAMING rulings after scope-auditor failed the branch for their absence. It did not record the
+  RESCOPE — the decision that licenses building two dims at all, and `dim_region` in particular.
+  scope-auditor FAILED this branch for exactly that, searching this file for "rescope", "dim_region",
+  "POINTS AT" and "bad modeling" and finding nothing. Correct twice over: I fixed the instance and
+  not the class, which is the failure `feedback_fix_the_class_not_the_instance` names.
+  The authority existed only as a note I wrote on GitLab #69. An issue note is not this log.
+
+  THE ASK. `mart_competition_index` needed a region sub-line: the country for a domestic
+  competition, the confederation label otherwise. My draft resolved that branch with
+  `competition_types.single_country`, a boolean on the competition TYPE.
+
+  RULING 1 - A FLAG IS NOT A MODEL. CPO: "These things should have been already decided in cleanly
+  defined dimensional tables with clear columns. You don't mix up countries and continents or
+  regions in one column and add a flag 'single country'. That's really bad modeling."
+  He was right, and checking made it worse than it looked: NOTHING had ever read that flag —
+  `seeds/schema.yml` says so in its own text — so my draft would have been its first consumer,
+  reviving the mechanism the 2026-08-14 ruling had already rejected.
+
+  RULING 2 - TWO DIMENSIONS, AND THE RELATIONSHIP IS THE ANSWER. CPO: "yes, scope #69 that way",
+  on the shape put to him: `dim_region` published from `confederations.csv` (which exists and is
+  read by nothing) plus `dim_country` built new; a competition POINTS AT one of them, so which
+  relationship is populated IS the answer and no flag or branch is needed. Recorded as the
+  2026-08-16 rescope note on #69.
+
+  RULING 3 - THE SEED IS TWO COLUMNS. Shown a 7-column draft carrying an `entity_type` I had
+  invented plus per-surface counts, the CPO: "we only need a mapping between what the provider gives
+  us and what we turn into the single source of truth name." `entity_type`, `label_i18n_key` and
+  per-country confederation are therefore all ABSENT — the first was my invention, the second is a
+  copy cost he has not authorised, the third has NO SOURCE.
+
+  ⚠ AND A DOCUMENTED LAYER RULE IS BEING OVERRIDDEN, which the second reviewer finding is about.
+  `dbt_project/docs/layering.md` "Attribute masquerading as entity" names COUNTRY explicitly:
+  "keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation,
+  position group). Promote to a dim when the rollup logic appears, not before." Both dims ship with
+  NO reader, and the rollup the doc names as the qualifying trigger — confederation on the country —
+  is precisely what we left out for want of a source. So this is not the doc's condition being met;
+  it is the doc being overridden by a CPO design decision. Recorded here and noted in `layering.md`
+  itself rather than left as a silent contradiction for the next reader to trip over.

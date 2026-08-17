@@ -51,6 +51,65 @@ models:
       - name: is_weekend
         description: "True when day_of_week is Sunday or Saturday."
 
+  - name: dim_country
+    description: >
+      Canonical country dimension. Grain: country_key. Published from the `countries` seed (#69);
+      the provider's spellings are mapped onto these names by `country_name_overrides` in BASE, so
+      this dim publishes and never corrects.
+      ⚠ NOT a list of UN countries — 188 of 224 rows are UN states, the rest are football
+      associations (England, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei …),
+      player-producing territories, one unrecognised state and one historical (Yugoslavia). None is
+      droppable; England is the most common value in the dataset.
+      ⚠ NO SURROGATE KEY: a country has no provider id, so `country_key` is the key. Inventing a
+      synthetic integer would add a join without adding identity.
+      ⚠ ADDITIVE AND NOT YET READ — the foreign keys from `dim_league.league_country`,
+      `dim_team.team_country`, `dim_player.player_birth_country` and `dim_coach.coach_birth_country`
+      are #69 step 5 and a separate MR.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    columns:
+      - name: country_key
+        description: "Stable assigned slug of the canonical name. Never re-derived on a rename."
+        tests: [not_null, unique]
+      - name: country_name
+        description: "The canonical English name the product displays. ASCII only."
+        tests: [not_null, unique]
+
+  - name: dim_region
+    description: >
+      Region dimension — the counterpart to `dim_country` (#69). A competition points at ONE of the
+      two: a domestic competition has a country, a continental or international one has a region.
+      Which relationship is populated IS the answer, which is what removes the need for
+      `competition_types.single_country`. Grain: region_key. Published from `confederations.csv`
+      (#57), which nothing read before this.
+      ⚠ `region_key` holds a CONFEDERATION CODE (UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA).
+      The seed keeps `confederation` as its column name because it is the authoring surface; the dim
+      publishes it under the name its consumers read. `FIFA -> World` is a judgement, not geography.
+      ⚠ This adds PUBLICATION and symmetry, NOT a new guard:
+      `competition_registry.confederation` already carries a `relationships` test to
+      `ref('confederations')`, so the competition-to-region check exists at seed level today.
+      ⚠ ADDITIVE AND NOT YET READ — see `dim_country`.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "low"
+    config:
+      tags: ["core", "dimension"]
+    columns:
+      - name: region_key
+        description: "Confederation code, matching `competition_registry.confederation`."
+        tests: [not_null, unique]
+      - name: region_name
+        description: "English display name for the region, e.g. UEFA -> Europe."
+        tests: [not_null, unique]
+      - name: region_name_i18n_key
+        description: "i18n key for the translated region label. English resolves from region_name, not through this."
+        tests: [not_null, unique]
+
   - name: dim_league
     description: "Canonical league dimension. Grain: league_api_id. Sourced from base_apif__league_entity (latest season row per league_api_id); surrogate key is the API integer directly."
     meta:
