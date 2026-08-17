@@ -20,8 +20,8 @@ export, 5 the page spec. ⚠ A seed COLUMN and its reader cannot ship together �
 
 ⛔ **THE MART IS WRITTEN AND PARKED** — `git stash list`, message `feat/62-mart-competition-index`.
 Match by MESSAGE. `region_label` is the blocker: COUNTRY and CONTINENT in one column, branching on
-`single_country`. **CPO: *"You don't mix up countries and continents or regions in one column and
-add a flag 'single country'."*** ⚠ Nothing ever read that flag.
+`single_country`. **CPO: *"You don't mix up countries and continents in one column and add a flag
+'single country'."*** ⚠ Nothing ever read that flag.
 ⛔ **#69 IS RESCOPED to TWO dimensions**: `dim_region` from `confederations.csv` (**exists, read by
 nothing**) + `dim_country` built new. A competition POINTS AT one; **which relationship is
 populated IS the answer** — no flag, no branch. The registry's `country` mixes 21 countries with 24
@@ -50,17 +50,15 @@ take **THEIRS** wholesale and re-apply your delta.
 
 ⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name (branched on at
 `int_team_momentum_window.sql:135`; renaming without that edit silently gives the World Cup a
-last-5 window, every test green) · `display_group` kept for **#44**.
+last-5 window, every test green) · `display_group` for **#44**.
 
 **#54 competitions page: DESIGNED AND CLOSED** — its five notes supersede the description; read
-them, do not reconstruct. ⚠ **Its 16 is ELEMENTS, not mart columns.** Mocks live OUTSIDE the repo
-in `design-mocks/`.
+them, do not reconstruct. ⚠ **Its 16 is ELEMENTS, not mart columns.**
 
 ## ⭐ AN AUDIT FINDS; IT DOES NOT DECIDE — AND DO NOT RUN ANOTHER
 **GitLab #30.** Findings replicate, prioritisation does not — output is LEADS TO VERIFY, never a
-work list. **Mechanism beats wording:** of 50 corrections, **33 prose-only, 22 recurred, every rule
-that got a mechanism stopped.** ⛔ A fresh audit was REJECTED 08-16: #30 already ran, and a re-run
-hands back our own work as findings.
+work list. **Mechanism beats wording:** of 50 corrections, **33 prose-only, 22 recurred; every rule
+that got a mechanism stopped.** ⛔ A fresh audit was REJECTED 08-16: #30 already ran.
 **⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
 CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped.
 **FIRST ACTION: `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX. TWO
@@ -69,22 +67,27 @@ must not be rebuilt: **`feat/player-overview-tab: Overview BUILT`** and the **#6
 ## ⭐ #75 — WHY PROD IS RED, AND WHAT IS AND IS NOT FIXED
 ⛔ **A 2-row DQ failure leaves PROD HALF-BUILT and reddens every later MR.** `data:build:main` on
 the `!50` merge hit the `fct_fixture_event.player_sk -> dim_player` orphan and **SKIPPED 103
-nodes** — `mart_team_momentum_window` skipped while `mart_team_momentum` was NOT, so prod disagrees
-with itself and MRs fail `assert_momentum_window_matches_momentum` (1641 rows) on unrelated diffs.
-✅ **`!56` MERGED — fixes the CAUSE of new damage**: the merge-on-write retry DELETED the row but
-only checked *statistics*, so it destroyed events. MEASURED: 5 fixtures, 29 events, incl. a full
-shootout. Ports **#896**; batch_fixtures never had it.
-⛔ **It does NOT clear the orphan** — the provider now returns 17 events for 1564795 where the fact
+nodes** — `mart_team_momentum_window` skipped while `mart_team_momentum` was NOT, so MRs fail
+`assert_momentum_window_matches_momentum` (1641 rows) on unrelated diffs.
+⚠ Layers for 1564795: raw 17 · staging 17 · base 17 · **core 27**. Core was the accidental archive;
+base was not failing, it was STARVED.
+✅ **`!56` MERGED — the retry DELETED the row but only checked *statistics*, so it destroyed
+events.** MEASURED: 5 fixtures, 29 events, incl. a full shootout. Ports **#896**.
+⛔ **The backlog is UNREPAIRABLE** — the provider now returns 17 events for 1564795 where the fact
 holds 27, gone at source. ⚠ **`fct_fixture_event` is INCREMENTAL: the RICHEST record, and RIGHT. Do
 NOT make the fact mirror base** — measured, that deletes 13 real events from 1564793 alone.
-**OPEN, the CPO's, AND IT IS THE BLOCKER:** may a COMPLETE response carrying less data supersede
-stored data? #896 rules that case the other way today (2026-08-03), so answering "keep ours"
-reverses part of that ruling. Until it is answered, every prod rebuild dies on the same orphan.
+⭐ **DECIDED 08-17 — CPO: *"raw keeps both versions."*** `RAW_APIF_FIXTURE_DETAILS` STOPS being
+merge-on-write; the retry no longer deletes, both payloads land, and **BASE decides** (its existing
+newest-per-`event_index` rule then yields 27, not 17). A deliberate partial reversal of #539 /
+#33 item 8 FOR THIS TABLE — do not "restore" the delete as a regression fix. Verified safe before
+the ruling: staging reads faithfully, base dedups on entity keys, `!56` already made the coverage
+read order-independent. Cost ~cents.
+⛔ **NOT BUILT YET** — remove `_delete_fixtures` from `batch_fixtures.py`; update
+`docs/data_contract.md` + `layering.md` §1_staging (both describe the delete); pin it.
 ✅ **`!57` (part C) adds the DETECTOR** — `assert_no_event_loss_since_cutoff` flags any event the
-fact holds that base lost. Scoped by KICKOFF DATE (var `event_loss_detector_from`); ⚠ **never raise
-that var to make a build green.** ⛔ Two sibling tests were designed and KILLED by measurement
-("PEN implies shootout events" — **371 of 753** PEN fixtures have none) — see `escalations.log`
-before re-proposing either.
+fact holds that base lost. Scoped by KICKOFF DATE (`event_loss_detector_from`); ⚠ **never raise
+that var to go green.** ⛔ Two sibling tests were KILLED by measurement ("PEN implies shootout
+events" — **371 of 753** PEN fixtures have none); see `escalations.log` before re-proposing.
 
 ## ⭐ The ingest cluster
 **TWO nightlies:** GitLab CI `data:nightly` moved to **Cloud Run under #39**, so its GitLab
@@ -103,7 +106,7 @@ on the next merge.**
 **#3 holds it all** — baselines, #547's ranked list IN ITS ORDER, the free tools (`bq query
 --dry_run`, `report_bq_cost.py`; ⚠ **paste the output or do not claim it**), the traps (**never a
 time-based partition expiry on raw**, #892). Read it; do not redo it. ⚠ **#70** is the scan-budget
-guard; #3 item 6 records `require_partition_filter` + `maximum_bytes_billed` are **NEITHER set**.
+guard; #3 item 6: `require_partition_filter` + `maximum_bytes_billed` are **NEITHER set**.
 - **⚠ STORAGE WAS NEVER MEASURED** (08-16; "storage" is **0×** in #3). Every figure is bytes
   SCANNED; storage only grows. `bq show` per table is free.
 - **⚠ Current spend UNKNOWN.** Last measure 08-03 ($2.73/day) PREDATES #33 items 9/15. Never quote
@@ -120,15 +123,15 @@ Rules are `docs/working_agreement.md` §2 (#878). Only the traps live here.
   ⚠ It is `git diff --staged <base>`, so **`git add` FIRST or it comes out EMPTY**. `contract.md` +
   `escalations.log` ARE delivered; task notes are not. A trailer names any excluded file that IS
   edited (#25), so absence is not evidence it is untouched.
-  ⚠ **`review.md` must be `git add`ed too** — writing it is not committing it (cost a red CI on !50).
+  ⚠ **`review.md` must be `git add`ed too** — writing it is not committing it (a red CI on !50).
 - **Run `check_task_artifacts.py` BARE** (#24, !15) — it resolves the live remote, as does the hook
-  since **#63**; `GOVERNANCE_BASE` overrides both. `--staged-hash` matches CI at any length.
+  since **#63**. `--staged-hash` matches CI at any length.
 - **A PASS may find nothing.** One `risks_checked:` entry is enough; never invent one. Cap 3 rounds
   then STOP. ⚠ `rounds: 0` is REFUSED.
-- **`.claude/task/**` is scope-exempt; `active_work.md` is NOT** — it must be in `scope_paths`, and
-  a commit touching `contract.md` is **never** artifact-exempt.
-- ⚠ **`git rebase` replays commits IN ORDER**, so a scope amendment committed LAST does not apply to
-  an earlier commit's conflict. **`git merge` applies the tip at once — use it** (08-16).
+- **`.claude/task/**` is scope-exempt; `active_work.md` is NOT** — it must be in `scope_paths`; a
+  commit touching `contract.md` is **never** artifact-exempt.
+- ⚠ **`git rebase` replays commits IN ORDER**, so a scope amendment committed LAST does not apply
+  to an earlier commit's conflict. **`git merge` applies the tip at once — use it.**
 - **⭐ A correction REPLACES, never accumulates, and must replace EVERYWHERE.** ⚠ 08-14: four
   occurrences cost five rounds — fixed in one artifact, alive in another as a PARAPHRASE. **Sweep
   the CLASS, not the phrase you wrote.** Mechanism: **#71**.
@@ -139,16 +142,15 @@ guarded). **CPO: the pipeline picks, not the page**, by the tab's LENS.
 **#845 + #882 are ONE decision and his** — which entities earn a page, and whether a past season
 gets a URL or a control; deciding apart sets the URL shape twice. Measured (×3 locales): players
 51,589→154,767; **matches BIGGER at 176,235**; h2h 51,903; teams 9,669; a 5-match gate leaves
-1,274 teams / 21,979 players. **Bring the counts, not a general question.**
+1,274 teams / 21,979 players. **Bring the counts.**
 **Overview is BUILT but UNCOMMITTED** in stash `feat/player-overview-tab: Overview BUILT` (⚠ NOT
 the #62 mart stash); default is known-wrong (`seasons[0]` = most recent of ANY competition), mart
-half IS shipped, one line on resume. **#848: FOUR tabs**, International a national-lens TAB not a
-toggle (a crawler cannot follow a control).
+half IS shipped. **#848: FOUR tabs**, International a national-lens TAB not a toggle (a crawler
+cannot follow a control).
 
 ## OWED — deferred
 - **Guard telemetry is absent** (#30 finding 4) — 2,684 lines of enforcement, zero records of a
-  gate firing. Also: delete `macros/apif_latest_source_partition.sql` · metric-change skill ·
-  mirror crests.
+  gate firing. Also: delete `macros/apif_latest_source_partition.sql` · mirror crests.
 - **⭐ #904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. Faces seen: a grep scoped
   narrower than its sentence; a TEST that passes either way (#63 shipped three); a column read
   without its VALUES (`!43`); a number repeated out of this file (`!47`); a JOB STATUS read instead
@@ -156,38 +158,37 @@ toggle (a crawler cannot follow a control).
   not data; green is not evidence.** Prose has failed 8×; the mechanism is **#71**.
 
 ## NEXT
-0. ⛔ **PROD IS STILL HALF-BUILT and nothing heals it on its own** (⭐ #75). MEASURED 08-17: 1641
-   mismatched rows, unchanged. ⚠ `.data_paths_prod` deliberately EXCLUDES `.gitlab-ci.yml`
-   ("changes how the build is invoked, not what compiles") — **the old claim that a CI-only MR
-   rebuilds prod is FALSE.** The 04:00 nightly also FAILED. A rebuild needs a model/seed change,
-   the nightly, or a manual run — **and it dies on the same orphan** until the open CPO question
-   is answered. That question IS the blocker, not the tooling.
-1. **THE NIGHTLY: #74** the image does not track `main` — redeployed 08-16 but stale on the next
+0. ⭐ **BUILD PART A — "raw keeps both versions" is DECIDED** (⭐ #75 has the scope). Then merge
+   `!57`.
+1. ⛔ **PROD IS HALF-BUILT and nothing heals it on its own.** MEASURED 08-17: 1641 mismatched rows.
+   ⚠ `.data_paths_prod` EXCLUDES `.gitlab-ci.yml` — **the old claim that a CI-only MR rebuilds prod
+   is FALSE.** The nightly also FAILED. ⚠ **A rebuild still dies on the orphan even after part A**
+   — those events are gone at source; part A stops FUTURE loss. Clearing the backlog is a separate
+   call.
+2. **THE NIGHTLY: #74** the image does not track `main` — redeployed 08-16 but stale on the next
    merge, so prod silently reverts. ⚠ **#4**: a web dispatch from ANY branch builds prod from THAT
    branch's code.
-2. **#69 FIRST, then #62 step 3** (⭐ CURRENT). Discovery COMPLETE; next is **canonical names to the
+3. **#69 FIRST, then #62 step 3** (⭐ CURRENT). Discovery COMPLETE; next is **canonical names to the
    CPO**, then the two dims. Then step 4 repoints the export, 5 the page spec.
-3. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
+4. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
    to No one — the SERVER should protect it, not a client hook) · delete the 2 dead
    `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
-4. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
+5. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
    when, where** (CPO). Trigger/cost map FIRST, rank by real spend, fix in that order; the map goes
-   in a GitLab ISSUE, not a doc. `data_paths` (#2) ranks ~4th.
-5. **#845 + #882 — the CPO's decision.** Counts are in this file: bring them, not a general
+   in a GitLab ISSUE, not a doc.
+6. **#845 + #882 — the CPO's decision.** Counts are in this file: bring them, not a general
    question. Unblocks the player page off the stash.
-6. **Legal/imprint**, then launch.
-7. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
+7. **Legal/imprint**, then launch.
+8. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
    PROTECTED path editable with no `protected_override` · `Regular Season - 20` provider text the
-   copy gate cannot see · MR-time DQ cannot see its own models · blank `competition_type` skipped
-   by all 3 guards.
-8. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit tool
+   copy gate cannot see · blank `competition_type` skipped by all 3 guards.
+9. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit tool
    only, so `sed -i` bypasses it · **#68** the form-window CODE diverges from
    `metrics_context_model.md` §4 (⚠ **the agreement is the authority**; never fix it by editing the
    doc) · **#60** `.venv` is not where `CLAUDE.md` implies · **#70** scan-budget guard.
 
 ## OPEN — the CPO's alone
-**#75: may a COMPLETE response carrying LESS data supersede stored data?** — blocks every prod
-rebuild (⭐ above) · **Imprint operator + address** (#799), blocks publication, never conclude it ·
+**Imprint operator + address** (#799), blocks publication, never conclude it ·
 hosting recurring run · feedback Apps Script (#687) · **#850** alias · **#875** where a group name
 lives · **#895 slim-vs-drop** · **#21**.
 
