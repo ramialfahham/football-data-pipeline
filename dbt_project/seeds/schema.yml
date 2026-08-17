@@ -619,3 +619,57 @@ seeds:
         description: "Why the provider's value is not usable as-is."
         tests:
           - not_null
+
+  - name: countries
+    description: >
+      The canonical country list — the authoring surface behind `dim_country` (#69). Countries
+      existed nowhere in the model layer before this: free text in four dims, the same country
+      spelled up to three ways, and no list of what "valid" looked like. That absence is why a
+      `single_country` boolean got invented to tell "England" from "Europe", which the CPO
+      rejected on 2026-08-16 as "really bad modeling".
+
+      CONTENT is #69's measured discovery, not an authored guess: 285 distinct provider strings
+      across the four surfaces resolving to these 224 entities, verified again against prod on
+      2026-08-16 (283 of 283 non-`World` values resolve via `country_name_overrides`, nothing
+      uncovered). The provider's spellings map onto these names in BASE; this seed holds only the
+      canonical side.
+
+      THE NAMING RULE, four CPO rulings of 2026-08-16 recorded in `escalations.log`:
+      **English, everyday short form, no diacritics.**
+        - English, never the endonym — `Turkey` not `Türkiye`, `Ivory Coast` not `Côte d'Ivoire`.
+          ⚠ The UN's own English column keeps those two for the states that asked it to; we do not.
+        - Everyday short form, not the formal state title — `Russia`, `Laos`, `South Korea`.
+        - A genuine rename stands — `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
+      Two names are standing exceptions: `Republic of Ireland` (it renders beside Northern Ireland
+      and football keeps the contrast readable) and `United States of America` (the rule would give
+      `United States`; the CPO chose the long form).
+
+      ⚠ THIS IS NOT A LIST OF UN COUNTRIES. 188 rows are UN states; the remaining 36 are football
+      associations (**England, the single most common value in the whole dataset**, Scotland, Wales,
+      Northern Ireland, Kosovo, Chinese Taipei, Hong Kong, Gibraltar, Curacao …), territories that
+      produce players (Guadeloupe, Martinique, Reunion, French Guiana, Mayotte, Jersey, Zanzibar),
+      one unrecognised state (Northern Cyprus) and one historical (Yugoslavia, for players born
+      before 1992 — CPO: "Yugoslavia stays as historical"). None is droppable.
+
+      NO `label_i18n_key`, deliberately: 224 keys x 3 locales is a copy cost and the CPO's to
+      authorise. NO confederation column: there is NO SOURCE for it — the registry gives
+      confederation per COMPETITION and the UN list has none — and the competitions page takes its
+      region from the competition, never from the country.
+    config:
+      column_types:
+        country_key: string
+        country_name: string
+    columns:
+      - name: country_key
+        description: >
+          Stable slug of the canonical name, ASSIGNED once. ⚠ Do NOT re-derive it if a name ever
+          changes — the point of a key is that a rename does not move it, the same rule #852 sets
+          for slugs.
+        tests:
+          - not_null
+          - unique
+      - name: country_name
+        description: "The canonical English name the product displays. ASCII only."
+        tests:
+          - not_null
+          - unique

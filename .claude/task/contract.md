@@ -1,86 +1,110 @@
-# Task contract — a test that detects EVENT LOSS (#75 part C)
+# Task contract — dim_country + dim_region (#69 step 3)
 
 objective: >
-  Add the one guard whose absence is why #75 was found by accident. `fct_fixture_event` is
-  incremental and accumulates; `base_apif__fixture_events` is rebuilt from current raw. When a
-  fixture's raw payload loses events, the fact keeps them and base does not — and NOTHING in the
-  test suite notices. The 29 lost events sat undetected for days and surfaced only as an unrelated
-  `dim_player` FK orphan, which is why it first looked like a player problem.
-
-  This adds a singular test that flags any event the fact holds which base no longer has.
-refs: GitLab #75, !56 (the ingestion guard), !53
-
-impact_map: >
-  WHAT THIS TEST READS: `fct_fixture_event` (core, incremental) and `base_apif__fixture_events`
-  (base, table). It is a leaf assertion — nothing reads it, it writes nothing, and it changes no
-  model, column, grain or materialisation. `dbt ls` could not be run (broken dbt on PATH, no
-  `.venv` — #60), so this is read off the model files; stated rather than hidden (#904).
-
-  MEASURED AGAINST PROD, 2026-08-17, before writing the assertion:
-    · Event-index-level comparison finds **29 lost events across exactly 5 fixtures**
-      (1564793 CIT, 1564791 CIT, 1564795 CIT, 1490377 MLS, 1507028 KL1) — the same set #75
-      documents, reproduced independently by this test's own logic.
-    · With the cutoff at 2026-08-17, **1 row still flags**: one damaged fixture was re-ingested
-      this morning because its 3-day retry window (kickoff 2026-08-15) is still open.
-
-  SCOPE IS TAKEN FROM THE FIXTURE (kickoff date), NOT FROM BASE — corrected in round 1.
-  analytics-engineer-reviewer FAILED the first draft, which grouped `max(raw_ingested_at)` over
-  `base_apif__fixture_events` itself: if a fixture loses ALL its events base holds zero rows, the
-  grouped CTE yields nothing, and the inner join silently drops that fixture — the TOTAL-loss case,
-  undetectable at any cutoff, forever. My prod measurement could NOT have caught it (the known
-  incident was PARTIAL for all 5 fixtures); it was found by reading the join. Scoping on
-  `fct_fixture` (one row per fixture, always present) removes the dependency on base surviving.
-  A kickoff date also never moves, unlike an ingest timestamp — the damaged fixtures kept
-  refreshing `raw_ingested_at` while their retry window stayed open, which is why the ingest-time
-  cutoff still flagged 1 row when measured on 2026-08-17.
-  ⚠ CONSEQUENCE, STATED NOT HIDDEN: the test is **inert for fixtures before the cutoff**. Its logic
-  is proven against real damage (29 rows across 5 fixtures at an earlier cutoff, under BOTH scoping
-  designs), but a green run over a window containing no fixtures is not evidence.
-
-  TWO SIBLING TESTS WERE DESIGNED AND REJECTED ON THE DATA, recorded so they are not re-proposed:
-    · "a PEN fixture must carry shootout events" — **371 of 753** PEN fixtures in prod have none.
-      The provider does not supply them for many competitions. It would have turned half the
-      penalty shootouts in the warehouse red.
-    · "goal events must reconcile with the fixture score" — not written. After the PEN result there
-      is no evidence it is clean across own goals, disallowed goals and shootout exclusion, and
-      shipping it unverified would repeat the same mistake.
-
-  layer_rules: `scripts/check_layer_contract.py` / `.claude/hooks/dbt_layer_gate.py` — a singular
-  test in `dbt_project/tests/` touches no layer. `severity = 'error'`, consistent with the other
-  integrity guards (`assert_event_team_in_fixture_participants`).
-
-  deploy_order: none. It runs in the existing singular-test steps of `data:build:mr`,
-  `data:build:main` and the nightly. No backfill, no migration.
-
-  blast_radius: no mart, no column, no row changes. One new assertion.
+  Publish the two dimensions #69's rescope calls for. `dim_country` is genuinely new: countries
+  exist nowhere in the model layer today, only as free text in four dims. `dim_region` publishes
+  `confederations.csv`, which has existed since #57 and is read by nothing. Together they let a
+  competition POINT AT one or the other, so which relationship is populated is the answer and no
+  `single_country` flag is needed.
+  ⚠ THIS UNIT IS THE DIMS ONLY. The foreign keys from the four free-text columns are #69 step 5
+  and a separate MR — a dim and its first reader cannot ship together, the same rule that keeps
+  #62 step 3 apart from step 1.
+refs: GitLab #69 (rescope + the naming rulings), #62 step 3 (the page that needs `dim_country`)
 
 scope_paths:
-  - dbt_project/tests/assert_no_event_loss_since_cutoff.sql
-  - dbt_project/dbt_project.yml
-  - .claude/task/escalations.log
-  - .claude/active_work.md
+  - dbt_project/seeds/countries.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/models/3_core/dim_country.sql
+  - dbt_project/models/3_core/dim_region.sql
+  - dbt_project/models/3_core/core.yml
+  - dbt_project/docs/layering.md
+
+impact_map: >
+  writers: both dims are NEW and seed-published. `countries.csv` is authored here from #69's
+    recorded discovery; `confederations.csv` already exists and is NOT edited.
+
+  downstream: NONE — both are LEAVES. Nothing reads either until #69 step 5 adds the foreign keys
+    and #62 step 3 builds `mart_competition_index`. Deliberate: this is the "additive and not yet
+    read" pattern `confederations.csv` itself shipped under in #57, and the same reason
+    `mart_competition_index` is parked rather than built.
+
+  blast_radius: NONE on any existing number, string or row. No existing model is modified. The diff
+    adds two models, one seed and their schema entries; it touches no file under `2_base/`,
+    `4_intermediate/` or `5_marts/` and no existing `3_core` model.
+
+  ⚠ WHAT dim_region DOES AND DOES NOT ADD, stated because it is easy to overstate:
+    `competition_registry.confederation` ALREADY carries a `relationships` test to
+    `ref('confederations')` (`dbt_project/seeds/schema.yml:188`), so the competition->region guard
+    exists today at seed level. `dim_region` buys PUBLICATION and SYMMETRY with `dim_country`, not
+    a new guard. The symmetry is the point of the rescope — two relationships of the same kind —
+    but calling it a new safety net would be false.
+
+  layer_rules: `scripts/check_layer_contract.py`. Both are core dims published from seeds, which is
+    the layer's job: seeds author, `3_core` publishes. Neither derives a fact. No per-competition
+    file and no `league_code` involvement, so the no-new-model rule is untouched. Materialisation
+    follows the layer setting in `dbt_project.yml`; no per-model override.
+
+  deploy_order: additive and order-free. `dbt seed` runs before models in every build path, and
+    both dims are leaves so they can be built before a reader exists. A seed and a `3_core` model
+    path are inside `.data_paths_prod`, so merging triggers `data:build:main` and the tables appear
+    on that run.
 
 decisions_taken: >
-  CPO 2026-08-17: "do C", then — on being shown that two of the three designed tests died against
-  the data and the third goes red on the existing backlog — "scope it to new data". This builds the
-  third test only, scoped by ingest time, as instructed.
+  CPO rescope of #69, 2026-08-16 (its note is the authority): "dim_region from confederations.csv
+  (publish what exists) + dim_country built new. A competition POINTS AT one; which relationship is
+  populated IS the answer." And on the modelling this replaces: "You don't mix up countries and
+  continents or regions in one column and add a flag 'single country'. That's really bad modeling."
 
-  NEW MECHANISM: none. A singular test, the same shape as the existing integrity guards.
-  RECURRING COST: one additional singular test per build. It reads two existing tables; no new
-  object, no schedule change.
+  `countries.csv` CONTENT is the 224-entity canonical list from #69's discovery, under the four
+  naming rulings of 2026-08-16 recorded in `escalations.log`: English, everyday short form, no
+  diacritics, with `Republic of Ireland` and `United States of America` as the two stated
+  exceptions.
+
+  VERIFIED AGAINST CURRENT PROD BEFORE AUTHORING, priced first (3,681,429 bytes): 284 distinct
+  provider country strings across the four staging surfaces today; excluding the `World` sentinel,
+  **283 of 283 resolve into the 224 via `country_name_overrides`** — nothing uncovered. That check
+  matters because #69 step 5's foreign keys will fail on anything this seed misses, and it was run
+  against today's data rather than reused from the 08-16 discovery.
+
+  NEW MECHANISM: none. Two seed-published dims, the shape `dim_league` and the other core dims
+  already use.
+  RECURRING COST: negligible. A 224-row table and a 7-row table built once per run.
 
 decisions_reserved:
-  - The 5 damaged fixtures are NOT repaired by this and are deliberately outside the cutoff. Whether
-    a COMPLETE provider response carrying strictly less data may supersede stored data remains the
-    CPO's open question (#896 rules it the other way today) — that is plan part A, not this.
-  - Whether the cutoff should later be lowered once the backlog is resolved. Left as a var so it is
-    a one-line change with a recorded reason, not a code rewrite.
+  - `entity_type` (un_state / association / territory / historical) is NOT a column. The CPO on
+    being shown a 7-column draft: "we only need a mapping between what the provider gives us and
+    what we turn into the single source of truth name". The distinction is preserved in #69's
+    discovery note if a consumer ever needs it; nothing needs it to render a country name.
+  - `label_i18n_key` per country is NOT a column — 224 keys x 3 locales is a copy cost and the
+    CPO's to authorise. `dim_region` HAS one only because `confederations.csv` already shipped with
+    it.
+  - Confederation per country is NOT a column, and there is NO SOURCE for it: the registry gives
+    confederation per COMPETITION and the UN list the CPO supplied has none. ⚠ It is also not
+    needed — the competitions page takes the region from the competition's own `confederation`,
+    never from the country's.
+  - The four foreign keys (#69 step 5), and whether `dim_country` supersedes
+    `country_name_overrides` or sits beside it as `team_name_overrides` sits beside `dim_team`.
+  - Whether the registry's `country` field is blanked for the 24 competitions holding a region
+    word. #69 names it; it changes what the export renders and belongs with step 4.
 
 done_when:
-  - The test returns 0 rows against prod at the shipped cutoff, and returns the 29 known rows when
-    the cutoff is moved back — demonstrated by running BOTH, not asserted.
-  - `python scripts/check_layer_contract.py` passes; SQLFluff clean on the new file from the repo
-    root with the full rule set.
-  - escalations.log records the two rejected sibling tests with their measured reasons.
+  - `countries.csv` carries 224 rows; `country_key` unique; no `country_name` with a diacritic.
+  - Both dims exist in `3_core`, are pass-throughs of their seed, and derive nothing.
+  - `dbt parse` succeeds; SQLFluff clean on both new .sql files, full rule set, from the repo root.
+  - `dbt ls --select dim_country+ dim_region+ --resource-type model` shows both are LEAVES.
+  - `core.yml` documents both with not_null + unique on the keys.
+  - `check_layer_contract.py` and `check_registry_var_sync.py` pass.
 
-amendments: (none)
+amendments:
+  - 2026-08-17: + dbt_project/docs/layering.md — authority: scope-auditor FAIL, round 1, finding 2.
+    content: `layering.md`'s "Attribute masquerading as entity" bullet names COUNTRY explicitly —
+    "keep as attributes until a consumer needs rollups or hierarchies (e.g. continent,
+    confederation, position group). Promote to a dim when the rollup logic appears, not before."
+    This MR promotes country AND region to dims while stating in three places that nothing reads
+    them, and the rollup the doc names as the trigger — confederation on the country — is precisely
+    what this task leaves out for want of a source. So the doc's condition is NOT met; the doc is
+    being OVERRIDDEN by the CPO's design. The reviewer was right that an unrecorded override plus
+    an unchanged doc is a doc-sync failure: the next reader would find a rule and a violation with
+    nothing connecting them. The bullet gains a pointer to the ruling. The RULE IS NOT WEAKENED —
+    it still says promote on the rollup, and the exception names its authority rather than
+    generalising.
