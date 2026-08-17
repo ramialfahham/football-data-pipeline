@@ -1,12 +1,30 @@
 # Review — fix/75c-event-consistency-tests — 2026-08-17
 
-diff_sha256: a0236b3c97114d9eeb33034321103fe3f045b2cd36d0200350cc4a78004f9d53
+diff_sha256: a3a503e8567de56ecd13ebd7a9163f03f60d0ba3d55fbbbf032617d5aa6e4662
 
 rounds: 2
 
 <!--
-HASH REBOUND 2026-08-17 after `gitlab/main` was merged into this branch to clear a conflict.
-Was 20af9490d83e9ba7abdab975e9d195e59fb16bd60d6409ce814e3e8ca6e2b287.
+⚠ REBOUND TWICE, and the second time is a TRAP WORTH KEEPING.
+  20af9490… original, pre-merge
+  a0236b3c… computed from the STAGED index while the merge was still uncommitted — WRONG
+  a3a503e8… computed after the merge was COMMITTED — correct, and what CI recomputes
+
+A MERGE COMMIT MOVES ITS OWN MERGE-BASE. `--staged-hash` diffs from the base, and until the merge
+is committed the base is still the pre-merge one, so the number it returns binds nothing. CI
+recomputes from `origin/main...HEAD`, where the merge-base is now main's tip, and got a3a503e8 —
+which local `--staged-hash` also returns once the merge exists. The commit gate accepted a0236b3c
+because at that instant it agreed with the staged state; `validate:governance` then correctly
+FAILED the MR with "the review is not bound to this PR (F11)". The gate did its job.
+⭐ RULE: on a merge commit, rebind the hash AFTER committing the merge, then amend the artifact in
+a follow-up commit (review.md alone is artifact-exempt). The handover's "--staged-hash matches CI
+at any length" holds for ordinary commits and NOT for the commit that performs a merge.
+⚠ Locally, run `check_task_artifacts.py` BARE. With `--base origin/main` it resolves the DORMANT
+GitHub remote, not GitLab, and returns a fictitious hash (f692a280…) plus three bogus
+"required reviewer has no verdict" lines for site_v2 paths this branch never touched.
+
+The merge itself: `gitlab/main` merged in to clear the conflict left by `!59`.
+Was 20af9490d83e9ba7abdab975e9d195e59fb16bd60d6409ce814e3e8ca6e2b287 before that.
 
 The verdicts below still stand and this is NOT a new review round. What changed on the branch is
 only the merge itself: `!59` (raw appends and never deletes) landed on main and touched the two
