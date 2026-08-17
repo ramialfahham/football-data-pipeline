@@ -1,116 +1,86 @@
-# Task contract — data:build:mr must not bootstrap-ingest (#73)
+# Task contract — a test that detects EVENT LOSS (#75 part C)
 
 objective: >
-  Remove the bootstrap-ingest step from `data:build:mr`. It writes PRODUCTION raw from an
-  unmerged branch (settings.py:31 defaults the dataset to `raw`; nothing overrides it in CI), it
-  is redundant with the identical step already in `data:build:main`, and GitLab's protected-
-  variable rule correctly refuses to give a feature branch the API key — which is what made MR
-  !50 fail. Closes #33 item 13 for the MR path. Pin the removal with a test so the step cannot
-  return silently.
+  Add the one guard whose absence is why #75 was found by accident. `fct_fixture_event` is
+  incremental and accumulates; `base_apif__fixture_events` is rebuilt from current raw. When a
+  fixture's raw payload loses events, the fact keeps them and base does not — and NOTHING in the
+  test suite notices. The 29 lost events sat undetected for days and surfaced only as an unrelated
+  `dim_player` FK orphan, which is why it first looked like a player problem.
 
-  ⛔ SCOPE NARROWED BY THE CPO, 2026-08-16. An earlier revision of this branch ALSO tagged
-  `assert_base_leagues_covers_active_competition_var` `prod_state` and excluded it from
-  `data:build:mr`. All four routed reviewers FAILED that, and the CPO ruled it out in plain
-  terms after asking whether the change was "a systematic fix or a hack": it was a hack. It is
-  fully reverted here. The underlying cause — nothing records whether a league has been
-  INGESTED, only that it SHOULD be — is filed as its own issue and is NOT addressed here.
-refs: GitLab #73, #33 item 13, #72, !50
-
-protected_override: >
-  CPO approval 2026-08-16, in-thread, verbatim: **"yes, rewrite #73 to option 2 only and fix it"**,
-  given after I laid out option 2 as "delete the bootstrap-ingest block from data:build:mr ...
-  that's the professional, economic, secure answer". The same message rejected the unprotect-the-
-  key option: **"it is 100% bullshit in terms of security."** `.gitlab-ci.yml` is a PROTECTED path
-  (the file that decides what CI enforces), hence this override.
+  This adds a singular test that flags any event the fact holds which base no longer has.
+refs: GitLab #75, !56 (the ingestion guard), !53
 
 impact_map: >
-  writers: `.gitlab-ci.yml` is not a data writer. The step being DELETED is the only thing in
-    `data:build:mr` that writes raw tables — `python -m ingestion.api_football.main` with
-    `API_FOOTBALL_LEAGUE_CODES` set. After this change `data:build:mr` writes ONLY `ci_*` datasets
-    (via `dbt seed/build --target ci`) and reads prod via `--defer --favor-state`.
+  WHAT THIS TEST READS: `fct_fixture_event` (core, incremental) and `base_apif__fixture_events`
+  (base, table). It is a leaf assertion — nothing reads it, it writes nothing, and it changes no
+  model, column, grain or materialisation. `dbt ls` could not be run (broken dbt on PATH, no
+  `.venv` — #60), so this is read off the model files; stated rather than hidden (#904).
 
-  what still ingests, and where: `data:build:main:597` runs the SAME
-    `get_new_league_codes.py` + `python -m ingestion.api_football.main` sequence, BEFORE its
-    `dbt build --selector staging/downstream --target prod` lines. `data:nightly` is the other
-    prod writer. Neither is touched here, so a newly onboarded league is still ingested exactly
-    once, post-merge, from a protected branch that legitimately holds the key. Verified by reading
-    both job bodies in this file, not assumed.
+  MEASURED AGAINST PROD, 2026-08-17, before writing the assertion:
+    · Event-index-level comparison finds **29 lost events across exactly 5 fixtures**
+      (1564793 CIT, 1564791 CIT, 1564795 CIT, 1490377 MLS, 1507028 KL1) — the same set #75
+      documents, reproduced independently by this test's own logic.
+    · With the cutoff at 2026-08-17, **1 row still flags**: one damaged fixture was re-ingested
+      this morning because its 3-day retry window (kickoff 2026-08-15) is still open.
 
-  guards NOT touched, and the accepted consequence: NO dbt test is modified by this branch.
-    Four singular tests — `assert_base_leagues` / `assert_base_teams` /
-    `assert_base_fixtures_next` / `assert_fct_fixture` `_covers_active_competition_var` — assert
-    "every code in `vars.active_competition_league_codes` has rows". All four are unconditional
-    (`left join ... where null`); I read all eight `*_covers_active_competition_var` tests and the
-    other four self-exclude via an `inner join base_apif__leagues` on a coverage flag. On an
-    ONBOARDING MR those four now fail, because the var names the new league and this job no longer
-    ingests it. That is ACCEPTED (CPO 2026-08-16): the tests are stating a true fact, and
-    silencing them was rejected as a hack. Onboarding MRs show red here and are merged on
-    judgement until the ingest-state issue lands.
-    ⚠ REASONED FROM THE TEST BODIES, NOT OBSERVED (#904): `data:build:mr` on !50 died at the
-    ingest step and never reached the dbt steps, so these four have not been SEEN failing for this
-    reason. `dbt build` is never run locally (CLAUDE.md), so this branch's own pipeline is the
-    first place it is exercised.
+  SCOPE IS TAKEN FROM THE FIXTURE (kickoff date), NOT FROM BASE — corrected in round 1.
+  analytics-engineer-reviewer FAILED the first draft, which grouped `max(raw_ingested_at)` over
+  `base_apif__fixture_events` itself: if a fixture loses ALL its events base holds zero rows, the
+  grouped CTE yields nothing, and the inner join silently drops that fixture — the TOTAL-loss case,
+  undetectable at any cutoff, forever. My prod measurement could NOT have caught it (the known
+  incident was PARTIAL for all 5 fixtures); it was found by reading the join. Scoping on
+  `fct_fixture` (one row per fixture, always present) removes the dependency on base surviving.
+  A kickoff date also never moves, unlike an ingest timestamp — the damaged fixtures kept
+  refreshing `raw_ingested_at` while their retry window stayed open, which is why the ingest-time
+  cutoff still flagged 1 row when measured on 2026-08-17.
+  ⚠ CONSEQUENCE, STATED NOT HIDDEN: the test is **inert for fixtures before the cutoff**. Its logic
+  is proven against real damage (29 rows across 5 fixtures at an earlier cutoff, under BOTH scoping
+  designs), but a green run over a window containing no fixtures is not evidence.
 
-  layer_rules: `scripts/check_layer_contract.py` — untouched; no model, no layer, no
-    materialisation changes. No new model, macro or SQL file. NO dbt file of any kind is in this
-    diff.
+  TWO SIBLING TESTS WERE DESIGNED AND REJECTED ON THE DATA, recorded so they are not re-proposed:
+    · "a PEN fixture must carry shootout events" — **371 of 753** PEN fixtures in prod have none.
+      The provider does not supply them for many competitions. It would have turned half the
+      penalty shootouts in the warehouse red.
+    · "goal events must reconcile with the fixture score" — not written. After the PEN result there
+      is no evidence it is clean across own goals, disallowed goals and shootout exclusion, and
+      shipping it unverified would repeat the same mistake.
 
-  deploy_order: no warehouse migration. The CI change takes effect on the next pipeline. ⚠ Merge
-    order matters for !50: this MR should merge FIRST, then !50 rebases onto it and its
-    `data:build:mr` goes green. If !50 merged first instead, `data:build:main` would bootstrap
-    BPL/TSL/EKS on main — also correct, just via the other path.
+  layer_rules: `scripts/check_layer_contract.py` / `.claude/hooks/dbt_layer_gate.py` — a singular
+  test in `dbt_project/tests/` touches no layer. `severity = 'error'`, consistent with the other
+  integrity guards (`assert_event_team_in_fixture_participants`).
 
-  blast_radius: no mart, no number, no row changes anywhere. One behaviour change:
-    `data:build:mr` no longer ingests, so it no longer needs `API_FOOTBALL_API_KEY` and no longer
-    runs a billed `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR. No test's
-    selection, severity or logic changes anywhere.
+  deploy_order: none. It runs in the existing singular-test steps of `data:build:mr`,
+  `data:build:main` and the nightly. No backfill, no migration.
+
+  blast_radius: no mart, no column, no row changes. One new assertion.
 
 scope_paths:
-  - .gitlab-ci.yml
-  - tests/test_ci_data_job_invariants.py
+  - dbt_project/tests/assert_no_event_loss_since_cutoff.sql
+  - dbt_project/dbt_project.yml
   - .claude/task/escalations.log
   - .claude/active_work.md
 
 decisions_taken: >
-  CPO ruling 2026-08-16 (quoted in full under protected_override): fix via option 2 only, and the
-  unprotect-the-key option is rejected on security grounds. The CPO also asked the framing
-  question this task answers — *"Why do we always need to touch ingestion again and again?"* — and
-  the answer encoded here is that we do NOT: no ingestion code changes, the fix is a CI job that
-  should never have carried this step.
+  CPO 2026-08-17: "do C", then — on being shown that two of the three designed tests died against
+  the data and the third goes red on the existing backlog — "scope it to new data". This builds the
+  third test only, scoped by ingest time, as instructed.
 
-  NEW MECHANISM: none. Deleting a step, and adding an assertion to an EXISTING pytest module
-  whose stated purpose is pinning exactly these CI invariants.
-
-  RECURRING COST: strictly NEGATIVE (a saving). Removes one billed BigQuery `SELECT DISTINCT` per
-  MR pipeline, plus the API-quota draw of any bootstrap ingest an unmerged branch would have run.
-  Nothing is added.
-
-  NO GUARD IS LOOSENED, because none is touched. The previous revision of this branch narrowed
-  one and was FAILED by all four routed reviewers and then by the CPO. The standing rule held.
+  NEW MECHANISM: none. A singular test, the same shape as the existing integrity guards.
+  RECURRING COST: one additional singular test per build. It reads two existing tables; no new
+  object, no schedule change.
 
 decisions_reserved:
-  - Whether `data:build:mr` should ALSO be prevented from writing prod raw structurally (setting
-    `API_FOOTBALL_BIGQUERY_DATASET` to a ci-scoped dataset) rather than only by removing the one
-    step that did it. #33 item 13 is broader than the MR path; this task closes the MR path only
-    and takes no position on the rest.
-  - The ingest-state model itself (recording that a league HAS been ingested, not merely that it
-    should be) is deliberately NOT designed here. It is the cause behind the four failing
-    onboarding-MR tests AND behind `get_new_league_codes.py` having to rediscover that fact from
-    BigQuery every run. Filed as its own issue per the CPO's instruction, "ship part 1 and file
-    the state fix as its own issue".
+  - The 5 damaged fixtures are NOT repaired by this and are deliberately outside the cutoff. Whether
+    a COMPLETE provider response carrying strictly less data may supersede stored data remains the
+    CPO's open question (#896 rules it the other way today) — that is plan part A, not this.
+  - Whether the cutoff should later be lowered once the backlog is resolved. Left as a var so it is
+    a one-line change with a recorded reason, not a code rewrite.
 
 done_when:
-  - `data:build:mr` contains no `get_new_league_codes.py` call and no
-    `python -m ingestion.api_football.main` invocation; `data:build:main` and `data:nightly` still
-    do, unchanged.
-  - The removal is explained in a `.gitlab-ci.yml` comment that names #73 and #33 item 13, so the
-    step is not "restored as an oversight" later.
-  - NO dbt file is modified: `git diff --stat` shows no path under `dbt_project/`.
-  - A NEW test in `tests/test_ci_data_job_invariants.py` FAILS if `data:build:mr` ever invokes
-    `ingestion.api_football.main` or `get_new_league_codes.py` again, and it is demonstrated RED
-    first (per the standing rule that a passing test proves nothing until it has been seen fail).
-  - `python -m pytest tests/test_ci_data_job_invariants.py` passes.
-  - escalations.log records the #73 ruling and the rejected option.
-  - MR opened against main; !50 rebases onto it afterwards.
+  - The test returns 0 rows against prod at the shipped cutoff, and returns the 29 known rows when
+    the cutoff is moved back — demonstrated by running BOTH, not asserted.
+  - `python scripts/check_layer_contract.py` passes; SQLFluff clean on the new file from the repo
+    root with the full rule set.
+  - escalations.log records the two rejected sibling tests with their measured reasons.
 
 amendments: (none)

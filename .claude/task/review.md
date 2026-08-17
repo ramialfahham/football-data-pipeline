@@ -1,50 +1,30 @@
-# Review — fix/73-no-mr-bootstrap-ingest — 2026-08-16
+# Review — fix/75c-event-consistency-tests — 2026-08-17
 
-diff_sha256: 8df9402506bed5579a1f72ee983ed463e3a528919fa536ec56888aba82c6cfff
+diff_sha256: 20af9490d83e9ba7abdab975e9d195e59fb16bd60d6409ce814e3e8ca6e2b287
 
 rounds: 2
-
-> REBOUND TWICE, both times for reasons that changed no reviewed content:
-> 1. one comment character in `.gitlab-ci.yml`, correcting a forward reference to the ingest-state
->    issue from the number guessed before filing (#74) to the one it received (#76).
-> 2. 2026-08-17, after `!56` and `!69` merged: `gitlab/main` moved, so the cumulative diff this
->    hash is computed over has a new base. `main` was merged in and the four task-artifact
->    conflicts resolved per the documented rebase tax — MINE for `contract.md`/`review.md`, UNION
->    for `escalations.log` (all three entries verified present), THEIRS for `active_work.md` with
->    this branch's delta re-applied. **No file this branch owns changed**: `.gitlab-ci.yml` and
->    `tests/test_ci_data_job_invariants.py` are byte-identical to what the reviewers below read.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Confirmed the round-1 guard-narrowing is fully reverted: the only `--exclude tag:freshness_check` present is an unchanged context line, no `prod_state` tag or per-job test exclusion appears anywhere in the diff, and zero paths under `dbt_project/` are touched.
-- `scope_paths` vs changed files: diff touches `.claude/task/contract.md`, `.claude/task/escalations.log`, `.gitlab-ci.yml`, `tests/test_ci_data_job_invariants.py`. The latter three are listed in the round-2 `scope_paths`.
-- Attribution of the accepted four-test-failure consequence is consistent across all three artifacts (contract impact_map, the `.gitlab-ci.yml` comment, escalations.log): all say CPO 2026-08-16, not the builder.
-- escalations.log honesty: the entry names all three reviewer grounds verbatim including "the scope claim was FALSE. I wrote 'today exactly one' test. There are EIGHT... FOUR fail by construction". It does not launder the round-1 failure.
-- `protected_override` cites the verbatim CPO approval for exactly the step being deleted — the same scope round 1 already judged authorized. No new mechanism smuggled in this round.
-- Swept the full diff for credential-shaped strings: only env var NAMES appear, no values; no widened permissions.
-- `decisions_reserved` contains nothing that is actually implemented in this diff.
+- Diff file set vs `scope_paths`: the new singular test, `dbt_project.yml` (one var), `contract.md`, `escalations.log`. No model, no seed, no mart, no ingestion file — this adds an assertion and nothing else.
+- The task was reduced, not expanded, against the plan the CPO approved: three designed tests became ONE, because two died against prod data. Both rejections are recorded with their measured reasons rather than dropped silently.
+- `decisions_reserved` does not launder anything: the 5 damaged fixtures are explicitly NOT repaired here, and the "may a complete-but-smaller response supersede" question stays with the CPO (#896 rules it the other way today).
+- The var is config-as-code and carries an explicit "never raise this to make a build green" warning, so the one way to abuse it is named in the file that holds it.
+- Credential sweep of the diff: none.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Verified part 2 fully reverted: `grep -rn "prod_state" .gitlab-ci.yml` returns zero hits; the diff touches exactly 4 files and no path under `dbt_project/`.
-- Read `.gitlab-ci.yml` directly rather than trusting the contract: `data:build:mr` now contains no ingest call; `data:build:main` still runs `get_new_league_codes.py` then `python -m ingestion.api_football.main` unchanged. The redundancy claim holds.
-- `protected_override` covers exactly what remains; `impact_map` is non-placeholder and its line references check out.
-- Guard invariant: no dbt test, macro or selector is touched. The four `*_covers_active_competition_var` tests stay unconditional and fail-closed on an onboarding MR. The consequence is stated three times independently and is not minimised. No guard is loosened.
-- New mechanism / recurring cost: none introduced; recurring cost is strictly negative (drops one billed `SELECT DISTINCT` per MR).
-- Pinning test scoping: uses `_script_lines_by_job` (parsed YAML, per job), asserts only against `data:build:mr`, so it cannot false-positive on `data:build:main`/`data:nightly` which legitimately contain both tokens. The explanatory YAML comment naming those tokens is stripped by `yaml.safe_load` before the assertion sees it.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round-1 finding addressed: `test_mr_data_build_never_ingests` reads the parsed job body, checks only `data:build:mr`, and asserts `"data:build:mr" in jobs` first so a rename fails loudly rather than passing vacuously.
-- RED-then-green demonstrated: the test was run against a re-injected `- python -m ingestion.api_football.main` line, failed with the intended message, then reverted to green. Satisfies the "verify the test fails" rule.
-- Both `dbt` invocations in `data:build:mr` are back to their original `--exclude tag:freshness_check` form; `prod_state` has zero hits across `.gitlab-ci.yml` and `dbt_project/`, so the revert is total.
-- No dead `$NEW_CODES` reference remains in `data:build:mr`; all three occurrences belong to `data:build:main`. `scripts/get_new_league_codes.py` is not orphaned.
-- Re-run safety: the deleted step was the only prod-writing action in the job; nothing after it depends on an ingest having run, since both dbt steps read prod via `--defer --favor-state`.
-- The new test runs in `test:python`, which executes unconditionally on every pipeline, so the invariant fails closed.
-- No credentials or permission widening in the diff.
+- ROUND 1 FAILED and the finding was real: the scope CTE grouped `max(raw_ingested_at)` over `base_apif__fixture_events` itself, so a fixture losing ALL its events produced no CTE row and the inner join dropped it — the TOTAL-loss case, undetectable at any cutoff, forever. Measurement could not have caught it, because the known incident was PARTIAL for all 5 fixtures; it was found by reading the join.
+- ROUND 2 FIX TRACED END TO END: `in_scope` now reads `fct_fixture`, independent of base. A fixture that loses every event keeps its `fct_fixture` header row, stays in scope, and all of its accumulated fact rows flag. The dependency on base surviving is gone.
+- `fct_fixture` verified as the scope source rather than assumed: `fixture_sk` not_null+unique, `fixture_date` not_null, and upstream `loads/fixtures.py:185-197` refuses to write an empty fetch while 206-236 carry forward unrefreshed seasons — so the header row is genuinely always present.
+- NEW BLIND SPOT NAMED AND ACCEPTED: a fixture kicking off before the cutoff but damaged after it is permanently out of scope. That is precisely the CPO's "scope it to new data" instruction, and it is disclosed in matching language in three places (test header, contract impact_map, escalations.log).
+- Direction: the query is driven FROM the fact, so only fact>base can produce a row; incremental lag (base ahead) structurally cannot fail. Join keys are the models' declared, tested grains; no NULL-comparison hazard.
+- Omitting `league_code` from the anti-join is safe — `fixture_sk`/`fixture_id` is globally unique in API-Football and both sides are int64.
+- Var placement sits outside the `sync_dbt_vars.py`-generated block; `check_registry_var_sync.py` passes.
+- Layer rules: a leaf singular test, no model/grain/materialisation change.
 
 ## escalations
-(none new this round. The #73 ruling and the CPO's rejection of the guard-narrowing are recorded in `.claude/task/escalations.log`, 2026-08-16 entry.)
+- question: May a COMPLETE provider response carrying strictly less data than what is stored supersede it?
+  CPO ANSWER: NOT TAKEN — still open, and deliberately so. This test makes the loss VISIBLE; it does not decide who wins. #896 rules the ambiguous case the other way today (2026-08-03), so changing it reverses part of that ruling. Recorded in `escalations.log` and `decisions_reserved`.

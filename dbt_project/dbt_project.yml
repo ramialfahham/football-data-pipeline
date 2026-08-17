@@ -23,6 +23,14 @@ vars:
   'dbt_utils:dispatch_list': ['bigquery']
   # BigQuery dataset id for 1:1 ingestion (must match Python `API_FOOTBALL_BIGQUERY_DATASET` default).
   raw_schema: raw
+  # Cutoff for tests/assert_no_event_loss_since_cutoff.sql (GitLab #75): only fixtures KICKING OFF
+  # on or after this date are asserted. It excludes the 5-fixture, 29-event backlog that the
+  # provider can no longer return (kickoffs 2026-08-08 and 2026-08-15). A kickoff date never moves,
+  # which is why the scope is taken from the fixture rather than from an ingest timestamp — see
+  # that test's header.
+  # ⚠ RAISING this silences new loss, which is the defect the test exists to catch. Lower it once
+  # the backlog is resolved; never raise it to make a build green.
+  event_loss_detector_from: '2026-08-19'
   # Derived from docs/competition_registry.yml (status active or in_progress).
   # DO NOT edit by hand — run scripts/sync_dbt_vars.py after updating the registry.
   # scripts/check_registry_var_sync.py (CI) enforces sorted-set equality with the registry.
