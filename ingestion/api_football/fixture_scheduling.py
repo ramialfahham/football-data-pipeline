@@ -347,6 +347,9 @@ def _write_fanout_cursor(
         raw_league_table(league_code, "INGEST_CURSOR"),
         payload,
         as_json_payload=True,
+        # DELIBERATE WRITE_TRUNCATE: the cursor is pipeline state, one current row per league, not
+        # entity data. Stated explicitly since `append` became required (2026-08-17).
+        append=False,
     )
 
 
@@ -523,13 +526,19 @@ def squads_response_for_team(
     errors: list[str] | None = None,
     *,
     error_context: str = "",
-) -> list:
+) -> tuple[list, bool]:
     """Current squad for a team from /players/squads (id, name, age, number, position, photo).
 
     One call returns the whole squad. paginate=False: /players/squads is single-page for a
     `team=` query (verified team=157 → paging.total=1). Distinct from `players_response_for_team`
     (which pulls /players per team×season into RAW_APIF_PLAYERS); this is the cheaper current-squad
-    endpoint and carries the shirt number."""
+    endpoint and carries the shirt number.
+
+    Returns ``(rows, complete)``. ⚠ It returned a BARE LIST until 2026-08-17, unlike its two
+    siblings above, and that is what made the hole: a rate-limited answer arrives as HTTP 200 with
+    the error in the body, so `rows` came back empty and looked successful. The caller wrote it,
+    which marked the `(team, season)` captured in `captured_team_seasons` — and that reader keys on
+    `$.team_id` PRESENCE, so the team was never fetched again."""
     data = fetch_merged_paged(
         "/players/squads",
         headers,
@@ -539,7 +548,7 @@ def squads_response_for_team(
     if errors is not None:
         ctx = error_context or f"squads team_id={team_id}"
         append_api_errors(data, ctx, errors)
-    return list(data.get("response") or [])
+    return list(data.get("response") or []), result_is_complete(data)
 
 
 def profiles_response_for_player(
@@ -548,12 +557,17 @@ def profiles_response_for_player(
     errors: list[str] | None = None,
     *,
     error_context: str = "",
-) -> list:
+) -> tuple[list, bool]:
     """Bio for one player from /players/profiles?player= (name, DOB, birthplace, nationality,
     height, weight, number, position, photo).
 
     paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1). The
-    page-keyed directory form is far thinner; the per-player form carries the full bio."""
+    page-keyed directory form is far thinner; the per-player form carries the full bio.
+
+    Returns ``(rows, complete)`` since 2026-08-17. A bare list here meant a rate-limited answer was
+    stored as an empty bio, and `_existing_player_ids` keys on `$.player_id` presence — so that
+    player's name, DOB and nationality stayed blank forever, on the surface that also drives the
+    URL slug."""
     data = fetch_merged_paged(
         "/players/profiles",
         headers,
@@ -563,7 +577,7 @@ def profiles_response_for_player(
     if errors is not None:
         ctx = error_context or f"profiles player_id={player_id}"
         append_api_errors(data, ctx, errors)
-    return list(data.get("response") or [])
+    return list(data.get("response") or []), result_is_complete(data)
 
 
 def player_teams_response_for_player(
@@ -572,11 +586,15 @@ def player_teams_response_for_player(
     errors: list[str] | None = None,
     *,
     error_context: str = "",
-) -> list:
+) -> tuple[list, bool]:
     """Career club/national history for one player from /players/teams?player= — a list of
     {team, seasons[]} entries.
 
-    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1)."""
+    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1).
+
+    Returns ``(rows, complete)`` since 2026-08-17, for the same reason as the profiles helper
+    above: an empty career stored from a rate-limited call is permanent, because the player is
+    then skipped by `_existing_player_ids` on every later run."""
     data = fetch_merged_paged(
         "/players/teams",
         headers,
@@ -586,4 +604,4 @@ def player_teams_response_for_player(
     if errors is not None:
         ctx = error_context or f"player_teams player_id={player_id}"
         append_api_errors(data, ctx, errors)
-    return list(data.get("response") or [])
+    return list(data.get("response") or []), result_is_complete(data)

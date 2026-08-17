@@ -44,12 +44,23 @@ def load_player_squads_batch(
             quota_cut = True
             break
         try:
-            squad_rows = squads_response_for_team(
+            squad_rows, complete = squads_response_for_team(
                 ctx.headers,
                 team_id,
                 ctx.errors,
                 error_context=f"player_squads {league_code} team_id={team_id}",
             )
+            # #896 applied to the CAPTURE side (2026-08-17). Withhold the entry, not just the
+            # write: `captured_team_seasons` reads `$.team_id` PRESENCE over all rows, so storing a
+            # rate-limited empty squad marks this team done and no later run ever re-fetches it.
+            # Nothing is deleted here — the damage is a permanent hole, which is why no row-count,
+            # freshness or not-null check could ever see it.
+            if not complete:
+                ctx.errors.append(
+                    f"player_squads {league_code} team {team_id}: INCOMPLETE fetch — team SKIPPED, "
+                    f"not marked captured; retries next run"
+                )
+                continue
             squads_payload["response"].append(
                 {
                     "team_id": team_id,

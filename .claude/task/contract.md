@@ -1,86 +1,105 @@
-# Task contract — a test that detects EVENT LOSS (#75 part C)
+# Task contract — never record a gap as captured (#75 MR2)
 
 objective: >
-  Add the one guard whose absence is why #75 was found by accident. `fct_fixture_event` is
-  incremental and accumulates; `base_apif__fixture_events` is rebuilt from current raw. When a
-  fixture's raw payload loses events, the fact keeps them and base does not — and NOTHING in the
-  test suite notices. The 29 lost events sat undetected for days and surfaced only as an unrelated
-  `dim_player` FK orphan, which is why it first looked like a player problem.
-
-  This adds a singular test that flags any event the fact holds which base no longer has.
-refs: GitLab #75, !56 (the ingestion guard), !53
-
-impact_map: >
-  WHAT THIS TEST READS: `fct_fixture_event` (core, incremental) and `base_apif__fixture_events`
-  (base, table). It is a leaf assertion — nothing reads it, it writes nothing, and it changes no
-  model, column, grain or materialisation. `dbt ls` could not be run (broken dbt on PATH, no
-  `.venv` — #60), so this is read off the model files; stated rather than hidden (#904).
-
-  MEASURED AGAINST PROD, 2026-08-17, before writing the assertion:
-    · Event-index-level comparison finds **29 lost events across exactly 5 fixtures**
-      (1564793 CIT, 1564791 CIT, 1564795 CIT, 1490377 MLS, 1507028 KL1) — the same set #75
-      documents, reproduced independently by this test's own logic.
-    · With the cutoff at 2026-08-17, **1 row still flags**: one damaged fixture was re-ingested
-      this morning because its 3-day retry window (kickoff 2026-08-15) is still open.
-
-  SCOPE IS TAKEN FROM THE FIXTURE (kickoff date), NOT FROM BASE — corrected in round 1.
-  analytics-engineer-reviewer FAILED the first draft, which grouped `max(raw_ingested_at)` over
-  `base_apif__fixture_events` itself: if a fixture loses ALL its events base holds zero rows, the
-  grouped CTE yields nothing, and the inner join silently drops that fixture — the TOTAL-loss case,
-  undetectable at any cutoff, forever. My prod measurement could NOT have caught it (the known
-  incident was PARTIAL for all 5 fixtures); it was found by reading the join. Scoping on
-  `fct_fixture` (one row per fixture, always present) removes the dependency on base surviving.
-  A kickoff date also never moves, unlike an ingest timestamp — the damaged fixtures kept
-  refreshing `raw_ingested_at` while their retry window stayed open, which is why the ingest-time
-  cutoff still flagged 1 row when measured on 2026-08-17.
-  ⚠ CONSEQUENCE, STATED NOT HIDDEN: the test is **inert for fixtures before the cutoff**. Its logic
-  is proven against real damage (29 rows across 5 fixtures at an earlier cutoff, under BOTH scoping
-  designs), but a green run over a window containing no fixtures is not evidence.
-
-  TWO SIBLING TESTS WERE DESIGNED AND REJECTED ON THE DATA, recorded so they are not re-proposed:
-    · "a PEN fixture must carry shootout events" — **371 of 753** PEN fixtures in prod have none.
-      The provider does not supply them for many competitions. It would have turned half the
-      penalty shootouts in the warehouse red.
-    · "goal events must reconcile with the fixture score" — not written. After the PEN result there
-      is no evidence it is clean across own goals, disallowed goals and shootout exclusion, and
-      shipping it unverified would repeat the same mistake.
-
-  layer_rules: `scripts/check_layer_contract.py` / `.claude/hooks/dbt_layer_gate.py` — a singular
-  test in `dbt_project/tests/` touches no layer. `severity = 'error'`, consistent with the other
-  integrity guards (`assert_event_team_in_fixture_participants`).
-
-  deploy_order: none. It runs in the existing singular-test steps of `data:build:mr`,
-  `data:build:main` and the nightly. No backfill, no migration.
-
-  blast_radius: no mart, no column, no row changes. One new assertion.
+  Four fixes of ONE class: a fetch that failed is written as fact, and the key it names is then
+  treated as done forever. Unlike #75 nothing here DELETES — the damage is a permanent hole that
+  no later run re-fetches, which is why no existing test or DQ check can see it. Append-only
+  (`!59`) made bad writes recoverable; it did not stop us recording them.
+refs: GitLab #75 (MR2 of the plan recorded in `escalations.log` 2026-08-17); the four sites were
+  found by the two blind lead-DE assessments the CPO ordered.
 
 scope_paths:
-  - dbt_project/tests/assert_no_event_loss_since_cutoff.sql
-  - dbt_project/dbt_project.yml
-  - .claude/task/escalations.log
+  - ingestion/api_football/bigquery.py
+  - ingestion/api_football/completeness.py
+  - ingestion/api_football/fixture_scheduling.py
+  - ingestion/api_football/loads/player_profiles.py
+  - ingestion/api_football/loads/player_squads.py
+  - ingestion/api_football/loads/player_teams.py
+  - ingestion/api_football/loads/transfers.py
+  - tests/test_never_record_a_gap.py
+  - tests/test_incomplete_fetch_no_supersede.py
+  - tests/test_player_squads_catchup.py
   - .claude/active_work.md
 
-decisions_taken: >
-  CPO 2026-08-17: "do C", then — on being shown that two of the three designed tests died against
-  the data and the third goes red on the existing backlog — "scope it to new data". This builds the
-  third test only, scoped by ingest time, as instructed.
+impact_map: >
+  WRITERS TOUCHED, and what each currently records as fact:
+    `loads/player_squads.py:75`   -> RAW_APIF_SQUADS. Marks `(team, season)` captured via
+      `captured_team_seasons`, which reads `$.team_id` PRESENCE over ALL rows (no latest filter).
+    `loads/player_profiles.py:68` -> RAW_APIF_PLAYER_PROFILES. Marks the player ingested via
+      `player_universe._existing_player_ids`, which reads `$.player_id` presence.
+    `loads/player_teams.py:68`    -> RAW_APIF_PLAYER_TEAMS. Same reader, same effect.
+    `loads/transfers.py:86`       -> RAW_APIF_TRANSFERS, one row for the WHOLE league.
+  Because all three "captured" readers key on PRESENCE of the id and not on the payload being
+  non-empty, a rate-limited empty answer is indistinguishable from a real one and the key is
+  never re-fetched. That is the permanent hole.
 
-  NEW MECHANISM: none. A singular test, the same shape as the existing integrity guards.
-  RECURRING COST: one additional singular test per build. It reads two existing tables; no new
-  object, no schedule change.
+  THE FETCH HELPERS, verified by reading them, not assumed:
+    guarded, return `tuple[list, bool]`: `players_response_for_team` (:457),
+      `transfers_response_for_team` (:487)
+    UNGUARDED, return a bare `list`: `squads_response_for_team` (:520),
+      `profiles_response_for_player` (:545), `player_teams_response_for_player` (:569)
+  So the completeness signal exists and three siblings simply never got it.
+
+  `load_json_to_bq` DEFAULT, enumerated across every call site
+  (`grep -rn "load_json_to_bq(" ingestion/ scripts/` -> 11 callers):
+    9 pass `append=True` explicitly. TWO omit it and rely on the `False` default, i.e.
+    WRITE_TRUNCATE, and both do so DELIBERATELY because their tables hold a single current-state
+    row: `completeness.py:602` (RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT) and
+    `fixture_scheduling.py:345` (RAW_APIF_{lc}_INGEST_CURSOR).
+    Making the parameter REQUIRED therefore changes no behaviour anywhere; it forces the
+    destructive choice to be written down at the two places that make it. `fixture_scheduling.py`
+    is in scope for that one-word edit.
+
+  DOWNSTREAM: none of this changes a model, a grain or a number. It changes WHICH KEYS GET
+  RE-FETCHED, so the observable effect is more API calls on runs following a rate limit, and
+  players/squads that previously stayed permanently blank getting filled on a later run. No dbt
+  file is touched, so `dbt ls` lineage is not the relevant evidence here and is deliberately not
+  pasted — the blast radius is the ingest planner, not the warehouse graph.
+  DEPLOY ORDER: ⚠ `.data_paths_prod` EXCLUDES `ingestion/**`, so merging does NOT rebuild prod.
+  ⚠ #74: nothing redeploys the Cloud Run image on merge, so this is INERT in production until the
+  nightly image is rebuilt from main by hand — the same gap that left `!59` inert for six hours.
+
+decisions_taken: >
+  CPO instruction, 2026-08-17, in this conversation: "go ahead as recommended", against a
+  recommendation that named these four fixes explicitly. MR2 of the plan the CPO approved earlier
+  the same day when he chose "Everywhere" for the append-only rule.
+
+  NOT LOOSENED, and this is the trap to avoid: the fix is to WITHHOLD THE WRITE, never to widen
+  what counts as complete. `result_is_complete` keeps its exact meaning, including the CPO ruling
+  of 2026-08-03 that an empty error-free response IS complete. An empty answer from a healthy
+  provider still gets written and still marks the key captured — that is correct and it is what
+  keeps 3,539 historical team-seasons out of a nightly re-fetch.
+
+  NEW MECHANISM: none. Three helpers gain the return shape two siblings already have.
+  RECURRING COST: a small INCREASE in API calls is the intended effect — keys that were wrongly
+  marked captured will now be re-fetched once. Bounded by the existing skip logic and the daily
+  quota guard; no change to cadence, fanout caps or history depth.
 
 decisions_reserved:
-  - The 5 damaged fixtures are NOT repaired by this and are deliberately outside the cutoff. Whether
-    a COMPLETE provider response carrying strictly less data may supersede stored data remains the
-    CPO's open question (#896 rules it the other way today) — that is plan part A, not this.
-  - Whether the cutoff should later be lowered once the backlog is resolved. Left as a var so it is
-    a one-line change with a recorded reason, not a code rewrite.
+  - The volume-delta threshold stays MR3 and stays the CPO's. This task only stops us recording a
+    FAILED fetch as fact; it does not judge a SUCCESSFUL fetch that came back smaller.
+  - Whether `event_loss_detector_from` should be lowered now that the backlog is triaged. It is
+    2026-08-19 and therefore inert. Deliberately NOT bundled here: it is a dbt change with its own
+    blast radius and it needs its own measurement (zero rows at the new cutoff) before it moves.
 
 done_when:
-  - The test returns 0 rows against prod at the shipped cutoff, and returns the 29 known rows when
-    the cutoff is moved back — demonstrated by running BOTH, not asserted.
-  - `python scripts/check_layer_contract.py` passes; SQLFluff clean on the new file from the repo
-    root with the full rule set.
-  - escalations.log records the two rejected sibling tests with their measured reasons.
+  - `grep -rn "-> list:" ingestion/api_football/fixture_scheduling.py` shows no per-entity fetch
+    helper returning a bare list.
+  - `load_json_to_bq` cannot be called without stating `append`; the two deliberate WRITE_TRUNCATE
+    callers say so explicitly.
+  - A test proves each of the four holes RED against the current code before the fix, pasted into
+    `.claude/task/acceptance_evidence.md`.
+  - `python -m pytest tests/ -q` passes in full; `ruff --config .ruff-ci.toml` clean.
+  - No change to `result_is_complete` or to what counts as complete.
 
-amendments: (none)
+amendments:
+  - 2026-08-17: + `tests/test_player_squads_catchup.py` — authority: the same CPO go for MR2; no new
+    decision. `squads_response_for_team` gains a second return value, and that file holds the one
+    test double for it in the repo (`grep -rn "squads_response_for_team" tests/` → exactly one hit,
+    line 176), still returning a bare list. Left alone it raises "not enough values to unpack",
+    which the loader's own `except` swallows into an error string — so the suite would go red for a
+    reason unrelated to the defect. Harness-only change: the fake returns `(rows, True)`; no
+    assertion moves.
+    ⚠ FOUND BY RUNNING THE SUITE, not by reading the diff. The signature change is invisible to a
+    grep of the changed files, because the breakage lives in a file this task never intended to
+    touch.

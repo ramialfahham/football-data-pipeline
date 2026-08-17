@@ -1,139 +1,83 @@
-# Review — fix/75c-event-consistency-tests — 2026-08-17
+# Review — fix/75-mr2-never-record-a-gap — 2026-08-17
 
-diff_sha256: a3a503e8567de56ecd13ebd7a9163f03f60d0ba3d55fbbbf032617d5aa6e4662
+diff_sha256: 3d0296adfd7a97d9baf285dfe4df27d92f1f96df1f98b11cf288ee6219001576
 
-rounds: 2
-
-<!--
-⚠ REBOUND TWICE, and the second time is a TRAP WORTH KEEPING.
-  20af9490… original, pre-merge
-  a0236b3c… computed from the STAGED index while the merge was still uncommitted — WRONG
-  a3a503e8… computed after the merge was COMMITTED — correct, and what CI recomputes
-
-A MERGE COMMIT MOVES ITS OWN MERGE-BASE. `--staged-hash` diffs from the base, and until the merge
-is committed the base is still the pre-merge one, so the number it returns binds nothing. CI
-recomputes from `origin/main...HEAD`, where the merge-base is now main's tip, and got a3a503e8 —
-which local `--staged-hash` also returns once the merge exists. The commit gate accepted a0236b3c
-because at that instant it agreed with the staged state; `validate:governance` then correctly
-FAILED the MR with "the review is not bound to this PR (F11)". The gate did its job.
-⭐ RULE: on a merge commit, rebind the hash AFTER committing the merge, then amend the artifact in
-a follow-up commit (review.md alone is artifact-exempt). The handover's "--staged-hash matches CI
-at any length" holds for ordinary commits and NOT for the commit that performs a merge.
-⚠ Locally, run `check_task_artifacts.py` BARE. With `--base origin/main` it resolves the DORMANT
-GitHub remote, not GitLab, and returns a fictitious hash (f692a280…) plus three bogus
-"required reviewer has no verdict" lines for site_v2 paths this branch never touched.
-
-The merge itself: `gitlab/main` merged in to clear the conflict left by `!59`.
-Was 20af9490d83e9ba7abdab975e9d195e59fb16bd60d6409ce814e3e8ca6e2b287 before that.
-
-The verdicts below still stand and this is NOT a new review round. What changed on the branch is
-only the merge itself: `!59` (raw appends and never deletes) landed on main and touched the two
-artifacts this branch also touches, so `active_work.md` and `escalations.log` conflicted.
-Resolution, per file rather than wholesale:
-  active_work.md   -> MAIN's (it is the newer handover), then its header corrected for the
-                      merged state. In this branch's scope_paths, so editable.
-  escalations.log  -> MAIN's, which is a strict SUPERSET (3287 lines vs 3235): it already
-                      contains THIS branch's 2026-08-17 entry, carried over by !58, plus !59's.
-                      Verified by grepping for both entries rather than assumed.
-  contract.md      -> OURS. It describes THIS task and must not become !59's.
-  review.md        -> OURS, hash rebound (this block).
-No reviewed CODE changed: the only code on this branch is
-`dbt_project/tests/assert_no_event_loss_since_cutoff.sql` and one `dbt_project.yml` var, and
-neither appears in the merge. The hash moved because the base moved, not because the diff did.
--->
-
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Diff file set vs `scope_paths`: the new singular test, `dbt_project.yml` (one var), `contract.md`, `escalations.log`. No model, no seed, no mart, no ingestion file — this adds an assertion and nothing else.
-- The task was reduced, not expanded, against the plan the CPO approved: three designed tests became ONE, because two died against prod data. Both rejections are recorded with their measured reasons rather than dropped silently.
-- `decisions_reserved` does not launder anything: the 5 damaged fixtures are explicitly NOT repaired here, and the "may a complete-but-smaller response supersede" question stays with the CPO (#896 rules it the other way today).
-- The var is config-as-code and carries an explicit "never raise this to make a build green" warning, so the one way to abuse it is named in the file that holds it.
-- Credential sweep of the diff: none.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- ROUND 1 FAILED and the finding was real: the scope CTE grouped `max(raw_ingested_at)` over `base_apif__fixture_events` itself, so a fixture losing ALL its events produced no CTE row and the inner join dropped it — the TOTAL-loss case, undetectable at any cutoff, forever. Measurement could not have caught it, because the known incident was PARTIAL for all 5 fixtures; it was found by reading the join.
-- ROUND 2 FIX TRACED END TO END: `in_scope` now reads `fct_fixture`, independent of base. A fixture that loses every event keeps its `fct_fixture` header row, stays in scope, and all of its accumulated fact rows flag. The dependency on base surviving is gone.
-- `fct_fixture` verified as the scope source rather than assumed: `fixture_sk` not_null+unique, `fixture_date` not_null, and upstream `loads/fixtures.py:185-197` refuses to write an empty fetch while 206-236 carry forward unrefreshed seasons — so the header row is genuinely always present.
-- NEW BLIND SPOT NAMED AND ACCEPTED: a fixture kicking off before the cutoff but damaged after it is permanently out of scope. That is precisely the CPO's "scope it to new data" instruction, and it is disclosed in matching language in three places (test header, contract impact_map, escalations.log).
-- Direction: the query is driven FROM the fact, so only fact>base can produce a row; incremental lag (base ahead) structurally cannot fail. Join keys are the models' declared, tested grains; no NULL-comparison hazard.
-- Omitting `league_code` from the anti-join is safe — `fixture_sk`/`fixture_id` is globally unique in API-Football and both sides are int64.
-- Var placement sits outside the `sync_dbt_vars.py`-generated block; `check_registry_var_sync.py` passes.
-- Layer rules: a leaf singular test, no model/grain/materialisation change.
+- Traced the authority chain: the contract's "go ahead as recommended" resolves to the logged
+  findings at `escalations.log:3257-3268`, and the four fixes in this diff are exactly the four
+  named there. The two `decisions_reserved` deferrals (volume-delta threshold,
+  `event_loss_detector_from`) are echoed at lines 3268/3288-3289 as MR3-owned, so nothing deferred
+  is silently decided here.
+- Every file in the diff is inside `scope_paths`. `tests/test_incomplete_fetch_no_supersede.py` is
+  listed in scope but absent from the diff — checked the file directly rather than assuming: it is
+  a pre-existing #896 test with no reason to change, not a smuggled omission.
+- The mid-task amendment (`tests/test_player_squads_catchup.py`) is harness-only: the diff changes
+  the mock's return value and adds a comment; no assertion moved.
+- Independently grep-verified the 11 `load_json_to_bq` call sites rather than trusting the
+  contract's count; 9 already explicit, and the diff adds `append=False` at exactly the two the
+  contract names.
+- The RECURRING COST declaration (a small increase in API calls, because wrongly-captured keys get
+  re-fetched once) is bounded and is the direct consequence of the named fix, not an independent
+  cost decision — declared, not smuggled.
+- Credential sweep across the full patch: no hits.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- MERGE CHECK only, not a fresh review of this branch's code. Routing required this reviewer
-  because merging `gitlab/main` in stages main's `ingestion/**` and `docs/data_contract.md` paths;
-  the question asked was solely whether the merge altered, reverted or damaged anything already
-  reviewed and merged under `!59`.
-- Confirmed via the worktree's `MERGE_MSG` and `AUTO_MERGE` that the conflicts were confined to
-  `.claude/task/*` and `.claude/active_work.md`; no conflict marker or manual resolution touched
-  `ingestion/`, `docs/`, `dbt_project/` or `scripts/`.
-- Read the staged tree of `bigquery.py`, `loads/squads.py` and `loads/batch_fixtures.py`: all three
-  delete helpers (`_delete_fixtures`, `delete_superseded_league_rows`,
-  `_delete_superseded_player_rows`) are still ABSENT, present only as the dated
-  "REMOVED 2026-08-17" comments. The merge did not resurrect them.
-- `bigquery.py` still reads `"WRITE_APPEND" if append else "WRITE_TRUNCATE"` with WRITE_TRUNCATE
-  reserved to single-current-state tables — matching `!59`, not reverted to unconditional truncate.
-- `docs/data_contract.md` still carries the append-only write-mode table and the sentence "Since
-  2026-08-17 nothing in ingestion deletes from raw", verbatim as reviewed.
-- Cross-checked this branch's own `scope_paths`: nothing under `ingestion/` or `docs/`, corroborating
-  that its real diff against main is the dbt test plus one var.
-
-### analytics-engineer-reviewer — merge check (same reviewer, second pass)
-- MERGE CHECK only, run when `gitlab/main` was merged in. Routing required this reviewer because
-  the merge stages main's `dbt_project/**`; the question was whether it reverted any model or doc
-  already reviewed under `!59`, and whether this branch's own dbt contribution survived. PASS.
-- Read all four fixture-details staging model headers off the staged tree: every one says
-  "APPEND-ONLY … a retry appends a second version rather than replacing the first", NOT the
-  pre-`!59` "merge-on-write / deletes-on-retry" wording. No reversion.
-- Read all five affected `stg_apif__generic.yml` descriptions: all say append-only, none asserts
-  merge-on-write as current behaviour.
-- `layering.md`'s only surviving "merge-on-write" is the past-tense item 8b reference, which is the
-  documented exception; `data_contract.md` describes RAW_APIF_FIXTURE_DETAILS as append-only, one
-  row per fetch.
-- Read `assert_no_event_loss_since_cutoff.sql` in full — this branch's own contribution is intact
-  byte-for-byte (kickoff-date scoping via `fct_fixture`, direction-only loss check, the stated
-  inert-before-cutoff caveat). `event_loss_detector_from: '2026-08-19'` present exactly once.
-- Grepped `dbt_project/`, `ingestion/`, `docs/` for conflict markers — none; the merge is fully
-  resolved, not left mid-conflict.
-- ⚠ STATED LIMIT, the reviewer's own: it has no Bash tool, so it could not run
-  `git diff --cached gitlab/main`. It verified by reading the staged files on disk and
-  cross-checking the merge's hunks in `review_input.patch` — a different route to the same
-  conclusion, recorded rather than glossed.
+- THE central risk, that the fix widens what "complete" means rather than withholding the write:
+  read `http_client.py:83-107` and confirmed `result_is_complete` is untouched. Both directions are
+  pinned — rate-limited body error withheld, empty-and-error-free still written — so the CPO ruling
+  of 2026-08-03 survives intact.
+- Read all three loaders in full and confirmed the `if not complete: continue` sits inside the
+  per-entity loop and guards only that entity: a healthy sibling in the same batch is still
+  written, which the tests assert on ids 11 and 8.
+- Read `transfers.py:29-110`: the new `if not team_ids: return` is the first statement, before
+  `complete = True` is initialised, so the empty-team path can no longer reach the write. It sits
+  alongside, and does not tangle with, the pre-existing #896 discard-on-partial block.
+- Verified every one of the 11 `load_json_to_bq` call sites individually. All pass `append`
+  explicitly. `append` was ALREADY keyword-only (after `*`), so there is no positional-call risk
+  anywhere and no caller can TypeError.
+- Grepped the whole repo for readers of the three widened helpers: every call site unpacks
+  `(rows, complete)`; none still assumes a bare list.
+- Confirmed the response-parsing line in each helper is byte-identical before and after — only the
+  already-tested `result_is_complete` primitive is newly wired in, matching the pattern the two
+  sibling helpers have used since #896. No new parsing logic, so no new sample fixture is required.
+- Checked the contract's deploy-order claim against the actual CI file: `.data_paths_prod`
+  (`.gitlab-ci.yml:274-282`) excludes `ingestion/**`, so merging does not trigger a prod rebuild.
+- No change to history window, fanout caps, cadence or env-var defaults anywhere in the diff.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- MERGE CHECK only. Routing required this reviewer because the merge stages main's `tests/**` and
-  `scripts/**`; the question was whether it weakened or reverted any test already reviewed in `!59`.
-- Confirmed `tests/test_raw_merge_on_write.py` in the staged tree is `!59`'s REWRITTEN version —
-  it asserts `client.dml() == []` via `test_a_clean_run_appends_and_issues_no_dml` and
-  `test_no_loader_module_carries_a_delete_helper`, NOT the pre-`!59` version that demanded the
-  deletes happen. A wrong resolution here would have silently restored a test requiring the
-  deleted behaviour; it did not.
-- Swept every file under `tests/` for delete/merge residue and checked the seven hits individually:
-  all read consistently with the append-only reversal; none demands a delete.
-- `dbt_project.yml` carries exactly the one claimed var with its "never raise to make a build green"
-  warning intact; the detector SQL matches what was already PASSed.
-- Verified the `escalations.log` SUPERSET claim by locating BOTH entries rather than assuming it:
-  this branch's at line 3129 and `!59`'s at line 3240.
-- Grepped repo-wide for unresolved conflict markers — none.
-- ⚠ STATED LIMIT, the reviewer's own: Read/Grep/Glob only, no shell, so it could not execute
-  `git diff --cached` or recompute `--staged-hash` numerically; it substituted direct inspection of
-  the staged working tree.
-  ⭐ THAT GAP IS CLOSED BY EVIDENCE, not left open: the builder ran
-  `python .claude/hooks/git_discipline.py --staged-hash` against the staged merge and it returned
-  `a0236b3c97114d9eeb33034321103fe3f045b2cd36d0200350cc4a78004f9d53`, identical to the value
-  recorded above, and `git diff --cached gitlab/main -- ingestion dbt_project scripts tests docs`
-  returned only `assert_no_event_loss_since_cutoff.sql` and the `dbt_project.yml` var. Recorded
-  here because "a reviewer could not run the check" is not the same as "the check passed".
+- Traced all 11 tests against the pre-fix hunks to answer the vacuity question directly. The six
+  that fail on the tuple unpack are NOT vacuous: they call the REAL helpers with only
+  `fetch_merged_paged` mocked, so a fix that restored the shape with the boolean wrong (hardcoded
+  `True`) would still be caught by the explicit `assert complete is False` / `is True`.
+- ⭐ CORRECTED THE BUILDER'S OWN EVIDENCE. `acceptance_evidence.md` claimed only THREE tests fail on
+  an assertion pre-fix. Platform traced the loader hunks and showed the two player-entity tests do
+  too, because they patch the helper inside the loader's namespace, so the pre-fix loader stores
+  the tuple whole and records the entry. Re-run against `gitlab/main` to confirm rather than accept:
+  `AssertionError: player 7's rate-limited empty payload was recorded ([7, 8])`. It is FIVE, and
+  the document now says so and says it was corrected.
+- Verified the `a[2]` positional payload capture against the real call sites in all three loaders —
+  payload is index 2 in each — and that the `assert written` guard is present in both tests, so an
+  empty capture cannot pass silently. (An earlier draft captured kwargs only and would have
+  asserted over an empty list.)
+- Confirmed `tests/test_player_squads_catchup.py`'s one-line change touches only the fake's return
+  shape; no assertion in that file moved.
+- Judged the `inspect`-based signature test the right level: Python enforces the required
+  keyword-only constraint at call time regardless of the caller, so this is equivalent to and more
+  robust than a `pytest.raises(TypeError)` call test, and it targets the named regression (a
+  default reappearing).
+- Confirmed the diff touches none of `scripts/`, `.claude/hooks/`, `.github/workflows/`,
+  `.gitlab-ci.yml`, `*requirements*.txt` or `site_v2/**`, so the remaining platform hunt items have
+  no surface here.
+- Flagged one cosmetic defect, fixed before this lock: the test module docstring referenced
+  `test_empty_but_clean_response_is_still_written`; the function is `..._is_still_complete`.
 
 ## escalations
-- question: May a COMPLETE provider response carrying strictly less data than what is stored supersede it?
-  CPO ANSWER: NOT TAKEN — still open, and deliberately so. This test makes the loss VISIBLE; it does not decide who wins. #896 rules the ambiguous case the other way today (2026-08-03), so changing it reverses part of that ruling. Recorded in `escalations.log` and `decisions_reserved`.
+(none)

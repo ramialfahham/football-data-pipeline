@@ -1,102 +1,85 @@
-# Acceptance evidence — raw appends and never deletes (#75)
+# Acceptance evidence — never record a gap as captured (#75 MR2)
 
-Not a `site_v2/` task, so the acceptance-criteria gate does not apply. This file exists because the
-contract's `done_when` requires every rewritten test to be seen RED before it ships. A green test
-that was never seen red is decoration, and this repo has shipped three of those (#63).
+Not a `site_v2/` task, so the acceptance-criteria gate does not apply. This exists because
+`done_when` requires each of the four holes to be seen RED before the fix ships.
 
 ## criteria_demonstrated:
 
-### 1. The new guards FAIL against the pre-change code
+### 1. All 11 new tests FAIL against `gitlab/main`
 
-Method: `git worktree add --detach <scratch> gitlab/main` (the code with all three deletes still
-present), the two new test files copied in, pytest run there. The working tree was never touched,
-so there was no restore step to get wrong.
+Method: `git worktree add --detach <scratch> gitlab/main`, the new test file copied in, pytest run
+there. The working tree was never touched.
 
-    8 failed, 22 passed
+    11 failed
 
-Of those 8, **five fail on the assertion itself**, naming the exact DELETE the ruling removes:
+**FIVE fail on the assertion itself, naming the live defect.** ⚠ This document first said THREE.
+`platform-reviewer` traced the loader hunks and pointed out that the two player-entity tests fail on
+the assertion too, not on the unpack: they monkeypatch the helper inside the loader's own namespace,
+so the pre-fix loader receives the tuple and stores it whole as the payload, and the entry is
+recorded. I re-ran them against `gitlab/main` rather than take that on trust:
 
-    test_a_clean_run_appends_and_issues_no_dml[transfers]
-    E  Left contains one more item: 'delete from `...RAW_APIF_TRANSFERS` where league_code = @lc
-                                     and ingested_at < @before'
-    test_a_clean_run_appends_and_issues_no_dml[standings]
-    E  ... `...RAW_APIF_STANDINGS` ...
-    test_a_clean_run_appends_and_issues_no_dml[teams]
-    E  ... `...RAW_APIF_TEAMS` ...
+    test_player_entity_incomplete_is_not_recorded[profiles]
+    test_player_entity_incomplete_is_not_recorded[player_teams]
+    E  AssertionError: player 7's rate-limited empty payload was recorded ([7, 8]);
+       `_existing_player_ids` keys on player_id presence, so that player is never fetched again
 
-    test_the_players_loader_appends_and_deletes_nothing
-    E  AssertionError: the players loader issued DML against raw: ["delete from
-       `...RAW_APIF_PLAYERS` where league_code = @lc and ingested_at < @before and concat(
-       ifnull(json_value(payload, '$.response[0].team_id'), 'x'), '-', ... ) in unnest(@keys)"]
+Recorded as a correction rather than edited away: understating evidence is the same #904 class as
+overstating it, and the number is the whole point of this section.
 
-    test_no_loader_module_carries_a_delete_helper
-    E  Left contains 6 more items, first extra item:
-       'loads.batch_fixtures._delete_fixtures'
+The other three:
 
-### 2. The fixture-details guard, proven separately and honestly
+    test_squads_incomplete_team_is_not_recorded
+    E  AssertionError: team 10's rate-limited empty squad was recorded ([10, 11]);
+       `captured_team_seasons` keys on team_id presence, so that team is now never re-fetched
 
-The remaining 3 of the 8 failed on the OLD function signature (`_fetch_and_persist_batch` took a
-fourth `retry_ids` argument), which is a `TypeError` and proves nothing about the guard. Stated
-rather than counted as a pass.
+    test_transfers_with_no_team_ids_writes_nothing
+    E  AssertionError: an empty whole-league transfers snapshot was written; it becomes the
+       latest row and hides every stored move for that competition.
+       wrote=[{'as_json_payload': True, 'append': True, 'league_code': 'BL1'}]
 
-Re-run in the worktree with the call adapted to the old 4-arg signature, so the only thing left to
-fail on is the assertion:
+    test_load_json_to_bq_requires_an_explicit_append
+    E  AssertionError: `append` has a default again. It must stay required...
+       assert False is <class 'inspect._empty'>
+        +  where False = <Parameter "append: 'bool' = False">.default
 
-    TestFixtureDetailsRetryKeepsBothVersions — 1 failed, 2 passed
-    E  Left contains one more item:
-       "DELETE FROM `p.raw.FIXTURE_DETAILS`
-        WHERE CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) IN (111)
-          AND league_code = 'CIT'"
+**The remaining six fail on the unpack**, because the three helpers returned a bare list and
+`rows, complete = helper(...)` cannot destructure it. Stated rather than counted as assertion
+proofs — though the unpack failure IS the defect in this case: the completeness signal did not
+exist to reach the caller at all. `platform-reviewer` checked whether they are therefore vacuous
+and concluded not: they call the REAL helpers with only `fetch_merged_paged` mocked, so if the
+tuple shape were restored with the boolean wrong (say hardcoded `True`), the explicit
+`assert complete is False` / `is True` still fires.
 
-That statement is the one that destroyed the penalty shootout on fixture 1564795.
+### 2. The rule was not widened, only the write withheld
 
-The 2 that passed there are correct and worth naming: `test_incomplete_fetch_is_discarded_whole`
-(the #896 guard already existed on main and is unchanged by this MR) and
-`test_the_fixture_write_is_an_append` (WRITE_APPEND was already correct; the test pins that it
-stays that way, since a flip to WRITE_TRUNCATE would erase the table while issuing no DELETE and
-the no-DML tests would stay green).
+`test_empty_but_clean_response_is_still_complete` (×3) pins the CPO ruling of 2026-08-03: an empty
+error-free answer is COMPLETE and is still written. Without it, a "fix" that simply refused every
+empty response would satisfy every other test here and silently re-fetch 3,539 historical
+team-seasons nightly.
 
-### 3. Full suite, on this branch
+### 3. `append` audit, enumerated not assumed
 
-    813 passed, 1 skipped, 14 subtests passed in 495.16s
+    grep -rn "load_json_to_bq(" ingestion/ scripts/   ->  11 callers
+      9 pass append=True explicitly
+      2 omitted it and relied on the False default, BOTH deliberately, both single-current-state
+        operational tables: completeness.py:602 (INGEST_COMPLETENESS_SNAPSHOT) and
+        fixture_scheduling.py:345 (INGEST_CURSOR)
+Both now pass `append=False` explicitly with a comment saying why. Behaviour is unchanged
+everywhere; the destructive mode is simply written down at the two call sites that choose it.
 
-### 4. The test-count change, reconciled by measurement rather than assertion
+### 4. One pre-existing test needed a harness fix, found by RUNNING the suite
 
-    gitlab/main (temp worktree):  818 collected
-    this branch:                  814 collected
+`tests/test_player_squads_catchup.py:176` held the repo's only double for
+`squads_response_for_team` and still returned a bare list. Left alone it raised "not enough values
+to unpack", which the loader's own `except` swallowed into an error string, so the suite went red
+for a reason unrelated to the defect. The fake now returns `(rows, True)` — deliberately COMPLETE,
+because that test is about a quota cut mid-competition, not a failed fetch, and the two paths must
+stay separable. No assertion moved. Recorded as a contract amendment.
 
-Net -4, and it accounts exactly:
+### 5. Full suite and lint
 
-  `tests/test_raw_merge_on_write.py` 18 -> 13 (-5)
-    removed, subject no longer exists:
-      test_the_delete_is_scoped_to_this_league          (x3) — no delete to scope
-      test_the_delete_boundary_is_the_write_s_own_stamp (x3) — no boundary to get wrong
-      test_a_failed_delete_is_reported_and_does_not_raise (x3) — no delete to fail
-    re-pointed, NOT dropped:
-      test_a_failed_delete_still_extends_team_ids -> test_an_incomplete_fetch_still_extends_team_ids
-        The dead case was the failing DELETE; the live guarantee is that the id extension runs on a
-        discarded snapshot, which `teams.py` states is deliberate. Dropping the test outright would
-        have retired a guarantee along with a dead case.
-      test_only_the_three_whole_league_loaders_merge -> test_coaches_was_never_a_merge_loader...
-      test_the_merge_helper_is_imported_by_exactly_the_converted_loaders
-        -> test_no_loader_module_carries_a_delete_helper (inverted, and widened to all three names
-           plus the `bigquery` module)
-    added:
-      test_every_raw_write_is_an_append (x3)   — the append half of "keeps both versions"
-      test_the_players_loader_appends_and_deletes_nothing
-
-  `tests/test_incomplete_fetch_no_supersede.py` 16 -> 17 (+1)
-      test_the_fixture_write_is_an_append added.
-
-  `tests/test_squad_players_rows.py` 13 -> 13 — no test removed, only the delete assertions inside
-  `test_one_row_per_team_season` and the two `_delete_superseded_player_rows` monkeypatches.
-
-### 5. Lint
-
+    824 passed, 1 skipped, 14 subtests passed in 464.35s
     ruff --config .ruff-ci.toml ingestion tests  ->  All checks passed!
 
-### 6. No delete left in ingestion
-
-    grep -rni "delete from|delete_superseded|_delete_fixtures" ingestion/
-    -> 3 hits, all of them the REMOVED-2026-08-17 tombstone comments that say why it is not
-       coming back. No executable DML.
+Was 813 passed / 1 skipped before this branch: +11, exactly the new file, no test removed and none
+displaced.
