@@ -8,7 +8,8 @@ fixtures that are still missing data — it never re-fetches what is already cov
 
 "Coverage" — which (league_code, fixture_id, endpoint) combinations already have
 data — is derived directly from RAW_APIF_FIXTURE_DETAILS, the append-only table
-that stores one row per fetched fixture (its full payload). There is no separate
+that stores one row per fetch of a fixture (its full payload; a retried fixture
+therefore has several, and the query below aggregates them). There is no separate
 tracking table: the fanout data IS the source of truth, so coverage can never
 drift out of sync with it. (This replaced an earlier RAW_APIF_FIXTURE_COVERAGE
 tracking table — see issue #221 — which was a denormalized mirror that the live
@@ -92,9 +93,12 @@ def read_coverage(
     in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
     statistics array; the other three endpoints are True for every fetched fixture.
 
-    Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR so that a
-    fixture which briefly has more than one row (e.g. a retried fixture mid
-    delete-and-reinsert) yields one effective value.
+    Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
+    fixture legitimately has more than one row: the table is append-only and a
+    retried fixture keeps one row per attempt (CPO 2026-08-17, "raw keeps both
+    versions"). The aggregate answers "do we hold statistics for this fixture
+    anywhere", which is order-independent — a per-row read would let an older
+    empty-statistics row mask a newer complete one and re-fetch it every run.
 
     Returns an empty dict if RAW_APIF_FIXTURE_DETAILS does not exist yet (first
     ever run, before any fanout has happened).

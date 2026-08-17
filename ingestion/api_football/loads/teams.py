@@ -3,17 +3,18 @@
 Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
 the full team list on every call.
 
-MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
-league's older rows. The row covers ALL configured seasons, so nothing is lost —
-staging already read only the latest row per league_code.
+APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
+snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__teams`
+selects the newest row per league_code, so the older ones are simply not selected — they
+are there for the case this rule exists for, a later answer that carries LESS than the one
+it would have replaced. The merge-on-write of #33 item 8b was removed here; see
+docs/data_contract.md, "Raw appends and never deletes".
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from .. import quota as errors_quota
-from ..bigquery import delete_superseded_league_rows, load_json_to_bq
+from ..bigquery import load_json_to_bq
 from ..settings import raw_table
 from ..quota import append_api_errors
 from ..fixture_scheduling import team_ids_for_league
@@ -72,7 +73,10 @@ def load_teams_merge_and_extend_ids(
             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
             if complete:
-                ts = datetime.now(timezone.utc)
+                # Append only. The delete that used to follow this write was removed
+                # 2026-08-17 (CPO: raw appends and never deletes). `stg_apif__teams` already
+                # selects the newest row per league_code, so older rows are not selected — and
+                # they survive, which is what makes a shrunken later snapshot recoverable.
                 load_json_to_bq(
                     ctx.client,
                     raw_table("TEAMS"),
@@ -80,23 +84,7 @@ def load_teams_merge_and_extend_ids(
                     as_json_payload=True,
                     append=True,
                     league_code=league_code,
-                    ingested_at=ts.isoformat(),
                 )
-                # #33 item 8b — see loads/transfers.py for why this is safe and why it
-                # runs only past the completeness guard above.
-                #
-                # Caught HERE rather than by the outer `except`, unlike transfers and
-                # standings. That handler has side effects this failure must not trigger:
-                # it would skip the id extension below — which the comment there says runs
-                # EITHER WAY, deliberately — and then spend an extra /teams call on the
-                # `team_ids_for_league` fallback. A failed space reclaim must not cost the
-                # run its team ids or an API call.
-                try:
-                    delete_superseded_league_rows(
-                        ctx.client, raw_table("TEAMS"), league_code, ts
-                    )
-                except Exception as e:
-                    ctx.errors.append(f"teams merge-delete {league_code}: {e}")
                 ctx.add_loaded(1)
             else:
                 ctx.errors.append(

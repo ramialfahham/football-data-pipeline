@@ -125,11 +125,10 @@ def run_cheap_phases(
         # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
         # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
         #
-        # RAW_APIF_COACHES is APPEND-ONLY — deliberately excluded from 8b's merge-on-write
-        # because `stg_apif__coaches` reads ALL snapshots to preserve every coach ever seen
-        # (CPO ruling 2026-06-23). So skipping loses nothing: the stored snapshots stay and
-        # base still dedups to the latest. Unlike transfers, a stray partial write here would
-        # not destroy anything — but there is no reason to write one either.
+        # RAW_APIF_COACHES is APPEND-ONLY, and since 2026-08-17 so is every other raw table
+        # (CPO: raw appends and never deletes). `stg_apif__coaches` additionally reads ALL
+        # snapshots to preserve every coach ever seen (CPO ruling 2026-06-23). So skipping
+        # loses nothing: the stored snapshots stay and base still dedups to the latest.
         coaches_seen = (coaches_last_ingest or {}).get(league_code)
         if should_refetch(league_code, coaches_seen, utcnow()):
             _ingestion_phase(league_code, "coaches")
@@ -198,8 +197,10 @@ def run_transfers_for_competition(
     try:
         # #33 item 14 — transfers move in bursts (January, summer), not nightly. This was the
         # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
-        # RAW_APIF_TRANSFERS is one row per league and merge-on-write since 8b, so a partial
-        # write would DELETE the complete row rather than sit harmlessly beside it.
+        # RAW_APIF_TRANSFERS is one row per league read latest-per-league in staging, so a
+        # partial write would HIDE the complete row from every model downstream. It no longer
+        # DELETES it (raw appends and never deletes, 2026-08-17), so this is recoverable now —
+        # but a hidden snapshot is still a wrong warehouse until the next good run.
         seen = (transfers_last_ingest or {}).get(result.league_code)
         if not should_refetch(result.league_code, seen, utcnow()):
             _skipped_phase(

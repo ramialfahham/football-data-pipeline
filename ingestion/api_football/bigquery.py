@@ -159,11 +159,13 @@ def load_json_to_bq(
         Writes the payload dict directly with BigQuery autodetect schema.
         Always uses WRITE_TRUNCATE — these tables hold a single current-state row.
 
-    Pass ``ingested_at`` (UTC ISO string) when the caller needs the exact timestamp
-    afterwards — a merge-on-write that deletes the rows superseded by this load must
-    delete strictly BEFORE it, and cannot do that if the stamp is invented in here and
-    thrown away. Mirrors the same parameter on ``load_json_payload_rows_to_bq``. Ignored
-    when ``as_json_payload=False``, which writes the payload dict verbatim.
+    Pass ``ingested_at`` (UTC ISO string) when the caller needs the row's exact stamp
+    afterwards. No caller does today: the merge-on-write that needed it — to delete strictly
+    BEFORE its own write — was removed on 2026-08-17 (raw appends and never deletes). Kept as
+    a general facility for a caller that must correlate rows across tables in one run, and
+    because it is the only way to make a write's stamp deterministic in a test. Mirrors the
+    same parameter on ``load_json_payload_rows_to_bq``. Ignored when ``as_json_payload=False``,
+    which writes the payload dict verbatim.
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
 
@@ -224,9 +226,10 @@ def load_json_payload_rows_to_bq(
     (all-or-nothing). Used to store a snapshot as MANY small rows instead of one oversized
     row — e.g. RAW_APIF_PLAYERS writes one row per (team, season) so no single row can
     approach BigQuery's 100 MB per-row JSON limit (mirrors RAW_APIF_FIXTURE_DETAILS, which
-    stores one row per fixture). Pass ``ingested_at`` (UTC ISO string) when the caller needs
-    the exact timestamp afterwards — e.g. a merge-on-write that deletes superseded rows
-    written before this load. Returns the number of rows written (0 for empty input).
+    stores one row per fetch of a fixture). Pass ``ingested_at`` (UTC ISO string) when the
+    caller needs the row's exact stamp afterwards; no caller does today, since the delete that
+    needed it was removed on 2026-08-17 (raw appends and never deletes). Returns the number of
+    rows written (0 for empty input).
     """
     if not payloads:
         return 0
@@ -259,45 +262,17 @@ def load_json_payload_rows_to_bq(
     return len(payloads)
 
 
-def delete_superseded_league_rows(
-    client: bigquery.Client,
-    table_name: str,
-    league_code: str,
-    before: datetime,
-) -> None:
-    """Drop this league's rows written before ``before`` — the whole-league merge-on-write.
-
-    For raw tables whose loader writes ONE row covering the entire league (TRANSFERS,
-    STANDINGS, TEAMS), so the row just appended fully supersedes every earlier one and
-    staging's latest-per-league ``qualify`` was already discarding them. #33 item 8b.
-
-    The per-key sibling is ``loads/squads.py:_delete_superseded_player_rows``, which keeps a
-    ``(team, season)`` predicate because RAW_APIF_PLAYERS holds many rows per league and a
-    bare league delete there would drop keys this run did not re-fetch. The difference is the
-    row grain, not a preference — do NOT copy this function to a multi-row-per-league table.
-
-    Call it only AFTER the append succeeded and only when the fetch was COMPLETE (the #896
-    guard from 8a returns early otherwise). ``before`` must be the appended row's own
-    ``ingested_at``, so the strict ``<`` leaves that row intact.
-
-    Both predicates prune: the table is clustered on ``league_code`` and DAY-partitioned on
-    ``ingested_at`` (``ensure_unified_raw_table``).
-    """
-    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
-    q = f"""
-        delete from `{table_id}`
-        where league_code = @lc
-          and ingested_at < @before
-    """
-    client.query(
-        q,
-        job_config=bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
-                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
-            ]
-        ),
-    ).result()
+# REMOVED 2026-08-17: `delete_superseded_league_rows`, the whole-league merge-on-write of
+# #33 item 8b. It deleted every prior row for a league once a fetch was judged COMPLETE, and
+# "complete" means only that the call did not error — an empty error-free response qualifies
+# (`http_client.result_is_complete`, and that is a deliberate CPO decision of 2026-08-03). So a
+# provider answering with nothing on one quiet night destroyed that competition's stored history
+# past the 7-day time-travel window, with no signal anywhere.
+#
+# CPO ruling 2026-08-17: raw appends and never deletes, for every table. Base decides.
+# Do NOT restore this as a regression fix; see `.claude/task/escalations.log` for the full record.
+# The scan-cost reason it existed is gone: staging became a stored TABLE on 2026-08-13 (#33 items
+# 9/10), so each raw table is parsed once a night, not once per test.
 
 
 def _scalar(

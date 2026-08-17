@@ -1,46 +1,37 @@
-"""Merge-on-write for the three whole-league snapshot tables (#33 item 8b).
+"""Raw appends and NEVER deletes — the merge-on-write is gone (CPO 2026-08-17).
 
-WHY THIS EXISTS
----------------
-`TRANSFERS`, `STANDINGS` and `TEAMS` each write ONE row covering the entire league, and
-staging reads only the latest row per `league_code`. Every earlier row is therefore dead
-weight that is still scanned — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on
-2026-08-09, 59% of all raw, and the two most expensive nodes in the warehouse were both
-scans of a view over it. Each run now appends its snapshot and deletes that league's
-strictly-older rows.
+WHAT THIS FILE IS NOW
+---------------------
+It was the file that pinned #33 item 8b: three loaders had to append a whole-league snapshot
+and then DELETE that league's older rows. It now pins the opposite, because the CPO reversed
+that decision after two independent assessments found the same root cause.
 
-The whole change rests on ONE invariant: the delete boundary is the appended row's OWN
-`ingested_at`, so `ingested_at < @before` can never reach the row just written. Get that
-wrong and the loader deletes everything including its own write, leaving the league empty.
-`test_the_delete_boundary_is_the_write_s_own_timestamp` is the case that pins it.
+The reversal in one sentence: the delete fired whenever a fetch was judged COMPLETE, and
+"complete" means only that the call did not error — `http_client.result_is_complete` counts an
+empty error-free response as complete, deliberately (CPO 2026-08-03). So a provider answering
+with nothing, or with less than it gave us yesterday, destroyed the stored history past the
+7-day time-travel window with no signal anywhere. Measured damage before the reversal: 29
+events across 5 fixtures (`escalations.log` 2026-08-17) and four squads on 2026-08-02
+(`squads.py`). Retention is now base's decision, which is where the layer model always put it.
+
+Do NOT restore a delete here to "bound the table". The scan-cost argument that bought it is
+spent: staging became a stored table on 2026-08-13, so each raw table is parsed once a night
+rather than once per test. If growth ever needs bounding, it is compaction by version count,
+never a delete at write time, and never keyed on time (biennial competitions lose their only
+row — #892).
 
 HOW THESE ARE SHAPED
 --------------------
-The delete is asserted through the REAL `delete_superseded_league_rows` against a fake
-client that records SQL and query parameters. It is deliberately NOT monkeypatched.
+Each loader runs for real against a client double that records every query it issues. Nothing
+about the loader is monkeypatched except `load_json_to_bq`, because a real BigQuery load is not
+the subject. A DELETE cannot reach BigQuery except through `client.query`, so asserting that no
+query is issued at all catches a re-introduction under ANY name — which a source grep or an
+attribute check would not.
 
-That is not a style choice. `tests/test_squad_players_rows.py` monkeypatches
-`_delete_superseded_player_rows` — the sibling merge helper — so the SQL it builds and the
-parameters it binds are asserted nowhere, and reverting its `ingested_at` bound leaves that
-suite green. Ten decoration tests have now been caught in this repo by breaking the subject
-rather than reading the test; monkeypatching the very helper under test was one of the named
-causes. Only `load_json_to_bq` is doubled here, because a real BigQuery load is not the
-subject.
-
-WHAT MUST NOT BE ADDED TO THE CONVERTED SET
--------------------------------------------
-`test_only_the_three_whole_league_loaders_merge` pins the set. Two exclusions are data
-destruction, not preference:
-
-  COACHES — `stg_apif__coaches.sql` reads ALL snapshots by CPO ruling (escalations.log,
-  2026-06-23) to preserve every coach ever seen. A league-keyed delete destroys ~120 coaches
-  whose teams left our pull. It is the loader that looks most like the three converted ones,
-  which is exactly why it is pinned here.
-
-  SQUADS — the loader writes a team SUBSET (see #37; WCQAF exposes 10 of 44 teams today).
-  Merge-on-write would make a recoverable staging bug permanent.
-
-PLAYER_PROFILES and PLAYER_TEAMS accumulate per player and must NEVER be converted.
+That matters here specifically: the deleted helpers were reachable three different ways (a
+shared helper in `bigquery.py`, a private per-key one in `squads.py`, a private per-fixture one
+in `batch_fixtures.py`). Pinning the names would pin the three that existed, not the fourth
+someone writes next.
 """
 
 from __future__ import annotations
@@ -51,28 +42,29 @@ import pytest
 
 from ingestion.api_football import fixture_scheduling
 from ingestion.api_football import quota as errors_quota
-from ingestion.api_football.loads import coaches, standings, teams, transfers
+from ingestion.api_football.loads import coaches, squads, standings, teams, transfers
 
 
 class _Client:
-    """Records every query the loader issues. `fail=True` makes the DELETE raise."""
+    """Records every query the loader issues. Any DML at all is a failure here."""
 
-    def __init__(self, fail: bool = False):
+    def __init__(self):
         self.queries: list[tuple[str, object]] = []
-        self._fail = fail
 
     def query(self, sql, job_config=None):
         self.queries.append((sql, job_config))
-        if self._fail:
-            raise RuntimeError("simulated BigQuery DML failure")
         return types.SimpleNamespace(result=lambda: None)
 
-    def deletes(self) -> list[tuple[str, object]]:
-        return [(sql, jc) for sql, jc in self.queries if "delete from" in sql.lower()]
+    def dml(self) -> list[str]:
+        return [
+            sql
+            for sql, _ in self.queries
+            if any(k in sql.lower() for k in ("delete", "update", "merge", "truncate"))
+        ]
 
 
 class _Writes:
-    """Records every raw write, keeping the kwargs so `ingested_at` can be compared."""
+    """Records every raw write, keeping the kwargs so `append=True` can be asserted."""
 
     def __init__(self):
         self.calls: list[tuple[str, dict]] = []
@@ -108,7 +100,7 @@ def _reset_quota():
 
 # `transfers` reaches the provider through fixture_scheduling, the other two through their
 # own module namespace. Patching the HTTP layer UNDER the real helper (never the helper
-# itself) is what makes the real #896 guard run — see test_incomplete_snapshot_not_written.
+# itself) is what makes the real #896 guard run.
 def _patch_transfers(monkeypatch, fetch):
     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
 
@@ -133,23 +125,24 @@ def _invoke_teams(ctx):
     teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2025], 2025, set())
 
 
-CONVERTED = [
+WHOLE_LEAGUE = [
     ("transfers", transfers, _patch_transfers, _invoke_transfers, "RAW_APIF_TRANSFERS"),
     ("standings", standings, _patch_standings, _invoke_standings, "RAW_APIF_STANDINGS"),
     ("teams", teams, _patch_teams, _invoke_teams, "RAW_APIF_TEAMS"),
 ]
-IDS = [x[0] for x in CONVERTED]
+IDS = [x[0] for x in WHOLE_LEAGUE]
 
 
-def _params(job_config) -> dict:
-    return {p.name: p.value for p in job_config.query_parameters}
-
-
-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-def test_a_clean_run_appends_then_deletes_the_superseded_rows(
+@pytest.mark.parametrize("name, module, patch, invoke, table", WHOLE_LEAGUE, ids=IDS)
+def test_a_clean_run_appends_and_issues_no_dml(
     name, module, patch, invoke, table, monkeypatch
 ):
-    """One write, then exactly one DELETE against the same table."""
+    """THE case this file exists for, in its new direction.
+
+    A clean, complete fetch writes its snapshot and touches nothing else. Before the reversal
+    this same run deleted every older row for the league. The older rows are now what makes a
+    later shrunken answer survivable, so any DML at all here is the defect.
+    """
     writes = _Writes()
     client = _Client()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
@@ -160,50 +153,21 @@ def test_a_clean_run_appends_then_deletes_the_superseded_rows(
     assert [t for t, _ in writes.calls] == [table], (
         f"{name}: expected exactly one write to {table}, got {[t for t, _ in writes.calls]}"
     )
-    deletes = client.deletes()
-    assert len(deletes) == 1, (
-        f"{name}: expected exactly one DELETE after the append, got {len(deletes)}. "
-        "Without it the table keeps growing with competitions x runs (#33 item 8b)."
-    )
-    assert table in deletes[0][0], (
-        f"{name}: the DELETE does not target {table}. SQL={deletes[0][0]!r}"
+    assert client.dml() == [], (
+        f"{name}: issued DML against raw. Raw appends and never deletes (CPO 2026-08-17) — "
+        f"the older rows are the only copy of anything a later answer drops. SQL={client.dml()}"
     )
 
 
-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-def test_the_delete_is_scoped_to_this_league(
+@pytest.mark.parametrize("name, module, patch, invoke, table", WHOLE_LEAGUE, ids=IDS)
+def test_every_raw_write_is_an_append(
     name, module, patch, invoke, table, monkeypatch
 ):
-    """`league_code` is bound as a parameter, so one competition can never delete another's
-    rows. All 45 competitions share one physical table."""
-    writes = _Writes()
-    client = _Client()
-    monkeypatch.setattr(module, "load_json_to_bq", writes)
-    patch(monkeypatch, lambda: _ok())
+    """The other half of "never deletes", and it needs its own assertion.
 
-    invoke(_ctx(client))
-
-    sql, job_config = client.deletes()[0]
-    assert "league_code = @lc" in sql, (
-        f"{name}: the DELETE is not scoped to a league. SQL={sql!r}. An unscoped delete "
-        "wipes every other competition's snapshot from the shared table."
-    )
-    assert _params(job_config)["lc"] == "BL1", (
-        f"{name}: the DELETE bound league_code={_params(job_config).get('lc')!r}, expected 'BL1'."
-    )
-
-
-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-def test_the_delete_boundary_is_the_write_s_own_timestamp(
-    name, module, patch, invoke, table, monkeypatch
-):
-    """THE case this file exists for.
-
-    The delete must be bounded strictly BEFORE the `ingested_at` of the row just appended.
-    Same value, strict `<`: older rows go, the new row stays. If the bound were dropped, or
-    computed independently of the write, the loader would delete its own snapshot and leave
-    the league with no row at all — and staging, which reads the latest row per league,
-    would then serve nothing for that competition.
+    A loader that passed `append=False` would reach WRITE_TRUNCATE (`bigquery.py`, where
+    `append` defaults to False), which destroys the whole table's history for every
+    competition at once while issuing no DELETE — so the test above would stay green.
     """
     writes = _Writes()
     client = _Client()
@@ -212,33 +176,23 @@ def test_the_delete_boundary_is_the_write_s_own_timestamp(
 
     invoke(_ctx(client))
 
-    written_stamp = writes.calls[0][1].get("ingested_at")
-    assert written_stamp is not None, (
-        f"{name}: the loader did not pass `ingested_at` to the write, so the delete boundary "
-        "cannot be the row's own timestamp — it would be an independently-taken clock reading."
-    )
-
-    sql, job_config = client.deletes()[0]
-    assert "ingested_at < @before" in sql, (
-        f"{name}: the DELETE has no strict upper bound on ingested_at. SQL={sql!r}. Without "
-        "it the statement also deletes the row this run just wrote."
-    )
-    assert _params(job_config)["before"].isoformat() == written_stamp, (
-        f"{name}: the delete boundary {_params(job_config)['before'].isoformat()!r} is not the "
-        f"written row's stamp {written_stamp!r}. Any drift here deletes the new row or spares "
-        "a superseded one."
+    _, kwargs = writes.calls[0]
+    assert kwargs.get("append") is True, (
+        f"{name}: wrote with append={kwargs.get('append')!r}. Anything but True is "
+        "WRITE_TRUNCATE, which erases every competition's rows in that table."
     )
 
 
-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-def test_an_incomplete_fetch_deletes_nothing(
+@pytest.mark.parametrize("name, module, patch, invoke, table", WHOLE_LEAGUE, ids=IDS)
+def test_an_incomplete_fetch_writes_nothing(
     name, module, patch, invoke, table, monkeypatch
 ):
-    """The 8a guard returns before the write, so the delete must be unreachable.
+    """#896, unchanged by the reversal and deliberately kept.
 
-    This is the ordering that makes 8b safe: a partial snapshot that reached the delete
-    would remove the good stored row and replace it with less data — permanently, past the
-    7-day time-travel window. The guard and the delete are one mechanism.
+    Append-only makes a partial write recoverable rather than fatal, which is exactly why it
+    would be tempting to drop this guard. Do not: a known-partial payload put in front of base
+    is a worse row for no reason, and the run would report the fixture as touched when it was
+    not. Nothing here was loosened.
     """
     writes = _Writes()
     client = _Client()
@@ -249,63 +203,118 @@ def test_an_incomplete_fetch_deletes_nothing(
     invoke(ctx)
 
     assert writes.calls == [], f"{name}: wrote a partial snapshot (#896)."
-    assert client.deletes() == [], (
-        f"{name}: issued a DELETE on the incomplete-fetch path. The stored snapshot is the "
-        "good one and this would destroy it."
-    )
+    assert client.dml() == [], f"{name}: issued DML on the incomplete-fetch path."
     assert any("INCOMPLETE" in e for e in ctx.errors), (
         f"{name}: discarded silently. ctx.errors={ctx.errors}"
     )
 
 
-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
-def test_a_failed_delete_is_reported_and_does_not_raise(
-    name, module, patch, invoke, table, monkeypatch
-):
-    """Fails safe. The append already succeeded, so both rows survive and staging still
-    selects the newer one — a failed delete costs the space saving, never the data. It must
-    not take the run down, and it must not pass silently."""
-    writes = _Writes()
-    client = _Client(fail=True)
-    monkeypatch.setattr(module, "load_json_to_bq", writes)
-    patch(monkeypatch, lambda: _ok())
+def test_the_players_loader_appends_and_deletes_nothing(monkeypatch):
+    """RAW_APIF_PLAYERS had the best-shaped delete in the codebase and still lost data.
 
-    ctx = _ctx(client)
-    invoke(ctx)  # must not raise
-
-    assert ctx.errors, f"{name}: a failed DELETE was swallowed with no error recorded."
-
-
-def test_a_failed_delete_still_extends_team_ids(monkeypatch):
-    """`teams` catches the delete itself instead of letting the outer handler take it.
-
-    That handler has side effects this failure must not trigger: it skips the id extension —
-    which `teams.py` states runs EITHER WAY, deliberately — and then spends an extra /teams
-    call on the `team_ids_for_league` fallback. Downstream, `coaches`, `transfers` and
-    `squads` all fetch by team id, so losing the ids turns a failed space reclaim into a
-    run-wide outage for that competition.
+    It was keyed per (team, season) rather than per league, so a quota cut left un-fetched
+    keys alone — genuinely careful. It did not help: an empty error-free /players response is
+    a COMPLETE answer, so it superseded the roster it could not replace, and on 2026-08-02
+    UCL 340 went 25 players to 0. Correct grain does not rescue a delete whose trigger cannot
+    tell "no players" from "we lost the players".
     """
-    writes = _Writes()
-    client = _Client(fail=True)
-    monkeypatch.setattr(teams, "load_json_to_bq", writes)
-    _patch_teams(monkeypatch, lambda: _ok())
-    team_ids: set[int] = set()
+    client = _Client()
+    monkeypatch.setattr(squads.errors_quota, "_http_quota_exhausted", False)
+    monkeypatch.setattr(squads, "captured_player_team_seasons", lambda ctx: set())
+    monkeypatch.setattr(
+        squads, "players_response_for_team", lambda *a, **k: ([{"player": {"id": 7}}], True)
+    )
+    written: list = []
+    monkeypatch.setattr(
+        squads,
+        "load_json_payload_rows_to_bq",
+        lambda client_, table, rows, **kw: (written.append((table, kw)), len(rows))[1],
+    )
 
-    teams.load_teams_merge_and_extend_ids(_ctx(client), "BL1", 78, [2025], 2025, team_ids)
+    squads.load_squad_players_batch(_ctx(client), "UCL", [2026], {340})
 
-    assert team_ids == {1}, (
-        "a failed merge-delete cost the run its team ids "
-        f"(got {team_ids}); the id extension must be independent of it."
+    assert [t for t, _ in written] == ["RAW_APIF_PLAYERS"], (
+        f"the loader did not write; the test is not exercising it. wrote={written}"
+    )
+    assert written[0][1].get("append") is True, "RAW_APIF_PLAYERS must be appended, not truncated"
+    assert client.dml() == [], (
+        f"the players loader issued DML against raw: {client.dml()}. The per-(team, season) "
+        "delete was removed 2026-08-17 and must not come back."
     )
 
 
-def test_only_the_three_whole_league_loaders_merge(monkeypatch):
-    """COACHES looks identical to the three converted loaders and must NOT merge.
+def test_an_incomplete_fetch_still_extends_team_ids(monkeypatch):
+    """Narrowed survivor of `test_a_failed_delete_still_extends_team_ids`.
 
-    Behavioural, not a source grep: `coaches` is run exactly as the converted loaders are,
-    and asserted to issue no DELETE. `stg_apif__coaches.sql` reads ALL snapshots by CPO
-    ruling (escalations.log, 2026-06-23) — a league-keyed delete there destroys ~120 coaches
-    whose teams later left our pull.
+    That test protected the id extension from a failing DELETE. There is no delete any more,
+    so the case is gone — but the property it guarded is not: `teams.py` states the extension
+    runs EITHER WAY, deliberately, because `coaches`, `transfers` and `squads` all fetch by
+    team id downstream. Re-pointed at the path that still exists, the discarded-snapshot one.
+    Deleting the test outright would have dropped a live guarantee along with a dead case.
+    """
+    writes = _Writes()
+    client = _Client()
+    monkeypatch.setattr(teams, "load_json_to_bq", writes)
+    # Incomplete (body error) but NOT empty: teams came back, the snapshot is still refused.
+    _patch_teams(monkeypatch, lambda: {
+        "response": [{"team": {"id": 1}}],
+        "errors": {"rateLimit": "Too many requests"},
+        "results": 1,
+        "paging": {"current": 1, "total": 1},
+    })
+    team_ids: set[int] = set()
+
+    ctx = _ctx(client)
+    teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2025], 2025, team_ids)
+
+    assert writes.calls == [], "an incomplete snapshot must not be written (#896)"
+    assert team_ids == {1}, (
+        f"a discarded snapshot cost the run its team ids (got {team_ids}); the id extension "
+        "is not a write to raw and must be independent of it, or one short season becomes a "
+        "run-wide outage for coaches, transfers and squads."
+    )
+
+
+def test_no_loader_module_carries_a_delete_helper():
+    """Pins the removal against a delete being reintroduced quietly, under any of its names.
+
+    Checks the runtime namespace of every module in `loads/` plus `bigquery` itself, so a
+    comment mentioning a helper cannot satisfy it and a re-import would be caught. The
+    behavioural tests above are the real guard — this one names the three that existed so the
+    failure message tells the next person what was removed and why.
+    """
+    import importlib
+    import pkgutil
+
+    from ingestion.api_football import bigquery as bq_module
+    from ingestion.api_football import loads
+
+    banned = (
+        "delete_superseded_league_rows",
+        "_delete_superseded_player_rows",
+        "_delete_fixtures",
+    )
+    offenders: list[str] = []
+    for mod in pkgutil.iter_modules(loads.__path__):
+        module = importlib.import_module(f"{loads.__name__}.{mod.name}")
+        offenders += [f"loads.{mod.name}.{n}" for n in banned if hasattr(module, n)]
+    offenders += [f"bigquery.{n}" for n in banned if hasattr(bq_module, n)]
+
+    assert offenders == [], (
+        f"a raw delete helper is back: {offenders}. Raw appends and never deletes "
+        "(CPO 2026-08-17, reversing #33 item 8b). If the table needs bounding, compact by "
+        "version count in a separate job — never delete at write time, and never key it on "
+        "time (#892: biennial competitions lose their only row)."
+    )
+
+
+def test_coaches_was_never_a_merge_loader_and_still_is_not(monkeypatch):
+    """`coaches` is the loader that looks most like the three above and never merged.
+
+    Kept from the original file, inverted in meaning: it used to prove the converted set
+    excluded coaches, and now proves the set is empty. `stg_apif__coaches` reads ALL snapshots
+    by CPO ruling (escalations.log, 2026-06-23) to preserve every coach ever seen — the same
+    reasoning that has now been applied to every other table.
     """
     writes = _Writes()
     client = _Client()
@@ -317,34 +326,4 @@ def test_only_the_three_whole_league_loaders_merge(monkeypatch):
     assert [t for t, _ in writes.calls] == ["RAW_APIF_COACHES"], (
         "coaches did not write its snapshot; the test is not exercising the loader."
     )
-    assert client.deletes() == [], (
-        "COACHES issued a league-keyed DELETE. `stg_apif__coaches` reads ALL snapshots by "
-        "CPO ruling 2026-06-23 to preserve every coach ever seen — this destroys them."
-    )
-
-
-def test_the_merge_helper_is_imported_by_exactly_the_converted_loaders():
-    """Pins the converted set against a loader being added quietly.
-
-    Checks the imported NAME in each module's namespace, which is a runtime fact rather than
-    a text match — a comment mentioning the helper cannot satisfy it. Honest limit: a module
-    reaching it as `bigquery.delete_superseded_league_rows` through a module alias would
-    evade this, which is why the behavioural COACHES case above exists alongside it.
-    """
-    import importlib
-    import pkgutil
-
-    from ingestion.api_football import loads
-
-    merging = set()
-    for mod in pkgutil.iter_modules(loads.__path__):
-        module = importlib.import_module(f"{loads.__name__}.{mod.name}")
-        if hasattr(module, "delete_superseded_league_rows"):
-            merging.add(mod.name)
-
-    assert merging == {"transfers", "standings", "teams"}, (
-        f"the merge-on-write set changed to {sorted(merging)}. Only whole-league snapshot "
-        "tables may merge. SQUADS writes a team subset (#37), COACHES is read across ALL "
-        "snapshots (CPO 2026-06-23), and PLAYER_PROFILES / PLAYER_TEAMS accumulate per "
-        "player — a league-keyed delete erases every player from earlier runs."
-    )
+    assert client.dml() == [], f"COACHES issued DML against raw: {client.dml()}"

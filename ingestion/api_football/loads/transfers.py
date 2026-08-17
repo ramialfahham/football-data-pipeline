@@ -5,18 +5,22 @@ row. Transfers are not season-scoped — one /transfers?team= call returns all o
 team's players' moves. Fetching by team returns each move twice (once per involved
 team); the base model dedups.
 
-MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
-league's older rows. The row is the WHOLE league, so nothing is lost — staging already
-read only the latest row per league_code.
+APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
+snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__transfers`
+selects the newest row per league_code, so the older ones are simply not selected — they
+are there for the case this rule exists for, a later answer that carries LESS than the one
+it would have replaced. That case is sharpest in this loader: with an empty `team_ids` the
+fetch loop never runs and the payload is empty while `complete` stays True, which under
+merge-on-write would have wiped the league's entire transfer history. The merge-on-write of
+#33 item 8b was removed here; see docs/data_contract.md, "Raw appends and never deletes".
 """
 
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
 
 from .. import quota as errors_quota
-from ..bigquery import delete_superseded_league_rows, load_json_to_bq
+from ..bigquery import load_json_to_bq
 from ..settings import raw_table
 from ..fixture_scheduling import transfers_response_for_team
 from .context import PipelineContext
@@ -62,16 +66,23 @@ def load_transfers_batch(
             complete = False
             ctx.errors.append(f"transfers {league_code} team {team_id}: {e}")
     if not complete:
-        # Discard rather than supersede. Under today's append-only writes the stored snapshot
-        # simply stays the latest; once #33 item 8b makes this table merge-on-write, writing
-        # here would DELETE that stored snapshot, so this guard is what makes 8b safe.
+        # Discard rather than supersede. Raw is append-only, so the stored snapshot survives
+        # either way — but `stg_apif__transfers` reads the LATEST row per league, so writing a
+        # partial here would still hide the good snapshot from every model downstream. Not
+        # deleting it is what makes that recoverable rather than permanent.
         ctx.errors.append(
             f"transfers {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
             f"snapshot kept (#896); retries next run"
         )
         return
     try:
-        ts = datetime.now(timezone.utc)
+        # Append only. The delete that used to follow this write was removed 2026-08-17 (CPO:
+        # raw appends and never deletes). `stg_apif__transfers` already selects the newest row
+        # per league_code. This loader is the sharpest illustration of why the delete had to
+        # go: with an empty `team_ids` the loop above never runs, `complete` stays True, and
+        # the delete would wipe the league's entire transfer history behind an empty payload
+        # with no error anywhere. (The missing empty-team_ids guard itself is MR2, not this
+        # task — append-only already makes that case recoverable instead of fatal.)
         load_json_to_bq(
             ctx.client,
             raw_table("TRANSFERS"),
@@ -79,14 +90,6 @@ def load_transfers_batch(
             as_json_payload=True,
             append=True,
             league_code=league_code,
-            ingested_at=ts.isoformat(),
-        )
-        # #33 item 8b. Reachable only past the completeness guard above, so a partial
-        # snapshot never deletes anything. Strictly BEFORE `ts` keeps the row just
-        # written. If the delete raises, the append already stood and both rows remain —
-        # staging still selects the newer one, so a failure costs the saving, never data.
-        delete_superseded_league_rows(
-            ctx.client, raw_table("TRANSFERS"), league_code, ts
         )
         ctx.add_loaded(1)
     except Exception as e:

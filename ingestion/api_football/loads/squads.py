@@ -1,24 +1,24 @@
 """Fetch /players per team×season (batched) → RAW_APIF_PLAYERS.
 
-Storage model: ONE row per (team, season) (each row's ``response`` carries a single
+Storage model: ONE row per (team, season) PER FETCH (each row's ``response`` carries a single
 ``{team_id, season, players_payload}`` entry), not one giant per-league row — so no row
-approaches BigQuery's 100 MB per-row JSON limit, for any league. This mirrors
-RAW_APIF_FIXTURE_DETAILS (one row per fixture).
+approaches BigQuery's 100 MB per-row JSON limit, for any league.
 
-Merge-on-write: each run appends the freshly-fetched per-(team,season) rows, then deletes
-the superseded prior rows for exactly those keys, so the table holds one row per
-(league, team, season) — bounded, not append-accumulating. Only re-written keys are
-touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a warning is
-logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
-is assembled in base.
+APPEND ONLY (CPO ruling 2026-08-17: raw appends and never deletes). Each run appends the
+freshly-fetched per-(team,season) rows and removes nothing, so a key that is re-fetched
+accumulates one row per fetch. Staging reads all rows faithfully (no latest-snapshot qualify)
+and base assembles current-per-entity by entity-key dedup with latest-ingest-wins, so the extra
+rows merge there rather than duplicating. The per-key delete this loader used to issue was the
+best-shaped one in the codebase and still destroyed four squads on 2026-08-02; see the note
+where it was removed, below.
 
-ONLY A COMPLETE FETCH MAY SUPERSEDE (#896). A response carrying a body-level error, or cut
-short by the quota flag mid-pagination, is neither written nor added to ``written_keys``, so
-the prior row survives untouched. Withholding the WRITE matters as much as withholding the
-delete: a written row marks the (team, season) captured in ``captured_player_team_seasons``,
-and a historical season would then never be re-fetched, turning a transient failure into a
-permanent hole. An empty response with NO error is a complete answer ("no players") and does
-supersede.
+ONLY A COMPLETE FETCH IS WRITTEN (#896), and that guard is unchanged. A response carrying a
+body-level error, or cut short by the quota flag mid-pagination, is not written at all — because
+a written row marks the (team, season) captured in ``captured_player_team_seasons``, and a
+historical season would then never be re-fetched, turning a transient failure into a permanent
+hole. An empty response with NO error is a complete answer ("no players") and is written; under
+append-only that no longer costs anything, because the earlier fuller row is still there for base
+to prefer.
 
 Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
 stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
@@ -29,9 +29,6 @@ This is the API-cost twin of the merge above (bounded storage did NOT bound the 
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
-
-from google.cloud import bigquery
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_payload_rows_to_bq
@@ -40,38 +37,16 @@ from ..fixture_scheduling import players_response_for_team
 from .context import PipelineContext
 
 
-def _delete_superseded_player_rows(
-    client: bigquery.Client,
-    table_name: str,
-    league_code: str,
-    keys: list[str],
-    before: datetime,
-) -> None:
-    """Drop rows for the just-written (team, season) ``keys`` (``"{team_id}-{season}"``) that
-    predate this run, so RAW_APIF_PLAYERS holds one row per (league, team, season). Only the
-    re-written keys are touched — un-fetched keys keep their prior row (quota-cut safe)."""
-    if not keys:
-        return
-    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
-    q = f"""
-        delete from `{table_id}`
-        where league_code = @lc
-          and ingested_at < @before
-          and concat(
-                ifnull(json_value(payload, '$.response[0].team_id'), 'x'), '-',
-                ifnull(json_value(payload, '$.response[0].season'), 'x')
-              ) in unnest(@keys)
-    """
-    client.query(
-        q,
-        job_config=bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
-                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
-                bigquery.ArrayQueryParameter("keys", "STRING", keys),
-            ]
-        ),
-    ).result()
+# REMOVED 2026-08-17: `_delete_superseded_player_rows`, the per-(team, season) merge. It was the
+# best-shaped delete in the codebase — keyed at the right grain, quota-cut safe — and it still
+# destroyed four squads on 2026-08-02, because an empty error-free /players response counts as a
+# complete answer and superseded the roster it could not replace. Correct grain does not rescue a
+# delete whose trigger cannot tell "no players" from "we lost the players".
+#
+# CPO ruling 2026-08-17: raw appends and never deletes, for every table. Base decides —
+# `base_apif__player_team_season` and `base_apif__players` already dedup on entity keys with
+# latest-ingest-wins, so a second row for a key merges rather than duplicating.
+# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
 
 
 def captured_player_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
@@ -185,13 +160,13 @@ def load_squad_players_batch(
                     f"players {league_code} team_id={team_id} season={season}"
                 ),
             )
-            # An incomplete fetch must never supersede stored data (#896). The key is withheld from
-            # `written_keys`, so `_delete_superseded_player_rows` leaves the prior row alone, and the
-            # row is not written at all — writing it would ALSO mark the (team, season) captured in
-            # `captured_player_team_seasons`, and a historical season would then never be re-fetched.
-            # Before this guard a rate-limited response deleted the good rows it failed to replace:
-            # on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and
-            # APD 463 46 to 40 when the limit hit mid-pagination.
+            # An incomplete fetch is not written (#896). Nothing is deleted any more, but the guard
+            # still matters for a second reason that append-only does not cover: writing the row
+            # would mark the (team, season) captured in `captured_player_team_seasons`, and a
+            # historical season would then never be re-fetched, turning a transient rate limit into
+            # a permanent hole. Before this guard a rate-limited response also deleted the good rows
+            # it failed to replace: on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0,
+            # UECL 20034 23 to 0, and APD 463 46 to 40 when the limit hit mid-pagination.
             if not complete:
                 incomplete_keys.append(f"{team_id}-{season}")
                 continue
@@ -215,17 +190,16 @@ def load_squad_players_batch(
 
     if rows:
         try:
-            ts = datetime.now(timezone.utc)
+            # Append only. The per-key delete that used to follow this write was removed
+            # 2026-08-17 (CPO: raw appends and never deletes). `stg_apif__players` already reads
+            # ALL rows with no latest-snapshot qualify, and base assembles current-per-entity, so
+            # an extra row per (team, season) merges there instead of duplicating.
             load_json_payload_rows_to_bq(
                 ctx.client,
                 raw_table("PLAYERS"),
                 rows,
                 league_code=league_code,
                 append=True,
-                ingested_at=ts.isoformat(),
-            )
-            _delete_superseded_player_rows(
-                ctx.client, raw_table("PLAYERS"), league_code, written_keys, ts
             )
             ctx.add_loaded(1)
             # Keep the caller's hoisted set exact. Without this, the next competition in

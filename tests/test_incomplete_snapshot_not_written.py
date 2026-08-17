@@ -12,10 +12,15 @@ and then write the partial payload as if it were whole:
         ...
     load_json_to_bq(..., append=True)  # partial written as if complete
 
-Under append-only that is recoverable — the partial wins in staging but the complete prior row
-survives in `raw`. Under #33 item 8b (merge-on-write keyed on `league_code`) the partial write
-DELETES the complete prior row. So this is the guard that makes 8b non-destructive, and these
-tests are what stop it being quietly removed again.
+Raw is append-only, so this is recoverable: the partial wins in staging, but the complete prior
+row survives in `raw` and the next good run supersedes it. It was NOT recoverable under #33 item
+8b, where the partial write also DELETED the complete prior row — that merge was reversed on
+2026-08-17 (CPO: raw appends and never deletes).
+
+⚠ THE REVERSAL IS NOT A REASON TO DROP THIS GUARD, and that is the point worth keeping. Staging
+reads latest-per-league, so a partial snapshot still hides the good one from every model
+downstream. Append-only changed the consequence from permanent loss to a wrong warehouse until
+the next good run; it did not make writing a known-partial payload correct.
 
 The failure is invisible without them: a partial snapshot is a well-formed payload. Nothing throws,
 no row count looks wrong, and the pipeline reports success.
@@ -185,8 +190,8 @@ def test_a_body_level_error_discards_the_snapshot(name, module, patch, invoke, i
 
     assert writes.tables == [], (
         f"{name}: wrote a snapshot after a body-level provider error. That payload is partial "
-        "and supersedes the stored one in staging today, and DELETES it once #33 item 8b makes "
-        "the table merge-on-write (#896)."
+        "and supersedes the stored one in staging, which reads latest-per-league — so every "
+        "model downstream serves the short version until the next good run (#896)."
     )
     assert any("INCOMPLETE" in e for e in ctx.errors), (
         f"{name}: discarded the snapshot without reporting it. A silent discard is how a league "
