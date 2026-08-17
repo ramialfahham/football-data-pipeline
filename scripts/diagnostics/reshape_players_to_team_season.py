@@ -5,7 +5,7 @@ Background
 RAW_APIF_PLAYERS historically stored one bloated row per league (``response`` = every
 team×season), which for large-roster deep leagues (LIBER/UEL/UCL) exceeds BigQuery's
 100 MB per-row JSON limit and fails to load. The loader now writes one small row per
-(team, season) (loads/squads.py, merge-on-write). This script migrates the EXISTING data
+(team, season) (loads/squads.py, append-only since 2026-08-17). This script migrates the EXISTING data
 to that grain so staging can read it faithfully (current-per-entity is assembled in base).
 
 What it does

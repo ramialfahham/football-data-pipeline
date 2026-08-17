@@ -39,11 +39,14 @@ from ingestion.api_football.refetch import (  # noqa: E402
 REPO = Path(__file__).resolve().parents[1]
 SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
 
-# The tables this task put on a cadence. They differ in write mode and it matters:
-#   TRANSFERS is merge-on-write (8b) and read latest-per-league — a partial write DELETES.
-#   COACHES is APPEND-ONLY, deliberately excluded from 8b because stg_apif__coaches reads all
-#   snapshots to preserve every coach ever seen (CPO 2026-06-23) — a partial write only adds
-#   noise. An earlier version of this file called both merge-on-write; a reviewer caught it.
+# The tables this task put on a cadence. They differ in how staging READS them, and that is
+# what matters now that both are append-only (CPO 2026-08-17, raw appends and never deletes):
+#   TRANSFERS is read latest-per-league, so a partial write HIDES the complete row from every
+#   model downstream until the next good run. It no longer DELETES it — that was 8b, reversed.
+#   COACHES is read across ALL snapshots to preserve every coach ever seen (CPO 2026-06-23),
+#   so a partial write only adds noise that base dedups away.
+# An earlier version of this file called both merge-on-write; a reviewer caught it. A later one
+# called TRANSFERS destructive after that stopped being true; a reviewer caught that too.
 CADENCED_TABLES = {"RAW_APIF_TRANSFERS", "RAW_APIF_COACHES"}
 
 NOW = datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc)
@@ -188,10 +191,13 @@ def test_a_failed_cadence_read_makes_every_league_due():
 def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
     """THE ONE THAT PREVENTS DATA LOSS.
 
-    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league and
-    merge-on-write since 8b, so a write of a partial payload would DELETE the complete row —
-    the #37 defect, made permanent. Asserted by running the real orchestration path with the
-    loader replaced by a recorder: zero calls, not "a call with less data".
+    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league, read
+    latest-per-league in staging, so a write of a partial payload hides the complete row from
+    every model downstream — the #37 defect. Since 2026-08-17 the complete row survives in raw
+    (append-only), so that is recoverable by re-running rather than permanent; the guard stays
+    because a hidden snapshot is still a wrong warehouse until the next good run. Asserted by
+    running the real orchestration path with the loader replaced by a recorder: zero calls, not
+    "a call with less data".
     """
     from ingestion.api_football.loads import competition_runner as cr
 

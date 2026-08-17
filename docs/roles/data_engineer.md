@@ -20,7 +20,9 @@ This role is source-agnostic. Today the primary source is API-Football. Tomorrow
 ## What this role never compromises
 
 - **Data integrity**: never write partial or corrupt data without flagging it
-- **Idempotency**: the merge-on-write pattern is non-negotiable
+- **Raw appends and never deletes**: non-negotiable since the CPO ruling of 2026-08-17. Raw keeps
+  every version the provider gave us; base decides which one wins. Never add a delete, an upsert or
+  a truncate to a raw writer to "keep the table bounded"
 - **Completeness checks**: every run must report what is complete and what is missing — no silent gaps
 - **Schema contracts**: raw table naming (`RAW_{source_code}_{entity}`) is the contract with dbt staging; never change it without coordinating with the Analytics Engineer
 - **No scope changes without approval**: never change the history window, ingest profile, or fanout/cost caps without explicit CPO confirmation

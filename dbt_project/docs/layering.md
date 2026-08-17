@@ -82,12 +82,18 @@ raw table roughly five times a night to answer questions a stored table answers 
 from. Storing staging once a night collapses the multiplier to one scan per model.
 
 ⚠ **Do not size future work from #33's figures for this item.** That issue justified the change on
-`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) has since shrunk it to **0.178 GiB**, a
+`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) shrank it to **0.178 GiB**, a
 39x reduction, so the largest scan the item was written about was already gone by the time it
 landed. The saving today is ~**$3-4/month**. What the change actually buys is that cost stops
 scaling with (number of tests × raw size) as competitions are added. Storage added is ~0.5 GiB —
 for scale, the entire base layer, which is this layer's parsed output, is 0.415 GiB across 43
 tables, while the `staging` dataset was 0.0 GiB because views store nothing.
+
+⚠ **And do not size from 0.178 GiB either.** Item 8b was REVERSED on 2026-08-17 (CPO: raw appends
+and never deletes), so `RAW_APIF_TRANSFERS` grows again by one row per league per ingest. Measure
+before quoting; `bq show` per table is free. The causality also runs the other way and is worth
+keeping straight: materialising THIS layer as a table is what made the reversal affordable, because
+raw is now parsed once a night instead of once per test.
 
 Materialisation is a **LAYER** decision set once in `dbt_project.yml`.
 The policy line is `1_staging: +materialized: table`, and a staging model must never override it
@@ -118,20 +124,21 @@ A staging model does exactly two things, in this order:
      incremental-accumulation **iff** its loader is skip-if-present, and that must be stated in
      the model header and its `stg_apif__generic.yml` entry. (Recognized 2026-06-15 by CPO
      ruling; the first such tables are `RAW_APIF_PLAYER_PROFILES` / `RAW_APIF_PLAYER_TEAMS`.)
-   - **Merge-on-write (per-key) tables.** A few raw tables are keyed at a grain *below*
-     `league_code` — one row per fixture (`RAW_APIF_FIXTURE_DETAILS`) or per `(team, season)`
-     (`RAW_APIF_PLAYERS`) — and the loader maintains **one current row per key**: skip-if-present
-     fetch + delete-on-retry for fixture details (only finished fixtures that are missing data, or
-     have empty stats inside the 3-day retry window, are fetched; a retry deletes the prior row
-     before re-inserting), and delete-then-append per `(team, season)` for players. The table is
-     therefore **bounded** — it grows with the key set, not with run count — but holds **many keys
-     per `league_code`**, so, like incremental-accumulation tables, these read **all** rows
-     (`select * from {{ source(...) }}` with no latest-snapshot qualify). A `partition by
-     league_code` qualify would keep one fixture/team-season per league and drop the rest. It is
-     still a faithful flatten with no entity dedup; the staging grain carries `raw_ingested_at`,
-     and base resolves the current row per entity (robust to any transient duplicate). State the
-     read-all rationale in the model header and its `stg_apif__generic.yml` entry. (Recognized
-     2026-06-22 by CPO ruling, #539; see `docs/data_contract.md` — merge-on-write tables.)
+   - **Sub-league keyed tables.** A few raw tables are keyed at a grain *below* `league_code` —
+     one row per fixture (`RAW_APIF_FIXTURE_DETAILS`) or per `(team, season)`
+     (`RAW_APIF_PLAYERS`) — because the loader fetches per entity, skip-if-already-ingested. They
+     hold **many keys per `league_code`** and, since 2026-08-17, **several versions per key**: the
+     loader appends a retry alongside the payload it used to replace, so raw carries every version
+     the provider gave us (CPO ruling, "raw keeps both versions"). Like incremental-accumulation
+     tables these read **all** rows (`select * from {{ source(...) }}` with no latest-snapshot
+     qualify) — a `partition by league_code` qualify would keep one fixture or one team-season per
+     league and drop every other. It is still a faithful flatten with no entity dedup. The staging
+     grain therefore carries `raw_ingested_at`, and choosing between versions is base's job:
+     newest-per-entity-key, which is exactly where the layer contract puts that decision.
+     State the read-all rationale in the model header and its `stg_apif__generic.yml` entry.
+     (Grain recognized 2026-06-22 by CPO ruling, #539. The delete-on-retry that used to bound
+     these tables was REMOVED 2026-08-17 — see `docs/data_contract.md`, "Raw appends and never
+     deletes", for what it destroyed and why it is not coming back.)
 2. **Faithful 1:1 flatten.** Unnest that snapshot's JSON payload into one typed row per
    entity, rename to snake_case, and cast. Every entity present in the selected snapshot
    must appear exactly once in the output — nothing merged, aggregated, or dropped
@@ -144,7 +151,7 @@ team_id, …) after flattening — and that belongs in base, never staging.**
 Allowed:
 - Latest-snapshot selection per `league_code` (partition on `league_code` only) for
   complete-snapshot tables; reading **all** rows (no qualify) for incremental-accumulation
-  (skip-if-present) and merge-on-write (per-key, sub-`league_code` grain) tables — see step 1.
+  (skip-if-present) and sub-`league_code`-keyed tables — see step 1.
 - Source-to-model mapping (one staging model per raw source table).
 - Column renaming to consistent naming conventions (snake_case).
 - Safe type casting and lightweight normalization.

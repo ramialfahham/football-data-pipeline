@@ -280,8 +280,8 @@ def read_per_team_coverage(
     EXPECTED SETS mirror what each loader iterates: PLAYERS is season-scoped and checked as
     ``(team_id, reference_season)``; SQUADS, TRANSFERS and COACHES take the full ``team_ids`` set.
 
-    RAW_APIF_PLAYERS is merge-on-write, so it has no per-run snapshot and is read in full
-    (0.55 GiB). The others are read at their latest snapshot only.
+    RAW_APIF_PLAYERS is keyed per (team, season) rather than per league, so it has no per-run
+    snapshot and is read in full (0.55 GiB). The others are read at their latest snapshot only.
 
     FIRST-RUN SAFE: every one of the four tables is existence-checked before it is queried, and when
     no table exists the query is skipped entirely rather than rendering an empty ``FROM ()``. An
@@ -328,7 +328,7 @@ def read_per_team_coverage(
         )
         if b
     ]
-    # PLAYERS is merge-on-write: no snapshot timestamp, and the season must match THAT league's
+    # PLAYERS is keyed per (team, season): no snapshot timestamp, and the season must match THAT league's
     # reference season. A shared season list would let one league's 2027 rows satisfy another
     # league's 2026 expectation, so the pairs are spelled out per league.
     season_pairs = " OR ".join(

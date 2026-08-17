@@ -1,236 +1,2461 @@
-diff --git a/.claude/skills/onboard-competition/SKILL.md b/.claude/skills/onboard-competition/SKILL.md
-index f70cee8..7cbfdc0 100644
---- a/.claude/skills/onboard-competition/SKILL.md
-+++ b/.claude/skills/onboard-competition/SKILL.md
-@@ -127,6 +127,43 @@ From the results:
-    "
-    ```
-    Confirm the returned teams are the expected elite clubs/nations for this competition.
-+7. **Check the COUNTRY STRING the provider will store** — a new competition can bring a country
-+   the pipeline has never seen, and **nothing catches a wrong one**.
-+   `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an unmatched
-+   provider string falls straight through to the page. No test fails. No warning appears.
-+
-+   The provider is inconsistent about this: it hyphenates multi-word names (`Saudi-Arabia`), uses
-+   endonyms (`Türkiye`), FIFA forms (`Korea Republic`) and formal state titles
-+   (`Lao People's Democratic Republic`) — and it is not even consistent between its own endpoints.
-+
-+   ```bash
-+   PYTHONUTF8=1 python -c "
-+   import sys, csv, io; sys.path.insert(0,'.')
-+   from ingestion.api_football.settings import get_headers, base_url
-+   import requests
-+   c = requests.get(f'{base_url()}/leagues', headers=get_headers(),
-+                    params={'id': <ID>}, timeout=30).json()['response'][0]['country']['name']
-+   seed = {r['provider_country']: r['country_name'] for r in
-+           csv.DictReader(io.open('dbt_project/seeds/country_name_overrides.csv', encoding='utf-8'))}
-+   print('provider sends:', repr(c))
-+   print('seed maps it to:', repr(seed[c]) if c in seed
-+         else 'NOTHING - add a row unless this is already the canonical English name')
-+   "
-+   ```
-+
-+   If the provider's string is not already the canonical name and has no row, **add one in this
-+   MR**. The registry entry and its override belong in the same change: caught here, the page is
-+   never wrong; caught after merge, it is wrong until somebody notices.
-+
-+   The rule (CPO 2026-08-16, #69): **English, everyday short form, no diacritics.** A genuine
-+   rename stands (`Czechia`, `North Macedonia`); a formal state title is shortened (`Russia`, not
-+   `Russian Federation`). Two rows are standing exceptions and say so in their own `source`.
-+
-+   ⚠ **This step is a mitigation, not a guard.** The real mechanism is #69's foreign key to
-+   `dim_country`, where an unknown country fails the key rather than rendering. Until that lands,
-+   this checklist item is the only thing standing between a new country and the live page — and a
-+   prose rule is exactly the kind of control this repo has measured as unreliable (#30). Do not
-+   read its presence here as the problem being solved.
- 
- Also confirm `league_code` does NOT already appear in `docs/competition_registry.yml`.
- 
-@@ -253,6 +290,17 @@ no SQL files were added (zero-file rule).
- 4. Trigger the pages export workflow to refresh the deployed JSON.
- 5. Spot-check the deployed fixture list for the new league to confirm data
-    flows end to end.
-+6. **Confirm the country renders correctly.** Check `dim_league.league_country` for the new
-+   `league_code`:
-+
-+   ```bash
-+   bq query --use_legacy_sql=false \
-+     'select league_code, league_country from `football-data-pipeline-gcp.core.dim_league`
-+      where league_code = "{LEAGUE_CODE}"'
-+   ```
-+
-+   A hyphen, a diacritic or a formal state title means the step 0b override row was missed — add
-+   it now (#69). This is a confirmation; step 0b is where the defect is actually prevented.
- 
- ## Known edge cases
- 
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 100a92c..b5856b3 100644
+index b5856b3..92d7c72 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,116 +1,62 @@
--# Task contract — data:build:mr must not bootstrap-ingest (#73)
-+# Task contract — onboard-competition must check the country string (#69)
+@@ -1,62 +1,189 @@
+-# Task contract — onboard-competition must check the country string (#69)
++# Task contract — raw appends and never deletes (#75, reverses #33 item 8b)
  
  objective: >
--  Remove the bootstrap-ingest step from `data:build:mr`. It writes PRODUCTION raw from an
--  unmerged branch (settings.py:31 defaults the dataset to `raw`; nothing overrides it in CI), it
--  is redundant with the identical step already in `data:build:main`, and GitLab's protected-
--  variable rule correctly refuses to give a feature branch the API key — which is what made MR
--  !50 fail. Closes #33 item 13 for the MR path. Pin the removal with a test so the step cannot
--  return silently.
--
--  ⛔ SCOPE NARROWED BY THE CPO, 2026-08-16. An earlier revision of this branch ALSO tagged
--  `assert_base_leagues_covers_active_competition_var` `prod_state` and excluded it from
--  `data:build:mr`. All four routed reviewers FAILED that, and the CPO ruled it out in plain
--  terms after asking whether the change was "a systematic fix or a hack": it was a hack. It is
--  fully reverted here. The underlying cause — nothing records whether a league has been
--  INGESTED, only that it SHOULD be — is filed as its own issue and is NOT addressed here.
--refs: GitLab #73, #33 item 13, #72, !50
--
--protected_override: >
--  CPO approval 2026-08-16, in-thread, verbatim: **"yes, rewrite #73 to option 2 only and fix it"**,
--  given after I laid out option 2 as "delete the bootstrap-ingest block from data:build:mr ...
--  that's the professional, economic, secure answer". The same message rejected the unprotect-the-
--  key option: **"it is 100% bullshit in terms of security."** `.gitlab-ci.yml` is a PROTECTED path
--  (the file that decides what CI enforces), hence this override.
--
--impact_map: >
--  writers: `.gitlab-ci.yml` is not a data writer. The step being DELETED is the only thing in
--    `data:build:mr` that writes raw tables — `python -m ingestion.api_football.main` with
--    `API_FOOTBALL_LEAGUE_CODES` set. After this change `data:build:mr` writes ONLY `ci_*` datasets
--    (via `dbt seed/build --target ci`) and reads prod via `--defer --favor-state`.
--
--  what still ingests, and where: `data:build:main:597` runs the SAME
--    `get_new_league_codes.py` + `python -m ingestion.api_football.main` sequence, BEFORE its
--    `dbt build --selector staging/downstream --target prod` lines. `data:nightly` is the other
--    prod writer. Neither is touched here, so a newly onboarded league is still ingested exactly
--    once, post-merge, from a protected branch that legitimately holds the key. Verified by reading
--    both job bodies in this file, not assumed.
--
--  guards NOT touched, and the accepted consequence: NO dbt test is modified by this branch.
--    Four singular tests — `assert_base_leagues` / `assert_base_teams` /
--    `assert_base_fixtures_next` / `assert_fct_fixture` `_covers_active_competition_var` — assert
--    "every code in `vars.active_competition_league_codes` has rows". All four are unconditional
--    (`left join ... where null`); I read all eight `*_covers_active_competition_var` tests and the
--    other four self-exclude via an `inner join base_apif__leagues` on a coverage flag. On an
--    ONBOARDING MR those four now fail, because the var names the new league and this job no longer
--    ingests it. That is ACCEPTED (CPO 2026-08-16): the tests are stating a true fact, and
--    silencing them was rejected as a hack. Onboarding MRs show red here and are merged on
--    judgement until the ingest-state issue lands.
--    ⚠ REASONED FROM THE TEST BODIES, NOT OBSERVED (#904): `data:build:mr` on !50 died at the
--    ingest step and never reached the dbt steps, so these four have not been SEEN failing for this
--    reason. `dbt build` is never run locally (CLAUDE.md), so this branch's own pipeline is the
--    first place it is exercised.
--
--  layer_rules: `scripts/check_layer_contract.py` — untouched; no model, no layer, no
--    materialisation changes. No new model, macro or SQL file. NO dbt file of any kind is in this
--    diff.
--
--  deploy_order: no warehouse migration. The CI change takes effect on the next pipeline. ⚠ Merge
--    order matters for !50: this MR should merge FIRST, then !50 rebases onto it and its
--    `data:build:mr` goes green. If !50 merged first instead, `data:build:main` would bootstrap
--    BPL/TSL/EKS on main — also correct, just via the other path.
--
--  blast_radius: no mart, no number, no row changes anywhere. One behaviour change:
--    `data:build:mr` no longer ingests, so it no longer needs `API_FOOTBALL_API_KEY` and no longer
--    runs a billed `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR. No test's
--    selection, severity or logic changes anywhere.
-+  Onboarding a competition can introduce a country the pipeline has never seen, and nothing
-+  catches it. `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an
-+  unmatched provider string falls through to the page unchanged — silently. Add the check to
-+  `onboard-competition` at DISCOVERY, where the provider payload is already open and the override
-+  row can ship in the same MR as the registry entry, plus a confirmation in the post-merge list.
-+refs: GitLab #69 (the naming rulings and the seed), `!54` (the 67-row seed this checks against)
+-  Onboarding a competition can introduce a country the pipeline has never seen, and nothing
+-  catches it. `base_apif__leagues` LEFT JOINs `country_name_overrides` and coalesces, so an
+-  unmatched provider string falls through to the page unchanged — silently. Add the check to
+-  `onboard-competition` at DISCOVERY, where the provider payload is already open and the override
+-  row can ship in the same MR as the registry entry, plus a confirmation in the post-merge list.
+-refs: GitLab #69 (the naming rulings and the seed), `!54` (the 67-row seed this checks against)
++  Remove every DELETE from the ingestion layer so the raw landing zone is append-only for all
++  entity tables. The retention decision moves out of Python and into base, which already has the
++  correct rule and is currently starved of the rows it needs to apply it. This closes three
++  separate paths by which data we once held is destroyed permanently, and replaces five per-table
++  write strategies with one rule.
++refs: GitLab #75; reverses the delete half of #539 and of #33 item 8b; supersedes the narrower
++  "#75 part A" scope recorded in `escalations.log` 2026-08-17.
  
  scope_paths:
--  - .gitlab-ci.yml
--  - tests/test_ci_data_job_invariants.py
--  - .claude/task/escalations.log
-+  - .claude/skills/onboard-competition/SKILL.md
+-  - .claude/skills/onboard-competition/SKILL.md
++  - ingestion/api_football/bigquery.py
++  - ingestion/api_football/completeness.py
++  - ingestion/api_football/coverage.py
++  - ingestion/api_football/refetch.py
++  - ingestion/api_football/loads/competition_runner.py
++  - scripts/diagnostics/reshape_players_to_team_season.py
++  - tests/test_refetch_cadence.py
++  - tests/test_incomplete_snapshot_not_written.py
++  - ingestion/api_football/loads/batch_fixtures.py
++  - ingestion/api_football/loads/squads.py
++  - ingestion/api_football/loads/standings.py
++  - ingestion/api_football/loads/teams.py
++  - ingestion/api_football/loads/transfers.py
++  - tests/test_raw_merge_on_write.py
++  - tests/test_incomplete_fetch_no_supersede.py
++  - tests/test_squad_players_rows.py
++  - docs/data_contract.md
++  - docs/roles/data_engineer.md
++  - dbt_project/docs/layering.md
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
    - .claude/active_work.md
  
-+impact_map: >
-+  Leaf/documentation short-form. `.claude/skills/**` is instructions an agent reads, not code any
-+  job executes: `grep -rn "skills/" .gitlab-ci.yml scripts/ dbt_project/` returns nothing, so no
-+  pipeline, model or test depends on this file. It is NOT a protected path — the protected list is
-+  `.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`,
-+  `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`,
-+  `.gitlab-ci.yml` — and it is not in `review_routing.json`'s `paths`, so scope-auditor is the only
-+  required reviewer. Blast radius: the next person who onboards a competition reads one more step.
+ impact_map: >
+-  Leaf/documentation short-form. `.claude/skills/**` is instructions an agent reads, not code any
+-  job executes: `grep -rn "skills/" .gitlab-ci.yml scripts/ dbt_project/` returns nothing, so no
+-  pipeline, model or test depends on this file. It is NOT a protected path — the protected list is
+-  `.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`,
+-  `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`,
+-  `.gitlab-ci.yml` — and it is not in `review_routing.json`'s `paths`, so scope-auditor is the only
+-  required reviewer. Blast radius: the next person who onboards a competition reads one more step.
++  WRITERS of the five affected raw tables, enumerated by grep, not memory
++  (`grep -rn 'raw_table("TRANSFERS")\|..."STANDINGS"\|..."TEAMS"\|..."PLAYERS"\|..."FIXTURE_DETAILS"' ingestion/`):
++    RAW_APIF_FIXTURE_DETAILS — `loads/batch_fixtures.py:266` (sole writer)
++    RAW_APIF_PLAYERS         — `loads/squads.py:221` write, `:228` delete
++    RAW_APIF_STANDINGS       — `loads/standings.py:72` write, `:82` delete
++    RAW_APIF_TEAMS           — `loads/teams.py:78` write, `:96` delete
++    RAW_APIF_TRANSFERS       — `loads/transfers.py:77` write, `:89` delete
++  No other module writes any of them. `orchestrator.py:164` reads TRANSFERS only.
++  Every call site of the three delete paths, complete:
++    `bigquery.py:262` def; called at `standings.py:81`, `teams.py:95`, `transfers.py:88`
++    `squads.py:43` def; called at `squads.py:227`
++    `batch_fixtures.py:155` def; called at `batch_fixtures.py:293`
++  Test references that must move with them: `test_raw_merge_on_write.py` (whole file premise),
++  `test_incomplete_fetch_no_supersede.py:49,276`, `test_squad_players_rows.py:60,118`.
 +
++  DOWNSTREAM lineage, pasted from `dbt ls` (dbt 1.7.19, `--resource-type model --output name`),
++  not asserted:
++    `--select stg_apif__fixture_events+ stg_apif__fixture_players+ stg_apif__fixture_statistics+
++      stg_apif__lineups+` -> 61 models, ending at mart_leaderboards, mart_matchday_insights,
++      mart_player_career, mart_player_profile, mart_roster, mart_team_momentum_window,
++      mart_team_profile, mart_team_season and 14 more.
++    `--select stg_apif__transfers+ stg_apif__standings+ stg_apif__teams+ stg_apif__players+`
++      -> 40 models, marts: mart_fixture_standing_context, mart_leaderboards,
++      mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
++      mart_player_fixture_stats, mart_player_match_log, mart_player_profile, mart_roster,
++      mart_standings, mart_team_competition_benchmarks, mart_team_fixture_stats,
++      mart_team_fixtures, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
++      mart_team_season, mart_team_season_insights.
++    `--select stg_apif__lineups+` -> returns only itself; that model has no consumer.
++
++  LAYER RULES that apply: `layering.md` §1_staging says entity dedup belongs in base, never
++  staging. That rule is unchanged by this task and is the reason no staging model needs an edit
++  beyond its header comment: all four fixture-details staging models and `stg_apif__players`
++  already read ALL rows with no latest-snapshot qualify, and carry `raw_ingested_at` in the grain.
++  The three whole-league staging models (`stg_apif__standings`, `_teams`, `_transfers`) already
++  apply `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`, so
++  they select the newest row and ignore the older ones that now survive. No SQL changes.
++
++  DEPLOY ORDER: none required. This is an ingestion-side change; nothing in dbt is repointed and no
++  model contract moves. The four dbt model edits are comment-only and change no compiled SQL.
++  Sequencing against the 04:00 nightly is irrelevant because the change is subtractive at the
++  storage layer: after merge the loaders simply stop issuing DML, and any row already deleted stays
++  deleted.
++
++  BLAST RADIUS on numbers: no mart column changes definition. Values can change in exactly one
++  direction, and that is the intent of the ruling: where a provider answer had shrunk, base's
++  existing newest-per-entity-key dedup now has the older rows to fall back on, so entities that
++  would have been lost survive. Measured precedent, `escalations.log` 2026-08-17: fixture 1564795
++  would yield 27 events instead of 17. The three whole-league staging models take the newest row
++  only, so standings/teams/transfers numbers are unchanged on any run where the provider answered
++  normally.
++  NOT repaired by this change: the existing 5-fixture / 29-event backlog. Those events are gone at
++  source. This stops future loss; it does not heal past loss.
++  Storage: RAW_APIF_FIXTURE_DETAILS is 0.62 GiB and only retried fixtures gain a row.
++  RAW_APIF_TRANSFERS is 0.178 GiB post-8b and gains one row per league per ingest (7-day cadence).
+ 
  decisions_taken: >
--  CPO ruling 2026-08-16 (quoted in full under protected_override): fix via option 2 only, and the
--  unprotect-the-key option is rejected on security grounds. The CPO also asked the framing
--  question this task answers — *"Why do we always need to touch ingestion again and again?"* — and
--  the answer encoded here is that we do NOT: no ingestion code changes, the fix is a CI job that
--  should never have carried this step.
-+  CPO instruction, 2026-08-16, in this conversation: "now add the country check to the onboard
-+  skill" — after I reported that the approach is NOT prepared for new countries and named this
-+  file as the cheap mitigation.
-+
-+  MEASURED, the defect this prevents: `!50` onboarded the Süper Lig on 2026-08-16. The provider
-+  sends `Turkey` on the leagues surface and `Türkiye` on the player and coach surfaces (455
-+  players, 105 coaches). The page reads the leagues surface, so the clean spelling landed there
-+  BY LUCK. Had it been the other way round, `Türkiye` would have rendered and no guard would have
-+  fired.
+-  CPO instruction, 2026-08-16, in this conversation: "now add the country check to the onboard
+-  skill" — after I reported that the approach is NOT prepared for new countries and named this
+-  file as the cheap mitigation.
++  CPO ruling 2026-08-17, given in this conversation after two independent lead-data-engineer
++  assessments were run blind and both returned the same root cause: raw stops deleting old rows
++  EVERYWHERE, not only for fixture details. Asked as a single question with the cost stated on both
++  options; the CPO chose "Everywhere". This extends his earlier ruling the same day, verbatim
++  "raw keeps both versions", from one table to all of them, and it is the written form of his
++  standing model: "raw and staging have whatever crap the provider gives us. in base we decide."
  
--  NEW MECHANISM: none. Deleting a step, and adding an assertion to an EXISTING pytest module
--  whose stated purpose is pinning exactly these CI invariants.
-+  PLACEMENT, and why it is not the post-merge list alone: caught at Step 0b the override row ships
-+  in the SAME MR as the registry entry, so the page is never wrong. Caught after merge, the page is
-+  wrong until somebody looks. The post-merge item is a confirmation, not the control.
+-  MEASURED, the defect this prevents: `!50` onboarded the Süper Lig on 2026-08-16. The provider
+-  sends `Turkey` on the leagues surface and `Türkiye` on the player and coach surfaces (455
+-  players, 105 coaches). The page reads the leagues surface, so the clean spelling landed there
+-  BY LUCK. Had it been the other way round, `Türkiye` would have rendered and no guard would have
+-  fired.
++  RECORDED AS A REVERSAL, not a discovery. It reverses the delete half of #539 (2026-06-22) and of
++  #33 item 8b (2026-08-09). Nobody may later restore a delete as a regression fix.
  
--  RECURRING COST: strictly NEGATIVE (a saving). Removes one billed BigQuery `SELECT DISTINCT` per
--  MR pipeline, plus the API-quota draw of any bootstrap ingest an unmerged branch would have run.
--  Nothing is added.
-+  ⚠ This is a MITIGATION, not the fix. The real mechanism is #69's foreign key to `dim_country`,
-+  where an unknown country fails the key instead of rendering. A skill step is a prose rule and
-+  this repo has measured that prose rules recur (#30: 33 of 50 corrections were prose-only, 22
-+  recurred). Recorded in the skill itself so the next reader does not mistake it for the guard.
+-  PLACEMENT, and why it is not the post-merge list alone: caught at Step 0b the override row ships
+-  in the SAME MR as the registry entry, so the page is never wrong. Caught after merge, the page is
+-  wrong until somebody looks. The post-merge item is a confirmation, not the control.
++  WHAT THE REVERSAL COSTS, stated to the CPO before he ruled: the deletes existed for scan cost, and
++  RAW_APIF_TRANSFERS did fall 6.99 GiB to 0.178 GiB under 8b. That justification is now obsolete for
++  a different reason: staging became a stored table on 2026-08-13 (#33 items 9/10), so each raw
++  table is parsed once a night instead of once per test. Going append-only costs roughly $1-2/month
++  in extra scanning plus cents of storage.
  
--  NO GUARD IS LOOSENED, because none is touched. The previous revision of this branch narrowed
--  one and was FAILED by all four routed reviewers and then by the CPO. The standing rule held.
-+  NEW MECHANISM: none — a step in an existing skill.
-+  RECURRING COST: none.
+-  ⚠ This is a MITIGATION, not the fix. The real mechanism is #69's foreign key to `dim_country`,
+-  where an unknown country fails the key instead of rendering. A skill step is a prose rule and
+-  this repo has measured that prose rules recur (#30: 33 of 50 corrections were prose-only, 22
+-  recurred). Recorded in the skill itself so the next reader does not mistake it for the guard.
++  RECURRING COST: yes, and it is the threshold that made this CPO-class. About $1-2/month more
++  scanning, cents/month more storage, zero additional API calls, no change to the quota or the run
++  cadence. Approved explicitly, with the figure in front of him.
++  NEW MECHANISM: none. This DELETES mechanisms; it adds none.
+ 
+-  NEW MECHANISM: none — a step in an existing skill.
+-  RECURRING COST: none.
++  NOT LOOSENED: every `result_is_complete` guard keeps its exact current behaviour. Refusing to
++  write a known-partial payload is still right. What changes is that it stops being the only thing
++  standing between a shrunken provider answer and permanent loss.
  
  decisions_reserved:
--  - Whether `data:build:mr` should ALSO be prevented from writing prod raw structurally (setting
--    `API_FOOTBALL_BIGQUERY_DATASET` to a ci-scoped dataset) rather than only by removing the one
--    step that did it. #33 item 13 is broader than the MR path; this task closes the MR path only
--    and takes no position on the rest.
--  - The ingest-state model itself (recording that a league HAS been ingested, not merely that it
--    should be) is deliberately NOT designed here. It is the cause behind the four failing
--    onboarding-MR tests AND behind `get_new_league_codes.py` having to rediscover that fact from
--    BigQuery every run. Filed as its own issue per the CPO's instruction, "ship part 1 and file
--    the state fix as its own issue".
-+  - Whether `.claude/skills/**` should join the protected-path list. `.claude/commands/**` is
-+    protected because a command file can embed shell; a skill file can carry shell too, and this
-+    one does. That is a governance question and the CPO's, not something to decide inside an
-+    unrelated task. NOT raised as a blocker — the current list is explicit and skills are not on it.
+-  - Whether `.claude/skills/**` should join the protected-path list. `.claude/commands/**` is
+-    protected because a command file can embed shell; a skill file can carry shell too, and this
+-    one does. That is a governance question and the CPO's, not something to decide inside an
+-    unrelated task. NOT raised as a blocker — the current list is explicit and skills are not on it.
++  - The volume-delta threshold, meaning how much smaller a response may be before it is flagged
++    rather than accepted. That is a product call, it is the CPO's, and it is MR3, not this task.
++    This MR deliberately ships without it: append-only makes a shrunken answer recoverable, which is
++    the precondition for deciding the threshold calmly later.
++  - Whether to build the `raw_archive` backup that was the stated condition of approving
++    merge-on-write in the first place, or to retire that condition on the record. Verified: zero
++    references anywhere in the repo. Not raised as a blocker for this MR, which reduces the need for
++    it, but it is unresolved and is the CPO's.
++  - `.claude/agents/data-engineer-reviewer.md:36` asks a reviewer to check "merge-on-write
++    preserved?", which becomes the wrong question after this MR. That file is a PROTECTED path and
++    is deliberately NOT in scope_paths. Correcting it is its own governance task with a
++    `protected_override`. Flagged, not touched.
  
  done_when:
--  - `data:build:mr` contains no `get_new_league_codes.py` call and no
--    `python -m ingestion.api_football.main` invocation; `data:build:main` and `data:nightly` still
--    do, unchanged.
--  - The removal is explained in a `.gitlab-ci.yml` comment that names #73 and #33 item 13, so the
--    step is not "restored as an oversight" later.
--  - NO dbt file is modified: `git diff --stat` shows no path under `dbt_project/`.
--  - A NEW test in `tests/test_ci_data_job_invariants.py` FAILS if `data:build:mr` ever invokes
--    `ingestion.api_football.main` or `get_new_league_codes.py` again, and it is demonstrated RED
--    first (per the standing rule that a passing test proves nothing until it has been seen fail).
--  - `python -m pytest tests/test_ci_data_job_invariants.py` passes.
--  - escalations.log records the #73 ruling and the rejected option.
--  - MR opened against main; !50 rebases onto it afterwards.
-+  - Step 0b gains a numbered check with a runnable command that prints what the provider sends and
-+    whether the seed already maps it.
-+  - The step states the rule (English, everyday short form, no diacritics) and says the override
-+    row belongs in the SAME MR.
-+  - It states plainly that nothing catches a missing row today, and names #69's FK as the real fix.
-+  - The post-merge list gains a confirmation item.
-+  - No other section of the skill changes.
+-  - Step 0b gains a numbered check with a runnable command that prints what the provider sends and
+-    whether the seed already maps it.
+-  - The step states the rule (English, everyday short form, no diacritics) and says the override
+-    row belongs in the SAME MR.
+-  - It states plainly that nothing catches a missing row today, and names #69's FK as the real fix.
+-  - The post-merge list gains a confirmation item.
+-  - No other section of the skill changes.
+-
+-amendments: (none)
++  - `grep -rn "delete from\|DELETE FROM" ingestion/` returns no hit that targets an entity raw
++    table.
++  - `python -m pytest tests/ -q` passes in full.
++  - Every rewritten test is seen RED first by restoring the delete it guards against, with the
++    failing output pasted into `.claude/task/acceptance_evidence.md`. A green test that was never
++    seen red is decoration (#904).
++  - `python -m ruff check --config .ruff-ci.toml ingestion tests` clean.
++  - `dbt parse` succeeds (comment-only dbt edits must still compile). No `dbt build`, ever.
++  - No document, comment or docstring ANYWHERE still describes a delete-on-retry or a
++    merge-on-write as current behaviour, checked by
++    `grep -rni "merge-on-write\|merge on write\|delete-on-retry" --include=*.py --include=*.md
++     --include=*.sql --include=*.yml .` excluding `.git/`, `dbt_project/target/`,
++    `escalations.log` and `docs/audits/` (both durable records of what was decided when).
++    ⚠ THIS GREP WAS WRONG IN THE FIRST VERSION OF THIS CONTRACT and platform-reviewer caught it:
++    it covered `docs/` and `dbt_project/` only, never `ingestion/`, even though the loaders being
++    changed are the main place the claim lives. A verification step scoped narrower than its own
++    sentence is the #904 failure class — the grep passed while four in-scope files still said the
++    opposite of the change. Remaining permitted hits are past-tense, historical, or
++    `.claude/agents/data-engineer-reviewer.md` (protected; see decisions_reserved).
++
++amendments:
++  - 2026-08-17: + `ingestion/api_football/refetch.py`, `completeness.py`,
++    `loads/competition_runner.py` — authority: the SAME CPO ruling this contract already rests on
++    (2026-08-17, "raw stops deleting old rows everywhere"). No new decision; these three files
++    assert the removed behaviour as current fact and the original `scope_paths` simply missed them.
++    Found by sweeping the class after data-engineer-reviewer round 1 FAILed the branch for exactly
++    this — three module docstrings still saying "MERGE-ON-WRITE since #33 item 8b" eleven lines
++    above code saying the delete was removed.
++    Content, comments only, no logic: `refetch.py:20-21` is the load-bearing one — it justifies the
++    7-day refetch cadence with "a partial write DELETES the complete row it supersedes.
++    Unrecoverable", which is now false and would mislead the next person costing that decision.
++    `competition_runner.py:128,201` describe coaches as "deliberately excluded from 8b's
++    merge-on-write" and transfers as merge-on-write. `completeness.py:283,331` call
++    RAW_APIF_PLAYERS merge-on-write; its conclusion (read in full, no per-run snapshot) stays
++    correct, only the premise changes.
++    ⚠ This is a correction-sweep amendment, not a scope widening: nothing new is BUILT, and no
++    file gains a code change. Recorded because the alternative — leaving three files stating the
++    opposite of the ruling — is the failure class the ruling was made about.
++  - 2026-08-17 (second, and the last): + `scripts/diagnostics/reshape_players_to_team_season.py`,
++    `tests/test_refetch_cadence.py`, `tests/test_incomplete_snapshot_not_written.py` — authority:
++    the same ruling again. Comments and docstrings only; no assertion changes.
++    ⚠ WHY THERE ARE TWO AMENDMENTS AND NOT ONE. The first was written from the reviewer's three
++    named files. That is fixing the INSTANCE. Only then did I run the sweep that should have come
++    first — `grep -rni "merge-on-write" --include=*.py --include=*.md --include=*.sql --include=*.yml`
++    over the whole repo, excluding `.git`, `dbt_project/target/`, `escalations.log` and
++    `docs/audits/` — which found three more. That grep output is the evidence the class is now
++    closed; the remaining hits are past-tense ("was removed here", "8b shrank it to"), historical
++    audit records, or `.claude/agents/data-engineer-reviewer.md`, which is protected and declared
++    under decisions_reserved.
++    `test_refetch_cadence.py:43,192` and `test_incomplete_snapshot_not_written.py:16,189` assert in
++    prose that a partial write DELETES; that is the premise their cadence and guard reasoning rests
++    on, and it is now false. `reshape_players_to_team_season.py:8` describes squads.py as
++    merge-on-write.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 696e222..9f6fd4e 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -3124,3 +3124,164 @@ WRONG ANSWERS RECORDED SO THE NEXT SESSION DOES NOT REPEAT THEM (#75)
+   the ambiguous case the other way today — *"An empty response with no error counts as COMPLETE:
+   that is the provider reporting no rows, and it is indistinguishable from one (CPO decision,
+   2026-08-03)"* — so changing it reverses part of that ruling. Left open, with the evidence.
++
++
++2026-08-17 fix/75c-event-consistency-tests — TWO OF THREE DESIGNED TESTS DIED AGAINST THE DATA (#75)
++
++  THE CPO'S FRAMING, which reset the whole design and was correct: *"raw and staging have whatever
++  crap the provider gives us. in base we decide on updating or replacing or deduplicating or taking
++  the most recent information ... is our testing setup prepared for it?"*
++
++  THE ANSWER TO THAT QUESTION IS NO, and it is the finding that matters. Nothing in the suite
++  compares events against the fixture's own facts: `assert_event_team_in_fixture_participants`
++  checks only that an event's team is one of the two playing, and `assert_fct_fixture_goals_plausible`
++  range-checks the fixture row without ever looking at events. Nothing detects LOSS. 29 real events
++  were destroyed and every test stayed green; it surfaced days later only as an unrelated
++  `dim_player` FK orphan, which is why it was first mistaken for a player problem.
++
++  ALSO ESTABLISHED, and it relocates the defect: **base's decision rule is already correct.**
++  `base_apif__fixture_events` dedups `partition by (league_code, fixture_id, event_index) order by
++  raw_ingested_at desc`. Had raw kept both payloads, base would have taken indices 0-16 from the new
++  one and KEPT 17-26 from the old — the shootout would never have been lost. Base did not fail; the
++  loader deleted its input first. The decision was being made in ingestion, where it is
++  irreversible, instead of in base where the CPO's model puts it.
++
++  ⛔ TWO TESTS WERE DESIGNED AND KILLED BY MEASUREMENT BEFORE ANY CODE WAS WRITTEN. Recorded so
++  they are not re-proposed by a future session that reasons from one fixture, as I did:
++    · **"a PEN fixture must carry shootout events"** — sound on the one fixture I inspected, wrong
++      across the population: **371 of 753** PEN fixtures in prod have NO shootout events. The
++      provider does not supply them for many competitions. At severity=error this would have turned
++      half the penalty shootouts in the warehouse red on day one.
++      (The marker itself is clean — `event_comments = 'Penalty Shootout'`, 4,461 rows, everything
++      else NULL. It is simply not reliably present.)
++    · **"goal events must reconcile with the fixture score"** — NOT written. After the PEN result
++      there was no evidence it is clean across own goals, disallowed goals and shootout exclusion,
++      and shipping it unverified would have repeated the same mistake in a second place.
++
++  SHIPPED: `assert_no_event_loss_since_cutoff` — flags any event `fct_fixture_event` holds that
++  `base_apif__fixture_events` no longer has. Only that direction: the reverse (fact < base) is
++  incremental LAG, not loss, and flagging it would redden every fresh ingest.
++
++  ⛔ REVIEW ROUND 1 FAILED IT, AND THE FINDING WAS ONE MEASUREMENT COULD NOT HAVE CAUGHT.
++  My first draft scoped by `max(raw_ingested_at)` GROUPED OVER `base_apif__fixture_events` itself.
++  analytics-engineer-reviewer read the join and found the blind spot: if a fixture loses ALL its
++  events, base holds zero rows for it, the grouped CTE yields no row, and the INNER JOIN silently
++  drops every one of that fixture's events — the TOTAL-loss case, undetectable at ANY cutoff,
++  forever. The worst case was the one case it could not see. My prod verification could not reveal
++  this, because the known #75 incident was PARTIAL for all 5 fixtures; the gap was only visible by
++  reading the SQL. Fixed by scoping on `fct_fixture` (one row per fixture, always present), which
++  removes the dependency on base having survivors.
++
++  ⚠ SCOPED BY KICKOFF DATE, and the reason is not tidiness. The known backlog (5 fixtures, 29
++  events, kickoffs 08-08 and 08-15) is UNREPAIRABLE — verified live, the provider no longer returns
++  those events — so asserting over it would block every build on damage nobody can fix. A kickoff
++  date NEVER MOVES, unlike an ingest timestamp: those fixtures kept refreshing `raw_ingested_at`
++  while their 3-day retry window stayed open, and a same-day ingest-time cutoff measured on 08-17
++  still flagged 1 row. **Consequence stated rather than hidden: the test is INERT for fixtures
++  before the cutoff.** Its logic is proven — 0 rows at the shipped cutoff, exactly the 29 known
++  rows at 2026-08-01, both RUN against prod under BOTH scoping designs, not asserted.
++
++  ⚠ STILL OPEN, unchanged and the CPO's: may a COMPLETE response carrying strictly less data than
++  what is stored supersede it? That is plan part A. This test makes the loss VISIBLE; it does not
++  decide who wins.
++
++
++2026-08-17 — ⭐ THE RULING THAT UNBLOCKS #75: **RAW KEEPS BOTH VERSIONS** (part A, DECIDED)
++
++  THE QUESTION, put after walking the CPO through fixture 1564795 layer by layer: may a COMPLETE
++  provider response carrying strictly less data than what is stored SUPERSEDE it? "Supersede" was
++  defined for him as REPLACE AND DELETE — `RAW_APIF_FIXTURE_DETAILS` is merge-on-write keyed on
++  `(league_code, fixture_id)`, so storing a new payload deletes the old one and there is no version
++  history.
++
++  THE EVIDENCE HE DECIDED ON, measured at every layer for that one fixture:
++      raw      1 row, 17 events   (the 27-event payload was DELETED by the retry)
++      staging  17 rows            (faithful unnest — cannot show more than raw holds)
++      base     17 rows            (its newest-per-event_index rule had nothing to choose between)
++      core     27 rows            (incremental; copied them before the delete and never removes)
++  The ten shootout kicks exist in EXACTLY ONE PLACE: core. Which means core had become the
++  accidental archive, and base was not failing — it was STARVED. Had raw kept both payloads, base's
++  EXISTING rule would have produced 27: indices 0-16 from the new payload, 17-26 surviving from the
++  old. The decision was being made in ingestion, by a DELETE, before base could make it.
++
++  **CPO RULING, verbatim: "raw keeps both versions."**
++
++  WHAT IT MEANS, and it is a deliberate partial reversal of a prior ruling: `RAW_APIF_FIXTURE_DETAILS`
++  stops being merge-on-write. The retry no longer deletes the stored payload; both land, and BASE
++  decides — which is exactly the layer model the CPO stated: *"raw and staging have whatever crap
++  the provider gives us. in base we decide."* This reverses the delete-on-retry half of #539
++  (2026-06-22) and of #33 item 8 FOR THIS TABLE ONLY. Recorded as a reversal, not as a discovery,
++  so nobody later "restores" the delete as a regression fix.
++
++  WHY IT IS SAFE, verified before the ruling was sought (not after): all FOUR staging models over
++  this table read faithfully with NO dedup, and the three consumed base models dedup on ENTITY keys
++  with latest-ingest-wins — `base_apif__fixture_events` on `(league_code, fixture_id, event_index)`,
++  `base_apif__fixture_players` on `(…, team_id, player_id)`, `base_apif__fixture_statistics` on
++  `(…, team_id)`. `stg_apif__lineups` has no consumer at all. So a second row MERGES per entity
++  rather than duplicating, and an entity present only in the older payload survives.
++
++  COST, measured: the table is 58,224 rows / 0.62 GiB (~11 KB per fixture). Only RETRIED fixtures
++  gain a second row, so growth is single-digit percent — cents per month against a 0.62 GiB table.
++
++  ⚠ `_read_fetched_coverage` was ALREADY made order-independent in `!56` (`LOGICAL_OR ... GROUP BY
++  fixture_id`), so the multi-row case is already handled on the read side. That was shipped for a
++  different reason and turns out to be the precondition this ruling needs.
++
++  STILL TO BUILD (scoped, not started — flagged because context ran out, not because it is open):
++  remove the `_delete_fixtures` call and function from `batch_fixtures.py`; update
++  `docs/data_contract.md` (this table is no longer merge-on-write) and `dbt_project/docs/layering.md`
++  (§1_staging describes the retry delete); pin the deletion with a test. ⚠ The known 5-fixture
++  backlog is NOT repaired by this — those events are gone from the provider — so `!57`'s cutoff
++  stays as shipped.
++  ⛔ SUPERSEDED THE SAME DAY, and widened — see the next entry. Part A as scoped here (one table)
++  was overtaken by the ruling that raw stops deleting EVERYWHERE. Do not build the narrow version.
++
++
++2026-08-17 fix/75-raw-append-only — ⭐ RAW APPENDS AND NEVER DELETES, FOR EVERY TABLE (#75; reverses
++#33 item 8b and the delete half of #539)
++
++  HOW THIS ONE WAS DECIDED, and the process point matters more than the ruling. The CPO stopped the
++  work: *"it sounds highly inconsistent what you are doing just driven by this one observation …
++  I also get the impression that you're not capable of implementing a consistent ingestion strategy.
++  Everything is ad hoc; you don't do thorough research. If we're already failing at ingestion, the
++  entire project is at risk."* He then ordered **two independent agents, unbiased, as experienced
++  lead data engineers**, and an assessment before any plan.
++
++  BOTH RETURNED "NOT COHERENT ENOUGH TO BUILD ON", independently, with the same root cause in
++  different words: **raw deletes its own history at write time, so base cannot decide, and the only
++  guard tests whether the provider ERRORED, never whether the answer SHRANK.**
++  `http_client.py:104-107` documents that an empty error-free response counts as COMPLETE;
++  `bigquery.py:262-300` then deletes every stored row for that league. That is the CPO's own layer
++  model inverted.
++
++  FINDINGS I RE-VERIFIED MYSELF rather than relaying (both agents can be wrong):
++    · `transfers.py` has NO `if not team_ids: return`, which its sibling `coaches.py:38` does have.
++      With an empty team set the loop never runs, `complete` stays True, an empty payload is written
++      and `:88` deletes the league's entire transfer history. CONFIRMED by reading `:30-90`.
++    · `load_json_to_bq` defaults to `append=False`, i.e. **WRITE_TRUNCATE** (`bigquery.py:137`,
++      `:195`). One omitted kwarg truncates a table shared by 45 competitions.
++    · `raw_archive`, the backup that was the STATED CONDITION of approving merge-on-write
++      (`escalations.log` 2026-08-08), was never built. **Zero references in the entire repo.**
++    · the three player loaders (`player_squads`, `player_profiles`, `player_teams`) never import
++      `result_is_complete`, and a rate-limited empty answer is recorded as "captured" forever.
++    · `event_loss_detector_from` is `'2026-08-19'`, two days in the FUTURE, so the detector I
++      shipped in `!57` is inert today. Mine, and mine to fix in MR3.
++  WHERE AN AGENT WAS WRONG, recorded so neither is treated as an oracle: one claimed
++  `check_raw_freshness.py` is wired to nothing. It runs as its own Cloud Run job
++  (`deploy/nightly/README.md:188`). The other listed `squads.py` and `transfers.py` as unguarded;
++  both reach the guard indirectly through `fixture_scheduling`.
++
++  **CPO RULING: raw stops deleting old rows EVERYWHERE, not only for fixture details.** Asked as one
++  question with the cost on both options; he chose "Everywhere". It extends *"raw keeps both
++  versions"* from one table to all of them.
++
++  WHY THE OLD JUSTIFICATION IS DEAD. The deletes existed for scan cost and 8b really did take
++  `RAW_APIF_TRANSFERS` from 6.99 GiB to 0.178 GiB. But staging became a stored TABLE on 2026-08-13
++  (#33 items 9/10), so each raw table is now parsed **once a night** instead of once per test. The
++  multiplier the deletes were bought to kill no longer exists. Append-only costs ~$1-2/month in
++  scanning plus cents of storage, against a path that can silently erase a competition's history.
++
++  ⚠ RECORDED AS A REVERSAL, TAKEN KNOWINGLY. Nobody may later restore a delete as a regression fix.
++  ⚠ The 5-fixture / 29-event backlog is still NOT repaired; those events are gone at source.
++  ⚠ The volume-delta threshold (how much smaller an answer may be before it is flagged) is the
++  CPO's and is MR3. Append-only is what makes that decision affordable to take calmly.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index b62eb9c..c3a2ce4 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -82,13 +82,19 @@ raw table roughly five times a night to answer questions a stored table answers
+ from. Storing staging once a night collapses the multiplier to one scan per model.
  
- amendments: (none)
+ ⚠ **Do not size future work from #33's figures for this item.** That issue justified the change on
+-`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) has since shrunk it to **0.178 GiB**, a
++`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) shrank it to **0.178 GiB**, a
+ 39x reduction, so the largest scan the item was written about was already gone by the time it
+ landed. The saving today is ~**$3-4/month**. What the change actually buys is that cost stops
+ scaling with (number of tests × raw size) as competitions are added. Storage added is ~0.5 GiB —
+ for scale, the entire base layer, which is this layer's parsed output, is 0.415 GiB across 43
+ tables, while the `staging` dataset was 0.0 GiB because views store nothing.
+ 
++⚠ **And do not size from 0.178 GiB either.** Item 8b was REVERSED on 2026-08-17 (CPO: raw appends
++and never deletes), so `RAW_APIF_TRANSFERS` grows again by one row per league per ingest. Measure
++before quoting; `bq show` per table is free. The causality also runs the other way and is worth
++keeping straight: materialising THIS layer as a table is what made the reversal affordable, because
++raw is now parsed once a night instead of once per test.
++
+ Materialisation is a **LAYER** decision set once in `dbt_project.yml`.
+ The policy line is `1_staging: +materialized: table`, and a staging model must never override it
+ per model. `scripts/check_layer_contract.py`
+@@ -118,20 +124,21 @@ A staging model does exactly two things, in this order:
+      incremental-accumulation **iff** its loader is skip-if-present, and that must be stated in
+      the model header and its `stg_apif__generic.yml` entry. (Recognized 2026-06-15 by CPO
+      ruling; the first such tables are `RAW_APIF_PLAYER_PROFILES` / `RAW_APIF_PLAYER_TEAMS`.)
+-   - **Merge-on-write (per-key) tables.** A few raw tables are keyed at a grain *below*
+-     `league_code` — one row per fixture (`RAW_APIF_FIXTURE_DETAILS`) or per `(team, season)`
+-     (`RAW_APIF_PLAYERS`) — and the loader maintains **one current row per key**: skip-if-present
+-     fetch + delete-on-retry for fixture details (only finished fixtures that are missing data, or
+-     have empty stats inside the 3-day retry window, are fetched; a retry deletes the prior row
+-     before re-inserting), and delete-then-append per `(team, season)` for players. The table is
+-     therefore **bounded** — it grows with the key set, not with run count — but holds **many keys
+-     per `league_code`**, so, like incremental-accumulation tables, these read **all** rows
+-     (`select * from {{ source(...) }}` with no latest-snapshot qualify). A `partition by
+-     league_code` qualify would keep one fixture/team-season per league and drop the rest. It is
+-     still a faithful flatten with no entity dedup; the staging grain carries `raw_ingested_at`,
+-     and base resolves the current row per entity (robust to any transient duplicate). State the
+-     read-all rationale in the model header and its `stg_apif__generic.yml` entry. (Recognized
+-     2026-06-22 by CPO ruling, #539; see `docs/data_contract.md` — merge-on-write tables.)
++   - **Sub-league keyed tables.** A few raw tables are keyed at a grain *below* `league_code` —
++     one row per fixture (`RAW_APIF_FIXTURE_DETAILS`) or per `(team, season)`
++     (`RAW_APIF_PLAYERS`) — because the loader fetches per entity, skip-if-already-ingested. They
++     hold **many keys per `league_code`** and, since 2026-08-17, **several versions per key**: the
++     loader appends a retry alongside the payload it used to replace, so raw carries every version
++     the provider gave us (CPO ruling, "raw keeps both versions"). Like incremental-accumulation
++     tables these read **all** rows (`select * from {{ source(...) }}` with no latest-snapshot
++     qualify) — a `partition by league_code` qualify would keep one fixture or one team-season per
++     league and drop every other. It is still a faithful flatten with no entity dedup. The staging
++     grain therefore carries `raw_ingested_at`, and choosing between versions is base's job:
++     newest-per-entity-key, which is exactly where the layer contract puts that decision.
++     State the read-all rationale in the model header and its `stg_apif__generic.yml` entry.
++     (Grain recognized 2026-06-22 by CPO ruling, #539. The delete-on-retry that used to bound
++     these tables was REMOVED 2026-08-17 — see `docs/data_contract.md`, "Raw appends and never
++     deletes", for what it destroyed and why it is not coming back.)
+ 2. **Faithful 1:1 flatten.** Unnest that snapshot's JSON payload into one typed row per
+    entity, rename to snake_case, and cast. Every entity present in the selected snapshot
+    must appear exactly once in the output — nothing merged, aggregated, or dropped
+@@ -144,7 +151,7 @@ team_id, …) after flattening — and that belongs in base, never staging.**
+ Allowed:
+ - Latest-snapshot selection per `league_code` (partition on `league_code` only) for
+   complete-snapshot tables; reading **all** rows (no qualify) for incremental-accumulation
+-  (skip-if-present) and merge-on-write (per-key, sub-`league_code` grain) tables — see step 1.
++  (skip-if-present) and sub-`league_code`-keyed tables — see step 1.
+ - Source-to-model mapping (one staging model per raw source table).
+ - Column renaming to consistent naming conventions (snake_case).
+ - Safe type casting and lightweight normalization.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+index 1cbe2f9..38b1770 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+@@ -1,9 +1,10 @@
+--- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
+--- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
+--- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
+--- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
+--- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
+--- (merge-on-write tables).
++-- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
++-- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
++-- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
++-- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
++-- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+     select *
+     from {{ source('api_football', 'raw_apif_fixture_details') }}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+index ea15044..ee041cc 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+@@ -1,9 +1,10 @@
+--- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
+--- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
+--- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
+--- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
+--- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
+--- (merge-on-write tables).
++-- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
++-- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
++-- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
++-- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
++-- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+     select *
+     from {{ source('api_football', 'raw_apif_fixture_details') }}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+index 9d74228..6bd50ef 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+@@ -1,9 +1,10 @@
+--- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
+--- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
+--- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
+--- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
+--- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
+--- (merge-on-write tables).
++-- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
++-- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
++-- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
++-- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
++-- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+     select *
+     from {{ source('api_football', 'raw_apif_fixture_details') }}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 1efe51b..103b89b 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -89,10 +89,10 @@ models:
+ 
+   - name: stg_apif__players
+     description: >
+-      One row per player per team per season per league from GET /players. RAW_APIF_PLAYERS
+-      stores one merge-on-write row per (team, season), so staging reads ALL rows faithfully
+-      (no latest-snapshot qualify); current-per-entity is assembled in base. Grain after base:
+-      (league_code, team_id, season_year, player_id).
++      One row per player per team per season per league from GET /players. RAW_APIF_PLAYERS is
++      append-only and stores one row per (team, season) PER FETCH, so staging reads ALL rows
++      faithfully (no latest-snapshot qualify); current-per-entity is assembled in base. Grain
++      after base: (league_code, team_id, season_year, player_id).
+     columns:
+       - name: league_code
+         tests: [not_null]
+@@ -105,12 +105,12 @@ models:
+ 
+   - name: stg_apif__fixture_events
+     description: >
+-      One row per event per fixture from the $.events array in raw_apif_fixture_details — a
+-      merge-on-write table (one bounded row per (league_code, fixture_id); see layering.md
+-      §1_staging). Staging reads ALL rows faithfully — no latest-snapshot qualify, the grain is
+-      sub-league (one row per fixture); current-per-entity is assembled in base_apif__fixture_events,
+-      which dedups defensively (robust to any transient duplicate). Grain at staging:
+-      (fixture_id, event_index, raw_ingested_at).
++      One row per event per fixture from the $.events array in raw_apif_fixture_details — an
++      append-only table holding one row per FETCH of a fixture, so a retried fixture contributes
++      several versions (see layering.md §1_staging). Staging reads ALL rows faithfully — no
++      latest-snapshot qualify, the grain is sub-league; choosing between versions is
++      base_apif__fixture_events' job, newest per (league_code, fixture_id, event_index). Grain at
++      staging: (fixture_id, event_index, raw_ingested_at).
+     columns:
+       - name: league_code
+         tests: [not_null]
+@@ -123,11 +123,11 @@ models:
+ 
+   - name: stg_apif__fixture_players
+     description: >
+-      One row per player per team per fixture from $.players in raw_apif_fixture_details — a
+-      merge-on-write table (one bounded row per (league_code, fixture_id)). Staging reads ALL rows
+-      faithfully (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled
+-      in base_apif__fixture_players (defensive dedup). Grain at staging:
+-      (fixture_id, team_id, player_id, raw_ingested_at).
++      One row per player per team per fixture from $.players in raw_apif_fixture_details — an
++      append-only table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully
++      (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled in
++      base_apif__fixture_players, newest per (league_code, fixture_id, team_id, player_id). Grain
++      at staging: (fixture_id, team_id, player_id, raw_ingested_at).
+     columns:
+       - name: league_code
+         tests: [not_null]
+@@ -143,11 +143,10 @@ models:
+   - name: stg_apif__fixture_statistics
+     description: >
+       Long format — one row per statistic line per team per fixture from $.statistics in
+-      raw_apif_fixture_details (a merge-on-write table, one bounded row per (league_code,
+-      fixture_id)). Faithful 1:1 flatten only — staging reads ALL rows (no latest-snapshot qualify,
+-      sub-league grain); the pivot to wide columns and the dedup both happen in
+-      base_apif__fixture_statistics (business reshaping belongs in base). Grain at staging:
+-      (fixture_id, team_id, stat_type, raw_ingested_at).
++      raw_apif_fixture_details (append-only, one row per FETCH of a fixture). Faithful 1:1 flatten
++      only — staging reads ALL rows (no latest-snapshot qualify, sub-league grain); the pivot to
++      wide columns and the dedup both happen in base_apif__fixture_statistics (business reshaping
++      belongs in base). Grain at staging: (fixture_id, team_id, stat_type, raw_ingested_at).
+     columns:
+       - name: league_code
+         tests: [not_null]
+@@ -160,10 +159,10 @@ models:
+ 
+   - name: stg_apif__lineups
+     description: >
+-      One row per team per fixture from $.lineups in raw_apif_fixture_details — a merge-on-write
+-      table (one bounded row per (league_code, fixture_id)). Staging reads ALL rows faithfully (no
+-      latest-snapshot qualify — sub-league grain); current-per-entity is assembled in base
+-      (defensive dedup). Grain at staging: (fixture_id, team_id, raw_ingested_at).
++      One row per team per fixture from $.lineups in raw_apif_fixture_details — an append-only
++      table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully (no
++      latest-snapshot qualify — sub-league grain). ⚠ This model has NO consumer today, so nothing
++      downstream resolves its versions. Grain at staging: (fixture_id, team_id, raw_ingested_at).
+     columns:
+       - name: league_code
+         tests: [not_null]
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+index 4136642..2b0e525 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+@@ -1,9 +1,11 @@
+--- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
+--- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
+--- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
+--- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
+--- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
+--- (merge-on-write tables).
++-- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
++-- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
++-- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
++-- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc.
++-- ⚠ This model has NO consumer today (`dbt ls --select stg_apif__lineups+` returns only itself),
++-- so nothing downstream resolves its versions. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+     select *
+     from {{ source('api_football', 'raw_apif_fixture_details') }}
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 5fdd2e3..13258df 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -18,14 +18,14 @@ Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors
+ | `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
+ | `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (squads also carries a `season` stamp; see the Landing-zone note above) |
+ | `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
+-| `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
++| `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — a top-level key for per-fixture lookups, extracted from `payload` `$.fixture.id`. It is NOT a uniqueness key: the table is append-only, so a retried fixture has one row per fetch |
+ 
+ No `response` data is discarded at ingest, so new fields surface in modelling without refetching; the reshape loaders above drop only the per-call envelope metadata (`get`/`parameters`/`errors`/`results`/`paging`), not the response items.
+ 
+ Raw tables are **created** partitioned by `DATE(ingested_at)` and clustered by `league_code` (`ingestion/api_football/bigquery.py:88-93`). Two cautions go with that, and the second one has cost real money:
+ 
+ - Creation uses `exists_ok=True`, so a table that predates the partitioning code is **never retro-fitted**. Do not assume a given raw table is partitioned — check it: `bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_<ENTITY>` and read `timePartitioning` (metadata only, free).
+-- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. The way to keep raw scans bounded is to bound the table itself (merge-on-write keyed on `league_code`, #33 item 8), not to filter by time.
++- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. Bounding the table by deleting at write time was tried (#33 item 8) and **reversed on 2026-08-17** — see [Raw appends and never deletes](#raw-appends-and-never-deletes). The way scan cost is actually bounded today is that staging is materialised as a **table**, so each raw table is parsed once a night rather than once per test (#33 items 9/10). If the raw tables ever need bounding again it is compaction by **version count** per key in a separate job, never a delete at write time, and never keyed on time (#892).
+ 
+ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+ 
+@@ -45,18 +45,22 @@ its own second line; a reviewer caught that when the first fix closed only one o
+ has been wrong before") and names the commands to recount. The table IS the count. If you add or
+ remove a raw table, edit the table below and nothing else.
+ 
+-| Table | Write mode | Partition | Cluster | Merge key |
+-|-------|------------|-----------|---------|-----------|
+-| `RAW_APIF_FIXTURE_DETAILS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, fixture_id)` |
+-| `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
+-| `RAW_APIF_STANDINGS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
+-| `RAW_APIF_TEAMS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
+-| `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
+-| `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
+-| `RAW_APIF_TRANSFERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `league_code` |
+-| `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
+-| `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
+-| `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
++**Every entity table is `append`. There is no other write mode**, and the "Row grain" column below
++describes what one row COVERS, never a uniqueness guarantee. Since 2026-08-17 nothing in ingestion
++deletes from raw.
++
++| Table | Write mode | Partition | Cluster | Row grain (per write) |
++|-------|------------|-----------|---------|-----------------------|
++| `RAW_APIF_FIXTURE_DETAILS` | append | `DATE(ingested_at)` | `league_code` | one fixture |
++| `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | whole league |
++| `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | whole league |
++| `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | whole league |
++| `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | one `(team, season)` |
++| `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | whole league |
++| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | whole league |
++| `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | team subset |
++| `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | new players only |
++| `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | new players only |
+ 
+ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
+ 
+@@ -78,38 +82,61 @@ qualify row_number() over (
+ ) = 1
+ ```
+ 
+-This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: the merge-on-write tables (`RAW_APIF_FIXTURE_DETAILS`, `RAW_APIF_PLAYERS`) already hold one row per entity key, and a latest-snapshot window there would drop fixtures and players rather than deduplicate them.
++This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` are keyed BELOW `league_code` (one row per fixture, one row per `(team, season)`), so a latest-per-league window there would keep one fixture or one team-season and drop every other. Those models read all rows and base resolves the entity.
+ 
+ **No staging model carries a `DATE(ingested_at)` pre-filter, and none should.** This document used to prescribe a 7-day one here. No model ever implemented it, and it would have been a live defect if one had — see the second bullet under raw partitioning above (#892). Ranking cannot prune a partition, so the pre-filter bought nothing it claimed to buy.
+ 
+-**`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
++**`RAW_APIF_PLAYERS` grain (one row per team×season per fetch).** The `/players` roster snapshot is written as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows and removes nothing, so a re-fetched key accumulates one row per fetch and the earlier version stays available to base. Because it is keyed below `league_code` (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
+ 
+ This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
+ 
+ ---
+ 
+-## Whole-league merge-on-write (`TRANSFERS`, `STANDINGS`, `TEAMS`)
++## Raw appends and never deletes
+ 
+-Since **#33 item 8b**, these three write **merge-on-write keyed on `league_code` alone**. Each loader writes ONE row covering the entire competition, so the row it appends fully supersedes every earlier one. Each run appends its snapshot with an explicit `ingested_at`, then deletes that league's rows written strictly before it (`ingestion/api_football/bigquery.py:delete_superseded_league_rows`). The table settles at one row per competition — O(competitions), not O(competitions × runs).
++**CPO ruling, 2026-08-17: raw keeps every version the provider ever gave us. Base decides which one
++wins.** No loader deletes from a raw table, for any table, under any condition. This reverses the
++delete half of #539 (2026-06-22) and all of #33 item 8b (2026-08-09), knowingly and on the record.
+ 
+-Nothing is lost: the three staging models already selected only the latest row per `league_code`, so every deleted row was one the `qualify` was discarding. The saving is **scan cost**, not storage — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on 2026-08-09 (59% of all raw) and was re-read in full by every test and base model on every build.
++The rule exists because "should this answer replace what we already hold" is a question ingestion
++cannot answer. The only signal available at write time is `result_is_complete()`, which tests
++whether the CALL failed, not whether the ANSWER shrank — and an empty error-free response counts as
++complete by deliberate decision (2026-08-03), because the provider genuinely reporting no rows is
++indistinguishable from it. Three deletes were built on that signal and all three destroyed data:
+ 
+-**The delete is reachable only past the #896 completeness guard** (#33 item 8a). A quota-truncated fetch returns before the write, so a partial snapshot can never delete the good stored row. The guard and the merge are one mechanism; do not port one without the other.
++| Deleted mechanism | What it cost |
++|---|---|
++| `_delete_fixtures` (retry, per fixture) | 29 events across 5 fixtures, including a whole penalty shootout, unrecoverable |
++| `_delete_superseded_player_rows` (per `(team, season)`) | 4 squads on 2026-08-02: UCL 340 went 25 players to 0 |
++| `delete_superseded_league_rows` (per league) | never fired destructively that we know of; it would have wiped a competition's entire standings/teams/transfers history in one run |
+ 
+-**Do not extend this to another table without re-deriving that it writes a complete per-league row AND that no consumer reads snapshot history.** The set is pinned by `tests/test_raw_merge_on_write.py`. Specifically excluded:
++The scan-cost argument that bought them is spent. `RAW_APIF_TRANSFERS` really did fall from 6.99 GiB
++to 0.178 GiB under 8b, but staging became a materialised **table** four days later (#33 items 9/10),
++so each raw table is now parsed once a night instead of once per test. Append-only costs roughly
++$1-2/month in scanning plus cents of storage.
+ 
+-- **`RAW_APIF_COACHES`** — `stg_apif__coaches` reads **all** snapshots by CPO ruling (`escalations.log`, 2026-06-23) to preserve every coach ever seen; a league-keyed delete destroys ~120 coaches whose teams later left our pull.
+-- **`RAW_APIF_SQUADS`** — the loader writes a team **subset**, not a whole-league row (#37).
+-- **`RAW_APIF_FIXTURES_NEXT`** — complete only via carry-forward, and it has no #896 guard.
+-- **`RAW_APIF_PLAYER_PROFILES` / `_PLAYER_TEAMS`** — accumulate per player; a league-keyed delete erases every player ingested on an earlier run. **Never.**
++**Do not reintroduce a delete to bound a table.** If growth needs bounding, compact by **version
++count** per key in a separate job: it prunes on the clustering key and is competition-frequency
++agnostic, where a time-based rule silently drops biennial and quadrennial competitions that go
++months between ingests (#892). The removal is pinned behaviourally by
++`tests/test_raw_merge_on_write.py`, which asserts no loader issues DML at all.
++
++**What did NOT change: the #896 completeness guard.** A fetch that errored or was cut short by the
++quota is still discarded whole and retried next run, in `batch_fixtures`, `coaches`, `standings`,
++`teams` and `squads`. Append-only makes a bad write recoverable; it is not a reason to make one.
+ 
+ ---
+ 
+-## Fixture details (merge-on-write)
++## Fixture details (append-only, one row per fetch)
++
++`RAW_APIF_FIXTURE_DETAILS` appends. Each run fetches only the fixtures that are missing data (not the full history) and appends one row per fixture returned. A fixture that is retried — empty statistics within the 3-day window from kickoff — gains a **second row**; nothing is removed.
++
++**Both versions are kept deliberately, and base picks per entity.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_events` dedups newest-per-`(league_code, fixture_id, event_index)`, `base_apif__fixture_players` per `(…, team_id, player_id)`, `base_apif__fixture_statistics` per `(…, team_id)` — so an entity present only in the older payload survives, and one present in both takes the newer. On fixture 1564795 that yields 27 events: indices 0-16 from the retry, 17-26 from the payload it would have replaced.
+ 
+-`RAW_APIF_FIXTURE_DETAILS` uses merge-on-write. Each run fetches only the fixtures that are missing data (not the full history), then upserts into the unified table keyed on `(league_code, fixture_id)`. The table holds one row per fixture, without accumulating duplicate rows.
++Two consequences worth stating rather than discovering:
+ 
+-**That row is the latest COMPLETE payload, not the latest attempt (#896, ported here under GitLab #75).** The retry path deletes the stored row before re-inserting, and this bundle carries lineups, events, statistics and player stats *together* — so one bad retry destroys all four at once, permanently, exactly the merge-on-write hazard that forced the #33 item 8a/8b split. `_fetch_and_persist_batch` therefore refuses to delete when the replacing fetch is not `result_is_complete()`, and never deletes a retried fixture the response did not actually return. In both cases the stored payload is kept, nothing is written, and the fixture retries next run. The delete and the insert stay paired, so no second row is created.
++- `fixture_id` is **not** a uniqueness key on this table. Any reader that assumes one row per fixture must aggregate — `coverage.read_coverage` and `batch_fixtures._read_fetched_coverage` both use `LOGICAL_OR ... GROUP BY fixture_id` for exactly this reason.
++- `stg_apif__lineups` has **no consumer**, so nothing downstream resolves its versions today.
+ 
+ The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
+ 
+@@ -183,7 +210,7 @@ Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`
+ 
+ ## Endpoints and raw tables
+ 
+-Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` use merge-on-write on an entity key, and `RAW_APIF_TRANSFERS`, `RAW_APIF_STANDINGS` and `RAW_APIF_TEAMS` on `league_code` alone (#33 item 8b) — see the write-mode table above.
++Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Every entity table uses `WRITE_APPEND` and nothing deletes — see the write-mode table above and [Raw appends and never deletes](#raw-appends-and-never-deletes). What differs between tables is only what one written row COVERS: a whole league, one fixture, or one `(team, season)`.
+ 
+ | Area | Endpoint(s) | BigQuery raw table |
+ |------|-------------|-------------------|
+@@ -197,11 +224,11 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
+ | Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
+ | Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
+ | Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
+-| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
++| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fetch of a fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+ 
+ **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
+ 
+-**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; a full-history snapshot per run written merge-on-write on `league_code` since #33 item 8b, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
++**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; a full-history snapshot appended per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
+ 
+ **Added 2026-06-15 (player-data initiative, PR-a):** three player endpoints. `/players/squads` per team → `RAW_APIF_SQUADS` (present-day squad + shirt number; distinct from the `/players` roster pull that lands `RAW_APIF_PLAYERS`). `/players/profiles` per player → `RAW_APIF_PLAYER_PROFILES` (bio) and `/players/teams` per player → `RAW_APIF_PLAYER_TEAMS` (career team×seasons) run as a **global per-player phase** over the current universe (players rostered in season ≥ `API_FOOTBALL_PLAYER_UNIVERSE_MIN_SEASON`, default 2025), derived from `RAW_APIF_PLAYERS`. Each player is grouped under a deterministic provenance `league_code` (MIN over the leagues that surfaced them — provenance, not identity, as with transfers). Already-ingested players are skipped (bio/career are static/slow-moving), so the first run is the quota-guarded backfill and later runs fetch only newly-rostered players. CPO scope ruling (2026-06-15): profiles + teams + squads; `/players/seasons` was evaluated and **not** ingested (a bare list of years, redundant with `/players/teams`).
+ 
+diff --git a/docs/roles/data_engineer.md b/docs/roles/data_engineer.md
+index 89b4917..1d13a46 100644
+--- a/docs/roles/data_engineer.md
++++ b/docs/roles/data_engineer.md
+@@ -20,7 +20,9 @@ This role is source-agnostic. Today the primary source is API-Football. Tomorrow
+ ## What this role never compromises
+ 
+ - **Data integrity**: never write partial or corrupt data without flagging it
+-- **Idempotency**: the merge-on-write pattern is non-negotiable
++- **Raw appends and never deletes**: non-negotiable since the CPO ruling of 2026-08-17. Raw keeps
++  every version the provider gave us; base decides which one wins. Never add a delete, an upsert or
++  a truncate to a raw writer to "keep the table bounded"
+ - **Completeness checks**: every run must report what is complete and what is missing — no silent gaps
+ - **Schema contracts**: raw table naming (`RAW_{source_code}_{entity}`) is the contract with dbt staging; never change it without coordinating with the Analytics Engineer
+ - **No scope changes without approval**: never change the history window, ingest profile, or fanout/cost caps without explicit CPO confirmation
+diff --git a/ingestion/api_football/bigquery.py b/ingestion/api_football/bigquery.py
+index 026a3d3..a7b2a7d 100644
+--- a/ingestion/api_football/bigquery.py
++++ b/ingestion/api_football/bigquery.py
+@@ -159,11 +159,13 @@ def load_json_to_bq(
+         Writes the payload dict directly with BigQuery autodetect schema.
+         Always uses WRITE_TRUNCATE — these tables hold a single current-state row.
+ 
+-    Pass ``ingested_at`` (UTC ISO string) when the caller needs the exact timestamp
+-    afterwards — a merge-on-write that deletes the rows superseded by this load must
+-    delete strictly BEFORE it, and cannot do that if the stamp is invented in here and
+-    thrown away. Mirrors the same parameter on ``load_json_payload_rows_to_bq``. Ignored
+-    when ``as_json_payload=False``, which writes the payload dict verbatim.
++    Pass ``ingested_at`` (UTC ISO string) when the caller needs the row's exact stamp
++    afterwards. No caller does today: the merge-on-write that needed it — to delete strictly
++    BEFORE its own write — was removed on 2026-08-17 (raw appends and never deletes). Kept as
++    a general facility for a caller that must correlate rows across tables in one run, and
++    because it is the only way to make a write's stamp deterministic in a test. Mirrors the
++    same parameter on ``load_json_payload_rows_to_bq``. Ignored when ``as_json_payload=False``,
++    which writes the payload dict verbatim.
+     """
+     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+ 
+@@ -224,9 +226,10 @@ def load_json_payload_rows_to_bq(
+     (all-or-nothing). Used to store a snapshot as MANY small rows instead of one oversized
+     row — e.g. RAW_APIF_PLAYERS writes one row per (team, season) so no single row can
+     approach BigQuery's 100 MB per-row JSON limit (mirrors RAW_APIF_FIXTURE_DETAILS, which
+-    stores one row per fixture). Pass ``ingested_at`` (UTC ISO string) when the caller needs
+-    the exact timestamp afterwards — e.g. a merge-on-write that deletes superseded rows
+-    written before this load. Returns the number of rows written (0 for empty input).
++    stores one row per fetch of a fixture). Pass ``ingested_at`` (UTC ISO string) when the
++    caller needs the row's exact stamp afterwards; no caller does today, since the delete that
++    needed it was removed on 2026-08-17 (raw appends and never deletes). Returns the number of
++    rows written (0 for empty input).
+     """
+     if not payloads:
+         return 0
+@@ -259,45 +262,17 @@ def load_json_payload_rows_to_bq(
+     return len(payloads)
+ 
+ 
+-def delete_superseded_league_rows(
+-    client: bigquery.Client,
+-    table_name: str,
+-    league_code: str,
+-    before: datetime,
+-) -> None:
+-    """Drop this league's rows written before ``before`` — the whole-league merge-on-write.
+-
+-    For raw tables whose loader writes ONE row covering the entire league (TRANSFERS,
+-    STANDINGS, TEAMS), so the row just appended fully supersedes every earlier one and
+-    staging's latest-per-league ``qualify`` was already discarding them. #33 item 8b.
+-
+-    The per-key sibling is ``loads/squads.py:_delete_superseded_player_rows``, which keeps a
+-    ``(team, season)`` predicate because RAW_APIF_PLAYERS holds many rows per league and a
+-    bare league delete there would drop keys this run did not re-fetch. The difference is the
+-    row grain, not a preference — do NOT copy this function to a multi-row-per-league table.
+-
+-    Call it only AFTER the append succeeded and only when the fetch was COMPLETE (the #896
+-    guard from 8a returns early otherwise). ``before`` must be the appended row's own
+-    ``ingested_at``, so the strict ``<`` leaves that row intact.
+-
+-    Both predicates prune: the table is clustered on ``league_code`` and DAY-partitioned on
+-    ``ingested_at`` (``ensure_unified_raw_table``).
+-    """
+-    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+-    q = f"""
+-        delete from `{table_id}`
+-        where league_code = @lc
+-          and ingested_at < @before
+-    """
+-    client.query(
+-        q,
+-        job_config=bigquery.QueryJobConfig(
+-            query_parameters=[
+-                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
+-                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
+-            ]
+-        ),
+-    ).result()
++# REMOVED 2026-08-17: `delete_superseded_league_rows`, the whole-league merge-on-write of
++# #33 item 8b. It deleted every prior row for a league once a fetch was judged COMPLETE, and
++# "complete" means only that the call did not error — an empty error-free response qualifies
++# (`http_client.result_is_complete`, and that is a deliberate CPO decision of 2026-08-03). So a
++# provider answering with nothing on one quiet night destroyed that competition's stored history
++# past the 7-day time-travel window, with no signal anywhere.
++#
++# CPO ruling 2026-08-17: raw appends and never deletes, for every table. Base decides.
++# Do NOT restore this as a regression fix; see `.claude/task/escalations.log` for the full record.
++# The scan-cost reason it existed is gone: staging became a stored TABLE on 2026-08-13 (#33 items
++# 9/10), so each raw table is parsed once a night, not once per test.
+ 
+ 
+ def _scalar(
+diff --git a/ingestion/api_football/completeness.py b/ingestion/api_football/completeness.py
+index 98360ce..7dfb1b6 100644
+--- a/ingestion/api_football/completeness.py
++++ b/ingestion/api_football/completeness.py
+@@ -280,8 +280,8 @@ def read_per_team_coverage(
+     EXPECTED SETS mirror what each loader iterates: PLAYERS is season-scoped and checked as
+     ``(team_id, reference_season)``; SQUADS, TRANSFERS and COACHES take the full ``team_ids`` set.
+ 
+-    RAW_APIF_PLAYERS is merge-on-write, so it has no per-run snapshot and is read in full
+-    (0.55 GiB). The others are read at their latest snapshot only.
++    RAW_APIF_PLAYERS is keyed per (team, season) rather than per league, so it has no per-run
++    snapshot and is read in full (0.55 GiB). The others are read at their latest snapshot only.
+ 
+     FIRST-RUN SAFE: every one of the four tables is existence-checked before it is queried, and when
+     no table exists the query is skipped entirely rather than rendering an empty ``FROM ()``. An
+@@ -328,7 +328,7 @@ def read_per_team_coverage(
+         )
+         if b
+     ]
+-    # PLAYERS is merge-on-write: no snapshot timestamp, and the season must match THAT league's
++    # PLAYERS is keyed per (team, season): no snapshot timestamp, and the season must match THAT league's
+     # reference season. A shared season list would let one league's 2027 rows satisfy another
+     # league's 2026 expectation, so the pairs are spelled out per league.
+     season_pairs = " OR ".join(
+diff --git a/ingestion/api_football/coverage.py b/ingestion/api_football/coverage.py
+index 26b1e27..31e5f4a 100644
+--- a/ingestion/api_football/coverage.py
++++ b/ingestion/api_football/coverage.py
+@@ -8,7 +8,8 @@ fixtures that are still missing data — it never re-fetches what is already cov
+ 
+ "Coverage" — which (league_code, fixture_id, endpoint) combinations already have
+ data — is derived directly from RAW_APIF_FIXTURE_DETAILS, the append-only table
+-that stores one row per fetched fixture (its full payload). There is no separate
++that stores one row per fetch of a fixture (its full payload; a retried fixture
++therefore has several, and the query below aggregates them). There is no separate
+ tracking table: the fanout data IS the source of truth, so coverage can never
+ drift out of sync with it. (This replaced an earlier RAW_APIF_FIXTURE_COVERAGE
+ tracking table — see issue #221 — which was a denormalized mirror that the live
+@@ -92,9 +93,12 @@ def read_coverage(
+     in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
+     statistics array; the other three endpoints are True for every fetched fixture.
+ 
+-    Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR so that a
+-    fixture which briefly has more than one row (e.g. a retried fixture mid
+-    delete-and-reinsert) yields one effective value.
++    Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
++    fixture legitimately has more than one row: the table is append-only and a
++    retried fixture keeps one row per attempt (CPO 2026-08-17, "raw keeps both
++    versions"). The aggregate answers "do we hold statistics for this fixture
++    anywhere", which is order-independent — a per-row read would let an older
++    empty-statistics row mask a newer complete one and re-fetch it every run.
+ 
+     Returns an empty dict if RAW_APIF_FIXTURE_DETAILS does not exist yet (first
+     ever run, before any fanout has happened).
+diff --git a/ingestion/api_football/loads/batch_fixtures.py b/ingestion/api_football/loads/batch_fixtures.py
+index 420933e..6019037 100644
+--- a/ingestion/api_football/loads/batch_fixtures.py
++++ b/ingestion/api_football/loads/batch_fixtures.py
+@@ -4,26 +4,27 @@ Step 2 of the documented two-step ingestion pattern (Step 1 is loads/fixtures.py
+ One API call per 20 finished fixtures returns events, lineups, statistics, and players
+ embedded in the response — replacing the old 5-endpoint-per-fixture fanout.
+ 
+-Storage model: one row per fixture in RAW_APIF_FIXTURE_DETAILS (unified, all leagues).
++Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unified, all leagues).
+   league_code STRING    — competition discriminator
+-  fixture_id  INT64     — for merge-key lookups (partitioned by DATE(ingested_at))
++  fixture_id  INT64     — for per-fixture lookups (partitioned by DATE(ingested_at))
+   payload     JSON      — the single fixture object from $.response[n]
+   ingested_at TIMESTAMP — when this row was written (UTC)
+ 
+-On the first fetch of a fixture the row is inserted. On retry (empty stats
+-within STATS_RETRY_DAYS of kickoff) the old row is deleted first, so the table
+-settles at one row per (league_code, fixture_id). Staging models read payload
+-directly — no $.response unnesting needed.
++APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
++within STATS_RETRY_DAYS of kickoff) another row is inserted and NOTHING is removed, so
++a retried fixture holds one row per attempt. Staging models read payload directly and
++faithfully — no $.response unnesting, no dedup — and base resolves the versions by
++entity key with latest-ingest-wins.
+ 
+-⚠ What that row holds is the latest COMPLETE payload, not the latest attempt
+-(GitLab #75). The #896 guard in _fetch_and_persist_batch refuses to delete when
+-the replacing fetch came back incomplete: the stored payload is kept and nothing
+-is written, so the fixture retries next run rather than being destroyed. The
+-delete and the insert are always paired, so this does NOT create a second row.
++⚠ Raw therefore holds every version the provider ever gave us, including versions that
++contradict each other. That is deliberate (CPO 2026-08-17: "raw keeps both versions").
++The delete that used to run here destroyed 29 real events across 5 fixtures because a
++retry chasing late statistics returned fewer events, and one row bundles lineups, events,
++statistics and player stats together.
+ 
+ Coverage is derived by querying RAW_APIF_FIXTURE_DETAILS directly, filtered by
+ league_code: a fixture is done once ANY stored row for it carries non-empty
+-statistics.
++statistics. That LOGICAL_OR aggregation is what makes the multi-row state safe to read.
+ 
+ Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
+ API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
+@@ -69,15 +70,16 @@ def _read_fetched_coverage(
+     has_statistics is True when the fixture's statistics array is non-empty.
+     Returns an empty dict when the table does not exist (first run).
+ 
+-    AGGREGATED PER FIXTURE, deliberately — and NOT because the #896 guard creates duplicates; it
+-    does not (delete and insert are paired). It is because reading row-by-row into a dict makes the
+-    answer depend on which row happened to land last, and BigQuery does not promise an order. The
+-    one duplicate source that already exists is `_insert_fixture_rows`, which does not dedup a
+-    response that repeats an id. Under a per-row read an older empty-statistics row could then mask
+-    a complete one and the fixture would be re-fetched every run until its window closed, burning
+-    quota to no effect. LOGICAL_OR answers the question actually being asked — "do we hold
+-    statistics for this fixture anywhere" — and is order-independent. For the normal single-row
+-    case it is a no-op.
++    AGGREGATED PER FIXTURE, and since 2026-08-17 that is load-bearing rather than defensive:
++    the table is append-only, so a retried fixture holds one row per attempt as a matter of
++    course. Reading row-by-row into a dict would make the answer depend on which row happened to
++    land last, and BigQuery does not promise an order — an older empty-statistics row could mask
++    a complete one, and the fixture would be re-fetched every run until its window closed,
++    burning quota to no effect. LOGICAL_OR answers the question actually being asked, "do we hold
++    statistics for this fixture anywhere", and is order-independent.
++
++    ⚠ This aggregation shipped in `!56` for a narrower reason and turned out to be the
++    precondition the append-only ruling needed. Do not "simplify" it back to a per-row read.
+     """
+     table_id = _fixture_details_table_id()
+     try:
+@@ -152,24 +154,18 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
+     return out
+ 
+ 
+-def _delete_fixtures(
+-    client: bigquery.Client,
+-    table_id: str,
+-    fixture_ids: list[int],
+-    league_code: str,
+-) -> None:
+-    """Delete existing rows for the given fixture IDs before re-inserting.
+-
+-    Used when retrying fixtures that previously had empty statistics, so that
+-    the table always holds exactly one row per (league_code, fixture_id).
+-    """
+-    ids_sql = ", ".join(str(fid) for fid in fixture_ids)
+-    q = f"""
+-        DELETE FROM `{table_id}`
+-        WHERE CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) IN ({ids_sql})
+-          AND league_code = '{league_code}'
+-    """
+-    client.query(q).result()
++# REMOVED 2026-08-17: `_delete_fixtures`, the delete-on-retry. This is the one that cost real
++# data. A fixture row bundles lineups, events, statistics and player stats TOGETHER, so a retry
++# chasing late statistics could come back richer in one section and poorer in another, and the
++# delete made the poorer answer the only surviving one. MEASURED on fixture 1564795: 27 events
++# stored, 17 returned by the retry, an entire penalty shootout destroyed and unrecoverable
++# because the provider no longer returns it.
++#
++# CPO ruling 2026-08-17, verbatim: "raw keeps both versions." Extended the same day to every raw
++# table. Both payloads now land and BASE decides: `base_apif__fixture_events` dedups
++# `partition by (league_code, fixture_id, event_index) order by raw_ingested_at desc`, which on
++# that fixture yields 27 — indices 0-16 from the new payload, 17-26 surviving from the old.
++# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
+ 
+ 
+ def _insert_fixture_rows(
+@@ -231,27 +227,26 @@ def _fetch_and_persist_batch(
+     ctx: PipelineContext,
+     league_code: str,
+     fixture_ids: list[int],
+-    retry_ids: set[int],
+ ) -> None:
+-    """Call GET /fixtures?ids=... and persist one row per fixture.
++    """Call GET /fixtures?ids=... and append one row per fixture returned.
+ 
+-    For retries (empty stats previously stored), delete the old row first so
+-    FIXTURE_DETAILS always holds exactly one row per fixture_id.
++    Nothing is deleted. A retried fixture gains a second row and base resolves the two by
++    entity key (CPO 2026-08-17, "raw keeps both versions" — see the note above
++    `_insert_fixture_rows`).
+ 
+-    #896 applies here with teeth, because this table is MERGE-ON-WRITE: the retry path
+-    DELETES the stored payload before re-inserting. `escalations.log` (2026-08-08, the 8a/8b
+-    split) states the hazard exactly — "Under append-only that is RECOVERABLE ... Under
+-    merge-on-write the partial write DELETES the complete prior row." A fixture's payload
+-    carries events, lineups, players and statistics together, so one bad retry destroys all
+-    four. Hence: complete or discard, and never delete a fixture the response did not return.
++    #896 still applies, and still returns before the write: a batch the provider did not answer
++    cleanly is discarded whole and retried next run. It is no longer the thing standing between
++    a shrunken answer and permanent loss — append-only is — but writing a known-partial payload
++    would still put a worse row in front of base for no reason, and the fixture would look
++    touched when it was not.
+     """
+     ids_param = "-".join(str(fid) for fid in fixture_ids)
+     data = fetch_json("/fixtures", headers=ctx.headers, params={"ids": ids_param})
+     append_api_errors(data, f"fixture_details {league_code}", ctx.errors)
+ 
+-    # #896: an incomplete fetch must never supersede good data. Checked BEFORE any delete and
+-    # immediately after the fetch — the quota flag is process-global and latches for the rest
+-    # of the run, so a later check would misreport this batch.
++    # #896: an incomplete fetch must never be written. Checked immediately after the fetch —
++    # the quota flag is process-global and latches for the rest of the run, so a later check
++    # would misreport this batch.
+     if not result_is_complete(data):
+         ctx.errors.append(
+             f"fixture_details {league_code}: INCOMPLETE fetch — batch DISCARDED, prior "
+@@ -264,34 +259,8 @@ def _fetch_and_persist_batch(
+         return
+ 
+     table_name = raw_table("FIXTURE_DETAILS")
+-    table_id = _fixture_details_table_id()
+     ensure_unified_raw_table(ctx.client, table_name, include_fixture_id=True)
+ 
+-    # Delete stale rows only for retried fixtures the response actually RETURNED. Deleting one
+-    # the provider omitted would supersede a stored payload with nothing — the same #896
+-    # hazard in a different shape, and not covered by the completeness check above, because a
+-    # response can be error-free and quota-clean yet still omit an id we asked for.
+-    # Reuses the same defensive extraction shape as `_insert_fixture_rows._extract_fixture_id`:
+-    # a malformed id must not raise here, or the generic handler upstairs would discard the whole
+-    # batch — including well-formed new fixtures — under an opaque error instead of this module's
+-    # own INCOMPLETE signal (data-engineer-reviewer, round 1).
+-    returned_ids: set[int] = set()
+-    for item in response:
+-        if not isinstance(item, dict):
+-            continue
+-        fid = (item.get("fixture") or {}).get("id")
+-        if fid is None:
+-            continue
+-        try:
+-            returned_ids.add(int(fid))
+-        except (TypeError, ValueError):
+-            continue
+-    retries_in_batch = [
+-        fid for fid in fixture_ids if fid in retry_ids and fid in returned_ids
+-    ]
+-    if retries_in_batch:
+-        _delete_fixtures(ctx.client, table_id, retries_in_batch, league_code)
+-
+     _insert_fixture_rows(
+         ctx.client,
+         table_name,
+@@ -313,8 +282,8 @@ def run_batch_fixture_fanout_and_persist(
+          finished fixtures already have good statistics. Fixtures missing entirely or
+          with empty stats within the 3-day retry window are queued for fetching.
+       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
+-         Each fixture in the response is stored as one row in FIXTURE_DETAILS.
+-         Retried fixtures (previously empty stats) have their old row deleted first.
++         Each fixture in the response is appended as one row in FIXTURE_DETAILS.
++         Retried fixtures (previously empty stats) keep their earlier row as well.
+ 
+     All competitions are planned before any HTTP calls are made.
+     """
+@@ -377,6 +346,6 @@ def run_batch_fixture_fanout_and_persist(
+                 time.sleep(sleep_s)
+             first_call = False
+             try:
+-                _fetch_and_persist_batch(ctx, league_code, batch, retry_ids)
++                _fetch_and_persist_batch(ctx, league_code, batch)
+             except Exception as e:
+                 ctx.errors.append(f"batch_fixtures {league_code}: {e}")
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index 9863da4..117c7ec 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -125,11 +125,10 @@ def run_cheap_phases(
+         # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
+         # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
+         #
+-        # RAW_APIF_COACHES is APPEND-ONLY — deliberately excluded from 8b's merge-on-write
+-        # because `stg_apif__coaches` reads ALL snapshots to preserve every coach ever seen
+-        # (CPO ruling 2026-06-23). So skipping loses nothing: the stored snapshots stay and
+-        # base still dedups to the latest. Unlike transfers, a stray partial write here would
+-        # not destroy anything — but there is no reason to write one either.
++        # RAW_APIF_COACHES is APPEND-ONLY, and since 2026-08-17 so is every other raw table
++        # (CPO: raw appends and never deletes). `stg_apif__coaches` additionally reads ALL
++        # snapshots to preserve every coach ever seen (CPO ruling 2026-06-23). So skipping
++        # loses nothing: the stored snapshots stay and base still dedups to the latest.
+         coaches_seen = (coaches_last_ingest or {}).get(league_code)
+         if should_refetch(league_code, coaches_seen, utcnow()):
+             _ingestion_phase(league_code, "coaches")
+@@ -198,8 +197,10 @@ def run_transfers_for_competition(
+     try:
+         # #33 item 14 — transfers move in bursts (January, summer), not nightly. This was the
+         # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
+-        # RAW_APIF_TRANSFERS is one row per league and merge-on-write since 8b, so a partial
+-        # write would DELETE the complete row rather than sit harmlessly beside it.
++        # RAW_APIF_TRANSFERS is one row per league read latest-per-league in staging, so a
++        # partial write would HIDE the complete row from every model downstream. It no longer
++        # DELETES it (raw appends and never deletes, 2026-08-17), so this is recoverable now —
++        # but a hidden snapshot is still a wrong warehouse until the next good run.
+         seen = (transfers_last_ingest or {}).get(result.league_code)
+         if not should_refetch(result.league_code, seen, utcnow()):
+             _skipped_phase(
+diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
+index 5e9b5bd..6284d41 100644
+--- a/ingestion/api_football/loads/squads.py
++++ b/ingestion/api_football/loads/squads.py
+@@ -1,24 +1,24 @@
+ """Fetch /players per team×season (batched) → RAW_APIF_PLAYERS.
+ 
+-Storage model: ONE row per (team, season) (each row's ``response`` carries a single
++Storage model: ONE row per (team, season) PER FETCH (each row's ``response`` carries a single
+ ``{team_id, season, players_payload}`` entry), not one giant per-league row — so no row
+-approaches BigQuery's 100 MB per-row JSON limit, for any league. This mirrors
+-RAW_APIF_FIXTURE_DETAILS (one row per fixture).
+-
+-Merge-on-write: each run appends the freshly-fetched per-(team,season) rows, then deletes
+-the superseded prior rows for exactly those keys, so the table holds one row per
+-(league, team, season) — bounded, not append-accumulating. Only re-written keys are
+-touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a warning is
+-logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
+-is assembled in base.
+-
+-ONLY A COMPLETE FETCH MAY SUPERSEDE (#896). A response carrying a body-level error, or cut
+-short by the quota flag mid-pagination, is neither written nor added to ``written_keys``, so
+-the prior row survives untouched. Withholding the WRITE matters as much as withholding the
+-delete: a written row marks the (team, season) captured in ``captured_player_team_seasons``,
+-and a historical season would then never be re-fetched, turning a transient failure into a
+-permanent hole. An empty response with NO error is a complete answer ("no players") and does
+-supersede.
++approaches BigQuery's 100 MB per-row JSON limit, for any league.
++
++APPEND ONLY (CPO ruling 2026-08-17: raw appends and never deletes). Each run appends the
++freshly-fetched per-(team,season) rows and removes nothing, so a key that is re-fetched
++accumulates one row per fetch. Staging reads all rows faithfully (no latest-snapshot qualify)
++and base assembles current-per-entity by entity-key dedup with latest-ingest-wins, so the extra
++rows merge there rather than duplicating. The per-key delete this loader used to issue was the
++best-shaped one in the codebase and still destroyed four squads on 2026-08-02; see the note
++where it was removed, below.
++
++ONLY A COMPLETE FETCH IS WRITTEN (#896), and that guard is unchanged. A response carrying a
++body-level error, or cut short by the quota flag mid-pagination, is not written at all — because
++a written row marks the (team, season) captured in ``captured_player_team_seasons``, and a
++historical season would then never be re-fetched, turning a transient failure into a permanent
++hole. An empty response with NO error is a complete answer ("no players") and is written; under
++append-only that no longer costs anything, because the earlier fuller row is still there for base
++to prefer.
+ 
+ Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
+ stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
+@@ -29,9 +29,6 @@ This is the API-cost twin of the merge above (bounded storage did NOT bound the
+ from __future__ import annotations
+ 
+ import os
+-from datetime import datetime, timezone
+-
+-from google.cloud import bigquery
+ 
+ from .. import quota as errors_quota
+ from ..bigquery import load_json_payload_rows_to_bq
+@@ -40,38 +37,16 @@ from ..fixture_scheduling import players_response_for_team
+ from .context import PipelineContext
+ 
+ 
+-def _delete_superseded_player_rows(
+-    client: bigquery.Client,
+-    table_name: str,
+-    league_code: str,
+-    keys: list[str],
+-    before: datetime,
+-) -> None:
+-    """Drop rows for the just-written (team, season) ``keys`` (``"{team_id}-{season}"``) that
+-    predate this run, so RAW_APIF_PLAYERS holds one row per (league, team, season). Only the
+-    re-written keys are touched — un-fetched keys keep their prior row (quota-cut safe)."""
+-    if not keys:
+-        return
+-    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+-    q = f"""
+-        delete from `{table_id}`
+-        where league_code = @lc
+-          and ingested_at < @before
+-          and concat(
+-                ifnull(json_value(payload, '$.response[0].team_id'), 'x'), '-',
+-                ifnull(json_value(payload, '$.response[0].season'), 'x')
+-              ) in unnest(@keys)
+-    """
+-    client.query(
+-        q,
+-        job_config=bigquery.QueryJobConfig(
+-            query_parameters=[
+-                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
+-                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
+-                bigquery.ArrayQueryParameter("keys", "STRING", keys),
+-            ]
+-        ),
+-    ).result()
++# REMOVED 2026-08-17: `_delete_superseded_player_rows`, the per-(team, season) merge. It was the
++# best-shaped delete in the codebase — keyed at the right grain, quota-cut safe — and it still
++# destroyed four squads on 2026-08-02, because an empty error-free /players response counts as a
++# complete answer and superseded the roster it could not replace. Correct grain does not rescue a
++# delete whose trigger cannot tell "no players" from "we lost the players".
++#
++# CPO ruling 2026-08-17: raw appends and never deletes, for every table. Base decides —
++# `base_apif__player_team_season` and `base_apif__players` already dedup on entity keys with
++# latest-ingest-wins, so a second row for a key merges rather than duplicating.
++# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
+ 
+ 
+ def captured_player_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
+@@ -185,13 +160,13 @@ def load_squad_players_batch(
+                     f"players {league_code} team_id={team_id} season={season}"
+                 ),
+             )
+-            # An incomplete fetch must never supersede stored data (#896). The key is withheld from
+-            # `written_keys`, so `_delete_superseded_player_rows` leaves the prior row alone, and the
+-            # row is not written at all — writing it would ALSO mark the (team, season) captured in
+-            # `captured_player_team_seasons`, and a historical season would then never be re-fetched.
+-            # Before this guard a rate-limited response deleted the good rows it failed to replace:
+-            # on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and
+-            # APD 463 46 to 40 when the limit hit mid-pagination.
++            # An incomplete fetch is not written (#896). Nothing is deleted any more, but the guard
++            # still matters for a second reason that append-only does not cover: writing the row
++            # would mark the (team, season) captured in `captured_player_team_seasons`, and a
++            # historical season would then never be re-fetched, turning a transient rate limit into
++            # a permanent hole. Before this guard a rate-limited response also deleted the good rows
++            # it failed to replace: on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0,
++            # UECL 20034 23 to 0, and APD 463 46 to 40 when the limit hit mid-pagination.
+             if not complete:
+                 incomplete_keys.append(f"{team_id}-{season}")
+                 continue
+@@ -215,17 +190,16 @@ def load_squad_players_batch(
+ 
+     if rows:
+         try:
+-            ts = datetime.now(timezone.utc)
++            # Append only. The per-key delete that used to follow this write was removed
++            # 2026-08-17 (CPO: raw appends and never deletes). `stg_apif__players` already reads
++            # ALL rows with no latest-snapshot qualify, and base assembles current-per-entity, so
++            # an extra row per (team, season) merges there instead of duplicating.
+             load_json_payload_rows_to_bq(
+                 ctx.client,
+                 raw_table("PLAYERS"),
+                 rows,
+                 league_code=league_code,
+                 append=True,
+-                ingested_at=ts.isoformat(),
+-            )
+-            _delete_superseded_player_rows(
+-                ctx.client, raw_table("PLAYERS"), league_code, written_keys, ts
+             )
+             ctx.add_loaded(1)
+             # Keep the caller's hoisted set exact. Without this, the next competition in
+diff --git a/ingestion/api_football/loads/standings.py b/ingestion/api_football/loads/standings.py
+index ba4254e..a5a9ffe 100644
+--- a/ingestion/api_football/loads/standings.py
++++ b/ingestion/api_football/loads/standings.py
+@@ -3,17 +3,18 @@
+ Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
+ the full standings history on every call.
+ 
+-MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
+-league's older rows. The row covers ALL configured seasons, so nothing is lost —
+-staging already read only the latest row per league_code.
++APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
++snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__standings`
++selects the newest row per league_code, so the older ones are simply not selected — they
++are there for the case this rule exists for, a later answer that carries LESS than the one
++it would have replaced. The merge-on-write of #33 item 8b was removed here; see
++docs/data_contract.md, "Raw appends and never deletes".
+ """
+ 
+ from __future__ import annotations
+ 
+-from datetime import datetime, timezone
+-
+ from .. import quota as errors_quota
+-from ..bigquery import delete_superseded_league_rows, load_json_to_bq
++from ..bigquery import load_json_to_bq
+ from ..settings import raw_table
+ from ..quota import append_api_errors
+ from ..http_client import fetch_merged_paged, result_is_complete
+@@ -66,7 +67,10 @@ def load_standings_if_enabled(
+         )
+         return
+     try:
+-        ts = datetime.now(timezone.utc)
++        # Append only. The delete that used to follow this write was removed 2026-08-17 (CPO:
++        # raw appends and never deletes). `stg_apif__standings` already selects the newest row
++        # per league_code, so the older rows are simply not selected — and they are still there
++        # if a later snapshot turns out to be worse than what we already held.
+         load_json_to_bq(
+             ctx.client,
+             raw_table("STANDINGS"),
+@@ -74,12 +78,6 @@ def load_standings_if_enabled(
+             as_json_payload=True,
+             append=True,
+             league_code=league_code,
+-            ingested_at=ts.isoformat(),
+-        )
+-        # #33 item 8b — see loads/transfers.py for why this is safe and why it runs
+-        # only past the completeness guard above.
+-        delete_superseded_league_rows(
+-            ctx.client, raw_table("STANDINGS"), league_code, ts
+         )
+         ctx.add_loaded(1)
+     except Exception as e:
+diff --git a/ingestion/api_football/loads/teams.py b/ingestion/api_football/loads/teams.py
+index 7399cf8..bf50530 100644
+--- a/ingestion/api_football/loads/teams.py
++++ b/ingestion/api_football/loads/teams.py
+@@ -3,17 +3,18 @@
+ Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
+ the full team list on every call.
+ 
+-MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
+-league's older rows. The row covers ALL configured seasons, so nothing is lost —
+-staging already read only the latest row per league_code.
++APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
++snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__teams`
++selects the newest row per league_code, so the older ones are simply not selected — they
++are there for the case this rule exists for, a later answer that carries LESS than the one
++it would have replaced. The merge-on-write of #33 item 8b was removed here; see
++docs/data_contract.md, "Raw appends and never deletes".
+ """
+ 
+ from __future__ import annotations
+ 
+-from datetime import datetime, timezone
+-
+ from .. import quota as errors_quota
+-from ..bigquery import delete_superseded_league_rows, load_json_to_bq
++from ..bigquery import load_json_to_bq
+ from ..settings import raw_table
+ from ..quota import append_api_errors
+ from ..fixture_scheduling import team_ids_for_league
+@@ -72,7 +73,10 @@ def load_teams_merge_and_extend_ids(
+             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
+             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
+             if complete:
+-                ts = datetime.now(timezone.utc)
++                # Append only. The delete that used to follow this write was removed
++                # 2026-08-17 (CPO: raw appends and never deletes). `stg_apif__teams` already
++                # selects the newest row per league_code, so older rows are not selected — and
++                # they survive, which is what makes a shrunken later snapshot recoverable.
+                 load_json_to_bq(
+                     ctx.client,
+                     raw_table("TEAMS"),
+@@ -80,23 +84,7 @@ def load_teams_merge_and_extend_ids(
+                     as_json_payload=True,
+                     append=True,
+                     league_code=league_code,
+-                    ingested_at=ts.isoformat(),
+                 )
+-                # #33 item 8b — see loads/transfers.py for why this is safe and why it
+-                # runs only past the completeness guard above.
+-                #
+-                # Caught HERE rather than by the outer `except`, unlike transfers and
+-                # standings. That handler has side effects this failure must not trigger:
+-                # it would skip the id extension below — which the comment there says runs
+-                # EITHER WAY, deliberately — and then spend an extra /teams call on the
+-                # `team_ids_for_league` fallback. A failed space reclaim must not cost the
+-                # run its team ids or an API call.
+-                try:
+-                    delete_superseded_league_rows(
+-                        ctx.client, raw_table("TEAMS"), league_code, ts
+-                    )
+-                except Exception as e:
+-                    ctx.errors.append(f"teams merge-delete {league_code}: {e}")
+                 ctx.add_loaded(1)
+             else:
+                 ctx.errors.append(
+diff --git a/ingestion/api_football/loads/transfers.py b/ingestion/api_football/loads/transfers.py
+index 88fc511..4498ef1 100644
+--- a/ingestion/api_football/loads/transfers.py
++++ b/ingestion/api_football/loads/transfers.py
+@@ -5,18 +5,22 @@ row. Transfers are not season-scoped — one /transfers?team= call returns all o
+ team's players' moves. Fetching by team returns each move twice (once per involved
+ team); the base model dedups.
+ 
+-MERGE-ON-WRITE since #33 item 8b: the run appends its snapshot, then deletes this
+-league's older rows. The row is the WHOLE league, so nothing is lost — staging already
+-read only the latest row per league_code.
++APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
++snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__transfers`
++selects the newest row per league_code, so the older ones are simply not selected — they
++are there for the case this rule exists for, a later answer that carries LESS than the one
++it would have replaced. That case is sharpest in this loader: with an empty `team_ids` the
++fetch loop never runs and the payload is empty while `complete` stays True, which under
++merge-on-write would have wiped the league's entire transfer history. The merge-on-write of
++#33 item 8b was removed here; see docs/data_contract.md, "Raw appends and never deletes".
+ """
+ 
+ from __future__ import annotations
+ 
+ import os
+-from datetime import datetime, timezone
+ 
+ from .. import quota as errors_quota
+-from ..bigquery import delete_superseded_league_rows, load_json_to_bq
++from ..bigquery import load_json_to_bq
+ from ..settings import raw_table
+ from ..fixture_scheduling import transfers_response_for_team
+ from .context import PipelineContext
+@@ -62,16 +66,23 @@ def load_transfers_batch(
+             complete = False
+             ctx.errors.append(f"transfers {league_code} team {team_id}: {e}")
+     if not complete:
+-        # Discard rather than supersede. Under today's append-only writes the stored snapshot
+-        # simply stays the latest; once #33 item 8b makes this table merge-on-write, writing
+-        # here would DELETE that stored snapshot, so this guard is what makes 8b safe.
++        # Discard rather than supersede. Raw is append-only, so the stored snapshot survives
++        # either way — but `stg_apif__transfers` reads the LATEST row per league, so writing a
++        # partial here would still hide the good snapshot from every model downstream. Not
++        # deleting it is what makes that recoverable rather than permanent.
+         ctx.errors.append(
+             f"transfers {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
+             f"snapshot kept (#896); retries next run"
+         )
+         return
+     try:
+-        ts = datetime.now(timezone.utc)
++        # Append only. The delete that used to follow this write was removed 2026-08-17 (CPO:
++        # raw appends and never deletes). `stg_apif__transfers` already selects the newest row
++        # per league_code. This loader is the sharpest illustration of why the delete had to
++        # go: with an empty `team_ids` the loop above never runs, `complete` stays True, and
++        # the delete would wipe the league's entire transfer history behind an empty payload
++        # with no error anywhere. (The missing empty-team_ids guard itself is MR2, not this
++        # task — append-only already makes that case recoverable instead of fatal.)
+         load_json_to_bq(
+             ctx.client,
+             raw_table("TRANSFERS"),
+@@ -79,14 +90,6 @@ def load_transfers_batch(
+             as_json_payload=True,
+             append=True,
+             league_code=league_code,
+-            ingested_at=ts.isoformat(),
+-        )
+-        # #33 item 8b. Reachable only past the completeness guard above, so a partial
+-        # snapshot never deletes anything. Strictly BEFORE `ts` keeps the row just
+-        # written. If the delete raises, the append already stood and both rows remain —
+-        # staging still selects the newer one, so a failure costs the saving, never data.
+-        delete_superseded_league_rows(
+-            ctx.client, raw_table("TRANSFERS"), league_code, ts
+         )
+         ctx.add_loaded(1)
+     except Exception as e:
+diff --git a/ingestion/api_football/refetch.py b/ingestion/api_football/refetch.py
+index dd51d41..5c7cf29 100644
+--- a/ingestion/api_football/refetch.py
++++ b/ingestion/api_football/refetch.py
+@@ -17,15 +17,17 @@ Both loaders write one row per league per run, so fetching a subset of teams and
+ would persist a partial snapshot. What that costs differs, and an earlier version of this
+ docstring got COACHES wrong by asserting both were the same:
+ 
+-  RAW_APIF_TRANSFERS — MERGE-ON-WRITE since #33 item 8b, and `stg_apif__transfers` reads
+-  latest-per-league. A partial write DELETES the complete row it supersedes. Unrecoverable
+-  past time travel — the #37 shape.
+-
+-  RAW_APIF_COACHES — APPEND-ONLY. It was deliberately EXCLUDED from 8b (`data_contract.md`,
+-  and the CPO ruling of 2026-06-23) because `stg_apif__coaches` reads ALL snapshots to preserve
+-  every coach ever seen; a league-keyed delete would drop ~120 coaches whose teams later left
+-  our pull. So a partial write here destroys nothing — it appends a thin snapshot that base
+-  then dedups. Still not something to do on purpose, but the consequence is noise, not loss.
++  RAW_APIF_TRANSFERS — `stg_apif__transfers` reads latest-per-league, so a partial write HIDES
++  the complete snapshot from every model downstream. ⚠ It no longer DESTROYS it: this table was
++  merge-on-write under #33 item 8b, and that was REVERSED on 2026-08-17 (CPO: raw appends and
++  never deletes), so the complete row survives in raw and a bad write is recoverable by
++  re-running rather than unrecoverable past time travel. The reason to keep the skip is
++  unchanged — a hidden snapshot is still a wrong warehouse until the next good run.
++
++  RAW_APIF_COACHES — the same, and it always was. `stg_apif__coaches` reads ALL snapshots to
++  preserve every coach ever seen (CPO ruling 2026-06-23), so a partial write appends a thin
++  snapshot that base then dedups. Coaches was the one table 8b never touched; since 2026-08-17
++  every table has the property that used to make it special.
+ 
+ Either way a league that is not due is skipped ENTIRELY at the call site: no fetch, no write.
+ Its stored rows are untouched and staging reads exactly what it read yesterday. That is why no
+diff --git a/scripts/diagnostics/reshape_players_to_team_season.py b/scripts/diagnostics/reshape_players_to_team_season.py
+index 7f25e62..6a57014 100644
+--- a/scripts/diagnostics/reshape_players_to_team_season.py
++++ b/scripts/diagnostics/reshape_players_to_team_season.py
+@@ -5,7 +5,7 @@ Background
+ RAW_APIF_PLAYERS historically stored one bloated row per league (``response`` = every
+ team×season), which for large-roster deep leagues (LIBER/UEL/UCL) exceeds BigQuery's
+ 100 MB per-row JSON limit and fails to load. The loader now writes one small row per
+-(team, season) (loads/squads.py, merge-on-write). This script migrates the EXISTING data
++(team, season) (loads/squads.py, append-only since 2026-08-17). This script migrates the EXISTING data
+ to that grain so staging can read it faithfully (current-per-entity is assembled in base).
+ 
+ What it does
+diff --git a/tests/test_incomplete_fetch_no_supersede.py b/tests/test_incomplete_fetch_no_supersede.py
+index 42111d4..b0257b4 100644
+--- a/tests/test_incomplete_fetch_no_supersede.py
++++ b/tests/test_incomplete_fetch_no_supersede.py
+@@ -1,22 +1,30 @@
+-"""An incomplete /players fetch must never supersede stored data (#896).
++"""An incomplete fetch must never be written (#896).
+ 
+-The defect: `_delete_superseded_player_rows` deleted the prior row for a (team, season) keyed on
+-what the NEW row claimed, with no check that the fetch had succeeded. A per-minute rate limit
+-arrives as HTTP 200 with the error in the body, so a rejected call looked like an empty-but-valid
+-squad and destroyed the good rows it failed to replace. Measured on the 2026-08-02 nightly: UCL 340
+-went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40 when the limit hit
+-mid-pagination.
++The original defect: `_delete_superseded_player_rows` deleted the prior row for a (team, season)
++keyed on what the NEW row claimed, with no check that the fetch had succeeded. A per-minute rate
++limit arrives as HTTP 200 with the error in the body, so a rejected call looked like an
++empty-but-valid squad and destroyed the good rows it failed to replace. Measured on the 2026-08-02
++nightly: UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40
++when the limit hit mid-pagination.
+ 
+ No existing test could catch this class and none could be written against the old signals: the
+ TABLE GREW while the data was destroyed, so row-count, freshness and not-null checks all passed.
+ 
++⚠ THE DELETES ARE GONE since 2026-08-17 (CPO: raw appends and never deletes; the removal is pinned
++by `tests/test_raw_merge_on_write.py`). This file keeps its subject anyway, narrowed to the half
++that still exists and still matters: an incomplete fetch is not WRITTEN. That is not the same
++guarantee as "not deleted", and it is not made redundant by append-only — a written row marks the
++key captured, so a rate-limited empty answer would still turn a transient failure into a permanent
++hole that no later run re-fetches.
++
+ These tests pin both halves of the rule, because pinning only the refusal would let a fix that
+-never supersedes anything pass.
++never writes anything pass.
+ """
+ 
+ from __future__ import annotations
+ 
+ import types
++from datetime import datetime, timezone
+ 
+ import pytest
+ 
+@@ -32,21 +40,20 @@ def _ctx():
+ 
+ def _wire(monkeypatch, fetch):
+     """Run load_squad_players_batch with no network and no BigQuery, capturing the writes."""
+-    captured: dict = {"rows": None, "delete_keys": None, "load_calls": 0}
++    captured: dict = {"rows": None, "load_calls": 0, "keys": None}
+ 
+     def fake_loader(client, table, rows, *, league_code, append=True, ingested_at=None):
+         captured["rows"] = rows
+         captured["load_calls"] += 1
++        captured["keys"] = [
++            f"{e['team_id']}-{e['season']}" for r in rows for e in r["response"]
++        ]
+         return len(rows)
+ 
+-    def fake_delete(client, table, league_code, keys, before):
+-        captured["delete_keys"] = keys
+-
+     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
+     monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
+     monkeypatch.setattr(sq, "players_response_for_team", fetch)
+     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", fake_loader)
+-    monkeypatch.setattr(sq, "_delete_superseded_player_rows", fake_delete)
+     return captured
+ 
+ 
+@@ -60,7 +67,6 @@ class TestIncompleteFetchDoesNotSupersede:
+         sq.load_squad_players_batch(ctx, "UCL", [2026], {340})
+ 
+         assert captured["load_calls"] == 0, "an incomplete fetch must not be written"
+-        assert captured["delete_keys"] is None, "the prior row must not be deleted"
+         assert any("SKIPPED on an incomplete fetch" in e for e in ctx.errors)
+ 
+     def test_partial_pagination_does_not_supersede(self, monkeypatch):
+@@ -73,7 +79,6 @@ class TestIncompleteFetchDoesNotSupersede:
+         sq.load_squad_players_batch(ctx, "APD", [2026], {463})
+ 
+         assert captured["load_calls"] == 0
+-        assert captured["delete_keys"] is None
+ 
+     def test_incomplete_key_is_not_marked_captured(self, monkeypatch):
+         # Withholding the WRITE matters as much as withholding the delete. A written row marks the
+@@ -93,32 +98,40 @@ class TestIncompleteFetchDoesNotSupersede:
+         captured = _wire(monkeypatch, fetch)
+         sq.load_squad_players_batch(_ctx(), "UCL", [2026], {340, 341})
+ 
+-        assert captured["delete_keys"] == ["341-2026"], "only the good key may supersede"
++        assert captured["keys"] == ["341-2026"], "only the good key may be written"
+         written = [e["team_id"] for r in captured["rows"] for e in r["response"]]
+         assert written == [341]
+ 
+ 
+-class TestCompleteFetchStillSupersedes:
+-    def test_successful_fetch_supersedes_as_before(self, monkeypatch):
+-        # The other half of the rule. Without this, a fix that never supersedes anything passes.
++class TestCompleteFetchIsStillWritten:
++    def test_successful_fetch_is_written_as_before(self, monkeypatch):
++        # The other half of the rule. Without this, a fix that never writes anything passes.
+         captured = _wire(monkeypatch, lambda *a, **k: ([{"player": {"id": 7}}], True))
+         ctx = _ctx()
+         sq.load_squad_players_batch(ctx, "UCL", [2026], {340})
+ 
+         assert captured["load_calls"] == 1
+-        assert captured["delete_keys"] == ["340-2026"]
++        assert captured["keys"] == ["340-2026"]
+         assert ctx.errors == []
+ 
+-    def test_empty_but_complete_response_still_supersedes(self, monkeypatch):
++    def test_empty_but_complete_response_is_still_written(self, monkeypatch):
+         # CPO decision 2026-08-03: an empty response with NO error is the provider genuinely
+-        # reporting no players, and is indistinguishable from one. It supersedes. Refusing to
+-        # supersede on emptiness would strand 3,539 historical team-seasons outside the fetch
++        # reporting no players, and is indistinguishable from one. It is written. Refusing to
++        # write on emptiness would strand 3,539 historical team-seasons outside the fetch
+         # cache and re-fetch them every night, about +42 min per run, permanently.
++        #
++        # ⚠ This is the exact case that made the delete lethal, and it is why the answer was to
++        # remove the delete rather than to narrow this rule: the empty answer still lands, but
++        # the fuller earlier row is still there for base to prefer. Do not "fix" this by
++        # refusing empty responses — that trades a data loss for a quota bill and was measured.
+         captured = _wire(monkeypatch, lambda *a, **k: ([], True))
+         sq.load_squad_players_batch(_ctx(), "UCL", [2026], {340})
+ 
+         assert captured["load_calls"] == 1
+-        assert captured["delete_keys"] == ["340-2026"]
++        # The row IS written, carrying the key with an empty players_payload. That is the point:
++        # the key counts as captured so it is not re-fetched nightly.
++        assert captured["keys"] == ["340-2026"]
++        assert captured["rows"][0]["response"][0]["players_payload"] == []
+ 
+ 
+ class TestResultIsComplete:
+@@ -263,21 +276,30 @@ def _fixture_obj(fid: int) -> dict:
+     return {"fixture": {"id": fid}, "events": [], "statistics": [{"team": {"id": 1}}]}
+ 
+ 
++class _RecordingClient:
++    """Records every query. `_fetch_and_persist_batch` must issue none."""
++
++    def __init__(self):
++        self.queries: list[str] = []
++
++    def query(self, sql, job_config=None):
++        self.queries.append(sql)
++        return types.SimpleNamespace(result=lambda: None)
++
++
+ def _wire_batch(monkeypatch, data: dict) -> dict:
+-    """Run _fetch_and_persist_batch with no network and no BigQuery, capturing the DELETE."""
+-    captured: dict = {"deleted": None, "inserted": None}
++    """Run the REAL _fetch_and_persist_batch with no network and no BigQuery.
++
++    `_delete_fixtures` is deliberately NOT stubbed, because it no longer exists. Any DML would
++    now have to travel through `ctx.client.query`, so the recording client catches a delete
++    reintroduced under any name — which patching a known helper never could.
++    """
++    captured: dict = {"inserted": None}
+ 
+     monkeypatch.setattr(bf.errors_quota, "_http_quota_exhausted", False)
+     monkeypatch.setattr(bf, "fetch_json", lambda *a, **k: data)
+     monkeypatch.setattr(bf, "ensure_unified_raw_table", lambda *a, **k: None)
+     monkeypatch.setattr(bf, "_fixture_details_table_id", lambda: "p.raw.FIXTURE_DETAILS")
+-    monkeypatch.setattr(
+-        bf,
+-        "_delete_fixtures",
+-        lambda client, table_id, fixture_ids, league_code: captured.__setitem__(
+-            "deleted", list(fixture_ids)
+-        ),
+-    )
+     monkeypatch.setattr(
+         bf,
+         "_insert_fixture_rows",
+@@ -288,52 +310,84 @@ def _wire_batch(monkeypatch, data: dict) -> dict:
+     return captured
+ 
+ 
+-class TestFixtureDetailsRetryDoesNotSupersede:
+-    """#896 ported to batch_fixtures (GitLab #75).
++class TestFixtureDetailsRetryKeepsBothVersions:
++    """The fixture-details half of the append-only ruling (GitLab #75).
+ 
+-    RAW_APIF_FIXTURE_DETAILS is MERGE-ON-WRITE keyed on (league_code, fixture_id), so the retry
+-    path DELETES the stored payload before re-inserting. `escalations.log` (2026-08-08, the 8a/8b
+-    split) names the hazard: "Under append-only that is RECOVERABLE ... Under merge-on-write the
+-    partial write DELETES the complete prior row." One fixture row carries events, lineups,
+-    players AND statistics together, so a single bad retry destroys all four at once.
++    This table is the one that cost real data. Its row bundles lineups, events, statistics and
++    player stats TOGETHER, so a retry chasing late statistics could return richer in one section
++    and poorer in another. The delete made the poorer answer the only surviving one: fixture
++    1564795 went 27 events to 17, an entire penalty shootout, unrecoverable.
+ 
+-    This loader never received the guard — it is absent from 8a's port list (coaches, standings,
+-    teams). These two tests pin it.
++    CPO 2026-08-17, verbatim: "raw keeps both versions." Base decides, using the rule it already
++    has (`base_apif__fixture_events`, newest per (league_code, fixture_id, event_index)).
+     """
+ 
+-    def test_incomplete_fetch_does_not_delete_the_stored_payload(self, monkeypatch):
+-        # THE SHAPE THAT ACTUALLY DESTROYS DATA, and the reason this test is not written with an
+-        # empty response: an empty body returns early at `if not response` even unguarded, so a
+-        # test built that way would pass for the wrong reason and prove nothing about the delete
+-        # (this repo has shipped three such tests — #63). Here the batch is PARTIAL: fixture 111
+-        # came back, 222 did not, and the per-minute limit is reported in the body. Unguarded,
+-        # both retried ids were deleted and only 111 was replaced — 222 destroyed outright.
+-        data = {"response": [_fixture_obj(111)], "errors": {"rateLimit": "Too many requests"}}
++    def test_a_retried_fixture_is_appended_and_nothing_is_deleted(self, monkeypatch):
++        # THE case the ruling exists for. 111 was retried (previously empty statistics) and the
++        # provider answered cleanly. Before the reversal this deleted the stored payload first.
++        # Now the new version is appended alongside the old one.
++        #
++        # 222 was also retried and NOT returned. Under the old code that omission needed its own
++        # special case, or its stored row was superseded with nothing. Append-only removes the
++        # case rather than guarding it: an id the provider skipped is simply not written.
++        data = {"response": [_fixture_obj(111)], "errors": []}
+         captured = _wire_batch(monkeypatch, data)
++        client = _RecordingClient()
+         ctx = _ctx()
++        ctx.client = client
+ 
+-        bf._fetch_and_persist_batch(ctx, "CIT", [111, 222], {111, 222})
++        bf._fetch_and_persist_batch(ctx, "CIT", [111, 222])
+ 
+-        assert captured["deleted"] is None, (
+-            "an incomplete fetch deleted a stored fixture payload — #896 forbids superseding "
+-            "good data with a partial result, and this table is merge-on-write so the delete "
+-            f"is permanent. deleted={captured['deleted']}"
++        assert captured["inserted"] == [111], (
++            f"the returned fixture was not appended. inserted={captured['inserted']}"
++        )
++        assert client.queries == [], (
++            f"a DELETE reached BigQuery: {client.queries}. Raw keeps both versions "
++            "(CPO 2026-08-17) — the older payload is the only copy of anything the retry drops."
+         )
+-        assert captured["inserted"] is None
+-        assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
+ 
+-    def test_delete_is_limited_to_fixtures_the_response_returned(self, monkeypatch):
+-        # Error-free and quota-clean, but the provider omitted one of the ids we asked for.
+-        # result_is_complete() cannot see that: deleting the omitted fixture would supersede a
+-        # stored payload with NOTHING, the same hazard in a different shape.
+-        data = {"response": [_fixture_obj(111)], "errors": []}
++    def test_incomplete_fetch_is_discarded_whole(self, monkeypatch):
++        # #896, unchanged and still needed. Not written with an EMPTY response on purpose: an
++        # empty body returns early at `if not response` even unguarded, so a test built that way
++        # would pass for the wrong reason and prove nothing (this repo has shipped three such
++        # tests — #63). Here the batch is PARTIAL: 111 came back, 222 did not, and the per-minute
++        # limit is reported in the body. The whole batch is discarded and retried next run.
++        data = {"response": [_fixture_obj(111)], "errors": {"rateLimit": "Too many requests"}}
+         captured = _wire_batch(monkeypatch, data)
++        client = _RecordingClient()
+         ctx = _ctx()
++        ctx.client = client
+ 
+-        bf._fetch_and_persist_batch(ctx, "CIT", [111, 222], {111, 222})
++        bf._fetch_and_persist_batch(ctx, "CIT", [111, 222])
++
++        assert captured["inserted"] is None, (
++            "a known-partial payload was written. Append-only makes this recoverable rather "
++            "than fatal, which is not a reason to put a worse row in front of base (#896)."
++        )
++        assert client.queries == []
++        assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
++
++    def test_the_fixture_write_is_an_append(self, monkeypatch):
++        # "Both versions land" is TWO properties: no delete, and an APPEND. A write disposition
++        # flipped to WRITE_TRUNCATE would destroy every fixture in the table for every
++        # competition while issuing no DELETE at all, and the two tests above would stay green.
++        # Exercises the REAL `_insert_fixture_rows`; only the BigQuery load job is doubled.
++        captured: dict = {}
++
++        class _LoadClient:
++            def load_table_from_file(self, fileobj, table_id, job_config=None):
++                captured["disposition"] = job_config.write_disposition
++                return types.SimpleNamespace(result=lambda: None)
++
++        bf._insert_fixture_rows(
++            _LoadClient(),
++            "RAW_APIF_FIXTURE_DETAILS",
++            [_fixture_obj(111)],
++            datetime(2026, 8, 17, tzinfo=timezone.utc),
++            "CIT",
++        )
+ 
+-        assert captured["deleted"] == [111], (
+-            "fixture 222 was retried and NOT returned by the provider; deleting its stored row "
+-            f"destroys it with no replacement. deleted={captured['deleted']}"
++        assert captured["disposition"] == "WRITE_APPEND", (
++            f"fixture details were written with {captured['disposition']!r}. Anything but "
++            "WRITE_APPEND erases the table's history for every competition at once."
+         )
+-        assert captured["inserted"] == [111]
+diff --git a/tests/test_incomplete_snapshot_not_written.py b/tests/test_incomplete_snapshot_not_written.py
+index 2a0fe16..226cbdd 100644
+--- a/tests/test_incomplete_snapshot_not_written.py
++++ b/tests/test_incomplete_snapshot_not_written.py
+@@ -12,10 +12,15 @@ and then write the partial payload as if it were whole:
+         ...
+     load_json_to_bq(..., append=True)  # partial written as if complete
+ 
+-Under append-only that is recoverable — the partial wins in staging but the complete prior row
+-survives in `raw`. Under #33 item 8b (merge-on-write keyed on `league_code`) the partial write
+-DELETES the complete prior row. So this is the guard that makes 8b non-destructive, and these
+-tests are what stop it being quietly removed again.
++Raw is append-only, so this is recoverable: the partial wins in staging, but the complete prior
++row survives in `raw` and the next good run supersedes it. It was NOT recoverable under #33 item
++8b, where the partial write also DELETED the complete prior row — that merge was reversed on
++2026-08-17 (CPO: raw appends and never deletes).
++
++⚠ THE REVERSAL IS NOT A REASON TO DROP THIS GUARD, and that is the point worth keeping. Staging
++reads latest-per-league, so a partial snapshot still hides the good one from every model
++downstream. Append-only changed the consequence from permanent loss to a wrong warehouse until
++the next good run; it did not make writing a known-partial payload correct.
+ 
+ The failure is invisible without them: a partial snapshot is a well-formed payload. Nothing throws,
+ no row count looks wrong, and the pipeline reports success.
+@@ -185,8 +190,8 @@ def test_a_body_level_error_discards_the_snapshot(name, module, patch, invoke, i
+ 
+     assert writes.tables == [], (
+         f"{name}: wrote a snapshot after a body-level provider error. That payload is partial "
+-        "and supersedes the stored one in staging today, and DELETES it once #33 item 8b makes "
+-        "the table merge-on-write (#896)."
++        "and supersedes the stored one in staging, which reads latest-per-league — so every "
++        "model downstream serves the short version until the next good run (#896)."
+     )
+     assert any("INCOMPLETE" in e for e in ctx.errors), (
+         f"{name}: discarded the snapshot without reporting it. A silent discard is how a league "
+diff --git a/tests/test_raw_merge_on_write.py b/tests/test_raw_merge_on_write.py
+index 80714a3..e84f7a5 100644
+--- a/tests/test_raw_merge_on_write.py
++++ b/tests/test_raw_merge_on_write.py
+@@ -1,46 +1,37 @@
+-"""Merge-on-write for the three whole-league snapshot tables (#33 item 8b).
+-
+-WHY THIS EXISTS
+----------------
+-`TRANSFERS`, `STANDINGS` and `TEAMS` each write ONE row covering the entire league, and
+-staging reads only the latest row per `league_code`. Every earlier row is therefore dead
+-weight that is still scanned — `RAW_APIF_TRANSFERS` was 1,143 rows / 6.99 GiB on
+-2026-08-09, 59% of all raw, and the two most expensive nodes in the warehouse were both
+-scans of a view over it. Each run now appends its snapshot and deletes that league's
+-strictly-older rows.
+-
+-The whole change rests on ONE invariant: the delete boundary is the appended row's OWN
+-`ingested_at`, so `ingested_at < @before` can never reach the row just written. Get that
+-wrong and the loader deletes everything including its own write, leaving the league empty.
+-`test_the_delete_boundary_is_the_write_s_own_timestamp` is the case that pins it.
++"""Raw appends and NEVER deletes — the merge-on-write is gone (CPO 2026-08-17).
++
++WHAT THIS FILE IS NOW
++---------------------
++It was the file that pinned #33 item 8b: three loaders had to append a whole-league snapshot
++and then DELETE that league's older rows. It now pins the opposite, because the CPO reversed
++that decision after two independent assessments found the same root cause.
++
++The reversal in one sentence: the delete fired whenever a fetch was judged COMPLETE, and
++"complete" means only that the call did not error — `http_client.result_is_complete` counts an
++empty error-free response as complete, deliberately (CPO 2026-08-03). So a provider answering
++with nothing, or with less than it gave us yesterday, destroyed the stored history past the
++7-day time-travel window with no signal anywhere. Measured damage before the reversal: 29
++events across 5 fixtures (`escalations.log` 2026-08-17) and four squads on 2026-08-02
++(`squads.py`). Retention is now base's decision, which is where the layer model always put it.
++
++Do NOT restore a delete here to "bound the table". The scan-cost argument that bought it is
++spent: staging became a stored table on 2026-08-13, so each raw table is parsed once a night
++rather than once per test. If growth ever needs bounding, it is compaction by version count,
++never a delete at write time, and never keyed on time (biennial competitions lose their only
++row — #892).
+ 
+ HOW THESE ARE SHAPED
+ --------------------
+-The delete is asserted through the REAL `delete_superseded_league_rows` against a fake
+-client that records SQL and query parameters. It is deliberately NOT monkeypatched.
+-
+-That is not a style choice. `tests/test_squad_players_rows.py` monkeypatches
+-`_delete_superseded_player_rows` — the sibling merge helper — so the SQL it builds and the
+-parameters it binds are asserted nowhere, and reverting its `ingested_at` bound leaves that
+-suite green. Ten decoration tests have now been caught in this repo by breaking the subject
+-rather than reading the test; monkeypatching the very helper under test was one of the named
+-causes. Only `load_json_to_bq` is doubled here, because a real BigQuery load is not the
+-subject.
+-
+-WHAT MUST NOT BE ADDED TO THE CONVERTED SET
+--------------------------------------------
+-`test_only_the_three_whole_league_loaders_merge` pins the set. Two exclusions are data
+-destruction, not preference:
+-
+-  COACHES — `stg_apif__coaches.sql` reads ALL snapshots by CPO ruling (escalations.log,
+-  2026-06-23) to preserve every coach ever seen. A league-keyed delete destroys ~120 coaches
+-  whose teams left our pull. It is the loader that looks most like the three converted ones,
+-  which is exactly why it is pinned here.
+-
+-  SQUADS — the loader writes a team SUBSET (see #37; WCQAF exposes 10 of 44 teams today).
+-  Merge-on-write would make a recoverable staging bug permanent.
+-
+-PLAYER_PROFILES and PLAYER_TEAMS accumulate per player and must NEVER be converted.
++Each loader runs for real against a client double that records every query it issues. Nothing
++about the loader is monkeypatched except `load_json_to_bq`, because a real BigQuery load is not
++the subject. A DELETE cannot reach BigQuery except through `client.query`, so asserting that no
++query is issued at all catches a re-introduction under ANY name — which a source grep or an
++attribute check would not.
++
++That matters here specifically: the deleted helpers were reachable three different ways (a
++shared helper in `bigquery.py`, a private per-key one in `squads.py`, a private per-fixture one
++in `batch_fixtures.py`). Pinning the names would pin the three that existed, not the fourth
++someone writes next.
+ """
+ 
+ from __future__ import annotations
+@@ -51,28 +42,29 @@ import pytest
+ 
+ from ingestion.api_football import fixture_scheduling
+ from ingestion.api_football import quota as errors_quota
+-from ingestion.api_football.loads import coaches, standings, teams, transfers
++from ingestion.api_football.loads import coaches, squads, standings, teams, transfers
+ 
+ 
+ class _Client:
+-    """Records every query the loader issues. `fail=True` makes the DELETE raise."""
++    """Records every query the loader issues. Any DML at all is a failure here."""
+ 
+-    def __init__(self, fail: bool = False):
++    def __init__(self):
+         self.queries: list[tuple[str, object]] = []
+-        self._fail = fail
+ 
+     def query(self, sql, job_config=None):
+         self.queries.append((sql, job_config))
+-        if self._fail:
+-            raise RuntimeError("simulated BigQuery DML failure")
+         return types.SimpleNamespace(result=lambda: None)
+ 
+-    def deletes(self) -> list[tuple[str, object]]:
+-        return [(sql, jc) for sql, jc in self.queries if "delete from" in sql.lower()]
++    def dml(self) -> list[str]:
++        return [
++            sql
++            for sql, _ in self.queries
++            if any(k in sql.lower() for k in ("delete", "update", "merge", "truncate"))
++        ]
+ 
+ 
+ class _Writes:
+-    """Records every raw write, keeping the kwargs so `ingested_at` can be compared."""
++    """Records every raw write, keeping the kwargs so `append=True` can be asserted."""
+ 
+     def __init__(self):
+         self.calls: list[tuple[str, dict]] = []
+@@ -108,7 +100,7 @@ def _reset_quota():
+ 
+ # `transfers` reaches the provider through fixture_scheduling, the other two through their
+ # own module namespace. Patching the HTTP layer UNDER the real helper (never the helper
+-# itself) is what makes the real #896 guard run — see test_incomplete_snapshot_not_written.
++# itself) is what makes the real #896 guard run.
+ def _patch_transfers(monkeypatch, fetch):
+     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
+ 
+@@ -133,23 +125,24 @@ def _invoke_teams(ctx):
+     teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2025], 2025, set())
+ 
+ 
+-CONVERTED = [
++WHOLE_LEAGUE = [
+     ("transfers", transfers, _patch_transfers, _invoke_transfers, "RAW_APIF_TRANSFERS"),
+     ("standings", standings, _patch_standings, _invoke_standings, "RAW_APIF_STANDINGS"),
+     ("teams", teams, _patch_teams, _invoke_teams, "RAW_APIF_TEAMS"),
+ ]
+-IDS = [x[0] for x in CONVERTED]
+-
++IDS = [x[0] for x in WHOLE_LEAGUE]
+ 
+-def _params(job_config) -> dict:
+-    return {p.name: p.value for p in job_config.query_parameters}
+ 
+-
+-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
+-def test_a_clean_run_appends_then_deletes_the_superseded_rows(
++@pytest.mark.parametrize("name, module, patch, invoke, table", WHOLE_LEAGUE, ids=IDS)
++def test_a_clean_run_appends_and_issues_no_dml(
+     name, module, patch, invoke, table, monkeypatch
+ ):
+-    """One write, then exactly one DELETE against the same table."""
++    """THE case this file exists for, in its new direction.
++
++    A clean, complete fetch writes its snapshot and touches nothing else. Before the reversal
++    this same run deleted every older row for the league. The older rows are now what makes a
++    later shrunken answer survivable, so any DML at all here is the defect.
++    """
+     writes = _Writes()
+     client = _Client()
+     monkeypatch.setattr(module, "load_json_to_bq", writes)
+@@ -160,50 +153,21 @@ def test_a_clean_run_appends_then_deletes_the_superseded_rows(
+     assert [t for t, _ in writes.calls] == [table], (
+         f"{name}: expected exactly one write to {table}, got {[t for t, _ in writes.calls]}"
+     )
+-    deletes = client.deletes()
+-    assert len(deletes) == 1, (
+-        f"{name}: expected exactly one DELETE after the append, got {len(deletes)}. "
+-        "Without it the table keeps growing with competitions x runs (#33 item 8b)."
+-    )
+-    assert table in deletes[0][0], (
+-        f"{name}: the DELETE does not target {table}. SQL={deletes[0][0]!r}"
++    assert client.dml() == [], (
++        f"{name}: issued DML against raw. Raw appends and never deletes (CPO 2026-08-17) — "
++        f"the older rows are the only copy of anything a later answer drops. SQL={client.dml()}"
+     )
+ 
+ 
+-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
+-def test_the_delete_is_scoped_to_this_league(
++@pytest.mark.parametrize("name, module, patch, invoke, table", WHOLE_LEAGUE, ids=IDS)
++def test_every_raw_write_is_an_append(
+     name, module, patch, invoke, table, monkeypatch
+ ):
+-    """`league_code` is bound as a parameter, so one competition can never delete another's
+-    rows. All 45 competitions share one physical table."""
+-    writes = _Writes()
+-    client = _Client()
+-    monkeypatch.setattr(module, "load_json_to_bq", writes)
+-    patch(monkeypatch, lambda: _ok())
+-
+-    invoke(_ctx(client))
+-
+-    sql, job_config = client.deletes()[0]
+-    assert "league_code = @lc" in sql, (
+-        f"{name}: the DELETE is not scoped to a league. SQL={sql!r}. An unscoped delete "
+-        "wipes every other competition's snapshot from the shared table."
+-    )
+-    assert _params(job_config)["lc"] == "BL1", (
+-        f"{name}: the DELETE bound league_code={_params(job_config).get('lc')!r}, expected 'BL1'."
+-    )
+-
++    """The other half of "never deletes", and it needs its own assertion.
+ 
+-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
+-def test_the_delete_boundary_is_the_write_s_own_timestamp(
+-    name, module, patch, invoke, table, monkeypatch
+-):
+-    """THE case this file exists for.
+-
+-    The delete must be bounded strictly BEFORE the `ingested_at` of the row just appended.
+-    Same value, strict `<`: older rows go, the new row stays. If the bound were dropped, or
+-    computed independently of the write, the loader would delete its own snapshot and leave
+-    the league with no row at all — and staging, which reads the latest row per league,
+-    would then serve nothing for that competition.
++    A loader that passed `append=False` would reach WRITE_TRUNCATE (`bigquery.py`, where
++    `append` defaults to False), which destroys the whole table's history for every
++    competition at once while issuing no DELETE — so the test above would stay green.
+     """
+     writes = _Writes()
+     client = _Client()
+@@ -212,33 +176,23 @@ def test_the_delete_boundary_is_the_write_s_own_timestamp(
+ 
+     invoke(_ctx(client))
+ 
+-    written_stamp = writes.calls[0][1].get("ingested_at")
+-    assert written_stamp is not None, (
+-        f"{name}: the loader did not pass `ingested_at` to the write, so the delete boundary "
+-        "cannot be the row's own timestamp — it would be an independently-taken clock reading."
+-    )
+-
+-    sql, job_config = client.deletes()[0]
+-    assert "ingested_at < @before" in sql, (
+-        f"{name}: the DELETE has no strict upper bound on ingested_at. SQL={sql!r}. Without "
+-        "it the statement also deletes the row this run just wrote."
+-    )
+-    assert _params(job_config)["before"].isoformat() == written_stamp, (
+-        f"{name}: the delete boundary {_params(job_config)['before'].isoformat()!r} is not the "
+-        f"written row's stamp {written_stamp!r}. Any drift here deletes the new row or spares "
+-        "a superseded one."
++    _, kwargs = writes.calls[0]
++    assert kwargs.get("append") is True, (
++        f"{name}: wrote with append={kwargs.get('append')!r}. Anything but True is "
++        "WRITE_TRUNCATE, which erases every competition's rows in that table."
+     )
+ 
+ 
+-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
+-def test_an_incomplete_fetch_deletes_nothing(
++@pytest.mark.parametrize("name, module, patch, invoke, table", WHOLE_LEAGUE, ids=IDS)
++def test_an_incomplete_fetch_writes_nothing(
+     name, module, patch, invoke, table, monkeypatch
+ ):
+-    """The 8a guard returns before the write, so the delete must be unreachable.
++    """#896, unchanged by the reversal and deliberately kept.
+ 
+-    This is the ordering that makes 8b safe: a partial snapshot that reached the delete
+-    would remove the good stored row and replace it with less data — permanently, past the
+-    7-day time-travel window. The guard and the delete are one mechanism.
++    Append-only makes a partial write recoverable rather than fatal, which is exactly why it
++    would be tempting to drop this guard. Do not: a known-partial payload put in front of base
++    is a worse row for no reason, and the run would report the fixture as touched when it was
++    not. Nothing here was loosened.
+     """
+     writes = _Writes()
+     client = _Client()
+@@ -249,102 +203,127 @@ def test_an_incomplete_fetch_deletes_nothing(
+     invoke(ctx)
+ 
+     assert writes.calls == [], f"{name}: wrote a partial snapshot (#896)."
+-    assert client.deletes() == [], (
+-        f"{name}: issued a DELETE on the incomplete-fetch path. The stored snapshot is the "
+-        "good one and this would destroy it."
+-    )
++    assert client.dml() == [], f"{name}: issued DML on the incomplete-fetch path."
+     assert any("INCOMPLETE" in e for e in ctx.errors), (
+         f"{name}: discarded silently. ctx.errors={ctx.errors}"
+     )
+ 
+ 
+-@pytest.mark.parametrize("name, module, patch, invoke, table", CONVERTED, ids=IDS)
+-def test_a_failed_delete_is_reported_and_does_not_raise(
+-    name, module, patch, invoke, table, monkeypatch
+-):
+-    """Fails safe. The append already succeeded, so both rows survive and staging still
+-    selects the newer one — a failed delete costs the space saving, never the data. It must
+-    not take the run down, and it must not pass silently."""
+-    writes = _Writes()
+-    client = _Client(fail=True)
+-    monkeypatch.setattr(module, "load_json_to_bq", writes)
+-    patch(monkeypatch, lambda: _ok())
++def test_the_players_loader_appends_and_deletes_nothing(monkeypatch):
++    """RAW_APIF_PLAYERS had the best-shaped delete in the codebase and still lost data.
+ 
+-    ctx = _ctx(client)
+-    invoke(ctx)  # must not raise
++    It was keyed per (team, season) rather than per league, so a quota cut left un-fetched
++    keys alone — genuinely careful. It did not help: an empty error-free /players response is
++    a COMPLETE answer, so it superseded the roster it could not replace, and on 2026-08-02
++    UCL 340 went 25 players to 0. Correct grain does not rescue a delete whose trigger cannot
++    tell "no players" from "we lost the players".
++    """
++    client = _Client()
++    monkeypatch.setattr(squads.errors_quota, "_http_quota_exhausted", False)
++    monkeypatch.setattr(squads, "captured_player_team_seasons", lambda ctx: set())
++    monkeypatch.setattr(
++        squads, "players_response_for_team", lambda *a, **k: ([{"player": {"id": 7}}], True)
++    )
++    written: list = []
++    monkeypatch.setattr(
++        squads,
++        "load_json_payload_rows_to_bq",
++        lambda client_, table, rows, **kw: (written.append((table, kw)), len(rows))[1],
++    )
+ 
+-    assert ctx.errors, f"{name}: a failed DELETE was swallowed with no error recorded."
++    squads.load_squad_players_batch(_ctx(client), "UCL", [2026], {340})
++
++    assert [t for t, _ in written] == ["RAW_APIF_PLAYERS"], (
++        f"the loader did not write; the test is not exercising it. wrote={written}"
++    )
++    assert written[0][1].get("append") is True, "RAW_APIF_PLAYERS must be appended, not truncated"
++    assert client.dml() == [], (
++        f"the players loader issued DML against raw: {client.dml()}. The per-(team, season) "
++        "delete was removed 2026-08-17 and must not come back."
++    )
+ 
+ 
+-def test_a_failed_delete_still_extends_team_ids(monkeypatch):
+-    """`teams` catches the delete itself instead of letting the outer handler take it.
++def test_an_incomplete_fetch_still_extends_team_ids(monkeypatch):
++    """Narrowed survivor of `test_a_failed_delete_still_extends_team_ids`.
+ 
+-    That handler has side effects this failure must not trigger: it skips the id extension —
+-    which `teams.py` states runs EITHER WAY, deliberately — and then spends an extra /teams
+-    call on the `team_ids_for_league` fallback. Downstream, `coaches`, `transfers` and
+-    `squads` all fetch by team id, so losing the ids turns a failed space reclaim into a
+-    run-wide outage for that competition.
++    That test protected the id extension from a failing DELETE. There is no delete any more,
++    so the case is gone — but the property it guarded is not: `teams.py` states the extension
++    runs EITHER WAY, deliberately, because `coaches`, `transfers` and `squads` all fetch by
++    team id downstream. Re-pointed at the path that still exists, the discarded-snapshot one.
++    Deleting the test outright would have dropped a live guarantee along with a dead case.
+     """
+     writes = _Writes()
+-    client = _Client(fail=True)
++    client = _Client()
+     monkeypatch.setattr(teams, "load_json_to_bq", writes)
+-    _patch_teams(monkeypatch, lambda: _ok())
++    # Incomplete (body error) but NOT empty: teams came back, the snapshot is still refused.
++    _patch_teams(monkeypatch, lambda: {
++        "response": [{"team": {"id": 1}}],
++        "errors": {"rateLimit": "Too many requests"},
++        "results": 1,
++        "paging": {"current": 1, "total": 1},
++    })
+     team_ids: set[int] = set()
+ 
+-    teams.load_teams_merge_and_extend_ids(_ctx(client), "BL1", 78, [2025], 2025, team_ids)
++    ctx = _ctx(client)
++    teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2025], 2025, team_ids)
+ 
++    assert writes.calls == [], "an incomplete snapshot must not be written (#896)"
+     assert team_ids == {1}, (
+-        "a failed merge-delete cost the run its team ids "
+-        f"(got {team_ids}); the id extension must be independent of it."
++        f"a discarded snapshot cost the run its team ids (got {team_ids}); the id extension "
++        "is not a write to raw and must be independent of it, or one short season becomes a "
++        "run-wide outage for coaches, transfers and squads."
+     )
+ 
+ 
+-def test_only_the_three_whole_league_loaders_merge(monkeypatch):
+-    """COACHES looks identical to the three converted loaders and must NOT merge.
++def test_no_loader_module_carries_a_delete_helper():
++    """Pins the removal against a delete being reintroduced quietly, under any of its names.
+ 
+-    Behavioural, not a source grep: `coaches` is run exactly as the converted loaders are,
+-    and asserted to issue no DELETE. `stg_apif__coaches.sql` reads ALL snapshots by CPO
+-    ruling (escalations.log, 2026-06-23) — a league-keyed delete there destroys ~120 coaches
+-    whose teams later left our pull.
++    Checks the runtime namespace of every module in `loads/` plus `bigquery` itself, so a
++    comment mentioning a helper cannot satisfy it and a re-import would be caught. The
++    behavioural tests above are the real guard — this one names the three that existed so the
++    failure message tells the next person what was removed and why.
+     """
+-    writes = _Writes()
+-    client = _Client()
+-    monkeypatch.setattr(coaches, "load_json_to_bq", writes)
+-    monkeypatch.setattr(coaches, "fetch_merged_paged", lambda *a, **k: _ok())
++    import importlib
++    import pkgutil
+ 
+-    coaches.load_coaches(_ctx(client), "BL1", {1})
++    from ingestion.api_football import bigquery as bq_module
++    from ingestion.api_football import loads
+ 
+-    assert [t for t, _ in writes.calls] == ["RAW_APIF_COACHES"], (
+-        "coaches did not write its snapshot; the test is not exercising the loader."
++    banned = (
++        "delete_superseded_league_rows",
++        "_delete_superseded_player_rows",
++        "_delete_fixtures",
+     )
+-    assert client.deletes() == [], (
+-        "COACHES issued a league-keyed DELETE. `stg_apif__coaches` reads ALL snapshots by "
+-        "CPO ruling 2026-06-23 to preserve every coach ever seen — this destroys them."
++    offenders: list[str] = []
++    for mod in pkgutil.iter_modules(loads.__path__):
++        module = importlib.import_module(f"{loads.__name__}.{mod.name}")
++        offenders += [f"loads.{mod.name}.{n}" for n in banned if hasattr(module, n)]
++    offenders += [f"bigquery.{n}" for n in banned if hasattr(bq_module, n)]
++
++    assert offenders == [], (
++        f"a raw delete helper is back: {offenders}. Raw appends and never deletes "
++        "(CPO 2026-08-17, reversing #33 item 8b). If the table needs bounding, compact by "
++        "version count in a separate job — never delete at write time, and never key it on "
++        "time (#892: biennial competitions lose their only row)."
+     )
+ 
+ 
+-def test_the_merge_helper_is_imported_by_exactly_the_converted_loaders():
+-    """Pins the converted set against a loader being added quietly.
++def test_coaches_was_never_a_merge_loader_and_still_is_not(monkeypatch):
++    """`coaches` is the loader that looks most like the three above and never merged.
+ 
+-    Checks the imported NAME in each module's namespace, which is a runtime fact rather than
+-    a text match — a comment mentioning the helper cannot satisfy it. Honest limit: a module
+-    reaching it as `bigquery.delete_superseded_league_rows` through a module alias would
+-    evade this, which is why the behavioural COACHES case above exists alongside it.
++    Kept from the original file, inverted in meaning: it used to prove the converted set
++    excluded coaches, and now proves the set is empty. `stg_apif__coaches` reads ALL snapshots
++    by CPO ruling (escalations.log, 2026-06-23) to preserve every coach ever seen — the same
++    reasoning that has now been applied to every other table.
+     """
+-    import importlib
+-    import pkgutil
++    writes = _Writes()
++    client = _Client()
++    monkeypatch.setattr(coaches, "load_json_to_bq", writes)
++    monkeypatch.setattr(coaches, "fetch_merged_paged", lambda *a, **k: _ok())
+ 
+-    from ingestion.api_football import loads
++    coaches.load_coaches(_ctx(client), "BL1", {1})
+ 
+-    merging = set()
+-    for mod in pkgutil.iter_modules(loads.__path__):
+-        module = importlib.import_module(f"{loads.__name__}.{mod.name}")
+-        if hasattr(module, "delete_superseded_league_rows"):
+-            merging.add(mod.name)
+-
+-    assert merging == {"transfers", "standings", "teams"}, (
+-        f"the merge-on-write set changed to {sorted(merging)}. Only whole-league snapshot "
+-        "tables may merge. SQUADS writes a team subset (#37), COACHES is read across ALL "
+-        "snapshots (CPO 2026-06-23), and PLAYER_PROFILES / PLAYER_TEAMS accumulate per "
+-        "player — a league-keyed delete erases every player from earlier runs."
++    assert [t for t, _ in writes.calls] == ["RAW_APIF_COACHES"], (
++        "coaches did not write its snapshot; the test is not exercising the loader."
+     )
++    assert client.dml() == [], f"COACHES issued DML against raw: {client.dml()}"
+diff --git a/tests/test_refetch_cadence.py b/tests/test_refetch_cadence.py
+index 4e3cf58..bad0f67 100644
+--- a/tests/test_refetch_cadence.py
++++ b/tests/test_refetch_cadence.py
+@@ -39,11 +39,14 @@ from ingestion.api_football.refetch import (  # noqa: E402
+ REPO = Path(__file__).resolve().parents[1]
+ SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
+ 
+-# The tables this task put on a cadence. They differ in write mode and it matters:
+-#   TRANSFERS is merge-on-write (8b) and read latest-per-league — a partial write DELETES.
+-#   COACHES is APPEND-ONLY, deliberately excluded from 8b because stg_apif__coaches reads all
+-#   snapshots to preserve every coach ever seen (CPO 2026-06-23) — a partial write only adds
+-#   noise. An earlier version of this file called both merge-on-write; a reviewer caught it.
++# The tables this task put on a cadence. They differ in how staging READS them, and that is
++# what matters now that both are append-only (CPO 2026-08-17, raw appends and never deletes):
++#   TRANSFERS is read latest-per-league, so a partial write HIDES the complete row from every
++#   model downstream until the next good run. It no longer DELETES it — that was 8b, reversed.
++#   COACHES is read across ALL snapshots to preserve every coach ever seen (CPO 2026-06-23),
++#   so a partial write only adds noise that base dedups away.
++# An earlier version of this file called both merge-on-write; a reviewer caught it. A later one
++# called TRANSFERS destructive after that stopped being true; a reviewer caught that too.
+ CADENCED_TABLES = {"RAW_APIF_TRANSFERS", "RAW_APIF_COACHES"}
+ 
+ NOW = datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc)
+@@ -188,10 +191,13 @@ def test_a_failed_cadence_read_makes_every_league_due():
+ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
+     """THE ONE THAT PREVENTS DATA LOSS.
+ 
+-    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league and
+-    merge-on-write since 8b, so a write of a partial payload would DELETE the complete row —
+-    the #37 defect, made permanent. Asserted by running the real orchestration path with the
+-    loader replaced by a recorder: zero calls, not "a call with less data".
++    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league, read
++    latest-per-league in staging, so a write of a partial payload hides the complete row from
++    every model downstream — the #37 defect. Since 2026-08-17 the complete row survives in raw
++    (append-only), so that is recoverable by re-running rather than permanent; the guard stays
++    because a hidden snapshot is still a wrong warehouse until the next good run. Asserted by
++    running the real orchestration path with the loader replaced by a recorder: zero calls, not
++    "a call with less data".
+     """
+     from ingestion.api_football.loads import competition_runner as cr
+ 
+diff --git a/tests/test_squad_players_rows.py b/tests/test_squad_players_rows.py
+index 182a69a..aad04cd 100644
+--- a/tests/test_squad_players_rows.py
++++ b/tests/test_squad_players_rows.py
+@@ -52,12 +52,7 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
+         captured["ingested_at"] = ingested_at
+         return len(rows)
+ 
+-    def fake_delete(client, table, league_code, keys, before):
+-        captured["delete_keys"] = keys
+-        captured["delete_before"] = before
+-
+     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", fake_loader)
+-    monkeypatch.setattr(sq, "_delete_superseded_player_rows", fake_delete)
+ 
+     ctx = types.SimpleNamespace(
+         headers={}, errors=[], client=None, add_loaded=lambda n: None
+@@ -82,10 +77,6 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
+         for p in e["players_payload"]
+     )
+     assert ids == [54, 281]
+-    # Merge-on-write: the superseded prior rows for exactly the written keys are deleted,
+-    # using the same ingested_at the rows were written with.
+-    assert sorted(captured["delete_keys"]) == ["40-2016", "49-2016"]
+-    assert captured["delete_before"].isoformat() == captured["ingested_at"]
+     assert ctx.errors == []
+ 
+ 
+@@ -115,7 +106,6 @@ def test_quota_cut_logs_partial_warning(monkeypatch):
+ 
+     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
+     monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", lambda *a, **k: 1)
+-    monkeypatch.setattr(sq, "_delete_superseded_player_rows", lambda *a, **k: None)
+     ctx = types.SimpleNamespace(headers={}, errors=[], client=None, add_loaded=lambda n: None)
+     sq.load_squad_players_batch(ctx, "CWC", [2016], {40, 49})
+     assert any("PARTIAL" in e for e in ctx.errors)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -244,7 +2469,8 @@ index 100a92c..b5856b3 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |  67 ++--
-#    .claude/task/review_input.patch | 655 +++++++++++++---------------------------
-#    2 files changed, 238 insertions(+), 484 deletions(-)
+#   .claude/active_work.md              |  274 ++--
+#    .claude/task/acceptance_evidence.md |  349 ++----
+#    .claude/task/review_input.patch     | 2337 +++++++++++++++++++++++++++++++----
+#    3 files changed, 2356 insertions(+), 604 deletions(-)
 # ============================================================================
