@@ -1,13 +1,18 @@
 # Review — fix/73-no-mr-bootstrap-ingest — 2026-08-16
 
-diff_sha256: 714e2a0cc0b25ec799b6c73f6df80e14ea727202c7ad0180e4fac9804577089c
+diff_sha256: 8df9402506bed5579a1f72ee983ed463e3a528919fa536ec56888aba82c6cfff
 
 rounds: 2
 
-> Rebound after the three PASS verdicts below: the only change is one comment character in
-> `.gitlab-ci.yml:589`, correcting a forward reference to the ingest-state issue from the number
-> guessed before filing (#74) to the number it actually received (#76). No script line, no job
-> body, no test and no logic differs from the diff the reviewers read.
+> REBOUND TWICE, both times for reasons that changed no reviewed content:
+> 1. one comment character in `.gitlab-ci.yml`, correcting a forward reference to the ingest-state
+>    issue from the number guessed before filing (#74) to the one it received (#76).
+> 2. 2026-08-17, after `!56` and `!69` merged: `gitlab/main` moved, so the cumulative diff this
+>    hash is computed over has a new base. `main` was merged in and the four task-artifact
+>    conflicts resolved per the documented rebase tax — MINE for `contract.md`/`review.md`, UNION
+>    for `escalations.log` (all three entries verified present), THEIRS for `active_work.md` with
+>    this branch's delta re-applied. **No file this branch owns changed**: `.gitlab-ci.yml` and
+>    `tests/test_ci_data_job_invariants.py` are byte-identical to what the reviewers below read.
 
 ## scope-auditor
 VERDICT: PASS

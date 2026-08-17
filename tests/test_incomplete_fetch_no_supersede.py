@@ -21,7 +21,7 @@ import types
 import pytest
 
 from ingestion.api_football import http_client, quota as errors_quota
-from ingestion.api_football.loads import squads as sq
+from ingestion.api_football.loads import batch_fixtures as bf, squads as sq
 
 
 def _ctx():
@@ -257,3 +257,83 @@ class TestReturnedKeySetIsStable:
         )
         out = http_client.fetch_merged_paged("/players", {}, {"team": 1})
         assert set(out) == self.EXPECTED | {"get", "parameters"}
+
+
+def _fixture_obj(fid: int) -> dict:
+    return {"fixture": {"id": fid}, "events": [], "statistics": [{"team": {"id": 1}}]}
+
+
+def _wire_batch(monkeypatch, data: dict) -> dict:
+    """Run _fetch_and_persist_batch with no network and no BigQuery, capturing the DELETE."""
+    captured: dict = {"deleted": None, "inserted": None}
+
+    monkeypatch.setattr(bf.errors_quota, "_http_quota_exhausted", False)
+    monkeypatch.setattr(bf, "fetch_json", lambda *a, **k: data)
+    monkeypatch.setattr(bf, "ensure_unified_raw_table", lambda *a, **k: None)
+    monkeypatch.setattr(bf, "_fixture_details_table_id", lambda: "p.raw.FIXTURE_DETAILS")
+    monkeypatch.setattr(
+        bf,
+        "_delete_fixtures",
+        lambda client, table_id, fixture_ids, league_code: captured.__setitem__(
+            "deleted", list(fixture_ids)
+        ),
+    )
+    monkeypatch.setattr(
+        bf,
+        "_insert_fixture_rows",
+        lambda client, table_name, response, ts, league_code: captured.__setitem__(
+            "inserted", [r["fixture"]["id"] for r in response]
+        ),
+    )
+    return captured
+
+
+class TestFixtureDetailsRetryDoesNotSupersede:
+    """#896 ported to batch_fixtures (GitLab #75).
+
+    RAW_APIF_FIXTURE_DETAILS is MERGE-ON-WRITE keyed on (league_code, fixture_id), so the retry
+    path DELETES the stored payload before re-inserting. `escalations.log` (2026-08-08, the 8a/8b
+    split) names the hazard: "Under append-only that is RECOVERABLE ... Under merge-on-write the
+    partial write DELETES the complete prior row." One fixture row carries events, lineups,
+    players AND statistics together, so a single bad retry destroys all four at once.
+
+    This loader never received the guard — it is absent from 8a's port list (coaches, standings,
+    teams). These two tests pin it.
+    """
+
+    def test_incomplete_fetch_does_not_delete_the_stored_payload(self, monkeypatch):
+        # THE SHAPE THAT ACTUALLY DESTROYS DATA, and the reason this test is not written with an
+        # empty response: an empty body returns early at `if not response` even unguarded, so a
+        # test built that way would pass for the wrong reason and prove nothing about the delete
+        # (this repo has shipped three such tests — #63). Here the batch is PARTIAL: fixture 111
+        # came back, 222 did not, and the per-minute limit is reported in the body. Unguarded,
+        # both retried ids were deleted and only 111 was replaced — 222 destroyed outright.
+        data = {"response": [_fixture_obj(111)], "errors": {"rateLimit": "Too many requests"}}
+        captured = _wire_batch(monkeypatch, data)
+        ctx = _ctx()
+
+        bf._fetch_and_persist_batch(ctx, "CIT", [111, 222], {111, 222})
+
+        assert captured["deleted"] is None, (
+            "an incomplete fetch deleted a stored fixture payload — #896 forbids superseding "
+            "good data with a partial result, and this table is merge-on-write so the delete "
+            f"is permanent. deleted={captured['deleted']}"
+        )
+        assert captured["inserted"] is None
+        assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
+
+    def test_delete_is_limited_to_fixtures_the_response_returned(self, monkeypatch):
+        # Error-free and quota-clean, but the provider omitted one of the ids we asked for.
+        # result_is_complete() cannot see that: deleting the omitted fixture would supersede a
+        # stored payload with NOTHING, the same hazard in a different shape.
+        data = {"response": [_fixture_obj(111)], "errors": []}
+        captured = _wire_batch(monkeypatch, data)
+        ctx = _ctx()
+
+        bf._fetch_and_persist_batch(ctx, "CIT", [111, 222], {111, 222})
+
+        assert captured["deleted"] == [111], (
+            "fixture 222 was retried and NOT returned by the provider; deleting its stored row "
+            f"destroys it with no replacement. deleted={captured['deleted']}"
+        )
+        assert captured["inserted"] == [111]
