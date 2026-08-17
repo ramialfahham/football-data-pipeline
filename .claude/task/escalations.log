@@ -3124,3 +3124,112 @@ WRONG ANSWERS RECORDED SO THE NEXT SESSION DOES NOT REPEAT THEM (#75)
   the ambiguous case the other way today — *"An empty response with no error counts as COMPLETE:
   that is the provider reporting no rows, and it is indistinguishable from one (CPO decision,
   2026-08-03)"* — so changing it reverses part of that ruling. Left open, with the evidence.
+
+
+2026-08-17 fix/75c-event-consistency-tests — TWO OF THREE DESIGNED TESTS DIED AGAINST THE DATA (#75)
+
+  THE CPO'S FRAMING, which reset the whole design and was correct: *"raw and staging have whatever
+  crap the provider gives us. in base we decide on updating or replacing or deduplicating or taking
+  the most recent information ... is our testing setup prepared for it?"*
+
+  THE ANSWER TO THAT QUESTION IS NO, and it is the finding that matters. Nothing in the suite
+  compares events against the fixture's own facts: `assert_event_team_in_fixture_participants`
+  checks only that an event's team is one of the two playing, and `assert_fct_fixture_goals_plausible`
+  range-checks the fixture row without ever looking at events. Nothing detects LOSS. 29 real events
+  were destroyed and every test stayed green; it surfaced days later only as an unrelated
+  `dim_player` FK orphan, which is why it was first mistaken for a player problem.
+
+  ALSO ESTABLISHED, and it relocates the defect: **base's decision rule is already correct.**
+  `base_apif__fixture_events` dedups `partition by (league_code, fixture_id, event_index) order by
+  raw_ingested_at desc`. Had raw kept both payloads, base would have taken indices 0-16 from the new
+  one and KEPT 17-26 from the old — the shootout would never have been lost. Base did not fail; the
+  loader deleted its input first. The decision was being made in ingestion, where it is
+  irreversible, instead of in base where the CPO's model puts it.
+
+  ⛔ TWO TESTS WERE DESIGNED AND KILLED BY MEASUREMENT BEFORE ANY CODE WAS WRITTEN. Recorded so
+  they are not re-proposed by a future session that reasons from one fixture, as I did:
+    · **"a PEN fixture must carry shootout events"** — sound on the one fixture I inspected, wrong
+      across the population: **371 of 753** PEN fixtures in prod have NO shootout events. The
+      provider does not supply them for many competitions. At severity=error this would have turned
+      half the penalty shootouts in the warehouse red on day one.
+      (The marker itself is clean — `event_comments = 'Penalty Shootout'`, 4,461 rows, everything
+      else NULL. It is simply not reliably present.)
+    · **"goal events must reconcile with the fixture score"** — NOT written. After the PEN result
+      there was no evidence it is clean across own goals, disallowed goals and shootout exclusion,
+      and shipping it unverified would have repeated the same mistake in a second place.
+
+  SHIPPED: `assert_no_event_loss_since_cutoff` — flags any event `fct_fixture_event` holds that
+  `base_apif__fixture_events` no longer has. Only that direction: the reverse (fact < base) is
+  incremental LAG, not loss, and flagging it would redden every fresh ingest.
+
+  ⛔ REVIEW ROUND 1 FAILED IT, AND THE FINDING WAS ONE MEASUREMENT COULD NOT HAVE CAUGHT.
+  My first draft scoped by `max(raw_ingested_at)` GROUPED OVER `base_apif__fixture_events` itself.
+  analytics-engineer-reviewer read the join and found the blind spot: if a fixture loses ALL its
+  events, base holds zero rows for it, the grouped CTE yields no row, and the INNER JOIN silently
+  drops every one of that fixture's events — the TOTAL-loss case, undetectable at ANY cutoff,
+  forever. The worst case was the one case it could not see. My prod verification could not reveal
+  this, because the known #75 incident was PARTIAL for all 5 fixtures; the gap was only visible by
+  reading the SQL. Fixed by scoping on `fct_fixture` (one row per fixture, always present), which
+  removes the dependency on base having survivors.
+
+  ⚠ SCOPED BY KICKOFF DATE, and the reason is not tidiness. The known backlog (5 fixtures, 29
+  events, kickoffs 08-08 and 08-15) is UNREPAIRABLE — verified live, the provider no longer returns
+  those events — so asserting over it would block every build on damage nobody can fix. A kickoff
+  date NEVER MOVES, unlike an ingest timestamp: those fixtures kept refreshing `raw_ingested_at`
+  while their 3-day retry window stayed open, and a same-day ingest-time cutoff measured on 08-17
+  still flagged 1 row. **Consequence stated rather than hidden: the test is INERT for fixtures
+  before the cutoff.** Its logic is proven — 0 rows at the shipped cutoff, exactly the 29 known
+  rows at 2026-08-01, both RUN against prod under BOTH scoping designs, not asserted.
+
+  ⚠ STILL OPEN, unchanged and the CPO's: may a COMPLETE response carrying strictly less data than
+  what is stored supersede it? That is plan part A. This test makes the loss VISIBLE; it does not
+  decide who wins.
+
+
+2026-08-17 — ⭐ THE RULING THAT UNBLOCKS #75: **RAW KEEPS BOTH VERSIONS** (part A, DECIDED)
+
+  THE QUESTION, put after walking the CPO through fixture 1564795 layer by layer: may a COMPLETE
+  provider response carrying strictly less data than what is stored SUPERSEDE it? "Supersede" was
+  defined for him as REPLACE AND DELETE — `RAW_APIF_FIXTURE_DETAILS` is merge-on-write keyed on
+  `(league_code, fixture_id)`, so storing a new payload deletes the old one and there is no version
+  history.
+
+  THE EVIDENCE HE DECIDED ON, measured at every layer for that one fixture:
+      raw      1 row, 17 events   (the 27-event payload was DELETED by the retry)
+      staging  17 rows            (faithful unnest — cannot show more than raw holds)
+      base     17 rows            (its newest-per-event_index rule had nothing to choose between)
+      core     27 rows            (incremental; copied them before the delete and never removes)
+  The ten shootout kicks exist in EXACTLY ONE PLACE: core. Which means core had become the
+  accidental archive, and base was not failing — it was STARVED. Had raw kept both payloads, base's
+  EXISTING rule would have produced 27: indices 0-16 from the new payload, 17-26 surviving from the
+  old. The decision was being made in ingestion, by a DELETE, before base could make it.
+
+  **CPO RULING, verbatim: "raw keeps both versions."**
+
+  WHAT IT MEANS, and it is a deliberate partial reversal of a prior ruling: `RAW_APIF_FIXTURE_DETAILS`
+  stops being merge-on-write. The retry no longer deletes the stored payload; both land, and BASE
+  decides — which is exactly the layer model the CPO stated: *"raw and staging have whatever crap
+  the provider gives us. in base we decide."* This reverses the delete-on-retry half of #539
+  (2026-06-22) and of #33 item 8 FOR THIS TABLE ONLY. Recorded as a reversal, not as a discovery,
+  so nobody later "restores" the delete as a regression fix.
+
+  WHY IT IS SAFE, verified before the ruling was sought (not after): all FOUR staging models over
+  this table read faithfully with NO dedup, and the three consumed base models dedup on ENTITY keys
+  with latest-ingest-wins — `base_apif__fixture_events` on `(league_code, fixture_id, event_index)`,
+  `base_apif__fixture_players` on `(…, team_id, player_id)`, `base_apif__fixture_statistics` on
+  `(…, team_id)`. `stg_apif__lineups` has no consumer at all. So a second row MERGES per entity
+  rather than duplicating, and an entity present only in the older payload survives.
+
+  COST, measured: the table is 58,224 rows / 0.62 GiB (~11 KB per fixture). Only RETRIED fixtures
+  gain a second row, so growth is single-digit percent — cents per month against a 0.62 GiB table.
+
+  ⚠ `_read_fetched_coverage` was ALREADY made order-independent in `!56` (`LOGICAL_OR ... GROUP BY
+  fixture_id`), so the multi-row case is already handled on the read side. That was shipped for a
+  different reason and turns out to be the precondition this ruling needs.
+
+  STILL TO BUILD (scoped, not started — flagged because context ran out, not because it is open):
+  remove the `_delete_fixtures` call and function from `batch_fixtures.py`; update
+  `docs/data_contract.md` (this table is no longer merge-on-write) and `dbt_project/docs/layering.md`
+  (§1_staging describes the retry delete); pin the deletion with a test. ⚠ The known 5-fixture
+  backlog is NOT repaired by this — those events are gone from the provider — so `!57`'s cutoff
+  stays as shipped.
