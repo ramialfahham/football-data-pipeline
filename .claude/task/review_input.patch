@@ -181,13 +181,13 @@ index 4cae619..7243ae5 100644
 +    it still says promote on the rollup, and the exception names its authority rather than
 +    generalising.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 9f6fd4e..537c27e 100644
+index 1aa0b29..c8f845a 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -3285,3 +3285,46 @@ WRONG ANSWERS RECORDED SO THE NEXT SESSION DOES NOT REPEAT THEM (#75)
-   ⚠ The 5-fixture / 29-event backlog is still NOT repaired; those events are gone at source.
-   ⚠ The volume-delta threshold (how much smaller an answer may be before it is flagged) is the
-   CPO's and is MR3. Append-only is what makes that decision affordable to take calmly.
+@@ -3384,3 +3384,46 @@ OF THE 29 DESTROYED EVENTS
+   the expiry the moment you find the loss and say it out loud, because the window closes silently.
+   ⚠ `!57`'s kickoff cutoff STAYS as shipped: 17 events on 1564791/1564793 are still gone, so
+   lowering it would redden every build on damage nobody can fix.
 +
 +
 +2026-08-17 feat/69-country-region-dims - the TWO-DIMENSION rescope of #69 (dim_country + dim_region).
@@ -706,6 +706,7 @@ index e112af7..c13f444 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 3111 +++++++++------------------------------
-#    1 file changed, 669 insertions(+), 2442 deletions(-)
+#   .claude/task/review.md          |  191 +--
+#    .claude/task/review_input.patch | 3119 +++++++++------------------------------
+#    2 files changed, 743 insertions(+), 2567 deletions(-)
 # ============================================================================

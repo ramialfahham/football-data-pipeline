@@ -4,6 +4,18 @@ diff_sha256: d88311e43a2df18e1fccdba29f0a03b2461ed853e63ecbc2b61ff4627809e90d
 
 rounds: 2
 
+> REBASED 2026-08-17 onto `4287be9` (`!60`, #75's write-back records). ONE conflict,
+> `escalations.log`, resolved by UNION per the documented rebase tax rather than by taking a side:
+> both edits were verified to be PURE INSERTIONS against the merge base (difflib opcodes — mine one
+> insert at 3288, main's two at 3285 and 3288), so main's version was taken and this branch's
+> 43-line block appended. Verified after: result-vs-main is a single pure insertion of exactly those
+> 43 lines, main's own entries intact, zero git conflict markers (the `====` lines that a naive
+> check flags are the log's own pre-existing section dividers at 921-2558).
+> ⚠ **THE HASH DID NOT MOVE, and that is correct, not a stale rebind.** `escalations.log` is in
+> `hash_exclude_paths`, and every other file's blob is byte-identical across the rebase — verified
+> with `git rev-parse` on `dim_country.sql`, `dim_region.sql` and `countries.csv`, all three the same
+> object before and after. `check_task_artifacts.py` passes bare on the rebased branch.
+>
 > ROUND 2 closed two scope-auditor findings, both verified before being fixed rather than argued
 > with. No model, seed or schema file changed between rounds — only `escalations.log`,
 > `layering.md` and the paperwork.
