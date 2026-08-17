@@ -1,8 +1,26 @@
 # Review — fix/75-mr2-never-record-a-gap — 2026-08-17
 
-diff_sha256: 3d0296adfd7a97d9baf285dfe4df27d92f1f96df1f98b11cf288ee6219001576
+diff_sha256: e51e5db9f2fbdf04c3375c443b06c721749eb7f32a669aa8a8bad964997b3453
 
 rounds: 1
+
+<!--
+⚠ HASH BOUND TWICE ON THIS BRANCH, and the second bind is in the FOLLOWING commit, not this one.
+  3d0296ad… the reviewed code diff, before main was merged in
+  e51e5db9… this value: the staged merge, which is what the local commit gate checks
+  (a third, final value is bound after the merge commit exists — see that commit)
+
+A MERGE COMMIT MOVES ITS OWN MERGE-BASE, so a hash taken from the staged index binds nothing once
+the merge is committed, and CI recomputing `origin/main...HEAD` gets a different number. That trap
+reddened `!57`'s validate:governance earlier today. The rule is now in the handover: on a merge,
+rebind AFTER committing, in a review.md-only follow-up (artifact-exempt).
+
+WHY MAIN WAS MERGED IN: #69 (dim_country + dim_region) landed on main from another clone while
+this branch was in review. Only task artifacts conflicted — contract.md, review.md,
+review_input.patch — all resolved OURS, because each MR carries its own. No code conflict exists:
+this branch touches only ingestion/ and tests/, #69 only dbt_project/.
+-->
+
 
 ## scope-auditor
 VERDICT: PASS
@@ -78,6 +96,27 @@ risks_checked:
   no surface here.
 - Flagged one cosmetic defect, fixed before this lock: the test module docstring referenced
   `test_empty_but_clean_response_is_still_written`; the function is `..._is_still_complete`.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- MERGE CHECK only. Routing required this reviewer because merging `gitlab/main` in stages main's
+  `dbt_project/**`; this branch declares no dbt path and contributes no dbt change. The question
+  was solely whether the merge reverted or damaged #69's work, which landed on main from another
+  clone while this branch was in review.
+- Compared the on-disk content of every file #69 touched against that content as carried in the
+  merge, byte for byte: `dim_country.sql` (34 lines), `dim_region.sql` (33), `seeds/countries.csv`
+  (225 lines, all 224 rows afghanistan…zimbabwe), the `dim_country`/`dim_region` blocks in
+  `core.yml` including their `not_null, unique` tests, both new exception bullets in
+  `layering.md`, and the `countries` seed doc block in `seeds/schema.yml`. All identical — nothing
+  silently reverted.
+- Swept `dbt_project/` for conflict markers and merge-backup files (`.orig`, `.BACKUP`, `.LOCAL`,
+  `.REMOTE`, `.BASE`): zero hits.
+- Confirmed `contract.md`'s `scope_paths` declares no `dbt_project/` path, consistent with the
+  claim that the merge should take main's side wholesale.
+- ⚠ STATED LIMIT, the reviewer's own: Read/Grep/Glob only, no shell, so it could not run
+  `git diff --cached gitlab/main -- dbt_project` and substituted direct content comparison against
+  the merge's own hunks. Same conclusion by a different route.
 
 ## escalations
 (none)
