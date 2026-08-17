@@ -3283,5 +3283,104 @@ WRONG ANSWERS RECORDED SO THE NEXT SESSION DOES NOT REPEAT THEM (#75)
 
   ⚠ RECORDED AS A REVERSAL, TAKEN KNOWINGLY. Nobody may later restore a delete as a regression fix.
   ⚠ The 5-fixture / 29-event backlog is still NOT repaired; those events are gone at source.
+  ⛔ THAT LAST LINE WAS HALF WRONG AND 12 OF THE 29 EVENTS WERE RECOVERED HOURS LATER — see the
+  2026-08-17 time-travel entry below before repeating it.
   ⚠ The volume-delta threshold (how much smaller an answer may be before it is flagged) is the
   CPO's and is MR3. Append-only is what makes that decision affordable to take calmly.
+
+
+2026-08-17 — ⭐ CORRECTION: `raw_archive` EXISTS. "ZERO REFERENCES IN THE REPO" IS NOT EVIDENCE A
+THING WAS NEVER BUILT
+
+  WHAT WAS CLAIMED, by me in `!59`'s contract under `decisions_reserved`, and independently by both
+  blind lead-DE assessments: *"the `raw_archive` backup was the stated condition of approving
+  merge-on-write and was never built — zero references anywhere in the repo, verified."*
+
+  THE REPO HALF WAS TRUE. `grep -rn "raw_archive\|RAW_ARCHIVE"` really does return nothing outside
+  this log. THE INFERENCE WAS FALSE. `bq ls` shows the dataset exists and holds a dated snapshot:
+      raw_archive.RAW_APIF_FIXTURE_DETAILS_20260808
+      raw_archive.RAW_APIF_FIXTURES_NEXT_20260808
+      raw_archive.RAW_APIF_COACHES_20260808
+      raw_archive.RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT_20260808
+      raw_archive.RAW_APIF_INGEST_LOCK_20260808
+  So the condition attached to approving #33 item 8b WAS honoured in the warehouse on 2026-08-08.
+  It was simply never wired into any script, doc or job, which is why every code-side check missed
+  it — and why one assessment correctly marked its own claim UNVERIFIED and wrote out the
+  metadata-only query it would have run. That caveat was right and I dropped it when I relayed the
+  finding as fact.
+
+  ⭐ THE RULE THIS BUYS: **the repo is not the system.** For anything that lives in the warehouse,
+  the cloud project or a scheduler, "not in the code" answers a different question from "not
+  there". Check the system that owns it — `bq ls`, `bq show`, `gcloud run jobs describe` are all
+  METADATA-ONLY and cost nothing. This is the #904 class wearing a new coat: a check scoped
+  narrower than the sentence it was used to justify.
+
+  ⚠ WHAT THE ARCHIVE IS AND IS NOT. It is a ONE-OFF snapshot dated 2026-08-08, not a maintained
+  backup: nothing refreshes it, nothing monitors it, and it did NOT help the #75 recovery because
+  it predates all five damaged fixtures. Do not treat it as a safety net without first checking its
+  date. Whether to maintain it, retire it, or replace it remains the CPO's call.
+
+
+2026-08-17 — ⭐ RECOVERY RECIPE: "GONE AT SOURCE" IS NOT "GONE". BIGQUERY TIME TRAVEL RECOVERED 12
+OF THE 29 DESTROYED EVENTS
+
+  THE CLAIM THAT STOOD FOR A WEEK, in this log, in `!57`'s detector docstring and in the handover:
+  *"the backlog is UNREPAIRABLE — verified live against the provider, which no longer returns those
+  events."* The verification was real and the sentence was still wrong, because it answered
+  "can the PROVIDER give it back" and was used to conclude "can WE get it back". Nobody checked our
+  own copy. BigQuery keeps 7 days of time travel on every table, and the pre-delete payloads were
+  sitting in it the whole time.
+
+  ⭐ THE DISTINCTION, and it is the durable lesson: **irrecoverable AT SOURCE is not irrecoverable.**
+  Before writing off destroyed data, enumerate every copy that could still hold it — time travel,
+  a dated archive dataset, an accumulating downstream fact, a snapshot table. Here the fact
+  (`fct_fixture_event`, incremental) had been holding the events all along, which is how the loss
+  was detectable at all; time travel is what made it FIXABLE.
+
+  WHAT WAS MEASURED, per fixture, `n_events` in raw:
+      fixture   now  recoverable  lost   outcome
+      1490377    17      18        1     RESTORED
+      1507028    15      16        1     RESTORED
+      1564795    17      27       10     RESTORED  (the penalty shootout)
+      1564791     4       4        4     gone — richer payload deleted before 2026-08-10 09:46
+      1564793     2       2       13     gone — same
+  12 recovered, 17 permanently lost because their deletes fell outside the 7-day window. The
+  recovery ran with roughly 30 hours to spare on 1564795.
+
+  THE RECIPE, and each step has a trap in it:
+  1. FIND THE LOSS from the fact, not from raw:
+       select fact.fixture_sk, count(*) from core.fct_fixture_event fact
+       left join dbt_analytics.base_apif__fixture_events b
+         on fact.fixture_sk=b.fixture_id and fact.event_index=b.event_index
+       where b.fixture_id is null group by 1
+  2. PROBE the window for a richer payload. ⚠ One `FOR SYSTEM_TIME AS OF` per table per query —
+     BigQuery rejects two different timestamps against the same table, so probe one point at a
+     time. Bisect: the delete's own `ingested_at` tells you when the replacement landed.
+  3. STAGE it. ⚠ You CANNOT read a table `FOR SYSTEM_TIME AS OF` and use it as a DML destination in
+     the same statement ("referenced with multiple snapshot read timestamps"). Write the recovered
+     rows to a scratch table first, then INSERT from there.
+  4. APPEND, and ⭐ **PRESERVE THE ORIGINAL `ingested_at`.** This is the step that makes it correct
+     rather than destructive. Base dedups newest-per-entity-key, so the restored older row supplies
+     only the entities the newer payload LACKS and never overwrites a corrected value. Stamping it
+     `now()` would invert that and make the stale payload win everywhere.
+  5. VERIFY BY SIMULATING BASE before rebuilding anything — unnest both rows,
+     `qualify row_number() over (partition by fixture_id, event_index order by raw_ingested_at
+     desc)=1`, count. Confirmed 18/16/27 before a single dbt model ran.
+
+  ⚠ THIS ONLY WORKS BECAUSE RAW IS NOW APPEND-ONLY. Under merge-on-write the restored row would
+  have been deleted by the next retry, and appending a second version would have been meaningless.
+  `!59` is what made the repair safe; the repair is the first production proof that the rule works.
+
+  MEASURED OUTCOME, end to end:
+      prod build      PASS=745 ERROR=1 SKIP=103   ->  PASS=849 ERROR=0 SKIP=0
+      dim_player orphans            1             ->  0
+      fixture 1564795 events        17            ->  27
+      `!57` pipeline               red            ->  green
+  The single orphan was fixture 1564795 / event_index 25 / player 544602 (G. Arditi, a shootout
+  goal). Restoring that one payload cleared the orphan, which unskipped 103 nodes, which resolved
+  `assert_momentum_window_matches_momentum` (2514 rows and growing) on every MR.
+
+  ⚠ DEADLINE ARITHMETIC, for the next time: a delete at time T is recoverable until T+7d. Compute
+  the expiry the moment you find the loss and say it out loud, because the window closes silently.
+  ⚠ `!57`'s kickoff cutoff STAYS as shipped: 17 events on 1564791/1564793 are still gone, so
+  lowering it would redden every build on damage nobody can fix.
