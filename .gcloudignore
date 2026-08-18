@@ -1,0 +1,25 @@
+# GitLab #74. Read ONLY by `gcloud run jobs deploy --source .` — the documented MANUAL FALLBACK
+# in deploy/nightly/README.md, never by CI. `build:nightly-image` builds with kaniko and never
+# invokes `gcloud` at all, so this file has ZERO effect on what CI ships; `.dockerignore` is the
+# only guard on that path. An earlier version of this file's own comment claimed otherwise —
+# round-1 review of the kaniko redesign (cto-reviewer + platform-reviewer, opus) caught the
+# stale model. Read `.dockerignore`'s header before touching either file.
+#
+# `#!include:.gitignore` — round-1 finding, platform-reviewer: with NO `.gcloudignore` present,
+# `gcloud`'s own documented default (`gcloud topic gcloudignore`) is to generate one from exactly
+# this include, so `.gitignore`'s patterns (including `*.secrets.env`, `*.local.env`, `.envrc`,
+# and the CPO's `/*.pdf` working documents) were ALREADY excluded from the upload before this
+# file existed. The first version of this file replaced that default with a short hand list and
+# NARROWED coverage on the one path it exists to protect — the opposite of the fix it was meant
+# to be. Explicit entries below are additive, not a replacement for this line.
+#!include:.gitignore
+
+# Governance/tooling directories .gitignore does not itself exclude (they're tracked).
+.git
+.claude
+.cursor
+
+# The credential files this whole mechanism exists to protect, named explicitly as defense in
+# depth even though .gitignore does not (and should not) list runtime-generated CI files.
+.gcp-oidc-token
+.gcp-credentials.json

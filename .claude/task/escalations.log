@@ -3428,6 +3428,128 @@ OF THE 29 DESTROYED EVENTS
   it is the doc being overridden by a CPO design decision. Recorded here and noted in `layering.md`
   itself rather than left as a silent contradiction for the next reader to trip over.
 
+2026-08-17 — GitLab #74 (`fix/74-nightly-image-tracks-main`): IAM GRANT, CPO-approved in-session
+("Grant it now, scoped as described"), not a code change so it carries no diff — recorded here as
+the durable evidence trail `contract.md`'s `protected_override` points to.
+
+WHY: round-1 review (cto-reviewer, opus) found `deploy:nightly-image` cannot authorize —
+`github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` (the WIF identity every MR
+pipeline can impersonate) had none of Cloud Run / Cloud Build / Artifact Registry deploy access.
+Verified against the LIVE system, not the repo (`gcloud projects get-iam-policy
+football-data-pipeline-gcp`), before claiming the gap or granting anything.
+
+GRANTED, resource-scoped wherever GCP allows it — narrower than a project-wide grant, same
+principle already applied to `run.invoker` on this service account (#39 review round 1, "RESOURCE-
+scoped, not project-scoped… would let it invoke every Cloud Run resource in the project"):
+  - `roles/run.developer` on the `fdp-nightly` JOB resource only (europe-west1) —
+    `gcloud run jobs add-iam-policy-binding fdp-nightly --region europe-west1`
+  - `roles/iam.serviceAccountUser` on the `github-actions-dbt` SERVICE ACCOUNT resource itself
+    (self-actAs, needed for `--service-account` to attach itself as the runtime identity) —
+    `gcloud iam service-accounts add-iam-policy-binding github-actions-dbt@...`
+  - `roles/artifactregistry.writer` on the `cloud-run-source-deploy` REPOSITORY only, europe-west1
+    (a second copy of that repo exists in europe-west3 — NOT granted, this job never deploys there)
+  - `roles/cloudbuild.builds.editor` — PROJECT-LEVEL; Cloud Build has no finer resource scope to
+    bind a source-build submission to. The one grant in this set that is broader than "can only
+    touch fdp-nightly" — stated plainly rather than left implicit.
+Each command's `Updated IAM policy for ...` output was read before moving to the next; all four
+succeeded. Blast radius given the resource scoping: the identity can now redeploy `fdp-nightly`
+specifically and submit Cloud Build jobs project-wide, but cannot create/modify any OTHER Cloud
+Run resource, and cannot push to the europe-west3 registry copy.
+
+2026-08-18 — GitLab #74, same branch: SECOND IAM grant, CPO-approved in-session ("Grant it,
+scoped to that one bucket"). Round-2 review (platform-reviewer, opus) found the four grants above
+still missed one thing: `gcloud run jobs deploy --source .` uploads a source tarball to a GCS
+staging bucket BEFORE Cloud Build starts, and none of the four roles above confer GCS write.
+Verified against the LIVE bucket policy (`gsutil iam get
+gs://run-sources-football-data-pipeline-gcp-europe-west1`) before claiming the gap: only
+`projectOwner`/`projectEditor`/`projectViewer` had any access; `github-actions-dbt` had none.
+
+GRANTED: `roles/storage.objectAdmin` on `gs://run-sources-football-data-pipeline-gcp-europe-west1`
+ONLY — not project-wide storage access, not the sibling europe-west3 bucket this job never
+targets — `gsutil iam ch serviceAccount:github-actions-dbt@...:roles/storage.objectAdmin
+gs://run-sources-football-data-pipeline-gcp-europe-west1`. Output read and verified
+(`gsutil iam get` on the bucket after) before recording this. Same resource-scoping principle as
+the four grants above; brings the total set to five, four resource-scoped and one
+(`cloudbuild.builds.editor`) project-level for the reason already stated.
+
+2026-08-18 — GitLab #74, same branch: BOTH GRANTS ABOVE REVOKED, and the mechanism redesigned.
+Round-3 review (cto-reviewer, opus) required verifying what `roles/cloudbuild.builds.editor`
+actually enables rather than trusting its scope description. Verified against the LIVE policy,
+not assumed:
+
+  PN=$(gcloud projects describe football-data-pipeline-gcp --format='value(projectNumber)')
+  gcloud projects get-iam-policy football-data-pipeline-gcp \
+    --flatten="bindings[].members" \
+    --filter="bindings.members:serviceAccount:${PN}-compute@developer.gserviceaccount.com" \
+    --format="table(bindings.role)"
+  -> roles/editor
+
+Cloud Build's default execution identity (`619396328486-compute@developer.gserviceaccount.com`)
+holds project `roles/editor`. Granting `github-actions-dbt` `cloudbuild.builds.editor` (submit a
+Cloud Build job) therefore gave it a path to execute arbitrary steps AS that Editor identity —
+and `github-actions-dbt` is impersonable from every MR pipeline on an unmerged branch (the WIF
+CI/CD variables are explicitly not Protected, `.gitlab-ci.yml:175-177`), so this was a real
+project-Editor escalation path reachable from any branch, not just `main`. "Grant it now, scoped
+as described" on 2026-08-17 was answered against a description of the role's NAME and its own
+scope, not this consequence — the description was incomplete, not the approval wrong.
+
+REVOKED IMMEDIATELY on discovery, before asking anything, because revoking an over-broad grant is
+the safe direction and does not need the same confirmation bar as granting one:
+  `gcloud projects remove-iam-policy-binding football-data-pipeline-gcp
+   --member serviceAccount:github-actions-dbt@... --role roles/cloudbuild.builds.editor`
+Verified removed (re-read the policy; the binding is gone).
+
+Brought to the CPO as a choice, not decided alone: keep `--source .` and accept the risk, or
+redesign to avoid needing Cloud Build at all. CPO: build directly in the job (kaniko), skip Cloud
+Build entirely. That mechanism needs only `roles/artifactregistry.writer` (already held, scoped
+to the one target repo) and `roles/run.developer` (already held, scoped to the one target job) —
+`roles/storage.objectAdmin` on the `run-sources-*` staging bucket (2026-08-18 entry above) was
+only needed by `--source .`'s Cloud Build upload, so it is no longer needed either:
+  `gsutil iam ch -d serviceAccount:github-actions-dbt@...:roles/storage.objectAdmin
+   gs://run-sources-football-data-pipeline-gcp-europe-west1`
+Verified removed. Final IAM footprint for `github-actions-dbt`, confirmed live: `run.developer` +
+`run.invoker` on the `fdp-nightly` job resource, `iam.serviceAccountUser` on the service account
+resource itself, `artifactregistry.writer` on the `cloud-run-source-deploy` repo (europe-west1) —
+four grants, ALL resource-scoped, zero project-level grants beyond what already existed before
+this task (BigQuery roles, `firebasehosting.admin`). Narrower than the five-grant set this
+replaces, not wider.
+
+2026-08-18 — GitLab #74, same branch: `acceptance_criteria:` ADDED to #74's contract, CPO-approved
+in-session. WHY: merging `main` into this branch (required to resolve the `.claude/task/*`
+conflict class, GitLab #77 — #74's MR sat open while `main` advanced with an unrelated #62 step 5)
+brings `site_v2/src/**` files into the branch diff, since that is #62's own already-built,
+CPO-reviewed page arriving as merge content, not new #74 authorship. `git_discipline.py`'s
+`_acceptance_gate` triggers on the path alone and does not distinguish "new work this task
+authored" from "already-approved work arriving via a merge" — the same class of gap already
+logged for the scope/Stop gates under `active_work.md`'s OWED list.
+
+scope-auditor FAILED the first attempt at this fix TWICE. Round 1: `acceptance_criteria` is
+CPO-locked per `docs/working_agreement.md` §2 — "the builder DRAFTS them, the CPO APPROVES them
+BEFORE any code, and they are LOCKED after that" — and the contract carried no record of that
+approval at all. Round 2: an escalation was written and a CPO answer recorded, but it presented
+only ONE proposal for a yes/no, not the "at least two distinct, conflicting paths" §11 requires —
+correctly caught by comparing it against this same branch's earlier, properly two-path IAM
+escalations a few entries above.
+
+RE-ESCALATED, two real paths, both stated to the CPO honestly:
+  A. Write the note now — restate #62's own already-approved 8 criteria in #74's contract,
+     labeled explicitly as inherited merge content, not new #74 authorship, not re-verified here.
+     Implication: unblocks this merge today, minutes of work. Cost: does not fix the underlying
+     gate gap — the NEXT merge that drags in unrelated `site_v2/src/**` content trips the same
+     check again, needing another one-off note each time.
+  B. Fix `git_discipline.py`'s `_acceptance_gate` itself to recognize merge-inherited content
+     (e.g. MERGE_HEAD-aware, or skip a path already carrying its own approved evidence file) and
+     stop triggering on it at all. Implication: permanent fix, no more one-off notes on future
+     merges. Cost: real design + implementation on a PROTECTED path (`git_discipline.py`), its
+     own review round, hours not minutes — blocks TODAY's merge while it's built, and overlaps
+     the already-logged, not-yet-scoped OWED item covering the same class of gap for the
+     scope/Stop gates.
+Recommendation given: A now, B logged as a follow-up (folds into the existing OWED item rather
+than reinventing a second one). CPO: "do as recommended." That is the authority this amendment
+rests on — a genuine choice between two stated paths, not a unilateral decision, and not
+fabricated evidence: the criteria text is #62's own, already demonstrated in
+`.claude/task/acceptance_evidence.md`, which arrives unchanged via the same merge.
+
 
 2026-08-16 feat/69-5-62-3-country-fk-and-mart - the competitions-page ordering rule, sort_order
 obsolete (#54).

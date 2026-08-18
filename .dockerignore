@@ -17,6 +17,22 @@
 *-key.json
 *credentials*.json
 
+# GitLab #74: CI-generated GCP credentials, written by `.gitlab-ci.yml`'s `.gcp_auth` anchor to
+# $CI_PROJECT_DIR at runtime — never committed, but `*credentials*.json` above only catches ONE
+# of the two files it writes. `build:nightly-image` builds this image with kaniko from that same
+# directory, so without this the live bearer token gets baked into the built image (readable by
+# anyone who can pull it, and it survives rotation same as any other secret).
+#
+# THIS IS THE ONLY GUARD on the kaniko path, not one of two. Round-1 review of the kaniko
+# redesign (cto-reviewer + platform-reviewer, opus) corrected an earlier version of this comment
+# that credited `.gcloudignore` as a second layer here — kaniko reads `.dockerignore` for its
+# build context and has no concept of `.gcloudignore` at all (that file matters only for the
+# human-run `gcloud run jobs deploy --source .` fallback in deploy/nightly/README.md, a
+# completely different upload path CI never uses). Do not "tidy away" either entry here as
+# redundant with `.gcloudignore` — it would silently reopen this exact leak.
+.gcp-oidc-token
+.gcp-credentials.json
+
 # The v2 site (1.4M + node_modules when present) and the frozen legacy site. Astro apps the
 # nightly never touches. `deploy:export` / `deploy:site-v2` are separate GitLab jobs and are
 # not part of this image.

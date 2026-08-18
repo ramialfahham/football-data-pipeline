@@ -52,6 +52,15 @@ gcloud secrets add-iam-policy-binding api-football-key \
 
 ### 2. Deploy the job
 
+**As of GitLab #74, `build:nightly-image` + `deploy:nightly-image` in `.gitlab-ci.yml` do this
+automatically** on every push to `main` that touches a path the image actually contains
+(`*data_paths_image`) — the "the image never tracked `main`" defect this fixed. CI builds the
+image with kaniko (no Cloud Build — see the job's own comment for why) and pushes it to
+Artifact Registry, then repoints `fdp-nightly` at the new image with `gcloud run jobs update
+--image=...`. The command below is now the manual fallback (initial setup, or a rebuild the
+path filter did not catch), not the normal path to prod — it still works unmodified, since it
+uses your own `gcloud` session's permissions, not CI's scoped-down service account.
+
 Built remotely by Cloud Build from the `Dockerfile` at the repo root — **no local Docker
 needed**. Run from the repo root:
 
@@ -158,11 +167,16 @@ only a 3h window, far inside the cap, and the staleness threshold itself is ours
 ### Deploy the sentinel job
 
 ⚠ **ORDER MATTERS, and getting it wrong produces an alert storm.** The sentinel runs from the
-nightly's image, so that image must already contain `scripts/check_raw_freshness.py`. Until
-Stage 3 has CI rebuild the image on merge, the sequence is:
+nightly's image, so that image must already contain `scripts/check_raw_freshness.py`. As of
+GitLab #74, step 2 below happens automatically (`build:nightly-image` +
+`deploy:nightly-image` in `.gitlab-ci.yml`) —
+the sentinel itself still does NOT follow it; it stays pinned to a fixed digest until it is
+repointed by hand (step 3), a deliberate separate decision (see `.claude/task/contract.md` on
+that branch). The sequence:
 
 1. merge the branch that adds the script
-2. rebuild: `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` (from `main`)
+2. the image rebuilds automatically on merge (or by hand:
+   `gcloud run jobs deploy fdp-nightly --source . --region europe-west1`, from `main`)
 3. point the sentinel at the new image (below)
 4. **only then** create the schedule and the two sentinel alert policies
 
@@ -366,9 +380,9 @@ gcloud scheduler jobs pause fdp-nightly --location europe-west1
 
 ## After a code change
 
-The image is **not** rebuilt automatically — Stage 3 wires that into CI on merge. Until then,
-re-run the `gcloud run jobs deploy` command above after merging anything that changes
-ingestion, the dbt project, or `requirements.txt`.
-
-This is a real gap, stated rather than hidden: between a merge and a redeploy, the nightly runs
-the previous image.
+**As of GitLab #74, `build:nightly-image` + `deploy:nightly-image` in `.gitlab-ci.yml` rebuild
+and redeploy the image automatically** on a push to `main` that touches a path the image
+actually contains (`*data_paths_image`) — see "Deploy the job" above for what that covers and
+what it does not (the sentinel is still pinned separately). The command above is the manual
+fallback now, not
+the normal path to prod.
