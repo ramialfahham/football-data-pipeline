@@ -1,21 +1,17 @@
 # Review — fix/74-nightly-image-tracks-main — 2026-08-18
 
-diff_sha256: d1c20488721846031c69d5b9418afc1e0127c1c1500ab2f23840dd09ab8b7450
+diff_sha256: 0ad82ad32c8b0a0ed882f652770df17ec741ca1e862480045d56bc814a79c60b
 
 rounds: 3
 
-> This is the MERGE-COMMIT round: `main` merged into this branch to resolve GitLab #77's
-> task-artifact conflict class before !70 can be accepted. Conflicts were confined to
-> `.claude/task/*` + `.claude/active_work.md`, resolved per this repo's documented recipe
-> (mine for contract/review, union for escalations.log, manual merge for active_work.md).
-> The rest of the diff (`dbt_project/**`, `site_v2/src/**`, `docs/wireframes/**`) is NOT new
-> work from this branch — it is GitLab #62 step 5 and a gaps-register correction, both already
-> built, reviewed and merged to `main` on their own branches. Four reviewers required by the
-> merged path set (`analytics-engineer-reviewer` and `bi-analyst-reviewer` newly required by
-> the merge-incoming dbt/site content; `platform-reviewer` and `scope-auditor` re-confirming
-> against the final merged state). Per this repo's own rule, `diff_sha256` will need rebinding
-> again once this merge commit actually lands (CI's base moves), in a follow-up artifact-only
-> commit.
+> Rebind-only follow-up to the merge commit (f23313e). Per this repo's documented rule, a merge
+> moves its own base — CI's `check_task_artifacts.py` recomputes `diff_sha256` over
+> `gitlab/main...HEAD`, which differs from the pre-commit local hash bound in the merge commit
+> itself. Recomputed with `python .claude/hooks/git_discipline.py --staged-hash` after fetching
+> the live `gitlab/main`; also picked up one newly-required reviewer (`cto-reviewer`, since
+> `.gitlab-ci.yml` is now in the diff against the new base) that the pre-merge local computation
+> didn't surface. All content below is a genuine re-verification against the final merged state,
+> not a restatement — every reviewer re-read the actual current diff.
 
 ## scope-auditor
 VERDICT: PASS
@@ -79,9 +75,8 @@ risks_checked:
 - `.gitlab-ci.yml` is unchanged by this merge — verified the exact byte positions of the anchors
   and jobs already reviewed in earlier rounds still resolve identically; that review stands, not
   re-derived.
-- Zero conflict-marker residue anywhere in the working tree (grepped for `<<<<<<<`/`=======`/
-  `>>>>>>>` at line start); `.git/MERGE_HEAD`/`MERGE_MSG` present, consistent with a staged,
-  uncommitted merge.
+- Zero conflict-marker residue anywhere in the working tree; `.git/MERGE_HEAD`/`MERGE_MSG` were
+  present pre-commit, consistent with a clean merge resolution.
 - Nothing in platform's territory (`.claude/hooks/**`, `.github/workflows/**`,
   `check_task_artifacts.py`, `.gitignore`, `firebase.json`, `astro.config.mjs`) appears in the
   diff beyond #62's own already-reviewed `export_site_data.py`/`check-page-specs.mjs` additions.
@@ -90,9 +85,36 @@ risks_checked:
   manual-fallback upload).
 - Acceptance-gate arithmetic verified to actually hold under the merged state: 8 criteria vs 9
   demonstrated bullets in `acceptance_evidence.md`, not merely claimed.
-- Confirmed `diff_sha256` will shift again once this merge commit lands (CI's `origin/main...HEAD`
-  base moves to main's new tip) and must be rebound in a follow-up artifact-only commit — fail-closed
-  CI behaviour, not a bypass; recorded here rather than raised as a finding.
+- Confirmed `diff_sha256` shifts once the merge commit lands (CI's `origin/main...HEAD` base
+  moves to main's new tip) and must be rebound in a follow-up artifact-only commit — this file
+  is that follow-up; fail-closed CI behaviour, not a bypass.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- `.gitlab-ci.yml`'s final merged state carries exactly the two hunks already reviewed across
+  three earlier rounds (`.data_paths_image` anchor; `build:nightly-image` + `deploy:nightly-image`
+  jobs), both pure additions — no third hunk, no smuggled edit; `workflow:`, the shared anchors,
+  `validate:secrets` and the existing deploy jobs are untouched, standing as main's version.
+- `protected_override` (the CPO's 2026-08-17 "fix #74 so the image tracks main" instruction) and
+  a non-placeholder `impact_map` both survived the conflict resolution intact.
+- New mechanism (CI build+deploy, redesigned mid-task from Cloud Build to kaniko) traced to the
+  CPO's in-session choice in escalations.log, not asserted from the builder's own judgement.
+- IAM footprint verified against escalations.log's additions-only diff: final state (run.developer
+  + run.invoker on the fdp-nightly resource, iam.serviceAccountUser self-actAs,
+  artifactregistry.writer on one repo) matches the revocation entries; the project-level
+  cloudbuild.builds.editor escalation path is recorded as found, revoked and verified — nothing
+  re-widened by the merge.
+- Recurring cost (kaniko runner time, uncollected Artifact Registry storage, no retention policy)
+  declared and unchanged by the merge.
+- Guard invariants hold: both new jobs fail closed; `needs:` now includes validate:secrets +
+  lint:python, strengthening rather than weakening the secrets gate; the deploy-reachability
+  test's two-name exclusion is a narrowing (by name, existence-asserted, mirror-pinned), not a
+  deletion — consistent with "never loosen a guard".
+- No other guard-path file in the diff (nothing under .claude/hooks/, .claude/agents/,
+  .claude/commands/, .claude/settings.json, .claude/review_routing.json, .mcp.json,
+  .cursor/mcp.json, .github/workflows/) — the merge did not slip a second guard change through.
+- Zero conflict-marker residue; no deletion in .gitlab-ci.yml, .dockerignore or .gcloudignore.
 
 ## escalations
 (none new this round — the CPO-locked `acceptance_criteria` escalation is recorded in full in
