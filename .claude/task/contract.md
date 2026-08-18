@@ -61,6 +61,13 @@ acceptance_criteria: >
   player per league, not pooled; GAP-31 withdrawn) into `docs/wireframes/10_home.md` and
   `docs/wireframes/99_gaps_register.md`. No code, no model, no page in that task's own scope. Not
   #74 work, not re-verified here.
+  FOURTH merge-inherited batch (2026-08-18, same gap, same non-authorship): `main` moved again,
+  same source branch (`chore/record-top-players-ruling`, follow-up merge commit fa8118e) —
+  the branch's own review record shows the CPO let it run a documentation staleness sweep of
+  `docs/wireframes/10_home.md` (correcting nine/six-board tables and gap references left over
+  from the 2026-08-10 four-board reduction) before ruling "commit what's here and open the
+  separate task" for the rest. Still pure prose, no code/model/page. Not #74 work, not
+  re-verified here.
 
 protected_override: >
   CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
@@ -261,3 +268,8 @@ amendments:
     (merge commit ac4231f), a pure bookkeeping task per its own contract's objective — two CPO
     decisions written into `docs/wireframes/10_home.md` and `99_gaps_register.md`, no code/model/
     page. Content: same treatment — named the inherited files, stated none of it is #74 work.
+  - 2026-08-18: + fourth merge-inherited batch to `acceptance_criteria` — authority: same standing
+    authority as the three rows above. `main` moved again, same source branch
+    (`chore/record-top-players-ruling`, follow-up merge commit fa8118e) — a documentation
+    staleness sweep of `docs/wireframes/10_home.md` only, still no code/model/page. Content: same
+    treatment — named the file, stated none of it is #74 work.
