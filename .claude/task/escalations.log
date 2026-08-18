@@ -3666,3 +3666,38 @@ is not repeating that).
   wrote to pin the placement asserted `"min(fixture_date)" in inspect.getsource(...)` — a grep
   dressed as a test, which would have pinned the disputed placement in place. DELETED rather than
   relaxed, with the reason written where it stood.
+
+2026-08-18 chore/record-top-players-ruling — the Top players block: ONE PER LEAGUE, not a pooled
+ranking. Recorded BEFORE any build, which is the point.
+
+  HOW IT SURFACED. Walking the home page block by block, the CPO looked at the Top players mock and
+  asked: "what is happening here? We show the no1 from each league and then we put all these no1s
+  into one view -> do we really need a separate mart for it, we can build it but it's repetitive
+  work, not sure about it".
+
+  ⚠ THE MOCK AND THE SPEC DISAGREED, AND NOBODY HAD NOTICED. Measured: all four boards render 7
+  rows with 7 DISTINCT leagues, so the mock reads as one-per-league. But `10_home.md` says "pooled
+  across the leagues of one pool", and `gen_top_players.py`'s own note says "a pooled board ranks
+  across seven leagues, so the club alone no longer implies the competition" — a sentence that only
+  makes sense if one league can appear twice. The mock's INVENTED numbers happened to produce a
+  balanced one-per-league board, which read as a rule it was never stating. A placeholder dataset
+  can assert a design nobody chose; that is the durable lesson here.
+
+  RULING 1 — ONE PER LEAGUE. CPO: "One per league -> yes, it's not a leaderboard in the defined
+  pool." Each pool league's rank-1 player on the metric, collected, then ordered by value.
+
+  WHAT THIS COSTS AND SAVES. It answers the CPO's own mart question: NO new mart and NO new
+  ranking. `mart_leaderboards` already ranks within (league_code, season_api_year), so each
+  league's number one already exists — the block filters to rank 1 across the pool's leagues.
+  **GAP-31 (a pooled rank across the pool) is WITHDRAWN by this ruling**, not deferred. Still live
+  and untouched by it: GAP-30 (`assists` is not a ranked board at all, so it has no rank-1 to
+  take), GAP-27 (no club on the row), GAP-28 (pool membership).
+
+  RULING 2 — THE INTRO COPY MUST BE REPHRASED, and the words are the CPO's. "Season totals to date.
+  Ranked across pooled leagues: Premier League, La Liga, …" describes the pooled ranking just ruled
+  out. CPO: "we just need to rephrase". ⚠ NOT WRITTEN HERE — copy is §10 and always his. What the
+  sentence must carry factually: each league's leader, season-to-date, and which leagues.
+
+  ⚠ NOT DECIDED, do not assume either way: whether ordering the seven winners by value lives in the
+  mart or the page. The 2026-08-16 Ruling 4 ("the mart carries facts, the spec declares the ORDER
+  BY") points at the page, but it was ruled about competitions, not players.

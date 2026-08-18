@@ -55,6 +55,12 @@ acceptance_criteria: >
   merged to `main` on its own branch before this merge; none of it is #74 work and none of it is
   re-verified here. Listed so the gate has something to check against, same as the #62 batch
   above.
+  THIRD merge-inherited batch (2026-08-18, same gap, same non-authorship): `main` moved again,
+  this time with `chore/record-top-players-ruling` (merge commit ac4231f) — a pure bookkeeping
+  task, by its own contract's objective, that writes down two CPO decisions (Top players is one
+  player per league, not pooled; GAP-31 withdrawn) into `docs/wireframes/10_home.md` and
+  `docs/wireframes/99_gaps_register.md`. No code, no model, no page in that task's own scope. Not
+  #74 work, not re-verified here.
 
 protected_override: >
   CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
@@ -250,3 +256,8 @@ amendments:
     covers resolving conflicts as main moves). `main` moved again with `feat/shared-competition-
     order` (!71) while this MR was open. Content: same treatment as the #62 batch — named the
     inherited files, stated none of it is #74 work, not re-verified here.
+  - 2026-08-18: + third merge-inherited batch to `acceptance_criteria` — authority: same standing
+    authority as the two rows above. `main` moved again with `chore/record-top-players-ruling`
+    (merge commit ac4231f), a pure bookkeeping task per its own contract's objective — two CPO
+    decisions written into `docs/wireframes/10_home.md` and `99_gaps_register.md`, no code/model/
+    page. Content: same treatment — named the inherited files, stated none of it is #74 work.

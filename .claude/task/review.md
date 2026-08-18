@@ -1,141 +1,90 @@
 # Review — fix/74-nightly-image-tracks-main — 2026-08-18
 
-diff_sha256: a4dc96249243d55a938d6578f184b527c5833fbf56aff6a52cc06d71441cc85a
+diff_sha256: ae733120575e54312bd724f21fab94ac4f8d3802a0d87a0654bd9638f864201e
 
-> Rebind-only follow-up to merge commit ece6c36. The merge moved its own base again — CI's
-> `check_task_artifacts.py` recomputes over `gitlab/main...HEAD`, which now already contains
-> `feat/shared-competition-order` on the main side too, so the real delta shrinks back to just
-> this branch's own 11 #74 files. Required-reviewer check against `gitlab/main...HEAD` confirms
-> only scope-auditor, platform-reviewer and cto-reviewer are needed — all three already hold PASS
-> verdicts below against this exact content; no re-review needed, only the hash moves.
-
-> Round 4 (second merge round). `main` moved again after the previous merge landed — this time
-> `feat/shared-competition-order` (!71, merge commit de393e5) arrived on top of
-> `fix/gaps-register-vs-reduced-home-design`. Nothing in this branch's own #74 CI/deploy work
-> changed (`.gitlab-ci.yml` confirmed byte-identical by platform-reviewer below); the new content
-> is a second merge-inherited batch (`competitionOrder.mjs`+test, `HeroFixtures.astro`, four
-> fixture JSON samples, `landing.json`, `export_site_data.py`, `types.ts`, two wireframe docs,
-> `.gitignore`), already built and merged to `main` on its own branch. `contract.md`'s
-> `acceptance_criteria` and `amendments` were extended to account for it (same standing merge
-> authority as the first batch, not a fresh §10 decision). Four reviewers whose remit the new
-> content actually touches (scope-auditor, analytics-engineer-reviewer, bi-analyst-reviewer,
-> platform-reviewer) gave FRESH verdicts against the current diff below; `cto-reviewer`'s round-3
-> verdict is carried forward unchanged since `.gitlab-ci.yml` — its entire remit here — did not
-> move this round.
-
-rounds: 4
+rounds: 5
 rounds_cap_override: CPO, 2026-08-18 — "Go ahead, main keeps moving faster than the review cycle."
+(applies again this round for the same reason: main advanced a third time while this MR sat open,
+forcing a third merge-conflict cycle. No open finding is being carried past the cap — every prior
+round closed clean, and this round's two required reviewers both gave fresh PASS below.)
+
+> Round 5 (third merge round). `main` moved again — `chore/record-top-players-ruling` (merge
+> commit ac4231f), a pure bookkeeping task per its own contract (no code, no model, no page: two
+> CPO decisions written into `docs/wireframes/10_home.md` and `99_gaps_register.md`). Nothing in
+> this branch's own #74 CI/deploy work changed. `contract.md`'s `acceptance_criteria` gained a
+> third merge-inherited-batch note; `amendments` records it. Only two reviewers' remit the new
+> content actually touches (scope-auditor, bi-analyst-reviewer) gave FRESH verdicts against the
+> current diff below; `analytics-engineer-reviewer`, `platform-reviewer` and `cto-reviewer`
+> verdicts are carried forward unchanged since none of their territory moved this round.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope trace: all files touched by #74's own work (`.gitlab-ci.yml`, `Dockerfile`,
-  `.dockerignore`, `.gcloudignore`, `deploy/nightly/README.md`, `tests/test_governance_hooks.py`)
-  match `contract.md`'s `scope_paths` and the mechanism matches what rounds 1-3 already settled —
-  no new content beyond what `decisions_taken`/`amendments` already describe.
-- Merge-inherited content (`competitionOrder.mjs`+test, `HeroFixtures.astro`, `types.ts`,
-  `export_site_data.py`'s matchday/region_rank changes, the two wireframe docs, `.gitignore`
-  fixture entries, the two export test files): read each diff and cross-checked against
-  `escalations.log`'s `feat/shared-competition-order` entry (2026-08-18, three CPO rulings:
-  shared ordering rule, retiring `_HERO_FIXTURE_LIMIT=12`, and the GAP-32 layer dispute ruled
-  "ship as-is, register the gap"). Content matches the rulings exactly — nothing reads as
-  hand-authored for this branch under cover of the merge; the four fixture JSON files and
-  `landing.json` are accounted for by the same named merge commit (de393e5).
-- `acceptance_criteria` amendment (CPO-locked field, §2): the second batch's entry cites "same
-  standing authority" rather than a fresh two-path escalation — checked this holds because the
-  underlying act (resolving a merge conflict per the CPO's own "merge conflict 70" instruction)
-  is operational branch hygiene already authorized, not an independent §10 decision; no product/
-  naming call is smuggled in via this field.
-- No credential-shaped literal values anywhere in the diff — only guard-pattern additions
-  (`.gcp-oidc-token`, `.gcp-credentials.json` exclusions); no IAM widening beyond what
-  `impact_map`/`escalations.log` already itemize.
-- `decisions_reserved: none` still holds — the one genuinely open judgment call this round
-  (GAP-32, matchday-selection-in-export layer placement) was escalated and ruled by the CPO
-  in-session and is recorded as an open gap, not silently decided.
+- Wireframe diff (`docs/wireframes/10_home.md`, `docs/wireframes/99_gaps_register.md`) checked
+  line-by-line against the claim of pure documentation — no SQL/mart/page/script content, only
+  prose recording an already-made CPO ruling (Top players is one-player-per-league, not pooled)
+  and withdrawing GAP-31.
+- `acceptance_criteria`'s third merge-inherited batch traces to the same standing authority used
+  for the first two batches and to `escalations.log`'s dated `chore/record-top-players-ruling`
+  entry carrying the actual CPO quotes — not asserted, sourced.
+- Scanned this round's new hunks for credential-shaped strings and widened CI/IAM permissions —
+  none present; `.gitlab-ci.yml`'s job definitions and IAM grants are unchanged from prior rounds.
+- `decisions_reserved: none` still holds — the wireframe edits record a decision made on a
+  different branch's session, not taken by #74, and explicitly defer the still-open
+  copy-rephrasing and mart-vs-page questions rather than resolving them silently.
+- No scope_paths violation: wireframe/contract/log files are outside #74's `scope_paths` but
+  explicitly documented as merge-inherited non-#74 content, same pattern as the two prior batches.
 
 ## analytics-engineer-reviewer
-VERDICT: PASS
+VERDICT: PASS (carried forward, round 4 — no `dbt_project/**` or export content moved this round)
 risks_checked:
 - `scripts/export_site_data.py`'s `fetch_landing_payload` region_rank query checked against
-  `dbt_project/models/5_marts/shared/mart_competition_index.sql` (unmodified by this branch — zero
-  `dbt_project/**` hits anywhere in the patch). `region_rank` is a served fact sourced from the
-  `confederations` seed via the mart, selected plain, not computed — matches layering's
+  `mart_competition_index.sql` (unmodified) — served fact, selected plain, matches layering's
   select/filter/group/rename allowance.
-- `competitionOrder.mjs`/`HeroFixtures.astro` sort already-served facts (`region_rank`, kickoff
-  timestamps); matches the 2026-08-16 CPO ruling (recorded in the mart's own header) that the
-  mart publishes ordering *inputs* and the page applies `ORDER BY` — not a new ranking derivation.
-- `_HERO_FIXTURE_LIMIT` retirement: `group_upcoming_fixtures` now does grouping only, no slicing/
-  date logic; the window restriction moved to the SQL `WHERE`, not a Python loop.
-- Matchday-selection SQL embedded in `export_site_data.py` (window selection in the export): this
-  is the known layer-placement question — FAILed twice on its origin branch, properly escalated
-  per §11 with two conflicting paths, CPO ruled "ship as-is, register the gap" (GAP-32). Arrives
-  here as a closed, authorized decision via merge, not a fresh or silent violation; not re-failed
-  on that basis. The dispute is stated openly in code comments and the gaps register, not hidden.
-- Grep-dressed test check: the prior source-inspection assertion was deleted and replaced with two
-  tests asserting real behavior (truncation, region_rank pass-through) — not weakened.
-- No hardcoded competition identifiers in changed lines; `league_code` stays the discriminator
-  throughout, test fixtures use league codes only as literal test data.
+- Matchday-selection SQL embedded in the export: known layer-placement question, CPO ruled "ship
+  as-is, register the gap" (GAP-32) per §11 escalation — arrives as a closed, authorized decision.
+- No hardcoded competition identifiers in previously-reviewed changed lines; `league_code` stays
+  the discriminator throughout.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- `region_rank` field binding traced end-to-end: `types.ts` → `export_site_data.py` (queries
-  `mart_competition_index`) → `mart_competition_index.sql` (joins `confederations` seed) →
-  `confederations.csv` (UEFA=1, CONMEBOL=3). Committed `landing.json` sample matches the seed
-  exactly — no fabricated field.
-- Four committed fixture JSON samples diffed against a pre-existing sample — identical schema, not
-  a hand-typed subset; every `fixture_id` `landing.json` references resolves to a committed file.
-- Shared ordering rule not duplicated ad-hoc: `orderUpcomingGroups` and
-  `groupAndOrderCompetitions` both delegate to the single `compareCompetitions`; the two other
-  `.sort(` call sites in `site_v2/src` are unrelated (roster/dot sorts), not a second
-  competition-ordering implementation.
-- `HeroFixtures.astro` renders only team names, crests and kickoff time/date — every field it
-  reads exists in the committed sample; `region_rank` is consumed only as a sort input, never
-  rendered as a naked number; no metric creep.
-- i18n keys the component calls are present and complete across all three locales.
-- `rendered_page_evidence.md` present and substantive — real build output, per-locale group order
-  and row counts, live geometry at 440px, and a real build-gate defect (dead links from a stale
-  fixture sample) caught and fixed by the evidence-gathering itself, not a code-read-only pass.
-- Wireframe docs match built behavior; `99_gaps_register.md`'s GAP-32 entry honestly records the
-  unresolved layer dispute with the CPO's quoted ruling rather than presenting it as settled.
+- Read the full diff to `10_home.md`/`99_gaps_register.md`, then both files whole in the working
+  tree to check changed passages against surrounding context, not just isolated hunks.
+- Cross-checked the quoted CPO ruling ("One per league -> yes, it's not a leaderboard in the
+  defined pool.") against `escalations.log`'s `chore/record-top-players-ruling` entry — wording
+  matches, including the explicit "NOT DECIDED... mart or page" caveat the doc correctly leaves
+  open.
+- Verified the factual claim underpinning the withdrawal against the live model:
+  `mart_leaderboards.sql` does `dense_rank() over (partition by league_code, season_api_year ...)`
+  — accurate, not fabricated.
+- GAP-31's withdrawal cross-referenced correctly against `10_home.md`'s closed-items row; GAP-27/
+  28/30 correctly noted as untouched and still live.
+- Doc honestly flags its own remaining inconsistency (intro copy still says "Ranked across pooled
+  leagues," rephrase owed and deferred to CPO per §10) rather than silently leaving it.
+- Searched `site_v2/src/**` for "pooled"/"Ranked across" strings — none found; Top players/Top
+  teams are unbuilt, so no live binding-rule violation exists to catch on the page side.
+- No metric creep — the ruling removes a computation (pooled rank) rather than adding one.
 
 ## platform-reviewer
-VERDICT: PASS
+VERDICT: PASS (carried forward, round 4 — `.gitlab-ci.yml` and all platform-territory files
+unchanged this round)
 risks_checked:
-- `.gitlab-ci.yml` read directly and cross-checked line-for-line against the diff hunks — the two
-  new jobs, `.data_paths_image`, `needs:`, matching `rules:`, shared `resource_group` are
-  byte-identical to what rounds 1-3 already settled; no drift through the `!71` merge.
-- Territory-file exclusion confirmed by direct grep against the full patch (18 files touched):
-  none of `.claude/hooks/**`, `.github/workflows/**`, `check_task_artifacts.py`, `firebase.json`,
-  `astro.config.mjs`, `tsconfig.json`, `package*.json`, or any `requirements*.txt` appear.
-- `.gitignore` change is purely additive (four new fixture-file negation lines, nothing removed) —
-  widens what's tracked, doesn't narrow what's hidden.
-- Zero conflict-marker residue; zero credential-shaped literal values — the two ignore-file
-  additions are filenames in exclusion lists, not secret values.
-- `.claude/active_work.md` measured at ≈14,950 characters, under the 16,000 cap; present in
-  `scope_paths`.
-- No dependency/lockfile change; the four newly-committed fixture samples are inherited content
-  from `!71`, not a new page-count driver authored by this branch.
+- `.gitlab-ci.yml` confirmed byte-identical to the round-4 reviewed state; no drift through this
+  round's merge.
+- No dependency/lockfile change; no credential widening.
+- `.claude/active_work.md` last measured under the 16,000-character cap; unchanged this round.
 
 ## cto-reviewer
-VERDICT: PASS (carried forward, round 3 — `.gitlab-ci.yml` unchanged this round)
+VERDICT: PASS (carried forward, round 3 — `.gitlab-ci.yml` unchanged across rounds 4 and 5)
 risks_checked:
 - `.gitlab-ci.yml`'s merged state carries exactly the two hunks already reviewed across three
-  earlier rounds (`.data_paths_image` anchor; `build:nightly-image` + `deploy:nightly-image`
-  jobs), both pure additions — confirmed unchanged again this round by platform-reviewer above.
-- `protected_override` and a non-placeholder `impact_map` both survived every conflict resolution
-  intact.
-- New mechanism (CI build+deploy, redesigned mid-task from Cloud Build to kaniko) traced to the
-  CPO's in-session choice in `escalations.log`, not asserted from the builder's own judgement.
+  earlier rounds, both pure additions — confirmed unchanged again by platform-reviewer above.
 - IAM footprint verified against `escalations.log`'s additions-only diff: final state matches the
-  revocation entries; the project-level `cloudbuild.builds.editor` escalation path is recorded as
-  found, revoked and verified — nothing re-widened by either merge.
-- Recurring cost (kaniko runner time, uncollected Artifact Registry storage, no retention policy)
-  declared and unchanged.
+  revocation entries; nothing re-widened by any of the three merges.
 - Guard invariants hold: both new jobs fail closed; no other guard-path file in the diff.
 
 ## escalations
-(none new this round — the CPO-locked `acceptance_criteria` escalations are recorded in full in
-`.claude/task/escalations.log`; the GAP-32 matchday-selection-in-export dispute is a §11
-escalation that happened on the `feat/shared-competition-order` branch, arrives here already
-ruled and merged, and is not re-litigated by this review.)
+(none new this round beyond what's already in `.claude/task/escalations.log` — the
+`chore/record-top-players-ruling` decision was made and recorded on its own branch's session, not
+this one; this review only verifies it arrived intact via the merge.)

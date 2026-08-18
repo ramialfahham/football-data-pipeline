@@ -162,7 +162,11 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
 never mixed — CPO: *"if that is the case somewhere then it is a defect."* Verified 2026-08-08 that
 no mixing exists today: `int_player_season__metrics` groups by `league_code` and `mart_leaderboards`
 ranks `partition by league_code, season_api_year`, so every competition is already its own ranking.
-The rule becomes live the moment pooling crosses `league_code`.
+The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 ruling
+(§10 below) it does not** — the block takes each league's own rank-1 and orders the winners, so the
+RANKING never crosses `league_code` and every board is 7 rows from 7 leagues by construction. The
+rule stays dormant for this block, and returns for any future surface that genuinely ranks players
+from different competitions against each other.
 
 A rolling window was proposed as a way to keep every pool current year-round, and REJECTED.
 CPO: *"no it must be within season, that's how you compare."*
@@ -245,7 +249,13 @@ block.
 Closed since 2026-08-04:
 
 - ~~**Whether the league table stays** inside the stats block.~~ The block is replaced.
-- ~~**Top-scorer scope**, per competition or across all.~~ Pooled across the leagues of one pool.
+- ~~**Top-scorer scope**, per competition or across all.~~ ~~Pooled across the leagues of one pool.~~
+  **RULED 2026-08-18: ONE PLAYER PER LEAGUE.** Each pool league's rank-1 player on the metric,
+  collected and ordered by value — CPO: *"One per league -> yes, it's not a leaderboard in the
+  defined pool."* So a board is 7 rows from 7 leagues by construction, never two from one league.
+  ⚠ This is what `mart_leaderboards` ALREADY produces per league, so no pooled rank is needed
+  (GAP-31 withdrawn). ⚠ The intro copy still says "Ranked across pooled leagues", which describes
+  the withdrawn design — rephrasing is owed and the words are the CPO's (§10).
 - ~~**The team stats block shape.**~~ Six boards, specified above.
 - ~~**What the two blocks are called.**~~ Top players and Top teams.
 - ~~**What each board is called.**~~ The rank metric's `label_en`, with no "ranked by" annotation.
