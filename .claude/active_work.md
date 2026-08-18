@@ -36,15 +36,6 @@ CompetitionIndexGrid.astro`), ordering module (`lib/competitionOrder.mjs` + 7 un
 (`specs/competitions/index.spec.json`, new `entity: "competitionIndex"` enum value), 15 category/
 region i18n keys + 5 filter-label keys × 3 real locales (not copies — copy gate passes), nav anchor
 swap (`SiteHeader.astro`: Competitions is now a real link, desktop nav + mobile drawer both).
-⭐ **Verified in the BROWSER, all 3 locales, not just green tests**: ran the page against the real
-committed `competition_index.json` (48 rows), hand-computed the expected sort order from
-`lib/competitionOrder.mjs` run directly against that file, and confirmed the RENDERED page matches
-that order exactly, category-by-category, row-by-row. Confirmed via the accessibility tree that
-all 48 rows are `generic` (no `<a>`) — zero dead links. Filter test: "Clubs" alone correctly
-collapsed all 3 all-national categories (headings too, not just rows); "Clubs + Oceania" together
-correctly emptied the ENTIRE page (0/0), matching #54's own measured example — proves the combined-
-filter JS handles the case pure CSS `:checked` siblings can't express cleanly. `.claude/task/
-acceptance_evidence.md` has the full record.
 ⛔ **THREE DECISIONS MADE THIS SESSION, #54 left them open — read before touching this page again:**
 1. **Width: 680px, not the mock's 1080px.** #54 flagged the override as "a system-level decision,
    not a page one... flagged for a ruling," never actually ruled on. Shipped at the standard width.
@@ -69,6 +60,16 @@ window, every test green) · `display_group` for **#44**.
 ⛔ **HOME PAGE: authority is #40 + #41, NOT `10_home.md` §0** (truth is FOUR boards of ONE metric,
 top 7). #367 shipped next matches → browse; Top players/teams designed NOT built, slot BETWEEN.
 Follow-ups **#36** (blocks #377) · **#38** · **#42**–**#45**.
+⚠ **The GAPS REGISTER was STALE for 8 days and is now CORRECTED (2026-08-18).** GAP-24/25/26 were
+written against the NINE-board design the CPO reduced to FOUR on 08-10; all three are now **VOID**
+(every metric they asked for was cut). ⛔ **GAP-26 in particular claimed to be "the highest-risk of
+the six" about a goals-conceded board deleted 8 days earlier — and I repeated that alarm to the CPO
+as live.** Survivors re-verified against the warehouse, not memory: **GAP-27** (no club on a
+leaderboard row, `grep -c team_sk` = 0) · **GAP-28** (pool membership — ⚠ its `tier`/`season_type`
+projection is ALREADY BUILT, only the authored pool field is left) · **GAP-29** (no
+team-side mart at all). NEW: **GAP-30** `assists` is not a ranked board · **GAP-31** the mart ranks
+per-league (`partition by league_code`) but the design ranks across the pool. ⭐ **A design change
+does not update the register — reconcile it whenever a mock changes**, or it misleads scoping.
 ⚠ **REBASE TAX:** conflicts land in `.claude/task/*` and `active_work.md` — **MINE** for
 contract/review, **UNION** `escalations.log`, then REBIND `diff_sha256`. ⚠ **NEVER `git checkout --`
 to restore uncommitted work** — it restores from HEAD and wipes it. ⛔ **The contract/Stop gates do
