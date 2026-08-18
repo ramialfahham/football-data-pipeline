@@ -1,0 +1,114 @@
+---
+// The competitions index page's single block (#62 step 5, GitLab #54). Groups
+// competition_index.json by competition_type into always-shown category headings, applies the
+// CPO-approved order (lib/competitionOrder.mjs) to both rows and categories, and offers two
+// single-select filter axes (entity_type, confederation) via the zero-JS `.seg-in`/`.seg-btn`
+// radio pattern already used elsewhere (system.css) for the row-hiding itself.
+//
+// Rows are NOT yet links. #54 describes them as row targets, but the page each row would link to
+// (#47, the competition hub) is not built — linking there today would be the exact "browse-chip
+// 404" #47's own issue text names as a failure mode, which is why BrowseGrid.astro's chips are
+// inert <span>s too. They become real anchors (with the hover-lift + chevron affordance) in the
+// MR that ships #47.
+//
+// Category disappearance under a filter needs the count of rows STILL VISIBLE after BOTH axes
+// apply at once (e.g. "Clubs + Oceania" can legitimately empty a category that neither axis
+// alone would empty) — a check pure CSS :checked sibling selectors can't express without an
+// unreadable combinatorial blow-up (3 entity states x 8 region states). A small inline script
+// does the equivalent of what BrowseGrid's category logic does at build time, but at filter-change
+// time: after every change, walk the categories and toggle [hidden] on any with zero visible rows.
+// The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
+// filtering, so nothing breaks if it fails to load.
+import Crest from "../ui/Crest.astro";
+import { t } from "../../i18n/strings";
+import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
+import type { Lang } from "../../lib/format";
+import type { CompetitionIndexRow } from "../../lib/types";
+
+interface Props {
+  competitions: CompetitionIndexRow[];
+  lang: Lang;
+}
+const { competitions, lang } = Astro.props;
+const categories = groupAndOrderCompetitions(competitions);
+
+const ENTITY_FILTERS: { id: string; value: string | null; label: string }[] = [
+  { id: "filter-entity-all", value: null, label: t(lang, "filterAll") },
+  { id: "filter-entity-club", value: "club", label: t(lang, "filterClubs") },
+  { id: "filter-entity-national", value: "national", label: t(lang, "filterNational") },
+];
+
+// Fixed, known set (confederations.csv) — hand-enumerated rather than derived from the page's own
+// data, so a confederation with zero rows TODAY (none currently) still gets a working filter
+// button the day a competition from it is onboarded.
+const REGION_FILTERS: { id: string; value: string | null; labelKey: string | null }[] = [
+  { id: "filter-region-all", value: null, labelKey: null },
+  { id: "filter-region-uefa", value: "UEFA", labelKey: "confedUefa" },
+  { id: "filter-region-conmebol", value: "CONMEBOL", labelKey: "confedConmebol" },
+  { id: "filter-region-concacaf", value: "CONCACAF", labelKey: "confedConcacaf" },
+  { id: "filter-region-caf", value: "CAF", labelKey: "confedCaf" },
+  { id: "filter-region-afc", value: "AFC", labelKey: "confedAfc" },
+  { id: "filter-region-ofc", value: "OFC", labelKey: "confedOfc" },
+  { id: "filter-region-fifa", value: "FIFA", labelKey: "confedFifa" },
+];
+---
+
+<section class="compindex">
+  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-all" checked />
+  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-club" />
+  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-national" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-all" checked />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-uefa" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-conmebol" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-concacaf" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-caf" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-afc" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-ofc" />
+  <input class="seg-in" type="radio" name="region-filter" id="filter-region-fifa" />
+
+  <div class="seg" role="group" aria-label={t(lang, "filterByType")}>
+    {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
+  </div>
+  <div class="seg wrap" role="group" aria-label={t(lang, "filterByRegion")}>
+    {REGION_FILTERS.map((f) => (
+      <label class="seg-btn" for={f.id}>{f.labelKey ? t(lang, f.labelKey) : t(lang, "filterAll")}</label>
+    ))}
+  </div>
+
+  <div class="categories">
+    {categories.map((cat) => (
+      <div class="comp-category">
+        <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
+        <div class="comp-grid">
+          {cat.rows.map((row) => (
+            <div class="comp-row" data-entity-type={row.entity_type} data-confederation={row.confederation}>
+              <Crest name={row.competition_name} crest={row.logo_url} size="xs" />
+              <div class="comp-meta">
+                <div class="comp-name">{row.competition_name}</div>
+                <div class="comp-region">
+                  {row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<script>
+  // Progressive enhancement only — see the frontmatter comment above. The unfiltered page is
+  // already correct without this: every category present in the DOM has at least one row.
+  function applyEmptyCategoryCollapse() {
+    document.querySelectorAll<HTMLElement>(".comp-category").forEach((cat) => {
+      const rows = cat.querySelectorAll<HTMLElement>(".comp-row");
+      const anyVisible = Array.from(rows).some((r) => r.offsetParent !== null);
+      cat.hidden = rows.length > 0 && !anyVisible;
+    });
+  }
+  document
+    .querySelectorAll('input[name="entity-filter"], input[name="region-filter"]')
+    .forEach((el) => el.addEventListener("change", applyEmptyCategoryCollapse));
+  applyEmptyCategoryCollapse();
+</script>

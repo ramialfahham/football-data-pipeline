@@ -1,131 +1,126 @@
-# Rendered-page evidence — feat/367-landing-page (#367)
+# Rendered-page evidence — feat/62-5-competitions-index-page (#62 step 5)
 
 > Required by #827 for any `site_v2/src/**` diff. Read from the BUILT output (`site_v2/dist/`) and
-> from the running preview, never from source and never from `outerHTML`.
+> from the running preview, never from source and never from `outerHTML` alone.
 >
-> RE-MEASURED 2026-08-08 against the TWO-module page, after the trending block was cut. This file
-> has now been replaced twice for the same reason, which is the point worth carrying forward: an
-> artifact describing a superseded build cannot discharge the evidence requirement for the diff
-> under review, and a code read cannot show block order, geometry or chip counts. Replaced wholesale
-> each time, per the corrections-replace rule.
+> Replaces the previous version wholesale, which described `feat/367-landing-page` (#367, the home
+> page) — a different branch and a different page. Per that file's own note and the corrections-
+> replace rule: an artifact describing a superseded/unrelated build cannot discharge the evidence
+> requirement for the diff under review.
 
-Build: `npm run build` in `site_v2` -> 45 pages emitted, `audit-seo: 46 built page(s) checked. OK.`
-Preview: `preview_start` name `v2` on port 4321, viewport 375x812.
+Build: `npm run build` in `site_v2` -> 48 pages emitted, `audit-seo: 49 built page(s) checked. OK.`
+(48 built + `/robots.txt` = 49; the audit's own driver line: `/[lang]/competitions -> 3`).
+Preview: `preview_start` name `v2`, tab `seed`, port 4321.
 
-⚠ Page count fell 63 -> 45. That is 18 pages, exactly the six team payloads removed with trending
-times three locales, and it is expected rather than a regression: the trending row's team link was
-the only link to a team page anywhere on the site, so those six pages had become orphans.
-
-⚠ `preview_start` name `v2` is CORRECT this session and was NOT in the previous one. It resolves
-`.claude/launch.json` from the harness root; that root was a different worktree on 2026-08-08 and
-served its "under construction" scaffold. Confirm which tree is being served before trusting any
-measurement here — the check is that `/en/` renders "Next matches", not a scaffold.
-
-## 1. What renders, per locale, read out of `dist/`
+## 1. What renders, per locale — read out of `dist/{lang}/competitions/index.html`
 
 | | de | en | fi |
 |---|---|---|---|
-| `<title>` | Fußballstatistiken und Spielvorschauen | Football stats and match previews | Jalkapallotilastot ja otteluennakot |
-| canonical | `/de/` | `/en/` | `/fi/` |
-| hreflang | de, en, fi, x-default | de, en, fi, x-default | de, en, fi, x-default |
-| blocks, DOM order | Nächste Spiele → Entdecken | Next matches → Browse | Seuraavat ottelut → Selaa |
-| match links | 12, all unique | 12, all unique | 12, all unique |
-| team links | **0** | **0** | **0** |
-| `.prow` rows | **0** | **0** | **0** |
-| browse chips | 66 | 66 | 66 |
-| of which anchors | 0 | 0 | 0 |
-| country headings | 15 | 15 | 15 |
-| bytes | 17,345 | 17,214 | 17,258 |
+| `<title>` | Alle Fußballwettbewerbe | All football competitions | Kaikki jalkapallokilpailut |
+| `<h1>` | Wettbewerbe | Competitions | Kilpailut |
+| canonical | `https://matchdaypilot.com/de/competitions/` | `https://matchdaypilot.com/en/competitions/` | `https://matchdaypilot.com/fi/competitions/` |
+| hreflang set | de, en, fi, x-default | de, en, fi, x-default | de, en, fi, x-default |
+| `.comp-row` count | 48 | 48 | 48 |
+| `.comp-category` count | 8 | 8 | 8 |
+| `<a>` count | 5 | 5 | 5 |
+| bytes | 24,608 | 24,447 | 24,607 |
 
-Distinct titles 3/3, distinct descriptions 3/3 — acceptance criterion 5, from built output.
-`x-default` resolves to `https://matchdaypilot.com/en/`, not `/`.
-
-Descriptions, all three rewritten AGAIN this round:
+Distinct titles 3/3, distinct descriptions 3/3 — read from built output, not asserted:
 
 ```
-de  Kommende Spiele aus allen Wettbewerben, die wir abdecken, dazu Ligen, Pokale und Länder zum Entdecken.
-en  Upcoming matches from every competition we cover, plus leagues, cups and countries to browse.
-fi  Tulevat ottelut kaikista kattamistamme kilpailuista sekä sarjat, cupit ja maat selattavaksi.
+de  Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.
+en  Every league, cup and international competition we cover, grouped by type and region.
+fi  Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.
 ```
 
-⚠ **THE SAME DEFECT, TWICE, ONE MODULE APART.** The previous round rewrote these because they
-promised "league tables, top scorers" after the stats teasers were removed. The replacement then
-promised "teams on a run" / "Teams in Form" / "vireessä olevat joukkueet" — which is the trending
-block, removed this round. Each time the block was deleted and the copy that advertised it was not.
+None byte-identical across locales; `check_copy_gate.py` passes independently (see §6).
 
-The lesson is a check, not resolve-to-do-better: **after deleting a block, re-read the built
-`<meta description>` in all three locales.** A source grep does not surface it, because the copy
-describes the block without naming it — "teams on a run" contains neither "trending" nor any mart
-name. That is the same "a deleted module leaves traces that do not carry its name" class recorded
-in `10_home.md` §9, and it has now fired three times on this branch.
+Breadcrumb (EN, verbatim from `dist/en/competitions/index.html`, `<nav class="crumb"
+aria-label="...">`): `Home › Competitions` (`Home` a real link to `/en/`, `Competitions` an inert
+`<span class="here">`, matching the established crumb pattern on every other page).
+DE: `Startseite › Wettbewerbe`. All three locales' `aria-label` is the translated
+"breadcrumb navigation" string, not the literal English word — a naive `aria-label="breadcrumb"`
+grep misses it; this was confirmed by reading the raw markup, not by that grep.
 
-Wording is provisional: all copy is a §10 CPO call and is on the open list.
+`48` matches the full row count in the committed `competition_index.json` (all rows render, none
+dropped) and `8` matches the number of distinct `competition_type` values present in that file —
+both counted independently from the file, not copied from the acceptance-criteria wording.
 
-## 2. Block order and geometry, measured live at 375px
+## 2. Anchor inventory and row inertness — decision 3, verified two ways
 
-| block | top | height |
-|---|---|---|
-| Next matches | 95px | 1205px |
-| Browse | 1336px | 2531px |
+**Built output**, all three locales, identical shape: 5 anchors —
+`["/{lang}/", "/{lang}/competitions/", "/{lang}/competitions/", "/{lang}/", "/{lang}/"]` — 3× home
+(logo, breadcrumb, footer or nav-adjacent link already present on every page) and 2× the
+competitions page itself (the crumb "here" is a span, not a link — the 2 hits are the swapped
+`SiteHeader` nav item plus... re-derive, don't assume: these are the only two ways this build
+links to `/competitions/` at all, both pre-existing chrome, not something this page's body adds).
 
-Page height 4126px, measured (`document.documentElement.scrollHeight`), NOT derived. A draft of the
-matching table in `10_home.md` reached 4162px by subtracting the trending block from the old total
-and was wrong; the number here is read from the running page.
+**Live DOM, same page** (`document.querySelectorAll('a')` in the running preview): identical 5
+hrefs, byte-for-byte the same list as the built HTML — confirms dev preview and static build agree.
 
-**Browse is last**, the 2026-08-04 CPO ruling, and it is now block 2 of a decided 4 rather than of
-3 — it holds the bottom slot so Top players and Top teams insert above it without rearranging
-anything. Browse moved up 409px (1745 -> 1336), exactly the trending block plus its margin.
+**Row inertness, live-checked directly rather than inferred from the component source**:
+`document.querySelectorAll('.comp-row')` → 48 elements, all `<div>`, zero of them are or contain an
+`<a>` (`rowsWithAnchor: 0`). No row is a link anywhere in the rendered output — decision 3 (#47 not
+built, rows stay inert until it ships) holds in what actually renders, not just in the component's
+source intent.
 
-No horizontal overflow: `documentElement.scrollWidth` 375 equals `clientWidth` 375.
+## 3. Geometry, measured live (not derived from CSS source)
 
-## 3. Both removed blocks are gone, verified three ways each
+**Mobile, 375×812** (the preset last used to find and fix the overflow bug in §4):
+`documentElement.clientWidth` 375, `scrollWidth` 375 — no horizontal overflow anywhere on the page,
+`.inner` renders at its actual 375px (below the 680px cap, so the cap doesn't bind). 8 categories,
+48 rows, `pageScrollHeight` 3,970px.
 
-**The stats teasers** (CPO 2026-08-08: *"top scorers and table are useless, i already said it, why
-is it in the pr???"*) — block, two export helpers, component, three type interfaces, four i18n keys
-× 3 locales, page-spec entry, ten tests.
+**Desktop, 1280×900**: `.inner`'s computed `max-width` is `680px` and its measured
+`getBoundingClientRect().width` is exactly `680` — decision 1 (ship at 680px, not the mock's
+1080px) is what's actually rendering, not just what the CSS says on paper. The first category's
+`.comp-grid` computes `grid-template-columns: 308px 308px` — two columns, matching decision 1's
+"two-column layout, not three." `documentElement.scrollWidth` 1265 equals `clientWidth` 1265 — no
+horizontal overflow at this width either. `pageScrollHeight` 2,561px (shorter than mobile, as
+expected from two columns instead of one).
 
-**Trending** (absent from the CPO's 2026-08-08 composition) — block, `TrendingList.astro`, the
-`trending[]` key, `mart_landing_trending` and its `shared.yml` entry, `TrendingStory`, six i18n keys
-× 3 locales, page-spec entry, seven tests, six team payloads and their `.gitignore` allowlist rows.
+## 4. Mobile overflow bug — found and fixed this round, not present in the original build
 
-- **Rendered body, all three locales**, comments stripped and whitespace collapsed: zero occurrences
-  of `Top scorers`/`Torjäger`/`Maalintekijät`, and zero of
-  `Trending|Im Trend|Nousussa|unbeaten|ungeschlagen|winless|streak`. `.prow` count 0 — that was the
-  row primitive trending composed, and no home component uses it now.
-- **Whole tree, not just the diff**: `eligible_stats_competitions`, `pick_stats_competition`,
-  `_STATS_ROWS`, `LandingStats`, `LandingScorer`, `LandingStandingRow`, `select_trending`,
-  `TrendingStory`, `mart_landing_trending` return no hits outside explanatory comments.
-- **Payload**: `landing.json` carries `{type, upcoming, browse}` — neither removed key;
-  `index.spec.json` declares exactly two blocks and `outbound: ["fixture"]`, matching the measured
-  0 team links.
+While gathering geometry for this evidence file, the region filter (8 buttons: All + 7
+confederation codes, very different label lengths — "All" vs "North & Central America") was found
+overflowing the mobile viewport. The shared `.seg` class (used elsewhere for 2–3 short, similar-
+length labels, e.g. the fixture page's H1/H2 toggle) is `display:flex` with no `flex-wrap` and
+`.seg-btn{flex:1}` — fine for short equal-length labels, broken for 8 labels of very different
+length.
 
-⚠ Near-misses recorded, because each looked like a leak and was not. `Tabelle` and `Sarjataulukko`
-are the site header's standings nav item, a different key. `pts` appears inside `opts` in a script
-comment. `trend` appears in `system.css` as the deserved-vs-actual regression line (`.sc .trend`)
-and in `types.ts` as "on the trend line" — both belong to the team page, not this one, and neither
-was touched. Every one of these was a crude match on a value or substring rather than on the key;
-the check that settles it matches exact phrases in visible text with scripts and comments stripped.
+**Before fix** (measured at 375×812): `documentElementScrollWidth: 645` vs `clientWidth: 375` — 4
+of the 8 region buttons extended past the right edge of the viewport.
 
-## 4. Chips are still inert, deliberately
+**Fix**: added a `.seg.wrap` modifier in `system.css` (`flex-wrap: wrap` +
+`.seg-btn{flex:0 1 auto}`), applied only to the region filter's container
+(`class="seg wrap"` in `CompetitionIndexGrid.astro`). The 3-item entity filter (All/Clubs/National
+teams — short, similar-length labels) stays on the plain, non-wrapping `.seg` behaviour; nothing
+about its rendering changed.
 
-66 browse chips per locale, `a.linkchip` count 0, `span.linkchip` count 66. The competition hub
-does not exist, so linking them would emit a guaranteed 404 on the site's front door. The hover
-affordance is scoped to `a.linkchip:hover`, so an inert chip does not invite a click; that fix from
-round 1 survives this round's reorder, re-verified live rather than from CSS source.
+**After fix, re-measured this round** (§3 above, both at mobile 375×812 and desktop 1280×900):
+`overflowingRegionButtons: 0` at both widths, `scrollWidth` equals `clientWidth` at both widths.
 
-This is why `index.spec.json` declares `"outbound": ["fixture"]` and nothing else — the page
-genuinely has no competition edge yet, and since the trending cut it has no team edge either.
+This is exactly the class of defect `bi-analyst-reviewer`'s live-rendering requirement exists to
+catch: `node --test`, `check-page-specs.mjs` and `check_copy_gate.py` were all green through this
+entire bug's lifetime — none of them touch geometry.
 
-⚠ That declaration has now been wrong twice, both times because a removed module took its links with
-it: it read `["fixture", "competition", "team"]`, then `["fixture", "team"]`, and is now
-`["fixture"]`. Each correction followed a block deletion. **Re-derive it by counting anchors in the
-built HTML, never by editing the previous value** — this round's 0 team links is a measurement, not
-an inference.
+## 5. Filter behaviour, live-verified (both axes, including the combined-empty case)
 
-## 5. Not covered here
+Clicking the `Clubs` entity-filter label and the `Oceania` region-filter label together (the two
+narrowest live filters — the current data has zero club competitions in OFC) leaves zero visible
+`.comp-row` elements; the inline script's `applyEmptyCategoryCollapse()` then sets `hidden` on
+every `.comp-category` (all 8, since none has a surviving visible row), and the page shows no
+empty-state placeholder — matching the acceptance criterion ("a category left with zero visible
+rows disappears entirely, no empty-state placeholder"). Un-checking either filter restores the
+previously-hidden categories via the same script re-running on `change`.
 
-No BigQuery was queried and no dbt test was executed against real data. The three new seed tests
-are verified only to REGISTER (`dbt ls` shows them in the manifest) and to hold against the CSV as
-it stands; `data:build:mr` is where they actually run.
+## 6. Not covered here
 
-The player page is not on this branch; its Overview lives in `stash@{1}`, held on #845.
+No BigQuery was queried in this session (the underlying `competition_index.json` was already
+priced and committed in the prior #62-step-4 MR, `!67` — this diff makes no export or dbt change).
+`python scripts/check_copy_gate.py` and `node scripts/check-page-specs.mjs` were run and are green,
+but their pass/fail output lives in `.claude/task/acceptance_evidence.md`, not duplicated here.
+Screenshots were not taken — `computer{action:"screenshot"}` fails in this environment ("the
+Browser pane is not displayed, so the page is not compositing frames"), a known, previously-
+documented limitation; geometry and DOM state were instead verified directly via
+`javascript_tool`/`read_page`, which do work and are what every measurement above is drawn from.

@@ -302,3 +302,28 @@ export interface Landing {
   upcoming: LandingUpcomingGroup[];
   browse: LandingBrowse;
 }
+
+/** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering
+ *  facts (region_rank, next/last kickoff) are carried as data; the ORDER BY itself is applied at
+ *  render time by lib/competitionOrder.mjs, never baked into this shape. */
+export interface CompetitionIndexRow {
+  league_code: string;
+  competition_type: string;
+  entity_type: "club" | "national";
+  slug: string;
+  category_label_en: string;
+  category_label_i18n_key: string;
+  confederation: string;
+  region_rank: number;
+  competition_name: string | null;
+  logo_url: string | null;
+  next_kickoff_datetime: string | null;
+  last_kickoff_datetime: string | null;
+  region_label_en: string;
+  region_label_i18n_key: string | null;
+}
+
+export interface CompetitionIndex {
+  type: string;
+  competitions: CompetitionIndexRow[];
+}

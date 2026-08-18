@@ -1,0 +1,50 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/competitions/index.astro",
+  "entity": "competitionIndex",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoCompetitionsTitle",
+    "description": "seoCompetitionsDesc",
+    "schema_org": "ItemList",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": []
+    },
+    "minimum_data": "None beyond the mart's own browsable filter (a non-blank display_group, already applied in mart_competition_index) — every competition in competition_index.json renders. Row content is not yet a link (see url_permanence_note): outbound is empty until #47 ships.",
+    "page_count_driver": "count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The URL is permanent; the CONTENT is not yet fully linked. Rows are inert — no anchor, per BrowseGrid.astro's established precedent — because #47 (the competition hub each row would link to) is not built. inbound_hub is honestly \"none\": the SiteHeader nav links here sitewide, but that is persistent chrome, not a dedicated content hub, matching the home page's own spec (also \"none\") despite being nav-linked from everywhere too."
+  },
+  "blocks": [
+    {
+      "block": "Competitions index",
+      "mart": "mart_competition_index",
+      "i18n_keys": [
+        "crumbHome",
+        "navCompetitions",
+        "filterAll",
+        "filterClubs",
+        "filterNational",
+        "filterByType",
+        "filterByRegion",
+        "compTypeDomesticLeague",
+        "compTypeDomesticCup",
+        "compTypeContinentalCup",
+        "compTypeContinentalSuperCup",
+        "compTypeClubWorldCup",
+        "compTypeQualifying",
+        "compTypeContinentalChampionship",
+        "compTypeWorldChampionship",
+        "confedAfc",
+        "confedCaf",
+        "confedConcacaf",
+        "confedConmebol",
+        "confedFifa",
+        "confedOfc",
+        "confedUefa"
+      ]
+    }
+  ]
+}

@@ -1,249 +1,1155 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 217a017..55c90be 100644
+index 55c90be..54c26d1 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,33 +1,83 @@
--# Task contract — fix stale "no reader" claims in layering.md for dim_country/dim_region
-+# Task contract — #62 step 4: repoint the export at mart_competition_index
+@@ -1,83 +1,166 @@
+-# Task contract — #62 step 4: repoint the export at mart_competition_index
++# Task contract — #62 step 5: the competitions index page
  
  objective: >
--  `dbt_project/docs/layering.md` records dim_country/dim_region (#69) as a documented exception to
--  the layer-contract rules requiring reuse/rollup consumers before a table earns `dim_` status,
--  because at the time they shipped with zero readers. MR !65 (merged 2026-08-17, #69 step 5 + #62
--  step 3) gave them real readers the same day: four `relationships` tests and
--  `mart_competition_index`. The doc's "no reader at all" / "zero consumers" claims are now false.
--  Fix them in place; the historical record of the exception itself stays, only the still-current-
--  ness of "no reader" is corrected.
--refs: GitLab #69, #62, MR !65 (already merged)
-+  Give the competitions index page (#54, not yet built) a real, mart-backed JSON export. Add a new
-+  `fetch_competition_index()`/`shape_competition_index()` pair to `scripts/export_site_data.py`
-+  that queries `mart_competition_index` (live in prod since !65) and writes `competition_index.json`
-+  under a new `"competition_index"` entity type. This is #62 step 4; step 5 (the Astro page, its
-+  page-spec, the nav-item anchor swap) is a separate, later MR.
-+refs: GitLab #62 (step 4 of 5), #54 (page design), MR !65 (the mart, merged), MR !66 (a doc fix,
-+  merged)
+-  Give the competitions index page (#54, not yet built) a real, mart-backed JSON export. Add a new
+-  `fetch_competition_index()`/`shape_competition_index()` pair to `scripts/export_site_data.py`
+-  that queries `mart_competition_index` (live in prod since !65) and writes `competition_index.json`
+-  under a new `"competition_index"` entity type. This is #62 step 4; step 5 (the Astro page, its
+-  page-spec, the nav-item anchor swap) is a separate, later MR.
+-refs: GitLab #62 (step 4 of 5), #54 (page design), MR !65 (the mart, merged), MR !66 (a doc fix,
+-  merged)
++  Build `/{locale}/competitions/`: the page-spec, the Astro page + component, the CPO-approved
++  ordering logic, the committed data file, i18n for the categories/regions it renders, and the
++  `SiteHeader` nav anchor swap. Last of #62's five steps. The design is already fully settled
++  (GitLab #54, CPO-reviewed 2026-08-10 with corrections through 2026-08-17, plus the 2026-08-16
++  ordering ruling in `escalations.log`) — this is faithful implementation, not new design.
++refs: GitLab #62 (step 5 of 5), #54 (page design), #52 (interaction standard), #50 (block
++  standard), #47 (competition hub — confirmed NOT built, shapes the row-link decision below)
  
  scope_paths:
--  - dbt_project/docs/layering.md
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - docs/site_architecture.md
-+  - .claude/active_work.md
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
++  - site_v2/src/data/competition_index.json
++  - site_v2/src/data/README.md
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/lib/competitionOrder.ts
++  - site_v2/src/lib/competitionOrder.mjs
++  - site_v2/src/lib/competitionOrder.test.mjs
++  - site_v2/src/specs/page-spec.schema.json
++  - site_v2/scripts/check-page-specs.mjs
++  - site_v2/src/specs/competitions/index.spec.json
++  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
++  - site_v2/src/pages/*/competitions/index.astro
++  - site_v2/src/components/chrome/SiteHeader.astro
++  - site_v2/src/styles/system.css
++  - docs/wireframes/08_browse.md
++  - docs/wireframes/00_overview.md
+   - docs/site_architecture.md
+   - .claude/active_work.md
+ 
++acceptance_criteria:
++  - `/en/competitions/`, `/de/competitions/`, `/fi/competitions/` all build and render with no
++    console errors.
++  - The page shows every "browsable" competition in `competition_index.json` (48 rows, all of
++    them — the mart already excludes non-browsable types) grouped under a category heading per
++    `competition_type` present in the data; a category with only one member still shows its
++    heading (never hidden).
++  - Category order AND within-category row order both follow the CPO-approved key
++    (`escalations.log`, 2026-08-16): has-upcoming-fixture, then days-to-next-kickoff bucketed by
++    calendar day, then `region_rank`, then kickoff time, then `league_code`; no-upcoming rows sort
++    last, most-recently-played first; categories order by their own earliest-sorting member.
++    Verified by hand-computing the expected order for a handful of real rows and checking the
++    rendered page matches.
++  - Each row shows the competition's logo, name, and region sub-line (`region_label_en` when
++    `region_label_i18n_key` is null — a country — else the translated region label). Rows are
++    NOT yet clickable links — matching `BrowseGrid.astro`'s established "no dead links until the
++    target page exists" precedent, since #47 (the competition hub each row would link to) is
++    confirmed not built.
++  - Two filter controls (`entity_type`: clubs/national; `confederation`: region) narrow the
++    visible rows via the existing zero-JS `segment`/`seg-btn` CSS pattern (no client JS); a
++    category left with zero visible rows after filtering disappears entirely, no empty-state
++    placeholder.
++  - The site nav's "Competitions" item is a real `<a href="/{locale}/competitions/">` in both the
++    desktop nav and the mobile drawer; every other nav item stays an inert `<span>`.
++  - `python scripts/check_copy_gate.py` passes (all new i18n keys present, real DE/FI
++    translations, no byte-identical-to-English non-brand values).
++  - `node scripts/check-page-specs.mjs` and `node --test` (site_v2/) both pass.
++  - Visually verified in the Browser pane at desktop and mobile widths, screenshotted.
 +
-+impact_map: >
-+  writers: `mart_competition_index` (read-only SELECT, no write) is built by `data:build:main`/
-+    `data:build:mr` from the model merged in !65. `scripts/export_site_data.py` itself is invoked
-+    two ways: `.gitlab-ci.yml:767` and `.github/workflows/deploy-site-v2.yml:65`, both
-+    `python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data` — an
-+    EXPLICIT entities list that does not include "nav", "landing", "competitions" or any other
-+    existing entity type either. Adding `"competition_index"` to `ENTITY_TYPES` does not change
-+    what either CI job runs; the new path stays dormant until something explicitly asks for it via
-+    `--entities`. Local/manual invocation (`python scripts/export_site_data.py` with no
-+    `--entities` flag, or `main()`'s own default) DOES pick up every entry in `ENTITY_TYPES`,
-+    including the new one.
+ impact_map: >
+-  writers: `mart_competition_index` (read-only SELECT, no write) is built by `data:build:main`/
+-    `data:build:mr` from the model merged in !65. `scripts/export_site_data.py` itself is invoked
+-    two ways: `.gitlab-ci.yml:767` and `.github/workflows/deploy-site-v2.yml:65`, both
+-    `python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data` — an
+-    EXPLICIT entities list that does not include "nav", "landing", "competitions" or any other
+-    existing entity type either. Adding `"competition_index"` to `ENTITY_TYPES` does not change
+-    what either CI job runs; the new path stays dormant until something explicitly asks for it via
+-    `--entities`. Local/manual invocation (`python scripts/export_site_data.py` with no
+-    `--entities` flag, or `main()`'s own default) DOES pick up every entry in `ENTITY_TYPES`,
+-    including the new one.
+-
+-  downstream: NONE today. `grep -rn "competition_index" site_v2/src` returns zero hits — no Astro
+-    page, component or spec reads this file yet, because step 5 (the page that would) is not built.
+-    `competition_index.json` is a new, additive output; nothing existing reads it, and nothing
+-    existing stops reading anything it read before.
+-
+-  layer_rules: this is the consumption layer (`scripts/export_*.py`), not a dbt model — no
+-    `check_layer_contract.py` surface. The new `shape_competition_index()` does select/project
+-    only (a keep-list, mirroring `shape_leaderboards`' `_LB_KEEP` pattern at
+-    `export_site_data.py:51-55`) — no ranking, no joining, no derived field, consistent with the
+-    repo's own audit findings (`docs/audits/2026-06_alignment_audit.md` F4/F6/F7) about what NOT to
+-    do in this file. `fetch_competition_index()` adds one `order by league_code` for a
+-    deterministic export diff, explicitly NOT the page's display order (`escalations.log`,
+-    2026-08-16: the mart carries facts, the page spec declares the ORDER BY) — a comment states
+-    this so step 5 doesn't mistake it for the real sort.
+-
+-  deploy_order: none. This is a script change with no BigQuery write and no CI wiring change (see
+-    writers above) — nothing about existing deploys is affected. The new function can be verified
+-    by running it directly against prod (read-only SELECT, priced at 10,067 bytes) without going
+-    through CI at all.
+-
+-  blast_radius: additive only. `ENTITY_TYPES` gains one new string; every existing entity type's
+-    code is untouched. `_registry_competitions()`, `fetch_nav()`/`build_nav()`, `_competitions_index()`
+-    (the small `{league_code: {name, slug}}` lookup feeding the fixture page and `TeamHeader.astro`),
+-    and `fetch_competition_payloads()` (the unrelated `"competitions"` entity type, per-league-season
+-    detail payloads for #47) are all read-only reference points for this task and are NOT modified.
++  writers: `competition_index.json` is committed from a real, already-priced (10,067 bytes)
++    `python scripts/export_site_data.py --entities competition_index` run against prod
++    `mart_competition_index` (merged !65, live). No export code changes in this task — the
++    committed file is a snapshot, refreshed the same way `landing.json`/`teams/*.json` already
++    are per `site_v2/src/data/README.md`'s "refresh as a set" convention.
 +
-+  downstream: NONE today. `grep -rn "competition_index" site_v2/src` returns zero hits — no Astro
-+    page, component or spec reads this file yet, because step 5 (the page that would) is not built.
-+    `competition_index.json` is a new, additive output; nothing existing reads it, and nothing
-+    existing stops reading anything it read before.
++  downstream: NEW page, NEW component — nothing existing depends on them. `site_v2/src/lib/types.ts`
++    gains one new additive interface (`CompetitionIndexRow`/`CompetitionIndex`); no existing
++    interface is changed. The `SiteHeader.astro` nav change is the only edit to an already-shipped,
++    already-rendered surface: every other page that imports `SiteHeader` (home, team, fixture)
++    picks up the anchor swap automatically since it's the same shared component — confirmed via
++    `grep -rln "SiteHeader" site_v2/src` before editing, and at least one non-competitions page
++    (home) screenshotted to confirm the nav still renders correctly elsewhere.
 +
-+  layer_rules: this is the consumption layer (`scripts/export_*.py`), not a dbt model — no
-+    `check_layer_contract.py` surface. The new `shape_competition_index()` does select/project
-+    only (a keep-list, mirroring `shape_leaderboards`' `_LB_KEEP` pattern at
-+    `export_site_data.py:51-55`) — no ranking, no joining, no derived field, consistent with the
-+    repo's own audit findings (`docs/audits/2026-06_alignment_audit.md` F4/F6/F7) about what NOT to
-+    do in this file. `fetch_competition_index()` adds one `order by league_code` for a
-+    deterministic export diff, explicitly NOT the page's display order (`escalations.log`,
-+    2026-08-16: the mart carries facts, the page spec declares the ORDER BY) — a comment states
-+    this so step 5 doesn't mistake it for the real sort.
++  layer_rules: this is entirely the consumption/presentation layer (site_v2/src/**) — no dbt
++    model, no export Python change. The CPO's consumption-layer rule (select/filter/group/rename/
++    format only, never compute) governs `CompetitionIndexGrid.astro`: it renders what
++    `competition_index.json` already carries. `competitionOrder.ts` is the one place doing real
++    logic (a sort), which is correct per the CPO's own 2026-08-16 ruling that ordering is the
++    PAGE's job, explicitly not the mart's or the export's — quoted in the file's header comment.
 +
-+  deploy_order: none. This is a script change with no BigQuery write and no CI wiring change (see
-+    writers above) — nothing about existing deploys is affected. The new function can be verified
-+    by running it directly against prod (read-only SELECT, priced at 10,067 bytes) without going
-+    through CI at all.
++  deploy_order: none — this MR does not wire `competition_index` into
++    `.gitlab-ci.yml`/`deploy-site-v2.yml`'s `--entities` list (deliberately reserved, see below),
++    so the committed sample is what both local dev and any future CI build read; no BigQuery
++    dependency at build time for this page.
 +
-+  blast_radius: additive only. `ENTITY_TYPES` gains one new string; every existing entity type's
-+    code is untouched. `_registry_competitions()`, `fetch_nav()`/`build_nav()`, `_competitions_index()`
-+    (the small `{league_code: {name, slug}}` lookup feeding the fixture page and `TeamHeader.astro`),
-+    and `fetch_competition_payloads()` (the unrelated `"competitions"` entity type, per-league-season
-+    detail payloads for #47) are all read-only reference points for this task and are NOT modified.
++  blast_radius: additive except `SiteHeader.astro` (nav swap, scoped to one array entry),
++    `types.ts` (additive interface), and the two `entity` enum files (additive value, no existing
++    value changed). No other page's markup, data, or route changes.
  
  decisions_taken: >
--  No new CPO decision. This corrects a factual claim in documentation to match a change already
--  reviewed, approved and merged in !65 — the exception itself (that these dims were allowed to
--  ship ahead of a consumer) is CPO-ruled and already recorded in `escalations.log`
--  (2026-08-17, `feat/69-country-region-dims`); this task does not revisit that ruling, only the
--  doc's now-stale "still has no reader" wording.
--  NEW MECHANISM: none. RECURRING COST: none.
-+  This wires a mart the CPO already approved (!65) into the export layer using the file's own
-+  established pattern (a `shape_*` pure function + a `fetch_*` BigQuery function + one block in
-+  `export_all()`) — no new mechanism, no new CPO decision. The ordering stance (mart/export carry
-+  facts, page spec carries the ORDER BY) is the CPO ruling already recorded in `escalations.log`,
-+  2026-08-16 — restated here as an implementation constraint, not re-decided.
-+  NEW MECHANISM: none. RECURRING COST: none — one more `SELECT` against a 48-row table in a script
-+  that already runs.
+-  This wires a mart the CPO already approved (!65) into the export layer using the file's own
+-  established pattern (a `shape_*` pure function + a `fetch_*` BigQuery function + one block in
+-  `export_all()`) — no new mechanism, no new CPO decision. The ordering stance (mart/export carry
+-  facts, page spec carries the ORDER BY) is the CPO ruling already recorded in `escalations.log`,
+-  2026-08-16 — restated here as an implementation constraint, not re-decided.
+-  NEW MECHANISM: none. RECURRING COST: none — one more `SELECT` against a 48-row table in a script
+-  that already runs.
++  Three things #54 left open, resolved WITH the user before this contract was written (this
++  session, not a silent call):
++
++  1. PAGE WIDTH: `.inner`'s 680px→1080px override was flagged in #54's own text as "a
++     system-level decision, not a page one... flagged for a ruling," never actually ruled on.
++     Decided: ship at the standard 680px width, two-column layout. No `system.css` measure
++     changes.
++
++  2. FILTERS: #54 states the mock's single-select is "a pure-CSS limit of the mock, not the
++     design... the shipped Astro page has JS and can multi-select." Decided: single-select now
++     (existing zero-JS `segment`/`seg-btn` radio pattern), multi-select JS as a follow-up — ships
++     faster, matches the mock exactly, no new interaction code in an already-large change.
++
++  3. ROW LINKS: #54 describes rows as real links to each competition's own page. Checked GitLab
++     #47 directly: `state: opened`, not built — only the fixture page exists under
++     `site_v2/src/pages/[lang]/[competition]/`. #47's own issue text repeatedly names linking to
++     a page that doesn't exist as "the browse-chip 404" failure mode, which is exactly why
++     `BrowseGrid.astro`'s chips are inert `<span>`s today. Decided: ship rows inert (full content,
++     no anchor, no hover-lift, no chevron — those affordances would falsely signal clickability),
++     becoming real links in the MR that ships #47, mirroring `BrowseGrid.astro`'s own documented
++     pattern exactly.
++
++  NEW MECHANISM: none — reuses the existing zero-JS filter pattern, the existing `t()`/i18n
++  machinery, the existing page-spec schema (widened by one enum value), the existing `Layout`/
++  `SiteHeader` components. RECURRING COST: none — one more static JSON file in a build that
++  already runs.
  
  decisions_reserved:
--  - none: a doc correction against an already-merged, already-reviewed fact.
-+  - Whether/when `.gitlab-ci.yml`/`deploy-site-v2.yml`'s explicit `--entities teams,fixtures` list
-+    grows to include `competition_index` is deliberately NOT decided here — that is step 5's
-+    concern, when a page actually consumes the file. Wiring it into CI now would commit a file
-+    nothing reads.
+-  - Whether/when `.gitlab-ci.yml`/`deploy-site-v2.yml`'s explicit `--entities teams,fixtures` list
+-    grows to include `competition_index` is deliberately NOT decided here — that is step 5's
+-    concern, when a page actually consumes the file. Wiring it into CI now would commit a file
+-    nothing reads.
++  - Wiring `competition_index` into `.gitlab-ci.yml`/`deploy-site-v2.yml`'s `--entities` list —
++    deliberately NOT done here (contract for #62 step 4 already reserved this the same way).
++    Nothing outside this MR reads the committed file's freshness guarantee yet, so there is
++    nothing to wire it to; revisit when a real deploy needs a live-refreshed sample.
++  - Multi-select filtering (JS) — explicitly reserved to a follow-up per decision 2 above.
++  - Making rows real links — explicitly reserved to the MR that ships #47 per decision 3 above.
++  - The `entity` enum value name (`competitionIndex`) is a technical schema categorisation
++    decision, not user-facing copy — made here, not escalated, consistent with how the Python
++    export's `"competition_index"` entity-type name was decided without escalation in step 4.
  
  done_when:
--  - Both stale "no reader"/"zero consumers" claims for dim_country/dim_region in layering.md are
--    corrected to state they are now read, without erasing the historical record of why the
--    exception was granted.
--  - No other content in the file changes.
-+  - `shape_competition_index()` has a passing unit test (no BigQuery) mirroring
-+    `test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank`'s pattern.
-+  - `python scripts/export_site_data.py --entities competition_index --out artifacts/site_data` run
-+    for real against prod (priced first) produces `competition_index.json` with all 48 competitions,
-+    the expected keys, and a resolved `region_label_en` on both a domestic and an international row.
-+  - `ruff` clean on the changed Python files.
-+  - Full `pytest` run stays green (no regression from the `ENTITY_TYPES` tuple change).
-+  - `docs/site_architecture.md`'s competitions-index row names `competition_index.json` /
-+    `mart_competition_index` instead of the stale `nav.json` claim.
-+  - `.claude/active_work.md` updated in the same commit, under 16,000 characters.
+-  - `shape_competition_index()` has a passing unit test (no BigQuery) mirroring
+-    `test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank`'s pattern.
+-  - `python scripts/export_site_data.py --entities competition_index --out artifacts/site_data` run
+-    for real against prod (priced first) produces `competition_index.json` with all 48 competitions,
+-    the expected keys, and a resolved `region_label_en` on both a domestic and an international row.
+-  - `ruff` clean on the changed Python files.
+-  - Full `pytest` run stays green (no regression from the `ENTITY_TYPES` tuple change).
+-  - `docs/site_architecture.md`'s competitions-index row names `competition_index.json` /
+-    `mart_competition_index` instead of the stale `nav.json` claim.
++  - Every item in `acceptance_criteria` above is demonstrated and recorded in
++    `.claude/task/acceptance_evidence.md` under a `criteria_demonstrated:` marker, read from
++    built output (not asserted).
++  - `node --test` (site_v2/) green, including the new `competitionOrder.test.mjs`.
++  - `python scripts/check_copy_gate.py` and `node scripts/check-page-specs.mjs` both pass.
++  - `docs/wireframes/08_browse.md` written per the standard §1–§10 template; `00_overview.md`'s
++    screen-inventory row flipped from "pending" to a link.
+   - `.claude/active_work.md` updated in the same commit, under 16,000 characters.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-08-18: + site_v2/src/lib/types.ts — authority: mechanical addition, caught by the
++    contract gate on first edit attempt (the new CompetitionIndexRow/CompetitionIndex interfaces
++    belong beside every other page's types in the same file, per existing convention). No CPO
++    judgment call involved; recorded per §2's amendment process on a clean tree before proceeding.
++  - 2026-08-18: corrected `site_v2/src/pages/[lang]/competitions/index.astro` to
++    `site_v2/src/pages/*/competitions/index.astro` in scope_paths — authority: mechanical fix,
++    caught by the contract gate on the actual page-file write attempt. `[lang]` is a literal
++    directory name in Astro's routing convention but the gate's fnmatch reads `[...]` as a
++    character class (matches one of l/a/n/g), the exact trap CLAUDE.md documents for
++    `[lang]`/`[team]` segments. No CPO judgment call; recorded on a clean tree before proceeding.
++  - 2026-08-18: corrected `site_v2/src/components/layout/SiteHeader.astro` to
++    `site_v2/src/components/chrome/SiteHeader.astro` in scope_paths — authority: mechanical fix,
++    the component lives under `components/chrome/` (confirmed by reading `Layout.astro`'s own
++    import), not `components/layout/`, which I misremembered while drafting the contract before
++    reading the real file. No CPO judgment call; recorded on a clean tree before proceeding.
++  - 2026-08-18: + `site_v2/src/lib/competitionOrder.mjs` — authority: platform-reviewer round-1
++    FAIL. `competitionOrder.ts` (deleted, its scope_paths entry stays to permit the delete) was
++    the only place in the codebase where a `node:test` file imports a `.ts` file directly; every
++    other test that needs something from a `.ts` file text-scans it instead
++    (`check-metric-labels.test.mjs`'s own documented reason: `node --test` cannot import `.ts`
++    without relying on Node's native type-stripping being on by default, which the repo's declared
++    `engines: >=22` floor does not guarantee — only Node ≥22.18/≥23.6 default it on). Converted the
++    module to plain `.mjs` (JSDoc instead of TS types) so neither the test nor Astro's own build
++    depend on that capability. No CPO judgment call — a portability fix matching an existing,
++    documented house convention; recorded on a clean tree before proceeding.
 diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index f1a9ea4..f5c37a0 100644
+index f5c37a0..95b4b80 100644
 --- a/docs/site_architecture.md
 +++ b/docs/site_architecture.md
-@@ -163,7 +163,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
- | Template | Export file(s) (`data/…`) | Upstream marts |
- |---|---|---|
- | Landing | `landing.json` | landing feed (#365; next rounds, kickoff, trending from `mart_team_profile`) |
--| Competitions index / country hub | `nav.json` (registry-derived) | registry seed + grouping fields |
-+| Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
- | Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
- | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
- | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 3a3278c..f03926b 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -37,7 +37,7 @@ GCP_PROJECT = "football-data-pipeline-gcp"
- MARTS_DATASET = "marts"
- DEFAULT_OUT = "artifacts/site_data"
- ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
--                "leaderboards", "matchstats", "glossary", "landing")
-+                "leaderboards", "matchstats", "glossary", "landing", "competition_index")
- REGISTRY_PATH = "docs/competition_registry.yml"
- CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
- COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
-@@ -940,6 +940,36 @@ def _competitions_index(registry_path: str = REGISTRY_PATH) -> dict:
-     }
+@@ -142,6 +142,13 @@ Two browse axes, both fully registry-driven (#364 adds the fields):
+ - **Country hubs** (`country` field): `/football/germany/` lists BL1, BL2, DFB-Pokal …
+   ordered by `tier` + `sort_order`. International competitions appear under their
+   confederation grouping on `/competitions/`, not under a country.
++  ⚠ `/competitions/` itself (#62 step 5, GitLab #54, built 2026-08-18) groups by the FINER
++  `competition_type` (8 categories) rather than the `display_group` rollup above, and by
++  `region_rank`/kickoff proximity rather than `tier`/`sort_order` (both retired for that page,
++  `escalations.log` 2026-08-16) — `display_group` and `sort_order` stay correct for the home
++  page's browse block, which this section still describes accurately. See
++  `docs/wireframes/08_browse.md` for the built page's actual grouping/ordering rule. Country hubs
++  themselves remain unbuilt.
  
+ The landing page (#367) surfaces both axes; the nav exposes
+ `Competitions · Matches · Teams · Players · Standings · Stats`.
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 58888b8..3a46451 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -85,7 +85,7 @@ not made here. See 09_chrome.md §10 for the full note.
+ | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+-| 08 | 08_browse.md | Competitions index + country hubs | pending | 4 |
++| 08 | [08_browse.md](08_browse.md) | Competitions index + country hubs | **competitions index built** 2026-08-18 (#62 step 5); country hubs (`/football/{country-slug}/`) still pending | 4 |
+ | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
+ | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
+ | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
+diff --git a/docs/wireframes/08_browse.md b/docs/wireframes/08_browse.md
+new file mode 100644
+index 0000000..77ede7e
+--- /dev/null
++++ b/docs/wireframes/08_browse.md
+@@ -0,0 +1,135 @@
++# Competitions index — `/{locale}/competitions/` (#62 step 5, GitLab #54)
++
++## 1. Purpose
++
++Every competition we carry, grouped and browsable: the site's "everything we cover" page, and
++the first item in the main nav to point somewhere real. Designed and CPO-reviewed 2026-08-10 on
++GitLab #54, corrected several times through 2026-08-17 (grouping axis, ordering rule, region
++resolution); built here from that record, not from a separate mock. Distinct from the competition
++HUB (`/{locale}/{competition-slug}/`, #47) — this is the index above it, not a single competition's
++own page.
++
++## 2. URL
++
++`/{locale}/competitions/` — one page per locale (`page_count_driver: count(locales)`), permanent.
++Route: `site_v2/src/pages/[lang]/competitions/index.astro`.
++
++## 3. Data sources
++
++One mart, one export, one committed file — the whole point of #62. `mart_competition_index`
++(`dbt_project/models/5_marts/shared/mart_competition_index.sql`, merged `!65`) → `scripts/
++export_site_data.py`'s `fetch_competition_index()`/`shape_competition_index()` (`!67`) →
++`site_v2/src/data/competition_index.json`, 48 rows, committed whole (small enough not to sample).
++Before #62 this page would have read four things directly (the registry YAML, `competition_types.
++csv`, `confederations.csv`, `dim_league`) — `docs/content_architecture.md` §1 forbids that, and
++#62 is the fix. Binding rule (00_overview.md): every field below is verifiable against
++`competition_index.json`'s actual keys; nothing here is invented ahead of the data.
++
++## 4. Layout
++
++```
++┌────────────────────────────────────────────┐
++│ Home › Competitions                        │  breadcrumb
++│ Competitions                               │  H1 (reuses navCompetitions — #54)
++│ [ All | Clubs | National teams ]           │  filter axis 1 (entity_type)
++│ [ All | Europe | S.America | ... ]         │  filter axis 2 (confederation)
++│                                             │
++│ Domestic leagues                           │  category heading, ALWAYS shown
++│  [crest] Premier League      England       │
++│  [crest] La Liga             Spain         │  responsive grid, 280px min column
++│  ...                                       │
++│                                             │
++│ Continental championships                  │
++│  [crest] UEFA Nations League  Europe       │
++│  ...                                       │
++└────────────────────────────────────────────┘
++```
++
++Single column at the standard 680px `.inner` measure — the mock's 1080px override was flagged in
++#54 as "a system-level decision, not a page one... flagged for a ruling" and never actually ruled
++on, so this ships at the width every other page uses rather than carrying an unresolved system
++change. Row grid is `repeat(auto-fill, minmax(280px, 1fr))` — "as many as fit" per #54's spec,
++which naturally yields 2 columns at 680px rather than the mock's 3-at-1100px, since the container
++itself is narrower here.
++
++## 5. Module bindings
++
++| Element | Source | i18n / notes |
++|---|---|---|
++| Category heading | `competition_type` (grouped) | `t(lang, category_label_i18n_key)` — the served key, no derivation |
++| Row crest | `logo_url` | `Crest.astro` (shared with team/fixture rows), falls back to a monogram when null |
++| Row name | `competition_name` | — |
++| Row region sub-line | `region_label_en` / `region_label_i18n_key` | i18n key when set (a confederation); raw `region_label_en` when the key is null (a country name — not chrome, #62) |
++| Filter — type | `entity_type` (club / national) | `filterAll` / `filterClubs` / `filterNational` |
++| Filter — region | `confederation` (7 codes) | `filterAll` / `confedUefa` / `confedConmebol` / `confedConcacaf` / `confedCaf` / `confedAfc` / `confedOfc` / `confedFifa` |
++| Row/category order | `region_rank`, `next_kickoff_datetime`, `last_kickoff_datetime` | computed by `lib/competitionOrder.mjs`, not served pre-sorted — see §7 |
++| Breadcrumb + H1 | — | both `navCompetitions` (#54: "the H1 deliberately reuses the NAV item's key, so the menu and the page it leads to cannot drift apart") |
++| `<title>` / meta description | — | `seoCompetitionsTitle` / `seoCompetitionsDesc` |
++
++## 6. States
++
++- **Rows are NOT links, on purpose.** #54 describes each row as a "row target" linking to the
++  competition's own page. That page (#47, the competition hub) is confirmed not built — only the
++  fixture page exists under `[competition]/`. Linking today would be the exact "browse-chip 404"
++  #47's own issue text names as a failure mode, the same reason `BrowseGrid.astro`'s home-page
++  chips are inert `<span>`s. Rows carry full content (crest, name, region) with no anchor, no
++  hover-lift, no chevron — those affordances would falsely signal clickability. They become real
++  links, with the hover/chevron treatment, in the MR that ships #47.
++- **Every category always shows its heading**, including one with a single member — never hidden
++  for looking sparse (mirrors `BrowseGrid.astro`'s same rule).
++- **A category with zero visible rows under the active filter disappears entirely** — no
++  "0 results" placeholder. Independent per filter combination (e.g. Clubs + Oceania can legitimately
++  empty a category neither axis alone would).
++- **Filters are single-select per axis**, not the mock's limitation but this round's own scope
++  decision — #54 calls for client-side multi-select eventually; deferred to a follow-up (§10).
++
++## 7. Interactions
++
++- Two independent radio groups (`entity-filter`, `region-filter`), each defaulting to "All". Row
++  show/hide is the zero-JS `.seg-in`/`:checked ~` sibling-selector pattern already used for the
++  fixture page's W1/W2 toggle and the team page's tabs — nine simple CSS rules, no compound
++  selectors, since each axis hides independently.
++- Category collapse (zero visible rows → hide the whole category) is the one place this page uses
++  real JS: doing it in pure CSS would need a hand-written rule per (entity × region) combination
++  (up to ~24) to express "zero rows survive BOTH active filters at once", which `:checked` sibling
++  selectors can express but not maintainably. A small inline script re-evaluates each category's
++  visible-row count on every filter `change` and toggles `[hidden]`. Progressive enhancement only:
++  the unfiltered page is already correct without it (every rendered category has ≥1 row).
++- Ordering (`lib/competitionOrder.mjs`, unit-tested) is applied once at render time, not stored:
++  has-upcoming-fixture → days-to-next-kickoff bucketed by calendar day → `region_rank` → kickoff
++  time → `league_code`; no-upcoming rows sort last, most-recently-played first. The SAME key
++  orders the category headings, by their own earliest-sorting member (`escalations.log`,
++  2026-08-16) — this is why a category can rank ahead of "Domestic leagues" during an
++  international break, with no special case written for it.
++
++## 8. SEO
++
++Page-spec: `site_v2/src/specs/competitions/index.spec.json`. `schema_org: ItemList`
++(`numberOfItems` only — no `itemListElement`, since rows carry no URL yet to list, per §6).
++`inbound_hub: "none"` — honest rather than "home": the `SiteHeader` nav links here sitewide after
++this change, but that's persistent chrome, not a dedicated content hub, the same distinction the
++home page's own spec already makes (also `"none"` despite being nav-linked from everywhere).
++`outbound: []` for the same reason rows aren't links yet. `url_permanence: "permanent"` — the
++route survives; only the row content's linkedness is still catching up.
++
++## 9. Component census
++
++| Component | File | New? |
++|---|---|---|
++| Competitions index page | `pages/[lang]/competitions/index.astro` | ✓ new |
++| Grouped/filtered grid | `components/competitions/CompetitionIndexGrid.astro` | ✓ new |
++| Ordering logic | `lib/competitionOrder.mjs` (+ `competitionOrder.test.mjs`) | ✓ new |
++| Crest | `components/ui/Crest.astro` | reused, unchanged |
++| Nav anchor (Competitions item) | `components/chrome/SiteHeader.astro` | modified — one item, both desktop nav and mobile drawer |
++
++## 10. Gaps
++
++- **Row links** — reserved to the MR that ships #47 (§6).
++- **Multi-select filtering** — #54's stated end state; single-select ships this round (§6), a
++  follow-up adds the JS.
++- **CI wiring** — `competition_index` is not yet in `.gitlab-ci.yml`/`deploy-site-v2.yml`'s
++  `--entities` list; nothing outside this page reads the file's freshness guarantee yet, so
++  wiring it in now would commit a refresh path nothing depends on. Revisit when a real deploy
++  needs it kept current.
++- **`minimum_data`** — none beyond the mart's own browsable filter (non-blank `display_group`,
++  already applied upstream); every competition in the committed file renders.
+diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
+index 0e489e7..2355f99 100644
+--- a/site_v2/scripts/check-page-specs.mjs
++++ b/site_v2/scripts/check-page-specs.mjs
+@@ -28,7 +28,7 @@ export const STRINGS_FILE = join(SITE_ROOT, "src", "i18n", "strings.ts");
+ export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.json");
  
-+_COMPETITION_INDEX_KEEP = (
-+    "league_code", "competition_type", "entity_type", "slug",
-+    "category_label_en", "category_label_i18n_key", "confederation", "region_rank",
-+    "competition_name", "logo_url", "next_kickoff_datetime", "last_kickoff_datetime",
-+    "region_label_en", "region_label_i18n_key",
-+)
-+
-+
-+def shape_competition_index(rows: list[dict]) -> list[dict]:
-+    """mart_competition_index rows, projected to the columns the competitions index page (#54)
-+    renders. Pure passthrough otherwise -- the mart already resolves the category label, the
-+    region label and the ordering FACTS (region_rank, next/last kickoff); this function adds no
-+    logic. It does not sort or filter: the mart carries facts, the page spec declares the ORDER BY
-+    (#62 step 4, escalations.log 2026-08-16)."""
-+    return [{k: r.get(k) for k in _COMPETITION_INDEX_KEEP} for r in rows]
-+
-+
-+def fetch_competition_index(client) -> dict:
-+    """competition_index.json -- mart_competition_index, one row per competition: the single
-+    source for the competitions index page (#54, #62 step 4). Ordered by league_code only, for a
-+    deterministic export diff -- NOT the page's display order, which the page spec applies at
-+    render time from the ordering facts this mart carries (region_rank, next/last kickoff)."""
-+    rows = _query(
-+        client,
-+        f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index` "
-+        f"order by league_code",
-+    )
-+    return {"type": "competition_index", "competitions": shape_competition_index(rows)}
-+
-+
- def _group2(rows: list[dict], k1: str, k2: str) -> dict:
-     g: dict = {}
-     for r in rows:
-@@ -1307,6 +1337,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
-         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
-         entries.append({"type": "landing", "id": "landing", "slug": None,
-                         "path": "landing.json", "sha256": sha})
-+    if "competition_index" in entities:
-+        sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
-+        entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
-+                        "path": "competition_index.json", "sha256": sha})
+ const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
+-export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "home"]);
++export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home"]);
  
-     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
-     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index e6d4965..a095bfb 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -17,6 +17,7 @@ from scripts.export_site_data import (
-     build_nav,
-     fetch_glossary,
-     fixture_slug,
-+    shape_competition_index,
-     shape_competition_payload,
-     shape_fixture_payload,
-     shape_leaderboards,
-@@ -745,6 +746,50 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
-     assert idx["BL1"]["slug"]
+ // --- the SEO gate's declaration half (#844) -------------------------------------------------
+ // This file checks that what a spec DECLARES exists. scripts/audit-seo.mjs checks that what the
+diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
+index f6bce28..42c3454 100644
+--- a/site_v2/src/components/chrome/SiteHeader.astro
++++ b/site_v2/src/components/chrome/SiteHeader.astro
+@@ -10,6 +10,10 @@
+ // (contract.md); this is the specified starting list, unchanged from the mock.
+ // Search is visually present but inert (no input, no backend) — search style
+ // is a reserved CPO call.
++//
++// Competitions is the first item to earn a real href (#62 step 5, #54): its index page now
++// exists. system.css styles `.mainnav a`/`.mainnav span` identically, so the tag swap is the
++// whole visual change (#54's own text). Every other item stays a span until its own index ships.
+ import { t } from "../../i18n/strings";
+ import { localeHref } from "../../lib/href";
+ import type { Lang } from "../../lib/format";
+@@ -19,13 +23,13 @@ interface Props {
+ }
+ const { lang } = Astro.props;
  
+-const navItems = [
+-  t(lang, "navCompetitions"),
+-  t(lang, "navMatches"),
+-  t(lang, "navTeams"),
+-  t(lang, "navPlayers"),
+-  t(lang, "navStandings"),
+-  t(lang, "navStats"),
++const navItems: { label: string; href?: string }[] = [
++  { label: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
++  { label: t(lang, "navMatches") },
++  { label: t(lang, "navTeams") },
++  { label: t(lang, "navPlayers") },
++  { label: t(lang, "navStandings") },
++  { label: t(lang, "navStats") },
+ ];
+ ---
  
-+def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
-+    # mart_competition_index already resolves the category label, the region label and the
-+    # ordering facts (#62 step 4) — this function only projects to the columns the page renders,
-+    # it must not rank, sort, filter or derive anything.
-+    #
-+    # WC is listed FIRST here despite league_code "WC" > "PL" (alphabetical) and region_rank
-+    # 2 > 1 (ascending): both are the plausible accidental sorts this test needs to catch, and
-+    # both would put PL first. Only "preserve input order" produces WC, PL — deliberately, so
-+    # the order assertion below can't pass by coincidence the way an [PL, WC] fixture would.
-+    rows = [
-+        {
-+            "league_code": "WC", "competition_type": "world_championship", "entity_type": "national",
-+            "slug": "fifa-world-cup", "category_label_en": "World Cup",
-+            "category_label_i18n_key": "compTypeWorldChampionship", "confederation": "FIFA",
-+            "region_rank": 2, "competition_name": "FIFA World Cup 2026", "logo_url": None,
-+            "next_kickoff_datetime": None, "last_kickoff_datetime": "2026-06-14T18:00:00+00:00",
-+            "region_label_en": "World", "region_label_i18n_key": "confedFifa",
-+        },
-+        {
-+            "league_code": "PL", "competition_type": "domestic_league", "entity_type": "club",
-+            "slug": "premier-league", "category_label_en": "Domestic leagues",
-+            "category_label_i18n_key": "compTypeDomesticLeague", "confederation": "UEFA",
-+            "region_rank": 1, "competition_name": "Premier League",
-+            "logo_url": "https://example.test/pl.png",
-+            "next_kickoff_datetime": "2026-08-22T19:00:00+00:00", "last_kickoff_datetime": None,
-+            "region_label_en": "England", "region_label_i18n_key": None,
-+            "some_column_the_page_does_not_render": "must be dropped",
-+        },
-+    ]
-+    shaped = shape_competition_index(rows)
-+    assert [c["league_code"] for c in shaped] == ["WC", "PL"]   # input order, not alphabetical
-+                                                                 # or region_rank order
-+
-+    wc = shaped[0]
-+    assert wc["region_label_en"] == "World"             # the confederation-region case
-+    assert wc["region_label_i18n_key"] == "confedFifa"
-+    assert wc["logo_url"] is None                       # nulls preserved, never coerced
-+
-+    pl = shaped[1]
-+    assert "some_column_the_page_does_not_render" not in pl   # projected, not passed through raw
-+    assert pl["region_label_en"] == "England"          # the domestic-country case
-+    assert pl["region_label_i18n_key"] is None          # a country name is not chrome
-+
-+
- def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
-     """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
+@@ -38,7 +42,7 @@ const navItems = [
+     <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
  
+     <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
+-      {navItems.map((label) => <span>{label}</span>)}
++      {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
+     </nav>
+ 
+     <div class="header-actions">
+@@ -75,7 +79,7 @@ const navItems = [
+   </div>
+ 
+   <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
+-    {navItems.map((label) => <span>{label}</span>)}
++    {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
+   </nav>
+ </header>
+ 
+diff --git a/site_v2/src/components/competitions/CompetitionIndexGrid.astro b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+new file mode 100644
+index 0000000..003b477
+--- /dev/null
++++ b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+@@ -0,0 +1,114 @@
++---
++// The competitions index page's single block (#62 step 5, GitLab #54). Groups
++// competition_index.json by competition_type into always-shown category headings, applies the
++// CPO-approved order (lib/competitionOrder.mjs) to both rows and categories, and offers two
++// single-select filter axes (entity_type, confederation) via the zero-JS `.seg-in`/`.seg-btn`
++// radio pattern already used elsewhere (system.css) for the row-hiding itself.
++//
++// Rows are NOT yet links. #54 describes them as row targets, but the page each row would link to
++// (#47, the competition hub) is not built — linking there today would be the exact "browse-chip
++// 404" #47's own issue text names as a failure mode, which is why BrowseGrid.astro's chips are
++// inert <span>s too. They become real anchors (with the hover-lift + chevron affordance) in the
++// MR that ships #47.
++//
++// Category disappearance under a filter needs the count of rows STILL VISIBLE after BOTH axes
++// apply at once (e.g. "Clubs + Oceania" can legitimately empty a category that neither axis
++// alone would empty) — a check pure CSS :checked sibling selectors can't express without an
++// unreadable combinatorial blow-up (3 entity states x 8 region states). A small inline script
++// does the equivalent of what BrowseGrid's category logic does at build time, but at filter-change
++// time: after every change, walk the categories and toggle [hidden] on any with zero visible rows.
++// The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
++// filtering, so nothing breaks if it fails to load.
++import Crest from "../ui/Crest.astro";
++import { t } from "../../i18n/strings";
++import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
++import type { Lang } from "../../lib/format";
++import type { CompetitionIndexRow } from "../../lib/types";
++
++interface Props {
++  competitions: CompetitionIndexRow[];
++  lang: Lang;
++}
++const { competitions, lang } = Astro.props;
++const categories = groupAndOrderCompetitions(competitions);
++
++const ENTITY_FILTERS: { id: string; value: string | null; label: string }[] = [
++  { id: "filter-entity-all", value: null, label: t(lang, "filterAll") },
++  { id: "filter-entity-club", value: "club", label: t(lang, "filterClubs") },
++  { id: "filter-entity-national", value: "national", label: t(lang, "filterNational") },
++];
++
++// Fixed, known set (confederations.csv) — hand-enumerated rather than derived from the page's own
++// data, so a confederation with zero rows TODAY (none currently) still gets a working filter
++// button the day a competition from it is onboarded.
++const REGION_FILTERS: { id: string; value: string | null; labelKey: string | null }[] = [
++  { id: "filter-region-all", value: null, labelKey: null },
++  { id: "filter-region-uefa", value: "UEFA", labelKey: "confedUefa" },
++  { id: "filter-region-conmebol", value: "CONMEBOL", labelKey: "confedConmebol" },
++  { id: "filter-region-concacaf", value: "CONCACAF", labelKey: "confedConcacaf" },
++  { id: "filter-region-caf", value: "CAF", labelKey: "confedCaf" },
++  { id: "filter-region-afc", value: "AFC", labelKey: "confedAfc" },
++  { id: "filter-region-ofc", value: "OFC", labelKey: "confedOfc" },
++  { id: "filter-region-fifa", value: "FIFA", labelKey: "confedFifa" },
++];
++---
++
++<section class="compindex">
++  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-all" checked />
++  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-club" />
++  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-national" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-all" checked />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-uefa" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-conmebol" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-concacaf" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-caf" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-afc" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-ofc" />
++  <input class="seg-in" type="radio" name="region-filter" id="filter-region-fifa" />
++
++  <div class="seg" role="group" aria-label={t(lang, "filterByType")}>
++    {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
++  </div>
++  <div class="seg wrap" role="group" aria-label={t(lang, "filterByRegion")}>
++    {REGION_FILTERS.map((f) => (
++      <label class="seg-btn" for={f.id}>{f.labelKey ? t(lang, f.labelKey) : t(lang, "filterAll")}</label>
++    ))}
++  </div>
++
++  <div class="categories">
++    {categories.map((cat) => (
++      <div class="comp-category">
++        <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
++        <div class="comp-grid">
++          {cat.rows.map((row) => (
++            <div class="comp-row" data-entity-type={row.entity_type} data-confederation={row.confederation}>
++              <Crest name={row.competition_name} crest={row.logo_url} size="xs" />
++              <div class="comp-meta">
++                <div class="comp-name">{row.competition_name}</div>
++                <div class="comp-region">
++                  {row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en}
++                </div>
++              </div>
++            </div>
++          ))}
++        </div>
++      </div>
++    ))}
++  </div>
++</section>
++
++<script>
++  // Progressive enhancement only — see the frontmatter comment above. The unfiltered page is
++  // already correct without this: every category present in the DOM has at least one row.
++  function applyEmptyCategoryCollapse() {
++    document.querySelectorAll<HTMLElement>(".comp-category").forEach((cat) => {
++      const rows = cat.querySelectorAll<HTMLElement>(".comp-row");
++      const anyVisible = Array.from(rows).some((r) => r.offsetParent !== null);
++      cat.hidden = rows.length > 0 && !anyVisible;
++    });
++  }
++  document
++    .querySelectorAll('input[name="entity-filter"], input[name="region-filter"]')
++    .forEach((el) => el.addEventListener("change", applyEmptyCategoryCollapse));
++  applyEmptyCategoryCollapse();
++</script>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index b134274..dfec5b4 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -199,6 +199,32 @@ const EN: Dict = {
+   groupCups: "Cups",
+   groupContinentalClub: "European club",
+   groupNationalTeams: "National teams",
++  // Competitions index page (#62 step 5) — category labels (competition_types.csv
++  // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
++  // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
++  // competition_type with zero onboarded competitions today has no key yet.
++  compTypeDomesticLeague: "Domestic leagues",
++  compTypeDomesticCup: "Domestic cups",
++  compTypeContinentalCup: "Continental club cups",
++  compTypeContinentalSuperCup: "Continental super cups",
++  compTypeClubWorldCup: "Club World Cup",
++  compTypeQualifying: "National team qualifiers",
++  compTypeContinentalChampionship: "Continental championships",
++  compTypeWorldChampionship: "World Cup",
++  confedAfc: "Asia",
++  confedCaf: "Africa",
++  confedConcacaf: "North & Central America",
++  confedConmebol: "South America",
++  confedFifa: "World",
++  confedOfc: "Oceania",
++  confedUefa: "Europe",
++  seoCompetitionsTitle: "All football competitions",
++  seoCompetitionsDesc: "Every league, cup and international competition we cover, grouped by type and region.",
++  filterAll: "All",
++  filterClubs: "Clubs",
++  filterNational: "National teams",
++  filterByType: "Filter by type",
++  filterByRegion: "Filter by region",
+ };
+ 
+ const DE: Dict = {
+@@ -351,6 +377,28 @@ const DE: Dict = {
+   groupCups: "Pokale",
+   groupContinentalClub: "Europapokal",
+   groupNationalTeams: "Nationalmannschaften",
++  compTypeDomesticLeague: "Nationale Ligen",
++  compTypeDomesticCup: "Nationale Pokale",
++  compTypeContinentalCup: "Kontinentale Vereinspokale",
++  compTypeContinentalSuperCup: "Kontinentale Superpokale",
++  compTypeClubWorldCup: "Klub-Weltmeisterschaft",
++  compTypeQualifying: "Nationalmannschafts-Qualifikation",
++  compTypeContinentalChampionship: "Kontinentale Meisterschaften",
++  compTypeWorldChampionship: "Weltmeisterschaft",
++  confedAfc: "Asien",
++  confedCaf: "Afrika",
++  confedConcacaf: "Nord- und Mittelamerika",
++  confedConmebol: "Südamerika",
++  confedFifa: "Welt",
++  confedOfc: "Ozeanien",
++  confedUefa: "Europa",
++  seoCompetitionsTitle: "Alle Fußballwettbewerbe",
++  seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
++  filterAll: "Alle",
++  filterClubs: "Vereine",
++  filterNational: "Nationalmannschaften",
++  filterByType: "Nach Art filtern",
++  filterByRegion: "Nach Region filtern",
+ };
+ 
+ const FI: Dict = {
+@@ -514,6 +562,28 @@ const FI: Dict = {
+   groupCups: "Cupit",
+   groupContinentalClub: "Euroopan seurakilpailut",
+   groupNationalTeams: "Maajoukkueet",
++  compTypeDomesticLeague: "Kansalliset sarjat",
++  compTypeDomesticCup: "Kansalliset cupit",
++  compTypeContinentalCup: "Mantereiden seuracupit",
++  compTypeContinentalSuperCup: "Mantereiden supercupit",
++  compTypeClubWorldCup: "Seurojen MM-kisat",
++  compTypeQualifying: "Maajoukkueiden karsinnat",
++  compTypeContinentalChampionship: "Mantereiden mestaruuskilpailut",
++  compTypeWorldChampionship: "MM-kisat",
++  confedAfc: "Aasia",
++  confedCaf: "Afrikka",
++  confedConcacaf: "Pohjois- ja Keski-Amerikka",
++  confedConmebol: "Etelä-Amerikka",
++  confedFifa: "Maailma",
++  confedOfc: "Oseania",
++  confedUefa: "Eurooppa",
++  seoCompetitionsTitle: "Kaikki jalkapallokilpailut",
++  seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
++  filterAll: "Kaikki",
++  filterClubs: "Seurat",
++  filterNational: "Maajoukkueet",
++  filterByType: "Suodata tyypin mukaan",
++  filterByRegion: "Suodata alueen mukaan",
+ };
+ 
+ const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
+diff --git a/site_v2/src/lib/competitionOrder.mjs b/site_v2/src/lib/competitionOrder.mjs
+new file mode 100644
+index 0000000..2e385fd
+--- /dev/null
++++ b/site_v2/src/lib/competitionOrder.mjs
+@@ -0,0 +1,101 @@
++// CPO-approved ordering rule (.claude/task/escalations.log, 2026-08-16): mart_competition_index
++// carries ordering FACTS only (next/last kickoff, region_rank); this page applies the actual
++// ORDER BY, per the CPO's correction of an earlier draft that wanted to pre-bake it in the mart —
++// "I don't agree that sorting has to be decided in the mart."
++//
++// Sort key, in order: has an upcoming fixture > days to next kickoff BUCKETED BY CALENDAR DAY
++// (not the raw timestamp — a same-day tiebreak by clock time would rank a 10:15 kickoff above a
++// 19:00 kickoff for no reason a reader cares about) > region_rank (the one hand-set judgement) >
++// next kickoff time (deterministic same-day tiebreak) > league_code (full determinism).
++// Competitions with nothing upcoming sort last, most-recently-played first.
++//
++// The SAME key orders the category headings too (2026-08-16 note: "apply the same key to the
++// category headings, ordered by each group's earliest next kickoff") — that is where national
++// teams rank ahead of club leagues during an international break, with no special case.
++//
++// Plain JS, not TypeScript: this module is imported directly by `competitionOrder.test.mjs` under
++// bare `node --test`, which only supports `.ts` imports via Node's native type-stripping — on by
++// default since Node >=22.18/23.6, but NOT guaranteed by this repo's declared `engines: >=22`
++// floor (platform-reviewer finding, #62 step 5 round 1). Every other test in this codebase that
++// needs something from a `.ts` file text-scans it instead
++// (`site_v2/scripts/check-metric-labels.test.mjs`'s own documented reason) rather than depending
++// on that capability; this file follows the same house pattern by not being TypeScript at all.
++// Astro's own build (which compiles `CompetitionIndexGrid.astro`'s import of this file) is
++// unaffected either way — Vite/esbuild handle plain JS natively.
++
++/**
++ * @typedef {import("./types.js").CompetitionIndexRow} CompetitionIndexRow
++ * @typedef {{ key: string, labelEn: string, labelI18nKey: string, rows: CompetitionIndexRow[] }} CompetitionCategory
++ */
++
++// Datetimes in competition_index.json are always "YYYY-MM-DD HH:MM:SS+00:00" — fixed-width and
++// always UTC — so plain string comparison IS chronological comparison. Avoids `new Date(...)`
++// parsing a space-separated (non-ISO-T) string inconsistently across engines.
++/** @param {string} datetime */
++function dayOf(datetime) {
++  return datetime.slice(0, 10);
++}
++
++/**
++ * @param {CompetitionIndexRow} a
++ * @param {CompetitionIndexRow} b
++ * @returns {number}
++ */
++export function compareCompetitions(a, b) {
++  const aUpcoming = a.next_kickoff_datetime !== null;
++  const bUpcoming = b.next_kickoff_datetime !== null;
++  if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
++
++  if (aUpcoming) {
++    const aTime = /** @type {string} */ (a.next_kickoff_datetime);
++    const bTime = /** @type {string} */ (b.next_kickoff_datetime);
++    const aDay = dayOf(aTime);
++    const bDay = dayOf(bTime);
++    if (aDay !== bDay) return aDay < bDay ? -1 : 1;
++    if (a.region_rank !== b.region_rank) return a.region_rank - b.region_rank;
++    if (aTime !== bTime) return aTime < bTime ? -1 : 1;
++    return a.league_code < b.league_code ? -1 : a.league_code > b.league_code ? 1 : 0;
++  }
++
++  // Neither has an upcoming fixture: most recently played first. A competition with no fixture
++  // history at all (both datetimes null) sorts last of all — there is nothing to rank it by.
++  const aLast = a.last_kickoff_datetime;
++  const bLast = b.last_kickoff_datetime;
++  if (aLast !== bLast) {
++    if (aLast === null) return 1;
++    if (bLast === null) return -1;
++    return aLast > bLast ? -1 : 1;
++  }
++  return a.league_code < b.league_code ? -1 : a.league_code > b.league_code ? 1 : 0;
++}
++
++/**
++ * Groups rows by competition_type, sorts rows within each group, then orders the groups
++ * themselves by their own earliest-sorting member — the SAME key, applied one level up.
++ * @param {CompetitionIndexRow[]} rows
++ * @returns {CompetitionCategory[]}
++ */
++export function groupAndOrderCompetitions(rows) {
++  /** @type {Map<string, CompetitionIndexRow[]>} */
++  const byType = new Map();
++  for (const row of rows) {
++    const bucket = byType.get(row.competition_type);
++    if (bucket) bucket.push(row);
++    else byType.set(row.competition_type, [row]);
++  }
++
++  /** @type {CompetitionCategory[]} */
++  const categories = [];
++  for (const [key, groupRows] of byType) {
++    const sorted = [...groupRows].sort(compareCompetitions);
++    categories.push({
++      key,
++      labelEn: sorted[0].category_label_en,
++      labelI18nKey: sorted[0].category_label_i18n_key,
++      rows: sorted,
++    });
++  }
++
++  categories.sort((a, b) => compareCompetitions(a.rows[0], b.rows[0]));
++  return categories;
++}
+diff --git a/site_v2/src/lib/competitionOrder.test.mjs b/site_v2/src/lib/competitionOrder.test.mjs
+new file mode 100644
+index 0000000..76b5c34
+--- /dev/null
++++ b/site_v2/src/lib/competitionOrder.test.mjs
+@@ -0,0 +1,93 @@
++// Pins the CPO-approved ordering rule (escalations.log, 2026-08-16) against the exact failure
++// modes it was written to prevent: a raw-clock tiebreak beating the calendar-day bucket, and a
++// no-upcoming competition outranking one that has a fixture coming up.
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { compareCompetitions, groupAndOrderCompetitions } from "./competitionOrder.mjs";
++
++function row(overrides) {
++  return {
++    league_code: "ZZ",
++    competition_type: "domestic_league",
++    entity_type: "club",
++    slug: "zz",
++    category_label_en: "Domestic leagues",
++    category_label_i18n_key: "compTypeDomesticLeague",
++    confederation: "UEFA",
++    region_rank: 1,
++    competition_name: "ZZ",
++    logo_url: null,
++    next_kickoff_datetime: null,
++    last_kickoff_datetime: null,
++    region_label_en: "Zed",
++    region_label_i18n_key: null,
++    ...overrides,
++  };
++}
++
++test("an upcoming fixture always outranks no fixture, regardless of region_rank", () => {
++  const upcoming = row({ league_code: "OFC1", region_rank: 7, next_kickoff_datetime: "2026-09-01 10:00:00+00:00" });
++  const dormant = row({ league_code: "UEFA1", region_rank: 1, next_kickoff_datetime: null, last_kickoff_datetime: "2026-08-30 19:00:00+00:00" });
++  assert.equal(compareCompetitions(upcoming, dormant), -1);
++  assert.equal(compareCompetitions(dormant, upcoming), 1);
++});
++
++test("calendar-day bucket beats raw kickoff time — a later day never jumps an earlier day", () => {
++  // Day 1, 23:00, region_rank 7 (worst) vs Day 2, 01:00, region_rank 1 (best). If this compared
++  // raw timestamps, the region_rank-1 row's earlier clock time would still lose to the actual
++  // earlier day — this asserts day always wins regardless of what time-of-day or region_rank say.
++  const day1Late = row({ league_code: "A", region_rank: 7, next_kickoff_datetime: "2026-08-20 23:00:00+00:00" });
++  const day2Early = row({ league_code: "B", region_rank: 1, next_kickoff_datetime: "2026-08-21 01:00:00+00:00" });
++  assert.equal(compareCompetitions(day1Late, day2Early), -1, "day 1 must sort before day 2 even with a worse region_rank and a later clock time");
++});
++
++test("same calendar day ties break on region_rank, not on clock time", () => {
++  const earlyClockWorseRegion = row({ league_code: "A", region_rank: 5, next_kickoff_datetime: "2026-08-20 10:00:00+00:00" });
++  const lateClockBetterRegion = row({ league_code: "B", region_rank: 1, next_kickoff_datetime: "2026-08-20 22:00:00+00:00" });
++  assert.ok(
++    compareCompetitions(lateClockBetterRegion, earlyClockWorseRegion) < 0,
++    "the 22:00 kickoff must sort first because its region_rank is better, despite the later clock time",
++  );
++});
++
++test("same day and same region_rank breaks the tie by kickoff time, then by league_code", () => {
++  const earlier = row({ league_code: "Z", region_rank: 1, next_kickoff_datetime: "2026-08-20 10:00:00+00:00" });
++  const later = row({ league_code: "A", region_rank: 1, next_kickoff_datetime: "2026-08-20 18:00:00+00:00" });
++  assert.equal(compareCompetitions(earlier, later), -1, "kickoff time is the tiebreak before league_code, even though A < Z alphabetically");
++});
++
++test("no-upcoming rows sort most-recently-played first, never-played sorts last of all", () => {
++  const recentlyPlayed = row({ league_code: "A", last_kickoff_datetime: "2026-08-10 19:00:00+00:00" });
++  const longAgo = row({ league_code: "B", last_kickoff_datetime: "2024-01-01 19:00:00+00:00" });
++  const neverPlayed = row({ league_code: "C", last_kickoff_datetime: null });
++  assert.equal(compareCompetitions(recentlyPlayed, longAgo), -1);
++  assert.equal(compareCompetitions(longAgo, neverPlayed), -1);
++  assert.equal(compareCompetitions(neverPlayed, recentlyPlayed), 1);
++});
++
++test("groupAndOrderCompetitions orders categories by their own earliest-sorting member", () => {
++  // "qualifying" category's only member kicks off TODAY; "domestic_league" category's only
++  // member kicks off next week. The 2026-08-16 note's own example: national teams rank ahead of
++  // club leagues during a break, with no special case beyond applying the same key one level up.
++  const qualifier = row({
++    league_code: "WCQ", competition_type: "qualifying",
++    category_label_en: "National team qualifiers", category_label_i18n_key: "compTypeQualifying",
++    next_kickoff_datetime: "2026-08-20 18:45:00+00:00",
++  });
++  const league = row({
++    league_code: "PL", competition_type: "domestic_league",
++    category_label_en: "Domestic leagues", category_label_i18n_key: "compTypeDomesticLeague",
++    next_kickoff_datetime: "2026-08-27 19:00:00+00:00",
++  });
++  const categories = groupAndOrderCompetitions([league, qualifier]);
++  assert.deepEqual(categories.map((c) => c.key), ["qualifying", "domestic_league"]);
++});
++
++test("groupAndOrderCompetitions sorts rows within each category too", () => {
++  const later = row({ league_code: "B", competition_type: "domestic_league", next_kickoff_datetime: "2026-08-25 19:00:00+00:00" });
++  const earlier = row({ league_code: "A", competition_type: "domestic_league", next_kickoff_datetime: "2026-08-20 19:00:00+00:00" });
++  const categories = groupAndOrderCompetitions([later, earlier]);
++  assert.equal(categories.length, 1);
++  assert.deepEqual(categories[0].rows.map((r) => r.league_code), ["A", "B"]);
++});
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 85b5a1e..998ed20 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -302,3 +302,28 @@ export interface Landing {
+   upcoming: LandingUpcomingGroup[];
+   browse: LandingBrowse;
+ }
++
++/** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering
++ *  facts (region_rank, next/last kickoff) are carried as data; the ORDER BY itself is applied at
++ *  render time by lib/competitionOrder.mjs, never baked into this shape. */
++export interface CompetitionIndexRow {
++  league_code: string;
++  competition_type: string;
++  entity_type: "club" | "national";
++  slug: string;
++  category_label_en: string;
++  category_label_i18n_key: string;
++  confederation: string;
++  region_rank: number;
++  competition_name: string | null;
++  logo_url: string | null;
++  next_kickoff_datetime: string | null;
++  last_kickoff_datetime: string | null;
++  region_label_en: string;
++  region_label_i18n_key: string | null;
++}
++
++export interface CompetitionIndex {
++  type: string;
++  competitions: CompetitionIndexRow[];
++}
+diff --git a/site_v2/src/pages/[lang]/competitions/index.astro b/site_v2/src/pages/[lang]/competitions/index.astro
+new file mode 100644
+index 0000000..0dd8601
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/competitions/index.astro
+@@ -0,0 +1,60 @@
++---
++// Competitions index (#62 step 5, GitLab #54, spec: docs/wireframes/08_browse.md). Reads the
++// committed competition_index.json (mart_competition_index verbatim, #62 step 3+4) and composes
++// the one block a single-page-per-locale index needs. The page holds no styling and derives no
++// facts — grouping and ordering are lib/competitionOrder.mjs, rendering is
++// CompetitionIndexGrid.astro.
++//
++// H1 and the breadcrumb's own segment both reuse navCompetitions rather than a separate key
++// (#54: "the H1 deliberately reuses the NAV item's key, so the menu and the page it leads to
++// cannot drift apart").
++import Layout from "../../../layouts/Layout.astro";
++import CompetitionIndexGrid from "../../../components/competitions/CompetitionIndexGrid.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref } from "../../../lib/href";
++import type { Lang } from "../../../lib/format";
++import type { CompetitionIndex } from "../../../lib/types";
++import competitionIndex from "../../../data/competition_index.json";
++
++export function getStaticPaths() {
++  return [
++    { params: { lang: "de" } },
++    { params: { lang: "en" } },
++    { params: { lang: "fi" } },
++  ];
++}
++
++const lang = (Astro.params.lang ?? "en") as Lang;
++const data = competitionIndex as unknown as CompetitionIndex;
++
++const title = t(lang, "seoCompetitionsTitle");
++const description = t(lang, "seoCompetitionsDesc");
++
++// schema.org/ItemList (page-spec: schema_org). Format only per page-spec.schema.json's own
++// note — itemListElement is not populated: rows carry no URL yet (see the component's comment
++// on why they're inert), so a list of hrefs would point nowhere.
++const entity = {
++  "@type": "ItemList",
++  name: title,
++  numberOfItems: data.competitions.length,
++};
++
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navCompetitions") },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <span class="here">{t(lang, "navCompetitions")}</span>
++    </nav>
++
++    <h1>{t(lang, "navCompetitions")}</h1>
++
++    <CompetitionIndexGrid competitions={data.competitions} lang={lang} />
++  </div>
++</Layout>
+diff --git a/site_v2/src/specs/competitions/index.spec.json b/site_v2/src/specs/competitions/index.spec.json
+new file mode 100644
+index 0000000..4769bdd
+--- /dev/null
++++ b/site_v2/src/specs/competitions/index.spec.json
+@@ -0,0 +1,50 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/competitions/index.astro",
++  "entity": "competitionIndex",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoCompetitionsTitle",
++    "description": "seoCompetitionsDesc",
++    "schema_org": "ItemList",
++    "links": {
++      "inbound_hub": "none",
++      "outbound": []
++    },
++    "minimum_data": "None beyond the mart's own browsable filter (a non-blank display_group, already applied in mart_competition_index) — every competition in competition_index.json renders. Row content is not yet a link (see url_permanence_note): outbound is empty until #47 ships.",
++    "page_count_driver": "count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The URL is permanent; the CONTENT is not yet fully linked. Rows are inert — no anchor, per BrowseGrid.astro's established precedent — because #47 (the competition hub each row would link to) is not built. inbound_hub is honestly \"none\": the SiteHeader nav links here sitewide, but that is persistent chrome, not a dedicated content hub, matching the home page's own spec (also \"none\") despite being nav-linked from everywhere too."
++  },
++  "blocks": [
++    {
++      "block": "Competitions index",
++      "mart": "mart_competition_index",
++      "i18n_keys": [
++        "crumbHome",
++        "navCompetitions",
++        "filterAll",
++        "filterClubs",
++        "filterNational",
++        "filterByType",
++        "filterByRegion",
++        "compTypeDomesticLeague",
++        "compTypeDomesticCup",
++        "compTypeContinentalCup",
++        "compTypeContinentalSuperCup",
++        "compTypeClubWorldCup",
++        "compTypeQualifying",
++        "compTypeContinentalChampionship",
++        "compTypeWorldChampionship",
++        "confedAfc",
++        "confedCaf",
++        "confedConcacaf",
++        "confedConmebol",
++        "confedFifa",
++        "confedOfc",
++        "confedUefa"
++      ]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
+index 54d8541..6c8a3b4 100644
+--- a/site_v2/src/specs/page-spec.schema.json
++++ b/site_v2/src/specs/page-spec.schema.json
+@@ -13,7 +13,7 @@
+     },
+     "entity": {
+       "type": "string",
+-      "enum": ["team", "player", "fixture", "competition", "home"],
++      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home"],
+       "description": "The entity type this template renders, per docs/content_architecture.md section 2."
+     },
+     "stub": {
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 2a9fd9c..b0c7d54 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -504,4 +504,65 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
+ /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
+ .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
+ 
++/* Competitions index (#62 step 5, GitLab #54). Two independent single-select filter axes reuse
++   the shared .seg-in/.seg-btn radio pattern; each hides ROWS that don't match the active value
++   via a plain sibling selector. The "all" state of each group has no rule (nothing hides), so
++   the two axes combine for free — no compound selector needed at the row level. Category-level
++   empty-state collapse (a category left with zero rows after BOTH axes apply) needs the two
++   states combined and is handled in the component's small inline script instead; see its comment. */
++/* .seg is shared with the fixture page's W1/W2 toggle (2 short, equal-width labels, never wraps).
++   The region filter has 8 labels of very different lengths ("All" vs "North & Central America")
++   and genuinely overflows at mobile widths without wrapping (measured: scrollWidth 645 vs
++   clientWidth 375 at the 375px preset, #62 step 5 round 1). .wrap opts a specific .seg instance
++   into wrapping and lets each button size to its own content instead of sharing width equally —
++   equal-width made no sense once labels stopped being similar lengths. Entity filter (3 short,
++   similar-length labels) stays on the plain .seg behaviour. */
++.seg.wrap { flex-wrap: wrap; }
++.seg.wrap .seg-btn { flex: 0 1 auto; }
++
++.comp-category { margin-bottom: 4px; }
++.comp-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
++  gap: 8px;
++  margin-top: 6px;
++}
++.comp-row {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  padding: 8px 4px;
++  min-width: 0;
++}
++.comp-meta { min-width: 0; }
++.comp-name {
++  font-size: 14px; font-weight: 600; color: var(--ink);
++  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
++}
++.comp-region { font-size: 12px; color: var(--muted); margin-top: 1px; }
++
++#filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
++#filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }
++#filter-region-uefa:checked ~ .categories [data-confederation]:not([data-confederation="UEFA"]) { display: none; }
++#filter-region-conmebol:checked ~ .categories [data-confederation]:not([data-confederation="CONMEBOL"]) { display: none; }
++#filter-region-concacaf:checked ~ .categories [data-confederation]:not([data-confederation="CONCACAF"]) { display: none; }
++#filter-region-caf:checked ~ .categories [data-confederation]:not([data-confederation="CAF"]) { display: none; }
++#filter-region-afc:checked ~ .categories [data-confederation]:not([data-confederation="AFC"]) { display: none; }
++#filter-region-ofc:checked ~ .categories [data-confederation]:not([data-confederation="OFC"]) { display: none; }
++#filter-region-fifa:checked ~ .categories [data-confederation]:not([data-confederation="FIFA"]) { display: none; }
++
++#filter-entity-all:checked ~ .seg .seg-btn[for="filter-entity-all"],
++#filter-entity-club:checked ~ .seg .seg-btn[for="filter-entity-club"],
++#filter-entity-national:checked ~ .seg .seg-btn[for="filter-entity-national"],
++#filter-region-all:checked ~ .seg .seg-btn[for="filter-region-all"],
++#filter-region-uefa:checked ~ .seg .seg-btn[for="filter-region-uefa"],
++#filter-region-conmebol:checked ~ .seg .seg-btn[for="filter-region-conmebol"],
++#filter-region-concacaf:checked ~ .seg .seg-btn[for="filter-region-concacaf"],
++#filter-region-caf:checked ~ .seg .seg-btn[for="filter-region-caf"],
++#filter-region-afc:checked ~ .seg .seg-btn[for="filter-region-afc"],
++#filter-region-ofc:checked ~ .seg .seg-btn[for="filter-region-ofc"],
++#filter-region-fifa:checked ~ .seg .seg-btn[for="filter-region-fifa"] {
++  background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
++}
++
+ @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md              |   6 +-
+#    site_v2/src/data/competition_index.json | 773 ++++++++++++++++++++++++++++++++
+#    2 files changed, 778 insertions(+), 1 deletion(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -257,6 +1163,9 @@ index e6d4965..a095bfb 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md | 65 ++++++++++++++++++++++++--------------------------
-#    1 file changed, 31 insertions(+), 34 deletions(-)
+#   .claude/active_work.md                 |  105 +--
+#    .claude/task/acceptance_evidence.md    |  153 ++--
+#    .claude/task/rendered_page_evidence.md |  233 +++---
+#    .claude/task/review_input.patch        | 1318 ++++++++++++++++++++++++++------
+#    4 files changed, 1337 insertions(+), 472 deletions(-)
 # ============================================================================
