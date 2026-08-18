@@ -1,257 +1,873 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 54c26d1..c310342 100644
+index c310342..98ba439 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,166 +1,75 @@
--# Task contract — #62 step 5: the competitions index page
-+# Task contract — correct the gaps register against the reduced home-page design
+@@ -1,75 +1,130 @@
+-# Task contract — correct the gaps register against the reduced home-page design
++# Task contract — one shared competition-ordering rule, and the matchday selection
  
  objective: >
--  Build `/{locale}/competitions/`: the page-spec, the Astro page + component, the CPO-approved
--  ordering logic, the committed data file, i18n for the categories/regions it renders, and the
--  `SiteHeader` nav anchor swap. Last of #62's five steps. The design is already fully settled
--  (GitLab #54, CPO-reviewed 2026-08-10 with corrections through 2026-08-17, plus the 2026-08-16
--  ordering ruling in `escalations.log`) — this is faithful implementation, not new design.
--refs: GitLab #62 (step 5 of 5), #54 (page design), #52 (interaction standard), #50 (block
--  standard), #47 (competition hub — confirmed NOT built, shapes the row-link decision below)
-+  `docs/wireframes/99_gaps_register.md` entries GAP-24..GAP-29 were written against the NINE-board
-+  Top players / Top teams design. That design was REDUCED to FOUR single-metric boards per block on
-+  2026-08-10 (the CPO's set, in his order, recorded verbatim in `design-mocks/gen_top_players.py`'s
-+  header and reflected in the rendered mocks). The register was never updated, so three of its six
-+  entries describe warehouse work for boards that no longer exist — including GAP-26, which the
-+  register still flags as "the highest-risk of the six". Reading the register today produces a
-+  materially wrong picture of what the home page needs. Void what the reduction killed, keep what
-+  survived, and register the two gaps the reduced design newly exposes.
-+refs: GitLab #40 (Top players) + #41 (Top teams) — the stated design authority; the 2026-08-10
-+  reduction recorded in `design-mocks/gen_top_players.py`; `.claude/active_work.md`'s
-+  "HOME PAGE: authority is #40 + #41 ... truth is FOUR boards of ONE metric, top 7".
+-  `docs/wireframes/99_gaps_register.md` entries GAP-24..GAP-29 were written against the NINE-board
+-  Top players / Top teams design. That design was REDUCED to FOUR single-metric boards per block on
+-  2026-08-10 (the CPO's set, in his order, recorded verbatim in `design-mocks/gen_top_players.py`'s
+-  header and reflected in the rendered mocks). The register was never updated, so three of its six
+-  entries describe warehouse work for boards that no longer exist — including GAP-26, which the
+-  register still flags as "the highest-risk of the six". Reading the register today produces a
+-  materially wrong picture of what the home page needs. Void what the reduction killed, keep what
+-  survived, and register the two gaps the reduced design newly exposes.
+-refs: GitLab #40 (Top players) + #41 (Top teams) — the stated design authority; the 2026-08-10
+-  reduction recorded in `design-mocks/gen_top_players.py`; `.claude/active_work.md`'s
+-  "HOME PAGE: authority is #40 + #41 ... truth is FOUR boards of ONE metric, top 7".
++  Two live surfaces order competitions against each other with DIFFERENT rules. The competitions
++  page uses the CPO's 2026-08-16 key (has-upcoming → calendar day → region_rank → kickoff →
++  league_code). The home page's "Next matches" predates that ruling and uses raw chronology, so it
++  still carries the exact noise the ruling was written to remove. Make the 08-16 key the single
++  site-wide rule, implemented ONCE and called by both. Separately, and by the same CPO decision
++  this session, drop the hardcoded 12-fixture cap on the home block in favour of the natural unit:
++  every match on the next day that has football.
++refs: `escalations.log` 2026-08-16 (the ordering key, Rulings 1-4) · GitLab #367 (the home page as
++  built) · `10_home.md` §5(1) (GAP-02, the retired count) · #908 (a "more matches" control, parked)
  
  scope_paths:
--  - site_v2/src/data/competition_index.json
--  - site_v2/src/data/README.md
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/types.ts
--  - site_v2/src/lib/competitionOrder.ts
--  - site_v2/src/lib/competitionOrder.mjs
--  - site_v2/src/lib/competitionOrder.test.mjs
--  - site_v2/src/specs/page-spec.schema.json
--  - site_v2/scripts/check-page-specs.mjs
--  - site_v2/src/specs/competitions/index.spec.json
--  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
--  - site_v2/src/pages/*/competitions/index.astro
--  - site_v2/src/components/chrome/SiteHeader.astro
--  - site_v2/src/styles/system.css
--  - docs/wireframes/08_browse.md
--  - docs/wireframes/00_overview.md
--  - docs/site_architecture.md
-+  - docs/wireframes/99_gaps_register.md
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - tests/test_export_landing.py
++  - site_v2/src/lib/competitionOrder.mjs
++  - site_v2/src/lib/competitionOrder.test.mjs
++  - site_v2/src/lib/types.ts
++  - site_v2/src/components/home/HeroFixtures.astro
++  - site_v2/src/data/landing.json
++  - site_v2/src/data/fixtures/*.json
++  - .gitignore
++  - docs/wireframes/10_home.md
+   - docs/wireframes/99_gaps_register.md
++  - .claude/task/escalations.log
    - .claude/active_work.md
  
--acceptance_criteria:
--  - `/en/competitions/`, `/de/competitions/`, `/fi/competitions/` all build and render with no
--    console errors.
--  - The page shows every "browsable" competition in `competition_index.json` (48 rows, all of
--    them — the mart already excludes non-browsable types) grouped under a category heading per
--    `competition_type` present in the data; a category with only one member still shows its
--    heading (never hidden).
--  - Category order AND within-category row order both follow the CPO-approved key
--    (`escalations.log`, 2026-08-16): has-upcoming-fixture, then days-to-next-kickoff bucketed by
--    calendar day, then `region_rank`, then kickoff time, then `league_code`; no-upcoming rows sort
--    last, most-recently-played first; categories order by their own earliest-sorting member.
--    Verified by hand-computing the expected order for a handful of real rows and checking the
--    rendered page matches.
--  - Each row shows the competition's logo, name, and region sub-line (`region_label_en` when
--    `region_label_i18n_key` is null — a country — else the translated region label). Rows are
--    NOT yet clickable links — matching `BrowseGrid.astro`'s established "no dead links until the
--    target page exists" precedent, since #47 (the competition hub each row would link to) is
--    confirmed not built.
--  - Two filter controls (`entity_type`: clubs/national; `confederation`: region) narrow the
--    visible rows via the existing zero-JS `segment`/`seg-btn` CSS pattern (no client JS); a
--    category left with zero visible rows after filtering disappears entirely, no empty-state
--    placeholder.
--  - The site nav's "Competitions" item is a real `<a href="/{locale}/competitions/">` in both the
--    desktop nav and the mobile drawer; every other nav item stays an inert `<span>`.
--  - `python scripts/check_copy_gate.py` passes (all new i18n keys present, real DE/FI
--    translations, no byte-identical-to-English non-brand values).
--  - `node scripts/check-page-specs.mjs` and `node --test` (site_v2/) both pass.
--  - Visually verified in the Browser pane at desktop and mobile widths, screenshotted.
--
- impact_map: >
--  writers: `competition_index.json` is committed from a real, already-priced (10,067 bytes)
--    `python scripts/export_site_data.py --entities competition_index` run against prod
--    `mart_competition_index` (merged !65, live). No export code changes in this task — the
--    committed file is a snapshot, refreshed the same way `landing.json`/`teams/*.json` already
--    are per `site_v2/src/data/README.md`'s "refresh as a set" convention.
--
--  downstream: NEW page, NEW component — nothing existing depends on them. `site_v2/src/lib/types.ts`
--    gains one new additive interface (`CompetitionIndexRow`/`CompetitionIndex`); no existing
--    interface is changed. The `SiteHeader.astro` nav change is the only edit to an already-shipped,
--    already-rendered surface: every other page that imports `SiteHeader` (home, team, fixture)
--    picks up the anchor swap automatically since it's the same shared component — confirmed via
--    `grep -rln "SiteHeader" site_v2/src` before editing, and at least one non-competitions page
--    (home) screenshotted to confirm the nav still renders correctly elsewhere.
--
--  layer_rules: this is entirely the consumption/presentation layer (site_v2/src/**) — no dbt
--    model, no export Python change. The CPO's consumption-layer rule (select/filter/group/rename/
--    format only, never compute) governs `CompetitionIndexGrid.astro`: it renders what
--    `competition_index.json` already carries. `competitionOrder.ts` is the one place doing real
--    logic (a sort), which is correct per the CPO's own 2026-08-16 ruling that ordering is the
--    PAGE's job, explicitly not the mart's or the export's — quoted in the file's header comment.
--
--  deploy_order: none — this MR does not wire `competition_index` into
--    `.gitlab-ci.yml`/`deploy-site-v2.yml`'s `--entities` list (deliberately reserved, see below),
--    so the committed sample is what both local dev and any future CI build read; no BigQuery
--    dependency at build time for this page.
--
--  blast_radius: additive except `SiteHeader.astro` (nav swap, scoped to one array entry),
--    `types.ts` (additive interface), and the two `entity` enum files (additive value, no existing
--    value changed). No other page's markup, data, or route changes.
-+  writers: none. This is a documentation correction only — no dbt model, no seed, no export, no
-+    site file changes. Nothing reads this register at build time; it is read by humans and by me
-+    when scoping home-page work.
-+
-+  downstream: the register is an INPUT to scoping decisions, not to code. Correcting it changes
-+    what the next session believes is required for the Top players / Top teams blocks. That is the
-+    point: the stale version caused me to report "9 rankings, 4 missing" and to raise a
-+    goals-conceded ranking alarm for a board deleted eight days earlier, both this session.
-+
-+  layer_rules: not applicable — no layer is touched. The corrections were derived by READING the
-+    warehouse (`mart_leaderboards.sql`, `int_team_season__metrics_cumulative.sql`) and the
-+    generators, and every claim below is a grep result, not a recollection.
-+
-+  verification performed BEFORE writing (each a command, not a memory):
-+    - `mart_leaderboards` count_boards list read in full: goals, scorer_points, shots_on_goal,
-+      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total.
-+      `grep -c "'assists'"` = 0 -> assists is a COLUMN on the mart but NOT a ranked board.
-+    - `grep -c "team_sk"` on `mart_leaderboards.sql` = 0 -> GAP-27 (no club per row) still live.
-+    - `grep -n "partition by"` -> `partition by league_code, season_api_year` -> the mart ranks
-+      WITHIN one league; the design ranks ACROSS seven pooled leagues. Distinct from GAP-28's pool
-+      MEMBERSHIP question, so it needs its own entry.
-+    - all four Top-teams metrics (`goals_per_match`, `shots_on_goal_per_match`,
-+      `passes_per_match`, `duels_per_match`) confirmed present in
-+      `int_team_season__metrics_cumulative.sql` -> GAP-29's "already carries them" claim holds.
-+    - no team-side leaderboard mart exists: `find dbt_project/models/5_marts -iname "*leaderboard*"`
-+      returns `mart_leaderboards.sql` only.
-+
-+  blast_radius: one documentation file plus the handover. No behaviour change anywhere.
+-impact_map: >
+-  writers: none. This is a documentation correction only — no dbt model, no seed, no export, no
+-    site file changes. Nothing reads this register at build time; it is read by humans and by me
+-    when scoping home-page work.
++acceptance_criteria:
++  - The home page and the competitions page order competitions with the SAME comparator function,
++    called from two places — verified by grep showing exactly one implementation of the key and no
++    second copy of its logic in Python or Astro.
++  - On the rendered home page, competitions kicking off on the same day appear in region order
++    (UEFA before CONMEBOL before AFC …), NOT in raw clock-time order. Demonstrated by hand-
++    computing the expected order from the committed `landing.json` and matching it against the
++    built page, all three locales.
++  - A competition playing an earlier day still outranks one playing a later day regardless of
++    region — the day bucket precedes region_rank, exactly as on the competitions page.
++  - `landing.json` carries `region_rank` on every upcoming group, sourced from
++    `mart_competition_index`, and NOT computed anywhere in Python or in the frontend.
++  - The home block shows EVERY match on the earliest upcoming kickoff date and none from the day
++    after — no fixed count anywhere in the path. `_HERO_FIXTURE_LIMIT` is gone from the codebase.
++  - `node --test` (site_v2/) green including new ordering tests; `pytest tests/test_export_site_data.py`
++    green including a matchday-selection test whose fixture set exceeds twelve on day one, so it
++    would FAIL against the old capped behaviour.
++  - Each new test seen RED before green (comparator broken / cap re-added), recorded in the
++    evidence file — a passing test that was never seen fail is decoration (#904).
++  - `python scripts/check_copy_gate.py` and `node scripts/check-page-specs.mjs` pass.
++  - The rendered match count and page height under the new rule are MEASURED and reported at
++    desktop and mobile, not predicted.
+ 
+-  downstream: the register is an INPUT to scoping decisions, not to code. Correcting it changes
+-    what the next session believes is required for the Top players / Top teams blocks. That is the
+-    point: the stale version caused me to report "9 rankings, 4 missing" and to raise a
+-    goals-conceded ranking alarm for a board deleted eight days earlier, both this session.
++impact_map: >
++  writers: `scripts/export_site_data.py` gains one small read of `mart_competition_index`
++    (already live, shipped !65; the same mart `fetch_competition_index` queries). Priced with
++    `bq query --dry_run` BEFORE running. `landing.json` is regenerated from a real prod run.
+ 
+-  layer_rules: not applicable — no layer is touched. The corrections were derived by READING the
+-    warehouse (`mart_leaderboards.sql`, `int_team_season__metrics_cumulative.sql`) and the
+-    generators, and every claim below is a grep result, not a recollection.
++  downstream: `landing.json`'s shape changes additively (`region_rank` per group) and its CONTENT
++    changes materially — the group list is now a matchday, not a 12-slice. Only `HeroFixtures.astro`
++    consumes it. `competitionOrder.mjs` gains one exported function; `compareCompetitions` itself is
++    UNCHANGED, so the competitions page's behaviour must not move — pinned by its existing 7 tests
++    staying green without edit.
+ 
+-  verification performed BEFORE writing (each a command, not a memory):
+-    - `mart_leaderboards` count_boards list read in full: goals, scorer_points, shots_on_goal,
+-      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total.
+-      `grep -c "'assists'"` = 0 -> assists is a COLUMN on the mart but NOT a ranked board.
+-    - `grep -c "team_sk"` on `mart_leaderboards.sql` = 0 -> GAP-27 (no club per row) still live.
+-    - `grep -n "partition by"` -> `partition by league_code, season_api_year` -> the mart ranks
+-      WITHIN one league; the design ranks ACROSS seven pooled leagues. Distinct from GAP-28's pool
+-      MEMBERSHIP question, so it needs its own entry.
+-    - all four Top-teams metrics (`goals_per_match`, `shots_on_goal_per_match`,
+-      `passes_per_match`, `duels_per_match`) confirmed present in
+-      `int_team_season__metrics_cumulative.sql` -> GAP-29's "already carries them" claim holds.
+-    - no team-side leaderboard mart exists: `find dbt_project/models/5_marts -iname "*leaderboard*"`
+-      returns `mart_leaderboards.sql` only.
++  layer_rules: ordering stays in the PAGE layer, per 08-16 Ruling 4 ("the mart carries facts, the
++    spec declares the ORDER BY") and the CPO's correction "I don't agree that sorting has to be
++    decided in the mart". The export selects and groups only. `region_rank` MUST come from the mart
++    — deriving it in Python from `confederation` would be a taxonomy mapping, which
++    `layering.md`'s consumption-layer contract forbids outright.
+ 
+-  blast_radius: one documentation file plus the handover. No behaviour change anywhere.
++  blast_radius: the home page's first block changes visibly (order AND how many matches). The
++    competitions page must not change at all. No dbt model, seed or mart is touched.
  
  decisions_taken: >
--  Three things #54 left open, resolved WITH the user before this contract was written (this
--  session, not a silent call):
-+  VOID vs REWRITE. GAP-24/25/26 are struck through and marked void rather than rewritten in place,
-+  and the two live gaps the reduced design exposes get NEW ids (GAP-30, GAP-31). Rewriting an id's
-+  content in place would silently change what an external reference to "GAP-24" means; the register
-+  already has a withdrawal convention (GAP-04, struck through + **withdrawn** + the reason) and this
-+  follows it exactly rather than inventing a second one.
+-  VOID vs REWRITE. GAP-24/25/26 are struck through and marked void rather than rewritten in place,
+-  and the two live gaps the reduced design exposes get NEW ids (GAP-30, GAP-31). Rewriting an id's
+-  content in place would silently change what an external reference to "GAP-24" means; the register
+-  already has a withdrawal convention (GAP-04, struck through + **withdrawn** + the reason) and this
+-  follows it exactly rather than inventing a second one.
++  Both from the CPO, in conversation this session, and recorded in `escalations.log` in the same
++  commit rather than left in chat:
++
++  1. ONE SHARED RULE. The 2026-08-16 key becomes the single site-wide rule for ordering
++     competitions against each other. Its own stated reasoning already covered the home page
++     ("even matches from national teams can rank occasionally before club league matches"), and the
++     home page simply predated it. Because DAY precedes REGION in the key, match selection stays
++     chronological and only group order changes — so this is not a re-decision of the key, it is
++     the key applied where it always reached.
  
--  1. PAGE WIDTH: `.inner`'s 680px→1080px override was flagged in #54's own text as "a
--     system-level decision, not a page one... flagged for a ruling," never actually ruled on.
--     Decided: ship at the standard 680px width, two-column layout. No `system.css` measure
--     changes.
--
--  2. FILTERS: #54 states the mock's single-select is "a pure-CSS limit of the mock, not the
--     design... the shipped Astro page has JS and can multi-select." Decided: single-select now
--     (existing zero-JS `segment`/`seg-btn` radio pattern), multi-select JS as a follow-up — ships
--     faster, matches the mock exactly, no new interaction code in an already-large change.
--
--  3. ROW LINKS: #54 describes rows as real links to each competition's own page. Checked GitLab
--     #47 directly: `state: opened`, not built — only the fixture page exists under
--     `site_v2/src/pages/[lang]/[competition]/`. #47's own issue text repeatedly names linking to
--     a page that doesn't exist as "the browse-chip 404" failure mode, which is exactly why
--     `BrowseGrid.astro`'s chips are inert `<span>`s today. Decided: ship rows inert (full content,
--     no anchor, no hover-lift, no chevron — those affordances would falsely signal clickability),
--     becoming real links in the MR that ships #47, mirroring `BrowseGrid.astro`'s own documented
--     pattern exactly.
--
--  NEW MECHANISM: none — reuses the existing zero-JS filter pattern, the existing `t()`/i18n
--  machinery, the existing page-spec schema (widened by one enum value), the existing `Layout`/
--  `SiteHeader` components. RECURRING COST: none — one more static JSON file in a build that
--  already runs.
-+  NEW MECHANISM: none. RECURRING COST: none.
+-  NEW MECHANISM: none. RECURRING COST: none.
++  2. THE HARDCODED 12 GOES. CPO: "we will show what we have, more matches will come, because we
++     ingest more competitions." The cap was reasoned (it filled the first screenful) but does not
++     scale: as competitions are onboarded, twelve slots hold fewer and fewer competitions, so the
++     block narrows exactly as the site broadens. Replaced by the next matchday — every match on the
++     next day that has football. This does NOT reopen the calendar-window question GAP-02 settled:
++     "today" was rejected for rendering 1 row on some days, and "the next day that HAS matches" is
++     never empty by construction.
++
++  NEW MECHANISM: none — one existing comparator gains a second caller. RECURRING COST: one extra
++  small mart read per export run, priced before use.
  
  decisions_reserved:
--  - Wiring `competition_index` into `.gitlab-ci.yml`/`deploy-site-v2.yml`'s `--entities` list —
--    deliberately NOT done here (contract for #62 step 4 already reserved this the same way).
--    Nothing outside this MR reads the committed file's freshness guarantee yet, so there is
--    nothing to wire it to; revisit when a real deploy needs a live-refreshed sample.
--  - Multi-select filtering (JS) — explicitly reserved to a follow-up per decision 2 above.
--  - Making rows real links — explicitly reserved to the MR that ships #47 per decision 3 above.
--  - The `entity` enum value name (`competitionIndex`) is a technical schema categorisation
--    decision, not user-facing copy — made here, not escalated, consistent with how the Python
--    export's `"competition_index"` entity-type name was decided without escalation in step 4.
-+  - Whether the four voided/new gaps become GitLab issues is the CPO's, unchanged by this task —
-+    the register's own header already says accepted gaps become their own issues and that gap fixes
-+    never ship inside blueprint PRs.
-+  - The pass-accuracy defect that GAP-25 mentioned in passing is NOT resolved by voiding GAP-25;
-+    `gen_top_players.py` records it as re-filed separately. Not touched here.
-+  - Whether the register needs a periodic reconciliation mechanism (this is the second time a
-+    design change left it stale) — a process question, raised in the handover, not decided here.
+-  - Whether the four voided/new gaps become GitLab issues is the CPO's, unchanged by this task —
+-    the register's own header already says accepted gaps become their own issues and that gap fixes
+-    never ship inside blueprint PRs.
+-  - The pass-accuracy defect that GAP-25 mentioned in passing is NOT resolved by voiding GAP-25;
+-    `gen_top_players.py` records it as re-filed separately. Not touched here.
+-  - Whether the register needs a periodic reconciliation mechanism (this is the second time a
+-    design change left it stale) — a process question, raised in the handover, not decided here.
++  - What to do if a busy matchday reads too long (57 fixtures was the measured worst day). The
++    answer is a CPO call on the block — #908 already parks a "more matches" control — and NOT a
++    new invented cap slipped back in here. The measurement gets reported; the decision is not made.
++  - Flattening browse / deleting the "By country" axis (#44) — untouched here.
++  - Top players and Top teams (GAP-27..GAP-31 warehouse work) — untouched here.
++  - The hero reading `core.fct_fixture`/`core.dim_team` directly instead of a mart — a real layer
++    defect, flagged, deliberately NOT folded into this change.
++  - The league group heading's missing badge/arrow/link — needs the league page to exist.
++
++amendments:
++  - 2026-08-18: + `site_v2/src/data/fixtures/*.json` and `.gitignore` — authority: mechanical
++    consequence, caught by the `audit-seo` build gate, not a new decision. Regenerating
++    `landing.json` changes WHICH fixtures the home page links to, and the committed fixture sample
++    was still the 2026-08-03 set, so the build failed with 8 dead internal links (4 fixtures x
++    2 locales shown). `site_v2/src/data/README.md` documents exactly this — "⚠ Refresh as a set…
++    regenerate `landing.json`, then update the `.gitignore` allowlist and the committed files to
++    match it, in the same commit" — and names `audit-seo` as the only thing that catches a
++    mismatch. It did. Adding the four payloads the new landing references plus their allowlist
++    rows IS that documented procedure, so no CPO judgment is involved. Recorded on a clean tree.
++
++  - 2026-08-18: + `tests/test_export_landing.py` — authority: MY BREAKAGE, not a scope choice.
++    Removing `group_upcoming_fixtures`'s `limit` parameter broke two tests in this file
++    (`TypeError: unexpected keyword argument 'limit'`). I did not catch it because I ran only
++    `tests/test_export_site_data.py`, never the suite — analytics-engineer-reviewer found it in
++    round 3 while tracing the signature, outside its own judging scope. Fixing a test my own change
++    broke is not new scope; leaving it red would ship a broken suite. Recorded on a clean tree.
  
  done_when:
--  - Every item in `acceptance_criteria` above is demonstrated and recorded in
--    `.claude/task/acceptance_evidence.md` under a `criteria_demonstrated:` marker, read from
--    built output (not asserted).
--  - `node --test` (site_v2/) green, including the new `competitionOrder.test.mjs`.
--  - `python scripts/check_copy_gate.py` and `node scripts/check-page-specs.mjs` both pass.
--  - `docs/wireframes/08_browse.md` written per the standard §1–§10 template; `00_overview.md`'s
--    screen-inventory row flipped from "pending" to a link.
--  - `.claude/active_work.md` updated in the same commit, under 16,000 characters.
--
--amendments:
--  - 2026-08-18: + site_v2/src/lib/types.ts — authority: mechanical addition, caught by the
--    contract gate on first edit attempt (the new CompetitionIndexRow/CompetitionIndex interfaces
--    belong beside every other page's types in the same file, per existing convention). No CPO
--    judgment call involved; recorded per §2's amendment process on a clean tree before proceeding.
--  - 2026-08-18: corrected `site_v2/src/pages/[lang]/competitions/index.astro` to
--    `site_v2/src/pages/*/competitions/index.astro` in scope_paths — authority: mechanical fix,
--    caught by the contract gate on the actual page-file write attempt. `[lang]` is a literal
--    directory name in Astro's routing convention but the gate's fnmatch reads `[...]` as a
--    character class (matches one of l/a/n/g), the exact trap CLAUDE.md documents for
--    `[lang]`/`[team]` segments. No CPO judgment call; recorded on a clean tree before proceeding.
--  - 2026-08-18: corrected `site_v2/src/components/layout/SiteHeader.astro` to
--    `site_v2/src/components/chrome/SiteHeader.astro` in scope_paths — authority: mechanical fix,
--    the component lives under `components/chrome/` (confirmed by reading `Layout.astro`'s own
--    import), not `components/layout/`, which I misremembered while drafting the contract before
--    reading the real file. No CPO judgment call; recorded on a clean tree before proceeding.
--  - 2026-08-18: + `site_v2/src/lib/competitionOrder.mjs` — authority: platform-reviewer round-1
--    FAIL. `competitionOrder.ts` (deleted, its scope_paths entry stays to permit the delete) was
--    the only place in the codebase where a `node:test` file imports a `.ts` file directly; every
--    other test that needs something from a `.ts` file text-scans it instead
--    (`check-metric-labels.test.mjs`'s own documented reason: `node --test` cannot import `.ts`
--    without relying on Node's native type-stripping being on by default, which the repo's declared
--    `engines: >=22` floor does not guarantee — only Node ≥22.18/≥23.6 default it on). Converted the
--    module to plain `.mjs` (JSDoc instead of TS types) so neither the test nor Astro's own build
--    depend on that capability. No CPO judgment call — a portability fix matching an existing,
--    documented house convention; recorded on a clean tree before proceeding.
-+  - GAP-24, GAP-25, GAP-26 struck through and marked void, each naming the 2026-08-10 reduction as
-+    the cause and stating what specifically no longer exists.
-+  - GAP-27, GAP-28, GAP-29 confirmed still live, with their text reconciled to the four-board
-+    design where it referenced the nine-board one.
-+  - GAP-30 (assists is not a ranked board) and GAP-31 (pooled-vs-per-league rank grain) added.
-+  - `.claude/active_work.md` records that the register was stale and is now corrected, under the
-+    16,000-character cap.
+-  - GAP-24, GAP-25, GAP-26 struck through and marked void, each naming the 2026-08-10 reduction as
+-    the cause and stating what specifically no longer exists.
+-  - GAP-27, GAP-28, GAP-29 confirmed still live, with their text reconciled to the four-board
+-    design where it referenced the nine-board one.
+-  - GAP-30 (assists is not a ranked board) and GAP-31 (pooled-vs-per-league rank grain) added.
+-  - `.claude/active_work.md` records that the register was stale and is now corrected, under the
+-    16,000-character cap.
++  - Every item in `acceptance_criteria` demonstrated and recorded in
++    `.claude/task/acceptance_evidence.md` under a `criteria_demonstrated:` marker (2-space indented
++    bullets — the gate's `_block()` parser stops at column 0), read from BUILT output.
++  - `.claude/task/rendered_page_evidence.md` replaced wholesale for THIS diff.
++  - `escalations.log` carries both rulings, dated, at the time they were made.
++  - `10_home.md` and `99_gaps_register.md` no longer state the retired count as current.
++  - `.claude/active_work.md` updated in the same commit, under 16,000 characters.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 2d2fdf4..f833cb9 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -3474,3 +3474,73 @@ obsolete (#54).
+   `region_rank` as facts and does not pre-bake the ORDER BY — the page spec (#62 step 5) declares
+   it. `region_label` is the opposite case and DOES resolve in the mart, because it is text a
+   visitor reads.
++
++2026-08-18 feat/shared-competition-order — TWO rulings, in conversation, written the same session
++they were made (the 2026-08-16 entry above was missed three times before it got recorded; this one
++is not repeating that).
++
++  CONTEXT. Walking the home page top-to-bottom against the mock, the CPO asked whether the
++  "next matches" ordering rule was consistent across every page it applies to. It was not. Two
++  rules were live at once: the competitions index used the 2026-08-16 key (day → region_rank →
++  kickoff → league_code); the home page, built earlier under #367, used raw chronology and so still
++  carried the exact 10:15-beats-19:00 noise the 08-16 ruling was written to remove.
++
++  RULING 1 — ONE SHARED RULE, SITE-WIDE. CPO: "yes, make it one shared rule." The 2026-08-16 key is
++  now the single rule wherever competitions are ranked against each other, implemented ONCE
++  (`site_v2/src/lib/competitionOrder.mjs`) and called by both surfaces. Not a new key and not a
++  re-decision: the 08-16 ruling's own words ("even matches from national teams can rank
++  occasionally before club league matches") already reached the home page, which simply predated
++  it. Because DAY precedes REGION in the key, match SELECTION stays chronological and only GROUP
++  ORDER changes — the CPO's question "I don't understand your question" correctly identified that
++  the key already answers whether region can outrank an earlier day. It cannot.
++
++  RULING 2 — THE HARDCODED COUNT OF 12 IS RETIRED. CPO: "why are you using hard-coded numbers like
++  12 matches or whatsoever? We will show what we have, more matches will come, because we ingest
++  more competitions." `_HERO_FIXTURE_LIMIT = 12` is deleted. The block now shows THE NEXT MATCHDAY:
++  every fixture on the earliest upcoming kickoff date.
++
++  ⚠ The count was NOT unreasoned — `10_home.md` measured that twelve filled the first screenful
++  across two or three competitions on every day sampled. It fails on a different axis: it does not
++  SCALE. As competitions are onboarded, twelve slots hold fewer and fewer of them, so the block
++  narrows exactly as the site broadens. Measured on the committed sample: 12 fixtures spanning TWO
++  dates, which is not a matchday and reads as an arbitrary cut.
++
++  ⚠ This does NOT reopen what GAP-02 settled. "Today's matches" was rejected for rendering one row
++  on some days measured; the rule adopted is "the earliest date PRESENT IN THE DATA", which is
++  never empty by construction. The per-day measurement table stays in `10_home.md` as the evidence
++  for that distinction.
++
++  ⚠ HONEST UPPER BOUND, stated rather than designed around: the busiest day in that measurement
++  carried 57 fixtures. If a busy matchday reads too long, the answer is a CPO decision on the block
++  (#908 already parks a "more matches" control) — NOT a new number quietly reintroduced. Recorded
++  in the contract's decisions_reserved so the next session cannot treat re-capping as a detail fix.
++
++  RULING 3 — THE LAYER CLASSIFICATION, escalated after TWO reviewer FAILs and ruled by the CPO.
++
++  THE DISPUTE. analytics-engineer-reviewer FAILed the matchday selection twice. Round 1: computing
++  it with a Python `min()` over fetched rows is window selection, forbidden in the consumption
++  layer, and the same shape as `_featured_season_row` (#846), which was fixed by computing
++  `is_featured_season` as a TESTED MART COLUMN and leaving the export only filtering on it. I moved
++  the selection into the export's own SQL (`where fixture_date = (select min(fixture_date) from
++  upcoming)`), the option the round-1 finding itself offered. Round 2 it FAILed again on stronger
++  ground: `layering.md` binds the FILE, not the language, so SQL authored in `export_site_data.py`
++  is still the export deciding; only the syntax moved, and no served fact exists.
++
++  THE BUILDER'S COUNTER, recorded because it is not obviously wrong: the same `WHERE` clause has
++  carried `status_short in ('NS','TBD') and fixture_date >= current_date()` since #367 — also a
++  window, never flagged — and the contract explicitly ALLOWS "select, filter". Whether
++  `fixture_date = (select min(...))` is an allowed filter or a forbidden window selection is
++  genuinely ambiguous, and `working_agreement.md` §10 makes an unclear layer classification the
++  CPO's call rather than the builder's or a reviewer's.
++
++  CPO ANSWER (2026-08-18): **"ship as-is, register the gap."** Shipped with the SQL selection;
++  registered as **GAP-32**. ⚠ This is a decision to PROCEED, not a finding that the reviewer was
++  wrong — the entry and the gap both record the dispute so the next session inherits it instead of
++  rediscovering it. The proper fix needs a warehouse home for upcoming fixtures that does not exist
++  (the hero reads `core.fct_fixture` directly, itself a flagged defect); the two should be fixed
++  together, as their own task.
++
++  ⚠ ONE PART OF THE FINDING WAS UNCONTESTED AND IS FIXED, not shipped under the ruling: the test I
++  wrote to pin the placement asserted `"min(fixture_date)" in inspect.getsource(...)` — a grep
++  dressed as a test, which would have pinned the disputed placement in place. DELETED rather than
++  relaxed, with the reason written where it stood.
+diff --git a/.gitignore b/.gitignore
+index 30e1235..88caa04 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -267,6 +267,13 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/1607167.json
+ !site_v2/src/data/fixtures/1607168.json
+ !site_v2/src/data/fixtures/1607573.json
++# The 2026-08-18 matchday, added with the landing refresh (CPO 2026-08-18: the hero is now the next
++# matchday, not a fixed 12). These four are what landing.json links to; the rows above are the
++# 2026-08-03 set the previous sample was built from. Refresh as a SET — see src/data/README.md.
++!site_v2/src/data/fixtures/1547770.json
++!site_v2/src/data/fixtures/1622620.json
++!site_v2/src/data/fixtures/1622621.json
++!site_v2/src/data/fixtures/1622622.json
+ 
+ # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
+ # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index 9cdf268..2538525 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -48,7 +48,7 @@ out of the index. Build the routes, let the links resolve, fill the pages in aft
+ 
+ | | |
+ |---|---|
+-| **Next matches** | A fixed list of the next 12. Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
++| **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
+ | **Browse** | Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.) |
+ | ~~**Trending**~~ | ~~Teams AND players, both as STREAKS. The wording must relate to "streak".~~ **SUPERSEDED 2026-08-08**: the composition recorded below has no trending block, so the block was cut rather than reworked to this row. See the note under the composition. |
+ | ~~**Team streaks**~~ | ~~THREE types: longest **winning** run · longest **unbeaten** run · longest **clean-sheet** run. Winless and losing are both dropped.~~ Superseded with the block. |
+@@ -419,7 +419,18 @@ person reading them knows they describe 2026-06, not the page.
+ ### (1) Fixtures hero — `upcoming[]`
+ 
+ `upcoming[]` is a list of competition groups, each `{league_code, league_name, competition_slug,
+-season, fixtures[]}`, ordered by the kickoff of the group's earliest fixture.
++region_rank, season, fixtures[]}`.
++
++⚠ **The payload's group order is NOT the display order.** It is first-appearance (a deterministic
++export diff); the page applies the site-wide ordering key at render time —
++`site_v2/src/lib/competitionOrder.mjs`, the same function the competitions index uses (CPO
++2026-08-18: one shared rule). The key: has-an-upcoming-fixture → **calendar day** → `region_rank`
++→ kickoff time → `league_code`. `region_rank` is served from `mart_competition_index`, never
++derived in the export or the frontend.
++
++Because **day precedes region**, a competition playing earlier always outranks one playing later;
++region only breaks same-day ties. That is what stops a 10:15 kickoff outranking a 19:00 one, which
++is the noise this block carried until 2026-08-18.
+ 
+ | Element | JSON key | Format |
+ |---|---|---|
+@@ -429,7 +440,36 @@ season, fixtures[]}`, ordered by the kickoff of the group's earliest fixture.
+ | Home / away name + crest | `…fixtures[].home.name` / `.crest`, `.away.name` / `.crest` | crest falls back to a monogram, as on 01 |
+ | Link target | `…fixtures[].slug` | `/{locale}/{competition_slug}/matches/{slug}/` |
+ 
+-**GAP-02 resolved here: the window is the next 12 fixtures by kickoff, not a calendar day.**
++**GAP-02 resolved here — SUPERSEDED 2026-08-18. The window is THE NEXT MATCHDAY: every fixture on
++the earliest upcoming kickoff date.** The original resolution was "the next 12 fixtures by kickoff,
++not a calendar day"; the count is retired.
++
++⚠ **Why the count went** (CPO 2026-08-18: *"we will show what we have, more matches will come,
++because we ingest more competitions"*). Twelve was reasoned — see the measurement below — but it
++does not SCALE. As competitions are onboarded, twelve slots hold fewer and fewer of them, so the
++block narrows exactly as the site broadens. It also bled across days: the sample committed before
++this change held 12 fixtures spanning **two** dates, which is not a matchday and reads as an
++arbitrary cut.
++
++⚠ **This does NOT reopen what the measurement settled.** "Today's matches" was rejected for
++rendering one row on some days. The rule is *the next day that HAS matches*, which is a different
++rule and is **never empty by construction**. The table below is retained because it is still the
++evidence for that distinction, and for the honest upper bound: the busiest day sampled carried 57
++fixtures. If a busy matchday reads too long, that is a CPO call on the block (**#908** parks a
++"more matches" control) — not a new number reintroduced here.
++
++⚠ **OPEN, BOTH DIRECTIONS — and the second one is easy to forget.** The rule makes the block's
++length follow the football calendar, so it is variable by design:
++
++- **Too LONG** on a busy day (57 fixtures measured worst case). Named above.
++- **Too SHORT on a quiet day**, which is the direction the first build actually hit: the sample
++  regenerated on 2026-08-18 held **4 fixtures across 2 competitions** — a thin front door, where the
++  retired count would have shown 12 by borrowing from the following day. That borrowing is exactly
++  what "we will show what we have" rejects, so this is the rule working, not failing. Whether a
++  4-match day is an acceptable home page is nonetheless a PRODUCT question and is **not decided**.
++
++Both belong to the same CPO call on the block; neither is a licence to reintroduce a count.
++
+ Measured 2026-08-03 against `core.fct_fixture`, upcoming fixtures by days ahead:
+ 
+ | days ahead | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 |
+@@ -437,8 +477,14 @@ Measured 2026-08-03 against `core.fct_fixture`, upcoming fixtures by days ahead:
+ | fixtures | 4 | 13 | 6 | 39 | 6 | 30 | 41 | 1 | 17 | 8 | 43 | 11 | 42 | 57 | 11 |
+ 
+ A "today's matches" hero renders four rows today and one row on day 7, and a fixed 7-day window
+-swings between 1 and 139. A fixed count is always populated and never floods the page. Twelve fills
+-the first screenful across two or three competitions on every day measured.
++swings between 1 and 139. ~~A fixed count is always populated and never floods the page. Twelve
++fills the first screenful across two or three competitions on every day measured.~~
++
++⚠ That last sentence is the retired argument, struck rather than deleted so the reasoning stays
++auditable. What it got right — a *fixed calendar window* is unusable — the matchday rule keeps, by
++taking the earliest date PRESENT rather than today's. What it got wrong is that a count is the only
++alternative: it trades an empty block for a truncated one, and truncation gets worse with every
++competition onboarded.
+ 
+ ### (2) Hybrid browse — `browse`
+ 
+@@ -628,7 +674,9 @@ document: a deleted module leaves traces that do not carry its name.
+ 
+ ## 10. Gaps
+ 
+-- **GAP-02** — resolved in §5(1): next 12 fixtures by kickoff, with the per-day measurement behind
++- **GAP-02** — resolved in §5(1): ~~next 12 fixtures by kickoff~~ **the next matchday** (every match
++  on the earliest upcoming kickoff date; the count was retired by the CPO on 2026-08-18), with the
++  per-day measurement behind
+   the choice.
+ - **GAP-04** — **WITHDRAWN**, not resolved. It asked which `mart_team_profile` signals the
+   trending/storylines feed should surface and how they rank. There is no such feed: the block is
 diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index a5c113d..ffaed6d 100644
+index ffaed6d..1197637 100644
 --- a/docs/wireframes/99_gaps_register.md
 +++ b/docs/wireframes/99_gaps_register.md
-@@ -32,9 +32,11 @@
- | GAP-21 | 12 player stats | export | `mart_player_competition_benchmarks` (percentile-vs-peers; built — #559 per-90 layer → #561 engine + mart) is not carried by the v2 player export — the Player Stats screen (12) has no payload; its §5 keys are proposed-pending | Add a per-(season, position_group) `benchmarks[]` block to `shape_player_payload` from the LONG mart (one member per `metric_key`: `metric_value`, `percentile`, `rank`, `peer_count`, `peer_median`, `vs_median_delta`, `minutes`, `appearances`) — the export selects/reshapes only; the "top X%"/"median"/"bottom X%" label is applied at render from the catalogue `direction` (the mart is direction-agnostic), no derivation (consumption-layer contract). For the 5 ratio metrics (`save_pct`, `pass_accuracy_pct`, `finishing_efficiency`, `dribbles_success_pct`, `duels_won_pct`) also carry the num/den atoms from `int_player_season_position__metrics` so the display renders the volume triple `{num} of {den} · {pct}%` (no naked %). Nesting confirmed at the wiring PR. Own follow-up PR. Team benchmark (rank-based) + season-over-season (#480) are separate | **approved** (CPO 2026-07-02); **shipped** 2026-07-02 (#627) — per-(season, position_group) `benchmarks[]` on the player payload; the 5 ratio metrics carry `numerator`/`denominator` atoms; select/reshape only | — |
- | GAP-22 | 13 player career | export | `mart_player_career` (the per-club career log — one row per player × club × competition-season; built #630, #480 §8.3) is not carried by the v2 player export — the Player Career screen (13) has no payload; its §5 keys are proposed-pending | Add a `career[]` block to `shape_player_payload` from `mart_player_career` (one member per `(club, competition, season)`: `season_api_year`, `league_code`, `team_name`/`team_logo_url`/`team_sk`, `appearances`, `goals`, `assists`, `entity_type`) + a top-level `national_appearances_total` — the export selects/reshapes only, no derivation (consumption-layer contract). Club grouping + per-club/career subtotals are display concerns; **whether subtotals are precomputed in dbt vs grouped display-side is a reserved CPO call at this PR** (the #630 decisions_reserved item; `national_appearances_total` is already precomputed). Nesting confirmed at the wiring PR. Own follow-up PR. The history backfill (depth) + season-over-season (#480) are separate | **approved** (CPO 2026-07-02); **shipped** 2026-07-02 (#634) — top-level `career[]` (flat; club grouping display-side) + `national_appearances_total`; club-contiguous newest-first order via a `club_latest_kickoff_at` mart window column; select/reshape only | — |
- | GAP-23 | 14 team stats | export | `mart_team_competition_benchmarks` (rank-vs-league; built — `int_team_competition_benchmark_metrics_long` → engine → mart) is not carried by the v2 team export — the Team Stats screen (14) has no payload; its §5 keys are proposed-pending | Add a per-season `benchmarks[]` block to `shape_team_payload` from the LONG mart (one member per `metric_key`: `metric_value`, `rank`, `team_count`, `league_median`/`league_p25`/`league_p75`, `vs_median_delta`) — the export selects/reshapes only, no derivation (consumption-layer contract); the "k of N" / vs-median / spread labels are applied **at render** from the catalogue `direction` (the mart is direction-agnostic, `rank` by value DESC; `lower_better` — only `goals_against_per_match` — mirrors the rank display-side). **No num/den atoms** (team ratios use the adjacent-count-row no-naked-% mechanism, unlike the player mart). Nesting confirmed at the wiring PR. Own follow-up PR. Mirrors GAP-21/#627 for the player | **approved** (CPO 2026-07-07, screen 14 #664); **shipped** 2026-07-07 (GAP-23) — per-season flat `benchmarks[]` on the team payload (one member per `metric_key`, no position nesting; all 20 mart rows carried, the frontend renders the LOCKED 16); select/reshape only | — |
--| GAP-24 | 10 home | mart | The **Top players** boards rank on four metrics that are not ranked boards in `mart_leaderboards`: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`. Five of the nine rank metrics already exist as boards (`scorer_points`, `shots_on_goal`, `passes_total`, `passes_key`, `cards_total`); these four do not | Add the four board keys to `mart_leaderboards`' board list. Each metric already exists as a column on `int_player_season__metrics`, so this is an addition to the ranked set, not new computation | **design approved** (CPO 2026-08-08, `10_home.md` §0); build not started | — |
--| GAP-25 | 10 home | mart | Three display columns the boards show are missing from `mart_leaderboards`' SELECT: `passes_accurate`, `goals_against` (both present on `int_player_season__metrics`, simply not selected) and `shots_on_goal_against` (computed nowhere) | Select the first two. For the third the catalogue already defines the formula as `sum(saves + goals_against)` and both inputs exist, so it is one expression in the int model | **design approved** (CPO 2026-08-08); build not started | — |
--| GAP-26 | 10 home | mart | The **Goals conceded** board ranks ASCENDING, which `mart_leaderboards` cannot do: it ranks descending and ranks only players with a POSITIVE value, so every keeper on zero — exactly the ones the board is for — would be excluded. It also has no qualification floor, so one appearance and a clean sheet would top it. This is the one board of the nine where volume ranking does not protect the result | Add an ascending ranking mode plus a minutes floor for this board. The rate boards' existing `minutes >= 270` is the precedent | **design approved** (CPO 2026-08-08); build not started, and it is the highest-risk of the six — a wrong default here publishes a false leaderboard rather than an empty one | — |
--| GAP-27 | 10 home | mart | A leaderboard row carries no club, so every row links to a player and to nothing else — halving the internal-link value that is the whole reason the block exists (CPO 2026-08-08: "clicking a team, competition or player goes deeper into the site") | Select `team_sk` into `mart_leaderboards`. `int_player_season__metrics` already carries it, stamped as the last club that competition-season, so this is a column addition plus a `dim_team` lookup for name and slug — NOT a join to a squad mart | **design approved** (CPO 2026-08-08); build not started | — |
--| GAP-28 | 10 home | mart + seed | League **pool** membership is not reachable inside dbt. The four pools are defined by `tier`, `season_type` and an authored strength grouping; the dbt-side `competition_registry` seed carries only `league_code`, `competition_type`, `parent_competition` | Project `tier` and `season_type` from the YAML registry into the seed via `scripts/sync_dbt_vars.py`, and add ONE new authored pool field. Pool 1 CANNOT be derived from confederation + tier: the UEFA tier-1 leagues we carry include VL, which would gate-crash the star pool | **design approved** (CPO 2026-08-08); build not started | — |
--| GAP-29 | 10 home | mart | There is no team equivalent of `mart_leaderboards`. The **Top teams** block needs top-N per metric ACROSS teams; `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite shape | A new mart composing `int_team_season__metrics_cumulative`, which already carries all eleven metrics season-to-date behind the same `>= 3 finished games` gate the pool-selection rule uses. A new mart, not a reshape of the benchmark | **design approved** (CPO 2026-08-08); build not started | — |
-+| GAP-24 | ~~10 home~~ | mart | ~~The **Top players** boards rank on four metrics that are not ranked boards in `mart_leaderboards`: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`. Five of the nine rank metrics already exist as boards (`scorer_points`, `shots_on_goal`, `passes_total`, `passes_key`, `cards_total`); these four do not~~ | ~~Add the four board keys to `mart_leaderboards`' board list~~ | **VOID** (2026-08-18): written against the NINE-board design, which the CPO reduced to FOUR single-metric boards on **2026-08-10** (goals → assists → passes → key passes; recorded verbatim in `design-mocks/gen_top_players.py`'s header, which lists what was cut). **All four metrics this entry asks for — `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against` — were dropped by that reduction**, so the work it proposes has no consumer. `scorer_points`, `shots_on_goal` and `cards_total` left the design too. Not "resolved": nothing was built. The reduced design's own board gap is **GAP-30** | — |
-+| GAP-25 | ~~10 home~~ | mart | ~~Three display columns the boards show are missing from `mart_leaderboards`' SELECT: `passes_accurate`, `goals_against` (both present on `int_player_season__metrics`, simply not selected) and `shots_on_goal_against` (computed nowhere)~~ | ~~Select the first two; the third is one expression in the int model~~ | **VOID** (2026-08-18), same cause as GAP-24. All three columns existed to serve boards the 2026-08-10 reduction deleted: `passes_accurate` was the volume half of the `pass_accuracy_pct` board, and `goals_against` / `shots_on_goal_against` served the goalkeeper board. **The reduced design has no goalkeeper board and no rate board at all** — its four are goals, assists, passes, key passes, every one an outfield count. ⚠ Voiding this does NOT resolve the pass-accuracy defect this entry mentioned in passing; that number still renders on the stats pages and `gen_top_players.py` records it as re-filed separately | — |
-+| GAP-26 | ~~10 home~~ | mart | ~~The **Goals conceded** board ranks ASCENDING, which `mart_leaderboards` cannot do: it ranks descending and ranks only players with a POSITIVE value, so every keeper on zero — exactly the ones the board is for — would be excluded. It also has no qualification floor, so one appearance and a clean sheet would top it~~ | ~~Add an ascending ranking mode plus a minutes floor for this board~~ | **VOID** (2026-08-18), same cause as GAP-24: **the Goals conceded board does not exist in the reduced design.** ⚠ Carried "the highest-risk of the six — a wrong default here publishes a false leaderboard rather than an empty one" for eight days after the board it describes was deleted, and that warning was repeated to the CPO this session as if live. The risk is gone WITH the board, not mitigated. ⚠ The underlying limitation is real and returns with any future ascending board (lower-is-better metrics): `mart_leaderboards` ranks descending and ranks only positive values, so a zero-is-best board silently excludes its own subjects. Re-register it if such a board is ever designed | — |
-+| GAP-27 | 10 home | mart | A leaderboard row carries no club, so every row links to a player and to nothing else — halving the internal-link value that is the whole reason the block exists (CPO 2026-08-08: "clicking a team, competition or player goes deeper into the site") | Select `team_sk` into `mart_leaderboards`. `int_player_season__metrics` already carries it, stamped as the last club that competition-season, so this is a column addition plus a `dim_team` lookup for name and slug — NOT a join to a squad mart | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced four-board design: `grep -c "team_sk" mart_leaderboards.sql` = **0**, and the reduction did not touch this — the rendered mock shows club AND league under every player name (`gen_top_players.py`: "a pooled board ranks across seven leagues, so the club alone no longer implies the competition"), so the reduction if anything strengthens it | — |
-+| GAP-28 | 10 home | seed | League **pool** membership is not reachable inside dbt. The pools are defined by `tier`, `season_type` and an authored strength grouping. ⚠ **This entry's original premise is now HALF FALSE and has been corrected in place (2026-08-18)** — it claimed the seed "carries only `league_code`, `competition_type`, `parent_competition`". Measured: `dbt_project/seeds/competition_registry.csv`'s header is `league_code,competition_type,parent_competition,confederation,slug,sort_order,tier,season_type` — **8 columns, and `tier`/`season_type` are already projected and populated** (`BL1,domestic_league,,UEFA,bundesliga,30,1,split_year`), listed in `sync_dbt_vars.py`'s `SEED_COLUMNS`. So the projection half is **DONE**; only the authored pool grouping is missing | **Remaining work is ONE authored pool field on the registry + seed** — not a projection plus a field. Pool 1 CANNOT be derived from confederation + tier: the UEFA tier-1 leagues we carry include VL, which would gate-crash the star pool, so the grouping must be authored | **design approved** (CPO 2026-08-08); **partly built** — see the corrected Gap cell. Still required by the reduced design: the rendered mock's intro line names **seven** pooled leagues (Premier League, La Liga, Bundesliga, Serie A, Ligue 1, Liga Portugal, Eredivisie) and that sentence is real page copy, so the block cannot ship without the pool. ⚠ Pool MEMBERSHIP (this entry) and the pooled RANK COMPUTATION are two different pieces of work — the second is **GAP-31**. ⛔ **This row carried a "Re-verified LIVE 2026-08-18" stamp on its first pass that had only re-checked the NEED (the mock's copy), not the technical PREMISE (the seed's columns) — and the premise was already false. Caught in review, not by the stamp.** A re-verification stamp must name the command it ran, as GAP-27/29 do; "still needed" and "still unbuilt" are different claims | — |
-+| GAP-29 | 10 home | mart | There is no team equivalent of `mart_leaderboards`. The **Top teams** block needs top-N per metric ACROSS teams; `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite shape | A new mart composing `int_team_season__metrics_cumulative`, which already carries the metrics season-to-date behind the same `>= 3 finished games` gate the pool-selection rule uses. A new mart, not a reshape of the benchmark | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced design: `find dbt_project/models/5_marts -iname "*leaderboard*"` returns `mart_leaderboards.sql` ONLY, so nothing team-side exists. The reduction cut this block to FOUR boards — `goals_per_match`, `shots_on_goal_per_match`, `passes_per_match`, `duels_per_match` — and **all four are confirmed present** in `int_team_season__metrics_cumulative.sql`, so the disposition holds and the surface is smaller than when it was written | — |
-+| GAP-30 | 10 home | mart | **`assists` is not a ranked board.** The reduced **Top players** set is goals → assists → passes → key passes (CPO 2026-08-10). Three of those four are already boards in `mart_leaderboards`; `assists` is not — it exists as a COLUMN on the mart (and on `int_player_season__metrics`) but never appears in the `count_boards` list, so no rank is computed for it. Verified 2026-08-18: `grep -c "'assists'"` on `mart_leaderboards.sql` = 0 | Add `'assists'` to `count_boards`. The column already exists and the ranked loop is generic over the list, so this is one line — the same shape GAP-24 proposed for its (now void) four, applied to the metric the reduction actually kept | **NOT YET RULED** — registered 2026-08-18 when the register was reconciled against the reduced design. Supersedes the board half of GAP-24 | — |
-+| GAP-31 | 10 home | mart | **The rank grain is per-league, but the design ranks across the pool.** `mart_leaderboards` computes `dense_rank() over (partition by league_code, season_api_year ...)` — verified 2026-08-18 — so it answers "top scorer IN the Bundesliga". Both reduced blocks instead rank across the seven pooled leagues as one field ("Ranked across pooled leagues: …", real page copy), which is a different computation over a different partition, not a filter of the existing one. Distinct from GAP-28: knowing WHICH leagues form the pool does not by itself produce a pooled rank | Decide where the pooled rank lives — a pool-partitioned rank alongside the per-league one on `mart_leaderboards`, or a separate pooled mart (which is also GAP-29's shape for teams, so the two should be settled together). ⚠ Ties and the top-7 cut behave differently pooled than per-league, so the existing DENSE_RANK/inclusive-ties convention must be restated for the pool, not assumed | **NOT YET RULED** — registered 2026-08-18 when the register was reconciled against the reduced design | — |
+@@ -10,7 +10,7 @@
+ | ID | Screen(s) | Type | Gap | Proposed disposition | Ruling | Issue |
+ |----|-----------|------|-----|----------------------|--------|-------|
+ | GAP-01 | 02 team profile | mart + export | Identity fields promised by brief §6.2 — `team_founded_year`, `venue_name`, `venue_city`, `venue_capacity` — exist in `dim_team` but are not surfaced in `mart_team_profile` / the team export | Add the four columns to the mart + payload (small, additive) | **approved** (CPO 2026-06-30: the 4 fields — no `venue_address`/internal id); **shipped** 2026-06-30 (#391 Phase B) | — |
+-| GAP-02 | 10 home | feed | Cross-competition upcoming-fixtures feed (the home hero) does not exist; only per-competition lists | Build as part of `landing.json` (#367), shape decided at 10_home review | **shipped** in #367: the hero takes the next 12 fixtures by kickoff, grouped by competition. Shape decided by MEASUREMENT (upcoming fixtures per day against `core.fct_fixture`, 2026-08-03) rather than preference, because a calendar-day window is empty most days in August — reasoning in `10_home.md` §5(1) | — |
++| GAP-02 | 10 home | feed | Cross-competition upcoming-fixtures feed (the home hero) does not exist; only per-competition lists | Build as part of `landing.json` (#367), shape decided at 10_home review | **shipped** in #367: the hero takes the next 12 fixtures by kickoff, grouped by competition. Shape decided by MEASUREMENT (upcoming fixtures per day against `core.fct_fixture`, 2026-08-03) rather than preference, because a calendar-day window is empty most days in August — reasoning in `10_home.md` §5(1). ⚠ **The COUNT is SUPERSEDED (CPO 2026-08-18): the window is now THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date, no fixed number.** Twelve did not scale (as competitions are onboarded, twelve slots hold fewer of them) and bled across days — the sample committed before the change held 12 fixtures spanning two dates. The gap itself stays SHIPPED; only its window rule changed. The measurement that killed a plain calendar window still stands and still applies: the new rule takes the earliest date PRESENT, not today's, so it is never empty | — |
+ | GAP-03 | 01 fixture, SEO (~~10 home~~) | generator | Data-to-text narrative generator (storylines, anti-thin-page text) not built | Export-layer generator, own issue; until then screens use templated factual sentences or omit the slot | pending. **10 home dropped as a claimant 2026-08-08**: the trending rows were its only slot there and the block is cut; neither shipped home module renders generated prose | — |
+ | GAP-04 | ~~10 home~~ | feed | ~~Trending/storylines feed: which `mart_team_profile` signals surface (YoY swings, streaks, deserved-vs-actual gap) and how they rank~~ | ~~CPO selects signals + ranking at 10_home review; feed ships with `landing.json`~~ | **withdrawn** (CPO 2026-08-08): the home composition is next matches → Top players → Top teams → browse, with no trending block, so the feed has no consumer. Not "resolved" — the signal-selection question is unanswered and returns with any future storylines surface. Measurements taken for it are kept in `10_home.md` §5(3) | — |
+ | GAP-05 | 05 leaderboards | export | Only goals / assists / shots_on_target boards are exported; `/stats/{metric-slug}/` implies more | CPO picks the metric set at 05 review; each added board is a one-line export change | pending | — |
+@@ -40,3 +40,4 @@
+ | GAP-29 | 10 home | mart | There is no team equivalent of `mart_leaderboards`. The **Top teams** block needs top-N per metric ACROSS teams; `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite shape | A new mart composing `int_team_season__metrics_cumulative`, which already carries the metrics season-to-date behind the same `>= 3 finished games` gate the pool-selection rule uses. A new mart, not a reshape of the benchmark | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced design: `find dbt_project/models/5_marts -iname "*leaderboard*"` returns `mart_leaderboards.sql` ONLY, so nothing team-side exists. The reduction cut this block to FOUR boards — `goals_per_match`, `shots_on_goal_per_match`, `passes_per_match`, `duels_per_match` — and **all four are confirmed present** in `int_team_season__metrics_cumulative.sql`, so the disposition holds and the surface is smaller than when it was written | — |
+ | GAP-30 | 10 home | mart | **`assists` is not a ranked board.** The reduced **Top players** set is goals → assists → passes → key passes (CPO 2026-08-10). Three of those four are already boards in `mart_leaderboards`; `assists` is not — it exists as a COLUMN on the mart (and on `int_player_season__metrics`) but never appears in the `count_boards` list, so no rank is computed for it. Verified 2026-08-18: `grep -c "'assists'"` on `mart_leaderboards.sql` = 0 | Add `'assists'` to `count_boards`. The column already exists and the ranked loop is generic over the list, so this is one line — the same shape GAP-24 proposed for its (now void) four, applied to the metric the reduction actually kept | **NOT YET RULED** — registered 2026-08-18 when the register was reconciled against the reduced design. Supersedes the board half of GAP-24 | — |
+ | GAP-31 | 10 home | mart | **The rank grain is per-league, but the design ranks across the pool.** `mart_leaderboards` computes `dense_rank() over (partition by league_code, season_api_year ...)` — verified 2026-08-18 — so it answers "top scorer IN the Bundesliga". Both reduced blocks instead rank across the seven pooled leagues as one field ("Ranked across pooled leagues: …", real page copy), which is a different computation over a different partition, not a filter of the existing one. Distinct from GAP-28: knowing WHICH leagues form the pool does not by itself produce a pooled rank | Decide where the pooled rank lives — a pool-partitioned rank alongside the per-league one on `mart_leaderboards`, or a separate pooled mart (which is also GAP-29's shape for teams, so the two should be settled together). ⚠ Ties and the top-7 cut behave differently pooled than per-league, so the existing DENSE_RANK/inclusive-ties convention must be restated for the pool, not assumed | **NOT YET RULED** — registered 2026-08-18 when the register was reconciled against the reduced design | — |
++| GAP-32 | 10 home | mart | **"The next matchday" is decided in the export, not served by the warehouse.** `fetch_landing_payload` selects the hero's fixtures with `where fixture_date = (select min(fixture_date) from upcoming)` — the export authors the rule. analytics-engineer-reviewer FAILed this twice (2026-08-18), arguing it is window selection, which `layering.md` §Consumption layer forbids in `scripts/export_site_data.py`, and that the #846 precedent (`_featured_season_row`) resolved the identical "pick from a set" shape by computing `is_featured_season` as a TESTED MART COLUMN and leaving the export only filtering on it. No equivalent served fact exists. ⚠ The builder's counter, recorded because the disagreement is real: the same `WHERE` clause has always carried `status_short in ('NS','TBD') and fixture_date >= current_date()` — also a window — and has never been flagged; the contract explicitly ALLOWS "select, filter" | Serve the matchday as a warehouse fact and reduce the export to filtering on it. ⚠ Not a small change: the hero reads `core.fct_fixture` **directly**, so there is no mart for such a column to live on — that direct read is itself a separately-flagged layer defect, and the two should be fixed together. Deciding which mart owns upcoming fixtures is a design question, not a detail fix | **CPO RULED 2026-08-18: ship the SQL version, register this gap.** Reasons given: consistent with the adjacent long-accepted window filter; the "proper" fix needs a warehouse home for upcoming fixtures that does not exist; that is its own task. Explicitly NOT a licence to treat the classification as settled — it is registered so the next session inherits the dispute rather than rediscovering it | — |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index f03926b..53cf009 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -74,10 +74,16 @@ _GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
+ # Only these types get a country hub (real nations); international comps live in groups only.
+ _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
+ 
+-# Landing page (10_home.md). A DISPLAY size — how much fits on the home page — which is the
+-# consumption layer's business. What QUALIFIES for a block, and in what order, is decided in the
+-# warehouse, never here.
+-_HERO_FIXTURE_LIMIT = 12   # GAP-02: a fixed COUNT, not a calendar window (see 10_home.md §5)
++# ⚠ `_HERO_FIXTURE_LIMIT = 12` USED TO LIVE HERE and is GONE (CPO, 2026-08-18). It was reasoned —
++# 10_home.md measured that twelve filled the first screenful across two or three competitions on
++# every day sampled — but it does not SCALE: as competitions are onboarded, twelve slots hold fewer
++# and fewer of them, so the block narrows exactly as the site broadens. CPO: "we will show what we
++# have, more matches will come, because we ingest more competitions."
++#
++# The replacement is the natural unit, not another number: every match on the NEXT DAY THAT HAS
++# FOOTBALL (`group_upcoming_fixtures`). That does not reopen what GAP-02 settled — "today's
++# matches" was rejected for rendering one row on some days, and "the next day that HAS matches" is
++# never empty by construction.
+ 
+ 
+ # --------------------------------------------------------------------------- #
+@@ -1092,25 +1098,35 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
+     return out
+ 
+ 
+-def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict,
+-                            limit: int = _HERO_FIXTURE_LIMIT) -> list[dict]:
+-    """The landing hero: the next `limit` fixtures by kickoff, grouped by competition.
++def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> list[dict]:
++    """The landing hero: THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date —
++    grouped by competition.
+ 
+-    GAP-02, resolved in 10_home.md section 5: a fixed COUNT, not a calendar window. Measured
+-    2026-08-03 against core.fct_fixture, upcoming fixtures per day ran from 1 (day 7 ahead) to
+-    57 (day 13), so a "today's matches" hero is nearly empty on some days and floods on others.
++    ⚠ THIS FUNCTION NO LONGER SELECTS ANYTHING. It groups every fixture it is handed and truncates
++    nothing — the retired `_HERO_FIXTURE_LIMIT = 12` slice is gone (CPO 2026-08-18), and the
++    matchday restriction is a WHERE clause in `fetch_landing_payload`'s query, beside the
++    upcoming-window filter that has always lived there. Keeping the day selection out of Python is
++    the same call #846 forced on `_featured_season_row`.
+ 
+-    Selection and grouping only. `fixtures` arrives kickoff-ordered from the caller, so group
+-    order is first-appearance order, which is each group's earliest kickoff.
++    GROUPING ONLY — no ordering business rule lives here either. `fixtures` arrives kickoff-ordered
++    from the caller, so the payload's group order is first-appearance order, which is a
++    deterministic export diff and NOT the display order: the PAGE applies the site-wide ordering
++    key (`site_v2/src/lib/competitionOrder.mjs`), per the CPO's 2026-08-16 Ruling 4 — "the mart
++    carries facts, the spec declares the ORDER BY".
+     """
+     groups: dict = {}
+-    for f in fixtures[:limit]:
++    for f in fixtures:
+         league_code = f.get("league_code")
+         comp = meta.get(league_code) or {}
+         group = groups.setdefault(league_code, {
+             "league_code": league_code,
+             "league_name": comp.get("name"),
+             "competition_slug": comp.get("slug"),
++            # The page's ordering key needs this; it is SERVED, never derived here. It comes from
++            # mart_competition_index (which publishes it from the confederations seed) — mapping
++            # confederation -> rank in this file would be a taxonomy mapping, which the
++            # consumption-layer contract forbids outright.
++            "region_rank": comp.get("region_rank"),
+             "season": f.get("season_api_year"),
+             "fixtures": [],
+         })
+@@ -1173,27 +1189,52 @@ def shape_landing_payload(upcoming: list[dict], browse: dict) -> dict:
+ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+     """Read the landing modules that exist today: upcoming fixtures, then browse.
+ 
+-    TWO BigQuery reads remain, both for the hero: `core.fct_fixture` and `core.dim_team`. Browse is
+-    registry-driven and reads nothing. Both the stats teasers (`mart_leaderboards` +
+-    `mart_standings`) and trending (`mart_landing_trending`) were removed on 2026-08-08 (see
+-    `shape_landing_payload`), and their queries went with them — which is why the marts dataset is
+-    no longer referenced in this function at all. Per-query dry-run figures are in
++    THREE BigQuery reads: `core.fct_fixture` and `core.dim_team` for the hero, plus
++    `mart_competition_index` for `region_rank` (below). Browse is registry-driven and reads
++    nothing. Both the stats teasers (`mart_leaderboards` + `mart_standings`) and trending
++    (`mart_landing_trending`) were removed on 2026-08-08 (see `shape_landing_payload`), and their
++    queries went with them. Per-query dry-run figures are in
+     `.claude/task/acceptance_evidence.md`.
+     """
+     meta = {
+         c["league_code"]: {
+-            "name": c.get("name"), "slug": c.get("slug"), "sort_order": c.get("sort_order"),
++            "name": c.get("name"), "slug": c.get("slug"),
+         }
+         for c in _registry_competitions(registry_path)
+     }
+ 
++    # ⚠ region_rank comes from the MART, not from the registry YAML this dict is otherwise built
++    # from. The registry carries `confederation`; turning that into a rank is a taxonomy mapping,
++    # which the consumption-layer contract forbids here. mart_competition_index already publishes
++    # the rank (from the confederations seed) and is the same mart fetch_competition_index reads.
++    #
++    # ⚠ `sort_order` is deliberately NOT carried any more: the CPO retired it as an ordering basis
++    # on 2026-08-16 (Ruling 1) and nothing in this payload consumed it.
++    for row in _query(client, f"select league_code, region_rank "
++                              f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`"):
++        if row.get("league_code") in meta:
++            meta[row["league_code"]]["region_rank"] = row.get("region_rank")
++
+     # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
+     # match that has no page.
++    # THE MATCHDAY IS SELECTED HERE, IN THE QUERY — not in Python (analytics-engineer-reviewer,
++    # round 1). An earlier draft took `min(date)` over the fetched rows and filtered in a loop,
++    # which is the same shape as the season-picking this file already had to move OUT of Python
++    # under #846 (`_featured_season_row`: "picking here was window selection in the consumption
++    # layer"). The `fixture_date >= current_date()` window on the line below has always lived in
++    # this WHERE clause; restricting it to the first day with football belongs in exactly the same
++    # place, expressed declaratively, rather than as a second selection pass downstream.
+     fixtures = _query(client, f"""
++        with upcoming as (
++            select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
++                   fixture_date, home_team_sk, away_team_sk
++            from `{GCP_PROJECT}.core.fct_fixture`
++            where status_short in ('NS', 'TBD') and fixture_date >= current_date()
++        )
+         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+                home_team_sk, away_team_sk
+-        from `{GCP_PROJECT}.core.fct_fixture`
+-        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
++        from upcoming
++        where fixture_date = (select min(fixture_date) from upcoming)
+     """)
+     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+ 
+diff --git a/site_v2/src/components/home/HeroFixtures.astro b/site_v2/src/components/home/HeroFixtures.astro
+index 76dd911..a985b37 100644
+--- a/site_v2/src/components/home/HeroFixtures.astro
++++ b/site_v2/src/components/home/HeroFixtures.astro
+@@ -1,8 +1,10 @@
+ ---
+ // Landing module 1 — the fixtures hero (10_home.md §5(1)).
+ //
+-// The next 12 fixtures by kickoff, grouped by competition. The COUNT and the grouping are the
+-// export's (GAP-02); this renders what it is given, in the order it is given, and sorts nothing.
++// THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date — grouped by
++// competition. The SELECTION and the grouping are the export's (GAP-02, superseded 2026-08-18:
++// the fixed count of 12 is retired). ⚠ This component DOES sort: the group order is applied here
++// with the site-wide ordering key, not served. See the frontmatter below.
+ //
+ // LAYOUT, per the CPO's reaction to the first rendered version: the two teams STACK, each with its
+ // crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
+@@ -23,6 +25,7 @@ import { formatShortDate, formatTime } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { localeHref } from "../../lib/href";
++import { orderUpcomingGroups } from "../../lib/competitionOrder";
+ import type { LandingUpcomingGroup } from "../../lib/types";
+ 
+ interface Props {
+@@ -30,14 +33,20 @@ interface Props {
+   lang: Lang;
+ }
+ const { groups, lang } = Astro.props;
++
++// ⚠ ORDER IS APPLIED HERE, not served. The payload's group order is first-appearance (a
++// deterministic export diff); the display order is the site-wide key, shared with the competitions
++// page so the two cannot drift (CPO 2026-08-18). Day first, then region_rank — which is what stops
++// a 10:15 kickoff outranking a 19:00 one on the same day.
++const ordered = orderUpcomingGroups(groups);
+ ---
+ 
+ <section>
+   <SectionHead label={t(lang, "homeNext")} />
+ 
+-  {groups.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
++  {ordered.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
+ 
+-  {groups.map((group) => (
++  {ordered.map((group) => (
+     <div class="fxgroup">
+       {/* Plain text, NOT a link: the competition hub (/{locale}/{slug}/) is step 2 of the build
+           and does not exist yet, so linking it would emit a guaranteed 404 on every home page. */}
+diff --git a/site_v2/src/lib/competitionOrder.mjs b/site_v2/src/lib/competitionOrder.mjs
+index 2e385fd..efc3a18 100644
+--- a/site_v2/src/lib/competitionOrder.mjs
++++ b/site_v2/src/lib/competitionOrder.mjs
+@@ -69,6 +69,39 @@ export function compareCompetitions(a, b) {
+   return a.league_code < b.league_code ? -1 : a.league_code > b.league_code ? 1 : 0;
+ }
+ 
++/**
++ * Orders the home page's "Next matches" groups with the SAME key, so the two surfaces that rank
++ * competitions against each other cannot drift apart (CPO 2026-08-18: one shared rule).
++ *
++ * The home page shipped (#367) before the 2026-08-16 ruling and ordered purely by whichever
++ * competition kicked off soonest — the raw-clock noise that ruling exists to remove. Every group
++ * here has an upcoming fixture by construction, so only the day -> region_rank -> time ->
++ * league_code part of the key can fire; it is still the same function, not a reduced copy.
++ *
++ * A group's ordering timestamp is its earliest fixture. Taken as a MINIMUM rather than trusting
++ * `fixtures[0]`: the export documents that fixtures arrive kickoff-ordered, but this module must
++ * not silently mis-sort if that ever stops holding.
++ *
++ * @param {{league_code: string, region_rank: number, fixtures: {kickoff: string}[]}[]} groups
++ * @returns {typeof groups}
++ */
++export function orderUpcomingGroups(groups) {
++  return [...groups].sort((a, b) =>
++    compareCompetitions(asOrderable(a), asOrderable(b)),
++  );
++}
++
++/** @param {{league_code: string, region_rank: number, fixtures: {kickoff: string}[]}} group */
++function asOrderable(group) {
++  const kickoffs = (group.fixtures || []).map((f) => f.kickoff).filter((k) => k != null);
++  return /** @type {CompetitionIndexRow} */ ({
++    league_code: group.league_code,
++    region_rank: group.region_rank,
++    next_kickoff_datetime: kickoffs.length ? kickoffs.reduce((a, b) => (a < b ? a : b)) : null,
++    last_kickoff_datetime: null,
++  });
++}
++
+ /**
+  * Groups rows by competition_type, sorts rows within each group, then orders the groups
+  * themselves by their own earliest-sorting member — the SAME key, applied one level up.
+diff --git a/site_v2/src/lib/competitionOrder.test.mjs b/site_v2/src/lib/competitionOrder.test.mjs
+index 76b5c34..bb77999 100644
+--- a/site_v2/src/lib/competitionOrder.test.mjs
++++ b/site_v2/src/lib/competitionOrder.test.mjs
+@@ -4,7 +4,11 @@
+ 
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import { compareCompetitions, groupAndOrderCompetitions } from "./competitionOrder.mjs";
++import {
++  compareCompetitions,
++  groupAndOrderCompetitions,
++  orderUpcomingGroups,
++} from "./competitionOrder.mjs";
+ 
+ function row(overrides) {
+   return {
+@@ -91,3 +95,54 @@ test("groupAndOrderCompetitions sorts rows within each category too", () => {
+   assert.equal(categories.length, 1);
+   assert.deepEqual(categories[0].rows.map((r) => r.league_code), ["A", "B"]);
+ });
++
++// --------------------------------------------------------------------------------------------
++// orderUpcomingGroups — the home page's "Next matches", ordered by the SAME key (CPO 2026-08-18).
++// The home page shipped before the 2026-08-16 ruling and ordered purely on which competition
++// kicked off soonest; these pin the two behaviours that changes.
++
++/** A landing group as `group_upcoming_fixtures` emits it. */
++function group(league_code, region_rank, ...kickoffs) {
++  return { league_code, region_rank, fixtures: kickoffs.map((k) => ({ kickoff: k })) };
++}
++
++test("home groups on the SAME day order by region_rank, not by clock time", () => {
++  // The exact noise the 2026-08-16 ruling names: the Eredivisie kicking off at 10:15 must not
++  // outrank the Premier League at 19:00 on the same day. Pure chronology — what the home page did
++  // before — returns ["ED", "PL"], so this fails against the old behaviour rather than either way.
++  const ed = group("ED", 1, "2026-08-20 10:15:00+00:00");
++  const pl = group("PL", 1, "2026-08-20 19:00:00+00:00");
++  const conmebol = group("BSA", 3, "2026-08-20 12:00:00+00:00");
++  const ordered = orderUpcomingGroups([ed, conmebol, pl]);
++  assert.deepEqual(
++    ordered.map((g) => g.league_code),
++    ["ED", "PL", "BSA"],
++    "same day: both UEFA groups (region 1) come before CONMEBOL (region 3); within UEFA the earlier kickoff wins",
++  );
++});
++
++test("a UEFA group does NOT jump a better-region-ranked group playing an earlier day", () => {
++  // Day precedes region in the key, which is why match selection stays chronological.
++  const ofcToday = group("OFC1", 7, "2026-08-20 09:00:00+00:00");
++  const uefaTomorrow = group("PL", 1, "2026-08-21 19:00:00+00:00");
++  assert.deepEqual(
++    orderUpcomingGroups([uefaTomorrow, ofcToday]).map((g) => g.league_code),
++    ["OFC1", "PL"],
++  );
++});
++
++test("a group's ordering time is its EARLIEST fixture, whatever order they arrive in", () => {
++  const late = group("A", 1, "2026-08-20 20:00:00+00:00", "2026-08-20 08:00:00+00:00");
++  const mid = group("B", 1, "2026-08-20 12:00:00+00:00");
++  assert.deepEqual(
++    orderUpcomingGroups([mid, late]).map((g) => g.league_code),
++    ["A", "B"],
++    "A's 08:00 fixture decides, even though its 20:00 one is listed first",
++  );
++});
++
++test("orderUpcomingGroups does not mutate the array it is given", () => {
++  const groups = [group("B", 3, "2026-08-20 19:00:00+00:00"), group("A", 1, "2026-08-20 19:00:00+00:00")];
++  orderUpcomingGroups(groups);
++  assert.deepEqual(groups.map((g) => g.league_code), ["B", "A"]);
++});
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 998ed20..5203496 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -268,6 +268,9 @@ export interface LandingUpcomingGroup {
+   league_code: string;
+   league_name?: string | null;
+   competition_slug?: string | null;
++  /** Ordering FACT from mart_competition_index (UEFA 1 … OFC 7), served not derived. The page
++   *  applies the site-wide key with it (lib/competitionOrder.mjs); it is never a display value. */
++  region_rank?: number | null;
+   season?: number | null;
+   fixtures: LandingFixture[];
+ }
+diff --git a/tests/test_export_landing.py b/tests/test_export_landing.py
+index c1c16e3..8718121 100644
+--- a/tests/test_export_landing.py
++++ b/tests/test_export_landing.py
+@@ -56,10 +56,19 @@ def test_group_upcoming_fixtures_groups_by_competition_in_kickoff_order():
+     assert groups[0]["competition_slug"] == "mls"
+ 
+ 
+-def test_group_upcoming_fixtures_caps_at_the_display_limit():
++def test_group_upcoming_fixtures_caps_nothing():
++    """⚠ INVERTED 2026-08-18. This test asserted the opposite — that the helper capped at a
++    `limit` — and the CPO retired that cap ("we will show what we have, more matches will come,
++    because we ingest more competitions"). The `limit` parameter is gone, so the old assertion
++    could not merely be relaxed; keeping the case and flipping its expectation is what pins the
++    new behaviour at the same spot the old one guarded.
++
++    WHICH day is shown is no longer decided here either — it is a WHERE clause in
++    `fetch_landing_payload`'s query (GAP-32 records the layer dispute about that placement).
++    """
+     fixtures = [_fixture(i, "BSA", f"2026-08-0{i}T20:00:00Z") for i in range(1, 6)]
+-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META, limit=3)
+-    assert sum(len(g["fixtures"]) for g in groups) == 3
++    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
++    assert sum(len(g["fixtures"]) for g in groups) == 5, "every fixture handed in is grouped"
+ 
+ 
+ def test_group_upcoming_fixtures_builds_the_fixture_slug_from_names():
+@@ -78,14 +87,18 @@ def test_group_upcoming_fixtures_keeps_a_null_crest_null():
+ 
+ 
+ def test_group_upcoming_fixtures_omits_a_competition_with_no_fixture_in_the_window():
+-    """Acceptance criterion 1: a competition with nothing coming up does not appear at all."""
+-    fixtures = [
+-        _fixture(10, "MLS", "2026-08-04T01:00:00Z"),
+-        _fixture(11, "BSA", "2026-08-09T23:00:00Z"),
+-    ]
+-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META, limit=1)
+-    assert [g["league_code"] for g in groups] == ["MLS"]
+-    assert all(g["fixtures"] for g in groups)
++    """Acceptance criterion 1: a competition with nothing coming up does not appear at all.
++
++    ⚠ REWORKED 2026-08-18. This used `limit=1` to manufacture the "outside the window" case, and
++    that parameter is gone with the retired cap. The property under test is unchanged and still
++    worth pinning — a competition contributing NO fixture must not produce an empty group — so the
++    window is now expressed by simply not handing the helper any BSA fixture, which is what the
++    query's matchday WHERE clause does upstream.
++    """
++    fixtures = [_fixture(10, "MLS", "2026-08-04T01:00:00Z")]
++    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
++    assert [g["league_code"] for g in groups] == ["MLS"], "BSA is in _META but has no fixture"
++    assert all(g["fixtures"] for g in groups), "no group may be emitted empty"
+ 
+ 
+ def test_group_upcoming_fixtures_handles_an_empty_calendar():
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index a095bfb..66e2f08 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -27,7 +27,7 @@ from scripts.export_site_data import (
+     shape_top_players,
+     player_slug_with_id,
+ )
+-from scripts.export_site_data import _featured_season_row
++from scripts.export_site_data import _featured_season_row, group_upcoming_fixtures
+ 
+ 
+ def _mark_featured(rows: list[dict]) -> list[dict]:
+@@ -827,3 +827,69 @@ def test_featured_season_row_refuses_to_choose():
+             {"season_api_year": 2026, "is_featured_season": True},
+             {"season_api_year": 2025, "is_featured_season": True},
+         ])
++
++
++# ------------------------------------------------------------------------------------------
++# The landing hero's MATCHDAY selection (CPO 2026-08-18, replacing the fixed count of 12).
++
++
++def _hero_fixtures(*specs):
++    """(league_code, kickoff) pairs -> fixture rows, kickoff-ordered as the caller supplies them."""
++    return [
++        {"fixture_sk": i, "league_code": lc, "season_api_year": 2026,
++         "kickoff_datetime": ko, "round_name": "R1",
++         "home_team_sk": 1, "away_team_sk": 2}
++        for i, (lc, ko) in enumerate(specs, start=1)
++    ]
++
++
++_HERO_TEAMS = {
++    1: {"team_sk": 1, "team_name": "Home", "team_slug": "home", "team_logo_url": None},
++    2: {"team_sk": 2, "team_name": "Away", "team_slug": "away", "team_logo_url": None},
++}
++
++
++def test_hero_grouping_truncates_nothing():
++    """The count of 12 is gone (CPO 2026-08-18): this function groups everything it is handed.
++
++    ⚠ The fixture set deliberately holds THIRTEEN matches — one more than the retired cap — so
++    this FAILS against the old `fixtures[:12]` slice instead of passing either way.
++
++    ⚠ WHICH day is shown is NOT tested here, because it is no longer decided here: the matchday
++    restriction is a WHERE clause in `fetch_landing_payload`'s query (analytics-engineer-reviewer,
++    round 1 — computing it in Python was the same layer violation #846 fixed for seasons). A unit
++    test asserting a day filter in this function would now be asserting the wrong thing.
++    """
++    thirteen = [("PL", f"2026-08-20 1{i % 10}:00:00+00:00") for i in range(13)]
++    groups = group_upcoming_fixtures(
++        _hero_fixtures(*thirteen), _HERO_TEAMS,
++        {"PL": {"name": "Premier League", "slug": "premier-league", "region_rank": 1}},
++    )
++    assert [g["league_code"] for g in groups] == ["PL"]
++    assert len(groups[0]["fixtures"]) == 13, "every match handed in, not the first 12"
++
++
++def test_hero_carries_region_rank_from_the_served_meta():
++    """The page's ordering key needs region_rank on the group; the export must pass it through
++    rather than derive it (it comes from mart_competition_index, not from the registry)."""
++    groups = group_upcoming_fixtures(
++        _hero_fixtures(("PL", "2026-08-20 19:00:00+00:00"),
++                       ("BSA", "2026-08-20 21:00:00+00:00")),
++        _HERO_TEAMS,
++        {"PL": {"name": "Premier League", "slug": "premier-league", "region_rank": 1},
++         "BSA": {"name": "Brasileirao", "slug": "brasileirao", "region_rank": 3}},
++    )
++    assert {g["league_code"]: g["region_rank"] for g in groups} == {"PL": 1, "BSA": 3}
++
++
++# ⚠ THERE IS DELIBERATELY NO TEST PINNING WHERE THE MATCHDAY IS SELECTED.
++#
++# A `test_hero_matchday_selection_lives_in_the_query_not_in_python` existed here briefly and was
++# DELETED, not relaxed: it asserted `"min(fixture_date)" in inspect.getsource(...)`, which is a grep
++# dressed as a test. analytics-engineer-reviewer was right that it pinned a string rather than the
++# property that matters, and that it would have to be rewritten — not merely loosened — the day the
++# decision moves into the warehouse (GAP-32).
++#
++# The placement is enforced by the layer contract and by review, not by a text assertion. What IS
++# tested below is the function's real behaviour: it truncates nothing, and it passes `region_rank`
++# through without deriving it.
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/fixtures/1547770.json | 712 +++++++++++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1622620.json | 343 ++++++++++++++++
+#    site_v2/src/data/fixtures/1622621.json | 643 +++++++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1622622.json | 361 +++++++++++++++++
+#    site_v2/src/data/landing.json          | 355 +++++++---------
+#    5 files changed, 2198 insertions(+), 216 deletions(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -265,7 +881,9 @@ index a5c113d..ffaed6d 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |   19 +-
-#    .claude/task/review_input.patch | 1373 +++++++--------------------------------
-#    2 files changed, 246 insertions(+), 1146 deletions(-)
+#   .claude/active_work.md                 |   53 +-
+#    .claude/task/acceptance_evidence.md    |  126 ++--
+#    .claude/task/rendered_page_evidence.md |  182 +++---
+#    .claude/task/review_input.patch        | 1034 ++++++++++++++++++++++++--------
+#    4 files changed, 958 insertions(+), 437 deletions(-)
 # ============================================================================

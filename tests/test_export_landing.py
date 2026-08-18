@@ -56,10 +56,19 @@ def test_group_upcoming_fixtures_groups_by_competition_in_kickoff_order():
     assert groups[0]["competition_slug"] == "mls"
 
 
-def test_group_upcoming_fixtures_caps_at_the_display_limit():
+def test_group_upcoming_fixtures_caps_nothing():
+    """⚠ INVERTED 2026-08-18. This test asserted the opposite — that the helper capped at a
+    `limit` — and the CPO retired that cap ("we will show what we have, more matches will come,
+    because we ingest more competitions"). The `limit` parameter is gone, so the old assertion
+    could not merely be relaxed; keeping the case and flipping its expectation is what pins the
+    new behaviour at the same spot the old one guarded.
+
+    WHICH day is shown is no longer decided here either — it is a WHERE clause in
+    `fetch_landing_payload`'s query (GAP-32 records the layer dispute about that placement).
+    """
     fixtures = [_fixture(i, "BSA", f"2026-08-0{i}T20:00:00Z") for i in range(1, 6)]
-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META, limit=3)
-    assert sum(len(g["fixtures"]) for g in groups) == 3
+    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
+    assert sum(len(g["fixtures"]) for g in groups) == 5, "every fixture handed in is grouped"
 
 
 def test_group_upcoming_fixtures_builds_the_fixture_slug_from_names():
@@ -78,14 +87,18 @@ def test_group_upcoming_fixtures_keeps_a_null_crest_null():
 
 
 def test_group_upcoming_fixtures_omits_a_competition_with_no_fixture_in_the_window():
-    """Acceptance criterion 1: a competition with nothing coming up does not appear at all."""
-    fixtures = [
-        _fixture(10, "MLS", "2026-08-04T01:00:00Z"),
-        _fixture(11, "BSA", "2026-08-09T23:00:00Z"),
-    ]
-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META, limit=1)
-    assert [g["league_code"] for g in groups] == ["MLS"]
-    assert all(g["fixtures"] for g in groups)
+    """Acceptance criterion 1: a competition with nothing coming up does not appear at all.
+
+    ⚠ REWORKED 2026-08-18. This used `limit=1` to manufacture the "outside the window" case, and
+    that parameter is gone with the retired cap. The property under test is unchanged and still
+    worth pinning — a competition contributing NO fixture must not produce an empty group — so the
+    window is now expressed by simply not handing the helper any BSA fixture, which is what the
+    query's matchday WHERE clause does upstream.
+    """
+    fixtures = [_fixture(10, "MLS", "2026-08-04T01:00:00Z")]
+    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
+    assert [g["league_code"] for g in groups] == ["MLS"], "BSA is in _META but has no fixture"
+    assert all(g["fixtures"] for g in groups), "no group may be emitted empty"
 
 
 def test_group_upcoming_fixtures_handles_an_empty_calendar():

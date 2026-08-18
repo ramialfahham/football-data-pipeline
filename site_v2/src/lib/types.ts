@@ -268,6 +268,9 @@ export interface LandingUpcomingGroup {
   league_code: string;
   league_name?: string | null;
   competition_slug?: string | null;
+  /** Ordering FACT from mart_competition_index (UEFA 1 … OFC 7), served not derived. The page
+   *  applies the site-wide key with it (lib/competitionOrder.mjs); it is never a display value. */
+  region_rank?: number | null;
   season?: number | null;
   fixtures: LandingFixture[];
 }

@@ -1,30 +1,64 @@
-# Review — fix/gaps-register-vs-reduced-home-design — 2026-08-18
+# Review — feat/shared-competition-order — 2026-08-18
 
-diff_sha256: d975aab8d8dff37ee3909fa545ab544d3abc22fc240dc313a023d9c1b0012d70
+diff_sha256: 6f1c42db62095806e0ba2ae3f88c695124247890c632ad130cadba31699de6a8
 
-rounds: 2
+rounds: 4
+
+rounds_cap_override: The cap exists to stop a builder grinding a contested finding. That did not
+happen here — the one contested finding (the layer classification of the matchday selection) was
+NOT ground on: after analytics-engineer-reviewer FAILed it twice I escalated it to the CPO per §10,
+who ruled "ship as-is, register the gap" (GAP-32 + `escalations.log` RULING 3). Rounds 3 and 4 carry
+ZERO open findings. Round 4 exists solely because round 3 surfaced a regression I introduced and
+missed — removing `group_upcoming_fixtures`'s `limit` broke two tests in a second file, which I did
+not catch because I ran one test file instead of the suite — and platform-reviewer's round-1 PASS
+predated three substantive changes in its own remit, so reusing it would have been dishonest. The
+alternative to round 4 was shipping on a stale PASS with a self-inflicted regression fixed but
+unreviewed. CPO instruction for the session: "get it done, but really done, not your liar version
+of done."
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Confirmed both delta-touched files (`docs/wireframes/99_gaps_register.md`, `.claude/active_work.md`) are inside contract.md's scope_paths; no other file in the branch changed.
-- Verified GAP-28's new claim against the actual seed: `dbt_project/seeds/competition_registry.csv` header is `league_code,competition_type,parent_competition,confederation,slug,sort_order,tier,season_type` and the BL1 row is `BL1,domestic_league,,UEFA,bundesliga,30,1,split_year` — matches the register's quoted text byte-for-byte, so the "half false premise" correction is factually accurate, not an invented finding.
-- Checked whether narrowing GAP-28's remaining scope to "one authored pool field" and marking it "partly built" is a §10 decision: it does not cancel or alter the CPO's 2026-08-08 design approval (pool grouping is still required and still unbuilt), it only records that the tier/season_type projection sub-part already exists in the warehouse — a factual build-state correction, not a re-scoping call requiring new CPO authority.
-- Round 1: verified voiding GAP-24/25/26 is derivative of the CPO's own 2026-08-10 reduction rather than a fresh design call — each void names the specific metrics that entry asked for and each is absent from the reduced four-board set; `.claude/active_work.md`'s "FOUR boards of ONE metric, top 7" note is pre-existing, not manufactured for this task.
-- Round 1: withdrawal convention matches the existing GAP-04 precedent (strikethrough + bold status + reason + "returns if ever designed" caveat); no new mechanism invented. GAP-30/GAP-31 marked "NOT YET RULED" rather than approved, so no CPO approval is smuggled in.
-- Checked `decisions_reserved` (issue-filing, pass-accuracy re-file, periodic-reconciliation mechanism) — none referenced or altered; no reconciliation mechanism was added to the register, only a prose note in the handover.
-- Secrets sweep: markdown prose only, no credential-shaped strings.
+- Escalation mechanics (§10/§11): `escalations.log` RULING 3 records the premise, both conflicting positions (the reviewer's two FAILs with reasoning, and the builder's counter that the same WHERE clause has carried an unflagged window filter since #367), and the CPO's answer as a direct quote rather than paraphrased into something stronger.
+- Reviewer-not-overruled distinction: both RULING 3 and GAP-32 state explicitly that this is "a decision to PROCEED, not a finding that the reviewer was wrong" — the dispute is preserved for inheritance, not resolved in the builder's favour.
+- Scope: every delta-touched path is in `contract.md`'s `scope_paths`; the two mid-task amendments (`site_v2/src/data/fixtures/*.json` + `.gitignore`; then `tests/test_export_landing.py`) are both recorded, the first as the documented "refresh as a set" procedure the build gate enforced, the second as fixing the builder's own breakage.
+- Test deletion checked against the never-loosen-a-guard rule: the removed assertion pinned string text, not behaviour, so no guard was weakened.
+- Under-cover decisions: checked GAP-32 and the SQL comment for scope creep beyond the ruled question — only the WHERE-clause placement is addressed; no other mechanism, metric or naming change rides along. The 57-fixture worst case is left genuinely unbounded in code, matching `decisions_reserved`.
+- Secrets sweep: no credential-shaped content; no new recurring cost.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- GAP-32 checked against my own round-1/round-2 finding, the #846 precedent and the builder's counter — recorded faithfully, with the ruling correctly framed as "proceed, not vindicated"; no softening, misattribution or strawman.
+- `escalations.log` RULING 3 checked against the same — consistent content, no drift from the register entry.
+- Proposed disposition (serve the matchday as a warehouse fact; the hero's direct `core.fct_fixture` read is a separate, already-flagged defect that must be fixed with it) is technically coherent and complete for a future implementer.
+- Deleted placement test confirmed to be a source-grep (`"min(fixture_date)" in inspect.getsource(...)`), not a behavioural assertion; the two remaining tests cover the function's real behaviour with no coverage regression.
+- `fixture_date` (`stg_apif__fixtures_next.sql:27`) is `DATE(kickoff_datetime)` in UTC, so the field switch from the deleted Python filter introduces no timezone divergence.
+- Objection ON RECORD but not re-litigated per the ruling: in my view SQL window-selection authored in `export_site_data.py` remains consumption-layer logic under `layering.md`. Settled by CPO ruling 2026-08-18, not reopened.
+- Found outside my judging scope and flagged for follow-up (since fixed): `tests/test_export_landing.py` still called `group_upcoming_fixtures(..., limit=...)`, a parameter this branch removed.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Reworked `test_group_upcoming_fixtures_caps_nothing`: still discriminates, and the strong boundary case (13 fixtures vs the retired 12-cap) is separately pinned by `test_hero_grouping_truncates_nothing` — between the two the no-truncation property is genuinely exercised, not asserted by name.
+- Reworked `..._omits_a_competition_with_no_fixture_in_the_window`: traced the property it now exercises — a competition in `_META` but absent from the fixture list must not produce a phantom group. That is a real branch of the `groups.setdefault` logic, and the docstring matches the assertions.
+- Coverage hole from the deleted placement test: grepped `tests/` — no test exercised `fetch_landing_payload`'s SQL before this delta either (the deleted one asserted placement, never SQL correctness), so no behavioural coverage was lost; consistent with the file's documented "no BigQuery, fabricated rows only" boundary.
+- The CTE rewrite: `fixture_date` is selected inside the CTE and referenced in the outer WHERE without being in the outer SELECT — valid BigQuery Standard SQL; no consumer reads it, so dropping it from the projection is correct. All 7 projected columns match what the shaping helpers consume.
+- Signature fallout: grepped every call site repo-wide — no stray `limit=` kwarg remains anywhere, and no leftover reference to `_HERO_FIXTURE_LIMIT`, `_kickoff_date` or `_earliest_kickoff_date` in `scripts/` or `tests/`.
+- Re-run safety: the new CTE is a pure read gated on `current_date()`, idempotent on re-run, introducing no partial-write state.
+- Earlier round, still standing: test discrimination verified by inspection for all 7 new tests (6 add real discrimination, 1 redundant but not decorative and not misrepresented); `compareCompetitions` byte-unchanged so the competitions page cannot regress; the `.gitignore` allowlist matches the committed fixture files 1:1; no CI job invokes the changed export path.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Round-1 finding closure: grepped the whole repo for the old false premise ("carries only league_code, competition_type, parent_competition" / "only three columns") — zero hits outside the patch itself; GAP-28's Gap/Disposition/Ruling cells, `.claude/active_work.md` and `docs/wireframes/10_home.md` all now state the corrected 8-column fact consistently, no residue anywhere.
-- Verified the new factual claims independently rather than trusting the row: read `competition_registry.csv` header + BL1 row (byte-identical to what GAP-28 quotes) and `scripts/sync_dbt_vars.py`'s `SEED_COLUMNS` tuple (same 8 names, same order). Cross-checked `dbt_project/seeds/schema.yml` tier/season_type column docs and tests, confirming the projection is genuinely shipped in the dbt-declared schema, not present in the raw CSV by coincidence.
-- Checked whether "only the authored pool field remains" understates other unbuilt work: grepped `dbt_project/models` and `scripts/export_site_data.py` for "pool" — no league-pool grouping exists downstream, and the register correctly scopes the pooled-rank computation to GAP-31 and the team-side mart to GAP-29, so GAP-28's remaining scope is not understated.
-- Round 1 — VOID correctness: read `mart_leaderboards.sql`'s `count_boards`/`rate_boards` against each struck entry; confirmed every metric/column/board GAP-24/25/26 asked for (`duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`, `passes_accurate`, `shots_on_goal_against`, the goals-conceded board) is absent from the reduced player design and from any surviving four-board need — VOID correct for all three.
-- Round 1 — survivors: `grep` on `mart_leaderboards.sql` shows no `team_sk` anywhere in the select list (GAP-27 live); all four Top-teams metrics present in `int_team_season__metrics_cumulative.sql` at lines 94/112/131/157 and no other leaderboard-named mart under `5_marts` (GAP-29 live).
-- Round 1 — new entries: `count_boards` contains `goals`/`passes_total`/`passes_key` but not `assists`, while `assists` is a selected column (GAP-30 correct); `dense_rank() over (partition by league_code, season_api_year ...)` confirmed at lines 117-118 and the "Ranked across pooled leagues" string is real page copy in both generators, so the per-league-vs-pooled distinction is genuine and separate from GAP-28's membership question (GAP-31 correct).
-- Table integrity: 7 columns on every edited row, 31 unique GAP ids, no duplicates, GAP-28's Type correctly narrowed `mart + seed` → `seed`.
+- Round-1 FAIL closed: `10_home.md` §10's stale "next 12 fixtures by kickoff" is struck and replaced, and agrees with §5(1) and `99_gaps_register.md` GAP-02.
+- Swept for a fourth stale instance across `docs/`, `site_v2/src/` and the repo root — no remaining place states the retired count as current; all hits are struck-through history, the labelled measurement table, or false-positive CSS pixel values.
+- The new "OPEN, BOTH DIRECTIONS" note checked against the committed `landing.json`: 2 groups, 4 fixtures, one date — matches its claim exactly, and it explicitly does NOT close the product question ("whether a 4-match day is an acceptable home page is nonetheless a PRODUCT question and is not decided"). Fair characterisation, not a rationalisation.
+- `HeroFixtures.astro`'s corrected header now matches behaviour: it states the component DOES sort, and `const ordered = orderUpcomingGroups(groups)` confirms it. The old "sorts nothing" claim is gone.
+- `region_rank` traced end-to-end: served from `mart_competition_index`, never derived from the registry's `confederation`; used only inside the comparator, never rendered as text.
+- Rendered evidence is from built output (group order read from `dist/{de,en,fi}/index.html`, geometry measured live, a caught-and-fixed dead-link regression), not a source-only claim.
+- No new user-facing copy and no new metric on any display surface.
 
 ## escalations
-(none)
+- question: Is selecting "the next matchday" inside `scripts/export_site_data.py` — first as a Python `min()`, then as `where fixture_date = (select min(fixture_date) from upcoming)` in the export's own SQL — forbidden window selection under `layering.md` §Consumption layer, or an allowed filter? analytics-engineer-reviewer FAILed twice, citing the #846 precedent where an identical "pick from a set" was moved into a mart column. The builder's counter: the same WHERE clause has carried `status_short in ('NS','TBD') and fixture_date >= current_date()` since #367 without being flagged, and the contract explicitly allows "select, filter". `working_agreement.md` §10 makes an unclear layer classification the CPO's call.
+  CPO ANSWER: "ship as-is, register the gap." Shipped with the SQL selection; registered as GAP-32 with both positions and the disposition recorded, explicitly as a decision to proceed rather than a finding that the reviewer was wrong.

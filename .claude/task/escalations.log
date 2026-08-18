@@ -3474,3 +3474,73 @@ obsolete (#54).
   `region_rank` as facts and does not pre-bake the ORDER BY — the page spec (#62 step 5) declares
   it. `region_label` is the opposite case and DOES resolve in the mart, because it is text a
   visitor reads.
+
+2026-08-18 feat/shared-competition-order — TWO rulings, in conversation, written the same session
+they were made (the 2026-08-16 entry above was missed three times before it got recorded; this one
+is not repeating that).
+
+  CONTEXT. Walking the home page top-to-bottom against the mock, the CPO asked whether the
+  "next matches" ordering rule was consistent across every page it applies to. It was not. Two
+  rules were live at once: the competitions index used the 2026-08-16 key (day → region_rank →
+  kickoff → league_code); the home page, built earlier under #367, used raw chronology and so still
+  carried the exact 10:15-beats-19:00 noise the 08-16 ruling was written to remove.
+
+  RULING 1 — ONE SHARED RULE, SITE-WIDE. CPO: "yes, make it one shared rule." The 2026-08-16 key is
+  now the single rule wherever competitions are ranked against each other, implemented ONCE
+  (`site_v2/src/lib/competitionOrder.mjs`) and called by both surfaces. Not a new key and not a
+  re-decision: the 08-16 ruling's own words ("even matches from national teams can rank
+  occasionally before club league matches") already reached the home page, which simply predated
+  it. Because DAY precedes REGION in the key, match SELECTION stays chronological and only GROUP
+  ORDER changes — the CPO's question "I don't understand your question" correctly identified that
+  the key already answers whether region can outrank an earlier day. It cannot.
+
+  RULING 2 — THE HARDCODED COUNT OF 12 IS RETIRED. CPO: "why are you using hard-coded numbers like
+  12 matches or whatsoever? We will show what we have, more matches will come, because we ingest
+  more competitions." `_HERO_FIXTURE_LIMIT = 12` is deleted. The block now shows THE NEXT MATCHDAY:
+  every fixture on the earliest upcoming kickoff date.
+
+  ⚠ The count was NOT unreasoned — `10_home.md` measured that twelve filled the first screenful
+  across two or three competitions on every day sampled. It fails on a different axis: it does not
+  SCALE. As competitions are onboarded, twelve slots hold fewer and fewer of them, so the block
+  narrows exactly as the site broadens. Measured on the committed sample: 12 fixtures spanning TWO
+  dates, which is not a matchday and reads as an arbitrary cut.
+
+  ⚠ This does NOT reopen what GAP-02 settled. "Today's matches" was rejected for rendering one row
+  on some days measured; the rule adopted is "the earliest date PRESENT IN THE DATA", which is
+  never empty by construction. The per-day measurement table stays in `10_home.md` as the evidence
+  for that distinction.
+
+  ⚠ HONEST UPPER BOUND, stated rather than designed around: the busiest day in that measurement
+  carried 57 fixtures. If a busy matchday reads too long, the answer is a CPO decision on the block
+  (#908 already parks a "more matches" control) — NOT a new number quietly reintroduced. Recorded
+  in the contract's decisions_reserved so the next session cannot treat re-capping as a detail fix.
+
+  RULING 3 — THE LAYER CLASSIFICATION, escalated after TWO reviewer FAILs and ruled by the CPO.
+
+  THE DISPUTE. analytics-engineer-reviewer FAILed the matchday selection twice. Round 1: computing
+  it with a Python `min()` over fetched rows is window selection, forbidden in the consumption
+  layer, and the same shape as `_featured_season_row` (#846), which was fixed by computing
+  `is_featured_season` as a TESTED MART COLUMN and leaving the export only filtering on it. I moved
+  the selection into the export's own SQL (`where fixture_date = (select min(fixture_date) from
+  upcoming)`), the option the round-1 finding itself offered. Round 2 it FAILed again on stronger
+  ground: `layering.md` binds the FILE, not the language, so SQL authored in `export_site_data.py`
+  is still the export deciding; only the syntax moved, and no served fact exists.
+
+  THE BUILDER'S COUNTER, recorded because it is not obviously wrong: the same `WHERE` clause has
+  carried `status_short in ('NS','TBD') and fixture_date >= current_date()` since #367 — also a
+  window, never flagged — and the contract explicitly ALLOWS "select, filter". Whether
+  `fixture_date = (select min(...))` is an allowed filter or a forbidden window selection is
+  genuinely ambiguous, and `working_agreement.md` §10 makes an unclear layer classification the
+  CPO's call rather than the builder's or a reviewer's.
+
+  CPO ANSWER (2026-08-18): **"ship as-is, register the gap."** Shipped with the SQL selection;
+  registered as **GAP-32**. ⚠ This is a decision to PROCEED, not a finding that the reviewer was
+  wrong — the entry and the gap both record the dispute so the next session inherits it instead of
+  rediscovering it. The proper fix needs a warehouse home for upcoming fixtures that does not exist
+  (the hero reads `core.fct_fixture` directly, itself a flagged defect); the two should be fixed
+  together, as their own task.
+
+  ⚠ ONE PART OF THE FINDING WAS UNCONTESTED AND IS FIXED, not shipped under the ruling: the test I
+  wrote to pin the placement asserted `"min(fixture_date)" in inspect.getsource(...)` — a grep
+  dressed as a test, which would have pinned the disputed placement in place. DELETED rather than
+  relaxed, with the reason written where it stood.

@@ -70,6 +70,39 @@ export function compareCompetitions(a, b) {
 }
 
 /**
+ * Orders the home page's "Next matches" groups with the SAME key, so the two surfaces that rank
+ * competitions against each other cannot drift apart (CPO 2026-08-18: one shared rule).
+ *
+ * The home page shipped (#367) before the 2026-08-16 ruling and ordered purely by whichever
+ * competition kicked off soonest — the raw-clock noise that ruling exists to remove. Every group
+ * here has an upcoming fixture by construction, so only the day -> region_rank -> time ->
+ * league_code part of the key can fire; it is still the same function, not a reduced copy.
+ *
+ * A group's ordering timestamp is its earliest fixture. Taken as a MINIMUM rather than trusting
+ * `fixtures[0]`: the export documents that fixtures arrive kickoff-ordered, but this module must
+ * not silently mis-sort if that ever stops holding.
+ *
+ * @param {{league_code: string, region_rank: number, fixtures: {kickoff: string}[]}[]} groups
+ * @returns {typeof groups}
+ */
+export function orderUpcomingGroups(groups) {
+  return [...groups].sort((a, b) =>
+    compareCompetitions(asOrderable(a), asOrderable(b)),
+  );
+}
+
+/** @param {{league_code: string, region_rank: number, fixtures: {kickoff: string}[]}} group */
+function asOrderable(group) {
+  const kickoffs = (group.fixtures || []).map((f) => f.kickoff).filter((k) => k != null);
+  return /** @type {CompetitionIndexRow} */ ({
+    league_code: group.league_code,
+    region_rank: group.region_rank,
+    next_kickoff_datetime: kickoffs.length ? kickoffs.reduce((a, b) => (a < b ? a : b)) : null,
+    last_kickoff_datetime: null,
+  });
+}
+
+/**
  * Groups rows by competition_type, sorts rows within each group, then orders the groups
  * themselves by their own earliest-sorting member — the SAME key, applied one level up.
  * @param {CompetitionIndexRow[]} rows
