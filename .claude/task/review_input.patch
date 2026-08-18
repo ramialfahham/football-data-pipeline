@@ -1,75 +1,89 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 16c8264..8661d36 100644
+index b208671..8661d36 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,69 +1,38 @@
--# Task contract — record the Top players block ruling (bookkeeping only)
+@@ -1,275 +1,38 @@
+-# Task contract — #74: the nightly Cloud Run image tracks `main`
 +# Task contract — handover: block-audit method, automation note, home-page status
  
  objective: >
--  Write down two CPO decisions made in conversation on 2026-08-18, at the time they were made,
--  before any build starts. No code, no model, no page — the durable record only. This exists
--  because the recurring failure this session was decisions living in chat and being re-derived or
--  forgotten a few messages later.
--refs: `10_home.md` §0 (the four-pool design) · GAP-27/28/30/31 in `99_gaps_register.md` ·
--  `design-mocks/gen_top_players.py` (the mock whose placeholder data caused the ambiguity)
+-  `gcloud run jobs deploy fdp-nightly --source .` packages the working tree at deploy time; the
+-  image never rebuilds when `main` moves, so prod silently reverts merged fixes at 04:00 (it
+-  already reverted !43/!45 once, running 08-14 code for two days). Add CI jobs on `main` that
+-  rebuild and redeploy the image whenever a path it actually contains changes, so this stops
+-  being a "remember to redeploy by hand" rule. Full spec: GitLab #74, note 3695790497 —
+-  implementing it as written, not re-deriving it.
+-  REDESIGNED mid-task (round 3): the spec's own `--source .` shape needs Cloud Build, and
+-  Cloud Build's default execution identity holds project Editor — verified live, not assumed.
+-  Ships instead as `build:nightly-image` (kaniko, builds in the job, no Cloud Build) +
+-  `deploy:nightly-image` (repoints the Cloud Run job at the pushed image). Same objective, an
+-  authorized reading of "how" per the CPO's own in-session choice — see escalations.log.
+-refs: GitLab #74 (note 3695790497)
 +  Update `.claude/active_work.md` to reflect current state before this chat ends (context nearly
 +  exhausted, continuing in a fresh session). Bookkeeping only.
 +refs: this session's work in full — !72 (shared ordering), !73+!74 (Top players ruling), #78 (the
 +  filed follow-up sweep).
  
  scope_paths:
--  - .claude/task/escalations.log
--  - docs/wireframes/99_gaps_register.md
--  - docs/wireframes/10_home.md
--
--impact_map: >
--  writers: none. No BigQuery, no dbt model, no export, no site file. Documentation and the
--    escalation log only.
--
--  downstream: this CHANGES WHAT FUTURE WORK IS. GAP-31 (a pooled ranking across the pool) is
--    withdrawn by the ruling — the block takes each league's existing rank-1 instead — so a session
--    reading the register tomorrow would otherwise scope and build a ranking nobody wants.
--
--  layer_rules: not applicable; nothing executable is touched.
--
--  blast_radius: three documentation files.
--
--decisions_taken: >
--  Both from the CPO in conversation, 2026-08-18, recorded here rather than paraphrased later.
--
--  1. THE BLOCK IS ONE PLAYER PER LEAGUE, NOT A POOLED RANKING. Asked "what is happening here? We
--     show the no1 from each league and then we put all these no1s into one view", and on being
--     shown that the spec said pooled while the mock rendered one-per-league, the CPO ruled: "One
--     per league -> yes, it's not a leaderboard in the defined pool."
--
--  2. THE INTRO COPY MUST BE REPHRASED. "Season totals to date. Ranked across pooled leagues: …"
--     describes the pooled ranking that was just ruled out. CPO: "we just need to rephrase". The
--     WORDS are not written here — copy is §10, always the CPO's. What the sentence must carry
--     factually: each league's leader, season-to-date, and which leagues.
 +  - .claude/active_work.md
-+  - .gitlab-ci.yml
-+  - deploy/nightly/README.md
-+  - tests/test_governance_hooks.py
-+  - .dockerignore
-+  - .gcloudignore
-+  - Dockerfile
+   - .gitlab-ci.yml
+   - deploy/nightly/README.md
+   - tests/test_governance_hooks.py
+   - .dockerignore
+   - .gcloudignore
+   - Dockerfile
+-  - .claude/active_work.md
  
- amendments:
--  - 2026-08-18: `decisions_reserved`'s first item — the replacement wording — is DISCHARGED, not
--    still reserved. Authority chain, in order: the CPO delegated the drafting ("you rephrase"), I
--    proposed one string, he approved it ("yes, record it"). Delegation-then-ratification is the
--    CPO exercising §10, not the builder taking it; the record in `10_home.md` names both halves so
--    my authorship is never readable as a ruling. Recorded because scope-auditor correctly FAILed
--    the diff for writing the wording while the contract still said "stops there" — the two files
--    asserted contradictory states of the same decision.
--  - 2026-08-18: the doc sweep GREW beyond the ruling — authority: bi-analyst-reviewer FAIL, and it
--    is the same failure class as this morning's. Recording "four boards" inside `10_home.md` made
--    visible that the file's own §0 still carried the NINE-board and SIX-board tables, a stale §10
--    gap list naming the three VOID gaps, a "fifteen boards" open question, and a board-naming
--    EXAMPLE that the reduction inverted. All are the 2026-08-10 reduction never having been swept
--    into this file. Striking them is finishing the record this task exists to write, not new scope
--    — but it is more than the objective's literal words, so it is recorded rather than absorbed.
+-acceptance_criteria: >
+-  NOT new work from this task. `site_v2/src/**` appears in this branch's diff solely because
+-  merging `gitlab/main` (required to resolve #77-class task-artifact conflicts before this MR can
+-  merge — main moved on with #62 step 5 while this branch was open) brings in #62 step 5 (the
+-  competitions index page), already built, CPO-reviewed and merged on its own branch with its own
+-  acceptance criteria and evidence. `.claude/task/acceptance_evidence.md` comes through the same
+-  merge unchanged and already demonstrates all 8 of that page's criteria (locales render clean,
+-  all 48 competitions grouped correctly, CPO-approved sort order verified against real data, rows
+-  inert not linked, filters narrow + collapse empty categories, nav link wired, copy gate passes,
+-  page-spec + unit tests pass, verified at both viewport widths). Restated here only so this gate
+-  — which does not distinguish a merge from new authored work, the same gap logged for the
+-  scope/Stop gates under `active_work.md`'s OWED — has a criteria list to check against; the
+-  evidence itself was written by the #62 task, not this one, and is not re-verified here.
+-  - All three locales (en/de/fi) build and render `/competitions/` with no console errors.
+-  - Every browsable competition (48/48) shows under an always-visible category heading, singletons
+-    included.
+-  - Category and row order match the CPO-approved sort key, verified against real committed data.
+-  - Rows show logo/name/region, are NOT clickable links (#47 not built yet).
+-  - The two filter axes narrow rows; an emptied category disappears entirely, headings included.
+-  - Nav's "Competitions" item is a real link (desktop + mobile); every other nav item stays inert.
+-  - `check_copy_gate.py`, `check-page-specs.mjs` and the site's `node --test` suite all pass.
+-  - Verified at desktop and mobile widths via the accessibility tree and console output.
+-  SECOND merge-inherited batch (2026-08-18, same gap, same non-authorship): `main` moved again
+-  while this MR sat open, this time with `feat/shared-competition-order` (!71, merge commit
+-  de393e5) landing on top of the `fix/gaps-register-vs-reduced-home-design` merge (26caf53). That
+-  brings in the shared competition-ordering rule (`competitionOrder.mjs` + its test), the
+-  reduced-home-page fixtures work (`HeroFixtures.astro`, the four committed
+-  `site_v2/src/data/fixtures/*.json` samples, `landing.json`), `export_site_data.py`'s matching
+-  export logic, `types.ts`, the two wireframe docs, and `.gitignore`. All of it already built and
+-  merged to `main` on its own branch before this merge; none of it is #74 work and none of it is
+-  re-verified here. Listed so the gate has something to check against, same as the #62 batch
+-  above.
+-  THIRD merge-inherited batch (2026-08-18, same gap, same non-authorship): `main` moved again,
+-  this time with `chore/record-top-players-ruling` (merge commit ac4231f) — a pure bookkeeping
+-  task, by its own contract's objective, that writes down two CPO decisions (Top players is one
+-  player per league, not pooled; GAP-31 withdrawn) into `docs/wireframes/10_home.md` and
+-  `docs/wireframes/99_gaps_register.md`. No code, no model, no page in that task's own scope. Not
+-  #74 work, not re-verified here.
+-  FOURTH merge-inherited batch (2026-08-18, same gap, same non-authorship): `main` moved again,
+-  same source branch (`chore/record-top-players-ruling`, follow-up merge commit fa8118e) —
+-  the branch's own review record shows the CPO let it run a documentation staleness sweep of
+-  `docs/wireframes/10_home.md` (correcting nine/six-board tables and gap references left over
+-  from the 2026-08-10 four-board reduction) before ruling "commit what's here and open the
+-  separate task" for the rest. Still pure prose, no code/model/page. Not #74 work, not
+-  re-verified here.
+-
+-protected_override: >
+-  CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
+-  own requirement that this instruction is the authority for the `.gitlab-ci.yml` edit.
++amendments:
 +  - 2026-08-18: + `.gitlab-ci.yml`, `deploy/nightly/README.md`, `tests/test_governance_hooks.py`,
 +    `.dockerignore`, `.gcloudignore`, `Dockerfile` — authority: CPO, "merge conflict" (this
 +    session), the same standing instruction #74's own contract cites as covering conflict
@@ -82,659 +96,212 @@ index 16c8264..8661d36 100644
 +    authorship (the same gap `active_work.md`'s OWED section already logs), has something to
 +    check against.
  
--decisions_reserved:
--  - ~~The replacement wording itself.~~ DISCHARGED — see the amendment above.
--  - Whether ordering the seven league-winners by value belongs in the mart or the page. The
--    2026-08-16 Ruling 4 precedent ("the mart carries facts, the spec declares the ORDER BY") points
--    at the page, but that ruling was about competitions, not players — not assumed, not decided.
--  - Everything about BUILDING the block. This task writes nothing executable.
-+impact_map: >
+ impact_map: >
+-  writers: none (dbt/BigQuery untouched) — this adds two CI jobs that build a container image
+-  and repoint a Cloud Run job, no model or script changes.
+-  what fires it: `workflow: rules:` already admits `CI_COMMIT_BRANCH == CI_DEFAULT_BRANCH`
+-  pipelines; each new job's own `rules:` gate it to `main`-only + `*not_on_schedule` first
+-  (the documented trap: a scheduled pipeline satisfies the same branch check and would double-run
+-  the deploy otherwise). The two jobs' `rules:` are asserted IDENTICAL by test, because
+-  `deploy:nightly-image needs: [build:nightly-image]` and GitLab refuses to construct a
+-  pipeline where a `needs:` target is absent from it.
+-  what depends on `.gitlab-ci.yml`: `check_task_artifacts.py` (base resolution), every
+-  `test_governance_*` test that parses job `rules:` — both new jobs are covered by the existing
+-  generic pins (schedule guard, gcp-auth-declares-id_tokens) by construction, plus dedicated
+-  by-name pins for their own reachability and for `.data_paths_image`'s coverage.
+-  blast_radius: on a bad job, the FAILURE MODE is a red pipeline (safe, visible) — it cannot
+-  reach prod data on its own, since it only rebuilds a container image and repoints a Cloud Run
+-  job; the danger it FIXES is the current silent-revert. `resource_group` (shared by both jobs)
+-  prevents concurrent image builds/deploys.
+-  recurring cost (CPO-class, declared per the issue note's own checklist): one kaniko build per
+-  qualifying merge to `main` (no Cloud Build billing — kaniko runs on the CI runner itself, so
+-  this is runner time, not a separate GCP line item); today's `--source .` manual build measured
+-  ~7 min wall clock as a rough proxy, kaniko's own time not yet measured. ALSO ACCRUING
+-  (round-2 finding, cto-reviewer, still true under the redesign): every qualifying merge pushes
+-  a new image into `cloud-run-source-deploy` (Artifact Registry), not garbage-collected by this
+-  repo — storage cost compounds for as long as the job exists. The `run-sources-*` Cloud Build
+-  staging bucket cost from the original design does NOT apply anymore — kaniko never uses it,
+-  and the grant that would have made it accrue was revoked (see IAM below). No retention/cleanup
+-  policy is set for the Artifact Registry side; accepted without one, stated rather than left
+-  implicit (the project's own `active_work.md` already flags storage as never measured).
+-  new mechanism (CPO-class): a build+deploy step now lives in CI rather than being run by hand —
+-  authorised by the `protected_override` instruction above. Third-party component this
+-  introduces: kaniko (GoogleContainerTools/kaniko), Google's own daemonless-build tool, the
+-  standard choice for building container images in CI without privileged Docker — right for a
+-  self-hosted runner with no docker:dind. NOT independently verified here: kaniko's own upstream
+-  maintenance cadence (round-1 finding, cto-reviewer, explicitly flagged as unverified rather
+-  than asserted either way). Accepted without that check — this is boring, widely-adopted
+-  technology for exactly this use case, not a novel dependency risk on the scale of the IAM
+-  question above — but stated as a checked gap, not silently assumed fine.
+-  IAM (CPO-class, round-2 addition, REVISED round 3): `github-actions-dbt` (the WIF identity
+-  every MR pipeline can impersonate) had none of the roles the original `--source .` design
+-  needed; verified against the LIVE policy throughout, never asserted
+-  (`gcloud projects get-iam-policy football-data-pipeline-gcp`, `gsutil iam get`). Two grants
+-  from that design were made with CPO approval and then REVOKED the same session once round-3
+-  review found `roles/cloudbuild.builds.editor` opens a path to project Editor (Cloud Build's
+-  default execution identity holds it, verified live) reachable from ANY unmerged branch —
+-  `roles/cloudbuild.builds.editor` (project-level) and `roles/storage.objectAdmin` (the
+-  `run-sources-*` staging bucket), both no longer needed once the design builds in-job instead
+-  of via Cloud Build. FINAL footprint, all resource-scoped, none project-level beyond what
+-  already existed before this task: `roles/run.developer` on the `fdp-nightly` job resource
+-  only, `roles/iam.serviceAccountUser` on the `github-actions-dbt` service account resource
+-  itself (self-actAs), `roles/artifactregistry.writer` on the one `cloud-run-source-deploy` repo
+-  (europe-west1) the image is pushed to. Full command evidence for every grant AND every
+-  revocation: `.claude/task/escalations.log`, three entries under "GitLab #74" dated
+-  2026-08-17/18. This IAM state itself produces no git diff, which is exactly why it is
+-  recorded there rather than only claimed here.
 +  writers: none. downstream: this IS the continuity mechanism for the next session — its accuracy
 +  is the point. layer_rules: not applicable. blast_radius: one file authored (`active_work.md`);
 +  six more arrive unchanged via the `main` merge (see amendments).
  
+-decisions_taken: >
+-  Recurring cost and IAM: see `impact_map` above — both restated here per governance ritual,
+-  not duplicated in full.
+-  New mechanism: build+deploy steps added to `.gitlab-ci.yml`, redesigned mid-task from
+-  Cloud-Build-based (`--source .`) to in-job kaniko once the former was found to need an
+-  IAM grant with a project-Editor escalation path. Both the original mechanism and the redesign
+-  are authorised by the CPO instruction quoted in `protected_override`: the CPO chose the
+-  redesign directly, in-session, when presented with the finding and the alternative ("build
+-  directly in the job (docker/kaniko), skip Cloud Build entirely").
+-  Sentinel (`fdp-freshness`): currently pinned to a fixed digest and does NOT track
+-  `fdp-nightly`. This task does not repoint it — repointing it is a second, separate decision
+-  (the runbook's own sequence puts it as a later step, after the image rebuild is proven safe,
+-  to avoid the alert-storm-from-wrong-order trap the issue note names). Left pinned; recorded
+-  here so it isn't silently assumed fixed.
+-  `build:nightly-image` does NOT re-check-out `origin/main`'s live tip the way the original
+-  design's single job did (that used `git`, available in `google/cloud-sdk:slim`; kaniko's
+-  minimal debug image's git availability could not be verified with confidence, so nothing
+-  relies on it). It pushes ONLY `:$CI_COMMIT_SHA` — an earlier version also pushed `:latest` for
+-  no consumer, and the residual-risk description here named THAT tag; round-1 review of the
+-  kaniko redesign (cto-reviewer + platform-reviewer, opus) caught both the dead tag and the
+-  wrong description. THE ACTUAL RESIDUAL, corrected: `resource_group`'s default `unordered`
+-  process mode does not guarantee two `deploy:nightly-image` runs from near-simultaneous merges
+-  apply in commit order, so the OLDER commit's SHA-pinned image can be the one that lands LAST —
+-  not briefly current, but persisting until the NEXT qualifying merge (bounded by that, not
+-  self-correcting within the same event the way "briefly current" implied). Setting this
+-  resource group's process mode to `oldest_first` closes it; that is a GitLab project setting
+-  the group must exist to configure (first job run creates it) and cannot be expressed in this
+-  file — recorded as an owed follow-up in `active_work.md`, not silently assumed done.
+-  `needs:` on `build:nightly-image` gates only whether THIS pipeline's own trigger commit had a
+-  chance to validate before the build starts, not which commit's tree actually gets built (the
+-  runner's own checkout of the triggering commit is what gets built) — narrower than "gates
+-  what's deployed," and stated as such rather than implied. Round-2 finding, platform-reviewer:
+-  the list originally named only `validate:governance` + `test:python`, omitting
+-  `validate:secrets` (gitleaks) and `lint:python` — a job scheduled off `needs:` starts as soon
+-  as its own edges finish regardless of stage, so a push whose SECRETS SCAN failed could still
+-  have had its content built into the image and pushed before that failure was visible, the
+-  same failure class as the credential-leak defect this branch already found once. Widened to
+-  all four; all four are unconditional `when: on_success` after the schedule guard, so they are
+-  always present in a qualifying push-to-main pipeline.
+-
+-decisions_reserved:
+-  - none: the fix's shape, authority and cost are all settled by the CPO instruction, the issue
+-    note, and the CPO's own in-session choice of the redesign; nothing here is a product/naming/
+-    permanence question for this task.
+-
 -done_when:
--  - `escalations.log` carries both rulings, dated, with the CPO's words.
--  - GAP-31 is withdrawn in the register with the ruling as the reason, following the existing
--    GAP-04 withdrawal convention (strikethrough + status + reason), NOT deleted.
--  - GAP-27/28/30 confirmed still live, since the ruling does not touch them.
--  - `10_home.md` no longer presents "pooled across the leagues of one pool" as current.
+-  - `build:nightly-image` (kaniko) + `deploy:nightly-image` (gcloud repoint) exist in
+-    `.gitlab-ci.yml`, `main`-only, `*not_on_schedule` first, IDENTICAL `rules:` (asserted by
+-    test — `deploy:nightly-image` needs `build:nightly-image`), shared `resource_group`.
+-    `deploy:nightly-image` runs `gcloud run jobs update --image=...`, NOT `deploy --source .`
+-    — that shape was tried, found to need an IAM grant with a project-Editor escalation path,
+-    and replaced (see `impact_map`/`decisions_taken`).
+-  - Trigger paths enumerated from the Dockerfile's `COPY . .` and what `entrypoint.sh` actually
+-    invokes (ingestion, `dbt build` with no selector, the two check scripts) — not the narrower
+-    `.data_paths_prod` anchor, which deliberately excludes `ingestion/**`. `.gcloudignore` is
+-    DELIBERATELY ABSENT from this anchor (corrected round-1-of-the-kaniko-cycle, cto-reviewer +
+-    platform-reviewer: an earlier version claimed it gates the kaniko build context; it does
+-    not — kaniko reads `.dockerignore` only, `.gcloudignore` matters solely for the human
+-    `--source .` fallback, and listing it would trigger a real rebuild+redeploy for an edit
+-    that cannot change the image).
+-  - `deploy/nightly/README.md` and `Dockerfile`'s own header say CI now does the redeploy with
+-    kaniko (both job names, no stale `gcloud run jobs deploy --source .`/"Built remotely by
+-    Cloud Build" claims anywhere) — swept across every place that describes the redeploy
+-    mechanism, not just the three the previous round caught (round-1-of-the-kaniko-cycle
+-    finding, cto-reviewer: `.dockerignore`'s own header and `Dockerfile`'s own header were both
+-    still stale after that sweep — a correction applied once and left contradicting itself
+-    elsewhere is this repo's own logged recurring failure class, and it recurred within the fix
+-    for the same class).
+-  - `pytest tests/ -q` passes; the schedule-guard and gcp-auth-declares-id_tokens tests cover
+-    both new jobs explicitly by construction; dedicated by-name tests pin their own reachability
+-    (never mr/schedule/web, on_success on push_main), `resource_group`/`needs:` PRESENCE (round-1
+-    finding, platform-reviewer: the contract leaned on both without either being asserted), and
+-    `.data_paths_image`'s coverage (now also asserting `.gcloudignore` must NOT be in it).
+-  - `.claude/active_work.md` records the jobs shipped, the Cloud-Build-to-kaniko redesign and
+-    why, the owed `resource_group` `oldest_first` follow-up, and what still isn't covered (the
+-    sentinel is still unpinned, said plainly).
+-  - `.gcloudignore`'s own content restores rather than narrows what the manual `--source .`
+-    fallback already excluded (round-1-of-the-kaniko-cycle finding, platform-reviewer: the first
+-    version replaced gcloud's own documented `#!include:.gitignore` default with a short hand
+-    list and MISSED real secret/large-file patterns `.gitignore` already covered — `*.secrets.env`,
+-    `.envrc`, the repo-root `/*.pdf` working documents — narrowing coverage on the one path it
+-    exists to protect). Now `#!include:.gitignore` plus the credential files explicitly.
+-  - The CI-generated GCP credential files (`.gcp-oidc-token`, `.gcp-credentials.json`) cannot
+-    reach the built image — `.dockerignore` is the SOLE guard on the kaniko path and excludes
+-    them explicitly (round-2 finding, cto-reviewer + platform-reviewer independently: the
+-    original list caught neither, so the live bearer token would have been baked into the prod
+-    image; round-1-of-the-kaniko-cycle corrected the claim that `.gcloudignore` was a second
+-    layer here — it is not, see above).
+-  - IAM footprint for `github-actions-dbt` verified LIVE after every grant and every
+-    revocation, not asserted — final state confirmed via `gcloud`/`gsutil` read commands,
+-    recorded in escalations.log alongside the write commands.
+-
+-amendments:
+-  - 2026-08-17/18: + `.dockerignore`, + `.gcloudignore` — authority: round-2 review
+-    (cto-reviewer + platform-reviewer, opus) found the CI-generated GitLab OIDC token was not
+-    excluded from either the Docker build context or the Cloud Build source upload, so it would
+-    have been baked into the deployed prod image. Content: exclude `.gcp-oidc-token` and
+-    `.gcp-credentials.json` from both.
+-  - 2026-08-18: mechanism REDESIGNED, scope_paths unchanged (no new files) — authority: round-3
+-    review (cto-reviewer, opus) found `roles/cloudbuild.builds.editor`, required by the
+-    `--source .` design, gives its holder a path to project Editor via Cloud Build's default
+-    execution identity (verified live), reachable from `github-actions-dbt` on ANY unmerged
+-    branch. CPO chose, in-session, to rebuild the mechanism around kaniko instead of accepting
+-    the risk. Content: `deploy:nightly-image` split into `build:nightly-image` (kaniko,
+-    replaces `--source .`) + `deploy:nightly-image` (now `gcloud run jobs update --image=...`);
+-    two IAM grants from the old design revoked; `.data_paths_image` gained `.gcloudignore`.
+-  - 2026-08-18: + `Dockerfile` — authority: round-1 review of the kaniko redesign
+-    (cto-reviewer, opus) found `Dockerfile`'s own header comment still described the retired
+-    `--source .`/Cloud Build mechanism, one of several places the round-3 sweep missed. Content:
+-    the header now describes the kaniko build. Same round also REMOVED `.gcloudignore` from
+-    `.data_paths_image` (it was wrongly modeled as gating the kaniko build context — see
+-    `done_when`) and rewrote `.gcloudignore` itself from a narrow hand list to
+-    `#!include:.gitignore` + explicit entries, after platform-reviewer found the hand list had
+-    NARROWED what the manual `--source .` fallback excludes relative to gcloud's own default.
+-  - 2026-08-18: `build:nightly-image`'s `needs:` widened, scope_paths unchanged — authority:
+-    round-2 review of the kaniko cycle (platform-reviewer, opus) found it omitted
+-    `validate:secrets` (gitleaks) and `lint:python`, so a push whose secrets scan failed could
+-    still have that content built into the image and pushed before the failure was visible.
+-    Content: `needs:` now names all four validate/test-stage gates that run unconditionally on
+-    a push-to-main pipeline; `decisions_taken`'s claim about what `needs:` gates corrected to
+-    match.
+-  - 2026-08-18: + `acceptance_criteria` — authority: CPO, in-session, escalated blinded (§11)
+-    after scope-auditor FAILED an unauthorized first attempt (this field is CPO-locked per §2).
+-    Reason: merging `main` (needed to resolve the `.claude/task/*` conflict class, GitLab #77)
+-    brings in `site_v2/src/**` from #62 step 5 — already built, CPO-reviewed, merged on its own
+-    branch — which trips `_acceptance_gate` on path alone; the gate does not distinguish a merge
+-    from new authorship. CPO: "Go ahead, write the note and continue." Content: 8 criteria
+-    restated verbatim from #62's own already-demonstrated set, explicitly labeled as inherited,
+-    not authored by or re-verified under this task. Full account: `escalations.log`, 2026-08-18.
+-  - 2026-08-18: + second merge-inherited batch to `acceptance_criteria` — authority: same
+-    standing authority as the row above (merging `main` to keep this MR mergeable is operational
+-    branch hygiene, not a new §10 decision; the CPO's "merge conflict 70" instruction already
+-    covers resolving conflicts as main moves). `main` moved again with `feat/shared-competition-
+-    order` (!71) while this MR was open. Content: same treatment as the #62 batch — named the
+-    inherited files, stated none of it is #74 work, not re-verified here.
+-  - 2026-08-18: + third merge-inherited batch to `acceptance_criteria` — authority: same standing
+-    authority as the two rows above. `main` moved again with `chore/record-top-players-ruling`
+-    (merge commit ac4231f), a pure bookkeeping task per its own contract's objective — two CPO
+-    decisions written into `docs/wireframes/10_home.md` and `99_gaps_register.md`, no code/model/
+-    page. Content: same treatment — named the inherited files, stated none of it is #74 work.
+-  - 2026-08-18: + fourth merge-inherited batch to `acceptance_criteria` — authority: same standing
+-    authority as the three rows above. `main` moved again, same source branch
+-    (`chore/record-top-players-ruling`, follow-up merge commit fa8118e) — a documentation
+-    staleness sweep of `docs/wireframes/10_home.md` only, still no code/model/page. Content: same
+-    treatment — named the file, stated none of it is #74 work.
 +decisions_taken: none — recording, not deciding.
 +decisions_reserved: everything substantive; this is bookkeeping.
 +done_when: active_work.md reflects current state, under 16,000 characters, and is committed.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 01db113..c5dae5d 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -3428,6 +3428,128 @@ OF THE 29 DESTROYED EVENTS
-   it is the doc being overridden by a CPO design decision. Recorded here and noted in `layering.md`
-   itself rather than left as a silent contradiction for the next reader to trip over.
- 
-+2026-08-17 — GitLab #74 (`fix/74-nightly-image-tracks-main`): IAM GRANT, CPO-approved in-session
-+("Grant it now, scoped as described"), not a code change so it carries no diff — recorded here as
-+the durable evidence trail `contract.md`'s `protected_override` points to.
-+
-+WHY: round-1 review (cto-reviewer, opus) found `deploy:nightly-image` cannot authorize —
-+`github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` (the WIF identity every MR
-+pipeline can impersonate) had none of Cloud Run / Cloud Build / Artifact Registry deploy access.
-+Verified against the LIVE system, not the repo (`gcloud projects get-iam-policy
-+football-data-pipeline-gcp`), before claiming the gap or granting anything.
-+
-+GRANTED, resource-scoped wherever GCP allows it — narrower than a project-wide grant, same
-+principle already applied to `run.invoker` on this service account (#39 review round 1, "RESOURCE-
-+scoped, not project-scoped… would let it invoke every Cloud Run resource in the project"):
-+  - `roles/run.developer` on the `fdp-nightly` JOB resource only (europe-west1) —
-+    `gcloud run jobs add-iam-policy-binding fdp-nightly --region europe-west1`
-+  - `roles/iam.serviceAccountUser` on the `github-actions-dbt` SERVICE ACCOUNT resource itself
-+    (self-actAs, needed for `--service-account` to attach itself as the runtime identity) —
-+    `gcloud iam service-accounts add-iam-policy-binding github-actions-dbt@...`
-+  - `roles/artifactregistry.writer` on the `cloud-run-source-deploy` REPOSITORY only, europe-west1
-+    (a second copy of that repo exists in europe-west3 — NOT granted, this job never deploys there)
-+  - `roles/cloudbuild.builds.editor` — PROJECT-LEVEL; Cloud Build has no finer resource scope to
-+    bind a source-build submission to. The one grant in this set that is broader than "can only
-+    touch fdp-nightly" — stated plainly rather than left implicit.
-+Each command's `Updated IAM policy for ...` output was read before moving to the next; all four
-+succeeded. Blast radius given the resource scoping: the identity can now redeploy `fdp-nightly`
-+specifically and submit Cloud Build jobs project-wide, but cannot create/modify any OTHER Cloud
-+Run resource, and cannot push to the europe-west3 registry copy.
-+
-+2026-08-18 — GitLab #74, same branch: SECOND IAM grant, CPO-approved in-session ("Grant it,
-+scoped to that one bucket"). Round-2 review (platform-reviewer, opus) found the four grants above
-+still missed one thing: `gcloud run jobs deploy --source .` uploads a source tarball to a GCS
-+staging bucket BEFORE Cloud Build starts, and none of the four roles above confer GCS write.
-+Verified against the LIVE bucket policy (`gsutil iam get
-+gs://run-sources-football-data-pipeline-gcp-europe-west1`) before claiming the gap: only
-+`projectOwner`/`projectEditor`/`projectViewer` had any access; `github-actions-dbt` had none.
-+
-+GRANTED: `roles/storage.objectAdmin` on `gs://run-sources-football-data-pipeline-gcp-europe-west1`
-+ONLY — not project-wide storage access, not the sibling europe-west3 bucket this job never
-+targets — `gsutil iam ch serviceAccount:github-actions-dbt@...:roles/storage.objectAdmin
-+gs://run-sources-football-data-pipeline-gcp-europe-west1`. Output read and verified
-+(`gsutil iam get` on the bucket after) before recording this. Same resource-scoping principle as
-+the four grants above; brings the total set to five, four resource-scoped and one
-+(`cloudbuild.builds.editor`) project-level for the reason already stated.
-+
-+2026-08-18 — GitLab #74, same branch: BOTH GRANTS ABOVE REVOKED, and the mechanism redesigned.
-+Round-3 review (cto-reviewer, opus) required verifying what `roles/cloudbuild.builds.editor`
-+actually enables rather than trusting its scope description. Verified against the LIVE policy,
-+not assumed:
-+
-+  PN=$(gcloud projects describe football-data-pipeline-gcp --format='value(projectNumber)')
-+  gcloud projects get-iam-policy football-data-pipeline-gcp \
-+    --flatten="bindings[].members" \
-+    --filter="bindings.members:serviceAccount:${PN}-compute@developer.gserviceaccount.com" \
-+    --format="table(bindings.role)"
-+  -> roles/editor
-+
-+Cloud Build's default execution identity (`619396328486-compute@developer.gserviceaccount.com`)
-+holds project `roles/editor`. Granting `github-actions-dbt` `cloudbuild.builds.editor` (submit a
-+Cloud Build job) therefore gave it a path to execute arbitrary steps AS that Editor identity —
-+and `github-actions-dbt` is impersonable from every MR pipeline on an unmerged branch (the WIF
-+CI/CD variables are explicitly not Protected, `.gitlab-ci.yml:175-177`), so this was a real
-+project-Editor escalation path reachable from any branch, not just `main`. "Grant it now, scoped
-+as described" on 2026-08-17 was answered against a description of the role's NAME and its own
-+scope, not this consequence — the description was incomplete, not the approval wrong.
-+
-+REVOKED IMMEDIATELY on discovery, before asking anything, because revoking an over-broad grant is
-+the safe direction and does not need the same confirmation bar as granting one:
-+  `gcloud projects remove-iam-policy-binding football-data-pipeline-gcp
-+   --member serviceAccount:github-actions-dbt@... --role roles/cloudbuild.builds.editor`
-+Verified removed (re-read the policy; the binding is gone).
-+
-+Brought to the CPO as a choice, not decided alone: keep `--source .` and accept the risk, or
-+redesign to avoid needing Cloud Build at all. CPO: build directly in the job (kaniko), skip Cloud
-+Build entirely. That mechanism needs only `roles/artifactregistry.writer` (already held, scoped
-+to the one target repo) and `roles/run.developer` (already held, scoped to the one target job) —
-+`roles/storage.objectAdmin` on the `run-sources-*` staging bucket (2026-08-18 entry above) was
-+only needed by `--source .`'s Cloud Build upload, so it is no longer needed either:
-+  `gsutil iam ch -d serviceAccount:github-actions-dbt@...:roles/storage.objectAdmin
-+   gs://run-sources-football-data-pipeline-gcp-europe-west1`
-+Verified removed. Final IAM footprint for `github-actions-dbt`, confirmed live: `run.developer` +
-+`run.invoker` on the `fdp-nightly` job resource, `iam.serviceAccountUser` on the service account
-+resource itself, `artifactregistry.writer` on the `cloud-run-source-deploy` repo (europe-west1) —
-+four grants, ALL resource-scoped, zero project-level grants beyond what already existed before
-+this task (BigQuery roles, `firebasehosting.admin`). Narrower than the five-grant set this
-+replaces, not wider.
-+
-+2026-08-18 — GitLab #74, same branch: `acceptance_criteria:` ADDED to #74's contract, CPO-approved
-+in-session. WHY: merging `main` into this branch (required to resolve the `.claude/task/*`
-+conflict class, GitLab #77 — #74's MR sat open while `main` advanced with an unrelated #62 step 5)
-+brings `site_v2/src/**` files into the branch diff, since that is #62's own already-built,
-+CPO-reviewed page arriving as merge content, not new #74 authorship. `git_discipline.py`'s
-+`_acceptance_gate` triggers on the path alone and does not distinguish "new work this task
-+authored" from "already-approved work arriving via a merge" — the same class of gap already
-+logged for the scope/Stop gates under `active_work.md`'s OWED list.
-+
-+scope-auditor FAILED the first attempt at this fix TWICE. Round 1: `acceptance_criteria` is
-+CPO-locked per `docs/working_agreement.md` §2 — "the builder DRAFTS them, the CPO APPROVES them
-+BEFORE any code, and they are LOCKED after that" — and the contract carried no record of that
-+approval at all. Round 2: an escalation was written and a CPO answer recorded, but it presented
-+only ONE proposal for a yes/no, not the "at least two distinct, conflicting paths" §11 requires —
-+correctly caught by comparing it against this same branch's earlier, properly two-path IAM
-+escalations a few entries above.
-+
-+RE-ESCALATED, two real paths, both stated to the CPO honestly:
-+  A. Write the note now — restate #62's own already-approved 8 criteria in #74's contract,
-+     labeled explicitly as inherited merge content, not new #74 authorship, not re-verified here.
-+     Implication: unblocks this merge today, minutes of work. Cost: does not fix the underlying
-+     gate gap — the NEXT merge that drags in unrelated `site_v2/src/**` content trips the same
-+     check again, needing another one-off note each time.
-+  B. Fix `git_discipline.py`'s `_acceptance_gate` itself to recognize merge-inherited content
-+     (e.g. MERGE_HEAD-aware, or skip a path already carrying its own approved evidence file) and
-+     stop triggering on it at all. Implication: permanent fix, no more one-off notes on future
-+     merges. Cost: real design + implementation on a PROTECTED path (`git_discipline.py`), its
-+     own review round, hours not minutes — blocks TODAY's merge while it's built, and overlaps
-+     the already-logged, not-yet-scoped OWED item covering the same class of gap for the
-+     scope/Stop gates.
-+Recommendation given: A now, B logged as a follow-up (folds into the existing OWED item rather
-+than reinventing a second one). CPO: "do as recommended." That is the authority this amendment
-+rests on — a genuine choice between two stated paths, not a unilateral decision, and not
-+fabricated evidence: the criteria text is #62's own, already demonstrated in
-+`.claude/task/acceptance_evidence.md`, which arrives unchanged via the same merge.
-+
- 
- 2026-08-16 feat/69-5-62-3-country-fk-and-mart - the competitions-page ordering rule, sort_order
- obsolete (#54).
-diff --git a/.dockerignore b/.dockerignore
-index 6b9bdbb..eb156e5 100644
---- a/.dockerignore
-+++ b/.dockerignore
-@@ -17,6 +17,22 @@
- *-key.json
- *credentials*.json
- 
-+# GitLab #74: CI-generated GCP credentials, written by `.gitlab-ci.yml`'s `.gcp_auth` anchor to
-+# $CI_PROJECT_DIR at runtime — never committed, but `*credentials*.json` above only catches ONE
-+# of the two files it writes. `build:nightly-image` builds this image with kaniko from that same
-+# directory, so without this the live bearer token gets baked into the built image (readable by
-+# anyone who can pull it, and it survives rotation same as any other secret).
-+#
-+# THIS IS THE ONLY GUARD on the kaniko path, not one of two. Round-1 review of the kaniko
-+# redesign (cto-reviewer + platform-reviewer, opus) corrected an earlier version of this comment
-+# that credited `.gcloudignore` as a second layer here — kaniko reads `.dockerignore` for its
-+# build context and has no concept of `.gcloudignore` at all (that file matters only for the
-+# human-run `gcloud run jobs deploy --source .` fallback in deploy/nightly/README.md, a
-+# completely different upload path CI never uses). Do not "tidy away" either entry here as
-+# redundant with `.gcloudignore` — it would silently reopen this exact leak.
-+.gcp-oidc-token
-+.gcp-credentials.json
-+
- # The v2 site (1.4M + node_modules when present) and the frozen legacy site. Astro apps the
- # nightly never touches. `deploy:export` / `deploy:site-v2` are separate GitLab jobs and are
- # not part of this image.
-diff --git a/.gcloudignore b/.gcloudignore
-new file mode 100644
-index 0000000..90c6891
---- /dev/null
-+++ b/.gcloudignore
-@@ -0,0 +1,25 @@
-+# GitLab #74. Read ONLY by `gcloud run jobs deploy --source .` — the documented MANUAL FALLBACK
-+# in deploy/nightly/README.md, never by CI. `build:nightly-image` builds with kaniko and never
-+# invokes `gcloud` at all, so this file has ZERO effect on what CI ships; `.dockerignore` is the
-+# only guard on that path. An earlier version of this file's own comment claimed otherwise —
-+# round-1 review of the kaniko redesign (cto-reviewer + platform-reviewer, opus) caught the
-+# stale model. Read `.dockerignore`'s header before touching either file.
-+#
-+# `#!include:.gitignore` — round-1 finding, platform-reviewer: with NO `.gcloudignore` present,
-+# `gcloud`'s own documented default (`gcloud topic gcloudignore`) is to generate one from exactly
-+# this include, so `.gitignore`'s patterns (including `*.secrets.env`, `*.local.env`, `.envrc`,
-+# and the CPO's `/*.pdf` working documents) were ALREADY excluded from the upload before this
-+# file existed. The first version of this file replaced that default with a short hand list and
-+# NARROWED coverage on the one path it exists to protect — the opposite of the fix it was meant
-+# to be. Explicit entries below are additive, not a replacement for this line.
-+#!include:.gitignore
-+
-+# Governance/tooling directories .gitignore does not itself exclude (they're tracked).
-+.git
-+.claude
-+.cursor
-+
-+# The credential files this whole mechanism exists to protect, named explicitly as defense in
-+# depth even though .gitignore does not (and should not) list runtime-generated CI files.
-+.gcp-oidc-token
-+.gcp-credentials.json
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 20aa4b4..cbb8372 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -281,6 +281,52 @@ workflow:
-   - dbt_project/.sqlfluff
-   - docs/competition_registry.yml
- 
-+# The widest of the three data-path anchors, and deliberately its own list rather
-+# than "*data_paths_mr plus two more" — YAML has no splice operator for merging a
-+# sequence alias with extra literal items, and this repo's own precedent
-+# (*data_paths_mr vs *data_paths_prod, #33 item 2) is to keep drift-prone anchors
-+# separate and explicit rather than force one into a shape it does not fit.
-+#
-+# What the nightly image actually contains and runs (GitLab #74, note 3695790497):
-+# the Dockerfile does `COPY . .`, so `.dockerignore` decides what that really means
-+# (it is an image input in exactly the sense Dockerfile is, and is listed for that
-+# reason — its own header records that excluding `docs/` once would have broken
-+# every run at 04:00, not at build time). `entrypoint.sh` executes
-+# `ingestion.api_football.main`, an unselected `dbt build` (every model/seed/
-+# snapshot/test), and `check_layer_contract.py` + `check_registry_var_sync.py` —
-+# the second of which imports `scripts/sync_dbt_vars.py`, so that module is listed
-+# explicitly (`scripts/check_*.py` does not match its filename; platform-reviewer
-+# round 1 caught this). `*data_paths_mr` already covers ingestion/dbt/checks/
-+# requirements; this adds what changes the IMAGE ITSELF and is not a dbt/CI input:
-+# the root Dockerfile, `.dockerignore`, and the two files entrypoint.sh's shebang
-+# and `dbt` invocation actually depend on under deploy/nightly/ (the runbook is
-+# excluded on purpose — docs-only, never baked in).
-+#
-+# ⚠ `.gcloudignore` is DELIBERATELY NOT here. Round-1 review of the kaniko redesign
-+# (cto-reviewer + platform-reviewer, opus) corrected an earlier version of this
-+# comment that claimed it gates the kaniko build context — it does not. Kaniko
-+# reads `.dockerignore` only; `.gcloudignore` is a `gcloud` CLI construct, consulted
-+# solely by the human-run `--source .` fallback documented in
-+# deploy/nightly/README.md, which no CI job invokes. Listing it here would trigger
-+# a real image rebuild + prod redeploy for an edit that cannot change the image.
-+.data_paths_image: &data_paths_image
-+  - dbt_project/models/**/*
-+  - dbt_project/macros/**/*
-+  - dbt_project/seeds/**/*
-+  - dbt_project/snapshots/**/*
-+  - dbt_project/tests/**/*
-+  - dbt_project/*.yml
-+  - dbt_project/.sqlfluff
-+  - ingestion/**/*
-+  - docs/competition_registry.yml
-+  - scripts/check_*.py
-+  - scripts/sync_dbt_vars.py
-+  - requirements.txt
-+  - Dockerfile
-+  - .dockerignore
-+  - deploy/nightly/entrypoint.sh
-+  - deploy/nightly/profiles.yml
-+
- .ui_paths: &ui_paths
-   - site/**/*
-   - scripts/build_match_preview_site.sh
-@@ -814,3 +860,134 @@ deploy:site-v2:
-     - if: $CI_PIPELINE_SOURCE == "web"
-       when: on_success
-     - when: never
-+
-+# ---------------------------------------------------------------------------
-+# GitLab #74 (note 3695790497): `gcloud run jobs deploy fdp-nightly --source .`
-+# packages the WORKING TREE at deploy time, and nothing rebuilds the image when
-+# `main` moves — it silently reverted !43/!45, running 08-14 code for two days
-+# while prod reported success every night. Until this job existed the only fix
-+# was a human running the same command below by hand after every qualifying merge.
-+#
-+# Deliberately does NOT redeploy `fdp-freshness` (the sentinel). It shares the
-+# image but is pinned to a fixed digest today; repointing it is a separate
-+# decision (contract.md `decisions_taken`) — the runbook's own sequence rebuilds
-+# the sentinel only AFTER the nightly image is proven, to avoid the alert-storm
-+# ordering trap it documents.
-+# ---------------------------------------------------------------------------
-+# Redesigned after round-3 review (cto-reviewer, opus): `gcloud run jobs deploy --source .`
-+# needs Cloud Build, and Cloud Build's default execution identity
-+# (`<PROJECT_NUMBER>-compute@developer.gserviceaccount.com`) holds project `roles/editor`
-+# — VERIFIED against the live policy, not assumed. Granting `github-actions-dbt` permission to
-+# SUBMIT a Cloud Build job (`roles/cloudbuild.builds.editor`) would have given every unmerged
-+# branch's MR pipeline (that WIF identity is impersonable from any of them) a path to execute
-+# arbitrary build steps as project Editor. That grant was made, then REVOKED the same session
-+# once this was found — see escalations.log, GitLab #74, 2026-08-18.
-+#
-+# Building the image IN THE JOB with kaniko (daemonless, no privileged runner mode, no Cloud
-+# Build) removes the need for that grant entirely: only `roles/artifactregistry.writer` on the
-+# one target repo and `roles/run.developer` on the one target job — both already held,
-+# resource-scoped, and unrelated to this fix. `roles/storage.objectAdmin` on the `run-sources-*`
-+# staging bucket (needed only by `--source .`'s Cloud Build upload) is no longer needed either —
-+# see the same escalations.log entry for its revocation.
-+build:nightly-image:
-+  # kaniko's own image — NOT *python, NOT google/cloud-sdk. `entrypoint: [""]` overrides its
-+  # default ENTRYPOINT (the kaniko executor binary itself) so `script:` can run instead, the
-+  # same override `validate:secrets` already uses for the gitleaks image.
-+  image:
-+    name: gcr.io/kaniko-project/executor:debug
-+    entrypoint: [""]
-+  <<: *gcp_job
-+  stage: deploy
-+  # Round-2 finding, platform-reviewer: `needs:` originally omitted `validate:secrets` (gitleaks)
-+  # and `lint:python`. A job scheduled off `needs:` starts as soon as ITS OWN edges finish,
-+  # regardless of stage — `.python`'s own comment two hundred lines up states this mechanic as
-+  # the REASON `needs: []` exists elsewhere in this file. Omitting the secrets scan here meant a
-+  # push to `main` that gitleaks would flag could still have `COPY . .`-ed the flagged content
-+  # into the image and shipped it to Artifact Registry — the exact failure CLASS this branch
-+  # already found once (the OIDC token almost baked into this same image), just via a different
-+  # gap. Both jobs are unconditional `when: on_success` after the schedule guard, so they are
-+  # always present in a qualifying push-to-main pipeline — adding them cannot make the pipeline
-+  # unconstructible. See `deploy:nightly-image` below for what `needs:` does and does not
-+  # guarantee once main has moved since the trigger commit (narrower than "gates what's
-+  # deployed" even with the full set).
-+  needs: ["validate:governance", "test:python", "validate:secrets", "lint:python"]
-+  resource_group: deploy-nightly-image
-+  timeout: 20m
-+  script:
-+    - *gcp_auth
-+    # Kaniko resolves registry credentials the same way the Python google-auth library does —
-+    # from GOOGLE_APPLICATION_CREDENTIALS, external_account (WIF) included — so no separate
-+    # `gcloud auth`/docker-credential-helper step is needed here, unlike the gcloud-CLI job
-+    # below. Pushes ONLY `:$CI_COMMIT_SHA` — deploy:nightly-image reads that exact tag, and an
-+    # earlier version of this job ALSO pushed `:latest` for no consumer, which cost an extra
-+    # push per build and produced a residual-risk comment (below) that described the wrong tag.
-+    # Round-1 review of the kaniko redesign (cto-reviewer + platform-reviewer, opus) caught both.
-+    #
-+    # ⚠ NOT self-healing against a resource_group reordering race the way the old job's extra
-+    # `git fetch`/`checkout origin/main` was: kaniko's debug image is deliberately minimal and
-+    # its git availability was not something this fix could verify with confidence, so it is not
-+    # relied on. THE REAL RESIDUAL RISK, corrected from an earlier version of this comment that
-+    # named the wrong tag: `resource_group`'s default `unordered` process mode does not guarantee
-+    # two `deploy:nightly-image` runs from near-simultaneous merges complete in commit order, so
-+    # the OLDER commit's SHA-pinned image can be the one `gcloud run jobs update` applies LAST —
-+    # not "briefly current", but persisting until the NEXT qualifying merge, which is the #74
-+    # defect with a green pipeline. Setting this resource group's process mode to `oldest_first`
-+    # (GitLab project setting, not expressible in this file — Settings > CI/CD > General or the
-+    # `resource_groups` API) closes this; the group does not exist to configure until this job
-+    # runs once, so it is recorded as an owed follow-up in `active_work.md`, not silently assumed
-+    # done. Accepted without it for now: near-simultaneous qualifying merges are rare, and the
-+    # window this leaves open is bounded by the time to the next one, unlike #74 itself, which
-+    # never self-corrected without a human redeploying by hand.
-+    - >
-+      /kaniko/executor
-+      --context "$CI_PROJECT_DIR"
-+      --dockerfile "$CI_PROJECT_DIR/Dockerfile"
-+      --destination "europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-nightly:$CI_COMMIT_SHA"
-+  # Same guard shape as data:build:main (#33 item 2): *not_on_schedule FIRST, then
-+  # PUSH-to-main only. Without the explicit $CI_PIPELINE_SOURCE == "push" check a
-+  # web dispatch on main would ALSO match the branch clause (changes: evaluates
-+  # TRUE on any non-push/non-MR pipeline) and rebuild the image on every manual
-+  # run of anything else in this file.
-+  rules:
-+    - *not_on_schedule
-+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
-+      changes: *data_paths_image
-+
-+deploy:nightly-image:
-+  # `google/cloud-sdk:slim` — this job talks to the Cloud Run API via the gcloud CLI, not a
-+  # client library, same reasoning `build:nightly-image`'s sibling comment above gives.
-+  <<: *gcp_job
-+  image: google/cloud-sdk:slim
-+  stage: deploy
-+  # Waits for the image kaniko just pushed, not for validate:governance/test:python directly —
-+  # transitively covered, since `build:nightly-image` already needs both. `rules:` below MUST
-+  # match `build:nightly-image`'s exactly: GitLab refuses to create a pipeline where a `needs:`
-+  # target is absent from it, so if these two `changes:`/`rules:` blocks ever drift apart, the
-+  # pipeline stops being constructible rather than silently skipping one job.
-+  needs: ["build:nightly-image"]
-+  resource_group: deploy-nightly-image
-+  timeout: 5m
-+  script:
-+    - *gcp_auth
-+    # *gcp_auth only writes an external_account credentials file for CLIENT LIBRARIES
-+    # (google-auth's `google.auth.default()`, which dbt-bigquery and firebase-tools
-+    # use). The gcloud CLI does not read GOOGLE_APPLICATION_CREDENTIALS on its own —
-+    # it needs an explicit `gcloud auth login --cred-file=...` to activate the same
-+    # file for CLI calls, and an explicit project (a human operator's gcloud has both
-+    # already; CI's does not).
-+    - gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
-+    - gcloud config set project football-data-pipeline-gcp --quiet
-+    # `update`, not `deploy --source .` — this job does not build anything, it only repoints
-+    # the existing Cloud Run job at the image `build:nightly-image` just pushed. `update` only
-+    # changes what is specified, so the runtime service account, secret binding, CPU/memory,
-+    # task timeout and retry count (all set once via deploy/nightly/README.md's manual command)
-+    # are left exactly as they are — nothing here can silently reset them to a default the way
-+    # a bare `deploy` on an existing job could.
-+    - >
-+      gcloud run jobs update fdp-nightly
-+      --image="europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-nightly:$CI_COMMIT_SHA"
-+      --region europe-west1
-+  rules:
-+    - *not_on_schedule
-+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
-+      changes: *data_paths_image
-diff --git a/Dockerfile b/Dockerfile
-index e972cf7..39df1ad 100644
---- a/Dockerfile
-+++ b/Dockerfile
-@@ -1,6 +1,9 @@
- # The nightly pipeline image. GitLab #39 Stage 1.
- #
--# Built remotely by Cloud Build (`gcloud run jobs deploy --source .`) — no local Docker needed.
-+# Built by CI (`build:nightly-image` in .gitlab-ci.yml) with kaniko — no Cloud Build, no
-+# privileged Docker, no local Docker needed. GitLab #74: `gcloud run jobs deploy --source .`
-+# (which needs Cloud Build) is the documented manual fallback only — see
-+# deploy/nightly/README.md "Deploy the job".
- #
- # WHY AN IMAGE AT ALL, rather than pointing a scheduler at the repo: today the nightly
- # pip-installs at 04:00 and runs whatever `main` happens to be, so what executes in production
-diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
-index 6355a53..5183c1d 100644
---- a/deploy/nightly/README.md
-+++ b/deploy/nightly/README.md
-@@ -52,6 +52,15 @@ gcloud secrets add-iam-policy-binding api-football-key \
- 
- ### 2. Deploy the job
- 
-+**As of GitLab #74, `build:nightly-image` + `deploy:nightly-image` in `.gitlab-ci.yml` do this
-+automatically** on every push to `main` that touches a path the image actually contains
-+(`*data_paths_image`) — the "the image never tracked `main`" defect this fixed. CI builds the
-+image with kaniko (no Cloud Build — see the job's own comment for why) and pushes it to
-+Artifact Registry, then repoints `fdp-nightly` at the new image with `gcloud run jobs update
-+--image=...`. The command below is now the manual fallback (initial setup, or a rebuild the
-+path filter did not catch), not the normal path to prod — it still works unmodified, since it
-+uses your own `gcloud` session's permissions, not CI's scoped-down service account.
-+
- Built remotely by Cloud Build from the `Dockerfile` at the repo root — **no local Docker
- needed**. Run from the repo root:
- 
-@@ -158,11 +167,16 @@ only a 3h window, far inside the cap, and the staleness threshold itself is ours
- ### Deploy the sentinel job
- 
- ⚠ **ORDER MATTERS, and getting it wrong produces an alert storm.** The sentinel runs from the
--nightly's image, so that image must already contain `scripts/check_raw_freshness.py`. Until
--Stage 3 has CI rebuild the image on merge, the sequence is:
-+nightly's image, so that image must already contain `scripts/check_raw_freshness.py`. As of
-+GitLab #74, step 2 below happens automatically (`build:nightly-image` +
-+`deploy:nightly-image` in `.gitlab-ci.yml`) —
-+the sentinel itself still does NOT follow it; it stays pinned to a fixed digest until it is
-+repointed by hand (step 3), a deliberate separate decision (see `.claude/task/contract.md` on
-+that branch). The sequence:
- 
- 1. merge the branch that adds the script
--2. rebuild: `gcloud run jobs deploy fdp-nightly --source . --region europe-west1` (from `main`)
-+2. the image rebuilds automatically on merge (or by hand:
-+   `gcloud run jobs deploy fdp-nightly --source . --region europe-west1`, from `main`)
- 3. point the sentinel at the new image (below)
- 4. **only then** create the schedule and the two sentinel alert policies
- 
-@@ -366,9 +380,9 @@ gcloud scheduler jobs pause fdp-nightly --location europe-west1
- 
- ## After a code change
- 
--The image is **not** rebuilt automatically — Stage 3 wires that into CI on merge. Until then,
--re-run the `gcloud run jobs deploy` command above after merging anything that changes
--ingestion, the dbt project, or `requirements.txt`.
--
--This is a real gap, stated rather than hidden: between a merge and a redeploy, the nightly runs
--the previous image.
-+**As of GitLab #74, `build:nightly-image` + `deploy:nightly-image` in `.gitlab-ci.yml` rebuild
-+and redeploy the image automatically** on a push to `main` that touches a path the image
-+actually contains (`*data_paths_image`) — see "Deploy the job" above for what that covers and
-+what it does not (the sentinel is still pinned separately). The command above is the manual
-+fallback now, not
-+the normal path to prod.
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index c3279b4..2c61878 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -2221,7 +2221,20 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
- 
-     That shipped in an earlier revision of this branch and `platform-reviewer` caught
-     it. Manual-ness is not the gate; being unreachable except by deliberate dispatch
--    is. Nothing else in the suite checks job REACHABILITY by pipeline source."""
-+    is. Nothing else in the suite checks job REACHABILITY by pipeline source.
-+
-+    TWO jobs are excluded BY NAME: GitLab #74's `build:nightly-image` and
-+    `deploy:nightly-image` (kaniko build + gcloud repoint, split across two jobs
-+    because no single image carries both toolchains), which are deliberately the
-+    other shape — no button, an automatic rebuild+redeploy reachable on `push_main`
-+    and nothing else (pinned separately, right below). Round-1 review (cto-reviewer,
-+    opus) tried excluding by PROPERTY instead — "has no `when: manual` rule
-+    anywhere" — and that construction is self-disabling: a Firebase job rewritten
-+    with an unconditional `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and no
-+    `when:` at all (defaulting to `on_success`, strictly worse than the original
-+    play-button defect) would ALSO have no `when: manual` and silently escape this
-+    test. A name exclusion cannot be satisfied by accident; a new deploy job added
-+    later is checked by this test by default, not opted out of it by construction."""
-     import pathlib
- 
-     import yaml
-@@ -2232,10 +2245,16 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
-     # Contexts an ordinary contributor produces without intending to deploy.
-     everyday = ("mr", "push_main", "schedule")
- 
-+    # The deliberate exceptions, by name — see the docstring for why not by property.
-+    auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image"}
-+
-     deploy_jobs = [k for k, v in ci.items()
-                    if not k.startswith(".") and isinstance(v, dict)
--                   and v.get("stage") == "deploy"]
-+                   and v.get("stage") == "deploy" and k not in auto_deploy_jobs]
-     assert deploy_jobs, "no deploy-stage jobs found — this test has gone stale"
-+    assert auto_deploy_jobs <= ci.keys(), (
-+        f"{auto_deploy_jobs - ci.keys()} named as the deliberate exception no longer "
-+        f"exist — remove them from auto_deploy_jobs or this exclusion is dead code")
- 
-     for name in deploy_jobs:
-         rules = ci[name].get("rules") or []
-@@ -2248,6 +2267,134 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
-                 f"`when: never` fallback. rules={rules!r}")
- 
- 
-+def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
-+    """The mirror of the test above, for the TWO jobs meant to run automatically.
-+
-+    GitLab #74: `build:nightly-image` and `deploy:nightly-image` must NOT be reachable
-+    on an MR, a schedule, or a web dispatch (all three would either build/redeploy on a
-+    branch that never merged, run twice in one night, or offer a button next to the
-+    Firebase ones the test above specifically forbids) — and MUST run automatically,
-+    `on_success`, on an ordinary push to main, or the #74 defect (the image never
-+    tracking `main`) is back with a green pipeline hiding it. Pinned by NAME, the same
-+    reason the test above excludes these jobs by name rather than by a property a
-+    future job could satisfy by accident in either direction."""
-+    import pathlib
-+
-+    import yaml
-+
-+    root = pathlib.Path(__file__).resolve().parents[1]
-+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-+
-+    for name in ("build:nightly-image", "deploy:nightly-image"):
-+        assert name in ci, f"{name} is missing — GitLab #74's fix has been removed"
-+        job = ci[name]
-+
-+        for context in ("mr", "schedule", "web"):
-+            assert _when_in(job, context) == "never", (
-+                f"{name} is reachable on a {context!r} pipeline "
-+                f"(when={_when_in(job, context)!r}). It must only ever run "
-+                f"automatically on a push to main.")
-+        assert _when_in(job, "push_main") == "on_success", (
-+            f"{name} no longer runs automatically on a push to main "
-+            f"(when={_when_in(job, 'push_main')!r}) — the #74 defect (image never "
-+            f"tracks main) is back, just with a green pipeline instead of a red one.")
-+
-+    # The two jobs' rules must be IDENTICAL, not just each individually correct —
-+    # `deploy:nightly-image` `needs: ["build:nightly-image"]`, and GitLab refuses to
-+    # construct a pipeline where a `needs:` target's own `rules:` excluded it. Drift
-+    # between the two blocks is a pipeline-creation failure, not a silent gap, but a
-+    # failure at the worst possible time (04:00, on the one qualifying merge that
-+    # exposes it) is still worth catching here instead.
-+    assert ci["build:nightly-image"]["rules"] == ci["deploy:nightly-image"]["rules"], (
-+        "build:nightly-image and deploy:nightly-image have DIFFERENT rules: — "
-+        "deploy:nightly-image needs: [build:nightly-image], so if a pipeline ever "
-+        "creates one without the other, GitLab refuses to construct it at all.")
-+
-+    # Round-1 finding, platform-reviewer: the contract leans on `needs:` and a shared
-+    # `resource_group` for correct ordering, but nothing asserted either was actually
-+    # present — deleting one is silent. Without `needs: ["build:nightly-image"]`, the
-+    # two same-stage jobs could run concurrently and `deploy:nightly-image` could pin a
-+    # tag `build:nightly-image` has not pushed yet; without the shared group, two
-+    # concurrent builds race on the same Artifact Registry tag.
-+    assert ci["deploy:nightly-image"].get("needs") == ["build:nightly-image"], (
-+        "deploy:nightly-image must `needs: [\"build:nightly-image\"]` — without it, "
-+        f"the two jobs can run concurrently. needs={ci['deploy:nightly-image'].get('needs')!r}")
-+    build_rg = ci["build:nightly-image"].get("resource_group")
-+    deploy_rg = ci["deploy:nightly-image"].get("resource_group")
-+    assert build_rg and build_rg == deploy_rg, (
-+        "build:nightly-image and deploy:nightly-image must share ONE resource_group — "
-+        f"got build={build_rg!r}, deploy={deploy_rg!r}. Without it, concurrent pipelines "
-+        "can build/deploy this image at the same time.")
-+
-+    # Round-2 finding, platform-reviewer: a job scheduled off `needs:` starts as soon as its
-+    # OWN edges finish, regardless of stage — this file's own `.python` comment gives that
-+    # mechanic as the REASON `needs: []` exists elsewhere. An earlier version of
-+    # `build:nightly-image` needed only validate:governance + test:python, so a push whose
-+    # secrets scan (gitleaks) or lint FAILED could still have its content built into the image
-+    # and pushed to Artifact Registry before either job finished — the same failure CLASS as
-+    # the credential-leak defect this branch already found once, via a different gap.
-+    required_gates = {"validate:governance", "test:python", "validate:secrets", "lint:python"}
-+    build_needs = set(ci["build:nightly-image"].get("needs") or [])
-+    missing = required_gates - build_needs
-+    assert not missing, (
-+        f"build:nightly-image's needs: is missing {sorted(missing)} — a push to main that "
-+        f"fails one of these can still have its content built into the prod image and pushed "
-+        f"before the failure is visible. needs={ci['build:nightly-image'].get('needs')!r}")
-+
-+
-+def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
-+    """`.data_paths_image` is hand-derived from the Dockerfile and entrypoint.sh, and round-1
-+    review already proved a hand derivation misses things (`scripts/sync_dbt_vars.py`, imported
-+    by `check_registry_var_sync.py` but not matched by `scripts/check_*.py`). Round-2 finding,
-+    platform-reviewer: this is the one path anchor in the file with no test, and when it next
-+    misses an entry, the failure is silent — `deploy:nightly-image` just does not fire, and the
-+    #74 defect (image never tracks `main`) is back for that one path with a green pipeline.
-+
-+    Parses `entrypoint.sh` for every `python scripts/*.py` invocation — the actual, current set
-+    of check scripts the image runs — rather than trusting a hand-written list, the same
-+    "read the real tree, not the imagined one" principle `.data_paths_prod`'s own sibling test
-+    applies to dbt compile inputs."""
-+    import pathlib
-+    import re
-+    import fnmatch
-+
-+    import yaml
-+
-+    root = pathlib.Path(__file__).resolve().parents[1]
-+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-+    image_paths = ci.get(".data_paths_image")
-+    assert isinstance(image_paths, list) and image_paths, (
-+        ".data_paths_image is missing or not a list")
-+
-+    entrypoint = (root / "deploy" / "nightly" / "entrypoint.sh").read_text(encoding="utf-8")
-+    invoked_scripts = sorted(set(re.findall(r"python\s+(scripts/\S+\.py)", entrypoint)))
-+    assert invoked_scripts, (
-+        "no `python scripts/*.py` invocation found in entrypoint.sh — this test has probably "
-+        "stopped recognising them, which makes it pass vacuously")
-+
-+    for script in invoked_scripts:
-+        assert any(fnmatch.fnmatch(script, pat) for pat in image_paths), (
-+            f"entrypoint.sh runs {script!r}, but no pattern in .data_paths_image matches it — "
-+            f"a change there would not rebuild the image. patterns={image_paths!r}")
-+
-+    # Non-script inputs entrypoint.sh's own header and script body name explicitly: the image
-+    # build itself, and the two files under deploy/nightly/ the container actually needs at
-+    # runtime (the runbook is docs-only and deliberately excluded — see .data_paths_image's
-+    # own comment).
-+    # `.gcloudignore` deliberately NOT here — round-1 review of the kaniko redesign found
-+    # it has no effect on what kaniko builds (it's a `gcloud` CLI construct, consulted only
-+    # by the human-run `--source .` fallback, never by `build:nightly-image`).
-+    for fixed in ("Dockerfile", ".dockerignore",
-+                  "deploy/nightly/entrypoint.sh", "deploy/nightly/profiles.yml"):
-+        assert fixed in image_paths, (
-+            f"{fixed!r} is an image input (Dockerfile COPY / kaniko build-context / "
-+            f"entrypoint dependency) but is missing from .data_paths_image. "
-+            f"patterns={image_paths!r}")
-+    assert ".gcloudignore" not in image_paths, (
-+        ".gcloudignore has no effect on what kaniko builds and must not trigger a rebuild — "
-+        "see the anchor's own comment in .gitlab-ci.yml for why.")
-+
-+
- def test_every_job_using_gcp_auth_declares_id_tokens():
-     """`*gcp_auth` is useless without `id_tokens:` on the SAME job.
- 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -748,8 +315,8 @@ index c3279b4..2c61878 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          | 321 +++++++++++------------
-#    .claude/task/review.md          |  47 +---
-#    .claude/task/review_input.patch | 568 ++++++----------------------------------
-#    3 files changed, 242 insertions(+), 694 deletions(-)
+#   .claude/active_work.md          | 283 +++++++++----------
+#    .claude/task/review.md          | 130 +++------
+#    .claude/task/review_input.patch | 585 +++++-----------------------------------
+#    3 files changed, 249 insertions(+), 749 deletions(-)
 # ============================================================================

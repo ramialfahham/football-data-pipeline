@@ -1,6 +1,6 @@
 # Review — chore/handover-block-audit-method — 2026-08-18
 
-diff_sha256: b9711f9a92ee30e09ff9374af2df3553e5a65b4804f71919c8f3e0225198c854
+diff_sha256: 58d9aab14109b378e7379e6f9d15a33345d007ce52eed6a35dece6fe7bec2729
 
 rounds: 2
 
@@ -15,14 +15,18 @@ rounds: 2
 > re-authored or re-decided. Round 1's scope-auditor PASS (pre-merge, 2-file diff) is superseded by
 > round 2's below, which covers the same content plus the merge.
 >
-> ⚠ **This hash is base=`fa8118e` (merge-base of the OLD single-parent HEAD and `gitlab/main`),
-> not yet base=`gitlab/main`'s tip** — `git merge` does not update HEAD until commit, so
-> `_base_commit` cannot resolve the narrower post-merge base until after `git commit` lands. Per
-> this repo's own documented convention ("rebind `diff_sha256` AFTER the merge is committed"), a
-> follow-up commit will rebind the hash once it recomputes narrower (expected to drop back to just
-> this branch's own 4 files: `active_work.md`, `contract.md`, `review.md`, `review_input.patch`)
-> with NO further content change and NO further review needed — documented, not re-derived, same
-> as MR !70's own four rebind commits for the same repeated situation.
+> ⚠ **REBOUND, not re-derived.** The commit above landed as merge `969285f` (parents `95417b8` +
+> `254415b`). Before commit, `_base_commit` could only resolve `merge-base(95417b8, gitlab/main)` =
+> `fa8118e` (HEAD had not yet become the merge commit), so the hash first recorded here
+> (`b9711f9a…`) was measured against that wider, stale base — the situation the warning above this
+> paragraph described in advance. After the commit, `merge-base(969285f, gitlab/main)` resolves
+> directly to `gitlab/main`'s own tip (`254415b`), and `git diff 254415b...969285f` narrows to
+> **`.claude/task/contract.md` alone** — every one of the six merge-inherited files is now
+> byte-identical to that base (nothing to diff), and `active_work.md`/`review.md`/
+> `review_input.patch`/`escalations.log` are excluded from the patch/hash by
+> `review_routing.json`'s `hash_exclude_paths`. `contract.md`'s content is unchanged from what
+> scope-auditor already reviewed above. No content changed, no re-review performed — same pattern
+> as MR !70's own four rebind commits for the identical situation.
 
 rounds_cap_override: not needed — 2 rounds.
 
