@@ -4,7 +4,11 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compareCompetitions, groupAndOrderCompetitions } from "./competitionOrder.mjs";
+import {
+  compareCompetitions,
+  groupAndOrderCompetitions,
+  orderUpcomingGroups,
+} from "./competitionOrder.mjs";
 
 function row(overrides) {
   return {
@@ -90,4 +94,55 @@ test("groupAndOrderCompetitions sorts rows within each category too", () => {
   const categories = groupAndOrderCompetitions([later, earlier]);
   assert.equal(categories.length, 1);
   assert.deepEqual(categories[0].rows.map((r) => r.league_code), ["A", "B"]);
+});
+
+// --------------------------------------------------------------------------------------------
+// orderUpcomingGroups — the home page's "Next matches", ordered by the SAME key (CPO 2026-08-18).
+// The home page shipped before the 2026-08-16 ruling and ordered purely on which competition
+// kicked off soonest; these pin the two behaviours that changes.
+
+/** A landing group as `group_upcoming_fixtures` emits it. */
+function group(league_code, region_rank, ...kickoffs) {
+  return { league_code, region_rank, fixtures: kickoffs.map((k) => ({ kickoff: k })) };
+}
+
+test("home groups on the SAME day order by region_rank, not by clock time", () => {
+  // The exact noise the 2026-08-16 ruling names: the Eredivisie kicking off at 10:15 must not
+  // outrank the Premier League at 19:00 on the same day. Pure chronology — what the home page did
+  // before — returns ["ED", "PL"], so this fails against the old behaviour rather than either way.
+  const ed = group("ED", 1, "2026-08-20 10:15:00+00:00");
+  const pl = group("PL", 1, "2026-08-20 19:00:00+00:00");
+  const conmebol = group("BSA", 3, "2026-08-20 12:00:00+00:00");
+  const ordered = orderUpcomingGroups([ed, conmebol, pl]);
+  assert.deepEqual(
+    ordered.map((g) => g.league_code),
+    ["ED", "PL", "BSA"],
+    "same day: both UEFA groups (region 1) come before CONMEBOL (region 3); within UEFA the earlier kickoff wins",
+  );
+});
+
+test("a UEFA group does NOT jump a better-region-ranked group playing an earlier day", () => {
+  // Day precedes region in the key, which is why match selection stays chronological.
+  const ofcToday = group("OFC1", 7, "2026-08-20 09:00:00+00:00");
+  const uefaTomorrow = group("PL", 1, "2026-08-21 19:00:00+00:00");
+  assert.deepEqual(
+    orderUpcomingGroups([uefaTomorrow, ofcToday]).map((g) => g.league_code),
+    ["OFC1", "PL"],
+  );
+});
+
+test("a group's ordering time is its EARLIEST fixture, whatever order they arrive in", () => {
+  const late = group("A", 1, "2026-08-20 20:00:00+00:00", "2026-08-20 08:00:00+00:00");
+  const mid = group("B", 1, "2026-08-20 12:00:00+00:00");
+  assert.deepEqual(
+    orderUpcomingGroups([mid, late]).map((g) => g.league_code),
+    ["A", "B"],
+    "A's 08:00 fixture decides, even though its 20:00 one is listed first",
+  );
+});
+
+test("orderUpcomingGroups does not mutate the array it is given", () => {
+  const groups = [group("B", 3, "2026-08-20 19:00:00+00:00"), group("A", 1, "2026-08-20 19:00:00+00:00")];
+  orderUpcomingGroups(groups);
+  assert.deepEqual(groups.map((g) => g.league_code), ["B", "A"]);
 });

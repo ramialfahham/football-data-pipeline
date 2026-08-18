@@ -1,8 +1,10 @@
 ---
 // Landing module 1 — the fixtures hero (10_home.md §5(1)).
 //
-// The next 12 fixtures by kickoff, grouped by competition. The COUNT and the grouping are the
-// export's (GAP-02); this renders what it is given, in the order it is given, and sorts nothing.
+// THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date — grouped by
+// competition. The SELECTION and the grouping are the export's (GAP-02, superseded 2026-08-18:
+// the fixed count of 12 is retired). ⚠ This component DOES sort: the group order is applied here
+// with the site-wide ordering key, not served. See the frontmatter below.
 //
 // LAYOUT, per the CPO's reaction to the first rendered version: the two teams STACK, each with its
 // crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
@@ -23,6 +25,7 @@ import { formatShortDate, formatTime } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
+import { orderUpcomingGroups } from "../../lib/competitionOrder";
 import type { LandingUpcomingGroup } from "../../lib/types";
 
 interface Props {
@@ -30,14 +33,20 @@ interface Props {
   lang: Lang;
 }
 const { groups, lang } = Astro.props;
+
+// ⚠ ORDER IS APPLIED HERE, not served. The payload's group order is first-appearance (a
+// deterministic export diff); the display order is the site-wide key, shared with the competitions
+// page so the two cannot drift (CPO 2026-08-18). Day first, then region_rank — which is what stops
+// a 10:15 kickoff outranking a 19:00 one on the same day.
+const ordered = orderUpcomingGroups(groups);
 ---
 
 <section>
   <SectionHead label={t(lang, "homeNext")} />
 
-  {groups.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
+  {ordered.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
 
-  {groups.map((group) => (
+  {ordered.map((group) => (
     <div class="fxgroup">
       {/* Plain text, NOT a link: the competition hub (/{locale}/{slug}/) is step 2 of the build
           and does not exist yet, so linking it would emit a guaranteed 404 on every home page. */}

@@ -74,10 +74,16 @@ _GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
 # Only these types get a country hub (real nations); international comps live in groups only.
 _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
 
-# Landing page (10_home.md). A DISPLAY size — how much fits on the home page — which is the
-# consumption layer's business. What QUALIFIES for a block, and in what order, is decided in the
-# warehouse, never here.
-_HERO_FIXTURE_LIMIT = 12   # GAP-02: a fixed COUNT, not a calendar window (see 10_home.md §5)
+# ⚠ `_HERO_FIXTURE_LIMIT = 12` USED TO LIVE HERE and is GONE (CPO, 2026-08-18). It was reasoned —
+# 10_home.md measured that twelve filled the first screenful across two or three competitions on
+# every day sampled — but it does not SCALE: as competitions are onboarded, twelve slots hold fewer
+# and fewer of them, so the block narrows exactly as the site broadens. CPO: "we will show what we
+# have, more matches will come, because we ingest more competitions."
+#
+# The replacement is the natural unit, not another number: every match on the NEXT DAY THAT HAS
+# FOOTBALL (`group_upcoming_fixtures`). That does not reopen what GAP-02 settled — "today's
+# matches" was rejected for rendering one row on some days, and "the next day that HAS matches" is
+# never empty by construction.
 
 
 # --------------------------------------------------------------------------- #
@@ -1092,25 +1098,35 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
     return out
 
 
-def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict,
-                            limit: int = _HERO_FIXTURE_LIMIT) -> list[dict]:
-    """The landing hero: the next `limit` fixtures by kickoff, grouped by competition.
+def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> list[dict]:
+    """The landing hero: THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date —
+    grouped by competition.
 
-    GAP-02, resolved in 10_home.md section 5: a fixed COUNT, not a calendar window. Measured
-    2026-08-03 against core.fct_fixture, upcoming fixtures per day ran from 1 (day 7 ahead) to
-    57 (day 13), so a "today's matches" hero is nearly empty on some days and floods on others.
+    ⚠ THIS FUNCTION NO LONGER SELECTS ANYTHING. It groups every fixture it is handed and truncates
+    nothing — the retired `_HERO_FIXTURE_LIMIT = 12` slice is gone (CPO 2026-08-18), and the
+    matchday restriction is a WHERE clause in `fetch_landing_payload`'s query, beside the
+    upcoming-window filter that has always lived there. Keeping the day selection out of Python is
+    the same call #846 forced on `_featured_season_row`.
 
-    Selection and grouping only. `fixtures` arrives kickoff-ordered from the caller, so group
-    order is first-appearance order, which is each group's earliest kickoff.
+    GROUPING ONLY — no ordering business rule lives here either. `fixtures` arrives kickoff-ordered
+    from the caller, so the payload's group order is first-appearance order, which is a
+    deterministic export diff and NOT the display order: the PAGE applies the site-wide ordering
+    key (`site_v2/src/lib/competitionOrder.mjs`), per the CPO's 2026-08-16 Ruling 4 — "the mart
+    carries facts, the spec declares the ORDER BY".
     """
     groups: dict = {}
-    for f in fixtures[:limit]:
+    for f in fixtures:
         league_code = f.get("league_code")
         comp = meta.get(league_code) or {}
         group = groups.setdefault(league_code, {
             "league_code": league_code,
             "league_name": comp.get("name"),
             "competition_slug": comp.get("slug"),
+            # The page's ordering key needs this; it is SERVED, never derived here. It comes from
+            # mart_competition_index (which publishes it from the confederations seed) — mapping
+            # confederation -> rank in this file would be a taxonomy mapping, which the
+            # consumption-layer contract forbids outright.
+            "region_rank": comp.get("region_rank"),
             "season": f.get("season_api_year"),
             "fixtures": [],
         })
@@ -1173,27 +1189,52 @@ def shape_landing_payload(upcoming: list[dict], browse: dict) -> dict:
 def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     """Read the landing modules that exist today: upcoming fixtures, then browse.
 
-    TWO BigQuery reads remain, both for the hero: `core.fct_fixture` and `core.dim_team`. Browse is
-    registry-driven and reads nothing. Both the stats teasers (`mart_leaderboards` +
-    `mart_standings`) and trending (`mart_landing_trending`) were removed on 2026-08-08 (see
-    `shape_landing_payload`), and their queries went with them — which is why the marts dataset is
-    no longer referenced in this function at all. Per-query dry-run figures are in
+    THREE BigQuery reads: `core.fct_fixture` and `core.dim_team` for the hero, plus
+    `mart_competition_index` for `region_rank` (below). Browse is registry-driven and reads
+    nothing. Both the stats teasers (`mart_leaderboards` + `mart_standings`) and trending
+    (`mart_landing_trending`) were removed on 2026-08-08 (see `shape_landing_payload`), and their
+    queries went with them. Per-query dry-run figures are in
     `.claude/task/acceptance_evidence.md`.
     """
     meta = {
         c["league_code"]: {
-            "name": c.get("name"), "slug": c.get("slug"), "sort_order": c.get("sort_order"),
+            "name": c.get("name"), "slug": c.get("slug"),
         }
         for c in _registry_competitions(registry_path)
     }
 
+    # ⚠ region_rank comes from the MART, not from the registry YAML this dict is otherwise built
+    # from. The registry carries `confederation`; turning that into a rank is a taxonomy mapping,
+    # which the consumption-layer contract forbids here. mart_competition_index already publishes
+    # the rank (from the confederations seed) and is the same mart fetch_competition_index reads.
+    #
+    # ⚠ `sort_order` is deliberately NOT carried any more: the CPO retired it as an ordering basis
+    # on 2026-08-16 (Ruling 1) and nothing in this payload consumed it.
+    for row in _query(client, f"select league_code, region_rank "
+                              f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`"):
+        if row.get("league_code") in meta:
+            meta[row["league_code"]]["region_rank"] = row.get("region_rank")
+
     # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
     # match that has no page.
+    # THE MATCHDAY IS SELECTED HERE, IN THE QUERY — not in Python (analytics-engineer-reviewer,
+    # round 1). An earlier draft took `min(date)` over the fetched rows and filtered in a loop,
+    # which is the same shape as the season-picking this file already had to move OUT of Python
+    # under #846 (`_featured_season_row`: "picking here was window selection in the consumption
+    # layer"). The `fixture_date >= current_date()` window on the line below has always lived in
+    # this WHERE clause; restricting it to the first day with football belongs in exactly the same
+    # place, expressed declaratively, rather than as a second selection pass downstream.
     fixtures = _query(client, f"""
+        with upcoming as (
+            select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+                   fixture_date, home_team_sk, away_team_sk
+            from `{GCP_PROJECT}.core.fct_fixture`
+            where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+        )
         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
                home_team_sk, away_team_sk
-        from `{GCP_PROJECT}.core.fct_fixture`
-        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+        from upcoming
+        where fixture_date = (select min(fixture_date) from upcoming)
     """)
     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
 
