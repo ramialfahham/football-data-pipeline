@@ -63,10 +63,14 @@ stay general (no leaderboard-specific template, per THE METHOD above):
   `season_type` are ALREADY projected into the seed, only ONE authored pool field is left),
   **GAP-30** (`assists` has a column but no rank at all — the reduced set's second board has
   nothing to take a leader from).
-- **Top teams** — NOT BUILT, and NOTHING exists for it. No mart at all (**GAP-29**);
-  `mart_team_competition_benchmarks` ranks one team against its own league, the opposite shape.
-  Four boards: `goals_per_match → shots_on_goal_per_match → passes_per_match → duels_per_match`,
-  same "one per league" question as Top players — **not yet asked of the CPO for this block.**
+- **Top teams** — NOT BUILT, no mart at all (**GAP-29**, design approved, still not started).
+  **Pooling RULED 2026-08-18: ONE TEAM PER LEAGUE**, same as Top players (CPO: *"one team per
+  league, same as players"*) — when GAP-29's mart is built, partition per league like
+  `mart_team_competition_benchmarks` already does and the per-league rank is free. ⚠ Unlike
+  players, `top_teams_mock.html` does NOT already show this shape — 3 of 4 boards genuinely mix
+  teams from one league (checked by opening it). Needs redoing before it previews the real
+  design. Intro copy ("Ranked across pooled leagues") also confirmed wrong; replacement PROPOSED
+  in `10_home.md`, not yet CPO-approved.
 - **Browse** — LIVE but WRONG on two counts. (1) Still shows the "By country" grouping the CPO
   killed on 08-10 (#44) — never removed. (2) Reads `docs/competition_registry.yml` directly, ZERO
   database reads — the exact seed-as-source violation THE METHOD exists to catch, and **it has not
@@ -85,18 +89,6 @@ check before assuming a hash mismatch means something changed. ⭐ **This handov
 (`!75`) hit the real version of that same class**: main advanced a SECOND time, mid-session, with
 an actual conflicting merge (#74, MR !70) — not an empty-diff rebind. Resolution mechanics folded
 into OWED below.
-
-## ⭐ PRIOR SESSION — #62 (fully shipped, kept brief; detail is in git + `08_browse.md`)
-✅ Competitions index page (`/{locale}/competitions/`) merged via `!68`. Three decisions if you
-touch it again: 680px width (not the mock's 1080px, never ruled before); single-select filters
-(multi-select deferred); rows INERT until #47 ships (the "browse-chip 404" pattern).
-⚠ **`site_v2/src/pages/*/competitions/index.astro`, NOT `[lang]/...`, in scope_paths** — `[lang]`
-is a literal Astro dirname but fnmatch reads `[...]` as a character class.
-⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name · `display_group` for
-**#44**.
-⚠ **Global hook conflict, if a hash mismatch disagrees with `git_discipline.py --staged-hash`:**
-CHECK `~/.claude/settings.json` for a second review-gate plugin hook FIRST, don't re-derive — cost
-an hour on 08-18. ⚠ `acceptance_evidence.md` bullets **must be indented 2sp** or the gate reads 0.
 
 ## ⭐ ORIENTATION
 **Audits: GitLab #30, DO NOT run another** (rejected 08-16; a TARGETED blind assessment is different
@@ -161,8 +153,11 @@ control. Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,
 - **#904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. A test must be seen RED.
 
 ## NEXT
-1. **Continue the block audit**: Top teams next (same "one per league?" question, unasked), then
-   Browse (remove "By country", flatten, AND file the unregistered mart-sourcing violation first).
+1. **Block audit**: Top teams pooling RULED (⭐⭐ CURRENT above) — mock needs redoing, mart still
+   not started. **Browse next**: scope asked (narrow "kill By-country" vs full #44 flatten to one
+   row, which needs a display-name call too) — CPO hasn't answered, do not build either version
+   yet. GAP-33 (Browse reads the registry file directly, zero mart reads) not filed yet either;
+   bundle it into whichever Browse MR follows rather than its own MR.
 2. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests) — FALSE since the migration;
    pairs with **#21 Q2** (both are "the server should enforce it").
 3. **#47** (the competition hub) — makes the competitions page's rows real links (three decisions
