@@ -48,7 +48,7 @@ out of the index. Build the routes, let the links resolve, fill the pages in aft
 
 | | |
 |---|---|
-| **Next matches** | A fixed list of the next 12. Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
+| **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
 | **Browse** | Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.) |
 | ~~**Trending**~~ | ~~Teams AND players, both as STREAKS. The wording must relate to "streak".~~ **SUPERSEDED 2026-08-08**: the composition recorded below has no trending block, so the block was cut rather than reworked to this row. See the note under the composition. |
 | ~~**Team streaks**~~ | ~~THREE types: longest **winning** run · longest **unbeaten** run · longest **clean-sheet** run. Winless and losing are both dropped.~~ Superseded with the block. |
@@ -419,7 +419,18 @@ person reading them knows they describe 2026-06, not the page.
 ### (1) Fixtures hero — `upcoming[]`
 
 `upcoming[]` is a list of competition groups, each `{league_code, league_name, competition_slug,
-season, fixtures[]}`, ordered by the kickoff of the group's earliest fixture.
+region_rank, season, fixtures[]}`.
+
+⚠ **The payload's group order is NOT the display order.** It is first-appearance (a deterministic
+export diff); the page applies the site-wide ordering key at render time —
+`site_v2/src/lib/competitionOrder.mjs`, the same function the competitions index uses (CPO
+2026-08-18: one shared rule). The key: has-an-upcoming-fixture → **calendar day** → `region_rank`
+→ kickoff time → `league_code`. `region_rank` is served from `mart_competition_index`, never
+derived in the export or the frontend.
+
+Because **day precedes region**, a competition playing earlier always outranks one playing later;
+region only breaks same-day ties. That is what stops a 10:15 kickoff outranking a 19:00 one, which
+is the noise this block carried until 2026-08-18.
 
 | Element | JSON key | Format |
 |---|---|---|
@@ -429,7 +440,36 @@ season, fixtures[]}`, ordered by the kickoff of the group's earliest fixture.
 | Home / away name + crest | `…fixtures[].home.name` / `.crest`, `.away.name` / `.crest` | crest falls back to a monogram, as on 01 |
 | Link target | `…fixtures[].slug` | `/{locale}/{competition_slug}/matches/{slug}/` |
 
-**GAP-02 resolved here: the window is the next 12 fixtures by kickoff, not a calendar day.**
+**GAP-02 resolved here — SUPERSEDED 2026-08-18. The window is THE NEXT MATCHDAY: every fixture on
+the earliest upcoming kickoff date.** The original resolution was "the next 12 fixtures by kickoff,
+not a calendar day"; the count is retired.
+
+⚠ **Why the count went** (CPO 2026-08-18: *"we will show what we have, more matches will come,
+because we ingest more competitions"*). Twelve was reasoned — see the measurement below — but it
+does not SCALE. As competitions are onboarded, twelve slots hold fewer and fewer of them, so the
+block narrows exactly as the site broadens. It also bled across days: the sample committed before
+this change held 12 fixtures spanning **two** dates, which is not a matchday and reads as an
+arbitrary cut.
+
+⚠ **This does NOT reopen what the measurement settled.** "Today's matches" was rejected for
+rendering one row on some days. The rule is *the next day that HAS matches*, which is a different
+rule and is **never empty by construction**. The table below is retained because it is still the
+evidence for that distinction, and for the honest upper bound: the busiest day sampled carried 57
+fixtures. If a busy matchday reads too long, that is a CPO call on the block (**#908** parks a
+"more matches" control) — not a new number reintroduced here.
+
+⚠ **OPEN, BOTH DIRECTIONS — and the second one is easy to forget.** The rule makes the block's
+length follow the football calendar, so it is variable by design:
+
+- **Too LONG** on a busy day (57 fixtures measured worst case). Named above.
+- **Too SHORT on a quiet day**, which is the direction the first build actually hit: the sample
+  regenerated on 2026-08-18 held **4 fixtures across 2 competitions** — a thin front door, where the
+  retired count would have shown 12 by borrowing from the following day. That borrowing is exactly
+  what "we will show what we have" rejects, so this is the rule working, not failing. Whether a
+  4-match day is an acceptable home page is nonetheless a PRODUCT question and is **not decided**.
+
+Both belong to the same CPO call on the block; neither is a licence to reintroduce a count.
+
 Measured 2026-08-03 against `core.fct_fixture`, upcoming fixtures by days ahead:
 
 | days ahead | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 |
@@ -437,8 +477,14 @@ Measured 2026-08-03 against `core.fct_fixture`, upcoming fixtures by days ahead:
 | fixtures | 4 | 13 | 6 | 39 | 6 | 30 | 41 | 1 | 17 | 8 | 43 | 11 | 42 | 57 | 11 |
 
 A "today's matches" hero renders four rows today and one row on day 7, and a fixed 7-day window
-swings between 1 and 139. A fixed count is always populated and never floods the page. Twelve fills
-the first screenful across two or three competitions on every day measured.
+swings between 1 and 139. ~~A fixed count is always populated and never floods the page. Twelve
+fills the first screenful across two or three competitions on every day measured.~~
+
+⚠ That last sentence is the retired argument, struck rather than deleted so the reasoning stays
+auditable. What it got right — a *fixed calendar window* is unusable — the matchday rule keeps, by
+taking the earliest date PRESENT rather than today's. What it got wrong is that a count is the only
+alternative: it trades an empty block for a truncated one, and truncation gets worse with every
+competition onboarded.
 
 ### (2) Hybrid browse — `browse`
 
@@ -628,7 +674,9 @@ document: a deleted module leaves traces that do not carry its name.
 
 ## 10. Gaps
 
-- **GAP-02** — resolved in §5(1): next 12 fixtures by kickoff, with the per-day measurement behind
+- **GAP-02** — resolved in §5(1): ~~next 12 fixtures by kickoff~~ **the next matchday** (every match
+  on the earliest upcoming kickoff date; the count was retired by the CPO on 2026-08-18), with the
+  per-day measurement behind
   the choice.
 - **GAP-04** — **WITHDRAWN**, not resolved. It asked which `mart_team_profile` signals the
   trending/storylines feed should surface and how they rank. There is no such feed: the block is

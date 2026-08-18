@@ -45,6 +45,16 @@ acceptance_criteria: >
   - Nav's "Competitions" item is a real link (desktop + mobile); every other nav item stays inert.
   - `check_copy_gate.py`, `check-page-specs.mjs` and the site's `node --test` suite all pass.
   - Verified at desktop and mobile widths via the accessibility tree and console output.
+  SECOND merge-inherited batch (2026-08-18, same gap, same non-authorship): `main` moved again
+  while this MR sat open, this time with `feat/shared-competition-order` (!71, merge commit
+  de393e5) landing on top of the `fix/gaps-register-vs-reduced-home-design` merge (26caf53). That
+  brings in the shared competition-ordering rule (`competitionOrder.mjs` + its test), the
+  reduced-home-page fixtures work (`HeroFixtures.astro`, the four committed
+  `site_v2/src/data/fixtures/*.json` samples, `landing.json`), `export_site_data.py`'s matching
+  export logic, `types.ts`, the two wireframe docs, and `.gitignore`. All of it already built and
+  merged to `main` on its own branch before this merge; none of it is #74 work and none of it is
+  re-verified here. Listed so the gate has something to check against, same as the #62 batch
+  above.
 
 protected_override: >
   CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
@@ -234,3 +244,9 @@ amendments:
     from new authorship. CPO: "Go ahead, write the note and continue." Content: 8 criteria
     restated verbatim from #62's own already-demonstrated set, explicitly labeled as inherited,
     not authored by or re-verified under this task. Full account: `escalations.log`, 2026-08-18.
+  - 2026-08-18: + second merge-inherited batch to `acceptance_criteria` — authority: same
+    standing authority as the row above (merging `main` to keep this MR mergeable is operational
+    branch hygiene, not a new §10 decision; the CPO's "merge conflict 70" instruction already
+    covers resolving conflicts as main moves). `main` moved again with `feat/shared-competition-
+    order` (!71) while this MR was open. Content: same treatment as the #62 batch — named the
+    inherited files, stated none of it is #74 work, not re-verified here.

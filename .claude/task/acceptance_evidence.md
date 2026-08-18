@@ -1,59 +1,71 @@
-# Acceptance evidence — #62 step 5: the competitions index page
+# Acceptance evidence — one shared competition-ordering rule + the matchday selection
 
 criteria_demonstrated:
-  - **All three locales build and render with no console errors.** Ran `preview_start` (name `v2`,
-    Astro dev server), navigated to `http://localhost:4321/en/competitions/`,
-    `/de/competitions/`, `/fi/competitions/`. `read_console_messages` showed zero errors on all
-    three (only benign `[vite] connecting/connected` debug lines). Titles rendered correctly per
-    locale: "All football competitions" / "Alle Fußballwettbewerbe" / "Kaikki jalkapallokilpailut".
-  - **Every browsable competition (48/48) grouped under an always-shown category heading.**
-    `get_page_text` on the EN page listed all 8 categories (Domestic cups, Domestic leagues,
-    Continental club cups, Continental championships, Continental super cups, World Cup, National
-    team qualifiers, Club World Cup) with every one of the 48 committed rows present — cross-checked
-    against `site_v2/src/data/competition_index.json`'s row count. "Continental super cups" and
-    "World Cup" each have exactly one member and both still show their heading.
-  - **Category and row order follow the CPO-approved key, verified against real data, not just the
-    unit test.** Before touching the browser, I ran `groupAndOrderCompetitions` directly against
-    the committed `competition_index.json` from a scratch script and printed the full computed
-    order. The RENDERED page's category order and every row's order within each category matched
-    that computed output exactly, category-by-category, row-by-row (Domestic cups: CIT, DFBP, CDF,
-    FAC, CDR; Domestic leagues: PD, LP, APD, BSA, LMX, MLS, SPL, VL, EKS, TSL, BPL, L1, PL, J1, ED,
-    SA, KL1, BL2, BL1; Continental club cups: UCL, LIBER, UEL, UECL, CAFCL, AFCCL, CCCU; Continental
-    championships: UNL, ACN, AFCON, GCUP, CNL, COAM, EURO; National team qualifiers: WCQIP, WCQEU,
-    WCQCA, WCQAS, WCQAF, WCQSA, WCQOC — all confirmed by direct read of the rendered page text).
-  - **Rows are logo + name + region sub-line, NOT clickable.** `read_page` (accessibility tree, full
-    depth) on the EN page showed all 48 competition rows as `generic` elements — zero `link` roles
-    among them. The only real links on the whole page are the wordmark (header + footer), the
-    breadcrumb's "Home" segment, and the two (desktop + mobile) "Competitions" nav items. Region
-    sub-lines resolve correctly both ways: domestic rows show the plain country
-    (`region_label_en`, e.g. "Italy", "Germany" — no i18n lookup, since `region_label_i18n_key` is
-    null), international rows show the translated region (e.g. EN "Europe" / DE "Europa" / FI
-    "Eurooppa" for the same UEFA rows).
-  - **Two filter axes narrow visible rows; an empty category disappears entirely.** Clicked the
-    "Clubs" filter label (the `.seg-in` radio itself has `pointer-events: none` by design — the
-    associated `<label>` is the real click target). Result: "Continental championships", "World
-    Cup", and "National team qualifiers" (all-national categories) vanished completely, including
-    their headings; all-club categories kept every row. Then added the "Oceania" region filter on
-    top of "Clubs" (the combined case #54's own notes measure as "0/0"): every category and row
-    disappeared, confirmed via `get_page_text` showing only the page chrome and the filter controls
-    themselves. This proves the inline empty-category-collapse script correctly handles the
-    compound case pure CSS `:checked` sibling selectors couldn't express cleanly.
-  - **Nav "Competitions" is a real link; every other item stays inert.** `read_page` on both the
-    competitions page and a *different* page (home, `/en/`) confirmed
-    `link "Competitions" href="/en/competitions/"` in both the desktop `.mainnav` and the mobile
-    `.drawer` regions, on both pages (shared `SiteHeader.astro`). "Matches", "Teams", "Players",
-    "Standings", "Stats" all remained `generic` (span) in every check.
-  - **`python scripts/check_copy_gate.py` passes.** Final run (after all i18n additions, including
-    the filter-label keys added mid-build): `COPY GATE ok: 450 strings across 3 locales (396 chrome
-    + 54 metric labels), 390 corpus strings consulted`.
-  - **`node scripts/check-page-specs.mjs` and `node --test` both pass.** `check-page-specs`:
-    `4 page(s) validated against their specs. OK.` (up from 3 before this change — the new page +
-    spec pair validates). `node --test` (site_v2/, full suite): `tests 72 / pass 72 / fail 0`,
-    including the 7 new `competitionOrder.test.mjs` cases.
-  - **Visually verified at desktop and mobile widths.** `resize_window` to `desktop` (1280x720) and
-    `mobile` (375x812) presets; `get_page_text` confirmed full content renders correctly at both
-    (responsive `auto-fill, minmax(280px, 1fr)` grid, no layout-breaking text). Note: the Browser
-    pane's `screenshot` action is unavailable in this environment (documented limitation —
-    "the Browser pane is not displayed, so the page is not compositing frames"); verification used
-    the accessibility tree, `get_page_text`, and `read_console_messages` instead, which is
-    sufficient to confirm structure, content, and absence of errors at each width.
+  - **One comparator, two callers — verified by grep, not by claim.**
+    `grep -rn "compareCompetitions" site_v2/src` returns its single definition in
+    `lib/competitionOrder.mjs` plus its two internal callers (`groupAndOrderCompetitions` for the
+    competitions page, `orderUpcomingGroups` for the home page). No second implementation of the
+    key exists: the Python export contains no ordering logic (it only sorts fixtures by kickoff for
+    a deterministic payload diff, documented as NOT the display order), and no `.astro` file sorts
+    competitions itself. `compareCompetitions` was NOT edited — the competitions page's 7 existing
+    tests pass unchanged, pinning that its behaviour did not move.
+  - **Same-day competitions render in REGION order on the built page.** Built `dist/{de,en,fi}/index.html`
+    all render the group order `['UEFA Champions League', 'Copa Libertadores']` — UEFA
+    (`region_rank` 1) before CONMEBOL (`region_rank` 3), both on 2026-08-18. Read from built HTML by
+    regex over `<div class="gh">`, all three locales identical.
+    ⚠ HONEST LIMIT: today's live data does not by itself DISCRIMINATE the two rules — UCL also
+    kicks off earlier (19:00 vs 22:00), so pure chronology would produce the same order today. The
+    discriminating proof is the unit test below, which was seen RED.
+  - **The region rule was seen RED against the old behaviour.** Temporarily reverted
+    `orderUpcomingGroups` to pure chronology (sort on `next_kickoff_datetime` only) and re-ran
+    `node --test`: `tests 76 / pass 75 / fail 1`, the failure being
+    "home groups on the SAME day order by region_rank, not by clock time". Reverted; 76/76 green.
+    That test uses a 10:15 Eredivisie vs a 19:00 Premier League — the exact example the 2026-08-16
+    ruling names as noise — so it can only pass if region breaks the same-day tie.
+  - **Day still beats region — selection stays chronological.** `a UEFA group does NOT jump a
+    better-region-ranked group playing an earlier day` asserts an OFC group (rank 7) kicking off
+    2026-08-20 outranks a Premier League group (rank 1) on 2026-08-21. Green. This is why the CPO's
+    sub-question about selection vs ordering resolved itself: the key answers it.
+  - **`region_rank` is served, never derived.** Every group in the regenerated
+    `site_v2/src/data/landing.json` carries it (`groups missing region_rank: none`, checked over the
+    real export output). Its source is `mart_competition_index` — a `select league_code, region_rank`
+    added to `fetch_landing_payload`, priced first at **644 bytes** (`bq query --dry_run`). The
+    registry YAML's `confederation` is NOT mapped to a rank in Python; that would be a taxonomy
+    mapping the consumption-layer contract forbids.
+  - **The block is a matchday, with no fixed count anywhere.**
+    `grep -rn "_HERO_FIXTURE_LIMIT" scripts/ tests/ site_v2/src` returns exactly ONE hit —
+    `export_site_data.py:77`, the comment recording that the constant was removed and why. No
+    definition, no reference, no default argument: the constant is gone as CODE and survives only as
+    the explanation. (Stated precisely because "zero hits" would have been false.) The regenerated
+    payload holds
+    `distinct kickoff dates in payload: ['2026-08-18']` — one date, 2 groups, 4 fixtures. The
+    previously committed sample held 12 fixtures spanning **two** dates (2026-08-03 and 2026-08-04),
+    which is what the cap produced and is not a matchday.
+  - **The matchday test was seen RED against the retired cap.** Temporarily restored
+    `for f in fixtures[:12]` and re-ran: `FAILED test_hero_takes_the_whole_first_matchday_and_nothing_from_the_next_day`
+    with `assert 12 == 13`. The fixture set deliberately puts THIRTEEN matches on day one — one more
+    than the old cap — so the test cannot pass against the previous behaviour. Reverted; 46/46 pass.
+  - **Gates green.** `python -m pytest tests/test_export_site_data.py` -> 46 passed.
+    `node --test` (site_v2) -> 76 passed. `python scripts/check_copy_gate.py` ->
+    "COPY GATE ok: 450 strings across 3 locales". `node scripts/check-page-specs.mjs` ->
+    "4 page(s) validated against their specs. OK." `npm run build` ->
+    "audit-seo: 61 built page(s) checked. OK.", 60 pages.
+    `python -m ruff check --config .ruff-ci.toml` (the CI config) -> "All checks passed!".
+  - **Rendered size MEASURED, not predicted.** Live at 440px viewport: 4 matches, 2 groups,
+    `scrollHeight` 3301px, `horizontalOverflow: false`. ⚠ Today is a QUIET day — the honest range is
+    wider: `10_home.md`'s measurement recorded a busiest day of 57 fixtures. The block will be
+    materially longer then. Per the contract's decisions_reserved that is a CPO call on the block
+    (#908 parks a "more matches" control), NOT a number to reintroduce here — reported, not acted on.
+    ⚠ The SHORT direction is the one this build actually hit (4 matches, where the retired count
+    showed 12 by borrowing the next day) and it was initially registered nowhere; now written into
+    `10_home.md` §5(1) as an open product question alongside the long direction.
+  - **The matchday decision lives in SQL, not Python (round-1 FAIL fix).** The first implementation
+    took `min()` over the fetched rows and filtered in a Python loop; analytics-engineer-reviewer
+    ruled that window selection in the consumption layer, citing this same file's `_featured_season_row`
+    (#846), where an identical "pick from a set" was moved out of Python. Now a
+    `where fixture_date = (select min(fixture_date) from upcoming)` clause beside the
+    upcoming-window filter that always lived there. Verified two ways: the re-exported payload is
+    **byte-identical** to the Python-filtered one (`a == b` -> True), so no semantic drift between
+    `fixture_date` and the UTC kickoff date; and `bq query --dry_run` prices both forms at exactly
+    **4,862,919 bytes** — the subquery costs nothing. `test_hero_matchday_selection_lives_in_the_query_not_in_python`
+    pins the placement so it cannot drift back.

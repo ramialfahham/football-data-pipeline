@@ -267,6 +267,13 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1607167.json
 !site_v2/src/data/fixtures/1607168.json
 !site_v2/src/data/fixtures/1607573.json
+# The 2026-08-18 matchday, added with the landing refresh (CPO 2026-08-18: the hero is now the next
+# matchday, not a fixed 12). These four are what landing.json links to; the rows above are the
+# 2026-08-03 set the previous sample was built from. Refresh as a SET — see src/data/README.md.
+!site_v2/src/data/fixtures/1547770.json
+!site_v2/src/data/fixtures/1622620.json
+!site_v2/src/data/fixtures/1622621.json
+!site_v2/src/data/fixtures/1622622.json
 
 # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
 # Not project source, so not committed -- and not deleted either: the contract and stop gates flag

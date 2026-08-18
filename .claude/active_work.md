@@ -19,32 +19,22 @@ implementation detail, kept for now since #47 depends on it.
 ⛔ **Over the cap? DELETE ONE STALE SECTION** — do not shave clauses.
 ⛔ **NEXT**: #47 (the competition hub) is what makes this page's rows real links — see CURRENT's
 gaps list before starting it.
-⚠ **A hash mismatch that disagrees with `git_discipline.py --staged-hash`**: check for a second
-GLOBAL plugin hook duplicating this repo's review-gate with a different formula FIRST, don't
-re-derive (bit !68, resolved, detail in that MR). `acceptance_evidence.md`'s
-`criteria_demonstrated:` bullets **must be indented** 2sp — `_block()` stops at column 0.
+⚠ **Hash mismatch that disagrees with `git_discipline.py --staged-hash`? CHECK FOR A SECOND GLOBAL
+HOOK FIRST** (`~/.claude/settings.json` — a plugin's `commit_review_gate.py` hashes differently: no
+base commit, no `--raw`, no `hash_exclude_paths`). Cost an hour on 08-18. ⚠ `acceptance_evidence.md`
+bullets **must be indented 2sp** — `_block()` stops at column 0, so flush bullets = 0 evidence.
 
 ## ⭐ CURRENT — #62 STEP 5, MERGED VIA !68 (2026-08-18)
 
-✅ **The competitions index page — branch `feat/62-5-competitions-index-page`.** New page
-(`pages/[lang]/competitions/index.astro`), component (`components/competitions/
-CompetitionIndexGrid.astro`), ordering module (`lib/competitionOrder.mjs` + 7 unit tests), page-spec
-(`specs/competitions/index.spec.json`, new `entity: "competitionIndex"` enum value), 15 category/
-region i18n keys + 5 filter-label keys × 3 real locales (not copies — copy gate passes), nav anchor
-swap (`SiteHeader.astro`: Competitions is now a real link, desktop nav + mobile drawer both).
-⛔ **THREE DECISIONS MADE THIS SESSION, #54 left them open — read before touching this page again:**
-1. **Width: 680px, not the mock's 1080px.** #54 flagged the override as "a system-level decision,
-   not a page one... flagged for a ruling," never actually ruled on. Shipped at the standard width.
-2. **Filters: single-select now.** #54's stated end state is client-side multi-select; deferred —
-   real added JS scope, not in this MR.
-3. **Rows are INERT, not links.** #47 (the competition hub each row would link to) is confirmed
-   `state: opened`, NOT built — only the fixture page exists under `[competition]/`. Linking today
-   would be the "browse-chip 404" #47's own issue text names as a failure mode — same reason
-   `BrowseGrid.astro`'s home-page chips are inert. Rows become real links (with hover-lift +
-   chevron) **in the MR that ships #47**, not before.
-⚠ **NOT wired into CI's `--entities` list** (`.gitlab-ci.yml:767`/`deploy-site-v2.yml:65` still say
-`teams,fixtures` only) — deliberate, same reasoning as step 4: nothing depends on a refreshed
-sample yet.
+✅ **The competitions index page is MERGED** (`/{locale}/competitions/`, page + component +
+page-spec + 20 i18n keys × 3 locales + the nav anchor). Build detail is in git and `08_browse.md`.
+⛔ **THREE DECISIONS, #54 left them open — read before touching that page again:** (1) **width
+680px**, not the mock's 1080px — #54 flagged the override "for a ruling" and it never got one;
+(2) **filters single-select**, multi-select deferred; (3) **rows are INERT** — #47 isn't built, so
+linking is the "browse-chip 404" its own issue names. Rows become links **in the MR that ships
+#47**, with hover-lift + chevron.
+⚠ **NOT wired into CI's `--entities` list** (`.gitlab-ci.yml:767`/`deploy-site-v2.yml:65` say
+`teams,fixtures` only) — deliberate: nothing depends on a refreshed sample yet.
 ⚠ **`site_v2/src/pages/*/competitions/index.astro`, NOT `[lang]/...`, in any future contract's
 `scope_paths`** — `[lang]` is a literal Astro directory name but the contract gate's fnmatch reads
 `[...]` as a character class (matches one of l/a/n/g), so the literal path silently fails to match.
@@ -56,6 +46,19 @@ window, every test green) · `display_group` for **#44**.
 ⛔ **HOME PAGE: authority is #40 + #41, NOT `10_home.md` §0** (truth is FOUR boards of ONE metric,
 top 7). #367 shipped next matches → browse; Top players/teams designed NOT built, slot BETWEEN.
 Follow-ups **#36** (blocks #377) · **#38** · **#42**–**#45**.
+⭐ **ONE SHARED ORDERING RULE, ruled + built 2026-08-18 (`feat/shared-competition-order`).** The
+08-16 key (day → `region_rank` → kickoff → `league_code`) is now the SINGLE site-wide rule for
+ranking competitions against each other, implemented once in `lib/competitionOrder.mjs` and called
+by BOTH the home hero and the competitions page. Home previously used raw chronology — it predated
+the ruling. ⛔ **Also ruled: the hardcoded `_HERO_FIXTURE_LIMIT = 12` is RETIRED** — the hero now
+shows THE NEXT MATCHDAY (every match on the earliest upcoming date). CPO: *"we will show what we
+have, more matches will come, because we ingest more competitions."* Both in `escalations.log`.
+⚠ **A busy matchday can carry ~57 fixtures** (`10_home.md` measurement). If that reads too long the
+answer is **#908**'s "more matches" control — **NOT** a new cap. Reserved to the CPO, do not decide.
+⚠ **REFRESH THE DATA SAMPLE AS A SET.** Regenerating `landing.json` changed which fixtures home
+links to and broke the build (8 dead links) because `src/data/fixtures/` was still the 08-03 set.
+`src/data/README.md` documents it; `audit-seo` is the ONLY thing that catches it. Update the
+`.gitignore` allowlist in the same commit.
 ⚠ **The GAPS REGISTER was STALE for 8 days and is now CORRECTED (2026-08-18).** GAP-24/25/26 were
 written against the NINE-board design the CPO reduced to FOUR on 08-10; all three are now **VOID**
 (every metric they asked for was cut). ⛔ **GAP-26 in particular claimed to be "the highest-risk of
@@ -117,24 +120,6 @@ guard; `require_partition_filter` + `maximum_bytes_billed` are **NEITHER set**.
 - **⚠ STORAGE NEVER MEASURED** (**0×** in #3); every figure is bytes SCANNED. `bq show` is free.
 - **⚠ Spend UNKNOWN.** Last measure 08-03 ($2.73/day) PREDATES #33 items 9/15.
 - **⚠ Do NOT claim the API quota "breaks first"** — claimed once without evidence, withdrawn.
-
-## ⭐ REVIEW MECHANICS — traps only; rules are `docs/working_agreement.md` §2 (#878)
-- **Build the patch with the hook, never by hand:** `git_discipline.py --review-patch >
-  .claude/task/review_input.patch`. ⚠ It is `git diff --staged <base>`, so **`git add` FIRST or it
-  comes out EMPTY** (`review.md` too). `contract.md` + `escalations.log` ARE delivered; task notes
-  are not, and a trailer names any excluded file that IS edited (#25).
-- **Run `check_task_artifacts.py` BARE** (#24) — `--base origin/main` resolves the DORMANT GitHub
-  remote and returns a fictitious hash. ⚠ **On a MERGE commit, rebind `diff_sha256` AFTER the merge
-  is committed**: the merge moves its own base. **`--staged-hash` matches CI on ordinary commits.**
-- **A PASS may find nothing.** One `risks_checked:` entry is enough; never invent one. Cap 3 rounds
-  then STOP. ⚠ `rounds: 0` is REFUSED.
-- **`.claude/task/**` is scope-exempt; `active_work.md` is NOT** — it must be in `scope_paths`; a
-  commit touching `contract.md` is **never** artifact-exempt. ⚠ **The contract needs a CLEAN tree**,
-  so a write mid-task = stash with EXPLICIT PATHS (`-u` if untracked), write, pop, check
-  `git stash list`.
-- **⭐ A correction REPLACES, never accumulates, and must replace EVERYWHERE.** ⚠ 08-14: four
-  occurrences cost five rounds. **Sweep the CLASS repo-wide BEFORE review**, not the reviewer's
-  list of examples.
 
 ## Player page — HELD on #845
 **#846 + #886 merged:** the season a page opens on is a warehouse fact (`is_featured_season`, DQ
