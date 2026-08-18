@@ -17,6 +17,7 @@ from scripts.export_site_data import (
     build_nav,
     fetch_glossary,
     fixture_slug,
+    shape_competition_index,
     shape_competition_payload,
     shape_fixture_payload,
     shape_leaderboards,
@@ -743,6 +744,50 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
     # known active leagues resolve (registry-backed)
     assert idx["PL"]["slug"] == "premier-league"
     assert idx["BL1"]["slug"]
+
+
+def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
+    # mart_competition_index already resolves the category label, the region label and the
+    # ordering facts (#62 step 4) — this function only projects to the columns the page renders,
+    # it must not rank, sort, filter or derive anything.
+    #
+    # WC is listed FIRST here despite league_code "WC" > "PL" (alphabetical) and region_rank
+    # 2 > 1 (ascending): both are the plausible accidental sorts this test needs to catch, and
+    # both would put PL first. Only "preserve input order" produces WC, PL — deliberately, so
+    # the order assertion below can't pass by coincidence the way an [PL, WC] fixture would.
+    rows = [
+        {
+            "league_code": "WC", "competition_type": "world_championship", "entity_type": "national",
+            "slug": "fifa-world-cup", "category_label_en": "World Cup",
+            "category_label_i18n_key": "compTypeWorldChampionship", "confederation": "FIFA",
+            "region_rank": 2, "competition_name": "FIFA World Cup 2026", "logo_url": None,
+            "next_kickoff_datetime": None, "last_kickoff_datetime": "2026-06-14T18:00:00+00:00",
+            "region_label_en": "World", "region_label_i18n_key": "confedFifa",
+        },
+        {
+            "league_code": "PL", "competition_type": "domestic_league", "entity_type": "club",
+            "slug": "premier-league", "category_label_en": "Domestic leagues",
+            "category_label_i18n_key": "compTypeDomesticLeague", "confederation": "UEFA",
+            "region_rank": 1, "competition_name": "Premier League",
+            "logo_url": "https://example.test/pl.png",
+            "next_kickoff_datetime": "2026-08-22T19:00:00+00:00", "last_kickoff_datetime": None,
+            "region_label_en": "England", "region_label_i18n_key": None,
+            "some_column_the_page_does_not_render": "must be dropped",
+        },
+    ]
+    shaped = shape_competition_index(rows)
+    assert [c["league_code"] for c in shaped] == ["WC", "PL"]   # input order, not alphabetical
+                                                                 # or region_rank order
+
+    wc = shaped[0]
+    assert wc["region_label_en"] == "World"             # the confederation-region case
+    assert wc["region_label_i18n_key"] == "confedFifa"
+    assert wc["logo_url"] is None                       # nulls preserved, never coerced
+
+    pl = shaped[1]
+    assert "some_column_the_page_does_not_render" not in pl   # projected, not passed through raw
+    assert pl["region_label_en"] == "England"          # the domestic-country case
+    assert pl["region_label_i18n_key"] is None          # a country name is not chrome
 
 
 def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():

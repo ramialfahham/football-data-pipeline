@@ -504,4 +504,65 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
 .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
 
+/* Competitions index (#62 step 5, GitLab #54). Two independent single-select filter axes reuse
+   the shared .seg-in/.seg-btn radio pattern; each hides ROWS that don't match the active value
+   via a plain sibling selector. The "all" state of each group has no rule (nothing hides), so
+   the two axes combine for free — no compound selector needed at the row level. Category-level
+   empty-state collapse (a category left with zero rows after BOTH axes apply) needs the two
+   states combined and is handled in the component's small inline script instead; see its comment. */
+/* .seg is shared with the fixture page's W1/W2 toggle (2 short, equal-width labels, never wraps).
+   The region filter has 8 labels of very different lengths ("All" vs "North & Central America")
+   and genuinely overflows at mobile widths without wrapping (measured: scrollWidth 645 vs
+   clientWidth 375 at the 375px preset, #62 step 5 round 1). .wrap opts a specific .seg instance
+   into wrapping and lets each button size to its own content instead of sharing width equally —
+   equal-width made no sense once labels stopped being similar lengths. Entity filter (3 short,
+   similar-length labels) stays on the plain .seg behaviour. */
+.seg.wrap { flex-wrap: wrap; }
+.seg.wrap .seg-btn { flex: 0 1 auto; }
+
+.comp-category { margin-bottom: 4px; }
+.comp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.comp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  min-width: 0;
+}
+.comp-meta { min-width: 0; }
+.comp-name {
+  font-size: 14px; font-weight: 600; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.comp-region { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+#filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
+#filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }
+#filter-region-uefa:checked ~ .categories [data-confederation]:not([data-confederation="UEFA"]) { display: none; }
+#filter-region-conmebol:checked ~ .categories [data-confederation]:not([data-confederation="CONMEBOL"]) { display: none; }
+#filter-region-concacaf:checked ~ .categories [data-confederation]:not([data-confederation="CONCACAF"]) { display: none; }
+#filter-region-caf:checked ~ .categories [data-confederation]:not([data-confederation="CAF"]) { display: none; }
+#filter-region-afc:checked ~ .categories [data-confederation]:not([data-confederation="AFC"]) { display: none; }
+#filter-region-ofc:checked ~ .categories [data-confederation]:not([data-confederation="OFC"]) { display: none; }
+#filter-region-fifa:checked ~ .categories [data-confederation]:not([data-confederation="FIFA"]) { display: none; }
+
+#filter-entity-all:checked ~ .seg .seg-btn[for="filter-entity-all"],
+#filter-entity-club:checked ~ .seg .seg-btn[for="filter-entity-club"],
+#filter-entity-national:checked ~ .seg .seg-btn[for="filter-entity-national"],
+#filter-region-all:checked ~ .seg .seg-btn[for="filter-region-all"],
+#filter-region-uefa:checked ~ .seg .seg-btn[for="filter-region-uefa"],
+#filter-region-conmebol:checked ~ .seg .seg-btn[for="filter-region-conmebol"],
+#filter-region-concacaf:checked ~ .seg .seg-btn[for="filter-region-concacaf"],
+#filter-region-caf:checked ~ .seg .seg-btn[for="filter-region-caf"],
+#filter-region-afc:checked ~ .seg .seg-btn[for="filter-region-afc"],
+#filter-region-ofc:checked ~ .seg .seg-btn[for="filter-region-ofc"],
+#filter-region-fifa:checked ~ .seg .seg-btn[for="filter-region-fifa"] {
+  background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

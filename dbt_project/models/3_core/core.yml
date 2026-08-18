@@ -62,9 +62,9 @@ models:
       droppable; England is the most common value in the dataset.
       ⚠ NO SURROGATE KEY: a country has no provider id, so `country_key` is the key. Inventing a
       synthetic integer would add a join without adding identity.
-      ⚠ ADDITIVE AND NOT YET READ — the foreign keys from `dim_league.league_country`,
-      `dim_team.team_country`, `dim_player.player_birth_country` and `dim_coach.coach_birth_country`
-      are #69 step 5 and a separate MR.
+      READ by `dim_league.league_country`, `dim_team.team_country`, `dim_player.player_birth_country`
+      and `dim_coach.coach_birth_country`, each a `relationships` test to this dim's `country_name`
+      (#69 step 5).
     meta:
       owner: "data-platform"
       domain: "football"
@@ -92,7 +92,8 @@ models:
       ⚠ This adds PUBLICATION and symmetry, NOT a new guard:
       `competition_registry.confederation` already carries a `relationships` test to
       `ref('confederations')`, so the competition-to-region check exists at seed level today.
-      ⚠ ADDITIVE AND NOT YET READ — see `dim_country`.
+      READ by `mart_competition_index.region_label` for the competitions with no country (#62
+      step 3) — see `dim_country`.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -138,8 +139,17 @@ models:
               values: ['League', 'Cup']
               severity: warn
       - name: league_country
-        description: "Country the league belongs to, from the provider's `$.country.name`. International competitions carry the literal 'World'; canonical names are #69's."
-        tests: [not_null]
+        description: >
+          Country the league belongs to, canonicalised and reconciled against `dim_country` in
+          base (#69). NULL for the 24 international/continental competitions — the provider's
+          'World' sentinel is not a country, and under the two-dimension model those rows carry
+          no country and take their region from `confederation` instead. Which relationship is
+          populated (this column, or `confederation` → `dim_region`) IS the answer to "does this
+          competition show a country or a region" — see `mart_competition_index`.
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
       - name: league_logo_url
         description: "League logo URL."
       - name: country_flag_url
@@ -251,7 +261,13 @@ models:
       - name: team_code
         description: "Short team code (3-4 letters) from API-Football."
       - name: team_country
-        description: "Country the team is registered in."
+        description: >
+          Country the team is registered in, canonicalised and reconciled against `dim_country`
+          in base (#69). Can be NULL — not every provider row carries one.
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
       - name: team_founded_year
         description: "Year the team was founded."
       - name: team_logo_url
@@ -307,7 +323,13 @@ models:
       - name: player_birth_place
         description: "Birth place (city), from /players/profiles."
       - name: player_birth_country
-        description: "Birth country, from /players/profiles."
+        description: >
+          Birth country, from /players/profiles, canonicalised and reconciled against
+          `dim_country` in base (#69). Can be NULL — not every provider row carries one.
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
       - name: player_height
         description: "Height (e.g. '180 cm'), from /players/profiles."
       - name: player_weight
@@ -877,6 +899,14 @@ models:
       - name: coach_name
         description: "Coach display name from API-Football."
         tests: [not_null]
+      - name: coach_birth_country
+        description: >
+          Birth country, canonicalised and reconciled against `dim_country` in base (#69). Can be
+          NULL — not every provider row carries one.
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
 
   - name: dim_coach_team_mapping
     description: >

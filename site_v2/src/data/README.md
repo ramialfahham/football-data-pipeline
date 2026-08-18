@@ -13,8 +13,12 @@ files in these directories, so every link resolves on disk while only the tracke
 That trap sprang once inside this branch's own life. The allowlist in `.gitignore:249-270` is the
 authoritative list of what is tracked.
 
-Tracked today, 17 files:
+Tracked today, 18 files:
 
+- `competition_index.json` — the competitions index page's payload (#62 step 5), produced
+  verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
+  browsable rows from `mart_competition_index` — small enough to commit whole rather than sample.
+  Refreshed the same way as the others below: rerun the export, replace the file, in one commit.
 - `fixtures/*.json` — **13** real exported fixtures, produced verbatim by
   `python scripts/export_site_data.py --entities fixtures`. `1492306` (BSA · Palmeiras vs
   Atlético-MG, MD20, kickoff 2026-07-26) is the ground truth for the fixture-payload schema
