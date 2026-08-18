@@ -1,99 +1,57 @@
-# Review — fix/74-nightly-image-tracks-main — 2026-08-18
+# Review — chore/handover-block-audit-method — 2026-08-18
 
-diff_sha256: 1be7681ba88abf2e9d711e8f79c51c995116e7fdc479d095002be059cc7f1bf3
+diff_sha256: 58d9aab14109b378e7379e6f9d15a33345d007ce52eed6a35dece6fe7bec2729
 
-> Rebind-only follow-up to merge commit ade5a30. The merge moved its own base again — `gitlab/main`
-> now already contains the `chore/record-top-players-ruling` follow-up too, so the real delta CI
-> checks shrinks back to this branch's own 11 #74 files. Required-reviewer check against
-> `gitlab/main...HEAD` confirms only scope-auditor, platform-reviewer and cto-reviewer are needed —
-> all three already hold PASS verdicts below against this exact content; no re-review, only the
-> hash moves.
+rounds: 2
 
-rounds: 6
-rounds_cap_override: CPO, 2026-08-18 — "Go ahead, main keeps moving faster than the review cycle."
-(applies again this round for the same reason: main advanced a fourth time while this MR sat open,
-forcing a fourth merge-conflict cycle. No open finding is being carried past the cap — every prior
-round closed clean, and this round's two required reviewers both gave fresh PASS below.)
+> Round 2 (merge round). This branch's own task is bookkeeping only (update `active_work.md`).
+> While its MR (!75) sat open, `main` advanced with MR !70 (#74: the nightly Cloud Run image now
+> tracks `main`, via new `.gitlab-ci.yml` kaniko jobs). Merging `main` in to resolve the resulting
+> conflict brings in six files (`.gitlab-ci.yml`, `Dockerfile`, `.dockerignore`, `.gcloudignore`,
+> `deploy/nightly/README.md`, `tests/test_governance_hooks.py`) already built, reviewed
+> (cto-reviewer + platform-reviewer, opus, multiple rounds) and merged to `main` on their own
+> branch. Verified byte-identical to `gitlab/main`'s tip in the working tree (`git diff gitlab/main
+> -- <file>`, empty for all six) before citing their prior verdicts below — nothing here is
+> re-authored or re-decided. Round 1's scope-auditor PASS (pre-merge, 2-file diff) is superseded by
+> round 2's below, which covers the same content plus the merge.
+>
+> ⚠ **REBOUND, not re-derived.** The commit above landed as merge `969285f` (parents `95417b8` +
+> `254415b`). Before commit, `_base_commit` could only resolve `merge-base(95417b8, gitlab/main)` =
+> `fa8118e` (HEAD had not yet become the merge commit), so the hash first recorded here
+> (`b9711f9a…`) was measured against that wider, stale base — the situation the warning above this
+> paragraph described in advance. After the commit, `merge-base(969285f, gitlab/main)` resolves
+> directly to `gitlab/main`'s own tip (`254415b`), and `git diff 254415b...969285f` narrows to
+> **`.claude/task/contract.md` alone** — every one of the six merge-inherited files is now
+> byte-identical to that base (nothing to diff), and `active_work.md`/`review.md`/
+> `review_input.patch`/`escalations.log` are excluded from the patch/hash by
+> `review_routing.json`'s `hash_exclude_paths`. `contract.md`'s content is unchanged from what
+> scope-auditor already reviewed above. No content changed, no re-review performed — same pattern
+> as MR !70's own four rebind commits for the identical situation.
 
-> Round 6 (fourth merge round). `main` moved again — a follow-up merge commit (fa8118e) on the
-> SAME source branch as round 5, `chore/record-top-players-ruling` — a documentation staleness
-> sweep of `docs/wireframes/10_home.md` only (correcting stale nine/six-board tables and gap
-> cross-references left over from an earlier board-count reduction), still no code/model/page per
-> that branch's own contract. Nothing in this branch's own #74 CI/deploy work changed.
-> `contract.md`'s `acceptance_criteria` gained a fourth merge-inherited-batch note; `amendments`
-> records it. Only the two reviewers whose remit the new content touches (scope-auditor,
-> bi-analyst-reviewer) gave FRESH verdicts against the current diff below; `analytics-engineer-
-> reviewer`, `platform-reviewer` and `cto-reviewer` verdicts are carried forward unchanged since
-> none of their territory moved this round.
+rounds_cap_override: not needed — 2 rounds.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- `docs/wireframes/10_home.md`'s diff checked line-by-line against the claim of pure documentation
-  correction — no `.astro`/`.mjs`/`.py`/`.sql` touched; content is broader than the amendment's
-  one-line summary (also registers GAP-30/32 and records CPO-approved intro copy) but stays within
-  the file's established convention of transcribing already-made chat rulings, not deciding new
-  ones, and the amendment explicitly disclaims it as inherited, not #74's own authorship.
-- `acceptance_criteria`'s fourth merge-inherited batch traces to the same standing authority used
-  for the three prior batches — not a new or escalated claim.
-- Scope check: every file outside `docs/wireframes/10_home.md`/task artifacts (`.gitlab-ci.yml`,
-  `Dockerfile`, `.dockerignore`, `.gcloudignore`, `deploy/nightly/README.md`,
-  `tests/test_governance_hooks.py`) matches `scope_paths`; no out-of-scope code/model file touched.
-- `decisions_reserved: none` holds — the one product/naming/permanence-shaped content in the diff
-  (Top players intro copy, GAP registrations) is attributed to the separate
-  `chore/record-top-players-ruling` branch's own CPO rulings, not decided by #74.
-- Swept every changed file for credential-shaped strings — only filenames/patterns as exclusion
-  entries, no literal secret values; no new mechanism or recurring cost beyond what prior rounds
-  already declare with cited authority.
-
-## analytics-engineer-reviewer
-VERDICT: PASS (carried forward, round 4 — no `dbt_project/**` or export content moved this round)
-risks_checked:
-- `scripts/export_site_data.py`'s `fetch_landing_payload` region_rank query checked against
-  `mart_competition_index.sql` (unmodified) — served fact, selected plain, matches layering's
-  select/filter/group/rename allowance.
-- Matchday-selection SQL embedded in the export: known layer-placement question, CPO ruled "ship
-  as-is, register the gap" (GAP-32) per §11 escalation — arrives as a closed, authorized decision.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Gap-status cross-references in the corrected summary (GAP-24/25/26 VOID, GAP-27/28/29/30 LIVE,
-  GAP-31 WITHDRAWN, GAP-32 registered) checked verbatim against `99_gaps_register.md`'s live
-  entries — exact match, no drift introduced.
-- GAP-27's citation ("`grep -c team_sk` on the mart = 0") checked directly against
-  `mart_leaderboards.sql` — confirmed, `team_sk` absent throughout.
-- GAP-30's claim ("`assists` is not a ranked board") checked against the mart's `count_boards`
-  list — `assists` is selected as a plain column but absent from `count_boards`, confirmed; the
-  corrected rule-example pairing (first board now ranks on `goals`) also checked and accurate.
-- GAP-28's "8-column seed" claim checked against `competition_registry.csv`'s header — confirmed.
-- The newly-approved Top players intro copy checked against its own three stated constraints (no
-  "leader", states the mechanic, names no metric) — all three hold on direct reading; the
-  `check_copy_gate.py` guardrails cited for future DE/FI copy (no byte-identical values, no em
-  dashes) confirmed present in the script.
-- Weakest citation in the diff flagged but not FAIL-worthy: "Top teams renders seven too" draws on
-  an out-of-repo mock file and a self-referential note rather than a teams-specific CPO quote;
-  judged consistent with the rest of §0 (written generically for "the block") and already flagged
-  in-document as caught late ("it took a fourth review round"), not a fresh miss.
-
-## platform-reviewer
-VERDICT: PASS (carried forward, round 4 — `.gitlab-ci.yml` and all platform-territory files
-unchanged this round)
-risks_checked:
-- `.gitlab-ci.yml` confirmed byte-identical to the round-4 reviewed state; no drift through this
-  round's merge.
-- `.claude/active_work.md` last measured under the 16,000-character cap; unchanged this round.
+- Scope widening in `.claude/task/contract.md` (six new `scope_paths` entries) cross-checked against `.git/worktrees/fdp-product/MERGE_MSG`'s actual conflicted-path list (`.claude/active_work.md`, `.claude/task/contract.md`, `.claude/task/review.md`, `.claude/task/review_input.patch` only) — none of the six newly-scoped files appear in the conflict list, confirming they arrived via a clean, non-conflicting merge with no divergent content on this branch, corroborating the `amendments:` entry's claim.
+- `.claude/active_work.md` audited line-by-line against `.claude/task/escalations.log` and `docs/wireframes/99_gaps_register.md` for any asserted-but-unrecorded decision — every substantive claim (GAP-31 withdrawal, GAP-32 ruling, GAP-27/28/29/30 status, the #74 IAM-grant/revoke/kaniko-redesign history) traces to an existing record verbatim or in substance. No new ruling stated only in the handover.
+- Character-count gate (`done_when: under 16,000 characters`) — measured 15,670, under the cap.
+- Credential/secret sweep across the full `review_input.patch` — no matches; `.dockerignore`/`.gcloudignore` reference credential *filenames* as ignore-list entries, not values.
+- IAM/CI mechanism content (`.gitlab-ci.yml`, `Dockerfile`, `escalations.log`) all attributable to #74's own already-reviewed, already-merged branch; this task authors, edits, or decides none of it — consistent with `decisions_taken: none`.
 
 ## cto-reviewer
-VERDICT: PASS (carried forward, round 3 — `.gitlab-ci.yml` unchanged across rounds 4, 5 and 6)
+VERDICT: PASS (carried forward from MR !70's own review cycle — `.gitlab-ci.yml` verified byte-identical to `gitlab/main`'s tip in this branch's working tree, `git diff gitlab/main -- .gitlab-ci.yml` empty)
 risks_checked:
-- `.gitlab-ci.yml`'s merged state carries exactly the two hunks already reviewed across three
-  earlier rounds, both pure additions — confirmed unchanged again by platform-reviewer above.
-- IAM footprint verified against `escalations.log`'s additions-only diff: final state matches the
-  revocation entries; nothing re-widened by any of the four merges.
-- Guard invariants hold: both new jobs fail closed; no other guard-path file in the diff.
+- `.gitlab-ci.yml`'s content carries exactly the two hunks (`build:nightly-image` kaniko job, `deploy:nightly-image` repoint job) already reviewed across MR !70's own rounds, both pure additions — confirmed unchanged by the byte-identity check above, not re-read line-by-line since nothing moved.
+- IAM footprint (grants + revocations for `github-actions-dbt`) verified against `escalations.log`'s additions-only diff, which carries MR !70's own dated entries unchanged — nothing re-widened by this merge.
+- Guard invariants hold: both new jobs fail closed (per MR !70's own review); no other guard-path file in this branch's diff.
+
+## platform-reviewer
+VERDICT: PASS (carried forward from MR !70's own review cycle — `.gitlab-ci.yml` and `tests/test_governance_hooks.py` verified byte-identical to `gitlab/main`'s tip, both `git diff gitlab/main -- <file>` empty)
+risks_checked:
+- `.gitlab-ci.yml` confirmed byte-identical to MR !70's own reviewed state; no drift through this merge.
+- `tests/test_governance_hooks.py` (the file matching `tests/**` in this diff) confirmed byte-identical to MR !70's own reviewed state — the schedule-guard, gcp-auth-declares-id_tokens, and by-name reachability tests for the two new jobs are unchanged.
+- `.claude/active_work.md` re-measured under the 16,000-character cap after the merge reconciliation (15,670).
 
 ## escalations
-(none new this round — the `chore/record-top-players-ruling` decisions were made and recorded on
-their own branch's session, not this one; this review only verifies they arrived intact via the
-merge.)
+(none — this round resolves a routine merge conflict from `main` advancing; no new §10 question raised)
