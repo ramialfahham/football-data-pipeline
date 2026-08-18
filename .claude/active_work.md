@@ -4,8 +4,10 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-17**. **NO MRs OPEN**; main **`f00ab21`** — `!61` (#69 dims), `!60`, `!57`,
-`!59`, `!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN** (✅ #75 below). Product **Matchday
+_Last updated **2026-08-17**. **#74 MR OPEN** (`fix/74-nightly-image-tracks-main`, not merged); main
+**`f00ab21`** — `!61` (#69 dims), `!60`, `!57`,
+`!59`, `!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN** (#75, closed — `escalations.log`
+has the recovery detail). Product **Matchday
 Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes. ⚠ **A GROUP MOVE IS
 COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
@@ -71,24 +73,19 @@ appends and never deletes" + `escalations.log` 08-17. Cost approved ~$1-2/mo.
 them (`bq ls`, `gcloud run jobs describe` — free metadata). `raw_archive` was called "never built"
 from zero repo refs; it EXISTS (`*_20260808` snapshot) — true of the repo, false as a conclusion.
 
-## ✅ #75 IS CLOSED — prod whole, `PASS=849 ERROR=0 SKIP=0` (08-17). Detail: #75 + `escalations.log`
-⭐ **Recovered by BigQuery TIME TRAVEL, not the provider** — "gone at source" was true of the
-provider and wrong as a conclusion; our copy sat in the 7-day window. ⚠ **A delete at T is
-recoverable until T+7d — compute the expiry the moment you find loss.** Recipe in `escalations.log`.
-⛔ **17 events on 1564791/1564793 are permanently gone**, so **`!57`'s kickoff cutoff STAYS — never
-raise it to go green.** ⚠ **`fct_fixture_event` is INCREMENTAL: the RICHEST record, and RIGHT — do
-NOT make the fact mirror base.** ⛔ Two sibling tests were KILLED by measurement (PEN-implies-
-shootout: **371/753** have none) — read `escalations.log` before re-proposing.
-
 ## ⭐ The ingest cluster
-**TWO nightlies:** `data:nightly` moved to **Cloud Run under #39**; the GitLab schedule (4379625)
-is **paused ON PURPOSE.** Runbook `deploy/nightly/README.md`. ⚠ 04:00 FAILED 08-17.
-⛔ **#74 — THE IMAGE NEVER TRACKED `main`.** `--source .` packages the WORKING TREE; nothing
-redeploys on merge. It once ran 08-14 code for two days and **rebuilt prod from it, REVERTING
-`!43`/`!45`**. ⭐ **THE FULL SPEC IS ON ISSUE #74 (note 3695790497): ready to implement, DO NOT
-re-derive it.** Protected path → `protected_override` + impact_map + **2 OPUS reviewers**.
-Redeployed by hand 08-16 and twice on 08-17 (now `d47862434f71`, carries `!62`); **until #74 ships,
-redeploy from a clean `main` after EVERY ingestion merge or the fix never reaches prod.**
+**TWO nightlies:** `data:nightly` on **Cloud Run under #39**; GitLab schedule (4379625) paused ON
+PURPOSE. Runbook `deploy/nightly/README.md`.
+✅ **#74 FIXED, MR OPEN** (`fix/74-nightly-image-tracks-main`, NOT yet merged): `build:nightly-image`
+(kaniko, no Cloud Build) + `deploy:nightly-image` rebuild the image and repoint `fdp-nightly` on
+every `main` push touching `*data_paths_image`. ⚠ **NOT `--source .`/Cloud Build** — Cloud
+Build's default identity holds project Editor; granting our SA build access opened an Editor
+path from ANY unmerged branch. Revoked; redesigned to build in-job.
+⚠ **OWED: set `deploy-nightly-image` resource_group to `oldest_first`** (Settings → CI/CD, only
+after the group exists — first run creates it). Default `unordered` mode means two
+near-simultaneous merges can deploy out of order, pinning the OLDER commit until the next one.
+**Sentinel (`fdp-freshness`) still NOT repointed** — deliberately separate, stays pinned.
+**Until MERGED, keep redeploying by hand after every ingestion merge.**
 ⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
 ⚠ **None of the four ingest fixes does what its title says** — caveats on #896-#898.
 
@@ -156,11 +153,11 @@ TAB not a toggle.
    **'2026-08-19', in the FUTURE, so `!57`'s test is inert**) and extend loss detection past events;
    ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 = compaction, only if growth
    is MEASURED.**
-1. ✅ **PROD IS HEALED** (✅ #75 above) — rebuilt green 08-17 by retrying `data:build:main` on
+1. ✅ **PROD IS HEALED** (#75, closed) — rebuilt green 08-17 by retrying `data:build:main` on
    `main`. ⚠ `.data_paths_prod` EXCLUDES `.gitlab-ci.yml` and `ingestion/**` but INCLUDES
    `dbt_project/models/**`. ⚠ **#4: a web dispatch from ANY branch builds prod from THAT branch's
    code** — retry the job on `main` instead.
-2. **THE NIGHTLY: #74** (⭐ ingest cluster above).
+2. ✅ **#74 MR OPEN**, review + merge (⭐ ingest cluster above). Then decide the sentinel repoint.
 3. **#69 STEP 5 (the four FKs), then #62 step 3** (⭐ CURRENT). Steps 1-3 are merged. Then #62
    step 4 repoints the export, 5 the page spec.
 4. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access

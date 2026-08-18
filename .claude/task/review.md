@@ -1,42 +1,83 @@
-# Review — chore/69-dims-merged — 2026-08-17
+# Review — fix/74-nightly-image-tracks-main — 2026-08-18
 
-diff_sha256: 920f3cca9b2ec09731a13a5e53dda71415af80685dd6ad826974b87952269a1c
+diff_sha256: 437ed2f33c6b79aee3bfe9f0e7d08592099caf0e1d89dbdb1e9be89f94246eea
 
-rounds: 2
+rounds: 3
 
-> REBASED onto `5bb3b2e` (`!62`, #75 MR2). Only the three task artifacts conflicted —
-> `contract.md`, `review.md`, `review_input.patch` — all resolved MINE per the rebase tax, since each
-> MR carries its own. ⚠ **`active_work.md` did NOT conflict**, and is verified intact after the
-> rebase: 15,987 chars, the NEXT-JOB block present. Hash rebound 48fbbe9a -> 920f3cca because the
-> BASE contract changed, not because this branch's content did.
-> ⚠ Mid-rebase the contract gate reported `active_work.md` "outside scope" and advised
-> `git checkout -- <file>`. That is the known false positive in this repo's OWED list, and following
-> it would have DELETED the handover. Ignored deliberately.
-
-> ⚠ `active_work.md` is in `hash_exclude_paths`, so this hash covers `contract.md` only. The
-> handover change is real but deliberately outside the binding — that is the routing config's
-> choice, not an omission here.
+> This is the review cycle for the KANIKO REDESIGN specifically. The original
+> `--source .`/Cloud Build design went through its own 3 full rounds first (all
+> reviewer verdicts and findings for that design are preserved in this branch's
+> commit history via `.claude/task/escalations.log`), FAILed round 3 on a real
+> project-Editor escalation path (verified live), and was replaced — at the
+> CPO's explicit in-session choice — with an entirely different mechanism
+> (build in the CI job with kaniko, no Cloud Build). That is a fresh design,
+> not a patch, so it was reviewed as its own cycle from round 1. This file
+> reflects only the kaniko cycle's 3 rounds, all summarized below.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- ⛔ ROUND 1 FAILED on the character cap and was RIGHT. `active_work.md` was at **16,038** against a
-  16,000 cap. I had measured it, misread my own output, and reported "under the cap at 16,037" —
-  which is itself over. The reviewer had no Python and reconstructed ~16,036 from exact grep counts
-  of non-whitespace codepoints, word tokens, indentation and newlines, then refused to dismiss a
-  36-char overage as noise. Fixed by trimming three passages in the block I had added.
-- ROUND 2: cap verified INDEPENDENTLY, not re-asserted — raw character count 16,195 including CRLF
-  pairs, minus 208 line-break normalisations = **15,987**, matching Python `len()` semantics and the
-  figure in the brief. Two measurement paths agree. Margin 13, flagged as thin for the next edit.
-- Load-bearing content survived the cut: both named stashes (`feat/62-mart-competition-index`,
-  `feat/player-overview-tab`), the rebase tax, the #904 block, the cost traps and the
-  raw-appends-never-deletes rule are all present verbatim. Re-checked after the round-2 trim.
-- Scope: `.claude/active_work.md` only, plus `contract.md` which is always in scope. No code.
-- No §10 decision taken. `decisions_taken` says "No decision. This records an already-merged state",
-  and the file names next steps as next steps rather than deciding anything new.
-- The CPO pace quote is exact — *"With this speed the website will never get done."* — with the
-  quotation marks isolating only what was said; the surrounding 12-MRs / 5-product / 7-paperwork
-  breakdown is presented as my own gloss, not as his words.
+- Round 1: every changed file matches contract.md's scope_paths; the mid-task redesign (Cloud
+  Build to kaniko) is recorded as a direct, in-session CPO choice presented with the finding
+  and the alternative, not smuggled in as routine; the grant/revoke IAM history carries paired
+  command evidence in escalations.log, read and cross-checked against the live .gitlab-ci.yml
+  claims it rests on (WIF variables not Protected, Cloud Build default identity holds Editor)
+  rather than trusted as narrative.
+- Round 2: the scope_paths amendment (+Dockerfile) matches its stated content exactly (a header
+  comment correction); the `.gcloudignore` rewrite, the dropped `:latest` tag, and the new
+  resource_group/needs presence tests were all verified against the actual diff, not the
+  contract's prose; no new §10-class decision, no new IAM action this round.
+- Round 3: the `needs:` widening (+validate:secrets, +lint:python) is a reviewer-directed detail
+  fix on an already-authorized CI gate, carries its own dated amendment naming round-2
+  platform-reviewer as authority, and does not rise to a fresh CPO-class decision. Scope,
+  authority and decision-rights hold across all three rounds.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1: traced the kaniko escalation surface end to end — `build:nightly-image` fires only
+  on push-to-main (no feature-branch Dockerfile ever reaches it pre-merge), needs no Cloud
+  Build submit right, and `roles/artifactregistry.writer` alone covers the push. Confirmed the
+  self-actAs `iam.serviceAccountUser` grant is the correct one given the runtime SA is
+  `github-actions-dbt` itself. Accepted the authority chain (CPO shown the finding and the two
+  paths, chose the toolchain by name) and flagged kaniko's own upstream maintenance cadence as
+  an honestly-unverified, accepted gap rather than asserting it either way.
+- Round 2: verified the `.gcloudignore` model correction, the `:latest`-to-SHA-only tag fix and
+  its corrected residual-risk description (the real hazard is `resource_group`'s unordered
+  process mode, not an unread tag), and the doc sweep (Dockerfile, .dockerignore headers) all
+  landed exactly as claimed against the real files. Four observations noted as non-blocking
+  (README's accurate-in-context Cloud Build mention, .gitattributes' still-relevant fallback
+  framing, impact_map's narrowly-optimistic blast_radius phrasing, google/cloud-sdk:slim as an
+  unnamed second third-party image) — none escalated to a FAIL then or now.
+- Round 3: confirmed all four `needs:` targets (validate:governance, validate:secrets,
+  lint:python, test:python) carry unconditional `when: on_success` after the schedule guard
+  with no `changes:`/`if:` clause that could make any absent on a push-to-main pipeline — the
+  widening cannot make the pipeline unconstructible. Re-checked all four round-2 observations on
+  the last round; none tips into a defect.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1: verified kaniko's Artifact Registry auth actually works via the same WIF
+  external_account file the Python client libraries use (traced kaniko's own credential
+  resolution chain, not asserted), the busybox/ash shell compatibility with `*gcp_auth`'s
+  script, and `gcloud run jobs update --image=` preserving the job's other settings (service
+  account, secrets, cpu/memory, timeout, retries) rather than resetting them.
+- Round 2: independently confirmed all four round-1 findings fixed by re-deriving the model
+  from source (kaniko reads `.dockerignore` only; `.gcloudignore` restores rather than narrows
+  the manual-fallback exclusion set via `#!include:.gitignore`, verified against real
+  `.gitignore` patterns including ones that were genuinely sitting in the tree). Found ONE new
+  issue this round: `build:nightly-image`'s `needs:` omitted `validate:secrets` and
+  `lint:python`, letting a failed secrets scan not block the image build — same failure class as
+  the credential-leak defect this branch already found once.
+- Round 3: verified the `needs:` widening by exact job name and rule inspection (all four gates
+  unconditional on push-to-main, stage order holds, `data:build:main` correctly NOT added since
+  its narrower path filter would make the pipeline unconstructible); confirmed the new test is
+  non-vacuous by hand-checking it fails against the reverted two-gate list. Traced a genuine
+  two-sided trade-off (the widened `needs:` decouples the image deploy from the `data` stage
+  entirely, so a failing prod dbt build doesn't block it either) and concluded blocking on that
+  would reintroduce #74 itself, not a defect. All four round-2 non-blocking observations
+  re-examined on the last round; none escalated.
 
 ## escalations
-(none — this records already-taken decisions)
+(none)
