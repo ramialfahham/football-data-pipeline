@@ -4,23 +4,31 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-18**. **main `06386a7`** — `!67` (#62 step4), `!65`, `!66`, `!61`, `!62`,
-`!60`, `!57`, `!59`, `!58`, `!56`, `!53`, `!50` merged, **prod rebuilt GREEN** (#75 closed).
-**ONE MR OPEN** (branch `feat/62-5-competitions-index-page`, unmerged — see CURRENT). Product
+_Last updated **2026-08-18**. **main `cd8531f`** — `!68` (#62 step5), `!67` (#62 step4), `!65`,
+`!66`, `!61`, `!62`, `!60`, `!57`, `!59`, `!58`, `!56`, `!53`, `!50` merged. **NO MR OPEN.** Product
 **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ #62 IS DONE, PENDING MERGE — the competitions page is ON SCREEN
-⛔ **All five steps shipped.** !61 (#69 dims) → !65 (step3, the mart) → !67 (step4, the export) →
-this MR (step5: page-spec, the Astro page, ordering, nav anchor). `/{locale}/competitions/` builds
-and renders in all 3 locales, verified in the browser (not just tests) — see CURRENT.
+## ⭐⭐ #62 IS DONE AND MERGED — the competitions page is LIVE ON MAIN
+⛔ **All five steps shipped and merged.** !61 (#69 dims) → !65 (step3, the mart) → !67 (step4, the
+export) → !68 (step5: page-spec, the Astro page, ordering, nav anchor). `/{locale}/competitions/`
+builds and renders in all 3 locales, verified in the browser (not just tests) — see CURRENT for the
+implementation detail, kept for now since #47 depends on it.
 ⛔ **PUT `active_work.md` IN `scope_paths` ON EVERY CODE MR**, updated in the SAME commit.
 ⛔ **Over the cap? DELETE ONE STALE SECTION** — do not shave clauses.
-⛔ **NEXT, once this merges**: #47 (the competition hub) is what makes this page's rows real
-links — see CURRENT's gaps list before starting it.
+⛔ **NEXT**: #47 (the competition hub) is what makes this page's rows real links — see CURRENT's
+gaps list before starting it.
+⚠ **A two-hash conflict blocked !68's commit mid-session (08-18), now resolved.** A GLOBAL plugin
+hook (`~/.claude/hooks/commit_review_gate.py`, `data-agent-kit-starter-pack`, enabled that session
+in `~/.claude/settings.json`) duplicates this repo's review-gate but hashes the staged diff
+differently — no base commit, no `--raw`, no `hash_exclude_paths`. Two hooks checking one
+`review.md` with incompatible formulas agree only by coincidence. A future "hash mismatch" that
+disagrees with `git_discipline.py --staged-hash`: **check for a second global hook FIRST**, don't
+re-derive. Separately: `acceptance_evidence.md`'s `criteria_demonstrated:` bullets **must be
+indented** 2sp (matches `contract.md`) — `_block()` stops at column 0, so flush bullets = 0 evidence.
 
-## ⭐ CURRENT — #62 STEP 5 SHIPPED, UNMERGED (2026-08-18)
+## ⭐ CURRENT — #62 STEP 5, MERGED VIA !68 (2026-08-18)
 
 ✅ **The competitions index page — branch `feat/62-5-competitions-index-page`.** New page
 (`pages/[lang]/competitions/index.astro`), component (`components/competitions/
@@ -47,15 +55,6 @@ acceptance_evidence.md` has the full record.
    would be the "browse-chip 404" #47's own issue text names as a failure mode — same reason
    `BrowseGrid.astro`'s home-page chips are inert. Rows become real links (with hover-lift +
    chevron) **in the MR that ships #47**, not before.
-⚠ **ROUND 1 REVIEW found 2 real issues, both fixed, round 2 in flight:** platform-reviewer FAILed
-`competitionOrder.ts` — the ONLY `node --test` file importing `.ts` directly, relying on Node's
-native TS-stripping which the repo's `engines: >=22` floor doesn't guarantee; fixed by converting
-to `lib/competitionOrder.mjs` (plain JS + JSDoc), matching the existing text-scan-`.ts` house
-pattern. bi-analyst-reviewer FAILed a STALE `rendered_page_evidence.md` (still described #367, the
-home page); rewritten for this page, and gathering that evidence live surfaced a REAL mobile
-overflow bug — the 8-button region filter had no `flex-wrap`, overflowed 645px vs a 375px viewport
-— fixed with a `.seg.wrap` modifier scoped to that filter only. Neither `node --test` nor any gate
-would have caught the overflow; only live geometry did.
 ⚠ **NOT wired into CI's `--entities` list** (`.gitlab-ci.yml:767`/`deploy-site-v2.yml:65` still say
 `teams,fixtures` only) — deliberate, same reasoning as step 4: nothing depends on a refreshed
 sample yet.
@@ -163,9 +162,9 @@ which is now popped and shipped); default is known-wrong (`seasons[0]` = newest 
 0. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests). It is **FALSE**, so every MR
    has been mergeable while RED since the migration. CPO's, one toggle. Pairs with **#21 Q2**.
 1. **THE NIGHTLY: #74** (⭐ ingest cluster above).
-2. ✅ **#62 ALL FIVE STEPS DONE, MR open** (⭐ CURRENT). Once merged: **#47** (the competition hub)
-   is next — it's what makes this page's rows real links (three decisions in CURRENT explain why
-   they aren't yet). Wire `competition_index` into CI's `--entities` list in #47's MR, not before.
+2. ✅ **#62 ALL FIVE STEPS DONE AND MERGED** (⭐ above). **#47** (the competition hub) is next — it's
+   what makes this page's rows real links (three decisions in CURRENT explain why they aren't yet).
+   Wire `competition_index` into CI's `--entities` list in #47's MR, not before.
 3. **The audit stream (⭐ above).** The CPO's, one command each: **Q2 of #21** (`main` push access
    to No one) · delete the 2 dead `~/.claude/hooks/` copies · route or delete `seo-expert-reviewer`.
 4. **⭐ THEN COST, SYSTEMATICALLY** — the whole pipeline **including CI/CD, what gets triggered,
