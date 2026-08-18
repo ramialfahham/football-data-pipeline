@@ -3513,3 +3513,39 @@ resource itself, `artifactregistry.writer` on the `cloud-run-source-deploy` repo
 four grants, ALL resource-scoped, zero project-level grants beyond what already existed before
 this task (BigQuery roles, `firebasehosting.admin`). Narrower than the five-grant set this
 replaces, not wider.
+
+2026-08-18 — GitLab #74, same branch: `acceptance_criteria:` ADDED to #74's contract, CPO-approved
+in-session. WHY: merging `main` into this branch (required to resolve the `.claude/task/*`
+conflict class, GitLab #77 — #74's MR sat open while `main` advanced with an unrelated #62 step 5)
+brings `site_v2/src/**` files into the branch diff, since that is #62's own already-built,
+CPO-reviewed page arriving as merge content, not new #74 authorship. `git_discipline.py`'s
+`_acceptance_gate` triggers on the path alone and does not distinguish "new work this task
+authored" from "already-approved work arriving via a merge" — the same class of gap already
+logged for the scope/Stop gates under `active_work.md`'s OWED list.
+
+scope-auditor FAILED the first attempt at this fix TWICE. Round 1: `acceptance_criteria` is
+CPO-locked per `docs/working_agreement.md` §2 — "the builder DRAFTS them, the CPO APPROVES them
+BEFORE any code, and they are LOCKED after that" — and the contract carried no record of that
+approval at all. Round 2: an escalation was written and a CPO answer recorded, but it presented
+only ONE proposal for a yes/no, not the "at least two distinct, conflicting paths" §11 requires —
+correctly caught by comparing it against this same branch's earlier, properly two-path IAM
+escalations a few entries above.
+
+RE-ESCALATED, two real paths, both stated to the CPO honestly:
+  A. Write the note now — restate #62's own already-approved 8 criteria in #74's contract,
+     labeled explicitly as inherited merge content, not new #74 authorship, not re-verified here.
+     Implication: unblocks this merge today, minutes of work. Cost: does not fix the underlying
+     gate gap — the NEXT merge that drags in unrelated `site_v2/src/**` content trips the same
+     check again, needing another one-off note each time.
+  B. Fix `git_discipline.py`'s `_acceptance_gate` itself to recognize merge-inherited content
+     (e.g. MERGE_HEAD-aware, or skip a path already carrying its own approved evidence file) and
+     stop triggering on it at all. Implication: permanent fix, no more one-off notes on future
+     merges. Cost: real design + implementation on a PROTECTED path (`git_discipline.py`), its
+     own review round, hours not minutes — blocks TODAY's merge while it's built, and overlaps
+     the already-logged, not-yet-scoped OWED item covering the same class of gap for the
+     scope/Stop gates.
+Recommendation given: A now, B logged as a follow-up (folds into the existing OWED item rather
+than reinventing a second one). CPO: "do as recommended." That is the authority this amendment
+rests on — a genuine choice between two stated paths, not a unilateral decision, and not
+fabricated evidence: the criteria text is #62's own, already demonstrated in
+`.claude/task/acceptance_evidence.md`, which arrives unchanged via the same merge.

@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d32e063..7003d89 100644
+index d32e063..2083786 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,41 +1,205 @@
+@@ -1,41 +1,236 @@
 -# Task contract — handover: the #69 dims are merged (bookkeeping)
 +# Task contract — #74: the nightly Cloud Run image tracks `main`
  
@@ -34,15 +34,45 @@ index d32e063..7003d89 100644
 +  - Dockerfile
    - .claude/active_work.md
  
-+protected_override: >
-+  CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
-+  own requirement that this instruction is the authority for the `.gitlab-ci.yml` edit.
-+
- impact_map: >
+-impact_map: >
 -  Bookkeeping short-form. `.claude/active_work.md` is read by the session-start hook and by humans;
 -  no job, model, test or script reads it (`grep -rn "active_work" .gitlab-ci.yml scripts/
 -  dbt_project/` returns nothing outside the governance hooks that only enforce its character cap).
 -  Blast radius: what the next session is told to do. No code, no data, no cost.
++acceptance_criteria: >
++  NOT new work from this task. `site_v2/src/**` appears in this branch's diff solely because
++  merging `gitlab/main` (required to resolve #77-class task-artifact conflicts before this MR can
++  merge — main moved on with #62 step 5 while this branch was open) brings in #62 step 5 (the
++  competitions index page), already built, CPO-reviewed and merged on its own branch with its own
++  acceptance criteria and evidence. `.claude/task/acceptance_evidence.md` comes through the same
++  merge unchanged and already demonstrates all 8 of that page's criteria (locales render clean,
++  all 48 competitions grouped correctly, CPO-approved sort order verified against real data, rows
++  inert not linked, filters narrow + collapse empty categories, nav link wired, copy gate passes,
++  page-spec + unit tests pass, verified at both viewport widths). Restated here only so this gate
++  — which does not distinguish a merge from new authored work, the same gap logged for the
++  scope/Stop gates under `active_work.md`'s OWED — has a criteria list to check against; the
++  evidence itself was written by the #62 task, not this one, and is not re-verified here.
++  - All three locales (en/de/fi) build and render `/competitions/` with no console errors.
++  - Every browsable competition (48/48) shows under an always-visible category heading, singletons
++    included.
++  - Category and row order match the CPO-approved sort key, verified against real committed data.
++  - Rows show logo/name/region, are NOT clickable links (#47 not built yet).
++  - The two filter axes narrow rows; an emptied category disappears entirely, headings included.
++  - Nav's "Competitions" item is a real link (desktop + mobile); every other nav item stays inert.
++  - `check_copy_gate.py`, `check-page-specs.mjs` and the site's `node --test` suite all pass.
++  - Verified at desktop and mobile widths via the accessibility tree and console output.
+ 
+-decisions_taken: >
+-  No decision. This records an already-merged state.
++protected_override: >
++  CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
++  own requirement that this instruction is the authority for the `.gitlab-ci.yml` edit.
+ 
+-  ⚠ WHY THIS IS A SEPARATE MR RATHER THAN PART OF `!61`: another chat has been editing this file
+-  throughout the day and owns the #75 thread in it. `!61` deliberately left it out to avoid racing
+-  a 16,000-character capped file, which had already produced two rebase conflicts. There are ZERO
+-  open MRs at the time of writing, so this is the safe window.
++impact_map: >
 +  writers: none (dbt/BigQuery untouched) — this adds two CI jobs that build a container image
 +  and repoint a Cloud Run job, no model or script changes.
 +  what fires it: `workflow: rules:` already admits `CI_COMMIT_BRANCH == CI_DEFAULT_BRANCH`
@@ -97,18 +127,11 @@ index d32e063..7003d89 100644
 +  2026-08-17/18. This IAM state itself produces no git diff, which is exactly why it is
 +  recorded there rather than only claimed here.
  
- decisions_taken: >
--  No decision. This records an already-merged state.
--
--  ⚠ WHY THIS IS A SEPARATE MR RATHER THAN PART OF `!61`: another chat has been editing this file
--  throughout the day and owns the #75 thread in it. `!61` deliberately left it out to avoid racing
--  a 16,000-character capped file, which had already produced two rebase conflicts. There are ZERO
--  open MRs at the time of writing, so this is the safe window.
--
 -  ⚠ A COMMIT TOUCHING `contract.md` IS NEVER ARTIFACT-EXEMPT (`artifact_only_never`), so this
 -  bookkeeping change takes a review round it would otherwise skip. That is the rule working as
 -  intended, not overhead to route around: `active_work.md` must be in `scope_paths` to be edited,
 -  and putting it there means editing the contract.
++decisions_taken: >
 +  Recurring cost and IAM: see `impact_map` above — both restated here per governance ritual,
 +  not duplicated in full.
 +  New mechanism: build+deploy steps added to `.gitlab-ci.yml`, redesigned mid-task from
@@ -235,11 +258,19 @@ index d32e063..7003d89 100644
 +    Content: `needs:` now names all four validate/test-stage gates that run unconditionally on
 +    a push-to-main pipeline; `decisions_taken`'s claim about what `needs:` gates corrected to
 +    match.
++  - 2026-08-18: + `acceptance_criteria` — authority: CPO, in-session, escalated blinded (§11)
++    after scope-auditor FAILED an unauthorized first attempt (this field is CPO-locked per §2).
++    Reason: merging `main` (needed to resolve the `.claude/task/*` conflict class, GitLab #77)
++    brings in `site_v2/src/**` from #62 step 5 — already built, CPO-reviewed, merged on its own
++    branch — which trips `_acceptance_gate` on path alone; the gate does not distinguish a merge
++    from new authorship. CPO: "Go ahead, write the note and continue." Content: 8 criteria
++    restated verbatim from #62's own already-demonstrated set, explicitly labeled as inherited,
++    not authored by or re-verified under this task. Full account: `escalations.log`, 2026-08-18.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index c8f845a..9034d05 100644
+index c8f845a..ef19232 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -3427,3 +3427,89 @@ OF THE 29 DESTROYED EVENTS
+@@ -3427,3 +3427,125 @@ OF THE 29 DESTROYED EVENTS
    is precisely what we left out for want of a source. So this is not the doc's condition being met;
    it is the doc being overridden by a CPO design decision. Recorded here and noted in `layering.md`
    itself rather than left as a silent contradiction for the next reader to trip over.
@@ -329,6 +360,42 @@ index c8f845a..9034d05 100644
 +four grants, ALL resource-scoped, zero project-level grants beyond what already existed before
 +this task (BigQuery roles, `firebasehosting.admin`). Narrower than the five-grant set this
 +replaces, not wider.
++
++2026-08-18 — GitLab #74, same branch: `acceptance_criteria:` ADDED to #74's contract, CPO-approved
++in-session. WHY: merging `main` into this branch (required to resolve the `.claude/task/*`
++conflict class, GitLab #77 — #74's MR sat open while `main` advanced with an unrelated #62 step 5)
++brings `site_v2/src/**` files into the branch diff, since that is #62's own already-built,
++CPO-reviewed page arriving as merge content, not new #74 authorship. `git_discipline.py`'s
++`_acceptance_gate` triggers on the path alone and does not distinguish "new work this task
++authored" from "already-approved work arriving via a merge" — the same class of gap already
++logged for the scope/Stop gates under `active_work.md`'s OWED list.
++
++scope-auditor FAILED the first attempt at this fix TWICE. Round 1: `acceptance_criteria` is
++CPO-locked per `docs/working_agreement.md` §2 — "the builder DRAFTS them, the CPO APPROVES them
++BEFORE any code, and they are LOCKED after that" — and the contract carried no record of that
++approval at all. Round 2: an escalation was written and a CPO answer recorded, but it presented
++only ONE proposal for a yes/no, not the "at least two distinct, conflicting paths" §11 requires —
++correctly caught by comparing it against this same branch's earlier, properly two-path IAM
++escalations a few entries above.
++
++RE-ESCALATED, two real paths, both stated to the CPO honestly:
++  A. Write the note now — restate #62's own already-approved 8 criteria in #74's contract,
++     labeled explicitly as inherited merge content, not new #74 authorship, not re-verified here.
++     Implication: unblocks this merge today, minutes of work. Cost: does not fix the underlying
++     gate gap — the NEXT merge that drags in unrelated `site_v2/src/**` content trips the same
++     check again, needing another one-off note each time.
++  B. Fix `git_discipline.py`'s `_acceptance_gate` itself to recognize merge-inherited content
++     (e.g. MERGE_HEAD-aware, or skip a path already carrying its own approved evidence file) and
++     stop triggering on it at all. Implication: permanent fix, no more one-off notes on future
++     merges. Cost: real design + implementation on a PROTECTED path (`git_discipline.py`), its
++     own review round, hours not minutes — blocks TODAY's merge while it's built, and overlaps
++     the already-logged, not-yet-scoped OWED item covering the same class of gap for the
++     scope/Stop gates.
++Recommendation given: A now, B logged as a follow-up (folds into the existing OWED item rather
++than reinventing a second one). CPO: "do as recommended." That is the authority this amendment
++rests on — a genuine choice between two stated paths, not a unilateral decision, and not
++fabricated evidence: the criteria text is #62's own, already demonstrated in
++`.claude/task/acceptance_evidence.md`, which arrives unchanged via the same merge.
 diff --git a/.dockerignore b/.dockerignore
 index 6b9bdbb..eb156e5 100644
 --- a/.dockerignore
@@ -843,6 +910,7 @@ index c3279b4..2c61878 100644
 # depends on one.
 #
 #   .claude/active_work.md          |  39 +-
-#    .claude/task/review_input.patch | 903 ++++++++++++++++++++++++++++++++++------
-#    2 files changed, 798 insertions(+), 144 deletions(-)
+#    .claude/task/review.md          | 107 +++--
+#    .claude/task/review_input.patch | 999 +++++++++++++++++++++++++++++++++++-----
+#    3 files changed, 965 insertions(+), 180 deletions(-)
 # ============================================================================

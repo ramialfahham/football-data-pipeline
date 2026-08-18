@@ -23,6 +23,29 @@ scope_paths:
   - Dockerfile
   - .claude/active_work.md
 
+acceptance_criteria: >
+  NOT new work from this task. `site_v2/src/**` appears in this branch's diff solely because
+  merging `gitlab/main` (required to resolve #77-class task-artifact conflicts before this MR can
+  merge — main moved on with #62 step 5 while this branch was open) brings in #62 step 5 (the
+  competitions index page), already built, CPO-reviewed and merged on its own branch with its own
+  acceptance criteria and evidence. `.claude/task/acceptance_evidence.md` comes through the same
+  merge unchanged and already demonstrates all 8 of that page's criteria (locales render clean,
+  all 48 competitions grouped correctly, CPO-approved sort order verified against real data, rows
+  inert not linked, filters narrow + collapse empty categories, nav link wired, copy gate passes,
+  page-spec + unit tests pass, verified at both viewport widths). Restated here only so this gate
+  — which does not distinguish a merge from new authored work, the same gap logged for the
+  scope/Stop gates under `active_work.md`'s OWED — has a criteria list to check against; the
+  evidence itself was written by the #62 task, not this one, and is not re-verified here.
+  - All three locales (en/de/fi) build and render `/competitions/` with no console errors.
+  - Every browsable competition (48/48) shows under an always-visible category heading, singletons
+    included.
+  - Category and row order match the CPO-approved sort key, verified against real committed data.
+  - Rows show logo/name/region, are NOT clickable links (#47 not built yet).
+  - The two filter axes narrow rows; an emptied category disappears entirely, headings included.
+  - Nav's "Competitions" item is a real link (desktop + mobile); every other nav item stays inert.
+  - `check_copy_gate.py`, `check-page-specs.mjs` and the site's `node --test` suite all pass.
+  - Verified at desktop and mobile widths via the accessibility tree and console output.
+
 protected_override: >
   CPO instruction, 2026-08-17: "fix #74 so the image tracks main." Quoted per the issue note's
   own requirement that this instruction is the authority for the `.gitlab-ci.yml` edit.
@@ -203,3 +226,11 @@ amendments:
     Content: `needs:` now names all four validate/test-stage gates that run unconditionally on
     a push-to-main pipeline; `decisions_taken`'s claim about what `needs:` gates corrected to
     match.
+  - 2026-08-18: + `acceptance_criteria` — authority: CPO, in-session, escalated blinded (§11)
+    after scope-auditor FAILED an unauthorized first attempt (this field is CPO-locked per §2).
+    Reason: merging `main` (needed to resolve the `.claude/task/*` conflict class, GitLab #77)
+    brings in `site_v2/src/**` from #62 step 5 — already built, CPO-reviewed, merged on its own
+    branch — which trips `_acceptance_gate` on path alone; the gate does not distinguish a merge
+    from new authorship. CPO: "Go ahead, write the note and continue." Content: 8 criteria
+    restated verbatim from #62's own already-demonstrated set, explicitly labeled as inherited,
+    not authored by or re-verified under this task. Full account: `escalations.log`, 2026-08-18.
