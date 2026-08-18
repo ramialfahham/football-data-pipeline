@@ -81,9 +81,10 @@ trending into the first build. Consequences, all applied:
   trending rows linked to them; with the block gone nothing on the site links to a team page.
 
 ⚠ **THIS PR THEREFORE SHIPS TWO OF THE FOUR**: next matches → browse. Top players and Top teams need
-six pieces of warehouse work (GAP-24…GAP-29) and a layout that is still unapproved, so they land in
-their own PR and slot between the two. Browse stays LAST rather than being pulled up under the hero:
-it is holding its final position, so the follow-up inserts and never rearranges.
+warehouse work (see the corrected gap list in §10 — the six originally named here were written
+against the NINE-board set and three are now void) and a layout that is still unapproved, so they
+land in their own PR and slot between the two. Browse stays LAST rather than being pulled up under
+the hero: it is holding its final position, so the follow-up inserts and never rearranges.
 
 **The block names are Top players and Top teams** (CPO 2026-08-08). Plain nouns, matching the
 vocabulary the page already uses for Next matches and Browse, and a matched pair so the
@@ -92,8 +93,11 @@ pattern. Rejected: "Player leaders / Team leaders" ("leader" collides with capta
 translates awkwardly) and "Who leads / Which teams lead" (more voice, less scannable, and the two
 halves stop being a pair).
 
-**A BOARD IS NAMED BY THE METRIC THAT RANKS IT** (CPO 2026-08-08). Not by its catalogue group. The
-first player board is **Goal contributions**, not "Goals", because it ranks on `scorer_points`.
+**A BOARD IS NAMED BY THE METRIC THAT RANKS IT** (CPO 2026-08-08). Not by its catalogue group. ⚠ The
+RULE stands; its original EXAMPLE does not. It read *"the first player board is Goal contributions,
+not 'Goals', because it ranks on `scorer_points`"* — but the 2026-08-10 reduction cut
+`scorer_points`, and the first board now ranks on `goals`, so under the same rule it IS called
+**Goals**. The example inverted when the boards changed; the rule is what produced both answers.
 Two consequences worth stating, because both were ruled:
 
 - The name is a GOVERNED value, not new copy. It is the rank metric's `label_en` in
@@ -102,8 +106,23 @@ Two consequences worth stating, because both were ruled:
 - **No "ranked by" annotation is rendered.** The CPO: *"no explanation needed how it's ranked, the
   user can see it"*. The name carries what the annotation was explaining.
 
-**Nine player boards.** Board name = the rank metric's `label_en`, shown here for readability; the
-`label_en` column is the source.
+⛔ **SUPERSEDED 2026-08-10 — THE TABLE BELOW IS THE NINE-BOARD DESIGN AND IS NOT CURRENT.** The CPO
+reduced Top players to **FOUR single-metric boards, in his order: goals → assists → passes → key
+passes** (recorded in `design-mocks/gen_top_players.py`'s header, which lists what was cut, and in
+`99_gaps_register.md` — GAP-24/25/26 are VOID *because* of this reduction). Struck rather than
+deleted, per this file's own convention.
+
+What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points`
+(goals and assists became boards in their own right, so the combined metric had nothing left to
+combine), every second/context column (`pass_accuracy_pct`, `dribbles_success_pct`,
+`duels_won_pct`, `save_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
+Cards entirely. ⚠ **There is therefore NO GOALKEEPER BOARD** — the four survivors are all
+attacking/possession metrics, so an outfield creator can top every board and a keeper can top none.
+⚠ The Goals-conceded row's "ASCENDING" note is what GAP-26 was written about; that board no longer
+exists and the gap is VOID.
+
+~~**Nine player boards.** Board name = the rank metric's `label_en`, shown here for readability; the
+`label_en` column is the source.~~
 
 | Board | Shown | Ranked by |
 |---|---|---|
@@ -121,7 +140,14 @@ Every board ranks on a VOLUME metric, never a rate. That is deliberate and it ca
 consequence: percentages ride along as context instead of deciding position, so the qualification
 floors that guard `mart_leaderboards`' five rate boards are not needed for eight of the nine.
 
-**Six team boards.**
+⛔ **SUPERSEDED 2026-08-10 — the table below is the SIX-board design and is not current.** Top teams
+was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_on_goal_per_match` →
+`passes_per_match` → `duels_per_match`** (`design-mocks/gen_top_teams.py`). % Points captured and
+Ø Defensive actions are gone, and the surviving four are single-metric like the player boards.
+⚠ % Points captured leaving matters beyond this block: `points_capture` is built on the synthetic
+3-1-0 tally, which is wrong for cup competitions.
+
+~~**Six team boards.**~~
 
 | Board | Shown | Ranked by |
 |---|---|---|
@@ -140,16 +166,28 @@ as the pool-selection gate below.
 Excluded deliberately: **Set pieces** and **Goalkeeping** (thin, no tier-1 metric), and the
 Outcomes metrics `league_rank` and `deserved_rank`, which are the standings the table page owns.
 
-⚠ `deserved_points` is null far more often than it is populated, and for two different reasons.
+⛔ **SUPERSEDED 2026-08-10 — the paragraph below is about the REMOVED % Points captured board.**
+`gen_top_teams.py`'s header: *"'% Points captured' dropped as a board; `points_capture` is shown
+nowhere"* and *"deserved-vs-actual dropped … takes `deserved_points` and `points_won` off the block
+entirely."* Nothing on the reduced four-board block ranks on `points_capture`, so its reassurance
+is not merely stale, it is FALSE about the current design. Kept as the record of why that board was
+fragile, because the same structural problem returns anywhere `deserved_points` is used.
+
+~~⚠ `deserved_points` is null far more often than it is populated, and for two different reasons.
 One is a coverage gap that can close: the league-season needs every team to carry shots on target,
 a league rank and three finished games. The other is STRUCTURAL and will not close — MLS ranks by
 conference and the Apertura/Clausura formats reset points, so there is no single ladder to fit.
 That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leagues in pools 2 and
-3. Ranking is on `points_capture`, so a null `deserved_points` never affects the order.
+3. Ranking is on `points_capture`, so a null `deserved_points` never affects the order.~~
 
 **Shared display rules.**
 
-- **Top 5 entries per board.**
+- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Top players is **one row per pool league** since
+  the 2026-08-18 ruling, so pool 1 renders **seven** rows — a 5-row cap could not show a leader
+  from all seven leagues the approved intro copy names. Top teams renders **seven** too (the
+  rendered mocks, and the "Open" note below, both say seven). ⚠ Row count is a DIFFERENT axis from
+  the board count corrected elsewhere in this file, which is why the board-count sweep did not
+  catch it — it took a fourth review round. Any future row-count claim needs checking on its own.
 - **A metric with no value is HIDDEN, not dashed.** CPO, 2026-08-08: a column of "-" reads as a bug
   to a visitor even when it is honest. Where a metric has no value for the pool being shown, the
   metric is removed from the board entirely, its NAME included, rather than rendered empty. This is
@@ -201,23 +239,37 @@ rather than dress it as current.
 
 **What this needs from the warehouse. None of it is built.**
 
-- **Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`.
+⛔ **THE FIRST THREE BULLETS ARE THE NINE-BOARD SET AND ARE VOID** (2026-08-10 reduction; they are
+GAP-24, GAP-25 and GAP-26, all withdrawn in `99_gaps_register.md`). Every metric they ask for was
+cut, so building any of it would serve nothing. Struck rather than deleted — the §10 list at the
+foot of this file carries the corrected status of all of them. The bullets AFTER them are still
+live and unchanged.
+
+- ~~**Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`.
   Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal`,
-  `passes_total`, `passes_key`, `cards_total`.
-- **Three display columns.** `passes_accurate` and `goals_against` exist in
+  `passes_total`, `passes_key`, `cards_total`.~~ VOID — all four were cut.
+- ~~**Three display columns.** `passes_accurate` and `goals_against` exist in
   `int_player_season__metrics` and are simply not selected into the mart. `shots_on_goal_against`
   is computed nowhere, but the catalogue already defines it as `sum(saves + goals_against)` and
-  both inputs are present.
-- **A reversed ranking mode.** The mart ranks descending and ranks only players with a positive
+  both inputs are present.~~ VOID — all three served boards that no longer exist.
+- ~~**A reversed ranking mode.** The mart ranks descending and ranks only players with a positive
   value. Applied to `goals_against` ascending, that rule excludes every keeper on zero — exactly
   the ones the board exists for. It also needs a floor: one appearance and a clean sheet would
-  otherwise top it. This is the one board where volume ranking does not protect the result.
+  otherwise top it. This is the one board where volume ranking does not protect the result.~~
+  VOID — there is no Goals conceded board. ⚠ The limitation it describes is REAL and returns with
+  any future ascending board; it is recorded on GAP-26's withdrawal for that reason.
+- ⭐ **STILL MISSING and registered as GAP-30**: `assists` is not a ranked board at all. It is the
+  second of the four surviving boards, so the reduced set cannot be built without it — a gap the
+  nine-board list above never had to name, because `scorer_points` covered assists back then.
 - **The club on a leaderboard row.** `int_player_season__metrics` already carries `team_sk`, the
   last club that competition-season; it is not selected into `mart_leaderboards`. Without it a row
   links to a player and nothing else, which halves the navigation purpose this block exists for.
-- **Pool membership in the dbt seed.** `competition_registry.csv` carries three columns
+- **Pool membership in the dbt seed.** ⚠ **HALF OF THIS IS NOW BUILT** (verified 2026-08-18):
+  `competition_registry.csv` carries EIGHT columns, not three — `league_code, competition_type,
+  parent_competition, confederation, slug, sort_order, tier, season_type` — so the `tier` and
+  `season_type` projection this bullet asks for already shipped. ~~carries three columns
   (`league_code`, `competition_type`, `parent_competition`). Pooling needs `tier` and `season_type`
-  projected from the YAML registry, plus one new authored pool field.
+  projected from the YAML registry,~~ Only the **one authored pool field** remains.
 - **A team boards mart.** All eleven team metrics already exist season-to-date in
   `int_team_season__metrics_cumulative`, and `deserved_points` is already on
   `mart_team_profile.sql:195`. What does not exist is top-N-per-metric ACROSS teams:
@@ -232,9 +284,11 @@ block.
 
 ### Open
 
-- **How many of the fifteen boards appear on the home page**, versus a full stats page behind it.
+- ~~**How many of the fifteen boards appear on the home page**, versus a full stats page behind it.
   Nine player plus six team, at five rows each, against a page that already measured 4262px on
-  mobile with four blocks.
+  mobile with four blocks.~~ **ANSWERED by the 2026-08-10 reduction**: FOUR player boards and FOUR
+  team boards, at seven rows each — not fifteen boards at five rows. The length question it was
+  really asking is settled by that cut, not by a separate ruling.
 - **THE LAYOUT OF BOTH BLOCKS IS NOT DONE** (CPO, 2026-08-08, explicitly). A proposal was rendered
   and reviewed this session — row built from `.prow`, two columns from `.split`, a rank column, the
   extra metrics stacked in the value cell the way `.squad .pstat` already does it — and it is NOT
@@ -254,9 +308,31 @@ Closed since 2026-08-04:
   collected and ordered by value — CPO: *"One per league -> yes, it's not a leaderboard in the
   defined pool."* So a board is 7 rows from 7 leagues by construction, never two from one league.
   ⚠ This is what `mart_leaderboards` ALREADY produces per league, so no pooled rank is needed
-  (GAP-31 withdrawn). ⚠ The intro copy still says "Ranked across pooled leagues", which describes
-  the withdrawn design — rephrasing is owed and the words are the CPO's (§10).
-- ~~**The team stats block shape.**~~ Six boards, specified above.
+  (GAP-31 withdrawn).
+- ~~**The Top players intro copy.**~~ **APPROVED 2026-08-18** (CPO: "you rephrase", then approved
+  the proposal). The EN string is:
+
+  > Season totals to date. The top player from each league: Premier League, La Liga, Bundesliga,
+  > Serie A, Ligue 1, Liga Portugal, Eredivisie.
+
+  It replaces *"Season totals to date. Ranked across pooled leagues: …"*, which described the
+  pooled ranking withdrawn by the ruling above. Three constraints it satisfies, recorded so a
+  rewrite does not undo them:
+  - **"The top player from each league"** states the mechanic plainly and echoes the block's own
+    name, so heading and sentence cannot drift apart.
+  - ⚠ **"leader" is deliberately NOT used**, though it is the obvious word. The CPO rejected
+    "Player leaders / Team leaders" as the block name on 2026-08-08 because *"leader"* collides
+    with captaincy in football and translates awkwardly. The same objection applies to this
+    sentence.
+  - The sentence sits ABOVE all four boards, so it must not name a metric — "top player" carries
+    goals, assists, passes and key passes equally.
+
+  ⚠ The league list is the ACTIVE POOL's members, not a fixed seven: pools 2 and 3 hold the slot in
+  the European summer, so the names change with the pool. DE and FI are written when the block is
+  built, against `check_copy_gate.py` (no byte-identical-to-English values, no em dashes).
+- ~~**The team stats block shape.**~~ ~~Six boards, specified above.~~ **FOUR boards** since the
+  2026-08-10 reduction: `goals_per_match` → `shots_on_goal_per_match` → `passes_per_match` →
+  `duels_per_match`.
 - ~~**What the two blocks are called.**~~ Top players and Top teams.
 - ~~**What each board is called.**~~ The rank metric's `label_en`, with no "ranked by" annotation.
 - ~~**Whether trending still earns its place.**~~ It does not — it is absent from the composition,
@@ -562,7 +638,7 @@ deleted. **The layering lesson it was written to enforce is NOT deleted**, and i
 block: ranking is business logic, the consumption layer may not do it, and the precedent is
 `mart_leaderboards`, whose export helper says in as many words that it "does not rank". A first
 draft of the trending export ranked teams in Python from raw streak columns; that is why the mart
-existed. Top players and Top teams inherit the same rule — see GAP-24…GAP-29.
+existed. Top players and Top teams inherit the same rule — see the corrected gap list in §10.
 
 **Deserved-vs-actual is excluded, on data.** `sot_points_gap` is non-null for **0 of those 359
 teams**. The full-table gate in `int_team_season__deserved_vs_actual.sql` requires every team in a
@@ -704,14 +780,26 @@ drawn — and describing one inline, however loudly, is not registering it. The 
 GAP-11/12/13/20/21/22/23: every one was an already CPO-approved locked design that still took a
 register row.
 
-- **GAP-24** — four new board keys in `mart_leaderboards` (`duels_total`, `dribbles_attempts`,
-  `tackles_total`, `goals_against`).
-- **GAP-25** — three display columns (`passes_accurate`, `goals_against`, `shots_on_goal_against`).
-- **GAP-26** — ascending ranking mode plus a minutes floor for the Goals conceded board. The
-  highest-risk of the six: today's descending, positive-only rule would exclude every keeper on
-  zero, which is exactly the population the board is for.
-- **GAP-27** — the club on a leaderboard row (`team_sk`), without which each row links to a player
-  and nothing else.
-- **GAP-28** — pool membership reachable inside dbt (`tier` + `season_type` projected into the
-  seed, plus one authored pool field).
-- **GAP-29** — a team-boards mart. `mart_team_competition_benchmarks` is the opposite shape.
+⚠ **THIS LIST WAS STALE AND IS CORRECTED 2026-08-18.** It named six gaps written against the
+nine-board design; three of those are VOID and three gaps registered since were missing. The
+register is the authority — check it, not this summary.
+
+- ~~**GAP-24** — four new board keys (`duels_total`, `dribbles_attempts`, `tackles_total`,
+  `goals_against`).~~ **VOID**: all four metrics were cut by the 2026-08-10 reduction.
+- ~~**GAP-25** — three display columns (`passes_accurate`, `goals_against`,
+  `shots_on_goal_against`).~~ **VOID**: all three served boards that no longer exist.
+- ~~**GAP-26** — ascending ranking mode plus a minutes floor for the Goals conceded board.~~
+  **VOID**: there is no Goals conceded board. ⚠ It carried "the highest-risk of the six" for eight
+  days after the board was deleted. The underlying limitation is real and returns with any future
+  ascending board — `mart_leaderboards` ranks descending and only positive values, so a
+  zero-is-best board silently excludes its own subjects.
+- **GAP-27** — LIVE. The club on a leaderboard row (`team_sk`); `grep -c team_sk` on the mart = 0.
+- **GAP-28** — LIVE, but SMALLER than written: `tier` and `season_type` are ALREADY projected into
+  the seed (8 columns, verified). Only the authored pool field remains.
+- **GAP-29** — LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.
+- **GAP-30** — LIVE, registered 2026-08-18. `assists` is not a ranked board, so the reduced set's
+  second board has no rank-1 to take.
+- ~~**GAP-31** — a pooled rank across the pool.~~ **WITHDRAWN 2026-08-18**: the block is one player
+  per league, so the per-league rank the mart already computes is the one it needs.
+- **GAP-32** — LIVE, registered 2026-08-18. Belongs to the fixtures hero, not these blocks: the
+  matchday is selected in the export rather than served by the warehouse. CPO ruled ship-as-is.

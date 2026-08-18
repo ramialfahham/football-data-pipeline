@@ -38,9 +38,24 @@ decisions_taken: >
      WORDS are not written here — copy is §10, always the CPO's. What the sentence must carry
      factually: each league's leader, season-to-date, and which leagues.
 
+amendments:
+  - 2026-08-18: `decisions_reserved`'s first item — the replacement wording — is DISCHARGED, not
+    still reserved. Authority chain, in order: the CPO delegated the drafting ("you rephrase"), I
+    proposed one string, he approved it ("yes, record it"). Delegation-then-ratification is the
+    CPO exercising §10, not the builder taking it; the record in `10_home.md` names both halves so
+    my authorship is never readable as a ruling. Recorded because scope-auditor correctly FAILed
+    the diff for writing the wording while the contract still said "stops there" — the two files
+    asserted contradictory states of the same decision.
+  - 2026-08-18: the doc sweep GREW beyond the ruling — authority: bi-analyst-reviewer FAIL, and it
+    is the same failure class as this morning's. Recording "four boards" inside `10_home.md` made
+    visible that the file's own §0 still carried the NINE-board and SIX-board tables, a stale §10
+    gap list naming the three VOID gaps, a "fifteen boards" open question, and a board-naming
+    EXAMPLE that the reduction inverted. All are the 2026-08-10 reduction never having been swept
+    into this file. Striking them is finishing the record this task exists to write, not new scope
+    — but it is more than the objective's literal words, so it is recorded rather than absorbed.
+
 decisions_reserved:
-  - The replacement wording itself. Copy is the CPO's; this task records that it must change and
-    what it must convey, and stops there.
+  - ~~The replacement wording itself.~~ DISCHARGED — see the amendment above.
   - Whether ordering the seven league-winners by value belongs in the mart or the page. The
     2026-08-16 Ruling 4 precedent ("the mart carries facts, the spec declares the ORDER BY") points
     at the page, but that ruling was about competitions, not players — not assumed, not decided.
