@@ -10,6 +10,10 @@
 // (contract.md); this is the specified starting list, unchanged from the mock.
 // Search is visually present but inert (no input, no backend) — search style
 // is a reserved CPO call.
+//
+// Competitions is the first item to earn a real href (#62 step 5, #54): its index page now
+// exists. system.css styles `.mainnav a`/`.mainnav span` identically, so the tag swap is the
+// whole visual change (#54's own text). Every other item stays a span until its own index ships.
 import { t } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
 import type { Lang } from "../../lib/format";
@@ -19,13 +23,13 @@ interface Props {
 }
 const { lang } = Astro.props;
 
-const navItems = [
-  t(lang, "navCompetitions"),
-  t(lang, "navMatches"),
-  t(lang, "navTeams"),
-  t(lang, "navPlayers"),
-  t(lang, "navStandings"),
-  t(lang, "navStats"),
+const navItems: { label: string; href?: string }[] = [
+  { label: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+  { label: t(lang, "navMatches") },
+  { label: t(lang, "navTeams") },
+  { label: t(lang, "navPlayers") },
+  { label: t(lang, "navStandings") },
+  { label: t(lang, "navStats") },
 ];
 ---
 
@@ -38,7 +42,7 @@ const navItems = [
     <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
 
     <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
-      {navItems.map((label) => <span>{label}</span>)}
+      {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
     </nav>
 
     <div class="header-actions">
@@ -75,7 +79,7 @@ const navItems = [
   </div>
 
   <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
-    {navItems.map((label) => <span>{label}</span>)}
+    {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
   </nav>
 </header>
 

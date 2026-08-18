@@ -142,6 +142,13 @@ Two browse axes, both fully registry-driven (#364 adds the fields):
 - **Country hubs** (`country` field): `/football/germany/` lists BL1, BL2, DFB-Pokal …
   ordered by `tier` + `sort_order`. International competitions appear under their
   confederation grouping on `/competitions/`, not under a country.
+  ⚠ `/competitions/` itself (#62 step 5, GitLab #54, built 2026-08-18) groups by the FINER
+  `competition_type` (8 categories) rather than the `display_group` rollup above, and by
+  `region_rank`/kickoff proximity rather than `tier`/`sort_order` (both retired for that page,
+  `escalations.log` 2026-08-16) — `display_group` and `sort_order` stay correct for the home
+  page's browse block, which this section still describes accurately. See
+  `docs/wireframes/08_browse.md` for the built page's actual grouping/ordering rule. Country hubs
+  themselves remain unbuilt.
 
 The landing page (#367) surfaces both axes; the nav exposes
 `Competitions · Matches · Teams · Players · Standings · Stats`.

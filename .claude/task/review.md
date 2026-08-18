@@ -1,74 +1,39 @@
-# Review — feat/62-4-export-competition-index — 2026-08-17
+# Review — feat/62-5-competitions-index-page — 2026-08-18
 
-diff_sha256: 9c94e26a611e26a65b2498fcdabe7e537e47bce3e210cb0f1fcf8d05228a6383
+diff_sha256: 40f816e304494a159fd5591b8d1bc6584616045569c0dd0f9aa010f2e2c94a8b
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: diffed files (contract.md, docs/site_architecture.md, scripts/export_site_data.py,
-  tests/test_export_site_data.py, plus excluded .claude/active_work.md) all match contract's
-  scope_paths exactly — no extra file touched.
-- §10 silent decision: checked shape_competition_index/fetch_competition_index against the cited
-  escalations.log 2026-08-16 entry ("feat/69-5-62-3-country-fk-and-mart", Ruling 4 — "THE MART
-  CARRIES FACTS, THE SPEC DECLARES THE ORDER BY") — the code's `order by league_code` and its
-  comment explicitly disclaiming it as display order match that ruling; no re-decision of sort
-  order occurred here.
-- Named-untouched functions: grepped _registry_competitions, fetch_nav/build_nav,
-  _competitions_index, fetch_competition_payloads in the patch — all only appear as unmodified
-  context lines, confirming the impact_map's "read-only reference points, NOT modified" claim.
-- decisions_reserved (deferring CI --entities wiring to step 5): verified .gitlab-ci.yml/
-  deploy-site-v2.yml invocations are unchanged in the diff and the new entity type stays dormant
-  unless explicitly requested — an honest engineering deferral, not scope-dodging, since nothing
-  downstream reads the file yet.
-- Credentials/secrets: swept the full patch for key/token/secret/password/credential/permission
-  patterns — only benign dict-key literals, nothing credential-shaped.
-- Doc-sync: docs/site_architecture.md's competitions-index row is updated in this same branch to
-  name competition_index.json/mart_competition_index, satisfying done_when.
-- New mechanism / recurring cost: shape_competition_index is a pure keep-list projection, one more
-  read-only SELECT in a script that already runs — no new warehouse object, library, service, or
-  schedule introduced.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Keep-list column parity: _COMPETITION_INDEX_KEEP vs mart_competition_index.sql select list and
-  shared.yml column docs — exact 14/14 match, no defect.
-- shape_competition_index() computation check: dict-projection only, no rank/sort/filter/derive;
-  unit test asserts order preservation and non-passthrough of unlisted columns.
-- order by league_code in fetch_competition_index(): checked against escalations.log 2026-08-16
-  CPO ruling on the approved display sort — confirmed this is a diff-determinism sort, not the
-  real page order, documented as such in code.
-- Claimed-untouched functions (_registry_competitions, fetch_nav, _competitions_index/
-  competitions.json, fetch_competition_payloads/"competitions") — verified all sit outside the
-  diff and are structurally unchanged.
-- Downstream dormancy: grep site_v2/src for "competition_index" (zero hits) and CI entities lists
-  in .gitlab-ci.yml:767 / deploy-site-v2.yml:65 (still teams,fixtures only) — confirmed new path
-  is inert in deployed pipelines.
-- Catalogue governance / hardcoded competition identifiers / same-window ratio rule — not
-  applicable, no metric or ratio introduced.
+- Amendment #4 (`+ site_v2/src/lib/competitionOrder.mjs`, contract.md lines 157-166): confirmed it is a mechanical TS→JS portability rewrite in response to a platform-reviewer round-1 FAIL, matching the documented house convention (`check-metric-labels.test.mjs`'s reason for not importing `.ts` under bare `node --test`). Diffed `competitionOrder.mjs` against the sort/group logic description in the file's own header comment and confirmed it still implements the exact 2026-08-16 CPO ordering ruling (upcoming-first, calendar-day bucket, region_rank, kickoff time, league_code tiebreak) with no logic change — a mechanical rewrite, not a §10 rule-extension or new mechanism.
+- Stale-`.ts`-path cleanup: grepped `site_v2/src` for `competitionOrder` — only `.mjs`/`.test.mjs`/`types.ts`/`index.astro`/`CompetitionIndexGrid.astro` reference it, all pointing at `.mjs`; confirmed `competitionOrder.ts` no longer exists on disk (Glob empty), consistent with the delete the amendment describes.
+- `.seg.wrap` CSS addition (`system.css` lines 507-521, applied only in `CompetitionIndexGrid.astro` line 72 to the region filter): checked it is additive-only (new modifier class, `flex-wrap: wrap` + `flex: 0 1 auto` on `.seg-btn`), scoped to one filter instance via an explicit `.wrap` class rather than changing `.seg`'s base rule, and the entity filter (line 69-71) keeps the unmodified `.seg` used elsewhere (e.g. fixture page W1/W2 toggle) untouched. The filter's existence, axes, and zero-JS mechanism were already decided in `decisions_taken` #2; this only fixes overflow rendering at 375px, introduces no new interaction, no JS, no new component — classified as a bug fix within already-decided scope, not a CPO-reserved UX decision.
+- scope_paths coverage: every delta-changed path (`contract.md`, `competitionOrder.mjs`/`.ts`/`.test.mjs`, `system.css`, `CompetitionIndexGrid.astro`, `[lang]/competitions/index.astro`, `types.ts`, `08_browse.md`, `active_work.md`) is listed in `contract.md`'s `scope_paths` (lines 12-30); the `.ts` entry is deliberately retained to permit its own deletion, as amendment #4 states.
+- Secrets/credentials sweep across the delta's touched files (contract.md, competitionOrder.mjs, competitionOrder.test.mjs, system.css, CompetitionIndexGrid.astro) — nothing key/token/password-shaped found.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round-1 gap (ambiguous fixture order in test_shape_competition_index_projects_the_keep_list_and_
-  changes_nothing): re-derived both accidental-sort outcomes against the corrected fixture. Input
-  order is [WC, PL]; alphabetical league_code sort and ascending region_rank sort both yield
-  [PL, WC] — differing from the asserted ["WC", "PL"], so the assertion can only pass if the
-  implementation preserves input order, which it does. Gap closed (also independently verified by
-  the builder: temporarily sorting the function made the test go red, reverting made it green
-  again).
-- shape_competition_index implementation: confirmed select/project only, no sorted()/filter/
-  derived field.
-- Test also exercises null preservation, key-projection (unlisted column dropped), and both
-  label-resolution branches — not happy-path-only coverage.
-- CI/deploy wiring: grepped .gitlab-ci.yml and deploy-site-v2.yml for competition_index — zero
-  hits in both, confirming dormancy.
-- ENTITY_TYPES tuple change and the new export_all() block: additive only, follows the exact same
-  write pattern as the immediately preceding landing block.
-- Dependency/credential/build-health/hosting surfaces: no requirements/package/hook/workflow files
-  in the diff; no secrets or permission widening.
+- Round-1 finding resolution: read `site_v2/src/lib/competitionOrder.mjs` in full — it is plain JavaScript with JSDoc-only type annotations (`@typedef`, `@type {string} (...)` casts, `@param`), no TypeScript-only syntax (no `interface`, no `as X` casts, no `: type` parameter annotations). `competitionOrder.test.mjs` imports it via `./competitionOrder.mjs`, a plain-JS import `node --test` can resolve without relying on Node's native type-stripping. `competitionOrder.ts` no longer exists on disk (`Glob site_v2/src/lib/competitionOrder.*` returns only `.mjs`/`.test.mjs`). The finding is fixed.
+- Leftover `.ts` references: grepped all of `site_v2/src` for `competitionOrder` — every remaining reference (`CompetitionIndexGrid.astro`, `types.ts`, `pages/[lang]/competitions/index.astro`) now cites `competitionOrder.mjs`, not `.ts`. No broken or misleading path left, confirming the claimed sweep.
+- The cited CPO ruling is real: found the 2026-08-16 `feat/69-5-62-3-country-fk-and-mart` entry in `escalations.log` (row-order key, region_rank, calendar-day bucketing) — matches `competitionOrder.mjs`'s header comment verbatim, not a fabricated citation.
+- Test coverage of the ordering logic: `competitionOrder.test.mjs`'s 7 tests target the exact failure modes the ruling exists to prevent (raw-clock tiebreak beating calendar-day bucket, no-upcoming outranking upcoming, category ordering by earliest member) — these would fail if the corresponding `if` branches in `compareCompetitions`/`groupAndOrderCompetitions` were reverted, not just happy-path assertions.
+- `ENTITY_VALUES` / schema enum drift protection: `check-page-specs.mjs`'s `ENTITY_VALUES` and `page-spec.schema.json`'s `entity.enum` were both extended with `"competitionIndex"` in the same diff; `check-page-specs.test.mjs`'s pre-existing cross-check test (`assert.deepEqual(new Set(schema.properties.entity.enum), ENTITY_VALUES)`) would fail if only one side had been edited — covered.
+- New page-spec actually gets validated at build time: `check-page-specs.mjs`'s `main()` (wired into `npm run prebuild` → `npm run build`) discovers real pages by scanning for a `Layout.astro` import, which `pages/[lang]/competitions/index.astro` has, so it and its new spec are exercised by the real gate.
+- Third-party asset origin: `CompetitionIndexGrid.astro` renders `<Crest crest={row.logo_url} />`, and `logo_url` values in the committed `competition_index.json` are `https://media.api-sports.io/...` — pre-existing pattern already used identically by `TeamHeader.astro`/`Masthead.astro`/`HeroFixtures.astro` (untouched here); no new external-origin fetch introduced.
+- Dependency/config surface: no `package.json`, `package-lock.json`, `astro.config.mjs`, `tsconfig.json`, or `firebase.json` changes in this branch — no dependency or hosting-config drift.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Binding rule, full mart→export→JSON→types→component trace: read `dbt_project/models/5_marts/shared/mart_competition_index.sql` and confirmed its exact 14-column select list matches `_COMPETITION_INDEX_KEEP` in `scripts/export_site_data.py`, which matches every key in the committed `site_v2/src/data/competition_index.json` (all 48 rows), which matches `CompetitionIndexRow` in `site_v2/src/lib/types.ts`, which matches every field `CompetitionIndexGrid.astro` renders. No fabricated field.
+- The three `decisions_taken`, source vs rendered evidence: `.inner{max-width:680px}` in `system.css` (two-column via `auto-fill, minmax(280px,1fr)`) cross-checked against `rendered_page_evidence.md` §3's live `getBoundingClientRect().width === 680` and `grid-template-columns: 308px 308px` at 1280px. Filters are single-select radio groups, no JS multi-select. `.comp-row` carries no anchor/hover-lift/chevron — confirmed against the evidence file's live DOM check (`rowsWithAnchor: 0` across all 48 rows, both build output and live DOM).
+- i18n: every new key (`filterAll/Clubs/National/ByType/ByRegion`, 8 `compType*`, 7 `confed*`) has distinct, real DE and FI translations in `strings.ts`, none byte-identical to EN, consistent with what the components actually call via `t()`.
+- Ordering module vs the 2026-08-16 CPO ruling in `escalations.log`: `competitionOrder.mjs`'s `compareCompetitions`/`groupAndOrderCompetitions` implement the ruling exactly (calendar-day bucket via string-slice not `Date` parsing, region_rank, kickoff-time and league_code tiebreaks, no-upcoming sorts last, categories order by earliest member).
+- Rendering defect check from built output, not a code read alone: `rendered_page_evidence.md` §3-4 documents a genuine mobile-overflow bug found live at 375px (region filter `scrollWidth 645` vs `clientWidth 375`) and its fix (`.seg.wrap`), re-measured after the fix with `overflowingRegionButtons: 0` at both 375px and 1280px, from the running preview and built `dist/` output.
+- `review_input.patch` regeneration: the copy first handed to reviewers predated the `.mjs` conversion and the `.seg.wrap` fix (a builder redirection mistake, since corrected — the patch now reflects both); verified by direct file reads that the code itself was already correct and current at review time, and confirmed no semantic drift in the `.ts`→`.mjs` port via line-by-line comparison. `diff_sha256` above is computed from the git index directly (`--staged-hash`), independent of the patch file's content, so it was never affected.
 
 ## escalations
 (none)

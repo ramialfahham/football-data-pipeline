@@ -1,83 +1,166 @@
-# Task contract — #62 step 4: repoint the export at mart_competition_index
+# Task contract — #62 step 5: the competitions index page
 
 objective: >
-  Give the competitions index page (#54, not yet built) a real, mart-backed JSON export. Add a new
-  `fetch_competition_index()`/`shape_competition_index()` pair to `scripts/export_site_data.py`
-  that queries `mart_competition_index` (live in prod since !65) and writes `competition_index.json`
-  under a new `"competition_index"` entity type. This is #62 step 4; step 5 (the Astro page, its
-  page-spec, the nav-item anchor swap) is a separate, later MR.
-refs: GitLab #62 (step 4 of 5), #54 (page design), MR !65 (the mart, merged), MR !66 (a doc fix,
-  merged)
+  Build `/{locale}/competitions/`: the page-spec, the Astro page + component, the CPO-approved
+  ordering logic, the committed data file, i18n for the categories/regions it renders, and the
+  `SiteHeader` nav anchor swap. Last of #62's five steps. The design is already fully settled
+  (GitLab #54, CPO-reviewed 2026-08-10 with corrections through 2026-08-17, plus the 2026-08-16
+  ordering ruling in `escalations.log`) — this is faithful implementation, not new design.
+refs: GitLab #62 (step 5 of 5), #54 (page design), #52 (interaction standard), #50 (block
+  standard), #47 (competition hub — confirmed NOT built, shapes the row-link decision below)
 
 scope_paths:
-  - scripts/export_site_data.py
-  - tests/test_export_site_data.py
+  - site_v2/src/data/competition_index.json
+  - site_v2/src/data/README.md
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/lib/types.ts
+  - site_v2/src/lib/competitionOrder.ts
+  - site_v2/src/lib/competitionOrder.mjs
+  - site_v2/src/lib/competitionOrder.test.mjs
+  - site_v2/src/specs/page-spec.schema.json
+  - site_v2/scripts/check-page-specs.mjs
+  - site_v2/src/specs/competitions/index.spec.json
+  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
+  - site_v2/src/pages/*/competitions/index.astro
+  - site_v2/src/components/chrome/SiteHeader.astro
+  - site_v2/src/styles/system.css
+  - docs/wireframes/08_browse.md
+  - docs/wireframes/00_overview.md
   - docs/site_architecture.md
   - .claude/active_work.md
 
+acceptance_criteria:
+  - `/en/competitions/`, `/de/competitions/`, `/fi/competitions/` all build and render with no
+    console errors.
+  - The page shows every "browsable" competition in `competition_index.json` (48 rows, all of
+    them — the mart already excludes non-browsable types) grouped under a category heading per
+    `competition_type` present in the data; a category with only one member still shows its
+    heading (never hidden).
+  - Category order AND within-category row order both follow the CPO-approved key
+    (`escalations.log`, 2026-08-16): has-upcoming-fixture, then days-to-next-kickoff bucketed by
+    calendar day, then `region_rank`, then kickoff time, then `league_code`; no-upcoming rows sort
+    last, most-recently-played first; categories order by their own earliest-sorting member.
+    Verified by hand-computing the expected order for a handful of real rows and checking the
+    rendered page matches.
+  - Each row shows the competition's logo, name, and region sub-line (`region_label_en` when
+    `region_label_i18n_key` is null — a country — else the translated region label). Rows are
+    NOT yet clickable links — matching `BrowseGrid.astro`'s established "no dead links until the
+    target page exists" precedent, since #47 (the competition hub each row would link to) is
+    confirmed not built.
+  - Two filter controls (`entity_type`: clubs/national; `confederation`: region) narrow the
+    visible rows via the existing zero-JS `segment`/`seg-btn` CSS pattern (no client JS); a
+    category left with zero visible rows after filtering disappears entirely, no empty-state
+    placeholder.
+  - The site nav's "Competitions" item is a real `<a href="/{locale}/competitions/">` in both the
+    desktop nav and the mobile drawer; every other nav item stays an inert `<span>`.
+  - `python scripts/check_copy_gate.py` passes (all new i18n keys present, real DE/FI
+    translations, no byte-identical-to-English non-brand values).
+  - `node scripts/check-page-specs.mjs` and `node --test` (site_v2/) both pass.
+  - Visually verified in the Browser pane at desktop and mobile widths, screenshotted.
+
 impact_map: >
-  writers: `mart_competition_index` (read-only SELECT, no write) is built by `data:build:main`/
-    `data:build:mr` from the model merged in !65. `scripts/export_site_data.py` itself is invoked
-    two ways: `.gitlab-ci.yml:767` and `.github/workflows/deploy-site-v2.yml:65`, both
-    `python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data` — an
-    EXPLICIT entities list that does not include "nav", "landing", "competitions" or any other
-    existing entity type either. Adding `"competition_index"` to `ENTITY_TYPES` does not change
-    what either CI job runs; the new path stays dormant until something explicitly asks for it via
-    `--entities`. Local/manual invocation (`python scripts/export_site_data.py` with no
-    `--entities` flag, or `main()`'s own default) DOES pick up every entry in `ENTITY_TYPES`,
-    including the new one.
+  writers: `competition_index.json` is committed from a real, already-priced (10,067 bytes)
+    `python scripts/export_site_data.py --entities competition_index` run against prod
+    `mart_competition_index` (merged !65, live). No export code changes in this task — the
+    committed file is a snapshot, refreshed the same way `landing.json`/`teams/*.json` already
+    are per `site_v2/src/data/README.md`'s "refresh as a set" convention.
 
-  downstream: NONE today. `grep -rn "competition_index" site_v2/src` returns zero hits — no Astro
-    page, component or spec reads this file yet, because step 5 (the page that would) is not built.
-    `competition_index.json` is a new, additive output; nothing existing reads it, and nothing
-    existing stops reading anything it read before.
+  downstream: NEW page, NEW component — nothing existing depends on them. `site_v2/src/lib/types.ts`
+    gains one new additive interface (`CompetitionIndexRow`/`CompetitionIndex`); no existing
+    interface is changed. The `SiteHeader.astro` nav change is the only edit to an already-shipped,
+    already-rendered surface: every other page that imports `SiteHeader` (home, team, fixture)
+    picks up the anchor swap automatically since it's the same shared component — confirmed via
+    `grep -rln "SiteHeader" site_v2/src` before editing, and at least one non-competitions page
+    (home) screenshotted to confirm the nav still renders correctly elsewhere.
 
-  layer_rules: this is the consumption layer (`scripts/export_*.py`), not a dbt model — no
-    `check_layer_contract.py` surface. The new `shape_competition_index()` does select/project
-    only (a keep-list, mirroring `shape_leaderboards`' `_LB_KEEP` pattern at
-    `export_site_data.py:51-55`) — no ranking, no joining, no derived field, consistent with the
-    repo's own audit findings (`docs/audits/2026-06_alignment_audit.md` F4/F6/F7) about what NOT to
-    do in this file. `fetch_competition_index()` adds one `order by league_code` for a
-    deterministic export diff, explicitly NOT the page's display order (`escalations.log`,
-    2026-08-16: the mart carries facts, the page spec declares the ORDER BY) — a comment states
-    this so step 5 doesn't mistake it for the real sort.
+  layer_rules: this is entirely the consumption/presentation layer (site_v2/src/**) — no dbt
+    model, no export Python change. The CPO's consumption-layer rule (select/filter/group/rename/
+    format only, never compute) governs `CompetitionIndexGrid.astro`: it renders what
+    `competition_index.json` already carries. `competitionOrder.ts` is the one place doing real
+    logic (a sort), which is correct per the CPO's own 2026-08-16 ruling that ordering is the
+    PAGE's job, explicitly not the mart's or the export's — quoted in the file's header comment.
 
-  deploy_order: none. This is a script change with no BigQuery write and no CI wiring change (see
-    writers above) — nothing about existing deploys is affected. The new function can be verified
-    by running it directly against prod (read-only SELECT, priced at 10,067 bytes) without going
-    through CI at all.
+  deploy_order: none — this MR does not wire `competition_index` into
+    `.gitlab-ci.yml`/`deploy-site-v2.yml`'s `--entities` list (deliberately reserved, see below),
+    so the committed sample is what both local dev and any future CI build read; no BigQuery
+    dependency at build time for this page.
 
-  blast_radius: additive only. `ENTITY_TYPES` gains one new string; every existing entity type's
-    code is untouched. `_registry_competitions()`, `fetch_nav()`/`build_nav()`, `_competitions_index()`
-    (the small `{league_code: {name, slug}}` lookup feeding the fixture page and `TeamHeader.astro`),
-    and `fetch_competition_payloads()` (the unrelated `"competitions"` entity type, per-league-season
-    detail payloads for #47) are all read-only reference points for this task and are NOT modified.
+  blast_radius: additive except `SiteHeader.astro` (nav swap, scoped to one array entry),
+    `types.ts` (additive interface), and the two `entity` enum files (additive value, no existing
+    value changed). No other page's markup, data, or route changes.
 
 decisions_taken: >
-  This wires a mart the CPO already approved (!65) into the export layer using the file's own
-  established pattern (a `shape_*` pure function + a `fetch_*` BigQuery function + one block in
-  `export_all()`) — no new mechanism, no new CPO decision. The ordering stance (mart/export carry
-  facts, page spec carries the ORDER BY) is the CPO ruling already recorded in `escalations.log`,
-  2026-08-16 — restated here as an implementation constraint, not re-decided.
-  NEW MECHANISM: none. RECURRING COST: none — one more `SELECT` against a 48-row table in a script
-  that already runs.
+  Three things #54 left open, resolved WITH the user before this contract was written (this
+  session, not a silent call):
+
+  1. PAGE WIDTH: `.inner`'s 680px→1080px override was flagged in #54's own text as "a
+     system-level decision, not a page one... flagged for a ruling," never actually ruled on.
+     Decided: ship at the standard 680px width, two-column layout. No `system.css` measure
+     changes.
+
+  2. FILTERS: #54 states the mock's single-select is "a pure-CSS limit of the mock, not the
+     design... the shipped Astro page has JS and can multi-select." Decided: single-select now
+     (existing zero-JS `segment`/`seg-btn` radio pattern), multi-select JS as a follow-up — ships
+     faster, matches the mock exactly, no new interaction code in an already-large change.
+
+  3. ROW LINKS: #54 describes rows as real links to each competition's own page. Checked GitLab
+     #47 directly: `state: opened`, not built — only the fixture page exists under
+     `site_v2/src/pages/[lang]/[competition]/`. #47's own issue text repeatedly names linking to
+     a page that doesn't exist as "the browse-chip 404" failure mode, which is exactly why
+     `BrowseGrid.astro`'s chips are inert `<span>`s today. Decided: ship rows inert (full content,
+     no anchor, no hover-lift, no chevron — those affordances would falsely signal clickability),
+     becoming real links in the MR that ships #47, mirroring `BrowseGrid.astro`'s own documented
+     pattern exactly.
+
+  NEW MECHANISM: none — reuses the existing zero-JS filter pattern, the existing `t()`/i18n
+  machinery, the existing page-spec schema (widened by one enum value), the existing `Layout`/
+  `SiteHeader` components. RECURRING COST: none — one more static JSON file in a build that
+  already runs.
 
 decisions_reserved:
-  - Whether/when `.gitlab-ci.yml`/`deploy-site-v2.yml`'s explicit `--entities teams,fixtures` list
-    grows to include `competition_index` is deliberately NOT decided here — that is step 5's
-    concern, when a page actually consumes the file. Wiring it into CI now would commit a file
-    nothing reads.
+  - Wiring `competition_index` into `.gitlab-ci.yml`/`deploy-site-v2.yml`'s `--entities` list —
+    deliberately NOT done here (contract for #62 step 4 already reserved this the same way).
+    Nothing outside this MR reads the committed file's freshness guarantee yet, so there is
+    nothing to wire it to; revisit when a real deploy needs a live-refreshed sample.
+  - Multi-select filtering (JS) — explicitly reserved to a follow-up per decision 2 above.
+  - Making rows real links — explicitly reserved to the MR that ships #47 per decision 3 above.
+  - The `entity` enum value name (`competitionIndex`) is a technical schema categorisation
+    decision, not user-facing copy — made here, not escalated, consistent with how the Python
+    export's `"competition_index"` entity-type name was decided without escalation in step 4.
 
 done_when:
-  - `shape_competition_index()` has a passing unit test (no BigQuery) mirroring
-    `test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank`'s pattern.
-  - `python scripts/export_site_data.py --entities competition_index --out artifacts/site_data` run
-    for real against prod (priced first) produces `competition_index.json` with all 48 competitions,
-    the expected keys, and a resolved `region_label_en` on both a domestic and an international row.
-  - `ruff` clean on the changed Python files.
-  - Full `pytest` run stays green (no regression from the `ENTITY_TYPES` tuple change).
-  - `docs/site_architecture.md`'s competitions-index row names `competition_index.json` /
-    `mart_competition_index` instead of the stale `nav.json` claim.
+  - Every item in `acceptance_criteria` above is demonstrated and recorded in
+    `.claude/task/acceptance_evidence.md` under a `criteria_demonstrated:` marker, read from
+    built output (not asserted).
+  - `node --test` (site_v2/) green, including the new `competitionOrder.test.mjs`.
+  - `python scripts/check_copy_gate.py` and `node scripts/check-page-specs.mjs` both pass.
+  - `docs/wireframes/08_browse.md` written per the standard §1–§10 template; `00_overview.md`'s
+    screen-inventory row flipped from "pending" to a link.
   - `.claude/active_work.md` updated in the same commit, under 16,000 characters.
 
-amendments: (none)
+amendments:
+  - 2026-08-18: + site_v2/src/lib/types.ts — authority: mechanical addition, caught by the
+    contract gate on first edit attempt (the new CompetitionIndexRow/CompetitionIndex interfaces
+    belong beside every other page's types in the same file, per existing convention). No CPO
+    judgment call involved; recorded per §2's amendment process on a clean tree before proceeding.
+  - 2026-08-18: corrected `site_v2/src/pages/[lang]/competitions/index.astro` to
+    `site_v2/src/pages/*/competitions/index.astro` in scope_paths — authority: mechanical fix,
+    caught by the contract gate on the actual page-file write attempt. `[lang]` is a literal
+    directory name in Astro's routing convention but the gate's fnmatch reads `[...]` as a
+    character class (matches one of l/a/n/g), the exact trap CLAUDE.md documents for
+    `[lang]`/`[team]` segments. No CPO judgment call; recorded on a clean tree before proceeding.
+  - 2026-08-18: corrected `site_v2/src/components/layout/SiteHeader.astro` to
+    `site_v2/src/components/chrome/SiteHeader.astro` in scope_paths — authority: mechanical fix,
+    the component lives under `components/chrome/` (confirmed by reading `Layout.astro`'s own
+    import), not `components/layout/`, which I misremembered while drafting the contract before
+    reading the real file. No CPO judgment call; recorded on a clean tree before proceeding.
+  - 2026-08-18: + `site_v2/src/lib/competitionOrder.mjs` — authority: platform-reviewer round-1
+    FAIL. `competitionOrder.ts` (deleted, its scope_paths entry stays to permit the delete) was
+    the only place in the codebase where a `node:test` file imports a `.ts` file directly; every
+    other test that needs something from a `.ts` file text-scans it instead
+    (`check-metric-labels.test.mjs`'s own documented reason: `node --test` cannot import `.ts`
+    without relying on Node's native type-stripping being on by default, which the repo's declared
+    `engines: >=22` floor does not guarantee — only Node ≥22.18/≥23.6 default it on). Converted the
+    module to plain `.mjs` (JSDoc instead of TS types) so neither the test nor Astro's own build
+    depend on that capability. No CPO judgment call — a portability fix matching an existing,
+    documented house convention; recorded on a clean tree before proceeding.

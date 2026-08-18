@@ -1,85 +1,59 @@
-# Acceptance evidence — never record a gap as captured (#75 MR2)
+# Acceptance evidence — #62 step 5: the competitions index page
 
-Not a `site_v2/` task, so the acceptance-criteria gate does not apply. This exists because
-`done_when` requires each of the four holes to be seen RED before the fix ships.
-
-## criteria_demonstrated:
-
-### 1. All 11 new tests FAIL against `gitlab/main`
-
-Method: `git worktree add --detach <scratch> gitlab/main`, the new test file copied in, pytest run
-there. The working tree was never touched.
-
-    11 failed
-
-**FIVE fail on the assertion itself, naming the live defect.** ⚠ This document first said THREE.
-`platform-reviewer` traced the loader hunks and pointed out that the two player-entity tests fail on
-the assertion too, not on the unpack: they monkeypatch the helper inside the loader's own namespace,
-so the pre-fix loader receives the tuple and stores it whole as the payload, and the entry is
-recorded. I re-ran them against `gitlab/main` rather than take that on trust:
-
-    test_player_entity_incomplete_is_not_recorded[profiles]
-    test_player_entity_incomplete_is_not_recorded[player_teams]
-    E  AssertionError: player 7's rate-limited empty payload was recorded ([7, 8]);
-       `_existing_player_ids` keys on player_id presence, so that player is never fetched again
-
-Recorded as a correction rather than edited away: understating evidence is the same #904 class as
-overstating it, and the number is the whole point of this section.
-
-The other three:
-
-    test_squads_incomplete_team_is_not_recorded
-    E  AssertionError: team 10's rate-limited empty squad was recorded ([10, 11]);
-       `captured_team_seasons` keys on team_id presence, so that team is now never re-fetched
-
-    test_transfers_with_no_team_ids_writes_nothing
-    E  AssertionError: an empty whole-league transfers snapshot was written; it becomes the
-       latest row and hides every stored move for that competition.
-       wrote=[{'as_json_payload': True, 'append': True, 'league_code': 'BL1'}]
-
-    test_load_json_to_bq_requires_an_explicit_append
-    E  AssertionError: `append` has a default again. It must stay required...
-       assert False is <class 'inspect._empty'>
-        +  where False = <Parameter "append: 'bool' = False">.default
-
-**The remaining six fail on the unpack**, because the three helpers returned a bare list and
-`rows, complete = helper(...)` cannot destructure it. Stated rather than counted as assertion
-proofs — though the unpack failure IS the defect in this case: the completeness signal did not
-exist to reach the caller at all. `platform-reviewer` checked whether they are therefore vacuous
-and concluded not: they call the REAL helpers with only `fetch_merged_paged` mocked, so if the
-tuple shape were restored with the boolean wrong (say hardcoded `True`), the explicit
-`assert complete is False` / `is True` still fires.
-
-### 2. The rule was not widened, only the write withheld
-
-`test_empty_but_clean_response_is_still_complete` (×3) pins the CPO ruling of 2026-08-03: an empty
-error-free answer is COMPLETE and is still written. Without it, a "fix" that simply refused every
-empty response would satisfy every other test here and silently re-fetch 3,539 historical
-team-seasons nightly.
-
-### 3. `append` audit, enumerated not assumed
-
-    grep -rn "load_json_to_bq(" ingestion/ scripts/   ->  11 callers
-      9 pass append=True explicitly
-      2 omitted it and relied on the False default, BOTH deliberately, both single-current-state
-        operational tables: completeness.py:602 (INGEST_COMPLETENESS_SNAPSHOT) and
-        fixture_scheduling.py:345 (INGEST_CURSOR)
-Both now pass `append=False` explicitly with a comment saying why. Behaviour is unchanged
-everywhere; the destructive mode is simply written down at the two call sites that choose it.
-
-### 4. One pre-existing test needed a harness fix, found by RUNNING the suite
-
-`tests/test_player_squads_catchup.py:176` held the repo's only double for
-`squads_response_for_team` and still returned a bare list. Left alone it raised "not enough values
-to unpack", which the loader's own `except` swallowed into an error string, so the suite went red
-for a reason unrelated to the defect. The fake now returns `(rows, True)` — deliberately COMPLETE,
-because that test is about a quota cut mid-competition, not a failed fetch, and the two paths must
-stay separable. No assertion moved. Recorded as a contract amendment.
-
-### 5. Full suite and lint
-
-    824 passed, 1 skipped, 14 subtests passed in 464.35s
-    ruff --config .ruff-ci.toml ingestion tests  ->  All checks passed!
-
-Was 813 passed / 1 skipped before this branch: +11, exactly the new file, no test removed and none
-displaced.
+criteria_demonstrated:
+  - **All three locales build and render with no console errors.** Ran `preview_start` (name `v2`,
+    Astro dev server), navigated to `http://localhost:4321/en/competitions/`,
+    `/de/competitions/`, `/fi/competitions/`. `read_console_messages` showed zero errors on all
+    three (only benign `[vite] connecting/connected` debug lines). Titles rendered correctly per
+    locale: "All football competitions" / "Alle Fußballwettbewerbe" / "Kaikki jalkapallokilpailut".
+  - **Every browsable competition (48/48) grouped under an always-shown category heading.**
+    `get_page_text` on the EN page listed all 8 categories (Domestic cups, Domestic leagues,
+    Continental club cups, Continental championships, Continental super cups, World Cup, National
+    team qualifiers, Club World Cup) with every one of the 48 committed rows present — cross-checked
+    against `site_v2/src/data/competition_index.json`'s row count. "Continental super cups" and
+    "World Cup" each have exactly one member and both still show their heading.
+  - **Category and row order follow the CPO-approved key, verified against real data, not just the
+    unit test.** Before touching the browser, I ran `groupAndOrderCompetitions` directly against
+    the committed `competition_index.json` from a scratch script and printed the full computed
+    order. The RENDERED page's category order and every row's order within each category matched
+    that computed output exactly, category-by-category, row-by-row (Domestic cups: CIT, DFBP, CDF,
+    FAC, CDR; Domestic leagues: PD, LP, APD, BSA, LMX, MLS, SPL, VL, EKS, TSL, BPL, L1, PL, J1, ED,
+    SA, KL1, BL2, BL1; Continental club cups: UCL, LIBER, UEL, UECL, CAFCL, AFCCL, CCCU; Continental
+    championships: UNL, ACN, AFCON, GCUP, CNL, COAM, EURO; National team qualifiers: WCQIP, WCQEU,
+    WCQCA, WCQAS, WCQAF, WCQSA, WCQOC — all confirmed by direct read of the rendered page text).
+  - **Rows are logo + name + region sub-line, NOT clickable.** `read_page` (accessibility tree, full
+    depth) on the EN page showed all 48 competition rows as `generic` elements — zero `link` roles
+    among them. The only real links on the whole page are the wordmark (header + footer), the
+    breadcrumb's "Home" segment, and the two (desktop + mobile) "Competitions" nav items. Region
+    sub-lines resolve correctly both ways: domestic rows show the plain country
+    (`region_label_en`, e.g. "Italy", "Germany" — no i18n lookup, since `region_label_i18n_key` is
+    null), international rows show the translated region (e.g. EN "Europe" / DE "Europa" / FI
+    "Eurooppa" for the same UEFA rows).
+  - **Two filter axes narrow visible rows; an empty category disappears entirely.** Clicked the
+    "Clubs" filter label (the `.seg-in` radio itself has `pointer-events: none` by design — the
+    associated `<label>` is the real click target). Result: "Continental championships", "World
+    Cup", and "National team qualifiers" (all-national categories) vanished completely, including
+    their headings; all-club categories kept every row. Then added the "Oceania" region filter on
+    top of "Clubs" (the combined case #54's own notes measure as "0/0"): every category and row
+    disappeared, confirmed via `get_page_text` showing only the page chrome and the filter controls
+    themselves. This proves the inline empty-category-collapse script correctly handles the
+    compound case pure CSS `:checked` sibling selectors couldn't express cleanly.
+  - **Nav "Competitions" is a real link; every other item stays inert.** `read_page` on both the
+    competitions page and a *different* page (home, `/en/`) confirmed
+    `link "Competitions" href="/en/competitions/"` in both the desktop `.mainnav` and the mobile
+    `.drawer` regions, on both pages (shared `SiteHeader.astro`). "Matches", "Teams", "Players",
+    "Standings", "Stats" all remained `generic` (span) in every check.
+  - **`python scripts/check_copy_gate.py` passes.** Final run (after all i18n additions, including
+    the filter-label keys added mid-build): `COPY GATE ok: 450 strings across 3 locales (396 chrome
+    + 54 metric labels), 390 corpus strings consulted`.
+  - **`node scripts/check-page-specs.mjs` and `node --test` both pass.** `check-page-specs`:
+    `4 page(s) validated against their specs. OK.` (up from 3 before this change — the new page +
+    spec pair validates). `node --test` (site_v2/, full suite): `tests 72 / pass 72 / fail 0`,
+    including the 7 new `competitionOrder.test.mjs` cases.
+  - **Visually verified at desktop and mobile widths.** `resize_window` to `desktop` (1280x720) and
+    `mobile` (375x812) presets; `get_page_text` confirmed full content renders correctly at both
+    (responsive `auto-fill, minmax(280px, 1fr)` grid, no layout-breaking text). Note: the Browser
+    pane's `screenshot` action is unavailable in this environment (documented limitation —
+    "the Browser pane is not displayed, so the page is not compositing frames"); verification used
+    the accessibility tree, `get_page_text`, and `read_console_messages` instead, which is
+    sufficient to confirm structure, content, and absence of errors at each width.
