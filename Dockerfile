@@ -1,6 +1,9 @@
 # The nightly pipeline image. GitLab #39 Stage 1.
 #
-# Built remotely by Cloud Build (`gcloud run jobs deploy --source .`) — no local Docker needed.
+# Built by CI (`build:nightly-image` in .gitlab-ci.yml) with kaniko — no Cloud Build, no
+# privileged Docker, no local Docker needed. GitLab #74: `gcloud run jobs deploy --source .`
+# (which needs Cloud Build) is the documented manual fallback only — see
+# deploy/nightly/README.md "Deploy the job".
 #
 # WHY AN IMAGE AT ALL, rather than pointing a scheduler at the repo: today the nightly
 # pip-installs at 04:00 and runs whatever `main` happens to be, so what executes in production

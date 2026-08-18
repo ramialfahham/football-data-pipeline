@@ -281,6 +281,52 @@ workflow:
   - dbt_project/.sqlfluff
   - docs/competition_registry.yml
 
+# The widest of the three data-path anchors, and deliberately its own list rather
+# than "*data_paths_mr plus two more" — YAML has no splice operator for merging a
+# sequence alias with extra literal items, and this repo's own precedent
+# (*data_paths_mr vs *data_paths_prod, #33 item 2) is to keep drift-prone anchors
+# separate and explicit rather than force one into a shape it does not fit.
+#
+# What the nightly image actually contains and runs (GitLab #74, note 3695790497):
+# the Dockerfile does `COPY . .`, so `.dockerignore` decides what that really means
+# (it is an image input in exactly the sense Dockerfile is, and is listed for that
+# reason — its own header records that excluding `docs/` once would have broken
+# every run at 04:00, not at build time). `entrypoint.sh` executes
+# `ingestion.api_football.main`, an unselected `dbt build` (every model/seed/
+# snapshot/test), and `check_layer_contract.py` + `check_registry_var_sync.py` —
+# the second of which imports `scripts/sync_dbt_vars.py`, so that module is listed
+# explicitly (`scripts/check_*.py` does not match its filename; platform-reviewer
+# round 1 caught this). `*data_paths_mr` already covers ingestion/dbt/checks/
+# requirements; this adds what changes the IMAGE ITSELF and is not a dbt/CI input:
+# the root Dockerfile, `.dockerignore`, and the two files entrypoint.sh's shebang
+# and `dbt` invocation actually depend on under deploy/nightly/ (the runbook is
+# excluded on purpose — docs-only, never baked in).
+#
+# ⚠ `.gcloudignore` is DELIBERATELY NOT here. Round-1 review of the kaniko redesign
+# (cto-reviewer + platform-reviewer, opus) corrected an earlier version of this
+# comment that claimed it gates the kaniko build context — it does not. Kaniko
+# reads `.dockerignore` only; `.gcloudignore` is a `gcloud` CLI construct, consulted
+# solely by the human-run `--source .` fallback documented in
+# deploy/nightly/README.md, which no CI job invokes. Listing it here would trigger
+# a real image rebuild + prod redeploy for an edit that cannot change the image.
+.data_paths_image: &data_paths_image
+  - dbt_project/models/**/*
+  - dbt_project/macros/**/*
+  - dbt_project/seeds/**/*
+  - dbt_project/snapshots/**/*
+  - dbt_project/tests/**/*
+  - dbt_project/*.yml
+  - dbt_project/.sqlfluff
+  - ingestion/**/*
+  - docs/competition_registry.yml
+  - scripts/check_*.py
+  - scripts/sync_dbt_vars.py
+  - requirements.txt
+  - Dockerfile
+  - .dockerignore
+  - deploy/nightly/entrypoint.sh
+  - deploy/nightly/profiles.yml
+
 .ui_paths: &ui_paths
   - site/**/*
   - scripts/build_match_preview_site.sh
@@ -814,3 +860,134 @@ deploy:site-v2:
     - if: $CI_PIPELINE_SOURCE == "web"
       when: on_success
     - when: never
+
+# ---------------------------------------------------------------------------
+# GitLab #74 (note 3695790497): `gcloud run jobs deploy fdp-nightly --source .`
+# packages the WORKING TREE at deploy time, and nothing rebuilds the image when
+# `main` moves — it silently reverted !43/!45, running 08-14 code for two days
+# while prod reported success every night. Until this job existed the only fix
+# was a human running the same command below by hand after every qualifying merge.
+#
+# Deliberately does NOT redeploy `fdp-freshness` (the sentinel). It shares the
+# image but is pinned to a fixed digest today; repointing it is a separate
+# decision (contract.md `decisions_taken`) — the runbook's own sequence rebuilds
+# the sentinel only AFTER the nightly image is proven, to avoid the alert-storm
+# ordering trap it documents.
+# ---------------------------------------------------------------------------
+# Redesigned after round-3 review (cto-reviewer, opus): `gcloud run jobs deploy --source .`
+# needs Cloud Build, and Cloud Build's default execution identity
+# (`<PROJECT_NUMBER>-compute@developer.gserviceaccount.com`) holds project `roles/editor`
+# — VERIFIED against the live policy, not assumed. Granting `github-actions-dbt` permission to
+# SUBMIT a Cloud Build job (`roles/cloudbuild.builds.editor`) would have given every unmerged
+# branch's MR pipeline (that WIF identity is impersonable from any of them) a path to execute
+# arbitrary build steps as project Editor. That grant was made, then REVOKED the same session
+# once this was found — see escalations.log, GitLab #74, 2026-08-18.
+#
+# Building the image IN THE JOB with kaniko (daemonless, no privileged runner mode, no Cloud
+# Build) removes the need for that grant entirely: only `roles/artifactregistry.writer` on the
+# one target repo and `roles/run.developer` on the one target job — both already held,
+# resource-scoped, and unrelated to this fix. `roles/storage.objectAdmin` on the `run-sources-*`
+# staging bucket (needed only by `--source .`'s Cloud Build upload) is no longer needed either —
+# see the same escalations.log entry for its revocation.
+build:nightly-image:
+  # kaniko's own image — NOT *python, NOT google/cloud-sdk. `entrypoint: [""]` overrides its
+  # default ENTRYPOINT (the kaniko executor binary itself) so `script:` can run instead, the
+  # same override `validate:secrets` already uses for the gitleaks image.
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  <<: *gcp_job
+  stage: deploy
+  # Round-2 finding, platform-reviewer: `needs:` originally omitted `validate:secrets` (gitleaks)
+  # and `lint:python`. A job scheduled off `needs:` starts as soon as ITS OWN edges finish,
+  # regardless of stage — `.python`'s own comment two hundred lines up states this mechanic as
+  # the REASON `needs: []` exists elsewhere in this file. Omitting the secrets scan here meant a
+  # push to `main` that gitleaks would flag could still have `COPY . .`-ed the flagged content
+  # into the image and shipped it to Artifact Registry — the exact failure CLASS this branch
+  # already found once (the OIDC token almost baked into this same image), just via a different
+  # gap. Both jobs are unconditional `when: on_success` after the schedule guard, so they are
+  # always present in a qualifying push-to-main pipeline — adding them cannot make the pipeline
+  # unconstructible. See `deploy:nightly-image` below for what `needs:` does and does not
+  # guarantee once main has moved since the trigger commit (narrower than "gates what's
+  # deployed" even with the full set).
+  needs: ["validate:governance", "test:python", "validate:secrets", "lint:python"]
+  resource_group: deploy-nightly-image
+  timeout: 20m
+  script:
+    - *gcp_auth
+    # Kaniko resolves registry credentials the same way the Python google-auth library does —
+    # from GOOGLE_APPLICATION_CREDENTIALS, external_account (WIF) included — so no separate
+    # `gcloud auth`/docker-credential-helper step is needed here, unlike the gcloud-CLI job
+    # below. Pushes ONLY `:$CI_COMMIT_SHA` — deploy:nightly-image reads that exact tag, and an
+    # earlier version of this job ALSO pushed `:latest` for no consumer, which cost an extra
+    # push per build and produced a residual-risk comment (below) that described the wrong tag.
+    # Round-1 review of the kaniko redesign (cto-reviewer + platform-reviewer, opus) caught both.
+    #
+    # ⚠ NOT self-healing against a resource_group reordering race the way the old job's extra
+    # `git fetch`/`checkout origin/main` was: kaniko's debug image is deliberately minimal and
+    # its git availability was not something this fix could verify with confidence, so it is not
+    # relied on. THE REAL RESIDUAL RISK, corrected from an earlier version of this comment that
+    # named the wrong tag: `resource_group`'s default `unordered` process mode does not guarantee
+    # two `deploy:nightly-image` runs from near-simultaneous merges complete in commit order, so
+    # the OLDER commit's SHA-pinned image can be the one `gcloud run jobs update` applies LAST —
+    # not "briefly current", but persisting until the NEXT qualifying merge, which is the #74
+    # defect with a green pipeline. Setting this resource group's process mode to `oldest_first`
+    # (GitLab project setting, not expressible in this file — Settings > CI/CD > General or the
+    # `resource_groups` API) closes this; the group does not exist to configure until this job
+    # runs once, so it is recorded as an owed follow-up in `active_work.md`, not silently assumed
+    # done. Accepted without it for now: near-simultaneous qualifying merges are rare, and the
+    # window this leaves open is bounded by the time to the next one, unlike #74 itself, which
+    # never self-corrected without a human redeploying by hand.
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/Dockerfile"
+      --destination "europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-nightly:$CI_COMMIT_SHA"
+  # Same guard shape as data:build:main (#33 item 2): *not_on_schedule FIRST, then
+  # PUSH-to-main only. Without the explicit $CI_PIPELINE_SOURCE == "push" check a
+  # web dispatch on main would ALSO match the branch clause (changes: evaluates
+  # TRUE on any non-push/non-MR pipeline) and rebuild the image on every manual
+  # run of anything else in this file.
+  rules:
+    - *not_on_schedule
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+      changes: *data_paths_image
+
+deploy:nightly-image:
+  # `google/cloud-sdk:slim` — this job talks to the Cloud Run API via the gcloud CLI, not a
+  # client library, same reasoning `build:nightly-image`'s sibling comment above gives.
+  <<: *gcp_job
+  image: google/cloud-sdk:slim
+  stage: deploy
+  # Waits for the image kaniko just pushed, not for validate:governance/test:python directly —
+  # transitively covered, since `build:nightly-image` already needs both. `rules:` below MUST
+  # match `build:nightly-image`'s exactly: GitLab refuses to create a pipeline where a `needs:`
+  # target is absent from it, so if these two `changes:`/`rules:` blocks ever drift apart, the
+  # pipeline stops being constructible rather than silently skipping one job.
+  needs: ["build:nightly-image"]
+  resource_group: deploy-nightly-image
+  timeout: 5m
+  script:
+    - *gcp_auth
+    # *gcp_auth only writes an external_account credentials file for CLIENT LIBRARIES
+    # (google-auth's `google.auth.default()`, which dbt-bigquery and firebase-tools
+    # use). The gcloud CLI does not read GOOGLE_APPLICATION_CREDENTIALS on its own —
+    # it needs an explicit `gcloud auth login --cred-file=...` to activate the same
+    # file for CLI calls, and an explicit project (a human operator's gcloud has both
+    # already; CI's does not).
+    - gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
+    - gcloud config set project football-data-pipeline-gcp --quiet
+    # `update`, not `deploy --source .` — this job does not build anything, it only repoints
+    # the existing Cloud Run job at the image `build:nightly-image` just pushed. `update` only
+    # changes what is specified, so the runtime service account, secret binding, CPU/memory,
+    # task timeout and retry count (all set once via deploy/nightly/README.md's manual command)
+    # are left exactly as they are — nothing here can silently reset them to a default the way
+    # a bare `deploy` on an existing job could.
+    - >
+      gcloud run jobs update fdp-nightly
+      --image="europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-nightly:$CI_COMMIT_SHA"
+      --region europe-west1
+  rules:
+    - *not_on_schedule
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+      changes: *data_paths_image

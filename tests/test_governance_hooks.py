@@ -2221,7 +2221,20 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
 
     That shipped in an earlier revision of this branch and `platform-reviewer` caught
     it. Manual-ness is not the gate; being unreachable except by deliberate dispatch
-    is. Nothing else in the suite checks job REACHABILITY by pipeline source."""
+    is. Nothing else in the suite checks job REACHABILITY by pipeline source.
+
+    TWO jobs are excluded BY NAME: GitLab #74's `build:nightly-image` and
+    `deploy:nightly-image` (kaniko build + gcloud repoint, split across two jobs
+    because no single image carries both toolchains), which are deliberately the
+    other shape — no button, an automatic rebuild+redeploy reachable on `push_main`
+    and nothing else (pinned separately, right below). Round-1 review (cto-reviewer,
+    opus) tried excluding by PROPERTY instead — "has no `when: manual` rule
+    anywhere" — and that construction is self-disabling: a Firebase job rewritten
+    with an unconditional `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and no
+    `when:` at all (defaulting to `on_success`, strictly worse than the original
+    play-button defect) would ALSO have no `when: manual` and silently escape this
+    test. A name exclusion cannot be satisfied by accident; a new deploy job added
+    later is checked by this test by default, not opted out of it by construction."""
     import pathlib
 
     import yaml
@@ -2232,10 +2245,16 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
     # Contexts an ordinary contributor produces without intending to deploy.
     everyday = ("mr", "push_main", "schedule")
 
+    # The deliberate exceptions, by name — see the docstring for why not by property.
+    auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image"}
+
     deploy_jobs = [k for k, v in ci.items()
                    if not k.startswith(".") and isinstance(v, dict)
-                   and v.get("stage") == "deploy"]
+                   and v.get("stage") == "deploy" and k not in auto_deploy_jobs]
     assert deploy_jobs, "no deploy-stage jobs found — this test has gone stale"
+    assert auto_deploy_jobs <= ci.keys(), (
+        f"{auto_deploy_jobs - ci.keys()} named as the deliberate exception no longer "
+        f"exist — remove them from auto_deploy_jobs or this exclusion is dead code")
 
     for name in deploy_jobs:
         rules = ci[name].get("rules") or []
@@ -2246,6 +2265,134 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
                 f"deploy would appear as a play button on ordinary merge requests / "
                 f"pushes. Scope it to `if: $CI_PIPELINE_SOURCE == \"web\"` with a "
                 f"`when: never` fallback. rules={rules!r}")
+
+
+def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
+    """The mirror of the test above, for the TWO jobs meant to run automatically.
+
+    GitLab #74: `build:nightly-image` and `deploy:nightly-image` must NOT be reachable
+    on an MR, a schedule, or a web dispatch (all three would either build/redeploy on a
+    branch that never merged, run twice in one night, or offer a button next to the
+    Firebase ones the test above specifically forbids) — and MUST run automatically,
+    `on_success`, on an ordinary push to main, or the #74 defect (the image never
+    tracking `main`) is back with a green pipeline hiding it. Pinned by NAME, the same
+    reason the test above excludes these jobs by name rather than by a property a
+    future job could satisfy by accident in either direction."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    for name in ("build:nightly-image", "deploy:nightly-image"):
+        assert name in ci, f"{name} is missing — GitLab #74's fix has been removed"
+        job = ci[name]
+
+        for context in ("mr", "schedule", "web"):
+            assert _when_in(job, context) == "never", (
+                f"{name} is reachable on a {context!r} pipeline "
+                f"(when={_when_in(job, context)!r}). It must only ever run "
+                f"automatically on a push to main.")
+        assert _when_in(job, "push_main") == "on_success", (
+            f"{name} no longer runs automatically on a push to main "
+            f"(when={_when_in(job, 'push_main')!r}) — the #74 defect (image never "
+            f"tracks main) is back, just with a green pipeline instead of a red one.")
+
+    # The two jobs' rules must be IDENTICAL, not just each individually correct —
+    # `deploy:nightly-image` `needs: ["build:nightly-image"]`, and GitLab refuses to
+    # construct a pipeline where a `needs:` target's own `rules:` excluded it. Drift
+    # between the two blocks is a pipeline-creation failure, not a silent gap, but a
+    # failure at the worst possible time (04:00, on the one qualifying merge that
+    # exposes it) is still worth catching here instead.
+    assert ci["build:nightly-image"]["rules"] == ci["deploy:nightly-image"]["rules"], (
+        "build:nightly-image and deploy:nightly-image have DIFFERENT rules: — "
+        "deploy:nightly-image needs: [build:nightly-image], so if a pipeline ever "
+        "creates one without the other, GitLab refuses to construct it at all.")
+
+    # Round-1 finding, platform-reviewer: the contract leans on `needs:` and a shared
+    # `resource_group` for correct ordering, but nothing asserted either was actually
+    # present — deleting one is silent. Without `needs: ["build:nightly-image"]`, the
+    # two same-stage jobs could run concurrently and `deploy:nightly-image` could pin a
+    # tag `build:nightly-image` has not pushed yet; without the shared group, two
+    # concurrent builds race on the same Artifact Registry tag.
+    assert ci["deploy:nightly-image"].get("needs") == ["build:nightly-image"], (
+        "deploy:nightly-image must `needs: [\"build:nightly-image\"]` — without it, "
+        f"the two jobs can run concurrently. needs={ci['deploy:nightly-image'].get('needs')!r}")
+    build_rg = ci["build:nightly-image"].get("resource_group")
+    deploy_rg = ci["deploy:nightly-image"].get("resource_group")
+    assert build_rg and build_rg == deploy_rg, (
+        "build:nightly-image and deploy:nightly-image must share ONE resource_group — "
+        f"got build={build_rg!r}, deploy={deploy_rg!r}. Without it, concurrent pipelines "
+        "can build/deploy this image at the same time.")
+
+    # Round-2 finding, platform-reviewer: a job scheduled off `needs:` starts as soon as its
+    # OWN edges finish, regardless of stage — this file's own `.python` comment gives that
+    # mechanic as the REASON `needs: []` exists elsewhere. An earlier version of
+    # `build:nightly-image` needed only validate:governance + test:python, so a push whose
+    # secrets scan (gitleaks) or lint FAILED could still have its content built into the image
+    # and pushed to Artifact Registry before either job finished — the same failure CLASS as
+    # the credential-leak defect this branch already found once, via a different gap.
+    required_gates = {"validate:governance", "test:python", "validate:secrets", "lint:python"}
+    build_needs = set(ci["build:nightly-image"].get("needs") or [])
+    missing = required_gates - build_needs
+    assert not missing, (
+        f"build:nightly-image's needs: is missing {sorted(missing)} — a push to main that "
+        f"fails one of these can still have its content built into the prod image and pushed "
+        f"before the failure is visible. needs={ci['build:nightly-image'].get('needs')!r}")
+
+
+def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
+    """`.data_paths_image` is hand-derived from the Dockerfile and entrypoint.sh, and round-1
+    review already proved a hand derivation misses things (`scripts/sync_dbt_vars.py`, imported
+    by `check_registry_var_sync.py` but not matched by `scripts/check_*.py`). Round-2 finding,
+    platform-reviewer: this is the one path anchor in the file with no test, and when it next
+    misses an entry, the failure is silent — `deploy:nightly-image` just does not fire, and the
+    #74 defect (image never tracks `main`) is back for that one path with a green pipeline.
+
+    Parses `entrypoint.sh` for every `python scripts/*.py` invocation — the actual, current set
+    of check scripts the image runs — rather than trusting a hand-written list, the same
+    "read the real tree, not the imagined one" principle `.data_paths_prod`'s own sibling test
+    applies to dbt compile inputs."""
+    import pathlib
+    import re
+    import fnmatch
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    image_paths = ci.get(".data_paths_image")
+    assert isinstance(image_paths, list) and image_paths, (
+        ".data_paths_image is missing or not a list")
+
+    entrypoint = (root / "deploy" / "nightly" / "entrypoint.sh").read_text(encoding="utf-8")
+    invoked_scripts = sorted(set(re.findall(r"python\s+(scripts/\S+\.py)", entrypoint)))
+    assert invoked_scripts, (
+        "no `python scripts/*.py` invocation found in entrypoint.sh — this test has probably "
+        "stopped recognising them, which makes it pass vacuously")
+
+    for script in invoked_scripts:
+        assert any(fnmatch.fnmatch(script, pat) for pat in image_paths), (
+            f"entrypoint.sh runs {script!r}, but no pattern in .data_paths_image matches it — "
+            f"a change there would not rebuild the image. patterns={image_paths!r}")
+
+    # Non-script inputs entrypoint.sh's own header and script body name explicitly: the image
+    # build itself, and the two files under deploy/nightly/ the container actually needs at
+    # runtime (the runbook is docs-only and deliberately excluded — see .data_paths_image's
+    # own comment).
+    # `.gcloudignore` deliberately NOT here — round-1 review of the kaniko redesign found
+    # it has no effect on what kaniko builds (it's a `gcloud` CLI construct, consulted only
+    # by the human-run `--source .` fallback, never by `build:nightly-image`).
+    for fixed in ("Dockerfile", ".dockerignore",
+                  "deploy/nightly/entrypoint.sh", "deploy/nightly/profiles.yml"):
+        assert fixed in image_paths, (
+            f"{fixed!r} is an image input (Dockerfile COPY / kaniko build-context / "
+            f"entrypoint dependency) but is missing from .data_paths_image. "
+            f"patterns={image_paths!r}")
+    assert ".gcloudignore" not in image_paths, (
+        ".gcloudignore has no effect on what kaniko builds and must not trigger a rebuild — "
+        "see the anchor's own comment in .gitlab-ci.yml for why.")
 
 
 def test_every_job_using_gcp_auth_declares_id_tokens():
