@@ -1,6 +1,13 @@
 # Review — fix/74-nightly-image-tracks-main — 2026-08-18
 
-diff_sha256: 8b2db2b93244d1dab61f204a12c23e48ea188677b54c481d305df1379cd89f0c
+diff_sha256: 1be7681ba88abf2e9d711e8f79c51c995116e7fdc479d095002be059cc7f1bf3
+
+> Rebind-only follow-up to merge commit ade5a30. The merge moved its own base again — `gitlab/main`
+> now already contains the `chore/record-top-players-ruling` follow-up too, so the real delta CI
+> checks shrinks back to this branch's own 11 #74 files. Required-reviewer check against
+> `gitlab/main...HEAD` confirms only scope-auditor, platform-reviewer and cto-reviewer are needed —
+> all three already hold PASS verdicts below against this exact content; no re-review, only the
+> hash moves.
 
 rounds: 6
 rounds_cap_override: CPO, 2026-08-18 — "Go ahead, main keeps moving faster than the review cycle."
