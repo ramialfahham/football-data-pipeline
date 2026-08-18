@@ -1,6 +1,13 @@
 # Review — fix/74-nightly-image-tracks-main — 2026-08-18
 
-diff_sha256: 50dfbcbed1d25d617ab692f3d3c8bc529d12e4f83a249fc53150bf87528328de
+diff_sha256: a4dc96249243d55a938d6578f184b527c5833fbf56aff6a52cc06d71441cc85a
+
+> Rebind-only follow-up to merge commit ece6c36. The merge moved its own base again — CI's
+> `check_task_artifacts.py` recomputes over `gitlab/main...HEAD`, which now already contains
+> `feat/shared-competition-order` on the main side too, so the real delta shrinks back to just
+> this branch's own 11 #74 files. Required-reviewer check against `gitlab/main...HEAD` confirms
+> only scope-auditor, platform-reviewer and cto-reviewer are needed — all three already hold PASS
+> verdicts below against this exact content; no re-review needed, only the hash moves.
 
 > Round 4 (second merge round). `main` moved again after the previous merge landed — this time
 > `feat/shared-competition-order` (!71, merge commit de393e5) arrived on top of
