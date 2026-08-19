@@ -12,7 +12,7 @@
       "inbound_hub": "none",
       "outbound": ["fixture"]
     },
-    "minimum_data": "None by design, and this is the one page where that is correct rather than a waiver. The home page's block count does not depend on any entity's data depth: browse always renders (it is registry-driven), and the fixtures hero is omitted whole when it has nothing to say. #845's minimum-data gate governs the entity pages it generates thousands of, not the three locale roots.",
+    "minimum_data": "None by design, and this is the one page where that is correct rather than a waiver. The home page's block count does not depend on any entity's data depth: the fixtures hero is the only block today and is omitted whole when it has nothing to say — in the all-competition off-season case (practically unreached, per 10_home.md §6) the page would render zero blocks. #845's minimum-data gate governs the entity pages it generates thousands of, not the three locale roots.",
     "page_count_driver": "count(locales)",
     "url_permanence": "permanent",
     "url_permanence_note": "The locale root is the most permanent URL on the site. Its CONTENT changed here (#367 replaced the scaffold); the URL did not."
@@ -22,18 +22,6 @@
       "block": "Fixtures hero",
       "mart": "core:fct_fixture",
       "i18n_keys": ["homeNext", "homeNoFixtures"]
-    },
-    {
-      "block": "Hybrid browse",
-      "mart": "registry:competition_registry",
-      "i18n_keys": [
-        "homeBrowse",
-        "homeByCountry",
-        "groupLeagues",
-        "groupCups",
-        "groupContinentalClub",
-        "groupNationalTeams"
-      ]
     }
   ]
 }

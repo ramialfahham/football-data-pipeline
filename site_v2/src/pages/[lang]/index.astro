@@ -6,25 +6,32 @@
 // unblocks go-live. `INDEXABLE` itself stays `false`: flipping it is #377, gated on #799, #852/#843,
 // #845 and #861, none of which this PR touches.
 //
-// TWO modules today, of the FOUR the CPO composed on 2026-08-08 (10_home.md §0, that spec's stated
-// authority): next matches -> Top players -> Top teams -> browse. The two middle blocks are
-// specified and NOT built — they need six pieces of warehouse work (GAP-24..GAP-29) and a layout
-// the CPO reviewed and did not approve — so they arrive in their own PR and slot in between.
+// ONE module today, of the THREE the CPO composed on 2026-08-08 (10_home.md §0, that spec's stated
+// authority): next matches -> Top players -> Top teams. The other two are specified and NOT built —
+// they need six pieces of warehouse work (GAP-24..GAP-29) and a layout the CPO reviewed and did not
+// approve — so they arrive in their own PR.
 //
-// Browse therefore stays LAST here rather than being pulled up under the hero. It is not filler
-// ordering: it is the final slot, so the follow-up PR inserts and never rearranges.
+// Browse (the fourth module in the original 2026-06-10 composition) is DROPPED, not deferred (CPO,
+// 2026-08-19): its only real value was reachability into the long-tail team/player pages, and those
+// are exactly the entity types blocked on the team/player-name data-quality work, so a
+// competitions-only version had nothing left to solve — the competitions pool is small enough that
+// the competitions index page already covers it. The Browse component (formerly this file's
+// import), the `browse` payload key, `build_nav`'s use in `shape_landing_payload`, and the
+// `homeBrowse`/`homeByCountry`/`group*` i18n
+// keys are removed with it. `build_nav`/`fetch_nav`/`nav.json` themselves are NOT removed — that
+// export target is independently selectable (`--entities nav`) and outlives this block.
 //
-// Two blocks were dropped rather than carried. The stats teasers (the 2026-06-10 order's fourth
-// module) were ruled useless on 2026-08-08 and are replaced by the two above. Trending is absent
-// from the composition, and the version built here was stale against the last ruling that touched
-// it anyway (CPO 2026-08-04 dropped winless runs; the mart still served them).
+// One block was dropped in an earlier round. The stats teasers (the 2026-06-10 order's fourth
+// module, before browse became the fourth) were ruled useless on 2026-08-08 and are replaced by
+// Top players/Top teams. Trending is absent from the composition, and the version built here was
+// stale against the last ruling that touched it anyway (CPO 2026-08-04 dropped winless runs; the
+// mart still served them).
 //
 // The page COMPOSES components and holds no styling; it derives no facts and performs no
 // arithmetic. Everything it shows is a served value from landing.json, which the export shaped and
 // the warehouse decided.
 import Layout from "../../layouts/Layout.astro";
 import HeroFixtures from "../../components/home/HeroFixtures.astro";
-import BrowseGrid from "../../components/home/BrowseGrid.astro";
 import { t } from "../../i18n/strings";
 import type { Lang } from "../../lib/format";
 import type { Landing } from "../../lib/types";
@@ -59,10 +66,7 @@ const entity = {
 
 <Layout lang={lang} title={title} description={description} entity={entity}>
   <div class="inner">
-    {/* Browse LAST, per the CPO's 2026-08-04 ruling ("moves to the BOTTOM of the page, per
-        convention on comparable sites"), reaffirmed in the 2026-08-08 composition. It was block 2
-        until now. Top players and Top teams belong between these two lines. */}
+    {/* Top players and Top teams land here, between the hero and end of page, once built. */}
     <HeroFixtures groups={data.upcoming} lang={lang} />
-    <BrowseGrid browse={data.browse} lang={lang} />
   </div>
 </Layout>

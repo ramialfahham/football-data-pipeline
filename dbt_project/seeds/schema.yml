@@ -33,10 +33,12 @@ seeds:
           its axis changes halfway through; it overloads BLANK to mean "not browsable"; and none
           of its four values fits club_world_cup. No dbt model reads it — all 35 downstream of
           this seed read entity_type only — so its single consumer is build_nav() in
-          scripts/export_site_data.py, feeding the home page's browse chips. It is kept until
-          **#44** rewrites that block, because deleting it here would turn a seed change into a
-          redesign of a shipped block. ⚠ Consequence until then: club_world_cup carries
-          continental-club because nothing else fits, so #56's mislabel survives on the home page.
+          scripts/export_site_data.py. ⚠ UPDATED 2026-08-19: the home page's browse chips that
+          consumer used to feed are DROPPED (CPO: "drop the browse section"), not rewritten by
+          #44 as this note originally expected — build_nav() itself stays, because it also
+          produces `nav.json` independently (`--entities nav`), currently with no frontend
+          consumer either. Whether THAT makes this column deletable is not decided here; #57
+          stays open pending that call.
         tests:
           - accepted_values:
               values: ["leagues", "cups", "continental-club", "national-teams"]
@@ -178,8 +180,12 @@ seeds:
           - unique
       - name: sort_order
         description: >
-          Display rank within a browse group; lower sorts first. Authored, not computed, so the
-          CPO controls competition ordering without a code change.
+          Display rank within a `display_group`; lower sorts first. Authored, not computed, so the
+          CPO controls competition ordering without a code change. ⚠ Its only reader is
+          `build_nav()` (see this seed's `display_group` note) — the home page's browse block that
+          rendered those groups was dropped 2026-08-19, and the competitions index page orders by
+          `region_rank`/kickoff proximity instead (both `sort_order` and `tier` were retired for
+          that page, `escalations.log` 2026-08-16).
         tests:
           - not_null
       - name: tier

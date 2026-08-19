@@ -71,12 +71,12 @@ itself is narrower here.
 - **Rows are NOT links, on purpose.** #54 describes each row as a "row target" linking to the
   competition's own page. That page (#47, the competition hub) is confirmed not built — only the
   fixture page exists under `[competition]/`. Linking today would be the exact "browse-chip 404"
-  #47's own issue text names as a failure mode, the same reason `BrowseGrid.astro`'s home-page
-  chips are inert `<span>`s. Rows carry full content (crest, name, region) with no anchor, no
-  hover-lift, no chevron — those affordances would falsely signal clickability. They become real
-  links, with the hover/chevron treatment, in the MR that ships #47.
+  #47's own issue text names as a failure mode, matching the site's standing no-dead-links
+  convention. Rows carry full content (crest, name, region) with no anchor, no hover-lift, no
+  chevron — those affordances would falsely signal clickability. They become real links, with the
+  hover/chevron treatment, in the MR that ships #47.
 - **Every category always shows its heading**, including one with a single member — never hidden
-  for looking sparse (mirrors `BrowseGrid.astro`'s same rule).
+  for looking sparse.
 - **A category with zero visible rows under the active filter disappears entirely** — no
   "0 results" placeholder. Independent per filter combination (e.g. Clubs + Oceania can legitimately
   empty a category neither axis alone would).

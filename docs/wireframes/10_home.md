@@ -1,12 +1,16 @@
 # 10 — Home (landing) (#391)
 
-> Field-bound against `shape_landing_payload` / `build_nav` (written 2026-08-03, revised
-> 2026-08-08). The page reads exactly one warehouse model today: `core.fct_fixture`, for the hero.
+> Field-bound against `shape_landing_payload` (written 2026-08-03, revised 2026-08-08, revised
+> again 2026-08-19). The page reads exactly one warehouse model today: `core.fct_fixture`, for the
+> hero.
 > ~~`mart_leaderboards` / `mart_standings`~~ — bound ONLY to the stats-teasers module, removed
 > 2026-08-08.
 > ~~`mart_team_profile` / `mart_landing_trending`~~ — bound ONLY to the trending module, cut
 > 2026-08-08 for not being in the composition §0 records. `mart_landing_trending` was written for
 > this page and never shipped; it is deleted, not parked, and git holds it if trending returns.
+> ~~`build_nav`~~ — bound ONLY to the browse module, DROPPED 2026-08-19 (CPO: "drop the browse
+> section"). `build_nav`/`fetch_nav` are not deleted — they still produce `nav.json`
+> independently (`--entities nav`) — only `shape_landing_payload`'s use of them is gone.
 >
 > This screen is the exception to the binding rule's usual direction. Every other spec binds to a
 > payload the export already writes; here the payload did not exist yet, which is exactly why the
@@ -49,7 +53,7 @@ out of the index. Build the routes, let the links resolve, fill the pages in aft
 | | |
 |---|---|
 | **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
-| **Browse** | Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.) |
+| ~~**Browse**~~ | ~~Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.)~~ **DROPPED 2026-08-19** (CPO: "drop the browse section") — superseded by a later ruling than this table records; see the composition note below. |
 | ~~**Trending**~~ | ~~Teams AND players, both as STREAKS. The wording must relate to "streak".~~ **SUPERSEDED 2026-08-08**: the composition recorded below has no trending block, so the block was cut rather than reworked to this row. See the note under the composition. |
 | ~~**Team streaks**~~ | ~~THREE types: longest **winning** run · longest **unbeaten** run · longest **clean-sheet** run. Winless and losing are both dropped.~~ Superseded with the block. |
 | ~~**Streak scope**~~ | ~~ALL competitions, and therefore across seasons too. Stated once on the block, never per row.~~ Superseded with the block. |
@@ -66,6 +70,14 @@ below is built.
 
 **Page composition after this session**: next matches → **Top players** → **Top teams** → browse.
 The two stats blocks replace the top-scorers-plus-table block.
+
+⛔ **SUPERSEDED 2026-08-19 — browse is dropped.** CPO, in chat: "drop the browse section". Current
+composition is **next matches → Top players → Top teams**, three blocks not four. Browse's only
+remaining value was reachability into the long-tail team/player pages (thousands of teams,
+~154,767 players); both are already blocked on the team/player-name data-quality work (see
+`.claude/active_work.md`), so a competitions-only version had nothing left to solve — the
+competitions pool (~15-20 rows) is already fully covered by the competitions index page (#62).
+See §5(2) for the removed module's retained record.
 
 ⛔ **FOUR blocks, and TRENDING IS NOT ONE OF THEM.** Confirmed by the CPO on 2026-08-08 when he was
 shown a build that shipped it. The composition line above is the whole ruling; nothing else was
@@ -86,9 +98,14 @@ against the NINE-board set and three are now void) and a layout that is still un
 land in their own PR and slot between the two. Browse stays LAST rather than being pulled up under
 the hero: it is holding its final position, so the follow-up inserts and never rearranges.
 
+⛔ **SUPERSEDED 2026-08-19.** That PR shipped, then browse itself was dropped (see the composition
+note above) — the page today ships next matches alone, of a composition that is now three blocks,
+not four. Top players and Top teams still need the same warehouse work and layout approval;
+nothing about their build changes, there is simply no browse block left to slot them ahead of.
+
 **The block names are Top players and Top teams** (CPO 2026-08-08). Plain nouns, matching the
-vocabulary the page already uses for Next matches and Browse, and a matched pair so the
-two blocks read as siblings. "Top scorers" was already on the page, so the reader has met the
+vocabulary the page used at the time for Next matches and Browse (the latter dropped 2026-08-19,
+after this naming decision), and a matched pair so the two blocks read as siblings. "Top scorers" was already on the page, so the reader has met the
 pattern. Rejected: "Player leaders / Team leaders" ("leader" collides with captaincy in football and
 translates awkwardly) and "Who leads / Which teams lead" (more voice, less scannable, and the two
 halves stop being a pair).
@@ -410,10 +427,12 @@ does not reopen the order.~~
 ⛔ **SUPERSEDED.** Later rulings overturned that order, so "locked" is the wrong word for it now.
 Browse moved to the BOTTOM (CPO 2026-08-04); the stats module was removed and the composition
 restated as **next matches → Top players → Top teams → browse** (CPO 2026-08-08, §0). Trending is
-not in it and is cut.
+not in it and is cut. ⛔ **Browse itself was DROPPED 2026-08-19** (CPO: "drop the browse
+section") — current composition is **next matches → Top players → Top teams**, three blocks.
 
-**This PR ships TWO of those four: next matches → browse.** The middle pair is specified in §0,
-unbuilt, and lands in its own PR. See §0 for why browse holds the bottom slot meanwhile.
+~~**This PR ships TWO of those four: next matches → browse.** The middle pair is specified in §0,
+unbuilt, and lands in its own PR. See §0 for why browse holds the bottom slot meanwhile.~~ That PR
+shipped; browse then left the composition entirely — see §0.
 
 ## 2. URL
 
@@ -434,13 +453,13 @@ unbuilt, and lands in its own PR. See §0 for why browse holds the bottom slot m
 | Payload key | Upstream |
 |---|---|
 | `upcoming[]` | `core.fct_fixture` (the same `status_short in ('NS','TBD')` filter `fetch_fixture_payloads` uses), joined to `core.dim_team` / `core.dim_league` for names and crests |
-| `browse` | `build_nav()` over `docs/competition_registry.yml` — the identical structure `nav.json` carries |
+| ~~`browse`~~ | ⛔ **DROPPED 2026-08-19** (CPO: "drop the browse section"). Was `build_nav()` over `docs/competition_registry.yml` — the identical structure `nav.json` carries. `build_nav`/`fetch_nav` still produce `nav.json` independently; only this page's use of them is gone |
 | ~~`trending[]`~~ | ⛔ **REMOVED 2026-08-08** with the trending block. `mart_landing_trending` was written for this key and is deleted; `mart_team_profile` is no longer read by this page |
 | ~~`stats`~~ | ⛔ **REMOVED 2026-08-08** with the stats-teasers module. `mart_leaderboards` and `mart_standings` are no longer read by this page at all |
 
-TWO keys plus `type`. The writer emits `type`/`upcoming`/`browse` and nothing else; `types.ts`'s
-`Landing` carries the same three fields, and `test_shape_landing_payload_carries_only_the_built_modules`
-asserts the set exactly, so either removed key coming back fails a test rather than a review. Top
+ONE key plus `type`. The writer emits `type`/`upcoming` and nothing else; `types.ts`'s
+`Landing` carries the same two fields, and `test_shape_landing_payload_carries_only_the_built_modules`
+asserts the set exactly, so a removed key coming back fails a test rather than a review. Top
 players and Top teams will each add a key here when they are built.
 
 This table is the contract this document's own header calls it — so it must name what the writer
@@ -450,23 +469,27 @@ build time.
 ## 4. Layout
 
 ⛔ **SUPERSEDED — the diagram below draws a page that no longer exists.** It shows four modules with
-browse second; the page ships TWO with browse last. Three rulings overturned it: browse moved to the
-bottom (CPO 2026-08-04), the stats teasers were removed, and the composition was restated without
-trending (both CPO 2026-08-08).
+browse second; the page ships ONE, next matches alone. Four rulings overturned it: browse moved to
+the bottom (CPO 2026-08-04), the stats teasers were removed and the composition was restated
+without trending (both CPO 2026-08-08), and browse itself was dropped (CPO 2026-08-19, "drop the
+browse section").
 
-**What ships today**, measured rather than drawn, at 375px:
+⛔ **SUPERSEDED 2026-08-19 — this table describes a page that no longer exists.** It measured the
+2-block build (next matches + browse); browse is dropped, so the page today is next matches alone.
+Kept for history, not re-measured — a fresh number belongs in
+`.claude/task/rendered_page_evidence.md` if a future build needs one, not invented here.
+
+~~**What ships today**, measured rather than drawn, at 375px:~~
 
 | | block | top | height |
 |---|---|---|---|
 | 1 | Next matches | 95px | 1205px |
-| 2 | Browse | 1336px | 2531px |
+| ~~2~~ | ~~Browse~~ | ~~1336px~~ | ~~2531px~~ |
 
-Page 4126px, no horizontal overflow. The hero is unchanged, so its two numbers are the same as
-before the cut; browse moved up by exactly the trending block plus its margin. ⚠ 4126 was MEASURED,
-not subtracted — a first draft of this line arrived at 4162 by arithmetic on the old total and was
-wrong. Full per-locale measurements are in
-`.claude/task/rendered_page_evidence.md`, which is re-measured against each build; this table is a
-pointer to it, not a second source.
+~~Page 4126px, no horizontal overflow.~~ The hero's own two numbers (95px / 1205px) are unaffected
+by browse's removal — nothing above it changed. ⚠ 4126 was MEASURED, not subtracted — a first draft
+of this line arrived at 4162 by arithmetic on the old total and was wrong, which is exactly why a
+new page-height figure is not being arithmetic'd here either.
 
 ⚠ **No replacement diagram is drawn here on purpose.** The layout of the two blocks that replace
 the removed fourth — Top players and Top teams — is explicitly NOT decided (CPO 2026-08-08), and
@@ -521,10 +544,12 @@ measurement above confirms it — the hero runs from 95px to 1300px, well past t
 column carries hero, trending and stats; the rail carries browse. Below 900px browse falls back
 into the single column in the order drawn above.~~
 
-⛔ **SUPERSEDED and never built.** Browse is not in a rail; it is the last block in the single
+⛔ **SUPERSEDED and never built.** Browse is not in a rail; it was the last block in the single
 column at every width, and neither of the blocks that were to sit beside it still exists. The page
 does not use `.page-grid` at all — it uses `.inner`, the 680px single column. Whether the home page
-ever adopts the two-column shell is part of the undecided layout question above.
+ever adopts the two-column shell is part of the undecided layout question above. ⛔ **Browse itself
+is dropped 2026-08-19** — this whole rail question is now moot for it specifically, though it
+remains open for whatever Top players/Top teams end up needing.
 
 ⚠ `09_chrome.md` §4 and §10 still name "standings/trending/top-scorers" as candidate contents for
 that unwired rail, quoting the `1c35e7aa` mock. All three are cut or unbuilt blocks. Those lines are
@@ -604,19 +629,31 @@ taking the earliest date PRESENT rather than today's. What it got wrong is that 
 alternative: it trades an empty block for a truncated one, and truncation gets worse with every
 competition onboarded.
 
-### (2) Hybrid browse — `browse`
+### (2) Hybrid browse — `browse` ⛔ DROPPED 2026-08-19
 
-Identical structure to `nav.json`, so one shape serves nav and home.
+⛔ **THIS MODULE NO LONGER EXISTS.** CPO, in chat: "drop the browse section". Its only remaining
+justification — reachability into the long-tail team/player pages — applies to exactly the two
+entity types already blocked on the team/player-name data-quality work (`.claude/active_work.md`);
+the competitions pool it would otherwise serve alone (~15-20 rows) is already fully covered by the
+competitions index page (#62). The home page's Browse component, the `browse` payload key and
+this module's i18n keys are deleted. `build_nav`/`fetch_nav` are NOT deleted — `nav.json` is still produced
+independently (`--entities nav`) and is untouched by this change.
 
-| Element | JSON key | Notes |
+The section is kept, struck rather than erased, for the same reason trending's is below: it
+documents a real, reviewed module binding, and the reasoning behind it stays true whatever the
+home page does next.
+
+~~Identical structure to `nav.json`, so one shape serves nav and home.~~
+
+| ~~Element~~ | ~~JSON key~~ | ~~Notes~~ |
 |---|---|---|
-| Group heading | `browse.groups[].key` | i18n key per group; order is `_GROUP_ORDER` in the export, itself the order in `site_architecture.md` §4 |
-| Competition link | `browse.groups[].competitions[].slug` / `.name` | `/{locale}/{slug}/` |
-| Country heading | `browse.countries[].country` | domestic types only, per `_DOMESTIC_TYPES` |
-| Country competitions | `browse.countries[].competitions[]` | tier then sort_order, as `build_nav` already sorts |
+| ~~Group heading~~ | ~~`browse.groups[].key`~~ | ~~i18n key per group; order is `_GROUP_ORDER` in the export, itself the order in `site_architecture.md` §4~~ |
+| ~~Competition link~~ | ~~`browse.groups[].competitions[].slug` / `.name`~~ | ~~`/{locale}/{slug}/`~~ |
+| ~~Country heading~~ | ~~`browse.countries[].country`~~ | ~~domestic types only, per `_DOMESTIC_TYPES`~~ |
+| ~~Country competitions~~ | ~~`browse.countries[].competitions[]`~~ | ~~tier then sort_order, as `build_nav` already sorts~~ |
 
-No competition is named in the template. A registry addition appears here with zero file edits,
-which is the zero-file rule applied to the home page.
+~~No competition is named in the template. A registry addition appears here with zero file edits,
+which is the zero-file rule applied to the home page.~~
 
 ### (3) Trending — `trending[]` ⛔ REMOVED 2026-08-08
 
@@ -728,9 +765,12 @@ verification). Only `standing_rank` carries the prefix.
 
 - **Null value → "-"**, never a fabricated 0 (`00_overview.md` display conventions).
 - **No upcoming fixtures anywhere** (an all-competition off-season): the hero renders its empty
-  state and the page still ships as browse alone, which is registry-driven and always renders. Not
-  reachable in practice with nine tournaments and fourteen leagues active, but it is a real branch
-  and it is designed rather than left to crash.
+  state. ⚠ **CHANGED 2026-08-19 — there is no longer a browse fallback under it.** Browse used to
+  keep the page non-empty in this branch ("the page still ships as browse alone, which is
+  registry-driven and always renders"); with browse dropped, this branch means the page renders
+  ZERO blocks. Not reachable in practice with nine tournaments and fourteen leagues active, and
+  still designed rather than left to crash, but genuinely a bare page if it is ever reached — worth
+  a look if that stops being true as competitions churn.
 - **A competition with no upcoming fixture never appears in the hero.** It is absent, not an empty
   heading, and never a zero-filled row.
 - ~~**A trending signal with no qualifying team is omitted**, not shown with an empty list.~~
@@ -758,7 +798,7 @@ same progressive-enhancement timezone script the other screens use. Search lives
 | hreflang | all locales, `x-default` → `en` |
 | schema.org | `WebSite`. Not `SportsEvent`: the page is not one match. `BreadcrumbList` is omitted, this being the breadcrumb root |
 | Inbound hub | none — this IS the root hub |
-| Outbound | **fixture, and nothing else** — what `index.spec.json` declares and what the built HTML emits. NOT competition: the browse chips and the hero's competition heading are both still inert `<span>`s until the competition hub exists, so claiming a competition edge would be declaring a link the page does not have. NOT team either, since 2026-08-08: the trending row's team link was the page's only one, and the block is cut. This line has now been wrong twice — it read "fixture, competition, team… every one of the four modules links out", then "fixture and team". Both times it described a module that had been removed. **Re-derive it from the built HTML, never from this table.** |
+| Outbound | **fixture, and nothing else** — what `index.spec.json` declares and what the built HTML emits. NOT competition: the hero's competition heading is still an inert `<span>` until the competition hub exists, so claiming a competition edge would be declaring a link the page does not have (browse's chips made the same point until 2026-08-19, when the block was dropped rather than left inert). NOT team either, since 2026-08-08: the trending row's team link was the page's only one, and the block is cut. This line has now been wrong twice — it read "fixture, competition, team… every one of the four modules links out", then "fixture and team". Both times it described a module that had been removed. **Re-derive it from the built HTML, never from this table.** |
 | Page-count driver | `count(locales)` |
 | URL permanence | permanent. The locale root is the most permanent URL on the site |
 
@@ -771,17 +811,18 @@ Reused unchanged: fixture row (01), crest + monogram (02, via `Crest.astro` in t
 head, internal-links footer, site header/footer (09), empty/absent state.
 ~~player row (01)~~ — it was here for the removed stats teasers' scorer rows.
 ~~form/result chip family (01), streak chip (02)~~ — both were here for the trending row, and
-nothing else on the page renders either. Verified by grep over `components/home/` and the page:
-the only chip left is browse's `.linkchip`, and `.prow` — the row primitive trending composed — is
-now used by no home component at all.
+nothing else on the page renders either.
+~~`.linkchip`~~ — was browse's only chip, dropped with the block 2026-08-19. Verified by grep over
+`components/home/`: no chip of any kind is composed on the home page today, and `.prow` — the row
+primitive trending composed — is likewise used by no home component.
 
-➕ New, flagged for the design system. **THREE, not five** — see the two struck rows.
+➕ New, flagged for the design system. **ONE, not five** — see the four struck rows.
 
 | Component | Why it is new |
 |---|---|
 | Competition group heading (hero) | a fixture list grouped by competition; 01 and 02 both show a single competition's fixtures |
-| Browse group grid | the hybrid-IA block; no existing screen renders the registry |
-| Country hub list | same |
+| ~~Browse group grid~~ | ⛔ **DROPPED 2026-08-19** with the browse block. Was "the hybrid-IA block; no existing screen renders the registry" |
+| ~~Country hub list~~ | ⛔ **DROPPED 2026-08-19** with the browse block. Was "same" |
 | ~~Trending story row (run chip + team + competition)~~ | ⛔ **REMOVED 2026-08-08** with the trending block. Nothing on the page composes `.prow` any more |
 | ~~Compact standings table~~ | ⛔ **REMOVED 2026-08-08.** It existed only for the stats teasers' `TABLE · {competition}` snippet. No shipped module renders a standings table, and the Top players / Top teams design in §0 does not reuse one either — it composes `.prow` inside `.split` with a rank column |
 

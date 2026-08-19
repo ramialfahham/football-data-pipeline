@@ -6,7 +6,7 @@
 > 2026-06-17 design conversation.
 >
 > This is the IA the wireframes *arrange* and the marts *feed*. It builds on:
-> - `docs/site_architecture.md` — the v2 site IA (fixtures-first home + browse, epic #361).
+> - `docs/site_architecture.md` — the v2 site IA (fixtures-first home, epic #361).
 > - `docs/metrics_context_model.md` §8 — the player performance surface + the shared window/aggregation model.
 > - the `metric_catalogue.csv` seed (metric definitions — the SSoT) / `docs/wireframes/metrics_display.md` (the locked display contract).
 >
@@ -122,7 +122,7 @@ full wireframe specs in `docs/wireframes/` already describe in prose — not a r
 | **Competition** | **Table** · **Fixtures** (by matchday) · **Scorers** (leaderboards) · **Teams** (directory) · **Seasons** (archive) · **Stats** (league-wide → benchmark) |
 | **Coach** | **Overview** (current club + clubs managed) |
 | **Fixture** | match preview + key players + (post-match) fixture stats + lineups |
-| **Home** | fixtures-first + browse entry points |
+| **Home** | fixtures-first (next matches; Top players + Top teams specified, not built) |
 
 ---
 

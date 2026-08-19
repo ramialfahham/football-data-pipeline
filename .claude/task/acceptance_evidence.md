@@ -1,71 +1,58 @@
-# Acceptance evidence — one shared competition-ordering rule + the matchday selection
+# Acceptance evidence — drop the home page Browse section
+
+> One line per declared criterion in `contract.md`, each read from BUILT output
+> (`site_v2/dist/`, a fresh `npm run build`) or from an actually-executed command — never from
+> source, never from `outerHTML`. Seven criteria declared; eight evidence lines below, because the
+> built-HTML remnant check is recorded separately from the "renders Next matches only" reading —
+> they are different observations of the built output, not one restated twice.
+>
+> ⚠ THE BULLETS BELOW ARE INDENTED 2sp ON PURPOSE. `_block()` in `git_discipline.py` collects lines
+> under `criteria_demonstrated:` until the first NON-INDENTED non-empty line, so a bullet at column
+> zero terminates the block immediately and the gate reads ZERO criteria. This is recorded in
+> CLAUDE.md and it still caught this task once — the commit was denied "7 declared, 0 demonstrated"
+> with all seven sitting right here, unindented.
 
 criteria_demonstrated:
-  - **One comparator, two callers — verified by grep, not by claim.**
-    `grep -rn "compareCompetitions" site_v2/src` returns its single definition in
-    `lib/competitionOrder.mjs` plus its two internal callers (`groupAndOrderCompetitions` for the
-    competitions page, `orderUpcomingGroups` for the home page). No second implementation of the
-    key exists: the Python export contains no ordering logic (it only sorts fixtures by kickoff for
-    a deterministic payload diff, documented as NOT the display order), and no `.astro` file sorts
-    competitions itself. `compareCompetitions` was NOT edited — the competitions page's 7 existing
-    tests pass unchanged, pinning that its behaviour did not move.
-  - **Same-day competitions render in REGION order on the built page.** Built `dist/{de,en,fi}/index.html`
-    all render the group order `['UEFA Champions League', 'Copa Libertadores']` — UEFA
-    (`region_rank` 1) before CONMEBOL (`region_rank` 3), both on 2026-08-18. Read from built HTML by
-    regex over `<div class="gh">`, all three locales identical.
-    ⚠ HONEST LIMIT: today's live data does not by itself DISCRIMINATE the two rules — UCL also
-    kicks off earlier (19:00 vs 22:00), so pure chronology would produce the same order today. The
-    discriminating proof is the unit test below, which was seen RED.
-  - **The region rule was seen RED against the old behaviour.** Temporarily reverted
-    `orderUpcomingGroups` to pure chronology (sort on `next_kickoff_datetime` only) and re-ran
-    `node --test`: `tests 76 / pass 75 / fail 1`, the failure being
-    "home groups on the SAME day order by region_rank, not by clock time". Reverted; 76/76 green.
-    That test uses a 10:15 Eredivisie vs a 19:00 Premier League — the exact example the 2026-08-16
-    ruling names as noise — so it can only pass if region breaks the same-day tie.
-  - **Day still beats region — selection stays chronological.** `a UEFA group does NOT jump a
-    better-region-ranked group playing an earlier day` asserts an OFC group (rank 7) kicking off
-    2026-08-20 outranks a Premier League group (rank 1) on 2026-08-21. Green. This is why the CPO's
-    sub-question about selection vs ordering resolved itself: the key answers it.
-  - **`region_rank` is served, never derived.** Every group in the regenerated
-    `site_v2/src/data/landing.json` carries it (`groups missing region_rank: none`, checked over the
-    real export output). Its source is `mart_competition_index` — a `select league_code, region_rank`
-    added to `fetch_landing_payload`, priced first at **644 bytes** (`bq query --dry_run`). The
-    registry YAML's `confederation` is NOT mapped to a rank in Python; that would be a taxonomy
-    mapping the consumption-layer contract forbids.
-  - **The block is a matchday, with no fixed count anywhere.**
-    `grep -rn "_HERO_FIXTURE_LIMIT" scripts/ tests/ site_v2/src` returns exactly ONE hit —
-    `export_site_data.py:77`, the comment recording that the constant was removed and why. No
-    definition, no reference, no default argument: the constant is gone as CODE and survives only as
-    the explanation. (Stated precisely because "zero hits" would have been false.) The regenerated
-    payload holds
-    `distinct kickoff dates in payload: ['2026-08-18']` — one date, 2 groups, 4 fixtures. The
-    previously committed sample held 12 fixtures spanning **two** dates (2026-08-03 and 2026-08-04),
-    which is what the cap produced and is not a matchday.
-  - **The matchday test was seen RED against the retired cap.** Temporarily restored
-    `for f in fixtures[:12]` and re-ran: `FAILED test_hero_takes_the_whole_first_matchday_and_nothing_from_the_next_day`
-    with `assert 12 == 13`. The fixture set deliberately puts THIRTEEN matches on day one — one more
-    than the old cap — so the test cannot pass against the previous behaviour. Reverted; 46/46 pass.
-  - **Gates green.** `python -m pytest tests/test_export_site_data.py` -> 46 passed.
-    `node --test` (site_v2) -> 76 passed. `python scripts/check_copy_gate.py` ->
-    "COPY GATE ok: 450 strings across 3 locales". `node scripts/check-page-specs.mjs` ->
-    "4 page(s) validated against their specs. OK." `npm run build` ->
-    "audit-seo: 61 built page(s) checked. OK.", 60 pages.
-    `python -m ruff check --config .ruff-ci.toml` (the CI config) -> "All checks passed!".
-  - **Rendered size MEASURED, not predicted.** Live at 440px viewport: 4 matches, 2 groups,
-    `scrollHeight` 3301px, `horizontalOverflow: false`. ⚠ Today is a QUIET day — the honest range is
-    wider: `10_home.md`'s measurement recorded a busiest day of 57 fixtures. The block will be
-    materially longer then. Per the contract's decisions_reserved that is a CPO call on the block
-    (#908 parks a "more matches" control), NOT a number to reintroduce here — reported, not acted on.
-    ⚠ The SHORT direction is the one this build actually hit (4 matches, where the retired count
-    showed 12 by borrowing the next day) and it was initially registered nowhere; now written into
-    `10_home.md` §5(1) as an open product question alongside the long direction.
-  - **The matchday decision lives in SQL, not Python (round-1 FAIL fix).** The first implementation
-    took `min()` over the fetched rows and filtered in a Python loop; analytics-engineer-reviewer
-    ruled that window selection in the consumption layer, citing this same file's `_featured_season_row`
-    (#846), where an identical "pick from a set" was moved out of Python. Now a
-    `where fixture_date = (select min(fixture_date) from upcoming)` clause beside the
-    upcoming-window filter that always lived there. Verified two ways: the re-exported payload is
-    **byte-identical** to the Python-filtered one (`a == b` -> True), so no semantic drift between
-    `fixture_date` and the UTC kickoff date; and `bq query --dry_run` prices both forms at exactly
-    **4,862,919 bytes** — the subquery costs nothing. `test_hero_matchday_selection_lives_in_the_query_not_in_python`
-    pins the placement so it cannot drift back.
+
+  - Home renders Next matches ONLY. Fresh `npm run build`, then parsed `site_v2/dist/en/index.html`:
+    exactly ONE `<section>` element, and the only section-head label in the built markup is
+    "Next matches". The live accessibility tree showed `region` (fixtures hero) followed IMMEDIATELY
+    by `contentinfo` (footer), nothing between, so no empty wrapper or margin-only gap was left
+    behind. Detail in `rendered_page_evidence.md`.
+  - No Browse remnants in the built HTML, ALL THREE locales.
+    `grep -c -iE "browse|linkchip|subhead"` against `dist/en/index.html`, `dist/de/index.html` and
+    `dist/fi/index.html` after the fresh build returns 0, 0, 0 — covering the block, its chip class
+    and the orphaned `.subhead` rule in one pass, read from the artefact rather than the templates.
+  - `landing.json` carries exactly `{type, upcoming}`. `json.load` on
+    `site_v2/src/data/landing.json` printed `['type', 'upcoming']`; the `browse` key is gone from the
+    committed payload, not merely unread by the page.
+  - `astro build` succeeds clean: 60 pages built, `audit-seo: 61 built page(s) checked. OK.`, zero
+    errors and no new warnings. That audit is the gate that fails on a dead internal link, so a
+    surviving Browse chip pointing at a non-built page would have turned it red.
+  - `pytest tests/test_export_landing.py` passes against the new signature: 8 passed. Full suite also
+    run: 829 passed, 1 skipped, 14 subtests passed. Both payload-shape tests moved in lockstep — the
+    exact key-set assertion is now `{"type", "upcoming"}` and a new `assert "browse" not in payload`
+    pins the removal by name, so a revert fails rather than passing silently.
+  - Zero `BrowseGrid.astro` references repo-wide. `grep -rn "BrowseGrid"` excluding
+    `node_modules`/`.git`/`dist`/`.claude/task` paperwork returns no files; every prose mention was
+    deleted or rephrased to describe the component without citing the dead filename.
+  - `nav.json` still produces output, untouched. Executed `fetch_nav()` directly: returned 4 groups
+    and 18 countries, and `scripts/export_site_data.py:1360` still carries its own
+    `if "nav" in entities:` dispatch branch — confirming `build_nav`/`fetch_nav` survived as an
+    independent export target rather than being removed with the block that consumed them.
+  - No surviving claim that Browse exists, literal OR paraphrased. Two sweeps. Literal:
+    `grep -rn -i browse` repo-wide, every hit triaged to one of three permitted classes (the English
+    word "browser"; the still-live `08_browse.md`/competitions index; the struck-through record of
+    the decision). Semantic, added after `mart_competition_index.sql` was caught asserting
+    `sort_order` was "still live on the home page" WITHOUT using the word:
+    `grep -rn -iE "(still live|feeds the|renders the|consumed by).{0,50}(home|landing)"` now returns
+    nothing, and each machinery identifier (`display_group`, `build_nav`, `nav.json`, `_GROUP_ORDER`,
+    `_DOMESTIC_TYPES`, `linkchip`, `country hub`) was read in context rather than counted.
+
+## Not covered here
+
+Per-locale geometry was not re-measured at a fixed viewport. No new content needs its height pinned —
+a block was deleted, not resized or reordered — so the page is simply shorter by whatever Browse
+occupied. `dist/de` and `dist/fi` were grepped (above) but not read structurally the way `dist/en`
+was; the same `shape_landing_payload` output feeds all three, and the removed i18n keys were verified
+deleted from all three locale blocks in `strings.ts` directly.

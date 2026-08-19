@@ -1155,20 +1155,19 @@ def _landing_side(team: dict | None) -> dict:
     }
 
 
-def shape_landing_payload(upcoming: list[dict], browse: dict) -> dict:
+def shape_landing_payload(upcoming: list[dict]) -> dict:
     """landing.json — the home modules, in the order the CPO composed them.
 
     Pure assembly of already-shaped parts, so the whole payload is unit-testable without
     BigQuery. Spec: docs/wireframes/10_home.md §0, which is that spec's stated authority.
 
-    TWO modules today, of a decided FOUR: next matches -> Top players -> Top teams -> browse
-    (10_home.md §0). The two middle blocks are specified and not built — they need six pieces of
-    warehouse work (GAP-24..GAP-29) and a layout the CPO has not approved — so they land in their
-    own PR and slot between the two written here. The slots are why browse stays last rather than
-    being pulled up to sit under the hero: inserting later must not rearrange what ships now.
+    ONE module today, of a decided THREE: next matches -> Top players -> Top teams (10_home.md
+    §0). Top players/Top teams are specified and not built — they need six pieces of warehouse
+    work (GAP-24..GAP-29) and a layout the CPO has not approved — so they land in their own PR
+    and add their own keys here.
 
-    Two blocks were removed rather than carried, and both removals deleted consumption-layer
-    violations as a side effect:
+    Three blocks were removed rather than carried, and all three removals deleted
+    consumption-layer violations as a side effect:
 
     - The stats teasers (top scorers + a league-table snippet), ruled useless by the CPO on
       2026-08-08. Their helpers `eligible_stats_competitions` and `pick_stats_competition` judged
@@ -1178,23 +1177,29 @@ def shape_landing_payload(upcoming: list[dict], browse: dict) -> dict:
       that touched it (CPO 2026-08-04: three team streak types, winning/unbeaten/clean-sheet, with
       "winless and losing are both dropped"), while the built mart still served five signals
       including `winless`, no player streaks and no start dates.
+    - Browse, DROPPED (not deferred) 2026-08-19, CPO: "drop the browse section". Its only real
+      value was reachability into the long-tail team/player pages, and both are already blocked
+      on the team/player-name data-quality work, so a competitions-only version had nothing left
+      to solve — the competitions index page already covers that pool. `build_nav`/`fetch_nav`
+      are NOT removed with it: `nav.json` is an independently-selectable export target
+      (`--entities nav`), untouched by this change.
     """
     return {
         "type": "landing",
         "upcoming": upcoming,
-        "browse": browse,
     }
 
 
 def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
-    """Read the landing modules that exist today: upcoming fixtures, then browse.
+    """Read the landing module that exists today: upcoming fixtures.
 
-    THREE BigQuery reads: `core.fct_fixture` and `core.dim_team` for the hero, plus
-    `mart_competition_index` for `region_rank` (below). Browse is registry-driven and reads
-    nothing. Both the stats teasers (`mart_leaderboards` + `mart_standings`) and trending
-    (`mart_landing_trending`) were removed on 2026-08-08 (see `shape_landing_payload`), and their
-    queries went with them. Per-query dry-run figures are in
-    `.claude/task/acceptance_evidence.md`.
+    THREE BigQuery reads, unchanged by dropping browse below (it was registry-driven and read
+    nothing either way): `core.fct_fixture` and `core.dim_team` for the hero, plus
+    `mart_competition_index` for `region_rank` (below). The stats teasers
+    (`mart_leaderboards` + `mart_standings`) and trending (`mart_landing_trending`) were removed
+    on 2026-08-08, and browse (registry-driven, read nothing) was dropped 2026-08-19 (see
+    `shape_landing_payload`) — their queries and, for browse, its `fetch_nav` call here, went with
+    them. Per-query dry-run figures are in `.claude/task/acceptance_evidence.md`.
     """
     meta = {
         c["league_code"]: {
@@ -1245,7 +1250,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     }
     upcoming = group_upcoming_fixtures(fixtures, teams, meta)
 
-    return shape_landing_payload(upcoming, fetch_nav(registry_path))
+    return shape_landing_payload(upcoming)
 
 
 def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:

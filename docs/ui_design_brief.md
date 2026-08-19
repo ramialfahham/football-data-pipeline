@@ -60,8 +60,10 @@ CPO note: none of these is to be copied; each contributes one thing.
 ## 5. Navigation & page inventory (fixed by site_architecture.md)
 
 Nav: `Competitions · Matches · Teams · Players · Standings · Stats` + search + language.
-Browse axes: competition groups (Leagues / Cups / Continental / National teams) AND
-country hubs. Pages to design (priority order):
+Competitions are reached from the competitions index page (`/{locale}/competitions/`, built
+2026-08-18), which groups them by competition type. ⚠ The home page's browse-by-group-and-country
+block that used to be a second route in was **dropped 2026-08-19**; country hubs remain unbuilt.
+Pages to design (priority order):
 
 1. **Fixture page** ⭐ (the heart of the product)
 2. **Team profile** ⭐
@@ -126,22 +128,28 @@ Per season (selector):
 - Signature-moment candidates: deserved-vs-actual visual; YoY trend comparison.
 
 ### 6.3 Landing (home)
-Agreed **hybrid** model (CPO, 2026-06-10): fixtures-first, with stats/storylines below.
+
+⛔ **THIS SECTION IS SUPERSEDED — read `docs/wireframes/10_home.md` §0 instead, it is the
+authority.** The live composition is **next matches → Top players → Top teams** (the latter two
+specified, not built), so the home page today renders next matches ALONE. Everything below is the
+ORIGINAL 2026-06-10 model, kept struck so the design reasoning stays readable. Do not design
+against it.
+
+~~Agreed **hybrid** model (CPO, 2026-06-10): fixtures-first, with stats/storylines below.~~
 The MVP's competition-card landing is **obsolete** for a website. Module order
-(top → bottom), each tagged with its real data status:
+(top → bottom), each tagged with its real data status at the time:
 
 1. **Fixtures hero — upcoming matches.** The product's core feature (the MVP's
    fixture list), elevated to the home across competitions: date-navigable, grouped
    by competition, each row carrying its form hook and linking to the fixture page.
    *Status:* the per-competition list + fixture page exist; ⚠ the cross-competition
    home aggregation is a feed to build.
-2. **Hybrid browse:** competition groups (Leagues / Cups / Continental / National)
-   + country hubs (crest/flag grid or list). *Status:* ✓ registry (#364).
-3. **Storylines — "Trending":** biggest YoY risers/fallers, longest active streaks,
-   biggest deserved-vs-actual gaps. *Status:* ✓ data in `mart_team_profile`; ⚠ needs
-   the data-to-text narrative generator (build).
-4. **Stats:** top-scorer leaderboard teasers + mini standings. *Status:*
-   ✓ `mart_leaderboards`, `mart_standings`.
+2. ~~**Hybrid browse:** competition groups + country hubs.~~ **DROPPED 2026-08-19** (CPO: "drop
+   the browse section"). Built, then removed: its only real value was reachability into the
+   long-tail team/player pages, both blocked on name data quality, and the competitions index
+   page already covers the competitions pool.
+3. ~~**Storylines — "Trending"**~~ and 4. ~~**Stats** teasers~~ — both **CUT 2026-08-08**; the
+   stats block was ruled useless and replaced, trending is absent from the composition.
 
 Persistent: search, language switcher.
 

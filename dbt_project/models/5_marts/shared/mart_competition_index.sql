@@ -21,7 +21,9 @@
     the Premier League on a shared matchday for kicking off at 10:15 instead of 19:00.
 
     The registry's `sort_order` is deliberately ABSENT — declared obsolete by the CPO on
-    2026-08-16. It is still live on the home page and is not removed there by this model.
+    2026-08-16. Its last consumer on the site was the home page's browse block, DROPPED
+    2026-08-19; it now feeds only `build_nav()`/`nav.json`, an export target with no frontend
+    consumer. Either way it is not this model's ordering basis, and this model does not remove it.
 
     LABELS. English name AND i18n key, never a translated string (#62, 2026-08-14).
     region_label_i18n_key is NULL when the region is a country, because a country name is an
