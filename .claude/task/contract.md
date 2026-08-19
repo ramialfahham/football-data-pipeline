@@ -25,6 +25,9 @@ scope_paths:
   - dbt_project/seeds/schema.yml
   - .claude/task/escalations.log
   - .claude/active_work.md
+  - CLAUDE.md
+  - docs/wireframes/10_home.md
+  - docs/wireframes/99_gaps_register.md
 
 decisions_taken: >
   CPO, this session (quoted in full, self-contained, in THIS branch's own escalations.log entry —
@@ -72,3 +75,9 @@ amendments:
     escalations.log (see done_when).
   - 2026-08-19: row count corrected 35 → 36 throughout — analytics-engineer-reviewer round-1 FAIL,
     a genuine arithmetic error (L1 was 13 rows, not 12; counted wrong when totaling).
+  - 2026-08-19: + `CLAUDE.md`, `docs/wireframes/10_home.md`, `docs/wireframes/99_gaps_register.md`
+    — authority: same standing instruction cited by the sibling branch's identical amendment.
+    `main` moved a second time (MR !76, Top teams ruling, merged) while this MR sat open; merging
+    `main` in to resolve the resulting conflict brings in !76's already-built, already-reviewed,
+    already-merged content on these three files. None of it is authored, edited, or re-verified by
+    this task.
