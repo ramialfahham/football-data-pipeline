@@ -154,6 +154,14 @@ every session that learned something had to delete something. None of this is cu
 - **Frontend.** `deploy:site-v2` is manual-only. The Browser pane drives the dev server
   (`preview_start` name `v2`); accessibility tree, geometry and console work, `screenshot` fails.
   `astro build` OOMs at full scale; `git clean -fX site_v2/src/data` before a local dev build.
+- **`world_championship` keeps its name, deliberately** (deferred by #57) — it's branched on at
+  `int_team_momentum_window.sql:135`; renaming it without updating that branch silently gives the
+  WC a last-5 window instead of cumulative, and every test stays green. `display_group` is the
+  other #57 deferral, owed to #44.
+- **A second review-gate plugin hook can shadow the repo one.** If a hash mismatch disagrees with
+  `git_discipline.py --staged-hash`, check `~/.claude/settings.json` for a second hook FIRST —
+  don't re-derive the hash logic from scratch. Cost an hour on 2026-08-18. Also:
+  `acceptance_evidence.md` bullets must be indented 2sp or the gate reads zero criteria.
 
 ## Memory files
 

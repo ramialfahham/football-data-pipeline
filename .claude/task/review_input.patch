@@ -1,23 +1,28 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 8661d36..d6a27b4 100644
+index 8661d36..d8e99d6 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,38 +1,21 @@
+@@ -1,38 +1,60 @@
 -# Task contract — handover: block-audit method, automation note, home-page status
-+# Task contract — handover: team names, Browse reframed, Top teams ruled
++# Task contract — record the Top teams ruling (one team per league)
  
  objective: >
 -  Update `.claude/active_work.md` to reflect current state before this chat ends (context nearly
 -  exhausted, continuing in a fresh session). Bookkeeping only.
 -refs: this session's work in full — !72 (shared ordering), !73+!74 (Top players ruling), #78 (the
 -  filed follow-up sweep).
-+  Update `.claude/active_work.md` to reflect current state before this session's context grows
-+  further. Bookkeeping only — records decisions already made and work already committed on other
-+  branches (!76, !77, !78), does not decide anything new.
-+refs: !76 (Top teams ruling), !77 + !78 (team_name_overrides, 97 rows), the Browse #45 reframing
-+  discussed and design-converged but not built this session.
++  Record today's CPO ruling on the Top teams home-page block: one team per pool league, same
++  shape as Top players (2026-08-18). Update the wireframe's Open/Scope/display-rules sections,
++  propose the replacement intro copy (mirroring the Top players copy pattern), and flag that
++  (unlike the players mock) the Top teams mock does not already reflect this shape. Bookkeeping
++  + a copy proposal, no code, no mart build.
++refs: docs/wireframes/10_home.md §0 (Top players ruling, same date, same shape); GAP-29
++  (team leaderboard mart, design approved, build not started — unaffected by this, still not
++  started).
  
  scope_paths:
++  - docs/wireframes/10_home.md
++  - docs/wireframes/99_gaps_register.md
    - .claude/active_work.md
 -  - .gitlab-ci.yml
 -  - deploy/nightly/README.md
@@ -25,7 +30,9 @@ index 8661d36..d6a27b4 100644
 -  - .dockerignore
 -  - .gcloudignore
 -  - Dockerfile
--
++  - CLAUDE.md
++  - .claude/task/escalations.log
+ 
 -amendments:
 -  - 2026-08-18: + `.gitlab-ci.yml`, `deploy/nightly/README.md`, `tests/test_governance_hooks.py`,
 -    `.dockerignore`, `.gcloudignore`, `Dockerfile` — authority: CPO, "merge conflict" (this
@@ -38,19 +45,218 @@ index 8661d36..d6a27b4 100644
 -    this task — named here only so the scope gate, which does not distinguish a merge from new
 -    authorship (the same gap `active_work.md`'s OWED section already logs), has something to
 -    check against.
++decisions_taken: >
++  CPO, this session: "one team per league, same as players" — the pooling-shape question for
++  Top teams, mirroring the 2026-08-18 Top players ruling ("One per league -> yes, it's not a
++  leaderboard in the defined pool.", recorded in 10_home.md's Closed-since-2026-08-04 list and
++  GAP-31's withdrawal). CPO, same message: the mock's "Ranked across pooled leagues" intro line
++  is confirmed incorrect for Top teams too and needs the same adjustment made for Top players'
++  intro copy.
++
++decisions_reserved:
++  - The exact proposed Top teams intro copy string is DRAFTED here (mirroring the approved
++    Top players line) but not yet CPO-approved — copy is always his, per docs/working_agreement.md
++    DO NOT list. Marked PROPOSED, not APPROVED, in both edited files; escalated in chat this turn.
  
  impact_map: >
 -  writers: none. downstream: this IS the continuity mechanism for the next session — its accuracy
 -  is the point. layer_rules: not applicable. blast_radius: one file authored (`active_work.md`);
 -  six more arrive unchanged via the `main` merge (see amendments).
-+  writers: none. downstream: this IS the continuity mechanism for the next session. layer_rules:
-+  not applicable. blast_radius: one file.
++  leaf/cosmetic: two wireframe-doc sections + the handover, no code, no model, no mart, no
++  export, no site_v2 file. Nothing downstream reads these docs at build time. blast_radius: none.
  
- decisions_taken: none — recording, not deciding.
- decisions_reserved: everything substantive; this is bookkeeping.
- done_when: active_work.md reflects current state, under 16,000 characters, and is committed.
+-decisions_taken: none — recording, not deciding.
+-decisions_reserved: everything substantive; this is bookkeeping.
+-done_when: active_work.md reflects current state, under 16,000 characters, and is committed.
++done_when:
++  - docs/wireframes/10_home.md's Open section carries a Top teams ruling entry mirroring the
++    Top players one, including the mock-is-not-already-correct caveat.
++  - The Scope paragraph's ⚠ note is broadened to cover both blocks, not players only.
++  - A proposed (not approved) Top teams intro copy is recorded, parallel in structure to the
++    approved Top players line.
++  - .claude/active_work.md reflects the ruling and the still-open items (copy confirmation,
++    mock rework, GAP-29 mart still not started), and is back under the 16,000-character cap.
++  - Committed on this branch; MR opened by the post-commit hook.
 +
-+amendments: (none)
++amendments:
++  - 2026-08-18: + `CLAUDE.md` — authority: the handover's own char cap + "delete one stale
++    section, don't shave clauses" rule. Getting active_work.md back under cap means deleting the
++    ⭐ PRIOR SESSION — #62 section whole. Two of its four traps are duplicated elsewhere (fnmatch/
++    `[lang]` already in CLAUDE.md; the 680px/single-select/inert-rows decisions already in
++    `08_browse.md`) and are safe to drop. Two are NOT duplicated anywhere (`world_championship`
++    rename trap; a global-hook-conflict note) — relocating those into CLAUDE.md's own
++    "Operational notes" section is the same move that section's own header already prescribes
++    ("do not copy back: that file is not capped"), not new scope.
++  - 2026-08-18: + `.claude/task/escalations.log` — authority: scope-auditor round-1 FAIL. The
++    ruling this task records had no logged entry, unlike the sibling Top players ruling it
++    mirrors (which does). Adding an entry, matching that entry's format, and declaring the path
++    in scope so a reviewer can verify it independently of the contract's own narrative, per
++    `docs/working_agreement.md`'s own statement that escalations are appended there.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index c5dae5d..9dc75ee 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -3701,3 +3701,48 @@ ranking. Recorded BEFORE any build, which is the point.
+   ⚠ NOT DECIDED, do not assume either way: whether ordering the seven winners by value lives in the
+   mart or the page. The 2026-08-16 Ruling 4 ("the mart carries facts, the spec declares the ORDER
+   BY") points at the page, but it was ruled about competitions, not players.
++
++2026-08-18 chore/record-top-teams-ruling — the Top teams block: ONE PER LEAGUE, same as players.
++Recorded BEFORE any build, which is the point.
++
++  HOW IT SURFACED. Continuing the same block-by-block home page audit, the same "one per league?"
++  question that was asked and ruled for Top players (above) was still unasked for Top teams. Before
++  asking it, `mart_team_competition_benchmarks` was checked (already ranks per (league_code,
++  season_api_year, metric_key), same shape `mart_leaderboards` has for players) and
++  `top_teams_mock.html` was opened per THE METHOD (check the mock's numbers, don't trust them).
++
++  ⚠ THE MIRROR IMAGE OF THE PLAYERS FINDING. For players, the mock's invented numbers happened to
++  look one-per-league by accident while the spec said pooled. For teams it is the opposite: the
++  mock is HONESTLY pooled, matching its own "Ranked across pooled leagues" intro line. 3 of its 4
++  boards genuinely mix teams from one league (Real Madrid + Barcelona both La Liga on Goals/Shots
++  on target/Passes; Arsenal + Manchester City both Premier League on Shots on target/Passes) and
++  drop other pool leagues off the board entirely. Only Duels per match lands on 7 distinct leagues,
++  by coincidence, not design. Reported to the CPO before asking, so the ruling below was made
++  knowing the mock is not a free preview of it, unlike the players case.
++
++  RULING 1 — ONE TEAM PER LEAGUE. CPO: "one team per league, same as players." Each pool league's
++  rank-1 team on the metric, collected, then ordered by value — same mechanic as the players
++  ruling, never a rank crossing `league_code`.
++
++  WHAT THIS COSTS AND SAVES. Unlike players, this is NOT free: no team leaderboard mart exists yet
++  (GAP-29, design approved 2026-08-08, still not started), and the CURRENT mock does not preview
++  the ruled shape (see above) — it needs redoing before it previews the real design. What the
++  ruling DOES settle: when GAP-29's mart is eventually built, partition the rank by (league_code,
++  season_api_year, metric_key) — the way `mart_team_competition_benchmarks` already does — and the
++  per-league rank is free, no pooled-across-leagues computation is ever needed, same mechanism as
++  the players ruling. ⚠ CORRECTION while writing this up: GAP-29's row was first drafted saying "no
++  gap was filed to withdraw here, since nobody had proposed a pooled rank for teams yet" — that is
++  WRONG. GAP-31's own problem statement already said "**both** reduced blocks" rank across the pool
++  (players AND teams) and its disposition explicitly named GAP-29 ("a separate pooled mart (which
++  is also GAP-29's shape for teams, so the two should be settled together)"). GAP-31 was withdrawn
++  for the PLAYERS half only when it was written (teams was still unruled then); today's ruling
++  settles the teams half GAP-31 already raised. Caught by bi-analyst-reviewer in this same task's
++  review cycle, fixed in the same commit — recorded here so the wrong claim doesn't get copied
++  forward from an earlier draft some other artifact quotes.
++
++  RULING 2 — THE INTRO COPY MUST BE REPHRASED TOO, and the words are the CPO's. CPO: "'Ranked
++  across pooled leagues' incorrect now, needs to be adjusted as for players." ⚠ NOT WRITTEN HERE —
++  copy is §10 and always his. A draft is proposed in `10_home.md`, explicitly marked NOT approved,
++  mirroring the players line's three constraints (states the mechanic, echoes the block's name,
++  avoids "leader", names no metric) but keeping "Season to date" rather than "Season totals to
++  date" — the team boards are per-match rates, not sums.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 5d5ea74..86057bc 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -154,6 +154,14 @@ every session that learned something had to delete something. None of this is cu
+ - **Frontend.** `deploy:site-v2` is manual-only. The Browser pane drives the dev server
+   (`preview_start` name `v2`); accessibility tree, geometry and console work, `screenshot` fails.
+   `astro build` OOMs at full scale; `git clean -fX site_v2/src/data` before a local dev build.
++- **`world_championship` keeps its name, deliberately** (deferred by #57) — it's branched on at
++  `int_team_momentum_window.sql:135`; renaming it without updating that branch silently gives the
++  WC a last-5 window instead of cumulative, and every test stays green. `display_group` is the
++  other #57 deferral, owed to #44.
++- **A second review-gate plugin hook can shadow the repo one.** If a hash mismatch disagrees with
++  `git_discipline.py --staged-hash`, check `~/.claude/settings.json` for a second hook FIRST —
++  don't re-derive the hash logic from scratch. Cost an hour on 2026-08-18. Also:
++  `acceptance_evidence.md` bullets must be indented 2sp or the gate reads zero criteria.
+ 
+ ## Memory files
+ 
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index 7800096..c1c2b67 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -182,12 +182,15 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
+ 
+ **Shared display rules.**
+ 
+-- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Top players is **one row per pool league** since
+-  the 2026-08-18 ruling, so pool 1 renders **seven** rows — a 5-row cap could not show a leader
+-  from all seven leagues the approved intro copy names. Top teams renders **seven** too (the
+-  rendered mocks, and the "Open" note below, both say seven). ⚠ Row count is a DIFFERENT axis from
+-  the board count corrected elsewhere in this file, which is why the board-count sweep did not
+-  catch it — it took a fourth review round. Any future row-count claim needs checking on its own.
++- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Both blocks are **one row per pool league**
++  since the 2026-08-18 rulings, so pool 1 renders **seven** rows on every board — a 5-row cap
++  could not show a leader from all seven leagues the approved intro copy names. ⚠ For Top teams
++  this is now the reason; the row count was previously guessed from the mock alone, before the
++  ruling existed, and the mock's row count of seven was right for the wrong reason — see the Open
++  note: 3 of its 4 boards are actually pooled, not one-per-league, and need redoing. ⚠ Row count
++  is a DIFFERENT axis from the board count corrected elsewhere in this file, which is why the
++  board-count sweep did not catch it — it took a fourth review round. Any future row-count claim
++  needs checking on its own.
+ - **A metric with no value is HIDDEN, not dashed.** CPO, 2026-08-08: a column of "-" reads as a bug
+   to a visitor even when it is honest. Where a metric has no value for the pool being shown, the
+   metric is removed from the board entirely, its NAME included, rather than rendered empty. This is
+@@ -200,11 +203,13 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
+ never mixed — CPO: *"if that is the case somewhere then it is a defect."* Verified 2026-08-08 that
+ no mixing exists today: `int_player_season__metrics` groups by `league_code` and `mart_leaderboards`
+ ranks `partition by league_code, season_api_year`, so every competition is already its own ranking.
+-The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 ruling
+-(§10 below) it does not** — the block takes each league's own rank-1 and orders the winners, so the
+-RANKING never crosses `league_code` and every board is 7 rows from 7 leagues by construction. The
+-rule stays dormant for this block, and returns for any future surface that genuinely ranks players
+-from different competitions against each other.
++The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 rulings
++(§10 below) it does not, for EITHER block** — both Top players and Top teams take each pool
++league's own rank-1 and order the winners, so the RANKING never crosses `league_code` and every
++board is 7 rows from 7 leagues by construction (Top teams: by construction once its still-unbuilt
++mart is partitioned the same way — see the Open note; the CURRENT mock does not yet honour this).
++The rule stays dormant for both blocks, and returns for any future surface that genuinely ranks
++players or teams from different competitions against each other.
+ 
+ A rolling window was proposed as a way to keep every pool current year-round, and REJECTED.
+ CPO: *"no it must be within season, that's how you compare."*
+@@ -309,6 +314,33 @@ Closed since 2026-08-04:
+   defined pool."* So a board is 7 rows from 7 leagues by construction, never two from one league.
+   ⚠ This is what `mart_leaderboards` ALREADY produces per league, so no pooled rank is needed
+   (GAP-31 withdrawn).
++- **The same question, asked of Top teams, RULED 2026-08-18: ONE TEAM PER LEAGUE.** CPO: *"one
++  team per league, same as players."* Same mechanic — each pool league's rank-1 team on the
++  metric, collected and ordered by value, never a rank crossing `league_code`. ⚠ **Unlike the
++  players ruling, this is NOT free against the existing mock.** `top_teams_mock.html` was opened
++  to check (per THE METHOD: check the mock's numbers, don't trust them): 3 of its 4 boards
++  genuinely mix teams from one league — Real Madrid + Barcelona both La Liga on Goals/Shots on
++  target/Passes, Arsenal + Manchester City both Premier League on Shots on target/Passes — and
++  drop other pool leagues off the board entirely. Only Duels per match lands on 7 distinct
++  leagues, by coincidence, not design. The players mock was already correct by accident; this one
++  is not, and its placeholder rows need redoing before anyone should read a shape off it. No mart
++  exists yet either way (GAP-29, still not started) — when it is built, partition the rank by
++  `(league_code, season_api_year, metric_key)`, the way `mart_team_competition_benchmarks` already
++  does, which is what makes "one per league" free at the SQL level, same as `mart_leaderboards`.
++- **The Top teams intro copy — CPO confirmed 2026-08-18 the mock's "Ranked across pooled leagues"
++  line is wrong now too**, and needs the same adjustment as the Top players line, same session.
++  **Proposed, NOT yet approved** (copy is always his call — this is a draft for him to correct or
++  confirm):
++
++  > Season to date. The top team from each league: Premier League, La Liga, Bundesliga, Serie A,
++  > Ligue 1, Liga Portugal, Eredivisie.
++
++  Mirrors the approved Top players line's three constraints: states the mechanic and echoes the
++  block's own name, avoids "leader" for the same reason it was rejected there, names no metric.
++  Keeps **"Season to date"**, not "Season totals to date" — the team boards are per-match rates,
++  not sums, so "totals" would misdescribe them, not just diverge from the players wording for no
++  reason. Same caveat as the players line: the league list is the ACTIVE POOL's members, not a
++  fixed seven.
+ - ~~**The Top players intro copy.**~~ **APPROVED 2026-08-18** (CPO: "you rephrase", then approved
+   the proposal). The EN string is:
+ 
+diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
+index 4f1f487..f5309a4 100644
+--- a/docs/wireframes/99_gaps_register.md
++++ b/docs/wireframes/99_gaps_register.md
+@@ -37,7 +37,7 @@
+ | GAP-26 | ~~10 home~~ | mart | ~~The **Goals conceded** board ranks ASCENDING, which `mart_leaderboards` cannot do: it ranks descending and ranks only players with a POSITIVE value, so every keeper on zero — exactly the ones the board is for — would be excluded. It also has no qualification floor, so one appearance and a clean sheet would top it~~ | ~~Add an ascending ranking mode plus a minutes floor for this board~~ | **VOID** (2026-08-18), same cause as GAP-24: **the Goals conceded board does not exist in the reduced design.** ⚠ Carried "the highest-risk of the six — a wrong default here publishes a false leaderboard rather than an empty one" for eight days after the board it describes was deleted, and that warning was repeated to the CPO this session as if live. The risk is gone WITH the board, not mitigated. ⚠ The underlying limitation is real and returns with any future ascending board (lower-is-better metrics): `mart_leaderboards` ranks descending and ranks only positive values, so a zero-is-best board silently excludes its own subjects. Re-register it if such a board is ever designed | — |
+ | GAP-27 | 10 home | mart | A leaderboard row carries no club, so every row links to a player and to nothing else — halving the internal-link value that is the whole reason the block exists (CPO 2026-08-08: "clicking a team, competition or player goes deeper into the site") | Select `team_sk` into `mart_leaderboards`. `int_player_season__metrics` already carries it, stamped as the last club that competition-season, so this is a column addition plus a `dim_team` lookup for name and slug — NOT a join to a squad mart | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced four-board design: `grep -c "team_sk" mart_leaderboards.sql` = **0**, and the reduction did not touch this — the rendered mock shows club AND league under every player name (`gen_top_players.py`: "a pooled board ranks across seven leagues, so the club alone no longer implies the competition"), so the reduction if anything strengthens it | — |
+ | GAP-28 | 10 home | seed | League **pool** membership is not reachable inside dbt. The pools are defined by `tier`, `season_type` and an authored strength grouping. ⚠ **This entry's original premise is now HALF FALSE and has been corrected in place (2026-08-18)** — it claimed the seed "carries only `league_code`, `competition_type`, `parent_competition`". Measured: `dbt_project/seeds/competition_registry.csv`'s header is `league_code,competition_type,parent_competition,confederation,slug,sort_order,tier,season_type` — **8 columns, and `tier`/`season_type` are already projected and populated** (`BL1,domestic_league,,UEFA,bundesliga,30,1,split_year`), listed in `sync_dbt_vars.py`'s `SEED_COLUMNS`. So the projection half is **DONE**; only the authored pool grouping is missing | **Remaining work is ONE authored pool field on the registry + seed** — not a projection plus a field. Pool 1 CANNOT be derived from confederation + tier: the UEFA tier-1 leagues we carry include VL, which would gate-crash the star pool, so the grouping must be authored | **design approved** (CPO 2026-08-08); **partly built** — see the corrected Gap cell. Still required by the reduced design: the rendered mock's intro line names **seven** pooled leagues (Premier League, La Liga, Bundesliga, Serie A, Ligue 1, Liga Portugal, Eredivisie) and that sentence is real page copy, so the block cannot ship without the pool. ⚠ Pool MEMBERSHIP (this entry) and the pooled RANK COMPUTATION are two different pieces of work — the second is **GAP-31**. ⛔ **This row carried a "Re-verified LIVE 2026-08-18" stamp on its first pass that had only re-checked the NEED (the mock's copy), not the technical PREMISE (the seed's columns) — and the premise was already false. Caught in review, not by the stamp.** A re-verification stamp must name the command it ran, as GAP-27/29 do; "still needed" and "still unbuilt" are different claims | — |
+-| GAP-29 | 10 home | mart | There is no team equivalent of `mart_leaderboards`. The **Top teams** block needs top-N per metric ACROSS teams; `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite shape | A new mart composing `int_team_season__metrics_cumulative`, which already carries the metrics season-to-date behind the same `>= 3 finished games` gate the pool-selection rule uses. A new mart, not a reshape of the benchmark | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced design: `find dbt_project/models/5_marts -iname "*leaderboard*"` returns `mart_leaderboards.sql` ONLY, so nothing team-side exists. The reduction cut this block to FOUR boards — `goals_per_match`, `shots_on_goal_per_match`, `passes_per_match`, `duels_per_match` — and **all four are confirmed present** in `int_team_season__metrics_cumulative.sql`, so the disposition holds and the surface is smaller than when it was written | — |
++| GAP-29 | 10 home | mart | There is no team equivalent of `mart_leaderboards`. The **Top teams** block needs top-N per metric ACROSS teams; `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite shape | A new mart composing `int_team_season__metrics_cumulative`, which already carries the metrics season-to-date behind the same `>= 3 finished games` gate the pool-selection rule uses. A new mart, not a reshape of the benchmark | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced design: `find dbt_project/models/5_marts -iname "*leaderboard*"` returns `mart_leaderboards.sql` ONLY, so nothing team-side exists. The reduction cut this block to FOUR boards — `goals_per_match`, `shots_on_goal_per_match`, `passes_per_match`, `duels_per_match` — and **all four are confirmed present** in `int_team_season__metrics_cumulative.sql`, so the disposition holds and the surface is smaller than when it was written. **Pooling shape RULED 2026-08-18: one team per league, same as Top players** (CPO: "one team per league, same as players") — when this mart is built, partition the rank by `(league_code, season_api_year, metric_key)`, the way `mart_team_competition_benchmarks` already does; that makes the per-league rank free and no pooled-across-leagues computation is ever needed, same mechanism as GAP-31's withdrawal. ⚠ GAP-31's own problem statement already covered this block too ("both reduced blocks" rank across the pool, its disposition naming GAP-29 by cross-reference) — today's ruling settles the team half GAP-31 already raised, not a previously-unasked question | — |
+ | GAP-30 | 10 home | mart | **`assists` is not a ranked board.** The reduced **Top players** set is goals → assists → passes → key passes (CPO 2026-08-10). Three of those four are already boards in `mart_leaderboards`; `assists` is not — it exists as a COLUMN on the mart (and on `int_player_season__metrics`) but never appears in the `count_boards` list, so no rank is computed for it. Verified 2026-08-18: `grep -c "'assists'"` on `mart_leaderboards.sql` = 0 | Add `'assists'` to `count_boards`. The column already exists and the ranked loop is generic over the list, so this is one line — the same shape GAP-24 proposed for its (now void) four, applied to the metric the reduction actually kept | **NOT YET RULED** — registered 2026-08-18 when the register was reconciled against the reduced design. Supersedes the board half of GAP-24 | — |
+-| GAP-31 | ~~10 home~~ | mart | ~~**The rank grain is per-league, but the design ranks across the pool.** `mart_leaderboards` computes `dense_rank() over (partition by league_code, season_api_year ...)` — verified 2026-08-18 — so it answers "top scorer IN the Bundesliga". Both reduced blocks instead rank across the seven pooled leagues as one field ("Ranked across pooled leagues: …", real page copy), which is a different computation over a different partition, not a filter of the existing one. Distinct from GAP-28: knowing WHICH leagues form the pool does not by itself produce a pooled rank~~ | ~~Decide where the pooled rank lives — a pool-partitioned rank alongside the per-league one on `mart_leaderboards`, or a separate pooled mart (which is also GAP-29's shape for teams, so the two should be settled together). ⚠ Ties and the top-7 cut behave differently pooled than per-league, so the existing DENSE_RANK/inclusive-ties convention must be restated for the pool, not assumed~~ | **WITHDRAWN** (CPO 2026-08-18): the block is **one player per league**, not a pooled ranking — *"One per league -> yes, it's not a leaderboard in the defined pool."* Each pool league's rank-1 player is collected and ordered by value, and `mart_leaderboards` ALREADY ranks within `(league_code, season_api_year)`, so the rank this entry asks for has no consumer. ⚠ Not "resolved": nothing was built, and the per-league-vs-pooled question returns for any future block that genuinely ranks across competitions. ⚠ The ambiguity was created by the MOCK, not the spec — its invented numbers rendered 7 rows across 7 distinct leagues on every board, which read as a rule while `10_home.md` said "pooled". A placeholder dataset can assert a design nobody chose. GAP-27/28/30 are untouched by this ruling and stay live | — |
++| GAP-31 | ~~10 home~~ | mart | ~~**The rank grain is per-league, but the design ranks across the pool.** `mart_leaderboards` computes `dense_rank() over (partition by league_code, season_api_year ...)` — verified 2026-08-18 — so it answers "top scorer IN the Bundesliga". Both reduced blocks instead rank across the seven pooled leagues as one field ("Ranked across pooled leagues: …", real page copy), which is a different computation over a different partition, not a filter of the existing one. Distinct from GAP-28: knowing WHICH leagues form the pool does not by itself produce a pooled rank~~ | ~~Decide where the pooled rank lives — a pool-partitioned rank alongside the per-league one on `mart_leaderboards`, or a separate pooled mart (which is also GAP-29's shape for teams, so the two should be settled together). ⚠ Ties and the top-7 cut behave differently pooled than per-league, so the existing DENSE_RANK/inclusive-ties convention must be restated for the pool, not assumed~~ | **WITHDRAWN** (CPO 2026-08-18): the block is **one player per league**, not a pooled ranking — *"One per league -> yes, it's not a leaderboard in the defined pool."* Each pool league's rank-1 player is collected and ordered by value, and `mart_leaderboards` ALREADY ranks within `(league_code, season_api_year)`, so the rank this entry asks for has no consumer. ⚠ Not "resolved": nothing was built, and the per-league-vs-pooled question returns for any future block that genuinely ranks across competitions. ⚠ The ambiguity was created by the MOCK, not the spec — its invented numbers rendered 7 rows across 7 distinct leagues on every board, which read as a rule while `10_home.md` said "pooled". A placeholder dataset can assert a design nobody chose. ⚠ **The team half this entry also raised (cross-referenced to GAP-29 above) is now settled too** — GAP-29's row carries the same-shape ruling, same day: one team per league, not a pooled rank. GAP-27/28/30 are untouched by either ruling and stay live | — |
+ | GAP-32 | 10 home | mart | **"The next matchday" is decided in the export, not served by the warehouse.** `fetch_landing_payload` selects the hero's fixtures with `where fixture_date = (select min(fixture_date) from upcoming)` — the export authors the rule. analytics-engineer-reviewer FAILed this twice (2026-08-18), arguing it is window selection, which `layering.md` §Consumption layer forbids in `scripts/export_site_data.py`, and that the #846 precedent (`_featured_season_row`) resolved the identical "pick from a set" shape by computing `is_featured_season` as a TESTED MART COLUMN and leaving the export only filtering on it. No equivalent served fact exists. ⚠ The builder's counter, recorded because the disagreement is real: the same `WHERE` clause has always carried `status_short in ('NS','TBD') and fixture_date >= current_date()` — also a window — and has never been flagged; the contract explicitly ALLOWS "select, filter" | Serve the matchday as a warehouse fact and reduce the export to filtering on it. ⚠ Not a small change: the hero reads `core.fct_fixture` **directly**, so there is no mart for such a column to live on — that direct read is itself a separately-flagged layer defect, and the two should be fixed together. Deciding which mart owns upcoming fixtures is a design question, not a detail fix | **CPO RULED 2026-08-18: ship the SQL version, register this gap.** Reasons given: consistent with the adjacent long-accepted window filter; the "proper" fix needs a warehouse home for upcoming fixtures that does not exist; that is its own task. Explicitly NOT a licence to treat the classification as settled — it is registered so the next session inherits the dispute rather than rediscovering it | — |
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -64,6 +270,6 @@ index 8661d36..d6a27b4 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md | 207 +++++++++++++++++++++++++------------------------
-#    1 file changed, 105 insertions(+), 102 deletions(-)
+#   .claude/active_work.md | 31 +++++++++++++------------------
+#    1 file changed, 13 insertions(+), 18 deletions(-)
 # ============================================================================

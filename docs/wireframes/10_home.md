@@ -182,12 +182,15 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
 
 **Shared display rules.**
 
-- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Top players is **one row per pool league** since
-  the 2026-08-18 ruling, so pool 1 renders **seven** rows — a 5-row cap could not show a leader
-  from all seven leagues the approved intro copy names. Top teams renders **seven** too (the
-  rendered mocks, and the "Open" note below, both say seven). ⚠ Row count is a DIFFERENT axis from
-  the board count corrected elsewhere in this file, which is why the board-count sweep did not
-  catch it — it took a fourth review round. Any future row-count claim needs checking on its own.
+- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Both blocks are **one row per pool league**
+  since the 2026-08-18 rulings, so pool 1 renders **seven** rows on every board — a 5-row cap
+  could not show a leader from all seven leagues the approved intro copy names. ⚠ For Top teams
+  this is now the reason; the row count was previously guessed from the mock alone, before the
+  ruling existed, and the mock's row count of seven was right for the wrong reason — see the Open
+  note: 3 of its 4 boards are actually pooled, not one-per-league, and need redoing. ⚠ Row count
+  is a DIFFERENT axis from the board count corrected elsewhere in this file, which is why the
+  board-count sweep did not catch it — it took a fourth review round. Any future row-count claim
+  needs checking on its own.
 - **A metric with no value is HIDDEN, not dashed.** CPO, 2026-08-08: a column of "-" reads as a bug
   to a visitor even when it is honest. Where a metric has no value for the pool being shown, the
   metric is removed from the board entirely, its NAME included, rather than rendered empty. This is
@@ -200,11 +203,13 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
 never mixed — CPO: *"if that is the case somewhere then it is a defect."* Verified 2026-08-08 that
 no mixing exists today: `int_player_season__metrics` groups by `league_code` and `mart_leaderboards`
 ranks `partition by league_code, season_api_year`, so every competition is already its own ranking.
-The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 ruling
-(§10 below) it does not** — the block takes each league's own rank-1 and orders the winners, so the
-RANKING never crosses `league_code` and every board is 7 rows from 7 leagues by construction. The
-rule stays dormant for this block, and returns for any future surface that genuinely ranks players
-from different competitions against each other.
+The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 rulings
+(§10 below) it does not, for EITHER block** — both Top players and Top teams take each pool
+league's own rank-1 and order the winners, so the RANKING never crosses `league_code` and every
+board is 7 rows from 7 leagues by construction (Top teams: by construction once its still-unbuilt
+mart is partitioned the same way — see the Open note; the CURRENT mock does not yet honour this).
+The rule stays dormant for both blocks, and returns for any future surface that genuinely ranks
+players or teams from different competitions against each other.
 
 A rolling window was proposed as a way to keep every pool current year-round, and REJECTED.
 CPO: *"no it must be within season, that's how you compare."*
@@ -309,6 +314,33 @@ Closed since 2026-08-04:
   defined pool."* So a board is 7 rows from 7 leagues by construction, never two from one league.
   ⚠ This is what `mart_leaderboards` ALREADY produces per league, so no pooled rank is needed
   (GAP-31 withdrawn).
+- **The same question, asked of Top teams, RULED 2026-08-18: ONE TEAM PER LEAGUE.** CPO: *"one
+  team per league, same as players."* Same mechanic — each pool league's rank-1 team on the
+  metric, collected and ordered by value, never a rank crossing `league_code`. ⚠ **Unlike the
+  players ruling, this is NOT free against the existing mock.** `top_teams_mock.html` was opened
+  to check (per THE METHOD: check the mock's numbers, don't trust them): 3 of its 4 boards
+  genuinely mix teams from one league — Real Madrid + Barcelona both La Liga on Goals/Shots on
+  target/Passes, Arsenal + Manchester City both Premier League on Shots on target/Passes — and
+  drop other pool leagues off the board entirely. Only Duels per match lands on 7 distinct
+  leagues, by coincidence, not design. The players mock was already correct by accident; this one
+  is not, and its placeholder rows need redoing before anyone should read a shape off it. No mart
+  exists yet either way (GAP-29, still not started) — when it is built, partition the rank by
+  `(league_code, season_api_year, metric_key)`, the way `mart_team_competition_benchmarks` already
+  does, which is what makes "one per league" free at the SQL level, same as `mart_leaderboards`.
+- **The Top teams intro copy — CPO confirmed 2026-08-18 the mock's "Ranked across pooled leagues"
+  line is wrong now too**, and needs the same adjustment as the Top players line, same session.
+  **Proposed, NOT yet approved** (copy is always his call — this is a draft for him to correct or
+  confirm):
+
+  > Season to date. The top team from each league: Premier League, La Liga, Bundesliga, Serie A,
+  > Ligue 1, Liga Portugal, Eredivisie.
+
+  Mirrors the approved Top players line's three constraints: states the mechanic and echoes the
+  block's own name, avoids "leader" for the same reason it was rejected there, names no metric.
+  Keeps **"Season to date"**, not "Season totals to date" — the team boards are per-match rates,
+  not sums, so "totals" would misdescribe them, not just diverge from the players wording for no
+  reason. Same caveat as the players line: the league list is the ACTIVE POOL's members, not a
+  fixed seven.
 - ~~**The Top players intro copy.**~~ **APPROVED 2026-08-18** (CPO: "you rephrase", then approved
   the proposal). The EN string is:
 

@@ -1,26 +1,48 @@
-# Review — chore/handover-team-names-and-browse — 2026-08-19
+# Review — chore/record-top-teams-ruling — 2026-08-18
 
-diff_sha256: c747565dfa85b788af4d94dce6966fc425f437b66a4cf2a40a054300da235f37
+diff_sha256: 0fe3076d6d5e691876ee095a7123a4c87fab1e588b3d47847aa3a14deee34ffe
 
-rounds: 1
+> REBOUND 2026-08-19, not re-derived. `main` advanced (MR !79, the handover) while this MR sat
+> open; merging `main` in to resolve the conflict changes nothing in the reviewed content —
+> `git diff gitlab/main...HEAD` (bookkeeping paths excluded) is byte-identical to what rounds 1-2
+> below already reviewed: `contract.md`, `CLAUDE.md`, `docs/wireframes/10_home.md`,
+> `docs/wireframes/99_gaps_register.md`. Conflicts were confined to `.claude/task/contract.md`,
+> `review.md`, `active_work.md`, `review_input.patch` — resolved MINE for contract/review (this
+> task's own authority), THEIRS for `active_work.md` (MR !79 already supersedes this branch's
+> handover content in full). The hash above is the real post-merge `--staged-hash`, recomputed
+> after the merge commit landed (merge-base only resolves correctly once the commit exists — same
+> pattern as MR !70's and MR !75's own rebind commits). No new review round needed; nothing was
+> re-authored or re-decided.
+
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: diff touches only `.claude/active_work.md` (the contract's sole scope_path), confirmed
-  via the patch's file-stat line.
-- MR/row-count consistency: contract's "97 rows across PL/PD/SA/BL1/ED/L1/LP" cross-checked
-  against active_work.md's own "61 (!77) + 36 (!78) = 97" and league list — matched exactly.
-- Browse "not built" claim checked against the diff stat (no `BrowseGrid.astro` or other component
-  file changed) — the reverted working-tree edit is honestly absent from committed code, so
-  "reframed, not built" is accurate, not hiding shipped code.
-- Handover-branch conflict with `!76` is disclosed explicitly in the file, not hidden.
-- No silent §10 decision: team-name and Top-teams content is recorded as CPO quotes from this
-  conversation; the Top-teams intro copy is explicitly marked unapproved.
-- Character-count gate: the reviewer's sandbox had no Bash tool to run the exact command, so it
-  hand-estimated from the full file (under 16,000, flagged as an estimate not a mechanical check).
-  Independently verified by the builder with the actual command this same session: 15,915
-  characters, under the cap.
+- Round 1 FAILed: the CPO ruling cited in `contract.md`'s `decisions_taken` had no corresponding
+  entry in `.claude/task/escalations.log`, unlike the sibling Top players ruling this task mirrors
+  (which does have one), so the cited authority was unverifiable independently of the contract's
+  own narrative.
+- Round 2: confirmed `.claude/task/escalations.log` now carries a new entry
+  ("2026-08-18 chore/record-top-teams-ruling") in the same structural format as the sibling
+  players entry, quoting the CPO verbatim, matching `contract.md`'s citations word for word.
+  `scope_paths` now declares the path, with an `amendments:` entry recording the authority
+  (the round-1 FAIL itself). Re-scanned the full regenerated patch (275 lines): only the five
+  contracted files changed, no new scope, no new §10 decision, no threshold crossing.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAILed: `docs/wireframes/99_gaps_register.md` GAP-29's new sentence claimed "nobody had
+  proposed a pooled rank for teams yet," contradicted by GAP-31's own (unedited) text, which
+  explicitly covers "both reduced blocks" and cross-references GAP-29 by name.
+- Round 2: confirmed GAP-29's sentence no longer makes that claim, and now correctly credits
+  GAP-31. GAP-31's own row gained a matching closing clause noting its team half is now also
+  settled. The two rows read consistently together. Also checked the new `10_home.md` Open-section
+  entry, Scope-paragraph edit and proposed (explicitly not-yet-approved) intro copy against the
+  rest of the file's Top players ruling it mirrors — mechanic, row-count claim and wording
+  rationale ("Season to date," not "Season totals to date," since the team boards are per-match
+  rates) all track correctly; unchanged from round 1, so not re-audited in depth this round.
 
 ## escalations
 (none)
