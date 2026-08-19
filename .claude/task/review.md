@@ -1,7 +1,15 @@
 # Review — fix/team-name-overrides-pool1 — 2026-08-19
 
-diff_sha256: af8fb6eba413b95c6bb045cecb0ff7cb30cbc8dfcf93ec08503858964f8cf585
+diff_sha256: 1c9936f75a2d56194ac549ce07485410bdc1c67d7ad4fc209571f21eae22f317
 
+> REBOUND after round 3, not re-derived. The hash above replaces one computed BEFORE the merge
+> commit existed (mid-conflict-resolution, while the reviewers were mid-round) — `merge-base`
+> only resolves directly to `gitlab/main`'s own tip once the merge commit is actually made, same
+> class of mistake as MR !70/!75's own rebind commits, caught this time by CI's
+> `check_task_artifacts.py` going red rather than by checking first. Verified: `git_discipline.py
+> --staged-hash`, run fresh after the merge commit, returns this exact value, matching what CI's
+> own recompute reported in the failed pipeline. No content changed, nothing re-reviewed.
+>
 > ROUND 3 — a real merge, not a rebind. `main` advanced a second time (MR !76, the Top teams
 > ruling, merged after round 2's PASS). Merging `main` into this branch produced real conflicts in
 > `.claude/task/contract.md`, `escalations.log`, `review.md`, `review_input.patch` — resolved MINE
