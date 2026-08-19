@@ -1,6 +1,10 @@
 # Review — fix/team-name-overrides-pool1-remainder — 2026-08-19
 
-diff_sha256: ed45c708edd80851a0a022ee14817408c24b49953c65e88ed4e0c515320777e5
+diff_sha256: 3c733bfdef4b343a13423cdc9923e7cc1429ec154e7b2c7d880c4f2c67b4bcf2
+
+> REBOUND immediately post-commit, as flagged above before committing. Verified:
+> `git_discipline.py --staged-hash`, run fresh after the merge commit, returns this exact value.
+> No content changed, nothing re-reviewed.
 
 > ROUND 4 — the sibling MR (!77) merged to main, bringing a genuine content conflict this time
 > (not just bookkeeping): `dbt_project/seeds/team_name_overrides.csv` itself. Resolved by keeping
