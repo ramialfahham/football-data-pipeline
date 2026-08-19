@@ -15,6 +15,9 @@ scope_paths:
   - dbt_project/seeds/schema.yml
   - .claude/task/escalations.log
   - .claude/active_work.md
+  - CLAUDE.md
+  - docs/wireframes/10_home.md
+  - docs/wireframes/99_gaps_register.md
 
 impact_map: >
   writers: dbt_project/models/2_base/api_football/base_apif__teams_global.sql (the only place
@@ -92,3 +95,10 @@ amendments:
   - 2026-08-19: impact_map's downstream field replaced — scope-auditor round-1 FAIL. It claimed
     "pasted evidence" but was a hand-typed prose list from memory, not actual command output. Now
     real `dbt ls` output, run this session, pasted above.
+  - 2026-08-19: + `CLAUDE.md`, `docs/wireframes/10_home.md`, `docs/wireframes/99_gaps_register.md`
+    — authority: standing instruction (same one #74's own contract cited, and the one
+    chore/record-top-teams-ruling's own contract cited for the identical situation). `main` moved
+    with MR !76 (Top teams ruling) merging while this MR sat open; merging `main` in to resolve the
+    resulting conflict brings in !76's already-built, already-reviewed, already-merged content on
+    these three files. None of it is authored, edited, or re-verified by this task — named here
+    only so the scope gate has something to check against.
