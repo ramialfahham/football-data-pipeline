@@ -1,6 +1,15 @@
 # Review — fix/team-name-overrides-pool1 — 2026-08-19
 
-diff_sha256: d3bcb8547c9b69583a05bc597bfe04c57a65a05bbf9a2dba380859f4a4953b15
+diff_sha256: 9566640bc5d6481482294dff549afdd05b0ca174e1a75940822c466c3d08e4d1
+
+> REBOUND 2026-08-19, not re-derived. `main` advanced (MR !79, the handover) while this MR sat
+> open; merging `main` in to resolve the conflict changes nothing in the reviewed content —
+> `git diff gitlab/main...HEAD` (bookkeeping paths excluded) is byte-identical to what rounds 1-2
+> below already reviewed: `contract.md`, `dbt_project/seeds/schema.yml`,
+> `dbt_project/seeds/team_name_overrides.csv` (61 rows). Conflicts were confined to
+> `.claude/task/contract.md`, `review.md`, `review_input.patch` — resolved MINE (this task's own
+> authority); `active_work.md` merged clean with no conflict (this branch never touched it). The
+> hash above is the real post-merge `--staged-hash`. No new review round needed.
 
 rounds: 2
 
