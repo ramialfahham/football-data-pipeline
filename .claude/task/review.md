@@ -1,6 +1,20 @@
 # Review — fix/team-name-overrides-pool1-remainder — 2026-08-19
 
-diff_sha256: ae95252a5cd900d95d655db78cd622ffabc35ca4197d9e3f0319ee309d77e8a5
+diff_sha256: 7e00589e548399e1ec6bccac87eea5b0f7bdbd534b4746067c9caa43e0e79d1a
+
+> REBOUND 2026-08-19, not re-derived. `main` advanced (MR !79, the handover) while this MR sat
+> open; merging `main` in to resolve the conflict changes nothing in the reviewed content —
+> `git diff gitlab/main...HEAD` (bookkeeping paths excluded) is byte-identical to what rounds 1-2
+> below already reviewed: `contract.md`, `dbt_project/seeds/schema.yml`,
+> `dbt_project/seeds/team_name_overrides.csv` (36 rows). Conflicts were confined to
+> `.claude/task/contract.md`, `review.md`, `review_input.patch` — resolved MINE; `active_work.md`
+> merged clean, no conflict (this branch never touched it). Hash above is the real post-merge
+> `--staged-hash`. No new review round needed.
+> ⚠ **Sibling collision still ahead**: this branch and MR !77 both insert new
+> `team_name_overrides.csv` rows at the SAME anchor line (right after the pre-existing "Warriors
+> FC" row), since !78 was cut before !77 merged. Whichever of !77/!78 merges SECOND will hit a
+> real (but trivial — disjoint `team_api_id` sets, no logical overlap) content conflict on that
+> file. Not resolved here; flagged for whoever merges second.
 
 rounds: 2
 
