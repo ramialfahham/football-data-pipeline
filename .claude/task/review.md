@@ -1,48 +1,73 @@
-# Review — chore/record-top-teams-ruling — 2026-08-18
+# Review — fix/team-name-overrides-pool1 — 2026-08-19
 
-diff_sha256: 0fe3076d6d5e691876ee095a7123a4c87fab1e588b3d47847aa3a14deee34ffe
+diff_sha256: 1c9936f75a2d56194ac549ce07485410bdc1c67d7ad4fc209571f21eae22f317
 
-> REBOUND 2026-08-19, not re-derived. `main` advanced (MR !79, the handover) while this MR sat
-> open; merging `main` in to resolve the conflict changes nothing in the reviewed content —
-> `git diff gitlab/main...HEAD` (bookkeeping paths excluded) is byte-identical to what rounds 1-2
-> below already reviewed: `contract.md`, `CLAUDE.md`, `docs/wireframes/10_home.md`,
-> `docs/wireframes/99_gaps_register.md`. Conflicts were confined to `.claude/task/contract.md`,
-> `review.md`, `active_work.md`, `review_input.patch` — resolved MINE for contract/review (this
-> task's own authority), THEIRS for `active_work.md` (MR !79 already supersedes this branch's
-> handover content in full). The hash above is the real post-merge `--staged-hash`, recomputed
-> after the merge commit landed (merge-base only resolves correctly once the commit exists — same
-> pattern as MR !70's and MR !75's own rebind commits). No new review round needed; nothing was
-> re-authored or re-decided.
+> REBOUND after round 3, not re-derived. The hash above replaces one computed BEFORE the merge
+> commit existed (mid-conflict-resolution, while the reviewers were mid-round) — `merge-base`
+> only resolves directly to `gitlab/main`'s own tip once the merge commit is actually made, same
+> class of mistake as MR !70/!75's own rebind commits, caught this time by CI's
+> `check_task_artifacts.py` going red rather than by checking first. Verified: `git_discipline.py
+> --staged-hash`, run fresh after the merge commit, returns this exact value, matching what CI's
+> own recompute reported in the failed pipeline. No content changed, nothing re-reviewed.
+>
+> ROUND 3 — a real merge, not a rebind. `main` advanced a second time (MR !76, the Top teams
+> ruling, merged after round 2's PASS). Merging `main` into this branch produced real conflicts in
+> `.claude/task/contract.md`, `escalations.log`, `review.md`, `review_input.patch` — resolved MINE
+> for contract/review (this task's own authority), UNION for escalations.log (both independent
+> entries kept intact), plus an `amendments:` entry adding `CLAUDE.md`, `docs/wireframes/10_home.md`,
+> `docs/wireframes/99_gaps_register.md` to `scope_paths` since the merge brought those in cleanly
+> from !76's own already-reviewed, already-merged content. `team_name_overrides.csv` and
+> `schema.yml` — this branch's actual work — are untouched by the merge. `docs/wireframes/**` newly
+> entering the cumulative diff brought `bi-analyst-reviewer` into the required set for the first
+> time this round.
+>
+> ⚠ Recorded for the record: mid-round-3, a status update was mistakenly sent to the wrong
+> reviewer agent instance (batch 2's analytics-engineer-reviewer, reviewing the sibling MR !78, not
+> this branch's own). No data was actually affected — both branches' content was independently
+> confirmed intact via git — but it produced a spurious FAIL from an agent being asked to verify a
+> branch it had no way to see (read-only tools, no Bash, so it can only ever see whatever this
+> session currently has checked out). That FAIL does not gate this branch; it was never a real
+> round against this diff, and MR !78's own review.md (round 2, PASS) is unaffected and unrelated
+> to it.
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAILed: the CPO ruling cited in `contract.md`'s `decisions_taken` had no corresponding
-  entry in `.claude/task/escalations.log`, unlike the sibling Top players ruling this task mirrors
-  (which does have one), so the cited authority was unverifiable independently of the contract's
-  own narrative.
-- Round 2: confirmed `.claude/task/escalations.log` now carries a new entry
-  ("2026-08-18 chore/record-top-teams-ruling") in the same structural format as the sibling
-  players entry, quoting the CPO verbatim, matching `contract.md`'s citations word for word.
-  `scope_paths` now declares the path, with an `amendments:` entry recording the authority
-  (the round-1 FAIL itself). Re-scanned the full regenerated patch (275 lines): only the five
-  contracted files changed, no new scope, no new §10 decision, no threshold crossing.
+- Rounds 1-2 findings (impact_map evidence, schema.yml doc sync) — resolved, previously recorded.
+- Round 3: `escalations.log` union verified intact (both the 2026-08-18 Top-teams entry and this
+  branch's own 2026-08-19 entry present in full, not truncated). `contract.md`'s new `scope_paths`
+  entries each correspond to a real diff hunk, all attributed to !76's already-reviewed content,
+  none authored by this task. `team_name_overrides.csv`/`schema.yml` hunks byte-identical to
+  rounds 1-2. No new mechanism, no new §10 decision, no credential-shaped content introduced by
+  the merge resolution itself.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Rounds 1-2 findings (schema.yml collision-only framing, row-count) — resolved, previously
+  recorded.
+- Round 3: confirmed `team_name_overrides.csv` and `schema.yml` diff hunks are byte-identical to
+  what was reviewed and passed in rounds 1-2 (same rows, same hash prefixes) — the merge
+  introduced no change in this reviewer's territory. Confirmed the files arriving via the merge
+  (CLAUDE.md, 10_home.md, 99_gaps_register.md) touch Top-teams ranking/pooling and CI-gate
+  documentation only, no reference to team_name_overrides, base_apif__teams_global, dim_team, or
+  team-slug logic — no cross-territory risk.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAILed: `docs/wireframes/99_gaps_register.md` GAP-29's new sentence claimed "nobody had
-  proposed a pooled rank for teams yet," contradicted by GAP-31's own (unedited) text, which
-  explicitly covers "both reduced blocks" and cross-references GAP-29 by name.
-- Round 2: confirmed GAP-29's sentence no longer makes that claim, and now correctly credits
-  GAP-31. GAP-31's own row gained a matching closing clause noting its team half is now also
-  settled. The two rows read consistently together. Also checked the new `10_home.md` Open-section
-  entry, Scope-paragraph edit and proposed (explicitly not-yet-approved) intro copy against the
-  rest of the file's Top players ruling it mirrors — mechanic, row-count claim and wording
-  rationale ("Season to date," not "Season totals to date," since the team boards are per-match
-  rates) all track correctly; unchanged from round 1, so not re-audited in depth this round.
+- First round for this reviewer on this branch (docs/wireframes/** entered the cumulative diff
+  only via this merge). Cross-checked the merged-in `10_home.md`/`99_gaps_register.md` content
+  against this diff's own escalations.log entry for the same ruling — verbatim match, nothing
+  altered in transit. Checked every club name appearing in that carried-in prose (Arsenal,
+  Barcelona, Manchester City, Real Madrid) for normative use against this branch's own
+  `team_name_overrides.csv` additions — all are descriptive of the still-wrong mock, not
+  assertions of canonical names, so no contradiction with the CSV's corrections. Confirmed the
+  carried-in intro copy is marked "NOT yet approved" and GAP-29's mart is marked "still not
+  started" — nothing presented as settled that isn't. No site_v2/src/** file touched, so
+  rendered_page_evidence.md does not apply.
 
 ## escalations
 (none)

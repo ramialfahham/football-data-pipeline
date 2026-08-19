@@ -479,6 +479,14 @@ seeds:
       were previously indistinguishable from one another. Correcting the name here fixes every one
       of those surfaces at once.
 
+      BROADENED 2026-08-19: the trigger is no longer collision-only. CPO ruling: "we have to
+      define the name we use as the single source of truth for what we display" — a provider name
+      can be unique in our data and still not be the club's real display name ("Arsenal" is not
+      wrong because it collides with anything; it is wrong because the club's name is "Arsenal
+      FC"). Both triggers are valid reasons for a row: a genuine collision between two real
+      records, OR a name that is unique but incomplete/informal against the external source. The
+      `note` column states which one applies for that row.
+
       GOVERNANCE: add a row ONLY where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the
       provider, and record that source in the row. Never taste, never a nickname, and never a
       locale preference — `Bayern München` is NOT corrected to `Bayern Munich` (CPO ruled one
@@ -526,7 +534,10 @@ seeds:
         tests:
           - not_null
       - name: note
-        description: "Why the provider's value is wrong, and what this row collides with."
+        description: >
+          Why the provider's value is wrong: either what this row collides with, or — since
+          2026-08-19 — why the name is incomplete/informal against the external source even
+          without a collision. State which one applies.
         tests:
           - not_null
 
