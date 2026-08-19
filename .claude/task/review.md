@@ -1,63 +1,69 @@
 # Review — fix/team-name-overrides-pool1-remainder — 2026-08-19
 
-diff_sha256: 266cec4d8ee81471677704216ff1436e8e42b5464154a49755413d4a8ba3dae4
+diff_sha256: ed45c708edd80851a0a022ee14817408c24b49953c65e88ed4e0c515320777e5
 
-> REBOUND after round 3, not re-derived. The hash above replaces one computed BEFORE the merge
-> commit existed (mid-conflict-resolution, while the reviewers were mid-round) — `merge-base`
-> only resolves directly to `gitlab/main`'s own tip once the merge commit is actually made. The
-> sibling branch (!77) hit the identical mistake and its CI run caught it; fixing this one
-> proactively rather than waiting for the same red pipeline. Verified: `git_discipline.py
-> --staged-hash`, run fresh after the merge commit, returns this exact value.
+> ROUND 4 — the sibling MR (!77) merged to main, bringing a genuine content conflict this time
+> (not just bookkeeping): `dbt_project/seeds/team_name_overrides.csv` itself. Resolved by keeping
+> both sides' rows — this branch's own 36 (BL1/ED/L1/LP) plus !77's 61 (PL/PD/SA), concatenated,
+> zero id overlap (verified: 111 total rows, `sort | uniq -d` empty). `schema.yml` merged with
+> ZERO conflict — both branches had made the identical two-edit fix independently, so the content
+> was already byte-identical. `.claude/task/**` bookkeeping resolved the same way as prior rounds
+> (contract/review ours, escalations.log union). No new out-of-scope file this round — CLAUDE.md
+> and docs/wireframes/** were already synced from the round-3 merge and untouched here.
 >
-> ROUND 3 — a real merge, not a rebind. `main` advanced a second time (MR !76, the Top teams
-> ruling, merged after round 2's PASS). Merging `main` into this branch produced real conflicts in
-> `.claude/task/contract.md`, `escalations.log`, `review.md`, `review_input.patch` — resolved MINE
-> for contract/review (this task's own authority), UNION for escalations.log (both independent
-> entries kept intact), plus an `amendments:` entry adding `CLAUDE.md`, `docs/wireframes/10_home.md`,
-> `docs/wireframes/99_gaps_register.md` to `scope_paths` since the merge brought those in cleanly
-> from !76's own already-reviewed, already-merged content — same pattern the sibling branch (!77)
-> used for its own identical situation. `team_name_overrides.csv` and `schema.yml` — this branch's
-> actual work — are untouched by the merge. `docs/wireframes/**` newly entering the cumulative diff
-> brought `bi-analyst-reviewer` into the required set for the first time this round.
+> ⚠ This hash is PRE-commit (satisfies the review gate to allow the merge commit itself); it WILL
+> need an immediate post-commit rebind, same lesson learned on !77 and !78's own round-3 rebinds —
+> `merge-base` only resolves directly to `gitlab/main`'s tip once the commit actually exists.
 
-rounds: 3
+rounds: 4
+rounds_cap_override: CPO, in chat, 2026-08-19: "I want you to resolve the merge conflict. Main is
+  not moving anymore." All 4 rounds were main advancing (MRs !76 then !77 merging) while this
+  branch sat open, not repeated unresolved defects — rounds 1-2 found and fixed real issues,
+  rounds 3-4 were pure merge reconciliation, each independently confirmed clean by all three
+  reviewers.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Rounds 1-2 findings (uncited quote, schema.yml doc sync, row-count) — resolved, previously
-  recorded.
-- Round 3: `team_name_overrides.csv`/`schema.yml` confirmed byte-identical to round 2. `escalations.log`
-  verified as a true union (both this branch's own 2026-08-19 entry and !76's 2026-08-18 entry
-  present, neither truncated). The newly-arrived Top-teams content checked for a silently-taken
-  §10 decision — the approved ruling is CPO-quoted, the copy draft is explicitly marked not-yet-
-  approved, nothing smuggled as settled. `CLAUDE.md`'s unrelated addition checked against this
-  task's own work for scope-laundering — no intersection, consistent with disclosed merge
-  pass-through. `contract.md`'s `amendments:` entry matches the sibling branch's accepted pattern
-  for the identical situation.
+- Verified the CSV union is arithmetically and structurally clean — the diff's single hunk adds
+  97 contiguous lines, matching 36+61 exactly, no truncation or interleaving damage. Manually
+  cross-checked both id sets for overlap — none found.
+- Verified the CPO authority quote this task has relied on since round 1 against its now-visible
+  primary source (!77's own escalations.log entry, arriving via this merge for the first time) —
+  matches verbatim, closing the loop on the round-1 finding with the real source.
+- Re-confirmed the standing exclusions (Bayern München 157, Athletic Club, Real Madrid) hold
+  across the merged 111-row set. `contract.md` confirmed to retain this branch's own content, not
+  the transient content that briefly occupied `main` between rounds.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Rounds 1-2 findings (schema.yml collision-only framing, row-count, uncited quote) — resolved,
-  previously recorded.
-- Round 3: confirmed via git blob hash that `team_name_overrides.csv` (`134317d`) and `schema.yml`
-  (`aea7709`) are identical to the exact blobs reviewed and passed in round 2 — not just a similar
-  row count, the same content byte-for-byte. `contract.md`/`escalations.log` correctly reflect this
-  branch's own batch-2 work with !76's content folded in as a union/scope amendment, not an
-  overwrite or reframing of this branch's task.
+- This branch's own 36 rows (BL1/ED/L1/LP): confirmed byte-identical in the merged file,
+  unaffected by the !77 merge.
+- `schema.yml`: confirmed a single, non-duplicated, non-conflicted copy of the shared fix — no
+  leftover conflict markers, clean automatic merge.
+- The 61 incoming rows from !77 (PL/PD/SA): treated as new territory and reviewed fresh rather
+  than trusted — full-file duplicate-id sweep across all 111 rows (none found), Wikipedia URL
+  well-formedness and percent-encoding (correct throughout), `team_api_id` plausibility against
+  known values, note-to-correction consistency sampled across all three leagues. One scope
+  observation noted, not a defect: two rows (Coventry City, Hull City) are Championship clubs
+  this season, not current Premier League — acceptable since the seed corrects identity
+  independent of which tier a club plays in this season. Standing exclusions (Real Madrid,
+  Athletic Club) confirmed absent, consistent with the "verify, don't guess" discipline actually
+  having been followed.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- First round for this reviewer on this branch (docs/wireframes/** entered the cumulative diff
-  only via this merge). Diffed every `10_home.md`/`99_gaps_register.md` hunk against the current
-  `main` tree — byte-identical, confirming the content is genuinely what MR !76 already shipped,
-  not something different arriving under cover of the merge. Grepped both files for every club
-  name this branch's own CSV corrects (Bundesliga/Eredivisie/Ligue 1/Liga Portugal clubs) — zero
-  matches, so no contradiction is possible between this branch's corrections and the carried-in
-  wireframe prose. Confirmed no `site_v2/src/**` file is touched, so `rendered_page_evidence.md`
-  does not apply. Row-count arithmetic (BL1 5 + ED 5 + L1 13 + LP 13 = 36) rechecked and holds.
+- Confirmed directly against the regenerated patch (not assumed) that no hunk touches
+  `docs/wireframes/10_home.md`, `docs/wireframes/99_gaps_register.md`, or `CLAUDE.md` this round —
+  already synced from round 3, untouched by this merge.
+- Checked the one cross-cutting risk in this reviewer's territory: whether any of the 61 newly
+  merged-in corrected club names contradict the club-name examples already sitting in
+  `10_home.md`'s Top-teams mock-defect writeup (Real Madrid, Barcelona, Arsenal, Manchester
+  City). Overlap on four names, no contradiction — that passage describes the mock's current,
+  already-flagged-as-wrong placeholder content, not an assertion of correct display names, so the
+  override rows landing on the same clubs is parallel content, not conflicting content.
 
 ## escalations
 (none)

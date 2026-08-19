@@ -3793,3 +3793,47 @@ shipped wrong.
   = 97 corrections total, plus the ~15 above and 2 confirmed-no-change (Athletic Club, Real Madrid)
   and Feyenoord (confirmed already correct) still open or resolved-as-no-change. Beyond Pool 1 is
   not started.
+
+
+2026-08-19 fix/team-name-overrides-pool1 — team_name_overrides extended past collision-only:
+provider "crap names" (CPO's word) are systemic, not isolated to one or two clubs.
+
+  HOW IT SURFACED. Designing a sitewide browse-chip feature (random sample from an active
+  team/player/competition pool), "Inter" and "Arsenal" showed up as example chips. CPO asked
+  whether these are actually single-source display names, then: "we don't use Inter as the display
+  name for Inter Milan... It's Arsenal FC and not Arsenal."
+
+  THE EXISTING MECHANISM WAS TOO NARROW. `team_name_overrides` (9 rows, #850/#851) only fires on a
+  COLLISION — two real clubs sharing the byte-identical provider string. Checked: neither Arsenal
+  nor Inter collides with anything ("Arsenal", "Arsenal Tula", "Arsenal Sarandi" are already
+  different strings), so the existing trigger would never have caught either one.
+
+  RULING — THE BAR IS COMPLETENESS, NOT JUST UNIQUENESS. CPO: "we have to define the name we use
+  as the single source of truth for what we display." A provider name can be unique in our data
+  and still not be the club's real display name.
+
+  SCALE, MEASURED NOT GUESSED. First sample was 9 clubs pulled while investigating the browse-chip
+  question, spread across PL/SA/PD/ED/L1 (mislabeled "Bundesliga's 21" in an earlier draft of this
+  entry — WRONG, corrected here; none of the 9 were BL1). 8 of 9 needed correction (Arsenal, Inter,
+  Barcelona, Ajax, Monaco, Lyon, Marseille, Malaga); one, Feyenoord, was already correct despite
+  LOOKING short — so "looks incomplete" is not by itself a reliable signal, every name needs an
+  actual check, not a pattern match.
+
+  Second pass covered the REST of PL, PD and SA properly (fetched each league's full current-club
+  list against Wikipedia). Result: 53 more corrections out of roughly 58 teams checked across the
+  three leagues — i.e. the overwhelming majority of two of the biggest leagues in the pool were
+  sending an incomplete provider name. Two flagged UNCERTAIN rather than guessed: "Athletic Club"
+  (the club's own preferred name may already be correct, "Athletic Bilbao" is the more common
+  foreign-press form — not corrected pending a closer check) and "Real Madrid" (arguably already
+  unambiguous without a suffix, unlike Barcelona/Monaco/Lyon — held pending a call rather than
+  applying the mechanical "match Wikipedia's title" rule without judgment).
+
+  Still unchecked: BL1, ED, L1, LP (roughly 80 more teams), and everything outside Pool 1 if the
+  browse pool ever extends there.
+
+  WHAT SHIPPED THIS ROUND: 61 rows added to `team_name_overrides.csv` total (8 from the mixed
+  sample + 53 from PL/PD/SA), each cited to its English Wikipedia article URL, same format as the
+  existing 9.
+
+  NOT DECIDED: how far the sweep extends beyond what has been checked so far, and a call on the
+  two flagged-uncertain rows. Being decided iteratively in chat, not pre-committed.
