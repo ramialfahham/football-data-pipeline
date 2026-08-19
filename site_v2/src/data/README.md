@@ -34,8 +34,11 @@ Tracked today, 18 files:
 - `landing.json` — the home page's payload, produced verbatim by
   `python scripts/export_site_data.py --entities landing` (#367), then reduced by hand to the keys
   the writer still emits. Real export output, not a fixture: 12 upcoming matches across 4
-  competitions and the full registry browse axes, as of 2026-08-03. The `trending` key it carried on
-  that date is gone with the block (2026-08-08), as is the `stats` key removed the same day.
+  competitions, as of 2026-08-03 (payload has since been refreshed and re-shaped past that
+  snapshot; count/competitions here describe the vintage the sample predates, not today's file).
+  The `trending` key it carried on that date is gone with the block (2026-08-08), as is the `stats`
+  key removed the same day, and the `browse` key ("the full registry browse axes") removed
+  2026-08-19 with the Browse block. `landing.json` today carries `type`/`upcoming` only.
 
 ## Refreshing the sample
 

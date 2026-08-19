@@ -32,7 +32,7 @@ Open the app, instantly see what's on today across competitions, tap a match, an
 
 ## Navigation flow
 
-**v2 — the website (target, epic #361):** defined in [`site_architecture.md`](site_architecture.md) §3–4. Hybrid IA: browse by competition group (Leagues / Cups / Continental club / National teams) **and** by country hub; programmatic pages for every competition, fixture, team and player under locale-prefixed URLs. Home is **fixtures-first** — upcoming matches across competitions — with browse, storylines and stats below.
+**v2 — the website (target, epic #361):** defined in [`site_architecture.md`](site_architecture.md) §3–4. Programmatic pages for every competition, fixture, team and player under locale-prefixed URLs, reached from a competitions index and the site nav. Home is **fixtures-first** — upcoming matches across competitions — with Top players and Top teams below (both specified, not yet built; `docs/wireframes/10_home.md` §0 is the authority on the composition). ⚠ The hybrid browse-by-group-and-country block this line used to describe was **dropped 2026-08-19**; country hubs remain unbuilt.
 
 **Legacy MVP (RETIRED 2026-07-21):** the card-based mobile app — Landing (competition cards) → Fixture list (next round only) → Fixture detail (analysis carousel). Taken offline, its Pages deployment deleted, `site/` frozen. There is **no parity requirement, no cutover and no restore**; #377 is v2's own go-live, not a switch away from the MVP. Legal pages (#799) became a v2 build requirement as a result.
 

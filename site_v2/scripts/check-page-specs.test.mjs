@@ -191,10 +191,15 @@ test("real mart directory has at least the marts both committed specs reference"
 });
 
 // --- block source types (CPO ruling 2026-08-03) ----------------------------------------------
-// The gate used to accept only marts. The home page's browse block reads the competition registry
-// and its hero reads a core model, so the vocabulary was generalised to `type:name`. These lock
-// the two properties that ruling depended on: old specs keep working, and the guarantee that a
-// declared source must EXIST is not weakened for any type.
+// The gate used to accept only marts. The home page THEN HAD a browse block reading the
+// competition registry, and its hero reads a core model, so the vocabulary was generalised to
+// `type:name`. These lock the two properties that ruling depended on: old specs keep working, and
+// the guarantee that a declared source must EXIST is not weakened for any type.
+//
+// ⚠ That browse block was DROPPED 2026-08-19, so `registry` has no declaring spec today. The type
+// and these tests stay: the zero-file rule that motivated it is unchanged, and the registry
+// remains a legitimate source any future block may declare. The synthetic specs below use
+// registry sources as TEST FIXTURES, not as claims about what the site currently ships.
 
 test("parseSource: an unprefixed value still means a mart, so pre-ruling specs keep working", () => {
   assert.deepEqual(parseSource("mart_team_profile"), {

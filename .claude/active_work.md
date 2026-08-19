@@ -4,78 +4,64 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-19**. **main `de8d3c7`** (everything through `!75` merged). **THREE MRs
-OPEN, none merged yet, all awaiting the CPO**: `!76` (Top teams ruling, block-audit continuation),
-`!77` (team_name_overrides batch 1, PL/PD/SA, 61 rows), `!78` (team_name_overrides batch 2, BL1/ED/
-L1/LP, 36 rows). Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO
-GitLab minutes.
+_Last updated **2026-08-19**. **main `3f3a55c`** — team_name_overrides batch 1 (PL/PD/SA, 61 rows),
+batch 2 (BL1/ED/L1/LP, 36 rows) and the Top teams ruling record are ALL merged. The prior handover's
+`de8d3c7` / "three MRs open" pointer was stale — corrected here from `git log`, not re-asserted from
+memory. Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab
+minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — team names are wrong at scale; a sitewide browse feature surfaced it (2026-08-19)
+## ⭐⭐ CURRENT — team names are wrong at scale; the browse feature it surfaced is DROPPED (2026-08-19)
 
 **Started as**: continue the home-page block audit (Top teams, then Browse). **Ended as**: Top
-teams ruled (✅ below); Browse's narrow fix was STARTED then ABANDONED mid-build when the CPO
-reframed it as a sitewide feature (design below, NOT built); designing that feature surfaced that
-provider team names are wrong at scale, not just 2 examples — now its own real, ongoing fix
-(`!77`+`!78`, 97 corrections, more to go). Nothing below is a proposal; it is where each thread
-stands.
+teams ruled AND merged (✅ below); Browse — after converging on a sitewide competitions+teams+players
+design, then narrowing to competitions-only once teams/players were deferred for data quality — was
+DROPPED outright (CPO, in chat: "drop the browse section"), not shipped, not deferred; designing it
+surfaced that provider team names are wrong at scale, not just 2 examples — now its own real,
+ongoing fix (97 corrections merged, more to go). Nothing below is a proposal; it is where each
+thread stands.
 
 ⛔ **TEAM NAMES: THE PROVIDER'S team_name IS OFTEN NOT THE DISPLAY NAME, EVEN WHEN UNIQUE.**
 `team_name_overrides` (seed, joined in `base_apif__teams_global.sql`) previously fired ONLY on an
 exact collision between two real clubs (9 rows, #850/#851). CPO, this session: *"we have to define
 the name we use as the single source of truth for what we display"* — bare "Arsenal" isn't wrong
 because it collides with anything, it's wrong because the club's name is "Arsenal FC". Broadened
-the trigger; `dbt_project/seeds/schema.yml`'s doc updated to match (both branches, since neither
-has merged into the other yet).
+the trigger; `dbt_project/seeds/schema.yml`'s doc updated to match.
 **Scale, MEASURED**: checked all of PL/PD/SA/BL1/ED/L1/LP (Pool 1) bar ~15 teams Wikipedia's
-current-season table didn't clearly cover. **97 of roughly 130 checked needed correction.** Two
-confirmed to already be correct as typed and NOT touched: Athletic Club, Real Madrid (CPO, asked
-directly rather than guessed). Feyenoord also confirmed already-correct. ⚠ **Bayern München is
-DELIBERATELY EXCLUDED** — a STANDING rule already in `schema.yml` before this session: locale
-preference (München vs Munich) is never corrected, only completeness/collision. Every source is an
-English Wikipedia article-title URL, cited per row, same convention as the original 9.
-**Both review rounds on both MRs caught real defects on round 1**: an `impact_map` that claimed
-"pasted dbt ls evidence" but was hand-typed from memory (fixed: real command output now in both
-contracts); `schema.yml` not updated to describe the broadened trigger (fixed, twice, once per
-branch); a citation to a CPO quote that lived only on the *other*, unmerged branch's escalations.log
-(fixed: each branch now quotes the ruling in full, self-contained); a plain arithmetic error, 36
-rows claimed as 35. All fixed, both MRs clean on round 2.
+current-season table didn't clearly cover. **97 of roughly 130 checked needed correction, all
+merged.** Two confirmed to already be correct as typed and NOT touched: Athletic Club, Real Madrid
+(CPO, asked directly rather than guessed). Feyenoord also confirmed already-correct. ⚠ **Bayern
+München is DELIBERATELY EXCLUDED** — locale preference (München vs Munich) is never corrected,
+only completeness/collision. Every source is an English Wikipedia article-title URL, cited per row.
 **NOT started**: teams outside Pool 1. **NOT investigated**: player-name equivalent — `dim_player`
 has severe duplicate short-names ("M. Camara" × 33, "J. González" × 31; NOT explained by league
 tier, confirmed present even in Serie A/UCL) that block the same kind of fix until the root cause
 is understood; this is bigger than a naming tweak and needs its own investigation before any
 player-name correction work starts.
 
-⭐ **BROWSE — REFRAMED, NOT BUILT, design converged but nothing shipped.** The narrow "kill By
-country" fix was actually STARTED (working-tree edit to `BrowseGrid.astro`, previewed live) then
-DELIBERATELY REVERTED when the CPO asked "what's the benefit of shipping something we're about to
-redesign anyway" — correct call: the component's scope, source and content were all about to
-change. Redirected to **#45** (internal linking / reachability, already filed, already the place
-#44 itself deferred this exact question to). New design, converged across several rounds, NOT
-built: **one mart unioning competitions+teams+players** (columns: entity_type, entity_name,
-entity_slug, player context_name/context_2_name for club+national-team, competition_names) →
-**a "Browse" section at the bottom of every page**, not just home → **10 random UNIQUE rows per
-site BUILD** (not per-visitor — static site, no backend, so "random" means "whatever the last
-deploy picked") → **bare entity name per chip**, no club/context suffix (confirmed via a rendered
-mock: mixing "Kylian Mbappé · Real Madrid" read as two entities in one chip, wrong). Competition
-and player chips render INERT (same precedent as every chip on the site today) until their
-destination pages exist (#47, #845/#882 respectively); team chips can be REAL links now, team
-pages are live. **Blocked from being built by the team-names thread above** — a random sample from
-a pool of wrong names is not shippable — and by the player-name-truncation finding needing its own
-work first. GAP-33 (Browse reads `docs/competition_registry.yml` directly, zero database reads) is
-STILL NOT FILED — the #45 redesign replaces this block's data source entirely, so filing a gap
-against code about to be replaced wasn't worth it; re-assess if #45 stalls.
+⭐ **BROWSE — DROPPED, not built, not deferred.** Design had converged (several rounds) on one mart
+unioning competitions+teams+players into a random-10-per-build chip feed on every page, but it was
+blocked on the team-name and player-name data-quality work above. Narrowed to competitions-only
+(CPO: "let's skip teams as well", after "two different marts for browse is not smart"), which
+turned out to have nothing left to justify it: checking the actual site IA showed the competitions
+pool (~15-20 rows) is already fully covered by the competitions index page, and browse's real value
+was always reachability into the long-tail team/player pages — exactly the two entity types already
+deferred. CPO, in chat: "drop the browse section". Removed entirely: the home page's Browse
+component, the `browse` payload key/type, its i18n keys, its `index.spec.json` block entry, and the `10_home.md`
+§0/§5(2) spec content (struck, not erased, per the doc's own convention). `build_nav`/`fetch_nav`
+are NOT removed — `nav.json` still produces independently (`--entities nav`), now with zero known
+frontend consumer; that's an open follow-up, not decided here. GAP-33 (Browse reading the registry
+directly) stays never-filed — the code it would have been filed against no longer exists.
 
-✅ **TOP TEAMS RULED** (mirrors Top players' 2026-08-18 ruling): **one team per league**, not
-pooled — CPO: *"one team per league, same as players."* ⚠ Unlike players, the CURRENT
-`top_teams_mock.html` (outside the repo, `design-mocks/`) does NOT already show this shape — 3 of
-4 boards genuinely mix teams from one league, checked by opening it — needs redoing before it's
-trustworthy to preview against. GAP-29's mart (still not started) should partition by league when
-built, matching `mart_team_competition_benchmarks`' existing pattern, and the per-league rank is
-free. Intro copy PROPOSED (not yet CPO-approved): *"Season to date. The top team from each league:
-…"*. Full detail + the mock-checking method: `10_home.md` §0, `99_gaps_register.md` GAP-29/31,
-`escalations.log` 2026-08-18/19 entries. This work is on `!76`, unmerged.
+✅ **TOP TEAMS RULED AND MERGED** (mirrors Top players' 2026-08-18 ruling): **one team per league**,
+not pooled — CPO: *"one team per league, same as players."* ⚠ The mock (`top_teams_mock.html`,
+outside the repo, `design-mocks/`) did NOT already show this shape as of the ruling — needs redoing
+before it's trustworthy to preview against. GAP-29's mart (still not started) should partition by
+league when built, matching `mart_team_competition_benchmarks`' existing pattern, and the
+per-league rank is free. Intro copy PROPOSED (not yet CPO-approved): *"Season to date. The top team
+from each league: …"*. Full detail: `10_home.md` §0, `99_gaps_register.md` GAP-29/31,
+`escalations.log` 2026-08-18/19 entries.
 
 ## ⭐⭐ THE METHOD, still the standing rule for every page (CPO's own words, do not reword)
 
@@ -161,10 +147,10 @@ control. Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,
 ## NEXT
 1. **Team names**: finish the ~15 unverified Pool 1 teams, then decide whether to go beyond Pool 1
    (bigger pool = more names, no ceiling given yet). **Separately, investigate the player-name
-   truncation** ("M. Camara" ×33 etc.) — root cause first, this blocks any player-name fix and the
-   browse-chip mart's player pool.
-2. **Once names are clean: build the sitewide browse-chip mart + component**, design already
-   converged (⭐⭐ CURRENT above) — mart, then export, then the component on every page template.
+   truncation** ("M. Camara" ×33 etc.) — root cause first, this blocks any player-name fix; not
+   blocking anything else now that browse is dropped.
+2. ~~Once names are clean: build the sitewide browse-chip mart + component.~~ **MOOT — browse is
+   dropped** (⭐⭐ CURRENT above), not built once names are clean.
 3. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests) — FALSE since the migration;
    pairs with **#21 Q2** (both are "the server should enforce it").
 4. **#47** (the competition hub) — makes the competitions page's rows real links. Three decisions
@@ -201,9 +187,11 @@ alias · #875 · #895 slim-vs-drop · #21.
   "the league page" not "the hub", say "database table" not "mart" if he's asked once already.
 
 ## Verified state reference
-- **v2 built:** design system + 26 components, fixture page, team page (3 tabs), home page (next
-  matches → browse, ordering shared with competitions page), competitions index page, page-spec +
-  SEO contract, per-locale metric labels.
+- **v2 built:** design system + 28 components (measured, `find site_v2/src/components -name
+  "*.astro"`), fixture page, team page (3 tabs), home page (next
+  matches ONLY since the browse block was dropped 2026-08-19; its competition ordering is shared
+  with the competitions page), competitions index page, page-spec + SEO contract, per-locale
+  metric labels.
 - ⚠ MEASURE test/model counts, never predict (#904) — none pasted here stale.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.

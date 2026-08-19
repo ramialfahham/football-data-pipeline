@@ -147,9 +147,6 @@ section { margin-top: 36px; }
 .split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
 @container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
 .colhead { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 8px; }
-/* One step below .colhead. The browse block needs it because its country axis is two levels deep:
-   the axis label ("By country") is a .colhead and each country under it heads its own chip row. */
-.subhead { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 10px 0 2px; }
 .rmatch { display: grid; grid-template-columns: 24px 42px 1fr auto; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .rmatch:last-child { border-bottom: 0; }
 .res { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
@@ -200,8 +197,8 @@ section { margin-top: 36px; }
 .linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .linkchip { font-size: 13px; font-weight: 600; color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 13px; }
 /* Hover is an affordance, so only something clickable may carry it. Every linkchip in the tree is
-   still an inert <span> (browse, the fixture links footer and the team page all wait on page types
-   that are not built), and the unscoped rule invited a click on all of them. Anchor-scoped rather
+   still an inert <span> (the fixture links footer and the team page both wait on page types that
+   are not built), and the unscoped rule invited a click on all of them. Anchor-scoped rather
    than marker-scoped so a chip gets the affordance back the moment it becomes a link, with no
    second edit and no class to remember. */
 a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }

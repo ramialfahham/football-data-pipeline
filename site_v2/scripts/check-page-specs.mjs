@@ -102,12 +102,17 @@ export function collectMartNames() {
 //
 // WHY THIS IS NOT A LOOSENING. The gate's guarantee is "nothing may be declared that does not
 // exist", and every type below still resolves to a real thing on disk. What changed is that
-// `mart` stopped being the only sayable answer, which it never truly was: the home page's browse
-// block reads the COMPETITION REGISTRY, which the zero-file rule deliberately keeps out of the
-// model layer (and which check_registry_var_sync.py exists to stop being duplicated), and its
-// fixtures hero reads `core.fct_fixture`, the same source the shipped fixture page already uses.
-// Before this, describing either honestly was impossible, and the only way to satisfy the checker
-// was to copy the registry into a model -- breaking a rule to please a gate.
+// `mart` stopped being the only sayable answer, which it never truly was: the home page then had a
+// browse block reading the COMPETITION REGISTRY, which the zero-file rule deliberately keeps out
+// of the model layer (and which check_registry_var_sync.py exists to stop being duplicated), and
+// its fixtures hero reads `core.fct_fixture`, the same source the shipped fixture page already
+// uses. Before this, describing either honestly was impossible, and the only way to satisfy the
+// checker was to copy the registry into a model -- breaking a rule to please a gate.
+//
+// ⚠ The browse block was DROPPED 2026-08-19, so `registry` has no declaring spec today. The type
+// stays: the zero-file rule that motivated it is unchanged and the registry remains a legitimate
+// source for any future block. Read the paragraph above as the type's ORIGIN, not as a claim that
+// something currently declares it.
 //
 // ADDING A TYPE IS ONE ENTRY HERE. That is deliberate: the CPO's instruction was "a setup that is
 // flexible enough to integrate whatever additional content". Note the scope of that flexibility:

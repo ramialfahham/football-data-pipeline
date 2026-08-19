@@ -5,8 +5,10 @@ No BigQuery — fabricated rows only, so python-ci validates the logic offline.
 The load-bearing test here is `test_shape_landing_payload_carries_only_the_built_modules`. Two
 blocks were cut from this page on 2026-08-08 — the stats teasers and trending — and BOTH had put
 business logic in the export: eligibility judgement and competition ranking in the first case,
-storyline ranking in the second (which is why `mart_landing_trending` was written at all). The
-payload key set is the cheapest place to catch either coming back, so it is asserted exactly.
+storyline ranking in the second (which is why `mart_landing_trending` was written at all). A third,
+browse, was dropped 2026-08-19 (CPO: "drop the browse section") — registry-driven, not a
+layering violation, but removed for the same reason the key set is asserted exactly: the payload
+shape is the cheapest place to catch any of the three coming back.
 """
 
 from scripts.export_site_data import (
@@ -108,20 +110,25 @@ def test_group_upcoming_fixtures_handles_an_empty_calendar():
 # --------------------------------------------------------------------------- #
 # Payload assembly
 #
-# Two blocks' worth of tests stood here and went with their blocks on 2026-08-08.
+# Three blocks' worth of tests stood here and went with their blocks.
 #
-# The stats teasers took ten with them — six on `eligible_stats_competitions`,
-# four on `pick_stats_competition`. Trending took seven, led by one that asserted
-# the export followed the mart's `trending_rank` instead of re-sorting by run
-# length. All seventeen were good tests of code that should never have been in the
+# The stats teasers took ten with them (2026-08-08) — six on
+# `eligible_stats_competitions`, four on `pick_stats_competition`. Trending took
+# seven (2026-08-08), led by one that asserted the export followed the mart's
+# `trending_rank` instead of re-sorting by run length. Browse's own tests were
+# never written in the export (it called `build_nav`, tested elsewhere) — only
+# its key in the payload-shape assertions below, updated in place 2026-08-19. All
+# seventeen removed were good tests of code that should never have been in the
 # export: they pinned eligibility judgement and business ranking, which
 # `layering.md` puts in dbt.
 #
-# They are deleted rather than migrated because neither block survives. The stats
-# teasers were ruled useless (CPO 2026-08-08) and are replaced by the mart-backed
-# Top players / Top teams; trending is not in the composition the CPO set that day
-# (next matches -> Top players -> Top teams -> browse), and the built version was
-# stale against the 2026-08-04 ruling anyway.
+# They are deleted rather than migrated because none of the three blocks
+# survives. The stats teasers were ruled useless (CPO 2026-08-08) and are
+# replaced by the mart-backed Top players / Top teams; trending was cut the same
+# day and was stale against the 2026-08-04 ruling anyway; browse was DROPPED
+# (CPO 2026-08-19: "drop the browse section") once its only remaining
+# justification — reachability into the long-tail team/player pages — turned out
+# to apply to exactly the two entity types already blocked on data-quality work.
 #
 # What those tests knew is not lost. The three defects the stats tests pinned (a
 # season that has not kicked off, a group competition's within-group ranks, a
@@ -129,23 +136,21 @@ def test_group_upcoming_fixtures_handles_an_empty_calendar():
 # §0 so the replacement marts inherit them instead of rediscovering them.
 # --------------------------------------------------------------------------- #
 def test_shape_landing_payload_carries_only_the_built_modules():
-    """TWO modules today, of the four in the composition. The key set is asserted EXACTLY, so a
+    """ONE module today, of the three in the composition. The key set is asserted EXACTLY, so a
     re-added block fails here whether it arrives populated or as an empty shell.
 
     Top players and Top teams will each add a key when they are built; that is a deliberate edit of
     this line, not a silent widening.
     """
-    payload = shape_landing_payload(
-        upcoming=[{"league_code": "BSA"}],
-        browse={"groups": [], "countries": []},
-    )
+    payload = shape_landing_payload(upcoming=[{"league_code": "BSA"}])
     assert payload["type"] == "landing"
-    assert set(payload) == {"type", "upcoming", "browse"}
+    assert set(payload) == {"type", "upcoming"}
 
 
-def test_shape_landing_payload_carries_neither_removed_block():
+def test_shape_landing_payload_carries_none_of_the_removed_blocks():
     """Named individually as well as by the key-set assertion above, so a failure says WHICH block
     came back rather than only that the shape moved."""
-    payload = shape_landing_payload([], {"groups": [], "countries": []})
+    payload = shape_landing_payload([])
     assert "stats" not in payload
     assert "trending" not in payload
+    assert "browse" not in payload

@@ -186,19 +186,9 @@ const EN: Dict = {
   // here only so the page renders for his review. The DE/FI variants are literal translations of
   // the drafts, not authored copy — they are replaced in the same single copy pass.
   seoHomeTitle: "Football stats and match previews",
-  seoHomeDesc: "Upcoming matches from every competition we cover, plus leagues, cups and countries to browse.",
+  seoHomeDesc: "Upcoming matches from every competition we cover.",
   homeNext: "Next matches",
-  homeBrowse: "Browse",
-  homeByCountry: "By country",
   homeNoFixtures: "No matches scheduled right now.",
-  // Group keys are the served nav group camel-cased (`continental-club` -> `ContinentalClub`).
-  // They must stay UNQUOTED identifiers: check-page-specs.mjs extracts the EN key set with
-  // /([A-Za-z0-9_-]+):\s*"/g, so a quoted key is invisible to the gate and the spec that names it
-  // fails. That is why the hyphen cannot survive into the key.
-  groupLeagues: "Leagues",
-  groupCups: "Cups",
-  groupContinentalClub: "European club",
-  groupNationalTeams: "National teams",
   // Competitions index page (#62 step 5) — category labels (competition_types.csv
   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
   // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
@@ -368,15 +358,9 @@ const DE: Dict = {
   footerDataSource: "Daten: API-Football",
   // --- landing (#367). PLACEHOLDER, see the EN block.
   seoHomeTitle: "Fußballstatistiken und Spielvorschauen",
-  seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken, dazu Ligen, Pokale und Länder zum Entdecken.",
+  seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken.",
   homeNext: "Nächste Spiele",
-  homeBrowse: "Entdecken",
-  homeByCountry: "Nach Land",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
-  groupLeagues: "Ligen",
-  groupCups: "Pokale",
-  groupContinentalClub: "Europapokal",
-  groupNationalTeams: "Nationalmannschaften",
   compTypeDomesticLeague: "Nationale Ligen",
   compTypeDomesticCup: "Nationale Pokale",
   compTypeContinentalCup: "Kontinentale Vereinspokale",
@@ -553,15 +537,9 @@ const FI: Dict = {
   footerDataSource: "Tietolähde: API-Football",
   // --- landing (#367). PLACEHOLDER, see the EN block.
   seoHomeTitle: "Jalkapallotilastot ja otteluennakot",
-  seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista sekä sarjat, cupit ja maat selattavaksi.",
+  seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
   homeNext: "Seuraavat ottelut",
-  homeBrowse: "Selaa",
-  homeByCountry: "Maittain",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
-  groupLeagues: "Sarjat",
-  groupCups: "Cupit",
-  groupContinentalClub: "Euroopan seurakilpailut",
-  groupNationalTeams: "Maajoukkueet",
   compTypeDomesticLeague: "Kansalliset sarjat",
   compTypeDomesticCup: "Kansalliset cupit",
   compTypeContinentalCup: "Mantereiden seuracupit",

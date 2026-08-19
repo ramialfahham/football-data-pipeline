@@ -35,9 +35,10 @@ export const INDEXABLE = false;
  * no machine-readable signal and this does: the audit refuses to pass with `INDEXABLE === true`
  * while this array is non-empty.
  *
- * EMPTY since #367: the landing page was the only entry, and it is now a real page with TWO
- * content blocks — next matches and browse. Two, not four: the CPO's composition is next matches,
- * Top players, Top teams, browse (`10_home.md` §0), and the middle pair is specified but unbuilt.
+ * EMPTY since #367: the landing page was the only entry, and it is now a real page with ONE
+ * content block — next matches. One, not three: the CPO's composition is next matches, Top
+ * players, Top teams (`10_home.md` §0; browse, the original fourth, was DROPPED 2026-08-19), and
+ * the other two are specified but unbuilt.
  * An earlier version of this comment said "four", counting the composition rather than the build.
  * This array being empty is a PRECONDITION of go-live, not go-live itself — the other gates on
  * `INDEXABLE` above are all still open. Adding an entry here is how a future scaffold ships
