@@ -1,14 +1,24 @@
-# Task contract — extend team_name_overrides beyond collision-only corrections
+# Task contract — team_name_overrides batch 2 (BL1, ED, L1, LP)
 
 objective: >
-  The existing `team_name_overrides` seed only corrects a provider team_name when it COLLIDES
-  (two real clubs share the identical bare string) — 9 pairs fixed this way (#850/#851). CPO
-  ruling this session: that bar is too narrow. A name can be unique in our data and still be
-  wrong to show bare — "Arsenal" is not the display name, "Arsenal FC" is. Extends the same,
-  already-proven mechanism to non-colliding-but-incomplete provider names, verified externally
-  per row exactly like the existing 9.
-refs: dbt_project/seeds/team_name_overrides.csv (existing mechanism); base_apif__teams_global.sql
-  header comment (why this field matters — drives fixture card, H1, title, meta, URL slug).
+  Continues the same-day work on `fix/team-name-overrides-pool1` (MR !77): verify and correct
+  Pool 1 team names against English Wikipedia, using the broadened (collision-OR-incompleteness)
+  trigger the CPO ruled and that MR's review already accepted. This batch covers the remaining
+  four Pool 1 leagues (Bundesliga, Eredivisie, Ligue 1, Liga Portugal).
+refs: MR !77 (batch 1, PL/PD/SA, 61 rows, merged process — awaiting CPO merge); `.claude/task/
+  escalations.log` 2026-08-19 entry, branch fix/team-name-overrides-pool1.
+
+impact_map: >
+  Same writer and downstream surface as MR !77 (batch 1) — same seed, same join in
+  base_apif__teams_global.sql, so the lineage doesn't change between batches. Reusing that MR's
+  real pasted `dbt ls --select base_apif__teams_global+ --resource-type model` evidence rather than
+  re-running an identical query: 18 downstream models (16 marts + dim_team +
+  dim_player_team_season_mapping) out of 97 in the project; 297 nodes total including tests when
+  run unfiltered (`unique_dim_team_team_slug`, the seed's own
+  `relationships_team_name_overrides_team_api_id__team_api_id__ref_dim_team_` FK test, included in
+  that count). layer_rules / blast_radius: identical reasoning to MR !77 — correction stays in
+  base per the 2026-07-27 CPO ruling; team_slug moves for every corrected team_api_id, acceptable
+  pre-launch per site_architecture.md §3 (slugs not yet stable, nothing indexed).
 
 scope_paths:
   - dbt_project/seeds/team_name_overrides.csv
@@ -19,86 +29,55 @@ scope_paths:
   - docs/wireframes/10_home.md
   - docs/wireframes/99_gaps_register.md
 
-impact_map: >
-  writers: dbt_project/models/2_base/api_football/base_apif__teams_global.sql (the only place
-  this seed is joined — coalesce(overrides.team_name, teams.team_name)).
-
-  downstream, ACTUAL pasted output (`dbt ls --select base_apif__teams_global+ --resource-type
-  model`, run from dbt_project/, 2026-08-19 — round-1 review FAILed the prior version of this
-  field for asserting a hand-typed list instead of pasting real command output; this replaces it):
-
-    Found 97 models, 936 tests, 9 seeds, 11 sources, 0 exposures, 0 metrics, 851 macros, 0 groups
-    football_data_pipeline.2_base.api_football.base_apif__teams_global
-    football_data_pipeline.3_core.dim_player_team_season_mapping
-    football_data_pipeline.3_core.dim_team
-    football_data_pipeline.5_marts.shared.mart_fixture_standing_context
-    football_data_pipeline.5_marts.domestic_league.mart_matchday_insights
-    football_data_pipeline.5_marts.shared.mart_player_career
-    football_data_pipeline.5_marts.shared.mart_player_fixture_stats
-    football_data_pipeline.5_marts.shared.mart_player_match_log
-    football_data_pipeline.5_marts.shared.mart_player_profile
-    football_data_pipeline.5_marts.shared.mart_roster
-    football_data_pipeline.5_marts.shared.mart_standings
-    football_data_pipeline.5_marts.shared.mart_team_competition_benchmarks
-    football_data_pipeline.5_marts.shared.mart_team_fixture_stats
-    football_data_pipeline.5_marts.shared.mart_team_fixtures
-    football_data_pipeline.5_marts.shared.mart_team_market_value
-    football_data_pipeline.5_marts.shared.mart_team_momentum_window
-    football_data_pipeline.5_marts.shared.mart_team_profile
-    football_data_pipeline.5_marts.shared.mart_team_season
-    football_data_pipeline.5_marts.domestic_league.mart_team_season_insights
-
-  18 downstream models total (16 marts + dim_team + dim_player_team_season_mapping), out of 97
-  models in the whole project — effectively the entire team-keyed mart surface, confirmed by the
-  real select, not remembered. Full node count including tests: 297 (`dbt ls --select
-  base_apif__teams_global+` unfiltered). Plus dim_team's own `unique_dim_team_team_slug` test and
-  the seed's own `relationships_team_name_overrides_team_api_id__team_api_id__ref_dim_team_` FK
-  test, both visible in that unfiltered count.
-
-  layer_rules: correction applied in base (2_base), matching the CPO's 2026-07-27 ruling that base
-  is where these preparations happen and core.dim_team publishes the settled result — no change to
-  that pattern, only more rows in the same seed. blast_radius: team_name AND team_slug change for
-  every corrected team_api_id (`team_slug` is derived FROM team_name in the same model, e.g.
-  Arsenal's slug likely moves from `arsenal` to `arsenal-fc`). Acceptable now: site_architecture.md
-  §3 states slugs are explicitly NOT yet stable pre-launch, no page is indexed, no link equity
-  exists to lose. Would NOT be acceptable post-launch without #852 (slug persistence) landing
-  first. No other model outside the team surface reads team_name.
-
 decisions_taken: >
-  CPO, this session, verbatim: "The name is Arsenal London and not Arsenal England. We have to fix
-  and standardize these names... it's not Arsenal London. It's Arsenal FC. But it's Inter Milan...
-  we have to define the name we use as the single source of truth for what we display." Each row
-  added here is independently sourced against English Wikipedia's article title for the club
-  (the same convention the existing 9 rows already use), pasted as a citation, not asserted.
+  CPO, this session (quoted in full, self-contained, in THIS branch's own escalations.log entry —
+  round-1 review correctly FAILed the previous version of this field for citing a quote that was
+  only actually written into the log on the sibling branch, fix/team-name-overrides-pool1 / MR !77,
+  which has not merged to main and so is not present in this branch's own history):
+
+  "The name is Arsenal London and not Arsenal England. We have to fix and standardize these
+  names... it's not Arsenal London. It's Arsenal FC. But it's Inter Milan... we have to define the
+  name we use as the single source of truth for what we display."
+
+  Applying that same standard to four more leagues; no new decision this batch.
+
+  ⚠ STANDING EXCLUSION, recorded in dbt_project/seeds/schema.yml's team_name_overrides
+  description (added to THIS branch by this same amendment, for the same reason above — the
+  sibling branch's schema.yml fix has not merged either): "Bayern München is NOT corrected to
+  Bayern Munich (CPO ruled one locale-independent slug)." Checked BL1 against this: Bayern München
+  (team_api_id 157) is excluded from this batch for that reason — English Wikipedia's article
+  title is "FC Bayern Munich", which is a LOCALE preference (München vs Munich), not a completeness
+  defect, and this seed does not correct locale preference.
 
 decisions_reserved:
-  - How far beyond the 9 teams checked so far this sweep goes (rest of Pool 1, then possibly wider)
-    is being decided iteratively in chat with the CPO, not pre-committed here.
+  - ~15 teams across the four leagues could not be confidently verified this batch (Wikipedia's
+    current-season club table didn't clearly cover them, likely relegated/promoted since the
+    article was last edited, or the source's own summary was ambiguous) — left unchanged rather
+    than guessed. Named in the escalations.log entry. Own follow-up if/when needed.
 
 done_when:
-  - Every new row cites its English Wikipedia source URL in the `source` column, matching the
-    existing 9 rows' format.
-  - `dbt test --select team_name_overrides assert_team_name_overrides_still_needed
-    unique_dim_team_team_slug` passes (needs a `dbt build`/`run` first to materialize dim_team with
-    the new coalesce — flagged for the CPO: this is the one case that needs an actual warehouse
-    build to verify, not just parse/compile, given CLAUDE.md's standing "never run dbt build"
-    guidance; confirm before running one).
+  - Every new row cites its English Wikipedia source URL, matching the seed's existing convention.
+  - No row corrects a locale/translation preference (only completeness/collision, per the
+    standing exclusion above).
+  - escalations.log's citation is self-contained and verifiable from THIS branch alone.
   - Committed on this branch; MR opened by the post-commit hook.
 
 amendments:
   - 2026-08-19: + `dbt_project/seeds/schema.yml` — authority: analytics-engineer-reviewer round-1
-    FAIL. The seed's own schema docs (model description + the `note` column's stated contract)
-    still described the old collision-only rule; this diff broadens the rule and several new rows
-    say so explicitly in their own note text, so the docs now contradicted the majority of the
-    data they govern. Updating the description to state both triggers (collision, and — new —
-    incompleteness against an external source), not just the original one.
-  - 2026-08-19: impact_map's downstream field replaced — scope-auditor round-1 FAIL. It claimed
-    "pasted evidence" but was a hand-typed prose list from memory, not actual command output. Now
-    real `dbt ls` output, run this session, pasted above.
+    FAIL, same finding as batch 1's sibling branch (that branch's own fix has not merged to main,
+    so this branch needs the identical fix independently until it does). Same two edits as the
+    sibling branch: the model description states both triggers, the `note` column description
+    covers both cases.
+  - 2026-08-19: `decisions_taken` rewritten — scope-auditor + analytics-engineer-reviewer round-1
+    FAIL, both citing the same defect: the CPO quote was attributed to "escalations.log,
+    2026-08-19" but that entry only exists on the unmerged sibling branch, not in this branch's own
+    log. Now quoted in full here, backed by a self-contained entry in this branch's own
+    escalations.log (see done_when).
+  - 2026-08-19: row count corrected 35 → 36 throughout — analytics-engineer-reviewer round-1 FAIL,
+    a genuine arithmetic error (L1 was 13 rows, not 12; counted wrong when totaling).
   - 2026-08-19: + `CLAUDE.md`, `docs/wireframes/10_home.md`, `docs/wireframes/99_gaps_register.md`
-    — authority: standing instruction (same one #74's own contract cited, and the one
-    chore/record-top-teams-ruling's own contract cited for the identical situation). `main` moved
-    with MR !76 (Top teams ruling) merging while this MR sat open; merging `main` in to resolve the
-    resulting conflict brings in !76's already-built, already-reviewed, already-merged content on
-    these three files. None of it is authored, edited, or re-verified by this task — named here
-    only so the scope gate has something to check against.
+    — authority: same standing instruction cited by the sibling branch's identical amendment.
+    `main` moved a second time (MR !76, Top teams ruling, merged) while this MR sat open; merging
+    `main` in to resolve the resulting conflict brings in !76's already-built, already-reviewed,
+    already-merged content on these three files. None of it is authored, edited, or re-verified by
+    this task.

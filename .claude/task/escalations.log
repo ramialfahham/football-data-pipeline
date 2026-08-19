@@ -3747,6 +3747,54 @@ Recorded BEFORE any build, which is the point.
   avoids "leader", names no metric) but keeping "Season to date" rather than "Season totals to
   date" — the team boards are per-match rates, not sums.
 
+2026-08-19 fix/team-name-overrides-pool1-remainder — team_name_overrides batch 2: Bundesliga,
+Eredivisie, Ligue 1, Liga Portugal. 36 more corrections, one standing exclusion caught before it
+shipped wrong.
+
+  ⚠ SELF-CONTAINED BY DESIGN. This entry repeats the full ruling rather than pointing at the
+  sibling branch's own entry (fix/team-name-overrides-pool1, MR !77), because that branch has not
+  merged to main — a reviewer working from this branch alone cannot see it. Round-1 review FAILed
+  the previous version of this task for citing that entry as if it were reachable here. It is not,
+  until !77 merges.
+
+  THE RULING, IN FULL, as given in chat: CPO objected to "Inter" and "Arsenal" as example browse
+  chips, then: "The name is Arsenal London and not Arsenal England. We have to fix and standardize
+  these names." Corrected further: "however, it's not Arsenal London. It's Arsenal FC. But it's
+  Inter Milan... So whatever, if we can't rely on what the provider gives us, we have to define the
+  name we use as the single source of truth for what we display." That is the authority for
+  broadening `team_name_overrides` from collision-only to also cover unique-but-incomplete names,
+  used first on branch fix/team-name-overrides-pool1 (61 rows, PL/PD/SA) and continued here.
+
+  Continuation of that same-day ruling. Same method: fetch each league's current club list, verify
+  against English Wikipedia, add only what's confidently sourced.
+
+  ⚠ CAUGHT BEFORE SHIPPING: Bayern München (team_api_id 157) was NOT corrected to "FC Bayern
+  Munich" despite that being English Wikipedia's actual article title, because the seed's own
+  standing rule (dbt_project/seeds/schema.yml) already excludes exactly this: "Bayern München is
+  NOT corrected to Bayern Munich (CPO ruled one locale-independent slug)." München vs Munich is a
+  LOCALE preference, not a completeness defect — mechanically applying "match Wikipedia's title"
+  without checking for this would have reintroduced a rule this project already reversed once.
+  Worth recording because the broadened trigger (this session) and the older locale exclusion
+  (pre-existing) could easily be conflated by a future pass that doesn't re-read the standing rule
+  first.
+
+  ~15 teams across the four leagues were NOT corrected, left unchanged rather than guessed: the
+  Wikipedia source's current-season club table didn't clearly cover them (likely promoted/relegated
+  since the article was last edited, or the summary was ambiguous). BL1: 1. FC Heidenheim, FC St.
+  Pauli, VfL Wolfsburg. ED: ADO Den Haag, Cambuur, Excelsior, FC Volendam, Telstar, Willem II
+  (contradictory summary). L1: Estac Troyes, Le Mans, RED Star FC 93, Rodez, Saint Etienne. LP:
+  Academico Viseu, Maritimo, Torreense, AVS (summary looked implausible, not trusted without a
+  second check).
+
+  WHAT SHIPPED: 36 rows, each cited to an English Wikipedia URL. (Corrected from an initial "35" —
+  a plain arithmetic error, L1 was 13 rows not 12, caught by analytics-engineer-reviewer round 1.)
+
+  Pool 1 status after this batch: PL/PD/SA done (61, MR !77) + BL1/ED/L1/LP done (36, this branch)
+  = 97 corrections total, plus the ~15 above and 2 confirmed-no-change (Athletic Club, Real Madrid)
+  and Feyenoord (confirmed already correct) still open or resolved-as-no-change. Beyond Pool 1 is
+  not started.
+
+
 2026-08-19 fix/team-name-overrides-pool1 — team_name_overrides extended past collision-only:
 provider "crap names" (CPO's word) are systemic, not isolated to one or two clubs.
 
