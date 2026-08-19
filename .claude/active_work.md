@@ -4,99 +4,97 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-18**. **main `254415b`** — `!70` (#74 nightly image fix), `!72` (shared
-ordering), `!73`+`!74` (Top players ruling), `!68` (#62 step5) and everything before it, merged.
-**`!75` OPEN** (this handover, mid-merge-conflict-resolution against a newly-advanced main).
-Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-19**. **main `de8d3c7`** (everything through `!75` merged). **THREE MRs
+OPEN, none merged yet, all awaiting the CPO**: `!76` (Top teams ruling, block-audit continuation),
+`!77` (team_name_overrides batch 1, PL/PD/SA, 61 rows), `!78` (team_name_overrides batch 2, BL1/ED/
+L1/LP, 36 rows). Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO
+GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — auditing the HOME PAGE, block by block, before building anything (2026-08-18)
+## ⭐⭐ CURRENT — team names are wrong at scale; a sitewide browse feature surfaced it (2026-08-19)
 
-**#62 (competitions index page) is done and merged.** Do NOT start #47 next — that was the old
-plan; the CPO redirected to a full data audit of the home page first, and that is now the standing
-method for every page. Nothing below is a proposal to revisit; it is where the audit stands.
+**Started as**: continue the home-page block audit (Top teams, then Browse). **Ended as**: Top
+teams ruled (✅ below); Browse's narrow fix was STARTED then ABANDONED mid-build when the CPO
+reframed it as a sitewide feature (design below, NOT built); designing that feature surfaced that
+provider team names are wrong at scale, not just 2 examples — now its own real, ongoing fix
+(`!77`+`!78`, 97 corrections, more to go). Nothing below is a proposal; it is where each thread
+stands.
 
-⭐⭐ **THE METHOD — CPO's own words, do not reword this:** *"the exercise is: does the mock
-consider the underlying mart (or mart gap)."* ⚠ **NOT "check against a leaderboard mart"** — today's
-two audited blocks happen to be leaderboard-shaped (`mart_leaderboards`); most pages have nothing
-to do with leaderboards. There is no universal mart template — each mock gets checked against
-WHATEVER mart(s) actually back it, and the check is whether the mock's design already reflects
-that reality or contradicts it. Concretely, per element on a mock:
-1. Name the exact MART COLUMN that serves it. Not a seed. Not `docs/competition_registry.yml`.
-   Not `metric_catalogue.csv`. **A seed/registry/catalogue is NOT a source** — reading one from a
-   page is the SAME violation as computing in the frontend, just harder to notice. Caught hard
-   today (CPO: *"the metric layer as a basis for displaying something??? league code, registry as
-   a source for displaying something"*) — see `feedback_consumption_layer_contract.md`, rewritten
-   today to lead with this exact failure.
-2. No mart column = a GAP. Register it precisely in `99_gaps_register.md`. A block cannot be built
-   before every element on it has a real mart source.
-3. **Check the mock's own numbers against the spec's WORDS before trusting either.** Today's Top
-   players mock rendered "7 rows, 7 distinct leagues" by accident of invented data, which read as
-   a design (one-per-league) the spec never stated (it said "pooled"). A placeholder dataset can
-   assert a rule nobody chose. Ask the CPO which one is actually meant — do not infer from numbers.
+⛔ **TEAM NAMES: THE PROVIDER'S team_name IS OFTEN NOT THE DISPLAY NAME, EVEN WHEN UNIQUE.**
+`team_name_overrides` (seed, joined in `base_apif__teams_global.sql`) previously fired ONLY on an
+exact collision between two real clubs (9 rows, #850/#851). CPO, this session: *"we have to define
+the name we use as the single source of truth for what we display"* — bare "Arsenal" isn't wrong
+because it collides with anything, it's wrong because the club's name is "Arsenal FC". Broadened
+the trigger; `dbt_project/seeds/schema.yml`'s doc updated to match (both branches, since neither
+has merged into the other yet).
+**Scale, MEASURED**: checked all of PL/PD/SA/BL1/ED/L1/LP (Pool 1) bar ~15 teams Wikipedia's
+current-season table didn't clearly cover. **97 of roughly 130 checked needed correction.** Two
+confirmed to already be correct as typed and NOT touched: Athletic Club, Real Madrid (CPO, asked
+directly rather than guessed). Feyenoord also confirmed already-correct. ⚠ **Bayern München is
+DELIBERATELY EXCLUDED** — a STANDING rule already in `schema.yml` before this session: locale
+preference (München vs Munich) is never corrected, only completeness/collision. Every source is an
+English Wikipedia article-title URL, cited per row, same convention as the original 9.
+**Both review rounds on both MRs caught real defects on round 1**: an `impact_map` that claimed
+"pasted dbt ls evidence" but was hand-typed from memory (fixed: real command output now in both
+contracts); `schema.yml` not updated to describe the broadened trigger (fixed, twice, once per
+branch); a citation to a CPO quote that lived only on the *other*, unmerged branch's escalations.log
+(fixed: each branch now quotes the ruling in full, self-contained); a plain arithmetic error, 36
+rows claimed as 35. All fixed, both MRs clean on round 2.
+**NOT started**: teams outside Pool 1. **NOT investigated**: player-name equivalent — `dim_player`
+has severe duplicate short-names ("M. Camara" × 33, "J. González" × 31; NOT explained by league
+tier, confirmed present even in Serie A/UCL) that block the same kind of fix until the root cause
+is understood; this is bigger than a naming tweak and needs its own investigation before any
+player-name correction work starts.
 
-⭐ **AUTOMATION — discussed 2026-08-18, NOT built, NOT approved to start.** Two ideas, both need to
-stay general (no leaderboard-specific template, per THE METHOD above):
-- **Trace script**: a mock + whatever mart(s) it should bind to, in → the element-by-element source
-  table + gap list, out. Would replace the by-hand version of this I did three times today.
-- **Staleness-sweep checker**: scans a wireframe doc for any mention of a removed board/metric/
-  count NOT wrapped in strikethrough or a SUPERSEDED banner. Would have caught, mechanically, what
-  took 4 review rounds today — each round found one more stale instance on a DIFFERENT axis (board
-  tables, then a removed board's ranking prose, then a stale seed-column count, then a row-count
-  rule) because I swept by eye and each pass only caught the axis a reviewer had just named. Filed
-  as **issue #78** for the next full sweep of `10_home.md`; the checker itself is not started.
-  Ask before building either.
+⭐ **BROWSE — REFRAMED, NOT BUILT, design converged but nothing shipped.** The narrow "kill By
+country" fix was actually STARTED (working-tree edit to `BrowseGrid.astro`, previewed live) then
+DELIBERATELY REVERTED when the CPO asked "what's the benefit of shipping something we're about to
+redesign anyway" — correct call: the component's scope, source and content were all about to
+change. Redirected to **#45** (internal linking / reachability, already filed, already the place
+#44 itself deferred this exact question to). New design, converged across several rounds, NOT
+built: **one mart unioning competitions+teams+players** (columns: entity_type, entity_name,
+entity_slug, player context_name/context_2_name for club+national-team, competition_names) →
+**a "Browse" section at the bottom of every page**, not just home → **10 random UNIQUE rows per
+site BUILD** (not per-visitor — static site, no backend, so "random" means "whatever the last
+deploy picked") → **bare entity name per chip**, no club/context suffix (confirmed via a rendered
+mock: mixing "Kylian Mbappé · Real Madrid" read as two entities in one chip, wrong). Competition
+and player chips render INERT (same precedent as every chip on the site today) until their
+destination pages exist (#47, #845/#882 respectively); team chips can be REAL links now, team
+pages are live. **Blocked from being built by the team-names thread above** — a random sample from
+a pool of wrong names is not shippable — and by the player-name-truncation finding needing its own
+work first. GAP-33 (Browse reads `docs/competition_registry.yml` directly, zero database reads) is
+STILL NOT FILED — the #45 redesign replaces this block's data source entirely, so filing a gap
+against code about to be replaced wasn't worth it; re-assess if #45 stalls.
 
-⛔ **HOME PAGE BLOCK STATUS, audited today, not from memory — check `99_gaps_register.md` first:**
-- **Next matches** — LIVE. Now uses the SAME ordering rule as the competitions page (one function,
-  `lib/competitionOrder.mjs`, called by both), and the hardcoded 12-fixture cap is GONE — shows the
-  next matchday, however many matches that is (CPO: *"we will show what we have"*). ⚠ Still reads
-  `core.fct_fixture`/`core.dim_team` directly instead of a mart — flagged, not fixed, and
-  **GAP-32** records a live, CPO-ruled-but-unresolved dispute about whether selecting "the next
-  matchday" in the export's own SQL is itself a layer violation. Read it before touching this path.
-- **Top players** — NOT BUILT. Ruled 2026-08-18: **one player per league**, not a pooled ranking
-  (GAP-31 WITHDRAWN because of this — `mart_leaderboards` already ranks per league, so no new
-  ranking is needed). Intro copy approved: *"Season totals to date. The top player from each
-  league: …"*. Three real gaps remain, all additive to `mart_leaderboards`: **GAP-27** (no club on
-  a row — name/crest/slug all sit unused on `dim_team`), **GAP-28** (pool membership — ⚠ `tier`/
-  `season_type` are ALREADY projected into the seed, only ONE authored pool field is left),
-  **GAP-30** (`assists` has a column but no rank at all — the reduced set's second board has
-  nothing to take a leader from).
-- **Top teams** — NOT BUILT, and NOTHING exists for it. No mart at all (**GAP-29**);
-  `mart_team_competition_benchmarks` ranks one team against its own league, the opposite shape.
-  Four boards: `goals_per_match → shots_on_goal_per_match → passes_per_match → duels_per_match`,
-  same "one per league" question as Top players — **not yet asked of the CPO for this block.**
-- **Browse** — LIVE but WRONG on two counts. (1) Still shows the "By country" grouping the CPO
-  killed on 08-10 (#44) — never removed. (2) Reads `docs/competition_registry.yml` directly, ZERO
-  database reads — the exact seed-as-source violation THE METHOD exists to catch, and **it has not
-  even been filed as a gap yet.** File it before building anything here.
+✅ **TOP TEAMS RULED** (mirrors Top players' 2026-08-18 ruling): **one team per league**, not
+pooled — CPO: *"one team per league, same as players."* ⚠ Unlike players, the CURRENT
+`top_teams_mock.html` (outside the repo, `design-mocks/`) does NOT already show this shape — 3 of
+4 boards genuinely mix teams from one league, checked by opening it — needs redoing before it's
+trustworthy to preview against. GAP-29's mart (still not started) should partition by league when
+built, matching `mart_team_competition_benchmarks`' existing pattern, and the per-league rank is
+free. Intro copy PROPOSED (not yet CPO-approved): *"Season to date. The top team from each league:
+…"*. Full detail + the mock-checking method: `10_home.md` §0, `99_gaps_register.md` GAP-29/31,
+`escalations.log` 2026-08-18/19 entries. This work is on `!76`, unmerged.
 
-⚠ **`chore/record-top-players-ruling` (!73+!74) ran 5 review rounds** — round 1 did the actual
-task; rounds 2-5 were an unplanned staleness sweep that grew out of it (see AUTOMATION above).
-Stopped and filed #78 rather than grinding a 6th. If a future task starts drifting into "and now
-fix everything else this touches", stop and ask, same as this one eventually did.
+## ⭐⭐ THE METHOD, still the standing rule for every page (CPO's own words, do not reword)
 
-⚠ **A rebase/rebind surprise, worth knowing about**: mid-review on `!74`, `gitlab/main` advanced
-because `!73` (this same branch's FIRST commit) got merged while rounds 2-5 were still running
-locally on top of it. `--staged-hash` recomputes cumulative-from-LIVE-base, so the hash shifted
-with ZERO content change. Confirmed via `git diff --stat` (empty) before rebinding — do the same
-check before assuming a hash mismatch means something changed. ⭐ **This handover's OWN commit
-(`!75`) hit the real version of that same class**: main advanced a SECOND time, mid-session, with
-an actual conflicting merge (#74, MR !70) — not an empty-diff rebind. Resolution mechanics folded
-into OWED below.
+*"the exercise is: does the mock consider the underlying mart (or mart gap)."* Per element on a
+mock: (1) name the exact MART COLUMN — a seed/registry/catalogue is NOT a source, reading one from
+a page is the same violation as computing in the frontend; (2) no mart column = a GAP, registered
+in `99_gaps_register.md` before building; (3) check the mock's OWN rendered numbers against the
+spec's words before trusting either — caught twice this session alone (Top players' accidental
+one-per-league mock; the mixed-chip player/club concat that looked fine until it didn't).
 
-## ⭐ PRIOR SESSION — #62 (fully shipped, kept brief; detail is in git + `08_browse.md`)
-✅ Competitions index page (`/{locale}/competitions/`) merged via `!68`. Three decisions if you
-touch it again: 680px width (not the mock's 1080px, never ruled before); single-select filters
-(multi-select deferred); rows INERT until #47 ships (the "browse-chip 404" pattern).
-⚠ **`site_v2/src/pages/*/competitions/index.astro`, NOT `[lang]/...`, in scope_paths** — `[lang]`
-is a literal Astro dirname but fnmatch reads `[...]` as a character class.
-⚠ **DEFERRED by #57 — do not "fix":** `world_championship` keeps its name · `display_group` for
-**#44**.
-⚠ **Global hook conflict, if a hash mismatch disagrees with `git_discipline.py --staged-hash`:**
-CHECK `~/.claude/settings.json` for a second review-gate plugin hook FIRST, don't re-derive — cost
-an hour on 08-18. ⚠ `acceptance_evidence.md` bullets **must be indented 2sp** or the gate reads 0.
+⭐ **AUTOMATION — discussed 2026-08-18, NOT built, NOT approved to start.** A trace script (mock +
+mart(s) it should bind to → element-by-element source table + gap list) and a staleness-sweep
+checker (flags a wireframe mentioning a removed board/metric not struck through) — both would
+mechanize THE METHOD above. Neither started; ask before building either. Issue **#78** tracks the
+next full sweep of `10_home.md` this would replace doing by hand.
+
+⚠ **Self-inflicted handover conflict**: this and `!76`'s own OPEN handover commit both branched
+from the same base — they WILL conflict on merge. Take THIS version, it supersedes `!76`'s. The
+standing rule (handover rides in the SAME commit as the code) got broken twice this session.
 
 ## ⭐ ORIENTATION
 **Audits: GitLab #30, DO NOT run another** (rejected 08-16; a TARGETED blind assessment is different
@@ -161,22 +159,27 @@ control. Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,
 - **#904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. A test must be seen RED.
 
 ## NEXT
-1. **Continue the block audit**: Top teams next (same "one per league?" question, unasked), then
-   Browse (remove "By country", flatten, AND file the unregistered mart-sourcing violation first).
-2. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests) — FALSE since the migration;
+1. **Team names**: finish the ~15 unverified Pool 1 teams, then decide whether to go beyond Pool 1
+   (bigger pool = more names, no ceiling given yet). **Separately, investigate the player-name
+   truncation** ("M. Camara" ×33 etc.) — root cause first, this blocks any player-name fix and the
+   browse-chip mart's player pool.
+2. **Once names are clean: build the sitewide browse-chip mart + component**, design already
+   converged (⭐⭐ CURRENT above) — mart, then export, then the component on every page template.
+3. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests) — FALSE since the migration;
    pairs with **#21 Q2** (both are "the server should enforce it").
-3. **#47** (the competition hub) — makes the competitions page's rows real links (three decisions
-   in PRIOR SESSION explain why they aren't yet). Wire `competition_index` into CI's `--entities`
-   list in #47's MR, not before.
-4. **The audit stream**: Q2 of #21 · delete 2 dead `~/.claude/hooks/` copies · route/delete
+4. **#47** (the competition hub) — makes the competitions page's rows real links. Three decisions
+   if you touch it: 680px width (not the mock's 1080px), single-select filters (multi-select
+   deferred), rows inert until this ships (git history + `08_browse.md`, not repeated here). Wire
+   `competition_index` into CI's `--entities` list in #47's MR, not before.
+5. **The audit stream**: Q2 of #21 · delete 2 dead `~/.claude/hooks/` copies · route/delete
    `seo-expert-reviewer`.
-5. **COST, SYSTEMATICALLY** — trigger/cost map first, in a GitLab issue.
-6. **#845 + #882 — the CPO's decision.** Unblocks the player page.
-7. **Legal/imprint**, then launch.
-8. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
+6. **COST, SYSTEMATICALLY** — trigger/cost map first, in a GitLab issue.
+7. **#845 + #882 — the CPO's decision.** Unblocks the player page.
+8. **Legal/imprint**, then launch.
+9. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
    PROTECTED path editable with no `protected_override` · `Regular Season - 20` provider text the
    copy gate cannot see · blank `competition_type` skipped by all 3 guards.
-9. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit tool
+10. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on the Edit tool
    only, so `sed -i` bypasses it · **#68** the form-window CODE diverges from
    `metrics_context_model.md` §4 (⚠ **the agreement is the authority**; never fix it by editing the
    doc) · **#60** `.venv` is not where `CLAUDE.md` implies · **#70** scan-budget guard.
