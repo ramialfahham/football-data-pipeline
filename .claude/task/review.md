@@ -1,6 +1,18 @@
 # Review — chore/record-top-teams-ruling — 2026-08-18
 
-diff_sha256: d4ae15b25f1429e91fb96d309799c4fb3f55a300b04d1bef559554c883e77d97
+diff_sha256: 0fe3076d6d5e691876ee095a7123a4c87fab1e588b3d47847aa3a14deee34ffe
+
+> REBOUND 2026-08-19, not re-derived. `main` advanced (MR !79, the handover) while this MR sat
+> open; merging `main` in to resolve the conflict changes nothing in the reviewed content —
+> `git diff gitlab/main...HEAD` (bookkeeping paths excluded) is byte-identical to what rounds 1-2
+> below already reviewed: `contract.md`, `CLAUDE.md`, `docs/wireframes/10_home.md`,
+> `docs/wireframes/99_gaps_register.md`. Conflicts were confined to `.claude/task/contract.md`,
+> `review.md`, `active_work.md`, `review_input.patch` — resolved MINE for contract/review (this
+> task's own authority), THEIRS for `active_work.md` (MR !79 already supersedes this branch's
+> handover content in full). The hash above is the real post-merge `--staged-hash`, recomputed
+> after the merge commit landed (merge-base only resolves correctly once the commit exists — same
+> pattern as MR !70's and MR !75's own rebind commits). No new review round needed; nothing was
+> re-authored or re-decided.
 
 rounds: 2
 
