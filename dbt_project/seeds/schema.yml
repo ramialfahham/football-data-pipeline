@@ -25,20 +25,13 @@ seeds:
               values: ["club", "national"]
       - name: display_group
         description: >
-          Hybrid-IA nav group for this competition type (GAP-19 — the taxonomy that
-          previously lived as the _GROUP_OF_TYPE dict in scripts/export_site_data.py).
-          Empty (null) for types that never appear in the nav (friendlies).
-          ⚠ SLATED FOR DELETION (CPO 2026-08-11, #57): it groups club competitions by FORMAT
-          (leagues, cups) and everything else by GEOGRAPHY (continental-club, national-teams), so
-          its axis changes halfway through; it overloads BLANK to mean "not browsable"; and none
-          of its four values fits club_world_cup. No dbt model reads it — all 35 downstream of
-          this seed read entity_type only — so its single consumer is build_nav() in
-          scripts/export_site_data.py. ⚠ UPDATED 2026-08-19: the home page's browse chips that
-          consumer used to feed are DROPPED (CPO: "drop the browse section"), not rewritten by
-          #44 as this note originally expected — build_nav() itself stays, because it also
-          produces `nav.json` independently (`--entities nav`), currently with no frontend
-          consumer either. Whether THAT makes this column deletable is not decided here; #57
-          stays open pending that call.
+          Which navigation group a competition of this type belongs to: leagues, cups,
+          continental-club or national-teams.
+
+          Blank means the type is not browsable. Competitions of a blank type are excluded
+          from mart_competition_index, and so from the competitions page. Only the friendly
+          types are blank today, and no active competition uses one, so the exclusion
+          currently removes no rows.
         tests:
           - accepted_values:
               values: ["leagues", "cups", "continental-club", "national-teams"]
@@ -583,10 +576,9 @@ seeds:
       be checked, never recalled — the UN list backing these names was supplied by the CPO and
       read directly, and two of its rows turned out to be a footnote legend rather than countries.
 
-      SCOPE: the seed now covers strings from ALL FOUR surfaces (`dim_league`, `dim_team`,
-      `dim_player`, `dim_coach`) — 245 distinct provider values resolving to 224 entities. ⚠ Only
-      `dim_league` READS it today, so 65 of the 67 rows are inert until `dim_country` lands. The
-      provider defect is not one endpoint: `/teams` hyphenates, and `/players` + `/coachs` are
+      SCOPE: the seed covers provider strings from all four surfaces (leagues, teams, players,
+      coaches) — 245 distinct provider values resolving to 224 entities. The provider defect is
+      not confined to one endpoint: `/teams` hyphenates, and `/players` + `/coachs` are
       inconsistent with themselves, carrying `Czechia` and `Czech Republic`, `Korea Republic` and
       `South Korea` side by side.
 

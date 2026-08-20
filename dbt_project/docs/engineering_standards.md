@@ -66,10 +66,85 @@ Beyond those there is no formula: an experienced analytics engineer weighs the r
 
 ## 2) Documentation Policy
 
+### Who a description is for
+
+**Someone about to use the data, who has never seen our code.** Not a reader tracking how we got
+here. dbt states the same audience: *"Good documentation for your dbt models will help downstream
+consumers discover and understand the datasets you curate for them."*
+([dbt](https://docs.getdbt.com/docs/build/documentation))
+
+The test for any description: **could a stranger querying this table in BigQuery use it correctly
+from this text alone?**
+
+### Coverage
+
 - Every model must have a `description`.
 - Business-facing columns in `core`, `intermediate`, and `marts` must have `description`.
 - Every source table must have a short source description in `sources.yml`.
-- Keep descriptions factual and concise; avoid implementation details.
+- Where coverage is partial, do marts and primary keys first — they are what a consumer touches.
+
+### What a description contains
+
+- **Business meaning**, in plain language.
+- **Grain** — one row per what. Required on staging models by §3; expected on every model.
+- **Where it comes from / how it is calculated** — the upstream input or the formula.
+- **Known limits** — what NULL means, what is excluded, edge cases that will surprise someone.
+
+### What a description must never contain
+
+Two bans. Both come from real defects in this repo, not from theory.
+
+**1. No downstream consumer claims.** Never write "the only reader is X", "no model reads this",
+"its single consumer is Y", or a list of what depends on this. Upstream facts are fixed in the SQL
+and change when the SQL changes; downstream facts change whenever anyone adds a model, and nobody
+comes back to update the prose. Three descriptions carried false consumer claims simultaneously in
+August 2026, and one of them stated that a column had no readers while a live mart filtered on it —
+following it would have broken the competitions page. **dbt already computes this, correctly, on
+demand: `dbt ls --select <model>+`.**
+
+**2. No history.** No dates, no rulings, no issue or MR numbers, no "UPDATED", no "an earlier
+version of this said X". Git holds all of it losslessly and cannot rot; a hand-copied version of it
+starts rotting immediately. Rulings belong in `.claude/task/escalations.log`, open questions in the
+tracker, design rationale in `layering.md`.
+
+### Form
+
+- Long text belongs in a **docs block**, not inline YAML — `{% docs name %}` in a `.md` file,
+  referenced as `description: "{{ doc('name') }}"`. dbt: *"If you have a long description,
+  especially if it contains markdown, it may make more sense to leverage a docs block."*
+  ([dbt](https://docs.getdbt.com/reference/resource-properties/description))
+- A column documented in more than one model gets **one** docs block, referenced from each. Do not
+  restate it — restated definitions drift apart, which is how `league_code` came to be documented
+  76 times in 22 different wordings.
+- Keep YAML lines to **80 characters**
+  ([dbt](https://docs.getdbt.com/best-practices/how-we-style/5-how-we-style-our-yaml)).
+- Keep a description under **600 characters**. BigQuery rejects column descriptions over 1,024, and
+  a description nobody finishes reading is one nobody checks.
+- A docs block is **not** a length exemption: `persist_docs` renders the block into the description
+  pushed to the warehouse, so the same limits apply to the result.
+
+### Worked example
+
+Before — 1,080 characters, and the load-bearing sentence is false:
+
+> Hybrid-IA nav group for this competition type (GAP-19 — the taxonomy that previously lived as the
+> _GROUP_OF_TYPE dict in scripts/export_site_data.py). Empty (null) for types that never appear in
+> the nav (friendlies). ⚠ SLATED FOR DELETION (CPO 2026-08-11, #57): … No dbt model reads it — all
+> 35 downstream of this seed read entity_type only — so its single consumer is build_nav() … ⚠
+> UPDATED 2026-08-19: …
+
+After:
+
+> Which navigation group a competition of this type belongs to: leagues, cups, continental-club or
+> national-teams.
+>
+> Blank means the type is not browsable. Competitions of a blank type are excluded from
+> mart_competition_index, and so from the competitions page. Only the friendly types are blank
+> today, and no active competition uses one, so the exclusion currently removes no rows.
+
+What changed: the deletion proposal moved to the tracker, the ruling and the dates to
+`escalations.log`, the false consumer claim was deleted outright, and what remains is the one thing
+a consumer needs — what the values mean and what blank does.
 
 ## 3) Testing Policy
 
