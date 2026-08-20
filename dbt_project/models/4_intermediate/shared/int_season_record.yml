@@ -3,12 +3,15 @@ version: 2
 models:
   - name: int_team_season_record
     description: >
-      W2 season-record builder — team. Cumulative running totals over int_legs__team_match
-      within one competition+season, one row per team-match (totals through that match).
-      Complement to int_team_momentum__metrics. Carries round_order + match_number for the deferred
-      year-over-year surface. Raw sums only; ratios live in mart_team_season_record. The
-      whole-season rollup int_team_season__metrics is the final row of this model (#500 PR1).
+      A team's season totals as they stood after each of its matches — cumulative running totals
+      within one competition-season, one row per team-match. The season-long counterpart to
+      int_team_momentum__metrics, which does the same over a recent-form window.
       Grain: (team_sk, league_code, season_api_year, fixture_sk).
+
+      Raw sums only; ratios are derived from these one layer up. The whole-season rollup is this
+      model's final row, so the two cannot drift apart.
+
+      Carries round_order and match_number so two seasons can be aligned by matchday.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, league_code, season_api_year, fixture_sk]
@@ -51,17 +54,19 @@ models:
         description: "{{ doc('season_sk') }} Carried for the projection's team_season_sk."
         tests: [not_null]
       - name: opponent_shots_total
-        description: "Cumulative opponent total shots; feeds shot_share on the whole-season projection (#500 PR1)."
+        description: >
+          Cumulative shots taken by this team's OPPONENTS through this match — the denominator
+          half of a shot-share calculation.
 
   - name: int_player_season_record
     description: >
-      W2 season-record builder — player. Cumulative running totals over int_legs__player_match
-      within one competition+season, one row per player-match ACTUALLY PLAYED. Complement to
-      int_player_momentum__metrics. A leg exists wherever player stats are present, which includes
-      0-minute unused substitutes, so legs are filtered to minutes > 0: games_played counts matches
-      played (not matchday selections, which it did before 2026-07-23) and player ratios are
-      same-window by construction.
+      A player's season totals as they stood after each match they PLAYED — cumulative running
+      totals within one competition-season.
       Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
+
+      A stat row exists wherever the provider reports one, which includes unused substitutes on 0
+      minutes. Those are filtered out here, so games_played counts matches played rather than
+      matchday selections, and every ratio is over the same set of matches by construction.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year, fixture_sk]
@@ -82,7 +87,9 @@ models:
           - accepted_values:
               values: ["season_to_date"]
       - name: games_played
-        description: "Cumulative count of the matches the player actually PLAYED (minutes > 0) through this match. Before 2026-07-23 this counted matchday selections, so unused substitutes inflated it."
+        description: >
+          Cumulative count of matches the player actually PLAYED through this one, that is minutes
+          greater than 0 — not matchday selections.
         tests: [not_null]
       - name: position_code
         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."

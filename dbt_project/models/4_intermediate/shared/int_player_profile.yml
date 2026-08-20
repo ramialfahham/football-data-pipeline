@@ -3,14 +3,15 @@ version: 2
 models:
   - name: int_player_profile__yoy
     description: >
-      Appearances-aligned year-over-year for the player profile (Phase C, #391), domestic
-      leagues only — the player mirror of int_team_profile__yoy. One row per player's CURRENT
-      club-league season: cumulative goals / assists / shots-on-target / key-passes /
-      defensive-actions through the latest N appearances this season vs the same player's prior
-      season AT THE SAME CLUB through its first N appearances. Aligned by appearances
-      (match_number); deltas NULL when the prior season at this club is absent (transfer / first
-      season). defensive_actions = tackles + interceptions + blocks (T+I+B). Grain:
-      (team_sk, player_sk, league_code, season_api_year).
+      A player's season against their last, compared over the same number of appearances. One row
+      per player's CURRENT club-league season. DOMESTIC LEAGUES ONLY. Grain: (team_sk, player_sk,
+      league_code, season_api_year).
+
+      Carries cumulative goals, assists, shots on target, key passes and defensive actions through
+      the latest N appearances this season, against the prior season AT THE SAME CLUB through its
+      first N. defensive_actions is tackles plus interceptions plus blocks.
+
+      Deltas are NULL when there is no prior season at this club — a transfer, or a first season.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
@@ -51,11 +52,13 @@ models:
 
   - name: int_player_profile__contribution
     description: >
-      Player contribution-share (content_architecture §6.4): the player's goal involvements (goals + assists)
-      as a share of the club's WHOLE-SEASON goals_for — "involved in X% of the team's goals." A composing
-      differentiator over the player + team legs; NULL when the club scored 0 that competition-season; range
-      [0, 1]. Understates where the player's match stats are missing (CPO-accepted honest limit). Grain:
-      (player_sk, team_sk, season_sk).
+      What share of a club's goals a player was involved in: their goals plus assists over the
+      club's WHOLE-SEASON goals for. Grain: (player_sk, team_sk, season_sk). Range 0 to 1.
+
+      NULL when the club scored nothing that competition-season.
+
+      UNDERSTATES the share wherever the player's own match stats are missing, since the numerator
+      loses those matches while the denominator keeps them. An accepted limit, not a defect.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, team_sk, season_sk]

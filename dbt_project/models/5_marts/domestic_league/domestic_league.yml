@@ -195,12 +195,13 @@ models:
         description: "Away: league points over the form window."
       - name: home_form_from_qualifiers
         description: >
-          True when the home side's W1 form window is the qualifier window (window_type='qualifiers',
-          GAP-18) — the team's opener in a tournament. Drives the live formContextLabel ("all qualifying
-          matches" vs "all World Cup matches so far"). Never null (coalesce → false).
+          True when the home side's recent-form window is the qualifier window — the team's opener
+          in a tournament, where the form shown is its qualifying matches rather than matches in
+          the tournament itself. Never NULL; false where it does not apply.
         tests: [not_null]
       - name: away_form_from_qualifiers
-        description: "Away: true when the side's W1 form window is the qualifier window (GAP-18). Never null."
+        description: >
+          Away: true when the side's recent-form window is the qualifier window. Never NULL.
         tests: [not_null]
       - name: home_goals_per_match_recent
         description: "Home: goals scored per game (scoreline window)."
@@ -223,7 +224,9 @@ models:
       - name: away_danger_zone_ratio_recent
         description: "Away: shots inside box / total shots."
       - name: home_finishing_efficiency_recent
-        description: "Home: open-play goal conversion — open-play goals (goals − penalties − own goals) / shots on goal over a fully shot-covered window, in [0, 1] (CPO Option A)."
+        description: >
+          Home: open-play goal conversion — open-play goals (goals minus penalties minus own
+          goals) over shots on goal, across a fully shot-covered window. Range 0 to 1.
       - name: away_finishing_efficiency_recent
         description: "Away: open-play goal conversion (open-play goals / shots on goal, in [0, 1])."
       - name: home_pass_accuracy_recent

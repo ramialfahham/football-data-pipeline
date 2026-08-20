@@ -39,9 +39,13 @@ These need no credentials and finish in seconds. They mirror `.gitlab-ci.yml`'s
 gate, task artifacts), `validate:ui` (i18n + metric manifests) and `test:python`
 (unit tests).
 
-**Five of these also run at turn end** via `stop_gate.py`'s `FAST_GATES`, measured
-at 2.9s together, named explicitly because "the first N" drifts the moment the list
-is reordered.
+**Six of these also run at turn end** via `stop_gate.py`'s `FAST_GATES`, named
+explicitly because "the first N" drifts the moment the list is reordered.
+
+⚠ That count is PROSE and the pinning test does not check it — it asserts set
+equality over the marked block below, so this sentence went stale the moment a
+sixth gate was added and nothing caught it. If you add a gate, change this number
+too.
 
 The markers below are load-bearing: `test_fast_gates_and_validate_local_agree`
 extracts the names BETWEEN them and asserts SET EQUALITY with `FAST_GATES`. Do not
@@ -51,7 +55,7 @@ one does, three times over — so it stayed green when this very line was delete
 green against the broken form it was written to catch (platform-reviewer, opus).
 
 <!-- FAST_GATES:START -->
-`check_layer_contract` · `check_registry_var_sync` · `check_competition_type_seed` · `check_ui_i18n_metrics` · `check_copy_gate`
+`check_layer_contract` · `check_registry_var_sync` · `check_competition_type_seed` · `check_ui_i18n_metrics` · `check_copy_gate` · `check_description_hygiene`
 <!-- FAST_GATES:END -->
 
 **`check_task_artifacts.py` is deliberately NOT one of them.** It needs a fetched
@@ -68,6 +72,7 @@ python scripts/check_layer_contract.py
 python scripts/check_registry_var_sync.py
 python scripts/check_competition_type_seed.py
 python scripts/check_copy_gate.py
+python scripts/check_description_hygiene.py
 python scripts/check_task_artifacts.py
 python scripts/check_ui_i18n_metrics.py
 python -m json.tool site/i18n/en.json > /dev/null
@@ -128,6 +133,7 @@ pipeline that does not run.
 | `check_registry_var_sync.py` | `validate:governance` |
 | `check_competition_type_seed.py` | `validate:governance` |
 | `check_copy_gate.py` | `validate:governance` |
+| `check_description_hygiene.py` | `validate:governance` |
 | `check_task_artifacts.py` | `validate:governance` (needs `GIT_DEPTH: 0`) |
 | `dbt deps` + `dbt parse` | `validate:governance` |
 | `check_ui_i18n_metrics.py` + JSON validity | `validate:ui` |

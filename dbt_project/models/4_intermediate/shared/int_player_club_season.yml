@@ -3,14 +3,16 @@ version: 2
 models:
   - name: int_player_club_season__metrics
     description: >
-      Per (player, CLUB, competition-season) aggregate over all finished matches — the finest-grain player
-      atoms rollup (#480 §8.3). One row per player at one club in one competition-season; a mid-season
-      transfer yields one row per club (no last-club collapse). The single atoms source that
-      int_player_season__metrics (re-aggregated to the competition-season) and mart_player_career (the
-      per-club career log) both COMPOSE. Atoms follow metric_catalogue.csv exactly (per-fixture
-      ROUND-weighted passes_accurate; counts coalesce nulls to 0; appearances = finished-match legs the
-      player actually PLAYED). Ratios / per-90 are derived where consumed, not here.
-      Grain: (player_sk, team_sk, season_sk).
+      A player's totals at ONE club in one competition-season — the finest grain the player atoms
+      exist at. Grain: (player_sk, team_sk, season_sk). A mid-season transfer gives one row per
+      club, with no collapse to a last club.
+
+      The single source of those atoms, so anything needing player-season numbers re-sums these
+      rather than re-aggregating the matches itself.
+
+      Atoms follow the metric_catalogue seed exactly: passes_accurate rounded per fixture then
+      summed, counts treating NULL as 0, `appearances` counting only matches PLAYED. Ratios and
+      per-90s are derived where consumed, never here.
     config:
       tags: ["intermediate", "football", "player"]
     tests:
@@ -61,5 +63,8 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: appearances
-        description: "Finished-match legs this player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member named on the bench all season but never brought on. Before 2026-07-23 this was count(*) of player-stat rows, which counted unused substitutes as appearances (honest absence where stats are off still applies)."
+        description: >
+          Finished matches this player actually PLAYED for this club that competition-season, that
+          is minutes greater than 0. 0 is legitimate rather than missing: a squad member named on
+          the bench all season and never brought on keeps his row.
         tests: [not_null]

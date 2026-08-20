@@ -159,10 +159,12 @@ models:
 
   - name: stg_apif__lineups
     description: >
-      One row per team per fixture from $.lineups in raw_apif_fixture_details — an append-only
-      table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully (no
-      latest-snapshot qualify — sub-league grain). ⚠ This model has NO consumer today, so nothing
-      downstream resolves its versions. Grain at staging: (fixture_id, team_id, raw_ingested_at).
+      One row per team per fixture, from $.lineups in raw_apif_fixture_details — an append-only
+      table holding one row per FETCH of a fixture. Grain: (fixture_id, team_id, raw_ingested_at).
+
+      Staging reads every row faithfully, with no latest-snapshot filter, because the raw grain is
+      finer than a league. That means a fixture fetched five times has five rows here, and
+      resolving which version to use is left to whatever reads it.
     columns:
       - name: league_code
         tests: [not_null]
@@ -240,10 +242,12 @@ models:
 
   - name: stg_apif__coaches
     description: >
-      Coach entity flatten from RAW_APIF_COACHES response[].coach (identity / bio). RAW_APIF_COACHES
-      is a complete snapshot per (league_code, run); staging reads ALL snapshots faithfully (NOT
-      latest-per-league) — CPO-ruled to preserve every coach ever seen (mirrors dim_player/dim_team);
-      cross-league + cross-snapshot entity dedup is in base, so no unique test here.
+      Coach identity and bio, flattened from RAW_APIF_COACHES response[].coach.
+
+      The raw table is a complete snapshot per (league_code, run), and staging reads EVERY
+      snapshot rather than the latest per league, deliberately: that preserves every coach ever
+      seen, the same way player and team staging do. Deduplication across leagues and snapshots
+      happens in base, which is why there is no unique test here.
     columns:
       - name: league_code
         tests: [not_null]

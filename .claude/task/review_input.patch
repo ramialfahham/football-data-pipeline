@@ -1,863 +1,1325 @@
+diff --git a/.claude/hooks/stop_gate.py b/.claude/hooks/stop_gate.py
+index 6f2f4f9..56ba65a 100644
+--- a/.claude/hooks/stop_gate.py
++++ b/.claude/hooks/stop_gate.py
+@@ -60,6 +60,12 @@ FAST_GATES = (
+     "scripts/check_competition_type_seed.py",
+     "scripts/check_ui_i18n_metrics.py",
+     "scripts/check_copy_gate.py",
++    # Added 2026-08-20 with CPO approval for the protected-path edit (his "do both":
++    # CI *and* turn end). It belongs here rather than in CI alone because CI catches a
++    # bad description after it is written and pushed, while this catches it in the turn
++    # that wrote it — and the whole programme exists because prose-only rules did not
++    # hold. Offline, parses YAML off disk, no network and no warehouse.
++    "scripts/check_description_hygiene.py",
+ )
+ # Generous against a cold filesystem; the measured total is ~2.9s.
+ GATE_TIMEOUT_S = 90
+diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
+index 66bf567..aef4e75 100644
+--- a/.claude/skills/validate-local/SKILL.md
++++ b/.claude/skills/validate-local/SKILL.md
+@@ -39,9 +39,13 @@ These need no credentials and finish in seconds. They mirror `.gitlab-ci.yml`'s
+ gate, task artifacts), `validate:ui` (i18n + metric manifests) and `test:python`
+ (unit tests).
+ 
+-**Five of these also run at turn end** via `stop_gate.py`'s `FAST_GATES`, measured
+-at 2.9s together, named explicitly because "the first N" drifts the moment the list
+-is reordered.
++**Six of these also run at turn end** via `stop_gate.py`'s `FAST_GATES`, named
++explicitly because "the first N" drifts the moment the list is reordered.
++
++⚠ That count is PROSE and the pinning test does not check it — it asserts set
++equality over the marked block below, so this sentence went stale the moment a
++sixth gate was added and nothing caught it. If you add a gate, change this number
++too.
+ 
+ The markers below are load-bearing: `test_fast_gates_and_validate_local_agree`
+ extracts the names BETWEEN them and asserts SET EQUALITY with `FAST_GATES`. Do not
+@@ -51,7 +55,7 @@ one does, three times over — so it stayed green when this very line was delete
+ green against the broken form it was written to catch (platform-reviewer, opus).
+ 
+ <!-- FAST_GATES:START -->
+-`check_layer_contract` · `check_registry_var_sync` · `check_competition_type_seed` · `check_ui_i18n_metrics` · `check_copy_gate`
++`check_layer_contract` · `check_registry_var_sync` · `check_competition_type_seed` · `check_ui_i18n_metrics` · `check_copy_gate` · `check_description_hygiene`
+ <!-- FAST_GATES:END -->
+ 
+ **`check_task_artifacts.py` is deliberately NOT one of them.** It needs a fetched
+@@ -68,6 +72,7 @@ python scripts/check_layer_contract.py
+ python scripts/check_registry_var_sync.py
+ python scripts/check_competition_type_seed.py
+ python scripts/check_copy_gate.py
++python scripts/check_description_hygiene.py
+ python scripts/check_task_artifacts.py
+ python scripts/check_ui_i18n_metrics.py
+ python -m json.tool site/i18n/en.json > /dev/null
+@@ -128,6 +133,7 @@ pipeline that does not run.
+ | `check_registry_var_sync.py` | `validate:governance` |
+ | `check_competition_type_seed.py` | `validate:governance` |
+ | `check_copy_gate.py` | `validate:governance` |
++| `check_description_hygiene.py` | `validate:governance` |
+ | `check_task_artifacts.py` | `validate:governance` (needs `GIT_DEPTH: 0`) |
+ | `dbt deps` + `dbt parse` | `validate:governance` |
+ | `check_ui_i18n_metrics.py` + JSON validity | `validate:ui` |
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7be0ab9..2f1b96c 100644
+index 2f1b96c..1d36c83 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,47 +1,50 @@
--# Task contract — MR3 of the description-drift programme
-+# Task contract — MR4 of the description-drift programme
+@@ -1,50 +1,79 @@
+-# Task contract — MR4 of the description-drift programme
++# Task contract — MR5 of the description-drift programme
  
  objective: >
--  Clean the `description:` fields in `dbt_project/models/5_marts/shared/shared.yml` and
--  `dbt_project/seeds/schema.yml` against the standard written in MR1
--  (`dbt_project/docs/engineering_standards.md` §2). Every description states what the data MEANS
--  to someone who has never seen our code: business meaning, grain, where it comes from or how it
--  is calculated, and known limits. Decision history, issue refs, dates and downstream-consumer
--  claims come out. No SQL logic, no test, no column, no model behaviour changes — this is prose.
-+  Clean the `description:` fields in `dbt_project/models/3_core/core.yml`,
-+  `dbt_project/models/2_base/api_football/base.yml` and
-+  `dbt_project/models/4_intermediate/shared/int_momentum.yml` against the standard in
-+  `dbt_project/docs/engineering_standards.md` §2. Same method as MR3: every description states
-+  what the data MEANS to someone who has never seen our code — business meaning, grain, where it
-+  comes from or how it is calculated, known limits. Decision history, dates, issue refs and
-+  downstream-consumer claims come out. No SQL logic, no test, no column, no model behaviour
-+  changes — this is prose.
+-  Clean the `description:` fields in `dbt_project/models/3_core/core.yml`,
+-  `dbt_project/models/2_base/api_football/base.yml` and
+-  `dbt_project/models/4_intermediate/shared/int_momentum.yml` against the standard in
+-  `dbt_project/docs/engineering_standards.md` §2. Same method as MR3: every description states
+-  what the data MEANS to someone who has never seen our code — business meaning, grain, where it
+-  comes from or how it is calculated, known limits. Decision history, dates, issue refs and
+-  downstream-consumer claims come out. No SQL logic, no test, no column, no model behaviour
+-  changes — this is prose.
++  Build `scripts/check_description_hygiene.py` — the machine check that makes the description
++  standard stick — with tests, and wire it into the three places that run the fast gates. It fails
++  on any `description:` under `dbt_project/` that carries an issue ref, an ISO date, decision
++  language, a severity emoji, a downstream-consumer claim, or more than 600 characters.
++
++  The point of the whole programme is that prose rules do not hold in this repo: of 50 past
++  corrections, 33 were prose-only and 22 recurred, while every rule that got a machine check
++  stopped recurring. MR1-MR4 wrote and applied the standard; this is the part that keeps it.
  
  refs: >
--  Authority: `.claude/task/escalations.log`, 2026-08-20 entry (the CPO's diagnosis, the audit's
--  numbers, the definition of a good description, the three rulings, the six-MR split and its
--  ordering constraints). Plan file: `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`.
--  Standard: `dbt_project/docs/engineering_standards.md` §2, written in MR1 (`!82`).
--  Shared docs blocks to reference rather than restate: `dbt_project/models/docs/shared_columns.md`,
--  written in MR2 (`!83`). Branched from main `d8c6635`; no open MRs at start.
-+  Authority: `.claude/task/escalations.log`, 2026-08-20 entries. The first holds the CPO's
-+  diagnosis, the audit numbers, the definition of a good description, the three rulings and the
-+  six-MR split; the second is MR3's, whose method this repeats. Plan file:
-+  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`. Standard:
-+  `dbt_project/docs/engineering_standards.md` §2 (MR1, `!82`). Shared docs blocks to reference
-+  rather than restate: `dbt_project/models/docs/shared_columns.md` (MR2, `!83`).
-+  MR3 merged as `!85`; branched from main `2d59320`, no open MRs at start.
+-  Authority: `.claude/task/escalations.log`, 2026-08-20 entries. The first holds the CPO's
+-  diagnosis, the audit numbers, the definition of a good description, the three rulings and the
+-  six-MR split; the second is MR3's, whose method this repeats. Plan file:
+-  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`. Standard:
+-  `dbt_project/docs/engineering_standards.md` §2 (MR1, `!82`). Shared docs blocks to reference
+-  rather than restate: `dbt_project/models/docs/shared_columns.md` (MR2, `!83`).
+-  MR3 merged as `!85`; branched from main `2d59320`, no open MRs at start.
++  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (diagnosis, the
++  definition of a good description, the six-MR split), MR3's and MR4's entries (the method), and
++  THIS branch's entry, which records the CPO's protected-path approval. Plan file:
++  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`, Step 4.
++  Standard: `dbt_project/docs/engineering_standards.md` §2. Model the script on
++  `scripts/check_copy_gate.py`. MR4 merged as `!86`; branched from main `dc6d7eb`, no open MRs.
++
++protected_override: >
++  CPO, in chat 2026-08-20, verbatim "do both", recorded in `.claude/task/escalations.log` under
++  `2026-08-20 feat/description-hygiene-gate` BEFORE this branch touched either file — GitLab #28 is
++  that an override can otherwise claim a ruling nobody can check.
++
++  It authorises exactly two edits, and nothing else:
++    1. `.gitlab-ci.yml` — one line added to `validate:governance`'s script list.
++    2. `.claude/hooks/stop_gate.py` — one entry added to `FAST_GATES`.
++  No other change to either file, and no other protected path. `.claude/skills/validate-local/`
++  is NOT protected but must move in lockstep, because
++  `test_fast_gates_and_validate_local_agree` asserts set equality between its marked block and the
++  hook's tuple.
  
  impact_map: >
--  PROSE ONLY, and that is the whole blast radius. `description:` is metadata dbt carries into the
--  manifest; nothing reads it today (`persist_docs` absent, `dbt docs generate` runs nowhere —
--  which is the root cause the programme exists to fix, and MR6's job). No `tests:`, `config:`,
--  `meta:`, `columns:` list, model, macro or seed CSV is touched, so the compiled SQL and the built
--  tables are byte-identical before and after.
-+  PROSE ONLY, same blast radius as MR3 and verified the same way. `description:` is metadata dbt
-+  carries into the manifest; nothing reads it today (`persist_docs` absent, `dbt docs generate`
-+  runs nowhere — the root cause MR6 fixes). No `tests:`, `config:`, `meta:`, `columns:` list,
-+  model, macro or seed is touched, so compiled SQL and built tables are identical before and
-+  after.
+-  PROSE ONLY, same blast radius as MR3 and verified the same way. `description:` is metadata dbt
+-  carries into the manifest; nothing reads it today (`persist_docs` absent, `dbt docs generate`
+-  runs nowhere — the root cause MR6 fixes). No `tests:`, `config:`, `meta:`, `columns:` list,
+-  model, macro or seed is touched, so compiled SQL and built tables are identical before and
+-  after.
++  A NEW GUARD, so the blast radius is "what can now fail that could not before", in three places.
++
++  1. TURN END. `stop_gate.py` runs the fast gates when the tree is dirty and in scope, and blocks
++     the turn once if any fails. Adding a gate there means a description defect ends a turn red.
++     The gate must therefore be FAST and must not need network, a fetched base branch, or BigQuery
++     — it parses YAML off disk, like its five siblings.
++  2. CI. `validate:governance` gains one line, so a defect fails the pipeline. No `changes:` filter
++     on that job, so it runs on every MR.
++  3. LOCAL. `validate-local` documents the same set; the pinning test fails if the two disagree.
  
--  Verified by construction rather than asserted: the diff on the two YAML files is confined to
--  `description:` values and the SQL files' opening `{# ... #}` doc comments. `dbt parse` must
--  still succeed (it resolves the `{{ doc() }}` references MR2 added), and `dbt ls` must return the
--  same model set.
-+  Proved rather than asserted, reusing MR3's check: parse each file at HEAD and in the working
-+  tree, strip every `description`, and diff the rest. Any change to a test, config, column or
-+  model name shows up. That check is itself verified to detect a real structural change, so it is
-+  not vacuous.
+-  Proved rather than asserted, reusing MR3's check: parse each file at HEAD and in the working
+-  tree, strip every `description`, and diff the rest. Any change to a test, config, column or
+-  model name shows up. That check is itself verified to detect a real structural change, so it is
+-  not vacuous.
++  ⚠ GREEN ON DAY ONE IS THE WHOLE REASON THIS MR IS FIFTH. MR3 and MR4 cleared all 453 descriptions
++  in the five worst files. The remaining 14 files were measured healthy by the audit, but "healthy"
++  was that audit's judgement, not this gate's rule — so the gate MUST be run against the whole
++  repo before wiring, and any survivor fixed or the rule narrowed with a stated reason. A gate that
++  goes red on main on day one is the `check_copy_gate.py` precedent inverted.
  
--  THE ONE REAL RISK is a rewrite that states something FALSE — the exact defect the programme
--  exists to fix. Mitigated by reading the model's SQL before rewriting its description, not by
--  paraphrasing the old text.
-+  THE ONE REAL RISK is a rewrite that states something FALSE — the defect the programme exists to
-+  fix, and one that got through in MR3 until a reviewer caught it (`mart_standings` zones).
-+  Mitigated by reading the model's SQL before rewriting its description, never by paraphrasing
-+  the old prose. Where a rewrite would make a vague old phrase into a specific claim, the claim
-+  must be checked against the code or not made.
+-  THE ONE REAL RISK is a rewrite that states something FALSE — the defect the programme exists to
+-  fix, and one that got through in MR3 until a reviewer caught it (`mart_standings` zones).
+-  Mitigated by reading the model's SQL before rewriting its description, never by paraphrasing
+-  the old prose. Where a rewrite would make a vague old phrase into a specific claim, the claim
+-  must be checked against the code or not made.
++  ⚠ THE RULE MUST NOT FIRE ON ORDINARY PROSE, and this is measured, not hypothetical. On the
++  finished MR3/MR4 text, a case-insensitive `CORRECTED` matches six legitimate uses of "the country
++  corrections from the seed" and "derived from the corrected name"; an ISO-date rule would have
++  matched `dim_date`'s calendar range before MR4 reworded it. Match the ANNOTATION forms, not the
++  plain verb. Every banned pattern needs a reason recorded beside it, as `check_copy_gate.py` does.
  
--  Downstream of MR3: MR6 turns on `persist_docs`, and BigQuery hard-rejects a column description
--  over 1,024 characters. Nine descriptions in these two files exceed it today. Clearing them here
--  is a precondition for MR6, not a nicety.
-+  MR4 is the last content MR before the gate. After it, `check_description_hygiene.py` (MR5) must
-+  be green on day one, and no description anywhere may exceed 1,024 characters or MR6's
-+  `persist_docs` breaks the nightly build.
+-  MR4 is the last content MR before the gate. After it, `check_description_hygiene.py` (MR5) must
+-  be green on day one, and no description anywhere may exceed 1,024 characters or MR6's
+-  `persist_docs` breaks the nightly build.
++  No dbt model, seed, mart, export or site file is touched, so the warehouse and the built site are
++  untouched. `PyYAML` is already a dependency; no new dependency enters.
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/seeds/schema.yml
--  - dbt_project/models/5_marts/shared/mart_roster.sql
--  - dbt_project/models/5_marts/shared/mart_standings.sql
--  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - scripts/check_description_hygiene.py
++  - tests/test_description_hygiene.py
++  - .gitlab-ci.yml
++  - .claude/hooks/stop_gate.py
++  - .claude/skills/validate-local/SKILL.md
++  # Added by amendment 1 — the ten files the first full-repo sweep found dirty.
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
-@@ -49,44 +52,40 @@ scope_paths:
+@@ -52,41 +81,62 @@ scope_paths:
    - .claude/active_work.md
  
  decisions_taken: >
--  CPO, in chat 2026-08-20, approving "the whole plan" — all six MRs. MR3's contents are fixed by
--  the six-MR split recorded in `escalations.log`: `shared.yml` + `seeds/schema.yml`.
--
--  CPO, in chat this session (AskUserQuestion, "Fix them in MR3"): the three surviving lowercase
--  "partition key" claims in `mart_roster.sql`, `mart_standings.sql` and `mart_team_fixtures.sql`
--  join `scope_paths` and are fixed HERE rather than left. Same false claim as `shared.yml`, same
--  directory, and MR4's scope does not reach them.
--
--  ⚠ READ THAT RULING FROM `escalations.log`, where it is RULING 0 of this branch's entry. It
--  authorises files beyond the plan's MR3 row, and this contract is overwritten by the next task, so
--  recording it only here would have destroyed it on merge — the same defect class the whole
--  programme is about. scope-auditor FAILed round 1 on exactly that and was right; the log entry was
--  written in response.
-+  CPO, in chat 2026-08-20, approving "the whole plan" — all six MRs. MR4's contents are fixed by
-+  the six-MR split recorded in `escalations.log`: `core.yml`, `base.yml`, `int_momentum.yml`.
-+  No scope widening is sought here. MR3 needed one and it was recorded as RULING 0 of its
-+  escalations entry; if MR4 turns out to need one, it is asked for and logged the same way rather
-+  than taken.
+-  CPO, in chat 2026-08-20, approving "the whole plan" — all six MRs. MR4's contents are fixed by
+-  the six-MR split recorded in `escalations.log`: `core.yml`, `base.yml`, `int_momentum.yml`.
+-  No scope widening is sought here. MR3 needed one and it was recorded as RULING 0 of its
+-  escalations entry; if MR4 turns out to need one, it is asked for and logged the same way rather
+-  than taken.
++  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR5 as the gate.
++  CPO, 2026-08-20, "do both" — the gate runs in CI AND at turn end. See `protected_override`.
  
  decisions_reserved:
--  - The gate that makes this stick is MR5, not this MR. Nothing here is enforced by a check yet;
--    that ordering is deliberate (gate green on day one, the `check_copy_gate.py` precedent).
-+  - The gate is MR5, not this MR. Nothing here is enforced by a check yet; that ordering is
-+    deliberate (gate green on day one, the `check_copy_gate.py` precedent).
+-  - The gate is MR5, not this MR. Nothing here is enforced by a check yet; that ordering is
+-    deliberate (gate green on day one, the `check_copy_gate.py` precedent).
    - `persist_docs` and `dbt docs generate` are MR6. Not touched here.
--  - `core.yml`, `base.yml`, `int_momentum.yml` are MR4. Not touched here.
--  - Any open question displaced out of a description goes to a GitLab issue as an issue, never
--    into another description. Filing it is in scope; deciding it is not.
--  - Rulings that already exist in `escalations.log` are simply deleted from the description.
--    Only rulings that exist NOWHERE ELSE are rescued into it. Checked ruling by ruling, not
--    assumed: the #69 country-naming rulings and the #54 ordering rulings ARE logged and are
--    therefore deleted outright; four others are not and are rescued.
-+  - Rulings already recorded elsewhere are deleted from the description, not copied. Only a ruling
-+    that exists NOWHERE ELSE is rescued into `escalations.log`.
-+    ⚠ "ELSEWHERE" IS NOT ONLY `escalations.log`. A model's own SQL header carries its "why" by
-+    `engineering_standards.md` §1.2, and MR4 edits no `.sql` file, so a ruling written there
-+    survives this MR untouched. scope-auditor FAILed round 1 having searched only the log and
-+    concluded two rulings were destroyed; both are intact in `base_apif__teams_global.sql:1-10`.
-+    One of them had no home outside that comment and IS now rescued into the log; the other was
-+    already there as the 2026-08-19 team-name entries.
-+  - An open question displaced out of a description goes to a GitLab issue. Filing it is in
-+    scope; deciding it is not.
-+  - Nothing outside these three files is edited. The surviving "partition key" instances in five
-+    docs and in `.claude/hooks/dbt_layer_gate.py` are GitLab #79 and need `protected_override`.
+-  - Rulings already recorded elsewhere are deleted from the description, not copied. Only a ruling
+-    that exists NOWHERE ELSE is rescued into `escalations.log`.
+-    ⚠ "ELSEWHERE" IS NOT ONLY `escalations.log`. A model's own SQL header carries its "why" by
+-    `engineering_standards.md` §1.2, and MR4 edits no `.sql` file, so a ruling written there
+-    survives this MR untouched. scope-auditor FAILed round 1 having searched only the log and
+-    concluded two rulings were destroyed; both are intact in `base_apif__teams_global.sql:1-10`.
+-    One of them had no home outside that comment and IS now rescued into the log; the other was
+-    already there as the 2026-08-19 team-name entries.
+-  - An open question displaced out of a description goes to a GitLab issue. Filing it is in
+-    scope; deciding it is not.
+-  - Nothing outside these three files is edited. The surviving "partition key" instances in five
+-    docs and in `.claude/hooks/dbt_layer_gate.py` are GitLab #79 and need `protected_override`.
++  - ⚠ THIS BULLET WAS WRONG AS FIRST WRITTEN, and scope-auditor FAILed the branch on it. It said
++    fixing a survivor was "in scope only as far as making the gate green". That is not the rule I
++    followed and not the rule that is right: where the sweep touches a description, it applies §2
++    IN FULL, not the gate's mechanical subset.
++    WHY, because the distinction is the whole point of trap 1b: the gate's rules are deliberately
++    narrower than §2 — they only match what a machine can decide with no taste. `mart_team_season
++    composes` and `ratios live in mart_team_season_record` are §2-banned downstream-consumer
++    claims that no regex here catches. A minimal token-deletion would have left them standing in a
++    description it had just edited, which is the half-cleaned outcome this programme exists to
++    remove, and would have left those ten files inconsistent with the five MR3/MR4 rewrote.
++    ⚠ ONE OF THE THREE FLAGGED CHANGES WAS NOT §2-DRIVEN and is restored: dropping "Complement to
++    int_team_momentum__metrics" from `int_team_season_record` was a sibling cross-reference, not a
++    downstream claim, and losing it cost something for nothing.
++    analytics-engineer-reviewer checked all ten files against their SQL and found no false claim,
++    so the rewrites are sound; the defect was this bullet describing them wrongly.
++  - The gate's rule set is mine to draft and the reviewers' to challenge. Any rule that would
++    require a CPO judgement — banning something he has asked for — is escalated, not assumed.
  
  done_when:
--  - Every description in both files satisfies §2: business meaning, grain where applicable, source
--    or formula, known limits. No downstream-consumer claim survives in either file.
-+  - Every description in the three files satisfies §2: business meaning, grain where applicable,
-+    source or formula, known limits. No downstream-consumer claim survives.
-   - No description carries an issue ref (`#N`, `GAP-N`, `!N`), an ISO date, a CPO ruling, an
-     "UPDATED"/"CORRECTED"/"an earlier version said", or a severity emoji.
--  - Zero descriptions in either file exceed 600 characters, and therefore zero exceed BigQuery's
--    1,024 (nine do today).
--  - The four false "partition key" claims are gone — `shared.yml:1143` plus the three SQL headers.
-+  - Zero descriptions exceed 600 characters (17 do today; the worst is 2,441).
-   - Repeated shared columns reference MR2's docs blocks rather than restating them.
--  - `.venv/Scripts/dbt.exe parse` succeeds and `dbt ls` returns the same model set as on main.
--  - `python -m pytest tests/` is green.
-+  - `dbt parse` succeeds and `dbt ls` returns the same model set as main.
-+  - `python -m pytest tests/` is green at the 829/1 baseline.
-   - The five offline gates pass, read from their OUTPUT and not their exit code (#904).
-+  - The prose-only proof runs clean over all three files.
-   - Handover updated in the SAME commit as the code it describes.
+-  - Every description in the three files satisfies §2: business meaning, grain where applicable,
+-    source or formula, known limits. No downstream-consumer claim survives.
+-  - No description carries an issue ref (`#N`, `GAP-N`, `!N`), an ISO date, a CPO ruling, an
+-    "UPDATED"/"CORRECTED"/"an earlier version said", or a severity emoji.
+-  - Zero descriptions exceed 600 characters (17 do today; the worst is 2,441).
+-  - Repeated shared columns reference MR2's docs blocks rather than restating them.
+-  - `dbt parse` succeeds and `dbt ls` returns the same model set as main.
+-  - `python -m pytest tests/` is green at the 829/1 baseline.
+-  - The five offline gates pass, read from their OUTPUT and not their exit code (#904).
+-  - The prose-only proof runs clean over all three files.
+-  - Handover updated in the SAME commit as the code it describes.
++  - `scripts/check_description_hygiene.py` matches its six siblings: `main() -> int`, 0/1, no CLI
++    args, findings accumulated then printed with a count, a census line on success.
++  - It carries an anti-vacuous floor, as `check_copy_gate.py` does: if it finds implausibly few
++    descriptions it fails loudly rather than passing green on a broken parser.
++  - `tests/test_description_hygiene.py` drives `main()` against a synthetic offender for EVERY
++    banned class and asserts exit 1, and proves the floor fires from inside the gate.
++  - THE GATE IS SEEN RED. Break it deliberately, watch it fail, restore. A passing gate proves
++    nothing (#904) — this is the repo's dominant failure and the acceptance evidence must show it.
++  - Run against the WHOLE repo before wiring: zero findings on main's current content.
++  - Wired in all three places, and `test_fast_gates_and_validate_local_agree` passes.
++  - `python -m pytest tests/` green at the 829/1 baseline plus the new tests.
++  - The five existing fast gates still pass, read from their OUTPUT not their exit code.
++  - Handover updated in the SAME commit as the code.
  
  amendments:
+-  - none
++  - >
++    1. TEN MORE FILES ADDED TO scope_paths, because the first full-repo sweep measured the gate
++    red on main. 35 findings across 10 files that MR3 and MR4 never touched: 14 issue refs, 9
++    over-length, 6 ISO dates, 4 decision-language, 1 severity emoji, 1 downstream-consumer claim.
++    The plan assumed MR3+MR4 would leave the repo green; that assumption was wrong for a reason
++    worth recording — the audit judged those 14 files "healthy" against its own reading, and this
++    gate's rule is stricter than that judgement. So the audit's 83%-in-5-files figure is right
++    about where the WORST text is and wrong as a completeness claim.
++    Fixing them is the `check_copy_gate.py` precedent applied literally: clear the findings, THEN
++    wire, so the default branch never goes red. It is not new editorial scope — the same six
++    mechanical classes MR3 and MR4 removed, in the files that were out of their reach.
++    ⚠ This makes MR5 two things in one MR: the last of the content sweep, and the gate. If a
++    reviewer judges that unreviewable, the content half splits out and the gate follows it.
++  - >
++    2. ONE RULE WIDENED DURING THE SWEEP, recorded because it changes what the gate catches.
++    `stg_apif__lineups` claims "This model has NO consumer today" — the exact shape of the
++    `display_group` claim that started this programme, and the first draft's
++    `no dbt model reads` arm did not match it. The downstream rule is now written as a CLASS
++    (no/zero/only/single reader-or-consumer, nothing downstream, feeds/enriches/powers a named
++    model) rather than a list of the instances seen so far.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 7cd13af..558aa11 100644
+index 558aa11..b154d20 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -4073,3 +4073,41 @@ ONE SCOPE RULING, and FOUR RULINGS RESCUED because a description was the only pl
-   it. And it is not a precedent for writing a ruling to a description first and rescuing it later;
-   the ruling goes here when it is made. Rescue was needed exactly four times, and each one is a
-   historical defect of the same class the programme exists to fix.
+@@ -4111,3 +4111,43 @@ programme. ONE RULING RESCUED, and a reviewer premise corrected with evidence.
+   1900-01-01 to 2101-01-01, with no filter. The old text was false and my first rewrite reworded it
+   without checking, which is exactly the failure MR4's own contract names as its one real risk.
+   Found by reading the SQL. It is now "one row per day from 1900 through 2100".
 +
 +
-+2026-08-20 chore/description-cleanup-core-base-intermediate — MR4 of the description-drift
-+programme. ONE RULING RESCUED, and a reviewer premise corrected with evidence.
++2026-08-20 feat/description-hygiene-gate — MR5 of the description-drift programme. CPO APPROVAL
++FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches either file.
 +
-+  NOT AN ESCALATION. No decision is asked for or taken. MR4 cleaned `core.yml`, `base.yml` and
-+  `int_momentum.yml` — the last of the five contaminated files — and this entry exists for one
-+  ruling that turned out to have no durable home.
++  WHY THIS ENTRY EXISTS AT ALL. GitLab #28: `protected_override` can claim a CPO ruling with no
++  entry here to back it, which makes the override self-certifying. So the approval is written down
++  first and the contract cites it, rather than the contract asserting an approval nobody can check.
 +
-+  RULING RESCUED — ENTITY CORRECTIONS BELONG IN BASE, THE CORE DIM PUBLISHES (CPO, 2026-07-27).
-+  A correction to an entity's identity — a team's display name, a country's spelling — is applied
-+  in the BASE model, so the core dimension publishes an entity that is already settled. The dim
-+  propagates a result; it never coalesces an override itself. This is why
-+  `base_apif__teams_global` joins `team_name_overrides` and `country_name_overrides`, and why
-+  `dim_team` is a passive pass-through of the settled value.
-+  It was recorded verbatim in `base_apif__teams_global.sql:4-6` and nowhere else. The
-+  2026-07-27/28 entry above covers the OTHER two slug rulings of that day — transliteration, and
-+  the provider id being ruled out of URLs — and not this one.
++  THE ASK, as put to the CPO. MR5 builds `scripts/check_description_hygiene.py` — the machine check
++  that makes the whole programme stick, because prose rules do not hold in this repo (of 50 past
++  corrections, 33 were prose-only and 22 recurred; every rule that got a machine check stopped
++  recurring). Building the script and its tests needs no permission. WIRING it does: the gate is
++  useless unwired, and two of the three wiring points are PROTECTED paths that an ordinary task
++  contract may not edit —
++    - `.gitlab-ci.yml` (PROTECTED_FILES) — so it runs on every push.
++    - `.claude/hooks/stop_gate.py` FAST_GATES (PROTECTED_PREFIXES `.claude/hooks/`) — so it runs at
++      the end of every turn, catching a bad description while it is still in the file.
++  The third, `.claude/skills/validate-local/SKILL.md`, is NOT protected, but must change in
++  lockstep: `test_fast_gates_and_validate_local_agree` asserts SET EQUALITY between its marked
++  FAST_GATES block and the hook's tuple.
 +
-+  ⚠ A REVIEWER PREMISE CORRECTED, recorded because the correction is the useful part.
-+  scope-auditor FAILed MR4 on the grounds that the diff DESTROYED this ruling and the
-+  "#851 only-team-name" identity ruling, having searched this log and found neither. The search was
-+  right and the conclusion was wrong: both survive untouched in
-+  `base_apif__teams_global.sql:1-10`, which MR4 does not edit, and `engineering_standards.md` §1.2
-+  is explicit that a model's "why" belongs in its file. The identity ruling is additionally in this
-+  log already, as the 2026-08-19 team_name_overrides entries — the CPO's "we have to define the
-+  name we use as the single source of truth for what we display".
-+  So nothing was lost. What the finding DID surface is that the base/dim ruling had no durable
-+  home outside one SQL comment, which is worth closing on its own, hence the rescue above.
-+  The lesson generalises: when checking whether a deleted description destroyed a ruling, search
-+  the MODEL FILE too, not only this log. A description and its model's header comment are two
-+  places the same authority is written, and MR4 deleted only one of them.
++  ⚠ TWO CORRECTIONS OF MY OWN FRAMING, both made while answering him. First, I twice named the two
++  protected paths as `stop_gate.py` and the validate-local SKILL — the skill is not protected;
++  `.gitlab-ci.yml` is. The approved plan file carries the same error, so it is not a transcription
++  slip and the plan should not be trusted on that point. Second, I put the choice to him three
++  times in terms of file paths and gate mechanics, and he said three times that he could not tell
++  what he was being asked to approve. The question he could actually answer was "when should the
++  guard fire — only on push, or also as I write it". That is the framing that got an answer, and
++  the failure was mine: the decision was always about behaviour, not about files.
 +
-+  ⚠ AND ONE FALSE CLAIM OF MY OWN, caught before it shipped. `dim_date`'s description said the
-+  calendar ran "2015-07-01 through 2030-12-31". The date_spine in `dim_date.sql:6-9` runs
-+  1900-01-01 to 2101-01-01, with no filter. The old text was false and my first rewrite reworded it
-+  without checking, which is exactly the failure MR4's own contract names as its one real risk.
-+  Found by reading the SQL. It is now "one row per day from 1900 through 2100".
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 6925978..0a0e219 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -3,9 +3,13 @@ version: 2
++  CPO ANSWER, verbatim: "do both". So the gate runs BOTH in CI and at turn end.
++  His stated reason for wanting the turn-end one, in my framing that he accepted: the CI run only
++  tells me off after the bad text is written and pushed; the turn-end run is what actually stops
++  the mess being made.
++
++  SCOPE OF THE OVERRIDE, deliberately narrow. It authorises exactly two edits: one line added to
++  `validate:governance`'s script list in `.gitlab-ci.yml`, and one entry added to `FAST_GATES` in
++  `stop_gate.py`. It authorises no other change to either file, and no other protected path.
++  Both files route to `cto-reviewer` + `platform-reviewer`, so MR5 carries four reviewers.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index cbb8372..cbb04d4 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -361,6 +361,13 @@ validate:governance:
+     # because it is a script and not a reviewer. Cleared in MR !7; wired here so it cannot
+     # silently stop mattering again. Offline, reads two files, well under a second.
+     - python scripts/check_copy_gate.py
++    # Description hygiene. dbt `description:` fields were being used as a decision log —
++    # rulings, dated stamps, issue refs, and hand-maintained claims about who reads a column
++    # downstream. An audit measured 616 descriptions and found three provably FALSE, each of
++    # them a downstream claim; one said a column had no readers while a live mart filtered on
++    # it. MR1-MR4 rewrote all 618 against engineering_standards.md section 2; this keeps them
++    # that way. Offline, parses YAML off disk, well under a second.
++    - python scripts/check_description_hygiene.py
+     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+     - *dbt_profile
+     - cd dbt_project && dbt deps && dbt parse
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 103b89b..4f69427 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -159,10 +159,12 @@ models:
+ 
+   - name: stg_apif__lineups
+     description: >
+-      One row per team per fixture from $.lineups in raw_apif_fixture_details — an append-only
+-      table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully (no
+-      latest-snapshot qualify — sub-league grain). ⚠ This model has NO consumer today, so nothing
+-      downstream resolves its versions. Grain at staging: (fixture_id, team_id, raw_ingested_at).
++      One row per team per fixture, from $.lineups in raw_apif_fixture_details — an append-only
++      table holding one row per FETCH of a fixture. Grain: (fixture_id, team_id, raw_ingested_at).
++
++      Staging reads every row faithfully, with no latest-snapshot filter, because the raw grain is
++      finer than a league. That means a fixture fetched five times has five rows here, and
++      resolving which version to use is left to whatever reads it.
+     columns:
+       - name: league_code
+         tests: [not_null]
+@@ -240,10 +242,12 @@ models:
+ 
+   - name: stg_apif__coaches
+     description: >
+-      Coach entity flatten from RAW_APIF_COACHES response[].coach (identity / bio). RAW_APIF_COACHES
+-      is a complete snapshot per (league_code, run); staging reads ALL snapshots faithfully (NOT
+-      latest-per-league) — CPO-ruled to preserve every coach ever seen (mirrors dim_player/dim_team);
+-      cross-league + cross-snapshot entity dedup is in base, so no unique test here.
++      Coach identity and bio, flattened from RAW_APIF_COACHES response[].coach.
++
++      The raw table is a complete snapshot per (league_code, run), and staging reads EVERY
++      snapshot rather than the latest per league, deliberately: that preserves every coach ever
++      seen, the same way player and team staging do. Deduplication across leagues and snapshots
++      happens in base, which is why there is no unique test here.
+     columns:
+       - name: league_code
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 8d13cf2..f8d7777 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -34,11 +34,11 @@ models:
+ 
+   - name: int_team_season__metrics
+     description: >
+-      Canonical per (league_code, season_api_year, team_sk) season rollup — advanced metrics
+-      aggregated over all finished legs (same sum/rate semantics as int_matchday__team_form_metrics
+-      without a five-game cap), plus the W/D/L counts (wins/draws/losses_sum_season) that
+-      mart_team_season composes instead of re-aggregating (#500). mart_team_season_insights exposes
+-      only the latest season_api_year per league_code.
++      A team's whole-season rollup: every metric aggregated over all its finished matches, plus
++      the W/D/L counts. Grain: (league_code, season_api_year, team_sk).
++
++      Same sum and rate semantics as the recent-form metrics, without the five-game cap — so a
++      season figure and a form figure are directly comparable.
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+@@ -84,14 +84,14 @@ models:
+ 
+   - name: int_team_season__metrics_cumulative
+     description: >
+-      Per-matchday cumulative team-season rate metrics — the int_team_season__metrics rate formulas
+-      applied to EVERY cumulative row of int_team_season_record (not just the final). The single home
+-      of the team-season rate formulas (#500 one-aggregation): int_team_season__metrics is this
+-      model's final-row projection (byte-identical), and int_team_profile__yoy composes it at the
+-      games-played cutoff N to align two seasons by matchday for ALL metrics. All-competitions.
+-      The _sum_season / season_games_played names are inherited from the projection for byte-identity;
+-      here they mean "cumulative through this matchday". Grain: (team_sk, league_code, season_api_year,
+-      match_number).
++      A team's season metrics as they stood after EVERY matchday, not only at the end. Grain:
++      (team_sk, league_code, season_api_year, match_number). All competitions.
++
++      THE SINGLE HOME of the team-season rate formulas: the whole-season model is this model's
++      final row, byte-identical, so the two can never drift apart.
++
++      The `_sum_season` and `season_games_played` names are inherited from that projection to keep
++      it byte-identical; here they mean "cumulative through this matchday", not "for the season".
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+@@ -142,19 +142,16 @@ models:
+ 
+   - name: int_team_season__deserved_vs_actual
+     description: >
+-      TEAM deserved-vs-actual read (points-space), one row per (team_sk, season_sk): the points the
+-      team's process deserved vs the points it actually has. Within each league-season, ordinary
+-      least squares fits points-per-match on sot_difference_per_match (SoT for - against per match);
+-      deserved_points = that fitted rate * the team's own games played; sot_points_gap =
+-      points_won_sum_season - deserved_points (NEGATIVE = under-performing, POSITIVE = over-
+-      performing); deserved_rank ranks teams by deserved_points within the league-season (1 = best),
+-      so rank and points can never disagree. DOMESTIC LEAGUES ONLY — a group-stage tournament's
+-      standing is a within-group position, not a comparable 1..N league rank. Computed only for
+-      league-seasons where EVERY team has full SoT coverage, a league rank, and >= 3 finished games;
+-      NULL otherwise. Composes int_team_season__metrics + int_team_season__standings_primary.
+-      TEAM only, no xG. Because the fit is least squares within the league-season, the gap is a
+-      redistribution: it sums to exactly 0 across a balanced season, and to approximately 0 mid-
+-      season (each fitted rate is scaled by that team's own games played).
++      The points a team's process deserved, against the points it actually has. Grain: (team_sk,
++      season_sk). DOMESTIC LEAGUES ONLY: a group-stage standing is not a comparable league rank.
++
++      Least squares fits points-per-match on sot_difference_per_match within each league-season.
++      deserved_points is that rate times the team's games played; sot_points_gap is actual minus
++      deserved, NEGATIVE meaning under-performing.
++
++      The gap redistributes: it sums to zero across a balanced season. NULL unless every team in
++      that league-season has full shots-on-target coverage, a league rank and three finished
++      games.
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+@@ -247,17 +244,16 @@ models:
+ 
+   - name: int_player_season__metrics
+     description: >
+-      Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
+-      player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
+-      mart_player_season was retired with the leaderboards consolidation). #480 §8.3: now COMPOSES
+-      int_player_club_season__metrics (the per-club atoms base) — the club rows re-summed to the
+-      competition-season with ratios / per-90 re-derived from the re-summed atoms; output unchanged.
+-      Atoms follow the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
+-      passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
+-      nulls to 0; appearances = finished matches actually PLAYED, minutes > 0 (honest absence; before
+-      2026-07-23 it counted every player-stat row, so unused substitutes inflated it); rates null when
+-      the denominator is zero. team_sk = the player's last known club that competition-season.
+-      Grain: (player_sk, season_sk).
++      A player's whole-season aggregate over all their finished matches — the single player-season
++      rollup. Grain: (player_sk, season_sk).
++
++      Composed from the per-club atoms: the club rows re-summed to the competition-season, with
++      ratios and per-90s re-derived from the re-summed atoms rather than averaged.
++
++      The atoms follow the metric_catalogue seed. passes_accurate is rounded per fixture then
++      summed, the weighted-ratio numerator. Counts treat NULL as 0. `appearances` counts matches
++      actually PLAYED. Rates are NULL on a zero denominator. team_sk is the player's last known
++      club that season.
+     config:
+       tags: ["intermediate", "football", "team_season", "player"]
+     tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index 9eace69..c0d598b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -3,14 +3,16 @@ version: 2
  models:
-   - name: base_apif__teams
+   - name: int_team_momentum_window
      description: >
--      Unified teams across all onboarded competitions (explicit ref() per
--      competition staging). Same enrichment as BL1: /teams plus fixture-derived
--      keys and name fallback. Output grain: (league_code, team_api_id).
-+      One row per team per competition, from the generic stg_apif__teams model. Grain:
-+      (league_code, team_api_id).
+-      W1 momentum-window selection — team. One row per (upcoming fixture side, window leg).
+-      Default (window_type='last_5'): the team's last 5 finished matches before the upcoming
+-      fixture, cross-competition within the same entity_type, season-capped for clubs and
+-      recency-only for national teams. Tournament fixtures (GAP-18, matrix §4) instead use a
+-      cumulative window — tournament_to_date (this tournament so far) or qualifiers (its
+-      opener) — uncapped. Extracted from int_team_momentum__metrics (#323) so the momentum aggregate
+-      and the drill-down list mart consume the same selection.
+-      Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
++      WHICH past matches count as a side's recent form. One row per (upcoming fixture side,
++      selected match). Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
 +
-+      The key set is a union rather than just /teams: team ids are also collected from fixtures,
-+      standings, per-fixture statistics, player stats and events. A team that appears in a
-+      competition's matches is therefore present even when the provider's /teams call never
-+      returned it, which is common on newly onboarded competitions.
-     config:
-       tags: ["base", "api_football", "team_context"]
-     tests:
-@@ -19,40 +23,16 @@ models:
- 
-   - name: base_apif__teams_global
-     description: >
--      One row per team_api_id: latest ingest across (league_code, team_api_id) rows
--      from base_apif__teams. Entity resolution for dim_team. Grain: team_api_id.
--
--      Also applies the CPO-owned display-name corrections from the team_name_overrides seed
--      (#850). This is the layer where they belong: base prepares the entity, the core dim
--      publishes an already-settled one (CPO ruling, 2026-07-27). It matters because the
--      provider's short name is the ONLY team name in the product — it drives the fixture
--      card, the page H1, the title, the meta description and the URL slug (#851) — so the
--      correction has to land once, upstream of all of them.
--
--      Note for anyone reading a historical row elsewhere: fct_fixture_event's
--      team_name_snapshot is written on insert and never revisited, so it deliberately keeps
--      the name as it stood at ingest time and will not reflect a later correction.
-+      One row per team: the settled entity, from the latest ingest across base_apif__teams'
-+      per-competition rows. Grain: team_api_id.
- 
--      Also derives team_slug, the permanent locale-independent URL segment (#852), from the
--      CORRECTED name via a symmetric, closed collision ladder. Symmetric: a contested name is
--      given to nobody, so no ranking or per-collision adjudication is ever needed. Each
--      candidate is tested against the strings already assigned, not merely against its own
--      contending group, because a country-anchored candidate can equal a DIFFERENT team's bare
--      slug (the Ararat / Ararat-Armenia pair is that shape, though both sit at level 1 today so
--      the anti-join has not fired) and a `{name}-{id}` candidate can equal a bare slug too,
--      since club names embed digits (`1899 Hoffenheim` owns `hoffenheim-1899`).
-+      Identity is DECIDED here, not carried through: the name and country corrections from the
-+      override seeds are applied here, so the core dim publishes a settled entity.
- 
--      STATED RESIDUAL, not closed: if a level-3 `{name}-{id}` candidate is itself already taken,
--      team_slug is NULL and the not_null test stops the build naming the team. Reaching it takes
--      a club named "<X> <another club's provider id>" in the same country as that club. That is a
--      data situation for a human, and the fix is an override row — not a wider rule and not an
--      automatic escape hatch. An earlier revision added a doubled-hyphen terminal here because
--      kebab_slug can never emit `--`; it was provably unique and it was a hack, buying closure
--      with a URL no reader should see, for a case that fires zero times. Removed deliberately.
--
--      Note the two most common level-3 triggers are DATA DEFECTS rather than naming problems:
--      a same-country duplicate record (#850's open alias decision) and a null country (#853 — 39
--      teams, 22 of which have a country in stg_apif__teams). Fixing those mostly empties level 3.
-+      team_slug, the permanent locale-independent URL segment, is derived from the corrected name
-+      by a closed collision ladder — bare slug, then anchored to the country, then suffixed with
-+      the provider id. If that is taken too, team_slug is NULL and the not_null test stops the
-+      build.
-     config:
-       tags: ["base", "api_football", "team_context"]
-     tests:
-@@ -66,13 +46,12 @@ models:
- 
-   - name: base_apif__leagues
-     description: >
--      Unified league-season rows across all onboarded competitions, read from the generic
--      staging model with league_code flowing through as a column. Deduplicated per
--      (league_code, league_api_id, season_api_year). Also applies the country-name corrections
--      from the country_name_overrides seed (#62), so league_country is display-ready before
--      dim_league publishes it. Feeds base_apif__league_entity,
--      base_apif__competition_seasons, and core dims built from those. Output grain:
--      (league_code, league_api_id, season_api_year).
-+      One row per league-season, from the generic stg_apif__leagues model with league_code
-+      flowing through as a column, deduplicated on the grain.
-+      Grain: (league_code, league_api_id, season_api_year).
++      By default the team's last 5 finished matches before the fixture, across competitions but
++      within the same entity_type, capped to the season for clubs and recency-only for national
++      teams. A tournament fixture instead takes a cumulative, uncapped window: the tournament so
++      far, or its qualifiers.
 +
-+      It also applies the country corrections from the country_name_overrides seed, so
-+      league_country is already the canonical English name by the time the core dim publishes it.
-     config:
-       tags: ["base", "api_football", "league_context"]
-     tests:
-@@ -103,9 +82,9 @@ models:
- 
-   - name: base_apif__competition_seasons
-     description: >
--      One row per (league_api_id, season_api_year); tie-breaks duplicate keys by
--      raw_ingested_at desc. Feeds dim_competition_season. Grain:
--      (league_api_id, season_api_year).
-+      One row per competition-season, collapsing the same season seen under more than one
-+      league_code by keeping the most recently ingested row.
-+      Grain: (league_api_id, season_api_year).
-     config:
-       tags: ["base", "api_football", "league_context"]
-     tests:
-@@ -121,9 +100,8 @@ models:
- 
-   - name: base_apif__fixtures_next
-     description: >
--      Unified fixtures across all onboarded competitions (explicit ref() per
--      competition staging). Deduplicated per fixture_id. Feeds fct_fixture.
--      Output grain: fixture_id.
-+      One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
-+      fixture_id. Grain: fixture_id.
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -137,11 +115,12 @@ models:
- 
-   - name: base_apif__standings
-     description: >
--      Unified standings across all onboarded competitions (generic staging).
--      Deduplicated per (league_code, season, team_id, group_name). Feeds
--      fct_standings. group_name is the API standings section/table name (true
--      table identity); group_description is the API zone/stage annotation.
--      Output grain: (league_code, season, team_id, group_name).
-+      One row per team per standings section, from the generic stg_apif__standings model,
-+      deduplicated on the grain. Grain: (league_code, season, team_id, group_name).
-+
-+      group_name is the provider's section or table name and is the true table identity — a league
-+      name for a single table, a group name for a group stage. group_description is a zone or
-+      stage annotation and is never an identity.
-     config:
-       tags: ["base", "api_football", "standings_context"]
-     tests:
-@@ -159,10 +138,9 @@ models:
- 
-   - name: base_apif__fixture_statistics
-     description: >
--      Unified per-team fixture statistics across all onboarded competitions
--      (explicit ref() per competition staging). Deduplicated per
--      (league_code, fixture_id, team_id). Feeds fct_fixture_team_stats.
--      Output grain: (league_code, fixture_id, team_id).
-+      One row per team per fixture with that team's match statistics, from the generic
-+      stg_apif__fixture_statistics model, deduplicated on the grain.
-+      Grain: (league_code, fixture_id, team_id).
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -178,10 +156,12 @@ models:
- 
-   - name: base_apif__fixture_players
-     description: >
--      Unified per-player match statistic rows across all onboarded competitions.
--      League list driven by var('active_competition_league_codes').
--      Deduplicated per (league_code, fixture_id, team_id, player_id).
--      Feeds fct_fixture_player_stats. Output grain: (league_code, fixture_id, team_id, player_id).
-+      One row per player per fixture with that player's match statistics, from the generic
-+      stg_apif__fixture_players model, deduplicated on the grain.
-+      Grain: (league_code, fixture_id, team_id, player_id).
-+
-+      Many competitions supply no player statistics at all, so a fixture missing from here has
-+      none rather than zeroes.
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -199,12 +179,14 @@ models:
- 
-   - name: base_apif__players
-     description: >
--      Global player identity: one row per player_api_id, unioned from /players,
--      fixture player stats, and fixture events, deduplicated in a single pass that
--      prefers the most authoritative named source (source_priority) then the most
--      recent ingest. Identity only — no league_code or team/season affiliation
--      (those live in dim_player_team_season_mapping and the facts). Feeds dim_player.
-+      Global player identity: one row per player_api_id, unioned from /players, fixture player
-+      stats and fixture events, then deduplicated in a single pass that prefers the most
-+      authoritative named source and, within that, the most recent ingest.
-       Grain: player_api_id.
-+
-+      IDENTITY ONLY — no league_code, and no team or season affiliation. A player belongs to
-+      clubs over time, not to one competition, so affiliation lives in
-+      dim_player_team_season_mapping and in the facts.
-     config:
-       tags: ["base", "api_football", "player_context"]
-     tests:
-@@ -218,8 +200,7 @@ models:
-     description: >
-       Current per-player bio from the rich /players/profiles source
-       (stg_apif__player_profiles), reduced to the latest row per player_id.
--      Identity-level only — no league_code/team/season. Enriches dim_player.
--      Grain: player_api_id.
-+      Identity-level only — no league_code, team or season. Grain: player_api_id.
-     config:
-       tags: ["base", "api_football", "player_context"]
-     tests:
-@@ -231,17 +212,16 @@ models:
- 
-   - name: base_apif__fixture_events
-     description: >
--      Deduplicated fixture event rows from stg_apif__fixture_events. Keeps
--      the most recently ingested version per event position.
--      Output grain: (league_code, fixture_id, event_index).
--      event_index is the 0-based position in the $.events array and is the
--      stable identity for each event. The API occasionally returns duplicate
--      event content at different positions; base deduplicates on position,
--      not content. team_id is then resolved: a null team_id is recovered from the same
--      team's other events in the fixture (by team_name), and known provider team-id defects
--      are corrected via the CPO-owned seeds/fixture_event_team_overrides.csv (#526) — an
--      `alias` duplicate-id replacement, or a participant-gated `reattribute_if_cohabiting`
--      mis-attribution fix.
-+      One row per event in a fixture, from stg_apif__fixture_events, keeping the most recent
-+      ingest. Grain: (league_code, fixture_id, event_index).
-+
-+      event_index is the 0-based position in the provider's events array and is the stable
-+      identity of an event. Deduplication is on POSITION, not content: the provider sometimes
-+      repeats event content at different positions, and both are kept.
-+
-+      team_id is then resolved. A null one is recovered from the same team's other events in that
-+      fixture, matched by name, and known provider team-id defects are corrected from the
-+      fixture_event_team_overrides seed.
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -307,8 +287,9 @@ models:
- 
-   - name: base_apif__coaches
-     description: >
--      Coach identity (global entity): one row per coach_api_id from stg_apif__coaches, latest ingest.
--      Identity / bio only — no league_code. Feeds dim_coach. Grain: coach_api_id.
-+      Coach identity as a global entity: one row per coach_api_id from stg_apif__coaches, latest
-+      ingest. Identity and bio only — no league_code, because a coach is not scoped to one
-+      competition. Grain: coach_api_id.
-     config:
-       tags: ["base", "api_football", "coach_context"]
-     tests:
-@@ -320,10 +301,11 @@ models:
- 
-   - name: base_apif__coach_career
-     description: >
--      Coach↔team career stints, deduped one row per (coach, team, start_date) from
--      stg_apif__coach_career — the "clubs managed" history. The career team set exceeds dim_team
--      (untracked clubs), so the team link stays on the provider id. Feeds dim_coach_team_mapping.
--      Grain: (coach_api_id, team_api_id, start_date).
-+      A coach's career stints: one row per spell at a club, from stg_apif__coach_career — the
-+      "clubs managed" history. Grain: (coach_api_id, team_api_id, start_date).
-+
-+      The team link stays on the raw provider id rather than resolving to dim_team, because the
-+      career history names clubs we do not track, so many of these teams have no dim_team row.
-     config:
-       tags: ["base", "api_football", "coach_context"]
-     tests:
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 1ba559f..3b61eda 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -16,7 +16,11 @@ version: 2
- 
- models:
-   - name: dim_date
--    description: "Global calendar dimension, one row per day from 2015-07-01 through 2030-12-31. Grain: date_day. Not league-scoped; every fact that carries a date joins via ``date_sk``."
-+    description: >
-+      Global calendar dimension: one row per day from 1900 through 2100. Grain: date_day.
-+
-+      Deliberately far wider than any football data we hold, so it never needs extending. Not
-+      scoped to a competition — every fact carrying a date joins it through `date_sk`.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -53,18 +57,16 @@ models:
- 
-   - name: dim_country
-     description: >
--      Canonical country dimension. Grain: country_key. Published from the `countries` seed (#69);
--      the provider's spellings are mapped onto these names by `country_name_overrides` in BASE, so
--      this dim publishes and never corrects.
--      ⚠ NOT a list of UN countries — 188 of 224 rows are UN states, the rest are football
--      associations (England, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei …),
--      player-producing territories, one unrecognised state and one historical (Yugoslavia). None is
--      droppable; England is the most common value in the dataset.
--      ⚠ NO SURROGATE KEY: a country has no provider id, so `country_key` is the key. Inventing a
--      synthetic integer would add a join without adding identity.
--      READ by `dim_league.league_country`, `dim_team.team_country`, `dim_player.player_birth_country`
--      and `dim_coach.coach_birth_country`, each a `relationships` test to this dim's `country_name`
--      (#69 step 5).
-+      The canonical country dimension, published from the `countries` seed. Grain: country_key.
-+
-+      It publishes and never corrects: provider spellings are mapped onto these names in base, so
-+      anything arriving here is already canonical.
-+
-+      NOT A LIST OF UN MEMBER STATES, and joining it to one drops real rows. Most entries are UN
-+      states; the rest are football associations (England, Scotland, Kosovo), territories, one
-+      unrecognised state and one historical country.
-+
-+      NO SURROGATE KEY: a country has no provider id, so the assigned country_key is the key.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -81,19 +83,16 @@ models:
- 
-   - name: dim_region
-     description: >
--      Region dimension — the counterpart to `dim_country` (#69). A competition points at ONE of the
--      two: a domestic competition has a country, a continental or international one has a region.
--      Which relationship is populated IS the answer, which is what removes the need for
--      `competition_types.single_country`. Grain: region_key. Published from `confederations.csv`
--      (#57), which nothing read before this.
--      ⚠ `region_key` holds a CONFEDERATION CODE (UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA).
--      The seed keeps `confederation` as its column name because it is the authoring surface; the dim
--      publishes it under the name its consumers read. `FIFA -> World` is a judgement, not geography.
--      ⚠ This adds PUBLICATION and symmetry, NOT a new guard:
--      `competition_registry.confederation` already carries a `relationships` test to
--      `ref('confederations')`, so the competition-to-region check exists at seed level today.
--      READ by `mart_competition_index.region_label` for the competitions with no country (#62
--      step 3) — see `dim_country`.
-+      The region dimension, the counterpart to dim_country, published from the `confederations`
-+      seed. Grain: region_key.
-+
-+      A competition points at ONE of the two: a domestic competition has a country, a continental
-+      or international one has a region. Which of the two is populated IS the answer, so no
-+      separate flag is needed to tell them apart.
-+
-+      region_key holds a CONFEDERATION CODE — UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA. The
-+      seed calls that column `confederation` because it is the authoring surface; the dim
-+      publishes it as region_key. `FIFA -> World` is a judgement, not geography.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -140,12 +139,13 @@ models:
-               severity: warn
-       - name: league_country
-         description: >
--          Country the league belongs to, canonicalised and reconciled against `dim_country` in
--          base (#69). NULL for the 24 international/continental competitions — the provider's
--          'World' sentinel is not a country, and under the two-dimension model those rows carry
--          no country and take their region from `confederation` instead. Which relationship is
--          populated (this column, or `confederation` → `dim_region`) IS the answer to "does this
--          competition show a country or a region" — see `mart_competition_index`.
-+          The country a league belongs to, already canonicalised and reconciled against
-+          dim_country in base.
-+
-+          NULL for every international and continental competition: the provider's 'World'
-+          sentinel is not a country, so those rows carry none and take their region from
-+          `confederation` instead. Whether this column or the region is populated IS the answer to
-+          "does this competition show a country or a region".
-         tests:
-           - relationships:
-               to: ref('dim_country')
-@@ -236,34 +236,29 @@ models:
-         tests: [not_null]
-       - name: team_name
-         description: >
--          Team display name. API-Football's value, with the CPO-owned corrections from the
--          team_name_overrides seed applied in base (#850). This is the ONLY team name in the
--          product — the fixture card, the page H1, the title and the meta description all read
--          it — so a wrong value here is wrong on every surface at once (#851).
-+          The team's display name: the provider's value with the corrections from the
-+          team_name_overrides seed already applied in base.
-+
-+          There is no second team-name field anywhere, so this value names the team wherever a
-+          team is named, and a wrong value here is wrong in every one of those places at once.
-         tests: [not_null]
-       - name: team_slug
-         description: >
--          The team's permanent, locale-independent URL segment: /{locale}/teams/{team_slug}/
--          (docs/site_architecture.md section 3). Derived in base_apif__teams_global from the
--          CORRECTED name, so it changes when a correction lands — slugs are not yet persisted,
--          which is #852's remaining half (PR D). Carries no provider id except in the terminal
--          collision case (a same-country duplicate, a missing country, or a name that folds to
--          nothing), which is the only place an id appears in any URL.
--          BOTH tests are load-bearing, for different reasons. `unique`: two teams on one slug
--          would mean two pages resolving to one path, and in a static build one silently
--          overwrites the other. `not_null`: the ladder deliberately yields NULL rather than
--          inventing a stranger URL when even the id-suffixed candidate is already taken, so this
--          test IS the escalation path for that case — it stops the build and names the team so a
--          human resolves it with an override row. Reaching it takes a club named
--          "<X> <another club's provider id>" in the same country as that club; expected NULLs
--          today: zero.
-+          The team's permanent, locale-independent URL segment, derived in
-+          base_apif__teams_global from the corrected name. It carries no provider id except in the
-+          terminal collision case, the only place an id appears in any URL.
-+
-+          BOTH tests are load-bearing. `unique`: two teams on one slug means two pages resolving
-+          to one path, and in a static build one silently overwrites the other. `not_null`: the
-+          ladder yields NULL rather than invent a stranger URL, so that test IS the escalation
-+          path — it stops the build and names the team for a human to resolve.
-         tests: [not_null, unique]
-       - name: team_code
-         description: "Short team code (3-4 letters) from API-Football."
-       - name: team_country
-         description: >
--          Country the team is registered in, canonicalised and reconciled against `dim_country`
--          in base (#69). Can be NULL — not every provider row carries one.
-+          The country a team is registered in, already canonicalised and reconciled against
-+          dim_country in base. Can be NULL — not every provider row carries one.
-         tests:
-           - relationships:
-               to: ref('dim_country')
-@@ -324,8 +319,8 @@ models:
-         description: "Birth place (city), from /players/profiles."
-       - name: player_birth_country
-         description: >
--          Birth country, from /players/profiles, canonicalised and reconciled against
--          `dim_country` in base (#69). Can be NULL — not every provider row carries one.
-+          Birth country, from the provider's player profiles, already canonicalised and reconciled
-+          against dim_country in base. Can be NULL — not every provider row carries one.
-         tests:
-           - relationships:
-               to: ref('dim_country')
-@@ -341,16 +336,15 @@ models:
- 
-   - name: dim_player_team_season_mapping
-     description: >
--      Relationship (mapping) dimension: rostered player↔team↔season membership.
--      Grain: (player_sk, team_sk, league_code, season_api_year) — one row per player per
--      team per season they were in the /players roster, including squad members with zero
--      appearances. An association across dimensions, not an entity dim and not a fact (no
--      measures, no descriptive attributes — only participating keys + lineage). On its
--      grain key it is a clean one-row-per-key lookup; joining on a single participating key
--      (e.g. player_sk) resolves a many-to-many and returns many rows by design. Use this
--      for "which team/competition was a player part of, when"; appearances live in
--      fct_fixture_player_stats. See the "relationship (mapping)
--      dimensions" clause in dbt_project/docs/layering.md.
-+      Which team a player was rostered at, in which competition-season. Grain: (player_sk,
-+      team_sk, league_code, season_api_year) — one row per player per team per season they
-+      appeared in the roster, squad members with zero appearances included.
-+
-+      A mapping dimension: an association between dimensions, holding participating keys and
-+      lineage only, with no measures and no descriptive attributes.
-+
-+      Join it on the FULL grain for a one-row lookup. Joining on a single key such as player_sk
-+      resolves a many-to-many and returns many rows — by design, not a defect.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -413,19 +407,17 @@ models:
- 
-   - name: dim_team_competition_season_mapping
-     description: >
--      Relationship (mapping) dimension: team↔competition↔season membership, derived from
--      fixtures. Grain: (team_sk, league_code, season_api_year) — one row per team per
--      competition per season in which the team has at least one fixture (finished OR
--      scheduled). An association across dimensions, not an entity dim and not a fact (no
--      measures, no descriptive attributes — only participating keys). On its grain key it is
--      a clean one-row-per-key lookup; joining on a single participating key (e.g. team_sk)
--      resolves a many-to-many and returns many rows by design. Use this for "which teams are
--      in competition X, season Y"; per-match facts live in fct_fixture. Membership comes from
--      fixtures (not the /teams roster) because a team that is in a competition always plays
--      it — scheduled fixtures are included, so membership exists from the moment the schedule
--      is published. No raw_ingested_at: the association is distilled from many fixtures, not a
--      single source row. See the "relationship (mapping) dimensions" clause in
--      dbt_project/docs/layering.md.
-+      Which teams were in which competition-season. Grain: (team_sk, league_code,
-+      season_api_year) — one row per team per competition-season in which it has at least one
-+      fixture, finished or scheduled.
-+
-+      Membership is derived from FIXTURES, not the roster, because a team in a competition always
-+      plays in it. Scheduled fixtures count, so membership exists as soon as a schedule is
-+      published.
-+
-+      A mapping dimension: participating keys only, and no raw_ingested_at, because it is
-+      distilled from many fixtures rather than one source row. Join it on the FULL grain; a
-+      single-key join returns many rows by design.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -471,7 +463,12 @@ models:
-         tests: [not_null]
- 
-   - name: fct_fixture
--    description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
-+    description: >
-+      Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id).
-+
-+      The measures are FINAL-TIME goals only. Half-time, extra-time and penalty shoot-out splits
-+      are deliberately not carried, so a score here is the result and never a stage of it. Status,
-+      round and venue ride along as degenerate attributes.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -640,7 +637,11 @@ models:
-         description: "Surrogate key from (fixture_id, league_code, team_id)."
-         tests: [not_null, unique]
-       - name: fixture_sk
--        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
-+        description: >
-+          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
-+          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
-+          history forward on full refresh, so the foreign key holds for active and idle
-+          competitions alike.
-         tests:
-           - not_null
-           - relationships:
-@@ -696,7 +697,11 @@ models:
-         description: "Surrogate key from (fixture_id, league_code, team_id, player_id)."
-         tests: [not_null, unique]
-       - name: fixture_sk
--        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
-+        description: >
-+          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
-+          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
-+          history forward on full refresh, so the foreign key holds for active and idle
-+          competitions alike.
-         tests:
-           - not_null
-           - relationships:
-@@ -753,7 +758,9 @@ models:
-       - name: cards_red
-       - name: penalty_won
-       - name: penalty_committed
--        description: "Mirrors the API's ``penalty.commited`` (sic) field under a corrected name."
-+        description: >
-+          Penalties the player conceded. Mirrors the provider's `penalty.commited` field, whose
-+          name is misspelled at source and is spelled properly here.
-       - name: penalty_scored
-       - name: penalty_missed
-       - name: penalty_saved
-@@ -775,7 +782,11 @@ models:
-         description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
-         tests: [not_null]
-       - name: fixture_sk
--        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
-+        description: >
-+          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
-+          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
-+          history forward on full refresh, so the foreign key holds for active and idle
-+          competitions alike.
-         tests:
-           - not_null
-           - relationships:
-@@ -847,12 +858,13 @@ models:
- 
-   - name: fct_transfer
-     description: >
--      Dated player transfers (moves) — one row per distinct move (player, team_out, team_in,
--      date) with the provider's raw type. The dated source of the player affiliation timeline
--      (a later PR derives valid_from/valid_to + chronological order). Reinstated 2026-06-14
--      (transfers chain rebuild; reverses #420). No relationship tests to dim_player/dim_team —
--      transfers legitimately reference clubs and players outside our covered competitions.
--      Grain: (player_sk, team_out_sk, team_in_sk, transfer_date).
-+      Dated player transfers: one row per distinct move, carrying the provider's raw transfer
-+      type. Grain: (player_sk, team_out_sk, team_in_sk, transfer_date). The dated source of a
-+      player's affiliation timeline.
-+
-+      NO relationship tests to dim_player or dim_team, deliberately: transfers legitimately name
-+      clubs and players outside the competitions we cover, so a foreign key here would fail on
-+      correct data.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -901,7 +913,7 @@ models:
-         tests: [not_null]
-       - name: coach_birth_country
-         description: >
--          Birth country, canonicalised and reconciled against `dim_country` in base (#69). Can be
-+          Birth country, already canonicalised and reconciled against dim_country in base. Can be
-           NULL — not every provider row carries one.
-         tests:
-           - relationships:
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index 4ba8228..70dcfe4 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -3,12 +3,14 @@ version: 2
- models:
-   - name: int_team_momentum__metrics
-     description: >
--      W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
--      totals over the window legs selected by int_team_momentum_window (the selection was
--      extracted there in #323 so this aggregate and the drill-down list mart consume the
--      same matches). No ratios — those are computed in mart_team_momentum.
--      Player-derived columns (key_passes, tackles, …) are NULL when player stats are
--      unavailable for the window. Grain: (upcoming_fixture_sk, team_sk).
-+      Raw recent-form totals for each side of an upcoming fixture, summed over the window legs
-+      that int_team_momentum_window selects. Grain: (upcoming_fixture_sk, team_sk).
-+
-+      Totals only, no ratios — those are computed one layer up, so this model and the
-+      match-by-match list are guaranteed to be summing the same set of matches.
-+
-+      Player-derived columns (key_passes, tackles, …) are NULL when the window has no player
-+      stats.
++      The selection lives here on its own so that everything computing form uses the same set of
++      matches, rather than each re-deriving it.
      tests:
        - dbt_utils.unique_combination_of_columns:
-           combination_of_columns: [upcoming_fixture_sk, team_sk]
-@@ -26,8 +28,9 @@ models:
-               values: ["club", "national"]
+           combination_of_columns: [upcoming_fixture_sk, team_sk, leg_fixture_sk]
+@@ -23,12 +25,12 @@ models:
+       - name: team_sk
+         tests: [not_null]
+       - name: leg_fixture_sk
+-        description: "The past match this row describes; click-through key for the drill-down."
++        description: "The past match this row describes; joins to the per-fixture stat marts."
+         tests: [not_null]
        - name: window_type
          description: >
--          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
--          fixtures (GAP-18). Carried from int_team_momentum_window.
-+          Which form window these totals were summed over: last_5 by default, or
-+          tournament_to_date / qualifiers on a tournament fixture. Carried from
-+          int_team_momentum_window.
+-          Which window this leg belongs to: last_5 (default) or tournament_to_date / qualifiers
+-          for tournament fixtures (GAP-18). Constant per (upcoming_fixture_sk, team_sk).
++          Which window this match belongs to: last_5 by default, or tournament_to_date /
++          qualifiers on a tournament fixture. Constant across one side's rows.
          tests:
            - not_null
            - accepted_values:
-@@ -45,9 +48,14 @@ models:
-         description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
-         tests: [not_null]
-       - name: goals_penalty
--        description: "Penalty goals scored by the team over the window (from match events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
-+        description: >
-+          Penalty goals scored by the team over the window, counted from match events. Subtracted
-+          from goals_for to leave the open-play numerator that finishing efficiency uses.
-       - name: goals_own
--        description: "Own goals credited to the team over the window (the opponents' own-goal events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
-+        description: >
-+          Own goals credited to the team over the window, from the opponents' own-goal events.
-+          Subtracted from goals_for to leave the open-play numerator that finishing efficiency
-+          uses.
-       - name: goals_against_in_save_games
-         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
-       - name: contributing_competitions
-@@ -58,13 +66,14 @@ models:
- 
-   - name: int_player_momentum__metrics
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+index 03b7d2f..fa86a46 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+@@ -3,14 +3,16 @@ version: 2
+ models:
+   - name: int_player_club_season__metrics
      description: >
--      W1 momentum builder — player. For each upcoming fixture side, aggregates raw player stat
--      totals for every player who appeared in the side's window legs. The window selection is
--      consumed from the shared int_team_momentum_window model (#323) — the SAME selection the team
--      aggregate uses — so the player top-players strip and the team form panel stay on one window
--      (last_5 default, or the cumulative tournament_to_date / qualifiers window on tournament
--      fixtures, GAP-18/#484). No ratios. A player absent from some legs contributes stats only for
--      matches they appeared in. Grain: (upcoming_fixture_sk, team_sk, player_sk).
-+      Raw recent-form totals per player, for every player who appeared in a side's window legs.
-+      Grain: (upcoming_fixture_sk, team_sk, player_sk).
+-      Per (player, CLUB, competition-season) aggregate over all finished matches — the finest-grain player
+-      atoms rollup (#480 §8.3). One row per player at one club in one competition-season; a mid-season
+-      transfer yields one row per club (no last-club collapse). The single atoms source that
+-      int_player_season__metrics (re-aggregated to the competition-season) and mart_player_career (the
+-      per-club career log) both COMPOSE. Atoms follow metric_catalogue.csv exactly (per-fixture
+-      ROUND-weighted passes_accurate; counts coalesce nulls to 0; appearances = finished-match legs the
+-      player actually PLAYED). Ratios / per-90 are derived where consumed, not here.
+-      Grain: (player_sk, team_sk, season_sk).
++      A player's totals at ONE club in one competition-season — the finest grain the player atoms
++      exist at. Grain: (player_sk, team_sk, season_sk). A mid-season transfer gives one row per
++      club, with no collapse to a last club.
 +
-+      The window comes from the shared int_team_momentum_window model — the SAME selection the
-+      team aggregate uses — so player and team figures are always over one set of matches.
++      The single source of those atoms, so anything needing player-season numbers re-sums these
++      rather than re-aggregating the matches itself.
 +
-+      Totals only, no ratios. A player who missed some legs contributes only for the matches they
-+      actually appeared in, so their totals are over a shorter window than the side's.
++      Atoms follow the metric_catalogue seed exactly: passes_accurate rounded per fixture then
++      summed, counts treating NULL as 0, `appearances` counting only matches PLAYED. Ratios and
++      per-90s are derived where consumed, never here.
+     config:
+       tags: ["intermediate", "football", "player"]
+     tests:
+@@ -61,5 +63,8 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: appearances
+-        description: "Finished-match legs this player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member named on the bench all season but never brought on. Before 2026-07-23 this was count(*) of player-stat rows, which counted unused substitutes as appearances (honest absence where stats are off still applies)."
++        description: >
++          Finished matches this player actually PLAYED for this club that competition-season, that
++          is minutes greater than 0. 0 is legitimate rather than missing: a squad member named on
++          the bench all season and never brought on keeps his row.
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+index cc04b3b..cbf0f9f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+@@ -3,14 +3,15 @@ version: 2
+ models:
+   - name: int_player_profile__yoy
+     description: >
+-      Appearances-aligned year-over-year for the player profile (Phase C, #391), domestic
+-      leagues only — the player mirror of int_team_profile__yoy. One row per player's CURRENT
+-      club-league season: cumulative goals / assists / shots-on-target / key-passes /
+-      defensive-actions through the latest N appearances this season vs the same player's prior
+-      season AT THE SAME CLUB through its first N appearances. Aligned by appearances
+-      (match_number); deltas NULL when the prior season at this club is absent (transfer / first
+-      season). defensive_actions = tackles + interceptions + blocks (T+I+B). Grain:
+-      (team_sk, player_sk, league_code, season_api_year).
++      A player's season against their last, compared over the same number of appearances. One row
++      per player's CURRENT club-league season. DOMESTIC LEAGUES ONLY. Grain: (team_sk, player_sk,
++      league_code, season_api_year).
++
++      Carries cumulative goals, assists, shots on target, key passes and defensive actions through
++      the latest N appearances this season, against the prior season AT THE SAME CLUB through its
++      first N. defensive_actions is tackles plus interceptions plus blocks.
++
++      Deltas are NULL when there is no prior season at this club — a transfer, or a first season.
      tests:
        - dbt_utils.unique_combination_of_columns:
-           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
-@@ -84,15 +93,18 @@ models:
-               values: ["club", "national"]
-       - name: window_type
-         description: >
--          The form window, carried from int_team_momentum_window: last_5 (default) or
--          tournament_to_date / qualifiers for tournament fixtures (GAP-18/#484). Constant per
--          (upcoming_fixture_sk, team_sk).
-+          Which form window these totals were summed over, carried from int_team_momentum_window:
-+          last_5 by default, or tournament_to_date / qualifiers on a tournament fixture. Constant
-+          across all players on one side.
-         tests:
-           - not_null
-           - accepted_values:
-               values: ["last_5", "tournament_to_date", "qualifiers"]
-       - name: games_in_window
--        description: "The player's appearance count within the side's window (0..5 for last_5, uncapped for tournament windows). Counts legs the player actually PLAYED (minutes > 0); 0 means named in the matchday squad but never brought on. Before 2026-07-23 this counted squad selections, so unused substitutes inflated it."
+           combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
+@@ -51,11 +52,13 @@ models:
+ 
+   - name: int_player_profile__contribution
+     description: >
+-      Player contribution-share (content_architecture §6.4): the player's goal involvements (goals + assists)
+-      as a share of the club's WHOLE-SEASON goals_for — "involved in X% of the team's goals." A composing
+-      differentiator over the player + team legs; NULL when the club scored 0 that competition-season; range
+-      [0, 1]. Understates where the player's match stats are missing (CPO-accepted honest limit). Grain:
+-      (player_sk, team_sk, season_sk).
++      What share of a club's goals a player was involved in: their goals plus assists over the
++      club's WHOLE-SEASON goals for. Grain: (player_sk, team_sk, season_sk). Range 0 to 1.
++
++      NULL when the club scored nothing that competition-season.
++
++      UNDERSTATES the share wherever the player's own match stats are missing, since the numerator
++      loses those matches while the denominator keeps them. An accepted limit, not a defect.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [player_sk, team_sk, season_sk]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season__team.yml b/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
+index 40cc1d2..cfee450 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
+@@ -3,13 +3,15 @@ version: 2
+ models:
+   - name: int_player_season__team
+     description: >
+-      GAP-16 — the player's team per competition-season: the club of the player's MOST RECENT finished
+-      match that season (Option B, CPO-ruled 2026-06-30 — deterministic + byte-stable; the roster
+-      affiliation source has no transfer date so cannot give a stable "latest team that season").
+-      is_current_team flags the single season-row holding the player's globally most-recent finished match
+-      (their current club) — guaranteed unique per player by the deterministic row_number()=1 window. Built
+-      on int_legs__player_match (finished player-match legs). Consumed by mart_player_profile.
+-      Grain: (player_sk, league_code, season_api_year) — 1:1 with mart_player_profile's (player_sk, season_sk).
++      Which club a player belongs to in a given competition-season: the club of their MOST RECENT
++      finished match that season. Grain: (player_sk, league_code, season_api_year).
++
++      Defined from match history rather than from the roster deliberately. The roster affiliation
++      source carries no transfer date, so it cannot give a stable answer to "which club that
++      season"; the last match played is deterministic and does not move.
++
++      is_current_team marks the one season-row holding the player's most recent finished match
++      anywhere — their current club. Exactly one per player, by construction.
+     config:
+       tags: ["intermediate", "football", "player"]
+     tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+index 761c923..bb92ac7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -3,13 +3,14 @@ version: 2
+ models:
+   - name: int_player_season_position__metrics
+     description: >
+-      Per (player, competition-season, position) aggregate over finished matches — the position-split
+-      sibling of int_player_season__metrics, built for the player competition benchmark. Splits a player's
+-      legs by the position played (fct_fixture_player_stats.position_code G/D/M/F -> GK/DEF/MID/ATT) and
+-      aggregates each role separately; the 18 benchmark metrics (per-90 + rates) are computed in-position.
+-      Atom formulas mirror int_player_season__metrics, so a single-position player's per-90 matches his
+-      whole-season per-90 there. No floor here — the benchmark filters minutes >= 270.
+-      Grain: (player_sk, season_sk, position_group).
++      A player's season totals SPLIT BY THE POSITION THEY PLAYED, so a player who appears in two
++      roles is aggregated once per role. Grain: (player_sk, season_sk, position_group).
++
++      Positions come from the match-time position code, folded to GK, DEF, MID or ATT. Per-90s and
++      rates are computed in-position, over only the minutes played there.
++
++      Atom formulas mirror the whole-season player model, so a single-position player's per-90 here
++      equals his per-90 there. No minutes floor is applied at this layer.
+     config:
+       tags: ["intermediate", "football", "player"]
+     tests:
+@@ -44,5 +45,8 @@ models:
+         description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor)."
+         tests: [not_null]
+       - name: appearances
+-        description: "Finished matches the player actually PLAYED (minutes > 0) IN this position this competition-season. Before 2026-07-23 this counted every player-stat row, so unused substitutes inflated it."
 +        description: >
-+          How many of the side's window matches this player appeared in: 0 to 5 for last_5,
-+          uncapped for a tournament window. Counts only legs the player actually PLAYED (minutes
-+          greater than 0), so 0 means named in the matchday squad and never brought on.
++          Finished matches the player actually PLAYED IN THIS POSITION this competition-season,
++          that is minutes greater than 0. A player who moved role mid-season is counted separately
++          in each.
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index 319478b..f78b13a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -3,12 +3,15 @@ version: 2
+ models:
+   - name: int_team_season_record
+     description: >
+-      W2 season-record builder — team. Cumulative running totals over int_legs__team_match
+-      within one competition+season, one row per team-match (totals through that match).
+-      Complement to int_team_momentum__metrics. Carries round_order + match_number for the deferred
+-      year-over-year surface. Raw sums only; ratios live in mart_team_season_record. The
+-      whole-season rollup int_team_season__metrics is the final row of this model (#500 PR1).
++      A team's season totals as they stood after each of its matches — cumulative running totals
++      within one competition-season, one row per team-match. The season-long counterpart to
++      int_team_momentum__metrics, which does the same over a recent-form window.
+       Grain: (team_sk, league_code, season_api_year, fixture_sk).
++
++      Raw sums only; ratios are derived from these one layer up. The whole-season rollup is this
++      model's final row, so the two cannot drift apart.
++
++      Carries round_order and match_number so two seasons can be aligned by matchday.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, league_code, season_api_year, fixture_sk]
+@@ -51,17 +54,19 @@ models:
+         description: "{{ doc('season_sk') }} Carried for the projection's team_season_sk."
+         tests: [not_null]
+       - name: opponent_shots_total
+-        description: "Cumulative opponent total shots; feeds shot_share on the whole-season projection (#500 PR1)."
++        description: >
++          Cumulative shots taken by this team's OPPONENTS through this match — the denominator
++          half of a shot-share calculation.
+ 
+   - name: int_player_season_record
+     description: >
+-      W2 season-record builder — player. Cumulative running totals over int_legs__player_match
+-      within one competition+season, one row per player-match ACTUALLY PLAYED. Complement to
+-      int_player_momentum__metrics. A leg exists wherever player stats are present, which includes
+-      0-minute unused substitutes, so legs are filtered to minutes > 0: games_played counts matches
+-      played (not matchday selections, which it did before 2026-07-23) and player ratios are
+-      same-window by construction.
++      A player's season totals as they stood after each match they PLAYED — cumulative running
++      totals within one competition-season.
+       Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
++
++      A stat row exists wherever the provider reports one, which includes unused substitutes on 0
++      minutes. Those are filtered out here, so games_played counts matches played rather than
++      matchday selections, and every ratio is over the same set of matches by construction.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, player_sk, league_code, season_api_year, fixture_sk]
+@@ -82,7 +87,9 @@ models:
+           - accepted_values:
+               values: ["season_to_date"]
+       - name: games_played
+-        description: "Cumulative count of the matches the player actually PLAYED (minutes > 0) through this match. Before 2026-07-23 this counted matchday selections, so unused substitutes inflated it."
++        description: >
++          Cumulative count of matches the player actually PLAYED through this one, that is minutes
++          greater than 0 — not matchday selections.
          tests: [not_null]
        - name: position_code
-         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
+         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index 7901bef..3f8fccf 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -3,16 +3,18 @@ version: 2
+ models:
+   - name: int_team_profile__yoy
+     description: >
+-      Games-played-aligned year-over-year for the team profile (#324), domestic leagues
+-      only. One row per team's CURRENT domestic season: the 3 scoreline totals (points /
+-      goals for / against) AND the LOCKED 16-row rate metrics, each through the latest N
+-      games this season vs the same team's prior season through its first N games (composed
+-      from int_team_season__metrics_cumulative). Aligned by games played (match_number),
+-      which equals matchday for fixed-matchday leagues and is the only safe cross-format key
+-      (parsed round numbers collide across phases in multi-phase formats). Each metric has
+-      _this_season / _prev_season / _delta_yoy; a rate is NULL on a side when that season's
+-      first N games are not fully stat-covered, and the delta is NULL when either side is
+-      (no prior season, or a coverage gap). Grain: (team_sk, league_code, season_api_year).
++      This season against last, compared over the same number of games played. One row per
++      team's CURRENT domestic season. Grain: (team_sk, league_code, season_api_year).
++      DOMESTIC LEAGUES ONLY.
++
++      Carries the three scoreline totals and every rate metric, each as _this_season,
++      _prev_season and _delta_yoy.
++
++      Aligned by GAMES PLAYED, not by matchday: parsed round numbers collide across phases in a
++      multi-phase format, so games played is the only key safe for every competition shape.
++
++      A rate is NULL on a side whose first N games are not fully stat-covered, and the delta is
++      NULL when either side is.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, league_code, season_api_year]
+@@ -53,10 +55,11 @@ models:
+ 
+   - name: int_team_profile__streaks
+     description: >
+-      Trailing run lengths per (team, competition-season) for the team profile (#324):
+-      unbeaten / win / winless / clean-sheet / scoring runs as of that season's most
+-      recent match. A run is the count of most-recent consecutive matches satisfying the
+-      condition before the first that breaks it. Grain: (team_sk, season_sk).
++      A team's current runs as of its most recent match: unbeaten, win, winless, clean-sheet and
++      scoring. Grain: (team_sk, season_sk).
++
++      A run counts the most-recent consecutive matches satisfying the condition, stopping at the
++      first that breaks it — so it is a trailing streak, not the season's longest.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, season_sk]
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index a4320f0..266e59c 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -195,12 +195,13 @@ models:
+         description: "Away: league points over the form window."
+       - name: home_form_from_qualifiers
+         description: >
+-          True when the home side's W1 form window is the qualifier window (window_type='qualifiers',
+-          GAP-18) — the team's opener in a tournament. Drives the live formContextLabel ("all qualifying
+-          matches" vs "all World Cup matches so far"). Never null (coalesce → false).
++          True when the home side's recent-form window is the qualifier window — the team's opener
++          in a tournament, where the form shown is its qualifying matches rather than matches in
++          the tournament itself. Never NULL; false where it does not apply.
+         tests: [not_null]
+       - name: away_form_from_qualifiers
+-        description: "Away: true when the side's W1 form window is the qualifier window (GAP-18). Never null."
++        description: >
++          Away: true when the side's recent-form window is the qualifier window. Never NULL.
+         tests: [not_null]
+       - name: home_goals_per_match_recent
+         description: "Home: goals scored per game (scoreline window)."
+@@ -223,7 +224,9 @@ models:
+       - name: away_danger_zone_ratio_recent
+         description: "Away: shots inside box / total shots."
+       - name: home_finishing_efficiency_recent
+-        description: "Home: open-play goal conversion — open-play goals (goals − penalties − own goals) / shots on goal over a fully shot-covered window, in [0, 1] (CPO Option A)."
++        description: >
++          Home: open-play goal conversion — open-play goals (goals minus penalties minus own
++          goals) over shots on goal, across a fully shot-covered window. Range 0 to 1.
+       - name: away_finishing_efficiency_recent
+         description: "Away: open-play goal conversion (open-play goals / shots on goal, in [0, 1])."
+       - name: home_pass_accuracy_recent
+diff --git a/scripts/check_description_hygiene.py b/scripts/check_description_hygiene.py
+new file mode 100644
+index 0000000..4b369ee
+--- /dev/null
++++ b/scripts/check_description_hygiene.py
+@@ -0,0 +1,288 @@
++"""Description hygiene gate — MECHANICAL checks on dbt `description:` fields.
++
++Why this exists. `description:` was used as a decision log: rulings, dated update
++stamps, issue numbers, and hand-maintained claims about who reads a column
++downstream. An independent dbt audit (2026-08-20) measured 616 descriptions
++across 19 files and found five files holding 83% of the contaminated text, with
++THREE descriptions provably false — each of them a downstream-consumer claim, the
++one kind of statement that cannot be kept true by hand. One asserted a column had
++no readers while a live mart filtered on it; acting on it would have broken the
++competitions page.
++
++The root cause was not laziness. These fields had NO READER — `persist_docs`
++absent, `dbt docs generate` running nowhere — so the field had no feedback loop
++and became the cheapest place to dump narrative. The rule already existed
++(`engineering_standards.md` §2, "keep descriptions factual and concise") and was
++ignored roughly 130 times. This repo's own measurement is that prose-only rules
++recur (33 of 50 past corrections were prose-only; 22 recurred) and mechanised
++ones do not. Hence a gate.
++
++The standard it enforces is `dbt_project/docs/engineering_standards.md` §2. Each
++check below is one contaminated class made unrepeatable:
++
++  1. ISSUE REFS (`#123`, `GAP-04`, `!27`). A tracker id in a description is a
++     pointer to a decision, not a fact about the data, and the GitHub tracker
++     these mostly point at is unreachable — so they are already dead links.
++  2. DATED STAMPS. An ISO date, or an `UPDATED`/`CORRECTED` annotation. Git holds
++     history losslessly; a hand-copy of it starts rotting immediately.
++  3. DECISION LANGUAGE. `CPO`, `SLATED FOR`, `SUPERSEDED`, "an earlier version
++     said". Rulings belong in `.claude/task/escalations.log`, open questions in
++     the tracker, design rationale in `layering.md`.
++  4. DOWNSTREAM-CONSUMER CLAIMS. "the only reader is X", "no dbt model reads
++     this", "Feeds fct_y". Upstream facts are fixed in the SQL and change when the
++     SQL changes; downstream facts change whenever anyone adds a model, and nobody
++     comes back to update the prose. All three false claims were this shape.
++     `dbt ls --select <model>+` answers it correctly and for free.
++  5. SEVERITY EMOJI. A description is not an annotated argument.
++  6. LENGTH over 600 characters. BigQuery hard-rejects a column description over
++     1,024, which would break the nightly build the day `persist_docs` is turned
++     on. 600 leaves headroom, and a description nobody finishes reading is one
++     nobody checks. Waived for a bare `{{ doc() }}` reference: the block carries
++     the text and is checked on its own.
++
++WHAT THIS GATE DELIBERATELY DOES NOT DO. It does not judge whether a description
++is GOOD — whether it states grain, or source, or known limits. That is editorial
++and it belongs to a human reading it. Every rule here is one a machine can decide
++with no taste, which is the same line `check_copy_gate.py` draws.
++
++⚠ THE PATTERNS MATCH ANNOTATION FORMS, NOT ORDINARY VERBS, and that distinction is
++measured rather than assumed. On the cleaned MR3/MR4 text a case-insensitive
++`CORRECTED` matches six legitimate sentences ("the country corrections from the
++seed", "derived from the corrected name"), and a bare ISO-date rule matched
++`dim_date`'s calendar range. A gate that fires on correct text is worse than no
++gate, because the fix is to weaken it. Every pattern below is anchored to the
++shouty or dated form a decision log actually uses.
++
++Exit 1 on any finding, and on an unparseable YAML file. Fails CLOSED.
++
++Wired in `.gitlab-ci.yml` `validate:governance`, in `stop_gate.py`'s FAST_GATES
++(so it fires at turn end, while the text is still in the file), and documented in
++the `validate-local` skill. Those three are pinned against each other by
++`test_fast_gates_and_validate_local_agree`.
++"""
++from __future__ import annotations
++
++import pathlib
++import re
++import sys
++
++import yaml
++
++REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
++DBT_DIR = REPO_ROOT / "dbt_project"
++
++# Floor under the extraction, enforced in the gate itself and not only in the
++# tests. A YAML rename, a moved directory or a parser change could leave the walk
++# matching nothing, and a gate over zero descriptions always passes green. Set
++# well under the 616 the audit measured so ordinary deletion never trips it, and
++# well over zero so a broken walk always does. Same precedent as
++# `check_copy_gate.py`'s MIN_KEYS.
++MIN_DESCRIPTIONS = 400
++
++MAX_CHARS = 600
++
++# A description that is ONLY a docs-block reference, optionally with a short
++# per-model qualifier after it. The block itself is a separate description and is
++# checked in its own right, so the length rule would otherwise punish reuse — the
++# exact behaviour the standard asks for.
++DOC_REF_RE = re.compile(r"\{\{\s*doc\(\s*['\"][^'\"]+['\"]\s*\)\s*\}\}")
++
++# Each rule is (name, compiled pattern, why it is banned). The reason travels with
++# the rule so a future reader can judge it without archaeology, as
++# `check_copy_gate.py` does.
++RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
++    (
++        "issue reference",
++        re.compile(r"(?:(?<![A-Za-z0-9])#\d+|\bGAP-\d+|(?<![A-Za-z0-9])![0-9]+)"),
++        "a tracker id points at a decision, not at the data; most point at the "
++        "unreachable GitHub tracker and are already dead links",
++    ),
++    (
++        "ISO date",
++        re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
++        "git holds history losslessly; a hand-copied date starts rotting at once",
++    ),
++    (
++        "dated update stamp",
++        # ANNOTATION form only: shouty UPDATED/CORRECTED, or the same followed by a
++        # year. `corrections` and `corrected` as ordinary verbs are NOT matched —
++        # six legitimate uses exist in the cleaned text.
++        re.compile(r"\b(?:UPDATED|CORRECTED|SUPERSEDED)\b|\b(?:updated|corrected)\s+20\d\d"),
++        "an update stamp is a changelog entry; the changelog is git",
++    ),
++    (
++        "decision language",
++        # NO BARE `ruled`/`ruling`. An earlier draft had them, and in a FOOTBALL
++        # repo that is a false-positive generator: "goal ruled out for offside",
++        # "match ruled void", "fixture ruled a walkover" are all legitimate
++        # description prose. It also broke this file's own stated design rule —
++        # annotation forms, not ordinary verbs. `\bCPO\b` already catches every
++        # real instance in this repo, because a ruling worth logging is always
++        # attributed ("CPO ruled", "CPO ruling"). Caught by platform-reviewer.
++        re.compile(r"\bCPO\b|\bSLATED FOR\b|\ban earlier (?:version|draft)\b"
++                   r"|\bused to say\b"),
++        "rulings belong in .claude/task/escalations.log, open questions in the "
++        "tracker, design rationale in layering.md",
++    ),
++    (
++        "downstream-consumer claim",
++        # Written as a CLASS, not a list of the instances seen so far. The
++        # "no/zero consumer" arm was added after the first full-repo sweep found
++        # `stg_apif__lineups` claiming "This model has NO consumer today" — the
++        # exact shape of the `display_group` claim that started this programme,
++        # which the first draft's `no dbt model reads` arm did not match.
++        re.compile(
++            r"\b(?:only|single|sole)\s+(?:reader|consumer)s?\b"
++            r"|\b(?:no|zero)\s+(?:dbt\s+model\s+|downstream\s+)?(?:reader|consumer)s?\b"
++            r"|\bno dbt model reads\b"
++            r"|\bnothing\s+downstream\b"
++            r"|\bdownstream of this\b"
++            r"|\bREAD by\b"
++            # "feeds <identifier>" where the target is snake_case, so a named model
++            # OR a named column is caught (`feeds fct_fixture`, `feeds shot_share`)
++            # while ordinary prose is not (`feeds the calculation`, `feeds into`).
++            # Requiring a model prefix instead was tried and silently dropped a real
++            # column-level claim.
++            r"|\b(?:feeds|enriches|powers)\s+(?:the\s+)?[a-z]+_[a-z_]+",
++            re.IGNORECASE,
++        ),
++        "upstream is fixed in the SQL; downstream changes whenever anyone adds a "
++        "model and nobody updates the prose. Three such claims were false at once. "
++        "`dbt ls --select <model>+` answers it correctly and for free",
++    ),
++    (
++        "severity emoji",
++        re.compile(r"[⚠⛔⭐✅\U0001F300-\U0001FAFF]"),
++        "a description states what the data means; it is not an annotated argument",
++    ),
++)
++
++
++def _rel(path: pathlib.Path) -> str:
++    """Repo-relative path, or the absolute one when it is not under the repo.
++
++    `Path.relative_to` RAISES rather than returning the input, and that is not a
++    hypothetical: the tests point `DBT_DIR` at a tmp directory, and a worktree or a
++    symlinked checkout does the same in ordinary use. A gate that dies while
++    formatting a path reports nothing at all.
++    """
++    try:
++        return path.relative_to(REPO_ROOT).as_posix()
++    except ValueError:
++        return path.as_posix()
++
++
++def _walk(node: object, where: str, out: list[tuple[str, str]]) -> None:
++    """Collect (path, description) for every description in a parsed YAML tree."""
++    if isinstance(node, dict):
++        name = node.get("name")
++        here = f"{where}/{name}" if isinstance(name, str) else where
++        for key, value in node.items():
++            if key == "description" and isinstance(value, str):
++                out.append((here, value))
++            else:
++                _walk(value, here, out)
++    elif isinstance(node, list):
++        for item in node:
++            _walk(item, where, out)
++
++
++def _collect() -> tuple[list[tuple[str, str, str]], list[str]]:
++    """Every description under dbt_project/, and any file that failed to parse."""
++    found: list[tuple[str, str, str]] = []
++    unparseable: list[str] = []
++    for path in sorted(DBT_DIR.rglob("*.yml")):
++        rel = _rel(path)
++        # dbt writes compiled artifacts and installed packages under the project;
++        # they are not ours to police and would swamp the census.
++        if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
++            continue
++        # UnicodeDecodeError and OSError are caught alongside YAMLError, not just
++        # YAMLError: `read_text` is inside this try, and a .yml saved in any
++        # non-UTF-8 encoding raises UnicodeDecodeError (a ValueError, not a
++        # YAMLError). Uncaught, that escapes as a raw traceback instead of the
++        # crafted "could not be parsed" report — the gate would still exit
++        # non-zero, but it would blame nothing and name no file. Caught by
++        # platform-reviewer, who noted the two adjacent failure modes already
++        # fixed here and that the input side had been missed.
++        try:
++            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
++        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
++            unparseable.append(f"{rel}: {exc.__class__.__name__}")
++            continue
++        collected: list[tuple[str, str]] = []
++        _walk(doc, path.stem, collected)
++        found.extend((rel, where, text) for where, text in collected)
++    return found, unparseable
++
++
++def main() -> int:
++    # A finding can quote a matched EMOJI, and this gate runs at turn end on a
++    # Windows console whose default encoding is cp1252, which cannot encode one.
++    # Without this the gate crashes with UnicodeEncodeError *while reporting the
++    # defect* — it would fail, but on the wrong error and with the finding lost.
++    # Guarded by hasattr because `main()` is called directly from the tests, where
++    # stdout is a capture object with no `reconfigure`.
++    if hasattr(sys.stdout, "reconfigure"):
++        sys.stdout.reconfigure(errors="replace")
++
++    found, unparseable = _collect()
++    findings: list[str] = []
++
++    # REPORTED BEFORE THE FLOOR, and the order is load-bearing. An unparseable file
++    # contributes zero descriptions, so it drags the census under the floor and the
++    # floor's message ("the walk has stopped matching") would send an operator
++    # hunting a broken walk instead of the malformed YAML that actually caused it.
++    # A test pinned this after the first version got the order wrong.
++    if unparseable:
++        print(f"FAIL: {len(unparseable)} file(s) could not be parsed, so their "
++              "descriptions are unchecked:")
++        for bad in unparseable:
++            print(f"  - {bad}")
++        return 1
++
++    if len(found) < MIN_DESCRIPTIONS:
++        print(f"FAIL: found only {len(found)} descriptions under {_rel(DBT_DIR)} "
++              f"(floor {MIN_DESCRIPTIONS}). The walk has stopped matching - a gate "
++              "over zero descriptions always passes.")
++        return 1
++
++    over_limit = 0
++    for rel, where, text in found:
++        flat = " ".join(text.split())
++        for name, pattern, why in RULES:
++            hit = pattern.search(flat)
++            if hit:
++                # `ascii()` not `!r`: the match may be an emoji, and an escaped
++                # ⚠ is still identifiable while never being unprintable.
++                findings.append(
++                    f"{rel} :: {where} - {name}: {ascii(hit.group(0))}\n"
++                    f"    why banned: {why}"
++                )
++        # Length is waived for a description that is a docs-block reference plus a
++        # short qualifier; the block is a description in its own right and is
++        # checked above and below like any other.
++        if len(flat) > MAX_CHARS and not DOC_REF_RE.search(flat):
++            over_limit += 1
++            findings.append(
++                f"{rel} :: {where} - over length: {len(flat)} chars (limit {MAX_CHARS})\n"
++                f"    why banned: BigQuery rejects a column description over 1,024, which "
++                f"breaks the nightly build once persist_docs is on"
++            )
++
++    if findings:
++        print(f"DESCRIPTION HYGIENE: {len(findings)} finding(s) "
++              f"across {len(found)} descriptions\n")
++        for finding in findings:
++            print(f"  - {finding}")
++        print("\nThe standard is dbt_project/docs/engineering_standards.md section 2.")
++        return 1
++
++    files = len({rel for rel, _, _ in found})
++    print(f"DESCRIPTION HYGIENE ok: {len(found)} descriptions across {files} files, "
++          f"{len(RULES)} rules, none over {MAX_CHARS} chars")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_description_hygiene.py b/tests/test_description_hygiene.py
+new file mode 100644
+index 0000000..977a3ce
+--- /dev/null
++++ b/tests/test_description_hygiene.py
+@@ -0,0 +1,200 @@
++"""Tests for `scripts/check_description_hygiene.py`.
++
++The point of these is NOT that the gate passes on today's repo — it does, and a
++test asserting that would go green forever while the gate quietly stopped
++matching anything. The point is that it goes RED, once per banned class, on text
++that is deliberately wrong. That is the repo's dominant failure mode (#904): a
++claim asserted rather than run.
++
++So every rule below is driven through `main()` against a synthetic offender and
++asserted to exit 1, AND the same fixture without the offending phrase is asserted
++to exit 0 — a rule that fires on everything is as useless as one that fires on
++nothing.
++"""
++from __future__ import annotations
++
++import os
++import sys
++
++import pytest
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++
++import check_description_hygiene as gate  # noqa: E402
++
++
++CLEAN = """
++version: 2
++models:
++  - name: some_model
++    description: >
++      One row per team per season, from the generic staging model. Grain:
++      (team_sk, season_api_year). NULL where the provider sent no row.
++    columns:
++      - name: team_sk
++        description: "Team identity key, globally unique in the provider's data."
++"""
++
++
++def _write(tmp_path, body: str):
++    """A minimal dbt project directory holding one schema file."""
++    models = tmp_path / "models"
++    models.mkdir(parents=True, exist_ok=True)
++    (models / "schema.yml").write_text(body, encoding="utf-8")
++    return tmp_path
++
++
++@pytest.fixture(autouse=True)
++def _point_gate_at_tmp(monkeypatch):
++    """Each test supplies its own tiny project, so the extraction floor would
++    otherwise trip on every one of them and mask what is being tested. The floor
++    gets its own test below, which is the only place it stays at its real value."""
++    monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 1)
++
++
++# (label, the phrase spliced into an otherwise-clean description)
++OFFENDERS = [
++    ("issue reference", "Superseded by #844."),
++    ("GAP reference", "The gap is registered as GAP-19."),
++    ("MR reference", "Landed in !27."),
++    ("ISO date", "Corrected on 2026-07-23 after a review."),
++    ("dated update stamp", "UPDATED after the migration."),
++    ("decision language", "The CPO ruled this on review."),
++    ("slated-for annotation", "SLATED FOR DELETION once the page ships."),
++    ("only-reader claim", "Its only reader is build_nav()."),
++    ("no-consumer claim", "This model has NO consumer today."),
++    ("nothing-downstream claim", "Nothing downstream resolves its versions."),
++    ("feeds-a-model claim", "Feeds fct_fixture and nothing else."),
++    ("feeds-a-column claim", "Cumulative opponent shots; feeds shot_share downstream."),
++    ("read-by claim", "READ by mart_competition_index for the page."),
++    ("severity emoji", "⚠ This is a trap for the unwary."),
++]
++
++
++@pytest.mark.parametrize("label,phrase", OFFENDERS, ids=[o[0] for o in OFFENDERS])
++def test_each_banned_class_turns_the_gate_red(tmp_path, monkeypatch, capsys, label, phrase):
++    body = CLEAN.replace("NULL where the provider sent no row.",
++                         f"NULL where the provider sent no row. {phrase}")
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
++
++    assert gate.main() == 1, f"the gate passed text containing a {label}"
++    out = capsys.readouterr().out
++    assert "finding" in out, f"the gate failed on a {label} without saying why"
++
++
++def test_the_same_fixture_without_the_offender_is_green(tmp_path, monkeypatch):
++    """A rule that fires on everything is as useless as one that fires on nothing."""
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, CLEAN))
++    assert gate.main() == 0
++
++
++def test_ordinary_prose_is_not_mistaken_for_decision_language(tmp_path, monkeypatch):
++    """MEASURED, not hypothetical. On the cleaned MR3/MR4 text a case-insensitive
++    `CORRECTED` matches six legitimate sentences, and a bare `feeds` matches
++    ordinary prose. A gate that fires on correct text gets weakened, not obeyed."""
++    body = CLEAN.replace(
++        "NULL where the provider sent no row.",
++        "It applies the country corrections from the override seed, so the value is "
++        "already the corrected name. It feeds into the season rollup.",
++    )
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
++    assert gate.main() == 0, "the gate fired on ordinary prose, not on a decision log"
++
++
++def test_football_prose_using_ruled_is_not_decision_language(tmp_path, monkeypatch):
++    """`ruled` and `ruling` are ordinary words in a football repo. An earlier draft
++    of the gate matched them bare, which would have fired on "goal ruled out for
++    offside" — a false positive in the one domain this repo is about, and a breach
++    of the gate's own stated design rule (annotation forms, not ordinary verbs).
++    `\\bCPO\\b` catches the real instances, because a logged ruling is attributed."""
++    body = CLEAN.replace(
++        "NULL where the provider sent no row.",
++        "Excludes any goal ruled out for offside, and any match ruled void.",
++    )
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
++    assert gate.main() == 0, "the gate read ordinary football prose as a decision log"
++
++
++def test_an_attributed_ruling_is_still_caught(tmp_path, monkeypatch):
++    """The other half of the pair above: dropping bare `ruled` must not create a
++    hole. A real decision-log line names who ruled."""
++    body = CLEAN.replace(
++        "NULL where the provider sent no row.",
++        "The CPO ruled this column stays as-is.",
++    )
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
++    assert gate.main() == 1
++
++
++def test_a_non_utf8_file_fails_closed_and_names_the_file(tmp_path, monkeypatch, capsys):
++    """`read_text` raises UnicodeDecodeError, not YAMLError. Uncaught it escapes as
++    a raw traceback: still a non-zero exit, but blaming nothing and naming no file."""
++    models = tmp_path / "models"
++    models.mkdir(parents=True, exist_ok=True)
++    # cp1252 bytes that are not valid UTF-8
++    (models / "schema.yml").write_bytes(b"description: caf\xe9 na\xefve\n")
++    monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
++
++    assert gate.main() == 1
++    out = capsys.readouterr().out
++    assert "schema.yml" in out, "the gate failed without naming the file it could not read"
++    assert "UnicodeDecodeError" in out, "the gate did not report why the file was unreadable"
++
++
++def test_over_length_turns_the_gate_red(tmp_path, monkeypatch):
++    body = CLEAN.replace("NULL where the provider sent no row.", "word " * 200)
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
++    assert gate.main() == 1
++
++
++def test_a_docs_block_reference_is_exempt_from_the_length_rule(tmp_path, monkeypatch):
++    """The block is a description in its own right and is checked there; charging
++    its length to every call site would punish exactly the reuse the standard asks
++    for."""
++    long_tail = "word " * 200
++    body = CLEAN.replace(
++        '"Team identity key, globally unique in the provider\'s data."',
++        f'"{{{{ doc(\'team_sk\') }}}} {long_tail}"',
++    )
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
++    assert gate.main() == 0
++
++
++def test_the_floor_fires_from_inside_the_gate(tmp_path, monkeypatch, capsys):
++    """The floor is what stops a broken walk reporting a clean sweep over zero
++    descriptions. It has to live in the gate, not only here: this test would not
++    exist in CI's failure path."""
++    monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 400)
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, CLEAN))
++
++    assert gate.main() == 1
++    out = capsys.readouterr().out
++    assert "floor" in out, "the floor fired without explaining that the walk broke"
++
++
++def test_an_unparseable_file_fails_closed(tmp_path, monkeypatch, capsys):
++    """An unreadable schema.yml is a description surface the gate is silently not
++    covering, which is worse than a finding.
++
++    Asserts the FILE IS NAMED and that the count is not what gets blamed. An
++    unparseable file contributes zero descriptions, so it drags the census under
++    the floor; the first version of the gate hit the floor check first and told the
++    operator the walk had broken, sending them after the wrong thing entirely.
++    """
++    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, "key: [unclosed\n"))
++    assert gate.main() == 1
++
++    out = capsys.readouterr().out
++    assert "schema.yml" in out, "the gate failed without naming the file it could not read"
++    assert "unchecked" in out, "the gate did not say those descriptions went unchecked"
++    assert "floor" not in out, (
++        "the gate blamed the extraction floor for a malformed file; the diagnosis "
++        "has to name the real cause"
++    )
++
++
++def test_the_real_repo_is_green():
++    """Ships green on day one — the `check_copy_gate.py` precedent, where wiring a
++    gate that was red on main would have reddened CI on text only the CPO could
++    fix. This one asserts the state the wiring depends on."""
++    assert gate.main() == 0
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -871,7 +1333,7 @@ index 4ba8228..70dcfe4 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |  157 +--
-#    .claude/task/review_input.patch | 2327 ++++++++++++---------------------------
-#    2 files changed, 787 insertions(+), 1697 deletions(-)
+#   .claude/active_work.md          |   57 +-
+#    .claude/task/review_input.patch | 1932 +++++++++++++++++++++++----------------
+#    2 files changed, 1182 insertions(+), 807 deletions(-)
 # ============================================================================
