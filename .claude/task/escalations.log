@@ -4073,3 +4073,41 @@ ONE SCOPE RULING, and FOUR RULINGS RESCUED because a description was the only pl
   it. And it is not a precedent for writing a ruling to a description first and rescuing it later;
   the ruling goes here when it is made. Rescue was needed exactly four times, and each one is a
   historical defect of the same class the programme exists to fix.
+
+
+2026-08-20 chore/description-cleanup-core-base-intermediate — MR4 of the description-drift
+programme. ONE RULING RESCUED, and a reviewer premise corrected with evidence.
+
+  NOT AN ESCALATION. No decision is asked for or taken. MR4 cleaned `core.yml`, `base.yml` and
+  `int_momentum.yml` — the last of the five contaminated files — and this entry exists for one
+  ruling that turned out to have no durable home.
+
+  RULING RESCUED — ENTITY CORRECTIONS BELONG IN BASE, THE CORE DIM PUBLISHES (CPO, 2026-07-27).
+  A correction to an entity's identity — a team's display name, a country's spelling — is applied
+  in the BASE model, so the core dimension publishes an entity that is already settled. The dim
+  propagates a result; it never coalesces an override itself. This is why
+  `base_apif__teams_global` joins `team_name_overrides` and `country_name_overrides`, and why
+  `dim_team` is a passive pass-through of the settled value.
+  It was recorded verbatim in `base_apif__teams_global.sql:4-6` and nowhere else. The
+  2026-07-27/28 entry above covers the OTHER two slug rulings of that day — transliteration, and
+  the provider id being ruled out of URLs — and not this one.
+
+  ⚠ A REVIEWER PREMISE CORRECTED, recorded because the correction is the useful part.
+  scope-auditor FAILed MR4 on the grounds that the diff DESTROYED this ruling and the
+  "#851 only-team-name" identity ruling, having searched this log and found neither. The search was
+  right and the conclusion was wrong: both survive untouched in
+  `base_apif__teams_global.sql:1-10`, which MR4 does not edit, and `engineering_standards.md` §1.2
+  is explicit that a model's "why" belongs in its file. The identity ruling is additionally in this
+  log already, as the 2026-08-19 team_name_overrides entries — the CPO's "we have to define the
+  name we use as the single source of truth for what we display".
+  So nothing was lost. What the finding DID surface is that the base/dim ruling had no durable
+  home outside one SQL comment, which is worth closing on its own, hence the rescue above.
+  The lesson generalises: when checking whether a deleted description destroyed a ruling, search
+  the MODEL FILE too, not only this log. A description and its model's header comment are two
+  places the same authority is written, and MR4 deleted only one of them.
+
+  ⚠ AND ONE FALSE CLAIM OF MY OWN, caught before it shipped. `dim_date`'s description said the
+  calendar ran "2015-07-01 through 2030-12-31". The date_spine in `dim_date.sql:6-9` runs
+  1900-01-01 to 2101-01-01, with no filter. The old text was false and my first rewrite reworded it
+  without checking, which is exactly the failure MR4's own contract names as its one real risk.
+  Found by reading the SQL. It is now "one row per day from 1900 through 2100".

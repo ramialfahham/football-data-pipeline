@@ -3,12 +3,14 @@ version: 2
 models:
   - name: int_team_momentum__metrics
     description: >
-      W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
-      totals over the window legs selected by int_team_momentum_window (the selection was
-      extracted there in #323 so this aggregate and the drill-down list mart consume the
-      same matches). No ratios — those are computed in mart_team_momentum.
-      Player-derived columns (key_passes, tackles, …) are NULL when player stats are
-      unavailable for the window. Grain: (upcoming_fixture_sk, team_sk).
+      Raw recent-form totals for each side of an upcoming fixture, summed over the window legs
+      that int_team_momentum_window selects. Grain: (upcoming_fixture_sk, team_sk).
+
+      Totals only, no ratios — those are computed one layer up, so this model and the
+      match-by-match list are guaranteed to be summing the same set of matches.
+
+      Player-derived columns (key_passes, tackles, …) are NULL when the window has no player
+      stats.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk]
@@ -26,8 +28,9 @@ models:
               values: ["club", "national"]
       - name: window_type
         description: >
-          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
-          fixtures (GAP-18). Carried from int_team_momentum_window.
+          Which form window these totals were summed over: last_5 by default, or
+          tournament_to_date / qualifiers on a tournament fixture. Carried from
+          int_team_momentum_window.
         tests:
           - not_null
           - accepted_values:
@@ -45,9 +48,14 @@ models:
         description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
         tests: [not_null]
       - name: goals_penalty
-        description: "Penalty goals scored by the team over the window (from match events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
+        description: >
+          Penalty goals scored by the team over the window, counted from match events. Subtracted
+          from goals_for to leave the open-play numerator that finishing efficiency uses.
       - name: goals_own
-        description: "Own goals credited to the team over the window (the opponents' own-goal events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
+        description: >
+          Own goals credited to the team over the window, from the opponents' own-goal events.
+          Subtracted from goals_for to leave the open-play numerator that finishing efficiency
+          uses.
       - name: goals_against_in_save_games
         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
       - name: contributing_competitions
@@ -58,13 +66,14 @@ models:
 
   - name: int_player_momentum__metrics
     description: >
-      W1 momentum builder — player. For each upcoming fixture side, aggregates raw player stat
-      totals for every player who appeared in the side's window legs. The window selection is
-      consumed from the shared int_team_momentum_window model (#323) — the SAME selection the team
-      aggregate uses — so the player top-players strip and the team form panel stay on one window
-      (last_5 default, or the cumulative tournament_to_date / qualifiers window on tournament
-      fixtures, GAP-18/#484). No ratios. A player absent from some legs contributes stats only for
-      matches they appeared in. Grain: (upcoming_fixture_sk, team_sk, player_sk).
+      Raw recent-form totals per player, for every player who appeared in a side's window legs.
+      Grain: (upcoming_fixture_sk, team_sk, player_sk).
+
+      The window comes from the shared int_team_momentum_window model — the SAME selection the
+      team aggregate uses — so player and team figures are always over one set of matches.
+
+      Totals only, no ratios. A player who missed some legs contributes only for the matches they
+      actually appeared in, so their totals are over a shorter window than the side's.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -84,15 +93,18 @@ models:
               values: ["club", "national"]
       - name: window_type
         description: >
-          The form window, carried from int_team_momentum_window: last_5 (default) or
-          tournament_to_date / qualifiers for tournament fixtures (GAP-18/#484). Constant per
-          (upcoming_fixture_sk, team_sk).
+          Which form window these totals were summed over, carried from int_team_momentum_window:
+          last_5 by default, or tournament_to_date / qualifiers on a tournament fixture. Constant
+          across all players on one side.
         tests:
           - not_null
           - accepted_values:
               values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
-        description: "The player's appearance count within the side's window (0..5 for last_5, uncapped for tournament windows). Counts legs the player actually PLAYED (minutes > 0); 0 means named in the matchday squad but never brought on. Before 2026-07-23 this counted squad selections, so unused substitutes inflated it."
+        description: >
+          How many of the side's window matches this player appeared in: 0 to 5 for last_5,
+          uncapped for a tournament window. Counts only legs the player actually PLAYED (minutes
+          greater than 0), so 0 means named in the matchday squad and never brought on.
         tests: [not_null]
       - name: position_code
         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
