@@ -34,11 +34,11 @@ models:
 
   - name: int_team_season__metrics
     description: >
-      Canonical per (league_code, season_api_year, team_sk) season rollup — advanced metrics
-      aggregated over all finished legs (same sum/rate semantics as int_matchday__team_form_metrics
-      without a five-game cap), plus the W/D/L counts (wins/draws/losses_sum_season) that
-      mart_team_season composes instead of re-aggregating (#500). mart_team_season_insights exposes
-      only the latest season_api_year per league_code.
+      A team's whole-season rollup: every metric aggregated over all its finished matches, plus
+      the W/D/L counts. Grain: (league_code, season_api_year, team_sk).
+
+      Same sum and rate semantics as the recent-form metrics, without the five-game cap — so a
+      season figure and a form figure are directly comparable.
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
@@ -84,14 +84,14 @@ models:
 
   - name: int_team_season__metrics_cumulative
     description: >
-      Per-matchday cumulative team-season rate metrics — the int_team_season__metrics rate formulas
-      applied to EVERY cumulative row of int_team_season_record (not just the final). The single home
-      of the team-season rate formulas (#500 one-aggregation): int_team_season__metrics is this
-      model's final-row projection (byte-identical), and int_team_profile__yoy composes it at the
-      games-played cutoff N to align two seasons by matchday for ALL metrics. All-competitions.
-      The _sum_season / season_games_played names are inherited from the projection for byte-identity;
-      here they mean "cumulative through this matchday". Grain: (team_sk, league_code, season_api_year,
-      match_number).
+      A team's season metrics as they stood after EVERY matchday, not only at the end. Grain:
+      (team_sk, league_code, season_api_year, match_number). All competitions.
+
+      THE SINGLE HOME of the team-season rate formulas: the whole-season model is this model's
+      final row, byte-identical, so the two can never drift apart.
+
+      The `_sum_season` and `season_games_played` names are inherited from that projection to keep
+      it byte-identical; here they mean "cumulative through this matchday", not "for the season".
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
@@ -142,19 +142,16 @@ models:
 
   - name: int_team_season__deserved_vs_actual
     description: >
-      TEAM deserved-vs-actual read (points-space), one row per (team_sk, season_sk): the points the
-      team's process deserved vs the points it actually has. Within each league-season, ordinary
-      least squares fits points-per-match on sot_difference_per_match (SoT for - against per match);
-      deserved_points = that fitted rate * the team's own games played; sot_points_gap =
-      points_won_sum_season - deserved_points (NEGATIVE = under-performing, POSITIVE = over-
-      performing); deserved_rank ranks teams by deserved_points within the league-season (1 = best),
-      so rank and points can never disagree. DOMESTIC LEAGUES ONLY — a group-stage tournament's
-      standing is a within-group position, not a comparable 1..N league rank. Computed only for
-      league-seasons where EVERY team has full SoT coverage, a league rank, and >= 3 finished games;
-      NULL otherwise. Composes int_team_season__metrics + int_team_season__standings_primary.
-      TEAM only, no xG. Because the fit is least squares within the league-season, the gap is a
-      redistribution: it sums to exactly 0 across a balanced season, and to approximately 0 mid-
-      season (each fitted rate is scaled by that team's own games played).
+      The points a team's process deserved, against the points it actually has. Grain: (team_sk,
+      season_sk). DOMESTIC LEAGUES ONLY: a group-stage standing is not a comparable league rank.
+
+      Least squares fits points-per-match on sot_difference_per_match within each league-season.
+      deserved_points is that rate times the team's games played; sot_points_gap is actual minus
+      deserved, NEGATIVE meaning under-performing.
+
+      The gap redistributes: it sums to zero across a balanced season. NULL unless every team in
+      that league-season has full shots-on-target coverage, a league rank and three finished
+      games.
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
@@ -247,17 +244,16 @@ models:
 
   - name: int_player_season__metrics
     description: >
-      Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
-      player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
-      mart_player_season was retired with the leaderboards consolidation). #480 §8.3: now COMPOSES
-      int_player_club_season__metrics (the per-club atoms base) — the club rows re-summed to the
-      competition-season with ratios / per-90 re-derived from the re-summed atoms; output unchanged.
-      Atoms follow the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
-      passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
-      nulls to 0; appearances = finished matches actually PLAYED, minutes > 0 (honest absence; before
-      2026-07-23 it counted every player-stat row, so unused substitutes inflated it); rates null when
-      the denominator is zero. team_sk = the player's last known club that competition-season.
-      Grain: (player_sk, season_sk).
+      A player's whole-season aggregate over all their finished matches — the single player-season
+      rollup. Grain: (player_sk, season_sk).
+
+      Composed from the per-club atoms: the club rows re-summed to the competition-season, with
+      ratios and per-90s re-derived from the re-summed atoms rather than averaged.
+
+      The atoms follow the metric_catalogue seed. passes_accurate is rounded per fixture then
+      summed, the weighted-ratio numerator. Counts treat NULL as 0. `appearances` counts matches
+      actually PLAYED. Rates are NULL on a zero denominator. team_sk is the player's last known
+      club that season.
     config:
       tags: ["intermediate", "football", "team_season", "player"]
     tests:

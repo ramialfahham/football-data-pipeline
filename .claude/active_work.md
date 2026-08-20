@@ -4,15 +4,15 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-20**. **main `2d59320`**. Merged today: `!82` `!83` `!84` `!85` — MR1-MR3
-of the description-drift programme plus its handover. **MR4 is OPEN on
-`chore/description-cleanup-core-base-intermediate`.** Merged 08-19: team_name_overrides batches 1+2,
+_Last updated **2026-08-20**. **main `dc6d7eb`**. Merged today: `!82`-`!86` — MR1-MR4 of the
+description-drift programme plus its handover. **MR5 is OPEN on
+`feat/description-hygiene-gate`.** Merged 08-19: team_name_overrides batches 1+2,
 the Top teams ruling record, the Browse drop (`!80`). Product **Matchday Pilot**; **GITLAB**
 (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — description-drift programme: MR1-MR4 done, MR5 is next (2026-08-20)
+## ⭐⭐ CURRENT — description-drift programme: MR1-MR5 done, MR6 is LAST (2026-08-20)
 
 ⭐ **THE PLAN IS APPROVED AND WRITTEN DOWN. Read `.claude/task/escalations.log`'s 2026-08-20
 entries FIRST** — the CPO's diagnosis verbatim, the audit's numbers, the definition of a good
@@ -29,38 +29,37 @@ feedback loop and became the cheapest dumping ground.
 | 1 | 3 false claims + rewrite `engineering_standards.md` §2 | ✅ `!82` |
 | 2 | docs blocks for the 8 repeated columns | ✅ `!83` |
 | 3 | clean `5_marts/shared/shared.yml` + `seeds/schema.yml` | ✅ `!85` |
-| 4 | clean `core.yml`, `base.yml`, `int_momentum.yml` | ✅ open, awaiting merge |
-| **5** | **`scripts/check_description_hygiene.py` + tests + wiring** | **← NEXT**, needs `protected_override` |
-| 6 | `persist_docs` + `dbt docs generate` | pending |
+| 4 | clean `core.yml`, `base.yml`, `int_momentum.yml` | ✅ `!86` |
+| 5 | `check_description_hygiene.py` + tests + wiring | ✅ open, awaiting merge |
+| **6** | **`persist_docs` + `dbt docs generate`** | **← LAST** |
 
 ⚠ **ORDERING IS LOAD-BEARING.** MR5 after 3-4, so the gate is green on day one (`check_copy_gate.py`
 precedent). MR6 after 3-4 because **BigQuery rejects column descriptions over 1,024 chars and 15
 currently exceed it** — enabling `persist_docs` first BREAKS the nightly build.
 
-**MR5 concretely.** Build `scripts/check_description_hygiene.py`, its tests, and wire it into the
-three pinned places. **The content work is DONE** — MR3+MR4 cleared all 453 descriptions in the
-five worst files, so the gate is green on day one, the whole reason for this ordering.
+**MR6 concretely, and it is the one that can BREAK PROD.** Turn on `+persist_docs: {relation: true,
+columns: true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. That finally gives
+descriptions a reader, which is the root cause the whole programme was about.
+⚠ There is **NO `seeds:` block** in `dbt_project.yml` — one must be added, and seeds were the worst
+offender. ⚠ BigQuery hard-rejects a column description over 1,024 chars; the gate holds everything
+at 600, so verify that still holds before enabling. Test on a **dev target only**
+(`dbt run --select competition_types`, then `bq show --schema`); never `dbt build` against prod.
 
-⛔ **THE GATE'S WORD LIST MUST NOT FIRE ON ORDINARY PROSE.** Measured on the finished text: a
-case-insensitive `CORRECTED` matches six legitimate uses of "the country corrections from the
-seed". Same trap for `previously`, `deferred`, `ruled`, and for ISO dates — `dim_date` states a
-calendar RANGE. Match the ANNOTATION forms (`UPDATED 2026-`, `CPO ruling`, `SLATED FOR`), not the
-plain verb, or the gate is red on day one on text that is already correct.
+✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, wired in CI AND in
+`stop_gate.py`'s FAST_GATES — CPO approved both ("do both"), logged in `escalations.log`.
+618 descriptions pass; 21 tests, one per banned class. **Seen RED on real content, then restored.**
+⚠ Its rules match ANNOTATION forms, not plain verbs, deliberately and measurably: a
+case-insensitive `CORRECTED` hits six legitimate "the country corrections from the seed" uses. A
+rule that fires on correct text gets weakened, not obeyed.
 
-⭐ **THE METHOD from MR3/MR4, reuse it.** A scanner over the target files, plus a prose-only PROOF:
-parse both versions, strip every `description`, diff the rest — MR4 compared 1,288 nodes, zero
-differences. Verify the comparison can go RED first.
-
-⛔ **SIX TRAPS, every one hit for real in MR1-MR4. Do not re-learn them.**
+⛔ **SIX TRAPS, every one hit for real in MR1-MR5. Do not re-learn them.**
 1. **A too-narrow grep reported as a clean sweep.** "partition key" is FALSE — zero models declare
-   `partition_by`/`cluster_by`. MR3 cleared the 4 in `5_marts/shared/`; a WIDER sweep then found
-   **6 more** (5 docs + `.claude/hooks/dbt_layer_gate.py:72`, which re-teaches it as PreToolUse
+   `partition_by`/`cluster_by`. MR3 cleared the 4 in `5_marts/shared/`; a WIDER sweep found **6
+   more** (5 docs + `.claude/hooks/dbt_layer_gate.py:72`, which re-teaches it as PreToolUse
    context on **every mart edit**). That is **#79**, and it needs `protected_override`.
-1b. **A KEYWORD SCAN IS BLIND TO A FALSE CLAIM THAT USES NO KEYWORD.** MR4's worst find had no
-   ref, date or emoji and was under 600 chars: three `base.yml` descriptions claimed "explicit
-   ref() per competition staging" — the pattern the repo FORBIDS and `check_layer_contract.py`
-   blocks. Every base model reads ONE generic `stg_apif__*`, and the same file said so elsewhere.
-   Found by READING the SQL, not scanning.
+1b. **A KEYWORD SCAN IS BLIND TO A FALSE CLAIM THAT USES NO KEYWORD.** Three `base.yml`
+   descriptions claimed "explicit ref() per competition staging" — the pattern the repo FORBIDS —
+   with no ref, date or emoji and under 600 chars. Found by READING the SQL, not scanning.
 2. **A bulk-edit script that reported success while matching nothing.** Any such script must assert
    it found work (`if seen == 0: return 1`) or it silently no-ops and looks green.
 3. **A shared docs block that is wrong at some call sites.** `dbt parse` cannot catch it — read

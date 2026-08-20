@@ -4111,3 +4111,43 @@ programme. ONE RULING RESCUED, and a reviewer premise corrected with evidence.
   1900-01-01 to 2101-01-01, with no filter. The old text was false and my first rewrite reworded it
   without checking, which is exactly the failure MR4's own contract names as its one real risk.
   Found by reading the SQL. It is now "one row per day from 1900 through 2100".
+
+
+2026-08-20 feat/description-hygiene-gate — MR5 of the description-drift programme. CPO APPROVAL
+FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches either file.
+
+  WHY THIS ENTRY EXISTS AT ALL. GitLab #28: `protected_override` can claim a CPO ruling with no
+  entry here to back it, which makes the override self-certifying. So the approval is written down
+  first and the contract cites it, rather than the contract asserting an approval nobody can check.
+
+  THE ASK, as put to the CPO. MR5 builds `scripts/check_description_hygiene.py` — the machine check
+  that makes the whole programme stick, because prose rules do not hold in this repo (of 50 past
+  corrections, 33 were prose-only and 22 recurred; every rule that got a machine check stopped
+  recurring). Building the script and its tests needs no permission. WIRING it does: the gate is
+  useless unwired, and two of the three wiring points are PROTECTED paths that an ordinary task
+  contract may not edit —
+    - `.gitlab-ci.yml` (PROTECTED_FILES) — so it runs on every push.
+    - `.claude/hooks/stop_gate.py` FAST_GATES (PROTECTED_PREFIXES `.claude/hooks/`) — so it runs at
+      the end of every turn, catching a bad description while it is still in the file.
+  The third, `.claude/skills/validate-local/SKILL.md`, is NOT protected, but must change in
+  lockstep: `test_fast_gates_and_validate_local_agree` asserts SET EQUALITY between its marked
+  FAST_GATES block and the hook's tuple.
+
+  ⚠ TWO CORRECTIONS OF MY OWN FRAMING, both made while answering him. First, I twice named the two
+  protected paths as `stop_gate.py` and the validate-local SKILL — the skill is not protected;
+  `.gitlab-ci.yml` is. The approved plan file carries the same error, so it is not a transcription
+  slip and the plan should not be trusted on that point. Second, I put the choice to him three
+  times in terms of file paths and gate mechanics, and he said three times that he could not tell
+  what he was being asked to approve. The question he could actually answer was "when should the
+  guard fire — only on push, or also as I write it". That is the framing that got an answer, and
+  the failure was mine: the decision was always about behaviour, not about files.
+
+  CPO ANSWER, verbatim: "do both". So the gate runs BOTH in CI and at turn end.
+  His stated reason for wanting the turn-end one, in my framing that he accepted: the CI run only
+  tells me off after the bad text is written and pushed; the turn-end run is what actually stops
+  the mess being made.
+
+  SCOPE OF THE OVERRIDE, deliberately narrow. It authorises exactly two edits: one line added to
+  `validate:governance`'s script list in `.gitlab-ci.yml`, and one entry added to `FAST_GATES` in
+  `stop_gate.py`. It authorises no other change to either file, and no other protected path.
+  Both files route to `cto-reviewer` + `platform-reviewer`, so MR5 carries four reviewers.

@@ -1,50 +1,79 @@
-# Task contract — MR4 of the description-drift programme
+# Task contract — MR5 of the description-drift programme
 
 objective: >
-  Clean the `description:` fields in `dbt_project/models/3_core/core.yml`,
-  `dbt_project/models/2_base/api_football/base.yml` and
-  `dbt_project/models/4_intermediate/shared/int_momentum.yml` against the standard in
-  `dbt_project/docs/engineering_standards.md` §2. Same method as MR3: every description states
-  what the data MEANS to someone who has never seen our code — business meaning, grain, where it
-  comes from or how it is calculated, known limits. Decision history, dates, issue refs and
-  downstream-consumer claims come out. No SQL logic, no test, no column, no model behaviour
-  changes — this is prose.
+  Build `scripts/check_description_hygiene.py` — the machine check that makes the description
+  standard stick — with tests, and wire it into the three places that run the fast gates. It fails
+  on any `description:` under `dbt_project/` that carries an issue ref, an ISO date, decision
+  language, a severity emoji, a downstream-consumer claim, or more than 600 characters.
+
+  The point of the whole programme is that prose rules do not hold in this repo: of 50 past
+  corrections, 33 were prose-only and 22 recurred, while every rule that got a machine check
+  stopped recurring. MR1-MR4 wrote and applied the standard; this is the part that keeps it.
 
 refs: >
-  Authority: `.claude/task/escalations.log`, 2026-08-20 entries. The first holds the CPO's
-  diagnosis, the audit numbers, the definition of a good description, the three rulings and the
-  six-MR split; the second is MR3's, whose method this repeats. Plan file:
-  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`. Standard:
-  `dbt_project/docs/engineering_standards.md` §2 (MR1, `!82`). Shared docs blocks to reference
-  rather than restate: `dbt_project/models/docs/shared_columns.md` (MR2, `!83`).
-  MR3 merged as `!85`; branched from main `2d59320`, no open MRs at start.
+  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (diagnosis, the
+  definition of a good description, the six-MR split), MR3's and MR4's entries (the method), and
+  THIS branch's entry, which records the CPO's protected-path approval. Plan file:
+  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`, Step 4.
+  Standard: `dbt_project/docs/engineering_standards.md` §2. Model the script on
+  `scripts/check_copy_gate.py`. MR4 merged as `!86`; branched from main `dc6d7eb`, no open MRs.
+
+protected_override: >
+  CPO, in chat 2026-08-20, verbatim "do both", recorded in `.claude/task/escalations.log` under
+  `2026-08-20 feat/description-hygiene-gate` BEFORE this branch touched either file — GitLab #28 is
+  that an override can otherwise claim a ruling nobody can check.
+
+  It authorises exactly two edits, and nothing else:
+    1. `.gitlab-ci.yml` — one line added to `validate:governance`'s script list.
+    2. `.claude/hooks/stop_gate.py` — one entry added to `FAST_GATES`.
+  No other change to either file, and no other protected path. `.claude/skills/validate-local/`
+  is NOT protected but must move in lockstep, because
+  `test_fast_gates_and_validate_local_agree` asserts set equality between its marked block and the
+  hook's tuple.
 
 impact_map: >
-  PROSE ONLY, same blast radius as MR3 and verified the same way. `description:` is metadata dbt
-  carries into the manifest; nothing reads it today (`persist_docs` absent, `dbt docs generate`
-  runs nowhere — the root cause MR6 fixes). No `tests:`, `config:`, `meta:`, `columns:` list,
-  model, macro or seed is touched, so compiled SQL and built tables are identical before and
-  after.
+  A NEW GUARD, so the blast radius is "what can now fail that could not before", in three places.
 
-  Proved rather than asserted, reusing MR3's check: parse each file at HEAD and in the working
-  tree, strip every `description`, and diff the rest. Any change to a test, config, column or
-  model name shows up. That check is itself verified to detect a real structural change, so it is
-  not vacuous.
+  1. TURN END. `stop_gate.py` runs the fast gates when the tree is dirty and in scope, and blocks
+     the turn once if any fails. Adding a gate there means a description defect ends a turn red.
+     The gate must therefore be FAST and must not need network, a fetched base branch, or BigQuery
+     — it parses YAML off disk, like its five siblings.
+  2. CI. `validate:governance` gains one line, so a defect fails the pipeline. No `changes:` filter
+     on that job, so it runs on every MR.
+  3. LOCAL. `validate-local` documents the same set; the pinning test fails if the two disagree.
 
-  THE ONE REAL RISK is a rewrite that states something FALSE — the defect the programme exists to
-  fix, and one that got through in MR3 until a reviewer caught it (`mart_standings` zones).
-  Mitigated by reading the model's SQL before rewriting its description, never by paraphrasing
-  the old prose. Where a rewrite would make a vague old phrase into a specific claim, the claim
-  must be checked against the code or not made.
+  ⚠ GREEN ON DAY ONE IS THE WHOLE REASON THIS MR IS FIFTH. MR3 and MR4 cleared all 453 descriptions
+  in the five worst files. The remaining 14 files were measured healthy by the audit, but "healthy"
+  was that audit's judgement, not this gate's rule — so the gate MUST be run against the whole
+  repo before wiring, and any survivor fixed or the rule narrowed with a stated reason. A gate that
+  goes red on main on day one is the `check_copy_gate.py` precedent inverted.
 
-  MR4 is the last content MR before the gate. After it, `check_description_hygiene.py` (MR5) must
-  be green on day one, and no description anywhere may exceed 1,024 characters or MR6's
-  `persist_docs` breaks the nightly build.
+  ⚠ THE RULE MUST NOT FIRE ON ORDINARY PROSE, and this is measured, not hypothetical. On the
+  finished MR3/MR4 text, a case-insensitive `CORRECTED` matches six legitimate uses of "the country
+  corrections from the seed" and "derived from the corrected name"; an ISO-date rule would have
+  matched `dim_date`'s calendar range before MR4 reworded it. Match the ANNOTATION forms, not the
+  plain verb. Every banned pattern needs a reason recorded beside it, as `check_copy_gate.py` does.
+
+  No dbt model, seed, mart, export or site file is touched, so the warehouse and the built site are
+  untouched. `PyYAML` is already a dependency; no new dependency enters.
 
 scope_paths:
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+  - scripts/check_description_hygiene.py
+  - tests/test_description_hygiene.py
+  - .gitlab-ci.yml
+  - .claude/hooks/stop_gate.py
+  - .claude/skills/validate-local/SKILL.md
+  # Added by amendment 1 — the ten files the first full-repo sweep found dirty.
+  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
+  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
+  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
@@ -52,41 +81,62 @@ scope_paths:
   - .claude/active_work.md
 
 decisions_taken: >
-  CPO, in chat 2026-08-20, approving "the whole plan" — all six MRs. MR4's contents are fixed by
-  the six-MR split recorded in `escalations.log`: `core.yml`, `base.yml`, `int_momentum.yml`.
-  No scope widening is sought here. MR3 needed one and it was recorded as RULING 0 of its
-  escalations entry; if MR4 turns out to need one, it is asked for and logged the same way rather
-  than taken.
+  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR5 as the gate.
+  CPO, 2026-08-20, "do both" — the gate runs in CI AND at turn end. See `protected_override`.
 
 decisions_reserved:
-  - The gate is MR5, not this MR. Nothing here is enforced by a check yet; that ordering is
-    deliberate (gate green on day one, the `check_copy_gate.py` precedent).
   - `persist_docs` and `dbt docs generate` are MR6. Not touched here.
-  - Rulings already recorded elsewhere are deleted from the description, not copied. Only a ruling
-    that exists NOWHERE ELSE is rescued into `escalations.log`.
-    ⚠ "ELSEWHERE" IS NOT ONLY `escalations.log`. A model's own SQL header carries its "why" by
-    `engineering_standards.md` §1.2, and MR4 edits no `.sql` file, so a ruling written there
-    survives this MR untouched. scope-auditor FAILed round 1 having searched only the log and
-    concluded two rulings were destroyed; both are intact in `base_apif__teams_global.sql:1-10`.
-    One of them had no home outside that comment and IS now rescued into the log; the other was
-    already there as the 2026-08-19 team-name entries.
-  - An open question displaced out of a description goes to a GitLab issue. Filing it is in
-    scope; deciding it is not.
-  - Nothing outside these three files is edited. The surviving "partition key" instances in five
-    docs and in `.claude/hooks/dbt_layer_gate.py` are GitLab #79 and need `protected_override`.
+  - ⚠ THIS BULLET WAS WRONG AS FIRST WRITTEN, and scope-auditor FAILed the branch on it. It said
+    fixing a survivor was "in scope only as far as making the gate green". That is not the rule I
+    followed and not the rule that is right: where the sweep touches a description, it applies §2
+    IN FULL, not the gate's mechanical subset.
+    WHY, because the distinction is the whole point of trap 1b: the gate's rules are deliberately
+    narrower than §2 — they only match what a machine can decide with no taste. `mart_team_season
+    composes` and `ratios live in mart_team_season_record` are §2-banned downstream-consumer
+    claims that no regex here catches. A minimal token-deletion would have left them standing in a
+    description it had just edited, which is the half-cleaned outcome this programme exists to
+    remove, and would have left those ten files inconsistent with the five MR3/MR4 rewrote.
+    ⚠ ONE OF THE THREE FLAGGED CHANGES WAS NOT §2-DRIVEN and is restored: dropping "Complement to
+    int_team_momentum__metrics" from `int_team_season_record` was a sibling cross-reference, not a
+    downstream claim, and losing it cost something for nothing.
+    analytics-engineer-reviewer checked all ten files against their SQL and found no false claim,
+    so the rewrites are sound; the defect was this bullet describing them wrongly.
+  - The gate's rule set is mine to draft and the reviewers' to challenge. Any rule that would
+    require a CPO judgement — banning something he has asked for — is escalated, not assumed.
 
 done_when:
-  - Every description in the three files satisfies §2: business meaning, grain where applicable,
-    source or formula, known limits. No downstream-consumer claim survives.
-  - No description carries an issue ref (`#N`, `GAP-N`, `!N`), an ISO date, a CPO ruling, an
-    "UPDATED"/"CORRECTED"/"an earlier version said", or a severity emoji.
-  - Zero descriptions exceed 600 characters (17 do today; the worst is 2,441).
-  - Repeated shared columns reference MR2's docs blocks rather than restating them.
-  - `dbt parse` succeeds and `dbt ls` returns the same model set as main.
-  - `python -m pytest tests/` is green at the 829/1 baseline.
-  - The five offline gates pass, read from their OUTPUT and not their exit code (#904).
-  - The prose-only proof runs clean over all three files.
-  - Handover updated in the SAME commit as the code it describes.
+  - `scripts/check_description_hygiene.py` matches its six siblings: `main() -> int`, 0/1, no CLI
+    args, findings accumulated then printed with a count, a census line on success.
+  - It carries an anti-vacuous floor, as `check_copy_gate.py` does: if it finds implausibly few
+    descriptions it fails loudly rather than passing green on a broken parser.
+  - `tests/test_description_hygiene.py` drives `main()` against a synthetic offender for EVERY
+    banned class and asserts exit 1, and proves the floor fires from inside the gate.
+  - THE GATE IS SEEN RED. Break it deliberately, watch it fail, restore. A passing gate proves
+    nothing (#904) — this is the repo's dominant failure and the acceptance evidence must show it.
+  - Run against the WHOLE repo before wiring: zero findings on main's current content.
+  - Wired in all three places, and `test_fast_gates_and_validate_local_agree` passes.
+  - `python -m pytest tests/` green at the 829/1 baseline plus the new tests.
+  - The five existing fast gates still pass, read from their OUTPUT not their exit code.
+  - Handover updated in the SAME commit as the code.
 
 amendments:
-  - none
+  - >
+    1. TEN MORE FILES ADDED TO scope_paths, because the first full-repo sweep measured the gate
+    red on main. 35 findings across 10 files that MR3 and MR4 never touched: 14 issue refs, 9
+    over-length, 6 ISO dates, 4 decision-language, 1 severity emoji, 1 downstream-consumer claim.
+    The plan assumed MR3+MR4 would leave the repo green; that assumption was wrong for a reason
+    worth recording — the audit judged those 14 files "healthy" against its own reading, and this
+    gate's rule is stricter than that judgement. So the audit's 83%-in-5-files figure is right
+    about where the WORST text is and wrong as a completeness claim.
+    Fixing them is the `check_copy_gate.py` precedent applied literally: clear the findings, THEN
+    wire, so the default branch never goes red. It is not new editorial scope — the same six
+    mechanical classes MR3 and MR4 removed, in the files that were out of their reach.
+    ⚠ This makes MR5 two things in one MR: the last of the content sweep, and the gate. If a
+    reviewer judges that unreviewable, the content half splits out and the gate follows it.
+  - >
+    2. ONE RULE WIDENED DURING THE SWEEP, recorded because it changes what the gate catches.
+    `stg_apif__lineups` claims "This model has NO consumer today" — the exact shape of the
+    `display_group` claim that started this programme, and the first draft's
+    `no dbt model reads` arm did not match it. The downstream rule is now written as a CLASS
+    (no/zero/only/single reader-or-consumer, nothing downstream, feeds/enriches/powers a named
+    model) rather than a list of the instances seen so far.

@@ -361,6 +361,13 @@ validate:governance:
     # because it is a script and not a reviewer. Cleared in MR !7; wired here so it cannot
     # silently stop mattering again. Offline, reads two files, well under a second.
     - python scripts/check_copy_gate.py
+    # Description hygiene. dbt `description:` fields were being used as a decision log —
+    # rulings, dated stamps, issue refs, and hand-maintained claims about who reads a column
+    # downstream. An audit measured 616 descriptions and found three provably FALSE, each of
+    # them a downstream claim; one said a column had no readers while a live mart filtered on
+    # it. MR1-MR4 rewrote all 618 against engineering_standards.md section 2; this keeps them
+    # that way. Offline, parses YAML off disk, well under a second.
+    - python scripts/check_description_hygiene.py
     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
     - *dbt_profile
     - cd dbt_project && dbt deps && dbt parse

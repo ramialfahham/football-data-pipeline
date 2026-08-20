@@ -60,6 +60,12 @@ FAST_GATES = (
     "scripts/check_competition_type_seed.py",
     "scripts/check_ui_i18n_metrics.py",
     "scripts/check_copy_gate.py",
+    # Added 2026-08-20 with CPO approval for the protected-path edit (his "do both":
+    # CI *and* turn end). It belongs here rather than in CI alone because CI catches a
+    # bad description after it is written and pushed, while this catches it in the turn
+    # that wrote it — and the whole programme exists because prose-only rules did not
+    # hold. Offline, parses YAML off disk, no network and no warehouse.
+    "scripts/check_description_hygiene.py",
 )
 # Generous against a cold filesystem; the measured total is ~2.9s.
 GATE_TIMEOUT_S = 90

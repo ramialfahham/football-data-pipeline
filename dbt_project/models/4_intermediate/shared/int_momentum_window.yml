@@ -3,14 +3,16 @@ version: 2
 models:
   - name: int_team_momentum_window
     description: >
-      W1 momentum-window selection — team. One row per (upcoming fixture side, window leg).
-      Default (window_type='last_5'): the team's last 5 finished matches before the upcoming
-      fixture, cross-competition within the same entity_type, season-capped for clubs and
-      recency-only for national teams. Tournament fixtures (GAP-18, matrix §4) instead use a
-      cumulative window — tournament_to_date (this tournament so far) or qualifiers (its
-      opener) — uncapped. Extracted from int_team_momentum__metrics (#323) so the momentum aggregate
-      and the drill-down list mart consume the same selection.
-      Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
+      WHICH past matches count as a side's recent form. One row per (upcoming fixture side,
+      selected match). Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
+
+      By default the team's last 5 finished matches before the fixture, across competitions but
+      within the same entity_type, capped to the season for clubs and recency-only for national
+      teams. A tournament fixture instead takes a cumulative, uncapped window: the tournament so
+      far, or its qualifiers.
+
+      The selection lives here on its own so that everything computing form uses the same set of
+      matches, rather than each re-deriving it.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, leg_fixture_sk]
@@ -23,12 +25,12 @@ models:
       - name: team_sk
         tests: [not_null]
       - name: leg_fixture_sk
-        description: "The past match this row describes; click-through key for the drill-down."
+        description: "The past match this row describes; joins to the per-fixture stat marts."
         tests: [not_null]
       - name: window_type
         description: >
-          Which window this leg belongs to: last_5 (default) or tournament_to_date / qualifiers
-          for tournament fixtures (GAP-18). Constant per (upcoming_fixture_sk, team_sk).
+          Which window this match belongs to: last_5 by default, or tournament_to_date /
+          qualifiers on a tournament fixture. Constant across one side's rows.
         tests:
           - not_null
           - accepted_values:

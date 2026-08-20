@@ -3,13 +3,15 @@ version: 2
 models:
   - name: int_player_season__team
     description: >
-      GAP-16 — the player's team per competition-season: the club of the player's MOST RECENT finished
-      match that season (Option B, CPO-ruled 2026-06-30 — deterministic + byte-stable; the roster
-      affiliation source has no transfer date so cannot give a stable "latest team that season").
-      is_current_team flags the single season-row holding the player's globally most-recent finished match
-      (their current club) — guaranteed unique per player by the deterministic row_number()=1 window. Built
-      on int_legs__player_match (finished player-match legs). Consumed by mart_player_profile.
-      Grain: (player_sk, league_code, season_api_year) — 1:1 with mart_player_profile's (player_sk, season_sk).
+      Which club a player belongs to in a given competition-season: the club of their MOST RECENT
+      finished match that season. Grain: (player_sk, league_code, season_api_year).
+
+      Defined from match history rather than from the roster deliberately. The roster affiliation
+      source carries no transfer date, so it cannot give a stable answer to "which club that
+      season"; the last match played is deterministic and does not move.
+
+      is_current_team marks the one season-row holding the player's most recent finished match
+      anywhere — their current club. Exactly one per player, by construction.
     config:
       tags: ["intermediate", "football", "player"]
     tests:

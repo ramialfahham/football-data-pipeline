@@ -3,16 +3,18 @@ version: 2
 models:
   - name: int_team_profile__yoy
     description: >
-      Games-played-aligned year-over-year for the team profile (#324), domestic leagues
-      only. One row per team's CURRENT domestic season: the 3 scoreline totals (points /
-      goals for / against) AND the LOCKED 16-row rate metrics, each through the latest N
-      games this season vs the same team's prior season through its first N games (composed
-      from int_team_season__metrics_cumulative). Aligned by games played (match_number),
-      which equals matchday for fixed-matchday leagues and is the only safe cross-format key
-      (parsed round numbers collide across phases in multi-phase formats). Each metric has
-      _this_season / _prev_season / _delta_yoy; a rate is NULL on a side when that season's
-      first N games are not fully stat-covered, and the delta is NULL when either side is
-      (no prior season, or a coverage gap). Grain: (team_sk, league_code, season_api_year).
+      This season against last, compared over the same number of games played. One row per
+      team's CURRENT domestic season. Grain: (team_sk, league_code, season_api_year).
+      DOMESTIC LEAGUES ONLY.
+
+      Carries the three scoreline totals and every rate metric, each as _this_season,
+      _prev_season and _delta_yoy.
+
+      Aligned by GAMES PLAYED, not by matchday: parsed round numbers collide across phases in a
+      multi-phase format, so games played is the only key safe for every competition shape.
+
+      A rate is NULL on a side whose first N games are not fully stat-covered, and the delta is
+      NULL when either side is.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, league_code, season_api_year]
@@ -53,10 +55,11 @@ models:
 
   - name: int_team_profile__streaks
     description: >
-      Trailing run lengths per (team, competition-season) for the team profile (#324):
-      unbeaten / win / winless / clean-sheet / scoring runs as of that season's most
-      recent match. A run is the count of most-recent consecutive matches satisfying the
-      condition before the first that breaks it. Grain: (team_sk, season_sk).
+      A team's current runs as of its most recent match: unbeaten, win, winless, clean-sheet and
+      scoring. Grain: (team_sk, season_sk).
+
+      A run counts the most-recent consecutive matches satisfying the condition, stopping at the
+      first that breaks it — so it is a trailing streak, not the season's longest.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, season_sk]
