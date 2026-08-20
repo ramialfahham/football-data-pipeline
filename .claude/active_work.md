@@ -12,7 +12,7 @@ the Top teams ruling record, the Browse drop (`!80`). Product **Matchday Pilot**
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — description-drift programme: MR1-MR5 done, MR6 is LAST (2026-08-20)
+## ⭐⭐ CURRENT — description programme: MR1-MR5 done, MR6 next, MR7 added (2026-08-20)
 
 ⭐ **THE PLAN IS APPROVED AND WRITTEN DOWN. Read `.claude/task/escalations.log`'s 2026-08-20
 entries FIRST** — the CPO's diagnosis verbatim, the audit's numbers, the definition of a good
@@ -31,26 +31,28 @@ feedback loop and became the cheapest dumping ground.
 | 3 | clean `5_marts/shared/shared.yml` + `seeds/schema.yml` | ✅ `!85` |
 | 4 | clean `core.yml`, `base.yml`, `int_momentum.yml` | ✅ `!86` |
 | 5 | `check_description_hygiene.py` + tests + wiring | ✅ open, awaiting merge |
-| **6** | **`persist_docs` + `dbt docs generate`** | **← LAST** |
+| **6** | **`persist_docs` + `dbt docs generate`** | **← NEXT** |
+| 7 | description COVERAGE gate (**#82**) | own MR, after 6 |
 
-⚠ **ORDERING IS LOAD-BEARING.** MR5 after 3-4, so the gate is green on day one (`check_copy_gate.py`
-precedent). MR6 after 3-4 because **BigQuery rejects column descriptions over 1,024 chars and 15
-currently exceed it** — enabling `persist_docs` first BREAKS the nightly build.
+⚠ **ORDERING IS LOAD-BEARING.** MR5 came after 3-4 so the gate was green on day one
+(`check_copy_gate.py` precedent). MR7 must follow MR6: coverage needs `catalog.json`, which only
+`dbt docs generate` produces.
 
 **MR6 concretely, and it is the one that can BREAK PROD.** Turn on `+persist_docs: {relation: true,
-columns: true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. That finally gives
-descriptions a reader, which is the root cause the whole programme was about.
+columns: true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. That gives
+descriptions a reader — the root cause the whole programme was about — and its `catalog.json` is
+what makes **#82**'s coverage gate (MR7) possible at all.
 ⚠ There is **NO `seeds:` block** in `dbt_project.yml` — one must be added, and seeds were the worst
 offender. ⚠ The gate already caps at BigQuery's own maxima (1,024 column / 16,384 table) measured
 on the RENDERED text, so length is covered — but prove it: test on a **dev target only**
 (`dbt run --select competition_types`, then `bq show --schema`); never `dbt build` against prod.
 
 ✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, wired in CI AND in
-`stop_gate.py`'s FAST_GATES — CPO approved both ("do both"), logged in `escalations.log`.
-618 descriptions pass; 21 tests, one per banned class. **Seen RED on real content, then restored.**
-⚠ Its rules match ANNOTATION forms, not plain verbs, deliberately and measurably: a
-case-insensitive `CORRECTED` hits six legitimate "the country corrections from the seed" uses. A
-rule that fires on correct text gets weakened, not obeyed.
+`stop_gate.py`'s FAST_GATES ("do both", logged). 618 pass; 31 tests. **Seen RED on real content.**
+⚠ It checks CONTENT, never PRESENCE — that gap is #82/MR7.
+⚠ Rules match ANNOTATION forms, not plain verbs: a bare `ruled` hits "goal ruled out for offside",
+`CORRECTED` hits "the country corrections from the seed". A rule that fires on correct text gets
+weakened, not obeyed.
 
 ⛔ **SIX TRAPS, every one hit for real in MR1-MR5. Do not re-learn them.**
 1. **A too-narrow grep reported as a clean sweep.** "partition key" is FALSE — zero models declare
@@ -179,8 +181,7 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
    (`.gitlab-ci.yml` asks only for `teams,fixtures`). ⚠ `display_group` is NOT deletable alone:
    `mart_competition_index.sql:90-91` reads its blank-ness as the browsable gate.
 2b. **A trending-doc-rot pass.** Several docs describe the "trending" block as if it exists; it was
-   cut 2026-08-08. Two fixed in `!80`; `09_chrome.md` §4/§10 remains. SEMANTIC sweep, not a word
-   search.
+   cut 2026-08-08. Two fixed in `!80`; `09_chrome.md` §4/§10 remains. SEMANTIC sweep.
 3. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests) — FALSE since the migration;
    pairs with **#21 Q2** ("the server should enforce it").
 4. **#47** (the competition hub) — makes the competitions page's rows real links. Three decisions
@@ -201,7 +202,7 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
 
 ## OPEN — the CPO's alone
 Imprint operator + address (#799) · hosting recurring run · feedback Apps Script (#687) · **#81**
-duplicate-club alias · #875 · #895 slim-vs-drop · #21.
+duplicate-club alias · #875 · #895 slim-vs-drop · #21 · **#82**'s "business-facing" definition.
 
 ## DO NOT (standing)
 - **DESIGN, the weak spot:** never off the cuff. Rendered output not prose; copy decisions BEFORE

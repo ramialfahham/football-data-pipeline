@@ -4174,3 +4174,19 @@ FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches eit
   then not re-checked when the thing it described moved. That is the same defect as a `description:`
   asserting who reads a column. A gate now covers descriptions; nothing covers contracts, review
   artifacts or handovers, which is what #71 is for.
+
+  ⚠ AND A SEVENTH MR, decided while MR5 was open. CPO asked whether the "every model and every
+  column needs a description" rule exists and whether it is enforced. It exists in §2 and is
+  NARROWER than that — every model, every source table, and business-facing columns in core,
+  intermediate and marts only. Nothing enforces any of it: MR5's gate checks the CONTENT of
+  descriptions that exist, so anything with no description passes silently.
+  MEASURED from dbt's manifest: 1 of 97 models undescribed, 0 of 9 seeds, 262 of 720 in-scope
+  columns, and 11 of 11 SOURCE TABLES — a rule written down the whole time and met zero times.
+  CPO RULING on sequencing, asked and answered in chat: "own MR after MR6". Tracked as GitLab #82.
+  THE REASON IT CANNOT COME EARLIER is not preference. A column that exists in BigQuery but is
+  never declared in any yml is invisible to a yml-based check; catching it needs
+  `target/catalog.json`, which only exists once `dbt docs generate` runs — that is MR6. Before
+  MR6, a coverage check can only see columns somebody already chose to declare.
+  ⚠ ONE THING IS THE CPO'S WHEN IT IS BUILT: "business-facing" is not machine-decidable, so
+  enforcing the column half means choosing between every column in those layers and every column
+  minus an explicit exemption list. That is a rule change, not an implementation detail.
