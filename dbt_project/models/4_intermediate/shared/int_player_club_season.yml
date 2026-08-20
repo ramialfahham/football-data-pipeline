@@ -31,34 +31,34 @@ models:
         description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
         tests: [not_null, unique]
       - name: player_sk
-        description: "Player entity key."
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: team_sk
-        description: "Club the player turned out for that competition-season."
+        description: "{{ doc('team_sk') }} Here it is the club the player turned out for that competition-season."
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
-        description: "Competition-season key (encodes league + year)."
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
-        description: "Competition key."
+        description: "{{ doc('league_sk') }}"
         tests: [not_null]
       - name: league_code
-        description: "Competition code (partition key)."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
-        description: "Provider season year."
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: appearances
         description: "Finished-match legs this player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member named on the bench all season but never brought on. Before 2026-07-23 this was count(*) of player-stat rows, which counted unused substitutes as appearances (honest absence where stats are off still applies)."
