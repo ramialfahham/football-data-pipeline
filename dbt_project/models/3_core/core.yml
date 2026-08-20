@@ -16,7 +16,11 @@ version: 2
 
 models:
   - name: dim_date
-    description: "Global calendar dimension, one row per day from 2015-07-01 through 2030-12-31. Grain: date_day. Not league-scoped; every fact that carries a date joins via ``date_sk``."
+    description: >
+      Global calendar dimension: one row per day from 1900 through 2100. Grain: date_day.
+
+      Deliberately far wider than any football data we hold, so it never needs extending. Not
+      scoped to a competition — every fact carrying a date joins it through `date_sk`.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -53,18 +57,16 @@ models:
 
   - name: dim_country
     description: >
-      Canonical country dimension. Grain: country_key. Published from the `countries` seed (#69);
-      the provider's spellings are mapped onto these names by `country_name_overrides` in BASE, so
-      this dim publishes and never corrects.
-      ⚠ NOT a list of UN countries — 188 of 224 rows are UN states, the rest are football
-      associations (England, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei …),
-      player-producing territories, one unrecognised state and one historical (Yugoslavia). None is
-      droppable; England is the most common value in the dataset.
-      ⚠ NO SURROGATE KEY: a country has no provider id, so `country_key` is the key. Inventing a
-      synthetic integer would add a join without adding identity.
-      READ by `dim_league.league_country`, `dim_team.team_country`, `dim_player.player_birth_country`
-      and `dim_coach.coach_birth_country`, each a `relationships` test to this dim's `country_name`
-      (#69 step 5).
+      The canonical country dimension, published from the `countries` seed. Grain: country_key.
+
+      It publishes and never corrects: provider spellings are mapped onto these names in base, so
+      anything arriving here is already canonical.
+
+      NOT A LIST OF UN MEMBER STATES, and joining it to one drops real rows. Most entries are UN
+      states; the rest are football associations (England, Scotland, Kosovo), territories, one
+      unrecognised state and one historical country.
+
+      NO SURROGATE KEY: a country has no provider id, so the assigned country_key is the key.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -81,19 +83,16 @@ models:
 
   - name: dim_region
     description: >
-      Region dimension — the counterpart to `dim_country` (#69). A competition points at ONE of the
-      two: a domestic competition has a country, a continental or international one has a region.
-      Which relationship is populated IS the answer, which is what removes the need for
-      `competition_types.single_country`. Grain: region_key. Published from `confederations.csv`
-      (#57), which nothing read before this.
-      ⚠ `region_key` holds a CONFEDERATION CODE (UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA).
-      The seed keeps `confederation` as its column name because it is the authoring surface; the dim
-      publishes it under the name its consumers read. `FIFA -> World` is a judgement, not geography.
-      ⚠ This adds PUBLICATION and symmetry, NOT a new guard:
-      `competition_registry.confederation` already carries a `relationships` test to
-      `ref('confederations')`, so the competition-to-region check exists at seed level today.
-      READ by `mart_competition_index.region_label` for the competitions with no country (#62
-      step 3) — see `dim_country`.
+      The region dimension, the counterpart to dim_country, published from the `confederations`
+      seed. Grain: region_key.
+
+      A competition points at ONE of the two: a domestic competition has a country, a continental
+      or international one has a region. Which of the two is populated IS the answer, so no
+      separate flag is needed to tell them apart.
+
+      region_key holds a CONFEDERATION CODE — UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA. The
+      seed calls that column `confederation` because it is the authoring surface; the dim
+      publishes it as region_key. `FIFA -> World` is a judgement, not geography.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -140,12 +139,13 @@ models:
               severity: warn
       - name: league_country
         description: >
-          Country the league belongs to, canonicalised and reconciled against `dim_country` in
-          base (#69). NULL for the 24 international/continental competitions — the provider's
-          'World' sentinel is not a country, and under the two-dimension model those rows carry
-          no country and take their region from `confederation` instead. Which relationship is
-          populated (this column, or `confederation` → `dim_region`) IS the answer to "does this
-          competition show a country or a region" — see `mart_competition_index`.
+          The country a league belongs to, already canonicalised and reconciled against
+          dim_country in base.
+
+          NULL for every international and continental competition: the provider's 'World'
+          sentinel is not a country, so those rows carry none and take their region from
+          `confederation` instead. Whether this column or the region is populated IS the answer to
+          "does this competition show a country or a region".
         tests:
           - relationships:
               to: ref('dim_country')
@@ -236,34 +236,29 @@ models:
         tests: [not_null]
       - name: team_name
         description: >
-          Team display name. API-Football's value, with the CPO-owned corrections from the
-          team_name_overrides seed applied in base (#850). This is the ONLY team name in the
-          product — the fixture card, the page H1, the title and the meta description all read
-          it — so a wrong value here is wrong on every surface at once (#851).
+          The team's display name: the provider's value with the corrections from the
+          team_name_overrides seed already applied in base.
+
+          There is no second team-name field anywhere, so this value names the team wherever a
+          team is named, and a wrong value here is wrong in every one of those places at once.
         tests: [not_null]
       - name: team_slug
         description: >
-          The team's permanent, locale-independent URL segment: /{locale}/teams/{team_slug}/
-          (docs/site_architecture.md section 3). Derived in base_apif__teams_global from the
-          CORRECTED name, so it changes when a correction lands — slugs are not yet persisted,
-          which is #852's remaining half (PR D). Carries no provider id except in the terminal
-          collision case (a same-country duplicate, a missing country, or a name that folds to
-          nothing), which is the only place an id appears in any URL.
-          BOTH tests are load-bearing, for different reasons. `unique`: two teams on one slug
-          would mean two pages resolving to one path, and in a static build one silently
-          overwrites the other. `not_null`: the ladder deliberately yields NULL rather than
-          inventing a stranger URL when even the id-suffixed candidate is already taken, so this
-          test IS the escalation path for that case — it stops the build and names the team so a
-          human resolves it with an override row. Reaching it takes a club named
-          "<X> <another club's provider id>" in the same country as that club; expected NULLs
-          today: zero.
+          The team's permanent, locale-independent URL segment, derived in
+          base_apif__teams_global from the corrected name. It carries no provider id except in the
+          terminal collision case, the only place an id appears in any URL.
+
+          BOTH tests are load-bearing. `unique`: two teams on one slug means two pages resolving
+          to one path, and in a static build one silently overwrites the other. `not_null`: the
+          ladder yields NULL rather than invent a stranger URL, so that test IS the escalation
+          path — it stops the build and names the team for a human to resolve.
         tests: [not_null, unique]
       - name: team_code
         description: "Short team code (3-4 letters) from API-Football."
       - name: team_country
         description: >
-          Country the team is registered in, canonicalised and reconciled against `dim_country`
-          in base (#69). Can be NULL — not every provider row carries one.
+          The country a team is registered in, already canonicalised and reconciled against
+          dim_country in base. Can be NULL — not every provider row carries one.
         tests:
           - relationships:
               to: ref('dim_country')
@@ -324,8 +319,8 @@ models:
         description: "Birth place (city), from /players/profiles."
       - name: player_birth_country
         description: >
-          Birth country, from /players/profiles, canonicalised and reconciled against
-          `dim_country` in base (#69). Can be NULL — not every provider row carries one.
+          Birth country, from the provider's player profiles, already canonicalised and reconciled
+          against dim_country in base. Can be NULL — not every provider row carries one.
         tests:
           - relationships:
               to: ref('dim_country')
@@ -341,16 +336,15 @@ models:
 
   - name: dim_player_team_season_mapping
     description: >
-      Relationship (mapping) dimension: rostered player↔team↔season membership.
-      Grain: (player_sk, team_sk, league_code, season_api_year) — one row per player per
-      team per season they were in the /players roster, including squad members with zero
-      appearances. An association across dimensions, not an entity dim and not a fact (no
-      measures, no descriptive attributes — only participating keys + lineage). On its
-      grain key it is a clean one-row-per-key lookup; joining on a single participating key
-      (e.g. player_sk) resolves a many-to-many and returns many rows by design. Use this
-      for "which team/competition was a player part of, when"; appearances live in
-      fct_fixture_player_stats. See the "relationship (mapping)
-      dimensions" clause in dbt_project/docs/layering.md.
+      Which team a player was rostered at, in which competition-season. Grain: (player_sk,
+      team_sk, league_code, season_api_year) — one row per player per team per season they
+      appeared in the roster, squad members with zero appearances included.
+
+      A mapping dimension: an association between dimensions, holding participating keys and
+      lineage only, with no measures and no descriptive attributes.
+
+      Join it on the FULL grain for a one-row lookup. Joining on a single key such as player_sk
+      resolves a many-to-many and returns many rows — by design, not a defect.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -413,19 +407,17 @@ models:
 
   - name: dim_team_competition_season_mapping
     description: >
-      Relationship (mapping) dimension: team↔competition↔season membership, derived from
-      fixtures. Grain: (team_sk, league_code, season_api_year) — one row per team per
-      competition per season in which the team has at least one fixture (finished OR
-      scheduled). An association across dimensions, not an entity dim and not a fact (no
-      measures, no descriptive attributes — only participating keys). On its grain key it is
-      a clean one-row-per-key lookup; joining on a single participating key (e.g. team_sk)
-      resolves a many-to-many and returns many rows by design. Use this for "which teams are
-      in competition X, season Y"; per-match facts live in fct_fixture. Membership comes from
-      fixtures (not the /teams roster) because a team that is in a competition always plays
-      it — scheduled fixtures are included, so membership exists from the moment the schedule
-      is published. No raw_ingested_at: the association is distilled from many fixtures, not a
-      single source row. See the "relationship (mapping) dimensions" clause in
-      dbt_project/docs/layering.md.
+      Which teams were in which competition-season. Grain: (team_sk, league_code,
+      season_api_year) — one row per team per competition-season in which it has at least one
+      fixture, finished or scheduled.
+
+      Membership is derived from FIXTURES, not the roster, because a team in a competition always
+      plays in it. Scheduled fixtures count, so membership exists as soon as a schedule is
+      published.
+
+      A mapping dimension: participating keys only, and no raw_ingested_at, because it is
+      distilled from many fixtures rather than one source row. Join it on the FULL grain; a
+      single-key join returns many rows by design.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -471,7 +463,12 @@ models:
         tests: [not_null]
 
   - name: fct_fixture
-    description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
+    description: >
+      Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id).
+
+      The measures are FINAL-TIME goals only. Half-time, extra-time and penalty shoot-out splits
+      are deliberately not carried, so a score here is the result and never a stage of it. Status,
+      round and venue ride along as degenerate attributes.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -640,7 +637,11 @@ models:
         description: "Surrogate key from (fixture_id, league_code, team_id)."
         tests: [not_null, unique]
       - name: fixture_sk
-        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
+        description: >
+          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
+          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
+          history forward on full refresh, so the foreign key holds for active and idle
+          competitions alike.
         tests:
           - not_null
           - relationships:
@@ -696,7 +697,11 @@ models:
         description: "Surrogate key from (fixture_id, league_code, team_id, player_id)."
         tests: [not_null, unique]
       - name: fixture_sk
-        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
+        description: >
+          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
+          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
+          history forward on full refresh, so the foreign key holds for active and idle
+          competitions alike.
         tests:
           - not_null
           - relationships:
@@ -753,7 +758,9 @@ models:
       - name: cards_red
       - name: penalty_won
       - name: penalty_committed
-        description: "Mirrors the API's ``penalty.commited`` (sic) field under a corrected name."
+        description: >
+          Penalties the player conceded. Mirrors the provider's `penalty.commited` field, whose
+          name is misspelled at source and is spelled properly here.
       - name: penalty_scored
       - name: penalty_missed
       - name: penalty_saved
@@ -775,7 +782,11 @@ models:
         description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
         tests: [not_null]
       - name: fixture_sk
-        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
+        description: >
+          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
+          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
+          history forward on full refresh, so the foreign key holds for active and idle
+          competitions alike.
         tests:
           - not_null
           - relationships:
@@ -847,12 +858,13 @@ models:
 
   - name: fct_transfer
     description: >
-      Dated player transfers (moves) — one row per distinct move (player, team_out, team_in,
-      date) with the provider's raw type. The dated source of the player affiliation timeline
-      (a later PR derives valid_from/valid_to + chronological order). Reinstated 2026-06-14
-      (transfers chain rebuild; reverses #420). No relationship tests to dim_player/dim_team —
-      transfers legitimately reference clubs and players outside our covered competitions.
-      Grain: (player_sk, team_out_sk, team_in_sk, transfer_date).
+      Dated player transfers: one row per distinct move, carrying the provider's raw transfer
+      type. Grain: (player_sk, team_out_sk, team_in_sk, transfer_date). The dated source of a
+      player's affiliation timeline.
+
+      NO relationship tests to dim_player or dim_team, deliberately: transfers legitimately name
+      clubs and players outside the competitions we cover, so a foreign key here would fail on
+      correct data.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -901,7 +913,7 @@ models:
         tests: [not_null]
       - name: coach_birth_country
         description: >
-          Birth country, canonicalised and reconciled against `dim_country` in base (#69). Can be
+          Birth country, already canonicalised and reconciled against dim_country in base. Can be
           NULL — not every provider row carries one.
         tests:
           - relationships:

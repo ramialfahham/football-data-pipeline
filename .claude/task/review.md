@@ -1,51 +1,58 @@
-# Review — chore/description-cleanup-shared-and-seeds — 2026-08-20
+# Review — chore/description-cleanup-core-base-intermediate — 2026-08-20
 
-> MR3 of the description-drift programme. Both required reviewers FAILed round 1 with one
-> finding each; both findings were real, both were verified against the code before being
-> accepted, both were fixed, and both reviewers PASSed on a narrow round-2 confirm.
+> MR4 of the description-drift programme, and the last content MR before the gate. Both required
+> reviewers FAILed round 1 with one finding each. One was correct and is fixed; the other rested
+> on a premise I disproved with evidence, and the reviewer withdrew it on seeing the file. Both
+> PASSed on a narrow round-2 confirm.
 
-diff_sha256: 991fb6b5789145b9af6354ac5427ad765f4c31ed5b4b89701e4ac47ba63ddf93
+diff_sha256: a893d644442094379c0bd509ce8a69dcc14a9d11fec09ff6c56f3ecd393803d8
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All 7 changed files match `scope_paths` exactly. No MR4 file (`core.yml`, `base.yml`,
-  `int_momentum.yml`), no MR5 file (`check_description_hygiene.py`), no MR6 change
-  (`persist_docs`, `dbt_project.yml`) is touched, so `decisions_reserved` holds.
-- The six-MR split cited in `decisions_taken` matches `escalations.log` verbatim.
-- The "four rulings rescued" claim was checked ruling by ruling against the whole log: none of
-  the four exists elsewhere, and the four claimed-duplicate rulings genuinely do have prior
-  entries, so deleting rather than rescuing those was correct. The rescue is not padding.
-- ROUND 1 FAIL, now fixed: the AskUserQuestion ruling widening MR3 to three `.sql` files lived
-  only in `contract.md`, which the next task overwrites — the repo's named unlogged-authority
-  defect class, and the same error the programme exists to fix. It is now RULING 0 of this
-  branch's `escalations.log` entry, and `contract.md` defers to it instead of standing alone.
-  Confirmed durable and correctly deferred on round 2.
+- All changed files are inside `scope_paths`; no `.sql`, test, config, column or model behaviour
+  changed. Verified hunk by hunk that every one touches only a `description:` block.
+- The file set matches the six-MR split's MR4 row in `escalations.log`. Nothing from MR5 (the gate
+  script) or MR6 (`persist_docs`) leaked in, and the "partition key" instances in five docs and in
+  `.claude/hooks/dbt_layer_gate.py` were correctly left alone as GitLab #79.
+- ROUND 1 FAIL, WITHDRAWN ON EVIDENCE: the finding was that this diff destroyed two CPO rulings —
+  base-prepares/dim-publishes, and the "only team name in the product" identity claim — because
+  neither is in `escalations.log`. The search was right, the inference was not. Both are verbatim
+  in `base_apif__teams_global.sql:1-10`, along with the collision-ladder rationale, and MR4 edits
+  no `.sql` file at all. `engineering_standards.md` §1.2 makes a model's own header a legitimate
+  home for its "why". The identity ruling is additionally already logged, as the 2026-08-19
+  team-name entries.
+- WHAT THE FINDING DID SURFACE, and it was worth having: the base-prepares/dim-publishes ruling
+  had no home outside that one SQL comment, which is thin for an architectural ruling. It is now
+  rescued into `escalations.log`, together with a note that this class of check must search the
+  model file and not only the log. `decisions_reserved` was corrected to say where "elsewhere"
+  includes, rather than claiming a bare ruling-by-ruling check.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- ROUND 1 FAIL, now fixed: the rewritten `mart_standings` description claimed qualification and
-  relegation zones are "deliberately not carried". FALSE — `mart_standings.sql:65` selects
-  `group_description`, which `stg_apif__standings.sql:42-44` and the sibling column doc in the
-  same file both identify as exactly that zone annotation. Verified independently before
-  accepting. The text now says the annotation is carried verbatim but never interpreted, so
-  there is no derived zone field; model-level and column-level text agree. Confirmed round 2.
-- Lower-severity note, also applied: `competition_registry.sort_order` no longer asserts
-  uniqueness within a `display_group`. That is true of today's data but pinned by no test, and
-  an unenforced invariant in a description is the rot this programme is removing.
-- The four replaced "partition key" claims check out: no dbt model declares `partition_by` or
-  `cluster_by`, so `league_code` is a discriminator, matching `CLAUDE.md` and the `league_code`
-  docs block.
-- `mart_competition_index`'s stated composition matches its five `ref()` calls; `mart_roster`'s
-  "no per-club stat columns" matches its select list; `competition_registry.tier` non-empty
-  exactly when `domestic_league` is true and is pinned by `test_registry_seed_projection.py`.
-- The coverage paragraph dropped from `mart_team_profile` really is documented at source on
-  those columns in `int_team_season.yml`, so the deletion de-duplicates rather than loses it.
-- Both new `is_featured_season` descriptions match the `row_number()` logic in the two models.
-- Every `{{ doc() }}` reference still resolves against `shared_columns.md`.
+- ROUND 1 FAIL, now fixed: `dim_date`'s description claimed the calendar ran July 2015 through
+  December 2030. `dim_date.sql:6-9` builds a spine from 1900-01-01 to 2101-01-01 with no filter,
+  so the claim was false — and false on main too; my rewrite had reworded it without checking,
+  the exact failure this contract names as its one real risk. I found it independently while
+  checking my own claims, minutes before the review landed. Now "one row per day from 1900
+  through 2100", confirmed correct on round 2 including the exclusive end bound.
+- The removed "explicit ref() per competition staging" claim: each of the three models reads ONE
+  generic `stg_apif__*`, so the new text is true and the old text described a per-competition
+  pattern the repo forbids and `check_layer_contract.py` blocks.
+- `base_apif__teams`' union across teams, fixtures, standings, statistics, player stats and
+  events matches its SQL. `base_apif__competition_seasons`' dedup claim matches its `qualify`.
+- `base_apif__teams_global`: the slug ladder compressed from 2,441 chars to ~570 still matches the
+  CASE ladder in the SQL — bare, country-anchored, id-suffixed, NULL beyond.
+- `fct_fixture` final-time-goals-only, `fct_transfer`'s deliberate absence of relationship tests,
+  `dim_team_competition_season_mapping`'s fixture-derived membership including scheduled fixtures,
+  and `dim_country`/`dim_region`'s publishes-never-corrects claims all check out against SQL.
+- All three bulk-replaced `fixture_sk` descriptions landed, and the incremental-vs-full-refresh
+  text is true for each of the three facts it now sits on.
+- Every `{{ doc() }}` reference still resolves, and no description contradicts a shared block or a
+  sibling column in the same file.
 
 ## escalations
 (none)

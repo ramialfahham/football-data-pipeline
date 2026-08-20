@@ -3,9 +3,13 @@ version: 2
 models:
   - name: base_apif__teams
     description: >
-      Unified teams across all onboarded competitions (explicit ref() per
-      competition staging). Same enrichment as BL1: /teams plus fixture-derived
-      keys and name fallback. Output grain: (league_code, team_api_id).
+      One row per team per competition, from the generic stg_apif__teams model. Grain:
+      (league_code, team_api_id).
+
+      The key set is a union rather than just /teams: team ids are also collected from fixtures,
+      standings, per-fixture statistics, player stats and events. A team that appears in a
+      competition's matches is therefore present even when the provider's /teams call never
+      returned it, which is common on newly onboarded competitions.
     config:
       tags: ["base", "api_football", "team_context"]
     tests:
@@ -19,40 +23,16 @@ models:
 
   - name: base_apif__teams_global
     description: >
-      One row per team_api_id: latest ingest across (league_code, team_api_id) rows
-      from base_apif__teams. Entity resolution for dim_team. Grain: team_api_id.
+      One row per team: the settled entity, from the latest ingest across base_apif__teams'
+      per-competition rows. Grain: team_api_id.
 
-      Also applies the CPO-owned display-name corrections from the team_name_overrides seed
-      (#850). This is the layer where they belong: base prepares the entity, the core dim
-      publishes an already-settled one (CPO ruling, 2026-07-27). It matters because the
-      provider's short name is the ONLY team name in the product — it drives the fixture
-      card, the page H1, the title, the meta description and the URL slug (#851) — so the
-      correction has to land once, upstream of all of them.
+      Identity is DECIDED here, not carried through: the name and country corrections from the
+      override seeds are applied here, so the core dim publishes a settled entity.
 
-      Note for anyone reading a historical row elsewhere: fct_fixture_event's
-      team_name_snapshot is written on insert and never revisited, so it deliberately keeps
-      the name as it stood at ingest time and will not reflect a later correction.
-
-      Also derives team_slug, the permanent locale-independent URL segment (#852), from the
-      CORRECTED name via a symmetric, closed collision ladder. Symmetric: a contested name is
-      given to nobody, so no ranking or per-collision adjudication is ever needed. Each
-      candidate is tested against the strings already assigned, not merely against its own
-      contending group, because a country-anchored candidate can equal a DIFFERENT team's bare
-      slug (the Ararat / Ararat-Armenia pair is that shape, though both sit at level 1 today so
-      the anti-join has not fired) and a `{name}-{id}` candidate can equal a bare slug too,
-      since club names embed digits (`1899 Hoffenheim` owns `hoffenheim-1899`).
-
-      STATED RESIDUAL, not closed: if a level-3 `{name}-{id}` candidate is itself already taken,
-      team_slug is NULL and the not_null test stops the build naming the team. Reaching it takes
-      a club named "<X> <another club's provider id>" in the same country as that club. That is a
-      data situation for a human, and the fix is an override row — not a wider rule and not an
-      automatic escape hatch. An earlier revision added a doubled-hyphen terminal here because
-      kebab_slug can never emit `--`; it was provably unique and it was a hack, buying closure
-      with a URL no reader should see, for a case that fires zero times. Removed deliberately.
-
-      Note the two most common level-3 triggers are DATA DEFECTS rather than naming problems:
-      a same-country duplicate record (#850's open alias decision) and a null country (#853 — 39
-      teams, 22 of which have a country in stg_apif__teams). Fixing those mostly empties level 3.
+      team_slug, the permanent locale-independent URL segment, is derived from the corrected name
+      by a closed collision ladder — bare slug, then anchored to the country, then suffixed with
+      the provider id. If that is taken too, team_slug is NULL and the not_null test stops the
+      build.
     config:
       tags: ["base", "api_football", "team_context"]
     tests:
@@ -66,13 +46,12 @@ models:
 
   - name: base_apif__leagues
     description: >
-      Unified league-season rows across all onboarded competitions, read from the generic
-      staging model with league_code flowing through as a column. Deduplicated per
-      (league_code, league_api_id, season_api_year). Also applies the country-name corrections
-      from the country_name_overrides seed (#62), so league_country is display-ready before
-      dim_league publishes it. Feeds base_apif__league_entity,
-      base_apif__competition_seasons, and core dims built from those. Output grain:
-      (league_code, league_api_id, season_api_year).
+      One row per league-season, from the generic stg_apif__leagues model with league_code
+      flowing through as a column, deduplicated on the grain.
+      Grain: (league_code, league_api_id, season_api_year).
+
+      It also applies the country corrections from the country_name_overrides seed, so
+      league_country is already the canonical English name by the time the core dim publishes it.
     config:
       tags: ["base", "api_football", "league_context"]
     tests:
@@ -103,9 +82,9 @@ models:
 
   - name: base_apif__competition_seasons
     description: >
-      One row per (league_api_id, season_api_year); tie-breaks duplicate keys by
-      raw_ingested_at desc. Feeds dim_competition_season. Grain:
-      (league_api_id, season_api_year).
+      One row per competition-season, collapsing the same season seen under more than one
+      league_code by keeping the most recently ingested row.
+      Grain: (league_api_id, season_api_year).
     config:
       tags: ["base", "api_football", "league_context"]
     tests:
@@ -121,9 +100,8 @@ models:
 
   - name: base_apif__fixtures_next
     description: >
-      Unified fixtures across all onboarded competitions (explicit ref() per
-      competition staging). Deduplicated per fixture_id. Feeds fct_fixture.
-      Output grain: fixture_id.
+      One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
+      fixture_id. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -137,11 +115,12 @@ models:
 
   - name: base_apif__standings
     description: >
-      Unified standings across all onboarded competitions (generic staging).
-      Deduplicated per (league_code, season, team_id, group_name). Feeds
-      fct_standings. group_name is the API standings section/table name (true
-      table identity); group_description is the API zone/stage annotation.
-      Output grain: (league_code, season, team_id, group_name).
+      One row per team per standings section, from the generic stg_apif__standings model,
+      deduplicated on the grain. Grain: (league_code, season, team_id, group_name).
+
+      group_name is the provider's section or table name and is the true table identity — a league
+      name for a single table, a group name for a group stage. group_description is a zone or
+      stage annotation and is never an identity.
     config:
       tags: ["base", "api_football", "standings_context"]
     tests:
@@ -159,10 +138,9 @@ models:
 
   - name: base_apif__fixture_statistics
     description: >
-      Unified per-team fixture statistics across all onboarded competitions
-      (explicit ref() per competition staging). Deduplicated per
-      (league_code, fixture_id, team_id). Feeds fct_fixture_team_stats.
-      Output grain: (league_code, fixture_id, team_id).
+      One row per team per fixture with that team's match statistics, from the generic
+      stg_apif__fixture_statistics model, deduplicated on the grain.
+      Grain: (league_code, fixture_id, team_id).
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -178,10 +156,12 @@ models:
 
   - name: base_apif__fixture_players
     description: >
-      Unified per-player match statistic rows across all onboarded competitions.
-      League list driven by var('active_competition_league_codes').
-      Deduplicated per (league_code, fixture_id, team_id, player_id).
-      Feeds fct_fixture_player_stats. Output grain: (league_code, fixture_id, team_id, player_id).
+      One row per player per fixture with that player's match statistics, from the generic
+      stg_apif__fixture_players model, deduplicated on the grain.
+      Grain: (league_code, fixture_id, team_id, player_id).
+
+      Many competitions supply no player statistics at all, so a fixture missing from here has
+      none rather than zeroes.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -199,12 +179,14 @@ models:
 
   - name: base_apif__players
     description: >
-      Global player identity: one row per player_api_id, unioned from /players,
-      fixture player stats, and fixture events, deduplicated in a single pass that
-      prefers the most authoritative named source (source_priority) then the most
-      recent ingest. Identity only — no league_code or team/season affiliation
-      (those live in dim_player_team_season_mapping and the facts). Feeds dim_player.
+      Global player identity: one row per player_api_id, unioned from /players, fixture player
+      stats and fixture events, then deduplicated in a single pass that prefers the most
+      authoritative named source and, within that, the most recent ingest.
       Grain: player_api_id.
+
+      IDENTITY ONLY — no league_code, and no team or season affiliation. A player belongs to
+      clubs over time, not to one competition, so affiliation lives in
+      dim_player_team_season_mapping and in the facts.
     config:
       tags: ["base", "api_football", "player_context"]
     tests:
@@ -218,8 +200,7 @@ models:
     description: >
       Current per-player bio from the rich /players/profiles source
       (stg_apif__player_profiles), reduced to the latest row per player_id.
-      Identity-level only — no league_code/team/season. Enriches dim_player.
-      Grain: player_api_id.
+      Identity-level only — no league_code, team or season. Grain: player_api_id.
     config:
       tags: ["base", "api_football", "player_context"]
     tests:
@@ -231,17 +212,16 @@ models:
 
   - name: base_apif__fixture_events
     description: >
-      Deduplicated fixture event rows from stg_apif__fixture_events. Keeps
-      the most recently ingested version per event position.
-      Output grain: (league_code, fixture_id, event_index).
-      event_index is the 0-based position in the $.events array and is the
-      stable identity for each event. The API occasionally returns duplicate
-      event content at different positions; base deduplicates on position,
-      not content. team_id is then resolved: a null team_id is recovered from the same
-      team's other events in the fixture (by team_name), and known provider team-id defects
-      are corrected via the CPO-owned seeds/fixture_event_team_overrides.csv (#526) — an
-      `alias` duplicate-id replacement, or a participant-gated `reattribute_if_cohabiting`
-      mis-attribution fix.
+      One row per event in a fixture, from stg_apif__fixture_events, keeping the most recent
+      ingest. Grain: (league_code, fixture_id, event_index).
+
+      event_index is the 0-based position in the provider's events array and is the stable
+      identity of an event. Deduplication is on POSITION, not content: the provider sometimes
+      repeats event content at different positions, and both are kept.
+
+      team_id is then resolved. A null one is recovered from the same team's other events in that
+      fixture, matched by name, and known provider team-id defects are corrected from the
+      fixture_event_team_overrides seed.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -307,8 +287,9 @@ models:
 
   - name: base_apif__coaches
     description: >
-      Coach identity (global entity): one row per coach_api_id from stg_apif__coaches, latest ingest.
-      Identity / bio only — no league_code. Feeds dim_coach. Grain: coach_api_id.
+      Coach identity as a global entity: one row per coach_api_id from stg_apif__coaches, latest
+      ingest. Identity and bio only — no league_code, because a coach is not scoped to one
+      competition. Grain: coach_api_id.
     config:
       tags: ["base", "api_football", "coach_context"]
     tests:
@@ -320,10 +301,11 @@ models:
 
   - name: base_apif__coach_career
     description: >
-      Coach↔team career stints, deduped one row per (coach, team, start_date) from
-      stg_apif__coach_career — the "clubs managed" history. The career team set exceeds dim_team
-      (untracked clubs), so the team link stays on the provider id. Feeds dim_coach_team_mapping.
-      Grain: (coach_api_id, team_api_id, start_date).
+      A coach's career stints: one row per spell at a club, from stg_apif__coach_career — the
+      "clubs managed" history. Grain: (coach_api_id, team_api_id, start_date).
+
+      The team link stays on the raw provider id rather than resolving to dim_team, because the
+      career history names clubs we do not track, so many of these teams have no dim_team row.
     config:
       tags: ["base", "api_football", "coach_context"]
     tests:
