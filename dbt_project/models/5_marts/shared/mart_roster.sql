@@ -16,9 +16,10 @@
   dim_player is LEFT-joined so a membership with no resolvable player entity is NOT silently
   dropped — it surfaces through the player_sk -> dim_player relationships test instead.
 
-  league_code is the partition key. season_sk is nullable (a roster season with no
-  competition-season row in dim_competition_season); season_api_year is always present and
-  anchors the grain. Grain: (team_sk, league_code, season_api_year, player_sk).
+  league_code discriminates the competition; it is not a BigQuery partition or cluster key.
+  season_sk is nullable (a roster season with no competition-season row in
+  dim_competition_season); season_api_year is always present and anchors the grain.
+  Grain: (team_sk, league_code, season_api_year, player_sk).
 #}
 
 with mapping as (

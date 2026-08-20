@@ -1,38 +1,51 @@
-# Review — chore/handover-description-programme — 2026-08-20
+# Review — chore/description-cleanup-shared-and-seeds — 2026-08-20
 
-diff_sha256: 2785c272c060c8fc8cdb9ba2354f49783751ae681d686a36440eec0da0c2b6ed
+> MR3 of the description-drift programme. Both required reviewers FAILed round 1 with one
+> finding each; both findings were real, both were verified against the code before being
+> accepted, both were fixed, and both reviewers PASSed on a narrow round-2 confirm.
 
-rounds: 1
+diff_sha256: 991fb6b5789145b9af6354ac5427ad765f4c31ed5b4b89701e4ac47ba63ddf93
 
-> Routing: scope-auditor ONLY. Neither `.claude/active_work.md` nor `.claude/task/contract.md`
-> matches a specialist glob. `contract.md` being staged is what makes this otherwise artifact-only
-> commit reviewable at all (`artifact_only_never`).
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Verified `main` against `.git/refs/heads/main` and `.git/logs/HEAD` — both `657e477…`, matching
-  the handover's claim. No stale hash.
-- Verified the four surviving "partition key" trap references (`shared.yml:1143`,
-  `mart_team_fixtures.sql:21`, `mart_standings.sql:18`, `mart_roster.sql:19`) against the real
-  files with a case-insensitive grep — all four exist exactly as cited, and they are the only
-  lowercase survivors, matching the handover's count.
-- Verified the six-MR plan, both ordering constraints (MR5 after 3-4 for a green gate; MR6 after
-  3-4 because 15 descriptions exceed BigQuery's 1,024-char limit) and MR3's file scope against
-  `escalations.log`'s 2026-08-20 entry — substance matches the handover table.
-- Verified `engineering_standards.md` §2 exists in its rewritten form, confirming MR1's claim.
-- Verified `active_work.md`'s routing status in `review_routing.json`, supporting the impact_map.
-- Verified `handover_in.py:46` really is `MAX_CHARS = 16000` and that the char-vs-byte warning in
-  the handover header reflects a real documented bug, not an invented caution.
-- Swept for the self-contradiction pattern that broke the previous handover (a stale "current"
-  section contradicting the true state further down). None: the CURRENT section reflects MR3-next
-  and the 08-19 material is demoted to clearly-merged reference blocks.
-- Checked scope: only the two declared files; no drift.
-- Scanned both files for credentials, new mechanisms, recurring-cost commitments, or decisions
-  taken outside `decisions_taken` — none; bookkeeping only.
-- Stated an honest limit rather than papering over it: without code execution it could not
-  independently reproduce the 15,951-character measurement, so it verified the cap's source and
-  checked for padding instead of asserting the number.
+- All 7 changed files match `scope_paths` exactly. No MR4 file (`core.yml`, `base.yml`,
+  `int_momentum.yml`), no MR5 file (`check_description_hygiene.py`), no MR6 change
+  (`persist_docs`, `dbt_project.yml`) is touched, so `decisions_reserved` holds.
+- The six-MR split cited in `decisions_taken` matches `escalations.log` verbatim.
+- The "four rulings rescued" claim was checked ruling by ruling against the whole log: none of
+  the four exists elsewhere, and the four claimed-duplicate rulings genuinely do have prior
+  entries, so deleting rather than rescuing those was correct. The rescue is not padding.
+- ROUND 1 FAIL, now fixed: the AskUserQuestion ruling widening MR3 to three `.sql` files lived
+  only in `contract.md`, which the next task overwrites — the repo's named unlogged-authority
+  defect class, and the same error the programme exists to fix. It is now RULING 0 of this
+  branch's `escalations.log` entry, and `contract.md` defers to it instead of standing alone.
+  Confirmed durable and correctly deferred on round 2.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- ROUND 1 FAIL, now fixed: the rewritten `mart_standings` description claimed qualification and
+  relegation zones are "deliberately not carried". FALSE — `mart_standings.sql:65` selects
+  `group_description`, which `stg_apif__standings.sql:42-44` and the sibling column doc in the
+  same file both identify as exactly that zone annotation. Verified independently before
+  accepting. The text now says the annotation is carried verbatim but never interpreted, so
+  there is no derived zone field; model-level and column-level text agree. Confirmed round 2.
+- Lower-severity note, also applied: `competition_registry.sort_order` no longer asserts
+  uniqueness within a `display_group`. That is true of today's data but pinned by no test, and
+  an unenforced invariant in a description is the rot this programme is removing.
+- The four replaced "partition key" claims check out: no dbt model declares `partition_by` or
+  `cluster_by`, so `league_code` is a discriminator, matching `CLAUDE.md` and the `league_code`
+  docs block.
+- `mart_competition_index`'s stated composition matches its five `ref()` calls; `mart_roster`'s
+  "no per-club stat columns" matches its select list; `competition_registry.tier` non-empty
+  exactly when `domestic_league` is true and is pinned by `test_registry_seed_projection.py`.
+- The coverage paragraph dropped from `mart_team_profile` really is documented at source on
+  those columns in `int_team_season.yml`, so the deletion de-duplicates rather than loses it.
+- Both new `is_featured_season` descriptions match the `row_number()` logic in the two models.
+- Every `{{ doc() }}` reference still resolves against `shared_columns.md`.
 
 ## escalations
 (none)

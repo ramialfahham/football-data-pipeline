@@ -17,8 +17,9 @@
   ranks (no honest place in "next" or "recent results").
 
   No slug column: the published fixture URL identity is a separate, CPO-ruled
-  concern (GAP-19 item 5) and is added in its own PR. league_code is the
-  partition key; the model is competition-agnostic.
+  concern (GAP-19 item 5) and is added in its own PR. league_code discriminates
+  the competition and is not a BigQuery partition or cluster key; the model is
+  competition-agnostic.
 
   Grain: (team_sk, fixture_sk).
 #}

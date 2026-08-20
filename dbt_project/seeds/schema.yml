@@ -3,14 +3,17 @@ version: 2
 seeds:
   - name: competition_types
     description: >
-      Canonical competition-type taxonomy. One row per competition_type declaring whether
-      it is a club or national-team competition (entity_type). This is the single source
-      of truth for the club/national split: downstream models look it up by competition_type
-      rather than hardcoding the mapping. Every competition_type used in
-      docs/competition_registry.yml must have a row here (enforced by
-      scripts/check_competition_type_seed.py). Rule: no competition_type is both club and
-      national. `qualifying` = national-team qualifying (WC/EC); club qualifying rounds, if
-      onboarded, take their own clearly-club type.
+      The competition-type taxonomy. Hand-authored, one row per competition_type: whether the type
+      is played by clubs or by national teams, which navigation group it belongs to, and its
+      display heading.
+
+      The single source of truth for the club/national split — entity_type is resolved through
+      this table, never hardcoded, and no type is both. Every competition_type in
+      docs/competition_registry.yml must have a row here or
+      scripts/check_competition_type_seed.py fails the build.
+
+      `qualifying` is national-team qualifying only; a club qualifying round would take its own
+      clearly-club type.
     columns:
       - name: competition_type
         description: "Competition-type enum value, matching docs/competition_registry.yml competition_type."
@@ -37,50 +40,40 @@ seeds:
               values: ["leagues", "cups", "continental-club", "national-teams"]
       - name: label_i18n_key
         description: >
-          i18n key for the TRANSLATED category heading. English does NOT resolve through it — see
-          label_en. Convention, mechanical so the two never drift: `compType` + PascalCase of the
-          competition_type. That is why `world_championship` carries compTypeWorldChampionship
-          even though its label reads "World Cup" — the key follows the TYPE, so when the type is
-          eventually renamed (CPO ruling 2 of #57, deferred) the key renames with it.
+          The i18n key for this category's TRANSLATED heading. English does not resolve through
+          it — the English words are in label_en.
+
+          The key is formed mechanically, so it cannot drift from the type: `compType` followed by
+          the competition_type in PascalCase. That is why `world_championship` carries
+          compTypeWorldChampionship even though the heading reads "World Cup" — the key follows
+          the type name, not the label, so renaming the type renames the key with it.
         tests:
           - not_null
           - unique
       - name: label_en
         description: >
-          The category's English display name — the heading a reader sees above a group of
-          competitions on /{locale}/competitions/. CPO ruling 2026-08-10: *"the single source of
-          truth for the displayed name is this seed file, same idea as in the metric layer; the
-          mapping to other languages happens in a different file."* Translations stay in the i18n
-          layer keyed by label_i18n_key.
-          ⚠ The metric layer is the MODEL the CPO named, not a precedent already on this branch:
-          `metric_catalogue` gains its own `label_en` in !27, which is unmerged. The two land
-          independently and neither depends on the other.
-          NAMING SYSTEM (CPO 2026-08-11): a type that holds ONE specific competition is named for
-          it — "Club World Cup", "Intercontinental Cup", "World Cup"; a type that holds a CLASS
-          takes a plural noun phrase — "Domestic leagues", "Continental club cups". Three types
-          are singular by nature and all three are FIFA's.
-          READ by `mart_competition_index.category_label_en` (#62 step 3).
+          The category's English display name — the heading shown above a group of competitions.
+          This seed owns it; other languages resolve from label_i18n_key in the i18n layer.
+
+          Naming rule: a type that holds ONE specific competition is named for that competition
+          ("World Cup", "Club World Cup", "Intercontinental Cup"); a type that holds a CLASS of
+          competitions takes a plural noun phrase ("Domestic leagues", "Continental club cups").
+          Three of the types are singular by nature and all three are FIFA's.
         tests:
           - not_null
           - unique
 
   - name: confederations
     description: >
-      Display labels for the confederation enum — the REGION shown under a competition that is not
-      confined to one country. `docs/competition_registry.yml` stores governing-body codes (UEFA,
-      CONMEBOL, CAF …) and no readable "UEFA -> Europe" existed anywhere in the repo, so the first
-      design that needed one typed the labels into a mockup. That is the failure #58 was filed
-      about, and this seed is the fix.
-      Keyed by confederation rather than added as columns on competition_types because the region
-      varies WITHIN a type: COAM and EURO are both `continental_championship`, and they are South
-      America and Europe.
-      CPO 2026-08-11, on whether seven display strings justify a seed rather than living in
-      strings.ts: *"keep the seed, we may need it the warehouse later if not now."*
-      READ by `mart_competition_index` (#62 step 3): `region_label_en`/`region_label_i18n_key`
-      resolve `label_en`/`label_i18n_key` here for a competition with no country, and
-      `region_rank` orders the page (#54, 2026-08-16).
-      ⚠ The seven English labels are the CPO's to change; `FIFA -> World` is the one that is a
-      judgement rather than geography, since FIFA is a global body and not a region.
+      Readable region names for the confederation codes — what "UEFA" is called when it is shown
+      to someone. Hand-authored, seven rows, one per confederation.
+
+      Keyed by confederation rather than held as extra columns on competition_types, because the
+      region varies WITHIN a type: COAM and EURO are both `continental_championship`, and they are
+      South America and Europe.
+
+      `FIFA -> World` is the one label that is a judgement rather than geography, FIFA being a
+      global governing body and not a region.
     columns:
       - name: confederation
         description: >
@@ -106,30 +99,27 @@ seeds:
           - unique
       - name: region_rank
         description: >
-          The competitions page's row-order tiebreak within a shared kickoff day — the one
-          hand-set input in the CPO-approved ordering rule (#54, 2026-08-16, `escalations.log`):
-          has-upcoming-fixture, then days to next kickoff (bucketed by calendar day), then this
-          column, then kickoff time, then league_code. A JUDGEMENT, not geography — UEFA=1
-          through OFC=7 — and the CPO's to change, the same status this seed already records for
-          `FIFA -> World`.
+          Hand-set rank across the seven confederations, UEFA=1 through OFC=7. It orders regions
+          against each other where competitions are listed together and nothing more specific
+          separates them.
+
+          A judgement rather than geography, and unique per row, so it always breaks a tie.
         tests:
           - not_null
           - unique
 
   - name: competition_registry
     description: >
-      The registry's own fields, projected into the warehouse so no page has to read an authoring
-      file to render (#62). Generated from docs/competition_registry.yml by
-      scripts/sync_dbt_vars.py (do not hand-edit). dbt models join on league_code to resolve a
-      competition's type (then entity_type via the competition_types seed), its parent
-      competition, and its display fields. Kept in lockstep with the registry over EVERY column —
-      and for parent-link validity — by scripts/check_registry_var_sync.py.
+      Every competition the platform tracks, with the fields the registry authors by hand:
+      competition type, parent competition, confederation, URL slug, ordering, division tier and
+      season shape. One row per league_code.
 
-      ⚠ `country` is deliberately NOT here (#69). dim_league already carries league_country and
-      country_flag_url from the provider, so projecting the registry's hand-typed copy would make
-      a third — and for 24 of 45 competitions that copy holds a region word ("Europe",
-      "International") rather than a country. Region lives in `confederation` below; country and
-      its flag come from dim_league until #69 gives countries their own seed and dim.
+      GENERATED, do not hand-edit — scripts/sync_dbt_vars.py writes it from
+      docs/competition_registry.yml, the authoring surface.
+      scripts/check_registry_var_sync.py fails the build if the two drift on any column.
+
+      `country` is deliberately absent: dim_league carries it from the provider, and the
+      registry's hand-typed copy holds a region word ("Europe") for about half the rows.
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -145,11 +135,13 @@ seeds:
               field: competition_type
       - name: parent_competition
         description: >
-          The league_code of this competition's parent, or empty when it has none. Links a
-          child to its parent: a qualifier → its tournament (e.g. WCQEU → WC), a domestic cup →
-          its league (e.g. DFBP → BL1). Lets the form-window selection resolve a tournament's
-          qualifier competitions generically (no hardcoded code lists). Validity (every
-          non-empty value is a known league_code) is enforced by check_registry_var_sync.py.
+          The league_code of this competition's parent, or empty when it has none. A qualifier
+          points at its tournament (WCQEU -> WC); a domestic cup points at its country's league
+          (DFBP -> BL1).
+
+          It exists so a tournament's qualifying competitions can be found by following the link
+          instead of from a hardcoded list of codes. Every non-empty value is a known league_code;
+          check_registry_var_sync.py fails the build otherwise.
       - name: confederation
         description: >
           The competition's governing confederation, and the region key for the whole platform:
@@ -167,27 +159,27 @@ seeds:
       - name: slug
         description: >
           The competition's URL segment, e.g. "bundesliga". Authored in the registry and assigned
-          once, never derived from a name (#852) — a rename must not silently move a URL.
+          once, never derived from a name — renaming a competition must not silently move its URL.
         tests:
           - not_null
           - unique
       - name: sort_order
         description: >
-          Display rank within a `display_group`; lower sorts first. Authored, not computed, so the
-          CPO controls competition ordering without a code change. ⚠ Its only reader is
-          `build_nav()` (see this seed's `display_group` note) — the home page's browse block that
-          rendered those groups was dropped 2026-08-19, and the competitions index page orders by
-          `region_rank`/kickoff proximity instead (both `sort_order` and `tier` were retired for
-          that page, `escalations.log` 2026-08-16).
+          Authored display rank WITHIN a display_group; lower sorts first. Hand-set rather than
+          computed, so competition ordering can be changed without a code change.
+
+          Not a global order, and not dense: the rank restarts per group and is spaced in tens, so
+          the same value recurs across groups. Two competitions can therefore share a value, and
+          ordering them against each other needs something else.
         tests:
           - not_null
       - name: tier
         description: >
           Division level within its country: 1 for a top flight, 2 for a second tier. EMPTY for
-          every competition that is not a domestic_league, because a cup or tournament has no
-          division — structurally N/A rather than missing, which is why there is no not_null
-          test. The biconditional (non-empty iff domestic_league) is pinned by
-          tests/test_registry_seed_projection.py; measured at 16 of 45 competitions.
+          every competition that is not a domestic_league, because a cup or a tournament has no
+          division — structurally not applicable rather than missing, which is why there is no
+          not_null test. Non-empty exactly when competition_type is domestic_league;
+          tests/test_registry_seed_projection.py pins that both ways.
       - name: season_type
         description: >
           Whether a season sits inside one calendar year ("calendar_year", e.g. MLS, Brasileirão)
@@ -198,25 +190,16 @@ seeds:
 
   - name: metric_catalogue
     description: >
-      Single source of truth for every metric the platform computes. One row per metric
-      per entity. Captures the formula as a structured, resolvable expression
-      (base_relation + numerator_expr / denominator_expr over the base's real columns), entity
-      type (team/player), i18n key, display format, what it measures and how important it is
-      (group, tier), how the number is produced (computation_kind), and the performance semantic
-      (direction + interpretation). It does NOT hold display ORDER — where a metric sits on a page
-      is a frontend decision that changes with a design, and it lives in
-      docs/wireframes/metrics_display.md. `group_display_order` was removed on 2026-08-04 for that
-      reason (CPO); it had only ever been half-populated and duplicated an order ruled elsewhere.
-      The principle: this file holds what a metric IS, not where it appears. Each formula aggregates over an int_legs__* per-(entity, fixture)
-      building-block leg; it is window-free — the consuming model applies the window and any
-      coverage/null policy. The formula is the correctness contract every model that computes the
-      metric must conform to. Window-agnostic: metric IDs carry no window suffix. Part of epic
-      #317; display columns added for #391 (GAP-09); formulas formalized for #530. Three singular
-      tests guard its integrity: assert_metric_meaning_complete (EVERY metric, team and player,
-      carries direction + interpretation), assert_metric_direction_lower_is_better_agree (direction
-      and the legacy lower_is_better boolean never contradict each other) and
-      assert_metric_catalogue_expr_resolvable (every numerator_expr/denominator_expr column resolves
-      against its base_relation).
+      The single source of truth for every metric we compute. One row per (metric_id, entity), so
+      a metric with both a team and a player form has two rows. Each row carries the formula, the
+      English name and i18n key, the display format, what it measures, how important it is, and
+      which way is better.
+
+      The formula is the correctness contract: any model computing it must match. It is
+      window-free — ids carry no window suffix, and the window and any null policy are applied
+      where the metric is computed, never here.
+
+      What a metric IS, not where it appears: display order lives in metrics_display.md.
     config:
       +full_refresh: true
       column_types:
@@ -237,36 +220,27 @@ seeds:
               values: ["team", "player", "team and player"]
       - name: label_i18n_key
         description: >
-          i18n key for the TRANSLATED label. English no longer resolves through it — see label_en.
-          Unique per ROW, never shared between a metric's team and player rows, because two rows
-          sharing a key would share one German and one Finnish string while owning separate English
-          ones, and the three could then drift apart with nothing noticing. Two rows did share a key
-          until 2026-08-08 (duels_won_pct and finishing_efficiency); the player sides now carry
-          playerMetrics.duels.wonPct and playerMetrics.finishingEfficiency.label, matching the
-          convention the other two both-entity metrics already used.
+          The i18n key for this metric's TRANSLATED label. English does not resolve through it —
+          the English words are in label_en.
+
+          Unique per ROW, and never shared between a metric's team and player rows. Two rows
+          sharing a key would share one German and one Finnish string while owning separate
+          English ones, so the three could drift apart with nothing noticing.
         tests:
           - not_null
           - unique
       - name: label_en
         description: >
-          The metric's English display name — the words a reader sees, on a stats board heading, a
-          metric row and the glossary. CPO ruling 2026-08-08: the metric layer is the source of
-          truth for display names, English being the project's primary language, exactly as this
-          seed already owns the English `description` and `interpretation`. Translations stay in the
-          i18n layer keyed by label_i18n_key.
-          NAMING SYSTEM, read off the 18 labels that already existed rather than invented: a bare
-          noun is a count (`Goals`, `Clean sheets`); `Ø` prefixes an average, per match for teams and
-          per 90 for players (`Ø Goals`, `Ø Tackles per 90`); `%` prefixes a share or rate
-          (`% Duels won`). The prefix carries the unit class, so a reader never has to guess whether
-          2.9 is a total or an average.
-          UNIQUE PER ENTITY, not globally (CPO): player names are distinct among player metrics and
-          team names among team metrics, but the same words may appear on both, because
-          `% Duels won` means the same thing for a player and a team and the surrounding block says
-          which.
-          ⚠ ADDITIVE AND NOT YET READ. Nothing resolves a label from this column today; the frontend
-          still uses METRIC_LABELS_EN in site_v2/src/i18n/strings.ts, which makes English a second
-          source of truth until the follow-up MR deletes it and inverts the label guard to run off
-          this seed.
+          The metric's English display name. This seed owns it; other languages resolve from
+          label_i18n_key in the i18n layer.
+
+          Naming rule: a bare noun is a count (`Goals`); `Ø` prefixes an average, per match for
+          teams and per 90 for players (`Ø Tackles per 90`); `%` prefixes a share or rate
+          (`% Duels won`). The prefix carries the unit, so a reader never has to guess whether 2.9
+          is a total or an average.
+
+          Unique per ENTITY, not globally: the same words may appear on a team row and a player
+          row, because `% Duels won` means the same thing for both.
         tests:
           - not_null
       - name: description
@@ -274,14 +248,13 @@ seeds:
         tests: [not_null]
       - name: base_relation
         description: >
-          The int_legs__* per-(entity, fixture) building block the formula aggregates over
-          (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank
-          whenever the metric is NOT a single-leg aggregate, which is the rule rather than a list to
-          keep in sync: a lookup sourced elsewhere (league_rank, from fct_standings), a fitted or
-          rank-derived read (deserved_points, deserved_rank, sot_points_gap), or a cross-model
-          composition (contribution_share). A blank base_relation is what makes
-          assert_metric_catalogue_expr_resolvable skip the row, so the rule is enforced there, not
-          by this enumeration.
+          The int_legs__* per-(entity, fixture) building block the formula aggregates over:
+          int_legs__team_match, int_legs__team_from_players or int_legs__player_match.
+
+          BLANK whenever the metric is not a single-leg aggregate — a value looked up from
+          elsewhere, a fitted or rank-derived read, or a composition across two grains. A blank
+          here is what makes assert_metric_catalogue_expr_resolvable skip the row, so the rule is
+          enforced by that test rather than by a list of exceptions kept in prose.
         tests:
           - accepted_values:
               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
@@ -302,33 +275,25 @@ seeds:
       - name: computation_kind
         description: >
           HOW the number is produced, so that an empty formula is explicit rather than ambiguous.
-          Added 2026-08-04: five metrics carry no numerator_expr, for three genuinely different
-          reasons, and a blank could not tell them apart from a formula that was simply never
-          filled in.
-            expression  — numerator_expr / denominator_expr over base_relation. 75 of 80.
-            model       — produced by a dbt model and NOT expressible as a numerator over a
-                          denominator. Today the deserved trio (deserved_points, deserved_rank,
-                          sot_points_gap): an ordinary-least-squares fit within each league-season,
-                          defined in int_team_season__deserved_vs_actual.sql. The catalogue remains
-                          the source for what these MEAN; the model is the source for how they are
-                          COMPUTED.
-            sourced     — taken from the provider, never derived from match legs (league_rank, from
-                          the standings snapshot).
-            cross_grain — numerator and denominator sit at different grains, so one base_relation
-                          cannot hold both (contribution_share: a player's goal involvement over
-                          his TEAM's goals).
-          An `expression` row without a formula is a defect, which is what lets
-          assert_metric_catalogue_expr_resolvable be tightened rather than skipping blanks.
+
+          `expression` — numerator_expr / denominator_expr over base_relation; the large majority.
+          `model` — produced by a dbt model and not expressible as a numerator over a denominator;
+          the catalogue still says what it MEANS, the model says how it is computed. `sourced` —
+          taken from the provider, never derived from match legs. `cross_grain` — numerator and
+          denominator sit at different grains, so one base_relation cannot hold both.
+
+          An `expression` row carrying no formula is a defect, not a gap.
         tests:
           - not_null
           - accepted_values:
               values: ["expression", "model", "sourced", "cross_grain"]
       - name: lower_is_better
         description: >
-          True when a lower value indicates better performance. LEGACY: the boolean predecessor of
-          direction, retained only because the live MVP export
-          (scripts/export_metric_definitions_json.py) still reads it. direction is the authority;
-          set this to match it (true iff direction = lower_better), never the other way round.
+          True when a lower value indicates better performance.
+
+          LEGACY — the boolean predecessor of `direction`, kept only until the last thing depending
+          on it is gone. `direction` is the authority: set this to match it (true exactly when
+          direction is lower_better), never the other way round.
           assert_metric_direction_lower_is_better_agree fails the build if the two diverge.
         tests: [not_null]
       - name: format
@@ -342,28 +307,24 @@ seeds:
       - name: metric_group
         description: >
           What the metric MEASURES — a taxonomy, not a layout. Shared across entities: a metric
-          family keeps its group on team and player. Populated on EVERY row as of 2026-08-04;
-          `outcomes` was added for the points/standing metrics (points won, points capture,
-          league rank, deserved points, deserved rank, sot points gap) and `playing_time` for
-          minutes_per_appearance, the two sets that previously had no group at all.
+          family keeps the same group on its team row and its player row. Populated on every row.
+
+          `outcomes` covers the points and standing metrics (points won, points capture, league
+          rank, and the deserved trio); `playing_time` covers minutes_per_appearance.
         tests:
           - not_null
           - accepted_values:
               values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
       - name: importance_tier
         description: >
-          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth.
-          Tier never reorders; it gates visibility under space constraint (metrics_display.md).
-          Populated on EVERY row, team AND player, as of 2026-08-04.
-          ⚠ This SUPERSEDES the 2026-06-11 ruling that tiers are a team-only concept, which held
-          that player importance is position-dependent and could not be grounded. CPO override
-          2026-08-04: tier expresses what a FAN wants to see, which is a product judgement rather
-          than a statistical claim, and it is as available for players as for teams.
-          The rubric his rulings established: the core stat line is tier 1, including both the raw
-          counts and their headline percentage; a per-90 sits one tier below its own total;
-          breakdowns and rare events are tier 3. Redundancy at tier 1 is deliberate and allowed —
-          goals, assists and scorer_points are all 1, because tier means importance, not
-          deduplication.
+          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier
+          never reorders anything; it gates visibility when space is short. Populated on every row,
+          team and player alike.
+
+          The rubric: the core stat line is tier 1, including both the raw counts and their
+          headline percentage; a per-90 sits one tier below its own total; breakdowns and rare
+          events are tier 3. Redundancy at tier 1 is deliberate — goals, assists and scorer_points
+          are all 1, because tier means importance, not deduplication.
         tests:
           - not_null
           - accepted_values:
@@ -371,27 +332,25 @@ seeds:
               quote: false
       - name: direction
         description: >
-          Performance semantic (the richer successor to lower_is_better): higher_better,
-          lower_better, or neutral. Orients the competition benchmark and seeds website
-          auto-interpretation. Set by the all-else-equal judgement "is MORE of this better?" — NOT by
-          correlation with results or league rank, so a style/volume metric still carries a direction.
-          Populated on EVERY row (team and player). neutral is reserved for a metric with genuinely no
-          better/worse pole, and today applies to exactly two: sot_points_gap (a narrative) and
-          contribution_share (a position-dependent share). lower_is_better is retained until the full
-          migration and still drives the live MVP export; direction is the authority, and the two can
-          no longer diverge (enforced by assert_metric_direction_lower_is_better_agree). EVERY metric,
-          team and player alike, must carry BOTH direction and interpretation (enforced by
-          assert_metric_meaning_complete); there is no entity exemption.
+          Which way is better: higher_better, lower_better, or neutral. It is what turns a rank or
+          a percentile into a good/bad reading, and it is required on every row, team and player
+          alike (assert_metric_meaning_complete).
+
+          Set by the all-else-equal judgement "is MORE of this better?", NOT by correlation with
+          results or league position — so a style or volume metric still carries a direction.
+          `neutral` is reserved for a metric with genuinely no better/worse pole, such as a
+          narrative gap or a position-dependent share.
         tests:
           - accepted_values:
               values: ["higher_better", "lower_better", "neutral"]
       - name: interpretation
         description: >
           Short plain-English meaning of the metric — what it captures and what a notably high
-          value signals — the seed of website auto-narrative. Required on EVERY metric, team and
-          player alike (enforced by assert_metric_meaning_complete); populated on every row as of
-          2026-07-21. House style: what it captures, then a plain definition, then what a notable
-          value signals, with any honest volume/style/role caveat last in parentheses.
+          value signals. Required on every metric, team and player alike
+          (assert_metric_meaning_complete).
+
+          House style: what it captures, then a plain definition, then what a notable value
+          signals, with any honest volume, style or role caveat last in parentheses.
     tests:
       # Display names are unique WITHIN an entity, not globally (CPO 2026-08-08). The same words on
       # a player row and a team row are allowed — `% Duels won` means the same thing for both and
@@ -405,8 +364,12 @@ seeds:
 
   - name: wc_team_market_value_snapshot
     description: >
-      Twice-monthly WC national-team squad market value estimates (EUR). team_sk matches dim_team.team_sk
-      (API-Football national team id). Append rows per snapshot run; dbt builds fct_team_market_value_snapshot.
+      Squad market-value estimates for World Cup national teams, in whole EUR. One row per (team,
+      snapshot date, source); rows are appended per snapshot run rather than replaced, so the
+      seed is a history. team_sk matches dim_team.team_sk (the provider's national-team id).
+
+      Researched, not ingested from the provider, which offers no market value. Empty until a
+      snapshot run loads rows.
     config:
       column_types:
         team_sk: int64
@@ -434,14 +397,16 @@ seeds:
 
   - name: fixture_event_team_overrides
     description: >
-      CPO-owned corrections for known API-Football fixture-event team-id defects (#526),
-      applied in base_apif__fixture_events. One row per wrong source team id.
-      mode = `alias` replaces the id unconditionally (a genuine duplicate provider id for one
-      club, e.g. Riga FC 2263 -> 10124). mode = `reattribute_if_cohabiting` replaces it only in
-      fixtures where correct_team_api_id is a participant and wrong_team_api_id is not (a
-      mis-attribution between two DISTINCT clubs, e.g. ASKO Kara 25274 events mis-tagged to rival
-      ASC Kara 6424 — so the wrong club's own legitimate events are never touched). Add a row only
-      with EXTERNALLY verified evidence; never infer a duplicate from internal name similarity.
+      Corrections for known API-Football fixture-event team-id defects. Hand-authored, one row per
+      wrong source team id: what it should resolve to, and how to apply it.
+
+      `alias` replaces the id unconditionally — the provider holds two ids for one club.
+      `reattribute_if_cohabiting` replaces it only in fixtures where the correct team is a
+      participant and the wrong one is not: a mis-attribution between two DISTINCT clubs, so the
+      wrong club's own events are never touched.
+
+      Add a row only with EXTERNALLY verified evidence; never infer a duplicate from name
+      similarity within our own data.
     config:
       column_types:
         wrong_team_api_id: int64
@@ -471,44 +436,16 @@ seeds:
 
   - name: team_name_overrides
     description: >
-      CPO-owned corrections to a team's DISPLAY NAME, applied in base_apif__teams_global (#850).
-      The provider's /teams endpoint sends a short label of unverified quality ("Rangers",
-      "Lokomotiv") and it is the ONLY team name in the product — it drives the fixture card, the
-      page H1, the <title>, the meta description and the URL slug (#851) — so 18 teams in 9 groups
-      were previously indistinguishable from one another. Correcting the name here fixes every one
-      of those surfaces at once.
+      Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name
+      we show. Load-bearing — there is no second name field, so this value names the team
+      everywhere, including in its URL.
 
-      BROADENED 2026-08-19: the trigger is no longer collision-only. CPO ruling: "we have to
-      define the name we use as the single source of truth for what we display" — a provider name
-      can be unique in our data and still not be the club's real display name ("Arsenal" is not
-      wrong because it collides with anything; it is wrong because the club's name is "Arsenal
-      FC"). Both triggers are valid reasons for a row: a genuine collision between two real
-      records, OR a name that is unique but incomplete/informal against the external source. The
-      `note` column states which one applies for that row.
+      A row is justified by a COLLISION (two real clubs sharing a label, e.g. "Rangers") or by a
+      name unique but incomplete against an external source ("Arsenal" for Arsenal FC); `note`
+      says which. Add one only where an authoritative external source disagrees with the provider,
+      and cite it — never taste, never a nickname, never a locale preference.
 
-      GOVERNANCE: add a row ONLY where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the
-      provider, and record that source in the row. Never taste, never a nickname, and never a
-      locale preference — `Bayern München` is NOT corrected to `Bayern Munich` (CPO ruled one
-      locale-independent slug). An earlier draft asserted "Glasgow Rangers" from memory and was
-      wrong: Wikipedia states that has never been the club's official name. Verify externally, one
-      club at a time.
-
-      NOT the mechanism for duplicate provider ids. Nyasa Big Bullets (#4596/#4599) and Dragon
-      (#3045/#21310) are therefore deliberately absent, as is Warriors #4207 whose identity is
-      unresolved.
-
-      CORRECTION (2026-07-28, #852): an earlier version of this description said those duplicates
-      "go to fixture_event_team_overrides.csv with mode=alias". That is FALSE and was never
-      checked — that seed is ref()d only by base_apif__fixture_events, so it corrects event
-      attribution and nothing in the team-identity chain reads it. An alias row there folds no
-      team, removes no URL and changes no slug. There is currently NO mechanism that collapses two
-      duplicate team records, which is why #3045 silently takes /teams/dragon/ while the real club
-      takes /teams/as-dragon/, and why the Nyasa pair is the only place a provider id still appears
-      in a team URL. Building that mechanism is #850's open alias decision.
-
-      assert_team_name_overrides_still_needed fails the build if a row's value equals the
-      provider's current name, so a correction the provider has since adopted is removed rather
-      than left to rot.
+      It does NOT fold duplicate provider ids.
     config:
       column_types:
         team_api_id: int64
@@ -517,7 +454,7 @@ seeds:
         note: string
     columns:
       - name: team_api_id
-        description: "The team whose display name is corrected. Must exist in dim_team."
+        description: "The team whose display name this row replaces. Must exist in dim_team."
         tests:
           - not_null
           - unique
@@ -534,57 +471,25 @@ seeds:
           - not_null
       - name: note
         description: >
-          Why the provider's value is wrong: either what this row collides with, or — since
-          2026-08-19 — why the name is incomplete/informal against the external source even
-          without a collision. State which one applies.
+          Why the provider's value is not usable: either what this row's label collides with, or
+          why the name is incomplete or informal against the external source even without a
+          collision. State which of the two applies.
         tests:
           - not_null
 
   - name: country_name_overrides
     description: >
-      Maps every provider COUNTRY string to one canonical English name. Applied in
-      base_apif__leagues (#62); extended from 3 rows to 67 by #69's discovery.
+      Maps a provider COUNTRY string to the one canonical English name. One row per distinct
+      provider string, across the league, team, player and coach surfaces, which are inconsistent
+      with each other and themselves.
 
-      THE RULE, four CPO rulings on 2026-08-16, each given after seeing what the previous produced:
-      **English, everyday short form, no diacritics.**
-        - English, never the endonym — `Türkiye` -> `Turkey`, `Côte d'Ivoire` -> `Ivory Coast`.
-          ⚠ The UN's own English column keeps those two, for the states that asked it to; we do
-          not. It strips diacritics for the other 195 of its 197 names.
-        - Everyday short form, not the formal state title — `Russian Federation` -> `Russia`,
-          `Lao People's Democratic Republic` -> `Laos`, `Korea Republic` -> `South Korea`.
-        - A genuine RENAME stands: `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
-      TWO ROWS ARE DELIBERATE EXCEPTIONS and cite their own authority in `source`: `USA` ->
-      `United States of America` (the rule would give `United States`) and `Ireland` ->
-      `Republic of Ireland` (it renders beside Northern Ireland).
+      NAMING RULE: English, everyday short form, no diacritics. Never the endonym (`Türkiye` ->
+      `Turkey`); never the formal state title (`Russian Federation` -> `Russia`); but a genuine
+      RENAME stands (`Czechia`). Two rows are deliberate exceptions, citing their authority in
+      `source`.
 
-      WHY THIS IS A MAPPING AND NOT A HYPHEN-TO-SPACE RULE. A pattern rule looks like the
-      class-level fix and is wrong: `Guinea-Bissau` is a correctly hyphenated country name and a
-      blanket replace corrupts it. MEASURED, not argued — it appears hyphenated on the player
-      surface (38 players) where hyphenation is right, and hyphenated on the team surface where it
-      is also right. An explicit mapping cannot get that wrong.
-      ⚠ `Timor-Leste` was the second example in this paragraph until #69. It is now renamed to
-      `East Timor` — for being non-English, NOT for its hyphen — so it no longer illustrates it.
-
-      ⚠ KNOWN RESIDUAL GAP, stated rather than implied: this seed corrects only the strings it
-      lists. A NEW multi-word country arriving hyphenated is not caught here and would reach the
-      page. Closing that is #69's foreign key to `dim_country` — an unknown country fails the FK
-      instead of rendering — not a wider regex here.
-
-      GOVERNANCE: the register is the CPO's (§10) — these are display names and copy is his. Add a
-      row only for a provider defect, never a locale preference: this is the same rule that keeps
-      `Bayern München` out of `team_name_overrides`. Where an external standard is cited it must
-      be checked, never recalled — the UN list backing these names was supplied by the CPO and
-      read directly, and two of its rows turned out to be a footnote legend rather than countries.
-
-      SCOPE: the seed covers provider strings from all four surfaces (leagues, teams, players,
-      coaches) — 245 distinct provider values resolving to 224 entities. The provider defect is
-      not confined to one endpoint: `/teams` hyphenates, and `/players` + `/coachs` are
-      inconsistent with themselves, carrying `Czechia` and `Czech Republic`, `Korea Republic` and
-      `South Korea` side by side.
-
-      assert_country_name_overrides_still_needed fails the build if a row equals the provider's
-      current string, or if the provider string has disappeared entirely, so a correction the
-      provider has since adopted is removed rather than left to rot.
+      KNOWN GAP: only the listed strings are mapped, so an unseen spelling passes through
+      unchanged.
     config:
       column_types:
         provider_country: string
@@ -602,7 +507,10 @@ seeds:
         tests:
           - not_null
       - name: source
-        description: "The authority for this name (required — the governance control). For a display register that is the CPO ruling; for a factual identity claim it is an external source of record."
+        description: >
+          The authority for this name, required as the governance control: an external source of
+          record where the name is a factual identity claim, or the recorded decision where it is
+          a display choice.
         tests:
           - not_null
       - name: note
@@ -612,39 +520,16 @@ seeds:
 
   - name: countries
     description: >
-      The canonical country list — the authoring surface behind `dim_country` (#69). Countries
-      existed nowhere in the model layer before this: free text in four dims, the same country
-      spelled up to three ways, and no list of what "valid" looked like. That absence is why a
-      `single_country` boolean got invented to tell "England" from "Europe", which the CPO
-      rejected on 2026-08-16 as "really bad modeling".
+      The canonical country list: hand-authored, one row per country, a stable key and the English
+      name we display. Provider spellings map onto it in the base layer.
 
-      CONTENT is #69's measured discovery, not an authored guess: 285 distinct provider strings
-      across the four surfaces resolving to these 224 entities, verified again against prod on
-      2026-08-16 (283 of 283 non-`World` values resolve via `country_name_overrides`, nothing
-      uncovered). The provider's spellings map onto these names in BASE; this seed holds only the
-      canonical side.
+      NAMING RULE: English, everyday short form, no diacritics — `Turkey` not `Türkiye` — though a
+      genuine rename stands (`Czechia`). `Republic of Ireland` and `United States of America` are
+      standing exceptions.
 
-      THE NAMING RULE, four CPO rulings of 2026-08-16 recorded in `escalations.log`:
-      **English, everyday short form, no diacritics.**
-        - English, never the endonym — `Turkey` not `Türkiye`, `Ivory Coast` not `Côte d'Ivoire`.
-          ⚠ The UN's own English column keeps those two for the states that asked it to; we do not.
-        - Everyday short form, not the formal state title — `Russia`, `Laos`, `South Korea`.
-        - A genuine rename stands — `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
-      Two names are standing exceptions: `Republic of Ireland` (it renders beside Northern Ireland
-      and football keeps the contrast readable) and `United States of America` (the rule would give
-      `United States`; the CPO chose the long form).
-
-      ⚠ THIS IS NOT A LIST OF UN COUNTRIES. 188 rows are UN states; the remaining 36 are football
-      associations (**England, the single most common value in the whole dataset**, Scotland, Wales,
-      Northern Ireland, Kosovo, Chinese Taipei, Hong Kong, Gibraltar, Curacao …), territories that
-      produce players (Guadeloupe, Martinique, Reunion, French Guiana, Mayotte, Jersey, Zanzibar),
-      one unrecognised state (Northern Cyprus) and one historical (Yugoslavia, for players born
-      before 1992 — CPO: "Yugoslavia stays as historical"). None is droppable.
-
-      NO `label_i18n_key`, deliberately: 224 keys x 3 locales is a copy cost and the CPO's to
-      authorise. NO confederation column: there is NO SOURCE for it — the registry gives
-      confederation per COMPETITION and the UN list has none — and the competitions page takes its
-      region from the competition, never from the country.
+      NOT A LIST OF UN MEMBER STATES, and joining it to one drops real rows: it also carries
+      football associations (England, Scotland), player-producing territories (Jersey), one
+      unrecognised state and one historical country.
     config:
       column_types:
         country_key: string
@@ -652,9 +537,8 @@ seeds:
     columns:
       - name: country_key
         description: >
-          Stable slug of the canonical name, ASSIGNED once. ⚠ Do NOT re-derive it if a name ever
-          changes — the point of a key is that a rename does not move it, the same rule #852 sets
-          for slugs.
+          Stable slug of the canonical name, ASSIGNED once and then fixed. Do not re-derive it if
+          the name ever changes — the whole point of a key is that a rename does not move it.
         tests:
           - not_null
           - unique

@@ -15,9 +15,9 @@
   group rather than the league name (see fct_standings). NO zones — rank, points,
   form, W/D/L only (the reliable API fields); zone meaning is deferred (#322 issue).
 
-  league_code is the partition key; competition_type / entity_type come from the
-  registry + types seeds. Lives in shared/ because the output shape is uniform across
-  competition types.
+  league_code discriminates the competition and is not a BigQuery partition or cluster key;
+  competition_type / entity_type come from the registry + types seeds. Lives in shared/
+  because the output shape is uniform across competition types.
 
   Grain: (league_code, season_api_year, group_name, team_sk).
 #}
