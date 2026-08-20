@@ -3914,3 +3914,86 @@ still say it exists.
   continuation ("fix the comment and commit", then "go ahead" on the widened sweep); that
   authorisation is recorded as `rounds_cap_override` in `review.md`. It does not backfill
   permission for round 4.
+
+
+2026-08-20 fix/description-standard-and-false-claims — dbt `description:` fields are being used as
+a decision log, and three of them are lying. CPO commissions an audit, then approves a six-MR plan.
+
+  HOW IT SURFACED. Scoping whether `nav.json` and the `display_group` seed column could be deleted
+  after the Browse drop (`!80`), I proposed deleting both, citing that column's own description:
+  "No dbt model reads it — all 35 downstream of this seed read entity_type only — so its single
+  consumer is build_nav()". The CPO pushed back on the reasoning, not the conclusion: "you are
+  saying all the time that we have no pages. but we are building pages." Checking the code instead
+  of the description showed `mart_competition_index.sql:90-91` reads it as the browsable filter.
+  Deleting the column would have silently changed which competitions reach the competitions page.
+
+  THE CPO'S DIAGNOSIS, verbatim, which is the reason this became a programme rather than a one-line
+  fix: "I see a very bad pattern how you write conetent into the description. the dexcription field
+  is not for tracking decisions or adding updated. It seems that you add decisions, updates etc. in
+  multiple places.. This is definitely a source of drift." And: "I want you research what dbt
+  recommends and then apply. If you have this pattern everywhere in the models, we're in deep
+  trouble. Let an independent experienced analytics engineer and dbt expert do an audit and then
+  come up with a crisp summary that I understand. Then we need to fix it and ensure that it will
+  nor happen again. We have existing documents to write this down as a guideline."
+
+  WHAT THE AUDIT MEASURED (independent dbt expert, 2026-08-20). 616 descriptions across 19 files;
+  412 (67%) healthy; 5 files hold 83% of the contaminated text and `seeds/schema.yml` alone 38%,
+  having tripled in four weeks while describing the same 9 seeds. THREE descriptions provably
+  false, each verified against the code, not taken from the audit:
+    - `display_group` "No dbt model reads it" — `mart_competition_index.sql:90-91` does.
+    - `country_name_overrides` "Only dim_league READS it… inert until dim_country lands" — four
+      base models read it and `dim_country.sql` shipped 2026-08-17.
+    - `mart_player_profile.entity_type` "All 45 registry entries" — there are 48.
+  All three are hand-maintained DOWNSTREAM CONSUMER claims. Also measured: `league_code` is
+  documented 76 times in 22 different wordings; `team_sk` 49 in 13.
+
+  THE ROOT CAUSE, and it is not laziness. These descriptions have NO READER: `persist_docs` absent,
+  `{% docs %}` blocks zero, `dbt docs generate` only in the retired GitHub workflow. A field nobody
+  reads has no feedback loop. The rule already existed (`engineering_standards.md` §2, "keep
+  descriptions factual and concise") and was ignored ~130 times, consistent with this repo's own
+  measurement that prose-only rules recur and mechanised ones do not.
+
+  WHAT DBT ACTUALLY PUBLISHES, read directly rather than relayed: descriptions are for "downstream
+  consumers [to] discover and understand the datasets you curate for them"; long text belongs in a
+  docs block; YAML lines ≤80 chars (1,292 of our 5,354 are over, longest 741). dbt publishes NO
+  content checklist — that part is convention, and saying otherwise would borrow dbt's authority
+  for our own opinion.
+
+  THE CPO'S DEFINITION OF A GOOD DESCRIPTION, supplied from his own research and adopted:
+  business intent in plain language · grain · source and calculation · known limitations (nulls,
+  exclusions, edge cases). Plus his scoping rule: prioritise key fields — core marts and primary
+  keys first.
+
+  TWO REFINEMENTS ADDED FROM THE DEFECTS, not from theory, and both are now bans in §2:
+    1. Describe what FEEDS a column, never who CONSUMES it. Upstream is fixed in the SQL;
+       downstream changes whenever anyone adds a model. All three false claims were downstream.
+       `dbt ls --select <model>+` answers it correctly and for free.
+    2. No history in a description — no dates, rulings, issue refs, "used to say X". Git holds it
+       losslessly; a hand-copy starts rotting immediately.
+
+  RULINGS, each given in chat on 2026-08-20 in answer to a posed choice:
+    - READERS: "Both" — turn on `persist_docs` (BigQuery table/column metadata) AND publish
+      `dbt docs generate` from CI. Chosen over either alone or neither.
+    - REUSE: "Docs blocks" — dbt-native `{% docs %}` + `{{ doc() }}`, explicitly NOT the
+      third-party dbt-osmosis, so no new dependency enters the pipeline. Note dbt Core does not
+      propagate descriptions downstream automatically (open upstream feature requests); dbt Cloud
+      Explorer does, and we are on Core.
+    - SCOPE: "The whole plan" — all six MRs, chosen over "just fix the three lies" and over a
+      smaller fix-plus-gate option.
+
+  THE SIX-MR SPLIT, approved as part of "the whole plan". This is the authority for what belongs
+  in which MR, and therefore for what MR1 does NOT do:
+    MR1  three false claims + rewrite `engineering_standards.md` §2   (this branch)
+    MR2  docs blocks for the 8 most-repeated columns
+    MR3  clean `shared.yml` + `seeds/schema.yml`  ← the FULL `country_name_overrides` cleanup
+    MR4  clean `core.yml`, `base.yml`, `int_momentum.yml`
+    MR5  `scripts/check_description_hygiene.py` + tests + wiring (needs `protected_override`)
+    MR6  `persist_docs` + `dbt docs generate`
+  MR5 must follow MR2-4 so the gate is green on day one (the `check_copy_gate.py` precedent). MR6
+  must follow MR2-4 because BigQuery rejects column descriptions over 1,024 chars and 15 currently
+  exceed it — turning `persist_docs` on first would break the nightly build.
+
+  ⚠ RECORDED AS A DEFECT OF MINE: none of the above was written here when MR1 was first staged. It
+  lived only in `contract.md`, which the next task overwrites. scope-auditor round 1 FAILed for
+  exactly that and was right to. It is the same error the whole MR is about — authority written to
+  the volatile place instead of the durable one — committed while fixing it.

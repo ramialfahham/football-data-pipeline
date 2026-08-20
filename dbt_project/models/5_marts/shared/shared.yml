@@ -741,8 +741,8 @@ models:
           the registry, and a league_code PRESENT in the registry with a blank competition_type.
           The second is silent — sync_dbt_vars.py writes a seed row only `if code and ctype`, and
           both check_competition_type_seed.py and check_registry_var_sync.py skip such an entry on
-          the same condition, so registry and seed agree by both being empty (#883). All 45
-          registry entries carry a competition_type today. not_null is here because a NULL would
+          the same condition, so registry and seed agree by both being empty (#883). Every
+          registry entry carries a competition_type today. not_null is here because a NULL would
           not break the page: the featured-season CASE simply treats it as non-club, so the entity
           would quietly open on the wrong season instead of failing.
         tests:
