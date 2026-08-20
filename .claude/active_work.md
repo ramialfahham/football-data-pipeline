@@ -41,8 +41,8 @@ currently exceed it** — enabling `persist_docs` first BREAKS the nightly build
 columns: true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. That finally gives
 descriptions a reader, which is the root cause the whole programme was about.
 ⚠ There is **NO `seeds:` block** in `dbt_project.yml` — one must be added, and seeds were the worst
-offender. ⚠ BigQuery hard-rejects a column description over 1,024 chars; the gate holds everything
-at 600, so verify that still holds before enabling. Test on a **dev target only**
+offender. ⚠ The gate already caps at BigQuery's own maxima (1,024 column / 16,384 table) measured
+on the RENDERED text, so length is covered — but prove it: test on a **dev target only**
 (`dbt run --select competition_types`, then `bq show --schema`); never `dbt build` against prod.
 
 ✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, wired in CI AND in
@@ -59,7 +59,7 @@ rule that fires on correct text gets weakened, not obeyed.
    context on **every mart edit**). That is **#79**, and it needs `protected_override`.
 1b. **A KEYWORD SCAN IS BLIND TO A FALSE CLAIM THAT USES NO KEYWORD.** Three `base.yml`
    descriptions claimed "explicit ref() per competition staging" — the pattern the repo FORBIDS —
-   with no ref, date or emoji and under 600 chars. Found by READING the SQL, not scanning.
+   with no ref, date or emoji, and short enough to pass. Found by READING the SQL, not scanning.
 2. **A bulk-edit script that reported success while matching nothing.** Any such script must assert
    it found work (`if seen == 0: return 1`) or it silently no-ops and looks green.
 3. **A shared docs block that is wrong at some call sites.** `dbt parse` cannot catch it — read

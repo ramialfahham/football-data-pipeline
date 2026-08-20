@@ -1,59 +1,23 @@
 """Description hygiene gate — MECHANICAL checks on dbt `description:` fields.
 
-Why this exists. `description:` was used as a decision log: rulings, dated update
-stamps, issue numbers, and hand-maintained claims about who reads a column
-downstream. An independent dbt audit (2026-08-20) measured 616 descriptions
-across 19 files and found five files holding 83% of the contaminated text, with
-THREE descriptions provably false — each of them a downstream-consumer claim, the
-one kind of statement that cannot be kept true by hand. One asserted a column had
-no readers while a live mart filtered on it; acting on it would have broken the
-competitions page.
+Enforces `dbt_project/docs/engineering_standards.md` §2, which is the authority;
+this file is only the machine half of it. Descriptions had been used as a decision
+log, and three were provably false — all three downstream-consumer claims, the one
+kind of statement nobody keeps true by hand.
 
-The root cause was not laziness. These fields had NO READER — `persist_docs`
-absent, `dbt docs generate` running nowhere — so the field had no feedback loop
-and became the cheapest place to dump narrative. The rule already existed
-(`engineering_standards.md` §2, "keep descriptions factual and concise") and was
-ignored roughly 130 times. This repo's own measurement is that prose-only rules
-recur (33 of 50 past corrections were prose-only; 22 recurred) and mechanised
-ones do not. Hence a gate.
+It checks only what a machine can decide without taste: issue refs, dated stamps,
+decision language, downstream-consumer claims, severity emoji, and length. Whether
+a description is any GOOD — grain, source, known limits — is a human's call.
 
-The standard it enforces is `dbt_project/docs/engineering_standards.md` §2. Each
-check below is one contaminated class made unrepeatable:
+Patterns match ANNOTATION forms, not ordinary verbs. A case-insensitive
+`CORRECTED` hits "the country corrections from the seed"; a bare `ruled` hits
+"goal ruled out for offside". A gate that fires on correct text gets weakened
+rather than obeyed.
 
-  1. ISSUE REFS (`#123`, `GAP-04`, `!27`). A tracker id in a description is a
-     pointer to a decision, not a fact about the data, and the GitHub tracker
-     these mostly point at is unreachable — so they are already dead links.
-  2. DATED STAMPS. An ISO date, or an `UPDATED`/`CORRECTED` annotation. Git holds
-     history losslessly; a hand-copy of it starts rotting immediately.
-  3. DECISION LANGUAGE. `CPO`, `SLATED FOR`, `SUPERSEDED`, "an earlier version
-     said". Rulings belong in `.claude/task/escalations.log`, open questions in
-     the tracker, design rationale in `layering.md`.
-  4. DOWNSTREAM-CONSUMER CLAIMS. "the only reader is X", "no dbt model reads
-     this", "Feeds fct_y". Upstream facts are fixed in the SQL and change when the
-     SQL changes; downstream facts change whenever anyone adds a model, and nobody
-     comes back to update the prose. All three false claims were this shape.
-     `dbt ls --select <model>+` answers it correctly and for free.
-  5. SEVERITY EMOJI. A description is not an annotated argument.
-  6. LENGTH over 600 characters. BigQuery hard-rejects a column description over
-     1,024, which would break the nightly build the day `persist_docs` is turned
-     on. 600 leaves headroom, and a description nobody finishes reading is one
-     nobody checks. Waived for a bare `{{ doc() }}` reference: the block carries
-     the text and is checked on its own.
+Length is measured on the RENDERED string, because `persist_docs` expands a
+`{{ doc() }}` block into what it stores.
 
-WHAT THIS GATE DELIBERATELY DOES NOT DO. It does not judge whether a description
-is GOOD — whether it states grain, or source, or known limits. That is editorial
-and it belongs to a human reading it. Every rule here is one a machine can decide
-with no taste, which is the same line `check_copy_gate.py` draws.
-
-⚠ THE PATTERNS MATCH ANNOTATION FORMS, NOT ORDINARY VERBS, and that distinction is
-measured rather than assumed. On the cleaned MR3/MR4 text a case-insensitive
-`CORRECTED` matches six legitimate sentences ("the country corrections from the
-seed", "derived from the corrected name"), and a bare ISO-date rule matched
-`dim_date`'s calendar range. A gate that fires on correct text is worse than no
-gate, because the fix is to weaken it. Every pattern below is anchored to the
-shouty or dated form a decision log actually uses.
-
-Exit 1 on any finding, and on an unparseable YAML file. Fails CLOSED.
+Exit 1 on any finding, and on a file it cannot read. Fails CLOSED.
 
 Wired in `.gitlab-ci.yml` `validate:governance`, in `stop_gate.py`'s FAST_GATES
 (so it fires at turn end, while the text is still in the file), and documented in
@@ -79,13 +43,18 @@ DBT_DIR = REPO_ROOT / "dbt_project"
 # `check_copy_gate.py`'s MIN_KEYS.
 MIN_DESCRIPTIONS = 400
 
-MAX_CHARS = 600
+# BigQuery's own maxima. Exceeding either rejects the DDL and fails the build once
+# `persist_docs` is on. This rule exists to prevent that, nothing else — keeping a
+# description short enough to read is a judgement, not something to fake with a
+# threshold.
+MAX_COLUMN_CHARS = 1024
+MAX_RELATION_CHARS = 16384
 
-# A description that is ONLY a docs-block reference, optionally with a short
-# per-model qualifier after it. The block itself is a separate description and is
-# checked in its own right, so the length rule would otherwise punish reuse — the
-# exact behaviour the standard asks for.
-DOC_REF_RE = re.compile(r"\{\{\s*doc\(\s*['\"][^'\"]+['\"]\s*\)\s*\}\}")
+# Blocks live in .md files, so this walk never sees them as descriptions; they are
+# resolved into their call sites instead, and checked there.
+DOC_REF_RE = re.compile(r"\{\{\s*doc\(\s*['\"](\w+)['\"]\s*\)\s*\}\}")
+DOC_BLOCK_RE = re.compile(r"\{%\s*docs\s+(\w+)\s*%\}(.*?)\{%\s*enddocs\s*%\}", re.S)
+_MAX_DOC_DEPTH = 5
 
 # Each rule is (name, compiled pattern, why it is banned). The reason travels with
 # the rule so a future reader can judge it without archaeology, as
@@ -112,13 +81,8 @@ RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     (
         "decision language",
-        # NO BARE `ruled`/`ruling`. An earlier draft had them, and in a FOOTBALL
-        # repo that is a false-positive generator: "goal ruled out for offside",
-        # "match ruled void", "fixture ruled a walkover" are all legitimate
-        # description prose. It also broke this file's own stated design rule —
-        # annotation forms, not ordinary verbs. `\bCPO\b` already catches every
-        # real instance in this repo, because a ruling worth logging is always
-        # attributed ("CPO ruled", "CPO ruling"). Caught by platform-reviewer.
+        # No bare `ruled`/`ruling` — "goal ruled out for offside" is football, not a
+        # decision log. A ruling worth logging is attributed, so `CPO` catches it.
         re.compile(r"\bCPO\b|\bSLATED FOR\b|\ban earlier (?:version|draft)\b"
                    r"|\bused to say\b"),
         "rulings belong in .claude/task/escalations.log, open questions in the "
@@ -126,11 +90,8 @@ RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     (
         "downstream-consumer claim",
-        # Written as a CLASS, not a list of the instances seen so far. The
-        # "no/zero consumer" arm was added after the first full-repo sweep found
-        # `stg_apif__lineups` claiming "This model has NO consumer today" — the
-        # exact shape of the `display_group` claim that started this programme,
-        # which the first draft's `no dbt model reads` arm did not match.
+        # A class, not a list of instances seen so far: "has NO consumer today" is
+        # the same defect as "no dbt model reads this" and must match too.
         re.compile(
             r"\b(?:only|single|sole)\s+(?:reader|consumer)s?\b"
             r"|\b(?:no|zero)\s+(?:dbt\s+model\s+|downstream\s+)?(?:reader|consumer)s?\b"
@@ -158,6 +119,55 @@ RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
 )
 
 
+def _docs_blocks() -> dict[str, str]:
+    """Every `{% docs %}` block under dbt_project/, whitespace-collapsed.
+
+    Needed because `persist_docs` renders a block into the description it pushes,
+    so the length that reaches BigQuery is the RESOLVED one.
+    """
+    blocks: dict[str, str] = {}
+    for path in sorted(DBT_DIR.rglob("*.md")):
+        rel = _rel(path)
+        if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for name, body in DOC_BLOCK_RE.findall(text):
+            blocks[name] = " ".join(body.split())
+    return blocks
+
+
+def _render(flat: str, blocks: dict[str, str]) -> tuple[str, list[str]]:
+    """The description as persist_docs would store it, plus any unresolved names.
+
+    Substitutes REPEATEDLY, because a block may itself reference another. A single
+    pass would leave the inner tag literal, understating the length and never
+    checking the nested block's own text. No such nesting exists today; the bound
+    is what stops a cycle spinning.
+    """
+    missing: list[str] = []
+    text = flat
+    for _ in range(_MAX_DOC_DEPTH):
+        if not DOC_REF_RE.search(text):
+            break
+
+        def _sub(match: re.Match[str]) -> str:
+            name = match.group(1)
+            if name not in blocks:
+                missing.append(name)
+                return ""          # dropped, so the loop terminates
+            return blocks[name]
+
+        text = DOC_REF_RE.sub(_sub, text)
+    else:
+        if DOC_REF_RE.search(text):
+            missing.append("<circular or deeper than %d>" % _MAX_DOC_DEPTH)
+
+    return " ".join(text.split()), missing
+
+
 def _rel(path: pathlib.Path) -> str:
     """Repo-relative path, or the absolute one when it is not under the repo.
 
@@ -172,24 +182,36 @@ def _rel(path: pathlib.Path) -> str:
         return path.as_posix()
 
 
-def _walk(node: object, where: str, out: list[tuple[str, str]]) -> None:
-    """Collect (path, description) for every description in a parsed YAML tree."""
+def _walk(node: object, where: str, is_column: bool,
+          out: list[tuple[str, str, bool]]) -> None:
+    """Collect (path, description, is_column) for every description in a tree.
+
+    `is_column` tracks whether we are inside a `columns:` list, because BigQuery's
+    limits differ by kind — see MAX_COLUMN_CHARS. It is set on descent into
+    `columns:` and inherited from there down, so a column's nested keys stay
+    column-scoped.
+    """
     if isinstance(node, dict):
         name = node.get("name")
         here = f"{where}/{name}" if isinstance(name, str) else where
         for key, value in node.items():
             if key == "description" and isinstance(value, str):
-                out.append((here, value))
+                out.append((here, value, is_column))
+            elif key == "columns":
+                _walk(value, here, True, out)
             else:
-                _walk(value, here, out)
+                _walk(value, here, is_column, out)
     elif isinstance(node, list):
         for item in node:
-            _walk(item, where, out)
+            _walk(item, where, is_column, out)
 
 
-def _collect() -> tuple[list[tuple[str, str, str]], list[str]]:
-    """Every description under dbt_project/, and any file that failed to parse."""
-    found: list[tuple[str, str, str]] = []
+def _collect() -> tuple[list[tuple[str, str, str, bool]], list[str]]:
+    """Every description under dbt_project/, and any file that failed to parse.
+
+    Each entry is (file, path-within-file, text, is_column).
+    """
+    found: list[tuple[str, str, str, bool]] = []
     unparseable: list[str] = []
     for path in sorted(DBT_DIR.rglob("*.yml")):
         rel = _rel(path)
@@ -197,43 +219,30 @@ def _collect() -> tuple[list[tuple[str, str, str]], list[str]]:
         # they are not ours to police and would swamp the census.
         if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
             continue
-        # UnicodeDecodeError and OSError are caught alongside YAMLError, not just
-        # YAMLError: `read_text` is inside this try, and a .yml saved in any
-        # non-UTF-8 encoding raises UnicodeDecodeError (a ValueError, not a
-        # YAMLError). Uncaught, that escapes as a raw traceback instead of the
-        # crafted "could not be parsed" report — the gate would still exit
-        # non-zero, but it would blame nothing and name no file. Caught by
-        # platform-reviewer, who noted the two adjacent failure modes already
-        # fixed here and that the input side had been missed.
+        # `read_text` is inside the try: a non-UTF-8 .yml raises UnicodeDecodeError,
+        # not YAMLError, and uncaught it escapes as a traceback naming no file.
         try:
             doc = yaml.safe_load(path.read_text(encoding="utf-8"))
         except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
             unparseable.append(f"{rel}: {exc.__class__.__name__}")
             continue
-        collected: list[tuple[str, str]] = []
-        _walk(doc, path.stem, collected)
-        found.extend((rel, where, text) for where, text in collected)
+        collected: list[tuple[str, str, bool]] = []
+        _walk(doc, path.stem, False, collected)
+        found.extend((rel, where, text, is_col) for where, text, is_col in collected)
     return found, unparseable
 
 
 def main() -> int:
-    # A finding can quote a matched EMOJI, and this gate runs at turn end on a
-    # Windows console whose default encoding is cp1252, which cannot encode one.
-    # Without this the gate crashes with UnicodeEncodeError *while reporting the
-    # defect* — it would fail, but on the wrong error and with the finding lost.
-    # Guarded by hasattr because `main()` is called directly from the tests, where
-    # stdout is a capture object with no `reconfigure`.
+    # A finding can quote an emoji, and a cp1252 console cannot encode one — the
+    # gate would crash while reporting the defect. hasattr: tests capture stdout.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
 
     found, unparseable = _collect()
     findings: list[str] = []
 
-    # REPORTED BEFORE THE FLOOR, and the order is load-bearing. An unparseable file
-    # contributes zero descriptions, so it drags the census under the floor and the
-    # floor's message ("the walk has stopped matching") would send an operator
-    # hunting a broken walk instead of the malformed YAML that actually caused it.
-    # A test pinned this after the first version got the order wrong.
+    # Before the floor check: an unparseable file contributes zero descriptions, so
+    # the floor would fire first and blame the walk instead of the broken file.
     if unparseable:
         print(f"FAIL: {len(unparseable)} file(s) could not be parsed, so their "
               "descriptions are unchecked:")
@@ -247,11 +256,22 @@ def main() -> int:
               "over zero descriptions always passes.")
         return 1
 
-    over_limit = 0
-    for rel, where, text in found:
+    blocks = _docs_blocks()
+    for rel, where, text, is_column in found:
         flat = " ".join(text.split())
+        # Rules run on the RENDERED text too, so a banned phrase cannot hide inside
+        # a shared block and reach every call site unnoticed.
+        rendered, missing = _render(flat, blocks)
+
+        for name in missing:
+            findings.append(
+                f"{rel} :: {where} - unresolved docs block: {name!r}\n"
+                f"    why banned: dbt cannot compile a doc() reference with no block, "
+                f"and the stored length cannot be known"
+            )
+
         for name, pattern, why in RULES:
-            hit = pattern.search(flat)
+            hit = pattern.search(rendered)
             if hit:
                 # `ascii()` not `!r`: the match may be an emoji, and an escaped
                 # ⚠ is still identifiable while never being unprintable.
@@ -259,15 +279,15 @@ def main() -> int:
                     f"{rel} :: {where} - {name}: {ascii(hit.group(0))}\n"
                     f"    why banned: {why}"
                 )
-        # Length is waived for a description that is a docs-block reference plus a
-        # short qualifier; the block is a description in its own right and is
-        # checked above and below like any other.
-        if len(flat) > MAX_CHARS and not DOC_REF_RE.search(flat):
-            over_limit += 1
+
+        limit = MAX_COLUMN_CHARS if is_column else MAX_RELATION_CHARS
+        if len(rendered) > limit:
+            kind = "column" if is_column else "model/seed"
+            via_block = " (after expanding its docs block)" if len(rendered) != len(flat) else ""
             findings.append(
-                f"{rel} :: {where} - over length: {len(flat)} chars (limit {MAX_CHARS})\n"
-                f"    why banned: BigQuery rejects a column description over 1,024, which "
-                f"breaks the nightly build once persist_docs is on"
+                f"{rel} :: {where} - over length: {len(rendered)} chars{via_block} "
+                f"({kind} limit {limit})\n"
+                f"    why banned: BigQuery rejects it, so persist_docs fails the build"
             )
 
     if findings:
@@ -278,9 +298,12 @@ def main() -> int:
         print("\nThe standard is dbt_project/docs/engineering_standards.md section 2.")
         return 1
 
-    files = len({rel for rel, _, _ in found})
-    print(f"DESCRIPTION HYGIENE ok: {len(found)} descriptions across {files} files, "
-          f"{len(RULES)} rules, none over {MAX_CHARS} chars")
+    files = len({rel for rel, _, _, _ in found})
+    cols = sum(1 for _, _, _, is_col in found if is_col)
+    print(f"DESCRIPTION HYGIENE ok: {len(found)} descriptions across {files} files "
+          f"({cols} column, {len(found) - cols} model/seed), {len(RULES)} rules, "
+          f"{len(blocks)} docs blocks resolved, rendered lengths within "
+          f"{MAX_COLUMN_CHARS}/{MAX_RELATION_CHARS}")
     return 0
 
 

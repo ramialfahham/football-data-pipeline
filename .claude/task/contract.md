@@ -4,7 +4,9 @@ objective: >
   Build `scripts/check_description_hygiene.py` — the machine check that makes the description
   standard stick — with tests, and wire it into the three places that run the fast gates. It fails
   on any `description:` under `dbt_project/` that carries an issue ref, an ISO date, decision
-  language, a severity emoji, a downstream-consumer claim, or more than 600 characters.
+  language, a severity emoji, a downstream-consumer claim, or a rendered length past BigQuery's
+  own maximum — 1,024 for a column description, 16,384 for a model or seed. See amendment 3: that
+  limit started as a flat 600 and the CPO ruled it to BigQuery's maxima.
 
   The point of the whole programme is that prose rules do not hold in this repo: of 50 past
   corrections, 33 were prose-only and 22 recurred, while every rule that got a machine check
@@ -63,6 +65,8 @@ scope_paths:
   - .gitlab-ci.yml
   - .claude/hooks/stop_gate.py
   - .claude/skills/validate-local/SKILL.md
+  # Added by amendment 3 — the length rule it documents is being split.
+  - dbt_project/docs/engineering_standards.md
   # Added by amendment 1 — the ten files the first full-repo sweep found dirty.
   - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
@@ -133,6 +137,25 @@ amendments:
     mechanical classes MR3 and MR4 removed, in the files that were out of their reach.
     ⚠ This makes MR5 two things in one MR: the last of the content sweep, and the gate. If a
     reviewer judges that unreviewable, the content half splits out and the gate follows it.
+  - >
+    3. THE LENGTH RULE BECOMES BIGQUERY'S OWN MAXIMA — 1,024 for a COLUMN description, 16,384 for
+    a MODEL or SEED — measured on the RENDERED text, with `engineering_standards.md` joining
+    scope_paths to say so.
+    CPO-DIRECTED, in two steps. He challenged the flat 600 ("if 1024 is max why do we max at
+    600?") and supplied BigQuery's limits: 16,384 table, 1,024 column, 300 column name. I then
+    proposed 600 for columns and an EDITORIAL 1,024 for models, and he rejected that framing:
+    *"we use bigqueries max which doesn't necessarily mean that we are exhausting it. it's just you
+    who has a tendency tom massively bullshit and spam with text."*
+    THE RULING, AND WHY IT IS RIGHT: the cap's only job is stopping `persist_docs` failing the
+    build. A tighter number does not make me write less — it makes me shave words while still
+    writing padding, which is what MR3 and MR4 actually cost. Brevity is a judgement and mine to
+    exercise, not something to fake with a threshold. Using the maximum is not a licence to fill it.
+    ⚠ THIS AMENDMENT DESCRIBED THE SUPERSEDED PROPOSAL UNTIL scope-auditor CAUGHT IT. It said
+    "columns 600, models and seeds 1,024" and argued for 1,024-rather-than-16,384 as a deliberate
+    editorial narrowing — a protection that was never built, while the shipped code and standard
+    used the raw maxima. `objective:` still said a flat 600 as well: three numbers across three
+    artifacts for one decision. Exactly the stale-claim class of GitLab #71, committed inside the
+    MR that ships the gate against it.
   - >
     2. ONE RULE WIDENED DURING THE SWEEP, recorded because it changes what the gate catches.
     `stg_apif__lineups` claims "This model has NO consumer today" — the exact shape of the

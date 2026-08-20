@@ -141,23 +141,127 @@ def test_a_non_utf8_file_fails_closed_and_names_the_file(tmp_path, monkeypatch, 
     assert "UnicodeDecodeError" in out, "the gate did not report why the file was unreadable"
 
 
-def test_over_length_turns_the_gate_red(tmp_path, monkeypatch):
-    body = CLEAN.replace("NULL where the provider sent no row.", "word " * 200)
+def test_a_column_over_bigquerys_limit_turns_the_gate_red(tmp_path, monkeypatch):
+    """1,024 is BigQuery's own column-description maximum; past it the DDL is
+    rejected and persist_docs fails the build."""
+    body = CLEAN.replace(
+        '"Team identity key, globally unique in the provider\'s data."',
+        '"' + ("word " * 250) + '"',          # ~1,250 chars
+    )
     monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
     assert gate.main() == 1
 
 
-def test_a_docs_block_reference_is_exempt_from_the_length_rule(tmp_path, monkeypatch):
-    """The block is a description in its own right and is checked there; charging
-    its length to every call site would punish exactly the reuse the standard asks
-    for."""
-    long_tail = "word " * 200
+def test_a_model_description_may_exceed_the_column_limit(tmp_path, monkeypatch):
+    """The limits differ because BigQuery's do: 1,024 for a column, 16,384 for a
+    table. A model description of 1,250 chars is long, but it is not a build
+    failure, and this gate only guards build failures — brevity is a human's job."""
+    body = CLEAN.replace("NULL where the provider sent no row.", "word " * 250)
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+    assert gate.main() == 0
+
+
+def test_a_model_over_bigquerys_table_limit_turns_the_gate_red(tmp_path, monkeypatch):
+    body = CLEAN.replace("NULL where the provider sent no row.", "word " * 4000)
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+    assert gate.main() == 1
+
+
+def _write_block(tmp_path, name: str, body: str):
+    """A `{% docs %}` block, in a .md file the way dbt requires."""
+    docs = tmp_path / "models" / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / f"{name}.md").write_text(
+        "{%% docs %s %%}\n%s\n{%% enddocs %%}\n" % (name, body), encoding="utf-8"
+    )
+
+
+def test_a_short_docs_block_reference_is_green(tmp_path, monkeypatch):
+    """Reuse must not be punished: a shared block plus a short qualifier is exactly
+    what the standard asks for, and it stays under the limit once rendered."""
+    _write_block(tmp_path, "team_sk", "Team identity key, globally unique.")
     body = CLEAN.replace(
         '"Team identity key, globally unique in the provider\'s data."',
-        f'"{{{{ doc(\'team_sk\') }}}} {long_tail}"',
+        '"{{ doc(\'team_sk\') }} Here it is the home side."',
     )
     monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
     assert gate.main() == 0
+
+
+def test_length_is_measured_after_the_docs_block_is_expanded(tmp_path, monkeypatch, capsys):
+    """THE HOLE THIS CLOSES. An earlier version waived the length rule for any
+    description containing a doc() reference, reasoning that the block was checked
+    on its own. It was not — blocks live in .md files, not in `description:` keys,
+    so the walk never saw them. Meanwhile persist_docs renders the block INTO the
+    stored description, so the string BigQuery receives is block + qualifier.
+
+    Here the qualifier alone is under the limit and the block alone is under it;
+    only the rendered total is over. The old waiver passed this.
+    """
+    _write_block(tmp_path, "team_sk", "block " * 150)         # ~900 chars
+    body = CLEAN.replace(
+        '"Team identity key, globally unique in the provider\'s data."',
+        '"{{ doc(\'team_sk\') }} ' + ("tail " * 60) + '"',      # ~300 chars
+    )
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+
+    assert gate.main() == 1, "the rendered description exceeded the limit and passed"
+    out = capsys.readouterr().out
+    assert "after expanding its docs block" in out, (
+        "the gate flagged the length without saying the block was what pushed it over"
+    )
+
+
+def test_a_nested_docs_block_is_expanded_too(tmp_path, monkeypatch):
+    """A block may reference another. One substitution pass would leave the inner
+    tag literal — understating the stored length and never checking the nested
+    block's own text. No nesting exists today; this keeps it from being a hole if
+    it ever does."""
+    _write_block(tmp_path, "outer", "{{ doc('inner') }}")
+    _write_block(tmp_path, "inner", "block " * 250)          # ~1,500 chars
+    body = CLEAN.replace(
+        '"Team identity key, globally unique in the provider\'s data."',
+        '"{{ doc(\'outer\') }}"',
+    )
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+    assert gate.main() == 1, "the nested block was never expanded, so its length went unseen"
+
+
+def test_a_circular_docs_block_does_not_hang(tmp_path, monkeypatch, capsys):
+    """Two blocks referencing each other must terminate and be reported, not spin."""
+    _write_block(tmp_path, "a", "{{ doc('b') }}")
+    _write_block(tmp_path, "b", "{{ doc('a') }}")
+    body = CLEAN.replace(
+        '"Team identity key, globally unique in the provider\'s data."',
+        '"{{ doc(\'a\') }}"',
+    )
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+    assert gate.main() == 1
+    assert "circular" in capsys.readouterr().out
+
+
+def test_an_unresolved_docs_block_is_a_finding(tmp_path, monkeypatch, capsys):
+    """dbt cannot compile a doc() reference with no block, and the stored length
+    cannot be known — so shrugging at it measures the wrong string."""
+    body = CLEAN.replace(
+        '"Team identity key, globally unique in the provider\'s data."',
+        '"{{ doc(\'no_such_block\') }}"',
+    )
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+    assert gate.main() == 1
+    assert "unresolved docs block" in capsys.readouterr().out
+
+
+def test_a_banned_phrase_inside_a_shared_block_is_caught(tmp_path, monkeypatch):
+    """A block reaches every call site. A banned phrase hiding in one would
+    otherwise be invisible to a gate that only reads the YAML."""
+    _write_block(tmp_path, "team_sk", "Team key. Its only reader is dim_team.")
+    body = CLEAN.replace(
+        '"Team identity key, globally unique in the provider\'s data."',
+        '"{{ doc(\'team_sk\') }}"',
+    )
+    monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
+    assert gate.main() == 1
 
 
 def test_the_floor_fires_from_inside_the_gate(tmp_path, monkeypatch, capsys):
