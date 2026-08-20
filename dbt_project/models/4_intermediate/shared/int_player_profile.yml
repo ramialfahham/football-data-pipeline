@@ -22,7 +22,7 @@ models:
           name: player_yoy_full_season_ref_ge_pace_matched
     columns:
       - name: team_sk
-        description: "The player's club this season (the YoY is per-club)."
+        description: "{{ doc('team_sk') }} Here it is the player's club this season; the year-over-year comparison is per club."
         tests:
           - not_null
           - relationships:
@@ -37,7 +37,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
-        description: "The player's current domestic season (the YoY anchor)."
+        description: "{{ doc('season_api_year') }} Here it is the player's current domestic season, the year-over-year anchor."
         tests: [not_null]
       - name: yoy_appearances_cutoff
         description: "N = appearances this season; the prior season is compared through its first N appearances."
@@ -70,7 +70,7 @@ models:
               to: ref('dim_player')
               field: player_sk
       - name: team_sk
-        description: "The player's club that competition-season (contribution is per-club)."
+        description: "{{ doc('team_sk') }} Here it is the player's club that competition-season; contribution is measured per club."
         tests:
           - not_null
           - relationships:

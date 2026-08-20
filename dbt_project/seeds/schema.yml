@@ -132,7 +132,7 @@ seeds:
       its flag come from dim_league until #69 gives countries their own seed and dim.
     columns:
       - name: league_code
-        description: "Internal competition code (matches docs/competition_registry.yml)."
+        description: "{{ doc('league_code') }}"
         tests:
           - not_null
           - unique

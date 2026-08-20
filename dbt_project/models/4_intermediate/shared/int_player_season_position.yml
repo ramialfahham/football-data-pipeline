@@ -22,15 +22,15 @@ models:
           name: int_player_season_position_finishing_in_range
     columns:
       - name: player_sk
-        description: "FK to dim_player."
+        description: "{{ doc('player_sk') }}"
         tests: [not_null]
       - name: season_sk
-        description: "FK to dim_competition_season (encodes the competition-season)."
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: league_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]

@@ -223,7 +223,7 @@ models:
       - name: season_sk
         tests: [not_null]
       - name: league_code
-        description: "Competition the row belongs to. Every value must be a DOMESTIC LEAGUE in the registry — asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
+        description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in the registry, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
         tests:
           - dbt_utils.relationships_where:
               name: int_team_season_deserved_domestic_leagues_only
@@ -300,7 +300,7 @@ models:
       - name: season_api_year
         tests: [not_null]
       - name: team_sk
-        description: "The player's last known club that competition-season (deterministic last-kickoff pick); unused downstream today, tested for integrity."
+        description: "{{ doc('team_sk') }} Here it is the player's last known club that competition-season, a deterministic last-kickoff pick. Unused downstream today, tested for integrity."
         tests:
           - not_null
           - relationships:

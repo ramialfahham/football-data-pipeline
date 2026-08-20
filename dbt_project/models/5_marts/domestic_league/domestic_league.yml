@@ -120,7 +120,7 @@ models:
           name: mmi_away_save_ratio_in_range
     columns:
       - name: fixture_sk
-        description: "Fixture key. One row per upcoming fixture in the next round per league."
+        description: "{{ doc('fixture_sk') }} This model's grain: one row per upcoming fixture in the next round per league."
         tests:
           - not_null
           - unique
@@ -142,7 +142,7 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_code
-        description: "Internal pipeline league key (BL1, PL, PD, ...). Filter for export/UI; use league_name for display."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]

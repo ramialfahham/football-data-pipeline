@@ -302,7 +302,7 @@ models:
       - name: transfer_date
         tests: [not_null]
       - name: league_code
-        description: "Ingest provenance (the tracked league whose team pull surfaced the move, pinned deterministically), NOT a semantic partition — transfers are global."
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
 
   - name: base_apif__coaches

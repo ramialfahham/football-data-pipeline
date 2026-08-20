@@ -121,10 +121,10 @@ models:
       tags: ["core", "dimension"]
     columns:
       - name: league_sk
-        description: "Surrogate key: league_api_id cast to INT64 (globally unique in API-Football)."
+        description: "{{ doc('league_sk') }}"
         tests: [not_null, unique]
       - name: league_code
-        description: "Internal league code propagated through every league-scoped key (e.g. D1 for Bundesliga)."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: league_api_id
         description: "API-Football league id (78 for Bundesliga)."
@@ -155,7 +155,7 @@ models:
       - name: country_flag_url
         description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this dimension row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_competition_season
     description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
@@ -172,19 +172,19 @@ models:
             - season_api_year
     columns:
       - name: season_sk
-        description: "Surrogate key from (league_api_id, season_api_year)."
+        description: "{{ doc('season_sk') }}"
         tests: [not_null, unique]
       - name: league_sk
-        description: "FK to dim_league: league_api_id cast to INT64."
+        description: "{{ doc('league_sk') }}"
         tests: [not_null]
       - name: league_code
-        description: "Internal league code."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: league_api_id
         description: "API-Football league id."
         tests: [not_null]
       - name: season_api_year
-        description: "API season start year (e.g. 2025 for the 2025/26 season)."
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: season_start_date
         description: "Season start date from API-Football."
@@ -217,7 +217,7 @@ models:
       - name: has_coverage_odds
         description: "Coverage flag for pre-match odds."
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this dimension row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_team
     description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest)."
@@ -229,7 +229,7 @@ models:
       tags: ["core", "dimension"]
     columns:
       - name: team_sk
-        description: "Surrogate key: team_api_id cast to INT64 (globally unique in API-Football)."
+        description: "{{ doc('team_sk') }}"
         tests: [not_null, unique]
       - name: team_api_id
         description: "API-Football team id."
@@ -283,7 +283,7 @@ models:
       - name: venue_capacity
         description: "Home venue capacity."
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this dimension row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_player
     description: >
@@ -302,7 +302,7 @@ models:
       tags: ["core", "dimension"]
     columns:
       - name: player_sk
-        description: "Surrogate key: player_api_id cast to INT64 (globally unique in API-Football)."
+        description: "{{ doc('player_sk') }}"
         tests: [not_null, unique]
       - name: player_api_id
         description: "API-Football player id."
@@ -337,7 +337,7 @@ models:
       - name: player_position
         description: "General/listed position, from /players/profiles."
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this dimension row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_player_team_season_mapping
     description: >
@@ -369,33 +369,33 @@ models:
         description: "Surrogate key over (player_id, team_id, league_code, season_year) — the relationship grain."
         tests: [not_null, unique]
       - name: player_sk
-        description: "FK to dim_player (player_api_id cast to INT64)."
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: team_sk
-        description: "FK to dim_team (team_api_id cast to INT64)."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
-        description: "FK to dim_competition_season, resolved by (league_code, season_api_year). Nullable: a roster season uncovered by /leagues yields null rather than dropping the membership."
+        description: "{{ doc('season_sk') }} Resolved here by lookup on (league_code, season_api_year), because the roster source carries league_code. Nullable: a roster season uncovered by /leagues yields null rather than dropping the membership."
         tests:
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
-        description: "FK to dim_league, resolved via dim_competition_season. Nullable for the same reason as season_sk."
+        description: "{{ doc('league_sk') }} Resolved here via dim_competition_season, and nullable for the same reason as season_sk."
         tests:
           - relationships:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
-        description: "Internal league code — the competition the roster belongs to."
+        description: "{{ doc('league_code') }}"
         tests:
           - not_null
           # Every rostered competition must be registered. Without this, a league_code
@@ -406,10 +406,10 @@ models:
               to: ref('competition_registry')
               field: league_code
       - name: season_api_year
-        description: "API-Football season year of the roster."
+        description: "{{ doc('season_api_year') }} Here it is the roster's season."
         tests: [not_null]
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this membership row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_team_competition_season_mapping
     description: >
@@ -443,31 +443,31 @@ models:
         description: "Surrogate key over (team_sk, league_code, season_api_year) — the relationship grain."
         tests: [not_null, unique]
       - name: team_sk
-        description: "FK to dim_team (team_api_id cast to INT64)."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: league_sk
-        description: "FK to dim_league (league_api_id cast to INT64), derived from the fixture like fct_fixture."
+        description: "{{ doc('league_sk') }} Derived from the fixture, as in fct_fixture."
         tests:
           - not_null
           - relationships:
               to: ref('dim_league')
               field: league_sk
       - name: season_sk
-        description: "FK to dim_competition_season, derived as generate_surrogate_key(league_api_id, season) — conforms to fct_fixture and dim_competition_season; every fixture (league, season) is covered, so non-null."
+        description: "{{ doc('season_sk') }} Conforms to fct_fixture and dim_competition_season; every fixture's (league, season) is covered, so this is non-null."
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_code
-        description: "Internal league code — the competition the team is a member of."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
-        description: "API-Football season year of the membership."
+        description: "{{ doc('season_api_year') }} Here it is the membership's season."
         tests: [not_null]
 
   - name: fct_fixture
@@ -480,20 +480,20 @@ models:
       tags: ["core", "fact"]
     columns:
       - name: fixture_sk
-        description: "Surrogate key equal to fixture_api_id cast to INT64 (globally unique in API-Football)."
+        description: "{{ doc('fixture_sk') }}"
         tests: [not_null, unique]
       - name: fixture_api_id
         description: "API-Football fixture id."
         tests: [not_null]
       - name: league_sk
-        description: "FK to dim_league."
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_league')
               field: league_sk
       - name: season_sk
-        description: "FK to dim_competition_season from (league_api_id, season_api_year)."
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -521,10 +521,10 @@ models:
               to: ref('dim_date')
               field: date_sk
       - name: league_code
-        description: "Internal league code."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
-        description: "Season start year."
+        description: "{{ doc('season_api_year') }}"
       - name: home_team_api_id
         description: "API-Football home team id."
       - name: away_team_api_id
@@ -561,7 +561,7 @@ models:
       - name: venue_city_snapshot
         description: "Venue city at the time the fixture was ingested."
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this fact row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_standings
     description: "Current standings. Grain: (season_sk, team_sk, group_name). Sources from base_apif__standings. group_name is the API standings section (league name for a single-table league, group name for a group stage, phase name for split-season leagues) — the true table identity. A team appears once per section, so split-season leagues yield more than one row per (team, season)."
@@ -582,14 +582,14 @@ models:
         description: "Surrogate key from (league_code, season, team_id, group_name)."
         tests: [not_null, unique]
       - name: season_sk
-        description: "FK to dim_competition_season from (league_api_id, season_api_year)."
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: team_sk
-        description: "FK to dim_team: team_api_id cast to INT64."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -620,7 +620,7 @@ models:
       - name: losses
         description: "Losses (all)."
       - name: raw_ingested_at
-        description: "UTC timestamp of the raw row this fact row was derived from."
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_team_stats
     description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). Sources from unified base_apif__fixture_statistics; staging pivots API lines to typed columns."
@@ -640,14 +640,14 @@ models:
         description: "Surrogate key from (fixture_id, league_code, team_id)."
         tests: [not_null, unique]
       - name: fixture_sk
-        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
+        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
-        description: "FK to dim_team."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -696,21 +696,21 @@ models:
         description: "Surrogate key from (fixture_id, league_code, team_id, player_id)."
         tests: [not_null, unique]
       - name: fixture_sk
-        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
+        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
-        description: "FK to dim_team."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
-        description: "FK to dim_player."
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -775,21 +775,21 @@ models:
         description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
         tests: [not_null]
       - name: fixture_sk
-        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
+        description: "{{ doc('fixture_sk') }} every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
-        description: "FK to dim_team for the event's team."
+        description: "{{ doc('team_sk') }} The team the event is attributed to."
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
-        description: "FK to dim_player for the primary actor (goalscorer, card recipient, etc.). Nullable: VAR decisions or team-level events may not carry a player."
+        description: "{{ doc('player_sk') }} Here it is the event's primary actor (goalscorer, card recipient, and so on). Nullable: a VAR decision or a team-level event may not carry a player."
         tests:
           - relationships:
               to: ref('dim_player')
@@ -881,7 +881,7 @@ models:
       - name: transfer_type
         description: "Raw provider transfer type (N/A, Loan, Free, Transfer, fee, …); no canonical taxonomy."
       - name: league_code
-        description: "Ingest provenance (the tracked league whose team pull surfaced the move), NOT a semantic partition — transfers are global player events; don't filter affiliation by it expecting completeness."
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
 
   - name: dim_coach

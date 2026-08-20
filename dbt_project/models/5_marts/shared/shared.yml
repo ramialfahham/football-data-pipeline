@@ -131,7 +131,7 @@ models:
       - name: team_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key — app slices by this to retrieve fixtures for a competition."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
         tests:
@@ -182,7 +182,7 @@ models:
       - name: player_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key — app slices by this to retrieve fixtures for a competition."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
         tests:
@@ -228,7 +228,7 @@ models:
       - name: team_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key of the UPCOMING fixture — app slices by this. The past match's own competition is played_league_code."
+        description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition; the past match's own competition is played_league_code."
         tests: [not_null]
       - name: window_type
         description: >
@@ -290,7 +290,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
-        description: "Partition key — the played fixture's competition."
+        description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: is_home
         tests: [not_null]
@@ -325,7 +325,7 @@ models:
               to: ref('dim_player')
               field: player_sk
       - name: league_code
-        description: "Partition key — the played fixture's competition."
+        description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: is_home
         tests: [not_null]
@@ -386,7 +386,7 @@ models:
       - name: season_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key — app slices by this."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: competition_type
         description: "From the registry; YoY columns are populated only for domestic_league."
@@ -466,14 +466,14 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
-        description: "Partition key — app slices by this."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
         tests:
           - accepted_values:
               values: ["club", "national"]
       - name: season_api_year
-        description: "The season the W2 value is drawn from (current, or previous when window_type='prev_season')."
+        description: "{{ doc('season_api_year') }} Here it is the season the W2 value is drawn from: the current one, or the previous one when window_type is 'prev_season'."
         tests: [not_null]
       - name: window_type
         tests:
@@ -524,7 +524,7 @@ models:
       - name: player_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key — app slices by this."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: window_type
         tests:
@@ -572,7 +572,7 @@ models:
               to: ref('fct_standings')
               field: standing_sk
       - name: league_code
-        description: "Partition key — app slices by this to retrieve a competition's table."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_sk
         tests:
@@ -591,7 +591,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: team_sk
-        description: "FK to dim_team."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -631,21 +631,21 @@ models:
         description: "Surrogate key from (team_sk, season_sk)."
         tests: [not_null, unique]
       - name: team_sk
-        description: "FK to dim_team."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
-        description: "FK to dim_competition_season."
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
-        description: "FK to dim_league."
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -760,7 +760,7 @@ models:
       - name: season_sk
         tests: [not_null]
       - name: league_code
-        description: "Partition key — app slices by this."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: appearances
         tests: [not_null]
@@ -778,9 +778,7 @@ models:
         description: "General/listed position from bio (distinct from position_code, the season modal)."
       # team affiliation (GAP-16): most-recent-match club this competition-season + current-club flag
       - name: team_sk
-        description: >
-          Club of the player's most recent finished match this competition-season (Option B,
-          CPO-ruled 2026-06-30). FK to dim_team; null only when the player-season has no finished leg.
+        description: "{{ doc('team_sk') }} Here it is the club of the player's most recent finished match that competition-season. Null only when the player-season has no finished leg."
         tests:
           - relationships:
               to: ref('dim_team')
@@ -833,7 +831,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
-        description: "Partition key — the played fixture's competition."
+        description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: result
         tests:
@@ -1003,7 +1001,7 @@ models:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
-        description: "Partition key — app slices by this to retrieve a competition's boards."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
@@ -1122,7 +1120,7 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: league_code
-        description: "Partition key — the app slices by this."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: opponent_team_sk
         description: "The other side's team_sk; the row carries the team's perspective of the fixture."
@@ -1154,27 +1152,27 @@ models:
         description: "Surrogate carried from dim_player_team_season_mapping (player, team, league_code, season)."
         tests: [not_null, unique]
       - name: team_sk
-        description: "FK to dim_team (the club)."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
-        description: "FK to dim_player."
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: league_code
-        description: "Partition key — app slices by this to retrieve a club's squad for a competition-season."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
-        description: "The roster season; always present (anchors the grain even when season_sk is null)."
+        description: "{{ doc('season_api_year') }} Here it is the roster season, always present: it anchors the grain even when season_sk is null."
         tests: [not_null]
       - name: season_sk
-        description: "FK to dim_competition_season; nullable (roster season with no competition-season row)."
+        description: "{{ doc('season_sk') }} Nullable here: a roster season with no competition-season row."
       - name: competition_type
         description: "From competition_registry; the mart is filtered to club types."
       - name: entity_type
@@ -1220,28 +1218,28 @@ models:
         description: "Surrogate from (team_sk, season_sk, metric_key)."
         tests: [not_null, unique]
       - name: team_sk
-        description: "FK to dim_team."
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
-        description: "FK to dim_competition_season."
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
-        description: "FK to dim_league."
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
-        description: "Partition key — app slices by this to retrieve a competition's benchmarks."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
@@ -1319,28 +1317,28 @@ models:
         description: "Surrogate from (player_sk, season_sk, position_group, metric_key)."
         tests: [not_null, unique]
       - name: player_sk
-        description: "FK to dim_player."
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: season_sk
-        description: "FK to dim_competition_season."
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
-        description: "FK to dim_league."
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
-        description: "Partition key — the app slices by this to retrieve a competition's benchmarks."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
@@ -1443,24 +1441,24 @@ models:
         description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
         tests: [not_null, unique]
       - name: player_sk
-        description: "Player entity key."
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: team_sk
-        description: "Club (or national team) the player turned out for that competition-season."
+        description: "{{ doc('team_sk') }} Here it is the club, or national team, the player turned out for that competition-season."
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
-        description: "Competition-season key (encodes league + year)."
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: league_code
-        description: "Competition code (the partition key)."
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
         description: "club or national (from the registry -> competition_types seeds); null if the competition is unmapped."
