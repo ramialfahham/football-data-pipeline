@@ -1,371 +1,1723 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d8e99d6..f4aa786 100644
+index f93e177..7be0ab9 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,60 +1,83 @@
--# Task contract — record the Top teams ruling (one team per league)
-+# Task contract — team_name_overrides batch 2 (BL1, ED, L1, LP)
+@@ -1,50 +1,93 @@
+-# Task contract — handover for the description-drift programme
++# Task contract — MR3 of the description-drift programme
  
  objective: >
--  Record today's CPO ruling on the Top teams home-page block: one team per pool league, same
--  shape as Top players (2026-08-18). Update the wireframe's Open/Scope/display-rules sections,
--  propose the replacement intro copy (mirroring the Top players copy pattern), and flag that
--  (unlike the players mock) the Top teams mock does not already reflect this shape. Bookkeeping
--  + a copy proposal, no code, no mart build.
--refs: docs/wireframes/10_home.md §0 (Top players ruling, same date, same shape); GAP-29
--  (team leaderboard mart, design approved, build not started — unaffected by this, still not
--  started).
-+  Continues the same-day work on `fix/team-name-overrides-pool1` (MR !77): verify and correct
-+  Pool 1 team names against English Wikipedia, using the broadened (collision-OR-incompleteness)
-+  trigger the CPO ruled and that MR's review already accepted. This batch covers the remaining
-+  four Pool 1 leagues (Bundesliga, Eredivisie, Ligue 1, Liga Portugal).
-+refs: MR !77 (batch 1, PL/PD/SA, 61 rows, merged process — awaiting CPO merge); `.claude/task/
-+  escalations.log` 2026-08-19 entry, branch fix/team-name-overrides-pool1.
+-  Bring `.claude/active_work.md` current so a NEW CHAT can continue the description-drift
+-  programme at MR3 with zero re-investigation. MR1 (`!82`) and MR2 (`!83`) merged today; the
+-  handover still describes the 2026-08-19 Browse/team-names session as current and says nothing
+-  about the programme, its ordering constraints, or the traps that cost review rounds in MR1/MR2.
+-  Bookkeeping only — no code, no behaviour change.
++  Clean the `description:` fields in `dbt_project/models/5_marts/shared/shared.yml` and
++  `dbt_project/seeds/schema.yml` against the standard written in MR1
++  (`dbt_project/docs/engineering_standards.md` §2). Every description states what the data MEANS
++  to someone who has never seen our code: business meaning, grain, where it comes from or how it
++  is calculated, and known limits. Decision history, issue refs, dates and downstream-consumer
++  claims come out. No SQL logic, no test, no column, no model behaviour changes — this is prose.
 +
-+impact_map: >
-+  Same writer and downstream surface as MR !77 (batch 1) — same seed, same join in
-+  base_apif__teams_global.sql, so the lineage doesn't change between batches. Reusing that MR's
-+  real pasted `dbt ls --select base_apif__teams_global+ --resource-type model` evidence rather than
-+  re-running an identical query: 18 downstream models (16 marts + dim_team +
-+  dim_player_team_season_mapping) out of 97 in the project; 297 nodes total including tests when
-+  run unfiltered (`unique_dim_team_team_slug`, the seed's own
-+  `relationships_team_name_overrides_team_api_id__team_api_id__ref_dim_team_` FK test, included in
-+  that count). layer_rules / blast_radius: identical reasoning to MR !77 — correction stays in
-+  base per the 2026-07-27 CPO ruling; team_slug moves for every corrected team_api_id, acceptable
-+  pre-launch per site_architecture.md §3 (slugs not yet stable, nothing indexed).
+ refs: >
+-  Programme plan and authority: `.claude/task/escalations.log`, 2026-08-20 entry. Plan file:
+-  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`. main `657e477`, no open MRs.
++  Authority: `.claude/task/escalations.log`, 2026-08-20 entry (the CPO's diagnosis, the audit's
++  numbers, the definition of a good description, the three rulings, the six-MR split and its
++  ordering constraints). Plan file: `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`.
++  Standard: `dbt_project/docs/engineering_standards.md` §2, written in MR1 (`!82`).
++  Shared docs blocks to reference rather than restate: `dbt_project/models/docs/shared_columns.md`,
++  written in MR2 (`!83`). Branched from main `d8c6635`; no open MRs at start.
+ 
+ impact_map: >
+-  Trivial/leaf, evidenced. Only `.claude/active_work.md` and this contract are edited.
+-  `active_work.md` is a handover artifact read by humans and the SessionStart hook; it is in BOTH
+-  `review_exclude_paths` and `hash_exclude_paths` in `.claude/review_routing.json` and matches
+-  `artifact_only`. No model, mart, seed, export, site or test file is touched — zero warehouse
+-  blast radius, zero build impact.
++  PROSE ONLY, and that is the whole blast radius. `description:` is metadata dbt carries into the
++  manifest; nothing reads it today (`persist_docs` absent, `dbt docs generate` runs nowhere —
++  which is the root cause the programme exists to fix, and MR6's job). No `tests:`, `config:`,
++  `meta:`, `columns:` list, model, macro or seed CSV is touched, so the compiled SQL and the built
++  tables are byte-identical before and after.
++
++  Verified by construction rather than asserted: the diff on the two YAML files is confined to
++  `description:` values and the SQL files' opening `{# ... #}` doc comments. `dbt parse` must
++  still succeed (it resolves the `{{ doc() }}` references MR2 added), and `dbt ls` must return the
++  same model set.
+ 
+-  ⚠ NOT artifact-exempt from review, and the distinction caught me out last time: staging
+-  `contract.md` puts the commit in `artifact_only_never`, so a review round IS required however
+-  trivial the diff. `active_work.md` alone would have been exempt. Routing gives scope-auditor
+-  only — no path here matches a specialist glob.
++  THE ONE REAL RISK is a rewrite that states something FALSE — the exact defect the programme
++  exists to fix. Mitigated by reading the model's SQL before rewriting its description, not by
++  paraphrasing the old text.
++
++  Downstream of MR3: MR6 turns on `persist_docs`, and BigQuery hard-rejects a column description
++  over 1,024 characters. Nine descriptions in these two files exceed it today. Clearing them here
++  is a precondition for MR6, not a nicety.
  
  scope_paths:
--  - docs/wireframes/10_home.md
--  - docs/wireframes/99_gaps_register.md
-+  - dbt_project/seeds/team_name_overrides.csv
+-  - .claude/active_work.md
++  - dbt_project/models/5_marts/shared/shared.yml
 +  - dbt_project/seeds/schema.yml
++  - dbt_project/models/5_marts/shared/mart_roster.sql
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+   - .claude/task/contract.md
 +  - .claude/task/escalations.log
-   - .claude/active_work.md
-   - CLAUDE.md
--  - .claude/task/escalations.log
-+  - docs/wireframes/10_home.md
-+  - docs/wireframes/99_gaps_register.md
++  - .claude/task/review.md
++  - .claude/task/acceptance_evidence.md
++  - .claude/active_work.md
  
  decisions_taken: >
--  CPO, this session: "one team per league, same as players" — the pooling-shape question for
--  Top teams, mirroring the 2026-08-18 Top players ruling ("One per league -> yes, it's not a
--  leaderboard in the defined pool.", recorded in 10_home.md's Closed-since-2026-08-04 list and
--  GAP-31's withdrawal). CPO, same message: the mock's "Ranked across pooled leagues" intro line
--  is confirmed incorrect for Top teams too and needs the same adjustment made for Top players'
--  intro copy.
-+  CPO, this session (quoted in full, self-contained, in THIS branch's own escalations.log entry —
-+  round-1 review correctly FAILed the previous version of this field for citing a quote that was
-+  only actually written into the log on the sibling branch, fix/team-name-overrides-pool1 / MR !77,
-+  which has not merged to main and so is not present in this branch's own history):
- 
--decisions_reserved:
--  - The exact proposed Top teams intro copy string is DRAFTED here (mirroring the approved
--    Top players line) but not yet CPO-approved — copy is always his, per docs/working_agreement.md
--    DO NOT list. Marked PROPOSED, not APPROVED, in both edited files; escalated in chat this turn.
-+  "The name is Arsenal London and not Arsenal England. We have to fix and standardize these
-+  names... it's not Arsenal London. It's Arsenal FC. But it's Inter Milan... we have to define the
-+  name we use as the single source of truth for what we display."
- 
--impact_map: >
--  leaf/cosmetic: two wireframe-doc sections + the handover, no code, no model, no mart, no
--  export, no site_v2 file. Nothing downstream reads these docs at build time. blast_radius: none.
-+  Applying that same standard to four more leagues; no new decision this batch.
+-  CPO, in chat, 2026-08-20: "but prepare handover, we'll continue in a new chat", given after
+-  approving MR3 to proceed. The handover is therefore written so the NEXT chat starts MR3, not so
+-  this one does.
++  CPO, in chat 2026-08-20, approving "the whole plan" — all six MRs. MR3's contents are fixed by
++  the six-MR split recorded in `escalations.log`: `shared.yml` + `seeds/schema.yml`.
 +
-+  ⚠ STANDING EXCLUSION, recorded in dbt_project/seeds/schema.yml's team_name_overrides
-+  description (added to THIS branch by this same amendment, for the same reason above — the
-+  sibling branch's schema.yml fix has not merged either): "Bayern München is NOT corrected to
-+  Bayern Munich (CPO ruled one locale-independent slug)." Checked BL1 against this: Bayern München
-+  (team_api_id 157) is excluded from this batch for that reason — English Wikipedia's article
-+  title is "FC Bayern Munich", which is a LOCALE preference (München vs Munich), not a completeness
-+  defect, and this seed does not correct locale preference.
++  CPO, in chat this session (AskUserQuestion, "Fix them in MR3"): the three surviving lowercase
++  "partition key" claims in `mart_roster.sql`, `mart_standings.sql` and `mart_team_fixtures.sql`
++  join `scope_paths` and are fixed HERE rather than left. Same false claim as `shared.yml`, same
++  directory, and MR4's scope does not reach them.
 +
-+decisions_reserved:
-+  - ~15 teams across the four leagues could not be confidently verified this batch (Wikipedia's
-+    current-season club table didn't clearly cover them, likely relegated/promoted since the
-+    article was last edited, or the source's own summary was ambiguous) — left unchanged rather
-+    than guessed. Named in the escalations.log entry. Own follow-up if/when needed.
++  ⚠ READ THAT RULING FROM `escalations.log`, where it is RULING 0 of this branch's entry. It
++  authorises files beyond the plan's MR3 row, and this contract is overwritten by the next task, so
++  recording it only here would have destroyed it on merge — the same defect class the whole
++  programme is about. scope-auditor FAILed round 1 on exactly that and was right; the log entry was
++  written in response.
+ 
+ decisions_reserved:
+-  - MR3 itself is not started here. The handover records what it must do and the constraints on
+-    it; it does not pre-empt any judgement the next session owes.
+-  - The 4 surviving "partition key" instances are recorded as MR3/MR4 work, not fixed here.
++  - The gate that makes this stick is MR5, not this MR. Nothing here is enforced by a check yet;
++    that ordering is deliberate (gate green on day one, the `check_copy_gate.py` precedent).
++  - `persist_docs` and `dbt docs generate` are MR6. Not touched here.
++  - `core.yml`, `base.yml`, `int_momentum.yml` are MR4. Not touched here.
++  - Any open question displaced out of a description goes to a GitLab issue as an issue, never
++    into another description. Filing it is in scope; deciding it is not.
++  - Rulings that already exist in `escalations.log` are simply deleted from the description.
++    Only rulings that exist NOWHERE ELSE are rescued into it. Checked ruling by ruling, not
++    assumed: the #69 country-naming rulings and the #54 ordering rulings ARE logged and are
++    therefore deleted outright; four others are not and are rescued.
  
  done_when:
--  - docs/wireframes/10_home.md's Open section carries a Top teams ruling entry mirroring the
--    Top players one, including the mock-is-not-already-correct caveat.
--  - The Scope paragraph's ⚠ note is broadened to cover both blocks, not players only.
--  - A proposed (not approved) Top teams intro copy is recorded, parallel in structure to the
--    approved Top players line.
--  - .claude/active_work.md reflects the ruling and the still-open items (copy confirmation,
--    mock rework, GAP-29 mart still not started), and is back under the 16,000-character cap.
-+  - Every new row cites its English Wikipedia source URL, matching the seed's existing convention.
-+  - No row corrects a locale/translation preference (only completeness/collision, per the
-+    standing exclusion above).
-+  - escalations.log's citation is self-contained and verifiable from THIS branch alone.
-   - Committed on this branch; MR opened by the post-commit hook.
+-  - `active_work.md` names main `657e477`, states no open MRs, and marks MR1/MR2 merged.
+-  - It points at `escalations.log`'s 2026-08-20 entry and the plan file as the authority, with an
+-    explicit instruction not to re-scope or re-audit.
+-  - It carries the six-MR table with the two ordering constraints (MR5 after 3-4 for a green gate;
+-    MR6 after 3-4 because 15 descriptions exceed BigQuery's 1,024-char limit).
+-  - It records the four traps hit for real in MR1/MR2, each with enough detail to avoid repeating.
+-  - Under the 16,000-CHARACTER cap, measured with Python `len()` (never `wc -c`, which is bytes).
+-  - Committed; MR opened by the post-commit hook.
++  - Every description in both files satisfies §2: business meaning, grain where applicable, source
++    or formula, known limits. No downstream-consumer claim survives in either file.
++  - No description carries an issue ref (`#N`, `GAP-N`, `!N`), an ISO date, a CPO ruling, an
++    "UPDATED"/"CORRECTED"/"an earlier version said", or a severity emoji.
++  - Zero descriptions in either file exceed 600 characters, and therefore zero exceed BigQuery's
++    1,024 (nine do today).
++  - The four false "partition key" claims are gone — `shared.yml:1143` plus the three SQL headers.
++  - Repeated shared columns reference MR2's docs blocks rather than restating them.
++  - `.venv/Scripts/dbt.exe parse` succeeds and `dbt ls` returns the same model set as on main.
++  - `python -m pytest tests/` is green.
++  - The five offline gates pass, read from their OUTPUT and not their exit code (#904).
++  - Handover updated in the SAME commit as the code it describes.
  
  amendments:
--  - 2026-08-18: + `CLAUDE.md` — authority: the handover's own char cap + "delete one stale
--    section, don't shave clauses" rule. Getting active_work.md back under cap means deleting the
--    ⭐ PRIOR SESSION — #62 section whole. Two of its four traps are duplicated elsewhere (fnmatch/
--    `[lang]` already in CLAUDE.md; the 680px/single-select/inert-rows decisions already in
--    `08_browse.md`) and are safe to drop. Two are NOT duplicated anywhere (`world_championship`
--    rename trap; a global-hook-conflict note) — relocating those into CLAUDE.md's own
--    "Operational notes" section is the same move that section's own header already prescribes
--    ("do not copy back: that file is not capped"), not new scope.
--  - 2026-08-18: + `.claude/task/escalations.log` — authority: scope-auditor round-1 FAIL. The
--    ruling this task records had no logged entry, unlike the sibling Top players ruling it
--    mirrors (which does). Adding an entry, matching that entry's format, and declaring the path
--    in scope so a reviewer can verify it independently of the contract's own narrative, per
--    `docs/working_agreement.md`'s own statement that escalations are appended there.
-+  - 2026-08-19: + `dbt_project/seeds/schema.yml` — authority: analytics-engineer-reviewer round-1
-+    FAIL, same finding as batch 1's sibling branch (that branch's own fix has not merged to main,
-+    so this branch needs the identical fix independently until it does). Same two edits as the
-+    sibling branch: the model description states both triggers, the `note` column description
-+    covers both cases.
-+  - 2026-08-19: `decisions_taken` rewritten — scope-auditor + analytics-engineer-reviewer round-1
-+    FAIL, both citing the same defect: the CPO quote was attributed to "escalations.log,
-+    2026-08-19" but that entry only exists on the unmerged sibling branch, not in this branch's own
-+    log. Now quoted in full here, backed by a self-contained entry in this branch's own
-+    escalations.log (see done_when).
-+  - 2026-08-19: row count corrected 35 → 36 throughout — analytics-engineer-reviewer round-1 FAIL,
-+    a genuine arithmetic error (L1 was 13 rows, not 12; counted wrong when totaling).
-+  - 2026-08-19: + `CLAUDE.md`, `docs/wireframes/10_home.md`, `docs/wireframes/99_gaps_register.md`
-+    — authority: same standing instruction cited by the sibling branch's identical amendment.
-+    `main` moved a second time (MR !76, Top teams ruling, merged) while this MR sat open; merging
-+    `main` in to resolve the resulting conflict brings in !76's already-built, already-reviewed,
-+    already-merged content on these three files. None of it is authored, edited, or re-verified by
-+    this task.
+   - none
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 9dc75ee..6628de0 100644
+index bd43f8a..7cd13af 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -3746,3 +3746,94 @@ Recorded BEFORE any build, which is the point.
-   mirroring the players line's three constraints (states the mechanic, echoes the block's name,
-   avoids "leader", names no metric) but keeping "Season to date" rather than "Season totals to
-   date" — the team boards are per-match rates, not sums.
-+
-+2026-08-19 fix/team-name-overrides-pool1-remainder — team_name_overrides batch 2: Bundesliga,
-+Eredivisie, Ligue 1, Liga Portugal. 36 more corrections, one standing exclusion caught before it
-+shipped wrong.
-+
-+  ⚠ SELF-CONTAINED BY DESIGN. This entry repeats the full ruling rather than pointing at the
-+  sibling branch's own entry (fix/team-name-overrides-pool1, MR !77), because that branch has not
-+  merged to main — a reviewer working from this branch alone cannot see it. Round-1 review FAILed
-+  the previous version of this task for citing that entry as if it were reachable here. It is not,
-+  until !77 merges.
-+
-+  THE RULING, IN FULL, as given in chat: CPO objected to "Inter" and "Arsenal" as example browse
-+  chips, then: "The name is Arsenal London and not Arsenal England. We have to fix and standardize
-+  these names." Corrected further: "however, it's not Arsenal London. It's Arsenal FC. But it's
-+  Inter Milan... So whatever, if we can't rely on what the provider gives us, we have to define the
-+  name we use as the single source of truth for what we display." That is the authority for
-+  broadening `team_name_overrides` from collision-only to also cover unique-but-incomplete names,
-+  used first on branch fix/team-name-overrides-pool1 (61 rows, PL/PD/SA) and continued here.
-+
-+  Continuation of that same-day ruling. Same method: fetch each league's current club list, verify
-+  against English Wikipedia, add only what's confidently sourced.
-+
-+  ⚠ CAUGHT BEFORE SHIPPING: Bayern München (team_api_id 157) was NOT corrected to "FC Bayern
-+  Munich" despite that being English Wikipedia's actual article title, because the seed's own
-+  standing rule (dbt_project/seeds/schema.yml) already excludes exactly this: "Bayern München is
-+  NOT corrected to Bayern Munich (CPO ruled one locale-independent slug)." München vs Munich is a
-+  LOCALE preference, not a completeness defect — mechanically applying "match Wikipedia's title"
-+  without checking for this would have reintroduced a rule this project already reversed once.
-+  Worth recording because the broadened trigger (this session) and the older locale exclusion
-+  (pre-existing) could easily be conflated by a future pass that doesn't re-read the standing rule
-+  first.
-+
-+  ~15 teams across the four leagues were NOT corrected, left unchanged rather than guessed: the
-+  Wikipedia source's current-season club table didn't clearly cover them (likely promoted/relegated
-+  since the article was last edited, or the summary was ambiguous). BL1: 1. FC Heidenheim, FC St.
-+  Pauli, VfL Wolfsburg. ED: ADO Den Haag, Cambuur, Excelsior, FC Volendam, Telstar, Willem II
-+  (contradictory summary). L1: Estac Troyes, Le Mans, RED Star FC 93, Rodez, Saint Etienne. LP:
-+  Academico Viseu, Maritimo, Torreense, AVS (summary looked implausible, not trusted without a
-+  second check).
-+
-+  WHAT SHIPPED: 36 rows, each cited to an English Wikipedia URL. (Corrected from an initial "35" —
-+  a plain arithmetic error, L1 was 13 rows not 12, caught by analytics-engineer-reviewer round 1.)
-+
-+  Pool 1 status after this batch: PL/PD/SA done (61, MR !77) + BL1/ED/L1/LP done (36, this branch)
-+  = 97 corrections total, plus the ~15 above and 2 confirmed-no-change (Athletic Club, Real Madrid)
-+  and Feyenoord (confirmed already correct) still open or resolved-as-no-change. Beyond Pool 1 is
-+  not started.
+@@ -3997,3 +3997,79 @@ a decision log, and three of them are lying. CPO commissions an audit, then appr
+   lived only in `contract.md`, which the next task overwrites. scope-auditor round 1 FAILed for
+   exactly that and was right to. It is the same error the whole MR is about — authority written to
+   the volatile place instead of the durable one — committed while fixing it.
 +
 +
-+2026-08-19 fix/team-name-overrides-pool1 — team_name_overrides extended past collision-only:
-+provider "crap names" (CPO's word) are systemic, not isolated to one or two clubs.
++2026-08-20 chore/description-cleanup-shared-and-seeds — MR3 of the description-drift programme.
++ONE SCOPE RULING, and FOUR RULINGS RESCUED because a description was the only place they existed.
 +
-+  HOW IT SURFACED. Designing a sitewide browse-chip feature (random sample from an active
-+  team/player/competition pool), "Inter" and "Arsenal" showed up as example chips. CPO asked
-+  whether these are actually single-source display names, then: "we don't use Inter as the display
-+  name for Inter Milan... It's Arsenal FC and not Arsenal."
++  RULING 0 — MR3'S SCOPE IS WIDENED BY THREE FILES (CPO, in chat, AskUserQuestion, 2026-08-20).
++  Recorded here FIRST because it is the one ruling on this branch that authorises something, and
++  because writing it only to `contract.md` would repeat the defect the entry above self-flags.
++  scope-auditor FAILed round 1 for exactly that and was right.
++  THE ASK: the six-MR split names MR3 as `shared.yml` + `seeds/schema.yml`. Trap 1 of the handover
++  names four surviving lowercase "partition key" claims; one is in `shared.yml`, the other three
++  are SQL header comments in `mart_roster.sql`, `mart_standings.sql` and `mart_team_fixtures.sql`.
++  MR4's scope (`core.yml`, `base.yml`, `int_momentum.yml`) does not reach them, so no later MR in
++  the plan would pick them up.
++  CPO ANSWER: "Fix them in MR3". The three files join `scope_paths`; the edits are comment-only and
++  change no SQL. The claim is FALSE — no dbt model declares `partition_by` or `cluster_by`, and
++  `CLAUDE.md` records that it has already misled cost work once.
++  ⚠ THE WIDER SWEEP THIS TRIGGERED found six MORE instances outside MR3's reach: five docs and
++  `.claude/hooks/dbt_layer_gate.py:72`, which states it to the agent as PreToolUse context on every
++  mart edit. Filed as GitLab #79; most are PROTECTED paths, so it needs its own task.
 +
-+  THE EXISTING MECHANISM WAS TOO NARROW. `team_name_overrides` (9 rows, #850/#851) only fires on a
-+  COLLISION — two real clubs sharing the byte-identical provider string. Checked: neither Arsenal
-+  nor Inter collides with anything ("Arsenal", "Arsenal Tula", "Arsenal Sarandi" are already
-+  different strings), so the existing trigger would never have caught either one.
++  THE REST IS NOT AN ESCALATION. No further decision is asked for or taken. MR3 deletes history out
++  of `description:` fields, and the standard written in MR1 says rulings live in this file. Before
++  deleting each one I checked whether it was already here. Most were: the four #69 country-naming
++  rulings (2026-08-16), the four #54 competitions-ordering rulings (2026-08-16), the metric-layer
++  English-display-name ruling (2026-08-08) and the `intercontinental_super_cup` naming ruling all
++  have entries, so the descriptions restating them were duplicates and are simply gone.
 +
-+  RULING — THE BAR IS COMPLETENESS, NOT JUST UNIQUENESS. CPO: "we have to define the name we use
-+  as the single source of truth for what we display." A provider name can be unique in our data
-+  and still not be the club's real display name.
++  Four were NOT here, and deleting them would have destroyed the only record. They are copied
++  below verbatim from the descriptions that held them, and are the reason this entry exists.
 +
-+  SCALE, MEASURED NOT GUESSED. First sample was 9 clubs pulled while investigating the browse-chip
-+  question, spread across PL/SA/PD/ED/L1 (mislabeled "Bundesliga's 21" in an earlier draft of this
-+  entry — WRONG, corrected here; none of the 9 were BL1). 8 of 9 needed correction (Arsenal, Inter,
-+  Barcelona, Ajax, Monaco, Lyon, Marseille, Malaga); one, Feyenoord, was already correct despite
-+  LOOKING short — so "looks incomplete" is not by itself a reliable signal, every name needs an
-+  actual check, not a pattern match.
++  RULING A — THE competition_types SEED OWNS THE ENGLISH CATEGORY NAME (CPO, 2026-08-10).
++  Verbatim: *"the single source of truth for the displayed name is this seed file, same idea as in
++  the metric layer; the mapping to other languages happens in a different file."* So `label_en` on
++  `competition_types` is authoritative for the heading a reader sees above a group of competitions,
++  and translations stay in the i18n layer keyed by `label_i18n_key`. Same shape as the 2026-08-08
++  metric-layer ruling logged above, taken two days later for a different seed.
 +
-+  Second pass covered the REST of PL, PD and SA properly (fetched each league's full current-club
-+  list against Wikipedia). Result: 53 more corrections out of roughly 58 teams checked across the
-+  three leagues — i.e. the overwhelming majority of two of the biggest leagues in the pool were
-+  sending an incomplete provider name. Two flagged UNCERTAIN rather than guessed: "Athletic Club"
-+  (the club's own preferred name may already be correct, "Athletic Bilbao" is the more common
-+  foreign-press form — not corrected pending a closer check) and "Real Madrid" (arguably already
-+  unambiguous without a suffix, unlike Barcelona/Monaco/Lyon — held pending a call rather than
-+  applying the mechanical "match Wikipedia's title" rule without judgment).
++  RULING B — HOW A COMPETITION-TYPE CATEGORY IS NAMED (CPO, 2026-08-11). A type that holds ONE
++  specific competition is named for that competition — "World Cup", "Club World Cup",
++  "Intercontinental Cup". A type that holds a CLASS of competitions takes a plural noun phrase —
++  "Domestic leagues", "Continental club cups". Three types are singular by nature and all three
++  are FIFA's. This is what keeps `world_championship` labelled "World Cup" while its i18n key
++  stays `compTypeWorldChampionship`: the key follows the TYPE, the label follows the competition.
 +
-+  Still unchecked: BL1, ED, L1, LP (roughly 80 more teams), and everything outside Pool 1 if the
-+  browse pool ever extends there.
++  RULING C — THE confederations SEED STAYS A SEED (CPO, 2026-08-11). Asked whether seven display
++  strings justified a seed rather than living in `strings.ts`, verbatim: *"keep the seed, we may
++  need it the warehouse later if not now."* Recorded because the cheaper option is the one a later
++  session would otherwise re-propose. `FIFA -> World` is noted with it as the one label that is a
++  judgement rather than geography, FIFA being a global body and not a region; the seven English
++  labels are the CPO's to change.
 +
-+  WHAT SHIPPED THIS ROUND: 61 rows added to `team_name_overrides.csv` total (8 from the mixed
-+  sample + 53 from PL/PD/SA), each cited to its English Wikipedia article URL, same format as the
-+  existing 9.
++  RULING D — IMPORTANCE TIER APPLIES TO PLAYERS TOO (CPO override, 2026-08-04). This SUPERSEDES
++  the 2026-06-11 ruling that tiers are a team-only concept, which held that player importance is
++  position-dependent and could not be grounded. The override: tier expresses what a FAN wants to
++  see, which is a product judgement rather than a statistical claim, and it is as available for
++  players as for teams. The rubric his rulings established: the core stat line is tier 1,
++  including both the raw counts and their headline percentage; a per-90 sits one tier below its
++  own total; breakdowns and rare events are tier 3. Redundancy at tier 1 is deliberate — goals,
++  assists and scorer_points are all tier 1, because tier means importance, not deduplication.
 +
-+  NOT DECIDED: how far the sweep extends beyond what has been checked so far, and a call on the
-+  two flagged-uncertain rows. Being decided iteratively in chat, not pre-committed.
++  AND ONE REJECTED ALTERNATIVE, kept because it is load-bearing and measured rather than argued.
++  `country_name_overrides` is an explicit row-per-string mapping and NOT a hyphen-to-space rule.
++  A pattern rule looks like the class-level fix and is wrong: `Guinea-Bissau` is a correctly
++  hyphenated country name and a blanket replace corrupts it. Measured on the real data — it
++  appears hyphenated on the player surface (38 players) where hyphenation is right, and hyphenated
++  on the team surface where it is also right. An explicit mapping cannot get that wrong. The
++  residual gap this leaves is stated in the seed's own description: a NEW multi-word country
++  arriving hyphenated is not caught, and closing that is #69's foreign key to `dim_country`, not a
++  wider regex here.
++
++  ⚠ TWO THINGS THIS ENTRY IS NOT. It is not a licence to move narrative from descriptions into
++  this file wholesale — the destination for most of what MR3 deletes is DELETION, because git holds
++  it. And it is not a precedent for writing a ruling to a description first and rescuing it later;
++  the ruling goes here when it is made. Rescue was needed exactly four times, and each one is a
++  historical defect of the same class the programme exists to fix.
+diff --git a/dbt_project/models/5_marts/shared/mart_roster.sql b/dbt_project/models/5_marts/shared/mart_roster.sql
+index ad58e68..4239af6 100644
+--- a/dbt_project/models/5_marts/shared/mart_roster.sql
++++ b/dbt_project/models/5_marts/shared/mart_roster.sql
+@@ -16,9 +16,10 @@
+   dim_player is LEFT-joined so a membership with no resolvable player entity is NOT silently
+   dropped — it surfaces through the player_sk -> dim_player relationships test instead.
+ 
+-  league_code is the partition key. season_sk is nullable (a roster season with no
+-  competition-season row in dim_competition_season); season_api_year is always present and
+-  anchors the grain. Grain: (team_sk, league_code, season_api_year, player_sk).
++  league_code discriminates the competition; it is not a BigQuery partition or cluster key.
++  season_sk is nullable (a roster season with no competition-season row in
++  dim_competition_season); season_api_year is always present and anchors the grain.
++  Grain: (team_sk, league_code, season_api_year, player_sk).
+ #}
+ 
+ with mapping as (
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index b0c0882..c033289 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -15,9 +15,9 @@
+   group rather than the league name (see fct_standings). NO zones — rank, points,
+   form, W/D/L only (the reliable API fields); zone meaning is deferred (#322 issue).
+ 
+-  league_code is the partition key; competition_type / entity_type come from the
+-  registry + types seeds. Lives in shared/ because the output shape is uniform across
+-  competition types.
++  league_code discriminates the competition and is not a BigQuery partition or cluster key;
++  competition_type / entity_type come from the registry + types seeds. Lives in shared/
++  because the output shape is uniform across competition types.
+ 
+   Grain: (league_code, season_api_year, group_name, team_sk).
+ #}
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+index 3540568..abbb9a4 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+@@ -17,8 +17,9 @@
+   ranks (no honest place in "next" or "recent results").
+ 
+   No slug column: the published fixture URL identity is a separate, CPO-ruled
+-  concern (GAP-19 item 5) and is added in its own PR. league_code is the
+-  partition key; the model is competition-agnostic.
++  concern (GAP-19 item 5) and is added in its own PR. league_code discriminates
++  the competition and is not a BigQuery partition or cluster key; the model is
++  competition-agnostic.
+ 
+   Grain: (team_sk, fixture_sk).
+ #}
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 9e0635e..891f263 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -13,16 +13,15 @@ version: 2
+ models:
+   - name: mart_competition_index
+     description: >
+-      One row per competition — the single mart the competitions page (#54) reads. Replaces the
+-      four sources that page would otherwise read directly (docs/competition_registry.yml,
+-      competition_types.csv, confederations.csv, dim_league), which content_architecture.md §1
+-      forbids (#62 step 3). Carries the CPO-approved ordering INPUTS as facts
+-      (next_kickoff_datetime, last_kickoff_datetime, region_rank) without pre-baking the ORDER BY,
+-      which the page spec declares (CPO, 2026-08-16: sorting is arrangement, not a fact a visitor
+-      reads). region_label resolves the country-vs-region branch here: league_country is NULL for
+-      every international/continental competition (#69 step 5), so which of league_country /
+-      confed.label_en is populated IS the answer, with no flag. Grain: league_code. LEAF — #62
+-      step 4 (export repoint) is its first reader and is not built yet.
++      One row per competition: its identity, type, region, crest and the facts needed to put a
++      list of competitions in order. Grain: league_code.
++
++      Composed from the registry, competition-type and confederation seeds, dim_league and
++      fct_fixture, so everything about a competition is available from one place.
++
++      It carries the ordering INPUTS as facts — next_kickoff_datetime, last_kickoff_datetime,
++      region_rank — and deliberately does not pre-bake an ORDER BY: sorting is arrangement, not a
++      fact about a competition.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [league_code]
+@@ -63,27 +62,26 @@ models:
+               to: ref('confederations')
+               field: confederation
+       - name: region_rank
+-        description: "From confederations.region_rank — the one hand-set ordering input (#54, 2026-08-16)."
++        description: "From confederations.region_rank — the one hand-set ordering input."
+         tests: [not_null]
+       - name: competition_name
+         description: >
+-          From dim_league.league_name. NULL when the competition has never been ingested — #55's
+-          display-name gap is not fixed here.
++          From dim_league.league_name. NULL when the competition has never been ingested.
+       - name: logo_url
+         description: >
+-          From dim_league.league_logo_url. NULL for a competition with no crest ingested (#36's
+-          gap) or never ingested at all.
++          From dim_league.league_logo_url. NULL for a competition with no crest ingested, or
++          never ingested at all.
+       - name: region_label_en
+         description: >
+-          The competition's country if it has one (league_country), else its region's English
+-          label (confederation's label_en). Resolves the country-vs-region branch (#69 step 5) —
+-          never both, never neither, because every registry row's confederation is FK-guaranteed
+-          to resolve.
++          The competition's country if it has one (league_country), otherwise its region's English
++          label (the confederation's label_en). Never both and never neither: every registry row's
++          confederation is foreign-key guaranteed to resolve, so exactly one of the two is always
++          available.
+         tests: [not_null]
+       - name: region_label_i18n_key
+         description: >
+-          The region's i18n key, or NULL when region_label_en is a country name — a country name
+-          is an entity name, not chrome (#62, 2026-08-14).
++          The region's i18n key, or NULL when region_label_en is a country name. A country name is
++          an entity name rather than interface text, so it is not translated.
+       - name: next_kickoff_datetime
+         description: "Earliest upcoming fixture kickoff for this league_code. NULL when nothing is scheduled."
+       - name: last_kickoff_datetime
+@@ -91,12 +89,15 @@ models:
+ 
+   - name: mart_team_momentum
+     description: >
+-      W1 last-5 momentum mart — team. One row per upcoming fixture side. Computes all
+-      final team performance metrics from int_team_momentum__metrics raw sums. All ratios and
+-      per-match rates live here; none in the builder. league_rank is excluded — it comes
+-      from the standings surface (#322). Player-derived metrics (key_passes_per_match
+-      through duels_won_pct) are NULL when no player stats exist for the window.
+-      Grain: (upcoming_fixture_sk, team_sk).
++      Recent-form metrics for each side of an upcoming fixture, over the last-5 window. Grain:
++      (upcoming_fixture_sk, team_sk).
++
++      Every final team metric is computed here from the raw sums in int_team_momentum__metrics:
++      all ratios and per-match rates live in this model, none in the builder beneath it.
++
++      league_rank is deliberately absent — a table position comes from the standings surface, not
++      from a form window. Player-derived metrics (key_passes_per_match through duels_won_pct) are
++      NULL when the window has no player stats.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk]
+@@ -140,8 +141,8 @@ models:
+               values: ["club", "national"]
+       - name: window_type
+         description: >
+-          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
+-          fixtures (GAP-18).
++          Which form window this row's values were computed over: last_5 by default, or
++          tournament_to_date / qualifiers on a tournament fixture.
+         tests:
+           - not_null
+           - accepted_values:
+@@ -157,13 +158,14 @@ models:
+ 
+   - name: mart_player_momentum
+     description: >
+-      W1 momentum mart — player. One row per player per upcoming fixture side.
+-      Raw counts (goals, assists, cards, …) are passed through directly from the builder.
+-      Ratios (save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct) are
+-      computed here via safe_divide. save_pct is only meaningful for goalkeepers
+-      (position_code = 'G'). window_type is last_5 for most fixtures, or the cumulative
+-      tournament_to_date / qualifiers window on tournament fixtures (GAP-18/#484) — the same
+-      window the team form panel uses. Grain: (upcoming_fixture_sk, team_sk, player_sk).
++      Recent-form metrics per player for each side of an upcoming fixture, over the same window
++      as mart_team_momentum. Grain: (upcoming_fixture_sk, team_sk, player_sk).
++
++      Raw counts (goals, assists, cards, …) pass through unchanged from the builder. The ratios —
++      save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct — are computed here with
++      safe_divide, so a zero denominator gives NULL rather than an error.
++
++      save_pct is only meaningful for goalkeepers (position_code = 'G').
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+@@ -191,8 +193,8 @@ models:
+               values: ["club", "national"]
+       - name: window_type
+         description: >
+-          The form window, carried from the builder: last_5 (default) or tournament_to_date /
+-          qualifiers for tournament fixtures (GAP-18/#484).
++          Which form window this row's values were computed over, carried from the builder: last_5
++          by default, or tournament_to_date / qualifiers on a tournament fixture.
+         tests:
+           - not_null
+           - accepted_values:
+@@ -208,15 +210,16 @@ models:
+ 
+   - name: mart_team_momentum_window
+     description: >
+-      W1 momentum-window list mart — team (#323). The drill-down behind the momentum
+-      metrics: the same window matches mart_team_momentum aggregates, exposed
+-      un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
+-      is the click-through key into mart_team_fixture_stats / mart_player_fixture_stats; has_team_stats
+-      and has_player_stats are derived from those detail marts (same-layer refs, the
+-      documented layering exception), so true literally means the drill-down returns
+-      rows. Consistency with the momentum aggregate is guarded by
+-      assert_momentum_window_matches_momentum. Grain: (upcoming_fixture_sk, team_sk,
+-      played_fixture_sk).
++      The individual past matches behind a side's momentum figures: the same window
++      mart_team_momentum aggregates, listed rather than summed. Grain: (upcoming_fixture_sk,
++      team_sk, played_fixture_sk).
++
++      played_fixture_sk identifies each past match, so a per-fixture stat line can be looked up
++      from here. has_team_stats and has_player_stats are computed against the per-fixture stat
++      marts, so true means detail genuinely exists rather than that it ought to.
++
++      assert_momentum_window_matches_momentum guards that these rows and the aggregate stay
++      consistent.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk, played_fixture_sk]
+@@ -232,8 +235,9 @@ models:
+         tests: [not_null]
+       - name: window_type
+         description: >
+-          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
+-          fixtures (GAP-18). Tournament windows are cumulative, so a side can have >5 rows.
++          Which form window this row belongs to: last_5 by default, or tournament_to_date /
++          qualifiers on a tournament fixture. Tournament windows are cumulative rather than capped,
++          so a side can have more than five rows.
+         tests:
+           - not_null
+           - accepted_values:
+@@ -242,7 +246,7 @@ models:
+         description: "1 = most recent past match in the window."
+         tests: [not_null]
+       - name: played_fixture_sk
+-        description: "Click-through key into the per-fixture stat marts."
++        description: "The past match this row is about; joins to the per-fixture stat marts."
+         tests:
+           - not_null
+           - relationships:
+@@ -267,12 +271,15 @@ models:
+ 
+   - name: mart_team_fixture_stats
+     description: >
+-      Per-fixture team stat line (#323) — the match detail view behind the form-window
+-      list. Pure projection of fct_fixture_team_stats (no derived metrics) plus fixture
+-      metadata and team identity. Both sides of a fixture are two rows. Covers all
+-      finished fixtures with team stats; API shell rows (statistics block present but
+-      every value NULL) are excluded, so a fixture absent here has no usable stats —
+-      the honest "not available" state. Grain: (fixture_sk, team_sk).
++      One team's stat line from one finished match, with the fixture's own details and the team's
++      identity alongside. Both sides of a fixture appear, as two rows. Grain: (fixture_sk,
++      team_sk).
++
++      A pure projection of fct_fixture_team_stats — nothing is derived here.
++
++      Covers finished fixtures that have team stats. Provider shell rows, where the statistics
++      block exists but every value is NULL, are excluded, so a fixture missing from here has no
++      usable stats rather than zero of everything.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [fixture_sk, team_sk]
+@@ -297,11 +304,13 @@ models:
+ 
+   - name: mart_player_fixture_stats
+     description: >
+-      Per-fixture player stat lines (#323) — the player half of the match detail view.
+-      Pure projection of fct_fixture_player_stats (no derived metrics) plus player and
+-      team identity. A fixture with no rows here has no player stats — the COMMON case
+-      (many competitions lack statistics_players), rendered honestly by the app as
+-      "player stats not available". Grain: (fixture_sk, team_sk, player_sk).
++      One player's stat line from one finished match, with player and team identity alongside.
++      Grain: (fixture_sk, team_sk, player_sk).
++
++      A pure projection of fct_fixture_player_stats — nothing is derived here.
++
++      A fixture with no rows here has no player stats at all, which is the COMMON case: many
++      competitions do not supply them. Absence means unavailable, never zero.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [fixture_sk, team_sk, player_sk]
+@@ -332,24 +341,16 @@ models:
+ 
+   - name: mart_team_profile
+     description: >
+-      Team profile (#324). One row per (team, competition-season): identity + record +
+-      rank/form (composed from dim_team and mart_team_season) + full-season metric rates
+-      (int_team_season__metrics, incl. shot_share + points_capture) + a
+-      year-over-year differentiator, a streaks layer, and the deserved-vs-actual points gap
+-      (int_team_season__deserved_vs_actual; DOMESTIC LEAGUES ONLY, so every tournament row carries
+-      NULL there — a within-group standing is not a comparable league position).
+-      Carries the on-target pair the deserved read is built from —
+-      shots_on_goal_against_per_match and sot_difference_per_match — so a consumer can show the
+-      inputs beside the verdict rather than only the outcome. Coverage differs between the two, so
+-      it is stated separately rather than summarised: shots_on_goal_against_per_match is NULL
+-      unless OPPONENT shots-on-target data covers every season game, while
+-      sot_difference_per_match needs BOTH the team's own and the opponent's coverage (two
+-      independent counters that can diverge). Matches int_team_season.yml, which documents the
+-      same columns at source. The gate and the non-negative / signed-value tests live upstream
+-      there and are not duplicated here, since this mart selects them unchanged. Year-over-year columns
+-      (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
+-      domestic-league only — NULL elsewhere and where the prior season is not ingested.
+-      Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
++      A team's season in one row: identity, record, rank and form, full-season metric rates,
++      year-over-year movement, streaks and the deserved-versus-actual points gap.
++      Grain: (team_sk, season_sk).
++
++      Composed from dim_team, mart_team_season and the int_team_season__* / int_team_profile__*
++      models. Those columns are selected unchanged, so their tests stay upstream.
++
++      DOMESTIC LEAGUES ONLY for the deserved-versus-actual and year-over-year columns: every
++      tournament row is NULL there, a within-group standing not being a comparable league
++      position. Year-over-year is also NULL without an ingested prior season.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, season_sk]
+@@ -368,14 +369,13 @@ models:
+           expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
+           name: team_profile_finishing_efficiency_in_range
+     columns:
+-      # #846: the season this team's page opens on — the most recent domestic-league season,
+-      # falling back to the most recent of any type. Exactly one row per team is true BY
+-      # CONSTRUCTION: the model computes it as `row_number() over (partition by team_sk ...) = 1`,
+-      # which cannot produce two. tests/assert_one_featured_season_per_entity.sql asserts it
+-      # explicitly across BOTH profile marts, so a future rewrite of that window cannot silently
+-      # produce NONE either. One rule, one failure surface, which is what keeps the two marts from
+-      # drifting apart again.
+       - name: is_featured_season
++        description: >
++          True on the one season that represents this team: its most recent domestic-league
++          season, falling back to its most recent season of any type when it has none.
++
++          Exactly one row per team is true, by construction. Both that and the no-row-true case
++          are asserted by tests/assert_one_featured_season_per_entity.sql.
+         tests: [not_null]
+       - name: team_sk
+         tests:
+@@ -391,36 +391,58 @@ models:
+       - name: competition_type
+         description: "From the registry; YoY columns are populated only for domestic_league."
+       - name: points_delta_yoy
+-        description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
++        description: >
++          This season's points minus last season's, compared through the same number of games
++          played. Domestic leagues only; NULL when there is no prior season.
+       - name: goals_per_match_delta_yoy
+         description: >
+-          Representative rate-metric YoY delta — every LOCKED 16-row rate metric has _this_season /
+-          _prev_season / _delta_yoy (matchday-aligned this-vs-last, the team Stats tab's per-metric
+-          vs-last-season column). Passthrough from int_team_profile__yoy; domestic only, NULL where
+-          no prior season or coverage is incomplete through N.
++          One example of the year-over-year rate columns: every rate metric carries a
++          _this_season, a _prev_season and a _delta_yoy, aligned by matchday so the two seasons
++          are compared over the same number of games.
++
++          From int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior
++          season or where coverage through that matchday is incomplete.
+       - name: deserved_rank
+-        description: "Rank by deserved_points within the league-season (1 = best) — the process-deserved table position. Derived from deserved_points, so the two cannot disagree and they null together. From int_team_season__deserved_vs_actual. NULL for every non-domestic-league row, and wherever the league-season is not fittable: incomplete SoT coverage, no league rank, fewer than 3 finished games, or a table that is not a single ladder (MLS conferences, Apertura/Clausura)."
++        description: >
++          Where the team would sit in the table on the strength of its on-target process, 1 =
++          best. Derived from deserved_points, so the two never disagree and are NULL together.
++
++          NULL for every non-domestic-league row, and wherever the league-season cannot be
++          fitted: incomplete shots-on-target coverage, no league rank, fewer than three finished
++          games, or a table that is not a single ladder (MLS conferences, Apertura/Clausura).
+       - name: deserved_points
+-        description: "Points deserved by the on-target process: the league-season least-squares fit of points-per-match on sot_difference_per_match, times this team's games played. Compare against `points`. From int_team_season__deserved_vs_actual. NULL for every non-domestic-league row, and when the league-season is not fittable — which includes any league whose table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where a season spans two separate tournaments, so even the points total is not one comparable figure)."
++        description: >
++          The points the team's on-target process deserved: the league-season least-squares fit of
++          points-per-match on sot_difference_per_match, multiplied by its games played. Compare it
++          against `points`.
++
++          NULL for every non-domestic-league row, and wherever the league-season cannot be fitted —
++          including any league whose table is not a single ladder (MLS conferences, and the
++          Apertura/Clausura formats where a season is two separate tournaments, so even the points
++          total is not one comparable figure).
+       - name: sot_points_gap
+-        description: "`points` minus deserved_points; NEGATIVE = under-performing (fewer points than the process deserved), POSITIVE = over-performing. NOTE the sign is INVERTED relative to the retired sot_rank_gap, where positive meant under-performing. From int_team_season__deserved_vs_actual. NULL when not fittable."
+-      # identity (GAP-01): founded year + venue, denormalised from dim_team. Nullable (sparse feed).
++        description: >
++          `points` minus deserved_points. NEGATIVE means under-performing — fewer points than the
++          process deserved; POSITIVE means over-performing. NULL wherever deserved_points is.
+       - name: team_founded_year
+-        description: "Club founded year, from dim_team (GAP-01). Nullable — sparse in the feed."
++        description: "Club founded year, from dim_team. Nullable — sparse in the provider feed."
+       - name: venue_name
+-        description: "Home venue name, from dim_team (GAP-01). Nullable."
++        description: "Home venue name, from dim_team. Nullable."
+       - name: venue_city
+-        description: "Home venue city, from dim_team (GAP-01). Nullable."
++        description: "Home venue city, from dim_team. Nullable."
+       - name: venue_capacity
+-        description: "Home venue capacity, from dim_team (GAP-01). Nullable."
++        description: "Home venue capacity, from dim_team. Nullable."
+ 
+   - name: mart_team_season_record
+     description: >
+-      W2 season-record mart — team. One row per upcoming fixture side: the team's
+-      cumulative record in the fixture's own competition this season (shown beside W1
+-      momentum). Falls back to the same competition's previous season before the team has
+-      played (window_type='prev_season'). Same metric_ids/formulas as mart_team_momentum;
+-      same-window coverage rule. Grain: (upcoming_fixture_sk, team_sk).
++      Each side of an upcoming fixture with its cumulative record in that fixture's own
++      competition this season. Grain: (upcoming_fixture_sk, team_sk).
++
++      Before a team has played any of it, the row falls back to the same competition's previous
++      season and window_type says so.
++
++      Uses the same metric ids, formulas and same-window coverage rule as mart_team_momentum, so
++      the two are directly comparable — a season figure beside a form figure.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk]
+@@ -489,10 +511,12 @@ models:
+ 
+   - name: mart_player_season_record
+     description: >
+-      W2 season-record mart — player. One row per player per upcoming fixture side: the
+-      player's cumulative record in the fixture's own competition this season (complement to
+-      mart_player_momentum). Previous-season fallback before the team has played. Raw counts
+-      passed through; ratios via safe_divide. Grain: (upcoming_fixture_sk, team_sk, player_sk).
++      Each player on each side of an upcoming fixture with their cumulative record in that
++      fixture's own competition this season. Grain: (upcoming_fixture_sk, team_sk, player_sk).
++
++      Before the team has played any of it, the row falls back to the previous season and
++      window_type says so. Raw counts pass through unchanged; ratios are computed with
++      safe_divide, so a zero denominator gives NULL.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+@@ -539,11 +563,16 @@ models:
+ 
+   - name: mart_standings
+     description: >
+-      Generic standings table for every competition that has standings. Job 1: the
+-      competition's own table (league table for domestic_league; group tables for group
+-      stages — one section per group_name). Job 2: a club's domestic-league standing as
+-      fixture context — filter to competition_type = 'domestic_league'. Rank, points,
+-      form, W/D/L only (no zones). Grain: (league_code, season_api_year, group_name, team_sk).
++      The standings table for every competition that has one, in a single shape: a league table
++      for a domestic league, and one section per group for a group stage. Grain: (league_code,
++      season_api_year, group_name, team_sk).
++
++      Rank, points, form and W/D/L. The provider's zone annotation ("Promotion - Champions League",
++      "Relegation") is carried verbatim in group_description but never interpreted, so there is no
++      derived qualification or relegation field.
++
++      Filtering to competition_type = 'domestic_league' gives a club's league position on its own,
++      which is the form a team's fixture context needs.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -689,18 +718,17 @@ models:
+ 
+   - name: mart_player_profile
+     description: >
+-      Player profile (#325). One row per (player, competition-season): the player's
+-      season profile, composed with dim_player identity and modal position. Metric
+-      governance is catalogue-only (v1): every metric is a metric_catalogue row (#327)
+-      computed by its catalogue formula — counts plus the four catalogued ratios
+-      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, save_pct). No invented
+-      metrics (no per-90, no goal_conversion, no player shot_accuracy) — those await a
+-      CPO-approved catalogue extension. Beyond catalogue metrics, only raw descriptors
+-      are carried (appearances/starts/minutes, identity, position). pass_accuracy_pct
+-      uses the catalogue's derived passes_accurate (per-fixture round then sum). save_pct
+-      is only meaningful for goalkeepers (position_code = 'G'); saves and
+-      shots_on_goal_against (GAP-12) carry its numerator/denominator for the GK
+-      full-triple display. Grain: (player_sk, season_sk).
++      A player's season in one row: season metrics plus identity and modal position from
++      dim_player. Grain: (player_sk, season_sk).
++
++      Every metric here is a metric_catalogue row computed by its catalogue formula: the counts
++      plus the four catalogued ratios. Nothing is invented — no per-90s, no goal conversion, no
++      player shot accuracy. Otherwise only raw descriptors are carried: appearances, starts,
++      minutes, identity, position.
++
++      save_pct is only meaningful for goalkeepers (position_code = 'G'); saves and
++      shots_on_goal_against carry its numerator and denominator, so it can be shown with its
++      volume.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [player_sk, season_sk]
+@@ -721,30 +749,32 @@ models:
+           expression: "saves <= shots_on_goal_against"
+           name: player_profile_saves_lte_faced
+     columns:
+-      # #846: the season this player's page opens on — the most recent CLUB season, preferring a
+-      # domestic league, falling back to the most recent of any kind for a player with no club
+-      # football. Scoped to club because #848 made Overview, Performance and Career club-only.
+-      # Exactly one row per player is true by construction (`row_number() ... = 1`) and asserted
+-      # explicitly, including the NONE case, by tests/assert_one_featured_season_per_entity.sql.
+       - name: is_featured_season
++        description: >
++          True on the one season that represents this player: their most recent CLUB season,
++          preferring a domestic league, falling back to their most recent season of any kind when
++          they have no club football at all.
++
++          Exactly one row per player is true, by construction. Both that and the no-row-true case
++          are asserted by tests/assert_one_featured_season_per_entity.sql.
+         tests: [not_null]
+       - name: competition_type
+         description: >
+           The competition's type from the registry (domestic_league, domestic_cup,
+-          continental_cup, world_championship, …). Carried so the featured-season rule can prefer
+-          a league over a cup within club football, and so a consumer can tell the two apart
+-          without re-joining the registry.
++          continental_cup, world_championship, …). Carried here so a league can be told from a cup
++          without re-joining the registry, which is what lets the featured-season rule prefer one.
+       - name: entity_type
+         description: >
+-          club or national, from the competition_types seed — what scopes the featured season to
+-          club football (#846/#848). NULL is reachable two ways, not one: a league_code absent from
+-          the registry, and a league_code PRESENT in the registry with a blank competition_type.
+-          The second is silent — sync_dbt_vars.py writes a seed row only `if code and ctype`, and
+-          both check_competition_type_seed.py and check_registry_var_sync.py skip such an entry on
+-          the same condition, so registry and seed agree by both being empty (#883). Every
+-          registry entry carries a competition_type today. not_null is here because a NULL would
+-          not break the page: the featured-season CASE simply treats it as non-club, so the entity
+-          would quietly open on the wrong season instead of failing.
++          club or national, resolved through the competition_types seed. It is what scopes the
++          featured season to club football.
++
++          NULL is reachable two ways, not one: a league_code absent from the registry, and a
++          league_code PRESENT in the registry but carrying a blank competition_type. The second is
++          silent, because the sync and both registry guards skip a blank entry on the same
++          condition — registry and seed then agree by being equally empty.
++
++          The not_null test is here because a NULL would not fail loudly on its own: it reads as
++          non-club, so the player would quietly open on the wrong season.
+         tests:
+           - not_null
+           - accepted_values:
+@@ -785,8 +815,8 @@ models:
+               field: team_sk
+       - name: is_current_team
+         description: >
+-          True on the player's current-club row (the season holding their globally most-recent finished
+-          match). Exactly one true per player by construction; the export selects current_team by this flag.
++          True on the player's current-club row — the season holding their most recent finished
++          match anywhere. Exactly one row per player is true, by construction.
+         tests: [not_null]
+       - name: team_name
+         description: "Affiliated club display name, from dim_team."
+@@ -797,11 +827,11 @@ models:
+ 
+   - name: mart_player_match_log
+     description: >
+-      Player match log (#325). One row per (player, finished fixture): the player's stat
+-      line plus match context (opponent, score, result from the player's team's
+-      perspective). Player-history-shaped (one player over time), distinct from the
+-      fixture-detail-shaped mart_player_fixture_stats (#323). Grain: (player_sk,
+-      fixture_sk).
++      One player's stat line from one finished match, with the match context around it: opponent,
++      score, and the result from that player's team's perspective. Grain: (player_sk, fixture_sk).
++
++      Shaped as one player over time, which is what separates it from mart_player_fixture_stats —
++      the same underlying facts shaped as one match across its players.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [player_sk, fixture_sk]
+@@ -843,12 +873,12 @@ models:
+ 
+   - name: mart_fixture_standing_context
+     description: >
+-      Phase-relevant standings context per upcoming-fixture side (epic #361). The single
+-      source of "this team's table position going into this fixture", shared by the MVP's
+-      mart_matchday_insights and the v2 fixtures export. league_rank (and the standing
+-      fields) are NULL for knockout rounds (is_knockout_round) and for overlapping-table
+-      leagues (a team with >1 section that season); group_name is kept regardless.
+-      Covers all upcoming fixtures. Grain: (fixture_sk, team_sk).
++      Each side of an upcoming fixture with the table position it goes into that fixture on. The
++      single source of that fact. Covers every upcoming fixture. Grain: (fixture_sk, team_sk).
++
++      league_rank and the other standing fields are NULL for a knockout round, and for a team
++      sitting in more than one table section that season, where no single position would be the
++      right one. group_name is kept either way.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [fixture_sk, team_sk]
+@@ -873,13 +903,14 @@ models:
+ 
+   - name: mart_head_to_head
+     description: >
+-      Head-to-head (#375). All-time past meetings between two teams, directed: one row
+-      per (team_sk, opponent_team_sk) = that team's record vs that opponent, across all
+-      competitions. Feeds the fixture-page H2H context. Built from int_legs__team_match
+-      (core -> intermediate -> mart, not mart-from-mart). Raw record facts only — no
+-      derived ratios (the H2H record is fact, not a catalogue metric). recent_meetings is
+-      the most-recent ≤10 meetings (date, competition, score, result). A pair that never
+-      met has no row. Grain: (team_sk, opponent_team_sk).
++      One team's all-time record against one opponent, across every competition. Directed, so a
++      pair appears twice, once from each side. Grain: (team_sk, opponent_team_sk).
++
++      Built from int_legs__team_match. Raw record facts only, with no derived ratios — a
++      head-to-head record is a fact rather than a catalogue metric. recent_meetings holds up to
++      the ten most recent meetings, each with date, competition, score and result.
++
++      A pair that has never met has no row at all.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, opponent_team_sk]
+@@ -922,17 +953,16 @@ models:
+ 
+   - name: mart_leaderboards
+     description: >
+-      Per-board player leaderboards (the Leaderboards block; content_architecture §3). LONG — one row
+-      per (player, board): the player's rank on that board within its competition-season. Generalises
+-      the retired mart_top_scorers to 14 boards: 9 COUNT (goals, scorer_points, shots_on_goal,
+-      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total) + 5 RATE
+-      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct).
+-      Season-to-date, composed from int_player_season__metrics + dim_player. rank = DENSE_RANK over the
+-      board's metric desc within (league_code, season_api_year): ties share a rank, top-10 inclusive of
+-      ties; only positive-value players are ranked. RATE boards add a qualification rule (#506) so a tiny
+-      sample can't game a rate: minutes >= 270, a position scope (pass/duels/dribble/finishing = outfield,
+-      save = GK), plus shots_on_goal >= 10 for finishing. sort_value is FLOAT64 (holds the counts and
+-      the 0-1 rates). View. Grain: (player_sk, season_sk, metric_key).
++      One row per (player, board): where that player ranks on that board within a
++      competition-season. Long-shaped — the board is a value in metric_key, not a column.
++      Grain: (player_sk, season_sk, metric_key).
++
++      Season-to-date, composed from int_player_season__metrics and dim_player. rank is a
++      DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
++      share a rank and the top 10 includes them. Only a positive value is ranked.
++
++      RATE boards carry a qualification floor so a small sample cannot game a rate: 270 minutes, a
++      position scope, 10 shots on target for finishing.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -1084,14 +1114,15 @@ models:
+ 
+   - name: mart_team_fixtures
+     description: >
+-      Team fixtures (GAP-15). One row per (team, fixture), team perspective — the
+-      team-profile "next fixture + recent results" surface. Spine = fct_fixture
+-      unpivoted to two team rows per fixture; opponent identity from dim_team;
+-      finished result (goals_for/against, W/D/L) reused from int_legs__team_match
+-      (not re-derived). Rank columns make consumption pure selection: upcoming_rank
+-      = 1 is the next fixture, recency_rank <= 5 the last five results. Live /
+-      postponed / cancelled rows carry null ranks. No slug (GAP-19 item 5, separate
+-      PR). Grain: (team_sk, fixture_sk).
++      Every fixture from one team's perspective, upcoming and finished alike. Each fixture appears
++      twice, once per side. Grain: (team_sk, fixture_sk).
++
++      Built on fct_fixture, with opponent identity from dim_team and the finished result reused
++      from int_legs__team_match rather than re-derived.
++
++      The rank columns reduce selection to a filter: upcoming_rank = 1 is the next fixture, and
++      recency_rank <= 5 the last five results. Live, postponed and cancelled rows carry NULL
++      ranks, having no honest place in either.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, fixture_sk]
+@@ -1132,16 +1163,16 @@ models:
+ 
+   - name: mart_roster
+     description: >
+-      Club roster identity list — feeds the Squad tab alongside mart_player_career (content_architecture §3). One row per
+-      rostered player per (club team, competition-season), from dim_player_team_season_mapping
+-      joined to dim_player. Scoped to club competitions (entity_type = 'club', via
+-      competition_registry + competition_types — never a dim_team flag). Identity only: name,
+-      listed position, nationality, birth_date, photo; NO per-club stat columns of its own — the
+-      Squad tab's per-player stats come from mart_player_career (#480), joined at the export. Age is derived at render from player_birth_date (a stored age
+-      would be non-deterministic). dim_player is LEFT-joined so a membership with no player
+-      entity surfaces via the relationships test, not a silent drop. View. league_code is the
+-      partition key; season_sk is nullable (roster season with no competition-season row).
+-      Grain: (team_sk, league_code, season_api_year, player_sk).
++      Who was on a club's roster in a competition-season, from dim_player_team_season_mapping
++      joined to dim_player. Grain: (team_sk, league_code, season_api_year, player_sk).
++
++      Identity only — name, listed position, nationality, birth date, photo. No per-club stats;
++      those are in mart_player_career. Age is not stored, because a stored age stops being true;
++      derive it from player_birth_date.
++
++      Scoped to club competitions via the registry and competition_types, never a flag on
++      dim_team. dim_player is LEFT-joined, so a membership with no player entity fails the
++      relationships test rather than vanishing.
+     config:
+       tags: ["marts", "football", "roster"]
+     tests:
+@@ -1194,13 +1225,15 @@ models:
+ 
+   - name: mart_team_competition_benchmarks
+     description: >
+-      Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
+-      (team, season, metric_key) over the 22 team season metrics. Places each team against its league that
+-      season: value, league_median (+ mean), p25/p75 spread, rank (k of team_count), value - median.
+-      DIRECTION-AGNOSTIC (positional) — rank is by value desc within (league_code, season_api_year,
+-      metric_key); the good/bad reading is supplied at display from the catalogue's direction. Median-led,
+-      rank not percentile (honest at N~18). Season-to-date (W2); teams with >= 3 games. View. Player
+-      benchmark + percentile = v1.x. Grain: (team_sk, season_sk, metric_key).
++      Where a team sits against its own league on each team metric: its value, the league median
++      and mean, the p25/p75 spread, its rank out of team_count, and its distance from the median.
++      Long-shaped, one row per (team, season, metric). Grain: (team_sk, season_sk, metric_key).
++
++      DIRECTION-AGNOSTIC: rank is by value descending, so rank 1 is the highest value and not
++      necessarily the best. The good/bad reading comes from the metric's catalogue direction.
++
++      Median-led and ranked rather than percentiled, which stays honest at around 18 teams.
++      Season-to-date, and only teams with at least 3 games.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -1275,16 +1308,16 @@ models:
+ 
+   - name: mart_player_competition_benchmarks
+     description: >
+-      Player competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
+-      (player, season, position_group, metric_key). Places each player against his positional peers that
+-      competition-season: in-position per-90 (or rate) value, peer_median (+ mean), p25/p75 spread, rank
+-      (k of peer_count) AND percentile, value - median; minutes + appearances carried (sample visible).
+-      DIRECTION-AGNOSTIC (positional) — rank by value desc / percentile by value within (league_code,
+-      season_api_year, position_group, metric_key); the good/bad reading comes from the catalogue direction
+-      at display. Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-
+-      position players appear once per qualifying position. Metric x position eligibility = the
+-      player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16). View.
+-      Grain: (player_sk, season_sk, position_group, metric_key).
++      Where a player sits against their positional peers on each metric: value, peer median and
++      mean, p25/p75 spread, rank out of peer_count, percentile, distance from the median. Grain:
++      (player_sk, season_sk, position_group, metric_key).
++
++      DIRECTION-AGNOSTIC: rank is by value descending and percentile by value, so neither says
++      whether high is good — that comes from the metric's catalogue direction.
++
++      Floor: 270 minutes in the position, and 10 shots on target for finishing. A player
++      qualifying in two positions appears once per position; the player_benchmark_metrics() macro
++      decides which metrics apply.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -1359,13 +1392,16 @@ models:
+         tests: [not_null]
+       - name: metric_numerator
+         description: >
+-          GAP-21 (#391): the count behind a RATIO metric's % (e.g. duels_won for duels_won_pct), so the Stats
+-          screen can render the no-naked-% volume triple {num} of {den} · {pct}%. Non-null ONLY on the 5 ratio
+-          rows (save_pct, pass_accuracy_pct, finishing_efficiency, dribbles_success_pct, duels_won_pct); null
+-          on the 13 per-90 rows. From int_player_season_position__metrics atoms, gated identically to
+-          metric_value — never derived in the export.
++          The count behind a RATIO metric's percentage — duels_won for duels_won_pct, for example
++          — so the rate can always be shown with the volume it rests on.
++
++          Non-null ONLY on the five ratio rows (save_pct, pass_accuracy_pct, finishing_efficiency,
++          dribbles_success_pct, duels_won_pct), and NULL on the per-90 rows, which have no such
++          pair. From int_player_season_position__metrics, gated identically to metric_value.
+       - name: metric_denominator
+-        description: "The denominator behind a ratio metric's % (see metric_numerator; e.g. duels_total). Null on per-90 rows."
++        description: >
++          The denominator behind a ratio metric's percentage, e.g. duels_total. Non-null on
++          exactly the same rows as metric_numerator, and NULL on the per-90 rows.
+       - name: peer_mean
+         description: "Mean peer value this league-season-position (skew-sensitive)."
+       - name: peer_median
+@@ -1399,18 +1435,17 @@ models:
+ 
+   - name: mart_player_career
+     description: >
+-      Player Career log (#480 §8.3): one row per (player, CLUB, competition-season) — the player's
+-      appearances / goals / assists at that club that season + player identity (dim_player) + club identity
+-      (dim_team) + the competition entity_type (club / national). Transfermarkt-shaped: a mid-season
+-      transfer shows as two rows (two clubs, one season); club and national rows are handled uniformly.
+-      National-entity rows are the player's NATIONAL APPEARANCES IN COVERED COMPETITIONS — honestly NOT true
+-      career caps (we ingest only a subset of national competitions). national_appearances_total denormalises
+-      the per-player national-appearance sum (a fact computed in dbt, not the export). Built from
+-      finished-match player-stat rows, so a row means the player was in that club's matchday squad at least
+-      once that competition-season; `appearances` counts only the legs he actually PLAYED (minutes > 0) and
+-      may legitimately be 0 for a squad member who never got on the pitch, whose row is KEPT (CPO
+-      2026-07-23). Until 2026-07-23 appearances counted every matchday selection, inflating 51.4% of rows.
+-      Composes int_player_club_season__metrics. Grain: (player_sk, team_sk, season_sk).
++      A player's record at one club in one competition-season: appearances, goals, assists, plus
++      player and club identity. Composed from int_player_club_season__metrics. Grain: (player_sk,
++      team_sk, season_sk).
++
++      A mid-season transfer is two rows: two clubs, one season. National-team rows are built the
++      same way but count only appearances in competitions WE COVER, so they are not true career
++      caps.
++
++      Built from finished-match player-stat rows, so a row means the player was in that club's
++      matchday squad at least once. `appearances` counts only matches actually PLAYED, so 0 is
++      legitimate and the row is kept.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns:
+@@ -1466,16 +1501,28 @@ models:
+           - accepted_values:
+               values: ["club", "national"]
+       - name: appearances
+-        description: "Finished matches the player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member never brought on keeps his row. Before 2026-07-23 this counted matchday selections including unused substitutes."
++        description: >
++          Finished matches the player actually PLAYED for this club that competition-season, that
++          is minutes > 0. 0 is legitimate rather than missing: a squad member who was never
++          brought on keeps his row.
+         tests: [not_null]
+       - name: minutes
+         description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
+       - name: minutes_per_appearance
+-        description: "Average minutes per appearance: safe_divide(minutes, appearances), computed here so the consumption layer never divides. Null when appearances = 0 (a squad member who never played); non-negative otherwise. A catalogue-governed rate (metric_catalogue: minutes_per_appearance, direction neutral, a role read); powers the Squad tab's mins/app."
++        description: >
++          Average minutes per appearance: safe_divide(minutes, appearances), computed here so that
++          nothing reading this mart has to divide. NULL when appearances = 0 (a squad member who
++          never played), non-negative otherwise.
++
++          A catalogue-governed rate with direction neutral — it reads as a role, not as better or
++          worse.
+       - name: national_appearances_total
+         description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
+         tests: [not_null]
+       - name: last_kickoff_at
+         description: "The player's latest match at this club that competition-season (max kickoff, from int_player_club_season__metrics); a career-log ordering signal (within-club season order), not a displayed metric."
+       - name: club_latest_kickoff_at
+-        description: "The club's latest match across all the player's seasons there (window max of last_kickoff_at over player+club); the export's primary career-log ordering signal (club-block order + contiguity), not a displayed metric."
++        description: >
++          The club's latest match across all of this player's seasons there — a window max of
++          last_kickoff_at over (player, club). An ordering signal that keeps a player's spells at
++          one club together and in order; not a displayed metric.
 diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index e1e73ad..aea7709 100644
+index 2d35ceb..9cf9063 100644
 --- a/dbt_project/seeds/schema.yml
 +++ b/dbt_project/seeds/schema.yml
-@@ -479,6 +479,14 @@ seeds:
-       were previously indistinguishable from one another. Correcting the name here fixes every one
-       of those surfaces at once.
- 
-+      BROADENED 2026-08-19: the trigger is no longer collision-only. CPO ruling: "we have to
-+      define the name we use as the single source of truth for what we display" — a provider name
-+      can be unique in our data and still not be the club's real display name ("Arsenal" is not
-+      wrong because it collides with anything; it is wrong because the club's name is "Arsenal
-+      FC"). Both triggers are valid reasons for a row: a genuine collision between two real
-+      records, OR a name that is unique but incomplete/informal against the external source. The
-+      `note` column states which one applies for that row.
+@@ -3,14 +3,17 @@ version: 2
+ seeds:
+   - name: competition_types
+     description: >
+-      Canonical competition-type taxonomy. One row per competition_type declaring whether
+-      it is a club or national-team competition (entity_type). This is the single source
+-      of truth for the club/national split: downstream models look it up by competition_type
+-      rather than hardcoding the mapping. Every competition_type used in
+-      docs/competition_registry.yml must have a row here (enforced by
+-      scripts/check_competition_type_seed.py). Rule: no competition_type is both club and
+-      national. `qualifying` = national-team qualifying (WC/EC); club qualifying rounds, if
+-      onboarded, take their own clearly-club type.
++      The competition-type taxonomy. Hand-authored, one row per competition_type: whether the type
++      is played by clubs or by national teams, which navigation group it belongs to, and its
++      display heading.
 +
-       GOVERNANCE: add a row ONLY where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the
-       provider, and record that source in the row. Never taste, never a nickname, and never a
-       locale preference — `Bayern München` is NOT corrected to `Bayern Munich` (CPO ruled one
-@@ -526,7 +534,10 @@ seeds:
++      The single source of truth for the club/national split — entity_type is resolved through
++      this table, never hardcoded, and no type is both. Every competition_type in
++      docs/competition_registry.yml must have a row here or
++      scripts/check_competition_type_seed.py fails the build.
++
++      `qualifying` is national-team qualifying only; a club qualifying round would take its own
++      clearly-club type.
+     columns:
+       - name: competition_type
+         description: "Competition-type enum value, matching docs/competition_registry.yml competition_type."
+@@ -37,50 +40,40 @@ seeds:
+               values: ["leagues", "cups", "continental-club", "national-teams"]
+       - name: label_i18n_key
+         description: >
+-          i18n key for the TRANSLATED category heading. English does NOT resolve through it — see
+-          label_en. Convention, mechanical so the two never drift: `compType` + PascalCase of the
+-          competition_type. That is why `world_championship` carries compTypeWorldChampionship
+-          even though its label reads "World Cup" — the key follows the TYPE, so when the type is
+-          eventually renamed (CPO ruling 2 of #57, deferred) the key renames with it.
++          The i18n key for this category's TRANSLATED heading. English does not resolve through
++          it — the English words are in label_en.
++
++          The key is formed mechanically, so it cannot drift from the type: `compType` followed by
++          the competition_type in PascalCase. That is why `world_championship` carries
++          compTypeWorldChampionship even though the heading reads "World Cup" — the key follows
++          the type name, not the label, so renaming the type renames the key with it.
+         tests:
+           - not_null
+           - unique
+       - name: label_en
+         description: >
+-          The category's English display name — the heading a reader sees above a group of
+-          competitions on /{locale}/competitions/. CPO ruling 2026-08-10: *"the single source of
+-          truth for the displayed name is this seed file, same idea as in the metric layer; the
+-          mapping to other languages happens in a different file."* Translations stay in the i18n
+-          layer keyed by label_i18n_key.
+-          ⚠ The metric layer is the MODEL the CPO named, not a precedent already on this branch:
+-          `metric_catalogue` gains its own `label_en` in !27, which is unmerged. The two land
+-          independently and neither depends on the other.
+-          NAMING SYSTEM (CPO 2026-08-11): a type that holds ONE specific competition is named for
+-          it — "Club World Cup", "Intercontinental Cup", "World Cup"; a type that holds a CLASS
+-          takes a plural noun phrase — "Domestic leagues", "Continental club cups". Three types
+-          are singular by nature and all three are FIFA's.
+-          READ by `mart_competition_index.category_label_en` (#62 step 3).
++          The category's English display name — the heading shown above a group of competitions.
++          This seed owns it; other languages resolve from label_i18n_key in the i18n layer.
++
++          Naming rule: a type that holds ONE specific competition is named for that competition
++          ("World Cup", "Club World Cup", "Intercontinental Cup"); a type that holds a CLASS of
++          competitions takes a plural noun phrase ("Domestic leagues", "Continental club cups").
++          Three of the types are singular by nature and all three are FIFA's.
+         tests:
+           - not_null
+           - unique
+ 
+   - name: confederations
+     description: >
+-      Display labels for the confederation enum — the REGION shown under a competition that is not
+-      confined to one country. `docs/competition_registry.yml` stores governing-body codes (UEFA,
+-      CONMEBOL, CAF …) and no readable "UEFA -> Europe" existed anywhere in the repo, so the first
+-      design that needed one typed the labels into a mockup. That is the failure #58 was filed
+-      about, and this seed is the fix.
+-      Keyed by confederation rather than added as columns on competition_types because the region
+-      varies WITHIN a type: COAM and EURO are both `continental_championship`, and they are South
+-      America and Europe.
+-      CPO 2026-08-11, on whether seven display strings justify a seed rather than living in
+-      strings.ts: *"keep the seed, we may need it the warehouse later if not now."*
+-      READ by `mart_competition_index` (#62 step 3): `region_label_en`/`region_label_i18n_key`
+-      resolve `label_en`/`label_i18n_key` here for a competition with no country, and
+-      `region_rank` orders the page (#54, 2026-08-16).
+-      ⚠ The seven English labels are the CPO's to change; `FIFA -> World` is the one that is a
+-      judgement rather than geography, since FIFA is a global body and not a region.
++      Readable region names for the confederation codes — what "UEFA" is called when it is shown
++      to someone. Hand-authored, seven rows, one per confederation.
++
++      Keyed by confederation rather than held as extra columns on competition_types, because the
++      region varies WITHIN a type: COAM and EURO are both `continental_championship`, and they are
++      South America and Europe.
++
++      `FIFA -> World` is the one label that is a judgement rather than geography, FIFA being a
++      global governing body and not a region.
+     columns:
+       - name: confederation
+         description: >
+@@ -106,30 +99,27 @@ seeds:
+           - unique
+       - name: region_rank
+         description: >
+-          The competitions page's row-order tiebreak within a shared kickoff day — the one
+-          hand-set input in the CPO-approved ordering rule (#54, 2026-08-16, `escalations.log`):
+-          has-upcoming-fixture, then days to next kickoff (bucketed by calendar day), then this
+-          column, then kickoff time, then league_code. A JUDGEMENT, not geography — UEFA=1
+-          through OFC=7 — and the CPO's to change, the same status this seed already records for
+-          `FIFA -> World`.
++          Hand-set rank across the seven confederations, UEFA=1 through OFC=7. It orders regions
++          against each other where competitions are listed together and nothing more specific
++          separates them.
++
++          A judgement rather than geography, and unique per row, so it always breaks a tie.
+         tests:
+           - not_null
+           - unique
+ 
+   - name: competition_registry
+     description: >
+-      The registry's own fields, projected into the warehouse so no page has to read an authoring
+-      file to render (#62). Generated from docs/competition_registry.yml by
+-      scripts/sync_dbt_vars.py (do not hand-edit). dbt models join on league_code to resolve a
+-      competition's type (then entity_type via the competition_types seed), its parent
+-      competition, and its display fields. Kept in lockstep with the registry over EVERY column —
+-      and for parent-link validity — by scripts/check_registry_var_sync.py.
+-
+-      ⚠ `country` is deliberately NOT here (#69). dim_league already carries league_country and
+-      country_flag_url from the provider, so projecting the registry's hand-typed copy would make
+-      a third — and for 24 of 45 competitions that copy holds a region word ("Europe",
+-      "International") rather than a country. Region lives in `confederation` below; country and
+-      its flag come from dim_league until #69 gives countries their own seed and dim.
++      Every competition the platform tracks, with the fields the registry authors by hand:
++      competition type, parent competition, confederation, URL slug, ordering, division tier and
++      season shape. One row per league_code.
++
++      GENERATED, do not hand-edit — scripts/sync_dbt_vars.py writes it from
++      docs/competition_registry.yml, the authoring surface.
++      scripts/check_registry_var_sync.py fails the build if the two drift on any column.
++
++      `country` is deliberately absent: dim_league carries it from the provider, and the
++      registry's hand-typed copy holds a region word ("Europe") for about half the rows.
+     columns:
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+@@ -145,11 +135,13 @@ seeds:
+               field: competition_type
+       - name: parent_competition
+         description: >
+-          The league_code of this competition's parent, or empty when it has none. Links a
+-          child to its parent: a qualifier → its tournament (e.g. WCQEU → WC), a domestic cup →
+-          its league (e.g. DFBP → BL1). Lets the form-window selection resolve a tournament's
+-          qualifier competitions generically (no hardcoded code lists). Validity (every
+-          non-empty value is a known league_code) is enforced by check_registry_var_sync.py.
++          The league_code of this competition's parent, or empty when it has none. A qualifier
++          points at its tournament (WCQEU -> WC); a domestic cup points at its country's league
++          (DFBP -> BL1).
++
++          It exists so a tournament's qualifying competitions can be found by following the link
++          instead of from a hardcoded list of codes. Every non-empty value is a known league_code;
++          check_registry_var_sync.py fails the build otherwise.
+       - name: confederation
+         description: >
+           The competition's governing confederation, and the region key for the whole platform:
+@@ -167,27 +159,27 @@ seeds:
+       - name: slug
+         description: >
+           The competition's URL segment, e.g. "bundesliga". Authored in the registry and assigned
+-          once, never derived from a name (#852) — a rename must not silently move a URL.
++          once, never derived from a name — renaming a competition must not silently move its URL.
+         tests:
+           - not_null
+           - unique
+       - name: sort_order
+         description: >
+-          Display rank within a `display_group`; lower sorts first. Authored, not computed, so the
+-          CPO controls competition ordering without a code change. ⚠ Its only reader is
+-          `build_nav()` (see this seed's `display_group` note) — the home page's browse block that
+-          rendered those groups was dropped 2026-08-19, and the competitions index page orders by
+-          `region_rank`/kickoff proximity instead (both `sort_order` and `tier` were retired for
+-          that page, `escalations.log` 2026-08-16).
++          Authored display rank WITHIN a display_group; lower sorts first. Hand-set rather than
++          computed, so competition ordering can be changed without a code change.
++
++          Not a global order, and not dense: the rank restarts per group and is spaced in tens, so
++          the same value recurs across groups. Two competitions can therefore share a value, and
++          ordering them against each other needs something else.
+         tests:
+           - not_null
+       - name: tier
+         description: >
+           Division level within its country: 1 for a top flight, 2 for a second tier. EMPTY for
+-          every competition that is not a domestic_league, because a cup or tournament has no
+-          division — structurally N/A rather than missing, which is why there is no not_null
+-          test. The biconditional (non-empty iff domestic_league) is pinned by
+-          tests/test_registry_seed_projection.py; measured at 16 of 45 competitions.
++          every competition that is not a domestic_league, because a cup or a tournament has no
++          division — structurally not applicable rather than missing, which is why there is no
++          not_null test. Non-empty exactly when competition_type is domestic_league;
++          tests/test_registry_seed_projection.py pins that both ways.
+       - name: season_type
+         description: >
+           Whether a season sits inside one calendar year ("calendar_year", e.g. MLS, Brasileirão)
+@@ -198,25 +190,16 @@ seeds:
+ 
+   - name: metric_catalogue
+     description: >
+-      Single source of truth for every metric the platform computes. One row per metric
+-      per entity. Captures the formula as a structured, resolvable expression
+-      (base_relation + numerator_expr / denominator_expr over the base's real columns), entity
+-      type (team/player), i18n key, display format, what it measures and how important it is
+-      (group, tier), how the number is produced (computation_kind), and the performance semantic
+-      (direction + interpretation). It does NOT hold display ORDER — where a metric sits on a page
+-      is a frontend decision that changes with a design, and it lives in
+-      docs/wireframes/metrics_display.md. `group_display_order` was removed on 2026-08-04 for that
+-      reason (CPO); it had only ever been half-populated and duplicated an order ruled elsewhere.
+-      The principle: this file holds what a metric IS, not where it appears. Each formula aggregates over an int_legs__* per-(entity, fixture)
+-      building-block leg; it is window-free — the consuming model applies the window and any
+-      coverage/null policy. The formula is the correctness contract every model that computes the
+-      metric must conform to. Window-agnostic: metric IDs carry no window suffix. Part of epic
+-      #317; display columns added for #391 (GAP-09); formulas formalized for #530. Three singular
+-      tests guard its integrity: assert_metric_meaning_complete (EVERY metric, team and player,
+-      carries direction + interpretation), assert_metric_direction_lower_is_better_agree (direction
+-      and the legacy lower_is_better boolean never contradict each other) and
+-      assert_metric_catalogue_expr_resolvable (every numerator_expr/denominator_expr column resolves
+-      against its base_relation).
++      The single source of truth for every metric we compute. One row per (metric_id, entity), so
++      a metric with both a team and a player form has two rows. Each row carries the formula, the
++      English name and i18n key, the display format, what it measures, how important it is, and
++      which way is better.
++
++      The formula is the correctness contract: any model computing it must match. It is
++      window-free — ids carry no window suffix, and the window and any null policy are applied
++      where the metric is computed, never here.
++
++      What a metric IS, not where it appears: display order lives in metrics_display.md.
+     config:
+       +full_refresh: true
+       column_types:
+@@ -237,36 +220,27 @@ seeds:
+               values: ["team", "player", "team and player"]
+       - name: label_i18n_key
+         description: >
+-          i18n key for the TRANSLATED label. English no longer resolves through it — see label_en.
+-          Unique per ROW, never shared between a metric's team and player rows, because two rows
+-          sharing a key would share one German and one Finnish string while owning separate English
+-          ones, and the three could then drift apart with nothing noticing. Two rows did share a key
+-          until 2026-08-08 (duels_won_pct and finishing_efficiency); the player sides now carry
+-          playerMetrics.duels.wonPct and playerMetrics.finishingEfficiency.label, matching the
+-          convention the other two both-entity metrics already used.
++          The i18n key for this metric's TRANSLATED label. English does not resolve through it —
++          the English words are in label_en.
++
++          Unique per ROW, and never shared between a metric's team and player rows. Two rows
++          sharing a key would share one German and one Finnish string while owning separate
++          English ones, so the three could drift apart with nothing noticing.
+         tests:
+           - not_null
+           - unique
+       - name: label_en
+         description: >
+-          The metric's English display name — the words a reader sees, on a stats board heading, a
+-          metric row and the glossary. CPO ruling 2026-08-08: the metric layer is the source of
+-          truth for display names, English being the project's primary language, exactly as this
+-          seed already owns the English `description` and `interpretation`. Translations stay in the
+-          i18n layer keyed by label_i18n_key.
+-          NAMING SYSTEM, read off the 18 labels that already existed rather than invented: a bare
+-          noun is a count (`Goals`, `Clean sheets`); `Ø` prefixes an average, per match for teams and
+-          per 90 for players (`Ø Goals`, `Ø Tackles per 90`); `%` prefixes a share or rate
+-          (`% Duels won`). The prefix carries the unit class, so a reader never has to guess whether
+-          2.9 is a total or an average.
+-          UNIQUE PER ENTITY, not globally (CPO): player names are distinct among player metrics and
+-          team names among team metrics, but the same words may appear on both, because
+-          `% Duels won` means the same thing for a player and a team and the surrounding block says
+-          which.
+-          ⚠ ADDITIVE AND NOT YET READ. Nothing resolves a label from this column today; the frontend
+-          still uses METRIC_LABELS_EN in site_v2/src/i18n/strings.ts, which makes English a second
+-          source of truth until the follow-up MR deletes it and inverts the label guard to run off
+-          this seed.
++          The metric's English display name. This seed owns it; other languages resolve from
++          label_i18n_key in the i18n layer.
++
++          Naming rule: a bare noun is a count (`Goals`); `Ø` prefixes an average, per match for
++          teams and per 90 for players (`Ø Tackles per 90`); `%` prefixes a share or rate
++          (`% Duels won`). The prefix carries the unit, so a reader never has to guess whether 2.9
++          is a total or an average.
++
++          Unique per ENTITY, not globally: the same words may appear on a team row and a player
++          row, because `% Duels won` means the same thing for both.
+         tests:
+           - not_null
+       - name: description
+@@ -274,14 +248,13 @@ seeds:
+         tests: [not_null]
+       - name: base_relation
+         description: >
+-          The int_legs__* per-(entity, fixture) building block the formula aggregates over
+-          (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank
+-          whenever the metric is NOT a single-leg aggregate, which is the rule rather than a list to
+-          keep in sync: a lookup sourced elsewhere (league_rank, from fct_standings), a fitted or
+-          rank-derived read (deserved_points, deserved_rank, sot_points_gap), or a cross-model
+-          composition (contribution_share). A blank base_relation is what makes
+-          assert_metric_catalogue_expr_resolvable skip the row, so the rule is enforced there, not
+-          by this enumeration.
++          The int_legs__* per-(entity, fixture) building block the formula aggregates over:
++          int_legs__team_match, int_legs__team_from_players or int_legs__player_match.
++
++          BLANK whenever the metric is not a single-leg aggregate — a value looked up from
++          elsewhere, a fitted or rank-derived read, or a composition across two grains. A blank
++          here is what makes assert_metric_catalogue_expr_resolvable skip the row, so the rule is
++          enforced by that test rather than by a list of exceptions kept in prose.
+         tests:
+           - accepted_values:
+               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
+@@ -302,33 +275,25 @@ seeds:
+       - name: computation_kind
+         description: >
+           HOW the number is produced, so that an empty formula is explicit rather than ambiguous.
+-          Added 2026-08-04: five metrics carry no numerator_expr, for three genuinely different
+-          reasons, and a blank could not tell them apart from a formula that was simply never
+-          filled in.
+-            expression  — numerator_expr / denominator_expr over base_relation. 75 of 80.
+-            model       — produced by a dbt model and NOT expressible as a numerator over a
+-                          denominator. Today the deserved trio (deserved_points, deserved_rank,
+-                          sot_points_gap): an ordinary-least-squares fit within each league-season,
+-                          defined in int_team_season__deserved_vs_actual.sql. The catalogue remains
+-                          the source for what these MEAN; the model is the source for how they are
+-                          COMPUTED.
+-            sourced     — taken from the provider, never derived from match legs (league_rank, from
+-                          the standings snapshot).
+-            cross_grain — numerator and denominator sit at different grains, so one base_relation
+-                          cannot hold both (contribution_share: a player's goal involvement over
+-                          his TEAM's goals).
+-          An `expression` row without a formula is a defect, which is what lets
+-          assert_metric_catalogue_expr_resolvable be tightened rather than skipping blanks.
++
++          `expression` — numerator_expr / denominator_expr over base_relation; the large majority.
++          `model` — produced by a dbt model and not expressible as a numerator over a denominator;
++          the catalogue still says what it MEANS, the model says how it is computed. `sourced` —
++          taken from the provider, never derived from match legs. `cross_grain` — numerator and
++          denominator sit at different grains, so one base_relation cannot hold both.
++
++          An `expression` row carrying no formula is a defect, not a gap.
+         tests:
+           - not_null
+           - accepted_values:
+               values: ["expression", "model", "sourced", "cross_grain"]
+       - name: lower_is_better
+         description: >
+-          True when a lower value indicates better performance. LEGACY: the boolean predecessor of
+-          direction, retained only because the live MVP export
+-          (scripts/export_metric_definitions_json.py) still reads it. direction is the authority;
+-          set this to match it (true iff direction = lower_better), never the other way round.
++          True when a lower value indicates better performance.
++
++          LEGACY — the boolean predecessor of `direction`, kept only until the last thing depending
++          on it is gone. `direction` is the authority: set this to match it (true exactly when
++          direction is lower_better), never the other way round.
+           assert_metric_direction_lower_is_better_agree fails the build if the two diverge.
+         tests: [not_null]
+       - name: format
+@@ -342,28 +307,24 @@ seeds:
+       - name: metric_group
+         description: >
+           What the metric MEASURES — a taxonomy, not a layout. Shared across entities: a metric
+-          family keeps its group on team and player. Populated on EVERY row as of 2026-08-04;
+-          `outcomes` was added for the points/standing metrics (points won, points capture,
+-          league rank, deserved points, deserved rank, sot points gap) and `playing_time` for
+-          minutes_per_appearance, the two sets that previously had no group at all.
++          family keeps the same group on its team row and its player row. Populated on every row.
++
++          `outcomes` covers the points and standing metrics (points won, points capture, league
++          rank, and the deserved trio); `playing_time` covers minutes_per_appearance.
+         tests:
+           - not_null
+           - accepted_values:
+               values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
+       - name: importance_tier
+         description: >
+-          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth.
+-          Tier never reorders; it gates visibility under space constraint (metrics_display.md).
+-          Populated on EVERY row, team AND player, as of 2026-08-04.
+-          ⚠ This SUPERSEDES the 2026-06-11 ruling that tiers are a team-only concept, which held
+-          that player importance is position-dependent and could not be grounded. CPO override
+-          2026-08-04: tier expresses what a FAN wants to see, which is a product judgement rather
+-          than a statistical claim, and it is as available for players as for teams.
+-          The rubric his rulings established: the core stat line is tier 1, including both the raw
+-          counts and their headline percentage; a per-90 sits one tier below its own total;
+-          breakdowns and rare events are tier 3. Redundancy at tier 1 is deliberate and allowed —
+-          goals, assists and scorer_points are all 1, because tier means importance, not
+-          deduplication.
++          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier
++          never reorders anything; it gates visibility when space is short. Populated on every row,
++          team and player alike.
++
++          The rubric: the core stat line is tier 1, including both the raw counts and their
++          headline percentage; a per-90 sits one tier below its own total; breakdowns and rare
++          events are tier 3. Redundancy at tier 1 is deliberate — goals, assists and scorer_points
++          are all 1, because tier means importance, not deduplication.
+         tests:
+           - not_null
+           - accepted_values:
+@@ -371,27 +332,25 @@ seeds:
+               quote: false
+       - name: direction
+         description: >
+-          Performance semantic (the richer successor to lower_is_better): higher_better,
+-          lower_better, or neutral. Orients the competition benchmark and seeds website
+-          auto-interpretation. Set by the all-else-equal judgement "is MORE of this better?" — NOT by
+-          correlation with results or league rank, so a style/volume metric still carries a direction.
+-          Populated on EVERY row (team and player). neutral is reserved for a metric with genuinely no
+-          better/worse pole, and today applies to exactly two: sot_points_gap (a narrative) and
+-          contribution_share (a position-dependent share). lower_is_better is retained until the full
+-          migration and still drives the live MVP export; direction is the authority, and the two can
+-          no longer diverge (enforced by assert_metric_direction_lower_is_better_agree). EVERY metric,
+-          team and player alike, must carry BOTH direction and interpretation (enforced by
+-          assert_metric_meaning_complete); there is no entity exemption.
++          Which way is better: higher_better, lower_better, or neutral. It is what turns a rank or
++          a percentile into a good/bad reading, and it is required on every row, team and player
++          alike (assert_metric_meaning_complete).
++
++          Set by the all-else-equal judgement "is MORE of this better?", NOT by correlation with
++          results or league position — so a style or volume metric still carries a direction.
++          `neutral` is reserved for a metric with genuinely no better/worse pole, such as a
++          narrative gap or a position-dependent share.
+         tests:
+           - accepted_values:
+               values: ["higher_better", "lower_better", "neutral"]
+       - name: interpretation
+         description: >
+           Short plain-English meaning of the metric — what it captures and what a notably high
+-          value signals — the seed of website auto-narrative. Required on EVERY metric, team and
+-          player alike (enforced by assert_metric_meaning_complete); populated on every row as of
+-          2026-07-21. House style: what it captures, then a plain definition, then what a notable
+-          value signals, with any honest volume/style/role caveat last in parentheses.
++          value signals. Required on every metric, team and player alike
++          (assert_metric_meaning_complete).
++
++          House style: what it captures, then a plain definition, then what a notable value
++          signals, with any honest volume, style or role caveat last in parentheses.
+     tests:
+       # Display names are unique WITHIN an entity, not globally (CPO 2026-08-08). The same words on
+       # a player row and a team row are allowed — `% Duels won` means the same thing for both and
+@@ -405,8 +364,12 @@ seeds:
+ 
+   - name: wc_team_market_value_snapshot
+     description: >
+-      Twice-monthly WC national-team squad market value estimates (EUR). team_sk matches dim_team.team_sk
+-      (API-Football national team id). Append rows per snapshot run; dbt builds fct_team_market_value_snapshot.
++      Squad market-value estimates for World Cup national teams, in whole EUR. One row per (team,
++      snapshot date, source); rows are appended per snapshot run rather than replaced, so the
++      seed is a history. team_sk matches dim_team.team_sk (the provider's national-team id).
++
++      Researched, not ingested from the provider, which offers no market value. Empty until a
++      snapshot run loads rows.
+     config:
+       column_types:
+         team_sk: int64
+@@ -434,14 +397,16 @@ seeds:
+ 
+   - name: fixture_event_team_overrides
+     description: >
+-      CPO-owned corrections for known API-Football fixture-event team-id defects (#526),
+-      applied in base_apif__fixture_events. One row per wrong source team id.
+-      mode = `alias` replaces the id unconditionally (a genuine duplicate provider id for one
+-      club, e.g. Riga FC 2263 -> 10124). mode = `reattribute_if_cohabiting` replaces it only in
+-      fixtures where correct_team_api_id is a participant and wrong_team_api_id is not (a
+-      mis-attribution between two DISTINCT clubs, e.g. ASKO Kara 25274 events mis-tagged to rival
+-      ASC Kara 6424 — so the wrong club's own legitimate events are never touched). Add a row only
+-      with EXTERNALLY verified evidence; never infer a duplicate from internal name similarity.
++      Corrections for known API-Football fixture-event team-id defects. Hand-authored, one row per
++      wrong source team id: what it should resolve to, and how to apply it.
++
++      `alias` replaces the id unconditionally — the provider holds two ids for one club.
++      `reattribute_if_cohabiting` replaces it only in fixtures where the correct team is a
++      participant and the wrong one is not: a mis-attribution between two DISTINCT clubs, so the
++      wrong club's own events are never touched.
++
++      Add a row only with EXTERNALLY verified evidence; never infer a duplicate from name
++      similarity within our own data.
+     config:
+       column_types:
+         wrong_team_api_id: int64
+@@ -471,44 +436,16 @@ seeds:
+ 
+   - name: team_name_overrides
+     description: >
+-      CPO-owned corrections to a team's DISPLAY NAME, applied in base_apif__teams_global (#850).
+-      The provider's /teams endpoint sends a short label of unverified quality ("Rangers",
+-      "Lokomotiv") and it is the ONLY team name in the product — it drives the fixture card, the
+-      page H1, the <title>, the meta description and the URL slug (#851) — so 18 teams in 9 groups
+-      were previously indistinguishable from one another. Correcting the name here fixes every one
+-      of those surfaces at once.
+-
+-      BROADENED 2026-08-19: the trigger is no longer collision-only. CPO ruling: "we have to
+-      define the name we use as the single source of truth for what we display" — a provider name
+-      can be unique in our data and still not be the club's real display name ("Arsenal" is not
+-      wrong because it collides with anything; it is wrong because the club's name is "Arsenal
+-      FC"). Both triggers are valid reasons for a row: a genuine collision between two real
+-      records, OR a name that is unique but incomplete/informal against the external source. The
+-      `note` column states which one applies for that row.
+-
+-      GOVERNANCE: add a row ONLY where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the
+-      provider, and record that source in the row. Never taste, never a nickname, and never a
+-      locale preference — `Bayern München` is NOT corrected to `Bayern Munich` (CPO ruled one
+-      locale-independent slug). An earlier draft asserted "Glasgow Rangers" from memory and was
+-      wrong: Wikipedia states that has never been the club's official name. Verify externally, one
+-      club at a time.
+-
+-      NOT the mechanism for duplicate provider ids. Nyasa Big Bullets (#4596/#4599) and Dragon
+-      (#3045/#21310) are therefore deliberately absent, as is Warriors #4207 whose identity is
+-      unresolved.
+-
+-      CORRECTION (2026-07-28, #852): an earlier version of this description said those duplicates
+-      "go to fixture_event_team_overrides.csv with mode=alias". That is FALSE and was never
+-      checked — that seed is ref()d only by base_apif__fixture_events, so it corrects event
+-      attribution and nothing in the team-identity chain reads it. An alias row there folds no
+-      team, removes no URL and changes no slug. There is currently NO mechanism that collapses two
+-      duplicate team records, which is why #3045 silently takes /teams/dragon/ while the real club
+-      takes /teams/as-dragon/, and why the Nyasa pair is the only place a provider id still appears
+-      in a team URL. Building that mechanism is #850's open alias decision.
+-
+-      assert_team_name_overrides_still_needed fails the build if a row's value equals the
+-      provider's current name, so a correction the provider has since adopted is removed rather
+-      than left to rot.
++      Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name
++      we show. Load-bearing — there is no second name field, so this value names the team
++      everywhere, including in its URL.
++
++      A row is justified by a COLLISION (two real clubs sharing a label, e.g. "Rangers") or by a
++      name unique but incomplete against an external source ("Arsenal" for Arsenal FC); `note`
++      says which. Add one only where an authoritative external source disagrees with the provider,
++      and cite it — never taste, never a nickname, never a locale preference.
++
++      It does NOT fold duplicate provider ids.
+     config:
+       column_types:
+         team_api_id: int64
+@@ -517,7 +454,7 @@ seeds:
+         note: string
+     columns:
+       - name: team_api_id
+-        description: "The team whose display name is corrected. Must exist in dim_team."
++        description: "The team whose display name this row replaces. Must exist in dim_team."
+         tests:
+           - not_null
+           - unique
+@@ -534,57 +471,25 @@ seeds:
+           - not_null
+       - name: note
+         description: >
+-          Why the provider's value is wrong: either what this row collides with, or — since
+-          2026-08-19 — why the name is incomplete/informal against the external source even
+-          without a collision. State which one applies.
++          Why the provider's value is not usable: either what this row's label collides with, or
++          why the name is incomplete or informal against the external source even without a
++          collision. State which of the two applies.
+         tests:
+           - not_null
+ 
+   - name: country_name_overrides
+     description: >
+-      Maps every provider COUNTRY string to one canonical English name. Applied in
+-      base_apif__leagues (#62); extended from 3 rows to 67 by #69's discovery.
+-
+-      THE RULE, four CPO rulings on 2026-08-16, each given after seeing what the previous produced:
+-      **English, everyday short form, no diacritics.**
+-        - English, never the endonym — `Türkiye` -> `Turkey`, `Côte d'Ivoire` -> `Ivory Coast`.
+-          ⚠ The UN's own English column keeps those two, for the states that asked it to; we do
+-          not. It strips diacritics for the other 195 of its 197 names.
+-        - Everyday short form, not the formal state title — `Russian Federation` -> `Russia`,
+-          `Lao People's Democratic Republic` -> `Laos`, `Korea Republic` -> `South Korea`.
+-        - A genuine RENAME stands: `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
+-      TWO ROWS ARE DELIBERATE EXCEPTIONS and cite their own authority in `source`: `USA` ->
+-      `United States of America` (the rule would give `United States`) and `Ireland` ->
+-      `Republic of Ireland` (it renders beside Northern Ireland).
+-
+-      WHY THIS IS A MAPPING AND NOT A HYPHEN-TO-SPACE RULE. A pattern rule looks like the
+-      class-level fix and is wrong: `Guinea-Bissau` is a correctly hyphenated country name and a
+-      blanket replace corrupts it. MEASURED, not argued — it appears hyphenated on the player
+-      surface (38 players) where hyphenation is right, and hyphenated on the team surface where it
+-      is also right. An explicit mapping cannot get that wrong.
+-      ⚠ `Timor-Leste` was the second example in this paragraph until #69. It is now renamed to
+-      `East Timor` — for being non-English, NOT for its hyphen — so it no longer illustrates it.
+-
+-      ⚠ KNOWN RESIDUAL GAP, stated rather than implied: this seed corrects only the strings it
+-      lists. A NEW multi-word country arriving hyphenated is not caught here and would reach the
+-      page. Closing that is #69's foreign key to `dim_country` — an unknown country fails the FK
+-      instead of rendering — not a wider regex here.
+-
+-      GOVERNANCE: the register is the CPO's (§10) — these are display names and copy is his. Add a
+-      row only for a provider defect, never a locale preference: this is the same rule that keeps
+-      `Bayern München` out of `team_name_overrides`. Where an external standard is cited it must
+-      be checked, never recalled — the UN list backing these names was supplied by the CPO and
+-      read directly, and two of its rows turned out to be a footnote legend rather than countries.
+-
+-      SCOPE: the seed covers provider strings from all four surfaces (leagues, teams, players,
+-      coaches) — 245 distinct provider values resolving to 224 entities. The provider defect is
+-      not confined to one endpoint: `/teams` hyphenates, and `/players` + `/coachs` are
+-      inconsistent with themselves, carrying `Czechia` and `Czech Republic`, `Korea Republic` and
+-      `South Korea` side by side.
+-
+-      assert_country_name_overrides_still_needed fails the build if a row equals the provider's
+-      current string, or if the provider string has disappeared entirely, so a correction the
+-      provider has since adopted is removed rather than left to rot.
++      Maps a provider COUNTRY string to the one canonical English name. One row per distinct
++      provider string, across the league, team, player and coach surfaces, which are inconsistent
++      with each other and themselves.
++
++      NAMING RULE: English, everyday short form, no diacritics. Never the endonym (`Türkiye` ->
++      `Turkey`); never the formal state title (`Russian Federation` -> `Russia`); but a genuine
++      RENAME stands (`Czechia`). Two rows are deliberate exceptions, citing their authority in
++      `source`.
++
++      KNOWN GAP: only the listed strings are mapped, so an unseen spelling passes through
++      unchanged.
+     config:
+       column_types:
+         provider_country: string
+@@ -602,7 +507,10 @@ seeds:
+         tests:
+           - not_null
+       - name: source
+-        description: "The authority for this name (required — the governance control). For a display register that is the CPO ruling; for a factual identity claim it is an external source of record."
++        description: >
++          The authority for this name, required as the governance control: an external source of
++          record where the name is a factual identity claim, or the recorded decision where it is
++          a display choice.
          tests:
            - not_null
        - name: note
--        description: "Why the provider's value is wrong, and what this row collides with."
-+        description: >
-+          Why the provider's value is wrong: either what this row collides with, or — since
-+          2026-08-19 — why the name is incomplete/informal against the external source even
-+          without a collision. State which one applies.
+@@ -612,39 +520,16 @@ seeds:
+ 
+   - name: countries
+     description: >
+-      The canonical country list — the authoring surface behind `dim_country` (#69). Countries
+-      existed nowhere in the model layer before this: free text in four dims, the same country
+-      spelled up to three ways, and no list of what "valid" looked like. That absence is why a
+-      `single_country` boolean got invented to tell "England" from "Europe", which the CPO
+-      rejected on 2026-08-16 as "really bad modeling".
+-
+-      CONTENT is #69's measured discovery, not an authored guess: 285 distinct provider strings
+-      across the four surfaces resolving to these 224 entities, verified again against prod on
+-      2026-08-16 (283 of 283 non-`World` values resolve via `country_name_overrides`, nothing
+-      uncovered). The provider's spellings map onto these names in BASE; this seed holds only the
+-      canonical side.
+-
+-      THE NAMING RULE, four CPO rulings of 2026-08-16 recorded in `escalations.log`:
+-      **English, everyday short form, no diacritics.**
+-        - English, never the endonym — `Turkey` not `Türkiye`, `Ivory Coast` not `Côte d'Ivoire`.
+-          ⚠ The UN's own English column keeps those two for the states that asked it to; we do not.
+-        - Everyday short form, not the formal state title — `Russia`, `Laos`, `South Korea`.
+-        - A genuine rename stands — `Czechia`, `North Macedonia`, `Eswatini`, `Myanmar`.
+-      Two names are standing exceptions: `Republic of Ireland` (it renders beside Northern Ireland
+-      and football keeps the contrast readable) and `United States of America` (the rule would give
+-      `United States`; the CPO chose the long form).
+-
+-      ⚠ THIS IS NOT A LIST OF UN COUNTRIES. 188 rows are UN states; the remaining 36 are football
+-      associations (**England, the single most common value in the whole dataset**, Scotland, Wales,
+-      Northern Ireland, Kosovo, Chinese Taipei, Hong Kong, Gibraltar, Curacao …), territories that
+-      produce players (Guadeloupe, Martinique, Reunion, French Guiana, Mayotte, Jersey, Zanzibar),
+-      one unrecognised state (Northern Cyprus) and one historical (Yugoslavia, for players born
+-      before 1992 — CPO: "Yugoslavia stays as historical"). None is droppable.
+-
+-      NO `label_i18n_key`, deliberately: 224 keys x 3 locales is a copy cost and the CPO's to
+-      authorise. NO confederation column: there is NO SOURCE for it — the registry gives
+-      confederation per COMPETITION and the UN list has none — and the competitions page takes its
+-      region from the competition, never from the country.
++      The canonical country list: hand-authored, one row per country, a stable key and the English
++      name we display. Provider spellings map onto it in the base layer.
++
++      NAMING RULE: English, everyday short form, no diacritics — `Turkey` not `Türkiye` — though a
++      genuine rename stands (`Czechia`). `Republic of Ireland` and `United States of America` are
++      standing exceptions.
++
++      NOT A LIST OF UN MEMBER STATES, and joining it to one drops real rows: it also carries
++      football associations (England, Scotland), player-producing territories (Jersey), one
++      unrecognised state and one historical country.
+     config:
+       column_types:
+         country_key: string
+@@ -652,9 +537,8 @@ seeds:
+     columns:
+       - name: country_key
+         description: >
+-          Stable slug of the canonical name, ASSIGNED once. ⚠ Do NOT re-derive it if a name ever
+-          changes — the point of a key is that a rename does not move it, the same rule #852 sets
+-          for slugs.
++          Stable slug of the canonical name, ASSIGNED once and then fixed. Do not re-derive it if
++          the name ever changes — the whole point of a key is that a rename does not move it.
          tests:
            - not_null
- 
-diff --git a/dbt_project/seeds/team_name_overrides.csv b/dbt_project/seeds/team_name_overrides.csv
-index a3d7d8e..a1382f2 100644
---- a/dbt_project/seeds/team_name_overrides.csv
-+++ b/dbt_project/seeds/team_name_overrides.csv
-@@ -13,3 +13,100 @@ team_api_id,team_name,source,note
- 2878,Al-Nasr SC Salalah,https://en.wikipedia.org/wiki/Al-Nasr_SC_(Salalah),"Provider sends bare ""Al Nasr"". Collides with 6410."
- 21310,AS Dragon,https://en.wikipedia.org/wiki/A.S._Dragon_(football),"Provider sends bare ""Dragon"". Papeete, Tahiti. Record 3045 is a suspected duplicate of this club and is NOT corrected here (see decisions_reserved)."
- 10531,Warriors FC,https://en.wikipedia.org/wiki/Warriors_FC,"Provider sends bare ""Warriors"". Singapore, Choa Chu Kang. Collides with 4207, whose identity is unresolved and which is therefore NOT corrected here."
-+167,TSG 1899 Hoffenheim,https://en.wikipedia.org/wiki/TSG_1899_Hoffenheim,"Provider sends ""1899 Hoffenheim"" without the TSG prefix Wikipedia's article title carries."
-+168,Bayer 04 Leverkusen,https://en.wikipedia.org/wiki/Bayer_04_Leverkusen,"Provider sends ""Bayer Leverkusen"" without the 04 Wikipedia's article title carries."
-+164,1. FSV Mainz 05,https://en.wikipedia.org/wiki/1._FSV_Mainz_05,"Provider sends ""FSV Mainz 05"" without the leading 1. Wikipedia's article title carries."
-+182,1. FC Union Berlin,https://en.wikipedia.org/wiki/1._FC_Union_Berlin,"Provider sends ""Union Berlin"" without the 1. FC Wikipedia's article title carries."
-+162,SV Werder Bremen,https://en.wikipedia.org/wiki/SV_Werder_Bremen,"Provider sends ""Werder Bremen"" without the SV prefix Wikipedia's article title carries."
-+206,Heracles Almelo,https://en.wikipedia.org/wiki/Heracles_Almelo,"Provider sends bare ""Heracles"" without the city Wikipedia's article title carries."
-+415,FC Twente,https://en.wikipedia.org/wiki/FC_Twente,"Provider sends bare ""Twente"", the region name, missing the FC prefix."
-+207,FC Utrecht,https://en.wikipedia.org/wiki/FC_Utrecht,"Provider sends bare ""Utrecht"", the city name, missing the FC prefix."
-+202,FC Groningen,https://en.wikipedia.org/wiki/FC_Groningen,"Provider sends bare ""Groningen"", the city name, missing the FC prefix."
-+210,SC Heerenveen,https://en.wikipedia.org/wiki/SC_Heerenveen,"Provider sends bare ""Heerenveen"", the town name, missing the SC prefix."
-+77,Angers SCO,https://en.wikipedia.org/wiki/Angers_SCO,"Provider sends bare ""Angers"", the city name, missing the SCO suffix."
-+108,AJ Auxerre,https://en.wikipedia.org/wiki/AJ_Auxerre,"Provider sends bare ""Auxerre"", the city name, missing the AJ prefix."
-+111,Le Havre AC,https://en.wikipedia.org/wiki/Le_Havre_AC,"Provider sends ""Le Havre"", the city name, missing the AC suffix."
-+116,RC Lens,https://en.wikipedia.org/wiki/RC_Lens,"Provider sends bare ""Lens"", the city name, missing the RC prefix."
-+79,Lille OSC,https://en.wikipedia.org/wiki/Lille_OSC,"Provider sends bare ""Lille"", the city name, missing the OSC suffix."
-+97,FC Lorient,https://en.wikipedia.org/wiki/FC_Lorient,"Provider sends bare ""Lorient"", the city name, missing the FC prefix."
-+112,FC Metz,https://en.wikipedia.org/wiki/FC_Metz,"Provider sends bare ""Metz"", the city name, missing the FC prefix."
-+83,FC Nantes,https://en.wikipedia.org/wiki/FC_Nantes,"Provider sends bare ""Nantes"", the city name, missing the FC prefix."
-+84,OGC Nice,https://en.wikipedia.org/wiki/OGC_Nice,"Provider sends bare ""Nice"", the city name, missing the OGC prefix."
-+85,Paris Saint-Germain FC,https://en.wikipedia.org/wiki/Paris_Saint-Germain_F.C.,"Provider sends ""Paris Saint Germain"", missing the hyphen and the FC suffix."
-+94,Stade Rennais FC,https://en.wikipedia.org/wiki/Stade_Rennais_F.C.,"Provider sends bare ""Rennes"", the city name, not the club."
-+95,RC Strasbourg Alsace,https://en.wikipedia.org/wiki/RC_Strasbourg_Alsace,"Provider sends bare ""Strasbourg"", the city name, missing the RC prefix and Alsace suffix."
-+96,Toulouse FC,https://en.wikipedia.org/wiki/Toulouse_FC,"Provider sends bare ""Toulouse"", the city name, missing the FC suffix."
-+4724,FC Alverca,https://en.wikipedia.org/wiki/F.C._Alverca,"Provider sends bare ""Alverca"", the town name, missing the FC prefix."
-+240,FC Arouca,https://en.wikipedia.org/wiki/F.C._Arouca,"Provider sends bare ""Arouca"", the town name, missing the FC prefix."
-+211,SL Benfica,https://en.wikipedia.org/wiki/S.L._Benfica,"Provider sends bare ""Benfica"", missing the SL prefix."
-+4716,Casa Pia AC,https://en.wikipedia.org/wiki/Casa_Pia_A.C.,"Provider sends ""Casa Pia"" without the AC suffix Wikipedia's article title carries."
-+230,GD Estoril Praia,https://en.wikipedia.org/wiki/G.D._Estoril_Praia,"Provider sends bare ""Estoril"", missing the GD prefix and Praia suffix."
-+15130,CF Estrela da Amadora,https://en.wikipedia.org/wiki/C.F._Estrela_da_Amadora,"Provider sends bare ""Estrela"", missing the CF prefix and ""da Amadora""."
-+242,FC Famalicão,https://en.wikipedia.org/wiki/F.C._Famalic%C3%A3o,"Provider sends ""Famalicao"", no accent, missing the FC prefix."
-+762,Gil Vicente FC,https://en.wikipedia.org/wiki/Gil_Vicente_F.C.,"Provider sends ""GIL Vicente"" in incorrect all-caps, missing the FC suffix."
-+215,Moreirense FC,https://en.wikipedia.org/wiki/Moreirense_F.C.,"Provider sends bare ""Moreirense"" without the FC suffix Wikipedia's article title carries."
-+225,CD Nacional,https://en.wikipedia.org/wiki/C.D._Nacional,"Provider sends bare ""Nacional"", missing the CD prefix."
-+226,Rio Ave FC,https://en.wikipedia.org/wiki/Rio_Ave_F.C.,"Provider sends ""Rio Ave"" without the FC suffix Wikipedia's article title carries."
-+227,CD Santa Clara,https://en.wikipedia.org/wiki/C.D._Santa_Clara,"Provider sends ""Santa Clara"" without the CD prefix Wikipedia's article title carries."
-+218,CD Tondela,https://en.wikipedia.org/wiki/C.D._Tondela,"Provider sends bare ""Tondela"", missing the CD prefix."
-+42,Arsenal FC,https://en.wikipedia.org/wiki/Arsenal_F.C.,"Provider sends bare ""Arsenal"". Not a collision (no other team_name matches it exactly) -- corrected because the bare form is not the club's display name, not because it is ambiguous against another row."
-+505,Inter Milan,https://en.wikipedia.org/wiki/Inter_Milan,"Provider sends bare ""Inter"". English Wikipedia's own article title is ""Inter Milan"", despite the club's full legal name being FC Internazionale Milano and its Italian-language colloquial name being just ""Inter""."
-+529,FC Barcelona,https://en.wikipedia.org/wiki/FC_Barcelona,"Provider sends bare ""Barcelona"", which reads as the city, not the club."
-+194,AFC Ajax,https://en.wikipedia.org/wiki/AFC_Ajax,"Provider sends bare ""Ajax""."
-+91,AS Monaco FC,https://en.wikipedia.org/wiki/AS_Monaco_FC,"Provider sends bare ""Monaco"", which reads as the country/city, not the club."
-+80,Olympique Lyonnais,https://en.wikipedia.org/wiki/Olympique_Lyonnais,"Provider sends bare ""Lyon"", which is the city, not the club."
-+81,Olympique de Marseille,https://en.wikipedia.org/wiki/Olympique_de_Marseille,"Provider sends bare ""Marseille"", which is the city, not the club."
-+535,Málaga CF,https://en.wikipedia.org/wiki/M%C3%A1laga_CF,"Provider sends ""Malaga"" -- no accent, no CF suffix."
-+66,Aston Villa FC,https://en.wikipedia.org/wiki/Aston_Villa_F.C.,"Provider sends ""Aston Villa"" without the FC suffix Wikipedia's article title carries."
-+35,AFC Bournemouth,https://en.wikipedia.org/wiki/AFC_Bournemouth,"Provider sends bare ""Bournemouth"", the city name, not the club."
-+55,Brentford FC,https://en.wikipedia.org/wiki/Brentford_F.C.,"Provider sends bare ""Brentford"", the town name, not the club."
-+51,Brighton & Hove Albion FC,https://en.wikipedia.org/wiki/Brighton_%26_Hove_Albion_F.C.,"Provider sends bare ""Brighton"", the city name, missing ""& Hove Albion"" entirely."
-+44,Burnley FC,https://en.wikipedia.org/wiki/Burnley_F.C.,"Provider sends bare ""Burnley"", the town name, not the club."
-+49,Chelsea FC,https://en.wikipedia.org/wiki/Chelsea_F.C.,"Provider sends bare ""Chelsea"", a London district, not the club."
-+1346,Coventry City FC,https://en.wikipedia.org/wiki/Coventry_City_F.C.,"Provider sends bare ""Coventry"", the city name, not the club."
-+52,Crystal Palace FC,https://en.wikipedia.org/wiki/Crystal_Palace_F.C.,"Provider sends ""Crystal Palace"" without the FC suffix Wikipedia's article title carries."
-+45,Everton FC,https://en.wikipedia.org/wiki/Everton_F.C.,"Provider sends bare ""Everton"", a Liverpool district, not the club."
-+36,Fulham FC,https://en.wikipedia.org/wiki/Fulham_F.C.,"Provider sends bare ""Fulham"", a London district, not the club."
-+64,Hull City AFC,https://en.wikipedia.org/wiki/Hull_City_A.F.C.,"Provider sends bare ""Hull City"" without the AFC suffix Wikipedia's article title carries."
-+57,Ipswich Town FC,https://en.wikipedia.org/wiki/Ipswich_Town_F.C.,"Provider sends bare ""Ipswich"", the town name, missing ""Town FC"" entirely."
-+63,Leeds United FC,https://en.wikipedia.org/wiki/Leeds_United_F.C.,"Provider sends bare ""Leeds"", the city name, missing ""United FC"" entirely."
-+40,Liverpool FC,https://en.wikipedia.org/wiki/Liverpool_F.C.,"Provider sends bare ""Liverpool"", the city name, not the club."
-+50,Manchester City FC,https://en.wikipedia.org/wiki/Manchester_City_F.C.,"Provider sends ""Manchester City"" without the FC suffix Wikipedia's article title carries."
-+33,Manchester United FC,https://en.wikipedia.org/wiki/Manchester_United_F.C.,"Provider sends ""Manchester United"" without the FC suffix Wikipedia's article title carries."
-+34,Newcastle United FC,https://en.wikipedia.org/wiki/Newcastle_United_F.C.,"Provider sends bare ""Newcastle"", the city name, missing ""United FC"" entirely."
-+65,Nottingham Forest FC,https://en.wikipedia.org/wiki/Nottingham_Forest_F.C.,"Provider sends ""Nottingham Forest"" without the FC suffix Wikipedia's article title carries."
-+746,Sunderland AFC,https://en.wikipedia.org/wiki/Sunderland_A.F.C.,"Provider sends bare ""Sunderland"", the city name, not the club."
-+47,Tottenham Hotspur FC,https://en.wikipedia.org/wiki/Tottenham_Hotspur_F.C.,"Provider sends bare ""Tottenham"", a London district, missing ""Hotspur FC"" entirely."
-+48,West Ham United FC,https://en.wikipedia.org/wiki/West_Ham_United_F.C.,"Provider sends ""West Ham"", a London district, missing ""United FC"" entirely."
-+39,Wolverhampton Wanderers FC,https://en.wikipedia.org/wiki/Wolverhampton_Wanderers_F.C.,"Provider sends the nickname ""Wolves"", not the club's actual name."
-+542,Deportivo Alavés,https://en.wikipedia.org/wiki/Deportivo_Alav%C3%A9s,"Provider sends ""Alaves"", no accent, missing ""Deportivo""."
-+530,Atlético Madrid,https://en.wikipedia.org/wiki/Atl%C3%A9tico_Madrid,"Provider sends ""Atletico Madrid"", no accent."
-+538,RC Celta de Vigo,https://en.wikipedia.org/wiki/RC_Celta_de_Vigo,"Provider sends ""Celta Vigo"", missing ""RC"" and ""de""."
-+544,Deportivo de A Coruña,https://en.wikipedia.org/wiki/Deportivo_de_A_Coru%C3%B1a,"Provider sends ""Deportivo La Coruna"", wrong preposition and article, no accent."
-+797,Elche CF,https://en.wikipedia.org/wiki/Elche_CF,"Provider sends bare ""Elche"", the city name, not the club."
-+540,RCD Espanyol,https://en.wikipedia.org/wiki/RCD_Espanyol,"Provider sends bare ""Espanyol"" without the RCD prefix Wikipedia's article title carries."
-+546,Getafe CF,https://en.wikipedia.org/wiki/Getafe_CF,"Provider sends bare ""Getafe"", the city name, not the club."
-+547,Girona FC,https://en.wikipedia.org/wiki/Girona_FC,"Provider sends bare ""Girona"", the city name, not the club."
-+539,Levante UD,https://en.wikipedia.org/wiki/Levante_UD,"Provider sends bare ""Levante"" without the UD suffix Wikipedia's article title carries."
-+798,RCD Mallorca,https://en.wikipedia.org/wiki/RCD_Mallorca,"Provider sends bare ""Mallorca"", the island name, not the club."
-+727,CA Osasuna,https://en.wikipedia.org/wiki/CA_Osasuna,"Provider sends bare ""Osasuna"" without the CA prefix Wikipedia's article title carries."
-+718,Real Oviedo,https://en.wikipedia.org/wiki/Real_Oviedo,"Provider sends bare ""Oviedo"", the city name, missing ""Real""."
-+4665,Racing de Santander,https://en.wikipedia.org/wiki/Racing_de_Santander,"Provider sends ""Racing Santander"", missing ""de""."
-+532,Valencia CF,https://en.wikipedia.org/wiki/Valencia_CF,"Provider sends bare ""Valencia"", the city name, not the club."
-+533,Villarreal CF,https://en.wikipedia.org/wiki/Villarreal_CF,"Provider sends bare ""Villarreal"", the city name, not the club."
-+496,Juventus FC,https://en.wikipedia.org/wiki/Juventus_FC,"Provider sends bare ""Juventus"" without the FC suffix Wikipedia's article title carries."
-+487,SS Lazio,https://en.wikipedia.org/wiki/SS_Lazio,"Provider sends bare ""Lazio"", the region name, not the club."
-+867,US Lecce,https://en.wikipedia.org/wiki/US_Lecce,"Provider sends bare ""Lecce"", the city name, not the club."
-+492,SSC Napoli,https://en.wikipedia.org/wiki/SSC_Napoli,"Provider sends bare ""Napoli"", the city name, not the club."
-+503,Torino FC,https://en.wikipedia.org/wiki/Torino_FC,"Provider sends bare ""Torino"", the city name, not the club."
-+494,Udinese Calcio,https://en.wikipedia.org/wiki/Udinese_Calcio,"Provider sends bare ""Udinese"" without the Calcio suffix Wikipedia's article title carries."
-+499,Atalanta BC,https://en.wikipedia.org/wiki/Atalanta_BC,"Provider sends bare ""Atalanta"" without the BC suffix Wikipedia's article title carries."
-+500,Bologna FC 1909,https://en.wikipedia.org/wiki/Bologna_FC_1909,"Provider sends bare ""Bologna"", the city name, not the club."
-+490,Cagliari Calcio,https://en.wikipedia.org/wiki/Cagliari_Calcio,"Provider sends bare ""Cagliari"", the city name, not the club."
-+895,Como 1907,https://en.wikipedia.org/wiki/Como_1907,"Provider sends bare ""Como"", the city name, missing the founding-year suffix Wikipedia's article title carries."
-+520,US Cremonese,https://en.wikipedia.org/wiki/US_Cremonese,"Provider sends bare ""Cremonese"" without the US prefix Wikipedia's article title carries."
-+502,ACF Fiorentina,https://en.wikipedia.org/wiki/ACF_Fiorentina,"Provider sends bare ""Fiorentina"" without the ACF prefix Wikipedia's article title carries."
-+495,Genoa CFC,https://en.wikipedia.org/wiki/Genoa_C.F.C.,"Provider sends bare ""Genoa"", the city name, not the club."
-+504,Hellas Verona FC,https://en.wikipedia.org/wiki/Hellas_Verona_F.C.,"Provider sends ""Hellas Verona"" without the FC suffix Wikipedia's article title carries."
-+801,Pisa SC,https://en.wikipedia.org/wiki/Pisa_S.C.,"Provider sends bare ""Pisa"", the city name, not the club."
-+488,US Sassuolo,https://en.wikipedia.org/wiki/US_Sassuolo_Calcio,"Provider sends bare ""Sassuolo"", the city name, not the club."
+           - unique
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -379,7 +1731,7 @@ index a3d7d8e..a1382f2 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |  83 +++++++-----
-#    .claude/task/review_input.patch | 286 +++++++++++++++++++++++++++++-----------
-#    2 files changed, 257 insertions(+), 112 deletions(-)
+#   .claude/active_work.md          |  105 +-
+#    .claude/task/review_input.patch | 2030 ++++++++++++++++++++++++++++++++-------
+#    2 files changed, 1726 insertions(+), 409 deletions(-)
 # ============================================================================

@@ -3997,3 +3997,79 @@ a decision log, and three of them are lying. CPO commissions an audit, then appr
   lived only in `contract.md`, which the next task overwrites. scope-auditor round 1 FAILed for
   exactly that and was right to. It is the same error the whole MR is about — authority written to
   the volatile place instead of the durable one — committed while fixing it.
+
+
+2026-08-20 chore/description-cleanup-shared-and-seeds — MR3 of the description-drift programme.
+ONE SCOPE RULING, and FOUR RULINGS RESCUED because a description was the only place they existed.
+
+  RULING 0 — MR3'S SCOPE IS WIDENED BY THREE FILES (CPO, in chat, AskUserQuestion, 2026-08-20).
+  Recorded here FIRST because it is the one ruling on this branch that authorises something, and
+  because writing it only to `contract.md` would repeat the defect the entry above self-flags.
+  scope-auditor FAILed round 1 for exactly that and was right.
+  THE ASK: the six-MR split names MR3 as `shared.yml` + `seeds/schema.yml`. Trap 1 of the handover
+  names four surviving lowercase "partition key" claims; one is in `shared.yml`, the other three
+  are SQL header comments in `mart_roster.sql`, `mart_standings.sql` and `mart_team_fixtures.sql`.
+  MR4's scope (`core.yml`, `base.yml`, `int_momentum.yml`) does not reach them, so no later MR in
+  the plan would pick them up.
+  CPO ANSWER: "Fix them in MR3". The three files join `scope_paths`; the edits are comment-only and
+  change no SQL. The claim is FALSE — no dbt model declares `partition_by` or `cluster_by`, and
+  `CLAUDE.md` records that it has already misled cost work once.
+  ⚠ THE WIDER SWEEP THIS TRIGGERED found six MORE instances outside MR3's reach: five docs and
+  `.claude/hooks/dbt_layer_gate.py:72`, which states it to the agent as PreToolUse context on every
+  mart edit. Filed as GitLab #79; most are PROTECTED paths, so it needs its own task.
+
+  THE REST IS NOT AN ESCALATION. No further decision is asked for or taken. MR3 deletes history out
+  of `description:` fields, and the standard written in MR1 says rulings live in this file. Before
+  deleting each one I checked whether it was already here. Most were: the four #69 country-naming
+  rulings (2026-08-16), the four #54 competitions-ordering rulings (2026-08-16), the metric-layer
+  English-display-name ruling (2026-08-08) and the `intercontinental_super_cup` naming ruling all
+  have entries, so the descriptions restating them were duplicates and are simply gone.
+
+  Four were NOT here, and deleting them would have destroyed the only record. They are copied
+  below verbatim from the descriptions that held them, and are the reason this entry exists.
+
+  RULING A — THE competition_types SEED OWNS THE ENGLISH CATEGORY NAME (CPO, 2026-08-10).
+  Verbatim: *"the single source of truth for the displayed name is this seed file, same idea as in
+  the metric layer; the mapping to other languages happens in a different file."* So `label_en` on
+  `competition_types` is authoritative for the heading a reader sees above a group of competitions,
+  and translations stay in the i18n layer keyed by `label_i18n_key`. Same shape as the 2026-08-08
+  metric-layer ruling logged above, taken two days later for a different seed.
+
+  RULING B — HOW A COMPETITION-TYPE CATEGORY IS NAMED (CPO, 2026-08-11). A type that holds ONE
+  specific competition is named for that competition — "World Cup", "Club World Cup",
+  "Intercontinental Cup". A type that holds a CLASS of competitions takes a plural noun phrase —
+  "Domestic leagues", "Continental club cups". Three types are singular by nature and all three
+  are FIFA's. This is what keeps `world_championship` labelled "World Cup" while its i18n key
+  stays `compTypeWorldChampionship`: the key follows the TYPE, the label follows the competition.
+
+  RULING C — THE confederations SEED STAYS A SEED (CPO, 2026-08-11). Asked whether seven display
+  strings justified a seed rather than living in `strings.ts`, verbatim: *"keep the seed, we may
+  need it the warehouse later if not now."* Recorded because the cheaper option is the one a later
+  session would otherwise re-propose. `FIFA -> World` is noted with it as the one label that is a
+  judgement rather than geography, FIFA being a global body and not a region; the seven English
+  labels are the CPO's to change.
+
+  RULING D — IMPORTANCE TIER APPLIES TO PLAYERS TOO (CPO override, 2026-08-04). This SUPERSEDES
+  the 2026-06-11 ruling that tiers are a team-only concept, which held that player importance is
+  position-dependent and could not be grounded. The override: tier expresses what a FAN wants to
+  see, which is a product judgement rather than a statistical claim, and it is as available for
+  players as for teams. The rubric his rulings established: the core stat line is tier 1,
+  including both the raw counts and their headline percentage; a per-90 sits one tier below its
+  own total; breakdowns and rare events are tier 3. Redundancy at tier 1 is deliberate — goals,
+  assists and scorer_points are all tier 1, because tier means importance, not deduplication.
+
+  AND ONE REJECTED ALTERNATIVE, kept because it is load-bearing and measured rather than argued.
+  `country_name_overrides` is an explicit row-per-string mapping and NOT a hyphen-to-space rule.
+  A pattern rule looks like the class-level fix and is wrong: `Guinea-Bissau` is a correctly
+  hyphenated country name and a blanket replace corrupts it. Measured on the real data — it
+  appears hyphenated on the player surface (38 players) where hyphenation is right, and hyphenated
+  on the team surface where it is also right. An explicit mapping cannot get that wrong. The
+  residual gap this leaves is stated in the seed's own description: a NEW multi-word country
+  arriving hyphenated is not caught, and closing that is #69's foreign key to `dim_country`, not a
+  wider regex here.
+
+  ⚠ TWO THINGS THIS ENTRY IS NOT. It is not a licence to move narrative from descriptions into
+  this file wholesale — the destination for most of what MR3 deletes is DELETION, because git holds
+  it. And it is not a precedent for writing a ruling to a description first and rescuing it later;
+  the ruling goes here when it is made. Rescue was needed exactly four times, and each one is a
+  historical defect of the same class the programme exists to fix.
