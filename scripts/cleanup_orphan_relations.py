@@ -12,6 +12,11 @@ dangerous ones are the minority that still resolve. Those answer queries with pl
 computed by SQL that left the repo and is neither tested nor rebuilt, which is how someone walks
 away with a confident wrong answer.
 
+⚠ CLASSIFYING A LIVE VIEW AS BROKEN IS THE EXPENSIVE MISTAKE, because `broken` is the phase people
+drop without much thought. It has happened once already: a view calling a UDF was reported broken
+because routines are not relations and do not appear in `list_tables`. See `resolves()`. Anything
+this script cannot prove is gone must fall on the LIVE side.
+
 THE AUTHORITY IS THE MANIFEST, NOT A LIST OF NAMES
 --------------------------------------------------
 Every run recomputes what is expected from `dbt_project/target/manifest.json` and compares it with
@@ -104,7 +109,7 @@ PHASES = ("broken", "live-views", "tables", "all")
 _PHASE_ORDER = ("broken", "live-views", "tables")
 
 _PHASE_LABELS = {
-    "broken": "BROKEN views: already error on any query, so nothing can be reading them",
+    "broken": "BROKEN views: every reference resolved and one is gone, so any query errors",
     "live-views": "views that STILL RETURN DATA: retired SQL still answering queries",
     "tables": "orphan TABLES: these hold bytes, unlike the views",
 }
@@ -177,6 +182,21 @@ def list_warehouse(client: bigquery.Client) -> dict[tuple[str, str], str]:
     return found
 
 
+def list_routines(client: bigquery.Client) -> set[tuple[str, str]]:
+    """Every routine (UDF, procedure, table function) in the allowed datasets.
+
+    KEPT SEPARATE FROM THE WAREHOUSE MAP, DELIBERATELY. `find_orphans()` iterates the warehouse map
+    to decide what is droppable, so folding routines into it would make every UDF look like an
+    orphan relation and select it for deletion - a worse bug than the one this fixes. Routines are
+    only ever consulted to answer "does this reference resolve".
+    """
+    found: set[tuple[str, str]] = set()
+    for dataset in ALLOWED_DATASETS:
+        for routine in client.list_routines(f"{PROJECT}.{dataset}"):
+            found.add((dataset, routine.routine_id))
+    return found
+
+
 def find_orphans(
     warehouse: dict[tuple[str, str], str],
     expected: set[tuple[str, str]],
@@ -227,6 +247,7 @@ def resolves(
     key: tuple[str, str],
     warehouse: dict[tuple[str, str], str],
     queries: dict[tuple[str, str], str],
+    routines: set[tuple[str, str]] | None = None,
     _stack: frozenset[tuple[str, str]] = frozenset(),
 ) -> bool:
     """True if querying this relation would succeed, following views transitively.
@@ -236,7 +257,17 @@ def resolves(
     query against it errors. Calling a broken view "live" only puts it in the cautious phase, which
     is harmless; calling a live view "broken" would put it in the phase advertised as risk-free,
     which is not. So anything unprovable resolves to True.
+
+    NOT EVERY `project.dataset.name` IN A VIEW BODY IS A RELATION. A user-defined function is
+    written exactly the same way, and neither `bq ls` nor `Client.list_tables` returns routines, so
+    a UDF call used to read as a reference to a missing table and flip this to False. That is how
+    `marts.mart_fixture_index` - which calls `dbt_analytics.url_fixture_slug`, validates, and
+    returns 1.5 MB - was reported as BROKEN and offered for deletion under a risk-free label.
+    Pass `routines` so a reference naming one is recognised for what it is.
     """
+    routines = routines if routines is not None else set()
+    if key in routines:
+        return True                     # a routine, not a relation: it exists, and it is not a view
     if key not in warehouse:
         return False                    # the relation is gone
     if warehouse[key] != "VIEW":
@@ -249,7 +280,7 @@ def resolves(
     for ref in _refs_in(sql, key):
         if ref[0] not in ALLOWED_DATASETS:
             continue                    # cannot see it; assume it resolves, again the safe side
-        if not resolves(ref, warehouse, queries, _stack | {key}):
+        if not resolves(ref, warehouse, queries, routines, _stack | {key}):
             return False
     return True
 
@@ -258,13 +289,14 @@ def classify(
     orphans: list[tuple[str, str]],
     warehouse: dict[tuple[str, str], str],
     queries: dict[tuple[str, str], str],
+    routines: set[tuple[str, str]] | None = None,
 ) -> dict[str, list[tuple[str, str]]]:
     """Split the orphans into the three phases: disjoint, and together the whole set."""
     phases: dict[str, list[tuple[str, str]]] = {p: [] for p in _PHASE_ORDER}
     for key in orphans:
         if warehouse.get(key) != "VIEW":
             phases["tables"].append(key)
-        elif resolves(key, warehouse, queries):
+        elif resolves(key, warehouse, queries, routines):
             phases["live-views"].append(key)
         else:
             phases["broken"].append(key)
@@ -343,7 +375,8 @@ def main(
         print("\nNo orphaned relations. Nothing to do.")
         return 0
 
-    phases = classify(orphans, warehouse, view_queries(client, orphans, warehouse))
+    routines = list_routines(client)
+    phases = classify(orphans, warehouse, view_queries(client, orphans, warehouse), routines)
     _report(phases, phase)
     chosen = select(phases, phase)
     print(f"\n{len(orphans)} orphan relation(s) total; phase '{phase}' selects {len(chosen)}.")
@@ -366,7 +399,8 @@ if __name__ == "__main__":
         choices=PHASES,
         default="all",
         help=(
-            "Which orphans to select. 'broken' is the risk-free set (they already error). "
+            "Which orphans to select. 'broken' is the low-risk set: every reference in the view "
+            "was resolved and at least one no longer exists, so any query against it errors. "
             "Default 'all'. The choice only matters with --confirm; the report always shows "
             "every phase."
         ),

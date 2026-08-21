@@ -59,11 +59,21 @@ class _FakeTable:
 class _FakeClient:
     """Just enough BigQuery client to exercise the script, and it records what was asked of it."""
 
-    def __init__(self, relations: dict[tuple[str, str], str], view_sql=None) -> None:
+    def __init__(self, relations: dict[tuple[str, str], str], view_sql=None, routines=None) -> None:
         self.relations = dict(relations)
         self.view_sql = dict(view_sql or {})
+        self.routines = set(routines or ())
         self.deleted: list[tuple[str, str]] = []
         self.listed: list[str] = []
+
+    def list_routines(self, path: str):
+        dataset = path.split(".")[-1]
+
+        class _R:
+            def __init__(self, rid):
+                self.routine_id = rid
+
+        return [_R(name) for ds, name in self.routines if ds == dataset]
 
     def list_tables(self, path: str):
         dataset = path.split(".")[-1]
@@ -336,6 +346,112 @@ def test_unknown_reference_is_assumed_live_not_broken():
     assert cleanup.resolves(("marts", "mart_thing"), warehouse, queries)
 
 
+def test_a_view_calling_a_udf_is_live_not_broken():
+    """The real defect: `marts.mart_fixture_index` calls `dbt_analytics.url_fixture_slug`.
+
+    A UDF call is written exactly like a table reference, and neither `bq ls` nor
+    `Client.list_tables` returns routines, so the reference used to look like a missing table and
+    flip `resolves()` to False. That put a view which validates and returns 1.5 MB into the phase
+    advertised as risk-free. Reproduced here in the same shape: live tables plus a UDF call.
+    """
+    warehouse = {
+        ("marts", "mart_fixture_index"): "VIEW",
+        ("core", "fct_fixture"): "TABLE",
+    }
+    queries = {
+        ("marts", "mart_fixture_index"): (
+            _ref("core", "fct_fixture")
+            + f", `{cleanup.PROJECT}.dbt_analytics.url_fixture_slug`(a, b, c) as fixture_slug"
+        )
+    }
+    routines = {("dbt_analytics", "url_fixture_slug")}
+
+    assert not cleanup.resolves(("marts", "mart_fixture_index"), warehouse, queries, set()), (
+        "without the routine set this is the old, wrong answer - the test would be vacuous if "
+        "this line passed"
+    )
+    assert cleanup.resolves(("marts", "mart_fixture_index"), warehouse, queries, routines)
+
+
+def test_a_udf_reference_does_not_rescue_a_genuinely_broken_view():
+    """Recognising routines must not become a blanket 'everything resolves'."""
+    warehouse = {("marts", "mart_thing"): "VIEW"}
+    queries = {
+        ("marts", "mart_thing"): (
+            _ref("raw", "GONE")
+            + f", `{cleanup.PROJECT}.dbt_analytics.url_kebab`(x) as slug"
+        )
+    }
+    routines = {("dbt_analytics", "url_kebab")}
+
+    assert not cleanup.resolves(("marts", "mart_thing"), warehouse, queries, routines)
+
+
+def test_a_routine_is_never_returned_as_an_orphan(tmp_path):
+    """Routines must never enter the droppable set.
+
+    `find_orphans()` iterates the warehouse map, so if routines were folded in there to make
+    `resolves()` work, every UDF would read as an orphan relation and be selected for deletion -
+    worse than the bug being fixed. They are held in a separate set for exactly this reason.
+    """
+    manifest = _write_manifest(tmp_path)
+    expected = cleanup.load_expected(manifest)
+    warehouse = {("marts", "some_orphan_view"): "VIEW"}
+
+    orphans = cleanup.find_orphans(warehouse, expected)
+
+    assert orphans == [("marts", "some_orphan_view")]
+    assert all("url_" not in name for _, name in orphans)
+
+
+def test_classify_passes_routines_through():
+    """A regression guard on the wiring, not just on `resolves()` in isolation."""
+    warehouse = {
+        ("marts", "calls_a_udf"): "VIEW",
+        ("core", "fct_fixture"): "TABLE",
+    }
+    queries = {
+        ("marts", "calls_a_udf"): (
+            _ref("core", "fct_fixture")
+            + f", `{cleanup.PROJECT}.dbt_analytics.url_entity_slug`(a) as slug"
+        )
+    }
+    orphans = [("marts", "calls_a_udf")]
+
+    without = cleanup.classify(orphans, warehouse, queries, set())
+    with_routines = cleanup.classify(
+        orphans, warehouse, queries, {("dbt_analytics", "url_entity_slug")}
+    )
+
+    assert without["broken"] == orphans, "guard against a vacuous comparison"
+    assert with_routines["live-views"] == orphans
+    assert with_routines["broken"] == []
+
+
+def test_list_routines_reads_every_allowed_dataset_and_nothing_else():
+    class _R:
+        def __init__(self, rid):
+            self.routine_id = rid
+
+    class _C(_FakeClient):
+        def __init__(self):
+            super().__init__({})
+            self.routine_datasets = []
+
+        def list_routines(self, path):
+            dataset = path.split(".")[-1]
+            self.routine_datasets.append(dataset)
+            return [_R("url_kebab")] if dataset == "dbt_analytics" else []
+
+    client = _C()
+    found = cleanup.list_routines(client)
+
+    assert found == {("dbt_analytics", "url_kebab")}
+    assert set(client.routine_datasets) == set(cleanup.ALLOWED_DATASETS)
+    for forbidden in ("raw_archive", "dbt_scratch", "ci_marts"):
+        assert forbidden not in client.routine_datasets
+
+
 def test_phases_are_disjoint_and_cover_every_orphan():
     warehouse = {
         ("staging", "broken_view"): "VIEW",
@@ -411,6 +527,50 @@ def test_confirm_all_drops_every_orphan(tmp_path):
         ("marts", "live_view"),
         ("staging", "broken_view"),
     ]
+
+
+def test_main_does_not_drop_a_udf_calling_view_in_phase_broken(tmp_path):
+    """END-TO-END through main(), which is the only thing that pins the WIRING.
+
+    `classify()` and `list_routines()` are each tested in isolation above, and both pass even if
+    `main()` never fetches routines or never threads them into `classify()`. Measured: reverting
+    exactly those two lines in `main()` leaves every other test in this file GREEN. That is how
+    the production defect reached the operator in the first place — the misclassification happened
+    in the script people run, not in a unit under test.
+
+    So this asserts the consequence that actually matters: `--phase broken --confirm` must not
+    delete a view that only looked broken because it calls a UDF, while still deleting one that is
+    genuinely broken.
+    """
+    manifest = _write_manifest(
+        tmp_path, nodes={"fct_fixture": _model("fct_fixture", schema="core")}
+    )
+    relations = {
+        ("core", "fct_fixture"): "TABLE",             # live, owned by the manifest
+        ("marts", "mart_fixture_index"): "VIEW",      # orphan, but resolves via a UDF
+        ("staging", "really_broken"): "VIEW",         # orphan, genuinely broken
+    }
+    view_sql = {
+        ("marts", "mart_fixture_index"): (
+            _ref("core", "fct_fixture")
+            + f", `{cleanup.PROJECT}.dbt_analytics.url_fixture_slug`(a, b) as fixture_slug"
+        ),
+        ("staging", "really_broken"): _ref("raw", "RAW_APIF_BL1_TEAMS"),
+    }
+    client = _FakeClient(
+        relations, view_sql, routines={("dbt_analytics", "url_fixture_slug")}
+    )
+
+    code = cleanup.main("broken", confirm=True, manifest_path=manifest, client=client)
+
+    assert code == 0
+    assert client.deleted == [("staging", "really_broken")], (
+        "phase broken must drop the genuinely broken view and nothing else"
+    )
+    assert ("marts", "mart_fixture_index") in client.relations, (
+        "a view that resolves through a UDF must survive phase broken"
+    )
+    assert ("core", "fct_fixture") in client.relations
 
 
 def test_nothing_to_do_when_the_warehouse_matches_the_manifest(tmp_path):
