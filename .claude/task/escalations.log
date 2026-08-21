@@ -4330,6 +4330,46 @@ RELATIONS, given in chat, recorded here after scope-auditor FAILed round 1 for i
   #84 rather than built.
 
   THE SHAPE HE APPROVED, so a later reader can tell delivery from drift: dry-run by default,
-  `--confirm` to drop, three phases (250 broken views that already error on any query, 26 views that
-  still return data, 34 tables), and the orphan set derived from dbt's manifest on every run rather
-  than from a captured list of names, so the tool does not go stale the way the list would.
+  `--confirm` to drop, three phases, and the orphan set derived from dbt's manifest on every run
+  rather than from a captured list of names, so the tool does not go stale the way the list would.
+  ⚠ THE SPLIT RECORDED HERE FIRST WAS 250/26/34 AND WAS WRONG. It is 249/27/34 — see the
+  2026-08-21 `fix/84-udf-refs-misread-as-missing-tables` entry below. The phrase "broken views that
+  already error on any query" was the false claim; do not quote the old numbers.
+
+2026-08-21 fix/84-udf-refs-misread-as-missing-tables — A UDF CALL READ AS A MISSING TABLE, so a
+LIVE view was offered for deletion under a risk-free label. Found by the CPO, not by the guards.
+
+  HOW IT SURFACED. After `!90` merged, the CPO asked for `--phase broken` as a dry run, was shown
+  the 250, and asked one question: why is `mart_fixture_index` in the list? It should not have
+  been. Authority to fix, in chat: "yes, fix it".
+  ⚠ THE DROP WAS NEVER RUN. He stopped it before execution, so nothing was lost to this defect.
+
+  THE DEFECT. `marts.mart_fixture_index` ends with a call to
+  `football-data-pipeline-gcp.dbt_analytics.url_fixture_slug(...)`. A UDF call is written exactly
+  like a table reference, and neither `bq ls` nor `Client.list_tables` returns ROUTINES. So the
+  script's reference regex extracted `url_fixture_slug` as a relation, failed to find it, and
+  `resolves()` returned False. The view validates and reads 1.5 MB; it was classified BROKEN.
+
+  WHY IT MATTERS MORE THAN ONE VIEW. `broken` is the phase sold as risk-free, on the claim that
+  every member already errors so nothing can be reading them. That claim was false for one member,
+  and BigQuery time travel does NOT restore a dropped view. The count was small; the guarantee was
+  broken, and the guarantee is the thing people act on.
+
+  BLAST RADIUS, MEASURED NOT ESTIMATED. Across every orphan view body, 183 extracted referents are
+  not tables. 182 are genuinely absent per-competition raw tables. Exactly ONE is a routine, and it
+  misclassified exactly one view. No `INFORMATION_SCHEMA` references and no other routine calls
+  exist in the set. Corrected split: broken 249, live-views 27, tables 34, total unchanged at 310.
+  `mart_fixture_index` is still an orphan — no manifest node owns it and no reader was found — it
+  simply belongs in the cautious phase, not the risk-free one.
+
+  THE FIX, and the trap inside the fix. Routines are now looked up with `Client.list_routines` and
+  consulted by `resolves()`. They are held in a SEPARATE set and deliberately NOT folded into the
+  warehouse map, because `find_orphans()` iterates that map to decide what is droppable — folding
+  them in would make every UDF read as an orphan relation and select it for deletion, which is
+  worse than the bug being fixed. A test asserts routines never appear in the orphan set.
+
+  ⚠ WHAT THIS SAYS ABOUT THE GUARDS. Two adversarial reviewers examined `resolves()` and passed it,
+  and an 8-mutation pass went 8/8 green, because every test and every mutation only ever exercised
+  tables and views. The tests were self-consistent and blind in the same place the code was. A
+  human reading the actual output list found it in one question. Reading the RESULT is not
+  redundant with testing the CODE.

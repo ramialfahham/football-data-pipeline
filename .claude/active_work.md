@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-21**. **main `e6c1819`**. **#84's MR is OPEN** (warehouse orphan cleanup).
+_Last updated **2026-08-21**. **main `df0dc7e`**. `!90` MERGED; **#84 fix MR OPEN**.
 Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
@@ -136,13 +136,14 @@ detection, NOT started:** lower `event_loss_detector_from` (still **'2026-08-19'
 `!57`'s test is inert**); ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 =
 compaction, only if growth is MEASURED.**
 
-## ⭐ #84 — 310 ORPHANED WAREHOUSE RELATIONS, MR OPEN
-**Nothing reconciles the WAREHOUSE** (the guard governs only the REPO): `6e4ba18` (05-27) left 310
-orphans for 3 months. **250 broken** (already error, risk-free) · **26 STILL RETURN DATA** (retired
-SQL, plausible numbers — the hazard) · **34 tables** (42.5 MiB, so cost is NOT the argument).
-Nothing reads them. Also **9 `raw.RAW_WC26_APIF_*` nothing writes**.
-`scripts/cleanup_orphan_relations.py` derives it all from the MANIFEST; dry-run default.
-⛔ **RUNNING IT IS THE CPO'S; nothing dropped.** The recurring CHECK is a NEW MECHANISM, NOT built.
+## ⭐ #84 — 310 ORPHANED WAREHOUSE RELATIONS; `!90` MERGED, fix MR OPEN
+**Nothing reconciles the WAREHOUSE**, only the REPO: `6e4ba18` (05-27) left 310
+orphans for 3 months. **249 broken** · **27 STILL RETURN DATA** (retired SQL, plausible numbers,
+the hazard) · **34 tables** (42.5 MiB, so cost is NOT the point). Nothing reads them. Also
+**9 `raw.RAW_WC26_APIF_*` nothing writes**. `cleanup_orphan_relations.py` derives it from the
+MANIFEST; dry-run.
+⛔ **CPO'S TO RUN; NOTHING DROPPED.** ⚠ A UDF read as missing put a LIVE view in the "risk-free"
+phase; tests + 2 reviewers passed, HE caught it. CHECK = NEW MECHANISM, unbuilt.
 
 ## ⭐ COST — read **GitLab issue #3** first
 **#3 holds it all.** ⚠ **#70** is the scan-budget guard; `require_partition_filter` +

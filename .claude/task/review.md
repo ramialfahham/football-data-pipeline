@@ -1,69 +1,75 @@
-# Review — chore/84-orphan-relation-cleanup — 2026-08-21
+# Review — fix/84-udf-refs-misread-as-missing-tables — 2026-08-21
 
-diff_sha256: 313f91e8302e59266a4b0fe02aa52a6f2ae8bd5a97f08b2089b231a66ff09c45
+diff_sha256: bc6d023a7224411f22bc1176ca2c63a539306a2a0442156bd7f3bb89c22171aa
 
 rounds: 2
 
-Round 1 returned FAIL from BOTH required reviewers. Both findings were verified against the repo
-before being acted on, and both were real. One of them (scope-auditor's) exposed a false negative in
-my own earlier check: I had grepped `escalations.log` for `#84` and read 8 hits as corroboration,
-but the pattern was matching `#845` and `#846`. A precise search returned nothing, which is exactly
-what the reviewer said. The verdicts below are round 2, returned by the same two agents resuming
-their own round-1 context, and are recorded as they returned them.
+Round 1: scope-auditor PASS, platform-reviewer FAIL. The FAIL was real and was verified before
+being acted on, by adding a mutation that reverts the two lines it named in `main()` and running
+it — the pass reported `STILL GREEN`, confirming that reverting the fix's wiring left the entire
+suite passing. One end-to-end test closed it, and the same mutation now reports RED. Both verdicts
+below are round 2, returned by the same agents resuming their own round-1 context, recorded as they
+returned them.
+
+Worth noting in the artifact itself: this branch exists because the previous review cycle
+(`!90`, two reviewers PASS, 8/8 mutations green) shipped a defect that the CPO found by reading the
+output list. Round 1 here found a second one of the same shape — a guard tested in isolation but
+not where it runs. Testing the unit is not the same as testing the thing people execute.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Re-verified the round-1 finding against the regenerated patch: `.claude/task/escalations.log` now
-  carries a `2026-08-21 chore/84-orphan-relation-cleanup` entry recording the CPO's three actual
-  chat turns verbatim (the opening brief's "Do NOT drop anything unilaterally," "file the issue
-  first," and "open the MR with the cleanup script"), what each authorizes and what it explicitly
-  withholds (`--confirm` runs, CI wiring). `contract.md`'s `refs:` now points at this entry rather
-  than asserting the quote itself, `scope_paths` now includes `escalations.log`, and a new
-  `amendments:` bullet records the scope extension and its authority (my FAIL). The entry honestly
-  flags itself as written after the branch rather than before, which is the correct disclosure
-  rather than a backdating attempt. This closes the authority-verification gap I FAILed on.
-- Checked the platform-reviewer-driven snapshot fix (`config.target_schema` vs `config.schema` for
-  snapshot nodes, plus its two new tests) against my territory: it is a bug fix confined to
-  `scripts/cleanup_orphan_relations.py` and `tests/test_cleanup_orphan_relations.py`, both already
-  in `scope_paths`; it introduces no new mechanism, no CI wiring, no schedule, and `snapshots`
-  remains outside `ALLOWED_DATASETS`, so it does not cross any of the four thresholds and creates no
-  new §10 decision.
-- Re-checked the threshold declarations and `impact_map` claims against the unchanged script logic
-  (dry-run default, manifest floor, allowlist fence, dataset-key sourcing) — nothing here has moved
-  since round 1, and they still hold.
+- Confirmed the two changed paths (`tests/test_cleanup_orphan_relations.py`,
+  `.claude/task/acceptance_evidence.md`) are both already in `contract.md`'s `scope_paths`, and
+  `scripts/cleanup_orphan_relations.py` is unchanged — re-verified by reading the new test against
+  the code I already reviewed; no production logic moved.
+- Read the new test `test_main_does_not_drop_a_udf_calling_view_in_phase_broken` directly: it
+  drives `cleanup.main("broken", confirm=True, ...)` against a fake client seeded with one
+  genuinely-broken orphan and one UDF-resolving orphan (`mart_fixture_index`), and asserts
+  `client.deleted == [("staging", "really_broken")]` while `mart_fixture_index` survives. This
+  closes exactly the gap platform-reviewer named (routines fetched/threaded only in `main()`,
+  previously untested end-to-end) without introducing any new mechanism, dependency, or threshold —
+  it is a test-only addition exercising existing wiring.
+- The `routines=` kwarg on `_FakeClient` was already present in the hash I passed (I read it in the
+  original diff); this delta only adds a call site that supplies real values instead of relying on
+  the default, which is consistent with "no production code changed."
+- No change to `contract.md`, `escalations.log`, or any decision field — the §10 reservations
+  (whether to drop `mart_fixture_index`, whether to wire a recurring check) and the threshold
+  declarations I already checked against the code stand unaltered since the code is byte-identical.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Re-verified the round-1 defect against the fix: `scripts/cleanup_orphan_relations.py:151-153` now
-  branches `config.get("target_schema") if resource_type == "snapshot" else config.get("schema")`,
-  which matches `dbt_project/dbt_project.yml:170-172`'s `+target_schema: snapshots` and the comment
-  above it stating the value bypasses `generate_schema_name.sql`. The docstring (lines 22-34) now
-  states the two keys separately, names the DEFAULT_DATASET-misfile consequence, and is honest that
-  it's inert today because no snapshot exists and `snapshots` isn't in `ALLOWED_DATASETS` — no
-  remaining factually-false claim.
-- Read the two new tests (`tests/test_cleanup_orphan_relations.py:207-248`):
-  `test_a_snapshot_is_keyed_on_target_schema_not_schema` asserts `("snapshots", "snap_thing") in
-  expected` and `(DEFAULT_DATASET, "snap_thing") not in expected`;
-  `test_a_snapshot_relation_is_never_orphaned_by_a_wrong_dataset` asserts a live
-  `("snapshots", "snap_thing")` relation is not returned by `find_orphans`. Both would go red
-  against a bare `config.get("schema")` revert (confirmed by the coordinator's mutation pass, and
-  independently traceable by hand: reverting collapses `expected` to only
-  `(DEFAULT_DATASET, "snap_thing")`, failing test 1's second assert and making test 2's relation
-  show up in `find_orphans`'s output since it's absent from `expected`). Not vacuous.
-- Checked for a new defect introduced by the diff itself: `resource_type` is now bound to a local
-  variable and reused consistently at both the resource_type filter and the ternary; the
-  ephemeral-materialized check still runs before the schema branch and is unaffected
-  (`materialized: "snapshot"` in the test fixture is not `"ephemeral"`); no other line in
-  `load_expected` changed. No regression found.
-- Re-scanned `.claude/task/escalations.log`'s new 2026-08-21 `chore/84-orphan-relation-cleanup`
-  entry for anything in my territory (credentials, CI/hook changes, dependency or guard edits) — it
-  is authority/scope bookkeeping (scope-auditor's territory), touches no path of mine, contains no
-  secret material.
-- Re-confirmed the rest of round 1's PASS-worthy findings still hold on disk (MANIFEST_FLOOR
-  placement, dry-run default, dataset allowlist fence, phase disjointness/coverage, `resolves()`
-  transitivity) — unchanged by this delta, not re-litigated.
+- Confirmed `test_main_does_not_drop_a_udf_calling_view_in_phase_broken`
+  (tests/test_cleanup_orphan_relations.py:532-572) exists in the file on disk and in the
+  regenerated `review_input.patch`, and traced it fully: it builds a `_FakeClient` via the
+  constructor's `routines=` kwarg (previously dead in every `main()`-driving test, confirmed dead
+  in round 1), sets up a manifest-owned `core.fct_fixture`, an orphan `marts.mart_fixture_index`
+  view whose stored SQL references `fct_fixture` plus a `dbt_analytics.url_fixture_slug(...)` call,
+  and a genuinely orphan `staging.really_broken` view over a missing raw table — then runs
+  `cleanup.main("broken", confirm=True, ...)` and asserts
+  `client.deleted == [("staging","really_broken")]` and that `mart_fixture_index` survives.
+- Verified this is the correct end-to-end path through the exact lines I flagged in round 1
+  (`scripts/cleanup_orphan_relations.py:378-379`, `routines = list_routines(client)` then threading
+  `routines` into `classify(...)`): the test's fixture data forces `mart_fixture_index` to be an
+  orphan (not manifest-owned) and its UDF reference to matter, so reverting either of those two
+  lines would put it in `broken` and it would be dropped by `--phase broken --confirm`, failing the
+  `in client.relations` assertion. This is not a call-level unit test of `classify()` or
+  `list_routines()` in isolation (which the round-1 gap was about) — it drives the real operator
+  entry point.
+- Cross-checked the manifest/orphan bookkeeping in the new test: `_model("fct_fixture",
+  schema="core")` correctly lands `("core","fct_fixture")` in `expected`, so it is excluded from
+  `orphans`, leaving exactly `mart_fixture_index` and `really_broken` as the two orphans
+  `classify()` has to split — matching the assertions.
+- Counted `def test_` occurrences in the updated test file: 29, matching the reported "29 passed."
+- Re-read the regenerated `review_input.patch` diff for `tests/test_cleanup_orphan_relations.py`
+  directly (not just trusting the coordinator's description) to confirm the new test's body matches
+  what was described, byte for byte, including the docstring's own claim that the same mutation left
+  every other test green — consistent with my round-1 finding.
+- No other change in this round's delta beyond the one new test and its supporting fixture data;
+  the production script (`scripts/cleanup_orphan_relations.py`) is unchanged from the version I
+  already reviewed and passed on every other axis (routine/relation separation, `resolves()`
+  signature and call sites, dependency pinning, docstring accuracy, dry-run/interruption safety).
 
 ## escalations
 (none)
