@@ -118,10 +118,14 @@ tracker, design rationale in `layering.md`.
   76 times in 22 different wordings.
 - Keep YAML lines to **80 characters**
   ([dbt](https://docs.getdbt.com/best-practices/how-we-style/5-how-we-style-our-yaml)).
-- Keep a description under **600 characters**. BigQuery rejects column descriptions over 1,024, and
-  a description nobody finishes reading is one nobody checks.
+- Length is capped at BigQuery's own maxima — **1,024 for a column**, **16,384 for a model or
+  seed** — measured on the RENDERED text and enforced by
+  `scripts/check_description_hygiene.py`. That cap exists to stop `persist_docs` failing the
+  build. It is not a brevity rule: **write less because nobody reads more, not because a number
+  says so.**
 - A docs block is **not** a length exemption: `persist_docs` renders the block into the description
-  pushed to the warehouse, so the same limits apply to the result.
+  pushed to the warehouse, so the limit applies to the RESOLVED string — block plus qualifier, not
+  what is written in the YAML.
 
 ### Worked example
 

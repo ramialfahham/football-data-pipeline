@@ -12,64 +12,64 @@ the Top teams ruling record, the Browse drop (`!80`). Product **Matchday Pilot**
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — description-drift programme: MR1-MR5 done, MR6 is LAST (2026-08-20)
+## ⭐⭐ CURRENT — description programme: MR6 is the live task (2026-08-20)
 
-⭐ **THE PLAN IS APPROVED AND WRITTEN DOWN. Read `.claude/task/escalations.log`'s 2026-08-20
-entries FIRST** — the CPO's diagnosis verbatim, the audit's numbers, the definition of a good
-description, the rulings, and the six-MR split with its ordering constraints. Plan file:
+⭐ **READ `.claude/task/escalations.log`'s 2026-08-20 entries FIRST** — six of them, holding the
+CPO's diagnosis, the audit numbers, every ruling, and each MR's own defects. Plan file:
 `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`. **Do not re-scope or re-audit any of it.**
 
-**WHY.** `description:` fields were used as a decision log. An audit measured 616 descriptions
-across 19 files; 5 files held 83% of the bad text; three were provably FALSE. Root cause: they
-have **no reader** — `persist_docs` absent, docs site never generated — so the field had no
-feedback loop and became the cheapest dumping ground.
+**WHY.** `description:` was used as a decision log; three descriptions were provably FALSE. Root
+cause: **no reader** — `persist_docs` absent, docs never generated — so the field had no feedback
+loop. MR6 is the fix for that root cause.
 
-| MR | What | State |
-|---|---|---|
-| 1 | 3 false claims + rewrite `engineering_standards.md` §2 | ✅ `!82` |
-| 2 | docs blocks for the 8 repeated columns | ✅ `!83` |
-| 3 | clean `5_marts/shared/shared.yml` + `seeds/schema.yml` | ✅ `!85` |
-| 4 | clean `core.yml`, `base.yml`, `int_momentum.yml` | ✅ `!86` |
-| 5 | `check_description_hygiene.py` + tests + wiring | ✅ open, awaiting merge |
-| **6** | **`persist_docs` + `dbt docs generate`** | **← LAST** |
+MR1 `!82` · MR2 `!83` · MR3 `!85` · MR4 `!86` — all MERGED. **MR5 is OPEN as `!88`** (its first
+half merged as `!87`). **MR6 IS THE LIVE TASK. MR7 = #82, after it.**
 
-⚠ **ORDERING IS LOAD-BEARING.** MR5 after 3-4, so the gate is green on day one (`check_copy_gate.py`
-precedent). MR6 after 3-4 because **BigQuery rejects column descriptions over 1,024 chars and 15
-currently exceed it** — enabling `persist_docs` first BREAKS the nightly build.
+**MR6, and it is the one that can BREAK PROD.** Turn on `+persist_docs: {relation: true, columns:
+true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. It gives descriptions a
+reader, and its `catalog.json` is what makes #82 possible at all — that is why MR7 follows it.
+⚠ **NO `seeds:` block exists in `dbt_project.yml`** — one must be added, and seeds were the worst
+offender. ⚠ Length is already safe: the gate caps at BigQuery's own maxima (1,024 column / 16,384
+table) on the RENDERED text. Prove it anyway on a **dev target only** (`dbt run --select
+competition_types`, then `bq show --schema`); never `dbt build` against prod.
 
-**MR6 concretely, and it is the one that can BREAK PROD.** Turn on `+persist_docs: {relation: true,
-columns: true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. That finally gives
-descriptions a reader, which is the root cause the whole programme was about.
-⚠ There is **NO `seeds:` block** in `dbt_project.yml` — one must be added, and seeds were the worst
-offender. ⚠ BigQuery hard-rejects a column description over 1,024 chars; the gate holds everything
-at 600, so verify that still holds before enabling. Test on a **dev target only**
-(`dbt run --select competition_types`, then `bq show --schema`); never `dbt build` against prod.
+✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, in CI AND in
+`stop_gate.py`'s FAST_GATES ("do both", logged). 618 descriptions pass, 31 tests, **seen RED on
+real content**. ⚠ It checks CONTENT, never PRESENCE — that gap is #82.
+⚠ Rules match ANNOTATION forms, not plain verbs: bare `ruled` hits "goal ruled out for offside".
+A rule that fires on correct text gets weakened, not obeyed.
 
-✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, wired in CI AND in
-`stop_gate.py`'s FAST_GATES — CPO approved both ("do both"), logged in `escalations.log`.
-618 descriptions pass; 21 tests, one per banned class. **Seen RED on real content, then restored.**
-⚠ Its rules match ANNOTATION forms, not plain verbs, deliberately and measurably: a
-case-insensitive `CORRECTED` hits six legitimate "the country corrections from the seed" uses. A
-rule that fires on correct text gets weakened, not obeyed.
+⭐ **#82 (MR7) IS SCOPED — do not re-derive it.** CPO: *"core, intermediate and marts -> I agree,
+business meaning starts in core downstream."* Object-level required at EVERY layer (12 missing,
+incl. **11 of 11 SOURCE TABLES**); columns in core/int/marts only (262 missing); staging/base OUT.
+"Business-facing" DROPPED — no machine decides it. ⚠ **Thin filler is WORSE than none for an AI**
+— it costs context and looks authoritative; the gate enforces presence, so presence must not
+become the goal. ⚠ **Order by LEVERAGE:** core FACT columns are the semantic root, so a leg column
+keeping its upstream name should `{{ doc() }}` it, not restate it. Full reasoning in the log.
 
-⛔ **SIX TRAPS, every one hit for real in MR1-MR5. Do not re-learn them.**
-1. **A too-narrow grep reported as a clean sweep.** "partition key" is FALSE — zero models declare
-   `partition_by`/`cluster_by`. MR3 cleared the 4 in `5_marts/shared/`; a WIDER sweep found **6
-   more** (5 docs + `.claude/hooks/dbt_layer_gate.py:72`, which re-teaches it as PreToolUse
-   context on **every mart edit**). That is **#79**, and it needs `protected_override`.
-1b. **A KEYWORD SCAN IS BLIND TO A FALSE CLAIM THAT USES NO KEYWORD.** Three `base.yml`
-   descriptions claimed "explicit ref() per competition staging" — the pattern the repo FORBIDS —
-   with no ref, date or emoji and under 600 chars. Found by READING the SQL, not scanning.
-2. **A bulk-edit script that reported success while matching nothing.** Any such script must assert
-   it found work (`if seen == 0: return 1`) or it silently no-ops and looks green.
-3. **A shared docs block that is wrong at some call sites.** `dbt parse` cannot catch it — read
-   every call site.
-4. **Verify a reviewer finding, then act.** One MR2 finding was a false positive; both MR3
-   findings were real and one was a lie I had just written. Check the code either way.
+⛔ **#83 — COMPETITION CLASSIFICATION HAS NO CORE DIM.** `competition_type`/`entity_type` live only
+in seeds (`dim_league.league_type` is the PROVIDER's, not ours), so 12 models join the seed direct
+— incl. the two `int_legs__*` underlying 68 of 80 metrics. ⚠ **SEEDS ARE SOURCES, settled, and dbt
+agrees.** The defect is LAYERING: consume a seed ONCE at base/core, publish a dim. ⚠ The registry
+is NOT ingestion-only — it carries both, and the sync already projects only the product half.
+
+⛔ **SEVEN TRAPS, every one hit for real in MR1-MR5. Do not re-learn them.**
+1. **A too-narrow grep reported as a clean sweep.** "partition key" is FALSE. A wider sweep found
+   **6 survivors** (5 docs + `.claude/hooks/dbt_layer_gate.py:72`, which re-teaches it on **every
+   mart edit**) = **#79**, needs `protected_override`.
+1b. **A KEYWORD SCAN IS BLIND TO A FALSE CLAIM USING NO KEYWORD.** Three `base.yml` descriptions
+   claimed "explicit ref() per competition staging" — FORBIDDEN — with no ref, date or emoji.
+   Found by READING the SQL.
+2. **A bulk-edit script reporting success while matching nothing.** Assert it found work.
+3. **A shared docs block wrong at some call sites.** `dbt parse` cannot catch it.
+4. **Verify a reviewer finding, then act** — both directions. Some were false positives; one was a
+   lie I had just written.
 5. **`--review-patch` writes to STDOUT.** Without `> .claude/task/review_input.patch` the patch is
-   silently the PREVIOUS task's and looks plausible — check its `diff --git` list against
-   `git status`. Relatedly `origin/main` is the DORMANT GitHub remote, commits behind, so
-   `merge-base HEAD origin/main` gives a stale base; use `main`/`gitlab/main`.
+   silently the PREVIOUS task's. Check its `diff --git` list against `git status`. Relatedly
+   `origin/main` is the DORMANT GitHub remote, so `merge-base HEAD origin/main` is a stale base.
+6. ⛔ **NEVER WRITE A REVIEWER'S VERDICT YOURSELF.** MR5's `review.md` recorded PASS for two who
+   had returned FAIL. Send the round-2 confirm and wait. ⚠ And do not edit ANY file while the
+   suite runs — editing the handover mid-run pushed it over its cap and "failed" healthy tests.
 
 ⛔ **THE STANDING LESSON, from the Browse drop (08-19), confirmed twice more since.** CPO: *"you
 spam things all around the repo and then forget to clean up. and then we have contradictions in our
@@ -79,14 +79,13 @@ thing — never the feature's name.** Evidence on GitLab **#71**.
 
 ⛔ **TEAM NAMES — the other live thread, paused not finished.** The provider's `team_name` is often
 not the display name even when unique. `team_name_overrides` (joined in
-`base_apif__teams_global.sql`) fires on completeness OR collision since the CPO's ruling: *"we have
-to define the name we use as the single source of truth for what we display."* **97 of ~130 Pool 1
-teams (PL/PD/SA/BL1/ED/L1/LP) corrected and merged**, each citing an English Wikipedia URL.
-⚠ **Bayern München DELIBERATELY EXCLUDED** — locale preference is never corrected.
-**NOT done**: ~15 Pool 1 teams Wikipedia didn't clearly cover; teams outside Pool 1.
-**NOT investigated**: the player-name equivalent — `dim_player` has duplicate short-names
-("M. Camara" ×33), even in Serie A/UCL. Root cause first. ⚠ Duplicate provider records for ONE
-club are a separate, unbuilt mechanism — GitLab **#81**.
+`base_apif__teams_global.sql`) fires on completeness OR collision: *"we have to define the name we
+use as the single source of truth for what we display."* **97 of ~130 Pool 1 teams corrected and
+merged**, each citing an English Wikipedia URL. ⚠ **Bayern München DELIBERATELY EXCLUDED** —
+locale preference is never corrected. **NOT done**: ~15 Pool 1 teams Wikipedia didn't cover; teams
+outside Pool 1. **NOT investigated**: the player-name equivalent — `dim_player` has duplicate
+short-names ("M. Camara" ×33). Root cause first. ⚠ Duplicate provider records for ONE club are a
+separate, unbuilt mechanism — **#81**.
 
 ✅ **BROWSE — DROPPED AND MERGED (`!80`).** Do not re-propose without a new ruling. Home renders
 **next matches ALONE**. KEPT and NOT stale: the struck decision record, and `08_browse.md` + the
@@ -105,9 +104,9 @@ from a page is the same violation as computing in the frontend; (2) no mart colu
 registered in `99_gaps_register.md` before building; (3) check the mock's OWN rendered numbers
 against the spec's words before trusting either.
 
-⭐ **AUTOMATION — NOT built, NOT approved.** A trace script (mock → element-by-element source table
-+ gap list) and a staleness checker would mechanize THE METHOD. Ask before building either. **#78**
-tracks the next `10_home.md` sweep this would replace.
+⭐ **AUTOMATION — NOT built, NOT approved.** A trace script (mock → source table + gap list) and a
+staleness checker would mechanize THE METHOD. Ask first. **#78** tracks the `10_home.md` sweep it
+would replace.
 
 ⚠ **STANDING RULE: the handover rides in the SAME commit as the code it describes.** Broken four
 times on 08-19/08-20; MR3 followed it. Between the two commits the file states something untrue,
@@ -179,13 +178,12 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
    (`.gitlab-ci.yml` asks only for `teams,fixtures`). ⚠ `display_group` is NOT deletable alone:
    `mart_competition_index.sql:90-91` reads its blank-ness as the browsable gate.
 2b. **A trending-doc-rot pass.** Several docs describe the "trending" block as if it exists; it was
-   cut 2026-08-08. Two fixed in `!80`; `09_chrome.md` §4/§10 remains. SEMANTIC sweep, not a word
-   search.
+   cut 2026-08-08. Two fixed in `!80`; `09_chrome.md` §4/§10 remains. SEMANTIC sweep.
 3. ⛔ **TURN ON "Pipelines must succeed"** (Settings → Merge requests) — FALSE since the migration;
    pairs with **#21 Q2** ("the server should enforce it").
-4. **#47** (the competition hub) — makes the competitions page's rows real links. Three decisions
-   if you touch it: 680px width (not the mock's 1080px), single-select filters, rows inert until
-   it ships. Wire `competition_index` into CI's `--entities` list in #47's MR, not before.
+4. **#47** (the competition hub) — makes the competitions page's rows real links. Decisions if you
+   touch it: 680px width (not the mock's 1080px), single-select filters, rows inert until it
+   ships. Wire `competition_index` into CI's `--entities` list in #47's MR, not before.
 5. **Audit stream**: Q2 of #21 · delete 2 dead `~/.claude/hooks/` copies · route/delete
    `seo-expert-reviewer`.
 6. **COST, SYSTEMATICALLY** — trigger/cost map first, in a GitLab issue.
@@ -193,7 +191,7 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
 8. **Legal/imprint**, then launch.
 9. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
    PROTECTED path editable with no `protected_override` · `Regular Season - 20` the copy gate
-   cannot see · blank `competition_type` skipped by all 3 guards.
+   cannot see · blank `competition_type` skipped by all 3 guards (see **#83**).
 10. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on Edit only, so
    `sed -i` bypasses it · **#68** the form-window CODE diverges from `metrics_context_model.md` §4
    (⚠ the agreement is the authority; never fix by editing the doc) · **#60** `.venv` · **#70**
@@ -201,7 +199,7 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
 
 ## OPEN — the CPO's alone
 Imprint operator + address (#799) · hosting recurring run · feedback Apps Script (#687) · **#81**
-duplicate-club alias · #875 · #895 slim-vs-drop · #21.
+duplicate-club alias · #875 · #895 slim-vs-drop · #21 · **#82**'s "business-facing" definition.
 
 ## DO NOT (standing)
 - **DESIGN, the weak spot:** never off the cuff. Rendered output not prose; copy decisions BEFORE
@@ -217,8 +215,8 @@ duplicate-club alias · #875 · #895 slim-vs-drop · #21.
 
 ## Verified state reference
 - **v2 built:** design system + 28 components (measured), fixture page, team page (3 tabs), home
-  page (next matches ONLY since the browse drop; ordering shared with the competitions page),
-  competitions index, page-spec + SEO contract, per-locale metric labels.
+  page (next matches ONLY since the browse drop; ordering shared with competitions), competitions
+  index, page-spec + SEO contract, per-locale metric labels.
 - ⚠ MEASURE test/model counts, never predict (#904) — none pasted here stale.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.
