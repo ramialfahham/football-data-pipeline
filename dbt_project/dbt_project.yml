@@ -88,6 +88,24 @@ vars:
 # Hierarchical Model Configuration
 models:
   football_data_pipeline:
+    # Descriptions are pushed to BigQuery as table and column metadata, so `bq show --schema`,
+    # the console and any BI tool show what a column means. Until 2026-08-21 they were pushed
+    # NOWHERE: the audit that started the description programme found the field had been used as
+    # a decision log, and the root cause it identified was that nothing read it. This is the
+    # reader. Set ONCE at project level rather than per layer — unlike +materialized, which is a
+    # cost decision taken per layer, this is a property of the whole project.
+    #
+    # ⚠ THIS CAN BREAK THE PROD BUILD. BigQuery hard-rejects a column description over 1,024
+    # characters and a relation description over 16,384, and a rejected description fails the
+    # model that carries it. 15 descriptions were over 1,024 when the programme started, which is
+    # why turning this on was sequenced behind the cleanup rather than done first.
+    # scripts/check_description_hygiene.py now holds every description under those limits and
+    # measures the RENDERED text, so a {{ doc() }} block counts as what it resolves to and not as
+    # its reference. Do not treat a docs block as a way around the limit.
+    +persist_docs:
+      relation: true
+      columns: true
+
     # 1. Staging: Raw cleanup. TABLES since 2026-08-12 (#33 items 9/10). These were views from
     # the project's first commit, on the same "not storing an intermediate result is cheaper"
     # reasoning #547 already disproved one layer up. A view stores nothing, so every reader
@@ -129,6 +147,20 @@ models:
     5_marts:
       +materialized: table
       +schema: marts
+
+# Seeds: the configuration and mapping tables. This block exists ONLY to carry persist_docs, and
+# it is new — seeds had no config block at all, which is part of why they were the audit's worst
+# offender (seeds/schema.yml alone held 38% of the contaminated text, having tripled in four weeks
+# while describing the same 9 seeds).
+#
+# ⚠ KEEP IT persist_docs-ONLY. Seeds declare no +schema, so they ride target.schema — the profile's
+# `dataset:`, which is `dbt_analytics` on prod — through macros/generate_schema_name.sql. Adding a
+# +schema here would silently move every seed to a different dataset and break every ref() to one.
+seeds:
+  football_data_pipeline:
+    +persist_docs:
+      relation: true
+      columns: true
 
 # Snapshots: SCD Type-2 history tables (used for sources the API only exposes as "current").
 # Currently DORMANT — no snapshot .sql files exist, so this block binds nothing. NOTE: snapshot
