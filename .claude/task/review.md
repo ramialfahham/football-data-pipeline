@@ -11,9 +11,27 @@
 > earlier artifact asserted a governance signature that did not exist, and correcting it now does
 > not undo that it was committed. Recorded in escalations.log.
 
-diff_sha256: 2f57c158ec6b70cdd2bef9782b9991a9f9c5495a454ae4c3f0c92fe41dd7a8a5
+diff_sha256: 9dbb0e9137b6bbdc0fbf8861a9fc007fd86fd60d364d6bf05e3dcbcd1bae601d
 
 rounds: 3
+
+> ⚠ REBOUND 2026-08-21, and NOT because anything reviewed changed. The previous value
+> (`2f57c158…`) was correct when it was written and CI later recomputed `9dbb0e91…`, failing F11.
+>
+> THE CAUSE IS THE MERGE-BASE MOVING, not the two chore commits after the review. `_resolve_base`
+> takes `merge-base HEAD gitlab/main`. When this file was written, main was `dc6d7eb`. Then `!87`
+> merged the FIRST commit of this branch (`7d69dd6`, the gate itself) into main as `b378be5`, so
+> the merge-base advanced from `dc6d7eb` to `7d69dd6` and the cumulative branch diff legitimately
+> shrank to just what is not yet in main.
+>
+> So the diff this file now binds to is a SUBSET of what the four reviewers below examined, not a
+> different or larger one. `790f7b9` and `b1e032e` touched only `.claude/active_work.md` and
+> `.claude/task/escalations.log`, both in `hash_exclude_paths`, so they moved no reviewed content
+> either. No verdict below is stale and none was re-requested on that basis.
+>
+> The new value was computed locally with `git_discipline.py --staged-hash` and is byte-identical
+> to the number CI itself recomputed in the failing job — which is #63's claim about the hash being
+> content identity, confirmed on a real split branch rather than argued.
 
 ## scope-auditor
 VERDICT: PASS
