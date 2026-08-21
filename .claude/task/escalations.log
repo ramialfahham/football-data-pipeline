@@ -3974,10 +3974,17 @@ a decision log, and three of them are lying. CPO commissions an audit, then appr
   RULINGS, each given in chat on 2026-08-20 in answer to a posed choice:
     - READERS: "Both" — turn on `persist_docs` (BigQuery table/column metadata) AND publish
       `dbt docs generate` from CI. Chosen over either alone or neither.
-    - REUSE: "Docs blocks" — dbt-native `{% docs %}` + `{{ doc() }}`, explicitly NOT the
-      third-party dbt-osmosis, so no new dependency enters the pipeline. Note dbt Core does not
+    - REUSE: "Docs blocks" — dbt-native `{% docs %}` + `{{ doc() }}`. Note dbt Core does not
       propagate descriptions downstream automatically (open upstream feature requests); dbt Cloud
       Explorer does, and we are on Core.
+      ⚠ CORRECTED 2026-08-21, AT THE SITE OF THE ERROR. This bullet used to continue "explicitly
+      NOT the third-party dbt-osmosis, so no new dependency enters the pipeline". The CPO never
+      said that. His recorded answer is the two words "Docs blocks", chosen from a posed list;
+      the osmosis rejection was narrative wrapped around it by the writer of this entry, and it
+      then hardened into a ruling that was quoted back to him as fact. He rejected osmosis on
+      2026-08-21 on its own merits ("osmosis sounds too risky"), which is a DIFFERENT and later
+      decision — see that day's entry. The false half is deleted here rather than only
+      contradicted later, because a reader of this entry would otherwise still be misled.
     - SCOPE: "The whole plan" — all six MRs, chosen over "just fix the three lies" and over a
       smaller fix-plus-gate option.
 
@@ -4373,3 +4380,110 @@ LIVE view was offered for deletion under a risk-free label. Found by the CPO, no
   tables and views. The tests were self-consistent and blind in the same place the code was. A
   human reading the actual output list found it in one question. Reading the RESULT is not
   redundant with testing the CODE.
+
+
+2026-08-21 feat/description-coverage-objects — #82, the description COVERAGE programme. FOUR CPO
+RULINGS, and a CORRECTION OF THIS FILE BY THE CPO that is the most important line in the entry.
+
+  ⛔ THE CORRECTION FIRST, because it indicts this file. I told the CPO he had rejected dbt-osmosis
+  on 2026-08-20, citing the RULINGS block above. He answered: "dbt-osmosis I didn't reject it."
+  He was right. His recorded answer that day is the two words "Docs blocks", picked from a posed
+  list of options. The clause "explicitly NOT the third-party dbt-osmosis, so no new dependency
+  enters the pipeline" was reasoning the WRITER added around his answer. It reads as his, it was
+  quoted back to him as his, and it would have silently removed a tool from consideration on the
+  strength of a decision he never made.
+  THE FALSE HALF IS NOW DELETED AT ITS OWN SITE (the 2026-08-20 entry above), not merely
+  contradicted here, because a reader landing on that entry would otherwise still be misled.
+  ⚠ THIS IS THE PROGRAMME'S OWN DEFECT CLASS, in the programme's own durable record. The whole
+  point of the description work is that a claim gets written once, is never re-checked, and
+  hardens into fact. The same thing happened here, in `escalations.log`, which is where rulings
+  were moved TO for safe keeping. The lesson is narrower than "be careful": when recording a
+  chosen option, record the OPTION and nothing else. The reasoning for why the other options lost
+  is the writer's, and must not be phrased as the chooser's.
+
+  RULING 1 — EVERY COLUMN, NO EXCEPTION. Asked whether the coverage rule should be every column in
+  core/intermediate/marts or every column minus an explicit exemption list, the CPO answered
+  "every column, no exception". Scope stays those three layers; staging and base remain out, which
+  his own "starting in core" phrasing in the same conversation reinforces.
+
+  RULING 2 — NO THIN FILLER, AND WHERE THE TEXT COMES FROM. Verbatim: "thin fillers should not
+  happen, starting in core we are applying our definitions alongside what the provider gives us as
+  descriptions, information upstream so we use it downstream where applicable." So a definition is
+  OURS, informed by what the provider documents, written once at its most upstream sensible point
+  and reused below. ⚠ CHECKED RATHER THAN ASSUMED: the repo does NOT hold the provider's field
+  definitions. `docs/api_football_ingestion_blueprint.md` is condensed provider documentation but
+  covers ingestion BEHAVIOUR (pagination, rate limits, coverage flags, missing statistics), not
+  what a field means. The provider half therefore comes from API-Football's live v3 documentation,
+  which `docs/data_contract.md` already links.
+
+  RULING 3 — DOCS BLOCKS ONLY WITH A MECHANISM. Verbatim: "We use docs blocks but only if we have
+  a mechanism to apply it consistently." This is the repo's own measured principle (33 of 50
+  prose-only corrections recurred; every mechanised one stopped) turned on the docs blocks
+  themselves. THE EVIDENCE IT IS NEEDED: 112 of the 262 undescribed declared columns are columns
+  whose NAME ALREADY HAS A BLOCK that was never referenced. Hand-referencing has already failed at
+  scale. ⚠ dbt Core does not propagate by itself, so the mechanism must be ours: a gate rule that
+  a column whose name has a block must reference it, WITH a reasoned opt-out for sites where the
+  same name legitimately means something else — there are already two `league_code` blocks for
+  exactly that reason.
+
+  RULING 4 — NO dbt-osmosis. Verbatim: "osmosis sounds too risky." Taken on its merits after the
+  correction above, and it is the real decision on the tool. Recorded with what it costs us: the
+  974 columns that exist in BigQuery and are declared in no yml must now be declared some other
+  way, and downstream inheritance stays manual.
+
+  ⚠ THE ISSUE'S HEADLINE NUMBER IS WRONG, and this is the scoping finding. #82 says 262 columns
+  are undescribed. That counts only columns already written into a yml. Measured against
+  production: 720 columns are declared across core/intermediate/marts, 1,694 actually EXIST, so
+  974 are declared nowhere and no yml-based check can see them. The true gap is 1,236, not 262.
+  It is tractable because names repeat: 500 distinct names across those 1,694, 251 already defined
+  somewhere, so the writing job is 249 definitions. The highest-reach are the provider's own stat
+  vocabulary — `goals_against` in 20 tables, `passes_total` in 19, `duels_won` in 16.
+  The CPO ruled "every column" while the stated number was 262; he was told the real number before
+  any code was written, and the ruling stands.
+
+  ⚠ `int_team__market_value_latest` HAS NO DESCRIPTION BECAUSE IT HAS NO PURPOSE YET. CPO: "there
+  is nothing in it because we have not defined the process and pipeline to populate it." VERIFIED
+  rather than taken on trust: it is a view over `fct_team_market_value_snapshot`, and that fact
+  table holds 0 rows in production. Its description states that as a known limit. Whether a model
+  with no populating process should exist at all is the CPO's call, raised here and not decided.
+
+  ⛔ TWO FALSE CLAIMS OF MINE ON THIS BRANCH, BOTH FOUND BY REVIEWERS, NEITHER BY ME. Recorded
+  because MR1 of the coverage programme produced exactly the defect the programme exists to remove,
+  and the SECOND one carries a rule that changes how MRs 2-5 must be done.
+
+  (a) THE DANGEROUS ONE. The `raw_apif_fixture_details` source description I wrote ended "several
+  rows can describe the same fixture and the newest is the fullest". False.
+  `docs/data_contract.md:134` states the opposite — "Both versions are kept deliberately, and base
+  picks per entity ... a retry chasing late statistics can come back richer in one section and
+  poorer in another" — with fixture 1564795 yielding 27 events of which indices 17-26 survive ONLY
+  in the payload the retry would have replaced. `base_apif__fixture_events.sql:25` dedups per
+  `(league_code, fixture_id, event_index)`, which is only necessary BECAUSE the newest row is not
+  the fullest. Anyone following my sentence would take the newest row per fixture and silently lose
+  data. Caught by analytics-engineer-reviewer's round-1 FAIL.
+
+  ⭐ THE RULE THIS YIELDS, AND IT GOVERNS MRs 2-5. I did not invent that sentence; I COMPRESSED a
+  staging model's description without reading the section of the data contract that governs it.
+  The CPO's ruling for this programme is to define upstream and reuse downstream, so reuse is the
+  method, not an accident — and reuse carries an INHERITED-ERROR risk that inventing does not,
+  because upstream prose can already be a lossy compression. analytics-engineer-reviewer's own
+  formulation, adopted:
+    "for every sentence that describes BEHAVIOUR ACROSS MULTIPLE RAW ROWS OR VERSIONS (not just
+     grain), trace it to the specific base-layer dedup/merge logic it implies, not just to the
+     staging model's own prose, since staging prose can carry the same compression error forward."
+  So: GRAIN claims are safe to inherit. BEHAVIOUR-ACROSS-VERSIONS claims are not, and must be
+  traced to the code that implements them.
+
+  (b) THE METHOD ONE. I flagged `RAW_APIF_LEAGUES` as "absent from the raw table inventory in
+  `docs/data_contract.md`". It is at line 65 ("Additional smaller table"), plus twice in the
+  endpoint tables, and that file explains at lines 39-42 why it sits outside the grain table. I had
+  grepped only the ROWS of the grain table, seen no match, and reported an absence as a gap — trap
+  1 of the handover, a too-narrow grep reported as a clean sweep. Surfaced by scope-auditor.
+
+  ⚠ A REVIEWER OBSERVATION RECORDED RATHER THAN ACTED ON, with the reason. scope-auditor noted the
+  withdrawn flag in (b) now sits in the contract's `decisions_reserved`, which
+  `docs/working_agreement.md` §2 defines as CPO-class OPEN QUESTIONS, and a withdrawn claim is not
+  one. It is right, and it explicitly declined to FAIL on it. Not moved, because `contract.md` is a
+  task artifact the next task overwrites while three verdicts were already bound to that diff, so
+  the move would have cost a third review round for a bullet's location. The durable record is
+  here. If a future task finds a withdrawn claim parked in `decisions_reserved` and is misled by
+  it, this paragraph is the evidence that the placement was known and traded away deliberately.

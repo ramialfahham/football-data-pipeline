@@ -1,93 +1,104 @@
-# Acceptance evidence — UDF calls read as missing tables (#84 follow-up)
+# Acceptance evidence — #82 MR1, object-level description coverage
 
-No `acceptance_criteria:` block is required: no `site_v2/src/` path is in scope. This records the
-`done_when` evidence, read from OUTPUT rather than exit codes (#904).
+> One line per declared criterion in `contract.md`, each read from an actually-executed command and
+> from its OUTPUT rather than its exit code.
+>
+> ⚠ THE BULLETS BELOW ARE INDENTED 2sp ON PURPOSE. `_block()` in `git_discipline.py` collects lines
+> under `criteria_demonstrated:` until the first NON-INDENTED non-empty line, so a bullet at column
+> zero terminates the block immediately and the gate reads ZERO criteria.
 
 criteria_demonstrated:
 
-  - **The defect is real and was proved before being fixed.** `marts.mart_fixture_index` calls
-    `dbt_analytics.url_fixture_slug`. `bq ls --routines` shows three routines exist
-    (`url_fixture_slug`, `url_entity_slug`, `url_kebab`), and a dry-run against the view returns
-    `Query successfully validated ... will process 1558728 bytes`. It was never broken.
+  - THE TWELVE GAPS ARE CLOSED, counted from dbt's manifest rather than by eye. After `dbt parse`:
+    `models undescribed: 0`, `seeds undescribed: 0`, `sources undescribed: 0 of 11`. Before this
+    MR the same measurement returned 1 model and 11 of 11 source tables.
+  - THE SOURCE DESCRIPTIONS ARE DERIVED, NOT INVENTED, which is the CPO's "information upstream so
+    we use it downstream" applied to prose. Each states what the payload holds, what ONE row is,
+    and a known limit, taken from what the staging models and `docs/data_contract.md` already
+    establish: the endpoint, whether a fetch covers a WHOLE league or a narrower slice, and
+    append-only versus accumulating behaviour. Examples of limits carried through rather than
+    glossed: transfers are fetched BY TEAM so an intra-league move returns twice; squads can list
+    the same player twice; player profiles and player teams never refresh an existing row;
+    fixture statistics are absent for competitions the provider does not cover to that depth, and
+    absent is not zero.
+  - `int_team__market_value_latest` IS DESCRIBED WITH ITS EMPTINESS AS A LIMIT, and the emptiness
+    was VERIFIED not assumed: `select count(*) from core.fct_team_market_value_snapshot` returns
+    **0** in production, which is the CPO's "we have not defined the process and pipeline to
+    populate it", confirmed against the warehouse.
+  - ⚠ THE MODEL WAS DECLARED IN NO YML AT ALL — that is WHY it had no description — so this MR
+    creates `int_team_market_value.yml`. The path follows the existing subdirectory precedent
+    (`domestic_league/matchday/int_matchday.yml`), not a new convention.
+  - THE GATE WALKS FILES ON DISK, NOT YAML ENTRIES, and that is the load-bearing design choice.
+    A check that read only yml entries would have found nothing to complain about for the model
+    above and passed it green — the exact blind spot being closed. Model set comes from
+    `models/**/*.sql`, seed set from `seeds/*.csv`; a missing yml entry is then just the extreme
+    case of a missing description. Source tables are the deliberate exception, because a source is
+    not a file and its declaration IS its existence.
+  - THE COVERAGE RULE WAS SEEN RED ON THE REAL REPO, not only against tmp fixtures, because the
+    claim is "this gate protects this repo" and a fixture cannot prove that. Three realistic
+    regressions, each restored from a byte backup verified by sha256:
+      `model's only yml deleted (the real defect)` RED ·
+      `a source table description removed` RED ·
+      `a seed description removed` RED.
+    Baseline green before, green after.
+  - THE DIAGNOSIS ORDER WAS WRONG AND A TEST CAUGHT IT. First version ran the coverage check after
+    the `MIN_DESCRIPTIONS` floor, so a project with models but no descriptions reported "the walk
+    has stopped matching" — blaming the extraction for what was actually an empty-description
+    defect, and sending a reader after the wrong thing. Coverage now runs BEFORE the floor, the
+    same ordering the unparseable-file check already uses for the same reason. The two checks read
+    the yml independently, so a genuinely broken extraction still reaches the floor and is still
+    diagnosed correctly.
+  - THE COVERAGE DISCOVERY HAS ITS OWN ANTI-VACUOUS FLOOR, and it fires. `MIN_MODELS = 50` and
+    `MIN_SOURCE_TABLES = 5`: without them, a moved directory or a changed suffix makes "every model
+    is described" true by finding no models. `test_the_coverage_floor_fires_when_discovery_finds_
+    nothing` runs both at their REAL values and asserts the output says `discovery looks broken`
+    rather than reporting a content problem.
+  - ⚠ FIVE EXISTING TESTS WENT RED AND THE FIX WAS NOT TO WEAKEN THEM. The tmp fixtures hold a
+    schema file and no `.sql`, so the new floor tripped on every green-expecting test. The autouse
+    fixture now lowers `MIN_MODELS`/`MIN_SOURCE_TABLES` for tmp projects exactly as it already did
+    for `MIN_DESCRIPTIONS`, and both keep their real values in the floor's own test and against the
+    real project. No assertion was deleted.
+  - THE GATE IS GREEN REPO-WIDE, so main never goes red — the `check_copy_gate.py` precedent.
+    Output: `DESCRIPTION HYGIENE ok: 630 descriptions across 20 files (507 column, 123 model/seed),
+    6 rules, 9 docs blocks resolved, rendered lengths within 1024/16384; every one of 97 models and
+    9 seeds on disk is described`. 630 is the previous 618 plus this MR's 12.
+  - NO NEW WIRING AND NO PROTECTED-PATH EDIT WAS NEEDED. `validate:governance` and
+    `stop_gate.py`'s FAST_GATES already invoke this script, so the new rule reaches CI and turn-end
+    without touching `.gitlab-ci.yml` or any hook.
+  - `dbt parse` is clean. The only warning is the pre-existing
+    `unused configuration paths: snapshots.football_data_pipeline`, unrelated to this MR.
+  - `python -m pytest tests/` — recorded below from the actual run, not predicted (#904).
+  - The five offline gates pass, read from their OUTPUT and not their exit code.
+  - Handover rides in this commit and fits its cap: 15,975 characters against 16,000, measured with
+    Python `len()`.
 
-  - **The whole CLASS was measured, not just the instance.** Across every orphan view body, 183
-    extracted referents are not tables: 182 genuinely absent per-competition raw tables, and
-    exactly 1 routine. No `INFORMATION_SCHEMA` reference and no other routine call exists in the
-    set, so routines were the entire false-positive class.
+## Corrected in round 2, both of them mine
 
-  - **Routines can never become droppable.** `find_orphans()` iterates the warehouse map, so
-    folding routines into it to make `resolves()` work would select every UDF for deletion. They
-    are held in a separate set, and `test_a_routine_is_never_returned_as_an_orphan` pins it.
+  - A DESCRIPTION I WROTE WAS FALSE, and it is the worst kind: dangerous guidance stated as a known
+    limit. `raw_apif_fixture_details` said "several rows can describe the same fixture and the
+    newest is the fullest". `docs/data_contract.md:134` says the opposite — both versions are kept
+    deliberately, "a retry chasing late statistics can come back richer in one section and poorer
+    in another" — with fixture 1564795 yielding 27 events of which indices 17-26 come from the
+    payload the retry would have replaced. `base_apif__fixture_events.sql:25` dedups per
+    `(league_code, fixture_id, event_index)`, which only makes sense BECAUSE the newest row is not
+    the fullest. A stranger following my sentence would take the newest row and silently lose
+    events. Caught by analytics-engineer-reviewer's round-1 FAIL, verified against both the
+    contract and the SQL before fixing. Now states that no single row is reliably fullest, that
+    versions resolve per entity, and that `fixture_id` is not unique here.
+  - A FLAG I RAISED WAS FALSE, WITHDRAWN. I claimed `RAW_APIF_LEAGUES` was absent from
+    `docs/data_contract.md`. It is at line 65 ("Additional smaller table"), plus twice in the
+    endpoint tables, and the file explains at 39-42 why it sits outside the grain table. I had
+    grepped only the grain table's rows and reported the absence as a gap — trap 1, a too-narrow
+    grep reported as a clean sweep. Surfaced by scope-auditor.
+  - ONE REVIEWER NOTE ADOPTED. platform-reviewer passed but observed the success line globbed the
+    trees a third time and dropped the `dbt_packages/` exclusion the enforcement path uses.
+    Cosmetic today, but two definitions of "which files count" can drift, so both now use one
+    `_on_disk()` helper.
 
-  - **Every guard was mutation-tested, old and new, and each was seen RED:**
+## Raised, not fixed
 
-    ```
-    mutation                                             verdict   caught by
-    manifest floor removed                               RED       test_empty_manifest_aborts..., test_manifest_just_below_the_floor_aborts
-    __dbt_tmp skip removed                               RED       test_dbt_tmp_relations_are_never_selected
-    raw operational exclusion removed                    RED       test_raw_operational_tables_are_never_selected
-    dry-run ignored (drops without --confirm)            RED       test_dry_run_is_the_default_and_deletes_nothing
-    resolution made one-level instead of transitive      RED       test_brokenness_is_transitive, test_a_view_calling_a_udf_is_live_not_broken, +1
-    dataset allowlist widened                            RED       test_only_allowed_datasets_are_ever_listed, test_list_routines_reads_every_allowed_dataset...
-    snapshot keyed on config.schema                      RED       test_a_snapshot_is_keyed_on_target_schema_not_schema, +1
-    routine recognition removed (the defect itself)      RED       test_a_view_calling_a_udf_is_live_not_broken, test_classify_passes_routines_through
-    classify() stops passing routines through            RED       test_classify_passes_routines_through
-    list_routines() returns nothing                      RED       test_list_routines_reads_every_allowed_dataset_and_nothing_else
-    main() stops fetching/threading routines (WIRING)    RED       test_main_does_not_drop_a_udf_calling_view_in_phase_broken
-    manifest sources ignored                             RED       test_declared_sources_protect_raw_tables
-    12/12 mutations caught. Script restored byte-for-byte.
-    ```
-
-  - **The WIRING mutation was added because a reviewer found it, and it was STILL GREEN first.**
-    platform-reviewer FAILed round 1 on this: `classify()` and `list_routines()` were each tested
-    in isolation, but nothing drove `main()` with a populated routine set, so reverting the two
-    lines in `main()` that fetch and thread routines left the entire suite green. I did not take
-    that on trust — I added the mutation and ran it:
-
-    ```
-    main() stops fetching/threading routines   STILL GREEN     <- before the new test
-    ...
-    main() stops fetching/threading routines   RED             <- after it
-    ```
-
-    That is the finding proved and then closed. It matters because the production
-    misclassification happened in `main()`, the thing the operator actually runs, not in a unit
-    under test. `test_main_does_not_drop_a_udf_calling_view_in_phase_broken` asserts the
-    consequence rather than the call: `--phase broken --confirm` deletes the genuinely broken view
-    and leaves the UDF-calling one alive.
-
-    ⚠ The first run of this pass reported **10/11 with one `SNIPPET NOT FOUND`**: adding the
-    `routines` parameter changed the line the transitivity mutation targeted, so that guard went
-    unverified. The harness asserts it found its snippet rather than scoring a miss as a pass, so
-    the gap was visible. Fixed and re-run to 11/11. A mutation harness that silently matches
-    nothing is the same false-green shape as a bulk-edit script that matches nothing.
-
-  - **Two of the new tests guard against being vacuous from the inside.**
-    `test_a_view_calling_a_udf_is_live_not_broken` first asserts the OLD wrong answer with an empty
-    routine set, then the right one with routines. `test_classify_passes_routines_through` does the
-    same. If the fix were a blanket "everything resolves", those first assertions would fail.
-
-  - **`test_a_udf_reference_does_not_rescue_a_genuinely_broken_view`** proves recognising routines
-    did not turn `resolves()` into a rubber stamp: a view referencing both a missing table and a
-    real UDF is still BROKEN.
-
-  - **Run dry against production, the classification moved exactly as predicted:**
-
-    ```
-    Manifest expects 117 relation(s) across staging, core, intermediate, marts, dbt_analytics, raw.
-    Warehouse holds 432 relation(s) in those datasets.
-    -> broken:     249   (was 250)
-    -> live-views:  27   (was 26)
-    -> tables:      34   (unchanged)
-    310 orphan relation(s) total.
-    DRY RUN: nothing was changed.
-    ```
-
-    `marts.mart_fixture_index` is now in `live-views` and absent from `broken`, confirmed by
-    parsing the output rather than by eye. The total is unchanged, so nothing was gained or lost
-    from the orphan set — one member moved phase, which is the whole intent.
-
-  - **Nothing was dropped, at any point.** The phase-1 run was stopped by the CPO before execution
-    and has never been run. `bq rm` remains denied by `.claude/settings.json`.
-
-  - **`ruff check . --config .ruff-ci.toml` — `All checks passed!`**
+  - `int_team__market_value_latest` has NO schema test, which §3 requires of every model. Not added
+    here: the table has 0 rows, so any test would pass vacuously by construction, and this repo has
+    shipped vacuous tests before. It needs data first, or a decision that the model goes.
+  - The emptiness is not contained — `mart_team_market_value.sql` reads this model, so an empty
+    fact reaches a MART.

@@ -6,6 +6,13 @@ sources:
     schema: "{{ var('raw_schema') }}"
     tables:
       - name: raw_apif_fixtures_next
+        description: >
+          Scheduled and upcoming fixtures for one competition, as the provider
+          returns them. One row per FETCH of a WHOLE league, holding that
+          league's entire fixture list in a single JSON payload, so a league
+          fetched nightly contributes one row a night. Append-only: nothing is
+          updated in place, so the newest row for a league_code is the current
+          picture and older rows are earlier versions of it.
         identifier: RAW_APIF_FIXTURES_NEXT
         loaded_at_field: ingested_at
         freshness:
@@ -13,6 +20,13 @@ sources:
           error_after: {count: 54, period: hour}
 
       - name: raw_apif_standings
+        description: >
+          League tables as the provider publishes them: rank, points, and the
+          played, won, drawn, lost and goal aggregates behind them. One row per
+          FETCH of a WHOLE league, holding the full standings payload as JSON.
+          Append-only, so the newest row per league_code is current.
+          A cup can return several stage groups in one payload, and a
+          competition that has no table returns none at all.
         identifier: RAW_APIF_STANDINGS
         loaded_at_field: ingested_at
         freshness:
@@ -20,6 +34,13 @@ sources:
           error_after: {count: 54, period: hour}
 
       - name: raw_apif_teams
+        description: >
+          Team identity and home venue for every club in a competition season.
+          One row per FETCH of a WHOLE league, holding all of that league's
+          teams in one JSON payload. Append-only, so the newest row per
+          league_code is current.
+          The provider's team name is not always a usable display name, and one
+          real club can appear under more than one provider id.
         identifier: RAW_APIF_TEAMS
         loaded_at_field: ingested_at
         freshness:
@@ -27,6 +48,12 @@ sources:
           error_after: {count: 54, period: hour}
 
       - name: raw_apif_leagues
+        description: >
+          Competition and season metadata: the provider's own competition id and
+          name, its country, and the list of seasons it covers with their start
+          and end dates. One row per FETCH of a league, holding every season of
+          that competition in one JSON payload. Append-only, so the newest row
+          per league_code is current.
         identifier: RAW_APIF_LEAGUES
         loaded_at_field: ingested_at
         freshness:
@@ -34,6 +61,12 @@ sources:
           error_after: {count: 54, period: hour}
 
       - name: raw_apif_players
+        description: >
+          Player season statistics as the provider aggregates them, per player
+          per team per season. Unlike the league-wide tables here, one row is a
+          FETCH of a single (team, season) page, so one league-season produces
+          many rows and a league is only complete once every one of its teams
+          has been fetched. Append-only.
         identifier: RAW_APIF_PLAYERS
         loaded_at_field: ingested_at
         freshness:
@@ -55,6 +88,14 @@ sources:
       # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.
       # The honest cost: genuine breakage here is now invisible for up to 10 days, not 54h.
       - name: raw_apif_coaches
+        description: >
+          Coach identity and biography for a competition, each with a nested
+          career array listing the clubs they have managed and when. One row per
+          FETCH of a WHOLE league, holding every coach the provider returns for
+          it. Append-only, and re-fetched weekly rather than nightly because
+          managers change rarely.
+          Some career stints carry a club NAME but no club id, so a stint cannot
+          always be resolved to a known team.
         identifier: RAW_APIF_COACHES
         loaded_at_field: ingested_at
         freshness:
@@ -62,6 +103,21 @@ sources:
           error_after: {count: 10, period: day}
 
       - name: raw_apif_fixture_details
+        description: >
+          Everything the provider knows about ONE played fixture in a single
+          JSON payload: its events, both lineups, per-team statistics and
+          per-player statistics.
+          One row per FETCH of one fixture, NOT per league, which makes this the
+          finest-grained raw table here. A fixture fetched again because the
+          first attempt was incomplete contributes ANOTHER row, so fixture_id is
+          not a unique key on this table.
+          NO SINGLE ROW IS RELIABLY THE FULLEST. A retry chasing late statistics
+          can come back richer in one section and poorer in another, so taking
+          the newest row for a fixture DROPS anything that exists only in an
+          older one. Versions have to be resolved per entity, meaning per event,
+          per player and per team, rather than per row.
+          Statistics are absent for competitions the provider does not cover to
+          that depth, and absent is not the same as zero.
         identifier: RAW_APIF_FIXTURE_DETAILS
         loaded_at_field: ingested_at
         freshness:
@@ -73,6 +129,13 @@ sources:
       # Transfers move in bursts (January, summer), not nightly, and this was the single most
       # expensive phase in the run at 26.7 min.
       - name: raw_apif_transfers
+        description: >
+          Player transfer moves, with the clubs involved, the date and the type
+          of move. One row per FETCH of a WHOLE league, holding that league's
+          transfer payloads as JSON. Append-only, and re-fetched weekly because
+          moves arrive in windows rather than nightly.
+          Fetched BY TEAM, so a move between two clubs in the same competition
+          comes back twice, once from each side.
         identifier: RAW_APIF_TRANSFERS
         loaded_at_field: ingested_at
         freshness:
@@ -82,13 +145,34 @@ sources:
       # Player-data tables (PR-a): slow-moving (bio/career/squad), backfilled then refreshed
       # rarely — no aggressive freshness thresholds (they would false-alarm between refreshes).
       - name: raw_apif_squads
+        description: >
+          Current squad membership and shirt numbers, per team. One row per
+          FETCH covering a SUBSET of a league's teams rather than the whole
+          competition. Append-only, so the newest row per league_code is
+          current.
+          The provider sometimes lists the same player twice in one squad, so
+          one row per player per team is the intent and not a guarantee.
         identifier: RAW_APIF_SQUADS
         loaded_at_field: ingested_at
 
       - name: raw_apif_player_profiles
+        description: >
+          Player biography: display name, birth date, nationality, height and
+          weight. One row per FETCH of one player's profile.
+          ACCUMULATING, not snapshotting: the loader skips players already
+          stored, so this table grows as new players appear and an existing row
+          is never refreshed. A player whose bio changes at the provider keeps
+          the version first captured here.
         identifier: RAW_APIF_PLAYER_PROFILES
         loaded_at_field: ingested_at
 
       - name: raw_apif_player_teams
+        description: >
+          A player's club history as the provider records it: one entry per club
+          they have played for, each with the seasons involved. One row per
+          FETCH of one player's history.
+          ACCUMULATING, not snapshotting: the loader skips players already
+          stored, so an existing row is never refreshed and clubs a player joins
+          after that first capture are missing until they are fetched again.
         identifier: RAW_APIF_PLAYER_TEAMS
         loaded_at_field: ingested_at
