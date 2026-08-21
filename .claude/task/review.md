@@ -12,9 +12,29 @@
 > binding hash was still `6a8ab2a5…` afterwards, byte-identical to when they started. They then
 > re-reviewed the round-2 delta on top.
 
-diff_sha256: 336230f4c42375e0c83ca040217a96e96438a2fc3e66fc599721ae8b5aad73ad
+diff_sha256: 585202db4b6469f781fa8f65fd2d0669f388650fffe3ceba0b164a8c06b1e63f
 
 rounds: 2
+
+> ⚠ REBOUND after #84 merged, and NOT because anything reviewed changed. The reviewed value was
+> `336230f4…`. #84 landing moved the merge-base from `e6c1819` to `df0dc7e`, which is the same
+> mechanism recorded on `!88` and `!89`. Hit three times now, so it is a property of working on a
+> repo with concurrent merges rather than an accident.
+>
+> VERIFIED RATHER THAN ASSERTED, because a rebind is not a licence to change content. Every file
+> the hash covers was diffed against the pre-rebase commit `18c888b` and is byte-IDENTICAL:
+> `sources.yml`, `int_team_market_value.yml`, `check_description_hygiene.py`,
+> `test_description_hygiene.py` and `contract.md`. So the three verdicts below cover exactly the
+> content being committed.
+>
+> THE CONFLICT WAS ENTIRELY TASK ARTIFACTS. #84 touched `cleanup_orphan_relations.py` and its
+> tests; this branch touched the description gate and two yml files. Zero code overlap. What
+> collided is the structural problem that every branch rewrites `contract.md`, `review.md`,
+> `acceptance_evidence.md` and the patch, while `escalations.log` and `active_work.md` are appended
+> by both. Resolved as: this task's own artifacts taken whole, `escalations.log` = #84's version
+> PLUS this entry PLUS this branch's correction to the 2026-08-20 osmosis ruling re-applied, and
+> `active_work.md` rebuilt from #84's handover so its orphan-cleanup section survives alongside
+> #82's state.
 
 ## scope-auditor
 VERDICT: PASS
