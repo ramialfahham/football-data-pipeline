@@ -4295,3 +4295,41 @@ file.
   builds nothing and exits 0 — the false-green shape #904 names as this repo's dominant failure,
   arriving inside the step meant to prevent it. The command is
   `dbt seed --select competition_types --target dev`.
+
+2026-08-21 chore/84-orphan-relation-cleanup — CPO AUTHORITY FOR A SCRIPT THAT DROPS PRODUCTION
+RELATIONS, given in chat, recorded here after scope-auditor FAILed round 1 for its absence.
+
+  WHY THIS ENTRY EXISTS. The same reason as the two entries above it (GitLab #28): a contract that
+  asserts a CPO approval nobody can check is self-certifying. This task edits no protected path, so
+  no `protected_override` was owed and none was written. But the thing being built is the only
+  script in the repo that can bulk-DROP production BigQuery relations, and scope-auditor's round-1
+  FAIL was that the authority to build it at all rested on a verbal claim with nothing behind it.
+  The finding was correct and is fixed here. ⚠ Unlike MR5 and MR6, this entry is written AFTER the
+  branch rather than before it. That is the weaker order, and it is recorded as what happened
+  rather than dressed up: the rule is that the approval is written down first.
+
+  WHAT THE CPO ACTUALLY SAID, in three turns.
+  (1) The task brief that opened the work: investigate the orphaned per-competition staging views in
+      production and propose removal. Four steps — enumerate what the manifest does not own, confirm
+      whether they cost storage, check nothing reads them, and "Bring the CPO a proposal before
+      dropping anything." It closed: "Dropping production relations is destructive and is his call,
+      not the agent's. Do NOT drop anything unilaterally."
+  (2) After the findings and a recommendation were put to him: "file the issue first". That
+      authorised GitLab #84 and nothing else.
+  (3) After #84 was filed, and the next step was offered as branching and opening "an MR with a
+      reviewable cleanup script (list mode by default, drop behind an explicit flag) so the
+      operation is code-reviewed before it touches production, rather than 310 loose `bq rm`
+      lines": "open the MR with the cleanup script".
+
+  WHAT THAT AUTHORISES, AND WHAT IT DOES NOT. It authorises building the tool and opening the MR.
+  It does NOT authorise running it with `--confirm`. That stays reserved in the contract and is his
+  alone: turn (1) is explicit and nothing since has superseded it. Nothing has been dropped — every
+  run in this task was a dry run, and `bq rm` is independently denied by `.claude/settings.json`.
+  It also does NOT authorise wiring the script into CI as a recurring reconciliation check. That is
+  a NEW MECHANISM, it is the thing that would actually stop this recurring, and it is proposed in
+  #84 rather than built.
+
+  THE SHAPE HE APPROVED, so a later reader can tell delivery from drift: dry-run by default,
+  `--confirm` to drop, three phases (250 broken views that already error on any query, 26 views that
+  still return data, 34 tables), and the orphan set derived from dbt's manifest on every run rather
+  than from a captured list of names, so the tool does not go stale the way the list would.
