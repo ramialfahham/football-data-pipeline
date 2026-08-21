@@ -4236,3 +4236,62 @@ FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches eit
   columns are the semantic root, and a leg column that keeps its upstream NAME should reference
   the upstream definition through a `{{ doc() }}` block rather than restate it. A RENAMED column
   (`opp.shots_on_goal as opponent_shots_on_goal`) means something different and needs its own text.
+
+
+2026-08-21 feat/description-persist-docs — MR6 of the description-drift programme, and the last of
+it. CPO APPROVAL FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches the
+file.
+
+  WHY THIS ENTRY EXISTS AT ALL. GitLab #28: `protected_override` can claim a CPO ruling with no
+  entry here to back it, which makes the override self-certifying. MR5 set the precedent of writing
+  the approval down first and having the contract cite it, rather than the contract asserting an
+  approval nobody can check. Same shape here.
+
+  THE ASK, and it is deliberately NOT put in terms of file paths. MR5's entry above records that I
+  put a protected-path choice to the CPO three times in terms of paths and gate mechanics, and that
+  he said three times he could not tell what he was being asked to approve. The lesson recorded
+  there was that the decision was always about BEHAVIOUR. So the question this time was: how often
+  should the documentation rebuild? Three options, each with what it costs and what it buys —
+  after each merge to main; also every night; on every merge request too.
+
+  CPO ANSWER, verbatim: *"The docs only change when a model or a description changes, and that is
+  exactly when this would fire. -> yes"*. So the docs rebuild after each merge to main. Framing it
+  as behaviour got an answer first time, which is the MR5 lesson working.
+
+  SCOPE OF THE OVERRIDE, deliberately narrow. It authorises exactly one thing: appending
+  `dbt docs generate --static --target prod` and an `artifacts:` block to `data:build:main` in
+  `.gitlab-ci.yml`. No other change to that file, and no other protected path.
+  The two rejected options are recorded as DECISIONS, not omissions:
+    - NOT in `data:nightly`. A description's content comes from the repo, not from the data, so a
+      nightly run would re-publish identical pages for recurring cost — and recurring cost is his.
+    - NOT in `data:build:mr`. That job builds `state:modified+` into the shared `ci_*` datasets, so
+      its catalog would cover only what the branch happened to change. A partial column list
+      presented as the column list is worse than no column list.
+  Also decided, and smaller: NO `allow_failure`. The retired GitHub step was
+  `continue-on-error: true` (`pages-match-preview.yml:133`). A docs build that silently does
+  nothing is the exact "green but did nothing" class of #904, and this step runs after prod is
+  already written, so a failure there costs signal rather than data.
+
+  WHY MR6 IS THE ONE THAT CAN BREAK PROD, and how that risk was retired rather than asserted.
+  `persist_docs` pushes every description into BigQuery, which hard-rejects a column description
+  over 1,024 characters and a relation description over 16,384. The approved plan recorded 15
+  descriptions over 1,024, which is the whole reason MR6 was sequenced behind MR2-MR4.
+  MEASURED on this branch off `target/manifest.json`, so the text is RENDERED and a docs block
+  counts as what it resolves to rather than as its 25-character reference: 106 relation descriptions
+  (97 models + 9 seeds), longest 601; 870 column descriptions, longest 588; ZERO over either limit;
+  all 9 docs blocks resolved, and zero unrendered `{{ doc(` surviving into the manifest.
+  ⚠ THE NUMBER WAS NOT TAKEN FROM THE GATE, and that is the point. The gate merged in `!87` skips
+  the length check entirely when a description is a bare `{{ doc() }}` reference, so a long shared
+  block passes it in silence. That blind spot is exactly what `!88` fixes. Reading the length off
+  the manifest is independent of both versions, which is why it is the evidence.
+
+  ⚠ AN ORDERING CONSEQUENCE, and it is the CPO's to act on. MR6 is what converts an over-long
+  description from harmless into build-breaking. Merging MR6 while `!88` is still open leaves the
+  hazard live and the guard blind to it. MR6 is safe to merge today either way, because the measured
+  count is zero — the recommendation is `!88` first, not a block on MR6.
+
+  ⚠ A CORRECTION TO THE TASK BRIEF, made rather than followed. Its verification recipe was
+  `dbt run --select competition_types`. `competition_types` is a SEED, so `dbt run` selects nothing,
+  builds nothing and exits 0 — the false-green shape #904 names as this repo's dominant failure,
+  arriving inside the step meant to prevent it. The command is
+  `dbt seed --select competition_types --target dev`.

@@ -191,6 +191,16 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
   `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
   `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
   **MRs**, not PRs.
+- **dbt descriptions have READERS, since 2026-08-21 — write them for a stranger.**
+  `+persist_docs: {relation: true, columns: true}` is on for every model and seed, so each
+  `description:` is attached to its BigQuery table and column and shows up in `bq show --schema`
+  and the console. `data:build:main` then runs `dbt docs generate --static` and publishes
+  `static_index.html`, `manifest.json` and `catalog.json` as job artifacts.
+  ⚠ **BigQuery hard-rejects a column description over 1,024 chars (relation: 16,384), and a
+  rejection fails the model** — so an over-long description now breaks the prod build.
+  `scripts/check_description_hygiene.py` holds the line, measuring the RENDERED text; a
+  `{{ doc() }}` block is not a way around the limit. The standard is
+  `dbt_project/docs/engineering_standards.md` §2.
 - **GitHub is RETAINED but DORMANT.** Its Actions run nothing; `.github/workflows/` is a snapshot
   of what ran before the 2026-08 migration and is deliberately kept unedited — see
   `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access

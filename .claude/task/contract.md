@@ -1,83 +1,75 @@
-# Task contract — MR5 of the description-drift programme
+# Task contract — MR6 of the description-drift programme
 
 objective: >
-  Build `scripts/check_description_hygiene.py` — the machine check that makes the description
-  standard stick — with tests, and wire it into the three places that run the fast gates. It fails
-  on any `description:` under `dbt_project/` that carries an issue ref, an ISO date, decision
-  language, a severity emoji, a downstream-consumer claim, or a rendered length past BigQuery's
-  own maximum — 1,024 for a column description, 16,384 for a model or seed. See amendment 3: that
-  limit started as a flat 600 and the CPO ruled it to BigQuery's maxima.
+  Give dbt `description:` fields a reader, which is the root cause the whole programme exists to
+  fix. Two changes: turn on `+persist_docs: {relation: true, columns: true}` so every description
+  lands on the BigQuery table and column it describes, and publish `dbt docs generate` from CI so
+  there is a browsable page.
 
-  The point of the whole programme is that prose rules do not hold in this repo: of 50 past
-  corrections, 33 were prose-only and 22 recurred, while every rule that got a machine check
-  stopped recurring. MR1-MR4 wrote and applied the standard; this is the part that keeps it.
+  MR1-MR4 corrected the content and MR5 built the gate that keeps it correct. Neither gives the
+  field a consumer. A field nobody reads has no feedback loop, which is why it became the cheapest
+  place in the repo to dump narrative.
+
+  It also unblocks #82 (MR7): a column that exists in BigQuery but is declared in no `.yml` is
+  invisible to a YAML-based check, and catching it needs `target/catalog.json`, which exists only
+  once `dbt docs generate` runs.
 
 refs: >
-  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (diagnosis, the
-  definition of a good description, the six-MR split), MR3's and MR4's entries (the method), and
-  THIS branch's entry, which records the CPO's protected-path approval. Plan file:
-  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`, Step 4.
-  Standard: `dbt_project/docs/engineering_standards.md` §2. Model the script on
-  `scripts/check_copy_gate.py`. MR4 merged as `!86`; branched from main `dc6d7eb`, no open MRs.
+  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (the CPO's diagnosis,
+  the audit's numbers, the definition of a good description, the six-MR split and its ordering
+  constraints), and THIS branch's 2026-08-21 entry, which records the CPO's protected-path
+  approval. Plan file: `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`; the programme plan is
+  `jazzy-greeting-teacup.md`, Step 5.
+  Branched from main `b378be5`. `!88` (MR5's second half) is OPEN — see decisions_reserved.
 
 protected_override: >
-  CPO, in chat 2026-08-20, verbatim "do both", recorded in `.claude/task/escalations.log` under
-  `2026-08-20 feat/description-hygiene-gate` BEFORE this branch touched either file — GitLab #28 is
-  that an override can otherwise claim a ruling nobody can check.
+  CPO, in chat 2026-08-21, verbatim "The docs only change when a model or a description changes,
+  and that is exactly when this would fire. -> yes", recorded in `.claude/task/escalations.log`
+  under `2026-08-21 feat/description-persist-docs` BEFORE this branch touched the file — GitLab #28
+  is that an override can otherwise claim a ruling nobody can check.
 
-  It authorises exactly two edits, and nothing else:
-    1. `.gitlab-ci.yml` — one line added to `validate:governance`'s script list.
-    2. `.claude/hooks/stop_gate.py` — one entry added to `FAST_GATES`.
-  No other change to either file, and no other protected path. `.claude/skills/validate-local/`
-  is NOT protected but must move in lockstep, because
-  `test_fast_gates_and_validate_local_agree` asserts set equality between its marked block and the
-  hook's tuple.
+  It authorises exactly ONE edit and nothing else: appending
+  `dbt docs generate --static --target prod` plus an `artifacts:` block to the `data:build:main`
+  job in `.gitlab-ci.yml`. No other change to that file, and no other protected path.
+  The question put to him was BEHAVIOURAL — how often should the documentation rebuild — not a file
+  path, because MR5's entry records that a path-shaped question failed three times running.
 
 impact_map: >
-  A NEW GUARD, so the blast radius is "what can now fail that could not before", in three places.
+  `persist_docs` changes the DDL dbt emits for EVERY model and EVERY seed, so the blast radius is
+  the warehouse itself. This is the one MR in the programme that can break prod.
 
-  1. TURN END. `stop_gate.py` runs the fast gates when the tree is dirty and in scope, and blocks
-     the turn once if any fails. Adding a gate there means a description defect ends a turn red.
-     The gate must therefore be FAST and must not need network, a fetched base branch, or BigQuery
-     — it parses YAML off disk, like its five siblings.
-  2. CI. `validate:governance` gains one line, so a defect fails the pipeline. No `changes:` filter
-     on that job, so it runs on every MR.
-  3. LOCAL. `validate-local` documents the same set; the pinning test fails if the two disagree.
-
-  ⚠ GREEN ON DAY ONE IS THE WHOLE REASON THIS MR IS FIFTH. MR3 and MR4 cleared all 453 descriptions
-  in the five worst files. The remaining 14 files were measured healthy by the audit, but "healthy"
-  was that audit's judgement, not this gate's rule — so the gate MUST be run against the whole
-  repo before wiring, and any survivor fixed or the rule narrowed with a stated reason. A gate that
-  goes red on main on day one is the `check_copy_gate.py` precedent inverted.
-
-  ⚠ THE RULE MUST NOT FIRE ON ORDINARY PROSE, and this is measured, not hypothetical. On the
-  finished MR3/MR4 text, a case-insensitive `CORRECTED` matches six legitimate uses of "the country
-  corrections from the seed" and "derived from the corrected name"; an ISO-date rule would have
-  matched `dim_date`'s calendar range before MR4 reworded it. Match the ANNOTATION forms, not the
-  plain verb. Every banned pattern needs a reason recorded beside it, as `check_copy_gate.py` does.
-
-  No dbt model, seed, mart, export or site file is touched, so the warehouse and the built site are
-  untouched. `PyYAML` is already a dependency; no new dependency enters.
+  1. BIGQUERY, WRITE PATH. dbt sets the relation description and each column description at build
+     time. BigQuery HARD-REJECTS a column description over 1,024 characters and a relation
+     description over 16,384; a rejection fails the model, and in `data:build:main` that fails the
+     prod build. This is why MR6 is sequenced last.
+     ⚠ RETIRED BY MEASUREMENT, not by assumption. Read off `target/manifest.json`, so the text is
+     RENDERED and a docs block counts as what it resolves to rather than as its reference: 106
+     relation descriptions, longest 601; 870 column descriptions, longest 588; zero over either
+     limit; 9 of 9 docs blocks resolved. The measurement is deliberately independent of the gate,
+     because the gate in main skips the length check on a bare `{{ doc() }}` reference.
+  2. SEEDS, A NEW CONFIG BLOCK. There is no `seeds:` block in `dbt_project.yml` today. It must
+     carry `+persist_docs` and NOTHING else — seeds have no `+schema` and ride `target.schema`
+     (`macros/generate_schema_name.sql`), so adding one would silently relocate every seed, and in
+     prod that is `dbt_analytics`.
+  3. CI COST, ONE TIME. Changing `dbt_project.yml` changes every model's config, so `state:modified`
+     should match all 97 models and this MR's `data:build:mr` will rebuild the whole `ci_*`
+     warehouse once. Expected, and it is also what proves the model-column half of the verification.
+     Confirm it from the job log rather than predicting it.
+  4. CI COST, RECURRING. `dbt docs generate` runs a catalog query against BigQuery INFORMATION_SCHEMA
+     once per push-to-main that touches `*data_paths_prod`. Metadata-sized. It is NOT added to
+     `data:nightly` (the content comes from the repo, so a nightly re-publishes identical pages) and
+     NOT to `data:build:mr` (its `ci_*` datasets hold only `state:modified+`, so the catalog would
+     be partial and misleading).
+  5. NOT TOUCHED: no model SQL, no seed CSV, no description text, no export, no site file. The
+     numbers the pipeline produces are unchanged — only the metadata attached to them.
 
 scope_paths:
-  - scripts/check_description_hygiene.py
-  - tests/test_description_hygiene.py
+  - dbt_project/dbt_project.yml
   - .gitlab-ci.yml
-  - .claude/hooks/stop_gate.py
-  - .claude/skills/validate-local/SKILL.md
-  # Added by amendment 3 — the length rule it documents is being split.
+  # Added by amendment 1 — the pinning test platform-reviewer's round-1 FAIL was right about.
+  - tests/test_persist_docs_policy.py
   - dbt_project/docs/engineering_standards.md
-  # Added by amendment 1 — the ten files the first full-repo sweep found dirty.
-  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
-  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
-  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+  - CLAUDE.md
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
@@ -85,81 +77,89 @@ scope_paths:
   - .claude/active_work.md
 
 decisions_taken: >
-  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR5 as the gate.
-  CPO, 2026-08-20, "do both" — the gate runs in CI AND at turn end. See `protected_override`.
+  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR6 as `persist_docs` plus
+  published docs.
+  CPO, 2026-08-20, "Both" — turn on `persist_docs` AND publish `dbt docs generate` from CI, chosen
+  over either alone or neither.
+  CPO, 2026-08-21, the docs rebuild after each merge to main. See `protected_override`.
 
 decisions_reserved:
-  - `persist_docs` and `dbt docs generate` are MR6. Not touched here.
-  - ⚠ THIS BULLET WAS WRONG AS FIRST WRITTEN, and scope-auditor FAILed the branch on it. It said
-    fixing a survivor was "in scope only as far as making the gate green". That is not the rule I
-    followed and not the rule that is right: where the sweep touches a description, it applies §2
-    IN FULL, not the gate's mechanical subset.
-    WHY, because the distinction is the whole point of trap 1b: the gate's rules are deliberately
-    narrower than §2 — they only match what a machine can decide with no taste. `mart_team_season
-    composes` and `ratios live in mart_team_season_record` are §2-banned downstream-consumer
-    claims that no regex here catches. A minimal token-deletion would have left them standing in a
-    description it had just edited, which is the half-cleaned outcome this programme exists to
-    remove, and would have left those ten files inconsistent with the five MR3/MR4 rewrote.
-    ⚠ ONE OF THE THREE FLAGGED CHANGES WAS NOT §2-DRIVEN and is restored: dropping "Complement to
-    int_team_momentum__metrics" from `int_team_season_record` was a sibling cross-reference, not a
-    downstream claim, and losing it cost something for nothing.
-    analytics-engineer-reviewer checked all ten files against their SQL and found no false claim,
-    so the rewrites are sound; the defect was this bullet describing them wrongly.
-  - The gate's rule set is mine to draft and the reviewers' to challenge. Any rule that would
-    require a CPO judgement — banning something he has asked for — is escalated, not assumed.
+  - #82 (MR7, the coverage gate) and #83 (the missing competition-classification dim) are NOT
+    started here. #82 comes after MR6 because it needs this MR's `catalog.json`.
+  - Whether `!88` merges before this MR is the CPO's, because he merges. The recommendation is
+    recorded in `escalations.log` and in the handover: MR6 is what makes an over-long description
+    build-breaking, and the gate in main is blind to a long shared docs block, which is exactly the
+    hole `!88` closes. MR6 is safe either way — the measured over-limit count is zero — so this is
+    a recommendation, not a blocker.
+  - `snapshots:` is deliberately NOT given `persist_docs`. The block is dormant, dbt already
+    reports it as an unused configuration path, and its own header instructs whoever lands the
+    first snapshot to make it target-aware. Adding a key to a block that binds nothing would be
+    speculative config. If the CPO wants uniformity instead, it is one line.
+  - The two length bullets in `engineering_standards.md` §2 are NOT touched. `!88` rewrites exactly
+    those lines; editing them here creates a conflict and buys nothing. MR6 adds a Readers note
+    elsewhere in §2.
 
 done_when:
-  - `scripts/check_description_hygiene.py` matches its six siblings: `main() -> int`, 0/1, no CLI
-    args, findings accumulated then printed with a count, a census line on success.
-  - It carries an anti-vacuous floor, as `check_copy_gate.py` does: if it finds implausibly few
-    descriptions it fails loudly rather than passing green on a broken parser.
-  - `tests/test_description_hygiene.py` drives `main()` against a synthetic offender for EVERY
-    banned class and asserts exit 1, and proves the floor fires from inside the gate.
-  - THE GATE IS SEEN RED. Break it deliberately, watch it fail, restore. A passing gate proves
-    nothing (#904) — this is the repo's dominant failure and the acceptance evidence must show it.
-  - Run against the WHOLE repo before wiring: zero findings on main's current content.
-  - Wired in all three places, and `test_fast_gates_and_validate_local_agree` passes.
-  - `python -m pytest tests/` green at the 829/1 baseline plus the new tests.
-  - The five existing fast gates still pass, read from their OUTPUT not their exit code.
+  - `+persist_docs: {relation: true, columns: true}` set ONCE at the `models:
+    football_data_pipeline:` level so it cascades to all five layers, not restated per layer.
+  - A new top-level `seeds:` block carrying `+persist_docs` and nothing else. No `+schema`.
+  - `dbt docs generate --static --target prod` plus an `artifacts:` block on `data:build:main`
+    only, with no `allow_failure`.
+  - PROVEN ON A DEV TARGET, never `dbt build` against prod: `dbt seed --select competition_types
+    --target dev` then `bq show --schema` shows the relation description and all 5 column
+    descriptions. (`competition_types` is a SEED — `dbt run` selects nothing and exits 0, which is
+    the false-green the brief's own recipe would have produced.)
+  - The models half proven too: `dbt run --select stg_apif__leagues --target dev` then `bq show`.
+    Model COLUMN descriptions cannot be proven locally — no staging model has one (0 of 15,
+    measured) and every model that does needs the whole chain in dev — so they are proven off this
+    MR's own `ci_*` build, read from the log.
+  - `dbt docs generate --static --target dev` produces `static_index.html` and a non-empty
+    `catalog.json`.
+  - THE HAZARD IS SEEN RED. Push one description past 1,024 characters, watch BigQuery reject it,
+    revert. A passing check proves nothing (#904) — this is the repo's dominant failure.
+  - `python -m pytest tests/` green at its measured baseline; the offline gates pass, read from
+    their OUTPUT not their exit code.
   - Handover updated in the SAME commit as the code.
+  - Added by amendment 1: `tests/test_persist_docs_policy.py` pins every invariant this MR
+    establishes, and is SEEN RED per invariant before being trusted.
 
 amendments:
   - >
-    1. TEN MORE FILES ADDED TO scope_paths, because the first full-repo sweep measured the gate
-    red on main. 35 findings across 10 files that MR3 and MR4 never touched: 14 issue refs, 9
-    over-length, 6 ISO dates, 4 decision-language, 1 severity emoji, 1 downstream-consumer claim.
-    The plan assumed MR3+MR4 would leave the repo green; that assumption was wrong for a reason
-    worth recording — the audit judged those 14 files "healthy" against its own reading, and this
-    gate's rule is stricter than that judgement. So the audit's 83%-in-5-files figure is right
-    about where the WORST text is and wrong as a completeness claim.
-    Fixing them is the `check_copy_gate.py` precedent applied literally: clear the findings, THEN
-    wire, so the default branch never goes red. It is not new editorial scope — the same six
-    mechanical classes MR3 and MR4 removed, in the files that were out of their reach.
-    ⚠ This makes MR5 two things in one MR: the last of the content sweep, and the gate. If a
-    reviewer judges that unreviewable, the content half splits out and the gate follows it.
+    1. A PINNING TEST ADDED, because platform-reviewer FAILed round 1 and was right.
+    THE FINDING: nothing in `tests/` referenced `persist_docs`, `docs generate`, `catalog.json` or
+    `static_index` — verified, the grep returns zero files. So every invariant this MR establishes
+    could be reverted with the whole suite still green: deleting `+persist_docs`, adding a
+    `+schema` to the new `seeds:` block (the silent-relocation hazard the file's own comment warns
+    about), removing the docs step, moving it to `data:nightly` or `data:build:mr` (both
+    explicitly rejected by the CPO's override), or restoring `allow_failure`.
+    WHY IT LANDS RATHER THAN BEING ARGUED WITH: this is the exact class
+    `tests/test_materialisation_policy.py` and `tests/test_ci_data_job_invariants.py` already
+    exist for, on the SAME two files, and both open by saying breaking them produces no red
+    anywhere. The programme's own founding measurement is that 33 of 50 corrections were
+    prose-only and 22 recurred, while every rule that got a machine check stopped recurring. A
+    config change defended only by hand-run commands pasted into an evidence file is a prose-only
+    correction wearing a lab coat.
+    The original `done_when` list omitted a pinning test with no stated reason. That omission was
+    the defect, not an accepted trade-off.
   - >
-    3. THE LENGTH RULE BECOMES BIGQUERY'S OWN MAXIMA — 1,024 for a COLUMN description, 16,384 for
-    a MODEL or SEED — measured on the RENDERED text, with `engineering_standards.md` joining
-    scope_paths to say so.
-    CPO-DIRECTED, in two steps. He challenged the flat 600 ("if 1024 is max why do we max at
-    600?") and supplied BigQuery's limits: 16,384 table, 1,024 column, 300 column name. I then
-    proposed 600 for columns and an EDITORIAL 1,024 for models, and he rejected that framing:
-    *"we use bigqueries max which doesn't necessarily mean that we are exhausting it. it's just you
-    who has a tendency tom massively bullshit and spam with text."*
-    THE RULING, AND WHY IT IS RIGHT: the cap's only job is stopping `persist_docs` failing the
-    build. A tighter number does not make me write less — it makes me shave words while still
-    writing padding, which is what MR3 and MR4 actually cost. Brevity is a judgement and mine to
-    exercise, not something to fake with a threshold. Using the maximum is not a licence to fill it.
-    ⚠ THIS AMENDMENT DESCRIBED THE SUPERSEDED PROPOSAL UNTIL scope-auditor CAUGHT IT. It said
-    "columns 600, models and seeds 1,024" and argued for 1,024-rather-than-16,384 as a deliberate
-    editorial narrowing — a protection that was never built, while the shipped code and standard
-    used the raw maxima. `objective:` still said a flat 600 as well: three numbers across three
-    artifacts for one decision. Exactly the stale-claim class of GitLab #71, committed inside the
-    MR that ships the gate against it.
-  - >
-    2. ONE RULE WIDENED DURING THE SWEEP, recorded because it changes what the gate catches.
-    `stg_apif__lineups` claims "This model has NO consumer today" — the exact shape of the
-    `display_group` claim that started this programme, and the first draft's
-    `no dbt model reads` arm did not match it. The downstream rule is now written as a CLASS
-    (no/zero/only/single reader-or-consumer, nothing downstream, feeds/enriches/powers a named
-    model) rather than a list of the instances seen so far.
+    2. NOT AN AMENDMENT TO SCOPE — a correction to platform-reviewer's SECOND finding, recorded
+    because the correction is the useful part and the reviewer should see it.
+    THE FINDING: `static_index.html` was measured at 6.6 MB against a dev catalog of 10 nodes / 78
+    columns, while production is 106 relations / 870 declared columns, so the evidence measured
+    something ~10x smaller than what will really be produced.
+    THE PREMISE IS WRONG, and this is measured. `target/manifest.json` is 5,085,350 bytes and
+    already contains ALL 97 models and 9 seeds — a manifest is a parse artifact and does not
+    depend on what was BUILT, so the dominant JSON embedded in `static_index.html` was already at
+    full production scale in that dev run. The dbt docs SPA bundle is a fixed cost. Only the
+    catalog portion scales, at 47,511 bytes across 112 catalogued columns (78 in nodes + 34 in
+    sources) — **~424 bytes per column**.
+    ⚠ AN EARLIER DRAFT OF THIS AMENDMENT SAID ~609 bytes/column, dividing by the 78 node columns
+    while the file also holds 34 source columns. Wrong denominator, and it disagreed with the
+    figure in `acceptance_evidence.md`. Caught by platform-reviewer in round 2, which noticed the
+    two artifacts quoting different rates for one measurement. It is recorded rather than quietly
+    overwritten because it is the SAME defect MR5 shipped — three numbers across three artifacts
+    for one decision — committed again inside the programme built to stop it. The conclusion was
+    never rate-sensitive (both rates land two orders of magnitude under the limit), which is
+    exactly why it survived a first reading.
+    THE FAIR HALF OF THE FINDING STANDS: no estimate and no artifact-limit check existed anywhere
+    on the branch. Both are now in `acceptance_evidence.md`.

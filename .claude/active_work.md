@@ -4,34 +4,33 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-20**. **main `dc6d7eb`**. Merged today: `!82`-`!86` — MR1-MR4 of the
-description-drift programme plus its handover. **MR5 is OPEN on
-`feat/description-hygiene-gate`.** Merged 08-19: team_name_overrides batches 1+2,
-the Top teams ruling record, the Browse drop (`!80`). Product **Matchday Pilot**; **GITLAB**
-(`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-21**. **main `7c5c420`**. Description programme `!82`-`!88` MERGED;
+**`!89` (MR6) OPEN and GREEN**. Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner
+`ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — description programme: MR6 is the live task (2026-08-20)
+## ⭐⭐ CURRENT — description programme BUILT; **#82 (MR7) is next** (2026-08-21)
 
-⭐ **READ `.claude/task/escalations.log`'s 2026-08-20 entries FIRST** — six of them, holding the
-CPO's diagnosis, the audit numbers, every ruling, and each MR's own defects. Plan file:
-`C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`. **Do not re-scope or re-audit any of it.**
+⭐ **READ `.claude/task/escalations.log`'s 2026-08-20 and 2026-08-21 entries FIRST** — five of them,
+holding the CPO's diagnosis, the audit numbers, every ruling, and each MR's own defects.
+**Do not re-scope or re-audit any of it.**
 
 **WHY.** `description:` was used as a decision log; three descriptions were provably FALSE. Root
-cause: **no reader** — `persist_docs` absent, docs never generated — so the field had no feedback
-loop. MR6 is the fix for that root cause.
+cause: **no reader** — `persist_docs` absent, docs never generated. All six MRs are now built.
 
-MR1 `!82` · MR2 `!83` · MR3 `!85` · MR4 `!86` — all MERGED. **MR5 is OPEN as `!88`** (its first
-half merged as `!87`). **MR6 IS THE LIVE TASK. MR7 = #82, after it.**
+MR1 `!82` · MR2 `!83` · MR3 `!85` · MR4 `!86` · MR5 `!87`+`!88` — MERGED. **MR6 = `!89`, OPEN and
+GREEN.** MR7 = #82.
 
-**MR6, and it is the one that can BREAK PROD.** Turn on `+persist_docs: {relation: true, columns:
-true}` in `dbt_project.yml` and publish `dbt docs generate` from CI. It gives descriptions a
-reader, and its `catalog.json` is what makes #82 possible at all — that is why MR7 follows it.
-⚠ **NO `seeds:` block exists in `dbt_project.yml`** — one must be added, and seeds were the worst
-offender. ⚠ Length is already safe: the gate caps at BigQuery's own maxima (1,024 column / 16,384
-table) on the RENDERED text. Prove it anyway on a **dev target only** (`dbt run --select
-competition_types`, then `bq show --schema`); never `dbt build` against prod.
+⛔ **A TOO-LONG DESCRIPTION NOW BREAKS PROD (MR6).** `persist_docs` is on for **97 models + 9
+seeds**, so every description is pushed to its BigQuery table/column. Limits **bracketed live**, not
+cited: **1,024** chars/column, **16,384**/relation; one over = HTTP 400, and dbt does NOT swallow it
+(`update_columns` → `update_table`, no try/except) so the model FAILS. Headroom: longest column
+**588**, relation **601**, zero over. `data:build:main` also publishes `static_index.html` +
+`manifest.json` + **`catalog.json`** — the last makes #82 possible. ⚠ `seeds:` is persist_docs-ONLY:
+seeds ride `target.schema`, so a `+schema` relocates all 9.
+⚠ **A SPLIT-MERGED BRANCH FAILS F11, and it is NOT a stale artifact** — the merge-base MOVES so the
+diff shrinks. Fix is the one-value `review.md` rebind: artifact-exempt, NO re-review owed.
 
 ✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, in CI AND in
 `stop_gate.py`'s FAST_GATES ("do both", logged). 618 descriptions pass, 31 tests, **seen RED on
@@ -169,7 +168,7 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
   the stale file stayed put. **Read the output, never the exit code.**
 
 ## NEXT
-0. ⭐ **MR5 of the description programme** — see ⭐⭐ CURRENT. This is the live task.
+0. ⭐ **#82 (MR7)** — see ⭐⭐ CURRENT. Live once `!89` merges. Needs its `catalog.json`.
 1. **Team names**: finish the ~15 unverified Pool 1 teams, then decide whether to go beyond Pool 1.
    Separately, investigate the player-name truncation. Detail in ⛔ TEAM NAMES above.
 2. **Decide `nav.json`'s fate** — zero frontend consumers since `!80`. Give it one, or delete

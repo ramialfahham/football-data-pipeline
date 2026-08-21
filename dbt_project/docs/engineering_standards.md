@@ -127,6 +127,24 @@ tracker, design rationale in `layering.md`.
   pushed to the warehouse, so the limit applies to the RESOLVED string — block plus qualifier, not
   what is written in the YAML.
 
+### Who reads these
+
+Three consumers, all live. This is the part that used to be missing: for most of the project's life
+nothing read a `description:` at all, which is why the field drifted into a decision log. A rule
+about writing for a reader is unenforceable when there is no reader.
+
+- **BigQuery itself.** `persist_docs` is on for every model and every seed, so a description is
+  attached to the table and the column it describes. `bq show --schema <dataset>.<table>` prints it,
+  and the console and any BI tool show it beside the data.
+- **The dbt docs page.** `data:build:main` runs `dbt docs generate --static` after each merge to
+  main and publishes `static_index.html` as a job artifact. Descriptions, lineage and column lists
+  in one self-contained file.
+- **`target/catalog.json`**, produced by the same step. It is the only place the warehouse's actual
+  columns can be compared against what the `.yml` files declare.
+
+The practical consequence when writing: assume a stranger reads your sentence in the BigQuery
+console with none of this repo's context around it. That is now literally what happens.
+
 ### Worked example
 
 Before — 1,080 characters, and the load-bearing sentence is false:

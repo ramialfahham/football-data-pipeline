@@ -703,6 +703,34 @@ data:build:main:
     - dbt build --selector staging --target prod
     - dbt build --selector downstream --target prod
     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
+    # The READER half of the description programme. `persist_docs` (dbt_project.yml) puts each
+    # description onto its BigQuery table and column; this publishes the browsable page. It also
+    # writes target/catalog.json, which is the ONLY place a column that exists in BigQuery but is
+    # declared in no .yml can be seen — GitLab #82 is built on exactly that file, which is why it
+    # could not come before this job learned to produce it.
+    #
+    # HERE AND NOWHERE ELSE, decided 2026-08-21. The CPO's reason, and it is the right one: the
+    # docs only change when a model or a description changes, and that is exactly when this fires.
+    #   · NOT in data:nightly — a description's content comes from the repo, not from the data, so
+    #     a nightly run would re-publish identical pages for recurring cost.
+    #   · NOT in data:build:mr — that job builds state:modified+ into the shared ci_* datasets, so
+    #     its catalog would cover only what the branch happened to change. A partial column list
+    #     presented as the column list is worse than no column list.
+    #
+    # NO allow_failure, deliberately. The retired GitHub step was `continue-on-error: true`
+    # (.github/workflows/pages-match-preview.yml:133) — the "green but did nothing" shape of #904.
+    # This runs after prod is built AND tested, so a failure here costs signal, never data.
+    # `--static` embeds the manifest and catalog into one self-contained HTML file, which is what
+    # scripts/build_match_preview_site.sh:57-63 consumed before the migration.
+    - dbt docs generate --static --target prod
+  # Published so the docs can be read without a dbt install. Paths are relative to
+  # CI_PROJECT_DIR even though the script ends inside dbt_project/.
+  artifacts:
+    paths:
+      - dbt_project/target/static_index.html
+      - dbt_project/target/manifest.json
+      - dbt_project/target/catalog.json
+    expire_in: 30 days
   # THE ONLY AUTOMATIC PATH IS A PUSH TO MAIN. Everything else that can reach this job
   # asks first, because it is the most expensive job in the file.
   #
