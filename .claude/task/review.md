@@ -12,14 +12,18 @@
 > binding hash was still `6a8ab2a5…` afterwards, byte-identical to when they started. They then
 > re-reviewed the round-2 delta on top.
 
-diff_sha256: 585202db4b6469f781fa8f65fd2d0669f388650fffe3ceba0b164a8c06b1e63f
+diff_sha256: a22937b64491e605911fd5ce57cce378b7c3129c45d2f7d6ded3feed67b8e483
 
 rounds: 2
 
-> ⚠ REBOUND after #84 merged, and NOT because anything reviewed changed. The reviewed value was
-> `336230f4…`. #84 landing moved the merge-base from `e6c1819` to `df0dc7e`, which is the same
-> mechanism recorded on `!88` and `!89`. Hit three times now, so it is a property of working on a
-> repo with concurrent merges rather than an accident.
+> ⚠ REBOUND TWICE, and NEITHER time because anything reviewed changed. Reviewed value `336230f4…`,
+> then `585202db…` after #84 merged, now `a22937b6…` after #84's follow-up fix merged. Each move was
+> the merge-base advancing, the same mechanism recorded on `!88` and `!89`.
+> ⛔ FOUR TIMES IN ONE DAY, AND THE CODE WAS NEVER INVOLVED ONCE. Every collision was the same six
+> task artifacts: `contract.md`, `review.md`, `acceptance_evidence.md` and `review_input.patch` are
+> rewritten wholesale by every branch, and `escalations.log` + `active_work.md` are appended by both
+> sides. Any two branches open at the same time collide on them regardless of what they change.
+> That is structural and worth a mechanism, not a fifth manual merge.
 >
 > VERIFIED RATHER THAN ASSERTED, because a rebind is not a licence to change content. Every file
 > the hash covers was diffed against the pre-rebase commit `18c888b` and is byte-IDENTICAL:
