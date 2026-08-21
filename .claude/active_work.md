@@ -4,9 +4,8 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-21**. **main `7c5c420`**. Description programme `!82`-`!88` MERGED;
-**`!89` (MR6) OPEN and GREEN**. Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner
-`ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-21**. **main `e6c1819`**. **#84's MR is OPEN** (warehouse orphan cleanup).
+Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
@@ -16,19 +15,14 @@ on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-p
 holding the CPO's diagnosis, the audit numbers, every ruling, and each MR's own defects.
 **Do not re-scope or re-audit any of it.**
 
-**WHY.** `description:` was used as a decision log; three descriptions were provably FALSE. Root
-cause: **no reader** — `persist_docs` absent, docs never generated. All six MRs are now built.
-
-MR1 `!82` · MR2 `!83` · MR3 `!85` · MR4 `!86` · MR5 `!87`+`!88` — MERGED. **MR6 = `!89`, OPEN and
-GREEN.** MR7 = #82.
+MR1-MR6 = `!82`-`!89`, **ALL MERGED**. MR7 = #82.
 
 ⛔ **A TOO-LONG DESCRIPTION NOW BREAKS PROD (MR6).** `persist_docs` is on for **97 models + 9
-seeds**, so every description is pushed to its BigQuery table/column. Limits **bracketed live**, not
-cited: **1,024** chars/column, **16,384**/relation; one over = HTTP 400, and dbt does NOT swallow it
-(`update_columns` → `update_table`, no try/except) so the model FAILS. Headroom: longest column
-**588**, relation **601**, zero over. `data:build:main` also publishes `static_index.html` +
-`manifest.json` + **`catalog.json`** — the last makes #82 possible. ⚠ `seeds:` is persist_docs-ONLY:
-seeds ride `target.schema`, so a `+schema` relocates all 9.
+seeds**. Limits, bracketed live: **1,024** chars/column, **16,384**/relation; one over = HTTP 400
+and dbt does NOT swallow it, so the model FAILS. Headroom: longest column **588**, relation **601**,
+zero over. `data:build:main` also publishes `static_index.html` + `manifest.json` +
+**`catalog.json`** (the last makes #82 possible). ⚠ `seeds:` is persist_docs-ONLY: seeds ride
+`target.schema`, so a `+schema` relocates all 9.
 ⚠ **A SPLIT-MERGED BRANCH FAILS F11, and it is NOT a stale artifact** — the merge-base MOVES so the
 diff shrinks. Fix is the one-value `review.md` rebind: artifact-exempt, NO re-review owed.
 
@@ -107,9 +101,8 @@ against the spec's words before trusting either.
 staleness checker would mechanize THE METHOD. Ask first. **#78** tracks the `10_home.md` sweep it
 would replace.
 
-⚠ **STANDING RULE: the handover rides in the SAME commit as the code it describes.** Broken four
-times on 08-19/08-20; MR3 followed it. Between the two commits the file states something untrue,
-and it conflicts with a sibling branch's handover.
+⚠ **STANDING RULE: the handover rides in the SAME commit as the code it describes.** Between the
+two commits the file states something untrue, and it conflicts with a sibling branch's handover.
 
 ## ⭐ ORIENTATION
 **Audits: GitLab #30, DO NOT run another** (rejected 08-16; a TARGETED blind assessment is different
@@ -143,10 +136,18 @@ detection, NOT started:** lower `event_loss_detector_from` (still **'2026-08-19'
 `!57`'s test is inert**); ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 =
 compaction, only if growth is MEASURED.**
 
+## ⭐ #84 — 310 ORPHANED WAREHOUSE RELATIONS, MR OPEN
+**Nothing reconciles the WAREHOUSE** (the guard governs only the REPO): `6e4ba18` (05-27) left 310
+orphans for 3 months. **250 broken** (already error, risk-free) · **26 STILL RETURN DATA** (retired
+SQL, plausible numbers — the hazard) · **34 tables** (42.5 MiB, so cost is NOT the argument).
+Nothing reads them. Also **9 `raw.RAW_WC26_APIF_*` nothing writes**.
+`scripts/cleanup_orphan_relations.py` derives it all from the MANIFEST; dry-run default.
+⛔ **RUNNING IT IS THE CPO'S; nothing dropped.** The recurring CHECK is a NEW MECHANISM, NOT built.
+
 ## ⭐ COST — read **GitLab issue #3** first
 **#3 holds it all.** ⚠ **#70** is the scan-budget guard; `require_partition_filter` +
-`maximum_bytes_billed` are **NEITHER set**. ⚠ **STORAGE NEVER MEASURED**; every figure is bytes
-SCANNED. ⚠ **Spend UNKNOWN** since 08-03.
+`maximum_bytes_billed` are **NEITHER set**. ⚠ **Spend UNKNOWN** since 08-03. Storage measured only
+for #84's orphans; else bytes SCANNED.
 
 ## Player page — HELD on #845
 **#846 + #886 merged:** the season a page opens on is a warehouse fact. **#845 + #882 are ONE
@@ -168,7 +169,7 @@ Counts: players 51,589→154,767; matches 176,235; h2h 51,903; teams 9,669.
   the stale file stayed put. **Read the output, never the exit code.**
 
 ## NEXT
-0. ⭐ **#82 (MR7)** — see ⭐⭐ CURRENT. Live once `!89` merges. Needs its `catalog.json`.
+0. ⭐ **#82 (MR7)** — see ⭐⭐ CURRENT. Needs its `catalog.json`.
 1. **Team names**: finish the ~15 unverified Pool 1 teams, then decide whether to go beyond Pool 1.
    Separately, investigate the player-name truncation. Detail in ⛔ TEAM NAMES above.
 2. **Decide `nav.json`'s fate** — zero frontend consumers since `!80`. Give it one, or delete

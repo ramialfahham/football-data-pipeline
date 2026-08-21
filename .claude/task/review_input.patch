@@ -1,756 +1,1126 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 84b6a5e..ba2d0ca 100644
+index ba2d0ca..4311e3b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,83 +1,75 @@
--# Task contract — MR5 of the description-drift programme
-+# Task contract — MR6 of the description-drift programme
+@@ -1,165 +1,104 @@
+-# Task contract — MR6 of the description-drift programme
++# Task contract — cleanup script for orphaned warehouse relations (#84)
  
  objective: >
--  Build `scripts/check_description_hygiene.py` — the machine check that makes the description
--  standard stick — with tests, and wire it into the three places that run the fast gates. It fails
--  on any `description:` under `dbt_project/` that carries an issue ref, an ISO date, decision
--  language, a severity emoji, a downstream-consumer claim, or a rendered length past BigQuery's
--  own maximum — 1,024 for a column description, 16,384 for a model or seed. See amendment 3: that
--  limit started as a flat 600 and the CPO ruled it to BigQuery's maxima.
-+  Give dbt `description:` fields a reader, which is the root cause the whole programme exists to
-+  fix. Two changes: turn on `+persist_docs: {relation: true, columns: true}` so every description
-+  lands on the BigQuery table and column it describes, and publish `dbt docs generate` from CI so
-+  there is a browsable page.
- 
--  The point of the whole programme is that prose rules do not hold in this repo: of 50 past
--  corrections, 33 were prose-only and 22 recurred, while every rule that got a machine check
--  stopped recurring. MR1-MR4 wrote and applied the standard; this is the part that keeps it.
-+  MR1-MR4 corrected the content and MR5 built the gate that keeps it correct. Neither gives the
-+  field a consumer. A field nobody reads has no feedback loop, which is why it became the cheapest
-+  place in the repo to dump narrative.
-+
-+  It also unblocks #82 (MR7): a column that exists in BigQuery but is declared in no `.yml` is
-+  invisible to a YAML-based check, and catching it needs `target/catalog.json`, which exists only
-+  once `dbt docs generate` runs.
+-  Give dbt `description:` fields a reader, which is the root cause the whole programme exists to
+-  fix. Two changes: turn on `+persist_docs: {relation: true, columns: true}` so every description
+-  lands on the BigQuery table and column it describes, and publish `dbt docs generate` from CI so
+-  there is a browsable page.
+-
+-  MR1-MR4 corrected the content and MR5 built the gate that keeps it correct. Neither gives the
+-  field a consumer. A field nobody reads has no feedback loop, which is why it became the cheapest
+-  place in the repo to dump narrative.
+-
+-  It also unblocks #82 (MR7): a column that exists in BigQuery but is declared in no `.yml` is
+-  invisible to a YAML-based check, and catching it needs `target/catalog.json`, which exists only
+-  once `dbt docs generate` runs.
++  Add `scripts/cleanup_orphan_relations.py`: a read-only-by-default reconciliation script that
++  reports every relation in the production BigQuery datasets that no dbt manifest node owns, and
++  drops them only behind an explicit `--confirm`. It replaces the 310 loose `bq rm` lines the
++  investigation produced with something reviewable, repeatable and safe. The script derives the
++  orphan set from the manifest every run; it hardcodes no list of table names, so it does not go
++  stale the way a captured list would.
  
  refs: >
--  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (diagnosis, the
--  definition of a good description, the six-MR split), MR3's and MR4's entries (the method), and
--  THIS branch's entry, which records the CPO's protected-path approval. Plan file:
--  `C:\Users\Rami\.claude\plans\jazzy-greeting-teacup.md`, Step 4.
--  Standard: `dbt_project/docs/engineering_standards.md` §2. Model the script on
--  `scripts/check_copy_gate.py`. MR4 merged as `!86`; branched from main `dc6d7eb`, no open MRs.
-+  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (the CPO's diagnosis,
-+  the audit's numbers, the definition of a good description, the six-MR split and its ordering
-+  constraints), and THIS branch's 2026-08-21 entry, which records the CPO's protected-path
-+  approval. Plan file: `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`; the programme plan is
-+  `jazzy-greeting-teacup.md`, Step 5.
-+  Branched from main `b378be5`. `!88` (MR5's second half) is OPEN — see decisions_reserved.
- 
- protected_override: >
--  CPO, in chat 2026-08-20, verbatim "do both", recorded in `.claude/task/escalations.log` under
--  `2026-08-20 feat/description-hygiene-gate` BEFORE this branch touched either file — GitLab #28 is
--  that an override can otherwise claim a ruling nobody can check.
-+  CPO, in chat 2026-08-21, verbatim "The docs only change when a model or a description changes,
-+  and that is exactly when this would fire. -> yes", recorded in `.claude/task/escalations.log`
-+  under `2026-08-21 feat/description-persist-docs` BEFORE this branch touched the file — GitLab #28
-+  is that an override can otherwise claim a ruling nobody can check.
- 
--  It authorises exactly two edits, and nothing else:
--    1. `.gitlab-ci.yml` — one line added to `validate:governance`'s script list.
--    2. `.claude/hooks/stop_gate.py` — one entry added to `FAST_GATES`.
--  No other change to either file, and no other protected path. `.claude/skills/validate-local/`
--  is NOT protected but must move in lockstep, because
--  `test_fast_gates_and_validate_local_agree` asserts set equality between its marked block and the
--  hook's tuple.
-+  It authorises exactly ONE edit and nothing else: appending
-+  `dbt docs generate --static --target prod` plus an `artifacts:` block to the `data:build:main`
-+  job in `.gitlab-ci.yml`. No other change to that file, and no other protected path.
-+  The question put to him was BEHAVIOURAL — how often should the documentation rebuild — not a file
-+  path, because MR5's entry records that a path-shaped question failed three times running.
- 
- impact_map: >
--  A NEW GUARD, so the blast radius is "what can now fail that could not before", in three places.
+-  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (the CPO's diagnosis,
+-  the audit's numbers, the definition of a good description, the six-MR split and its ordering
+-  constraints), and THIS branch's 2026-08-21 entry, which records the CPO's protected-path
+-  approval. Plan file: `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`; the programme plan is
+-  `jazzy-greeting-teacup.md`, Step 5.
+-  Branched from main `b378be5`. `!88` (MR5's second half) is OPEN — see decisions_reserved.
 -
--  1. TURN END. `stop_gate.py` runs the fast gates when the tree is dirty and in scope, and blocks
--     the turn once if any fails. Adding a gate there means a description defect ends a turn red.
--     The gate must therefore be FAST and must not need network, a fetched base branch, or BigQuery
--     — it parses YAML off disk, like its five siblings.
--  2. CI. `validate:governance` gains one line, so a defect fails the pipeline. No `changes:` filter
--     on that job, so it runs on every MR.
--  3. LOCAL. `validate-local` documents the same set; the pinning test fails if the two disagree.
+-protected_override: >
+-  CPO, in chat 2026-08-21, verbatim "The docs only change when a model or a description changes,
+-  and that is exactly when this would fire. -> yes", recorded in `.claude/task/escalations.log`
+-  under `2026-08-21 feat/description-persist-docs` BEFORE this branch touched the file — GitLab #28
+-  is that an override can otherwise claim a ruling nobody can check.
 -
--  ⚠ GREEN ON DAY ONE IS THE WHOLE REASON THIS MR IS FIFTH. MR3 and MR4 cleared all 453 descriptions
--  in the five worst files. The remaining 14 files were measured healthy by the audit, but "healthy"
--  was that audit's judgement, not this gate's rule — so the gate MUST be run against the whole
--  repo before wiring, and any survivor fixed or the rule narrowed with a stated reason. A gate that
--  goes red on main on day one is the `check_copy_gate.py` precedent inverted.
-+  `persist_docs` changes the DDL dbt emits for EVERY model and EVERY seed, so the blast radius is
-+  the warehouse itself. This is the one MR in the programme that can break prod.
- 
--  ⚠ THE RULE MUST NOT FIRE ON ORDINARY PROSE, and this is measured, not hypothetical. On the
--  finished MR3/MR4 text, a case-insensitive `CORRECTED` matches six legitimate uses of "the country
--  corrections from the seed" and "derived from the corrected name"; an ISO-date rule would have
--  matched `dim_date`'s calendar range before MR4 reworded it. Match the ANNOTATION forms, not the
--  plain verb. Every banned pattern needs a reason recorded beside it, as `check_copy_gate.py` does.
+-  It authorises exactly ONE edit and nothing else: appending
+-  `dbt docs generate --static --target prod` plus an `artifacts:` block to the `data:build:main`
+-  job in `.gitlab-ci.yml`. No other change to that file, and no other protected path.
+-  The question put to him was BEHAVIOURAL — how often should the documentation rebuild — not a file
+-  path, because MR5's entry records that a path-shaped question failed three times running.
 -
--  No dbt model, seed, mart, export or site file is touched, so the warehouse and the built site are
--  untouched. `PyYAML` is already a dependency; no new dependency enters.
-+  1. BIGQUERY, WRITE PATH. dbt sets the relation description and each column description at build
-+     time. BigQuery HARD-REJECTS a column description over 1,024 characters and a relation
-+     description over 16,384; a rejection fails the model, and in `data:build:main` that fails the
-+     prod build. This is why MR6 is sequenced last.
-+     ⚠ RETIRED BY MEASUREMENT, not by assumption. Read off `target/manifest.json`, so the text is
-+     RENDERED and a docs block counts as what it resolves to rather than as its reference: 106
-+     relation descriptions, longest 601; 870 column descriptions, longest 588; zero over either
-+     limit; 9 of 9 docs blocks resolved. The measurement is deliberately independent of the gate,
-+     because the gate in main skips the length check on a bare `{{ doc() }}` reference.
-+  2. SEEDS, A NEW CONFIG BLOCK. There is no `seeds:` block in `dbt_project.yml` today. It must
-+     carry `+persist_docs` and NOTHING else — seeds have no `+schema` and ride `target.schema`
-+     (`macros/generate_schema_name.sql`), so adding one would silently relocate every seed, and in
-+     prod that is `dbt_analytics`.
-+  3. CI COST, ONE TIME. Changing `dbt_project.yml` changes every model's config, so `state:modified`
-+     should match all 97 models and this MR's `data:build:mr` will rebuild the whole `ci_*`
-+     warehouse once. Expected, and it is also what proves the model-column half of the verification.
-+     Confirm it from the job log rather than predicting it.
-+  4. CI COST, RECURRING. `dbt docs generate` runs a catalog query against BigQuery INFORMATION_SCHEMA
-+     once per push-to-main that touches `*data_paths_prod`. Metadata-sized. It is NOT added to
-+     `data:nightly` (the content comes from the repo, so a nightly re-publishes identical pages) and
-+     NOT to `data:build:mr` (its `ci_*` datasets hold only `state:modified+`, so the catalog would
-+     be partial and misleading).
-+  5. NOT TOUCHED: no model SQL, no seed CSV, no description text, no export, no site file. The
-+     numbers the pipeline produces are unchanged — only the metadata attached to them.
+-impact_map: >
+-  `persist_docs` changes the DDL dbt emits for EVERY model and EVERY seed, so the blast radius is
+-  the warehouse itself. This is the one MR in the programme that can break prod.
+-
+-  1. BIGQUERY, WRITE PATH. dbt sets the relation description and each column description at build
+-     time. BigQuery HARD-REJECTS a column description over 1,024 characters and a relation
+-     description over 16,384; a rejection fails the model, and in `data:build:main` that fails the
+-     prod build. This is why MR6 is sequenced last.
+-     ⚠ RETIRED BY MEASUREMENT, not by assumption. Read off `target/manifest.json`, so the text is
+-     RENDERED and a docs block counts as what it resolves to rather than as its reference: 106
+-     relation descriptions, longest 601; 870 column descriptions, longest 588; zero over either
+-     limit; 9 of 9 docs blocks resolved. The measurement is deliberately independent of the gate,
+-     because the gate in main skips the length check on a bare `{{ doc() }}` reference.
+-  2. SEEDS, A NEW CONFIG BLOCK. There is no `seeds:` block in `dbt_project.yml` today. It must
+-     carry `+persist_docs` and NOTHING else — seeds have no `+schema` and ride `target.schema`
+-     (`macros/generate_schema_name.sql`), so adding one would silently relocate every seed, and in
+-     prod that is `dbt_analytics`.
+-  3. CI COST, ONE TIME. Changing `dbt_project.yml` changes every model's config, so `state:modified`
+-     should match all 97 models and this MR's `data:build:mr` will rebuild the whole `ci_*`
+-     warehouse once. Expected, and it is also what proves the model-column half of the verification.
+-     Confirm it from the job log rather than predicting it.
+-  4. CI COST, RECURRING. `dbt docs generate` runs a catalog query against BigQuery INFORMATION_SCHEMA
+-     once per push-to-main that touches `*data_paths_prod`. Metadata-sized. It is NOT added to
+-     `data:nightly` (the content comes from the repo, so a nightly re-publishes identical pages) and
+-     NOT to `data:build:mr` (its `ci_*` datasets hold only `state:modified+`, so the catalog would
+-     be partial and misleading).
+-  5. NOT TOUCHED: no model SQL, no seed CSV, no description text, no export, no site file. The
+-     numbers the pipeline produces are unchanged — only the metadata attached to them.
++  GitLab #84 ("Warehouse holds 310 orphaned relations that no dbt model owns"), filed 2026-08-21
++  with the full measurement. Authority: `.claude/task/escalations.log`, the 2026-08-21
++  `chore/84-orphan-relation-cleanup` entry — it records the CPO's three chat turns verbatim, what
++  each one authorises, and the two things they explicitly do NOT authorise. Read that, not this
++  line: a contract asserting an approval nobody can check is self-certifying (#28), which is what
++  scope-auditor FAILed round 1 for. Convention followed: `scripts/drop_legacy_raw_tables.py`
++  and its three siblings, which already establish dry-run-by-default plus `--confirm` for
++  destructive warehouse work. Authority for what is expected: dbt's manifest for the built layers,
++  and `sources.yml`'s 11 declared `identifier:` values for `raw`.
  
  scope_paths:
--  - scripts/check_description_hygiene.py
--  - tests/test_description_hygiene.py
-+  - dbt_project/dbt_project.yml
-   - .gitlab-ci.yml
--  - .claude/hooks/stop_gate.py
--  - .claude/skills/validate-local/SKILL.md
--  # Added by amendment 3 — the length rule it documents is being split.
-+  # Added by amendment 1 — the pinning test platform-reviewer's round-1 FAIL was right about.
-+  - tests/test_persist_docs_policy.py
-   - dbt_project/docs/engineering_standards.md
--  # Added by amendment 1 — the ten files the first full-repo sweep found dirty.
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
--  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
--  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+  - CLAUDE.md
+-  - dbt_project/dbt_project.yml
+-  - .gitlab-ci.yml
+-  # Added by amendment 1 — the pinning test platform-reviewer's round-1 FAIL was right about.
+-  - tests/test_persist_docs_policy.py
+-  - dbt_project/docs/engineering_standards.md
+-  - CLAUDE.md
++  - scripts/cleanup_orphan_relations.py
++  - tests/test_cleanup_orphan_relations.py
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
-@@ -85,81 +77,89 @@ scope_paths:
+   - .claude/task/acceptance_evidence.md
    - .claude/active_work.md
  
++impact_map: >
++  Short-form, and evidenced. `scripts/cleanup_orphan_relations.py` is NOT on the structural
++  surface: that surface is `ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py` and
++  `site*/` (`task_contract_gate._STRUCTURAL_PREFIXES` + `_EXPORT_RE`), and this file matches none
++  of them. It is not a protected path either.
++
++  writers: nothing writes to it; it is a new leaf script with no importers.
++  downstream: none. No dbt model, no CI job, no runbook and no other script references it. It is
++    not added to `.gitlab-ci.yml` (a protected path, untouched here) so nothing invokes it
++    automatically. `tests/` picks the new test file up by pytest discovery, which needs no CI edit.
++  layer_rules: none apply. It authors no SQL and adds no model, so `check_layer_contract.py` has
++    no surface here.
++  deploy_order: none. Merging changes no built relation and nothing runs at 04:00 because of it.
++  blast_radius: ZERO on merge, by construction — the script performs no write unless a human
++    passes `--confirm`, and the merge does not run it. The blast radius when a human DOES run it
++    with `--confirm` is the point of the task and is bounded by the guards in `done_when`.
++
  decisions_taken: >
--  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR5 as the gate.
--  CPO, 2026-08-20, "do both" — the gate runs in CI AND at turn end. See `protected_override`.
-+  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR6 as `persist_docs` plus
-+  published docs.
-+  CPO, 2026-08-20, "Both" — turn on `persist_docs` AND publish `dbt docs generate` from CI, chosen
-+  over either alone or neither.
-+  CPO, 2026-08-21, the docs rebuild after each merge to main. See `protected_override`.
+-  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR6 as `persist_docs` plus
+-  published docs.
+-  CPO, 2026-08-20, "Both" — turn on `persist_docs` AND publish `dbt docs generate` from CI, chosen
+-  over either alone or neither.
+-  CPO, 2026-08-21, the docs rebuild after each merge to main. See `protected_override`.
++  CPO, in chat 2026-08-21: "open the MR with the cleanup script", following the proposal of a
++  reviewable script with list mode by default and dropping behind an explicit flag. The three
++  phases (broken views / views that still return data / tables) are from that same approved
++  proposal.
++
++  THRESHOLD DECLARATIONS.
++  - NEW MECHANISM: no. This adds a script a human runs by hand. It is not wired into CI, not
++    scheduled, and enforces nothing, so it is not a guard. Wiring it in as a recurring check
++    WOULD be a new mechanism and is reserved below, not taken.
++  - RECURRING COST: none. Zero on merge. When run, it uses the BigQuery metadata API only
++    (`list_tables`, `get_table`), which is not billed, and `DROP` DDL, which is also not billed.
++    It issues no query, so it scans no bytes. There is no scheduled invocation.
++  - NEW DEPENDENCY: no. `google-cloud-bigquery` and `PyYAML` are already required and already
++    imported by `scripts/drop_legacy_raw_tables.py`.
++  - GUARD INVARIANT: none changed. No hook, no CI rule, no existing check is touched.
  
  decisions_reserved:
--  - `persist_docs` and `dbt docs generate` are MR6. Not touched here.
--  - ⚠ THIS BULLET WAS WRONG AS FIRST WRITTEN, and scope-auditor FAILed the branch on it. It said
--    fixing a survivor was "in scope only as far as making the gate green". That is not the rule I
--    followed and not the rule that is right: where the sweep touches a description, it applies §2
--    IN FULL, not the gate's mechanical subset.
--    WHY, because the distinction is the whole point of trap 1b: the gate's rules are deliberately
--    narrower than §2 — they only match what a machine can decide with no taste. `mart_team_season
--    composes` and `ratios live in mart_team_season_record` are §2-banned downstream-consumer
--    claims that no regex here catches. A minimal token-deletion would have left them standing in a
--    description it had just edited, which is the half-cleaned outcome this programme exists to
--    remove, and would have left those ten files inconsistent with the five MR3/MR4 rewrote.
--    ⚠ ONE OF THE THREE FLAGGED CHANGES WAS NOT §2-DRIVEN and is restored: dropping "Complement to
--    int_team_momentum__metrics" from `int_team_season_record` was a sibling cross-reference, not a
--    downstream claim, and losing it cost something for nothing.
--    analytics-engineer-reviewer checked all ten files against their SQL and found no false claim,
--    so the rewrites are sound; the defect was this bullet describing them wrongly.
--  - The gate's rule set is mine to draft and the reviewers' to challenge. Any rule that would
--    require a CPO judgement — banning something he has asked for — is escalated, not assumed.
-+  - #82 (MR7, the coverage gate) and #83 (the missing competition-classification dim) are NOT
-+    started here. #82 comes after MR6 because it needs this MR's `catalog.json`.
-+  - Whether `!88` merges before this MR is the CPO's, because he merges. The recommendation is
-+    recorded in `escalations.log` and in the handover: MR6 is what makes an over-long description
-+    build-breaking, and the gate in main is blind to a long shared docs block, which is exactly the
-+    hole `!88` closes. MR6 is safe either way — the measured over-limit count is zero — so this is
-+    a recommendation, not a blocker.
-+  - `snapshots:` is deliberately NOT given `persist_docs`. The block is dormant, dbt already
-+    reports it as an unused configuration path, and its own header instructs whoever lands the
-+    first snapshot to make it target-aware. Adding a key to a block that binds nothing would be
-+    speculative config. If the CPO wants uniformity instead, it is one line.
-+  - The two length bullets in `engineering_standards.md` §2 are NOT touched. `!88` rewrites exactly
-+    those lines; editing them here creates a conflict and buys nothing. MR6 adds a Readers note
-+    elsewhere in §2.
+-  - #82 (MR7, the coverage gate) and #83 (the missing competition-classification dim) are NOT
+-    started here. #82 comes after MR6 because it needs this MR's `catalog.json`.
+-  - Whether `!88` merges before this MR is the CPO's, because he merges. The recommendation is
+-    recorded in `escalations.log` and in the handover: MR6 is what makes an over-long description
+-    build-breaking, and the gate in main is blind to a long shared docs block, which is exactly the
+-    hole `!88` closes. MR6 is safe either way — the measured over-limit count is zero — so this is
+-    a recommendation, not a blocker.
+-  - `snapshots:` is deliberately NOT given `persist_docs`. The block is dormant, dbt already
+-    reports it as an unused configuration path, and its own header instructs whoever lands the
+-    first snapshot to make it target-aware. Adding a key to a block that binds nothing would be
+-    speculative config. If the CPO wants uniformity instead, it is one line.
+-  - The two length bullets in `engineering_standards.md` §2 are NOT touched. `!88` rewrites exactly
+-    those lines; editing them here creates a conflict and buys nothing. MR6 adds a Readers note
+-    elsewhere in §2.
++  - ⛔ RUNNING IT WITH `--confirm` IS THE CPO'S, NOT MINE. Dropping production relations is
++    destructive and permanent. This MR delivers the tool and the evidence; it does not drop
++    anything, and nothing in it runs the script. `bq rm` is independently blocked by
++    `.claude/settings.json`'s deny list.
++  - Whether to wire this into CI as a recurring reconciliation check is a NEW MECHANISM and
++    therefore CPO/CTO-class. It is what actually prevents recurrence (the repo guard governs the
++    repo; nothing reconciles the warehouse, which is why a 2026-05-27 merge left 310 relations
++    standing for three months), but it is proposed in #84, not built here.
++  - Whether `dbt_scratch` (16 stale relations) and the other non-prod datasets get cleaned is a
++    separate decision. The script refuses to touch any dataset outside its explicit allowlist, so
++    a later yes is a one-line change reviewed on its own.
++  - `raw_archive` (14 tables dated 20260808) is a deliberate archive. Not in scope, not in the
++    allowlist.
  
  done_when:
--  - `scripts/check_description_hygiene.py` matches its six siblings: `main() -> int`, 0/1, no CLI
--    args, findings accumulated then printed with a count, a census line on success.
--  - It carries an anti-vacuous floor, as `check_copy_gate.py` does: if it finds implausibly few
--    descriptions it fails loudly rather than passing green on a broken parser.
--  - `tests/test_description_hygiene.py` drives `main()` against a synthetic offender for EVERY
--    banned class and asserts exit 1, and proves the floor fires from inside the gate.
--  - THE GATE IS SEEN RED. Break it deliberately, watch it fail, restore. A passing gate proves
--    nothing (#904) — this is the repo's dominant failure and the acceptance evidence must show it.
--  - Run against the WHOLE repo before wiring: zero findings on main's current content.
--  - Wired in all three places, and `test_fast_gates_and_validate_local_agree` passes.
--  - `python -m pytest tests/` green at the 829/1 baseline plus the new tests.
--  - The five existing fast gates still pass, read from their OUTPUT not their exit code.
-+  - `+persist_docs: {relation: true, columns: true}` set ONCE at the `models:
-+    football_data_pipeline:` level so it cascades to all five layers, not restated per layer.
-+  - A new top-level `seeds:` block carrying `+persist_docs` and nothing else. No `+schema`.
-+  - `dbt docs generate --static --target prod` plus an `artifacts:` block on `data:build:main`
-+    only, with no `allow_failure`.
-+  - PROVEN ON A DEV TARGET, never `dbt build` against prod: `dbt seed --select competition_types
-+    --target dev` then `bq show --schema` shows the relation description and all 5 column
-+    descriptions. (`competition_types` is a SEED — `dbt run` selects nothing and exits 0, which is
-+    the false-green the brief's own recipe would have produced.)
-+  - The models half proven too: `dbt run --select stg_apif__leagues --target dev` then `bq show`.
-+    Model COLUMN descriptions cannot be proven locally — no staging model has one (0 of 15,
-+    measured) and every model that does needs the whole chain in dev — so they are proven off this
-+    MR's own `ci_*` build, read from the log.
-+  - `dbt docs generate --static --target dev` produces `static_index.html` and a non-empty
-+    `catalog.json`.
-+  - THE HAZARD IS SEEN RED. Push one description past 1,024 characters, watch BigQuery reject it,
-+    revert. A passing check proves nothing (#904) — this is the repo's dominant failure.
-+  - `python -m pytest tests/` green at its measured baseline; the offline gates pass, read from
-+    their OUTPUT not their exit code.
-   - Handover updated in the SAME commit as the code.
-+  - Added by amendment 1: `tests/test_persist_docs_policy.py` pins every invariant this MR
-+    establishes, and is SEEN RED per invariant before being trusted.
+-  - `+persist_docs: {relation: true, columns: true}` set ONCE at the `models:
+-    football_data_pipeline:` level so it cascades to all five layers, not restated per layer.
+-  - A new top-level `seeds:` block carrying `+persist_docs` and nothing else. No `+schema`.
+-  - `dbt docs generate --static --target prod` plus an `artifacts:` block on `data:build:main`
+-    only, with no `allow_failure`.
+-  - PROVEN ON A DEV TARGET, never `dbt build` against prod: `dbt seed --select competition_types
+-    --target dev` then `bq show --schema` shows the relation description and all 5 column
+-    descriptions. (`competition_types` is a SEED — `dbt run` selects nothing and exits 0, which is
+-    the false-green the brief's own recipe would have produced.)
+-  - The models half proven too: `dbt run --select stg_apif__leagues --target dev` then `bq show`.
+-    Model COLUMN descriptions cannot be proven locally — no staging model has one (0 of 15,
+-    measured) and every model that does needs the whole chain in dev — so they are proven off this
+-    MR's own `ci_*` build, read from the log.
+-  - `dbt docs generate --static --target dev` produces `static_index.html` and a non-empty
+-    `catalog.json`.
+-  - THE HAZARD IS SEEN RED. Push one description past 1,024 characters, watch BigQuery reject it,
+-    revert. A passing check proves nothing (#904) — this is the repo's dominant failure.
+-  - `python -m pytest tests/` green at its measured baseline; the offline gates pass, read from
+-    their OUTPUT not their exit code.
+-  - Handover updated in the SAME commit as the code.
+-  - Added by amendment 1: `tests/test_persist_docs_policy.py` pins every invariant this MR
+-    establishes, and is SEEN RED per invariant before being trusted.
++  - Dry-run is the default. The script performs no destructive call without `--confirm`, and a
++    test proves it by asserting `delete_table` is never reached without the flag.
++  - A relation that any manifest node owns can never be selected, and a test proves it.
++  - The manifest sanity floor aborts the run rather than treating an empty or unreadable manifest
++    as "everything is orphaned". A test drives that path and asserts it exits non-zero WITHOUT
++    calling `delete_table`. This is the failure that would drop the whole warehouse, so it is
++    tested by breaking it, not by reading it (#904).
++  - `__dbt_tmp` relations are never selected; they carry a dbt-set 12-hour expiration.
++  - Datasets outside the explicit allowlist are never touched, and a test proves it.
++  - The three phases select disjoint sets whose union is the full orphan set, proven by a test.
++  - `python -m pytest tests/ -v` is green, and the new tests are seen to FAIL first when the
++    guard they cover is broken (#904: a passing test proves nothing until it has been red).
++  - The five offline gates pass, read from their OUTPUT, not their exit code.
++  - Handover updated in the SAME commit as the code it describes.
  
  amendments:
-   - >
--    1. TEN MORE FILES ADDED TO scope_paths, because the first full-repo sweep measured the gate
--    red on main. 35 findings across 10 files that MR3 and MR4 never touched: 14 issue refs, 9
--    over-length, 6 ISO dates, 4 decision-language, 1 severity emoji, 1 downstream-consumer claim.
--    The plan assumed MR3+MR4 would leave the repo green; that assumption was wrong for a reason
--    worth recording — the audit judged those 14 files "healthy" against its own reading, and this
--    gate's rule is stricter than that judgement. So the audit's 83%-in-5-files figure is right
--    about where the WORST text is and wrong as a completeness claim.
--    Fixing them is the `check_copy_gate.py` precedent applied literally: clear the findings, THEN
--    wire, so the default branch never goes red. It is not new editorial scope — the same six
--    mechanical classes MR3 and MR4 removed, in the files that were out of their reach.
--    ⚠ This makes MR5 two things in one MR: the last of the content sweep, and the gate. If a
--    reviewer judges that unreviewable, the content half splits out and the gate follows it.
 -  - >
--    3. THE LENGTH RULE BECOMES BIGQUERY'S OWN MAXIMA — 1,024 for a COLUMN description, 16,384 for
--    a MODEL or SEED — measured on the RENDERED text, with `engineering_standards.md` joining
--    scope_paths to say so.
--    CPO-DIRECTED, in two steps. He challenged the flat 600 ("if 1024 is max why do we max at
--    600?") and supplied BigQuery's limits: 16,384 table, 1,024 column, 300 column name. I then
--    proposed 600 for columns and an EDITORIAL 1,024 for models, and he rejected that framing:
--    *"we use bigqueries max which doesn't necessarily mean that we are exhausting it. it's just you
--    who has a tendency tom massively bullshit and spam with text."*
--    THE RULING, AND WHY IT IS RIGHT: the cap's only job is stopping `persist_docs` failing the
--    build. A tighter number does not make me write less — it makes me shave words while still
--    writing padding, which is what MR3 and MR4 actually cost. Brevity is a judgement and mine to
--    exercise, not something to fake with a threshold. Using the maximum is not a licence to fill it.
--    ⚠ THIS AMENDMENT DESCRIBED THE SUPERSEDED PROPOSAL UNTIL scope-auditor CAUGHT IT. It said
--    "columns 600, models and seeds 1,024" and argued for 1,024-rather-than-16,384 as a deliberate
--    editorial narrowing — a protection that was never built, while the shipped code and standard
--    used the raw maxima. `objective:` still said a flat 600 as well: three numbers across three
--    artifacts for one decision. Exactly the stale-claim class of GitLab #71, committed inside the
--    MR that ships the gate against it.
-+    1. A PINNING TEST ADDED, because platform-reviewer FAILed round 1 and was right.
-+    THE FINDING: nothing in `tests/` referenced `persist_docs`, `docs generate`, `catalog.json` or
-+    `static_index` — verified, the grep returns zero files. So every invariant this MR establishes
-+    could be reverted with the whole suite still green: deleting `+persist_docs`, adding a
-+    `+schema` to the new `seeds:` block (the silent-relocation hazard the file's own comment warns
-+    about), removing the docs step, moving it to `data:nightly` or `data:build:mr` (both
-+    explicitly rejected by the CPO's override), or restoring `allow_failure`.
-+    WHY IT LANDS RATHER THAN BEING ARGUED WITH: this is the exact class
-+    `tests/test_materialisation_policy.py` and `tests/test_ci_data_job_invariants.py` already
-+    exist for, on the SAME two files, and both open by saying breaking them produces no red
-+    anywhere. The programme's own founding measurement is that 33 of 50 corrections were
-+    prose-only and 22 recurred, while every rule that got a machine check stopped recurring. A
-+    config change defended only by hand-run commands pasted into an evidence file is a prose-only
-+    correction wearing a lab coat.
-+    The original `done_when` list omitted a pinning test with no stated reason. That omission was
-+    the defect, not an accepted trade-off.
-   - >
--    2. ONE RULE WIDENED DURING THE SWEEP, recorded because it changes what the gate catches.
--    `stg_apif__lineups` claims "This model has NO consumer today" — the exact shape of the
--    `display_group` claim that started this programme, and the first draft's
--    `no dbt model reads` arm did not match it. The downstream rule is now written as a CLASS
--    (no/zero/only/single reader-or-consumer, nothing downstream, feeds/enriches/powers a named
--    model) rather than a list of the instances seen so far.
-+    2. NOT AN AMENDMENT TO SCOPE — a correction to platform-reviewer's SECOND finding, recorded
-+    because the correction is the useful part and the reviewer should see it.
-+    THE FINDING: `static_index.html` was measured at 6.6 MB against a dev catalog of 10 nodes / 78
-+    columns, while production is 106 relations / 870 declared columns, so the evidence measured
-+    something ~10x smaller than what will really be produced.
-+    THE PREMISE IS WRONG, and this is measured. `target/manifest.json` is 5,085,350 bytes and
-+    already contains ALL 97 models and 9 seeds — a manifest is a parse artifact and does not
-+    depend on what was BUILT, so the dominant JSON embedded in `static_index.html` was already at
-+    full production scale in that dev run. The dbt docs SPA bundle is a fixed cost. Only the
-+    catalog portion scales, at 47,511 bytes across 112 catalogued columns (78 in nodes + 34 in
-+    sources) — **~424 bytes per column**.
-+    ⚠ AN EARLIER DRAFT OF THIS AMENDMENT SAID ~609 bytes/column, dividing by the 78 node columns
-+    while the file also holds 34 source columns. Wrong denominator, and it disagreed with the
-+    figure in `acceptance_evidence.md`. Caught by platform-reviewer in round 2, which noticed the
-+    two artifacts quoting different rates for one measurement. It is recorded rather than quietly
-+    overwritten because it is the SAME defect MR5 shipped — three numbers across three artifacts
-+    for one decision — committed again inside the programme built to stop it. The conclusion was
-+    never rate-sensitive (both rates land two orders of magnitude under the limit), which is
-+    exactly why it survived a first reading.
-+    THE FAIR HALF OF THE FINDING STANDS: no estimate and no artifact-limit check existed anywhere
-+    on the branch. Both are now in `acceptance_evidence.md`.
+-    1. A PINNING TEST ADDED, because platform-reviewer FAILed round 1 and was right.
+-    THE FINDING: nothing in `tests/` referenced `persist_docs`, `docs generate`, `catalog.json` or
+-    `static_index` — verified, the grep returns zero files. So every invariant this MR establishes
+-    could be reverted with the whole suite still green: deleting `+persist_docs`, adding a
+-    `+schema` to the new `seeds:` block (the silent-relocation hazard the file's own comment warns
+-    about), removing the docs step, moving it to `data:nightly` or `data:build:mr` (both
+-    explicitly rejected by the CPO's override), or restoring `allow_failure`.
+-    WHY IT LANDS RATHER THAN BEING ARGUED WITH: this is the exact class
+-    `tests/test_materialisation_policy.py` and `tests/test_ci_data_job_invariants.py` already
+-    exist for, on the SAME two files, and both open by saying breaking them produces no red
+-    anywhere. The programme's own founding measurement is that 33 of 50 corrections were
+-    prose-only and 22 recurred, while every rule that got a machine check stopped recurring. A
+-    config change defended only by hand-run commands pasted into an evidence file is a prose-only
+-    correction wearing a lab coat.
+-    The original `done_when` list omitted a pinning test with no stated reason. That omission was
+-    the defect, not an accepted trade-off.
+-  - >
+-    2. NOT AN AMENDMENT TO SCOPE — a correction to platform-reviewer's SECOND finding, recorded
+-    because the correction is the useful part and the reviewer should see it.
+-    THE FINDING: `static_index.html` was measured at 6.6 MB against a dev catalog of 10 nodes / 78
+-    columns, while production is 106 relations / 870 declared columns, so the evidence measured
+-    something ~10x smaller than what will really be produced.
+-    THE PREMISE IS WRONG, and this is measured. `target/manifest.json` is 5,085,350 bytes and
+-    already contains ALL 97 models and 9 seeds — a manifest is a parse artifact and does not
+-    depend on what was BUILT, so the dominant JSON embedded in `static_index.html` was already at
+-    full production scale in that dev run. The dbt docs SPA bundle is a fixed cost. Only the
+-    catalog portion scales, at 47,511 bytes across 112 catalogued columns (78 in nodes + 34 in
+-    sources) — **~424 bytes per column**.
+-    ⚠ AN EARLIER DRAFT OF THIS AMENDMENT SAID ~609 bytes/column, dividing by the 78 node columns
+-    while the file also holds 34 source columns. Wrong denominator, and it disagreed with the
+-    figure in `acceptance_evidence.md`. Caught by platform-reviewer in round 2, which noticed the
+-    two artifacts quoting different rates for one measurement. It is recorded rather than quietly
+-    overwritten because it is the SAME defect MR5 shipped — three numbers across three artifacts
+-    for one decision — committed again inside the programme built to stop it. The conclusion was
+-    never rate-sensitive (both rates land two orders of magnitude under the limit), which is
+-    exactly why it survived a first reading.
+-    THE FAIR HALF OF THE FINDING STANDS: no estimate and no artifact-limit check existed anywhere
+-    on the branch. Both are now in `acceptance_evidence.md`.
++  - 2026-08-21: + `.claude/task/escalations.log` — authority: scope-auditor FAIL, round 1. The
++    contract asserted a CPO "go" given in chat with no entry in the log to back it, which is the
++    self-certifying pattern GitLab #28 exists to close, and which MR5 and MR6 both avoided by
++    recording the approval BEFORE the branch was written. This task is not a protected-path edit,
++    but its content is a tool that issues DROP DDL against production, so the authority to build it
++    at all has to be checkable by someone who was not in the conversation. Content: an entry
++    recording the CPO's actual chat turns and what each one authorised. Written on a clean tree
++    (the code was stashed by explicit path and popped straight back).
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index d84d28f..c572294 100644
+index c572294..9071426 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -4236,3 +4236,62 @@ FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches eit
-   columns are the semantic root, and a leg column that keeps its upstream NAME should reference
-   the upstream definition through a `{{ doc() }}` block rather than restate it. A RENAMED column
-   (`opp.shots_on_goal as opponent_shots_on_goal`) means something different and needs its own text.
+@@ -4295,3 +4295,41 @@ file.
+   builds nothing and exits 0 — the false-green shape #904 names as this repo's dominant failure,
+   arriving inside the step meant to prevent it. The command is
+   `dbt seed --select competition_types --target dev`.
 +
++2026-08-21 chore/84-orphan-relation-cleanup — CPO AUTHORITY FOR A SCRIPT THAT DROPS PRODUCTION
++RELATIONS, given in chat, recorded here after scope-auditor FAILed round 1 for its absence.
 +
-+2026-08-21 feat/description-persist-docs — MR6 of the description-drift programme, and the last of
-+it. CPO APPROVAL FOR A PROTECTED-PATH EDIT, given in chat, recorded BEFORE the branch touches the
-+file.
++  WHY THIS ENTRY EXISTS. The same reason as the two entries above it (GitLab #28): a contract that
++  asserts a CPO approval nobody can check is self-certifying. This task edits no protected path, so
++  no `protected_override` was owed and none was written. But the thing being built is the only
++  script in the repo that can bulk-DROP production BigQuery relations, and scope-auditor's round-1
++  FAIL was that the authority to build it at all rested on a verbal claim with nothing behind it.
++  The finding was correct and is fixed here. ⚠ Unlike MR5 and MR6, this entry is written AFTER the
++  branch rather than before it. That is the weaker order, and it is recorded as what happened
++  rather than dressed up: the rule is that the approval is written down first.
 +
-+  WHY THIS ENTRY EXISTS AT ALL. GitLab #28: `protected_override` can claim a CPO ruling with no
-+  entry here to back it, which makes the override self-certifying. MR5 set the precedent of writing
-+  the approval down first and having the contract cite it, rather than the contract asserting an
-+  approval nobody can check. Same shape here.
++  WHAT THE CPO ACTUALLY SAID, in three turns.
++  (1) The task brief that opened the work: investigate the orphaned per-competition staging views in
++      production and propose removal. Four steps — enumerate what the manifest does not own, confirm
++      whether they cost storage, check nothing reads them, and "Bring the CPO a proposal before
++      dropping anything." It closed: "Dropping production relations is destructive and is his call,
++      not the agent's. Do NOT drop anything unilaterally."
++  (2) After the findings and a recommendation were put to him: "file the issue first". That
++      authorised GitLab #84 and nothing else.
++  (3) After #84 was filed, and the next step was offered as branching and opening "an MR with a
++      reviewable cleanup script (list mode by default, drop behind an explicit flag) so the
++      operation is code-reviewed before it touches production, rather than 310 loose `bq rm`
++      lines": "open the MR with the cleanup script".
 +
-+  THE ASK, and it is deliberately NOT put in terms of file paths. MR5's entry above records that I
-+  put a protected-path choice to the CPO three times in terms of paths and gate mechanics, and that
-+  he said three times he could not tell what he was being asked to approve. The lesson recorded
-+  there was that the decision was always about BEHAVIOUR. So the question this time was: how often
-+  should the documentation rebuild? Three options, each with what it costs and what it buys —
-+  after each merge to main; also every night; on every merge request too.
++  WHAT THAT AUTHORISES, AND WHAT IT DOES NOT. It authorises building the tool and opening the MR.
++  It does NOT authorise running it with `--confirm`. That stays reserved in the contract and is his
++  alone: turn (1) is explicit and nothing since has superseded it. Nothing has been dropped — every
++  run in this task was a dry run, and `bq rm` is independently denied by `.claude/settings.json`.
++  It also does NOT authorise wiring the script into CI as a recurring reconciliation check. That is
++  a NEW MECHANISM, it is the thing that would actually stop this recurring, and it is proposed in
++  #84 rather than built.
 +
-+  CPO ANSWER, verbatim: *"The docs only change when a model or a description changes, and that is
-+  exactly when this would fire. -> yes"*. So the docs rebuild after each merge to main. Framing it
-+  as behaviour got an answer first time, which is the MR5 lesson working.
-+
-+  SCOPE OF THE OVERRIDE, deliberately narrow. It authorises exactly one thing: appending
-+  `dbt docs generate --static --target prod` and an `artifacts:` block to `data:build:main` in
-+  `.gitlab-ci.yml`. No other change to that file, and no other protected path.
-+  The two rejected options are recorded as DECISIONS, not omissions:
-+    - NOT in `data:nightly`. A description's content comes from the repo, not from the data, so a
-+      nightly run would re-publish identical pages for recurring cost — and recurring cost is his.
-+    - NOT in `data:build:mr`. That job builds `state:modified+` into the shared `ci_*` datasets, so
-+      its catalog would cover only what the branch happened to change. A partial column list
-+      presented as the column list is worse than no column list.
-+  Also decided, and smaller: NO `allow_failure`. The retired GitHub step was
-+  `continue-on-error: true` (`pages-match-preview.yml:133`). A docs build that silently does
-+  nothing is the exact "green but did nothing" class of #904, and this step runs after prod is
-+  already written, so a failure there costs signal rather than data.
-+
-+  WHY MR6 IS THE ONE THAT CAN BREAK PROD, and how that risk was retired rather than asserted.
-+  `persist_docs` pushes every description into BigQuery, which hard-rejects a column description
-+  over 1,024 characters and a relation description over 16,384. The approved plan recorded 15
-+  descriptions over 1,024, which is the whole reason MR6 was sequenced behind MR2-MR4.
-+  MEASURED on this branch off `target/manifest.json`, so the text is RENDERED and a docs block
-+  counts as what it resolves to rather than as its 25-character reference: 106 relation descriptions
-+  (97 models + 9 seeds), longest 601; 870 column descriptions, longest 588; ZERO over either limit;
-+  all 9 docs blocks resolved, and zero unrendered `{{ doc(` surviving into the manifest.
-+  ⚠ THE NUMBER WAS NOT TAKEN FROM THE GATE, and that is the point. The gate merged in `!87` skips
-+  the length check entirely when a description is a bare `{{ doc() }}` reference, so a long shared
-+  block passes it in silence. That blind spot is exactly what `!88` fixes. Reading the length off
-+  the manifest is independent of both versions, which is why it is the evidence.
-+
-+  ⚠ AN ORDERING CONSEQUENCE, and it is the CPO's to act on. MR6 is what converts an over-long
-+  description from harmless into build-breaking. Merging MR6 while `!88` is still open leaves the
-+  hazard live and the guard blind to it. MR6 is safe to merge today either way, because the measured
-+  count is zero — the recommendation is `!88` first, not a block on MR6.
-+
-+  ⚠ A CORRECTION TO THE TASK BRIEF, made rather than followed. Its verification recipe was
-+  `dbt run --select competition_types`. `competition_types` is a SEED, so `dbt run` selects nothing,
-+  builds nothing and exits 0 — the false-green shape #904 names as this repo's dominant failure,
-+  arriving inside the step meant to prevent it. The command is
-+  `dbt seed --select competition_types --target dev`.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index cbb04d4..37fce5e 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -703,6 +703,34 @@ data:build:main:
-     - dbt build --selector staging --target prod
-     - dbt build --selector downstream --target prod
-     - dbt test --select test_type:singular --exclude tag:freshness_check --target prod
-+    # The READER half of the description programme. `persist_docs` (dbt_project.yml) puts each
-+    # description onto its BigQuery table and column; this publishes the browsable page. It also
-+    # writes target/catalog.json, which is the ONLY place a column that exists in BigQuery but is
-+    # declared in no .yml can be seen — GitLab #82 is built on exactly that file, which is why it
-+    # could not come before this job learned to produce it.
-+    #
-+    # HERE AND NOWHERE ELSE, decided 2026-08-21. The CPO's reason, and it is the right one: the
-+    # docs only change when a model or a description changes, and that is exactly when this fires.
-+    #   · NOT in data:nightly — a description's content comes from the repo, not from the data, so
-+    #     a nightly run would re-publish identical pages for recurring cost.
-+    #   · NOT in data:build:mr — that job builds state:modified+ into the shared ci_* datasets, so
-+    #     its catalog would cover only what the branch happened to change. A partial column list
-+    #     presented as the column list is worse than no column list.
-+    #
-+    # NO allow_failure, deliberately. The retired GitHub step was `continue-on-error: true`
-+    # (.github/workflows/pages-match-preview.yml:133) — the "green but did nothing" shape of #904.
-+    # This runs after prod is built AND tested, so a failure here costs signal, never data.
-+    # `--static` embeds the manifest and catalog into one self-contained HTML file, which is what
-+    # scripts/build_match_preview_site.sh:57-63 consumed before the migration.
-+    - dbt docs generate --static --target prod
-+  # Published so the docs can be read without a dbt install. Paths are relative to
-+  # CI_PROJECT_DIR even though the script ends inside dbt_project/.
-+  artifacts:
-+    paths:
-+      - dbt_project/target/static_index.html
-+      - dbt_project/target/manifest.json
-+      - dbt_project/target/catalog.json
-+    expire_in: 30 days
-   # THE ONLY AUTOMATIC PATH IS A PUSH TO MAIN. Everything else that can reach this job
-   # asks first, because it is the most expensive job in the file.
-   #
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 8a15fee..30eaa80 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -191,6 +191,16 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
-   `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
-   `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
-   **MRs**, not PRs.
-+- **dbt descriptions have READERS, since 2026-08-21 — write them for a stranger.**
-+  `+persist_docs: {relation: true, columns: true}` is on for every model and seed, so each
-+  `description:` is attached to its BigQuery table and column and shows up in `bq show --schema`
-+  and the console. `data:build:main` then runs `dbt docs generate --static` and publishes
-+  `static_index.html`, `manifest.json` and `catalog.json` as job artifacts.
-+  ⚠ **BigQuery hard-rejects a column description over 1,024 chars (relation: 16,384), and a
-+  rejection fails the model** — so an over-long description now breaks the prod build.
-+  `scripts/check_description_hygiene.py` holds the line, measuring the RENDERED text; a
-+  `{{ doc() }}` block is not a way around the limit. The standard is
-+  `dbt_project/docs/engineering_standards.md` §2.
- - **GitHub is RETAINED but DORMANT.** Its Actions run nothing; `.github/workflows/` is a snapshot
-   of what ran before the 2026-08 migration and is deliberately kept unedited — see
-   `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
-diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
-index 43a348c..2a534a3 100644
---- a/dbt_project/dbt_project.yml
-+++ b/dbt_project/dbt_project.yml
-@@ -88,6 +88,24 @@ vars:
- # Hierarchical Model Configuration
- models:
-   football_data_pipeline:
-+    # Descriptions are pushed to BigQuery as table and column metadata, so `bq show --schema`,
-+    # the console and any BI tool show what a column means. Until 2026-08-21 they were pushed
-+    # NOWHERE: the audit that started the description programme found the field had been used as
-+    # a decision log, and the root cause it identified was that nothing read it. This is the
-+    # reader. Set ONCE at project level rather than per layer — unlike +materialized, which is a
-+    # cost decision taken per layer, this is a property of the whole project.
-+    #
-+    # ⚠ THIS CAN BREAK THE PROD BUILD. BigQuery hard-rejects a column description over 1,024
-+    # characters and a relation description over 16,384, and a rejected description fails the
-+    # model that carries it. 15 descriptions were over 1,024 when the programme started, which is
-+    # why turning this on was sequenced behind the cleanup rather than done first.
-+    # scripts/check_description_hygiene.py now holds every description under those limits and
-+    # measures the RENDERED text, so a {{ doc() }} block counts as what it resolves to and not as
-+    # its reference. Do not treat a docs block as a way around the limit.
-+    +persist_docs:
-+      relation: true
-+      columns: true
-+
-     # 1. Staging: Raw cleanup. TABLES since 2026-08-12 (#33 items 9/10). These were views from
-     # the project's first commit, on the same "not storing an intermediate result is cheaper"
-     # reasoning #547 already disproved one layer up. A view stores nothing, so every reader
-@@ -130,6 +148,20 @@ models:
-       +materialized: table
-       +schema: marts
- 
-+# Seeds: the configuration and mapping tables. This block exists ONLY to carry persist_docs, and
-+# it is new — seeds had no config block at all, which is part of why they were the audit's worst
-+# offender (seeds/schema.yml alone held 38% of the contaminated text, having tripled in four weeks
-+# while describing the same 9 seeds).
-+#
-+# ⚠ KEEP IT persist_docs-ONLY. Seeds declare no +schema, so they ride target.schema — the profile's
-+# `dataset:`, which is `dbt_analytics` on prod — through macros/generate_schema_name.sql. Adding a
-+# +schema here would silently move every seed to a different dataset and break every ref() to one.
-+seeds:
-+  football_data_pipeline:
-+    +persist_docs:
-+      relation: true
-+      columns: true
-+
- # Snapshots: SCD Type-2 history tables (used for sources the API only exposes as "current").
- # Currently DORMANT — no snapshot .sql files exist, so this block binds nothing. NOTE: snapshot
- # `target_schema` is applied verbatim and does NOT pass through generate_schema_name, so it is
-diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
-index 116dd8c..bb5d7d6 100644
---- a/dbt_project/docs/engineering_standards.md
-+++ b/dbt_project/docs/engineering_standards.md
-@@ -127,6 +127,24 @@ tracker, design rationale in `layering.md`.
-   pushed to the warehouse, so the limit applies to the RESOLVED string — block plus qualifier, not
-   what is written in the YAML.
- 
-+### Who reads these
-+
-+Three consumers, all live. This is the part that used to be missing: for most of the project's life
-+nothing read a `description:` at all, which is why the field drifted into a decision log. A rule
-+about writing for a reader is unenforceable when there is no reader.
-+
-+- **BigQuery itself.** `persist_docs` is on for every model and every seed, so a description is
-+  attached to the table and the column it describes. `bq show --schema <dataset>.<table>` prints it,
-+  and the console and any BI tool show it beside the data.
-+- **The dbt docs page.** `data:build:main` runs `dbt docs generate --static` after each merge to
-+  main and publishes `static_index.html` as a job artifact. Descriptions, lineage and column lists
-+  in one self-contained file.
-+- **`target/catalog.json`**, produced by the same step. It is the only place the warehouse's actual
-+  columns can be compared against what the `.yml` files declare.
-+
-+The practical consequence when writing: assume a stranger reads your sentence in the BigQuery
-+console with none of this repo's context around it. That is now literally what happens.
-+
- ### Worked example
- 
- Before — 1,080 characters, and the load-bearing sentence is false:
-diff --git a/tests/test_persist_docs_policy.py b/tests/test_persist_docs_policy.py
++  THE SHAPE HE APPROVED, so a later reader can tell delivery from drift: dry-run by default,
++  `--confirm` to drop, three phases (250 broken views that already error on any query, 26 views that
++  still return data, 34 tables), and the orphan set derived from dbt's manifest on every run rather
++  than from a captured list of names, so the tool does not go stale the way the list would.
+diff --git a/scripts/cleanup_orphan_relations.py b/scripts/cleanup_orphan_relations.py
 new file mode 100644
-index 0000000..9c4f9d0
+index 0000000..6fdb715
 --- /dev/null
-+++ b/tests/test_persist_docs_policy.py
-@@ -0,0 +1,237 @@
-+"""Pin the invariants that make `persist_docs` safe, because breaking them produces no red.
++++ b/scripts/cleanup_orphan_relations.py
+@@ -0,0 +1,386 @@
++"""Report, and optionally drop, production BigQuery relations that no dbt model owns (#84).
 +
 +WHY THIS EXISTS
 +---------------
-+Turning on `persist_docs` is the change in this repo's history that most directly couples a prose
-+field to a production build: every `description:` is pushed to BigQuery as table and column
-+metadata, and BigQuery HARD-REJECTS a column description over 1,024 characters or a relation
-+description over 16,384. A rejection fails the model, and in `data:build:main` that fails the prod
-+build. Bracketed live on 2026-08-21 against a dev table: 1,024 accepted, 1,025 rejected with an
-+HTTP 400, 16,384 accepted, 16,385 rejected. It is a rejection, not a truncation.
++`check_layer_contract.py` blocks the per-competition pattern in the REPO. Nothing reconciles the
++WAREHOUSE. So when `6e4ba18` (2026-05-27) replaced the per-competition staging and base models with
++generic unified ones, the models left the repo and 310 relations stayed behind in production,
++unnoticed for three months. 244 of them sat in `staging` alone, against 15 real staging models.
 +
-+Every invariant below could previously be reverted with the entire suite still green:
++Most are inert: they read raw tables that no longer exist, so any query against them errors. The
++dangerous ones are the minority that still resolve. Those answer queries with plausible numbers,
++computed by SQL that left the repo and is neither tested nor rebuilt, which is how someone walks
++away with a confident wrong answer.
 +
-+  * delete `+persist_docs` and descriptions silently stop reaching BigQuery — the whole point of
-+    the description programme, whose root-cause finding was that the field had NO READER;
-+  * add a `+schema` to the `seeds:` block and every seed silently moves dataset, because seeds
-+    declare no custom schema and ride `target.schema` through `macros/generate_schema_name.sql`
-+    (`dbt_analytics` on prod). Every `ref()` to a seed then resolves somewhere else;
-+  * delete the `dbt docs generate` step, or move it to `data:nightly` / `data:build:mr`, both of
-+    which the CPO's own override explicitly rejected — the first re-publishes identical pages for
-+    recurring cost, the second produces a catalog covering only what one branch changed;
-+  * restore `allow_failure: true` and the docs step becomes the "green but did nothing" shape that
-+    GitLab #904 names as this repo's dominant failure. The retired GitHub workflow did exactly
-+    that (`.github/workflows/pages-match-preview.yml`, `continue-on-error: true`).
++THE AUTHORITY IS THE MANIFEST, NOT A LIST OF NAMES
++--------------------------------------------------
++Every run recomputes what is expected from `dbt_project/target/manifest.json` and compares it with
++what BigQuery actually holds. Nothing here hardcodes a table name, so this does not rot the way a
++captured list of today's 310 would: run it next year and it reports whatever is orphaned then. That
++also makes it usable as a standing reconciliation check, not only as a one-off cleanup.
 +
-+That is the same "breaking it produces no red anywhere" shape as `test_materialisation_policy.py`
-+and `test_ci_data_job_invariants.py`, on the same two files, and this module is their sibling. The
-+programme's own founding measurement is why it is a test rather than a paragraph: of 50 past
-+corrections 33 were prose-only and 22 recurred, while every rule that got a machine check stopped
-+recurring.
++Expected relations come from two places, because two different things declare them:
++  - dbt models and seeds, keyed on `config.schema`, the raw custom schema from dbt_project.yml.
++    Deliberately NOT `node['schema']`, which has already been through `generate_schema_name.sql`
++    and so reads `dev_staging` under a dev target and `staging` under prod. Keying on the resolved
++    name would make the answer depend on who last parsed.
++  - dbt snapshots, keyed on `config.target_schema`. Snapshots use a different config key, and dbt
++    applies it verbatim without passing it through `generate_schema_name.sql` - dbt_project.yml
++    says exactly that above its `snapshots:` block. Reading `config.schema` for a snapshot returns
++    None and would file every snapshot under DEFAULT_DATASET, putting a name in that dataset's
++    expected set that will never be built there. No snapshots exist today and `snapshots` is not in
++    ALLOWED_DATASETS, so the mapping is inert right now, but it has to be right before the first
++    one lands: a snapshot is an SCD2 history table, and history cannot be rebuilt.
++  - dbt sources, which declare the `raw` dataset by explicit `identifier`.
 +
-+HOW IT IS SHAPED, AND WHY
-+-------------------------
-+Values come from PARSED YAML, never from raw file text — the same rule
-+`test_ci_data_job_invariants.py` sets out, and for the same reason: the comment blocks in both
-+files NAME the things being guarded against ("allow_failure", "+schema"), so a text grep would flag
-+the documentation of the defect as the defect.
++READ-ONLY BY DEFAULT. Without `--confirm` nothing is dropped. Reporting uses the BigQuery metadata
++API only (`list_tables`, `get_table`), which is not billed, and issues no query, so it scans no
++bytes and costs nothing to run.
 +
-+The properties are asserted, not the spelling. `+persist_docs` is set once at project level today,
-+but the invariant is "every model gets it and nothing below turns it off" — asserting the current
-+nesting instead is how a correct refactor starts failing a test for no reason.
++SAFETY
++------
++  - Dry-run unless `--confirm` is passed.
++  - A relation that any manifest node or source owns is never selectable.
++  - The manifest sanity floor aborts the run rather than treating an unreadable or half-parsed
++    manifest as "everything is orphaned". That is the one bug here that could drop the warehouse.
++  - Only the datasets in ALLOWED_DATASETS are ever read or written. `raw_archive` (a deliberate
++    archive), `dbt_scratch`, and every `ci_*`/`dev_*` dataset are out of reach by construction.
++  - `__dbt_tmp` relations are skipped: they are transient artifacts of an incremental merge and
++    carry a dbt-set 12-hour expiration.
++  - BigQuery time travel can restore a dropped TABLE for 7 days. A dropped VIEW is not recoverable
++    that way, but a view is pure definition and `git show 6e4ba18^` still has the SQL.
++
++USAGE
++    python scripts/cleanup_orphan_relations.py                        # report everything
++    python scripts/cleanup_orphan_relations.py --phase broken         # report, phase 1 selected
++    python scripts/cleanup_orphan_relations.py --phase broken --confirm
++    python scripts/cleanup_orphan_relations.py --phase all --confirm
++
++Requires the same credentials as the rest of the pipeline (`gcloud auth application-default
++login`, or a service-account key via GOOGLE_APPLICATION_CREDENTIALS).
 +"""
 +
 +from __future__ import annotations
 +
++import argparse
++import json
++import re
++import sys
++from pathlib import Path
++
++from google.cloud import bigquery
++from google.cloud.exceptions import NotFound
++
++PROJECT = "football-data-pipeline-gcp"
++
++# dbt's `config.schema` -> the dataset a `prod` build writes to. A node with no custom schema rides
++# `target.schema`, and prod's profile `dataset:` is `dbt_analytics` (the base models and the seeds).
++# See macros/generate_schema_name.sql.
++LAYER_DATASETS = ("staging", "core", "intermediate", "marts")
++DEFAULT_DATASET = "dbt_analytics"
++RAW_DATASET = "raw"
++
++# The only datasets this script may read or write. Everything else is unreachable by construction:
++# `raw_archive` is a deliberate archive, `dbt_scratch`/`dev_*`/`ci_*` are not production, and
++# `snapshots` holds nothing. Widening this list is a separate, separately reviewed decision.
++ALLOWED_DATASETS = (*LAYER_DATASETS, DEFAULT_DATASET, RAW_DATASET)
++
++# Operational tables in `raw` that no source declares and that must never be dropped. They are
++# written by the ingest lock and completeness machinery rather than by a loader, so the source list
++# cannot vouch for them and an explicit exclusion is the honest way to say so.
++RAW_OPERATIONAL = frozenset({
++    "RAW_APIF_INGEST_LOCK",
++    "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT",
++})
++
++# Below this many expected relations the manifest is not trustworthy, and every relation in the
++# warehouse would look orphaned. 117 are expected today (106 nodes + 11 sources); a floor of 50 sits
++# far enough below to avoid false alarms and far enough above zero to catch a manifest that failed
++# to parse, was written by a partial `--select` run, or was read from the wrong path.
++MANIFEST_FLOOR = 50
++
++PHASES = ("broken", "live-views", "tables", "all")
++
++_PHASE_ORDER = ("broken", "live-views", "tables")
++
++_PHASE_LABELS = {
++    "broken": "BROKEN views: already error on any query, so nothing can be reading them",
++    "live-views": "views that STILL RETURN DATA: retired SQL still answering queries",
++    "tables": "orphan TABLES: these hold bytes, unlike the views",
++}
++
++# `project.dataset.table`, backticks optional around each part, as BigQuery renders a stored view
++# definition. dbt always emits the fully qualified three-part form, so an unqualified name in a view
++# body is not something this needs to resolve.
++_REF_RE = re.compile(
++    r"`?" + re.escape(PROJECT) + r"`?\s*\.\s*`?([A-Za-z0-9_]+)`?\s*\.\s*`?([A-Za-z0-9_]+)`?"
++)
++
++
++class ManifestError(RuntimeError):
++    """The manifest is missing, unreadable, or too small to be trusted."""
++
++
++def load_expected(manifest_path: Path) -> set[tuple[str, str]]:
++    """Return every (dataset, relation) a prod dbt build would create.
++
++    Raises ManifestError rather than returning a short set, because a short set silently becomes
++    "drop almost everything".
++    """
++    if not manifest_path.is_file():
++        raise ManifestError(
++            f"No manifest at {manifest_path}. Run `dbt deps && dbt parse` in dbt_project/ first: "
++            "without it this script cannot tell a live model from an orphan."
++        )
++    try:
++        with open(manifest_path, encoding="utf-8") as f:
++            manifest = json.load(f)
++    except (OSError, json.JSONDecodeError) as exc:
++        raise ManifestError(f"Could not read {manifest_path}: {exc}") from exc
++
++    expected: set[tuple[str, str]] = set()
++    for node in (manifest.get("nodes") or {}).values():
++        resource_type = node.get("resource_type")
++        if resource_type not in ("model", "seed", "snapshot"):
++            continue                    # tests and analyses create no relation
++        config = node.get("config") or {}
++        if config.get("materialized") == "ephemeral":
++            continue                    # inlined into its consumers, never built
++        # A snapshot names its dataset with `target_schema`, not `schema`. See the module
++        # docstring: getting this wrong files every snapshot under DEFAULT_DATASET.
++        custom = (
++            config.get("target_schema") if resource_type == "snapshot" else config.get("schema")
++        )
++        dataset = custom.strip() if isinstance(custom, str) and custom.strip() else DEFAULT_DATASET
++        expected.add((dataset, node.get("alias") or node["name"]))
++
++    for source in (manifest.get("sources") or {}).values():
++        identifier = source.get("identifier") or source.get("name")
++        if identifier:
++            expected.add((RAW_DATASET, identifier))
++
++    if len(expected) < MANIFEST_FLOOR:
++        raise ManifestError(
++            f"Manifest yielded only {len(expected)} expected relations, below the floor of "
++            f"{MANIFEST_FLOOR}. Refusing to run: treating this as the truth would mark almost "
++            "every relation in production an orphan. Re-parse the manifest and try again."
++        )
++    return expected
++
++
++def list_warehouse(client: bigquery.Client) -> dict[tuple[str, str], str]:
++    """Map (dataset, relation) -> 'TABLE' | 'VIEW' | ... across the allowed datasets only."""
++    found: dict[tuple[str, str], str] = {}
++    for dataset in ALLOWED_DATASETS:
++        for item in client.list_tables(f"{PROJECT}.{dataset}"):
++            found[(dataset, item.table_id)] = item.table_type
++    return found
++
++
++def find_orphans(
++    warehouse: dict[tuple[str, str], str],
++    expected: set[tuple[str, str]],
++) -> list[tuple[str, str]]:
++    """Every relation present in the warehouse that no manifest node or source owns."""
++    orphans = []
++    for key in warehouse:
++        dataset, name = key
++        if key in expected:
++            continue
++        if name.endswith("__dbt_tmp"):
++            continue                    # transient; dbt sets a 12-hour expiration on these
++        if dataset == RAW_DATASET and name in RAW_OPERATIONAL:
++            continue                    # written by the ingest lock/completeness machinery
++        orphans.append(key)
++    return sorted(orphans)
++
++
++def view_queries(
++    client: bigquery.Client,
++    keys: list[tuple[str, str]],
++    warehouse: dict[tuple[str, str], str],
++) -> dict[tuple[str, str], str]:
++    """Fetch the stored SQL of every view reachable from `keys`. Metadata reads only, so free."""
++    queries: dict[tuple[str, str], str] = {}
++    pending = list(keys)
++    while pending:
++        key = pending.pop()
++        if key in queries or warehouse.get(key) != "VIEW":
++            continue
++        table = client.get_table(f"{PROJECT}.{key[0]}.{key[1]}")
++        sql = table.view_query or ""
++        queries[key] = sql
++        # Follow the references so a view's upstream views are fetched too: resolution is
++        # transitive, and an unfetched upstream would be assumed live and mis-phase the parent.
++        for ref in _refs_in(sql, key):
++            if ref[0] in ALLOWED_DATASETS and ref not in queries:
++                pending.append(ref)
++    return queries
++
++
++def _refs_in(sql: str, key: tuple[str, str]) -> set[tuple[str, str]]:
++    """The (dataset, relation) pairs a view body references, excluding itself."""
++    return {(m.group(1), m.group(2)) for m in _REF_RE.finditer(sql)} - {key}
++
++
++def resolves(
++    key: tuple[str, str],
++    warehouse: dict[tuple[str, str], str],
++    queries: dict[tuple[str, str], str],
++    _stack: frozenset[tuple[str, str]] = frozenset(),
++) -> bool:
++    """True if querying this relation would succeed, following views transitively.
++
++    A one-level check gets this wrong in the direction that matters. `base_apif__bl1_teams` names
++    only relations that exist, but one of them is itself a view over a dropped raw table, so a real
++    query against it errors. Calling a broken view "live" only puts it in the cautious phase, which
++    is harmless; calling a live view "broken" would put it in the phase advertised as risk-free,
++    which is not. So anything unprovable resolves to True.
++    """
++    if key not in warehouse:
++        return False                    # the relation is gone
++    if warehouse[key] != "VIEW":
++        return True                     # an existing table always resolves
++    if key in _stack:
++        return True                     # cycle; BigQuery forbids these, so do not recurse
++    sql = queries.get(key)
++    if sql is None:
++        return True                     # definition unavailable: assume live, the safe side
++    for ref in _refs_in(sql, key):
++        if ref[0] not in ALLOWED_DATASETS:
++            continue                    # cannot see it; assume it resolves, again the safe side
++        if not resolves(ref, warehouse, queries, _stack | {key}):
++            return False
++    return True
++
++
++def classify(
++    orphans: list[tuple[str, str]],
++    warehouse: dict[tuple[str, str], str],
++    queries: dict[tuple[str, str], str],
++) -> dict[str, list[tuple[str, str]]]:
++    """Split the orphans into the three phases: disjoint, and together the whole set."""
++    phases: dict[str, list[tuple[str, str]]] = {p: [] for p in _PHASE_ORDER}
++    for key in orphans:
++        if warehouse.get(key) != "VIEW":
++            phases["tables"].append(key)
++        elif resolves(key, warehouse, queries):
++            phases["live-views"].append(key)
++        else:
++            phases["broken"].append(key)
++    return phases
++
++
++def select(phases: dict[str, list[tuple[str, str]]], phase: str) -> list[tuple[str, str]]:
++    """The relations a phase name selects. 'all' is every phase, in phase order."""
++    if phase == "all":
++        return [key for name in _PHASE_ORDER for key in phases[name]]
++    return list(phases[phase])
++
++
++def _report(phases: dict[str, list[tuple[str, str]]], phase: str) -> None:
++    """Print every phase, marking the selected one. The report never depends on --confirm."""
++    for name in _PHASE_ORDER:
++        items = phases[name]
++        mark = "->" if phase in (name, "all") else "  "
++        print(f"\n{mark} {name}: {len(items)} - {_PHASE_LABELS[name]}")
++        for dataset, relation in items:
++            print(f"      {dataset}.{relation}")
++
++
++def _drop(client: bigquery.Client, chosen: list[tuple[str, str]]) -> int:
++    """Drop the selected relations. Returns a process exit code."""
++    print(f"\nDropping {len(chosen)} relation(s) ...")
++    errors: list[str] = []
++    for dataset, relation in chosen:
++        full_id = f"{PROJECT}.{dataset}.{relation}"
++        try:
++            client.delete_table(full_id)
++            print(f"  dropped {dataset}.{relation}")
++        except NotFound:
++            print(f"  SKIP {dataset}.{relation} (already gone)")
++        except Exception as e:
++            errors.append(f"{dataset}.{relation}: {e}")
++            print(f"  FAIL {dataset}.{relation}: {e}", file=sys.stderr)
++
++    if errors:
++        print(f"\n{len(errors)} error(s):", file=sys.stderr)
++        for err in errors:
++            print(f"  {err}", file=sys.stderr)
++        return 1
++    print(f"\nDropped {len(chosen)} relation(s).")
++    return 0
++
++
++def main(
++    phase: str,
++    confirm: bool,
++    manifest_path: Path,
++    client: bigquery.Client | None = None,
++) -> int:
++    try:
++        expected = load_expected(manifest_path)
++    except ManifestError as exc:
++        print(f"ABORT: {exc}", file=sys.stderr)
++        return 2
++
++    print(f"Manifest expects {len(expected)} relation(s) across {', '.join(ALLOWED_DATASETS)}.")
++
++    client = client if client is not None else bigquery.Client(project=PROJECT)
++    warehouse = list_warehouse(client)
++    print(f"Warehouse holds {len(warehouse)} relation(s) in those datasets.")
++
++    missing = sorted(expected - set(warehouse))
++    if missing:
++        # Not this script's job to fix, but anyone deciding what to drop should see it: it means the
++        # last build did not finish, so the manifest may be ahead of the warehouse.
++        print(f"\nWARNING: {len(missing)} expected relation(s) are NOT in the warehouse:")
++        for dataset, relation in missing:
++            print(f"      {dataset}.{relation}")
++
++    orphans = find_orphans(warehouse, expected)
++    if not orphans:
++        print("\nNo orphaned relations. Nothing to do.")
++        return 0
++
++    phases = classify(orphans, warehouse, view_queries(client, orphans, warehouse))
++    _report(phases, phase)
++    chosen = select(phases, phase)
++    print(f"\n{len(orphans)} orphan relation(s) total; phase '{phase}' selects {len(chosen)}.")
++
++    if not chosen:
++        print("Nothing selected for this phase.")
++        return 0
++    if not confirm:
++        print(f"\nDRY RUN: nothing was changed. Pass --confirm to drop these {len(chosen)}.")
++        return 0
++    return _drop(client, chosen)
++
++
++if __name__ == "__main__":
++    parser = argparse.ArgumentParser(
++        description="Report, and with --confirm drop, BigQuery relations no dbt model owns.",
++    )
++    parser.add_argument(
++        "--phase",
++        choices=PHASES,
++        default="all",
++        help=(
++            "Which orphans to select. 'broken' is the risk-free set (they already error). "
++            "Default 'all'. The choice only matters with --confirm; the report always shows "
++            "every phase."
++        ),
++    )
++    parser.add_argument(
++        "--confirm",
++        action="store_true",
++        help="Actually drop the selected relations. Without this flag nothing is changed.",
++    )
++    parser.add_argument(
++        "--manifest",
++        type=Path,
++        default=Path(__file__).parent.parent / "dbt_project" / "target" / "manifest.json",
++        help="Path to dbt's manifest.json (default: dbt_project/target/manifest.json).",
++    )
++    args = parser.parse_args()
++    sys.exit(main(phase=args.phase, confirm=args.confirm, manifest_path=args.manifest))
+diff --git a/tests/test_cleanup_orphan_relations.py b/tests/test_cleanup_orphan_relations.py
+new file mode 100644
+index 0000000..e3b5d24
+--- /dev/null
++++ b/tests/test_cleanup_orphan_relations.py
+@@ -0,0 +1,424 @@
++"""Pin the safety guarantees of scripts/cleanup_orphan_relations.py (#84).
++
++WHY THIS EXISTS
++---------------
++This is the only script in the repo that can delete production relations in bulk, and it decides
++what to delete by SUBTRACTION: everything the manifest does not claim. That shape has one
++catastrophic failure mode. If the manifest is empty, truncated, or read from the wrong path, the
++expected set collapses, every relation in production looks orphaned, and a `--confirm` run drops
++the warehouse. `MANIFEST_FLOOR` exists for exactly that, so it is tested by driving it, not by
++reading it (#904).
++
++The other guarantees are the ones a reviewer would otherwise have to take on trust: dry-run really
++is the default, a live model can never be selected, and the dataset allowlist really is a fence
++rather than a comment.
++
++Every test runs against a fake BigQuery client. Nothing here touches the real warehouse.
++"""
++
++from __future__ import annotations
++
++import importlib.util
++import json
 +import pathlib
 +
-+import yaml
++import pytest
 +
 +ROOT = pathlib.Path(__file__).resolve().parents[1]
-+DBT_PROJECT = ROOT / "dbt_project" / "dbt_project.yml"
-+CI_FILE = ROOT / ".gitlab-ci.yml"
-+MODELS_DIR = ROOT / "dbt_project" / "models"
-+
-+WANT = {"relation": True, "columns": True}
 +
 +
-+def _dbt_project() -> dict:
-+    return yaml.safe_load(DBT_PROJECT.read_text(encoding="utf-8"))
++def _load_script():
++    """Import `scripts/cleanup_orphan_relations.py` as a module."""
++    spec = importlib.util.spec_from_file_location(
++        "cleanup_orphan_relations", ROOT / "scripts" / "cleanup_orphan_relations.py"
++    )
++    mod = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(mod)
++    return mod
 +
 +
-+def _ci() -> dict:
-+    return yaml.safe_load(CI_FILE.read_text(encoding="utf-8"))
-+
-+
-+def _walk(node):
-+    """Yield every mapping nested anywhere under `node`, including `node` itself."""
-+    if isinstance(node, dict):
-+        yield node
-+        for value in node.values():
-+            yield from _walk(value)
-+    elif isinstance(node, list):
-+        for item in node:
-+            yield from _walk(item)
++cleanup = _load_script()
 +
 +
 +# --------------------------------------------------------------------------------------------
-+# dbt_project.yml
++# fakes
 +# --------------------------------------------------------------------------------------------
 +
-+def test_persist_docs_is_enabled_for_models():
-+    """Descriptions must reach BigQuery for models. This is the reader the programme was about."""
-+    project = _dbt_project()
-+    block = project["models"]["football_data_pipeline"]
-+    assert block.get("+persist_docs") == WANT, (
-+        "models.football_data_pipeline must set +persist_docs {relation: true, columns: true}; "
-+        f"found {block.get('+persist_docs')!r}. Without it every description stops reaching "
-+        "BigQuery and the field goes back to having no reader."
++
++class _FakeItem:
++    def __init__(self, table_id: str, table_type: str) -> None:
++        self.table_id = table_id
++        self.table_type = table_type
++
++
++class _FakeTable:
++    def __init__(self, view_query: str) -> None:
++        self.view_query = view_query
++
++
++class _FakeClient:
++    """Just enough BigQuery client to exercise the script, and it records what was asked of it."""
++
++    def __init__(self, relations: dict[tuple[str, str], str], view_sql=None) -> None:
++        self.relations = dict(relations)
++        self.view_sql = dict(view_sql or {})
++        self.deleted: list[tuple[str, str]] = []
++        self.listed: list[str] = []
++
++    def list_tables(self, path: str):
++        dataset = path.split(".")[-1]
++        self.listed.append(dataset)
++        return [
++            _FakeItem(name, kind)
++            for (ds, name), kind in self.relations.items()
++            if ds == dataset
++        ]
++
++    def get_table(self, full_id: str):
++        _, dataset, name = full_id.split(".")
++        return _FakeTable(self.view_sql.get((dataset, name), ""))
++
++    def delete_table(self, full_id: str) -> None:
++        _, dataset, name = full_id.split(".")
++        self.deleted.append((dataset, name))
++        self.relations.pop((dataset, name), None)
++
++
++def _write_manifest(tmp_path: pathlib.Path, nodes=None, sources=None, filler: int = 60):
++    """A manifest with enough real nodes to clear MANIFEST_FLOOR, plus any caller-supplied ones."""
++    payload: dict = {"nodes": {}, "sources": {}}
++    for i in range(filler):
++        payload["nodes"][f"model.fdp.filler_{i}"] = {
++            "resource_type": "model",
++            "name": f"filler_{i}",
++            "alias": f"filler_{i}",
++            "config": {"schema": "marts", "materialized": "table"},
++        }
++    for name, node in (nodes or {}).items():
++        payload["nodes"][f"model.fdp.{name}"] = node
++    for name, source in (sources or {}).items():
++        payload["sources"][f"source.fdp.{name}"] = source
++
++    path = tmp_path / "manifest.json"
++    path.write_text(json.dumps(payload), encoding="utf-8")
++    return path
++
++
++def _model(name: str, schema: str | None = "staging", materialized: str = "table"):
++    return {
++        "resource_type": "model",
++        "name": name,
++        "alias": name,
++        "config": {"schema": schema, "materialized": materialized},
++    }
++
++
++# --------------------------------------------------------------------------------------------
++# the manifest floor — the failure that would drop the warehouse
++# --------------------------------------------------------------------------------------------
++
++
++def test_empty_manifest_aborts_instead_of_orphaning_everything(tmp_path):
++    """An empty manifest must abort, not mark all of production orphaned."""
++    manifest = _write_manifest(tmp_path, filler=0)
++    client = _FakeClient({("staging", "stg_apif__teams"): "TABLE"})
++
++    code = cleanup.main("all", confirm=True, manifest_path=manifest, client=client)
++
++    assert code == 2
++    assert client.deleted == [], "an empty manifest must never reach a delete"
++
++
++def test_manifest_just_below_the_floor_aborts(tmp_path):
++    manifest = _write_manifest(tmp_path, filler=cleanup.MANIFEST_FLOOR - 1)
++    client = _FakeClient({("staging", "orphan_view"): "VIEW"})
++
++    code = cleanup.main("all", confirm=True, manifest_path=manifest, client=client)
++
++    assert code == 2
++    assert client.deleted == []
++
++
++def test_manifest_at_the_floor_is_accepted(tmp_path):
++    """The floor is a floor, not a moat: exactly MANIFEST_FLOOR must pass."""
++    manifest = _write_manifest(tmp_path, filler=cleanup.MANIFEST_FLOOR)
++    assert len(cleanup.load_expected(manifest)) == cleanup.MANIFEST_FLOOR
++
++
++def test_missing_manifest_aborts(tmp_path):
++    client = _FakeClient({("staging", "orphan_view"): "VIEW"})
++
++    code = cleanup.main("all", confirm=True, manifest_path=tmp_path / "nope.json", client=client)
++
++    assert code == 2
++    assert client.deleted == []
++
++
++def test_unreadable_manifest_aborts(tmp_path):
++    path = tmp_path / "manifest.json"
++    path.write_text("{not json", encoding="utf-8")
++    with pytest.raises(cleanup.ManifestError):
++        cleanup.load_expected(path)
++
++
++# --------------------------------------------------------------------------------------------
++# what the manifest owns is never selectable
++# --------------------------------------------------------------------------------------------
++
++
++def test_a_model_in_the_manifest_is_never_an_orphan(tmp_path):
++    manifest = _write_manifest(tmp_path, nodes={"stg_apif__teams": _model("stg_apif__teams")})
++    expected = cleanup.load_expected(manifest)
++    warehouse = {("staging", "stg_apif__teams"): "TABLE", ("staging", "stg_apif__bl1_teams"): "VIEW"}
++
++    orphans = cleanup.find_orphans(warehouse, expected)
++
++    assert ("staging", "stg_apif__teams") not in orphans
++    assert orphans == [("staging", "stg_apif__bl1_teams")]
++
++
++def test_a_node_with_no_custom_schema_maps_to_dbt_analytics(tmp_path):
++    """Base models and seeds ride target.schema, which is dbt_analytics in prod."""
++    manifest = _write_manifest(
++        tmp_path, nodes={"base_apif__teams": _model("base_apif__teams", schema=None)}
 +    )
++    expected = cleanup.load_expected(manifest)
++
++    assert (cleanup.DEFAULT_DATASET, "base_apif__teams") in expected
++    assert ("staging", "base_apif__teams") not in expected
 +
 +
-+def test_persist_docs_is_enabled_for_seeds():
-+    """Seeds were the audit's worst offender and had no config block at all before MR6."""
-+    project = _dbt_project()
-+    assert "seeds" in project, (
-+        "dbt_project.yml has no `seeds:` block. It exists to carry +persist_docs — seeds held 38% "
-+        "of the contaminated text the description audit measured."
++def test_declared_sources_protect_raw_tables(tmp_path):
++    manifest = _write_manifest(
++        tmp_path,
++        sources={"raw_apif_teams": {"identifier": "RAW_APIF_TEAMS", "name": "raw_apif_teams"}},
 +    )
-+    block = project["seeds"]["football_data_pipeline"]
-+    assert block.get("+persist_docs") == WANT, (
-+        "seeds.football_data_pipeline must set +persist_docs {relation: true, columns: true}; "
-+        f"found {block.get('+persist_docs')!r}."
-+    )
++    expected = cleanup.load_expected(manifest)
++    warehouse = {
++        ("raw", "RAW_APIF_TEAMS"): "TABLE",
++        ("raw", "RAW_WC26_APIF_TEAMS"): "TABLE",
++    }
++
++    orphans = cleanup.find_orphans(warehouse, expected)
++
++    assert orphans == [("raw", "RAW_WC26_APIF_TEAMS")]
 +
 +
-+def test_the_seeds_block_never_sets_a_schema():
-+    """THE silent-relocation hazard, and the one way this MR could break every ref() to a seed.
++def test_a_snapshot_is_keyed_on_target_schema_not_schema(tmp_path):
++    """Snapshots declare their dataset with `target_schema`; `schema` is absent on them.
 +
-+    Seeds declare no custom schema, so they ride `target.schema` — the profile's `dataset:`, which
-+    is `dbt_analytics` on prod — through `macros/generate_schema_name.sql`. A `+schema` here moves
-+    all nine somewhere else and nothing about it looks wrong in review.
++    `dbt_project.yml` sets `snapshots: +target_schema: snapshots` and says in the comment above it
++    that the value is applied verbatim, never through `generate_schema_name.sql`. Reading
++    `config.schema` here returns None and files every snapshot under DEFAULT_DATASET instead. That
++    is inert today (no snapshots exist, and `snapshots` is not in ALLOWED_DATASETS) but a snapshot
++    is an SCD2 history table, so the mapping must be right before the first one lands.
 +    """
-+    project = _dbt_project()
-+    offenders = [
-+        key
-+        for mapping in _walk(project["seeds"])
-+        for key in mapping
-+        if key in ("+schema", "schema")
++    manifest = _write_manifest(
++        tmp_path,
++        nodes={
++            "snap_thing": {
++                "resource_type": "snapshot",
++                "name": "snap_thing",
++                "alias": "snap_thing",
++                "config": {"target_schema": "snapshots", "materialized": "snapshot"},
++            }
++        },
++    )
++    expected = cleanup.load_expected(manifest)
++
++    assert ("snapshots", "snap_thing") in expected
++    assert (cleanup.DEFAULT_DATASET, "snap_thing") not in expected
++
++
++def test_a_snapshot_relation_is_never_orphaned_by_a_wrong_dataset(tmp_path):
++    """The consequence the mapping protects against: a live snapshot read as an orphan table."""
++    manifest = _write_manifest(
++        tmp_path,
++        nodes={
++            "snap_thing": {
++                "resource_type": "snapshot",
++                "name": "snap_thing",
++                "alias": "snap_thing",
++                "config": {"target_schema": "snapshots", "materialized": "snapshot"},
++            }
++        },
++    )
++    expected = cleanup.load_expected(manifest)
++
++    assert cleanup.find_orphans({("snapshots", "snap_thing"): "TABLE"}, expected) == []
++
++
++def test_ephemeral_models_are_not_expected_to_exist(tmp_path):
++    """An ephemeral model is inlined into its consumers and builds no relation."""
++    manifest = _write_manifest(
++        tmp_path, nodes={"int_thing": _model("int_thing", "intermediate", "ephemeral")}
++    )
++    assert ("intermediate", "int_thing") not in cleanup.load_expected(manifest)
++
++
++# --------------------------------------------------------------------------------------------
++# the other exclusions
++# --------------------------------------------------------------------------------------------
++
++
++def test_dbt_tmp_relations_are_never_selected(tmp_path):
++    """They are incremental-merge artifacts with a dbt-set 12-hour expiration."""
++    manifest = _write_manifest(tmp_path)
++    expected = cleanup.load_expected(manifest)
++    warehouse = {("core", "fct_fixture_event__dbt_tmp"): "TABLE"}
++
++    assert cleanup.find_orphans(warehouse, expected) == []
++
++
++def test_raw_operational_tables_are_never_selected(tmp_path):
++    manifest = _write_manifest(tmp_path)
++    expected = cleanup.load_expected(manifest)
++    warehouse = {(cleanup.RAW_DATASET, name): "TABLE" for name in cleanup.RAW_OPERATIONAL}
++
++    assert cleanup.find_orphans(warehouse, expected) == []
++
++
++def test_only_allowed_datasets_are_ever_listed():
++    """The allowlist is a fence: raw_archive, dbt_scratch and the ci_/dev_ datasets are unreachable."""
++    client = _FakeClient({})
++
++    cleanup.list_warehouse(client)
++
++    assert set(client.listed) == set(cleanup.ALLOWED_DATASETS)
++    for forbidden in ("raw_archive", "dbt_scratch", "dev_scratch", "ci_marts", "snapshots"):
++        assert forbidden not in client.listed
++
++
++# --------------------------------------------------------------------------------------------
++# broken vs live, and the phases
++# --------------------------------------------------------------------------------------------
++
++
++def _ref(dataset: str, name: str) -> str:
++    return f"select * from `{cleanup.PROJECT}`.`{dataset}`.`{name}`"
++
++
++def test_view_over_a_dropped_table_is_broken():
++    warehouse = {("staging", "stg_apif__bl1_teams"): "VIEW"}
++    queries = {("staging", "stg_apif__bl1_teams"): _ref("raw", "RAW_APIF_BL1_TEAMS")}
++
++    assert not cleanup.resolves(("staging", "stg_apif__bl1_teams"), warehouse, queries)
++
++
++def test_view_over_a_live_table_resolves():
++    warehouse = {("marts", "mart_top_scorers"): "VIEW", ("marts", "mart_player_season"): "TABLE"}
++    queries = {("marts", "mart_top_scorers"): _ref("marts", "mart_player_season")}
++
++    assert cleanup.resolves(("marts", "mart_top_scorers"), warehouse, queries)
++
++
++def test_brokenness_is_transitive():
++    """The real case: base_apif__bl1_teams names only relations that exist, but one of them is a
++    view over a dropped raw table, so a query against it errors. A one-level check calls this live
++    and would put it in the phase advertised as risk-free."""
++    warehouse = {
++        ("dbt_analytics", "base_apif__bl1_teams"): "VIEW",
++        ("staging", "stg_apif__bl1_teams"): "VIEW",
++    }
++    queries = {
++        ("dbt_analytics", "base_apif__bl1_teams"): _ref("staging", "stg_apif__bl1_teams"),
++        ("staging", "stg_apif__bl1_teams"): _ref("raw", "RAW_APIF_BL1_TEAMS"),
++    }
++
++    assert not cleanup.resolves(("dbt_analytics", "base_apif__bl1_teams"), warehouse, queries)
++
++
++def test_unknown_reference_is_assumed_live_not_broken():
++    """Unprovable must fall on the cautious side, never into the risk-free phase."""
++    warehouse = {("marts", "mart_thing"): "VIEW"}
++    queries = {("marts", "mart_thing"): _ref("some_other_dataset", "whatever")}
++
++    assert cleanup.resolves(("marts", "mart_thing"), warehouse, queries)
++
++
++def test_phases_are_disjoint_and_cover_every_orphan():
++    warehouse = {
++        ("staging", "broken_view"): "VIEW",
++        ("marts", "live_view"): "VIEW",
++        ("marts", "backing_table"): "TABLE",
++        ("core", "orphan_table"): "TABLE",
++    }
++    queries = {
++        ("staging", "broken_view"): _ref("raw", "GONE"),
++        ("marts", "live_view"): _ref("marts", "backing_table"),
++    }
++    orphans = sorted(warehouse)
++
++    phases = cleanup.classify(orphans, warehouse, queries)
++
++    assert phases["broken"] == [("staging", "broken_view")]
++    assert phases["live-views"] == [("marts", "live_view")]
++    assert sorted(phases["tables"]) == [("core", "orphan_table"), ("marts", "backing_table")]
++
++    flat = [key for group in phases.values() for key in group]
++    assert sorted(flat) == orphans, "phases must cover every orphan"
++    assert len(flat) == len(set(flat)), "phases must be disjoint"
++    assert sorted(cleanup.select(phases, "all")) == orphans
++
++
++# --------------------------------------------------------------------------------------------
++# dry-run is the default, and --confirm drops only the selected phase
++# --------------------------------------------------------------------------------------------
++
++
++def _two_phase_fixture(tmp_path):
++    manifest = _write_manifest(tmp_path)
++    relations = {
++        ("staging", "broken_view"): "VIEW",
++        ("marts", "live_view"): "VIEW",
++        ("marts", "backing_table"): "TABLE",
++    }
++    view_sql = {
++        ("staging", "broken_view"): _ref("raw", "GONE"),
++        ("marts", "live_view"): _ref("marts", "backing_table"),
++    }
++    return manifest, _FakeClient(relations, view_sql)
++
++
++def test_dry_run_is_the_default_and_deletes_nothing(tmp_path):
++    manifest, client = _two_phase_fixture(tmp_path)
++
++    code = cleanup.main("all", confirm=False, manifest_path=manifest, client=client)
++
++    assert code == 0
++    assert client.deleted == [], "no --confirm must mean no delete_table call, ever"
++
++
++def test_confirm_drops_only_the_selected_phase(tmp_path):
++    manifest, client = _two_phase_fixture(tmp_path)
++
++    code = cleanup.main("broken", confirm=True, manifest_path=manifest, client=client)
++
++    assert code == 0
++    assert client.deleted == [("staging", "broken_view")]
++    assert ("marts", "live_view") in client.relations, "another phase must be untouched"
++    assert ("marts", "backing_table") in client.relations
++
++
++def test_confirm_all_drops_every_orphan(tmp_path):
++    manifest, client = _two_phase_fixture(tmp_path)
++
++    code = cleanup.main("all", confirm=True, manifest_path=manifest, client=client)
++
++    assert code == 0
++    assert sorted(client.deleted) == [
++        ("marts", "backing_table"),
++        ("marts", "live_view"),
++        ("staging", "broken_view"),
 +    ]
-+    assert offenders == [], (
-+        f"the seeds: block sets {offenders} — it must carry +persist_docs and nothing else. "
-+        "Seeds ride target.schema; setting a schema here silently relocates every seed."
-+    )
 +
 +
-+def test_no_model_overrides_persist_docs_per_model():
-+    """The layer/project decides. A per-model override is how one model drifts off the policy.
++def test_nothing_to_do_when_the_warehouse_matches_the_manifest(tmp_path):
++    manifest = _write_manifest(tmp_path, nodes={"stg_apif__teams": _model("stg_apif__teams")})
++    expected = cleanup.load_expected(manifest)
++    client = _FakeClient({key: "TABLE" for key in expected})
 +
-+    Same rule and same reason as `test_base_models_never_override_materialisation_per_model`.
-+    """
-+    offenders = [
-+        path.relative_to(ROOT).as_posix()
-+        for path in sorted(MODELS_DIR.rglob("*.sql"))
-+        if "persist_docs" in path.read_text(encoding="utf-8")
-+    ]
-+    assert offenders == [], f"models setting persist_docs themselves: {offenders}"
++    code = cleanup.main("all", confirm=True, manifest_path=manifest, client=client)
 +
-+
-+def test_no_layer_turns_persist_docs_off():
-+    """Enabled at the top is worth nothing if a layer below disables it."""
-+    project = _dbt_project()
-+    disabled = [
-+        mapping["+persist_docs"]
-+        for mapping in _walk(project["models"]["football_data_pipeline"])
-+        if "+persist_docs" in mapping and mapping["+persist_docs"] != WANT
-+    ]
-+    assert disabled == [], (
-+        f"a nested block overrides +persist_docs with {disabled!r}. It must stay "
-+        "{relation: true, columns: true} everywhere it appears."
-+    )
-+
-+
-+# --------------------------------------------------------------------------------------------
-+# .gitlab-ci.yml
-+# --------------------------------------------------------------------------------------------
-+
-+def _jobs_running(command_fragment: str) -> list[str]:
-+    ci = _ci()
-+    hits = []
-+    for name, job in ci.items():
-+        if not isinstance(job, dict) or "script" not in job:
-+            continue
-+        script = job["script"]
-+        lines = script if isinstance(script, list) else [script]
-+        if any(command_fragment in str(line) for line in lines):
-+            hits.append(name)
-+    return sorted(hits)
-+
-+
-+def test_docs_are_generated_exactly_once_and_only_on_main():
-+    """The CPO chose the cadence: after each merge to main, and nowhere else.
-+
-+    `data:nightly` was rejected because a description's content comes from the repo, not the data,
-+    so a nightly run re-publishes identical pages for recurring cost. `data:build:mr` was rejected
-+    because it builds `state:modified+` into the shared ci_* datasets, so its catalog would cover
-+    only what one branch changed — a partial column list presented as the column list.
-+    """
-+    jobs = _jobs_running("dbt docs generate")
-+    assert jobs == ["data:build:main"], (
-+        f"`dbt docs generate` runs in {jobs}; it must run in data:build:main and nowhere else. "
-+        "data:nightly and data:build:mr were both explicitly rejected."
-+    )
-+
-+
-+def test_the_docs_command_is_static_and_targets_prod():
-+    """`--static` is what produces the single self-contained page; prod is the only complete catalog."""
-+    job = _ci()["data:build:main"]
-+    line = next(ln for ln in job["script"] if "dbt docs generate" in str(ln))
-+    assert "--static" in line, f"docs generate must pass --static; found: {line}"
-+    assert "--target prod" in line, f"docs generate must pass --target prod; found: {line}"
-+
-+
-+def test_the_docs_step_may_not_fail_silently():
-+    """#904, in one assertion.
-+
-+    The retired GitHub step carried `continue-on-error: true`. This one runs after prod is already
-+    built AND tested, so a failure costs signal, never data — and a docs build that silently does
-+    nothing is exactly the failure this repo keeps shipping.
-+    """
-+    job = _ci()["data:build:main"]
-+    assert not job.get("allow_failure", False), (
-+        "data:build:main must not set allow_failure — a silently skipped docs build is the "
-+        "'green but did nothing' shape of #904."
-+    )
-+
-+
-+def test_the_catalog_is_published():
-+    """`catalog.json` is the load-bearing artifact, not `static_index.html`.
-+
-+    It is the only place a column that exists in BigQuery but is declared in no .yml can be seen,
-+    which is the entire basis of GitLab #82. Publishing the pretty page and dropping the catalog
-+    would look fine and remove the reason the step exists.
-+    """
-+    job = _ci()["data:build:main"]
-+    paths = job.get("artifacts", {}).get("paths", [])
-+    assert any(p.endswith("catalog.json") for p in paths), (
-+        f"data:build:main must publish catalog.json; artifacts.paths = {paths}. GitLab #82 "
-+        "depends on it."
-+    )
-+    assert any(p.endswith("static_index.html") for p in paths), (
-+        f"data:build:main must publish static_index.html; artifacts.paths = {paths}."
-+    )
-+
-+
-+def test_the_pins_are_not_vacuous():
-+    """Anti-vacuous floor, per `check_copy_gate.py`'s MIN_KEYS precedent.
-+
-+    If the parse silently returns something empty, every assertion above passes for the wrong
-+    reason. This fails loudly instead.
-+    """
-+    project = _dbt_project()
-+    ci = _ci()
-+    assert project.get("name") == "football_data_pipeline"
-+    assert "models" in project and "seeds" in project
-+    jobs = [k for k, v in ci.items() if isinstance(v, dict) and "script" in v]
-+    assert len(jobs) >= 10, f"only parsed {len(jobs)} CI jobs — the parse is broken"
-+    assert len(list(MODELS_DIR.rglob("*.sql"))) >= 50, "model tree looks empty — the walk is broken"
++    assert code == 0
++    assert client.deleted == []
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -764,8 +1134,7 @@ index 0000000..9c4f9d0
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |  41 ++++-----
-#    .claude/task/acceptance_evidence.md | 177 +++++++++++++++++++++++++-----------
-#    .claude/task/review.md              | 167 ++++++++++++++++++++--------------
-#    3 files changed, 243 insertions(+), 142 deletions(-)
+#   .claude/active_work.md              |  41 ++++----
+#    .claude/task/acceptance_evidence.md | 196 ++++++++++++------------------------
+#    2 files changed, 88 insertions(+), 149 deletions(-)
 # ============================================================================
