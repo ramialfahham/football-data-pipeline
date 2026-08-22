@@ -4,41 +4,48 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-21**. **main `df0dc7e`**. `!90` MERGED; **#84 fix MR OPEN**.
+_Last updated **2026-08-21**. **main `2ef94e8`**. #84 + its fix MERGED. **#82 MR1 OPEN as `!91`.**
 Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — description programme BUILT; **#82 (MR7) is next** (2026-08-21)
+## ⭐⭐ CURRENT — **#82 coverage: MR1 OPEN as `!91` (green), MRs 2-5 to go** (2026-08-21)
 
-⭐ **READ `.claude/task/escalations.log`'s 2026-08-20 and 2026-08-21 entries FIRST** — five of them,
-holding the CPO's diagnosis, the audit numbers, every ruling, and each MR's own defects.
-**Do not re-scope or re-audit any of it.**
+⭐ **READ `escalations.log`'s 08-20 and 08-21 entries FIRST** — the CPO's diagnosis, the numbers,
+every ruling, each MR's defects. **Do not re-scope or re-audit any of it.**
 
-MR1-MR6 = `!82`-`!89`, **ALL MERGED**. MR7 = #82.
+Description programme `!82`-`!89` ALL MERGED and verified in prod. #82 is the follow-on.
+**`!91` = MR1**: the 12 object-level gaps (11 of 11 SOURCE TABLES + `int_team__market_value_latest`,
+which was in NO yml) plus a presence rule in the gate. Plan `cozy-orbiting-quail.md`.
 
-⛔ **A TOO-LONG DESCRIPTION NOW BREAKS PROD (MR6).** `persist_docs` is on for **97 models + 9
-seeds**. Limits, bracketed live: **1,024** chars/column, **16,384**/relation; one over = HTTP 400
-and dbt does NOT swallow it, so the model FAILS. Headroom: longest column **588**, relation **601**,
-zero over. `data:build:main` also publishes `static_index.html` + `manifest.json` +
-**`catalog.json`** (the last makes #82 possible). ⚠ `seeds:` is persist_docs-ONLY: seeds ride
-`target.schema`, so a `+schema` relocates all 9.
-⚠ **A SPLIT-MERGED BRANCH FAILS F11, and it is NOT a stale artifact** — the merge-base MOVES so the
-diff shrinks. Fix is the one-value `review.md` rebind: artifact-exempt, NO re-review owed.
+⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for all 97 models + 9 seeds.
+Bracketed live: **1,024** chars/column, **16,384**/relation; one over = HTTP 400, NOT swallowed, so
+the model FAILS. Headroom: column 588, relation 601. `data:build:main` publishes **`catalog.json`**
+plus the docs page. ⚠ `seeds:` is persist_docs-ONLY: a `+schema` there relocates all 9.
+⚠ **A SPLIT-MERGED OR REBASED BRANCH FAILS F11 and it is NOT a stale artifact** — the merge-base
+MOVES so the diff shrinks. Fix is the one-value `review.md` rebind: NO re-review owed.
 
-✅ **THE GATE IS LIVE (MR5).** `check_description_hygiene.py`, 6 rules, in CI AND in
-`stop_gate.py`'s FAST_GATES ("do both", logged). 618 descriptions pass, 31 tests, **seen RED on
-real content**. ⚠ It checks CONTENT, never PRESENCE — that gap is #82.
-⚠ Rules match ANNOTATION forms, not plain verbs: bare `ruled` hits "goal ruled out for offside".
-A rule that fires on correct text gets weakened, not obeyed.
+✅ **THE GATE** (`check_description_hygiene.py`) runs in CI and `stop_gate.py`'s FAST_GATES: 6
+content rules **plus object-level coverage as of `!91`**. ⚠ Rules match ANNOTATION forms, not plain
+verbs: bare `ruled` hits "goal ruled out for offside". A rule firing on correct text gets weakened.
 
-⭐ **#82 (MR7) IS SCOPED — do not re-derive it.** CPO: *"core, intermediate and marts -> I agree,
-business meaning starts in core downstream."* Object-level required at EVERY layer (12 missing,
-incl. **11 of 11 SOURCE TABLES**); columns in core/int/marts only (262 missing); staging/base OUT.
-"Business-facing" DROPPED — no machine decides it. ⚠ **Thin filler is WORSE than none for an AI**
-— it costs context and looks authoritative; the gate enforces presence, so presence must not
-become the goal. ⚠ **Order by LEVERAGE:** core FACT columns are the semantic root, so a leg column
-keeping its upstream name should `{{ doc() }}` it, not restate it. Full reasoning in the log.
+⛔ **#82's HEADLINE NUMBER IS WRONG.** It says 262 columns lack a description; that counted only
+columns already in a yml. **1,694 EXIST** in core/int/marts, **974 declared NOWHERE**. True gap
+1,236, but names repeat: 500 distinct, 251 defined, so the job is **249 definitions**.
+**MRs 2-5:** declare the 974 · wire blocks + enforce · write the 249 (highest reach first) · turn
+column presence on.
+⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats arrive as a label and a number
+(`$.type` = "Total Shots"). All 249 are OURS to author. Coverage is uneven (xG on 57% of fixtures)
+and 6 stat types appear on 4-78 rows of ~98,000. For ambiguous ones (`passes_total` attempted or
+completed?) derive from our own fixtures and state it as ours.
+⚠ **CPO RULINGS 08-21:** "every column, no exception" (staging+base OUT) · no thin filler · docs
+blocks kept **only with a mechanism enforcing them** (hand-wiring failed 112×) · **NO osmosis**.
+⛔ **INHERITING UPSTREAM PROSE CARRIES AN INHERITED ERROR.** MR1 shipped a FALSE description
+("the newest is the fullest" for retried fixtures) by compressing staging prose without reading the
+contract section governing it. **GRAIN claims are safe to inherit; BEHAVIOUR-ACROSS-VERSIONS claims
+are not** and must be traced to the base dedup logic. Governs MRs 2-5.
+⛔ **THE LOG LIED ABOUT HIM AND HE CAUGHT IT.** It claimed he "explicitly" rejected osmosis; his
+answer was two words. **Record the OPTION chosen and nothing else.**
 
 ⛔ **#83 — COMPETITION CLASSIFICATION HAS NO CORE DIM.** `competition_type`/`entity_type` live only
 in seeds (`dim_league.league_type` is the PROVIDER's, not ours), so 12 models join the seed direct
@@ -46,63 +53,51 @@ in seeds (`dim_league.league_type` is the PROVIDER's, not ours), so 12 models jo
 agrees.** The defect is LAYERING: consume a seed ONCE at base/core, publish a dim. ⚠ The registry
 is NOT ingestion-only — it carries both, and the sync already projects only the product half.
 
-⛔ **SEVEN TRAPS, every one hit for real in MR1-MR5. Do not re-learn them.**
-1. **A too-narrow grep reported as a clean sweep.** "partition key" is FALSE. A wider sweep found
-   **6 survivors** (5 docs + `.claude/hooks/dbt_layer_gate.py:72`, which re-teaches it on **every
-   mart edit**) = **#79**, needs `protected_override`.
-1b. **A KEYWORD SCAN IS BLIND TO A FALSE CLAIM USING NO KEYWORD.** Three `base.yml` descriptions
-   claimed "explicit ref() per competition staging" — FORBIDDEN — with no ref, date or emoji.
-   Found by READING the SQL.
+⛔ **SEVEN TRAPS, every one hit for real. Do not re-learn them.**
+1. **A too-narrow grep reported as a clean sweep.** Hit AGAIN on `!91` (I "found" a data-contract
+   gap by grepping one table's rows). "partition key" is FALSE; 6 survivors = **#79**.
+1b. **A KEYWORD SCAN IS BLIND TO A CLAIM USING NO KEYWORD.** Three `base.yml` descriptions claimed
+   the FORBIDDEN "explicit ref() per competition staging" with no ref, date or emoji. Found by
+   READING the SQL. Corollary: a grep also matches the DOCUMENTATION of a defect as the defect.
 2. **A bulk-edit script reporting success while matching nothing.** Assert it found work.
 3. **A shared docs block wrong at some call sites.** `dbt parse` cannot catch it.
-4. **Verify a reviewer finding, then act** — both directions. Some were false positives; one was a
+4. **Verify a reviewer finding, then act** — both directions. Some are false positives; one was a
    lie I had just written.
-5. **`--review-patch` writes to STDOUT.** Without `> .claude/task/review_input.patch` the patch is
-   silently the PREVIOUS task's. Check its `diff --git` list against `git status`. Relatedly
-   `origin/main` is the DORMANT GitHub remote, so `merge-base HEAD origin/main` is a stale base.
-6. ⛔ **NEVER WRITE A REVIEWER'S VERDICT YOURSELF.** MR5's `review.md` recorded PASS for two who
-   had returned FAIL. Send the round-2 confirm and wait. ⚠ And do not edit ANY file while the
-   suite runs — editing the handover mid-run pushed it over its cap and "failed" healthy tests.
+5. **`--review-patch` writes to STDOUT**, so without redirect the patch is silently the PREVIOUS
+   task's. Check its `diff --git` list. `origin/main` is the DORMANT GitHub remote — use `gitlab`.
+6. ⛔ **NEVER WRITE A REVIEWER'S VERDICT YOURSELF.** MR5 recorded PASS for two who returned FAIL.
+   Send the round-2 confirm and WAIT. ⚠ Never edit any file while the suite runs.
 
-⛔ **THE STANDING LESSON, from the Browse drop (08-19), confirmed twice more since.** CPO: *"you
-spam things all around the repo and then forget to clean up. and then we have contradictions in our
-docs and files."* The killer instance used **no instance of the word being swept**, so text search
-was structurally blind. **Sweep the CONCEPT semantically — who claims to consume/render/feed the
-thing — never the feature's name.** Evidence on GitLab **#71**.
+⛔ **THE STANDING LESSON (Browse drop, confirmed repeatedly).** CPO: *"you spam things all around
+the repo and then forget to clean up. and then we have contradictions in our docs and files."* The
+killer instance used **no instance of the word being swept**. **Sweep the CONCEPT semantically —
+who claims to consume/render/feed the thing — never the feature's name.** Evidence: **#71**.
 
 ⛔ **TEAM NAMES — the other live thread, paused not finished.** The provider's `team_name` is often
 not the display name even when unique. `team_name_overrides` (joined in
 `base_apif__teams_global.sql`) fires on completeness OR collision: *"we have to define the name we
-use as the single source of truth for what we display."* **97 of ~130 Pool 1 teams corrected and
-merged**, each citing an English Wikipedia URL. ⚠ **Bayern München DELIBERATELY EXCLUDED** —
-locale preference is never corrected. **NOT done**: ~15 Pool 1 teams Wikipedia didn't cover; teams
-outside Pool 1. **NOT investigated**: the player-name equivalent — `dim_player` has duplicate
-short-names ("M. Camara" ×33). Root cause first. ⚠ Duplicate provider records for ONE club are a
-separate, unbuilt mechanism — **#81**.
+use as the single source of truth for what we display."* **97 of ~130 Pool 1 teams corrected**,
+each citing an English Wikipedia URL. ⚠ **Bayern München DELIBERATELY EXCLUDED** — locale
+preference is never corrected. **NOT done**: ~15 Pool 1 teams Wikipedia didn't cover; teams outside
+Pool 1. **NOT investigated**: the player-name equivalent, `dim_player` has duplicate short-names
+("M. Camara" ×33). ⚠ Duplicate provider records for ONE club are separate and unbuilt — **#81**.
 
-✅ **BROWSE — DROPPED AND MERGED (`!80`).** Do not re-propose without a new ruling. Home renders
-**next matches ALONE**. KEPT and NOT stale: the struck decision record, and `08_browse.md` + the
-competitions index page, both LIVE. ⚠ `build_nav`/`fetch_nav`/`nav.json` NOT removed, now with
-**zero frontend consumer** — see NEXT 2.
+✅ **BROWSE — DROPPED (`!80`).** Do not re-propose without a new ruling. Home renders **next
+matches ALONE**. NOT stale: the struck record, `08_browse.md` + the competitions page, both LIVE.
+⚠ `build_nav`/`fetch_nav`/`nav.json` NOT removed, **zero frontend consumer** — see NEXT 2.
 
-✅ **TOP TEAMS RULED AND MERGED**: **one team per league**, not pooled (mirrors Top players).
-⚠ `top_teams_mock.html` does NOT show this shape — redo before previewing against it. GAP-29's
-mart is not started. Detail: `10_home.md` §0, `99_gaps_register.md` GAP-29/31.
+✅ **TOP TEAMS RULED**: **one team per league**, not pooled. ⚠ `top_teams_mock.html` does NOT show
+this shape. GAP-29's mart not started. Detail: `10_home.md` §0, `99_gaps_register.md` GAP-29/31.
 
-## ⭐⭐ THE METHOD, still the standing rule for every page (CPO's own words, do not reword)
+## ⭐⭐ THE METHOD, standing rule for every page (CPO's own words, do not reword)
 
-*"the exercise is: does the mock consider the underlying mart (or mart gap)."* Per element on a
-mock: (1) name the exact MART COLUMN — a seed/registry/catalogue is NOT a source, and reading one
-from a page is the same violation as computing in the frontend; (2) no mart column = a GAP,
-registered in `99_gaps_register.md` before building; (3) check the mock's OWN rendered numbers
-against the spec's words before trusting either.
+*"the exercise is: does the mock consider the underlying mart (or mart gap)."* Per element:
+(1) name the exact MART COLUMN — a seed/registry/catalogue is NOT a source, and reading one from a
+page is the same violation as computing in the frontend; (2) no mart column = a GAP, registered in
+`99_gaps_register.md` BEFORE building; (3) check the mock's OWN rendered numbers against the spec.
+⭐ **AUTOMATION (trace script + staleness checker) NOT built, NOT approved.** Ask first. **#78**.
 
-⭐ **AUTOMATION — NOT built, NOT approved.** A trace script (mock → source table + gap list) and a
-staleness checker would mechanize THE METHOD. Ask first. **#78** tracks the `10_home.md` sweep it
-would replace.
-
-⚠ **STANDING RULE: the handover rides in the SAME commit as the code it describes.** Between the
-two commits the file states something untrue, and it conflicts with a sibling branch's handover.
+⚠ **STANDING RULE: the handover rides in the SAME commit as the code it describes.**
 
 ## ⭐ ORIENTATION
 **Audits: GitLab #30, DO NOT run another** (rejected 08-16; a TARGETED blind assessment is different
@@ -136,14 +131,13 @@ detection, NOT started:** lower `event_loss_detector_from` (still **'2026-08-19'
 `!57`'s test is inert**); ⛔ **the volume-delta threshold is the CPO's and blocks it.** **MR4 =
 compaction, only if growth is MEASURED.**
 
-## ⭐ #84 — 310 ORPHANED WAREHOUSE RELATIONS; `!90` MERGED, fix MR OPEN
-**Nothing reconciles the WAREHOUSE**, only the REPO: `6e4ba18` (05-27) left 310
-orphans for 3 months. **249 broken** · **27 STILL RETURN DATA** (retired SQL, plausible numbers,
-the hazard) · **34 tables** (42.5 MiB, so cost is NOT the point). Nothing reads them. Also
-**9 `raw.RAW_WC26_APIF_*` nothing writes**. `cleanup_orphan_relations.py` derives it from the
-MANIFEST; dry-run.
-⛔ **CPO'S TO RUN; NOTHING DROPPED.** ⚠ A UDF read as missing put a LIVE view in the "risk-free"
-phase; tests + 2 reviewers passed, HE caught it. CHECK = NEW MECHANISM, unbuilt.
+## ⭐ #84 — 310 ORPHANED RELATIONS: script MERGED, **nothing dropped yet**
+Nothing reconciles the WAREHOUSE (the guard governs only the REPO): 310 orphans sat for 3 months.
+**250 broken** · **26 STILL RETURN DATA** (retired SQL, plausible numbers — the hazard) · **34
+tables** (42.5 MiB, so cost is NOT the argument). Also 9 `raw.RAW_WC26_APIF_*` nothing writes.
+`scripts/cleanup_orphan_relations.py` derives it from the MANIFEST, dry-run default.
+⛔ **RUNNING IT WITH `--confirm` IS THE CPO'S, still OWED.** A recurring check is a NEW MECHANISM,
+not built.
 
 ## ⭐ COST — read **GitLab issue #3** first
 **#3 holds it all.** ⚠ **#70** is the scan-budget guard; `require_partition_filter` +

@@ -48,8 +48,16 @@ def _write(tmp_path, body: str):
 def _point_gate_at_tmp(monkeypatch):
     """Each test supplies its own tiny project, so the extraction floor would
     otherwise trip on every one of them and mask what is being tested. The floor
-    gets its own test below, which is the only place it stays at its real value."""
+    gets its own test below, which is the only place it stays at its real value.
+
+    MIN_MODELS and MIN_SOURCE_TABLES are lowered for the same reason and no other:
+    a tmp fixture holds a schema file and usually no .sql at all, so the coverage
+    discovery floor would fire on every test and hide what each one is checking.
+    Both keep their real values in `test_the_coverage_floor_fires_...` below, and
+    the gate runs them at full strength against the real project."""
     monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 1)
+    monkeypatch.setattr(gate, "MIN_MODELS", 0)
+    monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 0)
 
 
 # (label, the phrase spliced into an otherwise-clean description)
@@ -302,3 +310,112 @@ def test_the_real_repo_is_green():
     gate that was red on main would have reddened CI on text only the CPO could
     fix. This one asserts the state the wiring depends on."""
     assert gate.main() == 0
+
+
+# ---------------------------------------------------------------------------
+# COVERAGE: the object has no description at all.
+#
+# The content rules above never see such an object, which is how the coverage
+# half of engineering_standards.md section 2 stayed unenforced for the life of
+# the project: 11 of 11 source tables had no description when this was written.
+# ---------------------------------------------------------------------------
+
+def _project(tmp_path, *, model_sql: str | None = "int_x", schema: str = "") -> object:
+    """A tmp project with a real .sql on disk, optionally with a schema file."""
+    models = tmp_path / "models"
+    models.mkdir(parents=True, exist_ok=True)
+    if model_sql:
+        (models / f"{model_sql}.sql").write_text("select 1", encoding="utf-8")
+    if schema:
+        (models / "schema.yml").write_text(schema, encoding="utf-8")
+    return tmp_path
+
+
+DESCRIBED = """version: 2
+models:
+  - name: int_x
+    description: "One row per team per season, from the generic staging model."
+"""
+
+
+def test_a_model_declared_in_no_yml_turns_the_gate_red(tmp_path, monkeypatch, capsys):
+    """THE CASE THAT MOTIVATED WALKING FILES INSTEAD OF YAML ENTRIES.
+
+    `int_team__market_value_latest` had no description because it appeared in no
+    yml whatsoever. A check that read yml entries would have found nothing to
+    complain about and passed it green, which is precisely the blind spot the
+    coverage rule exists to close.
+    """
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path))
+    assert gate.main() == 1, "a model with no yml entry at all passed the gate"
+    out = capsys.readouterr().out
+    assert "int_x" in out and "declared in no yml" in out, (
+        "the gate failed without naming the model or saying it was undeclared"
+    )
+
+
+def test_a_model_with_an_empty_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(gate, "DBT_DIR", _project(
+        tmp_path, schema='version: 2\nmodels:\n  - name: int_x\n    description: ""\n'))
+    assert gate.main() == 1, "a model with an empty description passed the gate"
+    assert "NO DESCRIPTION" in capsys.readouterr().out
+
+
+def test_a_described_model_is_green(tmp_path, monkeypatch):
+    """A rule that fires on everything is as useless as one that fires on nothing."""
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
+    assert gate.main() == 0
+
+
+def test_a_source_table_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
+    """11 of 11 source tables were in this state. A raw table nobody has described
+    is where the whole pipeline starts."""
+    schema = DESCRIBED + """
+sources:
+  - name: api_football
+    tables:
+      - name: raw_apif_thing
+"""
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=schema))
+    assert gate.main() == 1, "a source table with no description passed the gate"
+    out = capsys.readouterr().out
+    assert "raw_apif_thing" in out, "the gate failed without naming the source table"
+
+
+def test_a_described_source_table_is_green(tmp_path, monkeypatch):
+    schema = DESCRIBED + """
+sources:
+  - name: api_football
+    tables:
+      - name: raw_apif_thing
+        description: "One row per FETCH of a whole league, as JSON. Append-only."
+"""
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=schema))
+    assert gate.main() == 0
+
+
+def test_a_seed_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
+    seeds = tmp_path / "seeds"
+    seeds.mkdir(parents=True, exist_ok=True)
+    (seeds / "some_seed.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
+    assert gate.main() == 1, "a seed with no description passed the gate"
+    assert "some_seed" in capsys.readouterr().out
+
+
+def test_the_coverage_floor_fires_when_discovery_finds_nothing(tmp_path, monkeypatch, capsys):
+    """The floor at its REAL value, which the autouse fixture lowers everywhere else.
+
+    Without it, a moved directory or a changed suffix makes "every model is
+    described" true by finding no models — the same vacuous-pass shape
+    MIN_DESCRIPTIONS guards against for the content half.
+    """
+    monkeypatch.setattr(gate, "MIN_MODELS", 50)
+    monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 5)
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, model_sql=None, schema=DESCRIBED))
+
+    assert gate.main() == 1, "the gate passed with the model discovery finding nothing"
+    out = capsys.readouterr().out
+    assert "discovery looks broken" in out, (
+        "the gate failed without reporting that discovery, not content, was the problem"
+    )

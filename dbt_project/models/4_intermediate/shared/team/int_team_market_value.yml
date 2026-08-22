@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: int_team__market_value_latest
+    description: >
+      The most recent market value on record for each team: one row per team,
+      taken from the newest snapshot date, with the source code breaking a tie
+      when two sources share that date.
+
+      KNOWN LIMIT, and it is the whole picture today: the snapshot fact this
+      reads holds no rows, because nothing populates team market values yet.
+      This model therefore returns nothing, and so does anything built on it.
+      Values are point-in-time estimates carrying a source and a snapshot date,
+      not a transfer fee and not a price.

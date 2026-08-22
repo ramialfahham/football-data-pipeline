@@ -43,6 +43,13 @@ DBT_DIR = REPO_ROOT / "dbt_project"
 # `check_copy_gate.py`'s MIN_KEYS.
 MIN_DESCRIPTIONS = 400
 
+# Floors under the COVERAGE discovery, for the same reason as MIN_DESCRIPTIONS: if
+# the file walk stops finding models or the yml walk stops finding source tables,
+# "everything is described" becomes trivially true. Set well under the 97 models
+# and 11 source tables measured, and well over zero.
+MIN_MODELS = 50
+MIN_SOURCE_TABLES = 5
+
 # BigQuery's own maxima. Exceeding either rejects the DDL and fails the build once
 # `persist_docs` is on. This rule exists to prevent that, nothing else — keeping a
 # description short enough to read is a judgement, not something to fake with a
@@ -206,12 +213,113 @@ def _walk(node: object, where: str, is_column: bool,
             _walk(item, where, is_column, out)
 
 
-def _collect() -> tuple[list[tuple[str, str, str, bool]], list[str]]:
-    """Every description under dbt_project/, and any file that failed to parse.
+def _on_disk() -> tuple[set[str], set[str]]:
+    """Model and seed names taken from the FILES, with one set of exclusions.
 
-    Each entry is (file, path-within-file, text, is_column).
+    Defined once and used by both the coverage check and the census line it
+    prints, so the number reported can never drift from the number enforced —
+    an earlier version globbed separately for the census and quietly dropped the
+    `dbt_packages/` exclusion (platform-reviewer).
     """
-    found: list[tuple[str, str, str, bool]] = []
+    def keep(path: pathlib.Path) -> bool:
+        rel = f"/{_rel(path)}"
+        return "/target/" not in rel and "/dbt_packages/" not in rel
+
+    models = {p.stem for p in (DBT_DIR / "models").rglob("*.sql") if keep(p)}
+    seeds = {p.stem for p in (DBT_DIR / "seeds").rglob("*.csv") if keep(p)}
+    return models, seeds
+
+
+def _object_coverage(docs: list[tuple[str, pathlib.Path, object]]) -> list[str]:
+    """Every model, seed and source table must HAVE a description.
+
+    WHY THIS IS SEPARATE FROM THE RULES ABOVE. Those judge the CONTENT of a
+    description that exists. An object with no description at all never reaches
+    them, so for the whole life of this project the coverage half of
+    `engineering_standards.md` section 2 was written down and enforced nowhere.
+    Measured when this was added: 11 of 11 source tables had none.
+
+    ⚠ IT WALKS THE FILES ON DISK, NOT THE YAML ENTRIES, and that distinction is
+    the whole point. `int_team__market_value_latest` had no description because
+    it appeared in NO yml at all — a check that only read yml entries would have
+    seen nothing to complain about and passed it green. So the model set comes
+    from the .sql files and the seed set from the .csv files; a missing yml entry
+    is then just the extreme case of a missing description.
+
+    Source tables are the exception: a source is not a file, so its declaration
+    in the yml IS its existence.
+    """
+    findings: list[str] = []
+
+    described_models: dict[str, str] = {}
+    described_seeds: dict[str, str] = {}
+    source_tables: dict[str, str] = {}
+
+    for _rel_path, _path, doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        for key, sink in (("models", described_models), ("seeds", described_seeds)):
+            for entry in doc.get(key) or []:
+                if isinstance(entry, dict) and isinstance(entry.get("name"), str):
+                    sink[entry["name"]] = str(entry.get("description") or "").strip()
+        for source in doc.get("sources") or []:
+            if not isinstance(source, dict):
+                continue
+            for table in source.get("tables") or []:
+                if isinstance(table, dict) and isinstance(table.get("name"), str):
+                    source_tables[table["name"]] = str(table.get("description") or "").strip()
+
+    on_disk_models, on_disk_seeds = _on_disk()
+
+    # Anti-vacuous floor, same reasoning as MIN_DESCRIPTIONS: if the discovery
+    # stops finding files, every assertion below passes for the wrong reason.
+    if len(on_disk_models) < MIN_MODELS or len(source_tables) < MIN_SOURCE_TABLES:
+        findings.append(
+            f"discovery looks broken: {len(on_disk_models)} model .sql files "
+            f"(floor {MIN_MODELS}) and {len(source_tables)} source tables "
+            f"(floor {MIN_SOURCE_TABLES})\n"
+            "    why banned: a coverage check that finds nothing always passes"
+        )
+        return findings
+
+    for name in sorted(on_disk_models):
+        if not described_models.get(name):
+            why = "declared in no yml" if name not in described_models else "description is empty"
+            findings.append(
+                f"model {name} - NO DESCRIPTION ({why})\n"
+                "    why banned: engineering_standards.md section 2 requires one on every "
+                "model, and persist_docs pushes it to BigQuery where people read it"
+            )
+    for name in sorted(on_disk_seeds):
+        if not described_seeds.get(name):
+            why = "declared in no yml" if name not in described_seeds else "description is empty"
+            findings.append(
+                f"seed {name} - NO DESCRIPTION ({why})\n"
+                "    why banned: engineering_standards.md section 2 requires one on every seed"
+            )
+    for name in sorted(source_tables):
+        if not source_tables[name]:
+            findings.append(
+                f"source {name} - NO DESCRIPTION\n"
+                "    why banned: engineering_standards.md section 2 requires one on every source "
+                "table; a raw table nobody has described is where the pipeline starts"
+            )
+    return findings
+
+
+def _parse_ymls() -> tuple[list[tuple[str, pathlib.Path, object]], list[str]]:
+    """Parse every project .yml ONCE. Returns (rel, path, doc) plus unparseable.
+
+    ⚠ PARSED ONCE ON PURPOSE. The coverage check and the description walk both need
+    every file, and PyYAML's pure-Python loader is the gate's dominant cost on the
+    large prose schema files — parsing twice measured 3.7s of pure waste and more
+    than doubled the whole test suite, in a gate that also runs at the end of every
+    turn. Sharing the PARSE does not weaken the floor below: the two consumers still
+    extract independently (`_walk` versus reading `models:`/`seeds:`/`sources:`), so
+    a broken description walk is still caught by MIN_DESCRIPTIONS while coverage
+    keeps working.
+    """
+    docs: list[tuple[str, pathlib.Path, object]] = []
     unparseable: list[str] = []
     for path in sorted(DBT_DIR.rglob("*.yml")):
         rel = _rel(path)
@@ -222,14 +330,21 @@ def _collect() -> tuple[list[tuple[str, str, str, bool]], list[str]]:
         # `read_text` is inside the try: a non-UTF-8 .yml raises UnicodeDecodeError,
         # not YAMLError, and uncaught it escapes as a traceback naming no file.
         try:
-            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+            docs.append((rel, path, yaml.safe_load(path.read_text(encoding="utf-8"))))
         except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
             unparseable.append(f"{rel}: {exc.__class__.__name__}")
-            continue
+    return docs, unparseable
+
+
+def _collect(docs: list[tuple[str, pathlib.Path, object]]
+             ) -> list[tuple[str, str, str, bool]]:
+    """Every description in the parsed files. (file, path-within-file, text, is_column)."""
+    found: list[tuple[str, str, str, bool]] = []
+    for rel, path, doc in docs:
         collected: list[tuple[str, str, bool]] = []
         _walk(doc, path.stem, False, collected)
         found.extend((rel, where, text, is_col) for where, text, is_col in collected)
-    return found, unparseable
+    return found
 
 
 def main() -> int:
@@ -238,7 +353,8 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
 
-    found, unparseable = _collect()
+    docs, unparseable = _parse_ymls()
+    found = _collect(docs)
     findings: list[str] = []
 
     # Before the floor check: an unparseable file contributes zero descriptions, so
@@ -248,6 +364,19 @@ def main() -> int:
               "descriptions are unchecked:")
         for bad in unparseable:
             print(f"  - {bad}")
+        return 1
+
+    # BEFORE the floor, and for the same reason the unparseable check is: an object
+    # with no description contributes no description, so the floor would fire first
+    # and report a broken walk when the real defect is that nothing was written.
+    # The two checks read the yml independently, so a genuinely broken extraction
+    # still reaches the floor below and is still diagnosed correctly.
+    coverage = _object_coverage(docs)
+    if coverage:
+        print(f"DESCRIPTION COVERAGE: {len(coverage)} object(s) with no description\n")
+        for finding in coverage:
+            print(f"  - {finding}")
+        print("\nThe standard is dbt_project/docs/engineering_standards.md section 2.")
         return 1
 
     if len(found) < MIN_DESCRIPTIONS:
@@ -300,10 +429,13 @@ def main() -> int:
 
     files = len({rel for rel, _, _, _ in found})
     cols = sum(1 for _, _, _, is_col in found if is_col)
+    on_disk_models, on_disk_seeds = _on_disk()
+    models, seeds = len(on_disk_models), len(on_disk_seeds)
     print(f"DESCRIPTION HYGIENE ok: {len(found)} descriptions across {files} files "
           f"({cols} column, {len(found) - cols} model/seed), {len(RULES)} rules, "
           f"{len(blocks)} docs blocks resolved, rendered lengths within "
-          f"{MAX_COLUMN_CHARS}/{MAX_RELATION_CHARS}")
+          f"{MAX_COLUMN_CHARS}/{MAX_RELATION_CHARS}; "
+          f"every one of {models} models and {seeds} seeds on disk is described")
     return 0
 
 

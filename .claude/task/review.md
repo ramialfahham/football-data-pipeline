@@ -1,75 +1,128 @@
-# Review — fix/84-udf-refs-misread-as-missing-tables — 2026-08-21
+# Review — feat/description-coverage-objects — 2026-08-21
 
-diff_sha256: bc6d023a7224411f22bc1176ca2c63a539306a2a0442156bd7f3bb89c22171aa
+> #82 MR1: the object-level half of description coverage. 12 objects that had no description get
+> one, and the gate learns to require it.
+>
+> ⚠ EVERY VERDICT BELOW WAS RETURNED BY THE NAMED REVIEWER. None is written on their behalf.
+> One reviewer FAILED round 1 on a genuinely false description I had written, and that FAIL is
+> recorded here rather than smoothed over.
+>
+> ⚠ THE REVIEW SURVIVED A CRASH. Claude Code died with two reviews in flight. Both were RESUMED
+> rather than restarted, and the resume was only legitimate because the diff had not moved: the
+> binding hash was still `6a8ab2a5…` afterwards, byte-identical to when they started. They then
+> re-reviewed the round-2 delta on top.
+
+diff_sha256: a22937b64491e605911fd5ce57cce378b7c3129c45d2f7d6ded3feed67b8e483
 
 rounds: 2
 
-Round 1: scope-auditor PASS, platform-reviewer FAIL. The FAIL was real and was verified before
-being acted on, by adding a mutation that reverts the two lines it named in `main()` and running
-it — the pass reported `STILL GREEN`, confirming that reverting the fix's wiring left the entire
-suite passing. One end-to-end test closed it, and the same mutation now reports RED. Both verdicts
-below are round 2, returned by the same agents resuming their own round-1 context, recorded as they
-returned them.
-
-Worth noting in the artifact itself: this branch exists because the previous review cycle
-(`!90`, two reviewers PASS, 8/8 mutations green) shipped a defect that the CPO found by reading the
-output list. Round 1 here found a second one of the same shape — a guard tested in isolation but
-not where it runs. Testing the unit is not the same as testing the thing people execute.
+> ⚠ REBOUND TWICE, and NEITHER time because anything reviewed changed. Reviewed value `336230f4…`,
+> then `585202db…` after #84 merged, now `a22937b6…` after #84's follow-up fix merged. Each move was
+> the merge-base advancing, the same mechanism recorded on `!88` and `!89`.
+> ⛔ FOUR TIMES IN ONE DAY, AND THE CODE WAS NEVER INVOLVED ONCE. Every collision was the same six
+> task artifacts: `contract.md`, `review.md`, `acceptance_evidence.md` and `review_input.patch` are
+> rewritten wholesale by every branch, and `escalations.log` + `active_work.md` are appended by both
+> sides. Any two branches open at the same time collide on them regardless of what they change.
+> That is structural and worth a mechanism, not a fifth manual merge.
+>
+> VERIFIED RATHER THAN ASSERTED, because a rebind is not a licence to change content. Every file
+> the hash covers was diffed against the pre-rebase commit `18c888b` and is byte-IDENTICAL:
+> `sources.yml`, `int_team_market_value.yml`, `check_description_hygiene.py`,
+> `test_description_hygiene.py` and `contract.md`. So the three verdicts below cover exactly the
+> content being committed.
+>
+> THE CONFLICT WAS ENTIRELY TASK ARTIFACTS. #84 touched `cleanup_orphan_relations.py` and its
+> tests; this branch touched the description gate and two yml files. Zero code overlap. What
+> collided is the structural problem that every branch rewrites `contract.md`, `review.md`,
+> `acceptance_evidence.md` and the patch, while `escalations.log` and `active_work.md` are appended
+> by both. Resolved as: this task's own artifacts taken whole, `escalations.log` = #84's version
+> PLUS this entry PLUS this branch's correction to the 2026-08-20 osmosis ruling re-applied, and
+> `active_work.md` rebuilt from #84's handover so its orphan-cleanup section survives alongside
+> #82's state.
 
 ## scope-auditor
 VERDICT: PASS
+> Round 1 PASS, then re-confirmed at round 2 on the amended contract.
 risks_checked:
-- Confirmed the two changed paths (`tests/test_cleanup_orphan_relations.py`,
-  `.claude/task/acceptance_evidence.md`) are both already in `contract.md`'s `scope_paths`, and
-  `scripts/cleanup_orphan_relations.py` is unchanged — re-verified by reading the new test against
-  the code I already reviewed; no production logic moved.
-- Read the new test `test_main_does_not_drop_a_udf_calling_view_in_phase_broken` directly: it
-  drives `cleanup.main("broken", confirm=True, ...)` against a fake client seeded with one
-  genuinely-broken orphan and one UDF-resolving orphan (`mart_fixture_index`), and asserts
-  `client.deleted == [("staging", "really_broken")]` while `mart_fixture_index` survives. This
-  closes exactly the gap platform-reviewer named (routines fetched/threaded only in `main()`,
-  previously untested end-to-end) without introducing any new mechanism, dependency, or threshold —
-  it is a test-only addition exercising existing wiring.
-- The `routines=` kwarg on `_FakeClient` was already present in the hash I passed (I read it in the
-  original diff); this delta only adds a call site that supplies real values instead of relying on
-  the default, which is consistent with "no production code changed."
-- No change to `contract.md`, `escalations.log`, or any decision field — the §10 reservations
-  (whether to drop `mart_fixture_index`, whether to wire a recurring check) and the threshold
-  declarations I already checked against the code stand unaltered since the code is byte-identical.
+- Checked every file in the diff against `scope_paths`, including the two excluded from the patch
+  by `review_exclude_paths` and read from disk instead — no drift.
+- Checked the `escalations.log` edit that DELETES a false ruling from the 2026-08-20 entry:
+  confirmed it removed exactly the clause claiming the CPO "explicitly" rejected dbt-osmosis and
+  nothing else, left a marked and cross-referenced correction at the same site, and is therefore a
+  correction rather than a silent rewrite of history.
+- Checked both `decisions_taken` quotes against the log verbatim — exact quotes, not paraphrases
+  strengthened past what the CPO said, which is the specific defect being corrected.
+- SURFACED MY FALSE FLAG: noted `docs/data_contract.md` already carries `RAW_APIF_LEAGUES`. I
+  verified further (line 65 plus two endpoint tables) and WITHDREW the claim.
+- Round 2: checked both amendment entries honestly attribute discovery to reviewers rather than to
+  me, and that the withdrawal does not try to salvage the original claim.
+- ⚠ ONE OBSERVATION, EXPLICITLY NOT A FINDING, RECORDED BECAUSE IT IS RIGHT: the withdrawn flag
+  now sits in `decisions_reserved`, which `docs/working_agreement.md` §2 defines as CPO-class OPEN
+  questions; a withdrawn claim is not one. Not moved — `contract.md` is overwritten by the next
+  task while three verdicts were already bound to this diff, so a third round for a bullet's
+  location was not proportionate. The reasoning is in `escalations.log` so the trade is visible.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+> FAILED round 1. The finding was real, verified independently, and fixed. PASS at round 2.
+risks_checked:
+- ROUND 1 FAIL, CORRECT: the `raw_apif_fixture_details` description I wrote ended "the newest is
+  the fullest". False. `docs/data_contract.md:134` says both versions are kept deliberately and a
+  retry "can come back richer in one section and poorer in another", with fixture 1564795 yielding
+  27 events of which indices 17-26 survive only in the payload the retry would have replaced;
+  `base_apif__fixture_events.sql:25` dedups per `(league_code, fixture_id, event_index)`, which is
+  only necessary because the newest row is NOT the fullest. A reader following my sentence would
+  take the newest row and silently lose events.
+- Round 2: re-verified the rewritten text against the contract and all three `base_apif__fixture_*`
+  dedup grains — now accurate, and it correctly names the three real grains.
+- Ruled on the §2 question I raised rather than letting me self-certify it: "versions have to be
+  resolved per entity" states a property of the DATA, names no model, asserts no exclusivity, and
+  will not go stale when a model is added, so it does not cross the downstream-consumer ban.
+- Verified all 11 source descriptions against the staging SQL, the loaders and the data contract:
+  the grain claims (whole-league versus one `(team, season)` versus team subset versus one
+  fixture), append-only versus ACCUMULATING, and every stated limit — transfers returning an
+  intra-league move twice, squads listing a player twice, coach stints with a club name but no id,
+  statistics absent for uncovered competitions. All confirmed real.
+- Verified `int_team__market_value_latest`'s description against its SQL, and that its emptiness
+  claim is UPSTREAM state rather than a named-consumer claim.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Confirmed `test_main_does_not_drop_a_udf_calling_view_in_phase_broken`
-  (tests/test_cleanup_orphan_relations.py:532-572) exists in the file on disk and in the
-  regenerated `review_input.patch`, and traced it fully: it builds a `_FakeClient` via the
-  constructor's `routines=` kwarg (previously dead in every `main()`-driving test, confirmed dead
-  in round 1), sets up a manifest-owned `core.fct_fixture`, an orphan `marts.mart_fixture_index`
-  view whose stored SQL references `fct_fixture` plus a `dbt_analytics.url_fixture_slug(...)` call,
-  and a genuinely orphan `staging.really_broken` view over a missing raw table — then runs
-  `cleanup.main("broken", confirm=True, ...)` and asserts
-  `client.deleted == [("staging","really_broken")]` and that `mart_fixture_index` survives.
-- Verified this is the correct end-to-end path through the exact lines I flagged in round 1
-  (`scripts/cleanup_orphan_relations.py:378-379`, `routines = list_routines(client)` then threading
-  `routines` into `classify(...)`): the test's fixture data forces `mart_fixture_index` to be an
-  orphan (not manifest-owned) and its UDF reference to matter, so reverting either of those two
-  lines would put it in `broken` and it would be dropped by `--phase broken --confirm`, failing the
-  `in client.relations` assertion. This is not a call-level unit test of `classify()` or
-  `list_routines()` in isolation (which the round-1 gap was about) — it drives the real operator
-  entry point.
-- Cross-checked the manifest/orphan bookkeeping in the new test: `_model("fct_fixture",
-  schema="core")` correctly lands `("core","fct_fixture")` in `expected`, so it is excluded from
-  `orphans`, leaving exactly `mart_fixture_index` and `really_broken` as the two orphans
-  `classify()` has to split — matching the assertions.
-- Counted `def test_` occurrences in the updated test file: 29, matching the reported "29 passed."
-- Re-read the regenerated `review_input.patch` diff for `tests/test_cleanup_orphan_relations.py`
-  directly (not just trusting the coordinator's description) to confirm the new test's body matches
-  what was described, byte for byte, including the docstring's own claim that the same mutation left
-  every other test green — consistent with my round-1 finding.
-- No other change in this round's delta beyond the one new test and its supporting fixture data;
-  the production script (`scripts/cleanup_orphan_relations.py`) is unchanged from the version I
-  already reviewed and passed on every other axis (routine/relation separation, `resolves()`
-  signature and call sites, dependency pinning, docstring accuracy, dry-run/interruption safety).
+- Traced the shared-parse refactor's central claim and CONFIRMED it: `_collect` and
+  `_object_coverage` still extract independently from the shared parse, so a broken `_walk` still
+  collapses `found` toward zero and still trips `MIN_DESCRIPTIONS`. The performance fix cost no
+  correctness.
+- Confirmed unparseable-file handling moved intact into `_parse_ymls()`, is still checked FIRST,
+  still names the file and its exception class, and still fails closed.
+- Judged the fixture's floor-lowering legitimate rather than a hollowing: counted exactly the five
+  pre-existing green-expecting tests that required it, confirmed both floors run at REAL values in
+  dedicated tests, and confirmed from the diff that no assertion was deleted or narrowed.
+- Confirmed the file walk cannot pick up macros, tests, snapshots or analyses, because none nest
+  under `models/`.
+- Confirmed the check ordering (unparseable, then coverage, then the floor) cannot mask a genuinely
+  broken extraction.
+- RAISED THE DUPLICATE GLOB, which I adopted: the success line globbed the trees a third time and
+  dropped the `dbt_packages/` exclusion. Round 2 confirmed the `_on_disk()` fix leaves only one
+  definition with two call sites, and — a point I had NOT realised — that the old seed glob had no
+  exclusion in the ENFORCEMENT path either, so the fix closed a real asymmetry rather than a
+  cosmetic one. Also confirmed the new seed filter cannot drop a legitimate seed.
+- Independently derived the test count (25 definitions, one parametrised over 14) = 38, matching
+  the reported run rather than taking it on trust.
 
 ## escalations
 (none)
+
+<!--
+No blinded escalation was raised out of review. Four CPO rulings govern this MR and were all taken
+in chat BEFORE the work, recorded in `.claude/task/escalations.log` under
+`2026-08-21 feat/description-coverage-objects`: every column no exception; no thin filler, our
+definitions alongside the provider's, defined upstream and reused downstream; docs blocks kept only
+with a mechanism that applies them consistently; and no dbt-osmosis.
+
+⚠ One of those rulings only exists because the CPO CORRECTED THIS LOG. It previously recorded that
+he had "explicitly" rejected dbt-osmosis on 2026-08-20. He had not — his answer was the two words
+"Docs blocks", and the rejection was the writer's reasoning wrapped around it. That false clause is
+deleted at its own site in this diff. He then rejected osmosis on 2026-08-21 on its merits, which
+is a different and later decision.
+-->
