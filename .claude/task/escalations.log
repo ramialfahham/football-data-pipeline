@@ -4591,15 +4591,37 @@ MINE, one of which the MR's own acceptance test was structurally incapable of ca
   CI one is POSIX, so the layer prefix match found nothing and the zero meant "walked nothing", not
   "nothing missing". A floor under a discovery is worth more than the assertion above it.
 
-  ⚠ TWO THINGS RAISED AND NOT CHASED, both filed. **GitLab #86**: `persist_docs` only half works.
-  All 66 relation descriptions are in BigQuery; only 100 of 458 column descriptions are — 0 of 134
-  on views, 0 of 20 on incremental models, 58 of 304 on plain tables, and those 58 sit in 13
-  `int_*` models, so every core dimension, every core fact and every mart has none. Views and
-  incrementals have a mechanical cause in the adapter; the 51-plain-tables split does not and is
-  undiagnosed. It does not block MR2, which writes no descriptions, but MR4 authors ~249 and should
-  know which of them will be visible in BigQuery before writing them. It also makes `CLAUDE.md`'s
-  claim that every description "shows up in `bq show --schema`" true of tables and a fifth of
-  columns.
+  ⛔ **#86 WAS FILED ON THIS BRANCH AND IS NOW CLOSED AS WRONG. It is a DEFECT OF MINE, not a
+  finding.** Filed claiming `persist_docs` half worked: 66 of 66 relation descriptions in BigQuery
+  but only 100 of 458 column ones, with "0 of 134 on views" and "0 of 20 on incremental models"
+  attributed to mechanical causes in the adapter. Re-measured on prod after this MR merged
+  (`ce94ccd`): **458 of 458, including 134 of 134 on VIEWS and 20 of 20 on INCREMENTALS.** Verified
+  concretely, not from an aggregate — `mart_leaderboards` is a view and carries real text on six
+  columns; `dim_team` is 14 of 14; `fct_fixture` 24 of 24.
+  ⭐ TWO ERRORS, and the second is the reusable one.
+  (a) I INVENTED THE MECHANISMS. "A view derives its schema from its query, so there is nothing to
+  attach them to" and "an incremental model is never revisited" were reasoned from reading the
+  adapter's create path, then written down as though checked. Both are false.
+  (b) I REPORTED A SNAPSHOT AS A STRUCTURAL LIMITATION. The 100 was real when measured. Text lands
+  when a model is BUILT; `!89` turned `persist_docs` on 2026-08-21 and the 08-22 build ran
+  `state:modified+`, so only the 13 models actually rebuilt since carried it. Everything else was
+  not broken, just not yet rebuilt. This MR touched all 14 schema files, which selected every
+  in-scope model and its downstream, and all 458 landed.
+  ⚠ THE TELL WAS IN MY OWN NUMBERS AND I DID NOT READ IT: the 58 that had landed sat in 13 `int_*`
+  models. That is the shape of "these are the ones that got rebuilt", not the shape of an adapter
+  limitation. A distribution that clusters by RECENCY is evidence about timing, not about capability.
+  ⚠ `CLAUDE.md`'s claim that every description "shows up in `bq show --schema`" is therefore
+  CORRECT and needs no edit. An earlier version of this entry said otherwise.
+  ⚠ ONE NARROW THING SURVIVES: a description reaches BigQuery on the next build of its model, not
+  when the text is committed. Covered on the normal path, since editing a description changes the
+  node and `state:modified+` then selects it.
+  ⚠ THE SUPERSEDED CLAIM STILL SITS IN `contract.md`'s `impact_map` for this MR, deliberately.
+  Correcting it there would pull a `artifact_only_never` path into an otherwise review-exempt
+  commit and cost a full round on a file the next task overwrites. THIS entry is the authority; if
+  you are reading that impact_map, its #86 paragraph is the version that was believed at review
+  time and is wrong.
+
+  ⚠ ONE THING RAISED AND NOT CHASED, filed and still open.
   **GitLab #85**: an unrelated gitlab.com account, `@payflows-agent`, posted an automated
   verdict-shaped review comment on `!93` 54 seconds after the push. Checked rather than assumed: it
   is not a member, and the project has no webhooks, no access tokens and no deploy keys, so it has

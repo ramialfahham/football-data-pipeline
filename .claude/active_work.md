@@ -4,13 +4,13 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-23**. **main `6df934f`; #82 MR2 on `feat/description-coverage-columns`.**
-#84 + #82 MR1 MERGED. **Next: #82 MR3.** Product **Matchday Pilot**; **GITLAB** (`glab`, MRs);
-runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-23**. **main `ce94ccd`, no open MRs.** #84 + #82 MR1 + MR2 all MERGED and
+verified in prod. **Next: #82 MR3.** Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner
+`ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82 coverage: MR1 + MR2 done, MR3 is the live task** (2026-08-23)
+## ⭐⭐ CURRENT — **#82 coverage: MR1 + MR2 MERGED, MR3 is the live task** (2026-08-23)
 
 ⭐ **READ `escalations.log`'s 08-20, 08-21 and 08-23 entries FIRST** — the CPO's diagnosis, the
 numbers, every ruling, each MR's defects. **Do not re-scope or re-audit any of it.**
@@ -25,9 +25,9 @@ DEV one, 10 relations. Fetch recipe is in the script's docstring.
 the gate rule keeping it true. ⚠ Needs a reasoned opt-out where a name means something else — two
 `league_code` blocks exist for that. **112 of the 262** empty ones already have a block nobody
 wired. Then MR4 writes the ~249; MR5 turns presence on.
-⛔ **#86 — `persist_docs` ONLY HALF WORKS, decide before MR4 writes 249.** All 66 relation
-descriptions reach BigQuery; only **100 of 458** column ones (0 of 134 views, 0 of 20 incremental,
-58 of 304 tables, all in 13 `int_*`). Every core dim, core fact and mart has NONE.
+✅ **`persist_docs` WORKS EVERYWHERE — 66/66 relations, 458/458 columns, views and incrementals
+included** (prod, `ce94ccd`). **#86 said it half-worked and is CLOSED as WRONG**: text lands
+when a model is BUILT, and the 08-22 build was `state:modified+`. Nothing blocks MR4.
 
 ⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for all 97 models + 9 seeds.
 **1,024** chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. Headroom:
