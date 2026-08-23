@@ -4,43 +4,45 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-23**. **main `b2c0cc8`; `!93` open.** #84 + fix + #82 MR1 all
-MERGED. **Next: #82 MR2.** Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner
-`ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-23**. **main `6df934f`; #82 MR2 on `feat/description-coverage-columns`.**
+#84 + #82 MR1 MERGED. **Next: #82 MR3.** Product **Matchday Pilot**; **GITLAB** (`glab`, MRs);
+runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82 coverage: MR1 MERGED, MR2 is the live task** (2026-08-22)
+## ⭐⭐ CURRENT — **#82 coverage: MR1 + MR2 done, MR3 is the live task** (2026-08-23)
 
-⭐ **READ `escalations.log`'s 08-20 and 08-21 entries FIRST** — the CPO's diagnosis, the numbers,
-every ruling, each MR's defects. **Do not re-scope or re-audit any of it.**
+⭐ **READ `escalations.log`'s 08-20, 08-21 and 08-23 entries FIRST** — the CPO's diagnosis, the
+numbers, every ruling, each MR's defects. **Do not re-scope or re-audit any of it.**
 
-Description programme `!82`-`!89` MERGED and verified in prod. **`!91` = #82 MR1, MERGED**: the 12
-object-level gaps (11 of 11 SOURCE TABLES + `int_team__market_value_latest`, which was in NO yml)
-plus an object-level presence rule in the gate. Plan `cozy-orbiting-quail.md`.
-⭐ **MR2 IS NEXT AND IS SCOPED: declare the 974 columns that exist in BigQuery but appear in no
-yml.** Names only, no descriptions — that makes the real surface visible so blocks can be wired.
-⚠ It needs an APPEND-ONLY generator script reading `target/catalog.json`; it must never edit,
-reorder or reformat an existing line, which is the constraint separating it from osmosis. **THAT
-SCRIPT IS THE ONE NEW MECHANISM AND NEEDS THE CPO'S YES BEFORE IT IS BUILT.**
+Programme `!82`-`!89` + `!91` (MR1, objects) MERGED. Plan `cozy-orbiting-quail.md`.
+**MR2 DONE**: all **979** columns that existed in BigQuery and were in NO yml are declared, names
+only. 1,699 exist, 1,699 declared, **0 undeclared**. `scripts/declare_missing_columns.py` is the
+approved append-only generator: it REFUSES a partial catalogue and exits 1 on nothing-to-add.
+⚠ **THE CATALOGUE IS A CI ARTIFACT.** The `dbt_project/target/catalog.json` on this machine is a
+DEV one, 10 relations. Fetch recipe is in the script's docstring.
+⭐ **MR3 IS NEXT**: point every column whose NAME already has a docs block at that block, then add
+the gate rule keeping it true. ⚠ Needs a reasoned opt-out where a name means something else — two
+`league_code` blocks exist for that. **112 of the 262** empty ones already have a block nobody
+wired. Then MR4 writes the ~249; MR5 turns presence on.
+⛔ **#86 — `persist_docs` ONLY HALF WORKS, decide before MR4 writes 249.** All 66 relation
+descriptions reach BigQuery; only **100 of 458** column ones (0 of 134 views, 0 of 20 incremental,
+58 of 304 tables, all in 13 `int_*`). Every core dim, core fact and mart has NONE.
 
 ⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for all 97 models + 9 seeds.
-Bracketed live: **1,024** chars/column, **16,384**/relation; one over = HTTP 400, NOT swallowed, so
-the model FAILS. Headroom: column 588, relation 601. `data:build:main` publishes **`catalog.json`**.
+**1,024** chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. Headroom:
+column 588, relation 601. `data:build:main` publishes **`catalog.json`**.
 ⚠ `seeds:` is persist_docs-ONLY: a `+schema` there relocates all 9.
 ⛔ **TASK ARTIFACTS COLLIDE ON EVERY CONCURRENT BRANCH — 4× on `!91`, CODE NEVER INVOLVED.** Fix:
-this task's artifacts taken whole, `escalations.log`+`active_work.md` MERGED (both sides append).
-The merge-base then moved, so `review.md` needs a one-value rebind — **NO re-review owed**.
+this task's artifacts whole, `escalations.log`+`active_work.md` MERGED (both sides append). The
+merge-base then moves, so `review.md` needs a one-value rebind — **NO re-review owed**.
 
 ✅ **THE GATE** (`check_description_hygiene.py`) runs in CI and `stop_gate.py`'s FAST_GATES: 6
 content rules **plus object-level coverage as of `!91`**. ⚠ Rules match ANNOTATION forms, not plain
 verbs: bare `ruled` hits "goal ruled out for offside". A rule firing on correct text gets weakened.
 
-⛔ **#82's HEADLINE NUMBER IS WRONG.** It says 262 columns lack a description; that counted only
-columns already in a yml. **1,694 EXIST** in core/int/marts, **974 declared NOWHERE**. True gap
-1,236, but names repeat: 500 distinct, 251 defined, so the job is **249 definitions**.
-**MRs 2-5:** declare the 974 · wire blocks + enforce · write the 249 (highest reach first) · turn
-column presence on.
+⛔ **#82's HEADLINE 262 WAS WRONG** — it counted only already-declared columns. Names repeat: 500
+distinct across the 1,699, 251 already defined, so the writing job is **249 definitions**.
 ⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats arrive as a label and a number
 (`$.type` = "Total Shots"). All 249 are OURS to author. Coverage is uneven (xG on 57% of fixtures);
 6 stat types appear on 4-78 rows of ~98,000. For ambiguous ones (`passes_total` attempted or
@@ -78,19 +80,17 @@ is NOT ingestion-only — it carries both, and the sync already projects only th
 ... contradictions in our docs and files."* The killer instance used **no instance of the word
 being swept**. **Sweep the CONCEPT semantically, never the feature's name.** Evidence: **#71**.
 
-⛔ **TEAM NAMES — the other live thread, paused not finished.** The provider's `team_name` is often
-not the display name even when unique. `team_name_overrides` (joined in
-`base_apif__teams_global.sql`) fires on completeness OR collision. **97 of ~130 Pool 1 teams
-corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München DELIBERATELY EXCLUDED** —
-locale preference is never corrected. **NOT done**: ~15 Pool 1 teams; teams outside Pool 1.
-**NOT investigated**: `dim_player` duplicate short-names ("M. Camara" ×33). ⚠ Duplicate provider
-records for ONE club are separate and unbuilt — **#81**.
+⛔ **TEAM NAMES — paused, not finished.** The provider's `team_name` is often not the display name
+even when unique. `team_name_overrides` (joined in `base_apif__teams_global.sql`) fires on
+completeness OR collision. **97 of ~130 Pool 1 teams corrected**, each citing an English Wikipedia
+URL. ⚠ **Bayern München DELIBERATELY EXCLUDED** — locale preference is never corrected.
+**NOT done**: ~15 Pool 1 teams; teams outside Pool 1. **NOT investigated**: `dim_player` duplicate
+short-names ("M. Camara" ×33). ⚠ Duplicate provider records for ONE club: **#81**.
 
 ✅ **SETTLED, do not re-propose without a new ruling.** BROWSE DROPPED (`!80`) — home renders
-**next matches ALONE**; `08_browse.md` + the competitions page stay LIVE; ⚠ `build_nav`/`nav.json`
-NOT removed and now have **zero frontend consumer** (NEXT 2). TOP TEAMS = **one team per league**,
-not pooled; ⚠ `top_teams_mock.html` shows the wrong shape, GAP-29's mart not started
-(`99_gaps_register.md`).
+**next matches ALONE**; `08_browse.md` + the competitions page stay LIVE (`nav.json` = NEXT 2).
+TOP TEAMS = **one team per league**, not pooled; ⚠ `top_teams_mock.html` shows the wrong shape,
+GAP-29's mart not started (`99_gaps_register.md`).
 
 ## ⭐⭐ THE METHOD, standing rule for every page (CPO's own words, do not reword)
 
@@ -103,8 +103,8 @@ page is the same violation as computing in the frontend; (2) no mart column = a 
 ⚠ **STANDING RULE: the handover rides in the SAME commit as the code it describes.**
 
 ## ⭐ ORIENTATION
-**Audits: GitLab #30, DO NOT run another** (a TARGETED blind assessment is different and IS
-allowed). **Mechanism beats wording:** of 50 corrections, 33 prose-only, 22 recurred.
+**Audits: GitLab #30, DO NOT run another** (a TARGETED blind assessment IS allowed).
+**Mechanism beats wording:** of 50 corrections, 33 prose-only, 22 recurred.
 **⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
 CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped.
 **FIRST ACTION: `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX. ONE
@@ -113,28 +113,25 @@ must not be rebuilt: **`feat/player-overview-tab`**.
 ⭐ **THE REPO IS NOT THE SYSTEM**: for warehouse/cloud/CI/scheduler facts check the system that
 owns them (`bq ls`, `glab api`, `gcloud` — free metadata). Bit twice: `raw_archive` called "never
 built" from zero repo refs when it EXISTS, and this file's own "Pipelines must succeed is FALSE"
-line, which was true at the migration and wrong by 08-22. `#75 closed 08-17`; its
-detail and the permanent `!57` kickoff floor are in `escalations.log`.
+line, true at the migration and wrong by 08-22.
 
 ## ⭐ The ingest cluster
 **TWO nightlies:** `data:nightly` on **Cloud Run under #39**; GitLab schedule (4379625) paused ON
 PURPOSE. Runbook `deploy/nightly/README.md`.
 ✅ **#74 FIXED** (`!70`): the nightly image tracks `main` on any push touching `*data_paths_image`,
 so hand-redeploying is no longer required — **but the FIRST auto-run is UNVERIFIED; check it
-fired.** ⚠ **NOT Cloud Build** — its default identity holds project Editor from ANY unmerged
-branch. Revoked; builds in-job with kaniko.
+fired.** ⚠ **NOT Cloud Build** — its identity holds project Editor from ANY branch. Revoked;
+kaniko in-job.
 ⚠ **OWED: set `deploy-nightly-image` resource_group to `oldest_first`** (only after the group
 exists — first run creates it). Default `unordered` lets two near-simultaneous merges deploy out of
 order, pinning the OLDER commit. **Sentinel (`fdp-freshness`) NOT repointed** — its own decision.
 ⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
 ⚠ **None of the four ingest fixes does what its title says** — caveats on #896-#898.
-✅ **MR2 (`!62`) MERGED** — the four "gap recorded as fact" holes are closed. **MR3 = detection,
-NOT started:** lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so `!57`'s
-test is inert**); ⛔ **the volume-delta threshold is the CPO's and blocks it.**
+✅ **`!62` MERGED** — the four "gap recorded as fact" holes are closed. **Detection NOT started:**
+lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so `!57`'s test is inert**);
+⛔ **the volume-delta threshold is the CPO's and blocks it.**
 
-## ✅ #84 — WAREHOUSE CLEAN: all 310 orphans DROPPED
-310 relations no dbt model owned, 3mo. Dropped in 3 phases: **249 broken · 27 live · 34
-tables**. **432 → 122**; `staging` 259 → 15. 0 orphans, 0 failures.
+## ✅ #84 — WAREHOUSE CLEAN: all 310 orphans DROPPED. **432 → 122**, 0 failures.
 ⛔ Nothing reconciles it on a schedule; a recurring check = NEW MECHANISM, unbuilt.
 ⚠ **A UDF IS NOT A MISSING TABLE** (`bq ls` omits ROUTINES): a LIVE view landed in the "risk-free"
 phase; 2 reviewers + 8 mutations passed BLIND. **Read the OUTPUT.**
@@ -152,17 +149,20 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
 ## OWED — deferred
 - Guard telemetry absent (#30). Delete `macros/apif_latest_source_partition.sql` · mirror crests.
 - ⛔ **The contract/Stop gates do NOT understand a MERGE.** Mid-merge every incoming file reads as
-  "dirty outside the contract", and the clean-tree rule then blocks editing `contract.md` — a
-  circle. ⚠ **WORKAROUND**: `_gate_bash_pre` skips `.claude/task/`, so write those via Bash
-  mid-merge. Needs a `MERGE_HEAD`-aware skip; protected path, own task.
+  "dirty outside the contract", and the clean-tree rule then blocks editing `contract.md`.
+  ⚠ **WORKAROUND**: `_gate_bash_pre` skips `.claude/task/`, so write those via Bash mid-merge.
+  Needs a `MERGE_HEAD`-aware skip; protected path, own task.
 - **#904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. A test must be seen RED.
-  ⚠ Checks that told me what I wanted: a bulk-edit script matching nothing, a `pytest` run erroring
-  on an unknown flag and exiting 0, a `--review-patch` written to stdout while the stale file
-  stayed, and `check_task_artifacts` reporting "empty diff OK" because nothing was committed yet.
-  **Read the output, never the exit code.**
+  ⚠ Checks that told me what I wanted: a bulk-edit script matching nothing, a `pytest` erroring on
+  an unknown flag and exiting 0, a `--review-patch` written to stdout while the stale file stayed,
+  `check_task_artifacts` saying "empty diff OK" with nothing committed, and a re-measure reporting
+  0 gaps because a Windows manifest writes `path` with BACKSLASHES. **FLOOR every discovery.**
+  ⛔ **A PROOF CAN BE STRUCTURALLY BLIND.** `git diff` is line-ending NORMALISED: it said
+  "0 deleted" while a script rewrote 14 files CRLF→LF (`core.autocrlf=true`, `.gitattributes` pins
+  only `*.sh`, #39 died on this). Ask what your measurement CANNOT see. **Read output, not exit.**
 
 ## NEXT
-0. ⭐ **#82 MR2** — see ⭐⭐ CURRENT.
+0. ⭐ **#82 MR3** — see ⭐⭐ CURRENT.
 0b. ⛔ **CI IS FIXED BUT ONLY IN MEMORY — IT DIES ON THE NEXT REBOOT.** 08-21: every job on every
    branch failed in ~4s at `get_sources` (`HTTP 403`). The runner egresses over **IPv6** and
    GitLab refuses it. Fixed live with `ip -6 route del default`; **permanence is OWED**, as is a
@@ -176,9 +176,8 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
    alone: `mart_competition_index.sql:90-91` reads its blank-ness as the browsable gate.
 2b. **A trending-doc-rot pass.** Docs describe the "trending" block as if it exists; cut 08-08.
    `09_chrome.md` §4/§10 remains. SEMANTIC sweep.
-3. ✅ **"Pipelines must succeed" IS ON** (`only_allow_merge_if_pipeline_succeeds: True`, verified
-   08-22). This entry used to say it was FALSE and that was wrong — it caused a merge to be
-   recommended that GitLab would have blocked. **Check the live setting, not this file.**
+3. ✅ **"Pipelines must succeed" IS ON** (verified 08-22). This entry once said FALSE and that was
+   wrong. **Check the live setting, not this file.**
 4. **#47** (the competition hub) — makes the competitions page's rows real links. Decisions if you
    touch it: 680px width (not the mock's 1080px), single-select filters, rows inert until it
    ships. Wire `competition_index` into CI's `--entities` list in #47's MR, not before.

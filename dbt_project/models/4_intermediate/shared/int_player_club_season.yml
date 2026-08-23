@@ -68,3 +68,30 @@ models:
           is minutes greater than 0. 0 is legitimate rather than missing: a squad member named on
           the bench all season and never brought on keeps his row.
         tests: [not_null]
+      - name: last_kickoff_at
+      - name: starts
+      - name: substitute_appearances
+      - name: minutes
+      - name: goals
+      - name: goals_penalty
+      - name: assists
+      - name: shots_total
+      - name: shots_on_goal
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accurate
+      - name: tackles_total
+      - name: tackles_interceptions
+      - name: tackles_blocks
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: dribbles_past
+      - name: offsides
+      - name: cards_yellow
+      - name: cards_red
+      - name: penalty_won
+      - name: penalty_committed
+      - name: saves
+      - name: goals_against

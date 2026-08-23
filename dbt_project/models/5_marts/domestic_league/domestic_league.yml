@@ -63,6 +63,47 @@ models:
         tests: [not_null]
       - name: played
         description: "Finished matches from mart_team_season; null when standings rollup absent."
+      - name: team_code
+      - name: team_country
+      - name: team_logo_url
+      - name: wins
+      - name: draws
+      - name: losses
+      - name: goals_for
+      - name: goals_against
+      - name: goal_diff
+      - name: points
+      - name: clean_sheets
+      - name: latest_rank
+      - name: latest_form
+      - name: standings_group_description
+      - name: season_matchdays_used
+      - name: stat_coverage_season_games
+      - name: points_won_sum_season
+      - name: goals_for_sum_season
+      - name: goals_against_sum_season
+      - name: total_shots_sum_season
+      - name: opponent_total_shots_sum_season
+      - name: shots_inside_box_sum_season
+      - name: shots_on_goal_sum_season
+      - name: corner_kicks_sum_season
+      - name: opponent_corner_kicks_sum_season
+      - name: passes_accurate_sum_season
+      - name: passes_total_sum_season
+      - name: goalkeeper_saves_sum_season
+      - name: points_capture
+      - name: goals_per_match
+      - name: goals_against_per_match
+      - name: shots_per_match
+      - name: shot_share
+      - name: danger_zone_ratio
+      - name: shot_accuracy
+      - name: finishing_efficiency
+      - name: pass_accuracy
+      - name: passes_per_match
+      - name: corner_kicks_per_match
+      - name: corners_against_per_match
+      - name: save_ratio
 
   - name: mart_matchday_insights
     description: >

@@ -4487,3 +4487,129 @@ RULINGS, and a CORRECTION OF THIS FILE BY THE CPO that is the most important lin
   the move would have cost a third review round for a bullet's location. The durable record is
   here. If a future task finds a withdrawn claim parked in `decisions_reserved` and is misled by
   it, this paragraph is the evidence that the placement was known and traded away deliberately.
+
+
+2026-08-23 feat/description-coverage-columns — #82 MR2, the 979 columns that existed in the
+warehouse and were written down nowhere. ONE CPO APPROVAL for a new mechanism, and TWO DEFECTS OF
+MINE, one of which the MR's own acceptance test was structurally incapable of catching.
+
+  THE APPROVAL, recorded as the option chosen and nothing else, per the 2026-08-21 lesson in the
+  entry above. `scripts/declare_missing_columns.py` is a NEW MECHANISM (§10) and the programme plan
+  said so. It was put to the CPO in the approved plan for this MR
+  (`C:\Users\Rami\.claude\plans\serialized-enchanting-frost.md`) under its own heading "The one
+  thing that needs your yes", which stated the ask as: build the script, and KEEP it in the repo,
+  with the alternative of deleting it after one run named in the same sentence. He approved the
+  plan. That approval is the authority; the reasoning offered for it in the plan is the writer's
+  and is not his.
+  ⚠ HOW IT WAS ASKED, because the framing is the reusable part. The question went to him FIRST as
+  an `AskUserQuestion` menu of three options and he DISMISSED it, which is the same response the
+  memory file `feedback_one_decision_at_a_time` already records for authored multiple-choice
+  menus. Re-asked as plain prose plus a plan he could approve or not, it was answered without
+  friction. The MR5/MR6 lesson was "frame it as behaviour, not file paths"; this adds "and not as
+  a menu". Both are the same underlying point: put the decision in a form he can actually judge.
+
+  ⛔ DEFECT 1, AND IT IS THE INTERESTING ONE: THE ACCEPTANCE TEST WAS BLIND BY CONSTRUCTION.
+  The whole MR rests on one claim — the change only ever ADDS lines — and its stated proof is that
+  `git diff --numstat` reports zero deletions. The first version of the script read the ymls with
+  universal newlines and wrote back "\n", converting all 14 files from CRLF to LF in the working
+  tree. `core.autocrlf=true` on this machine and `.gitattributes` pins only `*.sh` and
+  `Dockerfile`, so those files are CRLF in the working tree and LF in the object store.
+  ⚠ THE PROOF REPORTED `980 added, 0 deleted` BOTH BEFORE AND AFTER THE FIX. Git normalises line
+  endings on the way in, so at the blob level nothing had changed and the diff was telling the
+  truth about the thing it measures. Converting every line's terminator is nonetheless reformatting
+  every line, which is precisely what the append-only constraint forbids.
+  FOUND BY READING THE WARNINGS GIT PRINTED NEXT TO THE DIFF ("LF will be replaced by CRLF the next
+  time Git touches it"), not by any check. Confirmed by counting bytes: the touched files held 0
+  CRLF and 960 bare LF, while the untouched `sources.yml` beside them still held 178 CRLF and 0
+  bare LF.
+  ⭐ THE RULE THIS YIELDS. A verification can be honest, green, and structurally incapable of
+  seeing the defect it is pointed at. `git diff` is normalised, so it can never witness a
+  line-ending rewrite; asking it to is asking the wrong instrument. When a proof rests on ONE
+  measurement, ask what that measurement cannot see, and measure that other thing separately.
+  ⚠ NOT HYPOTHETICAL HERE. `.gitattributes` exists at all because a CRLF working copy shipped a
+  `\r` into a container shebang under #39 and killed the 04:00 production run, having passed every
+  test and built a clean image.
+  Fixed by preserving each file's own terminator, plus a refusal on mixed endings. Two tests cover
+  it and both were SEEN RED against the unfixed script before the fix went in.
+
+  ⛔ DEFECT 2, killed by mutation testing rather than by review. The script applied its insertions
+  bottom-up, with a comment stating that the ordering was necessary so an insertion could not
+  invalidate a later line index. Flipping the order left all 14 tests green, which showed the
+  comment was false: `_insert` re-locates its model in the lines it is handed, so order never
+  mattered. The dead sort and its false comment were DELETED rather than kept and documented. A
+  comment asserting a mechanism that does not exist is the same defect class as a `description:`
+  asserting who reads a column, committed inside the programme that exists to remove it.
+
+  ⛔ DEFECT 3, FOUND BY platform-reviewer'S ROUND-1 FAIL AND BY NOTHING ELSE. The per-file write
+  was `path.open("w")`, which TRUNCATES at open time; the write that follows is not one operation,
+  so a crash in between leaves a TRACKED yml half-written. Verified before acting rather than taken
+  on trust: no `import os`, no atomic write, and `grep` across `scripts/` for
+  `tempfile|os\.replace|NamedTemporaryFile` returned nothing, so there was no house convention the
+  script could even have been implicitly following. Fixed with temp sibling + `flush` + `os.fsync`
+  + `os.replace`, with `OSError` unlinking the temp and reporting the original untouched. The temp
+  name ends `.tmp`, which `_declared()`'s `*.yml` glob cannot match, so a crash leftover is inert
+  rather than read as a second declaration of every model.
+  ⭐ WHY IT MATTERS BEYOND ITS SIZE, and this is the second instance on one branch of the SAME
+  shape as defect 1. The module docstring claimed "Fails CLOSED: nothing is written unless every
+  model verifies". True of a guard tripping, and silent about the write itself — `_verify` compares
+  two in-memory strings and has already RETURNED before any byte moves. So the branch's headline
+  proof, `git diff --numstat` showing zero deletions, was structurally incapable of seeing this too:
+  a proof that runs after the bytes land cannot witness a failure while they are landing.
+  ⚠ TWO REVIEWERS PASSED THE SAME DIFF FIRST. scope-auditor and analytics-engineer-reviewer both
+  returned PASS on round 1, correctly — it is outside both territories. The adversarial lane found
+  what the builder and two other reviewers did not, which is the argument for keeping it.
+
+  ⚠ HOW EVERY TEST WAS SEEN RED, since #904 asks for it and doing it by hand is what makes people
+  skip it. A harness copied `scripts/` and `tests/` to a temp tree, applied 14 single-line
+  mutations to the COPY one at a time, and ran the suite against each. No repo file was ever
+  rewritten outside the Edit tool, which matters because #67 records `sed -i` bypassing the edit
+  gate as its own defect. All 14 mutations were caught by the test aimed at them.
+  ⚠ ONE OF THE 14 NEEDED A COMPOUND MUTATION, and the reason generalises. A purely defensive check
+  cannot be tested by deleting it: nothing is wrong for it to catch, so the suite stays green and
+  proves nothing. The structural half of `_verify` was isolated by introducing a bug only it can
+  see (entries landing under the wrong model, which is a pure insertion and therefore invisible to
+  the append-only text check) and disabling the text check alongside it.
+
+  ⚠ THE NUMBER IS 979, NOT THE PLAN'S 974, and the difference is fully accounted for: it is
+  `int_team__market_value_latest`'s five columns. MR1 gave that model an object-level description
+  but no column entries, so it entered the denominator between the two measurements. Stated rather
+  than silently absorbed.
+  MEASURED FROM THE PRODUCTION CATALOGUE, fetched as a CI artifact from the `data:build:main` run
+  on `4659e22`. ⚠ THE `catalog.json` SITTING IN `dbt_project/target/` IS A DEV ARTIFACT — 10
+  relations in `dev_staging`/`dev_scratch` — and running against it would have declared almost
+  nothing and reported success. That is trap 2, and it is why the script now REFUSES a catalogue
+  that does not cover every in-scope model. The guard was seen firing on that real stale file, not
+  on a synthetic one.
+  Result: 1,699 columns exist, 720 were declared, 979 are now added, 0 remain undeclared. The
+  lineage is unchanged and shown rather than asserted: 106 nodes before and after, zero added,
+  zero removed, zero `depends_on` altered.
+
+  ⚠ A FLOOR IN MY OWN VERIFICATION CAUGHT A VACUOUS ZERO, worth recording because it is the exact
+  shape of #904 arriving inside the check meant to prevent it. The re-measurement first reported
+  "0 columns declared nowhere", which looked like success. Its own floor (`exists > 1000`) failed
+  the run instead: a manifest parsed locally on Windows writes `path` with BACKSLASHES while the
+  CI one is POSIX, so the layer prefix match found nothing and the zero meant "walked nothing", not
+  "nothing missing". A floor under a discovery is worth more than the assertion above it.
+
+  ⚠ TWO THINGS RAISED AND NOT CHASED, both filed. **GitLab #86**: `persist_docs` only half works.
+  All 66 relation descriptions are in BigQuery; only 100 of 458 column descriptions are — 0 of 134
+  on views, 0 of 20 on incremental models, 58 of 304 on plain tables, and those 58 sit in 13
+  `int_*` models, so every core dimension, every core fact and every mart has none. Views and
+  incrementals have a mechanical cause in the adapter; the 51-plain-tables split does not and is
+  undiagnosed. It does not block MR2, which writes no descriptions, but MR4 authors ~249 and should
+  know which of them will be visible in BigQuery before writing them. It also makes `CLAUDE.md`'s
+  claim that every description "shows up in `bq show --schema`" true of tables and a fifth of
+  columns.
+  **GitLab #85**: an unrelated gitlab.com account, `@payflows-agent`, posted an automated
+  verdict-shaped review comment on `!93` 54 seconds after the push. Checked rather than assumed: it
+  is not a member, and the project has no webhooks, no access tokens and no deploy keys, so it has
+  no access and nothing was compromised — the project is public, which is all it needed. The issue
+  carries the visibility decision, which is the CPO's.
+
+  ⚠ THE CLOBBER RISK WAS TRACED TO THE ADAPTER AND THEN MEASURED, not reasoned about.
+  `dbt/adapters/bigquery/impl.py:578` sets a declared column's description to
+  `column_config.get("description")`, which is None when there is no `description:` key, so
+  declaring a bare name BLANKS whatever BigQuery holds for it. Measured across the three prod
+  datasets: 100 columns hold a description today, and 0 of them are among the 979 being declared —
+  with a sanity floor showing all 100 sit on columns that were already declared, so the zero is not
+  a silent key mismatch. Nothing is cleared.

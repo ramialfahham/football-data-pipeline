@@ -50,3 +50,39 @@ models:
           that is minutes greater than 0. A player who moved role mid-season is counted separately
           in each.
         tests: [not_null]
+      - name: goals
+      - name: goals_penalty
+      - name: assists
+      - name: shots_on_goal
+      - name: passes_total
+      - name: passes_accurate
+      - name: passes_key
+      - name: tackles_total
+      - name: tackles_interceptions
+      - name: tackles_blocks
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: saves
+      - name: goals_against
+      - name: scorer_points
+      - name: defensive_actions
+      - name: pass_accuracy_pct
+      - name: duels_won_pct
+      - name: dribbles_success_pct
+      - name: save_pct
+      - name: finishing_efficiency
+      - name: goals_per90
+      - name: assists_per90
+      - name: scorer_points_per90
+      - name: shots_on_goal_per90
+      - name: key_passes_per90
+      - name: dribbles_success_per90
+      - name: passes_per90
+      - name: tackles_per90
+      - name: interceptions_per90
+      - name: blocks_per90
+      - name: defensive_actions_per90
+      - name: duels_won_per90
+      - name: saves_per90

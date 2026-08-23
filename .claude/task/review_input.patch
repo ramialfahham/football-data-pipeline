@@ -1,890 +1,2487 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index ba2d0ca..67582d6 100644
+index 67582d6..5bfa6f1 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,75 +1,46 @@
--# Task contract — MR6 of the description-drift programme
-+# Task contract — #82 MR1: object-level description coverage
+@@ -1,131 +1,147 @@
+-# Task contract — #82 MR1: object-level description coverage
++# Task contract — #82 MR2: declare the columns that exist but are written down nowhere
  
  objective: >
--  Give dbt `description:` fields a reader, which is the root cause the whole programme exists to
--  fix. Two changes: turn on `+persist_docs: {relation: true, columns: true}` so every description
--  lands on the BigQuery table and column it describes, and publish `dbt docs generate` from CI so
--  there is a browsable page.
-+  Close the object-level half of #82: every model, every seed and every SOURCE TABLE must carry a
-+  description, and a gate must keep it that way. Twelve things have none today — 11 of 11 source
-+  tables, and `int_team__market_value_latest`.
+-  Close the object-level half of #82: every model, every seed and every SOURCE TABLE must carry a
+-  description, and a gate must keep it that way. Twelve things have none today — 11 of 11 source
+-  tables, and `int_team__market_value_latest`.
++  Close the half of #82 that no yml-based check can see. 979 columns exist in BigQuery across core,
++  intermediate and marts and appear in no `.yml` at all, so `check_description_hygiene.py` has never
++  been able to look at them. MR2 writes their NAMES down, with no descriptions, so the real surface
++  becomes visible and MR3 can wire shared definitions into it.
  
--  MR1-MR4 corrected the content and MR5 built the gate that keeps it correct. Neither gives the
--  field a consumer. A field nobody reads has no feedback loop, which is why it became the cheapest
--  place in the repo to dump narrative.
-+  This is the unambiguous half, deliberately taken first. There is no judgement call in "does this
-+  object have a description at all", so it ships without waiting on the column work, which is
-+  hundreds of definitions and several more MRs.
- 
--  It also unblocks #82 (MR7): a column that exists in BigQuery but is declared in no `.yml` is
--  invisible to a YAML-based check, and catching it needs `target/catalog.json`, which exists only
--  once `dbt docs generate` runs.
-+  `check_description_hygiene.py` checks the CONTENT of descriptions that exist. Anything with NO
-+  description passes it silently. Presence has never been checked at all.
+-  This is the unambiguous half, deliberately taken first. There is no judgement call in "does this
+-  object have a description at all", so it ships without waiting on the column work, which is
+-  hundreds of definitions and several more MRs.
+-
+-  `check_description_hygiene.py` checks the CONTENT of descriptions that exist. Anything with NO
+-  description passes it silently. Presence has never been checked at all.
++  The names are added by a script that only ever appends. It never edits, reorders or reformats a
++  line that is already there, and that is provable rather than claimed: its diff must contain zero
++  deleted lines.
  
  refs: >
--  Authority: `.claude/task/escalations.log` — the 2026-08-20 programme entry (the CPO's diagnosis,
--  the audit's numbers, the definition of a good description, the six-MR split and its ordering
--  constraints), and THIS branch's 2026-08-21 entry, which records the CPO's protected-path
--  approval. Plan file: `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`; the programme plan is
--  `jazzy-greeting-teacup.md`, Step 5.
--  Branched from main `b378be5`. `!88` (MR5's second half) is OPEN — see decisions_reserved.
+-  Authority: `.claude/task/escalations.log`, the 2026-08-21 `feat/description-coverage-objects`
+-  entry — four CPO rulings plus a correction of this file BY the CPO. Plan file:
+-  `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`. GitLab #82.
+-  Standard: `dbt_project/docs/engineering_standards.md` §2, whose Coverage section already
+-  requires exactly this and has never been enforced.
+-  Branched from main `e6c1819`, no open MRs.
 -
--protected_override: >
--  CPO, in chat 2026-08-21, verbatim "The docs only change when a model or a description changes,
--  and that is exactly when this would fire. -> yes", recorded in `.claude/task/escalations.log`
--  under `2026-08-21 feat/description-persist-docs` BEFORE this branch touched the file — GitLab #28
--  is that an override can otherwise claim a ruling nobody can check.
+-impact_map: >
+-  Small blast radius, and deliberately so. This MR adds PROSE to a source file and one model's
+-  yml, plus one rule to an existing offline gate. It changes no SQL, no config, no materialisation
+-  and no CI job.
 -
--  It authorises exactly ONE edit and nothing else: appending
--  `dbt docs generate --static --target prod` plus an `artifacts:` block to the `data:build:main`
--  job in `.gitlab-ci.yml`. No other change to that file, and no other protected path.
--  The question put to him was BEHAVIOURAL — how often should the documentation rebuild — not a file
--  path, because MR5's entry records that a path-shaped question failed three times running.
-+  Authority: `.claude/task/escalations.log`, the 2026-08-21 `feat/description-coverage-objects`
-+  entry — four CPO rulings plus a correction of this file BY the CPO. Plan file:
-+  `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`. GitLab #82.
-+  Standard: `dbt_project/docs/engineering_standards.md` §2, whose Coverage section already
-+  requires exactly this and has never been enforced.
-+  Branched from main `e6c1819`, no open MRs.
- 
- impact_map: >
--  `persist_docs` changes the DDL dbt emits for EVERY model and EVERY seed, so the blast radius is
--  the warehouse itself. This is the one MR in the programme that can break prod.
-+  Small blast radius, and deliberately so. This MR adds PROSE to a source file and one model's
-+  yml, plus one rule to an existing offline gate. It changes no SQL, no config, no materialisation
-+  and no CI job.
- 
--  1. BIGQUERY, WRITE PATH. dbt sets the relation description and each column description at build
--     time. BigQuery HARD-REJECTS a column description over 1,024 characters and a relation
--     description over 16,384; a rejection fails the model, and in `data:build:main` that fails the
--     prod build. This is why MR6 is sequenced last.
--     ⚠ RETIRED BY MEASUREMENT, not by assumption. Read off `target/manifest.json`, so the text is
--     RENDERED and a docs block counts as what it resolves to rather than as its reference: 106
--     relation descriptions, longest 601; 870 column descriptions, longest 588; zero over either
--     limit; 9 of 9 docs blocks resolved. The measurement is deliberately independent of the gate,
--     because the gate in main skips the length check on a bare `{{ doc() }}` reference.
--  2. SEEDS, A NEW CONFIG BLOCK. There is no `seeds:` block in `dbt_project.yml` today. It must
--     carry `+persist_docs` and NOTHING else — seeds have no `+schema` and ride `target.schema`
--     (`macros/generate_schema_name.sql`), so adding one would silently relocate every seed, and in
--     prod that is `dbt_analytics`.
--  3. CI COST, ONE TIME. Changing `dbt_project.yml` changes every model's config, so `state:modified`
--     should match all 97 models and this MR's `data:build:mr` will rebuild the whole `ci_*`
--     warehouse once. Expected, and it is also what proves the model-column half of the verification.
--     Confirm it from the job log rather than predicting it.
--  4. CI COST, RECURRING. `dbt docs generate` runs a catalog query against BigQuery INFORMATION_SCHEMA
--     once per push-to-main that touches `*data_paths_prod`. Metadata-sized. It is NOT added to
--     `data:nightly` (the content comes from the repo, so a nightly re-publishes identical pages) and
--     NOT to `data:build:mr` (its `ci_*` datasets hold only `state:modified+`, so the catalog would
--     be partial and misleading).
--  5. NOT TOUCHED: no model SQL, no seed CSV, no description text, no export, no site file. The
--     numbers the pipeline produces are unchanged — only the metadata attached to them.
-+  1. THE GATE gains an object-level presence rule and therefore a new way for a turn and a pipeline
-+     to go red: adding a model, seed or source table without a description now fails. That is the
-+     point. It runs in `validate:governance` and in `stop_gate.py`'s FAST_GATES, both of which
-+     already invoke this script, so NO new wiring and NO protected-path edit is needed.
-+  2. GREEN ON DAY ONE is required, the `check_copy_gate.py` precedent: the twelve findings are
-+     fixed in this same MR, and the gate is run repo-wide before it is trusted.
-+  3. SOURCE DESCRIPTIONS ARE NOT PUSHED TO BIGQUERY. dbt does not create sources, so `persist_docs`
-+     never touches them and no BigQuery length limit applies. The gate's own limits still do.
-+  4. `int_team__market_value_latest` is a VIEW over `fct_team_market_value_snapshot`, which holds
-+     0 rows in production. Describing it changes nothing about what it returns.
+-  1. THE GATE gains an object-level presence rule and therefore a new way for a turn and a pipeline
+-     to go red: adding a model, seed or source table without a description now fails. That is the
+-     point. It runs in `validate:governance` and in `stop_gate.py`'s FAST_GATES, both of which
+-     already invoke this script, so NO new wiring and NO protected-path edit is needed.
+-  2. GREEN ON DAY ONE is required, the `check_copy_gate.py` precedent: the twelve findings are
+-     fixed in this same MR, and the gate is run repo-wide before it is trusted.
+-  3. SOURCE DESCRIPTIONS ARE NOT PUSHED TO BIGQUERY. dbt does not create sources, so `persist_docs`
+-     never touches them and no BigQuery length limit applies. The gate's own limits still do.
+-  4. `int_team__market_value_latest` is a VIEW over `fct_team_market_value_snapshot`, which holds
+-     0 rows in production. Describing it changes nothing about what it returns.
++  GitLab #82. Authority for the programme: `.claude/task/escalations.log`, the 2026-08-21
++  `feat/description-coverage-objects` entry (four CPO rulings). Approved programme plan:
++  `C:\Users\Rami\.claude\plans\cozy-orbiting-quail.md`, MR2. Approved plan for THIS MR, which is
++  also the CPO's approval of the script as a new mechanism:
++  `C:\Users\Rami\.claude\plans\serialized-enchanting-frost.md`.
++  Standard: `dbt_project/docs/engineering_standards.md` §2. Branched from main `6df934f`, clean
++  tree, no open MRs.
  
  scope_paths:
--  - dbt_project/dbt_project.yml
--  - .gitlab-ci.yml
--  # Added by amendment 1 — the pinning test platform-reviewer's round-1 FAIL was right about.
--  - tests/test_persist_docs_policy.py
--  - dbt_project/docs/engineering_standards.md
--  - CLAUDE.md
-+  - dbt_project/models/1_staging/api_football/sources.yml
-+  - dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
-+  - scripts/check_description_hygiene.py
-+  - tests/test_description_hygiene.py
+-  - dbt_project/models/1_staging/api_football/sources.yml
++  - scripts/declare_missing_columns.py
++  - tests/test_declare_missing_columns.py
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_legs.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
+   - dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
+-  - scripts/check_description_hygiene.py
+-  - tests/test_description_hygiene.py
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/models/5_marts/shared/shared.yml
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
-@@ -77,89 +48,84 @@ scope_paths:
+   - .claude/task/acceptance_evidence.md
    - .claude/active_work.md
  
++# The 14 yml paths are listed one by one rather than globbed, deliberately. `dbt_project/models/**`
++# would also cover 1_staging and 2_base, which the CPO ruled OUT of coverage scope on 2026-08-21
++# ("core, intermediate and marts -> business meaning starts in core downstream"). A glob would let
++# an accidental staging edit through the gate that is supposed to catch exactly that.
++
++impact_map: >
++  writers: NONE. No SQL changes, so no model computes anything differently. The diff is 14 yml files
++    plus one new script and its tests. `git diff --stat` at commit time is the evidence, and the
++    append-only proof below is stronger than a writer list: zero deleted lines means no existing
++    declaration moved.
++
++  downstream: NO lineage change. A column declaration does not create a dependency — `depends_on` is
++    built from `ref()`/`source()` in the SQL, and no SQL is touched. Verified by comparing the
++    parsed manifest before and after: the node set and every node's `depends_on` must be identical,
++    which is a `done_when` step below rather than an assertion here.
++
++  layer_rules: `check_layer_contract.py` polices per-competition staging subdirectories and the
++    staging/base materialisation policy. This MR creates no model, no directory and no
++    materialisation config, so nothing it checks moves. Run repo-wide as a `done_when` step.
++
++  deploy_order: none. There is no DDL migration and nothing is sequenced around the nightly. A yml
++    column entry takes effect the next time dbt builds the model, and the effect is the persist_docs
++    one traced below.
++
++  blast_radius: ONE real effect, traced to the adapter code and then MEASURED rather than reasoned
++    about. `dbt/adapters/bigquery/impl.py:578` does
++    `bq_column_dict["description"] = column_config.get("description")`, so a column that is DECLARED
++    with no `description:` key resolves to None and BLANKS whatever BigQuery holds, while a column
++    declared NOWHERE is left alone entirely. Declaring 979 bare names therefore carries a real risk
++    of clearing existing text.
++    MEASURED against production on 2026-08-23, from `INFORMATION_SCHEMA.COLUMN_FIELD_PATHS` across
++    the `core`, `intermediate` and `marts` datasets:
++      - columns holding a description in BigQuery today: 100
++      - of the 979 this MR newly declares, ones holding a description today: **0**
++      - sanity floor, so the zero above cannot be a key mismatch silently proving nothing:
++        descriptions held on columns ALREADY declared: 100, i.e. all 100 are accounted for.
++    So nothing is cleared. The same code path sets `policyTags` to an empty list on a declared
++    column; `grep -rn "policy_tags\|policyTags" dbt_project/ scripts/` returns zero hits and no
++    Data Catalog taxonomy is configured, so there are none to clear.
++    ⚠ RAISED, NOT FIXED, and filed as GitLab #86: the column half of `persist_docs` only partly
++    works today. All 66 relation descriptions are in BigQuery; only 100 of 458 column descriptions
++    are (0 of 134 on views, 0 of 20 on incremental models, 58 of 304 on plain tables, and those 58
++    sit in 13 `int_*` models). It does not block this MR, which writes no descriptions, but it
++    matters to MR4, which writes ~249.
++
  decisions_taken: >
--  CPO, 2026-08-20, approving "the whole plan" — all six MRs, with MR6 as `persist_docs` plus
--  published docs.
--  CPO, 2026-08-20, "Both" — turn on `persist_docs` AND publish `dbt docs generate` from CI, chosen
--  over either alone or neither.
--  CPO, 2026-08-21, the docs rebuild after each merge to main. See `protected_override`.
-+  CPO, 2026-08-21, "every column, no exception" — the coverage rule takes no exemption list.
-+  Object level is the unambiguous subset of that and is what this MR enforces.
-+  CPO, 2026-08-21, "thin fillers should not happen ... starting in core we are applying our
-+  definitions alongside what the provider gives us as descriptions, information upstream so we use
-+  it downstream where applicable." The twelve descriptions here are written from what the staging
-+  models and `docs/data_contract.md` already establish about each raw table, not invented.
+-  CPO, 2026-08-21, "every column, no exception" — the coverage rule takes no exemption list.
+-  Object level is the unambiguous subset of that and is what this MR enforces.
+-  CPO, 2026-08-21, "thin fillers should not happen ... starting in core we are applying our
+-  definitions alongside what the provider gives us as descriptions, information upstream so we use
+-  it downstream where applicable." The twelve descriptions here are written from what the staging
+-  models and `docs/data_contract.md` already establish about each raw table, not invented.
++  CPO, 2026-08-23, approving `serialized-enchanting-frost.md`, which states the ask in its own
++  section: build `scripts/declare_missing_columns.py` and KEEP it in the repo. Recorded as the
++  option approved and nothing more — the reasoning offered for it is the writer's, per the
++  2026-08-21 lesson that reasoning wrapped around an answer hardens into a ruling never given.
++
++  CPO, 2026-08-21, "every column, no exception" — no exemption list, so all 979 are declared.
++  CPO, 2026-08-21, "thin fillers should not happen" — which is WHY this MR writes no descriptions at
++  all. A name with no text is an honest empty slot; a name with invented text is the filler the
++  ruling bans, and it would also be far harder to find and replace in MR4.
++
++  THRESHOLD DECLARATION — NEW MECHANISM. `scripts/declare_missing_columns.py` is a new mechanism: a
++  script that mutates 14 tracked files in bulk. It is declared here because no routing row can find
++  a threshold crossing, and `cto-reviewer` is not gate-required on `scripts/**`. Its authority is
++  the CPO approval quoted above.
++  THRESHOLD DECLARATION — RECURRING COST: NONE. The script is run by hand. It adds no CI job, no
++  schedule, no scheduled query and no new dependency; it uses only the standard library and PyYAML,
++  which `requirements.txt` already pins for the existing gates.
  
  decisions_reserved:
--  - #82 (MR7, the coverage gate) and #83 (the missing competition-classification dim) are NOT
--    started here. #82 comes after MR6 because it needs this MR's `catalog.json`.
--  - Whether `!88` merges before this MR is the CPO's, because he merges. The recommendation is
--    recorded in `escalations.log` and in the handover: MR6 is what makes an over-long description
--    build-breaking, and the gate in main is blind to a long shared docs block, which is exactly the
--    hole `!88` closes. MR6 is safe either way — the measured over-limit count is zero — so this is
--    a recommendation, not a blocker.
--  - `snapshots:` is deliberately NOT given `persist_docs`. The block is dormant, dbt already
--    reports it as an unused configuration path, and its own header instructs whoever lands the
--    first snapshot to make it target-aware. Adding a key to a block that binds nothing would be
--    speculative config. If the CPO wants uniformity instead, it is one line.
--  - The two length bullets in `engineering_standards.md` §2 are NOT touched. `!88` rewrites exactly
--    those lines; editing them here creates a conflict and buys nothing. MR6 adds a Readers note
--    elsewhere in §2.
-+  - COLUMN coverage is NOT enforced here. It is 1,236 columns across four later MRs, and turning
-+    the rule on before the content exists would put main red — the inverse of the
-+    `check_copy_gate.py` precedent this repo already set.
-+  - The append-only declaration script (plan MR2) is not built here and is not approved by this
-+    contract.
-+  - Whether a model with no populating process should exist at all is the CPO's.
-+    `int_team__market_value_latest` is DESCRIBED here, not deleted and not defended; its emptiness
-+    is stated as a known limit and the question is raised in `escalations.log`.
-+    ⚠ THREE FACTS FOUND WHILE DESCRIBING IT, none of them fixed here.
-+    (a) It is declared in NO yml at all — that is WHY it has no description — so this MR creates
-+        `int_team_market_value.yml`. The path follows the existing subdirectory precedent
-+        (`domestic_league/matchday/int_matchday.yml`), not a new convention.
-+    (b) It therefore has NO schema test either, which §3 requires of every model. NOT fixed here:
-+        the table has 0 rows, so any test added today would pass vacuously by construction, and
-+        this repo has already shipped vacuous tests once. It needs data first, or a deliberate
-+        decision that the model goes.
-+    (c) The emptiness is not contained: `mart_team_market_value.sql` reads this model, so an empty
-+        fact reaches a MART. Raised, not chased.
-+  - ⚠ A FLAG OF MINE THAT WAS FALSE, WITHDRAWN. An earlier version of this bullet claimed
-+    `RAW_APIF_LEAGUES` is "absent from the raw table inventory in `docs/data_contract.md`", the
-+    same shape as the recorded gap for COACHES and INJURIES. IT IS NOT ABSENT.
-+    `docs/data_contract.md:65` carries "Additional smaller table: `RAW_APIF_LEAGUES` (same append
-+    schema, no `fixture_id`)", and it appears twice more in the endpoint tables. That file even
-+    explains at lines 39-42 why it sits outside the main grain table, and records the history of
-+    the ambiguity.
-+    HOW I GOT IT WRONG, because the method matters more than the fact: I grepped only the ROWS of
-+    the grain table, saw no match, and reported an absence as a gap. That is trap 1 of the
-+    handover, a too-narrow grep reported as a clean sweep, committed inside the MR whose subject
-+    is claims nobody checked. Surfaced by scope-auditor and verified before withdrawing.
+-  - COLUMN coverage is NOT enforced here. It is 1,236 columns across four later MRs, and turning
+-    the rule on before the content exists would put main red — the inverse of the
+-    `check_copy_gate.py` precedent this repo already set.
+-  - The append-only declaration script (plan MR2) is not built here and is not approved by this
+-    contract.
+-  - Whether a model with no populating process should exist at all is the CPO's.
+-    `int_team__market_value_latest` is DESCRIBED here, not deleted and not defended; its emptiness
+-    is stated as a known limit and the question is raised in `escalations.log`.
+-    ⚠ THREE FACTS FOUND WHILE DESCRIBING IT, none of them fixed here.
+-    (a) It is declared in NO yml at all — that is WHY it has no description — so this MR creates
+-        `int_team_market_value.yml`. The path follows the existing subdirectory precedent
+-        (`domestic_league/matchday/int_matchday.yml`), not a new convention.
+-    (b) It therefore has NO schema test either, which §3 requires of every model. NOT fixed here:
+-        the table has 0 rows, so any test added today would pass vacuously by construction, and
+-        this repo has already shipped vacuous tests once. It needs data first, or a deliberate
+-        decision that the model goes.
+-    (c) The emptiness is not contained: `mart_team_market_value.sql` reads this model, so an empty
+-        fact reaches a MART. Raised, not chased.
+-  - ⚠ A FLAG OF MINE THAT WAS FALSE, WITHDRAWN. An earlier version of this bullet claimed
+-    `RAW_APIF_LEAGUES` is "absent from the raw table inventory in `docs/data_contract.md`", the
+-    same shape as the recorded gap for COACHES and INJURIES. IT IS NOT ABSENT.
+-    `docs/data_contract.md:65` carries "Additional smaller table: `RAW_APIF_LEAGUES` (same append
+-    schema, no `fixture_id`)", and it appears twice more in the endpoint tables. That file even
+-    explains at lines 39-42 why it sits outside the main grain table, and records the history of
+-    the ambiguity.
+-    HOW I GOT IT WRONG, because the method matters more than the fact: I grepped only the ROWS of
+-    the grain table, saw no match, and reported an absence as a gap. That is trap 1 of the
+-    handover, a too-narrow grep reported as a clean sweep, committed inside the MR whose subject
+-    is claims nobody checked. Surfaced by scope-auditor and verified before withdrawing.
++  - WHAT each of the 979 columns MEANS is not decided here and no text is written for any of them.
++    That is MR3 (wire the shared definitions that already exist) and MR4 (author the ~249 that do
++    not). Declaring a name is deliberately the smallest step that makes the gap visible.
++  - COLUMN ORDER inside a yml now diverges from the physical column order for any model that
++    already had entries, because new names are appended after the existing ones. This is forced by
++    the append-only constraint rather than chosen: reordering to match the database would mean
++    rewriting lines that are already there, which is the one thing the constraint forbids. Raised
++    so a reader does not mistake it for carelessness.
++  - GitLab #86, the persist_docs column gap, is RAISED and not chased. See `impact_map`.
++  - GitLab #85, the outside bot commenting on merge requests, is filed and carries a visibility
++    decision that is the CPO's. Unrelated to this MR, recorded because it was found in the same
++    session.
++  - The five extra columns over the approved plan's number (979 here, 974 there) are
++    `int_team__market_value_latest`'s, which MR1 brought into a yml at object level but not at
++    column level. Stated rather than silently absorbed; it needs no decision.
  
  done_when:
--  - `+persist_docs: {relation: true, columns: true}` set ONCE at the `models:
--    football_data_pipeline:` level so it cascades to all five layers, not restated per layer.
--  - A new top-level `seeds:` block carrying `+persist_docs` and nothing else. No `+schema`.
--  - `dbt docs generate --static --target prod` plus an `artifacts:` block on `data:build:main`
--    only, with no `allow_failure`.
--  - PROVEN ON A DEV TARGET, never `dbt build` against prod: `dbt seed --select competition_types
--    --target dev` then `bq show --schema` shows the relation description and all 5 column
--    descriptions. (`competition_types` is a SEED — `dbt run` selects nothing and exits 0, which is
--    the false-green the brief's own recipe would have produced.)
--  - The models half proven too: `dbt run --select stg_apif__leagues --target dev` then `bq show`.
--    Model COLUMN descriptions cannot be proven locally — no staging model has one (0 of 15,
--    measured) and every model that does needs the whole chain in dev — so they are proven off this
--    MR's own `ci_*` build, read from the log.
--  - `dbt docs generate --static --target dev` produces `static_index.html` and a non-empty
--    `catalog.json`.
--  - THE HAZARD IS SEEN RED. Push one description past 1,024 characters, watch BigQuery reject it,
--    revert. A passing check proves nothing (#904) — this is the repo's dominant failure.
--  - `python -m pytest tests/` green at its measured baseline; the offline gates pass, read from
--    their OUTPUT not their exit code.
-+  - All 11 source tables carry a description stating what the payload holds, its grain (what ONE
-+    row is), and its known limits. Measured from the manifest, not counted by eye.
-+  - `int_team__market_value_latest` carries a description that states its emptiness as a limit.
-+  - The gate fails when a model, seed or source table has no description, and the rule is SEEN RED
-+    on a realistic omission before it is trusted (#904). A passing gate proves nothing.
-+  - The gate is green repo-wide BEFORE the rule is relied on, so main never goes red.
-+  - `dbt parse` clean; `python -m pytest tests/` at its measured baseline plus the new tests.
-+  - The five offline gates pass, read from their OUTPUT and not their exit code.
+-  - All 11 source tables carry a description stating what the payload holds, its grain (what ONE
+-    row is), and its known limits. Measured from the manifest, not counted by eye.
+-  - `int_team__market_value_latest` carries a description that states its emptiness as a limit.
+-  - The gate fails when a model, seed or source table has no description, and the rule is SEEN RED
+-    on a realistic omission before it is trusted (#904). A passing gate proves nothing.
+-  - The gate is green repo-wide BEFORE the rule is relied on, so main never goes red.
+-  - `dbt parse` clean; `python -m pytest tests/` at its measured baseline plus the new tests.
++  - The script adds all 979 missing names across 14 files and 40 models, and the count is MEASURED
++    from the regenerated files, never predicted.
++  - `git diff --numstat` over the 14 yml files shows **0 deleted lines**. This is the append-only
++    proof and it is the acceptance test for the whole MR.
++  - The parsed manifest before and after has an identical node set and identical `depends_on` for
++    every node, so the lineage claim in `impact_map` is shown rather than asserted.
++  - Re-running the coverage measurement reports undeclared columns **979 -> 0**.
++  - A second run of the script reports that it found nothing to add and exits non-zero, so it can
++    never report success while matching nothing (handover trap 2).
++  - The script refuses a partial catalogue: pointed at one that does not cover every in-scope model
++    it aborts and writes nothing. SEEN, using the stale dev catalogue that is actually on this
++    machine, not a synthetic one.
++  - Every new test is SEEN RED before it is trusted (#904): break the invariant, watch that specific
++    test fail, restore. A passing test proves nothing.
++  - `dbt parse` clean. `check_description_hygiene.py` and `check_layer_contract.py` green repo-wide.
++  - `python -m pytest tests/` back at its measured baseline of 906 passed / 1 skipped, plus the new
++    tests.
+   - The five offline gates pass, read from their OUTPUT and not their exit code.
    - Handover updated in the SAME commit as the code.
--  - Added by amendment 1: `tests/test_persist_docs_policy.py` pins every invariant this MR
--    establishes, and is SEEN RED per invariant before being trusted.
  
- amendments:
-   - >
--    1. A PINNING TEST ADDED, because platform-reviewer FAILed round 1 and was right.
--    THE FINDING: nothing in `tests/` referenced `persist_docs`, `docs generate`, `catalog.json` or
--    `static_index` — verified, the grep returns zero files. So every invariant this MR establishes
--    could be reverted with the whole suite still green: deleting `+persist_docs`, adding a
--    `+schema` to the new `seeds:` block (the silent-relocation hazard the file's own comment warns
--    about), removing the docs step, moving it to `data:nightly` or `data:build:mr` (both
--    explicitly rejected by the CPO's override), or restoring `allow_failure`.
--    WHY IT LANDS RATHER THAN BEING ARGUED WITH: this is the exact class
--    `tests/test_materialisation_policy.py` and `tests/test_ci_data_job_invariants.py` already
--    exist for, on the SAME two files, and both open by saying breaking them produces no red
--    anywhere. The programme's own founding measurement is that 33 of 50 corrections were
--    prose-only and 22 recurred, while every rule that got a machine check stopped recurring. A
--    config change defended only by hand-run commands pasted into an evidence file is a prose-only
--    correction wearing a lab coat.
--    The original `done_when` list omitted a pinning test with no stated reason. That omission was
--    the defect, not an accepted trade-off.
-+    1. TWO FALSE CLAIMS OF MINE, BOTH CORRECTED, and both found by review rather than by me.
-+    Recorded here rather than quietly fixed, because this MR's entire subject is descriptions that
-+    asserted something nobody had checked, and I produced two of them while writing it.
-+
-+    (a) THE SERIOUS ONE, caught by analytics-engineer-reviewer's round-1 FAIL. The
-+    `raw_apif_fixture_details` description I wrote ended "several rows can describe the same
-+    fixture and the newest is the fullest". That is FALSE and actively dangerous: a stranger would
-+    take the newest row per fixture and silently lose data. `docs/data_contract.md:134` states the
-+    opposite — "Both versions are kept deliberately, and base picks per entity ... a retry chasing
-+    late statistics can come back richer in one section and poorer in another" — with fixture
-+    1564795 yielding 27 events of which indices 17-26 come from the payload the retry would have
-+    replaced. `base_apif__fixture_events.sql:25` confirms it in code, deduping per
-+    `(league_code, fixture_id, event_index)` rather than newest-row-wins, which only makes sense
-+    BECAUSE the newest row is not the fullest. The description now says no single row is reliably
-+    fullest, that versions must be resolved per entity, and that `fixture_id` is not unique here.
-+    ⚠ THE LESSON IS NOT "check harder". I wrote that sentence by compressing a staging model's
-+    description without reading the section of the data contract that governs it. Inheriting text
-+    from upstream, which is exactly what the CPO's "information upstream so we use it downstream"
-+    ruling asks for, carries an INHERITED-ERROR risk that inventing text does not. Reuse still
-+    needs verification at the point of reuse.
-+
-+    (b) `RAW_APIF_LEAGUES` — see `decisions_reserved`. A flag raised from a too-narrow grep and
-+    withdrawn.
-   - >
--    2. NOT AN AMENDMENT TO SCOPE — a correction to platform-reviewer's SECOND finding, recorded
--    because the correction is the useful part and the reviewer should see it.
--    THE FINDING: `static_index.html` was measured at 6.6 MB against a dev catalog of 10 nodes / 78
--    columns, while production is 106 relations / 870 declared columns, so the evidence measured
--    something ~10x smaller than what will really be produced.
--    THE PREMISE IS WRONG, and this is measured. `target/manifest.json` is 5,085,350 bytes and
--    already contains ALL 97 models and 9 seeds — a manifest is a parse artifact and does not
--    depend on what was BUILT, so the dominant JSON embedded in `static_index.html` was already at
--    full production scale in that dev run. The dbt docs SPA bundle is a fixed cost. Only the
--    catalog portion scales, at 47,511 bytes across 112 catalogued columns (78 in nodes + 34 in
--    sources) — **~424 bytes per column**.
--    ⚠ AN EARLIER DRAFT OF THIS AMENDMENT SAID ~609 bytes/column, dividing by the 78 node columns
--    while the file also holds 34 source columns. Wrong denominator, and it disagreed with the
--    figure in `acceptance_evidence.md`. Caught by platform-reviewer in round 2, which noticed the
--    two artifacts quoting different rates for one measurement. It is recorded rather than quietly
--    overwritten because it is the SAME defect MR5 shipped — three numbers across three artifacts
--    for one decision — committed again inside the programme built to stop it. The conclusion was
--    never rate-sensitive (both rates land two orders of magnitude under the limit), which is
--    exactly why it survived a first reading.
--    THE FAIR HALF OF THE FINDING STANDS: no estimate and no artifact-limit check existed anywhere
--    on the branch. Both are now in `acceptance_evidence.md`.
-+    2. ONE REVIEWER NOTE ADOPTED, from platform-reviewer's PASS. The gate's success line globbed
-+    the model and seed trees a THIRD time for its printed counts and omitted the `dbt_packages/`
-+    exclusion the enforcement path uses. Cosmetic today, since nothing nests there, but it is two
-+    definitions of "which files count" that can drift — the same shape as the duplication this
-+    programme exists to remove. Replaced with one `_on_disk()` helper used by both the check and
-+    the census, so the number printed cannot diverge from the number enforced.
+-amendments:
+-  - >
+-    1. TWO FALSE CLAIMS OF MINE, BOTH CORRECTED, and both found by review rather than by me.
+-    Recorded here rather than quietly fixed, because this MR's entire subject is descriptions that
+-    asserted something nobody had checked, and I produced two of them while writing it.
+-
+-    (a) THE SERIOUS ONE, caught by analytics-engineer-reviewer's round-1 FAIL. The
+-    `raw_apif_fixture_details` description I wrote ended "several rows can describe the same
+-    fixture and the newest is the fullest". That is FALSE and actively dangerous: a stranger would
+-    take the newest row per fixture and silently lose data. `docs/data_contract.md:134` states the
+-    opposite — "Both versions are kept deliberately, and base picks per entity ... a retry chasing
+-    late statistics can come back richer in one section and poorer in another" — with fixture
+-    1564795 yielding 27 events of which indices 17-26 come from the payload the retry would have
+-    replaced. `base_apif__fixture_events.sql:25` confirms it in code, deduping per
+-    `(league_code, fixture_id, event_index)` rather than newest-row-wins, which only makes sense
+-    BECAUSE the newest row is not the fullest. The description now says no single row is reliably
+-    fullest, that versions must be resolved per entity, and that `fixture_id` is not unique here.
+-    ⚠ THE LESSON IS NOT "check harder". I wrote that sentence by compressing a staging model's
+-    description without reading the section of the data contract that governs it. Inheriting text
+-    from upstream, which is exactly what the CPO's "information upstream so we use it downstream"
+-    ruling asks for, carries an INHERITED-ERROR risk that inventing text does not. Reuse still
+-    needs verification at the point of reuse.
+-
+-    (b) `RAW_APIF_LEAGUES` — see `decisions_reserved`. A flag raised from a too-narrow grep and
+-    withdrawn.
+-  - >
+-    2. ONE REVIEWER NOTE ADOPTED, from platform-reviewer's PASS. The gate's success line globbed
+-    the model and seed trees a THIRD time for its printed counts and omitted the `dbt_packages/`
+-    exclusion the enforcement path uses. Cosmetic today, since nothing nests there, but it is two
+-    definitions of "which files count" that can drift — the same shape as the duplication this
+-    programme exists to remove. Replaced with one `_on_disk()` helper used by both the check and
+-    the census, so the number printed cannot diverge from the number enforced.
++amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index c572294..e34d1bd 100644
+index d8d60f9..c41e67f 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -3974,10 +3974,17 @@ a decision log, and three of them are lying. CPO commissions an audit, then appr
-   RULINGS, each given in chat on 2026-08-20 in answer to a posed choice:
-     - READERS: "Both" — turn on `persist_docs` (BigQuery table/column metadata) AND publish
-       `dbt docs generate` from CI. Chosen over either alone or neither.
--    - REUSE: "Docs blocks" — dbt-native `{% docs %}` + `{{ doc() }}`, explicitly NOT the
--      third-party dbt-osmosis, so no new dependency enters the pipeline. Note dbt Core does not
-+    - REUSE: "Docs blocks" — dbt-native `{% docs %}` + `{{ doc() }}`. Note dbt Core does not
-       propagate descriptions downstream automatically (open upstream feature requests); dbt Cloud
-       Explorer does, and we are on Core.
-+      ⚠ CORRECTED 2026-08-21, AT THE SITE OF THE ERROR. This bullet used to continue "explicitly
-+      NOT the third-party dbt-osmosis, so no new dependency enters the pipeline". The CPO never
-+      said that. His recorded answer is the two words "Docs blocks", chosen from a posed list;
-+      the osmosis rejection was narrative wrapped around it by the writer of this entry, and it
-+      then hardened into a ruling that was quoted back to him as fact. He rejected osmosis on
-+      2026-08-21 on its own merits ("osmosis sounds too risky"), which is a DIFFERENT and later
-+      decision — see that day's entry. The false half is deleted here rather than only
-+      contradicted later, because a reader of this entry would otherwise still be misled.
-     - SCOPE: "The whole plan" — all six MRs, chosen over "just fix the three lies" and over a
-       smaller fix-plus-gate option.
+@@ -4487,3 +4487,110 @@ RULINGS, and a CORRECTION OF THIS FILE BY THE CPO that is the most important lin
+   the move would have cost a third review round for a bullet's location. The durable record is
+   here. If a future task finds a withdrawn claim parked in `decisions_reserved` and is misled by
+   it, this paragraph is the evidence that the placement was known and traded away deliberately.
++
++
++2026-08-23 feat/description-coverage-columns — #82 MR2, the 979 columns that existed in the
++warehouse and were written down nowhere. ONE CPO APPROVAL for a new mechanism, and TWO DEFECTS OF
++MINE, one of which the MR's own acceptance test was structurally incapable of catching.
++
++  THE APPROVAL, recorded as the option chosen and nothing else, per the 2026-08-21 lesson in the
++  entry above. `scripts/declare_missing_columns.py` is a NEW MECHANISM (§10) and the programme plan
++  said so. It was put to the CPO in the approved plan for this MR
++  (`C:\Users\Rami\.claude\plans\serialized-enchanting-frost.md`) under its own heading "The one
++  thing that needs your yes", which stated the ask as: build the script, and KEEP it in the repo,
++  with the alternative of deleting it after one run named in the same sentence. He approved the
++  plan. That approval is the authority; the reasoning offered for it in the plan is the writer's
++  and is not his.
++  ⚠ HOW IT WAS ASKED, because the framing is the reusable part. The question went to him FIRST as
++  an `AskUserQuestion` menu of three options and he DISMISSED it, which is the same response the
++  memory file `feedback_one_decision_at_a_time` already records for authored multiple-choice
++  menus. Re-asked as plain prose plus a plan he could approve or not, it was answered without
++  friction. The MR5/MR6 lesson was "frame it as behaviour, not file paths"; this adds "and not as
++  a menu". Both are the same underlying point: put the decision in a form he can actually judge.
++
++  ⛔ DEFECT 1, AND IT IS THE INTERESTING ONE: THE ACCEPTANCE TEST WAS BLIND BY CONSTRUCTION.
++  The whole MR rests on one claim — the change only ever ADDS lines — and its stated proof is that
++  `git diff --numstat` reports zero deletions. The first version of the script read the ymls with
++  universal newlines and wrote back "\n", converting all 14 files from CRLF to LF in the working
++  tree. `core.autocrlf=true` on this machine and `.gitattributes` pins only `*.sh` and
++  `Dockerfile`, so those files are CRLF in the working tree and LF in the object store.
++  ⚠ THE PROOF REPORTED `980 added, 0 deleted` BOTH BEFORE AND AFTER THE FIX. Git normalises line
++  endings on the way in, so at the blob level nothing had changed and the diff was telling the
++  truth about the thing it measures. Converting every line's terminator is nonetheless reformatting
++  every line, which is precisely what the append-only constraint forbids.
++  FOUND BY READING THE WARNINGS GIT PRINTED NEXT TO THE DIFF ("LF will be replaced by CRLF the next
++  time Git touches it"), not by any check. Confirmed by counting bytes: the touched files held 0
++  CRLF and 960 bare LF, while the untouched `sources.yml` beside them still held 178 CRLF and 0
++  bare LF.
++  ⭐ THE RULE THIS YIELDS. A verification can be honest, green, and structurally incapable of
++  seeing the defect it is pointed at. `git diff` is normalised, so it can never witness a
++  line-ending rewrite; asking it to is asking the wrong instrument. When a proof rests on ONE
++  measurement, ask what that measurement cannot see, and measure that other thing separately.
++  ⚠ NOT HYPOTHETICAL HERE. `.gitattributes` exists at all because a CRLF working copy shipped a
++  `\r` into a container shebang under #39 and killed the 04:00 production run, having passed every
++  test and built a clean image.
++  Fixed by preserving each file's own terminator, plus a refusal on mixed endings. Two tests cover
++  it and both were SEEN RED against the unfixed script before the fix went in.
++
++  ⛔ DEFECT 2, killed by mutation testing rather than by review. The script applied its insertions
++  bottom-up, with a comment stating that the ordering was necessary so an insertion could not
++  invalidate a later line index. Flipping the order left all 14 tests green, which showed the
++  comment was false: `_insert` re-locates its model in the lines it is handed, so order never
++  mattered. The dead sort and its false comment were DELETED rather than kept and documented. A
++  comment asserting a mechanism that does not exist is the same defect class as a `description:`
++  asserting who reads a column, committed inside the programme that exists to remove it.
++
++  ⚠ HOW EVERY TEST WAS SEEN RED, since #904 asks for it and doing it by hand is what makes people
++  skip it. A harness copied `scripts/` and `tests/` to a temp tree, applied 14 single-line
++  mutations to the COPY one at a time, and ran the suite against each. No repo file was ever
++  rewritten outside the Edit tool, which matters because #67 records `sed -i` bypassing the edit
++  gate as its own defect. All 14 mutations were caught by the test aimed at them.
++  ⚠ ONE OF THE 14 NEEDED A COMPOUND MUTATION, and the reason generalises. A purely defensive check
++  cannot be tested by deleting it: nothing is wrong for it to catch, so the suite stays green and
++  proves nothing. The structural half of `_verify` was isolated by introducing a bug only it can
++  see (entries landing under the wrong model, which is a pure insertion and therefore invisible to
++  the append-only text check) and disabling the text check alongside it.
++
++  ⚠ THE NUMBER IS 979, NOT THE PLAN'S 974, and the difference is fully accounted for: it is
++  `int_team__market_value_latest`'s five columns. MR1 gave that model an object-level description
++  but no column entries, so it entered the denominator between the two measurements. Stated rather
++  than silently absorbed.
++  MEASURED FROM THE PRODUCTION CATALOGUE, fetched as a CI artifact from the `data:build:main` run
++  on `4659e22`. ⚠ THE `catalog.json` SITTING IN `dbt_project/target/` IS A DEV ARTIFACT — 10
++  relations in `dev_staging`/`dev_scratch` — and running against it would have declared almost
++  nothing and reported success. That is trap 2, and it is why the script now REFUSES a catalogue
++  that does not cover every in-scope model. The guard was seen firing on that real stale file, not
++  on a synthetic one.
++  Result: 1,699 columns exist, 720 were declared, 979 are now added, 0 remain undeclared. The
++  lineage is unchanged and shown rather than asserted: 106 nodes before and after, zero added,
++  zero removed, zero `depends_on` altered.
++
++  ⚠ A FLOOR IN MY OWN VERIFICATION CAUGHT A VACUOUS ZERO, worth recording because it is the exact
++  shape of #904 arriving inside the check meant to prevent it. The re-measurement first reported
++  "0 columns declared nowhere", which looked like success. Its own floor (`exists > 1000`) failed
++  the run instead: a manifest parsed locally on Windows writes `path` with BACKSLASHES while the
++  CI one is POSIX, so the layer prefix match found nothing and the zero meant "walked nothing", not
++  "nothing missing". A floor under a discovery is worth more than the assertion above it.
++
++  ⚠ TWO THINGS RAISED AND NOT CHASED, both filed. **GitLab #86**: `persist_docs` only half works.
++  All 66 relation descriptions are in BigQuery; only 100 of 458 column descriptions are — 0 of 134
++  on views, 0 of 20 on incremental models, 58 of 304 on plain tables, and those 58 sit in 13
++  `int_*` models, so every core dimension, every core fact and every mart has none. Views and
++  incrementals have a mechanical cause in the adapter; the 51-plain-tables split does not and is
++  undiagnosed. It does not block MR2, which writes no descriptions, but MR4 authors ~249 and should
++  know which of them will be visible in BigQuery before writing them. It also makes `CLAUDE.md`'s
++  claim that every description "shows up in `bq show --schema`" true of tables and a fifth of
++  columns.
++  **GitLab #85**: an unrelated gitlab.com account, `@payflows-agent`, posted an automated
++  verdict-shaped review comment on `!93` 54 seconds after the push. Checked rather than assumed: it
++  is not a member, and the project has no webhooks, no access tokens and no deploy keys, so it has
++  no access and nothing was compromised — the project is public, which is all it needed. The issue
++  carries the visibility decision, which is the CPO's.
++
++  ⚠ THE CLOBBER RISK WAS TRACED TO THE ADAPTER AND THEN MEASURED, not reasoned about.
++  `dbt/adapters/bigquery/impl.py:578` sets a declared column's description to
++  `column_config.get("description")`, which is None when there is no `description:` key, so
++  declaring a bare name BLANKS whatever BigQuery holds for it. Measured across the three prod
++  datasets: 100 columns hold a description today, and 0 of them are among the 979 being declared —
++  with a sanity floor showing all 100 sit on columns that were already declared, so the zero is not
++  a silent key mismatch. Nothing is cleared.
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 3b61eda..287b167 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -895,6 +895,9 @@ models:
+       - name: league_code
+         description: "{{ doc('league_code_ingest_provenance') }}"
+         tests: [not_null]
++      - name: team_in_sk
++      - name: team_out_sk
++      - name: raw_ingested_at
  
-@@ -4295,3 +4302,69 @@ file.
-   builds nothing and exits 0 — the false-green shape #904 names as this repo's dominant failure,
-   arriving inside the step meant to prevent it. The command is
-   `dbt seed --select competition_types --target dev`.
-+
-+
-+2026-08-21 feat/description-coverage-objects — #82, the description COVERAGE programme. FOUR CPO
-+RULINGS, and a CORRECTION OF THIS FILE BY THE CPO that is the most important line in the entry.
-+
-+  ⛔ THE CORRECTION FIRST, because it indicts this file. I told the CPO he had rejected dbt-osmosis
-+  on 2026-08-20, citing the RULINGS block above. He answered: "dbt-osmosis I didn't reject it."
-+  He was right. His recorded answer that day is the two words "Docs blocks", picked from a posed
-+  list of options. The clause "explicitly NOT the third-party dbt-osmosis, so no new dependency
-+  enters the pipeline" was reasoning the WRITER added around his answer. It reads as his, it was
-+  quoted back to him as his, and it would have silently removed a tool from consideration on the
-+  strength of a decision he never made.
-+  THE FALSE HALF IS NOW DELETED AT ITS OWN SITE (the 2026-08-20 entry above), not merely
-+  contradicted here, because a reader landing on that entry would otherwise still be misled.
-+  ⚠ THIS IS THE PROGRAMME'S OWN DEFECT CLASS, in the programme's own durable record. The whole
-+  point of the description work is that a claim gets written once, is never re-checked, and
-+  hardens into fact. The same thing happened here, in `escalations.log`, which is where rulings
-+  were moved TO for safe keeping. The lesson is narrower than "be careful": when recording a
-+  chosen option, record the OPTION and nothing else. The reasoning for why the other options lost
-+  is the writer's, and must not be phrased as the chooser's.
-+
-+  RULING 1 — EVERY COLUMN, NO EXCEPTION. Asked whether the coverage rule should be every column in
-+  core/intermediate/marts or every column minus an explicit exemption list, the CPO answered
-+  "every column, no exception". Scope stays those three layers; staging and base remain out, which
-+  his own "starting in core" phrasing in the same conversation reinforces.
-+
-+  RULING 2 — NO THIN FILLER, AND WHERE THE TEXT COMES FROM. Verbatim: "thin fillers should not
-+  happen, starting in core we are applying our definitions alongside what the provider gives us as
-+  descriptions, information upstream so we use it downstream where applicable." So a definition is
-+  OURS, informed by what the provider documents, written once at its most upstream sensible point
-+  and reused below. ⚠ CHECKED RATHER THAN ASSUMED: the repo does NOT hold the provider's field
-+  definitions. `docs/api_football_ingestion_blueprint.md` is condensed provider documentation but
-+  covers ingestion BEHAVIOUR (pagination, rate limits, coverage flags, missing statistics), not
-+  what a field means. The provider half therefore comes from API-Football's live v3 documentation,
-+  which `docs/data_contract.md` already links.
-+
-+  RULING 3 — DOCS BLOCKS ONLY WITH A MECHANISM. Verbatim: "We use docs blocks but only if we have
-+  a mechanism to apply it consistently." This is the repo's own measured principle (33 of 50
-+  prose-only corrections recurred; every mechanised one stopped) turned on the docs blocks
-+  themselves. THE EVIDENCE IT IS NEEDED: 112 of the 262 undescribed declared columns are columns
-+  whose NAME ALREADY HAS A BLOCK that was never referenced. Hand-referencing has already failed at
-+  scale. ⚠ dbt Core does not propagate by itself, so the mechanism must be ours: a gate rule that
-+  a column whose name has a block must reference it, WITH a reasoned opt-out for sites where the
-+  same name legitimately means something else — there are already two `league_code` blocks for
-+  exactly that reason.
-+
-+  RULING 4 — NO dbt-osmosis. Verbatim: "osmosis sounds too risky." Taken on its merits after the
-+  correction above, and it is the real decision on the tool. Recorded with what it costs us: the
-+  974 columns that exist in BigQuery and are declared in no yml must now be declared some other
-+  way, and downstream inheritance stays manual.
-+
-+  ⚠ THE ISSUE'S HEADLINE NUMBER IS WRONG, and this is the scoping finding. #82 says 262 columns
-+  are undescribed. That counts only columns already written into a yml. Measured against
-+  production: 720 columns are declared across core/intermediate/marts, 1,694 actually EXIST, so
-+  974 are declared nowhere and no yml-based check can see them. The true gap is 1,236, not 262.
-+  It is tractable because names repeat: 500 distinct names across those 1,694, 251 already defined
-+  somewhere, so the writing job is 249 definitions. The highest-reach are the provider's own stat
-+  vocabulary — `goals_against` in 20 tables, `passes_total` in 19, `duels_won` in 16.
-+  The CPO ruled "every column" while the stated number was 262; he was told the real number before
-+  any code was written, and the ruling stands.
-+
-+  ⚠ `int_team__market_value_latest` HAS NO DESCRIPTION BECAUSE IT HAS NO PURPOSE YET. CPO: "there
-+  is nothing in it because we have not defined the process and pipeline to populate it." VERIFIED
-+  rather than taken on trust: it is a view over `fct_team_market_value_snapshot`, and that fact
-+  table holds 0 rows in production. Its description states that as a known limit. Whether a model
-+  with no populating process should exist at all is the CPO's call, raised here and not decided.
-diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
-index cc906f1..61a2e0f 100644
---- a/dbt_project/models/1_staging/api_football/sources.yml
-+++ b/dbt_project/models/1_staging/api_football/sources.yml
-@@ -6,6 +6,13 @@ sources:
-     schema: "{{ var('raw_schema') }}"
-     tables:
-       - name: raw_apif_fixtures_next
-+        description: >
-+          Scheduled and upcoming fixtures for one competition, as the provider
-+          returns them. One row per FETCH of a WHOLE league, holding that
-+          league's entire fixture list in a single JSON payload, so a league
-+          fetched nightly contributes one row a night. Append-only: nothing is
-+          updated in place, so the newest row for a league_code is the current
-+          picture and older rows are earlier versions of it.
-         identifier: RAW_APIF_FIXTURES_NEXT
-         loaded_at_field: ingested_at
-         freshness:
-@@ -13,6 +20,13 @@ sources:
-           error_after: {count: 54, period: hour}
+   - name: dim_coach
+     description: >
+@@ -919,6 +922,14 @@ models:
+           - relationships:
+               to: ref('dim_country')
+               field: country_name
++      - name: coach_first_name
++      - name: coach_last_name
++      - name: coach_age
++      - name: coach_birth_date
++      - name: coach_birth_place
++      - name: coach_nationality
++      - name: coach_photo_url
++      - name: raw_ingested_at
  
-       - name: raw_apif_standings
-+        description: >
-+          League tables as the provider publishes them: rank, points, and the
-+          played, won, drawn, lost and goal aggregates behind them. One row per
-+          FETCH of a WHOLE league, holding the full standings payload as JSON.
-+          Append-only, so the newest row per league_code is current.
-+          A cup can return several stage groups in one payload, and a
-+          competition that has no table returns none at all.
-         identifier: RAW_APIF_STANDINGS
-         loaded_at_field: ingested_at
-         freshness:
-@@ -20,6 +34,13 @@ sources:
-           error_after: {count: 54, period: hour}
+   - name: dim_coach_team_mapping
+     description: >
+@@ -942,3 +953,8 @@ models:
+         tests: [not_null]
+       - name: start_date
+         tests: [not_null]
++      - name: team_sk
++      - name: coach_api_id
++      - name: team_name
++      - name: end_date
++      - name: raw_ingested_at
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index f8d7777..e085ebc 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -81,6 +81,54 @@ models:
+         description: >
+           Shots on target conceded per match (opponent-SoT companion to shots_on_goal_per_match).
+           NULL unless opponent SoT covers every season game.
++      - name: league_sk
++      - name: season_sk
++      - name: entity_type
++      - name: stat_coverage_season_games
++      - name: player_stat_coverage_season_games
++      - name: games_with_team_stats
++      - name: points_won_sum_season
++      - name: wins_sum_season
++      - name: draws_sum_season
++      - name: losses_sum_season
++      - name: clean_sheets_sum_season
++      - name: goals_for_sum_season
++      - name: goals_against_sum_season
++      - name: goals_penalty
++      - name: goals_own
++      - name: goals_open_play
++      - name: total_shots_sum_season
++      - name: opponent_total_shots_sum_season
++      - name: shots_inside_box_sum_season
++      - name: shots_on_goal_sum_season
++      - name: corner_kicks_sum_season
++      - name: opponent_corner_kicks_sum_season
++      - name: passes_accurate_sum_season
++      - name: passes_total_sum_season
++      - name: goalkeeper_saves_sum_season
++      - name: points_capture
++      - name: shot_share
++      - name: clean_sheets
++      - name: goals_per_match
++      - name: goals_against_per_match
++      - name: shots_per_match
++      - name: shot_accuracy
++      - name: danger_zone_ratio
++      - name: shots_on_goal_per_match
++      - name: finishing_efficiency
++      - name: passes_per_match
++      - name: pass_accuracy
++      - name: corner_kicks_per_match
++      - name: corners_against_per_match
++      - name: save_ratio
++      - name: key_passes_per_match
++      - name: tackles_per_match
++      - name: interceptions_per_match
++      - name: blocks_per_match
++      - name: defensive_actions_per_match
++      - name: duels_per_match
++      - name: duels_won_pct
++      - name: season_matchdays_used
  
-       - name: raw_apif_teams
-+        description: >
-+          Team identity and home venue for every club in a competition season.
-+          One row per FETCH of a WHOLE league, holding all of that league's
-+          teams in one JSON payload. Append-only, so the newest row per
-+          league_code is current.
-+          The provider's team name is not always a usable display name, and one
-+          real club can appear under more than one provider id.
-         identifier: RAW_APIF_TEAMS
-         loaded_at_field: ingested_at
-         freshness:
-@@ -27,6 +48,12 @@ sources:
-           error_after: {count: 54, period: hour}
+   - name: int_team_season__metrics_cumulative
+     description: >
+@@ -139,6 +187,55 @@ models:
+       - name: season_games_played
+         description: "Games played through this matchday (name inherited from the whole-season projection for byte-identity)."
+         tests: [not_null]
++      - name: league_sk
++      - name: season_sk
++      - name: entity_type
++      - name: stat_coverage_season_games
++      - name: player_stat_coverage_season_games
++      - name: games_with_team_stats
++      - name: points_won_sum_season
++      - name: wins_sum_season
++      - name: draws_sum_season
++      - name: losses_sum_season
++      - name: clean_sheets_sum_season
++      - name: goals_for_sum_season
++      - name: goals_against_sum_season
++      - name: goals_penalty
++      - name: goals_own
++      - name: goals_open_play
++      - name: total_shots_sum_season
++      - name: opponent_total_shots_sum_season
++      - name: shots_inside_box_sum_season
++      - name: shots_on_goal_sum_season
++      - name: corner_kicks_sum_season
++      - name: opponent_corner_kicks_sum_season
++      - name: passes_accurate_sum_season
++      - name: passes_total_sum_season
++      - name: goalkeeper_saves_sum_season
++      - name: points_capture
++      - name: shot_share
++      - name: clean_sheets
++      - name: goals_per_match
++      - name: goals_against_per_match
++      - name: shots_per_match
++      - name: shot_accuracy
++      - name: danger_zone_ratio
++      - name: shots_on_goal_per_match
++      - name: shots_on_goal_against_per_match
++      - name: sot_difference_per_match
++      - name: finishing_efficiency
++      - name: passes_per_match
++      - name: pass_accuracy
++      - name: corner_kicks_per_match
++      - name: corners_against_per_match
++      - name: save_ratio
++      - name: key_passes_per_match
++      - name: tackles_per_match
++      - name: interceptions_per_match
++      - name: blocks_per_match
++      - name: defensive_actions_per_match
++      - name: duels_per_match
++      - name: duels_won_pct
  
-       - name: raw_apif_leagues
-+        description: >
-+          Competition and season metadata: the provider's own competition id and
-+          name, its country, and the list of seasons it covers with their start
-+          and end dates. One row per FETCH of a league, holding every season of
-+          that competition in one JSON payload. Append-only, so the newest row
-+          per league_code is current.
-         identifier: RAW_APIF_LEAGUES
-         loaded_at_field: ingested_at
-         freshness:
-@@ -34,6 +61,12 @@ sources:
-           error_after: {count: 54, period: hour}
+   - name: int_team_season__deserved_vs_actual
+     description: >
+@@ -241,6 +338,10 @@ models:
+         description: "Rank by deserved_points within the league-season (1 = best) — the process-deserved table position. Derived from deserved_points, so it cannot disagree with it, and it appears and disappears exactly with it. NULL whenever the league-season is not fittable, which now includes any table that is not a single ladder."
+       - name: sot_points_gap
+         description: "points_won_sum_season - deserved_points. NEGATIVE = under-performing (fewer points than deserved), POSITIVE = over-performing. NOTE the sign is inverted relative to the retired sot_rank_gap. NULL when not fittable."
++      - name: league_sk
++      - name: season_api_year
++      - name: entity_type
++      - name: sot_difference_per_match
  
-       - name: raw_apif_players
-+        description: >
-+          Player season statistics as the provider aggregates them, per player
-+          per team per season. Unlike the league-wide tables here, one row is a
-+          FETCH of a single (team, season) page, so one league-season produces
-+          many rows and a league is only complete once every one of its teams
-+          has been fetched. Append-only.
-         identifier: RAW_APIF_PLAYERS
-         loaded_at_field: ingested_at
-         freshness:
-@@ -55,6 +88,14 @@ sources:
-       # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.
-       # The honest cost: genuine breakage here is now invisible for up to 10 days, not 54h.
-       - name: raw_apif_coaches
-+        description: >
-+          Coach identity and biography for a competition, each with a nested
-+          career array listing the clubs they have managed and when. One row per
-+          FETCH of a WHOLE league, holding every coach the provider returns for
-+          it. Append-only, and re-fetched weekly rather than nightly because
-+          managers change rarely.
-+          Some career stints carry a club NAME but no club id, so a stint cannot
-+          always be resolved to a known team.
-         identifier: RAW_APIF_COACHES
-         loaded_at_field: ingested_at
-         freshness:
-@@ -62,6 +103,21 @@ sources:
-           error_after: {count: 10, period: day}
+   - name: int_player_season__metrics
+     description: >
+@@ -306,3 +407,50 @@ models:
+         tests: [not_null]
+       - name: pass_accuracy_pct
+         description: "Weighted pass accuracy (accurate ÷ attempted); 0-1 or null. Range-tested at model level."
++      - name: starts
++      - name: substitute_appearances
++      - name: minutes
++      - name: goals
++      - name: goals_penalty
++      - name: assists
++      - name: shots_total
++      - name: shots_on_goal
++      - name: passes_total
++      - name: passes_accurate
++      - name: passes_key
++      - name: tackles_total
++      - name: tackles_interceptions
++      - name: tackles_blocks
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: dribbles_past
++      - name: offsides
++      - name: cards_yellow
++      - name: cards_red
++      - name: penalty_won
++      - name: penalty_committed
++      - name: saves
++      - name: goals_against
++      - name: goals_open_play
++      - name: scorer_points
++      - name: defensive_actions
++      - name: cards_total
++      - name: duels_won_pct
++      - name: dribbles_success_pct
++      - name: save_pct
++      - name: finishing_efficiency
++      - name: goals_per90
++      - name: assists_per90
++      - name: scorer_points_per90
++      - name: shots_on_goal_per90
++      - name: key_passes_per90
++      - name: dribbles_success_per90
++      - name: passes_per90
++      - name: tackles_per90
++      - name: interceptions_per90
++      - name: blocks_per90
++      - name: defensive_actions_per90
++      - name: duels_won_per90
++      - name: saves_per90
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index 4dc6c75..ea1abfb 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -64,6 +64,8 @@ models:
+       - name: metric_value
+         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
+         tests: [not_null]
++      - name: league_sk
++      - name: season_api_year
  
-       - name: raw_apif_fixture_details
-+        description: >
-+          Everything the provider knows about ONE played fixture in a single
-+          JSON payload: its events, both lineups, per-team statistics and
-+          per-player statistics.
-+          One row per FETCH of one fixture, NOT per league, which makes this the
-+          finest-grained raw table here. A fixture fetched again because the
-+          first attempt was incomplete contributes ANOTHER row, so fixture_id is
-+          not a unique key on this table.
-+          NO SINGLE ROW IS RELIABLY THE FULLEST. A retry chasing late statistics
-+          can come back richer in one section and poorer in another, so taking
-+          the newest row for a fixture DROPS anything that exists only in an
-+          older one. Versions have to be resolved per entity, meaning per event,
-+          per player and per team, rather than per row.
-+          Statistics are absent for competitions the provider does not cover to
-+          that depth, and absent is not the same as zero.
-         identifier: RAW_APIF_FIXTURE_DETAILS
-         loaded_at_field: ingested_at
-         freshness:
-@@ -73,6 +129,13 @@ sources:
-       # Transfers move in bursts (January, summer), not nightly, and this was the single most
-       # expensive phase in the run at 26.7 min.
-       - name: raw_apif_transfers
-+        description: >
-+          Player transfer moves, with the clubs involved, the date and the type
-+          of move. One row per FETCH of a WHOLE league, holding that league's
-+          transfer payloads as JSON. Append-only, and re-fetched weekly because
-+          moves arrive in windows rather than nightly.
-+          Fetched BY TEAM, so a move between two clubs in the same competition
-+          comes back twice, once from each side.
-         identifier: RAW_APIF_TRANSFERS
-         loaded_at_field: ingested_at
-         freshness:
-@@ -82,13 +145,34 @@ sources:
-       # Player-data tables (PR-a): slow-moving (bio/career/squad), backfilled then refreshed
-       # rarely — no aggressive freshness thresholds (they would false-alarm between refreshes).
-       - name: raw_apif_squads
-+        description: >
-+          Current squad membership and shirt numbers, per team. One row per
-+          FETCH covering a SUBSET of a league's teams rather than the whole
-+          competition. Append-only, so the newest row per league_code is
-+          current.
-+          The provider sometimes lists the same player twice in one squad, so
-+          one row per player per team is the intent and not a guarantee.
-         identifier: RAW_APIF_SQUADS
-         loaded_at_field: ingested_at
+   - name: int_player_competition_benchmarks
+     description: >
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index 2af7123..e0f8d20 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -35,6 +35,28 @@ models:
+         tests:
+           - accepted_values:
+               values: ["home", "away"]
++      - name: league_sk
++      - name: season_sk
++      - name: season_api_year
++      - name: kickoff_datetime
++      - name: round_name
++      - name: round_order
++      - name: opponent_team_sk
++      - name: goals_for
++      - name: goals_against
++      - name: shots_on_goal
++      - name: shots_total
++      - name: shots_inside_box
++      - name: corner_kicks
++      - name: passes_total
++      - name: passes_accurate
++      - name: goalkeeper_saves
++      - name: opponent_shots_on_goal
++      - name: opponent_shots_total
++      - name: opponent_shots_inside_box
++      - name: opponent_corner_kicks
++      - name: goals_penalty
++      - name: goals_own
  
-       - name: raw_apif_player_profiles
-+        description: >
-+          Player biography: display name, birth date, nationality, height and
-+          weight. One row per FETCH of one player's profile.
-+          ACCUMULATING, not snapshotting: the loader skips players already
-+          stored, so this table grows as new players appear and an existing row
-+          is never refreshed. A player whose bio changes at the provider keeps
-+          the version first captured here.
-         identifier: RAW_APIF_PLAYER_PROFILES
-         loaded_at_field: ingested_at
+   - name: int_legs__player_match
+     description: >
+@@ -62,6 +84,41 @@ models:
+         tests:
+           - accepted_values:
+               values: ["home", "away"]
++      - name: season_api_year
++      - name: kickoff_datetime
++      - name: round_name
++      - name: competition_type
++      - name: minutes_played
++      - name: is_starter
++      - name: is_substitute
++      - name: position_code
++      - name: shots_total
++      - name: shots_on
++      - name: goals_total
++      - name: goals_against
++      - name: goals_assists
++      - name: saves
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accuracy_percent
++      - name: tackles_total
++      - name: tackles_blocks
++      - name: tackles_interceptions
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: offsides
++      - name: fouls_drawn
++      - name: fouls_committed
++      - name: cards_yellow
++      - name: cards_red
++      - name: dribbles_past
++      - name: penalty_won
++      - name: penalty_committed
++      - name: goals_penalty
++      - name: round_order
++      - name: opponent_team_sk
  
-       - name: raw_apif_player_teams
-+        description: >
-+          A player's club history as the provider records it: one entry per club
-+          they have played for, each with the seasons involved. One row per
-+          FETCH of one player's history.
-+          ACCUMULATING, not snapshotting: the loader skips players already
-+          stored, so an existing row is never refreshed and clubs a player joins
-+          after that first capture are missing until they are fetched again.
-         identifier: RAW_APIF_PLAYER_TEAMS
-         loaded_at_field: ingested_at
+   - name: int_legs__team_from_players
+     description: >
+@@ -79,3 +136,20 @@ models:
+       - name: players_with_stats
+         description: "Count of players with a stat row for this team-match (completeness signal)."
+         tests: [not_null]
++      - name: league_code
++      - name: season_api_year
++      - name: competition_type
++      - name: entity_type
++      - name: kickoff_datetime
++      - name: round_order
++      - name: opponent_team_sk
++      - name: key_passes
++      - name: tackles
++      - name: blocks
++      - name: interceptions
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: fouls_committed
++      - name: fouls_drawn
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 70dcfe4..c39cebe 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -63,6 +63,25 @@ models:
+         tests: [not_null]
+       - name: games_with_player_stats
+         description: "Count of the window legs that have a matching row in int_legs__team_from_players."
++      - name: games_with_sot_stats
++      - name: points_won
++      - name: goals_for
++      - name: goals_against
++      - name: clean_sheet_games
++      - name: shots_total
++      - name: shots_on_goal
++      - name: shots_inside_box
++      - name: passes_total
++      - name: passes_accurate
++      - name: corner_kicks
++      - name: opponent_corner_kicks
++      - name: goalkeeper_saves
++      - name: key_passes
++      - name: tackles
++      - name: interceptions
++      - name: blocks
++      - name: duels_total
++      - name: duels_won
+ 
+   - name: int_player_momentum__metrics
+     description: >
+@@ -108,3 +127,25 @@ models:
+         tests: [not_null]
+       - name: position_code
+         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
++      - name: goals_total
++      - name: goals_against
++      - name: goals_assists
++      - name: saves
++      - name: shots_total
++      - name: shots_on
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accurate
++      - name: tackles_total
++      - name: tackles_blocks
++      - name: tackles_interceptions
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: cards_yellow
++      - name: cards_red
++      - name: offsides
++      - name: dribbles_past
++      - name: penalty_won
++      - name: penalty_committed
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index c0d598b..f4ab021 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -48,3 +48,22 @@ models:
+           - not_null
+           - accepted_values:
+               values: ["W", "D", "L"]
++      - name: season_api_year
++      - name: leg_league_code
++      - name: leg_kickoff_datetime
++      - name: leg_round_name
++      - name: home_away
++      - name: opponent_team_sk
++      - name: goals_for
++      - name: goals_against
++      - name: goals_penalty
++      - name: goals_own
++      - name: shots_total
++      - name: shots_on_goal
++      - name: shots_inside_box
++      - name: passes_total
++      - name: passes_accurate
++      - name: corner_kicks
++      - name: opponent_corner_kicks
++      - name: goalkeeper_saves
++      - name: opponent_shots_on_goal
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+index fa86a46..aa5b152 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+@@ -68,3 +68,30 @@ models:
+           is minutes greater than 0. 0 is legitimate rather than missing: a squad member named on
+           the bench all season and never brought on keeps his row.
+         tests: [not_null]
++      - name: last_kickoff_at
++      - name: starts
++      - name: substitute_appearances
++      - name: minutes
++      - name: goals
++      - name: goals_penalty
++      - name: assists
++      - name: shots_total
++      - name: shots_on_goal
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accurate
++      - name: tackles_total
++      - name: tackles_interceptions
++      - name: tackles_blocks
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: dribbles_past
++      - name: offsides
++      - name: cards_yellow
++      - name: cards_red
++      - name: penalty_won
++      - name: penalty_committed
++      - name: saves
++      - name: goals_against
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+index cbf0f9f..10b72a9 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+@@ -49,6 +49,25 @@ models:
+         description: "The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev). NULL when no prior season."
+       - name: goals_prev_season_full
+         description: "The prior season's FULL-season total, a context anchor for the pace-matched delta (assists / shots_on_goal / key_passes / defensive_actions follow the same *_prev_season_full pattern). Never differenced against the running season."
++      - name: goals_this_season
++      - name: assists_this_season
++      - name: shots_on_goal_this_season
++      - name: key_passes_this_season
++      - name: defensive_actions_this_season
++      - name: appearances_prev
++      - name: goals_prev_season
++      - name: assists_prev_season
++      - name: shots_on_goal_prev_season
++      - name: key_passes_prev_season
++      - name: defensive_actions_prev_season
++      - name: assists_prev_season_full
++      - name: shots_on_goal_prev_season_full
++      - name: key_passes_prev_season_full
++      - name: defensive_actions_prev_season_full
++      - name: assists_delta_yoy
++      - name: shots_on_goal_delta_yoy
++      - name: key_passes_delta_yoy
++      - name: defensive_actions_delta_yoy
+ 
+   - name: int_player_profile__contribution
+     description: >
+@@ -87,3 +106,5 @@ models:
+         description: "The club's whole-season goals_for (the denominator)."
+       - name: contribution_share
+         description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
++      - name: league_code
++      - name: season_api_year
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+index bb92ac7..db7e691 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -50,3 +50,39 @@ models:
+           that is minutes greater than 0. A player who moved role mid-season is counted separately
+           in each.
+         tests: [not_null]
++      - name: goals
++      - name: goals_penalty
++      - name: assists
++      - name: shots_on_goal
++      - name: passes_total
++      - name: passes_accurate
++      - name: passes_key
++      - name: tackles_total
++      - name: tackles_interceptions
++      - name: tackles_blocks
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: saves
++      - name: goals_against
++      - name: scorer_points
++      - name: defensive_actions
++      - name: pass_accuracy_pct
++      - name: duels_won_pct
++      - name: dribbles_success_pct
++      - name: save_pct
++      - name: finishing_efficiency
++      - name: goals_per90
++      - name: assists_per90
++      - name: scorer_points_per90
++      - name: shots_on_goal_per90
++      - name: key_passes_per90
++      - name: dribbles_success_per90
++      - name: passes_per90
++      - name: tackles_per90
++      - name: interceptions_per90
++      - name: blocks_per90
++      - name: defensive_actions_per90
++      - name: duels_won_per90
++      - name: saves_per90
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index f78b13a..db6356a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -57,6 +57,36 @@ models:
+         description: >
+           Cumulative shots taken by this team's OPPONENTS through this match — the denominator
+           half of a shot-share calculation.
++      - name: kickoff_datetime
++      - name: points_won
++      - name: wins
++      - name: draws
++      - name: losses
++      - name: goals_for
++      - name: goals_against
++      - name: clean_sheet_games
++      - name: games_with_sot_stats
++      - name: games_with_opp_stats
++      - name: games_with_opp_sot_stats
++      - name: goals_penalty
++      - name: goals_own
++      - name: goals_against_in_save_games
++      - name: shots_total
++      - name: shots_on_goal
++      - name: shots_inside_box
++      - name: passes_total
++      - name: passes_accurate
++      - name: corner_kicks
++      - name: opponent_corner_kicks
++      - name: opponent_shots_on_goal
++      - name: goalkeeper_saves
++      - name: games_with_player_stats
++      - name: key_passes
++      - name: tackles
++      - name: interceptions
++      - name: blocks
++      - name: duels_total
++      - name: duels_won
+ 
+   - name: int_player_season_record
+     description: >
+@@ -93,3 +123,29 @@ models:
+         tests: [not_null]
+       - name: position_code
+         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."
++      - name: entity_type
++      - name: kickoff_datetime
++      - name: round_order
++      - name: match_number
++      - name: goals_total
++      - name: goals_against
++      - name: goals_assists
++      - name: saves
++      - name: shots_total
++      - name: shots_on
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accurate
++      - name: tackles_total
++      - name: tackles_blocks
++      - name: tackles_interceptions
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: dribbles_past
++      - name: offsides
++      - name: penalty_won
++      - name: penalty_committed
++      - name: cards_yellow
++      - name: cards_red
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index 3f8fccf..e0af1e1 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -52,6 +52,62 @@ models:
+           Representative rate-metric YoY delta (this season − last, through the same N games). Every
+           LOCKED 16-row rate metric carries _this_season / _prev_season / _delta_yoy; NULL where the
+           prior season is absent or coverage is incomplete through N.
++      - name: games_played_prev
++      - name: points_this_season
++      - name: goals_for_this_season
++      - name: goals_against_this_season
++      - name: goals_per_match_this_season
++      - name: goals_against_per_match_this_season
++      - name: clean_sheets_this_season
++      - name: shots_per_match_this_season
++      - name: danger_zone_ratio_this_season
++      - name: shots_on_goal_per_match_this_season
++      - name: finishing_efficiency_this_season
++      - name: duels_per_match_this_season
++      - name: duels_won_pct_this_season
++      - name: defensive_actions_per_match_this_season
++      - name: passes_per_match_this_season
++      - name: pass_accuracy_this_season
++      - name: key_passes_per_match_this_season
++      - name: corner_kicks_per_match_this_season
++      - name: corners_against_per_match_this_season
++      - name: save_ratio_this_season
++      - name: points_prev_season
++      - name: goals_for_prev_season
++      - name: goals_against_prev_season
++      - name: goals_per_match_prev_season
++      - name: goals_against_per_match_prev_season
++      - name: clean_sheets_prev_season
++      - name: shots_per_match_prev_season
++      - name: danger_zone_ratio_prev_season
++      - name: shots_on_goal_per_match_prev_season
++      - name: finishing_efficiency_prev_season
++      - name: duels_per_match_prev_season
++      - name: duels_won_pct_prev_season
++      - name: defensive_actions_per_match_prev_season
++      - name: passes_per_match_prev_season
++      - name: pass_accuracy_prev_season
++      - name: key_passes_per_match_prev_season
++      - name: corner_kicks_per_match_prev_season
++      - name: corners_against_per_match_prev_season
++      - name: save_ratio_prev_season
++      - name: goals_for_delta_yoy
++      - name: goals_against_delta_yoy
++      - name: goals_against_per_match_delta_yoy
++      - name: clean_sheets_delta_yoy
++      - name: shots_per_match_delta_yoy
++      - name: danger_zone_ratio_delta_yoy
++      - name: shots_on_goal_per_match_delta_yoy
++      - name: finishing_efficiency_delta_yoy
++      - name: duels_per_match_delta_yoy
++      - name: duels_won_pct_delta_yoy
++      - name: defensive_actions_per_match_delta_yoy
++      - name: passes_per_match_delta_yoy
++      - name: pass_accuracy_delta_yoy
++      - name: key_passes_per_match_delta_yoy
++      - name: corner_kicks_per_match_delta_yoy
++      - name: corners_against_per_match_delta_yoy
++      - name: save_ratio_delta_yoy
+ 
+   - name: int_team_profile__streaks
+     description: >
+@@ -76,3 +132,10 @@ models:
+         tests: [not_null]
+       - name: matches_in_season
+         tests: [not_null]
++      - name: league_code
++      - name: season_api_year
++      - name: unbeaten_run
++      - name: win_run
++      - name: winless_run
++      - name: clean_sheet_run
++      - name: scoring_run
 diff --git a/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml b/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
-new file mode 100644
-index 0000000..c9f315b
---- /dev/null
+index c9f315b..9c3cf7a 100644
+--- a/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
 +++ b/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
-@@ -0,0 +1,14 @@
-+version: 2
-+
-+models:
-+  - name: int_team__market_value_latest
-+    description: >
-+      The most recent market value on record for each team: one row per team,
-+      taken from the newest snapshot date, with the source code breaking a tie
-+      when two sources share that date.
-+
-+      KNOWN LIMIT, and it is the whole picture today: the snapshot fact this
-+      reads holds no rows, because nothing populates team market values yet.
-+      This model therefore returns nothing, and so does anything built on it.
-+      Values are point-in-time estimates carrying a source and a snapshot date,
-+      not a transfer fee and not a price.
-diff --git a/scripts/check_description_hygiene.py b/scripts/check_description_hygiene.py
-index 790fd22..2638736 100644
---- a/scripts/check_description_hygiene.py
-+++ b/scripts/check_description_hygiene.py
-@@ -43,6 +43,13 @@ DBT_DIR = REPO_ROOT / "dbt_project"
- # `check_copy_gate.py`'s MIN_KEYS.
- MIN_DESCRIPTIONS = 400
+@@ -12,3 +12,9 @@ models:
+       This model therefore returns nothing, and so does anything built on it.
+       Values are point-in-time estimates carrying a source and a snapshot date,
+       not a transfer fee and not a price.
++    columns:
++      - name: team_sk
++      - name: as_of_date
++      - name: market_value_eur
++      - name: source_code
++      - name: prompt_version
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index 266e59c..dc9f5aa 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -63,6 +63,47 @@ models:
+         tests: [not_null]
+       - name: played
+         description: "Finished matches from mart_team_season; null when standings rollup absent."
++      - name: team_code
++      - name: team_country
++      - name: team_logo_url
++      - name: wins
++      - name: draws
++      - name: losses
++      - name: goals_for
++      - name: goals_against
++      - name: goal_diff
++      - name: points
++      - name: clean_sheets
++      - name: latest_rank
++      - name: latest_form
++      - name: standings_group_description
++      - name: season_matchdays_used
++      - name: stat_coverage_season_games
++      - name: points_won_sum_season
++      - name: goals_for_sum_season
++      - name: goals_against_sum_season
++      - name: total_shots_sum_season
++      - name: opponent_total_shots_sum_season
++      - name: shots_inside_box_sum_season
++      - name: shots_on_goal_sum_season
++      - name: corner_kicks_sum_season
++      - name: opponent_corner_kicks_sum_season
++      - name: passes_accurate_sum_season
++      - name: passes_total_sum_season
++      - name: goalkeeper_saves_sum_season
++      - name: points_capture
++      - name: goals_per_match
++      - name: goals_against_per_match
++      - name: shots_per_match
++      - name: shot_share
++      - name: danger_zone_ratio
++      - name: shot_accuracy
++      - name: finishing_efficiency
++      - name: pass_accuracy
++      - name: passes_per_match
++      - name: corner_kicks_per_match
++      - name: corners_against_per_match
++      - name: save_ratio
  
-+# Floors under the COVERAGE discovery, for the same reason as MIN_DESCRIPTIONS: if
-+# the file walk stops finding models or the yml walk stops finding source tables,
-+# "everything is described" becomes trivially true. Set well under the 97 models
-+# and 11 source tables measured, and well over zero.
-+MIN_MODELS = 50
-+MIN_SOURCE_TABLES = 5
-+
- # BigQuery's own maxima. Exceeding either rejects the DDL and fails the build once
- # `persist_docs` is on. This rule exists to prevent that, nothing else — keeping a
- # description short enough to read is a judgement, not something to fake with a
-@@ -206,12 +213,113 @@ def _walk(node: object, where: str, is_column: bool,
-             _walk(item, where, is_column, out)
+   - name: mart_matchday_insights
+     description: >
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 891f263..5b1f22f 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -155,6 +155,30 @@ models:
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
++      - name: season_api_year
++      - name: contributing_competitions
++      - name: games_with_player_stats
++      - name: points_won
++      - name: clean_sheets
++      - name: goals_per_match
++      - name: goals_against_per_match
++      - name: shots_per_match
++      - name: shot_accuracy
++      - name: danger_zone_ratio
++      - name: shots_on_goal_per_match
++      - name: finishing_efficiency
++      - name: passes_per_match
++      - name: pass_accuracy
++      - name: corner_kicks_per_match
++      - name: corners_against_per_match
++      - name: save_ratio
++      - name: key_passes_per_match
++      - name: tackles_per_match
++      - name: interceptions_per_match
++      - name: blocks_per_match
++      - name: defensive_actions_per_match
++      - name: duels_per_match
++      - name: duels_won_pct
  
+   - name: mart_player_momentum
+     description: >
+@@ -207,6 +231,32 @@ models:
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
++      - name: season_api_year
++      - name: goals_total
++      - name: goals_assists
++      - name: saves
++      - name: shots_on
++      - name: passes_key
++      - name: passes_accurate
++      - name: passes_total
++      - name: tackles_total
++      - name: tackles_blocks
++      - name: tackles_interceptions
++      - name: duels_won
++      - name: duels_total
++      - name: dribbles_success
++      - name: dribbles_attempts
++      - name: dribbles_past
++      - name: offsides
++      - name: penalty_won
++      - name: penalty_committed
++      - name: cards_yellow
++      - name: cards_red
++      - name: save_pct
++      - name: dribbles_success_pct
++      - name: pass_accuracy_pct
++      - name: duels_won_pct
++      - name: top_player_rank
  
--def _collect() -> tuple[list[tuple[str, str, str, bool]], list[str]]:
--    """Every description under dbt_project/, and any file that failed to parse.
-+def _on_disk() -> tuple[set[str], set[str]]:
-+    """Model and seed names taken from the FILES, with one set of exclusions.
+   - name: mart_team_momentum_window
+     description: >
+@@ -268,6 +318,16 @@ models:
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
++      - name: entity_type
++      - name: season_api_year
++      - name: played_league_code
++      - name: played_kickoff_datetime
++      - name: played_round_name
++      - name: home_away
++      - name: goals_for
++      - name: goals_against
++      - name: opponent_name
++      - name: opponent_logo_url
  
--    Each entry is (file, path-within-file, text, is_column).
-+    Defined once and used by both the coverage check and the census line it
-+    prints, so the number reported can never drift from the number enforced —
-+    an earlier version globbed separately for the census and quietly dropped the
-+    `dbt_packages/` exclusion (platform-reviewer).
-     """
--    found: list[tuple[str, str, str, bool]] = []
-+    def keep(path: pathlib.Path) -> bool:
-+        rel = f"/{_rel(path)}"
-+        return "/target/" not in rel and "/dbt_packages/" not in rel
+   - name: mart_team_fixture_stats
+     description: >
+@@ -301,6 +361,29 @@ models:
+         tests: [not_null]
+       - name: is_home
+         tests: [not_null]
++      - name: season_api_year
++      - name: kickoff_datetime
++      - name: round_name
++      - name: team_name
++      - name: team_logo_url
++      - name: shots_on_goal
++      - name: shots_off_goal
++      - name: shots_total
++      - name: shots_blocked
++      - name: shots_inside_box
++      - name: shots_outside_box
++      - name: fouls
++      - name: corner_kicks
++      - name: offsides
++      - name: ball_possession_percent
++      - name: yellow_cards
++      - name: red_cards
++      - name: goalkeeper_saves
++      - name: passes_total
++      - name: passes_accurate
++      - name: passes_accuracy_percent
++      - name: goals_for
++      - name: goals_against
+ 
+   - name: mart_player_fixture_stats
+     description: >
+@@ -338,6 +421,45 @@ models:
+         tests: [not_null]
+       - name: is_home
+         tests: [not_null]
++      - name: season_api_year
++      - name: kickoff_datetime
++      - name: round_name
++      - name: team_name
++      - name: player_name
++      - name: player_photo_url
++      - name: position_code
++      - name: shirt_number
++      - name: minutes_played
++      - name: is_captain
++      - name: is_substitute
++      - name: is_starter
++      - name: offsides
++      - name: shots_total
++      - name: shots_on
++      - name: goals_total
++      - name: goals_against
++      - name: goals_assists
++      - name: saves
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accuracy_percent
++      - name: tackles_total
++      - name: tackles_blocks
++      - name: tackles_interceptions
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: dribbles_past
++      - name: fouls_drawn
++      - name: fouls_committed
++      - name: cards_yellow
++      - name: cards_red
++      - name: penalty_won
++      - name: penalty_committed
++      - name: penalty_scored
++      - name: penalty_missed
++      - name: penalty_saved
+ 
+   - name: mart_team_profile
+     description: >
+@@ -432,6 +554,108 @@ models:
+         description: "Home venue city, from dim_team. Nullable."
+       - name: venue_capacity
+         description: "Home venue capacity, from dim_team. Nullable."
++      - name: league_sk
++      - name: season_api_year
++      - name: team_name
++      - name: team_slug
++      - name: team_code
++      - name: team_country
++      - name: team_logo_url
++      - name: played
++      - name: wins
++      - name: draws
++      - name: losses
++      - name: goals_for
++      - name: goals_against
++      - name: goal_diff
++      - name: points
++      - name: clean_sheets
++      - name: latest_rank
++      - name: latest_form
++      - name: season_games_played
++      - name: stat_coverage_season_games
++      - name: goals_per_match
++      - name: goals_against_per_match
++      - name: shots_per_match
++      - name: shot_accuracy
++      - name: danger_zone_ratio
++      - name: finishing_efficiency
++      - name: pass_accuracy
++      - name: passes_per_match
++      - name: corner_kicks_per_match
++      - name: corners_against_per_match
++      - name: save_ratio
++      - name: player_stat_coverage_season_games
++      - name: shots_on_goal_per_match
++      - name: shots_on_goal_against_per_match
++      - name: sot_difference_per_match
++      - name: key_passes_per_match
++      - name: duels_per_match
++      - name: duels_won_pct
++      - name: defensive_actions_per_match
++      - name: shot_share
++      - name: points_capture
++      - name: yoy_games_played_cutoff
++      - name: points_this_season
++      - name: points_prev_season
++      - name: goals_for_this_season
++      - name: goals_for_prev_season
++      - name: goals_for_delta_yoy
++      - name: goals_against_this_season
++      - name: goals_against_prev_season
++      - name: goals_against_delta_yoy
++      - name: goals_per_match_this_season
++      - name: goals_per_match_prev_season
++      - name: goals_against_per_match_this_season
++      - name: goals_against_per_match_prev_season
++      - name: goals_against_per_match_delta_yoy
++      - name: clean_sheets_this_season
++      - name: clean_sheets_prev_season
++      - name: clean_sheets_delta_yoy
++      - name: shots_per_match_this_season
++      - name: shots_per_match_prev_season
++      - name: shots_per_match_delta_yoy
++      - name: danger_zone_ratio_this_season
++      - name: danger_zone_ratio_prev_season
++      - name: danger_zone_ratio_delta_yoy
++      - name: shots_on_goal_per_match_this_season
++      - name: shots_on_goal_per_match_prev_season
++      - name: shots_on_goal_per_match_delta_yoy
++      - name: finishing_efficiency_this_season
++      - name: finishing_efficiency_prev_season
++      - name: finishing_efficiency_delta_yoy
++      - name: duels_per_match_this_season
++      - name: duels_per_match_prev_season
++      - name: duels_per_match_delta_yoy
++      - name: duels_won_pct_this_season
++      - name: duels_won_pct_prev_season
++      - name: duels_won_pct_delta_yoy
++      - name: defensive_actions_per_match_this_season
++      - name: defensive_actions_per_match_prev_season
++      - name: defensive_actions_per_match_delta_yoy
++      - name: passes_per_match_this_season
++      - name: passes_per_match_prev_season
++      - name: passes_per_match_delta_yoy
++      - name: pass_accuracy_this_season
++      - name: pass_accuracy_prev_season
++      - name: pass_accuracy_delta_yoy
++      - name: key_passes_per_match_this_season
++      - name: key_passes_per_match_prev_season
++      - name: key_passes_per_match_delta_yoy
++      - name: corner_kicks_per_match_this_season
++      - name: corner_kicks_per_match_prev_season
++      - name: corner_kicks_per_match_delta_yoy
++      - name: corners_against_per_match_this_season
++      - name: corners_against_per_match_prev_season
++      - name: corners_against_per_match_delta_yoy
++      - name: save_ratio_this_season
++      - name: save_ratio_prev_season
++      - name: save_ratio_delta_yoy
++      - name: unbeaten_run
++      - name: win_run
++      - name: winless_run
++      - name: clean_sheet_run
++      - name: scoring_run
+ 
+   - name: mart_team_season_record
+     description: >
+@@ -508,6 +732,31 @@ models:
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
++      - name: games_with_team_stats
++      - name: points_won
++      - name: wins
++      - name: draws
++      - name: losses
++      - name: clean_sheets
++      - name: goals_per_match
++      - name: goals_against_per_match
++      - name: shots_per_match
++      - name: shot_accuracy
++      - name: danger_zone_ratio
++      - name: shots_on_goal_per_match
++      - name: finishing_efficiency
++      - name: passes_per_match
++      - name: pass_accuracy
++      - name: corner_kicks_per_match
++      - name: corners_against_per_match
++      - name: save_ratio
++      - name: key_passes_per_match
++      - name: tackles_per_match
++      - name: interceptions_per_match
++      - name: blocks_per_match
++      - name: defensive_actions_per_match
++      - name: duels_per_match
++      - name: duels_won_pct
+ 
+   - name: mart_player_season_record
+     description: >
+@@ -560,6 +809,33 @@ models:
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
++      - name: entity_type
++      - name: season_api_year
++      - name: games_played
++      - name: goals_total
++      - name: goals_assists
++      - name: saves
++      - name: shots_on
++      - name: passes_key
++      - name: passes_accurate
++      - name: passes_total
++      - name: tackles_total
++      - name: tackles_blocks
++      - name: tackles_interceptions
++      - name: duels_won
++      - name: duels_total
++      - name: dribbles_success
++      - name: dribbles_attempts
++      - name: dribbles_past
++      - name: offsides
++      - name: penalty_won
++      - name: penalty_committed
++      - name: cards_yellow
++      - name: cards_red
++      - name: save_pct
++      - name: dribbles_success_pct
++      - name: pass_accuracy_pct
++      - name: duels_won_pct
+ 
+   - name: mart_standings
+     description: >
+@@ -639,6 +915,12 @@ models:
+         description: "Recent results string from the API (e.g. WWDLW)."
+       - name: group_description
+         description: "API zone annotation ($.description); display context only, not a key."
++      - name: team_api_id
++      - name: goals_diff
++      - name: played
++      - name: wins
++      - name: draws
++      - name: losses
+ 
+   - name: mart_team_season
+     description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
+@@ -824,6 +1106,67 @@ models:
+         description: "Affiliated club crest URL, from dim_team."
+       - name: team_country
+         description: "Affiliated club country, from dim_team."
++      - name: league_sk
++      - name: season_api_year
++      - name: player_name
++      - name: player_first_name
++      - name: player_last_name
++      - name: player_nationality
++      - name: player_birth_date
++      - name: player_photo_url
++      - name: starts
++      - name: substitute_appearances
++      - name: minutes
++      - name: goals
++      - name: assists
++      - name: shots_on_goal
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accurate
++      - name: tackles_total
++      - name: tackles_interceptions
++      - name: tackles_blocks
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: dribbles_past
++      - name: offsides
++      - name: cards_yellow
++      - name: cards_red
++      - name: penalty_won
++      - name: penalty_committed
++      - name: saves
++      - name: shots_on_goal_against
++      - name: pass_accuracy_pct
++      - name: duels_won_pct
++      - name: dribbles_success_pct
++      - name: save_pct
++      - name: yoy_appearances_cutoff
++      - name: goals_this_season
++      - name: goals_prev_season
++      - name: goals_delta_yoy
++      - name: assists_this_season
++      - name: assists_prev_season
++      - name: assists_delta_yoy
++      - name: shots_on_goal_this_season
++      - name: shots_on_goal_prev_season
++      - name: shots_on_goal_delta_yoy
++      - name: key_passes_this_season
++      - name: key_passes_prev_season
++      - name: key_passes_delta_yoy
++      - name: defensive_actions_this_season
++      - name: defensive_actions_prev_season
++      - name: defensive_actions_delta_yoy
++      - name: appearances_prev_full
++      - name: goals_prev_season_full
++      - name: assists_prev_season_full
++      - name: shots_on_goal_prev_season_full
++      - name: key_passes_prev_season_full
++      - name: defensive_actions_prev_season_full
++      - name: scorer_points
++      - name: team_goals_season
++      - name: contribution_share
+ 
+   - name: mart_player_match_log
+     description: >
+@@ -870,6 +1213,39 @@ models:
+               values: ["W", "D", "L"]
+       - name: is_home
+         tests: [not_null]
++      - name: season_api_year
++      - name: kickoff_datetime
++      - name: round_name
++      - name: goals_for
++      - name: goals_against
++      - name: player_name
++      - name: player_photo_url
++      - name: team_name
++      - name: team_logo_url
++      - name: opponent_name
++      - name: opponent_logo_url
++      - name: position_code
++      - name: minutes_played
++      - name: is_starter
++      - name: is_substitute
++      - name: goals_total
++      - name: goals_assists
++      - name: saves
++      - name: shots_total
++      - name: shots_on
++      - name: passes_total
++      - name: passes_key
++      - name: passes_accuracy_percent
++      - name: tackles_total
++      - name: tackles_interceptions
++      - name: duels_total
++      - name: duels_won
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: fouls_drawn
++      - name: fouls_committed
++      - name: cards_yellow
++      - name: cards_red
+ 
+   - name: mart_fixture_standing_context
+     description: >
+@@ -900,6 +1276,13 @@ models:
+               field: team_sk
+       - name: is_knockout
+         tests: [not_null]
++      - name: season_sk
++      - name: group_name
++      - name: league_rank
++      - name: standing_points
++      - name: standing_played
++      - name: standing_goals_diff
++      - name: standing_form
+ 
+   - name: mart_head_to_head
+     description: >
+@@ -950,6 +1333,27 @@ models:
+         tests:
+           - accepted_values:
+               values: ["W", "D", "L"]
++      - name: wins
++      - name: draws
++      - name: losses
++      - name: goals_for
++      - name: goals_against
++      - name: meetings_last5
++      - name: wins_last5
++      - name: draws_last5
++      - name: losses_last5
++      - name: last_meeting_at
++      - name: last_meeting_league_code
++      - name: last_meeting_goals_for
++      - name: last_meeting_goals_against
++      - name: recent_meetings
++      - name: recent_meetings.goals_against
++      - name: recent_meetings.goals_for
++      - name: recent_meetings.kickoff_datetime
++      - name: recent_meetings.league_code
++      - name: recent_meetings.result
++      - name: pair_key
++      - name: is_canonical
+ 
+   - name: mart_leaderboards
+     description: >
+@@ -1111,6 +1515,9 @@ models:
+         description: "Published-style total squad estimate in whole EUR; null when unknown."
+       - name: source_code
+         description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
++      - name: team_api_id
++      - name: team_country
++      - name: prompt_version
+ 
+   - name: mart_team_fixtures
+     description: >
+@@ -1160,6 +1567,19 @@ models:
+         tests:
+           - accepted_values:
+               values: ["W", "D", "L"]
++      - name: season_api_year
++      - name: kickoff_datetime
++      - name: round_name
++      - name: status_short
++      - name: is_home
++      - name: opponent_name
++      - name: opponent_logo_url
++      - name: goals_for
++      - name: goals_against
++      - name: has_result
++      - name: is_upcoming
++      - name: upcoming_rank
++      - name: recency_rank
+ 
+   - name: mart_roster
+     description: >
+@@ -1526,3 +1946,13 @@ models:
+           The club's latest match across all of this player's seasons there — a window max of
+           last_kickoff_at over (player, club). An ordering signal that keeps a player's spells at
+           one club together and in order; not a displayed metric.
++      - name: league_sk
++      - name: season_api_year
++      - name: player_name
++      - name: player_nationality
++      - name: player_photo_url
++      - name: team_name
++      - name: team_logo_url
++      - name: team_country
++      - name: goals
++      - name: assists
+diff --git a/scripts/declare_missing_columns.py b/scripts/declare_missing_columns.py
+new file mode 100644
+index 0000000..cecdf66
+--- /dev/null
++++ b/scripts/declare_missing_columns.py
+@@ -0,0 +1,429 @@
++"""Declare columns that EXIST in the warehouse but appear in no `.yml`.
 +
-+    models = {p.stem for p in (DBT_DIR / "models").rglob("*.sql") if keep(p)}
-+    seeds = {p.stem for p in (DBT_DIR / "seeds").rglob("*.csv") if keep(p)}
-+    return models, seeds
++#82 MR2. `check_description_hygiene.py` checks the CONTENT of descriptions that
++exist, and object-level PRESENCE since `!91`. Neither can see a column that is
++declared nowhere at all: there is no yml entry to look at. Measured against
++production on 2026-08-23, that was 979 columns across 40 models — more than the
++1,236-column gap the issue reported, most of it invisible to every check we had.
++
++This script writes their NAMES down, with no descriptions, so the real surface
++becomes visible and the shared definitions can be wired into it. A name with no
++text is an honest empty slot. Inventing text to fill it is the "thin filler" the
++CPO ruled against on 2026-08-21, and it would be far harder to find and replace
++later than an empty slot is.
++
++APPEND-ONLY, AND THAT IS THE WHOLE POINT. It adds `- name:` entries and never
++edits, reorders or reformats a line that is already there. That constraint is
++what separates it from a general yml formatter, which is why insertion is done on
++LINES and not by re-serialising YAML — every round-trip library reformats
++something, and a diff nobody can read is a diff nobody can review. The guarantee
++is checked twice before anything is written to disk (see `_verify`), and again by
++the reviewer, for whom the acceptance test is simply that the diff has zero
++deleted lines.
++
++WHY IT IS SAFE TO EDIT THESE FILES BY LINE, checked rather than assumed:
++`columns:` is the last key in every model block in all 18 project ymls, indent is
++4 for `columns:` and 6 for `- name:`, and there are no tabs, anchors or document
++markers. Anything that does not match that shape makes the script ABORT rather
++than guess.
++
++THE CATALOGUE IS A CI ARTIFACT, not a repo file — `dbt_project/target/` is
++ignored, and the copy on a dev machine is usually a stale partial one. Pointed at
++a partial catalogue this script aborts rather than silently declaring almost
++nothing. Get the real one from the most recent `data:build:main`:
++
++    glab api "projects/rami.al-fahham%2Ffootball-data-pipeline/jobs?scope=success" \
++      | python -c "import json,sys; print([j['id'] for j in json.load(sys.stdin) \
++        if j['name']=='data:build:main'][0])"
++    glab api "projects/rami.al-fahham%2Ffootball-data-pipeline/jobs/<id>/artifacts" > a.zip
++    #  then extract dbt_project/target/catalog.json from it
++
++Usage:
++
++    python scripts/declare_missing_columns.py --catalog path/to/catalog.json
++    python scripts/declare_missing_columns.py --catalog path/to/catalog.json --dry-run
++
++Exit 1 on any guard failure AND when there is nothing to add. A bulk-edit script
++that reports success while matching nothing is this repo's dominant failure shape
++(#904), so "no work" is loud rather than green.
++
++Fails CLOSED, in both of the senses that matter: nothing is written unless every
++model verifies, AND each file is committed by an atomic rename, so a crash during
++the write cannot leave a tracked yml truncated. The second half is not a
++restatement of the first — `_verify` compares two strings in memory and has
++already returned by the time the bytes move.
++"""
++from __future__ import annotations
++
++import argparse
++import difflib
++import json
++import os
++import pathlib
++import re
++import sys
++
++import yaml
++
++REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
++DBT_DIR = REPO_ROOT / "dbt_project"
++MODELS_DIR = DBT_DIR / "models"
++
++# The CPO's coverage scope, ruled 2026-08-21: "core, intermediate and marts ->
++# business meaning starts in core downstream." Staging and base are deliberately
++# out. Directory names, because that is what the layer contract is expressed in.
++IN_SCOPE_DIRS = ("3_core", "4_intermediate", "5_marts")
++
++# Floor under the DISCOVERY, same precedent as `check_description_hygiene.py`'s
++# MIN_DESCRIPTIONS. A renamed directory or a changed layout could leave the walk
++# matching nothing, and "no missing columns" would then be trivially true — the
++# exact false-green this script exists to avoid producing. Set well under the 66
++# models measured and well over zero.
++MIN_IN_SCOPE_MODELS = 40
++
++MODEL_LINE = re.compile(r"^  - name:\s+(\S+)\s*$")
++COLUMNS_KEY = re.compile(r"^    columns:\s*$")
++# Any `columns:` that is NOT a bare key — an inline list, a comment, anything.
++# We do not know where the end of such a list is, so we refuse to touch it.
++COLUMNS_KEY_ODD = re.compile(r"^    columns:\s*\S.*$")
++INDENT_2_ITEM = re.compile(r"^  - ")
++COLUMN_ENTRY_INDENT = "      "
 +
 +
-+def _object_coverage(docs: list[tuple[str, pathlib.Path, object]]) -> list[str]:
-+    """Every model, seed and source table must HAVE a description.
++class Abort(Exception):
++    """A guard tripped. Nothing is written."""
 +
-+    WHY THIS IS SEPARATE FROM THE RULES ABOVE. Those judge the CONTENT of a
-+    description that exists. An object with no description at all never reaches
-+    them, so for the whole life of this project the coverage half of
-+    `engineering_standards.md` section 2 was written down and enforced nowhere.
-+    Measured when this was added: 11 of 11 source tables had none.
 +
-+    ⚠ IT WALKS THE FILES ON DISK, NOT THE YAML ENTRIES, and that distinction is
-+    the whole point. `int_team__market_value_latest` had no description because
-+    it appeared in NO yml at all — a check that only read yml entries would have
-+    seen nothing to complain about and passed it green. So the model set comes
-+    from the .sql files and the seed set from the .csv files; a missing yml entry
-+    is then just the extreme case of a missing description.
++def _rel(path: pathlib.Path) -> str:
++    return path.relative_to(REPO_ROOT).as_posix()
 +
-+    Source tables are the exception: a source is not a file, so its declaration
-+    in the yml IS its existence.
++
++def _newline(text: str, rel: str) -> str:
++    """The file's OWN line terminator, so writing back does not convert it.
++
++    `core.autocrlf=true` on this machine and `.gitattributes` pins only `*.sh` and
++    `Dockerfile`, so these ymls are CRLF in the working tree and LF in the object
++    store. Reading with universal newlines and writing "\\n" therefore rewrites
++    every terminator in the file, which is reformatting every line — and
++    `git diff` shows it as zero deletions either way, so the one place you would
++    look for it is blind to it.
++
++    Not hypothetical here: `.gitattributes` exists because a CRLF working copy
++    shipped a `\\r` into a container shebang under #39 and killed the 04:00 run,
++    after passing every test and building a clean image.
 +    """
-+    findings: list[str] = []
++    crlf = text.count("\r\n")
++    bare_lf = text.count("\n") - crlf
++    if crlf and bare_lf:
++        raise Abort(
++            f"{rel}: mixed line endings ({crlf} CRLF, {bare_lf} LF). There is no "
++            f"existing terminator to preserve, so writing either one would rewrite "
++            f"half the file. Normalise it first, in its own commit."
++        )
++    return "\r\n" if crlf else "\n"
 +
-+    described_models: dict[str, str] = {}
-+    described_seeds: dict[str, str] = {}
-+    source_tables: dict[str, str] = {}
 +
-+    for _rel_path, _path, doc in docs:
++def _in_scope_models() -> set[str]:
++    """Model names taken from the FILES, not from an artifact.
++
++    The repo is the authority on which models exist and which layer they are in;
++    the catalogue is the authority on what the warehouse holds. Keeping those two
++    questions on their own sources is what lets the catalogue guard below mean
++    something — if both came from the same artifact it could only ever agree with
++    itself.
++    """
++    names: set[str] = set()
++    for layer in IN_SCOPE_DIRS:
++        for path in (MODELS_DIR / layer).rglob("*.sql"):
++            if "/target/" in f"/{_rel(path)}" or "/dbt_packages/" in f"/{_rel(path)}":
++                continue
++            names.add(path.stem)
++    return names
++
++
++def _declared() -> dict[str, tuple[pathlib.Path, list[str]]]:
++    """model name -> (yml that declares it, column names already declared).
++
++    Every project yml is searched, not only the ones under the in-scope layers: a
++    model's schema file is conventionally beside it but nothing enforces that, and
++    guessing the path would silently re-declare a column that is already there.
++    """
++    found: dict[str, tuple[pathlib.Path, list[str]]] = {}
++    for path in sorted(DBT_DIR.rglob("*.yml")):
++        rel = f"/{_rel(path)}"
++        if "/target/" in rel or "/dbt_packages/" in rel:
++            continue
++        try:
++            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
++        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
++            raise Abort(f"{_rel(path)}: cannot parse ({exc.__class__.__name__})") from exc
 +        if not isinstance(doc, dict):
 +            continue
-+        for key, sink in (("models", described_models), ("seeds", described_seeds)):
-+            for entry in doc.get(key) or []:
-+                if isinstance(entry, dict) and isinstance(entry.get("name"), str):
-+                    sink[entry["name"]] = str(entry.get("description") or "").strip()
-+        for source in doc.get("sources") or []:
-+            if not isinstance(source, dict):
++        for model in doc.get("models") or []:
++            if not isinstance(model, dict) or not isinstance(model.get("name"), str):
 +                continue
-+            for table in source.get("tables") or []:
-+                if isinstance(table, dict) and isinstance(table.get("name"), str):
-+                    source_tables[table["name"]] = str(table.get("description") or "").strip()
-+
-+    on_disk_models, on_disk_seeds = _on_disk()
-+
-+    # Anti-vacuous floor, same reasoning as MIN_DESCRIPTIONS: if the discovery
-+    # stops finding files, every assertion below passes for the wrong reason.
-+    if len(on_disk_models) < MIN_MODELS or len(source_tables) < MIN_SOURCE_TABLES:
-+        findings.append(
-+            f"discovery looks broken: {len(on_disk_models)} model .sql files "
-+            f"(floor {MIN_MODELS}) and {len(source_tables)} source tables "
-+            f"(floor {MIN_SOURCE_TABLES})\n"
-+            "    why banned: a coverage check that finds nothing always passes"
-+        )
-+        return findings
-+
-+    for name in sorted(on_disk_models):
-+        if not described_models.get(name):
-+            why = "declared in no yml" if name not in described_models else "description is empty"
-+            findings.append(
-+                f"model {name} - NO DESCRIPTION ({why})\n"
-+                "    why banned: engineering_standards.md section 2 requires one on every "
-+                "model, and persist_docs pushes it to BigQuery where people read it"
-+            )
-+    for name in sorted(on_disk_seeds):
-+        if not described_seeds.get(name):
-+            why = "declared in no yml" if name not in described_seeds else "description is empty"
-+            findings.append(
-+                f"seed {name} - NO DESCRIPTION ({why})\n"
-+                "    why banned: engineering_standards.md section 2 requires one on every seed"
-+            )
-+    for name in sorted(source_tables):
-+        if not source_tables[name]:
-+            findings.append(
-+                f"source {name} - NO DESCRIPTION\n"
-+                "    why banned: engineering_standards.md section 2 requires one on every source "
-+                "table; a raw table nobody has described is where the pipeline starts"
-+            )
-+    return findings
-+
-+
-+def _parse_ymls() -> tuple[list[tuple[str, pathlib.Path, object]], list[str]]:
-+    """Parse every project .yml ONCE. Returns (rel, path, doc) plus unparseable.
-+
-+    ⚠ PARSED ONCE ON PURPOSE. The coverage check and the description walk both need
-+    every file, and PyYAML's pure-Python loader is the gate's dominant cost on the
-+    large prose schema files — parsing twice measured 3.7s of pure waste and more
-+    than doubled the whole test suite, in a gate that also runs at the end of every
-+    turn. Sharing the PARSE does not weaken the floor below: the two consumers still
-+    extract independently (`_walk` versus reading `models:`/`seeds:`/`sources:`), so
-+    a broken description walk is still caught by MIN_DESCRIPTIONS while coverage
-+    keeps working.
-+    """
-+    docs: list[tuple[str, pathlib.Path, object]] = []
-     unparseable: list[str] = []
-     for path in sorted(DBT_DIR.rglob("*.yml")):
-         rel = _rel(path)
-@@ -222,14 +330,21 @@ def _collect() -> tuple[list[tuple[str, str, str, bool]], list[str]]:
-         # `read_text` is inside the try: a non-UTF-8 .yml raises UnicodeDecodeError,
-         # not YAMLError, and uncaught it escapes as a traceback naming no file.
-         try:
--            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-+            docs.append((rel, path, yaml.safe_load(path.read_text(encoding="utf-8"))))
-         except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
-             unparseable.append(f"{rel}: {exc.__class__.__name__}")
--            continue
-+    return docs, unparseable
-+
-+
-+def _collect(docs: list[tuple[str, pathlib.Path, object]]
-+             ) -> list[tuple[str, str, str, bool]]:
-+    """Every description in the parsed files. (file, path-within-file, text, is_column)."""
-+    found: list[tuple[str, str, str, bool]] = []
-+    for rel, path, doc in docs:
-         collected: list[tuple[str, str, bool]] = []
-         _walk(doc, path.stem, False, collected)
-         found.extend((rel, where, text, is_col) for where, text, is_col in collected)
--    return found, unparseable
++            name = model["name"]
++            if name in found:
++                raise Abort(
++                    f"model {name!r} is declared twice: in {_rel(found[name][0])} "
++                    f"and in {_rel(path)}. Refusing to guess which one to add to."
++                )
++            cols = [
++                c["name"] for c in (model.get("columns") or [])
++                if isinstance(c, dict) and isinstance(c.get("name"), str)
++            ]
++            found[name] = (path, cols)
 +    return found
- 
- 
- def main() -> int:
-@@ -238,7 +353,8 @@ def main() -> int:
-     if hasattr(sys.stdout, "reconfigure"):
-         sys.stdout.reconfigure(errors="replace")
- 
--    found, unparseable = _collect()
-+    docs, unparseable = _parse_ymls()
-+    found = _collect(docs)
-     findings: list[str] = []
- 
-     # Before the floor check: an unparseable file contributes zero descriptions, so
-@@ -250,6 +366,19 @@ def main() -> int:
-             print(f"  - {bad}")
-         return 1
- 
-+    # BEFORE the floor, and for the same reason the unparseable check is: an object
-+    # with no description contributes no description, so the floor would fire first
-+    # and report a broken walk when the real defect is that nothing was written.
-+    # The two checks read the yml independently, so a genuinely broken extraction
-+    # still reaches the floor below and is still diagnosed correctly.
-+    coverage = _object_coverage(docs)
-+    if coverage:
-+        print(f"DESCRIPTION COVERAGE: {len(coverage)} object(s) with no description\n")
-+        for finding in coverage:
-+            print(f"  - {finding}")
-+        print("\nThe standard is dbt_project/docs/engineering_standards.md section 2.")
++
++
++def _catalog_columns(catalog_path: pathlib.Path) -> dict[str, list[str]]:
++    """model name -> column names, in the warehouse's own column order."""
++    try:
++        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
++    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
++        raise Abort(f"{catalog_path}: cannot read ({exc.__class__.__name__})") from exc
++    out: dict[str, list[str]] = {}
++    for uid, node in (catalog.get("nodes") or {}).items():
++        if not uid.startswith("model."):
++            continue
++        cols = sorted((node.get("columns") or {}).values(), key=lambda c: c.get("index", 0))
++        out[uid.rsplit(".", 1)[-1]] = [c["name"] for c in cols]
++    return out
++
++
++def _plan(catalog_path: pathlib.Path) -> dict[str, tuple[pathlib.Path, list[str]]]:
++    """What to add, per model. Every guard that can refuse the run lives here."""
++    models = _in_scope_models()
++    if len(models) < MIN_IN_SCOPE_MODELS:
++        raise Abort(
++            f"found only {len(models)} models under {'/'.join(IN_SCOPE_DIRS)}, "
++            f"expected at least {MIN_IN_SCOPE_MODELS}. The layout has moved, or this "
++            f"is not the repo root. Refusing to run against a broken walk."
++        )
++
++    declared = _declared()
++    catalog = _catalog_columns(catalog_path)
++
++    # THE PARTIAL-CATALOGUE GUARD, and it is the one that matters most in practice.
++    # `dbt_project/target/catalog.json` on a dev machine is whatever the last local
++    # `dbt docs generate` produced — on this machine that was 10 relations in
++    # `dev_staging`/`dev_scratch`. Running against it would declare almost nothing
++    # and report success.
++    absent = sorted(models - catalog.keys())
++    if absent:
++        raise Abort(
++            f"the catalogue is missing {len(absent)} of {len(models)} in-scope models, "
++            f"so it does not describe this warehouse: {', '.join(absent[:5])}"
++            f"{' ...' if len(absent) > 5 else ''}\n"
++            f"  This is almost always a stale or dev-target catalog.json. Fetch the "
++            f"artifact from the most recent data:build:main, see the module docstring."
++        )
++
++    undeclared = sorted(models - declared.keys())
++    if undeclared:
++        raise Abort(
++            f"{len(undeclared)} in-scope models are in no yml at all: "
++            f"{', '.join(undeclared)}\n"
++            f"  Object-level coverage is #82 MR1's rule and check_description_hygiene.py "
++            f"enforces it. Add the model with a description first."
++        )
++
++    plan: dict[str, tuple[pathlib.Path, list[str]]] = {}
++    for name in sorted(models):
++        path, already = declared[name]
++        have = {c.lower() for c in already}
++        missing = [c for c in catalog[name] if c.lower() not in have]
++        if missing:
++            plan[name] = (path, missing)
++    return plan
++
++
++def _insert(lines: list[str], model: str, new_columns: list[str]) -> list[str]:
++    """Return `lines` with `new_columns` appended to `model`'s column list.
++
++    Line-level on purpose — see the module docstring. Every shape this does not
++    recognise aborts instead of guessing, because a wrong guess here rewrites a
++    file nobody asked it to touch.
++    """
++    starts = [i for i, line in enumerate(lines) if (m := MODEL_LINE.match(line)) and m.group(1) == model]
++    if len(starts) != 1:
++        raise Abort(f"expected exactly one `- name: {model}` line, found {len(starts)}")
++    start = starts[0]
++
++    # The block runs to the next model entry at indent 2, or the next top-level
++    # key, or the end of the file.
++    end = len(lines)
++    for i in range(start + 1, len(lines)):
++        line = lines[i]
++        if not line.strip():
++            continue
++        if INDENT_2_ITEM.match(line) or (line[:1].strip() and not line.startswith(" ")):
++            end = i
++            break
++
++    odd = [i for i in range(start, end) if COLUMNS_KEY_ODD.match(lines[i])]
++    if odd:
++        raise Abort(
++            f"{model}: `columns:` at line {odd[0] + 1} is not a bare key "
++            f"({lines[odd[0]].strip()!r}). Refusing to guess where its list ends."
++        )
++
++    keys = [i for i in range(start, end) if COLUMNS_KEY.match(lines[i])]
++    if len(keys) > 1:
++        raise Abort(f"{model}: {len(keys)} `columns:` keys in one model block")
++
++    entries = [f"{COLUMN_ENTRY_INDENT}- name: {c}" for c in new_columns]
++
++    if keys:
++        # Insert after the last non-blank line of the existing list, so trailing
++        # blank lines that separate models stay where the author put them.
++        last = max(
++            (i for i in range(keys[0] + 1, end) if lines[i].strip()),
++            default=keys[0],
++        )
++    else:
++        # No column list at all: create one at the end of the model block.
++        last = max((i for i in range(start, end) if lines[i].strip()), default=start)
++        entries = ["    columns:"] + entries
++
++    return lines[: last + 1] + entries + lines[last + 1 :]
++
++
++def _verify(before: str, after: str, additions: dict[str, list[str]], rel: str,
++            newline: str) -> None:
++    """Two independent proofs that nothing but an addition happened.
++
++    They are deliberately different in kind. The first is textual and catches a
++    reformat, a reorder or a dropped line even when the parsed result is
++    equivalent. The second is structural and catches an addition landing under the
++    wrong model, which the text check alone would happily accept.
++    """
++    ops = difflib.SequenceMatcher(
++        None, before.split(newline), after.split(newline), autojunk=False
++    ).get_opcodes()
++    bad = [op for op in ops if op[0] not in ("equal", "insert")]
++    if bad:
++        raise Abort(
++            f"{rel}: refusing to write, the change is not append-only. "
++            f"{len(bad)} non-insert edit(s), first is {bad[0][0]} at line {bad[0][1] + 1}."
++        )
++
++    old_doc = yaml.safe_load(before)
++    new_doc = yaml.safe_load(after)
++    expected = yaml.safe_load(before)
++    for model in expected.get("models") or []:
++        extra = additions.get(model.get("name"))
++        if extra:
++            model.setdefault("columns", [])
++            model["columns"].extend({"name": c} for c in extra)
++    if new_doc != expected:
++        raise Abort(
++            f"{rel}: refusing to write, the parsed result is not the old file plus "
++            f"exactly the new names. Something moved."
++        )
++    if old_doc == new_doc:
++        raise Abort(f"{rel}: refusing to write, nothing changed, but additions were planned.")
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
++    parser.add_argument(
++        "--catalog",
++        type=pathlib.Path,
++        default=DBT_DIR / "target" / "catalog.json",
++        help="dbt catalog.json describing the PRODUCTION warehouse (a CI artifact).",
++    )
++    parser.add_argument(
++        "--dry-run", action="store_true", help="Report what would be added; write nothing."
++    )
++    args = parser.parse_args()
++
++    try:
++        plan = _plan(args.catalog)
++    except Abort as exc:
++        print(f"declare_missing_columns: {exc}", file=sys.stderr)
 +        return 1
 +
-     if len(found) < MIN_DESCRIPTIONS:
-         print(f"FAIL: found only {len(found)} descriptions under {_rel(DBT_DIR)} "
-               f"(floor {MIN_DESCRIPTIONS}). The walk has stopped matching - a gate "
-@@ -300,10 +429,13 @@ def main() -> int:
- 
-     files = len({rel for rel, _, _, _ in found})
-     cols = sum(1 for _, _, _, is_col in found if is_col)
-+    on_disk_models, on_disk_seeds = _on_disk()
-+    models, seeds = len(on_disk_models), len(on_disk_seeds)
-     print(f"DESCRIPTION HYGIENE ok: {len(found)} descriptions across {files} files "
-           f"({cols} column, {len(found) - cols} model/seed), {len(RULES)} rules, "
-           f"{len(blocks)} docs blocks resolved, rendered lengths within "
--          f"{MAX_COLUMN_CHARS}/{MAX_RELATION_CHARS}")
-+          f"{MAX_COLUMN_CHARS}/{MAX_RELATION_CHARS}; "
-+          f"every one of {models} models and {seeds} seeds on disk is described")
-     return 0
- 
- 
-diff --git a/tests/test_description_hygiene.py b/tests/test_description_hygiene.py
-index a95f3d4..d8b3049 100644
---- a/tests/test_description_hygiene.py
-+++ b/tests/test_description_hygiene.py
-@@ -48,8 +48,16 @@ def _write(tmp_path, body: str):
- def _point_gate_at_tmp(monkeypatch):
-     """Each test supplies its own tiny project, so the extraction floor would
-     otherwise trip on every one of them and mask what is being tested. The floor
--    gets its own test below, which is the only place it stays at its real value."""
-+    gets its own test below, which is the only place it stays at its real value.
++    total = sum(len(cols) for _, cols in plan.values())
++    if not total:
++        # Loud, not green. See the module docstring.
++        print(
++            "declare_missing_columns: nothing to add. Every column in core, "
++            "intermediate and marts is already declared.\n"
++            "  If you expected work, the catalogue is older than the models.",
++            file=sys.stderr,
++        )
++        return 1
 +
-+    MIN_MODELS and MIN_SOURCE_TABLES are lowered for the same reason and no other:
-+    a tmp fixture holds a schema file and usually no .sql at all, so the coverage
-+    discovery floor would fire on every test and hide what each one is checking.
-+    Both keep their real values in `test_the_coverage_floor_fires_...` below, and
-+    the gate runs them at full strength against the real project."""
-     monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 1)
-+    monkeypatch.setattr(gate, "MIN_MODELS", 0)
-+    monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 0)
- 
- 
- # (label, the phrase spliced into an otherwise-clean description)
-@@ -302,3 +310,112 @@ def test_the_real_repo_is_green():
-     gate that was red on main would have reddened CI on text only the CPO could
-     fix. This one asserts the state the wiring depends on."""
-     assert gate.main() == 0
++    by_file: dict[pathlib.Path, dict[str, list[str]]] = {}
++    for model, (path, cols) in plan.items():
++        by_file.setdefault(path, {})[model] = cols
++
++    print(f"{total} columns to declare, across {len(plan)} models in {len(by_file)} files:")
++    for path in sorted(by_file):
++        n = sum(len(c) for c in by_file[path].values())
++        print(f"  {n:5d}  {_rel(path)}  ({len(by_file[path])} models)")
++
++    if args.dry_run:
++        print("\n--dry-run: nothing written.")
++        return 0
++
++    for path in sorted(by_file):
++        additions = by_file[path]
++        # newline="" so the file's own terminators reach us untranslated; see
++        # `_newline`. Reading with the default would hide a CRLF file from us and
++        # we would silently convert it. `open()` rather than `read_text`, which
++        # only accepts `newline` from Python 3.13 and this project pins 3.11.
++        with path.open(encoding="utf-8", newline="") as fh:
++            before = fh.read()
++        try:
++            nl = _newline(before, _rel(path))
++            lines = before.split(nl)
++            # Name order, purely so a re-run produces an identical diff. It does
++            # NOT matter to correctness: `_insert` re-locates its model in the
++            # lines it is handed, so an earlier insertion cannot shift a later
++            # one's anchor. An earlier version ordered these bottom-up and said
++            # in a comment that it had to; mutation testing flipped the order and
++            # every test stayed green, which is what showed the comment was false.
++            for model in sorted(additions):
++                lines = _insert(lines, model, additions[model])
++            after = nl.join(lines)
++            _verify(before, after, additions, _rel(path), nl)
++        except Abort as exc:
++            print(f"declare_missing_columns: {_rel(path)}: {exc}", file=sys.stderr)
++            return 1
++        # ATOMIC PER FILE. `path.open("w")` truncates at open time and the write
++        # that follows is not one operation, so a crash between the two leaves a
++        # TRACKED yml half-written. `_verify` cannot see that failure — it compares
++        # two in-memory strings and has already returned by this point — so the
++        # module's "nothing is written unless every model verifies" is true of a
++        # guard tripping and says nothing about the write itself. That gap was
++        # platform-reviewer's round-1 FAIL, and it is the one failure mode the
++        # append-only promise is least able to survive.
++        # Write a sibling temp, flush it all the way to disk, then rename over the
++        # original: `os.replace` is atomic on POSIX and on Windows, and a sibling
++        # shares the directory so the rename never crosses a filesystem. The temp
++        # name ends `.tmp`, which `_declared()`'s `*.yml` glob cannot match, so a
++        # leftover from a crash is inert rather than parsed as a schema file.
++        tmp = path.with_name(path.name + ".tmp")
++        try:
++            with tmp.open("w", encoding="utf-8", newline="") as fh:
++                fh.write(after)
++                fh.flush()
++                os.fsync(fh.fileno())
++            os.replace(tmp, path)
++        except OSError as exc:
++            tmp.unlink(missing_ok=True)
++            print(
++                f"declare_missing_columns: {_rel(path)}: write failed, the original "
++                f"is untouched ({exc.__class__.__name__}: {exc})",
++                file=sys.stderr,
++            )
++            return 1
++
++    print(f"\nWrote {total} column entries. `git diff --numstat` must show 0 deletions.")
++    return 0
 +
 +
-+# ---------------------------------------------------------------------------
-+# COVERAGE: the object has no description at all.
-+#
-+# The content rules above never see such an object, which is how the coverage
-+# half of engineering_standards.md section 2 stayed unenforced for the life of
-+# the project: 11 of 11 source tables had no description when this was written.
-+# ---------------------------------------------------------------------------
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/tests/test_declare_missing_columns.py b/tests/test_declare_missing_columns.py
+new file mode 100644
+index 0000000..eec3982
+--- /dev/null
++++ b/tests/test_declare_missing_columns.py
+@@ -0,0 +1,387 @@
++"""Tests for `scripts/declare_missing_columns.py`.
 +
-+def _project(tmp_path, *, model_sql: str | None = "int_x", schema: str = "") -> object:
-+    """A tmp project with a real .sql on disk, optionally with a schema file."""
-+    models = tmp_path / "models"
-+    models.mkdir(parents=True, exist_ok=True)
-+    if model_sql:
-+        (models / f"{model_sql}.sql").write_text("select 1", encoding="utf-8")
-+    if schema:
-+        (models / "schema.yml").write_text(schema, encoding="utf-8")
-+    return tmp_path
++The point is not that the script runs on today's repo. It does, and a test
++asserting that would stay green while the script quietly stopped matching
++anything, which is the failure this repo keeps hitting (#904) and the exact
++failure this script's own "nothing to add" guard exists to prevent.
++
++So each test drives `main()` against a synthetic project and asserts one thing
++the script MUST refuse, or one property of what it writes. The append-only
++property is asserted independently with `difflib` rather than by calling the
++script's own `_verify`, because a check that validates itself proves nothing.
++"""
++from __future__ import annotations
++
++import difflib
++import json
++import os
++import pathlib
++import sys
++
++import pytest
++import yaml
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++
++import declare_missing_columns as gen  # noqa: E402
 +
 +
-+DESCRIBED = """version: 2
++CORE_YML = """version: 2
++
 +models:
-+  - name: int_x
-+    description: "One row per team per season, from the generic staging model."
++  - name: dim_thing
++    description: >
++      One row per thing.
++    columns:
++      - name: thing_sk
++        description: "Identity key."
++        tests: [not_null]
++      - name: league_code
 +"""
 +
 +
-+def test_a_model_declared_in_no_yml_turns_the_gate_red(tmp_path, monkeypatch, capsys):
-+    """THE CASE THAT MOTIVATED WALKING FILES INSTEAD OF YAML ENTRIES.
++def _project(tmp_path, ymls: dict[str, str], models: dict[str, str] | None = None):
++    """A minimal dbt project: one .sql per model, plus the schema files given.
 +
-+    `int_team__market_value_latest` had no description because it appeared in no
-+    yml whatsoever. A check that read yml entries would have found nothing to
-+    complain about and passed it green, which is precisely the blind spot the
-+    coverage rule exists to close.
++    `models` maps a model name to the layer directory it lives in; it defaults to
++    every model named in the ymls, in 3_core.
 +    """
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path))
-+    assert gate.main() == 1, "a model with no yml entry at all passed the gate"
-+    out = capsys.readouterr().out
-+    assert "int_x" in out and "declared in no yml" in out, (
-+        "the gate failed without naming the model or saying it was undeclared"
-+    )
++    dbt = tmp_path / "dbt_project"
++    if models is None:
++        models = {}
++        for body in ymls.values():
++            doc = yaml.safe_load(body) or {}
++            for model in doc.get("models") or []:
++                models[model["name"]] = "3_core"
++    for name, layer in models.items():
++        d = dbt / "models" / layer
++        d.mkdir(parents=True, exist_ok=True)
++        (d / f"{name}.sql").write_text("select 1\n", encoding="utf-8")
++    for rel, body in ymls.items():
++        path = dbt / "models" / rel
++        path.parent.mkdir(parents=True, exist_ok=True)
++        path.write_text(body, encoding="utf-8")
++    return dbt
 +
 +
-+def test_a_model_with_an_empty_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(
-+        tmp_path, schema='version: 2\nmodels:\n  - name: int_x\n    description: ""\n'))
-+    assert gate.main() == 1, "a model with an empty description passed the gate"
-+    assert "NO DESCRIPTION" in capsys.readouterr().out
++def _catalog(tmp_path, columns: dict[str, list[str]], name: str = "catalog.json"):
++    """A catalog.json holding exactly the models and column orders given."""
++    nodes = {
++        f"model.proj.{model}": {
++            "metadata": {"schema": "core", "name": model},
++            "columns": {c: {"name": c, "index": i} for i, c in enumerate(cols)},
++        }
++        for model, cols in columns.items()
++    }
++    path = tmp_path / name
++    path.write_text(json.dumps({"nodes": nodes, "sources": {}}), encoding="utf-8")
++    return path
 +
 +
-+def test_a_described_model_is_green(tmp_path, monkeypatch):
-+    """A rule that fires on everything is as useless as one that fires on nothing."""
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
-+    assert gate.main() == 0
++@pytest.fixture(autouse=True)
++def _point_at_tmp(monkeypatch, tmp_path):
++    """Every test supplies a two-or-three model project, so the discovery floor
++    would fire on all of them and mask what is being tested. It keeps its real
++    value in `test_the_discovery_floor_fires_on_a_broken_walk`, which is the only
++    place it is asserted, and the script runs it at full strength for real."""
++    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
++    monkeypatch.setattr(gen, "DBT_DIR", tmp_path / "dbt_project")
++    monkeypatch.setattr(gen, "MODELS_DIR", tmp_path / "dbt_project" / "models")
++    monkeypatch.setattr(gen, "MIN_IN_SCOPE_MODELS", 1)
 +
 +
-+def test_a_source_table_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
-+    """11 of 11 source tables were in this state. A raw table nobody has described
-+    is where the whole pipeline starts."""
-+    schema = DESCRIBED + """
-+sources:
-+  - name: api_football
-+    tables:
-+      - name: raw_apif_thing
++def _run(monkeypatch, catalog, *extra):
++    monkeypatch.setattr(sys, "argv", ["declare_missing_columns.py",
++                                      "--catalog", str(catalog), *extra])
++    return gen.main()
++
++
++def _assert_append_only(before: str, after: str):
++    """No line was deleted, changed or moved. Asserted with difflib directly, not
++    with the script's own verifier."""
++    ops = difflib.SequenceMatcher(
++        None, before.split("\n"), after.split("\n"), autojunk=False
++    ).get_opcodes()
++    assert [op[0] for op in ops if op[0] not in ("equal", "insert")] == []
++
++
++def test_appends_names_to_an_existing_column_list(monkeypatch, tmp_path):
++    dbt = _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "thing_name", "tier"]})
++    before = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
++
++    assert _run(monkeypatch, cat) == 0
++
++    after = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
++    _assert_append_only(before, after)
++    doc = yaml.safe_load(after)
++    assert [c["name"] for c in doc["models"][0]["columns"]] == [
++        "thing_sk", "league_code", "thing_name", "tier",
++    ]
++    # The names that were already there keep their description and tests.
++    assert doc["models"][0]["columns"][0]["description"] == "Identity key."
++    assert doc["models"][0]["columns"][0]["tests"] == ["not_null"]
++    # The new ones carry a name and nothing else. "No thin filler" (CPO 2026-08-21)
++    # is enforced here rather than trusted: a description invented by a generator
++    # is the worst kind.
++    assert doc["models"][0]["columns"][2] == {"name": "thing_name"}
++    assert doc["models"][0]["columns"][3] == {"name": "tier"}
++
++
++def test_new_names_follow_the_warehouse_column_order(monkeypatch, tmp_path):
++    dbt = _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "zzz", "aaa", "mmm"]})
++
++    assert _run(monkeypatch, cat) == 0
++
++    doc = yaml.safe_load((dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8"))
++    assert [c["name"] for c in doc["models"][0]["columns"][2:]] == ["zzz", "aaa", "mmm"]
++
++
++def test_creates_a_columns_block_when_the_model_has_none(monkeypatch, tmp_path):
++    body = "version: 2\n\nmodels:\n  - name: lonely\n    description: \"No columns yet.\"\n"
++    dbt = _project(tmp_path, {"3_core/core.yml": body})
++    cat = _catalog(tmp_path, {"lonely": ["a", "b"]})
++    before = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
++
++    assert _run(monkeypatch, cat) == 0
++
++    after = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
++    _assert_append_only(before, after)
++    doc = yaml.safe_load(after)
++    assert doc["models"][0]["columns"] == [{"name": "a"}, {"name": "b"}]
++    assert doc["models"][0]["description"] == "No columns yet."
++
++
++def test_a_model_whose_columns_are_all_declared_is_not_touched(monkeypatch, tmp_path):
++    two = CORE_YML + """  - name: dim_other
++    description: "Fully declared."
++    columns:
++      - name: other_sk
 +"""
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=schema))
-+    assert gate.main() == 1, "a source table with no description passed the gate"
-+    out = capsys.readouterr().out
-+    assert "raw_apif_thing" in out, "the gate failed without naming the source table"
++    dbt = _project(tmp_path, {"3_core/core.yml": two})
++    cat = _catalog(tmp_path, {
++        "dim_thing": ["thing_sk", "league_code", "extra"],
++        "dim_other": ["other_sk"],
++    })
++
++    assert _run(monkeypatch, cat) == 0
++
++    doc = yaml.safe_load((dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8"))
++    other = [m for m in doc["models"] if m["name"] == "dim_other"][0]
++    assert [c["name"] for c in other["columns"]] == ["other_sk"]
 +
 +
-+def test_a_described_source_table_is_green(tmp_path, monkeypatch):
-+    schema = DESCRIBED + """
-+sources:
-+  - name: api_football
-+    tables:
-+      - name: raw_apif_thing
-+        description: "One row per FETCH of a whole league, as JSON. Append-only."
++def test_a_declared_name_differing_only_in_case_is_not_redeclared(monkeypatch, tmp_path):
++    body = "version: 2\n\nmodels:\n  - name: m\n    description: \"d\"\n    columns:\n      - name: Team_SK\n"
++    dbt = _project(tmp_path, {"3_core/core.yml": body})
++    cat = _catalog(tmp_path, {"m": ["team_sk", "new_one"]})
++
++    assert _run(monkeypatch, cat) == 0
++
++    doc = yaml.safe_load((dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8"))
++    assert [c["name"] for c in doc["models"][0]["columns"]] == ["Team_SK", "new_one"]
++
++
++def test_nothing_to_add_exits_non_zero(monkeypatch, tmp_path, capsys):
++    """A bulk-edit script that reports success while matching nothing is the
++    handover's trap 2 and #904's dominant shape. Silence here would be the bug."""
++    _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code"]})
++
++    assert _run(monkeypatch, cat) == 1
++    assert "nothing to add" in capsys.readouterr().err
++
++
++def test_refuses_a_catalogue_that_does_not_cover_every_in_scope_model(monkeypatch, tmp_path, capsys):
++    """The stale dev catalog.json sitting in dbt_project/target/ describes 10
++    relations in dev schemas. Running against it would declare almost nothing."""
++    _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"some_other_model": ["a"]})
++
++    assert _run(monkeypatch, cat) == 1
++    err = capsys.readouterr().err
++    assert "does not describe this warehouse" in err
++    assert "dim_thing" in err
++
++
++def test_refuses_a_model_that_is_declared_in_no_yml(monkeypatch, tmp_path, capsys):
++    dbt = _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    (dbt / "models" / "3_core" / "orphan.sql").write_text("select 1\n", encoding="utf-8")
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code"], "orphan": ["a"]})
++
++    assert _run(monkeypatch, cat) == 1
++    assert "in no yml at all" in capsys.readouterr().err
++
++
++def test_refuses_a_columns_key_that_is_not_a_bare_key(monkeypatch, tmp_path, capsys):
++    """An inline list gives no line to append after, so the script must refuse
++    rather than guess where the list ends."""
++    body = "version: 2\n\nmodels:\n  - name: m\n    description: \"d\"\n    columns: []\n"
++    _project(tmp_path, {"3_core/core.yml": body})
++    cat = _catalog(tmp_path, {"m": ["a"]})
++
++    assert _run(monkeypatch, cat) == 1
++    assert "not a bare key" in capsys.readouterr().err
++
++
++def test_refuses_a_model_declared_in_two_ymls(monkeypatch, tmp_path, capsys):
++    other = "version: 2\n\nmodels:\n  - name: dim_thing\n    description: \"dupe\"\n"
++    _project(tmp_path, {"3_core/core.yml": CORE_YML, "3_core/dupe.yml": other})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "new"]})
++
++    assert _run(monkeypatch, cat) == 1
++    assert "declared twice" in capsys.readouterr().err
++
++
++def test_the_discovery_floor_fires_on_a_broken_walk(monkeypatch, tmp_path, capsys):
++    """The floor keeps its REAL value here and nowhere else. A renamed layer
++    directory leaves the walk matching nothing, and "no missing columns" then
++    becomes trivially true."""
++    monkeypatch.setattr(gen, "MIN_IN_SCOPE_MODELS", 40)
++    _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "new"]})
++
++    assert _run(monkeypatch, cat) == 1
++    assert "Refusing to run against a broken walk" in capsys.readouterr().err
++
++
++def test_dry_run_writes_nothing(monkeypatch, tmp_path):
++    dbt = _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "new"]})
++    before = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
++
++    assert _run(monkeypatch, cat, "--dry-run") == 0
++
++    assert (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8") == before
++
++
++def test_a_second_run_finds_nothing_and_says_so(monkeypatch, tmp_path, capsys):
++    """Idempotence, and the shape of it. The second run must not be silently
++    green: 'nothing to add' is the signal that the first run already worked."""
++    _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "new"]})
++
++    assert _run(monkeypatch, cat) == 0
++    capsys.readouterr()
++    assert _run(monkeypatch, cat) == 1
++    assert "nothing to add" in capsys.readouterr().err
++
++
++@pytest.mark.parametrize("newline", ["\r\n", "\n"])
++def test_the_files_existing_line_endings_are_preserved(monkeypatch, tmp_path, newline):
++    """Converting every line terminator IS reformatting every line, even though
++    `git diff` hides it: `core.autocrlf=true` here and `.gitattributes` pins only
++    `*.sh` and `Dockerfile`, so these ymls are CRLF in the working tree and LF in
++    the object store. The diff therefore shows zero deletions either way, and the
++    rewrite is invisible in exactly the place you would look for it.
++
++    That is not hypothetical in this repo. `.gitattributes` exists because a
++    CRLF working copy shipped `\\r` into a container shebang under #39 and died at
++    04:00 in production, having passed every test and built a clean image.
++
++    This test caught the real thing: the first version of the script read with
++    universal newlines and wrote LF, silently converting all 14 files."""
++    body = CORE_YML.replace("\n", newline)
++    dbt = tmp_path / "dbt_project"
++    d = dbt / "models" / "3_core"
++    d.mkdir(parents=True)
++    (d / "dim_thing.sql").write_text("select 1\n", encoding="utf-8")
++    # newline="" so the fixture's terminators survive being written, rather than
++    # being translated to os.linesep on the way to disk.
++    (d / "core.yml").write_text(body, encoding="utf-8", newline="")
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "brand_new"]})
++
++    assert _run(monkeypatch, cat) == 0
++
++    raw = (d / "core.yml").read_bytes()
++    crlf = raw.count(b"\r\n")
++    bare_lf = raw.count(b"\n") - crlf
++    if newline == "\r\n":
++        assert bare_lf == 0, f"CRLF file gained {bare_lf} bare LF terminators"
++        assert crlf > 0
++    else:
++        assert crlf == 0, f"LF file gained {crlf} CRLF terminators"
++    assert b"brand_new" in raw
++
++
++def test_refuses_a_file_with_mixed_line_endings(monkeypatch, tmp_path, capsys):
++    """Nothing here has mixed endings today. If one ever does, there is no
++    "existing terminator" to preserve, so the script must refuse rather than pick
++    one and rewrite half the file."""
++    body = CORE_YML.replace("\n", "\r\n").replace("    columns:\r\n", "    columns:\n")
++    dbt = tmp_path / "dbt_project"
++    d = dbt / "models" / "3_core"
++    d.mkdir(parents=True)
++    (d / "dim_thing.sql").write_text("select 1\n", encoding="utf-8")
++    (d / "core.yml").write_text(body, encoding="utf-8", newline="")
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "brand_new"]})
++
++    assert _run(monkeypatch, cat) == 1
++    assert "mixed line endings" in capsys.readouterr().err
++
++
++def test_a_failure_at_the_commit_point_leaves_the_original_intact(monkeypatch, tmp_path, capsys):
++    """platform-reviewer's round-1 FAIL. `open(path, "w")` truncates at open time,
++    so a crash between the truncate and the last write leaves a TRACKED yml
++    half-written. `_verify` cannot catch that: it compares two in-memory strings
++    and has already returned before any byte moves.
++
++    Atomicity is untestable by actually killing the process, so this asserts the
++    property that makes it atomic: the file is committed by a rename, and if that
++    rename fails the original is still byte-identical."""
++    dbt = _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    target = dbt / "models" / "3_core" / "core.yml"
++    before = target.read_bytes()
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "brand_new"]})
++
++    def boom(src, dst):
++        raise OSError("simulated failure at the commit point")
++
++    monkeypatch.setattr(gen.os, "replace", boom)
++
++    assert _run(monkeypatch, cat) == 1
++    assert target.read_bytes() == before, "the original was modified despite the failure"
++    assert "the original is untouched" in capsys.readouterr().err
++    assert list(target.parent.glob("*.tmp")) == [], "a temp file was left behind"
++
++
++def test_a_successful_run_leaves_no_temp_files(monkeypatch, tmp_path):
++    dbt = _project(tmp_path, {"3_core/core.yml": CORE_YML})
++    cat = _catalog(tmp_path, {"dim_thing": ["thing_sk", "league_code", "brand_new"]})
++
++    assert _run(monkeypatch, cat) == 0
++
++    assert list((dbt / "models" / "3_core").glob("*.tmp")) == []
++    # The temp name must not be parseable as a schema file even if one survives a
++    # crash, or the next run would read it as a second declaration of every model.
++    assert not pathlib.Path("core.yml.tmp").match("*.yml")
++
++
++def test_other_models_in_the_same_file_are_untouched(monkeypatch, tmp_path):
++    """Insertion is bottom-up so one model's new lines cannot shift another's
++    anchor. Two models in one file, both gaining columns, is the case that breaks
++    if that ordering is wrong."""
++    two = CORE_YML + """  - name: dim_other
++    description: "Second in the file."
++    columns:
++      - name: other_sk
++        tests: [not_null]
 +"""
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=schema))
-+    assert gate.main() == 0
++    dbt = _project(tmp_path, {"3_core/core.yml": two})
++    cat = _catalog(tmp_path, {
++        "dim_thing": ["thing_sk", "league_code", "t_new"],
++        "dim_other": ["other_sk", "o_new"],
++    })
++    before = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
 +
++    assert _run(monkeypatch, cat) == 0
 +
-+def test_a_seed_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
-+    seeds = tmp_path / "seeds"
-+    seeds.mkdir(parents=True, exist_ok=True)
-+    (seeds / "some_seed.csv").write_text("a,b\n1,2\n", encoding="utf-8")
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
-+    assert gate.main() == 1, "a seed with no description passed the gate"
-+    assert "some_seed" in capsys.readouterr().out
-+
-+
-+def test_the_coverage_floor_fires_when_discovery_finds_nothing(tmp_path, monkeypatch, capsys):
-+    """The floor at its REAL value, which the autouse fixture lowers everywhere else.
-+
-+    Without it, a moved directory or a changed suffix makes "every model is
-+    described" true by finding no models — the same vacuous-pass shape
-+    MIN_DESCRIPTIONS guards against for the content half.
-+    """
-+    monkeypatch.setattr(gate, "MIN_MODELS", 50)
-+    monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 5)
-+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, model_sql=None, schema=DESCRIBED))
-+
-+    assert gate.main() == 1, "the gate passed with the model discovery finding nothing"
-+    out = capsys.readouterr().out
-+    assert "discovery looks broken" in out, (
-+        "the gate failed without reporting that discovery, not content, was the problem"
-+    )
++    after = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
++    _assert_append_only(before, after)
++    doc = yaml.safe_load(after)
++    got = {m["name"]: [c["name"] for c in m["columns"]] for m in doc["models"]}
++    assert got == {
++        "dim_thing": ["thing_sk", "league_code", "t_new"],
++        "dim_other": ["other_sk", "o_new"],
++    }
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -898,8 +2495,7 @@ index a95f3d4..d8b3049 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   91 ++-
-#    .claude/task/acceptance_evidence.md |  217 +++--
-#    .claude/task/review_input.patch     | 1498 ++++++++++++++++++-----------------
-#    3 files changed, 928 insertions(+), 878 deletions(-)
+#   .claude/active_work.md          |  117 +-
+#    .claude/task/review_input.patch | 3181 +++++++++++++++++++++++++++++----------
+#    2 files changed, 2411 insertions(+), 887 deletions(-)
 # ============================================================================

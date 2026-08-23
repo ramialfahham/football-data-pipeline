@@ -57,6 +57,36 @@ models:
         description: >
           Cumulative shots taken by this team's OPPONENTS through this match — the denominator
           half of a shot-share calculation.
+      - name: kickoff_datetime
+      - name: points_won
+      - name: wins
+      - name: draws
+      - name: losses
+      - name: goals_for
+      - name: goals_against
+      - name: clean_sheet_games
+      - name: games_with_sot_stats
+      - name: games_with_opp_stats
+      - name: games_with_opp_sot_stats
+      - name: goals_penalty
+      - name: goals_own
+      - name: goals_against_in_save_games
+      - name: shots_total
+      - name: shots_on_goal
+      - name: shots_inside_box
+      - name: passes_total
+      - name: passes_accurate
+      - name: corner_kicks
+      - name: opponent_corner_kicks
+      - name: opponent_shots_on_goal
+      - name: goalkeeper_saves
+      - name: games_with_player_stats
+      - name: key_passes
+      - name: tackles
+      - name: interceptions
+      - name: blocks
+      - name: duels_total
+      - name: duels_won
 
   - name: int_player_season_record
     description: >
@@ -93,3 +123,29 @@ models:
         tests: [not_null]
       - name: position_code
         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."
+      - name: entity_type
+      - name: kickoff_datetime
+      - name: round_order
+      - name: match_number
+      - name: goals_total
+      - name: goals_against
+      - name: goals_assists
+      - name: saves
+      - name: shots_total
+      - name: shots_on
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accurate
+      - name: tackles_total
+      - name: tackles_blocks
+      - name: tackles_interceptions
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: dribbles_past
+      - name: offsides
+      - name: penalty_won
+      - name: penalty_committed
+      - name: cards_yellow
+      - name: cards_red

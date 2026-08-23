@@ -12,3 +12,9 @@ models:
       This model therefore returns nothing, and so does anything built on it.
       Values are point-in-time estimates carrying a source and a snapshot date,
       not a transfer fee and not a price.
+    columns:
+      - name: team_sk
+      - name: as_of_date
+      - name: market_value_eur
+      - name: source_code
+      - name: prompt_version

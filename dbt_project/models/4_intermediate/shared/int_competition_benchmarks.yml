@@ -64,6 +64,8 @@ models:
       - name: metric_value
         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
         tests: [not_null]
+      - name: league_sk
+      - name: season_api_year
 
   - name: int_player_competition_benchmarks
     description: >

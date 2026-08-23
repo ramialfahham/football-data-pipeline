@@ -52,6 +52,62 @@ models:
           Representative rate-metric YoY delta (this season − last, through the same N games). Every
           LOCKED 16-row rate metric carries _this_season / _prev_season / _delta_yoy; NULL where the
           prior season is absent or coverage is incomplete through N.
+      - name: games_played_prev
+      - name: points_this_season
+      - name: goals_for_this_season
+      - name: goals_against_this_season
+      - name: goals_per_match_this_season
+      - name: goals_against_per_match_this_season
+      - name: clean_sheets_this_season
+      - name: shots_per_match_this_season
+      - name: danger_zone_ratio_this_season
+      - name: shots_on_goal_per_match_this_season
+      - name: finishing_efficiency_this_season
+      - name: duels_per_match_this_season
+      - name: duels_won_pct_this_season
+      - name: defensive_actions_per_match_this_season
+      - name: passes_per_match_this_season
+      - name: pass_accuracy_this_season
+      - name: key_passes_per_match_this_season
+      - name: corner_kicks_per_match_this_season
+      - name: corners_against_per_match_this_season
+      - name: save_ratio_this_season
+      - name: points_prev_season
+      - name: goals_for_prev_season
+      - name: goals_against_prev_season
+      - name: goals_per_match_prev_season
+      - name: goals_against_per_match_prev_season
+      - name: clean_sheets_prev_season
+      - name: shots_per_match_prev_season
+      - name: danger_zone_ratio_prev_season
+      - name: shots_on_goal_per_match_prev_season
+      - name: finishing_efficiency_prev_season
+      - name: duels_per_match_prev_season
+      - name: duels_won_pct_prev_season
+      - name: defensive_actions_per_match_prev_season
+      - name: passes_per_match_prev_season
+      - name: pass_accuracy_prev_season
+      - name: key_passes_per_match_prev_season
+      - name: corner_kicks_per_match_prev_season
+      - name: corners_against_per_match_prev_season
+      - name: save_ratio_prev_season
+      - name: goals_for_delta_yoy
+      - name: goals_against_delta_yoy
+      - name: goals_against_per_match_delta_yoy
+      - name: clean_sheets_delta_yoy
+      - name: shots_per_match_delta_yoy
+      - name: danger_zone_ratio_delta_yoy
+      - name: shots_on_goal_per_match_delta_yoy
+      - name: finishing_efficiency_delta_yoy
+      - name: duels_per_match_delta_yoy
+      - name: duels_won_pct_delta_yoy
+      - name: defensive_actions_per_match_delta_yoy
+      - name: passes_per_match_delta_yoy
+      - name: pass_accuracy_delta_yoy
+      - name: key_passes_per_match_delta_yoy
+      - name: corner_kicks_per_match_delta_yoy
+      - name: corners_against_per_match_delta_yoy
+      - name: save_ratio_delta_yoy
 
   - name: int_team_profile__streaks
     description: >
@@ -76,3 +132,10 @@ models:
         tests: [not_null]
       - name: matches_in_season
         tests: [not_null]
+      - name: league_code
+      - name: season_api_year
+      - name: unbeaten_run
+      - name: win_run
+      - name: winless_run
+      - name: clean_sheet_run
+      - name: scoring_run

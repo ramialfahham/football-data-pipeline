@@ -63,6 +63,25 @@ models:
         tests: [not_null]
       - name: games_with_player_stats
         description: "Count of the window legs that have a matching row in int_legs__team_from_players."
+      - name: games_with_sot_stats
+      - name: points_won
+      - name: goals_for
+      - name: goals_against
+      - name: clean_sheet_games
+      - name: shots_total
+      - name: shots_on_goal
+      - name: shots_inside_box
+      - name: passes_total
+      - name: passes_accurate
+      - name: corner_kicks
+      - name: opponent_corner_kicks
+      - name: goalkeeper_saves
+      - name: key_passes
+      - name: tackles
+      - name: interceptions
+      - name: blocks
+      - name: duels_total
+      - name: duels_won
 
   - name: int_player_momentum__metrics
     description: >
@@ -108,3 +127,25 @@ models:
         tests: [not_null]
       - name: position_code
         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
+      - name: goals_total
+      - name: goals_against
+      - name: goals_assists
+      - name: saves
+      - name: shots_total
+      - name: shots_on
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accurate
+      - name: tackles_total
+      - name: tackles_blocks
+      - name: tackles_interceptions
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: cards_yellow
+      - name: cards_red
+      - name: offsides
+      - name: dribbles_past
+      - name: penalty_won
+      - name: penalty_committed
