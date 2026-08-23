@@ -49,6 +49,25 @@ models:
         description: "The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev). NULL when no prior season."
       - name: goals_prev_season_full
         description: "The prior season's FULL-season total, a context anchor for the pace-matched delta (assists / shots_on_goal / key_passes / defensive_actions follow the same *_prev_season_full pattern). Never differenced against the running season."
+      - name: goals_this_season
+      - name: assists_this_season
+      - name: shots_on_goal_this_season
+      - name: key_passes_this_season
+      - name: defensive_actions_this_season
+      - name: appearances_prev
+      - name: goals_prev_season
+      - name: assists_prev_season
+      - name: shots_on_goal_prev_season
+      - name: key_passes_prev_season
+      - name: defensive_actions_prev_season
+      - name: assists_prev_season_full
+      - name: shots_on_goal_prev_season_full
+      - name: key_passes_prev_season_full
+      - name: defensive_actions_prev_season_full
+      - name: assists_delta_yoy
+      - name: shots_on_goal_delta_yoy
+      - name: key_passes_delta_yoy
+      - name: defensive_actions_delta_yoy
 
   - name: int_player_profile__contribution
     description: >
@@ -87,3 +106,5 @@ models:
         description: "The club's whole-season goals_for (the denominator)."
       - name: contribution_share
         description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
+      - name: league_code
+      - name: season_api_year

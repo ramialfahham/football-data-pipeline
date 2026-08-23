@@ -48,3 +48,22 @@ models:
           - not_null
           - accepted_values:
               values: ["W", "D", "L"]
+      - name: season_api_year
+      - name: leg_league_code
+      - name: leg_kickoff_datetime
+      - name: leg_round_name
+      - name: home_away
+      - name: opponent_team_sk
+      - name: goals_for
+      - name: goals_against
+      - name: goals_penalty
+      - name: goals_own
+      - name: shots_total
+      - name: shots_on_goal
+      - name: shots_inside_box
+      - name: passes_total
+      - name: passes_accurate
+      - name: corner_kicks
+      - name: opponent_corner_kicks
+      - name: goalkeeper_saves
+      - name: opponent_shots_on_goal

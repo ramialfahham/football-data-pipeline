@@ -81,6 +81,54 @@ models:
         description: >
           Shots on target conceded per match (opponent-SoT companion to shots_on_goal_per_match).
           NULL unless opponent SoT covers every season game.
+      - name: league_sk
+      - name: season_sk
+      - name: entity_type
+      - name: stat_coverage_season_games
+      - name: player_stat_coverage_season_games
+      - name: games_with_team_stats
+      - name: points_won_sum_season
+      - name: wins_sum_season
+      - name: draws_sum_season
+      - name: losses_sum_season
+      - name: clean_sheets_sum_season
+      - name: goals_for_sum_season
+      - name: goals_against_sum_season
+      - name: goals_penalty
+      - name: goals_own
+      - name: goals_open_play
+      - name: total_shots_sum_season
+      - name: opponent_total_shots_sum_season
+      - name: shots_inside_box_sum_season
+      - name: shots_on_goal_sum_season
+      - name: corner_kicks_sum_season
+      - name: opponent_corner_kicks_sum_season
+      - name: passes_accurate_sum_season
+      - name: passes_total_sum_season
+      - name: goalkeeper_saves_sum_season
+      - name: points_capture
+      - name: shot_share
+      - name: clean_sheets
+      - name: goals_per_match
+      - name: goals_against_per_match
+      - name: shots_per_match
+      - name: shot_accuracy
+      - name: danger_zone_ratio
+      - name: shots_on_goal_per_match
+      - name: finishing_efficiency
+      - name: passes_per_match
+      - name: pass_accuracy
+      - name: corner_kicks_per_match
+      - name: corners_against_per_match
+      - name: save_ratio
+      - name: key_passes_per_match
+      - name: tackles_per_match
+      - name: interceptions_per_match
+      - name: blocks_per_match
+      - name: defensive_actions_per_match
+      - name: duels_per_match
+      - name: duels_won_pct
+      - name: season_matchdays_used
 
   - name: int_team_season__metrics_cumulative
     description: >
@@ -139,6 +187,55 @@ models:
       - name: season_games_played
         description: "Games played through this matchday (name inherited from the whole-season projection for byte-identity)."
         tests: [not_null]
+      - name: league_sk
+      - name: season_sk
+      - name: entity_type
+      - name: stat_coverage_season_games
+      - name: player_stat_coverage_season_games
+      - name: games_with_team_stats
+      - name: points_won_sum_season
+      - name: wins_sum_season
+      - name: draws_sum_season
+      - name: losses_sum_season
+      - name: clean_sheets_sum_season
+      - name: goals_for_sum_season
+      - name: goals_against_sum_season
+      - name: goals_penalty
+      - name: goals_own
+      - name: goals_open_play
+      - name: total_shots_sum_season
+      - name: opponent_total_shots_sum_season
+      - name: shots_inside_box_sum_season
+      - name: shots_on_goal_sum_season
+      - name: corner_kicks_sum_season
+      - name: opponent_corner_kicks_sum_season
+      - name: passes_accurate_sum_season
+      - name: passes_total_sum_season
+      - name: goalkeeper_saves_sum_season
+      - name: points_capture
+      - name: shot_share
+      - name: clean_sheets
+      - name: goals_per_match
+      - name: goals_against_per_match
+      - name: shots_per_match
+      - name: shot_accuracy
+      - name: danger_zone_ratio
+      - name: shots_on_goal_per_match
+      - name: shots_on_goal_against_per_match
+      - name: sot_difference_per_match
+      - name: finishing_efficiency
+      - name: passes_per_match
+      - name: pass_accuracy
+      - name: corner_kicks_per_match
+      - name: corners_against_per_match
+      - name: save_ratio
+      - name: key_passes_per_match
+      - name: tackles_per_match
+      - name: interceptions_per_match
+      - name: blocks_per_match
+      - name: defensive_actions_per_match
+      - name: duels_per_match
+      - name: duels_won_pct
 
   - name: int_team_season__deserved_vs_actual
     description: >
@@ -241,6 +338,10 @@ models:
         description: "Rank by deserved_points within the league-season (1 = best) — the process-deserved table position. Derived from deserved_points, so it cannot disagree with it, and it appears and disappears exactly with it. NULL whenever the league-season is not fittable, which now includes any table that is not a single ladder."
       - name: sot_points_gap
         description: "points_won_sum_season - deserved_points. NEGATIVE = under-performing (fewer points than deserved), POSITIVE = over-performing. NOTE the sign is inverted relative to the retired sot_rank_gap. NULL when not fittable."
+      - name: league_sk
+      - name: season_api_year
+      - name: entity_type
+      - name: sot_difference_per_match
 
   - name: int_player_season__metrics
     description: >
@@ -306,3 +407,50 @@ models:
         tests: [not_null]
       - name: pass_accuracy_pct
         description: "Weighted pass accuracy (accurate ÷ attempted); 0-1 or null. Range-tested at model level."
+      - name: starts
+      - name: substitute_appearances
+      - name: minutes
+      - name: goals
+      - name: goals_penalty
+      - name: assists
+      - name: shots_total
+      - name: shots_on_goal
+      - name: passes_total
+      - name: passes_accurate
+      - name: passes_key
+      - name: tackles_total
+      - name: tackles_interceptions
+      - name: tackles_blocks
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: dribbles_past
+      - name: offsides
+      - name: cards_yellow
+      - name: cards_red
+      - name: penalty_won
+      - name: penalty_committed
+      - name: saves
+      - name: goals_against
+      - name: goals_open_play
+      - name: scorer_points
+      - name: defensive_actions
+      - name: cards_total
+      - name: duels_won_pct
+      - name: dribbles_success_pct
+      - name: save_pct
+      - name: finishing_efficiency
+      - name: goals_per90
+      - name: assists_per90
+      - name: scorer_points_per90
+      - name: shots_on_goal_per90
+      - name: key_passes_per90
+      - name: dribbles_success_per90
+      - name: passes_per90
+      - name: tackles_per90
+      - name: interceptions_per90
+      - name: blocks_per90
+      - name: defensive_actions_per90
+      - name: duels_won_per90
+      - name: saves_per90

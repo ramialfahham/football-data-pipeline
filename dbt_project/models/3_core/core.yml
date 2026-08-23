@@ -895,6 +895,9 @@ models:
       - name: league_code
         description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
+      - name: team_in_sk
+      - name: team_out_sk
+      - name: raw_ingested_at
 
   - name: dim_coach
     description: >
@@ -919,6 +922,14 @@ models:
           - relationships:
               to: ref('dim_country')
               field: country_name
+      - name: coach_first_name
+      - name: coach_last_name
+      - name: coach_age
+      - name: coach_birth_date
+      - name: coach_birth_place
+      - name: coach_nationality
+      - name: coach_photo_url
+      - name: raw_ingested_at
 
   - name: dim_coach_team_mapping
     description: >
@@ -942,3 +953,8 @@ models:
         tests: [not_null]
       - name: start_date
         tests: [not_null]
+      - name: team_sk
+      - name: coach_api_id
+      - name: team_name
+      - name: end_date
+      - name: raw_ingested_at

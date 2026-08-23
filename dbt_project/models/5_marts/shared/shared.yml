@@ -155,6 +155,30 @@ models:
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
+      - name: season_api_year
+      - name: contributing_competitions
+      - name: games_with_player_stats
+      - name: points_won
+      - name: clean_sheets
+      - name: goals_per_match
+      - name: goals_against_per_match
+      - name: shots_per_match
+      - name: shot_accuracy
+      - name: danger_zone_ratio
+      - name: shots_on_goal_per_match
+      - name: finishing_efficiency
+      - name: passes_per_match
+      - name: pass_accuracy
+      - name: corner_kicks_per_match
+      - name: corners_against_per_match
+      - name: save_ratio
+      - name: key_passes_per_match
+      - name: tackles_per_match
+      - name: interceptions_per_match
+      - name: blocks_per_match
+      - name: defensive_actions_per_match
+      - name: duels_per_match
+      - name: duels_won_pct
 
   - name: mart_player_momentum
     description: >
@@ -207,6 +231,32 @@ models:
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
+      - name: season_api_year
+      - name: goals_total
+      - name: goals_assists
+      - name: saves
+      - name: shots_on
+      - name: passes_key
+      - name: passes_accurate
+      - name: passes_total
+      - name: tackles_total
+      - name: tackles_blocks
+      - name: tackles_interceptions
+      - name: duels_won
+      - name: duels_total
+      - name: dribbles_success
+      - name: dribbles_attempts
+      - name: dribbles_past
+      - name: offsides
+      - name: penalty_won
+      - name: penalty_committed
+      - name: cards_yellow
+      - name: cards_red
+      - name: save_pct
+      - name: dribbles_success_pct
+      - name: pass_accuracy_pct
+      - name: duels_won_pct
+      - name: top_player_rank
 
   - name: mart_team_momentum_window
     description: >
@@ -268,6 +318,16 @@ models:
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
+      - name: entity_type
+      - name: season_api_year
+      - name: played_league_code
+      - name: played_kickoff_datetime
+      - name: played_round_name
+      - name: home_away
+      - name: goals_for
+      - name: goals_against
+      - name: opponent_name
+      - name: opponent_logo_url
 
   - name: mart_team_fixture_stats
     description: >
@@ -301,6 +361,29 @@ models:
         tests: [not_null]
       - name: is_home
         tests: [not_null]
+      - name: season_api_year
+      - name: kickoff_datetime
+      - name: round_name
+      - name: team_name
+      - name: team_logo_url
+      - name: shots_on_goal
+      - name: shots_off_goal
+      - name: shots_total
+      - name: shots_blocked
+      - name: shots_inside_box
+      - name: shots_outside_box
+      - name: fouls
+      - name: corner_kicks
+      - name: offsides
+      - name: ball_possession_percent
+      - name: yellow_cards
+      - name: red_cards
+      - name: goalkeeper_saves
+      - name: passes_total
+      - name: passes_accurate
+      - name: passes_accuracy_percent
+      - name: goals_for
+      - name: goals_against
 
   - name: mart_player_fixture_stats
     description: >
@@ -338,6 +421,45 @@ models:
         tests: [not_null]
       - name: is_home
         tests: [not_null]
+      - name: season_api_year
+      - name: kickoff_datetime
+      - name: round_name
+      - name: team_name
+      - name: player_name
+      - name: player_photo_url
+      - name: position_code
+      - name: shirt_number
+      - name: minutes_played
+      - name: is_captain
+      - name: is_substitute
+      - name: is_starter
+      - name: offsides
+      - name: shots_total
+      - name: shots_on
+      - name: goals_total
+      - name: goals_against
+      - name: goals_assists
+      - name: saves
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accuracy_percent
+      - name: tackles_total
+      - name: tackles_blocks
+      - name: tackles_interceptions
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: dribbles_past
+      - name: fouls_drawn
+      - name: fouls_committed
+      - name: cards_yellow
+      - name: cards_red
+      - name: penalty_won
+      - name: penalty_committed
+      - name: penalty_scored
+      - name: penalty_missed
+      - name: penalty_saved
 
   - name: mart_team_profile
     description: >
@@ -432,6 +554,108 @@ models:
         description: "Home venue city, from dim_team. Nullable."
       - name: venue_capacity
         description: "Home venue capacity, from dim_team. Nullable."
+      - name: league_sk
+      - name: season_api_year
+      - name: team_name
+      - name: team_slug
+      - name: team_code
+      - name: team_country
+      - name: team_logo_url
+      - name: played
+      - name: wins
+      - name: draws
+      - name: losses
+      - name: goals_for
+      - name: goals_against
+      - name: goal_diff
+      - name: points
+      - name: clean_sheets
+      - name: latest_rank
+      - name: latest_form
+      - name: season_games_played
+      - name: stat_coverage_season_games
+      - name: goals_per_match
+      - name: goals_against_per_match
+      - name: shots_per_match
+      - name: shot_accuracy
+      - name: danger_zone_ratio
+      - name: finishing_efficiency
+      - name: pass_accuracy
+      - name: passes_per_match
+      - name: corner_kicks_per_match
+      - name: corners_against_per_match
+      - name: save_ratio
+      - name: player_stat_coverage_season_games
+      - name: shots_on_goal_per_match
+      - name: shots_on_goal_against_per_match
+      - name: sot_difference_per_match
+      - name: key_passes_per_match
+      - name: duels_per_match
+      - name: duels_won_pct
+      - name: defensive_actions_per_match
+      - name: shot_share
+      - name: points_capture
+      - name: yoy_games_played_cutoff
+      - name: points_this_season
+      - name: points_prev_season
+      - name: goals_for_this_season
+      - name: goals_for_prev_season
+      - name: goals_for_delta_yoy
+      - name: goals_against_this_season
+      - name: goals_against_prev_season
+      - name: goals_against_delta_yoy
+      - name: goals_per_match_this_season
+      - name: goals_per_match_prev_season
+      - name: goals_against_per_match_this_season
+      - name: goals_against_per_match_prev_season
+      - name: goals_against_per_match_delta_yoy
+      - name: clean_sheets_this_season
+      - name: clean_sheets_prev_season
+      - name: clean_sheets_delta_yoy
+      - name: shots_per_match_this_season
+      - name: shots_per_match_prev_season
+      - name: shots_per_match_delta_yoy
+      - name: danger_zone_ratio_this_season
+      - name: danger_zone_ratio_prev_season
+      - name: danger_zone_ratio_delta_yoy
+      - name: shots_on_goal_per_match_this_season
+      - name: shots_on_goal_per_match_prev_season
+      - name: shots_on_goal_per_match_delta_yoy
+      - name: finishing_efficiency_this_season
+      - name: finishing_efficiency_prev_season
+      - name: finishing_efficiency_delta_yoy
+      - name: duels_per_match_this_season
+      - name: duels_per_match_prev_season
+      - name: duels_per_match_delta_yoy
+      - name: duels_won_pct_this_season
+      - name: duels_won_pct_prev_season
+      - name: duels_won_pct_delta_yoy
+      - name: defensive_actions_per_match_this_season
+      - name: defensive_actions_per_match_prev_season
+      - name: defensive_actions_per_match_delta_yoy
+      - name: passes_per_match_this_season
+      - name: passes_per_match_prev_season
+      - name: passes_per_match_delta_yoy
+      - name: pass_accuracy_this_season
+      - name: pass_accuracy_prev_season
+      - name: pass_accuracy_delta_yoy
+      - name: key_passes_per_match_this_season
+      - name: key_passes_per_match_prev_season
+      - name: key_passes_per_match_delta_yoy
+      - name: corner_kicks_per_match_this_season
+      - name: corner_kicks_per_match_prev_season
+      - name: corner_kicks_per_match_delta_yoy
+      - name: corners_against_per_match_this_season
+      - name: corners_against_per_match_prev_season
+      - name: corners_against_per_match_delta_yoy
+      - name: save_ratio_this_season
+      - name: save_ratio_prev_season
+      - name: save_ratio_delta_yoy
+      - name: unbeaten_run
+      - name: win_run
+      - name: winless_run
+      - name: clean_sheet_run
+      - name: scoring_run
 
   - name: mart_team_season_record
     description: >
@@ -508,6 +732,31 @@ models:
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
+      - name: games_with_team_stats
+      - name: points_won
+      - name: wins
+      - name: draws
+      - name: losses
+      - name: clean_sheets
+      - name: goals_per_match
+      - name: goals_against_per_match
+      - name: shots_per_match
+      - name: shot_accuracy
+      - name: danger_zone_ratio
+      - name: shots_on_goal_per_match
+      - name: finishing_efficiency
+      - name: passes_per_match
+      - name: pass_accuracy
+      - name: corner_kicks_per_match
+      - name: corners_against_per_match
+      - name: save_ratio
+      - name: key_passes_per_match
+      - name: tackles_per_match
+      - name: interceptions_per_match
+      - name: blocks_per_match
+      - name: defensive_actions_per_match
+      - name: duels_per_match
+      - name: duels_won_pct
 
   - name: mart_player_season_record
     description: >
@@ -560,6 +809,33 @@ models:
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
+      - name: entity_type
+      - name: season_api_year
+      - name: games_played
+      - name: goals_total
+      - name: goals_assists
+      - name: saves
+      - name: shots_on
+      - name: passes_key
+      - name: passes_accurate
+      - name: passes_total
+      - name: tackles_total
+      - name: tackles_blocks
+      - name: tackles_interceptions
+      - name: duels_won
+      - name: duels_total
+      - name: dribbles_success
+      - name: dribbles_attempts
+      - name: dribbles_past
+      - name: offsides
+      - name: penalty_won
+      - name: penalty_committed
+      - name: cards_yellow
+      - name: cards_red
+      - name: save_pct
+      - name: dribbles_success_pct
+      - name: pass_accuracy_pct
+      - name: duels_won_pct
 
   - name: mart_standings
     description: >
@@ -639,6 +915,12 @@ models:
         description: "Recent results string from the API (e.g. WWDLW)."
       - name: group_description
         description: "API zone annotation ($.description); display context only, not a key."
+      - name: team_api_id
+      - name: goals_diff
+      - name: played
+      - name: wins
+      - name: draws
+      - name: losses
 
   - name: mart_team_season
     description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
@@ -824,6 +1106,67 @@ models:
         description: "Affiliated club crest URL, from dim_team."
       - name: team_country
         description: "Affiliated club country, from dim_team."
+      - name: league_sk
+      - name: season_api_year
+      - name: player_name
+      - name: player_first_name
+      - name: player_last_name
+      - name: player_nationality
+      - name: player_birth_date
+      - name: player_photo_url
+      - name: starts
+      - name: substitute_appearances
+      - name: minutes
+      - name: goals
+      - name: assists
+      - name: shots_on_goal
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accurate
+      - name: tackles_total
+      - name: tackles_interceptions
+      - name: tackles_blocks
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: dribbles_past
+      - name: offsides
+      - name: cards_yellow
+      - name: cards_red
+      - name: penalty_won
+      - name: penalty_committed
+      - name: saves
+      - name: shots_on_goal_against
+      - name: pass_accuracy_pct
+      - name: duels_won_pct
+      - name: dribbles_success_pct
+      - name: save_pct
+      - name: yoy_appearances_cutoff
+      - name: goals_this_season
+      - name: goals_prev_season
+      - name: goals_delta_yoy
+      - name: assists_this_season
+      - name: assists_prev_season
+      - name: assists_delta_yoy
+      - name: shots_on_goal_this_season
+      - name: shots_on_goal_prev_season
+      - name: shots_on_goal_delta_yoy
+      - name: key_passes_this_season
+      - name: key_passes_prev_season
+      - name: key_passes_delta_yoy
+      - name: defensive_actions_this_season
+      - name: defensive_actions_prev_season
+      - name: defensive_actions_delta_yoy
+      - name: appearances_prev_full
+      - name: goals_prev_season_full
+      - name: assists_prev_season_full
+      - name: shots_on_goal_prev_season_full
+      - name: key_passes_prev_season_full
+      - name: defensive_actions_prev_season_full
+      - name: scorer_points
+      - name: team_goals_season
+      - name: contribution_share
 
   - name: mart_player_match_log
     description: >
@@ -870,6 +1213,39 @@ models:
               values: ["W", "D", "L"]
       - name: is_home
         tests: [not_null]
+      - name: season_api_year
+      - name: kickoff_datetime
+      - name: round_name
+      - name: goals_for
+      - name: goals_against
+      - name: player_name
+      - name: player_photo_url
+      - name: team_name
+      - name: team_logo_url
+      - name: opponent_name
+      - name: opponent_logo_url
+      - name: position_code
+      - name: minutes_played
+      - name: is_starter
+      - name: is_substitute
+      - name: goals_total
+      - name: goals_assists
+      - name: saves
+      - name: shots_total
+      - name: shots_on
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accuracy_percent
+      - name: tackles_total
+      - name: tackles_interceptions
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: fouls_drawn
+      - name: fouls_committed
+      - name: cards_yellow
+      - name: cards_red
 
   - name: mart_fixture_standing_context
     description: >
@@ -900,6 +1276,13 @@ models:
               field: team_sk
       - name: is_knockout
         tests: [not_null]
+      - name: season_sk
+      - name: group_name
+      - name: league_rank
+      - name: standing_points
+      - name: standing_played
+      - name: standing_goals_diff
+      - name: standing_form
 
   - name: mart_head_to_head
     description: >
@@ -950,6 +1333,27 @@ models:
         tests:
           - accepted_values:
               values: ["W", "D", "L"]
+      - name: wins
+      - name: draws
+      - name: losses
+      - name: goals_for
+      - name: goals_against
+      - name: meetings_last5
+      - name: wins_last5
+      - name: draws_last5
+      - name: losses_last5
+      - name: last_meeting_at
+      - name: last_meeting_league_code
+      - name: last_meeting_goals_for
+      - name: last_meeting_goals_against
+      - name: recent_meetings
+      - name: recent_meetings.goals_against
+      - name: recent_meetings.goals_for
+      - name: recent_meetings.kickoff_datetime
+      - name: recent_meetings.league_code
+      - name: recent_meetings.result
+      - name: pair_key
+      - name: is_canonical
 
   - name: mart_leaderboards
     description: >
@@ -1111,6 +1515,9 @@ models:
         description: "Published-style total squad estimate in whole EUR; null when unknown."
       - name: source_code
         description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
+      - name: team_api_id
+      - name: team_country
+      - name: prompt_version
 
   - name: mart_team_fixtures
     description: >
@@ -1160,6 +1567,19 @@ models:
         tests:
           - accepted_values:
               values: ["W", "D", "L"]
+      - name: season_api_year
+      - name: kickoff_datetime
+      - name: round_name
+      - name: status_short
+      - name: is_home
+      - name: opponent_name
+      - name: opponent_logo_url
+      - name: goals_for
+      - name: goals_against
+      - name: has_result
+      - name: is_upcoming
+      - name: upcoming_rank
+      - name: recency_rank
 
   - name: mart_roster
     description: >
@@ -1526,3 +1946,13 @@ models:
           The club's latest match across all of this player's seasons there — a window max of
           last_kickoff_at over (player, club). An ordering signal that keeps a player's spells at
           one club together and in order; not a displayed metric.
+      - name: league_sk
+      - name: season_api_year
+      - name: player_name
+      - name: player_nationality
+      - name: player_photo_url
+      - name: team_name
+      - name: team_logo_url
+      - name: team_country
+      - name: goals
+      - name: assists
