@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-22**. **main `4659e22`, green, NO open MRs.** #84 + fix + #82 MR1 all
+_Last updated **2026-08-23**. **main `b2c0cc8`; `!93` open.** #84 + fix + #82 MR1 all
 MERGED. **Next: #82 MR2.** Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner
 `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
@@ -132,11 +132,12 @@ order, pinning the OLDER commit. **Sentinel (`fdp-freshness`) NOT repointed** �
 NOT started:** lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so `!57`'s
 test is inert**); ⛔ **the volume-delta threshold is the CPO's and blocks it.**
 
-## ⭐ #84 — 310 ORPHANED RELATIONS: script MERGED, **nothing dropped yet**
-Nothing reconciles the WAREHOUSE (the guard governs only the REPO). 310 orphans: **250 broken** ·
-**26 STILL RETURN DATA** (retired SQL, plausible numbers — the hazard) · **34 tables** (42.5 MiB,
-so cost is NOT the argument). `scripts/cleanup_orphan_relations.py`, dry-run default.
-⛔ **RUNNING IT WITH `--confirm` IS THE CPO'S, still OWED.** A recurring check is NOT built.
+## ✅ #84 — WAREHOUSE CLEAN: all 310 orphans DROPPED
+310 relations no dbt model owned, 3mo. Dropped in 3 phases: **249 broken · 27 live · 34
+tables**. **432 → 122**; `staging` 259 → 15. 0 orphans, 0 failures.
+⛔ Nothing reconciles it on a schedule; a recurring check = NEW MECHANISM, unbuilt.
+⚠ **A UDF IS NOT A MISSING TABLE** (`bq ls` omits ROUTINES): a LIVE view landed in the "risk-free"
+phase; 2 reviewers + 8 mutations passed BLIND. **Read the OUTPUT.**
 
 ## ⭐ COST — read **GitLab issue #3** first
 **#3 holds it all.** ⚠ **#70** is the scan-budget guard; `require_partition_filter` +
