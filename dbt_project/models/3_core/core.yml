@@ -595,6 +595,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: team_api_id
       - name: group_name
         description: "Standings section/table name from the API ($.group): the league name for a single-table league (e.g. 'Premier League'), the group for a group stage (e.g. 'Group A'), or the phase for a split-season league (e.g. '… Championship Round'). Part of the grain."
@@ -677,6 +678,7 @@ models:
       - name: passes_accuracy_percent
         description: "Pass accuracy as an integer percent (0-100)."
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_player_stats
     description: "Per-player, per-fixture statistics. Grain: (fixture_sk, team_sk, player_sk). Staging flattens and types player statistics; core keys and constrains the fact grain."
@@ -765,6 +767,7 @@ models:
       - name: penalty_missed
       - name: penalty_saved
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_event
     description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs."
@@ -823,6 +826,7 @@ models:
       - name: assist_player_name
         description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_team_market_value_snapshot
     description: >
@@ -843,6 +847,7 @@ models:
             - source_code
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -887,6 +892,7 @@ models:
       - name: transfer_sk
         tests: [unique, not_null]
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests: [not_null]
       - name: transfer_date
         tests: [not_null]
@@ -898,6 +904,7 @@ models:
       - name: team_in_sk
       - name: team_out_sk
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_coach
     description: >
@@ -930,6 +937,7 @@ models:
       - name: coach_nationality
       - name: coach_photo_url
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_coach_team_mapping
     description: >
@@ -954,7 +962,9 @@ models:
       - name: start_date
         tests: [not_null]
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
       - name: coach_api_id
       - name: team_name
       - name: end_date
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"

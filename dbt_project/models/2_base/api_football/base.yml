@@ -63,6 +63,7 @@ models:
       - name: league_api_id
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
 
   - name: base_apif__league_entity
@@ -94,6 +95,7 @@ models:
       - name: league_api_id
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: league_code
         tests: [not_null]

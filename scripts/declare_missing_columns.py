@@ -89,6 +89,40 @@ COLUMNS_KEY_ODD = re.compile(r"^    columns:\s*\S.*$")
 INDENT_2_ITEM = re.compile(r"^  - ")
 COLUMN_ENTRY_INDENT = "      "
 
+# A column entry anywhere in a model's list. The indent is CAPTURED rather than
+# assumed, so the description that follows lines up with whatever the file uses
+# instead of with a constant that could quietly disagree with it.
+COLUMN_NAME_LINE = re.compile(r"^(\s+)- name:\s+(\S+)\s*$")
+
+# `{% docs %}` blocks, matched the way dbt matches them: a closing `{% enddocs %}`
+# is REQUIRED. Without that requirement the literal text `{% docs name %}`, which
+# appears inside a sentence in `dbt_project/docs/engineering_standards.md`
+# explaining the syntax, would be read as a real block.
+#
+# ⚠ THE BODY MUST NOT SPAN ANOTHER OPENER, and a plain `.*?` does. A stray
+# `{% docs x %}` with no closing tag would otherwise match lazily all the way to
+# the NEXT block's `{% enddocs %}`, taking the stray name as real and swallowing
+# the genuine block behind it — so one line of prose both invents a block and
+# deletes a real one. Caught by `test_wire_ignores_docs_text_with_no_enddocs`,
+# which is the case that actually exists in this repo.
+DOC_BLOCK_RE = re.compile(
+    r"{%\s*docs\s+(\w+)\s*%}(?:(?!{%\s*docs\s).)*?{%\s*enddocs\s*%}", re.S
+)
+
+
+# A `{{ doc('x') }}` reference in a description, capturing the block it points at.
+DOC_REF_RE = re.compile(r"\{\{\s*doc\(\s*['\"](\w+)['\"]\s*\)\s*\}\}")
+
+
+def _doc_reference(block: str) -> str:
+    """The description string that points at a shared block.
+
+    Built by concatenation on purpose: `str.format` reads `{{` as an escaped
+    brace, so a template for this would have to be written `{{{{ doc(...) }}}}`
+    and would be misread by the next person to touch it.
+    """
+    return "{{ doc('" + block + "') }}"
+
 
 class Abort(Exception):
     """A guard tripped. Nothing is written."""
@@ -289,14 +323,180 @@ def _insert(lines: list[str], model: str, new_columns: list[str]) -> list[str]:
     return lines[: last + 1] + entries + lines[last + 1 :]
 
 
-def _verify(before: str, after: str, additions: dict[str, list[str]], rel: str,
-            newline: str) -> None:
+def _shared_blocks() -> set[str]:
+    """Every `{% docs %}` block name, discovered the way DBT discovers them.
+
+    Restricted to `models/` because that is dbt's `docs-paths` default and this
+    project does not set the key, so `dbt_project/docs/` is invisible to dbt.
+    A wider walk would find blocks dbt cannot resolve, and a reference to one
+    would render as literal `{{ doc(...) }}` text in the warehouse.
+    """
+    blocks: set[str] = set()
+    for path in sorted(MODELS_DIR.rglob("*.md")):
+        rel = f"/{_rel(path)}"
+        if "/target/" in rel or "/dbt_packages/" in rel:
+            continue
+        try:
+            blocks.update(DOC_BLOCK_RE.findall(path.read_text(encoding="utf-8")))
+        except (UnicodeDecodeError, OSError) as exc:
+            raise Abort(f"{_rel(path)}: cannot read ({exc.__class__.__name__})") from exc
+    return blocks
+
+
+def _ambiguous_names(yml_docs: list[tuple[pathlib.Path, object]]) -> dict[str, set[str]]:
+    """Column names that ALREADY reference more than one block, with those blocks.
+
+    ⚠ THIS IS THE GUARD THAT WAS MISSING, and it cost a real defect. Wiring
+    matches a column NAME to a block name, which silently assumes one name means
+    one thing. `league_code` does not: it is the competition a row belongs to
+    almost everywhere, and INGEST PROVENANCE on the global player events
+    (transfers, player profiles, player-team history), where a row is not owned by
+    any competition at all. The first version of this mode wired three staging
+    columns to the identity block while the model's own description two lines
+    above said "ingest provenance, not identity", and
+    `base_apif__transfers.sql:7` said it in capitals.
+
+    The project already CONTAINED the evidence: two blocks existed for that one
+    name. So the rule is not a classifier and deliberately does not try to be one
+    — two attempts at classifying failed. Searching descriptions for
+    "provenance"/"not identity" found two of the three, because the third says
+    neither. A grain rule ("league_code absent from the stated grain means
+    provenance") flagged 49 models, nearly all of them plainly identity:
+    `fct_fixture` has grain `fixture_sk` and its `league_code` is genuinely the
+    competition. There is no mechanical tell, so the script refuses to guess and
+    hands these to a human instead.
+    """
+    seen: dict[str, set[str]] = {}
+    for _path, doc in yml_docs:
+        if not isinstance(doc, dict):
+            continue
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict):
+                    continue
+                name = column.get("name")
+                ref = DOC_REF_RE.search(column.get("description") or "")
+                if isinstance(name, str) and ref:
+                    seen.setdefault(name, set()).add(ref.group(1))
+    return {name: refs for name, refs in seen.items() if len(refs) > 1}
+
+
+def _wire_plan() -> tuple[dict[pathlib.Path, dict[str, dict[str, str]]], dict[str, set[str]]]:
+    """Which blank columns share a block's name. file -> model -> column -> block.
+
+    Returns the plan and the names WITHHELD as ambiguous, so the caller can report
+    them. Withholding silently would be a coverage cut disguised as success.
+
+    Only BLANK columns are planned. A column that already carries text is left
+    alone whatever it says: converting an inline definition into a reference
+    would be rewriting an existing line, which this script does not do, and a
+    column deliberately pointing at a DIFFERENT block must not be dragged back to
+    the block that merely shares its name.
+    """
+    blocks = _shared_blocks()
+    if not blocks:
+        raise Abort(
+            f"no {'{%'} docs %{'}'} blocks found under {_rel(MODELS_DIR)}. Either the "
+            f"shared definitions have moved or the walk is broken; refusing to run "
+            f"against an empty block set, which would make 'nothing to wire' trivially true."
+        )
+
+    yml_docs: list[tuple[pathlib.Path, object]] = []
+    for path in sorted(DBT_DIR.rglob("*.yml")):
+        rel = f"/{_rel(path)}"
+        if "/target/" in rel or "/dbt_packages/" in rel:
+            continue
+        try:
+            yml_docs.append((path, yaml.safe_load(path.read_text(encoding="utf-8"))))
+        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+            raise Abort(f"{_rel(path)}: cannot parse ({exc.__class__.__name__})") from exc
+
+    ambiguous = _ambiguous_names(yml_docs)
+
+    plan: dict[pathlib.Path, dict[str, dict[str, str]]] = {}
+    withheld: dict[str, set[str]] = {}
+    for path, doc in yml_docs:
+        if not isinstance(doc, dict):
+            continue
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict) or not isinstance(model.get("name"), str):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict):
+                    continue
+                name = column.get("name")
+                if name not in blocks:
+                    continue
+                if (column.get("description") or "").strip():
+                    continue
+                if name in ambiguous:
+                    # Reported, never silently skipped: a coverage cut that looks
+                    # like success is the shape this repo keeps being bitten by.
+                    withheld[name] = ambiguous[name]
+                    continue
+                plan.setdefault(path, {}).setdefault(model["name"], {})[name] = name
+    return plan, withheld
+
+
+def _insert_description(lines: list[str], model: str,
+                        per_column: dict[str, str]) -> list[str]:
+    """Add a `description:` line under each named column of `model`.
+
+    Inserted directly after the `- name:` line, so the file reads name then
+    description then tests, which is the order every hand-written entry already
+    uses. Indent is taken from the matched line rather than assumed.
+    """
+    starts = [i for i, line in enumerate(lines)
+              if (m := MODEL_LINE.match(line)) and m.group(1) == model]
+    if len(starts) != 1:
+        raise Abort(f"expected exactly one `- name: {model}` line, found {len(starts)}")
+    start = starts[0]
+
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip():
+            continue
+        if INDENT_2_ITEM.match(line) or (line[:1].strip() and not line.startswith(" ")):
+            end = i
+            break
+
+    remaining = dict(per_column)
+    out = list(lines)
+    # Bottom-up, and here it IS load-bearing, unlike in `_insert`: this walks the
+    # block by index and every insertion shifts the lines after it.
+    for i in range(end - 1, start, -1):
+        matched = COLUMN_NAME_LINE.match(out[i])
+        if not matched:
+            continue
+        indent, column = matched.group(1), matched.group(2)
+        block = remaining.pop(column, None)
+        if block is None:
+            continue
+        out.insert(i + 1, f"{indent}  description: \"{_doc_reference(block)}\"")
+
+    if remaining:
+        raise Abort(
+            f"{model}: could not find a `- name:` line for "
+            f"{', '.join(sorted(remaining))} inside its own block"
+        )
+    return out
+
+
+def _verify(before: str, after: str, expected: object, rel: str, newline: str) -> None:
     """Two independent proofs that nothing but an addition happened.
 
     They are deliberately different in kind. The first is textual and catches a
     reformat, a reorder or a dropped line even when the parsed result is
     equivalent. The second is structural and catches an addition landing under the
-    wrong model, which the text check alone would happily accept.
+    wrong model or the wrong column, which the text check alone would happily
+    accept because a misplaced insert is still an insert.
+
+    `expected` is the parsed structure the caller says the file should now hold.
+    Both modes build it from the BEFORE text plus their own intended change, so
+    this function never has to know which mode it is serving.
     """
     ops = difflib.SequenceMatcher(
         None, before.split(newline), after.split(newline), autojunk=False
@@ -310,19 +510,38 @@ def _verify(before: str, after: str, additions: dict[str, list[str]], rel: str,
 
     old_doc = yaml.safe_load(before)
     new_doc = yaml.safe_load(after)
+    if new_doc != expected:
+        raise Abort(
+            f"{rel}: refusing to write, the parsed result is not the old file plus "
+            f"exactly the intended change. Something moved."
+        )
+    if old_doc == new_doc:
+        raise Abort(f"{rel}: refusing to write, nothing changed, but work was planned.")
+
+
+def _expect_declared(before: str, additions: dict[str, list[str]]) -> object:
+    """What the file should parse to after new column NAMES are appended."""
     expected = yaml.safe_load(before)
     for model in expected.get("models") or []:
         extra = additions.get(model.get("name"))
         if extra:
             model.setdefault("columns", [])
             model["columns"].extend({"name": c} for c in extra)
-    if new_doc != expected:
-        raise Abort(
-            f"{rel}: refusing to write, the parsed result is not the old file plus "
-            f"exactly the new names. Something moved."
-        )
-    if old_doc == new_doc:
-        raise Abort(f"{rel}: refusing to write, nothing changed, but additions were planned.")
+    return expected
+
+
+def _expect_wired(before: str, wiring: dict[str, dict[str, str]]) -> object:
+    """What the file should parse to after descriptions are added to columns."""
+    expected = yaml.safe_load(before)
+    for model in expected.get("models") or []:
+        per_column = wiring.get(model.get("name"))
+        if not per_column:
+            continue
+        for column in model.get("columns") or []:
+            block = per_column.get(column.get("name"))
+            if block:
+                column["description"] = _doc_reference(block)
+    return expected
 
 
 def main() -> int:
@@ -334,9 +553,19 @@ def main() -> int:
         help="dbt catalog.json describing the PRODUCTION warehouse (a CI artifact).",
     )
     parser.add_argument(
+        "--wire-shared-docs",
+        action="store_true",
+        help="Instead of declaring names, point every blank column whose name matches a "
+             "{% docs %} block at that block. Needs no catalogue: the repo already holds "
+             "both halves.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="Report what would be added; write nothing."
     )
     args = parser.parse_args()
+
+    if args.wire_shared_docs:
+        return _main_wire(args)
 
     try:
         plan = _plan(args.catalog)
@@ -368,8 +597,57 @@ def main() -> int:
         print("\n--dry-run: nothing written.")
         return 0
 
+    return _write_files(by_file, _insert, _expect_declared, "column entries")
+
+
+def _main_wire(args) -> int:
+    """`--wire-shared-docs`: point blank shared-name columns at their block."""
+    try:
+        by_file, withheld = _wire_plan()
+    except Abort as exc:
+        print(f"declare_missing_columns: {exc}", file=sys.stderr)
+        return 1
+
+    if withheld:
+        print(f"WITHHELD, {len(withheld)} ambiguous name(s) this script will not guess at:")
+        for name, refs in sorted(withheld.items()):
+            print(f"  {name} already means {len(refs)} different things: "
+                  f"{', '.join(sorted(refs))}")
+        print("  Decide these per site and write the reference by hand.\n")
+
+    total = sum(len(c) for payload in by_file.values() for c in payload.values())
+    if not total:
+        # Loud, not green, for the same reason as the declare mode.
+        print(
+            "declare_missing_columns: nothing to wire. Every column whose name has a "
+            "shared definition already references one.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"{total} columns to wire, across {len(by_file)} files:")
     for path in sorted(by_file):
-        additions = by_file[path]
+        n = sum(len(c) for c in by_file[path].values())
+        print(f"  {n:5d}  {_rel(path)}  ({len(by_file[path])} models)")
+
+    if args.dry_run:
+        print("\n--dry-run: nothing written.")
+        return 0
+
+    return _write_files(by_file, _insert_description, _expect_wired, "doc references")
+
+
+def _write_files(by_file: dict, insert_fn, expect_fn, noun: str) -> int:
+    """Apply one planned change per file, verify it, and commit it atomically.
+
+    ONE copy of the safety machinery, shared by both modes. Duplicating it for
+    the wiring mode is exactly the "same enforcement in two places" pattern that
+    drifts, and every guard below was paid for by a real defect: the line-ending
+    preservation by a silent CRLF-to-LF rewrite of 14 files, the atomic commit by
+    a truncate-then-write that a crash would have left half applied.
+    """
+    for path in sorted(by_file):
+        payload = by_file[path]
         # newline="" so the file's own terminators reach us untranslated; see
         # `_newline`. Reading with the default would hide a CRLF file from us and
         # we would silently convert it. `open()` rather than `read_text`, which
@@ -379,16 +657,15 @@ def main() -> int:
         try:
             nl = _newline(before, _rel(path))
             lines = before.split(nl)
-            # Name order, purely so a re-run produces an identical diff. It does
-            # NOT matter to correctness: `_insert` re-locates its model in the
-            # lines it is handed, so an earlier insertion cannot shift a later
-            # one's anchor. An earlier version ordered these bottom-up and said
-            # in a comment that it had to; mutation testing flipped the order and
-            # every test stayed green, which is what showed the comment was false.
-            for model in sorted(additions):
-                lines = _insert(lines, model, additions[model])
+            # Model order, purely so a re-run produces an identical diff. Neither
+            # insert function depends on it: each re-locates its model in the
+            # lines it is handed. An earlier version ordered these bottom-up and
+            # said in a comment that it had to; mutation testing flipped the order
+            # and every test stayed green, which is what showed the comment false.
+            for model in sorted(payload):
+                lines = insert_fn(lines, model, payload[model])
             after = nl.join(lines)
-            _verify(before, after, additions, _rel(path), nl)
+            _verify(before, after, expect_fn(before, payload), _rel(path), nl)
         except Abort as exc:
             print(f"declare_missing_columns: {_rel(path)}: {exc}", file=sys.stderr)
             return 1
@@ -421,7 +698,8 @@ def main() -> int:
             )
             return 1
 
-    print(f"\nWrote {total} column entries. `git diff --numstat` must show 0 deletions.")
+    written = sum(len(v) for payload in by_file.values() for v in payload.values())
+    print(f"\nWrote {written} {noun}. `git diff --numstat` must show 0 deletions.")
     return 0
 
 

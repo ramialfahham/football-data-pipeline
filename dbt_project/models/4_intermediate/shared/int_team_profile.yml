@@ -36,6 +36,7 @@ models:
           name: team_profile_yoy_subset_ratios_non_negative
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: league_code
         tests: [not_null]
@@ -127,13 +128,16 @@ models:
           name: team_profile_streaks_within_season
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: matches_in_season
         tests: [not_null]
       - name: league_code
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: unbeaten_run
       - name: win_run
       - name: winless_run

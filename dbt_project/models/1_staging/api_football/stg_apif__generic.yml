@@ -40,6 +40,7 @@ models:
       - name: away_team_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__standings
@@ -57,6 +58,7 @@ models:
         # (e.g. UEL 2017). base_apif__standings drops those rows and fct_standings.team_sk enforces
         # not_null + relationships(dim_team) — the cleanliness guard lives on the cleaned layer.
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__teams
@@ -71,6 +73,7 @@ models:
       - name: team_name
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__leagues
@@ -83,8 +86,10 @@ models:
       - name: league_api_id
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__players
@@ -101,6 +106,7 @@ models:
       - name: team_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__fixture_events
@@ -119,6 +125,7 @@ models:
       - name: event_index
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__fixture_players
@@ -138,6 +145,7 @@ models:
       - name: player_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__fixture_statistics
@@ -155,6 +163,7 @@ models:
       - name: team_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__lineups
@@ -173,6 +182,7 @@ models:
       - name: team_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__transfers
@@ -186,6 +196,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__squads
@@ -204,6 +215,7 @@ models:
       - name: player_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__player_profiles
@@ -219,6 +231,7 @@ models:
       - name: player_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__player_teams
@@ -238,6 +251,7 @@ models:
       - name: team_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__coaches
@@ -254,6 +268,7 @@ models:
       - name: coach_id
         tests: [not_null]
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
   - name: stg_apif__coach_career
@@ -270,4 +285,5 @@ models:
       - name: team_id
         # provider-nullable (see description); base filters null team_id, so no staging not_null test
       - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]

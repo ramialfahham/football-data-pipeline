@@ -36,18 +36,21 @@ models:
       - name: team_season_sk
         tests: [not_null, unique]
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -56,6 +59,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_name
         tests: [not_null]
@@ -171,12 +175,14 @@ models:
       - name: fixture_api_id
         description: "API fixture id for UI linking."
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_league')
               field: league_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -186,6 +192,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: fixture_date
         tests: [not_null]

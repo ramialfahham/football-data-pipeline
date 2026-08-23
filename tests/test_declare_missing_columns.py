@@ -358,6 +358,199 @@ def test_a_successful_run_leaves_no_temp_files(monkeypatch, tmp_path):
     assert not pathlib.Path("core.yml.tmp").match("*.yml")
 
 
+# ---------------------------------------------------------------- --wire-shared-docs
+
+WIRE_YML = """version: 2
+
+models:
+  - name: m
+    description: "A model."
+    columns:
+      - name: team_sk
+      - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
+      - name: own_text
+        description: "Not a shared name."
+      - name: season_sk
+        tests: [not_null]
+"""
+
+
+def _blocks_md(dbt, names, where="models/docs/shared_columns.md"):
+    """A .md holding one real `{% docs %}` block per name given."""
+    path = dbt / where
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = "\n\n".join("{%% docs %s %%}\nText for %s.\n{%% enddocs %%}" % (n, n) for n in names)
+    path.write_text(body + "\n", encoding="utf-8")
+    return path
+
+
+def _run_wire(monkeypatch, *extra):
+    monkeypatch.setattr(sys, "argv",
+                        ["declare_missing_columns.py", "--wire-shared-docs", *extra])
+    return gen.main()
+
+
+def test_wire_points_a_blank_shared_name_column_at_its_block(monkeypatch, tmp_path):
+    dbt = _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+    _blocks_md(dbt, ["team_sk", "league_code", "league_code_ingest_provenance", "season_sk"])
+    target = dbt / "models" / "3_core" / "core.yml"
+    before = target.read_text(encoding="utf-8")
+
+    assert _run_wire(monkeypatch) == 0
+
+    after = target.read_text(encoding="utf-8")
+    _assert_append_only(before, after)
+    cols = {c["name"]: c for c in yaml.safe_load(after)["models"][0]["columns"]}
+    assert cols["team_sk"]["description"] == "{{ doc('team_sk') }}"
+    assert cols["season_sk"]["description"] == "{{ doc('season_sk') }}"
+    # tests: survives alongside the new description
+    assert cols["season_sk"]["tests"] == ["not_null"]
+
+
+def test_wire_never_touches_a_column_that_already_has_text(monkeypatch, tmp_path):
+    """Including one deliberately pointing at a DIFFERENT block. Dragging
+    `league_code_ingest_provenance` back to `league_code` would silently change
+    what the column claims to mean."""
+    dbt = _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+    _blocks_md(dbt, ["team_sk", "league_code", "league_code_ingest_provenance", "season_sk"])
+    target = dbt / "models" / "3_core" / "core.yml"
+
+    assert _run_wire(monkeypatch) == 0
+
+    cols = {c["name"]: c for c in yaml.safe_load(target.read_text(encoding="utf-8"))["models"][0]["columns"]}
+    assert cols["league_code"]["description"] == "{{ doc('league_code_ingest_provenance') }}"
+    assert cols["own_text"]["description"] == "Not a shared name."
+
+
+def test_wire_indent_follows_the_file_rather_than_a_constant(monkeypatch, tmp_path):
+    body = ("version: 2\n\nmodels:\n  - name: m\n    description: \"d\"\n"
+            "    columns:\n        - name: team_sk\n")
+    dbt = _project(tmp_path, {"3_core/core.yml": body}, models={"m": "3_core"})
+    _blocks_md(dbt, ["team_sk"])
+
+    assert _run_wire(monkeypatch) == 0
+
+    text = (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8")
+    assert "          description: \"{{ doc('team_sk') }}\"" in text
+    assert yaml.safe_load(text)["models"][0]["columns"][0]["description"] == "{{ doc('team_sk') }}"
+
+
+def test_wire_ignores_a_block_outside_models(monkeypatch, tmp_path, capsys):
+    """dbt's `docs-paths` defaults to `models/` and this project does not set it,
+    so a block under `dbt_project/docs/` is invisible to dbt. Wiring a column to
+    one would render as literal `{{ doc(...) }}` text in the warehouse."""
+    dbt = _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+    _blocks_md(dbt, ["season_sk"])
+    _blocks_md(dbt, ["team_sk"], where="docs/engineering_standards.md")
+
+    assert _run_wire(monkeypatch) == 0
+
+    cols = {c["name"]: c for c in yaml.safe_load(
+        (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8"))["models"][0]["columns"]}
+    assert cols["season_sk"]["description"] == "{{ doc('season_sk') }}"
+    assert "description" not in cols["team_sk"], "wired to a block dbt cannot resolve"
+
+
+def test_wire_ignores_docs_text_with_no_enddocs(monkeypatch, tmp_path, capsys):
+    """`engineering_standards.md` contains the literal `{% docs name %}` inside a
+    sentence explaining the syntax. Without a closing tag it is prose, not a block."""
+    dbt = _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+    md = dbt / "models" / "docs" / "shared_columns.md"
+    md.parent.mkdir(parents=True, exist_ok=True)
+    md.write_text(
+        "Long text belongs in a docs block, {% docs team_sk %} in a .md file.\n\n"
+        "{% docs season_sk %}\nReal one.\n{% enddocs %}\n", encoding="utf-8")
+
+    assert _run_wire(monkeypatch) == 0
+
+    cols = {c["name"]: c for c in yaml.safe_load(
+        (dbt / "models" / "3_core" / "core.yml").read_text(encoding="utf-8"))["models"][0]["columns"]}
+    assert cols["season_sk"]["description"] == "{{ doc('season_sk') }}"
+    assert "description" not in cols["team_sk"], "prose read as a real block"
+
+
+AMBIGUOUS_YML = """version: 2
+
+models:
+  - name: identity_model
+    description: "The competition a row belongs to."
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+  - name: provenance_model
+    description: "league_code here is ingest provenance, not identity."
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
+  - name: blank_model
+    description: "Has a blank one."
+    columns:
+      - name: league_code
+      - name: team_sk
+"""
+
+
+def test_wire_withholds_a_name_that_already_means_two_things(monkeypatch, tmp_path, capsys):
+    """THE GUARD THAT WAS MISSING, and it cost a real defect. Wiring matches a
+    NAME to a block, which assumes one name means one thing. `league_code` does
+    not: it is the competition almost everywhere and INGEST PROVENANCE on the
+    global player events. The first version wired three staging columns to the
+    identity block while the model's own description two lines above said
+    "ingest provenance, not identity".
+
+    The project already held the evidence, in that two blocks existed for the one
+    name. So the script refuses to guess rather than trying to classify."""
+    dbt = _project(tmp_path, {"3_core/core.yml": AMBIGUOUS_YML},
+                   models={"identity_model": "3_core", "provenance_model": "3_core",
+                           "blank_model": "3_core"})
+    _blocks_md(dbt, ["league_code", "league_code_ingest_provenance", "team_sk"])
+    target = dbt / "models" / "3_core" / "core.yml"
+
+    assert _run_wire(monkeypatch) == 0
+
+    out = capsys.readouterr().out
+    assert "WITHHELD" in out
+    assert "league_code already means 2 different things" in out
+
+    models = {m["name"]: {c["name"]: c for c in m["columns"]}
+              for m in yaml.safe_load(target.read_text(encoding="utf-8"))["models"]}
+    assert "description" not in models["blank_model"]["league_code"], \
+        "guessed at a name that already carries two meanings"
+    # The unambiguous name in the same model is still wired, so the guard withholds
+    # a NAME rather than giving up on the file.
+    assert models["blank_model"]["team_sk"]["description"] == "{{ doc('team_sk') }}"
+
+
+def test_wire_refuses_when_no_blocks_exist_at_all(monkeypatch, tmp_path, capsys):
+    """A floor: with an empty block set, "nothing to wire" is trivially true."""
+    _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+
+    assert _run_wire(monkeypatch) == 1
+    assert "refusing to run against an empty block set" in capsys.readouterr().err
+
+
+def test_wire_nothing_to_do_exits_non_zero(monkeypatch, tmp_path, capsys):
+    dbt = _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+    _blocks_md(dbt, ["team_sk", "league_code", "league_code_ingest_provenance", "season_sk"])
+
+    assert _run_wire(monkeypatch) == 0
+    capsys.readouterr()
+    assert _run_wire(monkeypatch) == 1
+    assert "nothing to wire" in capsys.readouterr().err
+
+
+def test_wire_dry_run_writes_nothing(monkeypatch, tmp_path):
+    dbt = _project(tmp_path, {"3_core/core.yml": WIRE_YML}, models={"m": "3_core"})
+    _blocks_md(dbt, ["team_sk", "season_sk"])
+    target = dbt / "models" / "3_core" / "core.yml"
+    before = target.read_text(encoding="utf-8")
+
+    assert _run_wire(monkeypatch, "--dry-run") == 0
+
+    assert target.read_text(encoding="utf-8") == before
+
+
 def test_other_models_in_the_same_file_are_untouched(monkeypatch, tmp_path):
     """Insertion is bottom-up so one model's new lines cannot shift another's
     anchor. Two models in one file, both gaining columns, is the case that breaks

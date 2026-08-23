@@ -4,63 +4,68 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-23**. **main `ce94ccd`, no open MRs.** #84 + #82 MR1 + MR2 all MERGED and
-verified in prod. **Next: #82 MR3.** Product **Matchday Pilot**; **GITLAB** (`glab`, MRs); runner
-`ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-23**. **main `6e3ee57`; #82 MR3 on `feat/description-coverage-wire-blocks`.**
+#84 + #82 MR1 + MR2 MERGED and verified in prod. **Next: #82 MR4.** Product **Matchday Pilot**;
+**GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82 coverage: MR1 + MR2 MERGED, MR3 is the live task** (2026-08-23)
+## ⭐⭐ CURRENT — **#82: MR1+MR2 MERGED, MR3 BUILT, MR4 is next** (2026-08-23)
 
-⭐ **READ `escalations.log`'s 08-20, 08-21 and 08-23 entries FIRST** — the CPO's diagnosis, the
-numbers, every ruling, each MR's defects. **Do not re-scope or re-audit any of it.**
+⭐ **READ `escalations.log`'s 08-20, 08-21 and 08-23 entries FIRST** — diagnosis, numbers, rulings,
+each MR's defects. **Do not re-scope or re-audit any of it.**
 
 Programme `!82`-`!89` + `!91` (MR1, objects) MERGED. Plan `cozy-orbiting-quail.md`.
-**MR2 DONE**: all **979** columns that existed in BigQuery and were in NO yml are declared, names
-only. 1,699 exist, 1,699 declared, **0 undeclared**. `scripts/declare_missing_columns.py` is the
-approved append-only generator: it REFUSES a partial catalogue and exits 1 on nothing-to-add.
-⚠ **THE CATALOGUE IS A CI ARTIFACT.** The `dbt_project/target/catalog.json` on this machine is a
-DEV one, 10 relations. Fetch recipe is in the script's docstring.
-⭐ **MR3 IS NEXT**: point every column whose NAME already has a docs block at that block, then add
-the gate rule keeping it true. ⚠ Needs a reasoned opt-out where a name means something else — two
-`league_code` blocks exist for that. **112 of the 262** empty ones already have a block nobody
-wired. Then MR4 writes the ~249; MR5 turns presence on.
-✅ **`persist_docs` WORKS EVERYWHERE — 66/66 relations, 458/458 columns, views and incrementals
-included** (prod, `ce94ccd`). **#86 said it half-worked and is CLOSED as WRONG**: text lands
-when a model is BUILT, and the 08-22 build was `state:modified+`. Nothing blocks MR4.
+**MR2 MERGED**: the **979** columns in BigQuery but in NO yml are declared, names only. **1,699 of
+1,699, 0 left.**
+**MR3 BUILT**: **146** blank columns whose name already had a shared definition now reference it,
+across ALL 5 LAYERS (CPO approved staging+base; does NOT reopen the coverage ruling, which governs
+AUTHORING). The gate now fails a shared-name column that is blank or restates it, but does NOT
+police WHICH block — the opt-out is pointing at another.
+⛔ **`league_code` DROPPED FROM MR3** — CPO at the round-3 cap: "drop league_code, ship the 146".
+It means the competition EXCEPT on entity-scoped pulls (transfers, coaches, player profiles/teams,
+`base_apif__teams_global`), where it is INGEST PROVENANCE. Name-matching got **6** wrong; review
+found all six, I claimed completeness twice and was wrong twice. ⚠ **NO CLASSIFIER WORKS**: keyword
+scan 2 of 6, grain rule flags 49, "descendants drop it" mislabels transfers. Script AND gate now
+both refuse a name with 2 blocks, pinned to agree. ⭐ **ROOT CAUSE = #87**: ingestion stamps fetch
+provenance into the competition column. Fix there and block, guard and the 49 blanks all go away.
+⚠ **THE CATALOGUE IS A CI ARTIFACT.** The local `target/catalog.json` is a DEV one (10 relations);
+fetch recipe is in the script's docstring.
+⭐ **MR4 NEXT**: author the **~249** missing definitions (500 distinct names, 251 already
+defined). Then MR5 turns presence on.
+✅ **`persist_docs` WORKS EVERYWHERE** — 66/66 relations, 458/458 columns, views and incrementals
+included (prod, `ce94ccd`). **#86 said it half-worked and is CLOSED AS WRONG.** Nothing blocks MR4.
+⛔ **A LAZY REGEX BETWEEN DELIMITERS MUST BE BOUNDED AGAINST THE *OPENING* ONE.** `{% docs X %}
+(.*?){% enddocs %}` runs from a STRAY opener to the next REAL block's closer: one line of prose
+INVENTS a block and DELETES a real one, silently. Fixed in both parsers.
 
-⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for all 97 models + 9 seeds.
-**1,024** chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. Headroom:
-column 588, relation 601. `data:build:main` publishes **`catalog.json`**.
-⚠ `seeds:` is persist_docs-ONLY: a `+schema` there relocates all 9.
-⛔ **TASK ARTIFACTS COLLIDE ON EVERY CONCURRENT BRANCH — 4× on `!91`, CODE NEVER INVOLVED.** Fix:
-this task's artifacts whole, `escalations.log`+`active_work.md` MERGED (both sides append). The
-merge-base then moves, so `review.md` needs a one-value rebind — **NO re-review owed**.
+⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for 97 models + 9 seeds. **1,024**
+chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. `data:build:main`
+publishes **`catalog.json`**. ⚠ `seeds:` is persist_docs-ONLY: a `+schema` relocates all 9.
+⛔ **TASK ARTIFACTS COLLIDE ON CONCURRENT BRANCHES (4× on `!91`, never the code).** Fix: this
+task's artifacts whole, `escalations.log`+`active_work.md` MERGED. The merge-base moves, so
+`review.md` needs a one-value rebind — **NO re-review owed**.
 
 ✅ **THE GATE** (`check_description_hygiene.py`) runs in CI and `stop_gate.py`'s FAST_GATES: 6
-content rules **plus object-level coverage as of `!91`**. ⚠ Rules match ANNOTATION forms, not plain
-verbs: bare `ruled` hits "goal ruled out for offside". A rule firing on correct text gets weakened.
+content rules, object coverage (`!91`), shared-definition coverage (MR3). ⚠ Rules match ANNOTATION
+forms, not plain verbs: bare `ruled` hits "goal ruled out for offside".
 
-⛔ **#82's HEADLINE 262 WAS WRONG** — it counted only already-declared columns. Names repeat: 500
-distinct across the 1,699, 251 already defined, so the writing job is **249 definitions**.
-⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats arrive as a label and a number
-(`$.type` = "Total Shots"). All 249 are OURS to author. Coverage is uneven (xG on 57% of fixtures);
-6 stat types appear on 4-78 rows of ~98,000. For ambiguous ones (`passes_total` attempted or
-completed?) derive from our own fixtures and state it as ours.
+⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats are a label and a number. All 249 are
+OURS to author. Coverage is uneven (xG on 57% of fixtures); 6 stat types appear on 4-78 rows of
+~98,000. For ambiguous ones (`passes_total` attempted or completed?) derive from our own fixtures.
 ⚠ **CPO RULINGS 08-21:** "every column, no exception" (staging+base OUT) · no thin filler · docs
 blocks kept **only with a mechanism enforcing them** (hand-wiring failed 112×) · **NO osmosis**.
-⛔ **INHERITING UPSTREAM PROSE CARRIES AN INHERITED ERROR.** MR1 shipped a FALSE description
-("the newest is the fullest" for retried fixtures) by compressing staging prose without reading the
-contract governing it. **GRAIN claims are safe to inherit; BEHAVIOUR-ACROSS-VERSIONS claims are
-not** — trace those to the base dedup logic. Governs MRs 2-5.
+⛔ **INHERITING UPSTREAM PROSE CARRIES AN INHERITED ERROR.** MR1 shipped a FALSE description ("the
+newest is the fullest") by compressing staging prose without reading the contract governing it.
+**GRAIN claims are safe to inherit; BEHAVIOUR-ACROSS-VERSIONS claims are NOT** — trace those to the
+base dedup logic. Governs MR4.
 ⛔ **RECORD THE OPTION CHOSEN AND NOTHING ELSE.** Writer's reasoning wrapped around an answer
 hardens into a ruling he never gave.
 
 ⛔ **#83 — COMPETITION CLASSIFICATION HAS NO CORE DIM.** `competition_type`/`entity_type` live only
-in seeds (`dim_league.league_type` is the PROVIDER's, not ours), so 12 models join the seed direct
-— incl. the two `int_legs__*` underlying 68 of 80 metrics. ⚠ **SEEDS ARE SOURCES, settled, and dbt
-agrees.** The defect is LAYERING: consume a seed ONCE at base/core, publish a dim. ⚠ The registry
-is NOT ingestion-only — it carries both, and the sync already projects only the product half.
+in seeds, so 12 models join the seed direct, incl. the two `int_legs__*` under 68 of 80 metrics.
+⚠ **SEEDS ARE SOURCES, settled.** The defect is LAYERING: consume a seed ONCE at base/core, publish
+a dim. ⚠ The registry carries ingestion AND product fields; the sync projects only the product half.
 
 ⛔ **SEVEN TRAPS, every one hit for real. Do not re-learn them.**
 1. **A too-narrow grep reported as a clean sweep** — hit AGAIN on `!91`. "partition key" is FALSE;
@@ -80,17 +85,15 @@ is NOT ingestion-only — it carries both, and the sync already projects only th
 ... contradictions in our docs and files."* The killer instance used **no instance of the word
 being swept**. **Sweep the CONCEPT semantically, never the feature's name.** Evidence: **#71**.
 
-⛔ **TEAM NAMES — paused, not finished.** The provider's `team_name` is often not the display name
-even when unique. `team_name_overrides` (joined in `base_apif__teams_global.sql`) fires on
-completeness OR collision. **97 of ~130 Pool 1 teams corrected**, each citing an English Wikipedia
-URL. ⚠ **Bayern München DELIBERATELY EXCLUDED** — locale preference is never corrected.
-**NOT done**: ~15 Pool 1 teams; teams outside Pool 1. **NOT investigated**: `dim_player` duplicate
-short-names ("M. Camara" ×33). ⚠ Duplicate provider records for ONE club: **#81**.
+⛔ **TEAM NAMES — paused.** The provider's `team_name` is often not the display name.
+`team_name_overrides` (joined in `base_apif__teams_global.sql`) fires on completeness OR collision.
+**97 of ~130 Pool 1 corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München
+DELIBERATELY EXCLUDED** — locale preference is never corrected. NOT done: ~15 Pool 1, teams outside
+Pool 1, `dim_player` duplicate short-names. ⚠ **#81** = duplicate provider records for ONE club.
 
-✅ **SETTLED, do not re-propose without a new ruling.** BROWSE DROPPED (`!80`) — home renders
-**next matches ALONE**; `08_browse.md` + the competitions page stay LIVE (`nav.json` = NEXT 2).
-TOP TEAMS = **one team per league**, not pooled; ⚠ `top_teams_mock.html` shows the wrong shape,
-GAP-29's mart not started (`99_gaps_register.md`).
+✅ **SETTLED, do not re-propose.** BROWSE DROPPED (`!80`) — home renders **next matches ALONE**;
+`08_browse.md` + competitions page stay LIVE (`nav.json` = NEXT 2). TOP TEAMS = **one per league**,
+not pooled; ⚠ `top_teams_mock.html` shows the wrong shape, GAP-29's mart not started.
 
 ## ⭐⭐ THE METHOD, standing rule for every page (CPO's own words, do not reword)
 
@@ -105,8 +108,8 @@ page is the same violation as computing in the frontend; (2) no mart column = a 
 ## ⭐ ORIENTATION
 **Audits: GitLab #30, DO NOT run another** (a TARGETED blind assessment IS allowed).
 **Mechanism beats wording:** of 50 corrections, 33 prose-only, 22 recurred.
-**⚠ OPERATIONAL NOTES LIVE IN `CLAUDE.md`** — dbt CLI, SQLFluff, commit mechanics, the stash-dance,
-CWD/fnmatch/heredoc/grep traps. **Do not copy back**: that file is not capped.
+**⚠ OPERATIONAL NOTES ARE IN `CLAUDE.md`** (dbt CLI, SQLFluff, commit mechanics, stash-dance,
+CWD/fnmatch/heredoc/grep traps). **Do not copy back**: that file is not capped.
 **FIRST ACTION: `git stash list` before any git work.** ⚠ MATCH BY MESSAGE, NEVER BY INDEX. ONE
 must not be rebuilt: **`feat/player-overview-tab`**.
 
@@ -118,10 +121,9 @@ line, true at the migration and wrong by 08-22.
 ## ⭐ The ingest cluster
 **TWO nightlies:** `data:nightly` on **Cloud Run under #39**; GitLab schedule (4379625) paused ON
 PURPOSE. Runbook `deploy/nightly/README.md`.
-✅ **#74 FIXED** (`!70`): the nightly image tracks `main` on any push touching `*data_paths_image`,
-so hand-redeploying is no longer required — **but the FIRST auto-run is UNVERIFIED; check it
-fired.** ⚠ **NOT Cloud Build** — its identity holds project Editor from ANY branch. Revoked;
-kaniko in-job.
+✅ **#74 FIXED** (`!70`): the nightly image tracks `main` on any push touching `*data_paths_image`
+— **but the FIRST auto-run is UNVERIFIED; check it fired.** ⚠ **NOT Cloud Build** — its identity
+holds project Editor from ANY branch. Revoked; kaniko in-job.
 ⚠ **OWED: set `deploy-nightly-image` resource_group to `oldest_first`** (only after the group
 exists — first run creates it). Default `unordered` lets two near-simultaneous merges deploy out of
 order, pinning the OLDER commit. **Sentinel (`fdp-freshness`) NOT repointed** — its own decision.
@@ -131,7 +133,7 @@ order, pinning the OLDER commit. **Sentinel (`fdp-freshness`) NOT repointed** �
 lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so `!57`'s test is inert**);
 ⛔ **the volume-delta threshold is the CPO's and blocks it.**
 
-## ✅ #84 — WAREHOUSE CLEAN: all 310 orphans DROPPED. **432 → 122**, 0 failures.
+## ✅ #84 CLOSED — warehouse clean, all 310 orphans dropped, **432 → 122**.
 ⛔ Nothing reconciles it on a schedule; a recurring check = NEW MECHANISM, unbuilt.
 ⚠ **A UDF IS NOT A MISSING TABLE** (`bq ls` omits ROUTINES): a LIVE view landed in the "risk-free"
 phase; 2 reviewers + 8 mutations passed BLIND. **Read the OUTPUT.**
@@ -158,8 +160,8 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
   `check_task_artifacts` saying "empty diff OK" with nothing committed, and a re-measure reporting
   0 gaps because a Windows manifest writes `path` with BACKSLASHES. **FLOOR every discovery.**
   ⛔ **A PROOF CAN BE STRUCTURALLY BLIND.** `git diff` is line-ending NORMALISED: it said
-  "0 deleted" while a script rewrote 14 files CRLF→LF (`core.autocrlf=true`, `.gitattributes` pins
-  only `*.sh`, #39 died on this). Ask what your measurement CANNOT see. **Read output, not exit.**
+  "0 deleted" while a script rewrote 14 files CRLF→LF. Ask what your measurement CANNOT see.
+  **Read output, not exit.**
 
 ## NEXT
 0. ⭐ **#82 MR3** — see ⭐⭐ CURRENT.
@@ -196,7 +198,7 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
 
 ## OPEN — the CPO's alone
 Imprint operator + address (#799) · hosting recurring run · feedback Apps Script (#687) · **#81**
-duplicate-club alias · #875 · #895 slim-vs-drop · #21 · **#82**'s "business-facing" definition.
+duplicate-club alias · #875 · #895 slim-vs-drop · #21.
 
 ## DO NOT (standing)
 - **DESIGN, the weak spot:** never off the cuff. Rendered output not prose; copy decisions BEFORE
@@ -214,6 +216,5 @@ duplicate-club alias · #875 · #895 slim-vs-drop · #21 · **#82**'s "business-
 ## Verified state reference
 - **v2 built:** design system + 28 components, fixture page, team page (3 tabs), home (next matches
   ONLY), competitions index, page-spec + SEO contract, per-locale metric labels.
-- ⚠ MEASURE test/model counts, never predict (#904).
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.
