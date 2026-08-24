@@ -4,41 +4,42 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-24**. **main `b15b501`; #82 MR4a on `feat/82-metric-docs-blocks-generated`,
-UNCOMMITTED.** #84 + #82 MR1-MR3 MERGED. **Next after MR4a: MR4b.** Product **Matchday Pilot**;
-**GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-24**. **main `3241777`, no open MRs, clean tree.** #84 + #82 MR1-MR4a all
+MERGED. **NEXT: wire the drift check into CI (CPO-approved, protected path), then MR4b.** Product
+**Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82: MR1-MR3 MERGED, MR4a BUILT + UNCOMMITTED** (2026-08-24)
+## ⭐⭐ CURRENT — **#82: MR1-MR4a ALL MERGED. Next = CI wiring, then MR4b** (2026-08-24)
 
 ⭐ **READ `escalations.log`'s 08-20, 08-21, 08-23 and 08-24 entries FIRST** — diagnosis, numbers,
 rulings, each MR's defects. **Do not re-scope or re-audit any of it.**
 
-Programme `!82`-`!89`, `!91`, `!95`, `!97` MERGED. Plans `cozy-orbiting-quail.md` (programme),
-`jaunty-herding-harp.md` (MR4a). **MR2**: 979 columns declared, names only. **MR3**: 146 blank
-columns wired to the 9 shared blocks.
-⭐ **MR4a BUILT, NOT COMMITTED**: 80 metric blocks GENERATED from `metric_catalogue.csv` by
+Plans `cozy-orbiting-quail.md` (programme), `jaunty-herding-harp.md` (MR4a). **MR2**: 979 columns
+declared, names only. **MR3**: 146 blank columns wired to the 9 shared blocks.
+✅ **MR4a MERGED** (`!98`): 80 metric blocks GENERATED from `metric_catalogue.csv` by
 `scripts/sync_metric_docs_blocks.py` (`--check` fails on drift); **501 columns** point at them, 0
-blank, 0 inline. 3 CPO decisions in the contract; evidence in `acceptance_evidence.md`.
-**OWED: the review round (FOUR reviewers — the seed change adds
-`football-analytics-expert-reviewer`) and the commit.**
-⛔ **`league_code` MEANS TWO THINGS** and its 49 blanks stay blank. The competition, EXCEPT on
-entity-scoped pulls (transfers, coaches, player profiles/teams, `base_apif__teams_global`) where it
-is INGEST PROVENANCE. Name-matching got **6** wrong; review found all six, I claimed completeness
-twice and was wrong twice. ⚠ **NO CLASSIFIER WORKS.** ⭐ **ROOT CAUSE = #87.**
-⛔ **A SPLIT METRIC IS INVISIBLE TO THE GATE.** 4 metrics (`duels_won_pct`, `finishing_efficiency`,
-`goals_open_play`, `goals_penalty`) differ team vs player, so they get `__team`/`__player` blocks
-and the gate SKIPS the bare name as ambiguous. **3 sites sat unwired and no check could see them.**
-Assert these from the YAML directly, never from the gate.
-⚠ **THE CATALOGUE IS A CI ARTIFACT.** The local `target/catalog.json` is a DEV one; fetch recipe is
-in the script's docstring.
+blank, 0 inline. ⚠ Editing the seed REQUIRES a regenerate.
+⭐⭐ **NEXT: WIRE `--check` INTO CI** (CPO-approved 08-24). One line in `validate:governance`'s
+script list. ⛔ **PROTECTED PATH**: own task, `protected_override` quoting that approval,
+**cto + platform** reviewers. ⚠ **CI ONLY** — he did not ask for `stop_gate.py`, so nothing catches
+a seed edited without regenerating during the turn. Ask before widening.
+⛔⛔ **A NAME THAT MEANS TWO THINGS IS INVISIBLE TO THE GATE** — it skips the bare name as
+ambiguous, so a wrong or blank site goes unseen. **ASSERT THESE FROM THE YAML DIRECTLY.**
+`league_code` = the competition EXCEPT on entity-scoped pulls (transfers, coaches, player
+profiles/teams, `base_apif__teams_global`) where it is INGEST PROVENANCE: **6 wrong**, review found
+all six, I claimed completeness twice and was wrong twice; its 49 blanks stay blank; **ROOT CAUSE =
+#87**. Same shape, 4 metrics (`duels_won_pct`, `finishing_efficiency`, `goals_open_play`,
+`goals_penalty`) differ team vs player and get `__team`/`__player` blocks: **3 sites sat unwired**.
+⚠ **NO CLASSIFIER WORKS** — 3 tried, all failed.
 ⭐ **MR4b NEXT**: author the **204** names no seed defines. Then MR5 turns presence on.
 ✅ **`persist_docs` WORKS EVERYWHERE** (66/66 relations, 458/458 columns, incl. views and
 incrementals). **#86 said otherwise and is CLOSED AS WRONG.**
-⛔ **A LAZY REGEX BETWEEN DELIMITERS MUST BE BOUNDED AGAINST THE *OPENING* ONE.** `{% docs X %}
-(.*?){% enddocs %}` runs from a STRAY opener to the next REAL block's closer: one line of prose
-INVENTS a block and DELETES a real one, silently. Fixed in both parsers.
+⛔⛔ **A CHECK THAT AGREES WITH ITSELF PROVES NOTHING — 4×, MR2-MR4a, detail in the log.** A guard
+verified with its OWN regex; a test asserting a platform truth as universal (CRLF: green here, red
+on every CI run); a write-path test that short-circuited before the write; `git diff` showing
+"0 deleted" while every line was rewritten. The assertion was fine each time; the PATH to it was
+wrong. ⚠ Ask what the check CANNOT see. ⚠ A green suite on ONE OS is not a green suite.
 
 ⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for 97 models + 9 seeds. **1,024**
 chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. `data:build:main`
@@ -51,8 +52,8 @@ task's artifacts whole, `escalations.log`+`active_work.md` MERGED. The merge-bas
 rules, object coverage (`!91`), shared-definition coverage (MR3). ⚠ Rules match ANNOTATION forms,
 not plain verbs: bare `ruled` hits "goal ruled out for offside".
 
-⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats are a label and a number. All 249 are
-OURS to author. Coverage is uneven (xG on 57% of fixtures); 6 stat types appear on 4-78 rows of
+⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats are a label and a number; every
+definition is OURS. Coverage is uneven (xG on 57% of fixtures); 6 stat types appear on 4-78 rows of
 ~98,000. For ambiguous ones (`passes_total` attempted or completed?) derive from our own fixtures.
 ⚠ **CPO RULINGS 08-21:** "every column, no exception" (staging+base OUT) · no thin filler · docs
 blocks kept **only with a mechanism enforcing them** (hand-wiring failed 112×) · **NO osmosis**.
@@ -65,15 +66,13 @@ hardens into a ruling he never gave.
 
 ⛔ **#83 — COMPETITION CLASSIFICATION HAS NO CORE DIM.** `competition_type`/`entity_type` live only
 in seeds, so 12 models join the seed direct, incl. the two `int_legs__*` under 68 of 80 metrics.
-⚠ **SEEDS ARE SOURCES, settled.** The defect is LAYERING: consume a seed ONCE at base/core, publish
-a dim. ⚠ The registry carries ingestion AND product fields; the sync projects only the product half.
+⚠ **SEEDS ARE SOURCES, settled.** The defect is LAYERING: consume a seed ONCE at base/core, then
+publish a dim.
 
-⛔ **SEVEN TRAPS, every one hit for real. Do not re-learn them.**
-1. **A too-narrow grep reported as a clean sweep** — hit AGAIN on `!91`. "partition key" is FALSE;
-   6 survivors = **#79**. Corollary: a grep matches the DOCUMENTATION of a defect as the defect.
-1b. **A KEYWORD SCAN IS BLIND TO A CLAIM USING NO KEYWORD.** Three `base.yml` descriptions claimed
-   the FORBIDDEN "explicit ref() per competition staging" with no ref, date or emoji. Found by
-   READING the SQL.
+⛔ **SIX TRAPS, every one hit for real. Do not re-learn them.**
+1. **A too-narrow grep reported as a clean sweep**, and **a keyword scan is blind to a claim using
+   NO keyword**. "partition key" is FALSE; 6 survivors = **#79**. A grep also matches the
+   DOCUMENTATION of a defect as the defect. Found by READING the SQL.
 2. **A bulk-edit script reporting success while matching nothing.** Assert it found work.
 3. **A shared docs block wrong at some call sites.** `dbt parse` cannot catch it.
 4. **Verify a reviewer finding, then act** — both directions.
@@ -87,10 +86,10 @@ a dim. ⚠ The registry carries ingestion AND product fields; the sync projects 
 being swept**. **Sweep the CONCEPT semantically, never the feature's name.** Evidence: **#71**.
 
 ⛔ **TEAM NAMES — paused.** The provider's `team_name` is often not the display name.
-`team_name_overrides` (joined in `base_apif__teams_global.sql`) fires on completeness OR collision.
-**97 of ~130 Pool 1 corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München
-DELIBERATELY EXCLUDED** — locale preference is never corrected. NOT done: ~15 Pool 1, teams outside
-Pool 1, `dim_player` duplicate short-names. ⚠ **#81** = duplicate provider records for ONE club.
+`team_name_overrides` (in `base_apif__teams_global.sql`) fires on completeness OR collision. **97 of
+~130 Pool 1 corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München DELIBERATELY
+EXCLUDED** — locale preference is never corrected. NOT done: ~15 Pool 1, teams outside it,
+`dim_player` duplicate short-names. ⚠ **#81** = duplicate provider records for ONE club.
 
 ✅ **SETTLED, do not re-propose.** BROWSE DROPPED (`!80`) — home renders **next matches ALONE**;
 `08_browse.md` + competitions page stay LIVE (`nav.json` = NEXT 2). TOP TEAMS = **one per league**,
@@ -165,7 +164,7 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
   **Read output, not exit.**
 
 ## NEXT
-0. ⭐ **#82 MR3** — see ⭐⭐ CURRENT.
+0. ⭐ **#82: CI wiring** — see ⭐⭐ CURRENT.
 0b. ⛔ **CI IS FIXED BUT ONLY IN MEMORY — IT DIES ON THE NEXT REBOOT.** 08-21: every job on every
    branch failed in ~4s at `get_sources` (`HTTP 403`). The runner egresses over **IPv6** and
    GitLab refuses it. Fixed live with `ip -6 route del default`; **permanence is OWED**, as is a
