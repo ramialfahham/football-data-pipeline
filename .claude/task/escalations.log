@@ -4635,3 +4635,155 @@ MINE, one of which the MR's own acceptance test was structurally incapable of ca
   datasets: 100 columns hold a description today, and 0 of them are among the 979 being declared —
   with a sanity floor showing all 100 sit on columns that were already declared, so the zero is not
   a silent key mismatch. Nothing is cleared.
+
+
+2026-08-23 feat/description-coverage-wire-blocks — #82 MR3, the 195 columns whose definition was
+already written and never referenced. ONE CPO DECISION, and a defect found by a test written for a
+trap that turned out to be worse than the trap.
+
+  THE DECISION — WIRING COVERS ALL FIVE LAYERS, NOT ONLY CORE DOWNSTREAM. Put to the CPO in the
+  approved plan for this MR under its own heading, with the split stated (151 in core, intermediate
+  and marts; 44 in staging and base), a recommendation for all five, and the alternative named. He
+  approved the plan. Recorded as the option approved and nothing more.
+  ⚠ THIS DOES NOT REOPEN THE 2026-08-21 COVERAGE RULING and must not be read as doing so. That
+  ruling — "core, intermediate and marts -> business meaning starts in core downstream" — governs
+  which columns must have a description AUTHORED, and it stands untouched. MR3 authors nothing; it
+  points columns at text that already existed. The distinction is the whole reason this was a
+  separate question rather than a contradiction.
+
+  ⛔ THE DEFECT, AND IT IS THE USEFUL PART. Scoping found a phantom: `engineering_standards.md:112`
+  carries the literal text `{% docs name %}` inside a sentence explaining the syntax. The plan
+  called it latent — a block dbt cannot see, harmless until someone adds an `{% enddocs %}`. It is
+  worse than that, and a test written for the latent case proved it.
+  A `{% docs X %}(.*?){% enddocs %}` body is LAZY BUT UNBOUNDED, so it does not stop at the next
+  opener. Given a stray `{% docs team_sk %}` with no closing tag followed by a real
+  `{% docs season_sk %}…{% enddocs %}`, the match runs from the STRAY opener to the REAL block's
+  closing tag. One line of prose therefore does two things at once: it INVENTS a block named after
+  whatever the prose mentions, and it DELETES the genuine block behind it, which then reads as
+  undefined. Both halves are silent.
+  ⭐ THE RULE: a lazy quantifier between a delimiter pair must be bounded against the OPENING
+  delimiter, not only the closing one. `(?:(?!{%\s*docs\s).)*?` is the fix. Applied in both
+  places that parse blocks — the generator and `check_description_hygiene.py`, which carried the
+  identical flaw and has since `!87`.
+  ⚠ HOW IT WAS FOUND, because it is not luck: the test was written to assert the harmless case
+  ("prose with no enddocs is not a block"), it failed for a reason I had not predicted, and reading
+  WHY it failed is what surfaced the second half. A test written for a small claim caught a bigger
+  defect than the claim.
+
+  ⚠ A SECOND DIVERGENCE CLOSED, and it is the reason the phantom mattered at all. `_docs_blocks()`
+  walked all of `dbt_project/**/*.md`. dbt reads only `docs-paths`, which is unset here and so
+  defaults to `models/`, leaving `dbt_project/docs/` invisible to it. So the gate could see a block
+  dbt cannot resolve — and a reference to one does not fail loudly, it renders as literal
+  `{{ doc(...) }}` text into the warehouse. Discovery is now restricted to `models/` in both
+  places. ⚠ Derived from `DBT_DIR` AT CALL TIME rather than bound at import, because the gate's
+  tests point the whole thing at a tmp project by monkeypatching `DBT_DIR` alone and a constant
+  captured at import would have kept reading the real repo underneath them.
+
+  ⚠ THE RULE DELIBERATELY DOES NOT POLICE *WHICH* BLOCK, and that is what removes the need for an
+  exemption list. It requires only that a shared-name column reference SOME block, so a
+  `league_code` that carries ingest provenance points at `league_code_ingest_provenance` and passes
+  — two such sites already exist. The opt-out costs writing a second block, which is visible in
+  review and self-documenting, rather than an entry in a list nobody re-reads. Mutation G4 makes a
+  version that DOES police the exact block and shows it killing the opt-out.
+
+  ⚠ THE WIRING MODE LIVES IN THE EXISTING SCRIPT, not a second one, and the shared write loop was
+  extracted rather than copied. Line-ending preservation, the append-only text check, the
+  structural check, the atomic commit and the found-no-work guard each exist because a real defect
+  produced them; a second script re-deriving them is the "same enforcement in two places" pattern
+  that drifts. `_verify` now takes the expected parsed structure from its caller, so it serves both
+  modes without knowing which.
+
+  ⛔ THE DEFECT THAT SHIPPED INTO REVIEW, found by analytics-engineer-reviewer's round-1 FAIL and
+  by nothing else. Wiring matches a column NAME to a block name, which silently assumes one name
+  means one thing. `league_code` does not. It is the competition a row belongs to almost
+  everywhere, and INGEST PROVENANCE on the global player events — transfers, player profiles,
+  player-team history — where the row is not owned by any competition. THREE staging columns were
+  wired to the identity block while the model's own description said the opposite two lines above:
+  `stg_apif__player_profiles` ("league_code is ingest provenance (MIN per player), not identity"),
+  `stg_apif__player_teams` (same wording), and `stg_apif__transfers`, whose base model states it in
+  capitals at `base_apif__transfers.sql:7` and which base and core BOTH already wire to
+  `league_code_ingest_provenance`. Verified against all four sources before acting, then corrected.
+
+  ⭐ THE CLASS FIX IS A REFUSAL, NOT A CLASSIFIER, and that is the point. The project already
+  CONTAINED the disproof of the name-equals-meaning assumption: two blocks existed for that one
+  name. So the script now refuses to auto-wire any name that already references more than one
+  block, and REPORTS it rather than skipping silently. That would have withheld all 49 `league_code`
+  sites for a human and this could not have shipped.
+  ⛔⛔ THE OUTCOME, WHICH SUPERSEDES THE COUNTS BELOW: `league_code` IS NOT WIRED BY THIS MR AT ALL.
+  Six wrong sites over three review rounds, none found by me, and two false completeness claims,
+  ended at the round cap with the findings taken to the CPO as the rule requires. His decision:
+  "drop league_code, ship the 146". The 49 blank `league_code` columns stay blank and are tracked
+  in GitLab #87. Everything from here to the end of this entry is the history of how that was
+  reached; the contract's `amendments:` carries the decision itself.
+  ⭐ WHY DROPPING BEAT FIXING, argued to him and worth keeping: the MR's own new guard forbids a
+  machine guessing at a name that means two things, and the diff carried 49 machine-made guesses at
+  exactly that name. Removing them makes the MR say one thing instead of two — and makes the diff
+  REPRODUCIBLE, which platform-reviewer had shown it was not, since a fresh run of the guarded tool
+  would withhold every `league_code` site. It is now literally produced by
+  `git restore --source=main -- dbt_project/models` plus one `--wire-shared-docs` run.
+  ⚠ THE GATE HAD TO FOLLOW. `_shared_block_coverage` now skips a name that already references more
+  than one block, because otherwise it would demand a reference for the 49 blanks and the only
+  route to green would be the guess the generator refuses to make. Skipped names are counted and
+  printed every run, and `test_the_two_ambiguity_rules_agree` pins the two halves together so they
+  cannot drift into contradicting each other.
+  ⚠ NOT A LOOSENING: the old rule was WRONG for a site-dependent name, not merely strict — it
+  mandated a coin flip. MR5's presence check still catches the 49 later, by which time #87 should
+  have removed the ambiguity at source.
+
+  ⛔ SIX SITES ACROSS THREE ROUNDS, AND I CLAIMED COMPLETENESS TWICE. An earlier version
+  of this entry said "the reviewer's three is the complete set". That was FALSE and is deleted here
+  rather than contradicted below, because a reader landing on it would be misled. Round 2 of
+  analytics-engineer-reviewer found TWO MORE of the identical class:
+  `stg_apif__coaches.league_code` and `stg_apif__coach_career.league_code`. The evidence is as
+  decisive as the transfers case and was sitting one layer down the whole time —
+  `base_apif__coaches`: "Identity and bio only — no league_code, BECAUSE A COACH IS NOT SCOPED TO
+  ONE COMPETITION"; `dim_coach` mirrors it; `base_apif__coach_career` has no such column at all;
+  and `stg_apif__coaches`' own description says deduplication happens "across leagues". Five sites
+  corrected in total.
+  ⭐ WHY I MISSED THEM, and it is the reusable part: I reasoned by FAMILY ("global player events")
+  instead of by evidence, then declared the family complete. A coach is exactly as global as a
+  transfer and was not in my mental list, so the list was the boundary rather than the data.
+  ⚠ AND A SIXTH IN ROUND 3, at the base layer this time, which is what ended the loop.
+  `base_apif__teams_global.league_code`: grain `team_api_id`, built from "the latest ingest across
+  `base_apif__teams`' per-competition rows", so its `league_code` is whichever competition's row
+  won that pick — the `stg_apif__player_profiles` "MIN per player" shape one layer up. `dim_team`,
+  its own consumer, says it "carries no competition/season affiliation" and drops the column. A
+  DIFFERENT mechanism from the entity-scoped endpoints, which is precisely why a rule derived from
+  the first five would not have found it.
+  ⚠ THREE CLASSIFIERS WERE TRIED AND ALL THREE FAILED. Recorded because the next person will reach
+  for the same three. (a) Searching descriptions for "provenance" / "not identity" finds two of
+  five; several sites use neither phrase. Trap 1b, a keyword scan blind to a claim using no
+  keyword. (b) A grain rule, "league_code absent from the model's stated grain means provenance",
+  flags 49 models and is wrong on nearly all: `fct_fixture` has grain `fixture_sk` and its
+  `league_code` genuinely is the competition. (c) A lineage rule, "if every descendant drops
+  league_code it is provenance", correctly finds the coach family but MISLABELS
+  `stg_apif__transfers` and `stg_apif__player_profiles` as identity, because their descendants do
+  keep a `league_code` column — as PROVENANCE. "A descendant keeps the column" is not "a descendant
+  treats it as identity". All three were tested before being believed, which is the only reason
+  none of them shipped.
+  ⭐ THE CONCLUSION IS THAT THERE IS NO CLASSIFIER. Every site needs a human read against the
+  evidence, which is precisely why the guard is a REFUSAL. The five were each settled on direct
+  evidence, not on a rule: the two coach ones on base and core dropping the column with a stated
+  reason, the three player-event ones on the model's own description plus
+  `base_apif__transfers.sql:7`.
+  ⚠ THE OTHER TEN STAGING SITES WERE CHECKED INDIVIDUALLY, not waved through.
+  `stg_apif__squads` carries `league_code` in its own stated grain; `stg_apif__players` feeds
+  `base_apif__player_team_season`, whose grain includes it; fixtures, standings, teams and leagues
+  are competition-scoped by construction. `stg_apif__lineups` is competition-scoped through its
+  fixture and is documented in its own SQL as having NO consumer today.
+
+  ⚠ ONE MAINTAINABILITY RISK CLOSED, from platform-reviewer's PASS rather than a FAIL.
+  `DOC_BLOCK_RE` is hand-copied into the gate and the generator with no shared import; both were
+  changed together here but nothing forced that next time — the "same enforcement in two places"
+  shape. Importing a generator into a gate would be worse coupling, so parity is pinned by
+  BEHAVIOUR over five cases including the stray-opener one, the way FAST_GATES and the
+  validate-local skill are pinned to each other.
+
+  MEASURED, never predicted: 99 columns already referenced their definition, 2 pointed at a
+  different block on purpose, 0 restated one inline, and 195 were blank. After wiring: 195 added
+  lines, 0 deleted against main, and every one of the 195 is a `description: "{{ doc('…') }}"` line
+  and nothing else. The gate independently reported the same 195 before the wiring ran and 0 after.
+  Graph unchanged against the CI manifest from `4659e22`, which spans MR2 and MR3 together: 106
+  nodes before and after, zero `depends_on` altered. Zero unrendered `{{ doc(` survives into the
+  manifest. 29 mutations across the generator and the gate, every one caught by the test aimed at
+  it. Suite 941 passed, 1 skipped, from a 925 baseline, which is exactly the 16 tests added.

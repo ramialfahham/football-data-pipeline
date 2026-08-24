@@ -17,6 +17,7 @@ import os
 import sys
 
 import pytest
+import yaml
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
@@ -42,6 +43,216 @@ def _write(tmp_path, body: str):
     models.mkdir(parents=True, exist_ok=True)
     (models / "schema.yml").write_text(body, encoding="utf-8")
     return tmp_path
+
+
+def _write_blocks(tmp_path, text: str, where="models/docs/shared_columns.md"):
+    """A .md carrying docs blocks, at a path of the caller's choosing.
+
+    The path matters: dbt's `docs-paths` defaults to `models/`, so a block written
+    anywhere else is one dbt cannot resolve.
+    """
+    path = tmp_path / where
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return tmp_path
+
+
+SHARED_TEAM_SK = "{% docs team_sk %}\nTeam identity key.\n{% enddocs %}\n"
+
+# One model, one column named after a shared block. The description is the variable.
+SHARED_NAME = """
+version: 2
+models:
+  - name: some_model
+    description: >
+      One row per team per season. Grain: (team_sk, season_api_year).
+    columns:
+      - name: team_sk
+%s
+"""
+
+
+def _shared(tmp_path, monkeypatch, description_line: str, blocks=SHARED_TEAM_SK,
+            where="models/docs/shared_columns.md"):
+    _write(tmp_path, SHARED_NAME % description_line)
+    _write_blocks(tmp_path, blocks, where)
+    monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
+
+
+def test_the_two_docs_block_regexes_agree():
+    """`DOC_BLOCK_RE` is hand-copied into the gate and the generator, with no
+    shared import. platform-reviewer flagged that as a drift risk rather than a
+    defect: both were changed together here, but nothing forces that next time.
+
+    Importing one script from the other would couple a gate to a generator, so
+    the parity is pinned by behaviour instead, the way FAST_GATES and the
+    validate-local skill are pinned to each other. The stray-opener case is the
+    one that matters: a lazy body runs from an unclosed opener to the NEXT real
+    block's closing tag, inventing a block and swallowing a real one."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "declare_missing_columns",
+        os.path.join(os.path.dirname(__file__), "..", "scripts",
+                     "declare_missing_columns.py"),
+    )
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+
+    cases = [
+        "{% docs a %}A.{% enddocs %}",
+        "prose {% docs stray %} more\n\n{% docs real %}R.{% enddocs %}",
+        "{% docs a %}A.{% enddocs %}\n{% docs b %}B.{% enddocs %}",
+        "{% docs unclosed %}nothing after it",
+        "no blocks here at all",
+    ]
+    for text in cases:
+        # The gate captures (name, body); the generator captures name only.
+        gate_names = [m[0] if isinstance(m, tuple) else m
+                      for m in gate.DOC_BLOCK_RE.findall(text)]
+        gen_names = [m[0] if isinstance(m, tuple) else m
+                     for m in gen.DOC_BLOCK_RE.findall(text)]
+        assert gate_names == gen_names, f"the two regexes disagree on {text!r}"
+
+    # And pin the behaviour itself, so "they agree" cannot mean "both are wrong".
+    assert [m[0] for m in gate.DOC_BLOCK_RE.findall(cases[1])] == ["real"]
+
+
+AMBIGUOUS_BLOCKS = (SHARED_TEAM_SK
+                    + "\n{% docs team_sk_other %}\nA different meaning.\n{% enddocs %}\n")
+
+AMBIGUOUS_NAME = """
+version: 2
+models:
+  - name: identity_model
+    description: "One row per team."
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+  - name: other_model
+    description: "Where the same name means something else."
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk_other') }}"
+  - name: blank_model
+    description: "Blank on a name that means two things."
+    columns:
+      - name: team_sk
+"""
+
+
+def test_a_name_that_means_two_things_is_not_demanded(tmp_path, monkeypatch, capsys):
+    """The gate must not demand what the generator refuses to supply.
+
+    Six `league_code` columns were pointed at the wrong one of its two meanings in
+    #82 MR3, found over three review rounds. The generator now refuses such names.
+    If the gate still failed a blank one, the only way to go green would be to
+    guess — which is the defect, re-introduced from the other side."""
+    _write(tmp_path, AMBIGUOUS_NAME)
+    _write_blocks(tmp_path, AMBIGUOUS_BLOCKS)
+    monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
+
+    assert gate.main() == 0, "the gate demanded a guess on a name that means two things"
+
+
+def test_an_unpoliced_name_is_reported_not_silently_skipped(tmp_path, monkeypatch, capsys):
+    """A rule that quietly exempts a name is a hole nobody sees. The count and the
+    reason belong in the output of every run."""
+    _write(tmp_path, AMBIGUOUS_NAME)
+    _write_blocks(tmp_path, AMBIGUOUS_BLOCKS)
+    monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
+
+    assert gate.main() == 0
+    out = capsys.readouterr().out
+    assert "NOT POLICED" in out
+    assert "team_sk" in out
+    assert "1 column(s) are blank on that account" in out
+
+
+def test_the_two_ambiguity_rules_agree(tmp_path):
+    """The gate and the generator must hold the SAME opinion about which names a
+    machine may decide. If they drift, one half refuses a name while the other
+    demands it, and the only way to satisfy both is the guess that caused the
+    defect. Pinned by behaviour rather than a shared import, for the same reason
+    as `test_the_two_docs_block_regexes_agree`."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "declare_missing_columns",
+        os.path.join(os.path.dirname(__file__), "..", "scripts",
+                     "declare_missing_columns.py"),
+    )
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+
+    doc = yaml.safe_load(AMBIGUOUS_NAME)
+    gate_view = gate._ambiguous_names([("schema.yml", tmp_path / "schema.yml", doc)])
+    gen_view = gen._ambiguous_names([(tmp_path / "schema.yml", doc)])
+
+    assert gate_view == gen_view == {"team_sk": {"team_sk", "team_sk_other"}}
+
+    clean = yaml.safe_load(CLEAN)
+    assert gate._ambiguous_names([("c.yml", tmp_path / "c.yml", clean)]) == {}
+    assert gen._ambiguous_names([(tmp_path / "c.yml", clean)]) == {}
+
+
+def test_a_blank_column_whose_name_has_a_shared_definition_is_red(tmp_path, monkeypatch, capsys):
+    """195 columns were in exactly this state when the rule was written, against
+    99 that referenced theirs. Hand-referencing does not hold at that scale."""
+    _shared(tmp_path, monkeypatch, "")
+
+    assert gate.main() == 1
+    out = capsys.readouterr().out
+    assert "SHARED DEFINITIONS" in out
+    assert "blank, but a shared definition for 'team_sk' exists" in out
+
+
+def test_a_column_restating_a_shared_definition_is_red(tmp_path, monkeypatch, capsys):
+    _shared(tmp_path, monkeypatch,
+            '        description: "Team identity key, globally unique in the provider data."')
+
+    assert gate.main() == 1
+    assert "restates a shared definition instead of referencing it" in capsys.readouterr().out
+
+
+def test_a_column_referencing_its_own_block_is_green(tmp_path, monkeypatch):
+    _shared(tmp_path, monkeypatch, '        description: "{{ doc(\'team_sk\') }}"')
+    assert gate.main() == 0
+
+
+def test_referencing_a_DIFFERENT_block_is_green(tmp_path, monkeypatch):
+    """The opt-out, and the reason the rule does not police WHICH block. A
+    `league_code` that carries ingest provenance points at
+    `league_code_ingest_provenance`; two such sites already exist. Policing the
+    exact block would need an exemption list, which is the thing that rots."""
+    blocks = (SHARED_TEAM_SK
+              + "\n{% docs team_sk_other_meaning %}\nSomething else.\n{% enddocs %}\n")
+    _shared(tmp_path, monkeypatch,
+            '        description: "{{ doc(\'team_sk_other_meaning\') }}"', blocks=blocks)
+    assert gate.main() == 0
+
+
+def test_a_block_outside_models_is_not_a_block(tmp_path, monkeypatch):
+    """dbt's `docs-paths` defaults to `models/` and this project does not set it,
+    so `dbt_project/docs/` is invisible to dbt. If the gate saw blocks there it
+    would police a different project than the one dbt compiles."""
+    _shared(tmp_path, monkeypatch, "", where="docs/engineering_standards.md")
+    assert gate.main() == 0, "a block dbt cannot resolve was treated as real"
+
+
+def test_docs_prose_with_no_enddocs_neither_invents_nor_swallows_a_block(
+        tmp_path, monkeypatch, capsys):
+    """`engineering_standards.md:112` carries the literal `{% docs name %}` inside
+    a sentence explaining the syntax. A lazy body would match from that opener all
+    the way to the NEXT block's `{% enddocs %}`, inventing a block named `name`
+    AND consuming the real one behind it. One line of prose, two defects."""
+    blocks = ("Long text belongs in a docs block, {% docs name %} in a .md file.\n\n"
+              + SHARED_TEAM_SK)
+    _shared(tmp_path, monkeypatch, '        description: "{{ doc(\'team_sk\') }}"',
+            blocks=blocks)
+
+    assert gate.main() == 0, "the real team_sk block was swallowed by the stray opener"
+    assert "unresolved docs block" not in capsys.readouterr().out
 
 
 @pytest.fixture(autouse=True)

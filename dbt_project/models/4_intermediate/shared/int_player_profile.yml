@@ -30,6 +30,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -86,6 +87,7 @@ models:
           name: player_contribution_share_within_unit
     columns:
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -99,6 +101,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: scorer_points
         description: "The player's goals + assists this club-competition-season (the numerator)."
@@ -108,3 +111,4 @@ models:
         description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
       - name: league_code
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"

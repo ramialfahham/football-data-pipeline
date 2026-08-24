@@ -60,7 +60,15 @@ MAX_RELATION_CHARS = 16384
 # Blocks live in .md files, so this walk never sees them as descriptions; they are
 # resolved into their call sites instead, and checked there.
 DOC_REF_RE = re.compile(r"\{\{\s*doc\(\s*['\"](\w+)['\"]\s*\)\s*\}\}")
-DOC_BLOCK_RE = re.compile(r"\{%\s*docs\s+(\w+)\s*%\}(.*?)\{%\s*enddocs\s*%\}", re.S)
+# ⚠ THE BODY MUST NOT SPAN ANOTHER OPENER, and a plain `(.*?)` does. A stray
+# `{% docs x %}` with no closing tag matches lazily all the way to the NEXT
+# block's `{% enddocs %}`, which both invents a block named `x` and swallows the
+# real block behind it. That is not hypothetical: `engineering_standards.md:112`
+# carries the literal text `{% docs name %}` inside a sentence explaining the
+# syntax. It is inert today only because that file has no `{% enddocs %}` at all.
+DOC_BLOCK_RE = re.compile(
+    r"\{%\s*docs\s+(\w+)\s*%\}((?:(?!\{%\s*docs\s).)*?)\{%\s*enddocs\s*%\}", re.S
+)
 _MAX_DOC_DEPTH = 5
 
 # Each rule is (name, compiled pattern, why it is banned). The reason travels with
@@ -127,13 +135,23 @@ RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
 
 
 def _docs_blocks() -> dict[str, str]:
-    """Every `{% docs %}` block under dbt_project/, whitespace-collapsed.
+    """Every `{% docs %}` block dbt can resolve, whitespace-collapsed.
 
     Needed because `persist_docs` renders a block into the description it pushes,
     so the length that reaches BigQuery is the RESOLVED one.
+
+    ⚠ RESTRICTED TO `models/`, WHICH IS WHERE dbt LOOKS. `docs-paths` is unset in
+    `dbt_project.yml`, so it defaults to `['models']` and `dbt_project/docs/` is
+    invisible to dbt. An earlier version walked all of `dbt_project/`, which could
+    find a block dbt cannot resolve — and a reference to one renders as literal
+    `{{ doc(...) }}` text in the warehouse rather than failing loudly. The gate
+    and dbt must agree on what a block IS, or the gate polices a different project.
     """
+    # Derived from DBT_DIR at call time, not bound at import: the tests point the
+    # whole gate at a tmp project by monkeypatching DBT_DIR alone, and a constant
+    # captured at import would keep reading the real repo underneath them.
     blocks: dict[str, str] = {}
-    for path in sorted(DBT_DIR.rglob("*.md")):
+    for path in sorted((DBT_DIR / "models").rglob("*.md")):
         rel = _rel(path)
         if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
             continue
@@ -228,6 +246,91 @@ def _on_disk() -> tuple[set[str], set[str]]:
     models = {p.stem for p in (DBT_DIR / "models").rglob("*.sql") if keep(p)}
     seeds = {p.stem for p in (DBT_DIR / "seeds").rglob("*.csv") if keep(p)}
     return models, seeds
+
+
+def _ambiguous_names(docs: list[tuple[str, pathlib.Path, object]]) -> dict[str, set[str]]:
+    """Column names that already reference MORE THAN ONE block, with those blocks.
+
+    Kept deliberately identical in behaviour to `declare_missing_columns._ambiguous_names`,
+    and pinned to it by `test_the_two_ambiguity_rules_agree`, because the generator and
+    the gate must hold the same opinion about which names a machine may decide. If the
+    generator refuses to fill a name in, the gate must not then demand that it be filled.
+    """
+    seen: dict[str, set[str]] = {}
+    for _rel, _path, doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict):
+                    continue
+                name = column.get("name")
+                ref = DOC_REF_RE.search(column.get("description") or "")
+                if isinstance(name, str) and ref:
+                    seen.setdefault(name, set()).add(ref.group(1))
+    return {name: refs for name, refs in seen.items() if len(refs) > 1}
+
+
+def _shared_block_coverage(docs: list[tuple[str, pathlib.Path, object]],
+                           blocks: dict[str, str]) -> list[str]:
+    """A column whose NAME is a docs block must reference a docs block.
+
+    Enforces `engineering_standards.md` section 2, Form: "a column documented in
+    more than one model gets ONE docs block, referenced from each. Do not restate
+    it." That rule was written down and enforced nowhere; measured when this was
+    added, 195 columns whose name had a definition sitting in
+    `models/docs/shared_columns.md` were blank, against 99 that referenced theirs.
+    Hand-referencing does not hold at this scale, which is the CPO's stated reason
+    (2026-08-21) for allowing docs blocks only with a mechanism behind them.
+
+    ⚠ IT DOES NOT POLICE *WHICH* BLOCK, deliberately, and that is what removes the
+    need for an exemption list. A column named `league_code` that actually carries
+    ingest provenance references `league_code_ingest_provenance` and passes — two
+    such sites already exist. The opt-out is to write a second block and point at
+    it, which is visible in review and self-documenting, rather than an entry in a
+    list nobody re-reads.
+
+    ⚠ AND IT SKIPS A NAME THAT ALREADY MEANS TWO THINGS. Demanding a reference for
+    a name whose meaning is site-dependent would force a guess, and a guess is
+    exactly what went wrong: six `league_code` columns were pointed at the wrong
+    one of its two meanings during #82 MR3, found over three review rounds. The
+    generator refuses those names; the gate must not then demand them, or the two
+    halves of the same rule contradict each other. Skipped names are COUNTED and
+    printed, never silently dropped, and GitLab #87 is the fix at the source.
+    """
+    ambiguous = _ambiguous_names(docs)
+    findings: list[str] = []
+    for rel, _path, doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict):
+                    continue
+                name = column.get("name")
+                if not isinstance(name, str) or name not in blocks:
+                    continue
+                if name in ambiguous:
+                    continue
+                text = (column.get("description") or "").strip()
+                if not text:
+                    findings.append(
+                        f"{rel} :: {model.get('name')}.{name} - blank, but a shared "
+                        f"definition for {name!r} exists\n"
+                        f"    fix: description: \"{{{{ doc('{name}') }}}}\""
+                    )
+                elif not DOC_REF_RE.search(text):
+                    findings.append(
+                        f"{rel} :: {model.get('name')}.{name} - restates a shared "
+                        f"definition instead of referencing it\n"
+                        f"    why banned: restated definitions drift apart, which is how "
+                        f"league_code came to be documented 76 times in 22 wordings"
+                    )
+    return findings
 
 
 def _object_coverage(docs: list[tuple[str, pathlib.Path, object]]) -> list[str]:
@@ -379,13 +482,26 @@ def main() -> int:
         print("\nThe standard is dbt_project/docs/engineering_standards.md section 2.")
         return 1
 
+    blocks = _docs_blocks()
+
+    # Before the floor, for the same reason object coverage is: a blank column
+    # contributes no description, so the floor would fire first and report a broken
+    # walk when the real defect is a definition that exists and is not referenced.
+    shared = _shared_block_coverage(docs, blocks)
+    if shared:
+        print(f"SHARED DEFINITIONS: {len(shared)} column(s) not pointing at the "
+              f"definition that already exists for their name\n")
+        for finding in shared:
+            print(f"  - {finding}")
+        print("\nThe standard is dbt_project/docs/engineering_standards.md section 2, Form.")
+        return 1
+
     if len(found) < MIN_DESCRIPTIONS:
         print(f"FAIL: found only {len(found)} descriptions under {_rel(DBT_DIR)} "
               f"(floor {MIN_DESCRIPTIONS}). The walk has stopped matching - a gate "
               "over zero descriptions always passes.")
         return 1
 
-    blocks = _docs_blocks()
     for rel, where, text, is_column in found:
         flat = " ".join(text.split())
         # Rules run on the RENDERED text too, so a banned phrase cannot hide inside
@@ -426,6 +542,24 @@ def main() -> int:
             print(f"  - {finding}")
         print("\nThe standard is dbt_project/docs/engineering_standards.md section 2.")
         return 1
+
+    # Say what is NOT policed, every run. A rule that quietly exempts a name is a
+    # hole nobody sees; the count and the reason belong in the success line.
+    skipped = _ambiguous_names(docs)
+    if skipped:
+        blanks = sum(
+            1
+            for _rel, _path, doc in docs if isinstance(doc, dict)
+            for model in (doc.get("models") or []) if isinstance(model, dict)
+            for column in (model.get("columns") or []) if isinstance(column, dict)
+            and column.get("name") in skipped
+            and not (column.get("description") or "").strip()
+        )
+        print(f"NOT POLICED: {len(skipped)} column name(s) mean more than one thing, so no "
+              f"machine can say which definition is right for a given site. "
+              f"{blanks} column(s) are blank on that account and are tracked in GitLab #87.")
+        for name, refs in sorted(skipped.items()):
+            print(f"  - {name}: {', '.join(sorted(refs))}")
 
     files = len({rel for rel, _, _, _ in found})
     cols = sum(1 for _, _, _, is_col in found if is_col)

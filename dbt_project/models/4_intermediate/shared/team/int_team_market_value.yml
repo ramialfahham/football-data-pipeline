@@ -14,6 +14,7 @@ models:
       not a transfer fee and not a price.
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
       - name: as_of_date
       - name: market_value_eur
       - name: source_code

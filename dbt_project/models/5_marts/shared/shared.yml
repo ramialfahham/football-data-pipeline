@@ -130,6 +130,7 @@ models:
       - name: upcoming_fixture_sk
         tests: [not_null]
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -156,6 +157,7 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: contributing_competitions
       - name: games_with_player_stats
       - name: points_won
@@ -204,8 +206,10 @@ models:
       - name: upcoming_fixture_sk
         tests: [not_null]
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -232,6 +236,7 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: goals_total
       - name: goals_assists
       - name: saves
@@ -279,6 +284,7 @@ models:
       - name: upcoming_fixture_sk
         tests: [not_null]
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition; the past match's own competition is played_league_code."
@@ -320,6 +326,7 @@ models:
         tests: [not_null]
       - name: entity_type
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: played_league_code
       - name: played_kickoff_datetime
       - name: played_round_name
@@ -345,12 +352,14 @@ models:
           combination_of_columns: [fixture_sk, team_sk]
     columns:
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -362,6 +371,7 @@ models:
       - name: is_home
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
       - name: round_name
       - name: team_name
@@ -399,18 +409,21 @@ models:
           combination_of_columns: [fixture_sk, team_sk, player_sk]
     columns:
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -422,6 +435,7 @@ models:
       - name: is_home
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
       - name: round_name
       - name: team_name
@@ -500,12 +514,14 @@ models:
           are asserted by tests/assert_one_featured_season_per_entity.sql.
         tests: [not_null]
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -555,7 +571,9 @@ models:
       - name: venue_capacity
         description: "Home venue capacity, from dim_team. Nullable."
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: team_name
       - name: team_slug
       - name: team_code
@@ -706,6 +724,7 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -789,12 +808,14 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -811,6 +832,7 @@ models:
         tests: [not_null]
       - name: entity_type
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: games_played
       - name: goals_total
       - name: goals_assists
@@ -880,12 +902,14 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: group_name
         description: "Standings section: league name (single-table), group ('Group A'), or phase. Distinguishes group tables and split-season sections."
@@ -965,6 +989,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_name
         tests: [not_null]
@@ -1064,12 +1089,14 @@ models:
       - name: player_season_sk
         tests: [unique, not_null]
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -1107,7 +1134,9 @@ models:
       - name: team_country
         description: "Affiliated club country, from dim_team."
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: player_name
       - name: player_first_name
       - name: player_last_name
@@ -1180,18 +1209,21 @@ models:
           combination_of_columns: [player_sk, fixture_sk]
     columns:
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1214,6 +1246,7 @@ models:
       - name: is_home
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
       - name: round_name
       - name: goals_for
@@ -1263,12 +1296,14 @@ models:
           name: fixture_standing_context_rank_positive
     columns:
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1277,6 +1312,7 @@ models:
       - name: is_knockout
         tests: [not_null]
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
       - name: group_name
       - name: league_rank
       - name: standing_points
@@ -1316,6 +1352,7 @@ models:
           name: head_to_head_is_canonical_consistent
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1417,18 +1454,21 @@ models:
         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
         tests: [not_null]
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1438,6 +1478,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: player_name
         description: "Denormalised from dim_player."
@@ -1496,6 +1537,7 @@ models:
       tags: ["marts", "football", "market_value", "wc"]
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - unique
@@ -1546,12 +1588,14 @@ models:
           name: team_fixtures_ranks_positive
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1568,6 +1612,7 @@ models:
           - accepted_values:
               values: ["W", "D", "L"]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
       - name: round_name
       - name: status_short
@@ -1695,6 +1740,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: metric_key
         description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
@@ -1794,6 +1840,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: position_group
         description: "The peer pool — GK/DEF/MID/ATT (from the match-time position_code)."
@@ -1947,7 +1994,9 @@ models:
           last_kickoff_at over (player, club). An ordering signal that keeps a player's spells at
           one club together and in order; not a displayed metric.
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: player_name
       - name: player_nationality
       - name: player_photo_url

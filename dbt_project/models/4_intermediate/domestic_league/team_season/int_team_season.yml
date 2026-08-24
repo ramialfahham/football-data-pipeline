@@ -14,12 +14,14 @@ models:
             - season_sk
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -62,6 +64,7 @@ models:
           - not_null
           - unique
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -70,6 +73,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: season_games_played
         tests: [not_null]
@@ -82,7 +86,9 @@ models:
           Shots on target conceded per match (opponent-SoT companion to shots_on_goal_per_match).
           NULL unless opponent SoT covers every season game.
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
       - name: entity_type
       - name: stat_coverage_season_games
       - name: player_stat_coverage_season_games
@@ -172,6 +178,7 @@ models:
           name: int_team_season_cumulative_sot_against_non_negative
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -180,6 +187,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: match_number
         description: "Games played through this cumulative row (= games_played). The grain key + the YoY alignment cutoff N."
@@ -188,7 +196,9 @@ models:
         description: "Games played through this matchday (name inherited from the whole-season projection for byte-identity)."
         tests: [not_null]
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
       - name: entity_type
       - name: stat_coverage_season_games
       - name: player_stat_coverage_season_games
@@ -309,12 +319,14 @@ models:
           - not_null
           - unique
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in the registry, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
@@ -339,7 +351,9 @@ models:
       - name: sot_points_gap
         description: "points_won_sum_season - deserved_points. NEGATIVE = under-performing (fewer points than deserved), POSITIVE = over-performing. NOTE the sign is inverted relative to the retired sot_rank_gap. NULL when not fittable."
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
       - name: entity_type
       - name: sot_difference_per_match
 
@@ -375,18 +389,21 @@ models:
           name: int_player_season_per90_non_negative
     columns:
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
       - name: season_sk
+        description: "{{ doc('season_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
+        description: "{{ doc('league_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -395,6 +412,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }} Here it is the player's last known club that competition-season, a deterministic last-kickoff pick. Unused downstream today, tested for integrity."

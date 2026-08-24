@@ -17,12 +17,15 @@ models:
           combination_of_columns: [team_sk, league_code, season_api_year, fixture_sk]
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests: [not_null]
       - name: entity_type
         tests:
@@ -102,14 +105,18 @@ models:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year, fixture_sk]
     columns:
       - name: team_sk
+        description: "{{ doc('team_sk') }}"
         tests: [not_null]
       - name: player_sk
+        description: "{{ doc('player_sk') }}"
         tests: [not_null]
       - name: league_code
         tests: [not_null]
       - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
         tests: [not_null]
       - name: window_type
         tests:
