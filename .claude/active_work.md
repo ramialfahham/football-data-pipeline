@@ -4,37 +4,38 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-23**. **main `6e3ee57`; #82 MR3 on `feat/description-coverage-wire-blocks`.**
-#84 + #82 MR1 + MR2 MERGED and verified in prod. **Next: #82 MR4.** Product **Matchday Pilot**;
+_Last updated **2026-08-24**. **main `b15b501`; #82 MR4a on `feat/82-metric-docs-blocks-generated`,
+UNCOMMITTED.** #84 + #82 MR1-MR3 MERGED. **Next after MR4a: MR4b.** Product **Matchday Pilot**;
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82: MR1+MR2 MERGED, MR3 BUILT, MR4 is next** (2026-08-23)
+## ⭐⭐ CURRENT — **#82: MR1-MR3 MERGED, MR4a BUILT + UNCOMMITTED** (2026-08-24)
 
-⭐ **READ `escalations.log`'s 08-20, 08-21 and 08-23 entries FIRST** — diagnosis, numbers, rulings,
-each MR's defects. **Do not re-scope or re-audit any of it.**
+⭐ **READ `escalations.log`'s 08-20, 08-21, 08-23 and 08-24 entries FIRST** — diagnosis, numbers,
+rulings, each MR's defects. **Do not re-scope or re-audit any of it.**
 
-Programme `!82`-`!89` + `!91` (MR1, objects) MERGED. Plan `cozy-orbiting-quail.md`.
-**MR2 MERGED**: the **979** columns in BigQuery but in NO yml are declared, names only. **1,699 of
-1,699, 0 left.**
-**MR3 BUILT**: **146** blank columns whose name already had a shared definition now reference it,
-across ALL 5 LAYERS (CPO approved staging+base; does NOT reopen the coverage ruling, which governs
-AUTHORING). The gate now fails a shared-name column that is blank or restates it, but does NOT
-police WHICH block — the opt-out is pointing at another.
-⛔ **`league_code` DROPPED FROM MR3** — CPO at the round-3 cap: "drop league_code, ship the 146".
-It means the competition EXCEPT on entity-scoped pulls (transfers, coaches, player profiles/teams,
-`base_apif__teams_global`), where it is INGEST PROVENANCE. Name-matching got **6** wrong; review
-found all six, I claimed completeness twice and was wrong twice. ⚠ **NO CLASSIFIER WORKS**: keyword
-scan 2 of 6, grain rule flags 49, "descendants drop it" mislabels transfers. Script AND gate now
-both refuse a name with 2 blocks, pinned to agree. ⭐ **ROOT CAUSE = #87**: ingestion stamps fetch
-provenance into the competition column. Fix there and block, guard and the 49 blanks all go away.
-⚠ **THE CATALOGUE IS A CI ARTIFACT.** The local `target/catalog.json` is a DEV one (10 relations);
-fetch recipe is in the script's docstring.
-⭐ **MR4 NEXT**: author the **~249** missing definitions (500 distinct names, 251 already
-defined). Then MR5 turns presence on.
-✅ **`persist_docs` WORKS EVERYWHERE** — 66/66 relations, 458/458 columns, views and incrementals
-included (prod, `ce94ccd`). **#86 said it half-worked and is CLOSED AS WRONG.** Nothing blocks MR4.
+Programme `!82`-`!89`, `!91`, `!95`, `!97` MERGED. Plans `cozy-orbiting-quail.md` (programme),
+`jaunty-herding-harp.md` (MR4a). **MR2**: 979 columns declared, names only. **MR3**: 146 blank
+columns wired to the 9 shared blocks.
+⭐ **MR4a BUILT, NOT COMMITTED**: 80 metric blocks GENERATED from `metric_catalogue.csv` by
+`scripts/sync_metric_docs_blocks.py` (`--check` fails on drift); **501 columns** point at them, 0
+blank, 0 inline. 3 CPO decisions in the contract; evidence in `acceptance_evidence.md`.
+**OWED: the review round (FOUR reviewers — the seed change adds
+`football-analytics-expert-reviewer`) and the commit.**
+⛔ **`league_code` MEANS TWO THINGS** and its 49 blanks stay blank. The competition, EXCEPT on
+entity-scoped pulls (transfers, coaches, player profiles/teams, `base_apif__teams_global`) where it
+is INGEST PROVENANCE. Name-matching got **6** wrong; review found all six, I claimed completeness
+twice and was wrong twice. ⚠ **NO CLASSIFIER WORKS.** ⭐ **ROOT CAUSE = #87.**
+⛔ **A SPLIT METRIC IS INVISIBLE TO THE GATE.** 4 metrics (`duels_won_pct`, `finishing_efficiency`,
+`goals_open_play`, `goals_penalty`) differ team vs player, so they get `__team`/`__player` blocks
+and the gate SKIPS the bare name as ambiguous. **3 sites sat unwired and no check could see them.**
+Assert these from the YAML directly, never from the gate.
+⚠ **THE CATALOGUE IS A CI ARTIFACT.** The local `target/catalog.json` is a DEV one; fetch recipe is
+in the script's docstring.
+⭐ **MR4b NEXT**: author the **204** names no seed defines. Then MR5 turns presence on.
+✅ **`persist_docs` WORKS EVERYWHERE** (66/66 relations, 458/458 columns, incl. views and
+incrementals). **#86 said otherwise and is CLOSED AS WRONG.**
 ⛔ **A LAZY REGEX BETWEEN DELIMITERS MUST BE BOUNDED AGAINST THE *OPENING* ONE.** `{% docs X %}
 (.*?){% enddocs %}` runs from a STRAY opener to the next REAL block's closer: one line of prose
 INVENTS a block and DELETES a real one, silently. Fixed in both parsers.
@@ -46,9 +47,9 @@ publishes **`catalog.json`**. ⚠ `seeds:` is persist_docs-ONLY: a `+schema` rel
 task's artifacts whole, `escalations.log`+`active_work.md` MERGED. The merge-base moves, so
 `review.md` needs a one-value rebind — **NO re-review owed**.
 
-✅ **THE GATE** (`check_description_hygiene.py`) runs in CI and `stop_gate.py`'s FAST_GATES: 6
-content rules, object coverage (`!91`), shared-definition coverage (MR3). ⚠ Rules match ANNOTATION
-forms, not plain verbs: bare `ruled` hits "goal ruled out for offside".
+✅ **THE GATE** (`check_description_hygiene.py`) runs in CI + `stop_gate.py` FAST_GATES: 6 content
+rules, object coverage (`!91`), shared-definition coverage (MR3). ⚠ Rules match ANNOTATION forms,
+not plain verbs: bare `ruled` hits "goal ruled out for offside".
 
 ⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats are a label and a number. All 249 are
 OURS to author. Coverage is uneven (xG on 57% of fixtures); 6 stat types appear on 4-78 rows of
