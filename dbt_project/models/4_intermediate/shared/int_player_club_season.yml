@@ -73,25 +73,48 @@ models:
       - name: substitute_appearances
       - name: minutes
       - name: goals
+        description: "{{ doc('goals') }}"
       - name: goals_penalty
+        description: "{{ doc('goals_penalty__player') }}"
       - name: assists
+        description: "{{ doc('assists') }}"
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
+        description: "{{ doc('penalty_committed') }}"
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: goals_against
+        description: "{{ doc('goals_against') }}"

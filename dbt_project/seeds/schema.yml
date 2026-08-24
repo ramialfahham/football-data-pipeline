@@ -244,7 +244,17 @@ seeds:
         tests:
           - not_null
       - name: description
-        description: "Plain-English definition: what the metric measures, nullability, and source columns."
+        description: >
+          Plain-English definition: what the metric measures, nullability, and source columns.
+
+          This field is the SOURCE of the generated docs blocks in
+          models/docs/metric_columns.md, which every column of that metric's name references, so
+          editing it rewrites the description BigQuery holds for hundreds of columns. Regenerate
+          after any change: `python scripts/sync_metric_docs_blocks.py`. A generated file that has
+          drifted from this column fails `--check`.
+
+          Keep it window-free, as the seed's own contract above requires. These blocks land on
+          per-match columns, where a claim about a form window is simply false.
         tests: [not_null]
       - name: base_relation
         description: >

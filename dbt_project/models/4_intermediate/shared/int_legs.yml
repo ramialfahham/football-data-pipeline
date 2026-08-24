@@ -49,19 +49,26 @@ models:
       - name: opponent_team_sk
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_inside_box
       - name: corner_kicks
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: goalkeeper_saves
       - name: opponent_shots_on_goal
       - name: opponent_shots_total
       - name: opponent_shots_inside_box
       - name: opponent_corner_kicks
       - name: goals_penalty
+        description: "{{ doc('goals_penalty__team') }}"
       - name: goals_own
+        description: "{{ doc('goals_own') }}"
 
   - name: int_legs__player_match
     description: >
@@ -102,30 +109,49 @@ models:
       - name: is_substitute
       - name: position_code
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_on
       - name: goals_total
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: goals_assists
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: fouls_drawn
       - name: fouls_committed
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
+        description: "{{ doc('penalty_committed') }}"
       - name: goals_penalty
+        description: "{{ doc('goals_penalty__player') }}"
       - name: round_order
       - name: opponent_team_sk
 
@@ -160,8 +186,12 @@ models:
       - name: blocks
       - name: interceptions
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: fouls_committed
       - name: fouls_drawn

@@ -660,21 +660,26 @@ models:
       - name: fixture_api_id
       - name: team_api_id
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: shots_off_goal
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_blocked
       - name: shots_inside_box
       - name: shots_outside_box
       - name: fouls
       - name: corner_kicks
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
         description: "Ball possession as an integer percent (0-100)."
       - name: yellow_cards
       - name: red_cards
       - name: goalkeeper_saves
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: passes_accuracy_percent
         description: "Pass accuracy as an integer percent (0-100)."
       - name: raw_ingested_at
@@ -737,32 +742,47 @@ models:
       - name: is_starter
         description: "Derived: minutes_played > 0 AND NOT is_substitute."
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_on
       - name: goals_total
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: goals_assists
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: fouls_drawn
       - name: fouls_committed
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
-        description: >
-          Penalties the player conceded. Mirrors the provider's `penalty.commited` field, whose
-          name is misspelled at source and is spelled properly here.
+        description: "{{ doc('penalty_committed') }}"
       - name: penalty_scored
       - name: penalty_missed
       - name: penalty_saved

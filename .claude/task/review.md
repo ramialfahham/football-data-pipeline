@@ -1,92 +1,96 @@
-# Review — feat/description-coverage-wire-blocks — 2026-08-23
+# Review — feat/82-metric-docs-blocks-generated — 2026-08-24
 
-diff_sha256: 2746131ae46aeff72e769d5940bb9d6611c6f80eed9389bf089ba2151f1b984e
+diff_sha256: abad7ac7431e19ac65127b01ff5872c5f6f076cbc161ff6a6aaaf087a650519f
 
 rounds: 4
 
-rounds_cap_override: CPO, 2026-08-23, at the round-3 cap. analytics-engineer-reviewer had FAILed three consecutive rounds, finding six wrong `league_code` sites in total. Rather than loop, the open findings were taken to him as `docs/working_agreement.md` requires, and his answer was "drop league_code, ship the 146". Round 4 therefore reviews a materially smaller and different diff — 49 fewer wired columns and a narrowed gate rule — not a re-run of round 3's contents. The decision and its reasoning are in `contract.md`'s `amendments:`.
+rounds_cap_override: CPO, 2026-08-24: "round 3 found a real test gap, fixed in round 4; not looped on disagreement". scope-auditor ESCALATED rather than ruling, correctly — the override is the CPO's by construction and no reviewer can grant or waive it. It also rejected my own reading (that a found-and-fixed round should not count) as unsupported by the rule text, which says "capped at 3" with no qualifier and is enforced numerically by the gate. I had flagged that my reading was convenient for me; it was, and the CPO's line is recorded instead of an unwritten exception.
 
-## scope-auditor
-VERDICT: PASS
+⚠ ALL FOUR REVIEWERS FAILED ROUND 1, on four different defects. CI then found a fifth that no
+reviewer could have, and platform-reviewer found a sixth in round 3. I found none of them. The
+count is the finding, and it is recorded in `escalations.log` rather than softened here.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS (round 3)
 risks_checked:
-- Verified the staging/base layer-scope decision against the plan file itself rather than the
-  contract's summary of it, and confirmed it is a different question from the 2026-08-21 coverage
-  ruling, which governs authoring rather than reuse.
-- Verified the new gate rule against the literal text of `engineering_standards.md` §2 Form
-  bullet 2 — it mechanises the existing standard rather than extending it.
-- Checked `scope_paths` against every file in the diff across all four rounds; no file entered the
-  diff that was not already declared, and no protected path or credential-shaped content appears.
-- Ruled on whether the repeated content corrections needed a contract amendment before round 4:
-  they did not, being generator accuracy rather than a §10 decision, and `done_when` requires "a
-  docs block" rather than a specific one.
-- Confirmed the false "the reviewer's three is the complete set" line was deleted at its own site
-  in `escalations.log` rather than contradicted below, matching the precedent that file already
-  set for correcting its own durable record.
-- ROUND 4, on the amendment: read the `_shared_block_coverage` / `_ambiguous_names` code rather
-  than the amendment's description, and confirmed the skip is narrowly bounded to names that
-  already reference more than one block, with the count printed unconditionally on every run.
-- ROUND 4, on the bundling: independently checked that the gate narrowing was FORCED by the scope
-  answer, since the gate scans the whole repo rather than the diff, so "ship the 146, drop the 49"
-  cannot be honoured while leaving the previous rule in place. Judged disclosed, not smuggled.
-- ROUND 4, on the override: confirmed it quotes the CPO verbatim and follows the escalation
-  protocol — stop, escalate, record — rather than being used to push a repeat of round 3.
-- ROUND 4, on the guard: judged the narrowing to be "narrow it to where it still holds" rather
-  than a deleted assertion, since the excluded case is one where the old rule mandated a guess.
+- ROUND 1 FAIL: `finishing_efficiency` (team) still said "window" three times after the sweep. The
+  guard enumerated three phrasings and the `done_when` verified with THAT SAME PATTERN, so the
+  check could only ever agree with the guard. Established why it mattered: the block is wired to a
+  season-cumulative model as well as a form-window one.
+- Re-read the reworded row against the four things it had to keep — same-coverage constraint,
+  [0,1] bound, exclusion reasoning, null policy — all present with the word gone.
+- Grepped the seed AND the generated file itself; noted the remaining CSV hits are in
+  `interpretation`, which the generator never reads.
+- Verified the guard and its test no longer share the narrow definition that made the miss possible.
+- All ~35 window removals checked individually; `pass_accuracy_pct`'s "summed rather than averaged"
+  checked against that row's own numerator/denominator; the four entity splits judged genuinely
+  different metrics.
+- ROUND 3: compared the seed's blob hash across rounds (identical), so no content re-review needed;
+  confirmed `_same`/`_to_disk` touch only line-ending mechanics.
+- Field-by-field: no formula, direction, tier or format changed anywhere in the diff.
 
 ## analytics-engineer-reviewer
-VERDICT: PASS
+VERDICT: PASS (round 3)
 risks_checked:
-- Layer placement: every changed line is a column-only addition inside the five layers; no SQL
-  touched; `IN_SCOPE_DIRS` matches the CPO's documented layer scope.
-- Description-hygiene gate compatibility: read `check_description_hygiene.py` end to end rather
-  than trusting the contract, confirming a bare column name cannot turn the gate red.
-- Catalogue governance, competition-agnosticism, seeds and config, consumption layer, same-window
-  ratios: none touched by this diff.
-- ROUNDS 1-3 WERE FAILS, and each was correct. Six columns were pointed at the wrong one of
-  `league_code`'s two meanings: three staging sites in round 1, the coach family in round 2, and
-  `base_apif__teams_global` in round 3, the last by a different mechanism from the others. Each
-  was verified against the model's own description, its base-layer SQL, and the downstream
-  consumer that drops the column.
-- Round 3 also established that the "complete set" claim in `escalations.log` was unsupported.
-- ROUND 4: confirmed `league_code` is absent from every wired site, all 49 blanks intact, and the
-  pre-existing 99 wired plus 2 provenance sites untouched.
-- ROUND 4: tested each of the seven remaining wired names individually against the same defect
-  class. They are deterministic surrogate keys or inherently provenance concepts, so no
-  ingest-order collapse can give them a second meaning. Specifically checked the one structurally
-  analogous site — `base_apif__league_entity` retaining `season_api_year` through a latest-row
-  collapse — and found it protected, because `dim_league` drops that column downstream, which is
-  exactly the protection `base_apif__teams_global` lacked. No seventh instance.
+- ROUND 1 FAIL: a third seed edit (`contribution_share`) undisclosed, while `acceptance_evidence.md`
+  claimed to have accounted for every content change and found exactly two. It had audited the 23
+  yml sites and never the seed's own diff. Its framing: the drift this programme exists to prevent,
+  reproduced one layer up in the seed itself.
+- Verified the "forced by the gate" claim against `check_description_hygiene.py`'s actual regex.
+- Swept the rest of the seed diff for further undisclosed content edits — none.
+- Re-swept all four split-metric names across the working tree: 0 blank, 0 inline, no fourth site.
+- Layer placement: `{{ doc() }}` is a compile-time substitution creating no `ref()`/`source()` and
+  no DAG edge, so a seed-sourced description on a core column is documentation, not a violation.
+- Information loss judged across all 23 sites individually, including confirming
+  `pass_accuracy_pct`'s lost range-test note survives as a real model-level test.
+- ROUND 3: confirmed the script's own `import io` is genuinely used, rather than assuming the dead
+  import was a repeated defect; confirmed the fix does not reintroduce the MR2 silent-rewrite.
 
 ## platform-reviewer
-VERDICT: PASS
+VERDICT: PASS (round 4)
 risks_checked:
-- ROUND 1 WAS A FAIL and it was right: the per-file commit used a truncating open, so a crash
-  mid-write would have left a tracked yml half-written, which `_verify` cannot see because it
-  compares two in-memory strings and has already returned. Fixed with temp file, `fsync` and
-  `os.replace`, and the fix re-read from the patch rather than taken on trust.
-- The `.tmp` suffix sits outside `_declared()`'s `*.yml` glob, checked against the actual glob
-  semantics, so a crash leftover cannot be misread as a second declaration of every model.
-- The bounded `DOC_BLOCK_RE` traced by hand against the stray-opener repro, confirming it cannot
-  match past a second opener; block discovery restricted to `models/` confirmed against dbt's
-  unset `docs-paths`, and confirmed to drop no live block.
-- Round 1's maintainability finding about the two hand-copied regexes closed by a behaviour parity
-  test pinning agreement AND correctness, rather than by coupling a gate to a generator.
-- Re-run safety and idempotency: planning is recomputed from disk each run, so a partial run is
-  resumable; a second run reports nothing to do and exits non-zero.
-- Line-ending preservation and the mixed-ending refusal traced against `core.autocrlf=true` and
-  `.gitattributes`, covered by two tests seen red before the fix.
-- Append-only re-verified on every round by grepping the whole patch for deletion lines: zero in
-  any yml file, all deletions confined to `contract.md` and the two scripts.
-- ROUND 2 raised, and ROUND 4 resolved, that the diff was not reproducible by a fresh tool run.
-  Traced the reproducibility claim by hand against the unchanged generator logic and could not
-  break it, then independently counted the additions in the real yml files: exactly 146, with zero
-  non-provenance `league_code` wirings anywhere outside a test fixture.
-- ROUND 4: the gate's `_ambiguous_names` compared line by line against the generator's and found
-  identical; the skip ordering and the placement of the "NOT POLICED" block traced for
-  correctness, confirming it fires on exactly the runs where a silent exemption would matter.
-- ROUND 4: the three new tests confirmed red-provable by tracing what each does if its code is
-  reverted, and the autouse fixture checked so an unrelated floor cannot mask them.
-- Dependencies, credentials, CI and hosting surfaces: none touched in any round.
+- ROUND 1 FAIL: `_describe_drift` names added, removed and changed blocks and only "changed" was
+  tested. Proved it by hand-running the mutation: the exit code comes from the byte comparison in
+  `main()`, so deleting the add/remove branches left everything green.
+- ROUND 3 FAIL: `_to_disk`'s CRLF-preservation branch had no test reaching it through a genuine
+  write — the test built for it hit the "already up to date" short-circuit and returned first.
+  Deleting the branch left all 30 tests green. Reproduced by mutation before fixing.
+- ROUND 4: confirmed the production blob hash unchanged so it re-derived nothing; traced the new
+  test's control flow to `OUT.write_bytes` rather than the short-circuit; checked the assertion
+  ORDER (write-happened, content-present, then endings) as the guard against the same vacuous
+  failure mode.
+- Judged the non-atomic `write_bytes` acceptable with better reasoning than the contract gave: the
+  file is git-tracked, so a truncated write is recoverable without rerunning the generator, and a
+  rerun self-heals.
+- Judged the unwired `--check`: inert rather than broken, with the residual gap named precisely —
+  `check_description_hygiene.py` has no notion of "does the block match the seed".
+- CRLF fix, floors, re-run safety, dependencies, credentials, guard paths: all checked.
+
+## scope-auditor
+VERDICT: ESCALATE (round 4) — PASS on the diff itself; the round-cap question escalated.
+CPO ANSWER: "yes" — record the override, reason "round 3 found a real test gap, fixed in round 4;
+not looped on disagreement". Recorded in `rounds_cap_override:` above and in `escalations` below.
+risks_checked:
+- ROUND 1 FAIL: two edits to `metric_catalogue.csv` were mine, not the CPO's, in a file the
+  decision-rights table reserves to him. Flagging them in the evidence was not the same as asking.
+- Judged whether the amendment records an answer or wraps reasoning around one: found the answer
+  recorded minimally, each edit named with before and after, and the self-critical framing
+  attributed to me rather than to the CPO.
+- Ruled the `finishing_efficiency` fix sits INSIDE the original window authority rather than needing
+  fresh sign-off, because it enforces an instruction already given more completely.
+- Read the new `escalations.log` entry in full against the diff and its own findings: six defects
+  named, each attributed to whoever caught it, "flagging is not asking" stated as its own point,
+  no defect reframed as someone else's fault.
+- Confirmed the CI-wiring deferral is recorded with a concrete blocking reason, not dropped.
+- Scope and protected paths clean in every round; no credential-shaped content.
+- ROUND 4: ruled the diff sound and in scope, and escalated the round-cap question rather than
+  settling it, on the grounds that the override is the CPO's to record and not a reviewer's to
+  waive.
 
 ## escalations
-(none)
+- question: This branch is at round 4, one over the cap of 3, with no `rounds_cap_override`. Does
+  the cap count every round mechanically, or does a round that a reviewer used to catch and fix a
+  genuine defect not count against it? scope-auditor recommended the former, finding no textual
+  support for the exception and noting the builder had flagged his own reading as self-serving.
+  CPO ANSWER: "yes" to recording the override, with the reason "round 3 found a real test gap,
+  fixed in round 4; not looped on disagreement".

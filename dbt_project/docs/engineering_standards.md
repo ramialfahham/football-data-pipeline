@@ -126,6 +126,20 @@ tracker, design rationale in `layering.md`.
 - A docs block is **not** a length exemption: `persist_docs` renders the block into the description
   pushed to the warehouse, so the limit applies to the RESOLVED string — block plus qualifier, not
   what is written in the YAML.
+- **A metric's definition is GENERATED, never written by hand.** The blocks in
+  `models/docs/metric_columns.md` are produced from `seeds/metric_catalogue.csv`, which is already
+  this project's only source of what a metric means. To change one, edit the seed's `description`
+  and run `python scripts/sync_metric_docs_blocks.py`; `--check` fails on drift. Writing the
+  definition into a model's YAML instead creates a second source, which is the drift this section
+  exists to prevent — and the generated file is overwritten on the next run, so the edit is lost
+  as well as wrong.
+- **Where one name carries two meanings, there are two blocks and no default.** A metric defined
+  differently for a team and a player gets `__team` and `__player` blocks, because a single block
+  would be wrong at half its call sites. The generator refuses to pick a winner, and
+  `check_description_hygiene.py` then stops policing that name and says so on every run rather than
+  demanding a guess. Point each column at the meaning it actually carries. `league_code` is the
+  worked example of getting this wrong: six columns were wired to the wrong one of its two
+  meanings, found across three review rounds.
 
 ### Who reads these
 

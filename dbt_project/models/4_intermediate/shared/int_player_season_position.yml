@@ -53,38 +53,74 @@ models:
           in each.
         tests: [not_null]
       - name: goals
+        description: "{{ doc('goals') }}"
       - name: goals_penalty
+        description: "{{ doc('goals_penalty__player') }}"
       - name: assists
+        description: "{{ doc('assists') }}"
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: scorer_points
+        description: "{{ doc('scorer_points') }}"
       - name: defensive_actions
+        description: "{{ doc('defensive_actions') }}"
       - name: pass_accuracy_pct
+        description: "{{ doc('pass_accuracy_pct') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__player') }}"
       - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
       - name: save_pct
+        description: "{{ doc('save_pct') }}"
       - name: finishing_efficiency
+        description: "{{ doc('finishing_efficiency__player') }}"
       - name: goals_per90
+        description: "{{ doc('goals_per90') }}"
       - name: assists_per90
+        description: "{{ doc('assists_per90') }}"
       - name: scorer_points_per90
+        description: "{{ doc('scorer_points_per90') }}"
       - name: shots_on_goal_per90
+        description: "{{ doc('shots_on_goal_per90') }}"
       - name: key_passes_per90
+        description: "{{ doc('key_passes_per90') }}"
       - name: dribbles_success_per90
+        description: "{{ doc('dribbles_success_per90') }}"
       - name: passes_per90
+        description: "{{ doc('passes_per90') }}"
       - name: tackles_per90
+        description: "{{ doc('tackles_per90') }}"
       - name: interceptions_per90
+        description: "{{ doc('interceptions_per90') }}"
       - name: blocks_per90
+        description: "{{ doc('blocks_per90') }}"
       - name: defensive_actions_per90
+        description: "{{ doc('defensive_actions_per90') }}"
       - name: duels_won_per90
+        description: "{{ doc('duels_won_per90') }}"
       - name: saves_per90
+        description: "{{ doc('saves_per90') }}"

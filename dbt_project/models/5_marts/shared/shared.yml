@@ -161,26 +161,47 @@ models:
       - name: contributing_competitions
       - name: games_with_player_stats
       - name: points_won
+        description: "{{ doc('points_won') }}"
       - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
       - name: goals_per_match
+        description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match
+        description: "{{ doc('goals_against_per_match') }}"
       - name: shots_per_match
+        description: "{{ doc('shots_per_match') }}"
       - name: shot_accuracy
+        description: "{{ doc('shot_accuracy') }}"
       - name: danger_zone_ratio
+        description: "{{ doc('danger_zone_ratio') }}"
       - name: shots_on_goal_per_match
+        description: "{{ doc('shots_on_goal_per_match') }}"
       - name: finishing_efficiency
+        description: "{{ doc('finishing_efficiency__team') }}"
       - name: passes_per_match
+        description: "{{ doc('passes_per_match') }}"
       - name: pass_accuracy
+        description: "{{ doc('pass_accuracy') }}"
       - name: corner_kicks_per_match
+        description: "{{ doc('corner_kicks_per_match') }}"
       - name: corners_against_per_match
+        description: "{{ doc('corners_against_per_match') }}"
       - name: save_ratio
+        description: "{{ doc('save_ratio') }}"
       - name: key_passes_per_match
+        description: "{{ doc('key_passes_per_match') }}"
       - name: tackles_per_match
+        description: "{{ doc('tackles_per_match') }}"
       - name: interceptions_per_match
+        description: "{{ doc('interceptions_per_match') }}"
       - name: blocks_per_match
+        description: "{{ doc('blocks_per_match') }}"
       - name: defensive_actions_per_match
+        description: "{{ doc('defensive_actions_per_match') }}"
       - name: duels_per_match
+        description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__team') }}"
 
   - name: mart_player_momentum
     description: >
@@ -240,27 +261,48 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: shots_on
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
+        description: "{{ doc('penalty_committed') }}"
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: save_pct
+        description: "{{ doc('save_pct') }}"
       - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
       - name: pass_accuracy_pct
+        description: "{{ doc('pass_accuracy_pct') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__player') }}"
       - name: top_player_rank
 
   - name: mart_team_momentum_window
@@ -333,6 +375,7 @@ models:
       - name: home_away
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: opponent_name
       - name: opponent_logo_url
 
@@ -377,23 +420,29 @@ models:
       - name: team_name
       - name: team_logo_url
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: shots_off_goal
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_blocked
       - name: shots_inside_box
       - name: shots_outside_box
       - name: fouls
       - name: corner_kicks
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
       - name: yellow_cards
       - name: red_cards
       - name: goalkeeper_saves
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: passes_accuracy_percent
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
 
   - name: mart_player_fixture_stats
     description: >
@@ -448,29 +497,47 @@ models:
       - name: is_substitute
       - name: is_starter
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_on
       - name: goals_total
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: goals_assists
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: fouls_drawn
       - name: fouls_committed
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
+        description: "{{ doc('penalty_committed') }}"
       - name: penalty_scored
       - name: penalty_missed
       - name: penalty_saved
@@ -541,27 +608,11 @@ models:
           From int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior
           season or where coverage through that matchday is incomplete.
       - name: deserved_rank
-        description: >
-          Where the team would sit in the table on the strength of its on-target process, 1 =
-          best. Derived from deserved_points, so the two never disagree and are NULL together.
-
-          NULL for every non-domestic-league row, and wherever the league-season cannot be
-          fitted: incomplete shots-on-target coverage, no league rank, fewer than three finished
-          games, or a table that is not a single ladder (MLS conferences, Apertura/Clausura).
+        description: "{{ doc('deserved_rank') }}"
       - name: deserved_points
-        description: >
-          The points the team's on-target process deserved: the league-season least-squares fit of
-          points-per-match on sot_difference_per_match, multiplied by its games played. Compare it
-          against `points`.
-
-          NULL for every non-domestic-league row, and wherever the league-season cannot be fitted —
-          including any league whose table is not a single ladder (MLS conferences, and the
-          Apertura/Clausura formats where a season is two separate tournaments, so even the points
-          total is not one comparable figure).
+        description: "{{ doc('deserved_points') }}"
       - name: sot_points_gap
-        description: >
-          `points` minus deserved_points. NEGATIVE means under-performing — fewer points than the
-          process deserved; POSITIVE means over-performing. NULL wherever deserved_points is.
+        description: "{{ doc('sot_points_gap') }}"
       - name: team_founded_year
         description: "Club founded year, from dim_team. Nullable — sparse in the provider feed."
       - name: venue_name
@@ -585,34 +636,56 @@ models:
       - name: losses
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: goal_diff
       - name: points
       - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
       - name: latest_form
       - name: season_games_played
       - name: stat_coverage_season_games
       - name: goals_per_match
+        description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match
+        description: "{{ doc('goals_against_per_match') }}"
       - name: shots_per_match
+        description: "{{ doc('shots_per_match') }}"
       - name: shot_accuracy
+        description: "{{ doc('shot_accuracy') }}"
       - name: danger_zone_ratio
+        description: "{{ doc('danger_zone_ratio') }}"
       - name: finishing_efficiency
+        description: "{{ doc('finishing_efficiency__team') }}"
       - name: pass_accuracy
+        description: "{{ doc('pass_accuracy') }}"
       - name: passes_per_match
+        description: "{{ doc('passes_per_match') }}"
       - name: corner_kicks_per_match
+        description: "{{ doc('corner_kicks_per_match') }}"
       - name: corners_against_per_match
+        description: "{{ doc('corners_against_per_match') }}"
       - name: save_ratio
+        description: "{{ doc('save_ratio') }}"
       - name: player_stat_coverage_season_games
       - name: shots_on_goal_per_match
+        description: "{{ doc('shots_on_goal_per_match') }}"
       - name: shots_on_goal_against_per_match
+        description: "{{ doc('shots_on_goal_against_per_match') }}"
       - name: sot_difference_per_match
+        description: "{{ doc('sot_difference_per_match') }}"
       - name: key_passes_per_match
+        description: "{{ doc('key_passes_per_match') }}"
       - name: duels_per_match
+        description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__team') }}"
       - name: defensive_actions_per_match
+        description: "{{ doc('defensive_actions_per_match') }}"
       - name: shot_share
+        description: "{{ doc('shot_share') }}"
       - name: points_capture
+        description: "{{ doc('points_capture') }}"
       - name: yoy_games_played_cutoff
       - name: points_this_season
       - name: points_prev_season
@@ -753,29 +826,50 @@ models:
         tests: [not_null]
       - name: games_with_team_stats
       - name: points_won
+        description: "{{ doc('points_won') }}"
       - name: wins
       - name: draws
       - name: losses
       - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
       - name: goals_per_match
+        description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match
+        description: "{{ doc('goals_against_per_match') }}"
       - name: shots_per_match
+        description: "{{ doc('shots_per_match') }}"
       - name: shot_accuracy
+        description: "{{ doc('shot_accuracy') }}"
       - name: danger_zone_ratio
+        description: "{{ doc('danger_zone_ratio') }}"
       - name: shots_on_goal_per_match
+        description: "{{ doc('shots_on_goal_per_match') }}"
       - name: finishing_efficiency
+        description: "{{ doc('finishing_efficiency__team') }}"
       - name: passes_per_match
+        description: "{{ doc('passes_per_match') }}"
       - name: pass_accuracy
+        description: "{{ doc('pass_accuracy') }}"
       - name: corner_kicks_per_match
+        description: "{{ doc('corner_kicks_per_match') }}"
       - name: corners_against_per_match
+        description: "{{ doc('corners_against_per_match') }}"
       - name: save_ratio
+        description: "{{ doc('save_ratio') }}"
       - name: key_passes_per_match
+        description: "{{ doc('key_passes_per_match') }}"
       - name: tackles_per_match
+        description: "{{ doc('tackles_per_match') }}"
       - name: interceptions_per_match
+        description: "{{ doc('interceptions_per_match') }}"
       - name: blocks_per_match
+        description: "{{ doc('blocks_per_match') }}"
       - name: defensive_actions_per_match
+        description: "{{ doc('defensive_actions_per_match') }}"
       - name: duels_per_match
+        description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__team') }}"
 
   - name: mart_player_season_record
     description: >
@@ -837,27 +931,48 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: shots_on
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
+        description: "{{ doc('penalty_committed') }}"
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: save_pct
+        description: "{{ doc('save_pct') }}"
       - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
       - name: pass_accuracy_pct
+        description: "{{ doc('pass_accuracy_pct') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__player') }}"
 
   - name: mart_standings
     description: >
@@ -1008,6 +1123,7 @@ models:
       - name: goals_for
         tests: [not_null]
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
         tests: [not_null]
       - name: goal_diff
         tests: [not_null]
@@ -1015,6 +1131,7 @@ models:
         description: "3 points per win, 1 per draw."
         tests: [not_null]
       - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
         tests: [not_null]
       - name: latest_rank
         description: "Rank from fct_standings for the team's standings row (after deduping multiple fct rows per team-season). Not unique across teams in the same league-season: qualifiers and tournaments reuse rank numbers across parallel groups or phases, and the API may repeat the same group_description label for different groups."
@@ -1147,30 +1264,55 @@ models:
       - name: substitute_appearances
       - name: minutes
       - name: goals
+        description: "{{ doc('goals') }}"
       - name: assists
+        description: "{{ doc('assists') }}"
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accurate
+        description: "{{ doc('passes_accurate') }}"
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
+        description: "{{ doc('dribbles_past') }}"
       - name: offsides
+        description: "{{ doc('offsides') }}"
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: penalty_won
+        description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
+        description: "{{ doc('penalty_committed') }}"
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: shots_on_goal_against
+        description: "{{ doc('shots_on_goal_against') }}"
       - name: pass_accuracy_pct
+        description: "{{ doc('pass_accuracy_pct') }}"
       - name: duels_won_pct
+        description: "{{ doc('duels_won_pct__player') }}"
       - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
       - name: save_pct
+        description: "{{ doc('save_pct') }}"
       - name: yoy_appearances_cutoff
       - name: goals_this_season
       - name: goals_prev_season
@@ -1194,8 +1336,10 @@ models:
       - name: key_passes_prev_season_full
       - name: defensive_actions_prev_season_full
       - name: scorer_points
+        description: "{{ doc('scorer_points') }}"
       - name: team_goals_season
       - name: contribution_share
+        description: "{{ doc('contribution_share') }}"
 
   - name: mart_player_match_log
     description: >
@@ -1251,6 +1395,7 @@ models:
       - name: round_name
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: player_name
       - name: player_photo_url
       - name: team_name
@@ -1264,21 +1409,33 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
+        description: "{{ doc('saves') }}"
       - name: shots_total
+        description: "{{ doc('shots_total') }}"
       - name: shots_on
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: fouls_drawn
       - name: fouls_committed
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
 
   - name: mart_fixture_standing_context
     description: >
@@ -1315,6 +1472,7 @@ models:
         description: "{{ doc('season_sk') }}"
       - name: group_name
       - name: league_rank
+        description: "{{ doc('league_rank') }}"
       - name: standing_points
       - name: standing_played
       - name: standing_goals_diff
@@ -1375,6 +1533,7 @@ models:
       - name: losses
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: meetings_last5
       - name: wins_last5
       - name: draws_last5
@@ -1493,37 +1652,51 @@ models:
       - name: appearances
       - name: minutes
       - name: goals
+        description: "{{ doc('goals') }}"
       - name: assists
+        description: "{{ doc('assists') }}"
       - name: shots_on_goal
+        description: "{{ doc('shots_on_goal') }}"
       - name: dribbles_attempts
+        description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
+        description: "{{ doc('dribbles_success') }}"
       - name: passes_total
+        description: "{{ doc('passes_total') }}"
       - name: passes_key
+        description: "{{ doc('passes_key') }}"
       - name: duels_total
+        description: "{{ doc('duels_total') }}"
       - name: duels_won
+        description: "{{ doc('duels_won') }}"
       - name: tackles_total
+        description: "{{ doc('tackles_total') }}"
       - name: tackles_interceptions
+        description: "{{ doc('tackles_interceptions') }}"
       - name: tackles_blocks
+        description: "{{ doc('tackles_blocks') }}"
       - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
       - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: scorer_points
-        description: "goals + assists (the 'scorer_points' board's value)."
+        description: "{{ doc('scorer_points') }}"
       - name: defensive_actions
-        description: "tackles + interceptions + blocks (the 'defensive_actions' board's value)."
+        description: "{{ doc('defensive_actions') }}"
       - name: cards_total
-        description: "cards_yellow + cards_red (the 'cards_total' board's value)."
+        description: "{{ doc('cards_total') }}"
       # RATE-board values (#506) — the player's season rate, carried on every row as a display
       # atom; each is the ranked value of its own board. Null when the denominator is zero.
       - name: pass_accuracy_pct
-        description: "Pass completion rate — the 'pass_accuracy_pct' board's ranked value."
+        description: "{{ doc('pass_accuracy_pct') }}"
       - name: duels_won_pct
-        description: "Duel win rate — the 'duels_won_pct' board's ranked value."
+        description: "{{ doc('duels_won_pct__player') }}"
       - name: dribbles_success_pct
-        description: "Dribble success rate — the 'dribbles_success_pct' board's ranked value."
+        description: "{{ doc('dribbles_success_pct') }}"
       - name: save_pct
-        description: "Goalkeeper save rate — the 'save_pct' board's ranked value."
+        description: "{{ doc('save_pct') }}"
       - name: finishing_efficiency
-        description: "Open-play goal conversion (open-play goals per shot on target, in [0, 1]) — the 'finishing_efficiency' board's ranked value."
+        description: "{{ doc('finishing_efficiency__player') }}"
 
   - name: mart_team_market_value
     description: >
@@ -1621,6 +1794,7 @@ models:
       - name: opponent_logo_url
       - name: goals_for
       - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: has_result
       - name: is_upcoming
       - name: upcoming_rank
@@ -1976,13 +2150,7 @@ models:
       - name: minutes
         description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
       - name: minutes_per_appearance
-        description: >
-          Average minutes per appearance: safe_divide(minutes, appearances), computed here so that
-          nothing reading this mart has to divide. NULL when appearances = 0 (a squad member who
-          never played), non-negative otherwise.
-
-          A catalogue-governed rate with direction neutral — it reads as a role, not as better or
-          worse.
+        description: "{{ doc('minutes_per_appearance') }}"
       - name: national_appearances_total
         description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
         tests: [not_null]
@@ -2004,4 +2172,6 @@ models:
       - name: team_logo_url
       - name: team_country
       - name: goals
+        description: "{{ doc('goals') }}"
       - name: assists
+        description: "{{ doc('assists') }}"

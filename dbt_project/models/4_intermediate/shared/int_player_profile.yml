@@ -104,11 +104,11 @@ models:
         description: "{{ doc('season_sk') }}"
         tests: [not_null]
       - name: scorer_points
-        description: "The player's goals + assists this club-competition-season (the numerator)."
+        description: "{{ doc('scorer_points') }}"
       - name: team_goals_season
         description: "The club's whole-season goals_for (the denominator)."
       - name: contribution_share
-        description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
+        description: "{{ doc('contribution_share') }}"
       - name: league_code
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
