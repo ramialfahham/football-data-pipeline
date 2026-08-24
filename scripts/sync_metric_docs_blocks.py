@@ -177,10 +177,34 @@ def _render(rows: list[dict]) -> bytes:
         out.write(body + "\n")
         out.write("{% enddocs %}\n")
 
-    # ⚠ CRLF to match shared_columns.md and every other tracked file here. Writing
-    # LF would rewrite the whole file on the first run and `git diff` would hide
-    # it, because it normalises line endings. That has cost a review round before.
-    return out.getvalue().replace("\n", "\r\n").encode("utf-8")
+    # CANONICAL LF. Line endings are git's business, not this file's: the repo
+    # STORES LF, a Windows checkout with `core.autocrlf=true` materialises CRLF,
+    # and a Linux checkout (CI) materialises LF. There is therefore no single
+    # correct byte sequence for this file, and an earlier version that rendered
+    # CRLF and compared bytes exactly could only ever pass on Windows — `--check`
+    # failed on every Linux run, which is every CI run. Caught by CI, not by me,
+    # on the very MR that proposed wiring this check into CI.
+    # `_same()` compares normalised, and `_to_disk()` matches whatever the file on
+    # disk already uses so a run never churns the working tree.
+    return out.getvalue().encode("utf-8")
+
+
+def _same(a: bytes, b: bytes) -> bool:
+    """Byte equality that ignores line endings, because the checkout decides them."""
+    return a.replace(b"\r\n", b"\n") == b.replace(b"\r\n", b"\n")
+
+
+def _to_disk(canonical: bytes, existing: bytes | None) -> bytes:
+    """The canonical text in the line endings this working tree already uses.
+
+    A CRLF checkout keeps CRLF, an LF checkout keeps LF, and a file that does not
+    exist yet gets LF — git's stored form, which a Windows checkout converts on
+    its own. Writing the wrong one rewrites every line while `git diff` shows
+    nothing, because it normalises: the silent rewrite that cost MR2 a round.
+    """
+    if existing is not None and b"\r\n" in existing:
+        return canonical.replace(b"\n", b"\r\n")
+    return canonical
 
 
 def main() -> int:
@@ -207,7 +231,7 @@ def main() -> int:
             print("FAIL: " + _rel(OUT) + " does not exist. Run "
                   "`python scripts/sync_metric_docs_blocks.py` to create it.")
             return 1
-        if current != expected:
+        if not _same(current, expected):
             print("FAIL: " + _rel(OUT) + " has drifted from "
                   + _rel(SEED) + ".\n")
             for line in _describe_drift(current, expected):
@@ -218,7 +242,7 @@ def main() -> int:
         print("OK: " + str(count) + " metric docs blocks match " + _rel(SEED) + ".")
         return 0
 
-    if current == expected:
+    if current is not None and _same(current, expected):
         # Loud, not silently green - the `declare_missing_columns.py` precedent. A
         # generator that reports success while doing nothing is how a broken read
         # passes for a working one.
@@ -227,7 +251,7 @@ def main() -> int:
         return 1
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_bytes(expected)
+    OUT.write_bytes(_to_disk(expected, current))
     print("WROTE " + _rel(OUT) + ": " + str(count) + " blocks from " + _rel(SEED) + ".")
     return 0
 

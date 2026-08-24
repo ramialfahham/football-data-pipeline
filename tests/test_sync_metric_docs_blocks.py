@@ -14,7 +14,6 @@ by a tool that assumed one name means one thing.
 from __future__ import annotations
 
 import csv
-import io
 import os
 import sys
 
@@ -168,17 +167,74 @@ def test_the_same_definition_without_the_window_phrase_is_accepted(monkeypatch, 
 
 # ---------------------------------------------------------------- what it emits
 
-def test_the_output_is_crlf(monkeypatch, tmp_path):
-    """Every tracked file here is CRLF. Writing LF would rewrite the whole file on
-    the first run, and `git diff` would HIDE it because it normalises line
-    endings — a defect that cost a review round in MR2."""
+@pytest.mark.parametrize("endings", [b"\r\n", b"\n"])
+def test_a_rerun_keeps_the_line_endings_the_file_already_has(monkeypatch, tmp_path, endings):
+    """⚠ THE TEST THIS REPLACES ASSERTED CRLF UNCONDITIONALLY, and that is what hid
+    the defect. The repo STORES LF; a Windows checkout materialises CRLF and a
+    Linux checkout (CI) materialises LF, so there is no single correct byte
+    sequence. Rendering CRLF and comparing bytes exactly meant `--check` could only
+    pass on Windows and failed on every CI run — found by CI on the very MR that
+    proposed wiring this check into CI, not by the test that claimed to cover it.
+
+    Writing the wrong endings is not cosmetic either: it rewrites every line while
+    `git diff` shows nothing, because git normalises. That is the silent rewrite
+    that cost MR2 a review round."""
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3)))
+    assert _run(monkeypatch) == 0
+
+    # Force the file into the endings a checkout on that platform would produce.
+    canonical = gen.OUT.read_bytes().replace(b"\r\n", b"\n")
+    gen.OUT.write_bytes(canonical.replace(b"\n", endings))
+
+    # In sync regardless of endings — this is the half that broke CI.
+    assert _run(monkeypatch, "--check") == 0
+    # And a no-op run writes nothing at all.
+    assert _run(monkeypatch) == 1
+
+
+@pytest.mark.parametrize("endings", [b"\r\n", b"\n"])
+def test_a_REAL_rewrite_keeps_the_line_endings_the_file_already_has(
+        monkeypatch, tmp_path, endings):
+    """⚠ THE TEST ABOVE DOES NOT REACH THE WRITE PATH, and I did not notice.
+
+    It re-encodes the same content, so the run short-circuits on "already up to
+    date" and returns before `_to_disk` is ever called. Deleting `_to_disk`'s
+    CRLF-preservation branch entirely left all 30 tests green — platform-reviewer
+    found that by hand-mutating it, having already found the branch this one
+    replaces was untested for the same reason.
+
+    So this test forces GENUINE drift by changing the seed, which is the everyday
+    workflow: edit a definition on a CRLF checkout and regenerate. Without the
+    branch, every line of a tracked file silently flips to LF and `git diff` hides
+    it — the MR2 defect, reintroduced by the fix for a different line-ending bug."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3) + [_row("before", "team", "Old.")]))
+    assert _run(monkeypatch) == 0
+
+    canonical = gen.OUT.read_bytes().replace(b"\r\n", b"\n")
+    gen.OUT.write_bytes(canonical.replace(b"\n", endings))
+
+    # Real content drift, so the generator must actually rewrite the file.
+    monkeypatch.setattr(gen, "SEED",
+                        _seed(tmp_path, _filler(3) + [_row("before", "team", "New.")], "drifted.csv"))
+    assert _run(monkeypatch) == 0, "expected a real write, not a no-op"
+
+    raw = gen.OUT.read_bytes()
+    assert b"New." in raw, "the rewrite did not happen, so this proves nothing"
+    if endings == b"\r\n":
+        assert raw.count(b"\n") == raw.count(b"\r\n"), "a CRLF file was silently rewritten to LF"
+    else:
+        assert b"\r\n" not in raw, "CRLF was forced into an LF file"
+
+
+def test_a_new_file_is_written_with_LF(monkeypatch, tmp_path):
+    """git's stored form. A Windows checkout converts it on its own; hard-coding
+    CRLF here is what made the check platform-dependent."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3)))
+    assert not gen.OUT.exists()
 
     assert _run(monkeypatch) == 0
 
-    raw = gen.OUT.read_bytes()
-    assert raw.count(b"\r\n") > 0
-    assert raw.count(b"\n") == raw.count(b"\r\n"), "a bare LF slipped in"
+    assert b"\r\n" not in gen.OUT.read_bytes()
 
 
 def test_blocks_are_sorted_so_a_rerun_reproduces_the_file(monkeypatch, tmp_path):
@@ -277,13 +333,17 @@ def test_check_names_a_metric_REMOVED_from_the_seed(monkeypatch, tmp_path, capsy
 
 def test_check_reports_pure_formatting_drift(monkeypatch, tmp_path, capsys):
     """The fallback: same blocks, same text, different bytes. Without it the
-    failure would name nothing at all and read as a bug in the checker."""
+    failure would name nothing at all and read as a bug in the checker.
+
+    ⚠ THIS TEST USED TO MANGLE LINE ENDINGS, which is no longer drift — the
+    checkout decides those, and treating them as drift is what made `--check` fail
+    on every CI run. The header is the honest way to reach this branch now."""
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3)))
     assert _run(monkeypatch) == 0
     capsys.readouterr()
 
-    # Same content, LF instead of CRLF.
-    gen.OUT.write_bytes(gen.OUT.read_bytes().replace(b"\r\n", b"\n"))
+    # Blocks untouched; only the generated header is mangled.
+    gen.OUT.write_bytes(gen.OUT.read_bytes().replace(b"DO NOT EDIT", b"do not edit"))
 
     assert _run(monkeypatch, "--check") == 1
     out = capsys.readouterr().out
@@ -346,7 +406,10 @@ def test_the_real_seed_and_the_real_file_are_in_sync():
         pytest.fail(f"the real catalogue does not render: {exc}")
 
     assert fresh.OUT.exists(), "the generated file is missing from the repo"
-    assert fresh.OUT.read_bytes() == expected, (
+    # `_same`, not `==`: the checkout decides the line endings, so a byte-exact
+    # comparison here passes on Windows and fails on every Linux CI run. That is
+    # precisely how this test failed in CI on the MR that introduced it.
+    assert fresh._same(fresh.OUT.read_bytes(), expected), (
         "dbt_project/models/docs/metric_columns.md has drifted from the seed. "
         "Run: python scripts/sync_metric_docs_blocks.py"
     )

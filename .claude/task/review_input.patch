@@ -374,6 +374,118 @@ index ffa16ec..67b4780 100644
 +    vocabulary (`tackles_per_match`, `interceptions_per_match`, `blocks_per_match`). Two
 +    conventions, one file. Filed as GitLab #88; renaming a metric id is a naming decision and
 +    touches the i18n keys, the metric bindings and, since this MR, the generated docs blocks.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 2f57c60..3c5e806 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -4787,3 +4787,107 @@ trap that turned out to be worse than the trap.
+   nodes before and after, zero `depends_on` altered. Zero unrendered `{{ doc(` survives into the
+   manifest. 29 mutations across the generator and the gate, every one caught by the test aimed at
+   it. Suite 941 passed, 1 skipped, from a 925 baseline, which is exactly the 16 tests added.
++
++
++2026-08-24 feat/82-metric-docs-blocks-generated — #82 MR4a, the metric definitions generated from
++the catalogue. ONE CPO APPROVAL taken after the fact, and SIX defects of mine, of which I found
++ZERO. Written in a session that did not build most of it.
++
++  ⚠ THIS MR WAS BUILT ACROSS A CRASH. The desktop app died mid-task, then VS Code did. A fresh
++  session resumed it from `contract.md` alone, with no memory of the work. Nothing was lost — 16
++  stashes intact, no dangling git state, every file whole — but the three CPO decisions in
++  `decisions_taken` all pre-date the crash and the resuming session could not vouch for any of
++  them. That was stated to scope-auditor rather than papered over, and it judged them sound.
++
++  THE DESIGN, unchanged from the plan: the catalogue is already the only source of what a metric
++  MEANS, so the docs blocks are GENERATED from it and never authored. Edit the seed, regenerate,
++  and `--check` fails on drift. 80 blocks from 76 metrics; four metrics defined differently for a
++  team and a player get `__team`/`__player` blocks; 501 columns point at them, 0 blank, 0 inline.
++
++  ⛔ ALL FOUR REVIEWERS FAILED ROUND 1, ON FOUR DIFFERENT DEFECTS. Not one round of one reviewer
++  finding one class, as in MR3 — four separate defects at once, and every one of them a claim I had
++  asserted rather than tested. The count is the finding.
++
++  ⭐ DEFECT 1, AND IT IS THE ONE TO KEEP: A VERIFICATION THAT COULD ONLY AGREE WITH ITSELF.
++  `finishing_efficiency` (team) still said "window" three times after the 35-row sweep — "over a
++  fully shot-covered window", "numerator and denominator share the window", "when the window is not
++  fully shot-covered". The generator's guard ENUMERATED three phrasings
++  (`form window|in the window|same-window`) and this contract's `done_when` verified window-freeness
++  BY SEARCHING WITH THAT SAME PATTERN. The check and the thing it checked shared one definition of
++  the defect, so it could never disagree.
++  ⭐ THE RULE: a guard and its verification must not derive from the same enumeration. The fix was
++  not rewording one row — it was matching `\bwindow\b`, because the seed declares itself
++  window-free and there is therefore nothing to enumerate, and testing the guard against phrasings
++  the old list was PROVEN to miss. Found by football-analytics-expert-reviewer, which also
++  established why it mattered: that block is wired to a season-CUMULATIVE model as well as a
++  form-window one, so the ambiguity was live on real data.
++
++  ⛔ DEFECT 2, FOUND BY CI AND NOT BY ANY REVIEWER, ON THE MR THAT PROPOSED WIRING THE CHECK INTO
++  CI. The generator rendered CRLF and compared bytes EXACTLY. The repo STORES LF; a Windows
++  checkout materialises CRLF and a Linux checkout materialises LF, so there is no single correct
++  byte sequence for a generated tracked file. `--check` could therefore only pass on Windows and
++  FAILED ON EVERY LINUX RUN, which is every CI run. Wiring it, which the CPO had just asked for,
++  would have made CI permanently red.
++  ⚠ THE TEST THAT WAS SUPPOSED TO COVER THIS ASSERTED CRLF UNCONDITIONALLY — a platform-specific
++  truth written as a universal one, which is what hid it. It now asserts that a rerun PRESERVES
++  whatever endings the file has, parametrised over both.
++  ⭐ THE RULE: line endings belong to the checkout, never to a comparison. `_render` is canonical
++  LF, `_same()` normalises before comparing, `_to_disk()` writes whatever the file already uses so
++  a run never churns the tree. ⚠ AND THE OTHER HALF: 972 local passes proved nothing here, because
++  the developer machine is the ONE platform where the bug is invisible. A green suite on one OS is
++  not a green suite.
++
++  ⛔ DEFECT 3: I EDITED A CPO-ONLY FILE WITHOUT ASKING, TWICE. `penalty_committed` and
++  `pass_accuracy_pct` had their seed `description` EXPANDED to preserve facts that model-level
++  column text carried and this MR deletes. Moving a fact into the seed rather than back into the
++  yml is the design working as intended — if a column carried something the catalogue lacked, the
++  catalogue was incomplete — but `metric_catalogue.csv` is CPO-class whatever the motive, and
++  `decisions_taken` authorised only the window correction. scope-auditor FAILed on exactly that.
++  ⚠ I HAD FLAGGED BOTH IN THE EVIDENCE AND TO THE REVIEWER. Flagging is not asking. Recording a
++  decision you took yourself does not make it yours to take.
++  Approved after the fact, CPO 2026-08-24, verbatim: "approve all three".
++
++  ⛔ DEFECT 4: A THIRD SEED EDIT UNDISCLOSED, AND A FALSE COMPLETENESS CLAIM ABOUT IT.
++  `contribution_share` had "CPO-accepted" removed — forced, since the content gate bans `\bCPO\b`
++  in a description — but it went unrecorded while `acceptance_evidence.md` claimed to have
++  accounted for EVERY content change and found exactly two. It had audited the 23 yml sites and
++  never the seed's own diff. analytics-engineer-reviewer's framing is the accurate one: the drift
++  this programme exists to prevent, reproduced one layer up, in the seed itself.
++  ⚠ THE CLAIM WAS THE DEFECT, NOT THE EDIT. Corrected at the site of the claim.
++
++  ⛔ DEFECT 5: `_describe_drift` names blocks ADDED, REMOVED and CHANGED, and only "changed" was
++  tested. platform-reviewer proved it by hand-running the mutation: deleting the add and remove
++  branches left every test green, because the exit code comes from the byte comparison in `main()`.
++  The two most likely real drift events for a catalogue — a metric added, a metric deleted — had
++  zero coverage in a test file whose own docstring warns against exactly that.
++
++  ⛔ DEFECT 6, TRIVIAL BUT INSTRUCTIVE: `import io` left unused, failing `lint:python`. I ran the
++  six offline gates and the full suite and never ran `ruff`, because it is a CI job and not one of
++  the gates the Stop hook fires. ⚠ THE LOCAL GATE SET IS NOT THE CI JOB SET. `lint:python` and
++  `test:python` are separate jobs; running `validate-local`'s gates is not running CI.
++
++  ⚠ THREE SITES WERE UNWIRED AND NO CHECK COULD SEE THEM. Once a metric splits per entity, the
++  gate treats the bare name as ambiguous and stops policing it, so `int_team_momentum__metrics`
++  `goals_penalty` and two `mart_leaderboards` columns sat with their old text invisibly. They
++  surfaced only because the contract demanded `goals_open_play` be asserted from the YAML directly.
++  ⭐ THE HAZARD GENERALISES TO ALL FOUR SPLIT METRICS, not the one the contract named.
++
++  ⚠ RAISED BY THE CPO, NOT BY REVIEW, and filed as GitLab #88: reading the catalogue he asked why
++  `tackles_total` exists when defensive actions are tackles + interceptions + blocks. The
++  arithmetic is right. The player metric ids carry the PROVIDER's JSON object name
++  (`$.tackles.total`, staged verbatim at `stg_apif__fixture_players.sql:64-66`), so `tackles_total`
++  means only tackles, while the team side of the same file uses our own vocabulary
++  (`tackles_per_match`, `interceptions_per_match`, `blocks_per_match`). Two conventions, one file.
++  Not fixed here: renaming a metric id touches the i18n keys, the metric bindings and, since this
++  MR, the generated blocks.
++
++  ⛔ THE DRIFT CHECK IS NOT WIRED. `.gitlab-ci.yml` and `stop_gate.py` are protected paths needing
++  their own CPO-approved task. The CPO asked for the CI half on 2026-08-24; it CANNOT be done until
++  this MR merges, because the script does not exist on main and the job would fail on a missing
++  file. Until then the check runs only when someone remembers, which is decoration, and is stated
++  rather than glossed.
++
++  MEASURED: 80 blocks, 501 columns wired, 0 blank, 0 inline; longest rendered description 937 of
++  BigQuery's 1,024; 30 generator tests, 17 mutations, every one caught by the test aimed at it;
++  `--check` seen RED on the real file and naming the block; six offline gates green; ruff clean;
++  no `.sql` touched so `depends_on` cannot have moved; suite 974 passed, 1 skipped.
 diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
 index bb5d7d6..fb4828f 100644
 --- a/dbt_project/docs/engineering_standards.md
@@ -2475,10 +2587,10 @@ index 9cf9063..d308ca5 100644
          description: >
 diff --git a/scripts/sync_metric_docs_blocks.py b/scripts/sync_metric_docs_blocks.py
 new file mode 100644
-index 0000000..bb917f8
+index 0000000..eb8532a
 --- /dev/null
 +++ b/scripts/sync_metric_docs_blocks.py
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,295 @@
 +"""Generate the metric docs blocks from `metric_catalogue.csv`, and check they match.
 +
 +#82 step 4. The catalogue is this project's only source of what a metric MEANS
@@ -2658,10 +2770,34 @@ index 0000000..bb917f8
 +        out.write(body + "\n")
 +        out.write("{% enddocs %}\n")
 +
-+    # ⚠ CRLF to match shared_columns.md and every other tracked file here. Writing
-+    # LF would rewrite the whole file on the first run and `git diff` would hide
-+    # it, because it normalises line endings. That has cost a review round before.
-+    return out.getvalue().replace("\n", "\r\n").encode("utf-8")
++    # CANONICAL LF. Line endings are git's business, not this file's: the repo
++    # STORES LF, a Windows checkout with `core.autocrlf=true` materialises CRLF,
++    # and a Linux checkout (CI) materialises LF. There is therefore no single
++    # correct byte sequence for this file, and an earlier version that rendered
++    # CRLF and compared bytes exactly could only ever pass on Windows — `--check`
++    # failed on every Linux run, which is every CI run. Caught by CI, not by me,
++    # on the very MR that proposed wiring this check into CI.
++    # `_same()` compares normalised, and `_to_disk()` matches whatever the file on
++    # disk already uses so a run never churns the working tree.
++    return out.getvalue().encode("utf-8")
++
++
++def _same(a: bytes, b: bytes) -> bool:
++    """Byte equality that ignores line endings, because the checkout decides them."""
++    return a.replace(b"\r\n", b"\n") == b.replace(b"\r\n", b"\n")
++
++
++def _to_disk(canonical: bytes, existing: bytes | None) -> bytes:
++    """The canonical text in the line endings this working tree already uses.
++
++    A CRLF checkout keeps CRLF, an LF checkout keeps LF, and a file that does not
++    exist yet gets LF — git's stored form, which a Windows checkout converts on
++    its own. Writing the wrong one rewrites every line while `git diff` shows
++    nothing, because it normalises: the silent rewrite that cost MR2 a round.
++    """
++    if existing is not None and b"\r\n" in existing:
++        return canonical.replace(b"\n", b"\r\n")
++    return canonical
 +
 +
 +def main() -> int:
@@ -2688,7 +2824,7 @@ index 0000000..bb917f8
 +            print("FAIL: " + _rel(OUT) + " does not exist. Run "
 +                  "`python scripts/sync_metric_docs_blocks.py` to create it.")
 +            return 1
-+        if current != expected:
++        if not _same(current, expected):
 +            print("FAIL: " + _rel(OUT) + " has drifted from "
 +                  + _rel(SEED) + ".\n")
 +            for line in _describe_drift(current, expected):
@@ -2699,7 +2835,7 @@ index 0000000..bb917f8
 +        print("OK: " + str(count) + " metric docs blocks match " + _rel(SEED) + ".")
 +        return 0
 +
-+    if current == expected:
++    if current is not None and _same(current, expected):
 +        # Loud, not silently green - the `declare_missing_columns.py` precedent. A
 +        # generator that reports success while doing nothing is how a broken read
 +        # passes for a working one.
@@ -2708,7 +2844,7 @@ index 0000000..bb917f8
 +        return 1
 +
 +    OUT.parent.mkdir(parents=True, exist_ok=True)
-+    OUT.write_bytes(expected)
++    OUT.write_bytes(_to_disk(expected, current))
 +    print("WROTE " + _rel(OUT) + ": " + str(count) + " blocks from " + _rel(SEED) + ".")
 +    return 0
 +
@@ -2752,10 +2888,10 @@ index 0000000..bb917f8
 +    raise SystemExit(main())
 diff --git a/tests/test_sync_metric_docs_blocks.py b/tests/test_sync_metric_docs_blocks.py
 new file mode 100644
-index 0000000..4ac8c14
+index 0000000..0e30917
 --- /dev/null
 +++ b/tests/test_sync_metric_docs_blocks.py
-@@ -0,0 +1,353 @@
+@@ -0,0 +1,416 @@
 +"""Tests for `scripts/sync_metric_docs_blocks.py`.
 +
 +The point is not that the generator runs on today's seed. It does, and a test
@@ -2772,7 +2908,6 @@ index 0000000..4ac8c14
 +from __future__ import annotations
 +
 +import csv
-+import io
 +import os
 +import sys
 +
@@ -2926,17 +3061,74 @@ index 0000000..4ac8c14
 +
 +# ---------------------------------------------------------------- what it emits
 +
-+def test_the_output_is_crlf(monkeypatch, tmp_path):
-+    """Every tracked file here is CRLF. Writing LF would rewrite the whole file on
-+    the first run, and `git diff` would HIDE it because it normalises line
-+    endings — a defect that cost a review round in MR2."""
++@pytest.mark.parametrize("endings", [b"\r\n", b"\n"])
++def test_a_rerun_keeps_the_line_endings_the_file_already_has(monkeypatch, tmp_path, endings):
++    """⚠ THE TEST THIS REPLACES ASSERTED CRLF UNCONDITIONALLY, and that is what hid
++    the defect. The repo STORES LF; a Windows checkout materialises CRLF and a
++    Linux checkout (CI) materialises LF, so there is no single correct byte
++    sequence. Rendering CRLF and comparing bytes exactly meant `--check` could only
++    pass on Windows and failed on every CI run — found by CI on the very MR that
++    proposed wiring this check into CI, not by the test that claimed to cover it.
++
++    Writing the wrong endings is not cosmetic either: it rewrites every line while
++    `git diff` shows nothing, because git normalises. That is the silent rewrite
++    that cost MR2 a review round."""
 +    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3)))
++    assert _run(monkeypatch) == 0
++
++    # Force the file into the endings a checkout on that platform would produce.
++    canonical = gen.OUT.read_bytes().replace(b"\r\n", b"\n")
++    gen.OUT.write_bytes(canonical.replace(b"\n", endings))
++
++    # In sync regardless of endings — this is the half that broke CI.
++    assert _run(monkeypatch, "--check") == 0
++    # And a no-op run writes nothing at all.
++    assert _run(monkeypatch) == 1
++
++
++@pytest.mark.parametrize("endings", [b"\r\n", b"\n"])
++def test_a_REAL_rewrite_keeps_the_line_endings_the_file_already_has(
++        monkeypatch, tmp_path, endings):
++    """⚠ THE TEST ABOVE DOES NOT REACH THE WRITE PATH, and I did not notice.
++
++    It re-encodes the same content, so the run short-circuits on "already up to
++    date" and returns before `_to_disk` is ever called. Deleting `_to_disk`'s
++    CRLF-preservation branch entirely left all 30 tests green — platform-reviewer
++    found that by hand-mutating it, having already found the branch this one
++    replaces was untested for the same reason.
++
++    So this test forces GENUINE drift by changing the seed, which is the everyday
++    workflow: edit a definition on a CRLF checkout and regenerate. Without the
++    branch, every line of a tracked file silently flips to LF and `git diff` hides
++    it — the MR2 defect, reintroduced by the fix for a different line-ending bug."""
++    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3) + [_row("before", "team", "Old.")]))
++    assert _run(monkeypatch) == 0
++
++    canonical = gen.OUT.read_bytes().replace(b"\r\n", b"\n")
++    gen.OUT.write_bytes(canonical.replace(b"\n", endings))
++
++    # Real content drift, so the generator must actually rewrite the file.
++    monkeypatch.setattr(gen, "SEED",
++                        _seed(tmp_path, _filler(3) + [_row("before", "team", "New.")], "drifted.csv"))
++    assert _run(monkeypatch) == 0, "expected a real write, not a no-op"
++
++    raw = gen.OUT.read_bytes()
++    assert b"New." in raw, "the rewrite did not happen, so this proves nothing"
++    if endings == b"\r\n":
++        assert raw.count(b"\n") == raw.count(b"\r\n"), "a CRLF file was silently rewritten to LF"
++    else:
++        assert b"\r\n" not in raw, "CRLF was forced into an LF file"
++
++
++def test_a_new_file_is_written_with_LF(monkeypatch, tmp_path):
++    """git's stored form. A Windows checkout converts it on its own; hard-coding
++    CRLF here is what made the check platform-dependent."""
++    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3)))
++    assert not gen.OUT.exists()
 +
 +    assert _run(monkeypatch) == 0
 +
-+    raw = gen.OUT.read_bytes()
-+    assert raw.count(b"\r\n") > 0
-+    assert raw.count(b"\n") == raw.count(b"\r\n"), "a bare LF slipped in"
++    assert b"\r\n" not in gen.OUT.read_bytes()
 +
 +
 +def test_blocks_are_sorted_so_a_rerun_reproduces_the_file(monkeypatch, tmp_path):
@@ -3035,13 +3227,17 @@ index 0000000..4ac8c14
 +
 +def test_check_reports_pure_formatting_drift(monkeypatch, tmp_path, capsys):
 +    """The fallback: same blocks, same text, different bytes. Without it the
-+    failure would name nothing at all and read as a bug in the checker."""
++    failure would name nothing at all and read as a bug in the checker.
++
++    ⚠ THIS TEST USED TO MANGLE LINE ENDINGS, which is no longer drift — the
++    checkout decides those, and treating them as drift is what made `--check` fail
++    on every CI run. The header is the honest way to reach this branch now."""
 +    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, _filler(3)))
 +    assert _run(monkeypatch) == 0
 +    capsys.readouterr()
 +
-+    # Same content, LF instead of CRLF.
-+    gen.OUT.write_bytes(gen.OUT.read_bytes().replace(b"\r\n", b"\n"))
++    # Blocks untouched; only the generated header is mangled.
++    gen.OUT.write_bytes(gen.OUT.read_bytes().replace(b"DO NOT EDIT", b"do not edit"))
 +
 +    assert _run(monkeypatch, "--check") == 1
 +    out = capsys.readouterr().out
@@ -3104,7 +3300,10 @@ index 0000000..4ac8c14
 +        pytest.fail(f"the real catalogue does not render: {exc}")
 +
 +    assert fresh.OUT.exists(), "the generated file is missing from the repo"
-+    assert fresh.OUT.read_bytes() == expected, (
++    # `_same`, not `==`: the checkout decides the line endings, so a byte-exact
++    # comparison here passes on Windows and fails on every Linux CI run. That is
++    # precisely how this test failed in CI on the MR that introduced it.
++    assert fresh._same(fresh.OUT.read_bytes(), expected), (
 +        "dbt_project/models/docs/metric_columns.md has drifted from the seed. "
 +        "Run: python scripts/sync_metric_docs_blocks.py"
 +    )
@@ -3124,6 +3323,7 @@ index 0000000..4ac8c14
 #
 #   .claude/active_work.md              |   61 +-
 #    .claude/task/acceptance_evidence.md |  382 ++-
-#    .claude/task/review_input.patch     | 5153 +++++++++++++++++++----------------
-#    3 files changed, 3111 insertions(+), 2485 deletions(-)
+#    .claude/task/review.md              |  171 +-
+#    .claude/task/review_input.patch     | 5431 ++++++++++++++++++++---------------
+#    4 files changed, 3489 insertions(+), 2556 deletions(-)
 # ============================================================================
