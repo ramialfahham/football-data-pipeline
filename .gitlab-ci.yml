@@ -368,6 +368,15 @@ validate:governance:
     # it. MR1-MR4 rewrote all 618 against engineering_standards.md section 2; this keeps them
     # that way. Offline, parses YAML off disk, well under a second.
     - python scripts/check_description_hygiene.py
+    # Metric docs-block drift. `dbt_project/models/docs/metric_columns.md` is GENERATED from
+    # `dbt_project/seeds/metric_catalogue.csv`, and 501 model columns reference its blocks. With
+    # `persist_docs` on, that generated text is the only definition BigQuery ever sees — so a
+    # `description` edited in the seed without a regenerate leaves the warehouse serving a
+    # definition the catalogue no longer holds, and nothing else in this repo can tell. The
+    # sibling check above reads the blocks as they are; it has no notion of "still matches the
+    # seed". Offline, stdlib only, 0.33s. Fix on a failure is `python
+    # scripts/sync_metric_docs_blocks.py` — never a hand edit to the generated file.
+    - python scripts/sync_metric_docs_blocks.py --check
     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
     - *dbt_profile
     - cd dbt_project && dbt deps && dbt parse
