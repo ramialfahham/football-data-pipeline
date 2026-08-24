@@ -36,8 +36,8 @@ commit round trip (the dominant source of `fix:` churn in this repo's history).
 
 These need no credentials and finish in seconds. They mirror `.gitlab-ci.yml`'s
 `validate:governance` (layer contract, registry sync, competition-type seed, copy
-gate, task artifacts), `validate:ui` (i18n + metric manifests) and `test:python`
-(unit tests).
+gate, metric docs-block drift, task artifacts), `validate:ui` (i18n + metric
+manifests) and `test:python` (unit tests).
 
 **Six of these also run at turn end** via `stop_gate.py`'s `FAST_GATES`, named
 explicitly because "the first N" drifts the moment the list is reordered.
@@ -73,6 +73,7 @@ python scripts/check_registry_var_sync.py
 python scripts/check_competition_type_seed.py
 python scripts/check_copy_gate.py
 python scripts/check_description_hygiene.py
+python scripts/sync_metric_docs_blocks.py --check
 python scripts/check_task_artifacts.py
 python scripts/check_ui_i18n_metrics.py
 python -m json.tool site/i18n/en.json > /dev/null
@@ -134,6 +135,7 @@ pipeline that does not run.
 | `check_competition_type_seed.py` | `validate:governance` |
 | `check_copy_gate.py` | `validate:governance` |
 | `check_description_hygiene.py` | `validate:governance` |
+| `sync_metric_docs_blocks.py --check` | `validate:governance` |
 | `check_task_artifacts.py` | `validate:governance` (needs `GIT_DEPTH: 0`) |
 | `dbt deps` + `dbt parse` | `validate:governance` |
 | `check_ui_i18n_metrics.py` + JSON validity | `validate:ui` |

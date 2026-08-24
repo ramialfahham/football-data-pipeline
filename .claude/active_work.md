@@ -4,49 +4,53 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-24**. **main `3241777`, no open MRs, clean tree.** #84 + #82 MR1-MR4a all
-MERGED. **NEXT: wire the drift check into CI (CPO-approved, protected path), then MR4b.** Product
-**Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-24**. **main `04a7856`.** #84 + #82 MR1-MR4a MERGED; the CI wiring is
+committed, reviewed and awaiting merge. **NEXT once it merges: MR4b.** Product **Matchday
+Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82: MR1-MR4a ALL MERGED. Next = CI wiring, then MR4b** (2026-08-24)
+## ⭐⭐ CURRENT — **#82: CI wiring committed, awaiting merge. Next = MR4b** (2026-08-24)
 
-⭐ **READ `escalations.log`'s 08-20, 08-21, 08-23 and 08-24 entries FIRST** — diagnosis, numbers,
-rulings, each MR's defects. **Do not re-scope or re-audit any of it.**
+⭐ **READ `escalations.log`'s 08-20 to 08-24 entries FIRST** — diagnosis, numbers, rulings, each
+MR's defects. **Do not re-scope or re-audit any of it.**
 
-Plans `cozy-orbiting-quail.md` (programme), `jaunty-herding-harp.md` (MR4a). **MR2**: 979 columns
-declared, names only. **MR3**: 146 blank columns wired to the 9 shared blocks.
-✅ **MR4a MERGED** (`!98`): 80 metric blocks GENERATED from `metric_catalogue.csv` by
-`scripts/sync_metric_docs_blocks.py` (`--check` fails on drift); **501 columns** point at them, 0
-blank, 0 inline. ⚠ Editing the seed REQUIRES a regenerate.
-⭐⭐ **NEXT: WIRE `--check` INTO CI** (CPO-approved 08-24). One line in `validate:governance`'s
-script list. ⛔ **PROTECTED PATH**: own task, `protected_override` quoting that approval,
-**cto + platform** reviewers. ⚠ **CI ONLY** — he did not ask for `stop_gate.py`, so nothing catches
-a seed edited without regenerating during the turn. Ask before widening.
+Plan `cozy-orbiting-quail.md`. **MR2** declared 979 columns, **MR3** wired 146 to the 9 shared
+blocks, **MR4a** (`!98`) GENERATED 80 metric blocks from `metric_catalogue.csv` via
+`scripts/sync_metric_docs_blocks.py`; **501 columns** point at them, 0 blank, 0 inline.
+⚠ Editing the seed REQUIRES a regenerate.
+✅ **CI WIRING DONE** (this MR): one line in `validate:governance` + the row in validate-local's CI
+map. ⚠ **CI ONLY** — `stop_gate.py` was NOT asked for, so nothing catches a seed edited without
+regenerating during a turn. **Ask before widening.**
+⛔⛔ **A `protected_override` GOES IN `escalations.log` BEFORE THE BRANCH TOUCHES THE PROTECTED
+PATH.** Backfilled here and 2 of 3 reviewers FAILed: the contract quoted the CPO and cited the log,
+which did not have it. Writing it in afterwards only moved the self-certification one file over;
+only asking him cured it. ⚠ **A REVIEWER PASS CAN BE THE WEAKER VERDICT** — cto's rested on a
+precedent the log itself calls ineffective and on corroboration that was my own words, and carried
+a harness security warning. Check a PASS's supports, not just a FAIL's.
 ⛔⛔ **A NAME THAT MEANS TWO THINGS IS INVISIBLE TO THE GATE** — it skips the bare name as
 ambiguous, so a wrong or blank site goes unseen. **ASSERT THESE FROM THE YAML DIRECTLY.**
 `league_code` = the competition EXCEPT on entity-scoped pulls (transfers, coaches, player
 profiles/teams, `base_apif__teams_global`) where it is INGEST PROVENANCE: **6 wrong**, review found
 all six, I claimed completeness twice and was wrong twice; its 49 blanks stay blank; **ROOT CAUSE =
-#87**. Same shape, 4 metrics (`duels_won_pct`, `finishing_efficiency`, `goals_open_play`,
-`goals_penalty`) differ team vs player and get `__team`/`__player` blocks: **3 sites sat unwired**.
+#87**. Same shape: 4 metrics (`duels_won_pct`, `finishing_efficiency`, `goals_open_play`,
+`goals_penalty`) split `__team`/`__player`, and **3 sites sat unwired**.
 ⚠ **NO CLASSIFIER WORKS** — 3 tried, all failed.
 ⭐ **MR4b NEXT**: author the **204** names no seed defines. Then MR5 turns presence on.
-✅ **`persist_docs` WORKS EVERYWHERE** (66/66 relations, 458/458 columns, incl. views and
-incrementals). **#86 said otherwise and is CLOSED AS WRONG.**
+✅ **`persist_docs` WORKS EVERYWHERE** (66/66 relations, 458/458 columns, views and incrementals
+included). **#86 said otherwise and is CLOSED AS WRONG.**
 ⛔⛔ **A CHECK THAT AGREES WITH ITSELF PROVES NOTHING — 4×, MR2-MR4a, detail in the log.** A guard
-verified with its OWN regex; a test asserting a platform truth as universal (CRLF: green here, red
-on every CI run); a write-path test that short-circuited before the write; `git diff` showing
-"0 deleted" while every line was rewritten. The assertion was fine each time; the PATH to it was
-wrong. ⚠ Ask what the check CANNOT see. ⚠ A green suite on ONE OS is not a green suite.
+verified with its OWN regex; a CRLF test asserting a platform truth as universal (green here, red
+on every CI run); a write-path test short-circuiting before the write; `git diff` showing
+"0 deleted" while every line was rewritten. ⚠ Ask what the check CANNOT see. ⚠ A green suite on
+ONE OS is not a green suite — prove it on `git show main:<path>` bytes.
 
 ⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for 97 models + 9 seeds. **1,024**
 chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. `data:build:main`
 publishes **`catalog.json`**. ⚠ `seeds:` is persist_docs-ONLY: a `+schema` relocates all 9.
 ⛔ **TASK ARTIFACTS COLLIDE ON CONCURRENT BRANCHES (4× on `!91`, never the code).** Fix: this
 task's artifacts whole, `escalations.log`+`active_work.md` MERGED. The merge-base moves, so
-`review.md` needs a one-value rebind — **NO re-review owed**.
+`review.md` needs a one-value rebind — **no re-review owed**.
 
 ✅ **THE GATE** (`check_description_hygiene.py`) runs in CI + `stop_gate.py` FAST_GATES: 6 content
 rules, object coverage (`!91`), shared-definition coverage (MR3). ⚠ Rules match ANNOTATION forms,
@@ -66,8 +70,8 @@ hardens into a ruling he never gave.
 
 ⛔ **#83 — COMPETITION CLASSIFICATION HAS NO CORE DIM.** `competition_type`/`entity_type` live only
 in seeds, so 12 models join the seed direct, incl. the two `int_legs__*` under 68 of 80 metrics.
-⚠ **SEEDS ARE SOURCES, settled.** The defect is LAYERING: consume a seed ONCE at base/core, then
-publish a dim.
+⚠ **SEEDS ARE SOURCES, settled** — the defect is LAYERING: read a seed ONCE at base/core, publish
+a dim.
 
 ⛔ **SIX TRAPS, every one hit for real. Do not re-learn them.**
 1. **A too-narrow grep reported as a clean sweep**, and **a keyword scan is blind to a claim using
@@ -87,9 +91,9 @@ being swept**. **Sweep the CONCEPT semantically, never the feature's name.** Evi
 
 ⛔ **TEAM NAMES — paused.** The provider's `team_name` is often not the display name.
 `team_name_overrides` (in `base_apif__teams_global.sql`) fires on completeness OR collision. **97 of
-~130 Pool 1 corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München DELIBERATELY
-EXCLUDED** — locale preference is never corrected. NOT done: ~15 Pool 1, teams outside it,
-`dim_player` duplicate short-names. ⚠ **#81** = duplicate provider records for ONE club.
+~130 Pool 1 corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München EXCLUDED ON
+PURPOSE** — locale preference is never corrected. NOT done: ~15 Pool 1, teams outside it,
+`dim_player` short-names. ⚠ **#81** = duplicate provider records for ONE club.
 
 ✅ **SETTLED, do not re-propose.** BROWSE DROPPED (`!80`) — home renders **next matches ALONE**;
 `08_browse.md` + competitions page stay LIVE (`nav.json` = NEXT 2). TOP TEAMS = **one per league**,
@@ -115,20 +119,20 @@ must not be rebuilt: **`feat/player-overview-tab`**.
 
 ⭐ **THE REPO IS NOT THE SYSTEM**: for warehouse/cloud/CI/scheduler facts check the system that
 owns them (`bq ls`, `glab api`, `gcloud` — free metadata). Bit twice: `raw_archive` called "never
-built" from zero repo refs when it EXISTS, and this file's own "Pipelines must succeed is FALSE"
-line, true at the migration and wrong by 08-22.
+built" from zero repo refs when it EXISTS, and this file's own "Pipelines must succeed" line (see
+NEXT 3).
 
 ## ⭐ The ingest cluster
 **TWO nightlies:** `data:nightly` on **Cloud Run under #39**; GitLab schedule (4379625) paused ON
 PURPOSE. Runbook `deploy/nightly/README.md`.
 ✅ **#74 FIXED** (`!70`): the nightly image tracks `main` on any push touching `*data_paths_image`
-— **but the FIRST auto-run is UNVERIFIED; check it fired.** ⚠ **NOT Cloud Build** — its identity
-holds project Editor from ANY branch. Revoked; kaniko in-job.
-⚠ **OWED: set `deploy-nightly-image` resource_group to `oldest_first`** (only after the group
+— **but the FIRST auto-run is UNVERIFIED; check it fired.** ⚠ **NOT Cloud Build** (its identity
+held project Editor from ANY branch — revoked); kaniko in-job.
+⚠ **OWED: set `deploy-nightly-image` resource_group to `oldest_first`** (only once the group
 exists — first run creates it). Default `unordered` lets two near-simultaneous merges deploy out of
 order, pinning the OLDER commit. **Sentinel (`fdp-freshness`) NOT repointed** — its own decision.
-⚠ **A GREEN EXECUTION PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
-⚠ **None of the four ingest fixes does what its title says** — caveats on #896-#898.
+⚠ **A GREEN RUN PROVES NOTHING** — it says the container ran, not which code. **Check DATA.**
+⚠ **None of the 4 ingest fixes does what its title says** — caveats on #896-#898.
 ✅ **`!62` MERGED** — the four "gap recorded as fact" holes are closed. **Detection NOT started:**
 lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so `!57`'s test is inert**);
 ⛔ **the volume-delta threshold is the CPO's and blocks it.**
@@ -159,17 +163,15 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
   an unknown flag and exiting 0, a `--review-patch` written to stdout while the stale file stayed,
   `check_task_artifacts` saying "empty diff OK" with nothing committed, and a re-measure reporting
   0 gaps because a Windows manifest writes `path` with BACKSLASHES. **FLOOR every discovery.**
-  ⛔ **A PROOF CAN BE STRUCTURALLY BLIND.** `git diff` is line-ending NORMALISED: it said
-  "0 deleted" while a script rewrote 14 files CRLF→LF. Ask what your measurement CANNOT see.
-  **Read output, not exit.**
+  **Read output, not exit.** See also the self-agreeing-check block above.
 
 ## NEXT
-0. ⭐ **#82: CI wiring** — see ⭐⭐ CURRENT.
-0b. ⛔ **CI IS FIXED BUT ONLY IN MEMORY — IT DIES ON THE NEXT REBOOT.** 08-21: every job on every
-   branch failed in ~4s at `get_sources` (`HTTP 403`). The runner egresses over **IPv6** and
-   GitLab refuses it. Fixed live with `ip -6 route del default`; **permanence is OWED**, as is a
-   **working SSH key — none exists here**, leaving only the Hetzner web console, whose keyboard
-   mangles symbols. Detail in the runner memory file.
+0. ⭐ **#82 MR4b** — see ⭐⭐ CURRENT.
+0b. ⛔ **CI IS FIXED BUT ONLY IN MEMORY — IT DIES ON THE NEXT REBOOT.** 08-21: every job failed in
+   ~4s at `get_sources` (`HTTP 403`) because the build machine goes out over **IPv6** and GitLab
+   refuses it. Fixed live with `ip -6 route del default`; **permanence is OWED**, as is a **working
+   SSH key — none exists here**, leaving only that machine's web console, whose keyboard mangles
+   symbols. Detail in the runner memory file.
 1. **Team names**: finish the ~15 unverified Pool 1 teams, then decide whether to go beyond Pool 1.
    Also the player-name truncation. Detail in ⛔ TEAM NAMES above.
 2. **Decide `nav.json`'s fate** — zero frontend consumers since `!80`. Give it one, or delete
@@ -180,14 +182,13 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
    `09_chrome.md` §4/§10 remains. SEMANTIC sweep.
 3. ✅ **"Pipelines must succeed" IS ON** (verified 08-22). This entry once said FALSE and that was
    wrong. **Check the live setting, not this file.**
-4. **#47** (the competition hub) — makes the competitions page's rows real links. Decisions if you
-   touch it: 680px width (not the mock's 1080px), single-select filters, rows inert until it
-   ships. Wire `competition_index` into CI's `--entities` list in #47's MR, not before.
+4. **#47** — makes the competitions page's rows real links. Decisions if you touch it: 680px width
+   (not the mock's 1080px), single-select filters, rows inert until it ships. Wire
+   `competition_index` into CI's `--entities` list in #47's MR, not before.
 5. **Audit stream**: Q2 of #21 · delete 2 dead `~/.claude/hooks/` copies · route/delete
-   `seo-expert-reviewer`.
-6. **COST, SYSTEMATICALLY** — trigger/cost map first, in a GitLab issue.
-7. **#845 + #882 — the CPO's decision.** Unblocks the player page.
-8. **Legal/imprint**, then launch.
+   `seo-expert-reviewer`.  6. **COST, SYSTEMATICALLY** — trigger/cost map first, as an issue.
+7. **#845 + #882 — his decision.** Unblocks the player page.
+8. **Legal/imprint**, then go live.
 9. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
    PROTECTED path editable with no `protected_override` · `Regular Season - 20` the copy gate
    cannot see · blank `competition_type` skipped by all 3 guards (see **#83**).
@@ -210,11 +211,11 @@ duplicate-club alias · #875 · #895 slim-vs-drop · #21.
 - ⛔ **VERIFY BEFORE ASSERTING.** Search `escalations.log` + docs for a prior ruling FIRST.
 - **Never merge an MR. The CPO merges. Branch from main; never commit to main.**
 - Plain language, lead with the decision, **no em dashes**, no walls of text, **no jargon**: say
-  "the league page" not "the hub", "database table" not "mart". ⚠ Hit again 08-21 — "the Hetzner
-  box" was repeated four times at someone who had no idea what it meant. Name the thing plainly.
+  "the league page" not "the hub", "database table" not "mart". ⚠ Hit AGAIN 08-24 — asked to
+  confirm "the drift check", he replied **"which drift check"**. Describe what it DOES.
 
 ## Verified state reference
 - **v2 built:** design system + 28 components, fixture page, team page (3 tabs), home (next matches
-  ONLY), competitions index, page-spec + SEO contract, per-locale metric labels.
+  ONLY), competitions index, page-spec + SEO contract, metric labels per locale.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.
