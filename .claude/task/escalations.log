@@ -4981,3 +4981,108 @@ protected_override that CERTIFIED ITSELF until two reviewers checked it against 
   YAML, not a grep; the FAST_GATES marked block byte-identical to main; six offline gates green;
   ruff green under `.ruff-ci.toml`, which is NOT what a bare `ruff check .` runs; suite 976 passed,
   1 skipped, 14 subtests.
+
+
+2026-08-25 feat/82-mr4b-generate-and-promote — #82 MR4b, the derived metric columns. FOUR ROUNDS,
+SIX REAL DEFECTS, AND I FOUND ONE OF THEM. The one I found is the reason the MR exists.
+
+  THE ONE I FOUND, by READING the output rather than checking it. Composing the first blocks
+  showed `goals_against_sum_season` — a column that exists only on TEAM models — carrying the
+  catalogue's `goals_against`, which the catalogue defines for a PLAYER: "goals conceded by the
+  team while the player was on the pitch". 21 of 76 derived names had that shape. Nothing
+  automatic would have caught it: the block resolves, the length is fine, the YAML parses, the
+  hygiene gate sees a description where it wants one. It reaches the warehouse reading as
+  authoritative.
+  ⚠ THE OBVIOUS FIX WAS THE WRONG ONE. Teaching the generator which models are team-scoped is the
+  classifier this repo has failed at three times. A fourth attempt, written only to measure the
+  damage, left 2 of 12 models unresolved. So the generator was made UNABLE TO BE WRONG instead of
+  cleverer: every derived block carries an entity suffix, whether or not its metric is split, and
+  a metric the catalogue never defined for a column's entity has no block to point at. The column
+  stays blank and VISIBLE rather than documented and wrong.
+  ⭐ SEVEN METRICS ARE PLAYER-ONLY IN THE CATALOGUE WHILE TEAM MODELS USE THE SAME NAMES —
+  `goals`, `goals_against`, `defensive_actions`, `shots_on_goal`, `shots_total`, `passes_accurate`,
+  `passes_total`. 48 team columns therefore have no definition to point at and stay blank. THE
+  CATALOGUE IS THE CPO'S; the question for him is whether these are team metrics the catalogue is
+  missing, or team columns that are misnamed. football-analytics-expert-reviewer read it
+  independently and judged them genuinely different quantities, not a misnaming. Filed as its own
+  issue. Same family as #88, which he raised himself.
+
+  ⛔⛔ THE PATTERN THAT MATTERS, AND IT IS ABOUT ME, NOT THE CODE. scope-auditor FAILED THREE ROUNDS
+  RUNNING ON ONE DEFECT CLASS: each time it named a stale claim, each time I corrected exactly the
+  sentence it named and nothing else, and each time the same claim was still sitting somewhere
+  else in the same document. Round 1 the objective. Round 2 the blast_radius and two done_when
+  bullets. Round 3 the blast_radius again, for a different reason. Its round-3 words are the whole
+  lesson: "disclosed in an amendment is not the same as reflected in the impact map that a
+  reviewer is told to trust for blast radius."
+  ⚠ THE REPO ALREADY HAS THIS RULE — "corrections replace, never accumulate, and must replace
+  EVERYWHERE" — and reading it did not stop me doing it three times in one MR. That is the fourth
+  recorded failure of that prose rule. GitLab #71 is the mechanism it is waiting on.
+  ⭐ WHAT ACTUALLY WORKED, on the fourth attempt: MEASURING instead of describing. Rendering both
+  versions of the generated file and comparing them whitespace-normalised named the 3 affected
+  blocks exactly and proved nothing else moved. It also corrected a number I had given two
+  reviewers — I said "five pre-existing breaks" from counting LINES; three BLOCKS are affected.
+  A described blast radius is a claim; a measured one is a fact.
+
+  ⛔ MUTATION TESTING CHANGED THE DESIGN TWICE AND DELETED TWO GUARDS. Eleven mutations, eight
+  killed, THREE SURVIVED, and every survivor was a real defect:
+  · reversing the affix order changed nothing, because `_decompose` accepts only a stem that is a
+    real metric — so the test could not fail, AND the rule was wrong. `goals_per_match_this_season`
+    decomposes two ways, and longest-affix-first picks the LESS specific metric, silently dropping
+    the null policy the catalogue wrote for that rate. Changed to LONGEST STEM WINS. ⭐ That fix
+    closed 22 further columns, because they now resolve to a team-scoped rate instead of a
+    player-only count.
+  · deleting a dotted-name filter changed nothing: a dotted name cannot decompose at all, since the
+    dot always lands in the stem and no metric id contains one. Dead guard, unfailable test.
+    Replaced with a check on the EMITTED names, which is reachable and dies to its own mutation.
+  · deleting a same-entity guard changed nothing: an earlier function already aborts on it. Both
+    the guard and its test deleted rather than kept as decoration.
+  ⚠ AND A TWELFTH MUTATION SURVIVED ITS AIMED TEST TOO. The hyphen test used a natural sentence
+  containing "year-on-year", and at width 95 the wrapper never happened to choose that hyphen.
+  Rewritten with a single token longer than the wrap width, which leaves it nowhere to hide.
+  ⭐ FOUR OF MY OWN TESTS COULD NOT FAIL. Writing a test is not the same as having one.
+
+  ⛔ A SHARED BLOCK IS ONLY AS TRUE AS ITS WIDEST CALL SITE, and I learned it twice in two rounds
+  on the same sentence. Round 1: the year-on-year phrase claimed a NULL cause ("a gap in
+  statistical coverage") that is real for a team and IMPOSSIBLE for a player, because a player's
+  null per-match stat means ZERO. Round 2: my fix removed that false cause and took a TRUE one
+  with it — the block is reused at `mart_player_profile`, which carries cup and tournament seasons
+  where there is no year-on-year comparison at all. First a cause wrongly added, then a cause
+  wrongly removed, both because I read ONE model and wrote a sentence attached to TWO.
+
+  ⛔ `textwrap` HAD BEEN SPLITTING HYPHENATED WORDS, AND FIVE WERE ALREADY LIVE ON MAIN.
+  `break_on_hyphens` defaults to True, so "year-on-year" became "year-on-" / "year". The file is
+  not laid out for a reader of the file: `persist_docs` collapses the newline and the warehouse
+  renders a space inside the term. `!98` shipped three such blocks. Found only because a test
+  failed for the wrong reason.
+
+  ⛔ A COMPOSED SENTENCE CAN CONTRADICT ITSELF AND PASS EVERYTHING. `clean_sheets` is a RATIO and
+  its text carries that ratio's display convention ("e.g. 3/5"); `clean_sheets_sum_season` is the
+  raw count. Composed, the block said the value was both a small fraction and a season total.
+  Caught by analytics-engineer-reviewer READING it. Fixed as a class: a totalling affix is refused
+  on any metric with a `denominator_expr`. ⚠ And the fix hid the column from the wiring tool, which
+  reads "no candidate block" as "not a derived name" — so the generator now REPORTS every refusal.
+
+  ⭐ ROUTING A REVIEWER BY JUDGEMENT RATHER THAN BY PATH CAUGHT TWO DEFECTS.
+  `football-analytics-expert-reviewer`'s trigger is `metric_catalogue.csv`, which this MR never
+  touches. It was invited because the MR composes prose making claims about how metrics are
+  computed, and those claims reach 130 warehouse columns. It found the false player NULL cause and
+  then the true one my fix dropped. THE TRIGGER NAMES A FILE; THE RISK IT EXISTS TO CATCH IS NOT
+  ALWAYS IN THAT FILE.
+
+  ⚠ platform-reviewer DISCLOSED, in three consecutive rounds, that it had no execution tools and
+  had traced the code symbolically instead of running it. It re-derived every mutation claim by
+  hand rather than believing the write-up, and in one round caught its own tool returning a stale
+  read and re-checked three ways rather than reporting it. A reviewer stating the limits of its own
+  method is worth more than one that does not.
+
+  CPO DECISION, 2026-08-25: round 4 approved, over the cap of 3, asked as "a reviewer has caught
+  the same mistake in my paperwork three times; I have fixed the third one and nobody has checked
+  it — do I run one more check, or ship?"
+  CPO ANSWER, verbatim: "run one more check".
+
+  MEASURED: 130 columns closed, blank in-scope 635 to 508; 161 blocks (80 metric, 81 derived), all
+  derived entity-suffixed; 48 columns reserved to the CPO and listed by the tool on every run;
+  130 added / 3 deleted in the model ymls with every deletion named; line endings unchanged as
+  BYTES; the 3 rewrapped pre-existing blocks measured by rendering both versions rather than
+  described; eight offline gates green including ruff under `.ruff-ci.toml`; suite 998 passed,
+  1 skipped, collection 977 stashed against 999 applied.

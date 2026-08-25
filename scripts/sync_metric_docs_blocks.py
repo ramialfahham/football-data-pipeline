@@ -48,8 +48,11 @@ import re
 import sys
 import textwrap
 
+import yaml
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SEED = REPO_ROOT / "dbt_project" / "seeds" / "metric_catalogue.csv"
+MODELS = REPO_ROOT / "dbt_project" / "models"
 
 # ⚠ MUST live under `models/`. dbt reads docs blocks from `docs-paths`, which is
 # unset in dbt_project.yml and therefore defaults to `models/`. A block outside it
@@ -80,6 +83,138 @@ MIN_METRICS = 50
 # no phrasing to enumerate.
 WINDOW_PHRASING = re.compile(r"\bwindow\b", re.I)
 
+# ─── DERIVED COLUMNS ────────────────────────────────────────────────────────────
+# 77 model columns are a catalogue metric with one standard affix on it:
+# `goals_against_sum_season`, `duels_won_pct_this_season`,
+# `shots_on_goal_per_match_delta_yoy`. The metric half is already defined in the
+# seed; only the affix adds meaning, and there are eleven of them in the whole
+# project. So the block is COMPOSED — the seed's definition, then the affix's
+# sentence — rather than written out 77 times by hand, which is how `league_code`
+# reached 22 wordings.
+#
+# ⚠ EVERY PHRASE BELOW IS TRACED TO THE SQL, NOT INHERITED FROM A NEIGHBOURING
+# DESCRIPTION. MR1 of this programme shipped a description that was simply false
+# because it compressed upstream prose without reading the model underneath it.
+# Sources: `int_team_profile__yoy.sql` (games-played alignment, domestic-league
+# scope, delta NULL when either side is NULL), `int_player_profile__yoy.sql`
+# (appearance alignment, prior season AT THE SAME CLUB, `_prev_season_full` never
+# differenced), `mart_team_profile.sql:14-18` (NULL for non-domestic competitions
+# and where the prior season was never ingested).
+#
+# ⚠ THE PHRASES ARE DELIBERATELY NEUTRAL ABOUT WHAT A "MATCH" IS. The team models
+# align by games played and the player models by appearances, and the same affix
+# is used on both — so a phrase naming either one would be false half the time.
+# The precise alignment rule belongs to the MODEL's description, which states it.
+#
+# ⚠ ORDER MATTERS: LONGEST FIRST. `_per_match_this_season` must be tried before
+# `_this_season`, or `goals_against_per_match_this_season` decomposes to the
+# non-existent metric `goals_against_per_match` and silently emits nothing. The
+# same trap in reverse cost a scratch measurement: a naive stripper read
+# `duels_won_pct_this_season` as `duels_won` + `_pct`, which is a REAL metric, so
+# it would have attached the wrong definition instead of failing.
+DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
+    ("_per_match_this_season", "suffix",
+     "Divided by matches played, for the season now in progress, through the matches played so "
+     "far."),
+    ("_per_match_prev_season", "suffix",
+     "Divided by matches played, for the season before, through the same number of matches as "
+     "the current season has played so far, so the two are compared at the same point of a "
+     "campaign rather than a part season against a full one."),
+    ("_per_match_delta_yoy", "suffix",
+     "The change in the per-match value from the previous season to the current one, compared at "
+     "the same point of the campaign: the current value minus the previous one. NULL when either "
+     "side is missing, which covers a competition that carries no year-on-year comparison, a "
+     "prior season that was never loaded, and a gap in statistical coverage."),
+    ("_prev_season_full", "suffix",
+     "The previous season's complete total, with no cutoff. It is context for how large that "
+     "season was and is never subtracted from the season in progress, because a part season "
+     "against a full one would mislead."),
+    ("_prev_season", "suffix",
+     "Value for the season before, through the same number of matches as the current season has "
+     "played so far, so the two are compared at the same point of a campaign rather than a part "
+     "season against a full one."),
+    ("_this_season", "suffix",
+     "Value for the season now in progress, accumulated through the matches played so far."),
+    # ⚠ ENTITY-SPECIFIC, and it has to be. "A gap in statistical coverage" is a
+    # real NULL cause on the TEAM side — `int_team_profile__yoy.sql` nulls a rate
+    # when the season's first N games are not fully stat-covered. It is IMPOSSIBLE
+    # on the player side: a player's per-match null stat MEANS ZERO, not missing,
+    # so a running sum over zero-filled fields never becomes null for coverage.
+    # `int_player_profile__yoy.sql` says so itself and names only the absent prior
+    # season at that club. Shipping the team sentence on four player columns was
+    # caught by football-analytics-expert-reviewer, and it is the same failure the
+    # docstring above warns about: prose inherited without reading the model.
+    #
+    # ⚠ AND THE FIX FOR THAT WAS WRONG IN THE MIRROR DIRECTION, caught by the same
+    # reviewer one round later. Dropping the false coverage cause also dropped a
+    # TRUE one. The player sentence is complete inside `int_player_profile__yoy`,
+    # which is domestic-league-only at the row level — but the block is reused at
+    # `mart_player_profile`, which carries every competition-season a player has
+    # and left-joins the domestic-only yoy rows onto it. A cup or tournament row is
+    # NULL there because that competition has no year-on-year comparison at all.
+    # ⭐ THE RULE THIS LEAVES: A SHARED BLOCK IS ONLY AS TRUE AS ITS WIDEST CALL
+    # SITE. Read every model the block reaches, not the one you happened to open.
+    ("_delta_yoy", "suffix", {
+        "team":
+            "The change from the previous season to the current one, compared at the same point "
+            "of the campaign: the current value minus the previous one. NULL when either side is "
+            "missing, which covers a competition that carries no year-on-year comparison, a prior "
+            "season that was never loaded, and a season whose first matches are not fully "
+            "stat-covered.",
+        "player":
+            "The change from the previous season to the current one, compared at the same point "
+            "of the campaign: the current value minus the previous one. NULL when there is no "
+            "prior season at this club to compare against, which covers a transfer, a first "
+            "season at this level and a prior season that was never loaded, and NULL for a "
+            "competition that carries no year-on-year comparison at all, such as a cup, a "
+            "qualifying campaign or an international tournament.",
+    }),
+    ("_sum_season", "suffix", "Totalled over the season."),
+    ("last_meeting_", "prefix",
+     "Taken from the most recent previous meeting between these two teams."),
+    ("opponent_", "prefix", "Measured for the opposing team rather than this one."),
+)
+
+# A docs block is named by a Jinja tag and referenced by `doc('<name>')`, and both
+# this file's parser and `check_description_hygiene.py`'s match `\w+` — so a NAME
+# WITH A DOT IN IT CANNOT BE A BLOCK. Five columns are nested fields spelled that
+# way (`recent_meetings.goals_against` and its siblings). Such a block would be
+# unaddressable AND invisible to the drift reporter, whose own regex skips the dot.
+#
+# ⚠ THIS VALIDATES THE OUTPUT, NOT THE INPUT, and mutation testing is why. The
+# first version filtered dotted COLUMN names before decomposing — and deleting
+# that filter changed nothing, because a dotted name cannot decompose anyway: the
+# dot always lands in the stem, and no metric id contains one. It was dead code
+# with a test that could not fail. Checking the emitted names instead is reachable
+# the moment anyone adds an affix containing a dot, which is the only way this can
+# actually happen.
+BLOCK_NAME_RE = re.compile(r"^\w+$")
+
+# Floor under the SECOND input, for the same reason MIN_METRICS floors the first.
+# The derived names come from walking the model YAML; a moved directory or a
+# parser change would leave that matching nothing, and a generator that quietly
+# drops 77 blocks would blank 153 warehouse columns on the next build. Set well
+# under the 77 measured and well over zero.
+MIN_DERIVED = 40
+
+# Affixes that TOTAL a value. Meaningless on a metric that is already a rate or a
+# ratio, and not merely redundant: `clean_sheets` is defined in the catalogue as
+# the RATIO `safe_divide(clean_sheet_games, games_played)`, and its text carries
+# that ratio's display convention, "shown as a count of games played (e.g. 3/5)".
+# The column `clean_sheets_sum_season` is `clean_sheet_games` alone — a plain
+# season-long integer. Composing the two produced a sentence claiming, in one
+# breath, that the value is a small fraction AND a season total. It read fluently
+# and was wrong, and `persist_docs` would have put it in front of a stranger.
+# Caught by analytics-engineer-reviewer.
+#
+# ⚠ THE TEST IS THE CATALOGUE'S OWN `denominator_expr`, not a list of metric names.
+# A metric with a denominator is a rate; totalling it is a different quantity, so
+# the block is REFUSED and the column stays blank and visible rather than
+# documented and wrong. One name is affected today; the rule is what stops the
+# next one. The other rate metrics take `_this_season` / `_prev_season` /
+# `_delta_yoy`, which are all sound on a rate and are unaffected.
+TOTALLING_AFFIXES = ("_sum_season",)
+
 WRAP = 95
 
 HEADER = """<!--
@@ -95,6 +230,12 @@ makes the seed and the warehouse disagree about what a metric means.
 A metric whose team and player rows define it differently gets one block per
 entity, suffixed __team / __player, so no caller has to guess which meaning it is
 pointing at.
+
+Blocks are also emitted for DERIVED column names - a metric with one standard
+affix on it, such as goals_against_sum_season or duels_won_pct_this_season. Those
+are the seed's definition followed by the affix's own sentence, and they exist for
+exactly the column names the model YAML contains, so adding a column shaped that
+way and forgetting to regenerate fails the drift check in CI.
 -->
 """
 
@@ -157,8 +298,170 @@ def _blocks(rows: list[dict]) -> dict[str, str]:
     return blocks
 
 
-def _render(rows: list[dict]) -> bytes:
+def _column_names() -> list[str]:
+    """Every column name declared under `models/`, sorted. The SECOND input.
+
+    Read from the raw YAML rather than the manifest on purpose: the manifest needs
+    a compiled project and a warehouse connection, and this script must run offline
+    in a validate job with no credentials.
+    """
+    names: set[str] = set()
+    for path in sorted(MODELS.rglob("*.yml")):
+        rel = _rel(path)
+        if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
+            continue
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+            # LOUD. A file that will not parse means the name set is incomplete,
+            # and an incomplete set silently drops blocks for the columns in it.
+            raise Abort(rel + " will not parse (" + exc.__class__.__name__
+                        + "), so the column-name set is incomplete and any block "
+                        "missing from the output would be missing for that reason "
+                        "rather than because the column does not exist.") from exc
+        if not isinstance(doc, dict) or not isinstance(doc.get("models"), list):
+            continue
+        for model in doc["models"]:
+            if not isinstance(model, dict):
+                continue
+            for col in model.get("columns") or []:
+                if isinstance(col, dict) and isinstance(col.get("name"), str):
+                    names.add(col["name"])
+    return sorted(names)
+
+
+def _decompose(name: str, metrics: set[str]) -> tuple[str, str] | None:
+    """(metric_id, affix) for a derived name, or None.
+
+    LONGEST AFFIX FIRST, and the remainder must be a metric EXACTLY. Only one affix
+    is ever stripped: no column in this project carries two, and allowing a chain
+    would let a wrong pair of strips land on a real metric and attach its
+    definition. If a chained name ever appears it falls through to None, which
+    leaves the column blank and visible to the coverage gate, rather than
+    documented wrongly and invisible.
+    """
+    hits: list[tuple[str, str]] = []
+    for affix, kind, _ in DERIVED_AFFIXES:
+        if kind == "suffix" and name.endswith(affix):
+            stem = name[: -len(affix)]
+        elif kind == "prefix" and name.startswith(affix):
+            stem = name[len(affix):]
+        else:
+            continue
+        if stem in metrics:
+            hits.append((stem, affix))
+    if not hits:
+        return None
+    # THE LONGEST STEM WINS, not the longest affix, and mutation testing is what
+    # settled that. `goals_per_match_this_season` decomposes two ways when the seed
+    # holds both `goals` and `goals_per_match`: as `goals` + "divided by matches
+    # played, for the season now in progress", or as `goals_per_match` + "value for
+    # the season now in progress". Both render true sentences, but only the second
+    # uses the definition the catalogue actually wrote for that rate — including
+    # its null policy, which the composed form silently drops. Preferring the
+    # longest affix, which an earlier version did, picks the worse one.
+    return max(hits, key=lambda h: len(h[0]))
+
+
+def _derived_blocks(rows: list[dict], names: list[str],
+                    refused: list[str] | None = None) -> dict[str, str]:
+    """Compose one block per derived column name, ALWAYS SUFFIXED BY ENTITY.
+
+    ⛔ THE ENTITY SUFFIX IS NOT COSMETIC AND THE UNSUFFIXED FORM IS NOT AN OPTION.
+    The first version of this function emitted a bare `goals_against_sum_season`
+    whenever the catalogue held one row for `goals_against` — and the catalogue
+    holds exactly one, for a PLAYER: "goals conceded by the team while the player
+    was on the pitch". Every column of that name lives on a TEAM model. Twenty-one
+    of seventy-six derived names had that shape, so a fifth of them would have
+    carried a player's definition into a team column, silently, into the warehouse.
+    Found by READING the composed output; no check in this repo would have caught
+    it, because the block resolves, the length is fine and the YAML parses.
+
+    The obvious fix — teach the generator which models are team-scoped and which
+    are player-scoped — is the one this repo has already failed at three times
+    (see `active_work.md`: "NO CLASSIFIER WORKS"). So the generator is not made
+    cleverer; it is made unable to be wrong. Every derived block carries the entity
+    the catalogue actually defined, the caller points at the entity its column
+    actually is, and a metric the catalogue never defined for that entity has no
+    block to point at — leaving the column blank and visible rather than documented
+    and wrong.
+
+    A stem defined for two entities therefore behaves no differently from one
+    defined for one: both emit per entity, and neither has a default.
+    """
+    phrases = {affix: phrase for affix, _, phrase in DERIVED_AFFIXES}
+    rated = {r["metric_id"].strip() for r in rows
+             if (r.get("denominator_expr") or "").strip()}
+    by_entity: dict[str, dict[str, str]] = {}
+    for r in rows:
+        metric = r["metric_id"].strip()
+        entity = (r["entity"] or "").strip().replace(" ", "_")
+        text = (r["description"] or "").strip()
+        # NO GUARD HERE against two rows sharing a metric AND an entity while
+        # disagreeing. `_blocks()` runs first in `_render()` and already aborts on
+        # exactly that, so a copy of the check here is unreachable — proven by
+        # mutation: disabling it left all 43 tests green, and the test written for
+        # it was in fact exercising `_blocks()`. An unreachable guard is decoration,
+        # and a test that cannot fail is worse than none.
+        by_entity.setdefault(metric, {})[entity] = text
+
+    out: dict[str, str] = {}
+    found = 0
+    for name in names:
+        hit = _decompose(name, set(by_entity))
+        if not hit:
+            continue
+        stem, affix = hit
+        if affix in TOTALLING_AFFIXES and stem in rated:
+            # ⚠ REPORTED, NOT SILENTLY SKIPPED. With no block at all the wiring
+            # tool cannot see this column either — it reads "no candidate block"
+            # as "not a derived name" — so a refusal that said nothing here would
+            # be a coverage cut nobody could find. See TOTALLING_AFFIXES.
+            if refused is not None:
+                refused.append(name + " (totalling the rate metric " + stem + ")")
+            continue
+        found += 1
+        for entity, text in by_entity[stem].items():
+            phrase = phrases[affix]
+            if isinstance(phrase, dict):
+                if entity not in phrase:
+                    raise Abort(
+                        "affix " + repr(affix) + " has entity-specific phrasing but "
+                        "none for " + repr(entity) + ", so " + repr(name) + " would "
+                        "silently take another entity's sentence."
+                    )
+                phrase = phrase[entity]
+            out[name + "__" + entity] = text + " " + phrase
+    bad = sorted(n for n in out if not BLOCK_NAME_RE.match(n))
+    if bad:
+        raise Abort(
+            "these block names are not addressable by dbt, which matches `\\w+` in "
+            "both the docs tag and `doc()`: " + ", ".join(bad) + ". A block dbt "
+            "cannot address renders as literal text in the warehouse, and the "
+            "drift reporter would not even list it as missing, because its own "
+            "regex skips the dot."
+        )
+    if found < MIN_DERIVED:
+        raise Abort(
+            "matched only " + str(found) + " derived column names (floor "
+            + str(MIN_DERIVED) + "). The column-name read or the affix list has "
+            "stopped matching, and emitting fewer blocks would blank every column "
+            "whose block disappeared."
+        )
+    return out
+
+
+def _render(rows: list[dict], names: list[str],
+            refused: list[str] | None = None) -> bytes:
     blocks = _blocks(rows)
+    derived = _derived_blocks(rows, names, refused)
+    clash = sorted(set(blocks) & set(derived))
+    if clash:
+        raise Abort(
+            "these names are produced BOTH as a metric block and as a derived "
+            "block, so one would silently overwrite the other: " + ", ".join(clash)
+        )
+    blocks.update(derived)
 
     offenders = sorted(n for n, t in blocks.items() if WINDOW_PHRASING.search(t))
     if offenders:
@@ -171,7 +474,18 @@ def _render(rows: list[dict]) -> bytes:
     out = io.StringIO()
     out.write(HEADER)
     for name in sorted(blocks):
-        body = "\n".join(textwrap.wrap(blocks[name], width=WRAP)) or blocks[name]
+        # ⚠ NEVER BREAK A WORD OR A HYPHENATED TERM. `textwrap.wrap` defaults to
+        # `break_on_hyphens=True`, which split "year-on-year" across two lines as
+        # "year-on-" / "year". This text is not laid out for a reader of the file:
+        # `persist_docs` pushes it into the warehouse, where the newline collapses
+        # and the term renders as "year-on- year". Five such breaks were already
+        # shipped by the previous MR — "on-target, off-" / "target", "a within-" /
+        # "group table" — so this fixes those too. It is the same generated file
+        # and the same one-parameter cause; leaving five mangled while fixing
+        # eight identical ones would be arbitrary.
+        body = "\n".join(textwrap.wrap(blocks[name], width=WRAP,
+                                       break_on_hyphens=False,
+                                       break_long_words=False)) or blocks[name]
         out.write("\n\n")
         out.write("{% docs " + name + " %}\n")
         out.write(body + "\n")
@@ -212,16 +526,28 @@ def main() -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Verify the file matches the seed. Writes nothing; exits 1 on drift.",
+        help="Verify the file matches the seed and the model YAML. Writes nothing; "
+             "exits 1 on drift.",
     )
     args = parser.parse_args()
 
+    refused: list[str] = []
     try:
         rows = _read_rows()
-        expected = _render(rows)
+        expected = _render(rows, _column_names(), refused)
     except Abort as exc:
         print("sync_metric_docs_blocks: " + str(exc), file=sys.stderr)
         return 1
+
+    if refused:
+        # On BOTH paths, `--check` included: a refusal is information a CI log
+        # should carry, and it is the only place these columns are visible.
+        print("NO BLOCK GENERATED, " + str(len(refused)) + " column name(s). The "
+              "affix totals a metric that is already a rate, which is a different "
+              "quantity. These stay blank on purpose:")
+        for name in sorted(refused):
+            print("  " + name)
+        print()
 
     count = expected.count(b"{% docs ")
     current = OUT.read_bytes() if OUT.exists() else None
@@ -233,13 +559,14 @@ def main() -> int:
             return 1
         if not _same(current, expected):
             print("FAIL: " + _rel(OUT) + " has drifted from "
-                  + _rel(SEED) + ".\n")
+                  + _rel(SEED) + " or from the model YAML.\n")
             for line in _describe_drift(current, expected):
                 print("  - " + line)
-            print("\nThe seed is the source. Do not edit the generated file: run\n"
-                  "  python scripts/sync_metric_docs_blocks.py")
+            print("\nThe seed and the model YAML are the sources. Do not edit the "
+                  "generated file: run\n  python scripts/sync_metric_docs_blocks.py")
             return 1
-        print("OK: " + str(count) + " metric docs blocks match " + _rel(SEED) + ".")
+        print("OK: " + str(count) + " metric docs blocks match " + _rel(SEED)
+              + " and the model YAML.")
         return 0
 
     if current is not None and _same(current, expected):

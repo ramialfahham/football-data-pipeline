@@ -343,6 +343,112 @@ def _shared_blocks() -> set[str]:
     return blocks
 
 
+# ─── WHICH MODELS ARE TEAM-SCOPED AND WHICH ARE PLAYER-SCOPED ───────────────────
+# `sync_metric_docs_blocks.py` emits every derived block with an entity suffix,
+# because the catalogue defines `goals_against` for a PLAYER ("while the player was
+# on the pitch") while every column of that name sits on a TEAM model. It refuses
+# to guess which is which, so the answer lives here: a TABLE, decided by reading
+# each model's own SQL header, with the header quoted where the model's name does
+# not say it. A reviewer can check every line against the file it names.
+#
+# ⚠ NOT A PATTERN MATCH, deliberately. `mart_head_to_head`, `int_legs__team_match`
+# and `int_season_record` are all team-scoped and only one of them says so in its
+# name; this repo has already recorded three failed attempts at classifying by
+# rule. A wrong entry here attaches the wrong definition, so being explicit is the
+# point, and an unlisted model ABORTS rather than defaulting.
+MODEL_ENTITY: dict[str, str] = {
+    "int_team_profile__yoy": "team",
+    "mart_team_profile": "team",
+    "int_team_season__metrics": "team",
+    "int_team_season__metrics_cumulative": "team",
+    "mart_team_season_insights": "team",
+    "int_team_momentum_window": "team",
+    "int_team_season_record": "team",
+    # "the directed team-match leg is already the right grain (team + opponent +
+    # result per finished match)" - quoted from mart_head_to_head.sql, which
+    # builds on it.
+    "int_legs__team_match": "team",
+    # "TEAM deserved-vs-actual read (points-space). One row per (team_sk,
+    # season_sk)" - int_team_season__deserved_vs_actual.sql, header line 4.
+    "int_team_season__deserved_vs_actual": "team",
+    # "All-time past meetings between two teams, DIRECTED: one row per (team_sk,
+    # opponent_team_sk)" - mart_head_to_head.sql, header line 4.
+    "mart_head_to_head": "team",
+    "int_player_profile__yoy": "player",
+    "mart_player_profile": "player",
+    "int_player_club_season__metrics": "player",
+    "int_player_season_record": "player",
+}
+
+_ENTITY_SUFFIXES = ("__team", "__player")
+
+
+def _metric_wire_plan() -> tuple[dict, dict[str, list[str]]]:
+    """Blank derived-metric columns -> their entity's block. file -> model -> col -> block.
+
+    A derived column name such as `goals_against_sum_season` has no bare block, only
+    `__team` and/or `__player`, so the block cannot be chosen by name alone the way
+    `--wire-shared-docs` chooses one. It is chosen by the model's entity.
+
+    Two failure modes, and neither is guessed at:
+      - the model is absent from MODEL_ENTITY: ABORT, because defaulting is how the
+        wrong definition gets attached.
+      - the block for that entity does not exist, because the catalogue never
+        defined the metric for it: the column is left BLANK and REPORTED, which
+        keeps it visible to the coverage gate instead of documented and wrong.
+    """
+    blocks = _shared_blocks()
+    if not blocks:
+        raise Abort(
+            f"no {'{%'} docs %{'}'} blocks found under {_rel(MODELS_DIR)}; refusing to "
+            f"run against an empty block set, which would make 'nothing to wire' "
+            f"trivially true."
+        )
+
+    plan: dict[pathlib.Path, dict[str, dict[str, str]]] = {}
+    unclassified: set[str] = set()
+    no_block: dict[str, list[str]] = {}
+    for path in sorted(DBT_DIR.rglob("*.yml")):
+        rel = f"/{_rel(path)}"
+        if "/target/" in rel or "/dbt_packages/" in rel:
+            continue
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+            raise Abort(f"{_rel(path)}: cannot parse ({exc.__class__.__name__})") from exc
+        if not isinstance(doc, dict):
+            continue
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict) or not isinstance(model.get("name"), str):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict):
+                    continue
+                name = column.get("name")
+                if not isinstance(name, str) or (column.get("description") or "").strip():
+                    continue
+                if name in blocks:
+                    continue        # a bare block exists; --wire-shared-docs owns it
+                if not any(name + s in blocks for s in _ENTITY_SUFFIXES):
+                    continue        # not a derived name at all
+                entity = MODEL_ENTITY.get(model["name"])
+                if entity is None:
+                    unclassified.add(model["name"])
+                    continue
+                block = f"{name}__{entity}"
+                if block not in blocks:
+                    no_block.setdefault(block, []).append(model["name"])
+                    continue
+                plan.setdefault(path, {}).setdefault(model["name"], {})[name] = block
+    if unclassified:
+        raise Abort(
+            "these models hold a derived-metric column but are absent from "
+            "MODEL_ENTITY, so whether their columns are team- or player-scoped is "
+            "unknown and this script will not default: " + ", ".join(sorted(unclassified))
+        )
+    return plan, no_block
+
+
 def _ambiguous_names(yml_docs: list[tuple[pathlib.Path, object]]) -> dict[str, set[str]]:
     """Column names that ALREADY reference more than one block, with those blocks.
 
@@ -560,12 +666,25 @@ def main() -> int:
              "both halves.",
     )
     parser.add_argument(
+        "--wire-metric-docs",
+        action="store_true",
+        help="Point every blank DERIVED metric column (a catalogue metric plus a standard "
+             "affix) at the generated block for its model's entity. Needs no catalogue.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="Report what would be added; write nothing."
     )
     args = parser.parse_args()
 
+    if args.wire_shared_docs and args.wire_metric_docs:
+        print("declare_missing_columns: --wire-shared-docs and --wire-metric-docs are "
+              "separate passes over the same files; run them one at a time so each "
+              "diff is attributable.", file=sys.stderr)
+        return 1
     if args.wire_shared_docs:
         return _main_wire(args)
+    if args.wire_metric_docs:
+        return _main_metric_wire(args)
 
     try:
         plan = _plan(args.catalog)
@@ -598,6 +717,47 @@ def main() -> int:
         return 0
 
     return _write_files(by_file, _insert, _expect_declared, "column entries")
+
+
+def _main_metric_wire(args) -> int:
+    """`--wire-metric-docs`: point blank derived columns at their entity's block."""
+    try:
+        by_file, no_block = _metric_wire_plan()
+    except Abort as exc:
+        print(f"declare_missing_columns: {exc}", file=sys.stderr)
+        return 1
+
+    if no_block:
+        # REPORTED, never silently skipped. These are the columns whose metric the
+        # catalogue defines for the other entity only; leaving them blank is the
+        # correct outcome and saying so is what makes it a decision rather than a
+        # gap somebody finds later.
+        left = sum(len(m) for m in no_block.values())
+        print(f"LEFT BLANK, {left} column(s): the catalogue does not define these metrics "
+              f"for the entity that uses them, so there is no block to point at.")
+        for block, models in sorted(no_block.items()):
+            print(f"  {block} would be needed by: {', '.join(sorted(set(models)))}")
+        print()
+
+    total = sum(len(c) for payload in by_file.values() for c in payload.values())
+    if not total:
+        print(
+            "declare_missing_columns: nothing to wire. Every blank derived metric "
+            "column already references its entity's block.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"{total} columns to wire, across {len(by_file)} files:")
+    for path in sorted(by_file):
+        n = sum(len(c) for c in by_file[path].values())
+        print(f"  {n:5d}  {_rel(path)}  ({len(by_file[path])} models)")
+
+    if args.dry_run:
+        print("\n--dry-run: nothing written.")
+        return 0
+
+    return _write_files(by_file, _insert_description, _expect_wired, "doc references")
 
 
 def _main_wire(args) -> int:

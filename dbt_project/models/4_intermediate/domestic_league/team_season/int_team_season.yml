@@ -90,6 +90,7 @@ models:
       - name: player_stat_coverage_season_games
       - name: games_with_team_stats
       - name: points_won_sum_season
+        description: "{{ doc('points_won_sum_season__team') }}"
       - name: wins_sum_season
       - name: draws_sum_season
       - name: losses_sum_season
@@ -225,6 +226,7 @@ models:
       - name: player_stat_coverage_season_games
       - name: games_with_team_stats
       - name: points_won_sum_season
+        description: "{{ doc('points_won_sum_season__team') }}"
       - name: wins_sum_season
       - name: draws_sum_season
       - name: losses_sum_season
@@ -387,7 +389,7 @@ models:
       - name: actual_rank
         description: "League table rank (standing_rank from int_team_season__standings_primary) — the actual position."
       - name: points_won_sum_season
-        description: "Actual points won across the season — the ACTUAL side of the comparison, carried here so the gap contract test can assert against it."
+        description: "{{ doc('points_won_sum_season__team') }} In this model it is the ACTUAL side of the deserved-versus-actual comparison."
       - name: season_games_played
         description: "Finished games in the season; scales the fitted rate into a points total and bounds the legal-range test."
       - name: deserved_points

@@ -45,30 +45,44 @@ models:
         description: "N = appearances this season; the prior season is compared through its first N appearances."
         tests: [not_null]
       - name: goals_delta_yoy
-        description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
+        description: "{{ doc('goals_delta_yoy__player') }} Here the alignment is by appearances: the count of matches the player actually played."
       - name: appearances_prev_full
         description: "The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev). NULL when no prior season."
       - name: goals_prev_season_full
-        description: "The prior season's FULL-season total, a context anchor for the pace-matched delta (assists / shots_on_goal / key_passes / defensive_actions follow the same *_prev_season_full pattern). Never differenced against the running season."
+        description: "{{ doc('goals_prev_season_full__player') }} Assists, shots on target, key passes and defensive actions follow the same pattern in this model."
       - name: goals_this_season
+        description: "{{ doc('goals_this_season__player') }}"
       - name: assists_this_season
+        description: "{{ doc('assists_this_season__player') }}"
       - name: shots_on_goal_this_season
+        description: "{{ doc('shots_on_goal_this_season__player') }}"
       - name: key_passes_this_season
       - name: defensive_actions_this_season
+        description: "{{ doc('defensive_actions_this_season__player') }}"
       - name: appearances_prev
       - name: goals_prev_season
+        description: "{{ doc('goals_prev_season__player') }}"
       - name: assists_prev_season
+        description: "{{ doc('assists_prev_season__player') }}"
       - name: shots_on_goal_prev_season
+        description: "{{ doc('shots_on_goal_prev_season__player') }}"
       - name: key_passes_prev_season
       - name: defensive_actions_prev_season
+        description: "{{ doc('defensive_actions_prev_season__player') }}"
       - name: assists_prev_season_full
+        description: "{{ doc('assists_prev_season_full__player') }}"
       - name: shots_on_goal_prev_season_full
+        description: "{{ doc('shots_on_goal_prev_season_full__player') }}"
       - name: key_passes_prev_season_full
       - name: defensive_actions_prev_season_full
+        description: "{{ doc('defensive_actions_prev_season_full__player') }}"
       - name: assists_delta_yoy
+        description: "{{ doc('assists_delta_yoy__player') }}"
       - name: shots_on_goal_delta_yoy
+        description: "{{ doc('shots_on_goal_delta_yoy__player') }}"
       - name: key_passes_delta_yoy
       - name: defensive_actions_delta_yoy
+        description: "{{ doc('defensive_actions_delta_yoy__player') }}"
 
   - name: int_player_profile__contribution
     description: >

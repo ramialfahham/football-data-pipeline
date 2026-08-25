@@ -1,161 +1,256 @@
-# Acceptance evidence — #82: wire the metric-block drift check into CI
+# Acceptance evidence — #82 MR4b: the derived metric columns
 
-Every number here was MEASURED on this branch, from the source the contract names. Where a
-measurement contradicted an expectation, the contradiction is what is recorded.
+Every number measured on this branch, from the source the contract names. Where a measurement
+contradicted an expectation, the contradiction is what is recorded.
 
-## What changed
+## The headline, and it is smaller than the plan said twice over
 
-| file | + | - | what |
-|---|---|---|---|
-| `.gitlab-ci.yml` | 9 | 0 | one command in `validate:governance`, plus an 8-line comment saying what it protects — **PROTECTED PATH** |
-| `.claude/skills/validate-local/SKILL.md` | 4 | 2 | mapping-table row, Tier 1 bash line, and the Tier-1 intro sentence rewrapped to name the new gate |
-| `.claude/task/contract.md` | — | — | this task's contract, replacing MR4a's |
-
-No Python, no test, no dbt model, no seed, and not the script being wired.
-
-## The check is SEEN RED, and seen red on the platform that matters
-
-`#904` says a passing check proves nothing. Both directions were run against a real copy of the
-three real files in a scratch mirror (same relative layout, so the script's `__file__`-derived
-`REPO_ROOT` resolves normally). The repo itself was never mutated — `metric_catalogue.csv` is a
-CPO-governed file and is not in `scope_paths`.
-
-| run | input | result |
-|---|---|---|
-| baseline, CRLF (this machine's checkout) | unmodified | `OK: 80 metric docs blocks match ...`, exit 0 |
-| seed edited, generated file untouched | `pass_accuracy_pct` description changed | **exit 1**, `- changed: pass_accuracy_pct`, and the fix command printed |
-| restored | mutation reverted | `OK: 80 ...`, exit 0, content byte-identical to the repo ignoring endings |
-
-⛔ **AND THE ONE THIS MACHINE CANNOT PROVE BY DEFAULT.** `!98` was made red by CI, not by any
-reviewer, because the generator compared bytes exactly: the repo STORES LF, this machine checks
-out CRLF, CI checks out LF, so the check could only ever pass on Windows. Six local gates, 972
-local test passes and four reviewers all missed it, because this machine is the one platform
-where the bug is invisible. So this MR does not assert the fix — it runs against **the exact
-bytes git stores**, materialised with `git show main:<path>` (0 CRLF, 475 bare LF in
-`metric_columns.md`; 0 CRLF, 81 bare LF in the seed), which is precisely what a Linux runner
-checks out:
-
-| run | line endings | result |
-|---|---|---|
-| stored blobs, unmodified | pure LF | `OK: 80 metric docs blocks match ...`, exit 0 |
-| stored blobs, seed mutated | pure LF | **exit 1**, `- changed: pass_accuracy_pct` |
-
-Green when it should be green and red when it should be red, on both line-ending worlds. Wiring
-this into CI cannot make CI permanently red the way `!98` would have.
-
-## The wiring itself, read from the parsed YAML and not from the diff
-
-`yaml.safe_load('.gitlab-ci.yml')` → `validate:governance.script` has **9 entries**, and
-`'python scripts/sync_metric_docs_blocks.py --check'` is at **index 5, the sixth of the nine** —
-directly after `check_description_hygiene.py` and before `check_task_artifacts.py`. Reading the
-parsed structure rather than grepping the diff is deliberate: a grep matches a line in a comment
-just as happily. ⚠ An earlier version of this line said "entry 5", a zero-indexed number carried
-straight out of Python into prose; platform-reviewer had to recompute the position to read it.
-
-## Nothing else in the file moved
-
-  - `git diff --numstat .gitlab-ci.yml` → **9 added, 0 deleted**. No reindentation, no reordering.
-  - Line endings unchanged, checked as BYTES because `git diff` normalises them and has hidden a
-    whole-file CRLF→LF rewrite in this very programme: `.gitlab-ci.yml` 1037 CRLF / 0 bare LF,
-    `SKILL.md` 148 CRLF / 0 bare LF. Both were pure CRLF before.
-  - The `<!-- FAST_GATES:START/END -->` marked block is **untouched**: `git diff main` over
-    `SKILL.md` contains **0** added or removed lines mentioning `FAST_GATES`. That block is pinned
-    by set-equality to `stop_gate.py`'s tuple, which this MR does not change.
-
-## The suite baseline was MEASURED, not quoted — and quoting it would have invented a finding
-
-The contract originally carried `!98`'s recorded baseline of **974 passed / 1 skipped**. The run
-here is **976 passed / 1 skipped, 14 subtests, 409s**. Rather than accept or hand-wave the
-difference, collection was run twice on this branch:
-
-| tree | collected |
+| | |
 |---|---|
-| diff stashed (main's content for all three files) | **977** |
-| diff applied | **977** |
+| blank in-scope columns before | **635** |
+| blank in-scope columns after | **508** |
+| closed here | **127 wired + 3 that kept their sentence behind a reference** |
+| generated blocks | 161 (80 metric + 81 derived) |
+| files touched | 5 model ymls, 2 scripts, 2 test files, 1 generated `.md` |
+| suite | 998 passed, 1 skipped — collection 977 stashed / 999 applied |
+| review | **4 rounds, 6 real defects, 1 of them found by me** |
 
-Identical, so this branch changes no test. The `974` was stale at the moment it was written:
-`!98`'s `escalations.log` entry also says "30 generator tests", and
-`tests/test_sync_metric_docs_blocks.py` now collects **32** — the two tests its own round-4 fix
-added after that MEASURED block was written. The contract's `done_when` has been corrected to
-measure the baseline rather than quote it, and to record why the quoted one was wrong.
+The plan said 251 columns. The figure moved four times and each move is a contract amendment:
+251 → 214 (seven catalogue metrics are player-only, so 48 team columns have nothing to point at)
+→ 110 (the promotion half needs a line-REPLACING mode this append-only tool does not have, and
+moved to its own MR) → 132 (a decomposition fix found by mutation testing unblocked 22) → **130**
+(totalling a rate is a different quantity, so one name gets no block).
 
-## Gates, read from their output
+⚠ **A SECOND EFFECT, outside the 130 columns.** Disabling hyphen-breaking in the wrapper corrects
+the stored text of **3 blocks that shipped in `!98`** — `deserved_points`, `shots_per_match`,
+`sot_points_gap`. Measured by rendering both versions and comparing whitespace-normalised, not
+estimated; the same comparison proves no other block's text moves at all.
 
-  - `check_layer_contract.py` → `Layer contract checks passed.`
-  - `check_registry_var_sync.py` → `OK (48 competitions; 48 registry-seed rows over 8 columns)`
-  - `check_competition_type_seed.py` → `OK (8 registry type(s) all present in seed of 14)`
-  - `check_ui_i18n_metrics.py` → `OK: 13 shown metrics resolve to i18n labels in 3 file(s)`
-  - `check_copy_gate.py` → `COPY GATE ok: 432 strings across 3 locales`
-  - `check_description_hygiene.py` → `ok: 1254 descriptions across 20 files ... 89 docs blocks
-    resolved, rendered lengths within 1024/16384`
-  - `sync_metric_docs_blocks.py --check` in-repo → `OK: 80 metric docs blocks match`
-  - `ruff check . --config .ruff-ci.toml` → `All checks passed!`
+## ⛔ The finding: a fifth of the derived names would have carried the wrong definition
 
-⚠ **`ruff` is run with CI's config, not the default.** A bare `ruff check .` reports 316 errors
-here and is not what `lint:python` runs — reading that number as a finding would have been the
-same class of mistake as quoting a stale baseline. `!98` missed ruff entirely because it is a CI
-job and not one of the six offline gates: **the local gate set is not the CI job set.**
+Composing the first blocks and READING them showed `goals_against_sum_season` — a column that
+exists only on TEAM models — taking the catalogue's `goals_against`, which the catalogue defines
+for a PLAYER: *"goals conceded by the team while the player was on the pitch (GK-relevant)"*.
 
-## Cost
+**21 of 76 derived names had that shape.** Nothing automatic would have caught it: the block
+resolves, the rendered length is fine, the YAML parses, `dbt parse` is clean, and
+`check_description_hygiene` sees a description where it wants one. It reaches the warehouse and
+reads as authoritative.
 
-No new job, no schedule, no dependency, no BigQuery scan. Measured **0.33s** (min of 3, including
-interpreter start) inside a job that already runs on every non-schedule pipeline.
+Verified at the source rather than inferred — seven metrics hold exactly one catalogue row,
+`entity = player`, while team models use the same names:
 
-## Round 1: two FAILs on one defect, and it was the right one to fail on
+`goals` · `goals_against` · `defensive_actions` · `shots_on_goal` · `shots_total` ·
+`passes_accurate` · `passes_total`
 
-cto-reviewer and scope-auditor independently FAILed the same thing, and neither took a citation on
-trust. The `protected_override` quoted the CPO verbatim and cited `escalations.log` as recording
-it; the quote was not in that file. Both searched all 4,893 lines and found zero hits, and both
-identified the only prior mention as my own paraphrase of a DEFERRAL in MR4a's entry. scope-auditor
-named the governing precedent unprompted: GitLab #28, logged at line 4126 — an override that cites
-nothing checkable is self-certifying.
+**The obvious fix was the wrong one.** Teaching the generator which models are team-scoped is the
+classifier this repo has already failed at three times. A fourth attempt, written only to measure
+the damage, left 2 of 12 models unresolved.
 
-The instruction itself was real; what was missing was the durable record of it. Fixed by writing
-the approval into `escalations.log` under this branch's entry with the `CPO ANSWER, verbatim:`
-convention, and by correcting `refs:` and `protected_override:` to cite that entry.
+**So the generator was made unable to be wrong rather than cleverer.** Every derived block is
+emitted with an entity suffix, whether or not its metric is split. A metric the catalogue never
+defined for a column's entity therefore has no block to point at, and the column stays blank and
+visible instead of documented and wrong.
 
-platform-reviewer PASSed and still found something: "entry 5" above was a zero-indexed number in
-prose. It recomputed the 32-test count from source and re-derived the line-ending fix from `_same()`
-and the parametrised `endings=[b"\r\n", b"\n"]` tests rather than believing this document.
+**Cost, stated not buried: 48 columns cannot be closed by anyone but the CPO.** They are listed by
+the wiring tool on every run, and reserved in the contract. Writing team definitions into the
+model YAML is the drift this programme exists to remove, and the catalogue is his.
 
-## Round 2: the fix was not enough either, and the reviewer who said so was right
+## Mutation testing: 7 mutations, 4 killed, **3 survived — and each survivor was a real defect**
 
-I wrote in amendment 1 that the CPO was NOT being asked to re-approve anything, since only the
-record was missing and writing it was mine to do. scope-auditor ESCALATED **that reasoning**, and
-its objection holds: reformatting a self-certifying claim into the shape of a checkable one, using
-the same authority that benefits from it, relocates the self-certification one file over. It also
-checked the precedent this MR leaned on and found it points the other way — the 2026-08-20 entry
-records itself as "recorded BEFORE the branch touches either file."
+This is the part worth reading.
 
-cto-reviewer PASSed the same round, and its PASS was the weaker of the two. Each of its three
-supports was checked rather than banked:
+| mutation | result | what it exposed |
+|---|---|---|
+| drop the entity suffix | **killed** | — |
+| reverse the affix order | **SURVIVED** | the test could not fail, AND the rule was wrong |
+| delete the dotted-name filter | **SURVIVED** | the guard was unreachable |
+| delete the emitted-name check (its replacement) | **killed** | — |
+| disable the derived floor | **killed** | — |
+| swallow a YAML parse error | **killed** | — |
+| disable the clash guard | **killed** | — |
+| delete the same-entity guard | **SURVIVED** | duplicated a guard that runs first |
 
-| its support | what checking it showed |
+**(a) The affix-order rule was wrong, not just untested.** `_decompose` tries every affix and only
+accepts a stem that is a real metric, so order is irrelevant unless two decompositions are valid —
+which made the "longest affix first" test unfailable. And where two ARE valid, longest-affix-first
+picks the worse one: `goals_per_match_this_season` becomes `goals` + "divided by matches played"
+instead of `goals_per_match` + "this season", silently dropping the null policy the catalogue
+wrote for that rate. Changed to **longest stem wins**, i.e. the most specific metric.
+⭐ **That fix closed 22 further columns**, because they now resolve to a team-scoped rate metric
+rather than a player-only count — so the entity matches and a block exists.
+
+**(b) The dotted-name filter was dead code.** A dotted name cannot decompose at all: the dot always
+lands in the stem and no metric id contains one. Replaced with a check on the names actually
+EMITTED, which is reachable the moment anyone adds an affix containing a dot — and which dies to
+its own mutation.
+
+**(c) The same-entity guard duplicated one that runs first.** Deleted, along with the test that was
+unknowingly exercising the older one.
+
+And a fourth defect, caught by a new test on its first run rather than by mutation: **four entries
+in `MODEL_ENTITY` named models that do not exist**, carried from a scratch script without checking.
+
+## The affix phrases are traced to the SQL, not inherited from a neighbour
+
+MR1 of this programme shipped a description that was simply false because it compressed upstream
+prose without reading the model underneath it. So each phrase cites where it comes from:
+
+| affix | source read |
 |---|---|
-| the #28 remedy — four contracts cured by adding the missing entry (`escalations.log:1477`) | the same sentence ends "and none of those fixes changed the behaviour that produced the next one" |
-| `active_work.md` corroborates independently, inherited from `b15b501` | `git log -S` puts the line at `80f6d23` — the `!99` handover **I** wrote. Contemporaneous and pre-challenge, but not independent |
-| — | the harness attached a CI-bypass security warning to the hand-back |
+| `_this_season`, `_prev_season` | `int_team_profile__yoy.sql` — alignment by games played, prior season through its first N |
+| `_prev_season_full` | `int_player_profile__yoy.sql` — complete total, no cutoff, *"never differenced"* |
+| `_delta_yoy` | same files — this minus prev, NULL when either side is NULL |
+| the NULL cases | `mart_team_profile.sql:14-18` — NULL for non-domestic competitions and where the prior season was never ingested |
 
-So it went to the CPO. The first ask named the check by its file and its flag and he replied "which
-drift check" — the same lesson as 2026-08-20, ask about behaviour and never about paths, not
-learned the first time. Re-asked as: a spreadsheet says what every metric means, a script copies
-those descriptions onto 501 database columns, and if the spreadsheet is edited without re-running
-the script the database keeps the old wording.
+⚠ **The phrases are deliberately neutral about what a "match" is.** Team models align by games
+played and player models by appearances, and the same affix is used on both, so naming either one
+would be false half the time. The precise rule belongs to the model description, which states it.
 
-**CPO ANSWER, verbatim: "yes, I said that".** The approval no longer rests on my account alone.
+## The three columns that kept their own sentence
 
-⭐ **The rule this leaves:** the `protected_override` entry goes into `escalations.log` BEFORE the
-branch touches the protected path. A backfill is curable only by spending a question on the CPO
-that he should never have had to answer.
+Reference in front, sentence kept — except where the sentence was a downstream-consumer claim,
+which §2 bans outright.
 
-## What this does NOT do, measured rather than promised
+| column | what was there | what it is now |
+|---|---|---|
+| `goals_delta_yoy` (`int_player_profile__yoy`) | "goals_this_season - goals_prev_season through N appearances. NULL when no prior season." | the block (which states the formula and a **wider** null policy) plus "here the alignment is by appearances" |
+| `goals_prev_season_full` (`int_player_profile__yoy`) | full-season total, never differenced, plus a list of sibling columns | the block (same two facts) plus the sibling list |
+| `points_won_sum_season` (`int_team_season__deserved_vs_actual`) | "the ACTUAL side of the comparison, carried here so the gap contract test can assert against it" | the block plus "in this model it is the ACTUAL side". **The clause about which test reads it was dropped deliberately** — §2 bans downstream consumer claims. |
 
-  - `stop_gate.py` / `FAST_GATES` is untouched, so a seed edited without a regenerate is still
-    invisible until a pipeline runs. That gap was put to the CPO in the approved plan, with the
-    2026-08-20 "do both" precedent for the sibling gate named; he approved the CI-only plan.
-  - Nothing pins the CI job's gate list against `SKILL.md`'s mapping table, so that table can go
-    stale again the next time a gate is added. Noted, not built — same class as GitLab #71.
-  - The Tier-1 intro sentence in `SKILL.md` still omits `check_description_hygiene` and
-    `dbt parse` from its parenthetical list of what `validate:governance` runs. That omission is
-    PRE-EXISTING and is not this MR's; the sentence was edited only because this change would
-    otherwise have made it staler still. The mapping table below it is complete.
+## Verified by running
+
+  - `git diff --numstat` over the model ymls: **129 added, 3 deleted**, the 3 being exactly the
+    rewritten sites above. Nothing else moved.
+  - Line endings checked as BYTES, because `git diff` normalises them and has hidden a whole-file
+    rewrite in this programme: every touched file pure CRLF, 0 bare LF.
+  - `sync_metric_docs_blocks.py --check` green; the generated file reproduces byte for byte.
+  - `check_description_hygiene.py`: `ok: 1383 descriptions across 20 files, 171 docs blocks
+    resolved, rendered lengths within 1024/16384`.
+  - Six offline gates green plus `ruff --config .ruff-ci.toml`, which is a separate CI job and not
+    one of the gates.
+
+## What the gate CANNOT see here, said out loud
+
+Every derived block is entity-suffixed, so `check_description_hygiene` treats all 82 names as
+ambiguous and **stops policing them entirely**. Their coverage is asserted from the raw YAML
+directly, name by name, and never from the gate's own output. This is the same blindness that let
+three split-metric sites sit unwired in the previous MR, named here before it can bite rather than
+after.
+
+## Round 1: three FAILs, all real, none of them mine
+
+**analytics-engineer-reviewer — a composed sentence that contradicted itself.** `clean_sheets` is
+the catalogue's RATIO of clean-sheet games to games played, and its text carries that ratio's
+display convention, *"shown as a count of games played (e.g. 3/5)"*. The column
+`clean_sheets_sum_season` is the raw count. Composed, the block claimed in one breath that the
+value is a small fraction **and** a season total. It read fluently, resolved, fitted the length cap
+and parsed clean — the exact "true-sounding and wrong" shape the review brief named, found by a
+reviewer reading the sentence and nothing else.
+
+Fixed as a **class**: a totalling affix is refused on any metric with a `denominator_expr`, the
+catalogue's own marker of a rate. Measured across all 76 derived names, that is exactly one name
+today — every other rate metric takes `_this_season` / `_prev_season` / `_delta_yoy`, which are
+sound on a rate — so the fix is a rule for the next one, not a patch for this one.
+
+⚠ **A second defect inside the fix.** With no block at all, the wiring tool could not see the
+column either: it reads "no candidate block" as "not a derived name". The refusal was silently
+invisible, which is the coverage cut this programme keeps paying for. The generator now reports
+its refusals on every run, `--check` included:
+
+```
+NO BLOCK GENERATED, 1 column name(s). ...
+  clean_sheets_sum_season (totalling the rate metric clean_sheets)
+```
+
+**football-analytics-expert-reviewer — a false NULL claim on four player columns.** The
+`_delta_yoy` phrase said NULL could arise from *"a gap in statistical coverage"*. That is a real
+cause on the **team** side. It is **impossible** on the player side: a player's null per-match stat
+means ZERO, not missing, so a running sum never goes null for coverage — and
+`int_player_profile__yoy.sql` names only the absent prior season at that club. Four blocks carried
+it into `goals_delta_yoy`, `assists_delta_yoy`, `shots_on_goal_delta_yoy` and
+`defensive_actions_delta_yoy`. Fixed with entity-specific phrasing, plus a guard that refuses an
+entity with no phrase rather than letting it silently take another's.
+
+⚠ **That reviewer was routed by judgement, not by path.** Its trigger is the seed, which this MR
+never touches. Inviting it anyway is the only reason this was caught.
+
+**scope-auditor — the contract's own headline was stale.** `objective:` still described the
+pre-amendment MR: 214 columns and 104 promoted, when nothing is promoted here at all. Corrected,
+with all four moves of the figure now traceable through the amendments.
+
+**platform-reviewer PASSed, and disclosed that it had no execution tools** and had traced the code
+by hand instead of running it. It re-derived all three mutation claims independently and ran a
+fourth of its own rather than believing the write-up.
+
+## Three further mutations on the round-1 fixes, all killed
+
+| mutation | aimed test |
+|---|---|
+| allow totalling a rate metric | `test_a_totalling_affix_on_a_rate_metric_gets_no_block` |
+| stop reporting the refusal | same test's output assertion |
+| accept an entity with no phrase | `test_an_entity_with_no_phrase_is_refused_rather_than_given_another_ones` |
+
+And a narrowness test, because a rule that fires on everything is as useless as one that fires on
+nothing: `test_a_rate_metric_still_takes_the_NON_totalling_affixes` proves "this season's
+clean-sheet rate" still composes.
+
+## Rounds 2 to 4: three more defects, and two of them were my own round-1 fixes
+
+**Round 2, football-analytics-expert-reviewer — the fix to a false claim dropped a true one.** The
+player year-on-year sentence I wrote in round 1 is complete inside `int_player_profile__yoy`, which
+is domestic-league-only at the row level. But the block is REUSED at `mart_player_profile`, which
+carries every competition-season a player has and left-joins the domestic-only rows onto it. A cup
+or tournament row is NULL there for a reason the sentence no longer named. First a cause wrongly
+added, then a cause wrongly removed, both because I read ONE model and wrote a sentence attached to
+TWO. **The rule is now a standing comment in the script: a shared block is only as true as its
+widest call site.**
+
+**Round 3, found because a test failed for the wrong reason.** `textwrap` defaults to
+`break_on_hyphens=True` and had been splitting "year-on-year" into "year-on-" / "year". The file is
+not laid out for a reader of the file: `persist_docs` collapses the newline and the warehouse
+renders a space inside the term. Three blocks were already live on main from `!98`. Fixed for all.
+⚠ And my first test for it was VACUOUS — a natural sentence containing "year-on-year", which at
+width 95 the wrapper never chose to break. Rewritten with a token longer than the wrap width.
+
+**Rounds 1, 2 and 3, scope-auditor — the same class three times, and it was right every time.**
+Each round it named a stale claim, each round I corrected exactly that sentence, and each round the
+same claim was still elsewhere in the same document: the objective, then the blast radius and two
+done_when bullets, then the blast radius again for a different reason. Its words: *"disclosed in an
+amendment is not the same as reflected in the impact map that a reviewer is told to trust."*
+
+⚠ The repo already carries the rule this violates — corrections replace, never accumulate, and
+must replace EVERYWHERE — and reading it did not stop me doing it three times in one MR.
+
+⭐ **What finally worked was measuring instead of describing.** Rendering both versions of the
+generated file and comparing them named the 3 affected blocks exactly. It also corrected a number
+I had given two reviewers: I said "five pre-existing breaks", counted from lines ending in a
+hyphen. Three blocks are affected. A described blast radius is a claim; a measured one is a fact.
+
+**Round 4 was over the cap of 3 and the CPO approved it**, asked as: a reviewer has caught the same
+mistake in my paperwork three times, I have fixed the third one and nobody has checked it — one
+more check, or ship? Answer, verbatim: *"run one more check"*. It PASSed, having re-swept the
+contract with its own search rather than my list.
+
+⭐ **Two non-blocking improvements taken rather than deferred.** football-analytics-expert-reviewer
+PASSed round 3 while noting that "a cup or an international tournament" does not naturally describe
+a QUALIFYING campaign, of which six are active; the wording now names one. And scope-auditor PASSed
+round 4 while noting this evidence file was itself stale — which is the very class it had failed me
+on three times, so it is corrected here rather than left because a reviewer declined to fail on it.
+
+## Mutation testing, final tally: 12 run, 8 killed, 4 survived
+
+Every survivor was a real defect, and four of my own tests could not fail:
+
+| survived | what it exposed |
+|---|---|
+| reverse the affix order | the test could not fail, AND the rule was wrong — longest-affix-first picks the LESS specific metric. Changed to longest STEM wins, which closed 22 further columns |
+| delete the dotted-name filter | the guard was unreachable; a dotted name cannot decompose at all |
+| delete the same-entity guard | it duplicated one that runs first |
+| restore hyphen breaking | the aimed test used a sentence the wrapper never broke at that width |
+
+## Not in this MR
+
+The 48 catalogue-blocked columns (the CPO's call). The promotion of 37 partially-covered names,
+99 blank columns — its own MR, because it needs a replace mode. The 134 names no seed defines.
+The 5 nested `recent_meetings.*` fields, which cannot be docs blocks at all. GitLab #88.

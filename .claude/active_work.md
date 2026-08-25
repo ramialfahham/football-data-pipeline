@@ -4,100 +4,102 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-24**. **main `04a7856`.** #84 + #82 MR1-MR4a MERGED; the CI wiring is
-committed, reviewed and awaiting merge. **NEXT once it merges: MR4b.** Product **Matchday
-Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-25**. **main `1c909ad`.** #84 + #82 MR1-MR4a + the CI wiring MERGED;
+**MR4b committed, reviewed, awaiting merge.** **NEXT once it merges: MR4b-2, then MR4c.** Product
+**Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82: CI wiring committed, awaiting merge. Next = MR4b** (2026-08-24)
+## ⭐⭐ CURRENT — **#82 MR4b committed, awaiting merge. Next = MR4b-2** (2026-08-25)
 
-⭐ **READ `escalations.log`'s 08-20 to 08-24 entries FIRST** — diagnosis, numbers, rulings, each
+⭐ **READ `escalations.log`'s 08-20 to 08-25 entries FIRST** — diagnosis, numbers, rulings, each
 MR's defects. **Do not re-scope or re-audit any of it.**
 
-Plan `cozy-orbiting-quail.md`. **MR2** declared 979 columns, **MR3** wired 146 to the 9 shared
-blocks, **MR4a** (`!98`) GENERATED 80 metric blocks from `metric_catalogue.csv` via
-`scripts/sync_metric_docs_blocks.py`; **501 columns** point at them, 0 blank, 0 inline.
-⚠ Editing the seed REQUIRES a regenerate.
-✅ **CI WIRING DONE** (this MR): one line in `validate:governance` + the row in validate-local's CI
-map. ⚠ **CI ONLY** — `stop_gate.py` was NOT asked for, so nothing catches a seed edited without
-regenerating during a turn. **Ask before widening.**
+Plan `serialized-enchanting-frost.md`. **MR2** declared 979 columns, **MR3** wired 146, **MR4a**
+(`!98`) generated 80 metric blocks from `metric_catalogue.csv`, `!100` put `--check` in CI.
+**MR4b** closes **130** derived columns (a metric + one affix); blank in-scope **635 → 508**.
+⚠ **REGENERATE** after editing the seed AND after adding a derived column: the generator's second
+input is the model YAML.
+⭐ **NEXT, IN ORDER.** **MR4b-2**: promote 37 names whose written sites all AGREE, 99 blank of 146
+sites. ⚠ Needs a line-REPLACING mode `declare_missing_columns.py` does NOT have (append-only,
+`_verify` asserts it); wiring only the blanks leaves 47 inline and the gate FAILS.
+**MR4c**: 134 names no seed defines + 26 partials whose sites DISAGREE. **MR5**: presence on.
+⛔ **48 COLUMNS NEED A CPO RULING AND STAY BLANK.** Seven metrics (`goals`, `goals_against`,
+`defensive_actions`, `shots_on_goal`, `shots_total`, `passes_accurate`, `passes_total`) are
+`entity = player` ONLY while team models use the same names, so those team columns have nothing to
+point at. Team metrics the catalogue lacks, or misnamed columns? The football reviewer read them as
+genuinely different quantities. Same family as **#88**.
+⛔⛔ **A SHARED BLOCK IS ONLY AS TRUE AS ITS WIDEST CALL SITE — READ EVERY MODEL IT REACHES.**
+Learned twice on one sentence: a NULL cause true for teams and impossible for players, then the fix
+dropping a TRUE cause because the block is reused in a mart carrying cups.
 ⛔⛔ **A `protected_override` GOES IN `escalations.log` BEFORE THE BRANCH TOUCHES THE PROTECTED
-PATH.** Backfilled here and 2 of 3 reviewers FAILed: the contract quoted the CPO and cited the log,
-which did not have it. Writing it in afterwards only moved the self-certification one file over;
-only asking him cured it. ⚠ **A REVIEWER PASS CAN BE THE WEAKER VERDICT** — cto's rested on a
-precedent the log itself calls ineffective and on corroboration that was my own words, and carried
-a harness security warning. Check a PASS's supports, not just a FAIL's.
+PATH.** Backfilled on `!100`; 2 of 3 reviewers FAILed, and only asking him cured it.
+⚠ **A REVIEWER PASS CAN BE THE WEAKER VERDICT** — check a PASS's supports, not just a FAIL's.
 ⛔⛔ **A NAME THAT MEANS TWO THINGS IS INVISIBLE TO THE GATE** — it skips the bare name as
 ambiguous, so a wrong or blank site goes unseen. **ASSERT THESE FROM THE YAML DIRECTLY.**
 `league_code` = the competition EXCEPT on entity-scoped pulls (transfers, coaches, player
 profiles/teams, `base_apif__teams_global`) where it is INGEST PROVENANCE: **6 wrong**, review found
-all six, I claimed completeness twice and was wrong twice; its 49 blanks stay blank; **ROOT CAUSE =
-#87**. Same shape: 4 metrics (`duels_won_pct`, `finishing_efficiency`, `goals_open_play`,
-`goals_penalty`) split `__team`/`__player`, and **3 sites sat unwired**.
-⚠ **NO CLASSIFIER WORKS** — 3 tried, all failed.
-⭐ **MR4b NEXT**: author the **204** names no seed defines. Then MR5 turns presence on.
+all six; its 49 blanks stay blank; **ROOT CAUSE = #87**. ⚠ **NO CLASSIFIER WORKS** — 4 tried, all
+failed — so **EVERY derived block is entity-suffixed** and a metric undefined for a column's entity
+has nothing to point at. **Blank and visible beats documented and wrong.**
 ✅ **`persist_docs` WORKS EVERYWHERE** (66/66 relations, 458/458 columns, views and incrementals
 included). **#86 said otherwise and is CLOSED AS WRONG.**
-⛔⛔ **A CHECK THAT AGREES WITH ITSELF PROVES NOTHING — 4×, MR2-MR4a, detail in the log.** A guard
-verified with its OWN regex; a CRLF test asserting a platform truth as universal (green here, red
-on every CI run); a write-path test short-circuiting before the write; `git diff` showing
-"0 deleted" while every line was rewritten. ⚠ Ask what the check CANNOT see. ⚠ A green suite on
-ONE OS is not a green suite — prove it on `git show main:<path>` bytes.
+⛔⛔ **A CHECK THAT AGREES WITH ITSELF PROVES NOTHING — 8× now, detail in the log.** MR4b ran
+**12 mutations, 4 SURVIVED**, every survivor a real defect: **4 of my own tests could not fail.**
+⚠ **WRITING A TEST IS NOT HAVING ONE — break the thing and watch THAT test go red.** ⚠ A green
+suite on ONE OS is not green — prove it on `git show main:<path>` bytes.
 
 ⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for 97 models + 9 seeds. **1,024**
-chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS. `data:build:main`
-publishes **`catalog.json`**. ⚠ `seeds:` is persist_docs-ONLY: a `+schema` relocates all 9.
-⛔ **TASK ARTIFACTS COLLIDE ON CONCURRENT BRANCHES (4× on `!91`, never the code).** Fix: this
-task's artifacts whole, `escalations.log`+`active_work.md` MERGED. The merge-base moves, so
-`review.md` needs a one-value rebind — **no re-review owed**.
+chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS.
+⚠ `seeds:` is persist_docs-ONLY: a `+schema` relocates all 9.
+⛔ **TASK ARTIFACTS COLLIDE ON CONCURRENT BRANCHES (4× on `!91`).** Take this task's artifacts
+whole, MERGE `escalations.log`+`active_work.md`, rebind `review.md`'s hash — **no re-review owed**.
 
 ✅ **THE GATE** (`check_description_hygiene.py`) runs in CI + `stop_gate.py` FAST_GATES: 6 content
 rules, object coverage (`!91`), shared-definition coverage (MR3). ⚠ Rules match ANNOTATION forms,
 not plain verbs: bare `ruled` hits "goal ruled out for offside".
 
 ⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats are a label and a number; every
-definition is OURS. Coverage is uneven (xG on 57% of fixtures); 6 stat types appear on 4-78 rows of
-~98,000. For ambiguous ones (`passes_total` attempted or completed?) derive from our own fixtures.
+definition is OURS. Coverage is uneven (xG on 57% of fixtures). For an ambiguous name
+(`passes_total`: attempted or completed?) derive the answer from our own fixtures.
 ⚠ **CPO RULINGS 08-21:** "every column, no exception" (staging+base OUT) · no thin filler · docs
 blocks kept **only with a mechanism enforcing them** (hand-wiring failed 112×) · **NO osmosis**.
-⛔ **INHERITING UPSTREAM PROSE CARRIES AN INHERITED ERROR.** MR1 shipped a FALSE description ("the
-newest is the fullest") by compressing staging prose without reading the contract governing it.
-**GRAIN claims are safe to inherit; BEHAVIOUR-ACROSS-VERSIONS claims are NOT** — trace those to the
-base dedup logic. Governs MR4.
+⛔ **INHERITING UPSTREAM PROSE CARRIES AN INHERITED ERROR**, and it bit again on MR4b. **GRAIN
+claims are safe to inherit; BEHAVIOUR claims are NOT — trace those to the SQL.** MR1 shipped a
+FALSE "newest is the fullest"; MR4b shipped a NULL cause impossible for players.
 ⛔ **RECORD THE OPTION CHOSEN AND NOTHING ELSE.** Writer's reasoning wrapped around an answer
 hardens into a ruling he never gave.
 
 ⛔ **#83 — COMPETITION CLASSIFICATION HAS NO CORE DIM.** `competition_type`/`entity_type` live only
-in seeds, so 12 models join the seed direct, incl. the two `int_legs__*` under 68 of 80 metrics.
-⚠ **SEEDS ARE SOURCES, settled** — the defect is LAYERING: read a seed ONCE at base/core, publish
-a dim.
+in seeds, so 12 models join the seed direct. ⚠ **SEEDS ARE SOURCES, settled** — the defect is
+LAYERING: read a seed ONCE at base/core, publish a dim.
 
-⛔ **SIX TRAPS, every one hit for real. Do not re-learn them.**
+⛔ **FIVE TRAPS, every one hit for real. Do not re-learn them.**
 1. **A too-narrow grep reported as a clean sweep**, and **a keyword scan is blind to a claim using
    NO keyword**. "partition key" is FALSE; 6 survivors = **#79**. A grep also matches the
    DOCUMENTATION of a defect as the defect. Found by READING the SQL.
 2. **A bulk-edit script reporting success while matching nothing.** Assert it found work.
-3. **A shared docs block wrong at some call sites.** `dbt parse` cannot catch it.
-4. **Verify a reviewer finding, then act** — both directions.
-5. **`--review-patch` writes to STDOUT**, so without redirect the patch is silently the PREVIOUS
+3. **Verify a reviewer finding, then act** — both directions.
+4. **`--review-patch` writes to STDOUT**, so without redirect the patch is silently the PREVIOUS
    task's. `origin/main` is the DORMANT GitHub remote — use `gitlab`.
-6. ⛔ **NEVER WRITE A REVIEWER'S VERDICT YOURSELF.** MR5 recorded PASS for two who returned FAIL.
-   Send the round-2 confirm and WAIT. ⚠ Never edit any file while the suite runs.
+5. ⛔ **NEVER WRITE A REVIEWER'S VERDICT YOURSELF.** MR5 recorded PASS for two who returned FAIL.
+   Send the confirm and WAIT. ⚠ Never edit any file while the suite runs.
 
-⛔ **THE STANDING LESSON.** CPO: *"you spam things all around the repo and then forget to clean up
-... contradictions in our docs and files."* The killer instance used **no instance of the word
-being swept**. **Sweep the CONCEPT semantically, never the feature's name.** Evidence: **#71**.
+⛔⛔ **THE STANDING LESSON, and MR4b FAILed THREE ROUNDS on it.** CPO: *"you spam things all around
+the repo and then forget to clean up ... contradictions in our docs and files."* **Sweep the
+CONCEPT, never the feature's name** — the killer instance used no instance of the word being swept.
+Each round I fixed only the sentence the reviewer named. ⭐ **MEASURE, DO NOT DESCRIBE**: rendering
+both versions and comparing ended it, and corrected a number I had given two reviewers. **#71**.
 
-⛔ **TEAM NAMES — paused.** The provider's `team_name` is often not the display name.
+⛔ **TEAM NAMES — paused.** The provider's `team_name` is often not the display name;
 `team_name_overrides` (in `base_apif__teams_global.sql`) fires on completeness OR collision. **97 of
 ~130 Pool 1 corrected**, each citing an English Wikipedia URL. ⚠ **Bayern München EXCLUDED ON
 PURPOSE** — locale preference is never corrected. NOT done: ~15 Pool 1, teams outside it,
-`dim_player` short-names. ⚠ **#81** = duplicate provider records for ONE club.
+`dim_player` short-names. **#81** = duplicate provider records for ONE club.
 
 ✅ **SETTLED, do not re-propose.** BROWSE DROPPED (`!80`) — home renders **next matches ALONE**;
 `08_browse.md` + competitions page stay LIVE (`nav.json` = NEXT 2). TOP TEAMS = **one per league**,
-not pooled; ⚠ `top_teams_mock.html` shows the wrong shape, GAP-29's mart not started.
+not pooled; ⚠ `top_teams_mock.html` shows the wrong shape and GAP-29's mart is not started.
 
 ## ⭐⭐ THE METHOD, standing rule for every page (CPO's own words, do not reword)
 
@@ -140,17 +142,17 @@ lower `event_loss_detector_from` (still **'2026-08-19', in the FUTURE, so `!57`'
 ## ✅ #84 CLOSED — warehouse clean, all 310 orphans dropped, **432 → 122**.
 ⛔ Nothing reconciles it on a schedule; a recurring check = NEW MECHANISM, unbuilt.
 ⚠ **A UDF IS NOT A MISSING TABLE** (`bq ls` omits ROUTINES): a LIVE view landed in the "risk-free"
-phase; 2 reviewers + 8 mutations passed BLIND. **Read the OUTPUT.**
+phase; 2 reviewers + 8 mutations passed BLIND.
 
 ## ⭐ COST — read **GitLab issue #3** first
 **#3 holds it all.** ⚠ **#70** is the scan-budget guard; `require_partition_filter` +
 `maximum_bytes_billed` are **NEITHER set**. ⚠ **Spend UNKNOWN** since 08-03.
 
-## Player page — HELD on #845
-**#846 + #886 merged:** the season a page opens on is a warehouse fact. **#845 + #882 are ONE
-decision and his** — which entities earn a page, and whether a past season gets a URL or a control.
-Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
-**Overview is BUILT but UNCOMMITTED** in stash `feat/player-overview-tab`; default is known-wrong.
+## Player page — HELD on ONE decision, and it is HIS
+Which entities earn their own page, and whether a past season gets a URL or a control. (GitHub
+#845 + #882, bodies unreachable.) Counts: players 154,767; matches 176,235; h2h 51,903; teams
+9,669. **Overview is BUILT but UNCOMMITTED** in stash `feat/player-overview-tab`; its default
+season is known-wrong.
 
 ## OWED — deferred
 - Guard telemetry absent (#30). Delete `macros/apif_latest_source_partition.sql` · mirror crests.
@@ -160,24 +162,22 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
   Needs a `MERGE_HEAD`-aware skip; protected path, own task.
 - **#904 IS THE DOMINANT FAILURE** — a claim asserted rather than RUN. A test must be seen RED.
   ⚠ Checks that told me what I wanted: a bulk-edit script matching nothing, a `pytest` erroring on
-  an unknown flag and exiting 0, a `--review-patch` written to stdout while the stale file stayed,
-  `check_task_artifacts` saying "empty diff OK" with nothing committed, and a re-measure reporting
-  0 gaps because a Windows manifest writes `path` with BACKSLASHES. **FLOOR every discovery.**
-  **Read output, not exit.** See also the self-agreeing-check block above.
+  an unknown flag and exiting 0, `check_task_artifacts` saying "empty diff OK" with nothing
+  committed, a re-measure reporting 0 gaps because a Windows manifest writes `path` with
+  BACKSLASHES. **FLOOR every discovery. Read output, not exit.**
 
 ## NEXT
 0. ⭐ **#82 MR4b** — see ⭐⭐ CURRENT.
 0b. ⛔ **CI IS FIXED BUT ONLY IN MEMORY — IT DIES ON THE NEXT REBOOT.** 08-21: every job failed in
    ~4s at `get_sources` (`HTTP 403`) because the build machine goes out over **IPv6** and GitLab
    refuses it. Fixed live with `ip -6 route del default`; **permanence is OWED**, as is a **working
-   SSH key — none exists here**, leaving only that machine's web console, whose keyboard mangles
-   symbols. Detail in the runner memory file.
+   SSH key — none exists**. Detail in the runner memory file.
 1. **Team names**: finish the ~15 unverified Pool 1 teams, then decide whether to go beyond Pool 1.
-   Also the player-name truncation. Detail in ⛔ TEAM NAMES above.
+   Also the player-name truncation.
 2. **Decide `nav.json`'s fate** — zero frontend consumers since `!80`. Give it one, or delete
    `build_nav`/`fetch_nav`/the `--entities nav` branch, which unblocks deleting `display_group`
-   (#57). ⚠ Check no CI job invokes `--entities nav` first. ⚠ `display_group` is NOT deletable
-   alone: `mart_competition_index.sql:90-91` reads its blank-ness as the browsable gate.
+   (#57). ⚠ Check no CI job invokes `--entities nav` first, and note `display_group` is NOT
+   deletable alone: `mart_competition_index.sql:90-91` reads its blankness as the browsable gate.
 2b. **A trending-doc-rot pass.** Docs describe the "trending" block as if it exists; cut 08-08.
    `09_chrome.md` §4/§10 remains. SEMANTIC sweep.
 3. ✅ **"Pipelines must succeed" IS ON** (verified 08-22). This entry once said FALSE and that was
@@ -189,9 +189,9 @@ Counts: players 154,767; matches 176,235; h2h 51,903; teams 9,669.
    `seo-expert-reviewer`.  6. **COST, SYSTEMATICALLY** — trigger/cost map first, as an issue.
 7. **#845 + #882 — his decision.** Unblocks the player page.
 8. **Legal/imprint**, then go live.
-9. Follow-ups (GITHUB numbers, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps ·
-   PROTECTED path editable with no `protected_override` · `Regular Season - 20` the copy gate
-   cannot see · blank `competition_type` skipped by all 3 guards (see **#83**).
+9. Follow-ups (GITHUB, **bodies UNREACHABLE** — re-derive from code): DE/FI i18n gaps · PROTECTED
+   path editable with no `protected_override` · `Regular Season - 20` the copy gate cannot see ·
+   blank `competition_type` skipped by all 3 guards (**#83**).
 10. Mine, on GitLab: **#64** #63's residuals · **#67** the contract gate enforces on Edit only, so
    `sed -i` bypasses it · **#68** the form-window CODE diverges from `metrics_context_model.md` §4
    (⚠ the agreement is the authority; never fix by editing the doc) · **#60** `.venv` · **#70**
@@ -215,7 +215,7 @@ duplicate-club alias · #875 · #895 slim-vs-drop · #21.
   confirm "the drift check", he replied **"which drift check"**. Describe what it DOES.
 
 ## Verified state reference
-- **v2 built:** design system + 28 components, fixture page, team page (3 tabs), home (next matches
-  ONLY), competitions index, page-spec + SEO contract, metric labels per locale.
+- **v2 built:** design system + 28 components, fixture page, team page (3 tabs), home, competitions
+  index, page-spec + SEO contract, metric labels per locale.
 - ⚠️ `appearances` = played legs, not squad selections. No player photos (CPO). Reselling
   API-Football data is the one hard prohibition.

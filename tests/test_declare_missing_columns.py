@@ -578,3 +578,118 @@ def test_other_models_in_the_same_file_are_untouched(monkeypatch, tmp_path):
         "dim_thing": ["thing_sk", "league_code", "t_new"],
         "dim_other": ["other_sk", "o_new"],
     }
+
+
+# ------------------------------------------------- --wire-metric-docs (#82 MR4b)
+#
+# A derived column name has no bare block, only `__team` and/or `__player`,
+# because the catalogue defines `goals_against` for a PLAYER while every column of
+# that name sits on a TEAM model. Choosing between them is what this mode does, and
+# choosing WRONG is invisible: the block resolves, the length is fine, dbt parses.
+
+METRIC_YML = """version: 2
+
+models:
+  - name: mart_team_profile
+    columns:
+      - name: goals_against_this_season
+      - name: assists_this_season
+"""
+
+
+def _run_metric_wire(monkeypatch, *extra):
+    monkeypatch.setattr(sys, "argv",
+                        ["declare_missing_columns.py", "--wire-metric-docs", *extra])
+    return gen.main()
+
+
+def test_metric_wire_picks_the_block_for_the_MODELS_entity(monkeypatch, tmp_path):
+    """Both entities' blocks exist for one name here, so picking by name alone is
+    impossible and the test can only pass by consulting MODEL_ENTITY."""
+    dbt = _project(tmp_path, {"5_marts/shared/shared.yml": METRIC_YML},
+                   models={"mart_team_profile": "5_marts/shared"})
+    _blocks_md(dbt, ["goals_against_this_season__team", "goals_against_this_season__player",
+                     "assists_this_season__team"])
+    target = dbt / "models" / "5_marts" / "shared" / "shared.yml"
+    before = target.read_text(encoding="utf-8")
+
+    assert _run_metric_wire(monkeypatch) == 0
+
+    after = target.read_text(encoding="utf-8")
+    _assert_append_only(before, after)
+    cols = {c["name"]: c for c in yaml.safe_load(after)["models"][0]["columns"]}
+    assert cols["goals_against_this_season"]["description"] == \
+        "{{ doc('goals_against_this_season__team') }}"
+
+
+def test_metric_wire_refuses_a_model_it_has_no_entity_for(monkeypatch, tmp_path, capsys):
+    """Defaulting is how the wrong definition gets attached, so an unknown model
+    stops the run rather than being guessed at or quietly skipped."""
+    yml = METRIC_YML.replace("mart_team_profile", "mart_something_new")
+    dbt = _project(tmp_path, {"5_marts/shared/shared.yml": yml},
+                   models={"mart_something_new": "5_marts/shared"})
+    _blocks_md(dbt, ["goals_against_this_season__team", "assists_this_season__player"])
+
+    assert _run_metric_wire(monkeypatch) == 1
+    err = capsys.readouterr().err
+    assert "MODEL_ENTITY" in err and "mart_something_new" in err
+
+
+def test_metric_wire_REPORTS_a_column_with_no_block_for_its_entity(
+        monkeypatch, tmp_path, capsys):
+    """The catalogue never defined the metric for that entity, so the column stays
+    blank — which is right, and saying so is what makes it a decision rather than a
+    hole somebody finds later. 48 real columns are in this position."""
+    dbt = _project(tmp_path, {"5_marts/shared/shared.yml": METRIC_YML},
+                   models={"mart_team_profile": "5_marts/shared"})
+    # only the PLAYER block exists for goals_against; the team column cannot wire.
+    _blocks_md(dbt, ["goals_against_this_season__player", "assists_this_season__team"])
+    target = dbt / "models" / "5_marts" / "shared" / "shared.yml"
+
+    assert _run_metric_wire(monkeypatch) == 0
+
+    out = capsys.readouterr().out
+    assert "LEFT BLANK" in out and "goals_against_this_season__team" in out
+    cols = {c["name"]: c for c in
+            yaml.safe_load(target.read_text(encoding="utf-8"))["models"][0]["columns"]}
+    assert "description" not in cols["goals_against_this_season"]
+    assert cols["assists_this_season"]["description"] == \
+        "{{ doc('assists_this_season__team') }}"
+
+
+def test_metric_wire_leaves_a_column_that_already_has_text(monkeypatch, tmp_path):
+    """Same rule as the shared-docs mode: this tool appends, it never rewrites."""
+    yml = METRIC_YML.replace(
+        "      - name: assists_this_season\n",
+        "      - name: assists_this_season\n        description: \"Its own sentence.\"\n")
+    dbt = _project(tmp_path, {"5_marts/shared/shared.yml": yml},
+                   models={"mart_team_profile": "5_marts/shared"})
+    _blocks_md(dbt, ["goals_against_this_season__team", "assists_this_season__team"])
+    target = dbt / "models" / "5_marts" / "shared" / "shared.yml"
+
+    assert _run_metric_wire(monkeypatch) == 0
+
+    cols = {c["name"]: c for c in
+            yaml.safe_load(target.read_text(encoding="utf-8"))["models"][0]["columns"]}
+    assert cols["assists_this_season"]["description"] == "Its own sentence."
+
+
+def test_the_two_wire_modes_together_are_refused(monkeypatch, tmp_path, capsys):
+    """Two passes over the same files in one run makes the diff unattributable."""
+    monkeypatch.setattr(sys, "argv", ["declare_missing_columns.py",
+                                      "--wire-shared-docs", "--wire-metric-docs"])
+    assert gen.main() == 1
+    assert "one at a time" in capsys.readouterr().err
+
+
+def test_every_MODEL_ENTITY_key_names_a_model_that_exists():
+    """A stale entry is a silent no-op that hides a model nobody classified. Run
+    against the REAL repo, with no monkeypatching."""
+    import importlib
+
+    fresh = importlib.reload(gen)
+    on_disk = {p.stem for p in (fresh.MODELS_DIR).rglob("*.sql")}
+    missing = sorted(set(fresh.MODEL_ENTITY) - on_disk)
+    assert not missing, (
+        "MODEL_ENTITY names models that do not exist: " + ", ".join(missing))
+    assert set(fresh.MODEL_ENTITY.values()) == {"team", "player"}

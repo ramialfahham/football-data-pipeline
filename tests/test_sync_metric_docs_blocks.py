@@ -24,11 +24,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 import sync_metric_docs_blocks as gen  # noqa: E402
 
 
-FIELDS = ["metric_id", "entity", "description"]
+FIELDS = ["metric_id", "entity", "description", "denominator_expr"]
 
 
-def _row(metric_id, entity="team", description="A definition."):
-    return {"metric_id": metric_id, "entity": entity, "description": description}
+def _row(metric_id, entity="team", description="A definition.", denominator_expr=""):
+    """`denominator_expr` is the catalogue's own marker of a rate or ratio, and the
+    generator refuses to TOTAL one. Empty by default, so a plain `_row` is a count."""
+    return {"metric_id": metric_id, "entity": entity, "description": description,
+            "denominator_expr": denominator_expr}
 
 
 def _seed(tmp_path, rows, name="metric_catalogue.csv"):
@@ -46,13 +49,31 @@ def _filler(n, start=0):
     return [_row(f"filler_{i:03d}") for i in range(start, start + n)]
 
 
+def _models(tmp_path, columns, model="some_model"):
+    """A models/ tree holding one yml that declares exactly these column names."""
+    root = tmp_path / "models"
+    root.mkdir(parents=True, exist_ok=True)
+    entries = "\n".join(f"      - name: {c}" for c in columns)
+    (root / "schema.yml").write_text(
+        f"version: 2\nmodels:\n  - name: {model}\n    columns:\n{entries}\n",
+        encoding="utf-8")
+    return root
+
+
 @pytest.fixture(autouse=True)
 def _point_at_tmp(monkeypatch, tmp_path):
     """Each test supplies a handful of rows, so the real floor of 50 would fire on
     every one of them and mask what is being checked. It keeps its real value in
     `test_the_row_floor_fires_on_a_truncated_read`, which is the only place it is
-    asserted, and the script runs it at full strength for real."""
+    asserted, and the script runs it at full strength for real.
+
+    `MODELS` and `MIN_DERIVED` are pointed the same way and for the same reason:
+    the generator's second input is the project's own column names, and a test
+    that left it pointed at the real `models/` tree would be asserting against
+    500-odd real columns instead of the two it declares."""
     monkeypatch.setattr(gen, "MIN_METRICS", 1)
+    monkeypatch.setattr(gen, "MIN_DERIVED", 0)
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, []))
     monkeypatch.setattr(gen, "OUT", tmp_path / "out" / "metric_columns.md")
 
 
@@ -390,7 +411,312 @@ def test_a_write_creates_the_directory_and_reports_the_count(monkeypatch, tmp_pa
     assert gen.OUT.read_text(encoding="utf-8").count("{% docs ") == 4
 
 
+# ------------------------------------------------------------- derived columns
+#
+# The defect these exist for, in one sentence: the catalogue defines
+# `goals_against` for a PLAYER ("while the player was on the pitch") and every
+# column of that name lives on a TEAM model, so composing a block from the metric
+# alone put a player's definition into a team column. 21 of 76 derived names had
+# that shape. It was caught by reading the output, by nothing automatic.
+
+def test_a_derived_block_is_ALWAYS_entity_suffixed(monkeypatch, tmp_path):
+    """The whole safety property. A bare `goals_this_season` block is a block any
+    column of that name can point at, whatever entity it belongs to — which is how
+    a player's definition reaches a team column. There must be no bare form to
+    point at, even when the metric has exactly one entity and no ambiguity at all.
+    """
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [_row("goals", entity="player")]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_this_season"]))
+
+    assert _run(monkeypatch) == 0
+    text = gen.OUT.read_text(encoding="utf-8")
+    assert "{% docs goals_this_season__player %}" in text
+    assert "{% docs goals_this_season %}" not in text
+
+
+def test_only_the_entities_the_catalogue_defines_get_a_derived_block(monkeypatch, tmp_path):
+    """A metric the catalogue never defined for an entity has NO block for it, so
+    a column of that entity has nothing to point at and stays blank and VISIBLE.
+    That is the intended outcome, not a gap: 48 real team columns are in exactly
+    this position, and blank-and-visible beats documented-and-wrong."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [_row("goals", entity="player")]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_sum_season"]))
+
+    assert _run(monkeypatch) == 0
+    text = gen.OUT.read_text(encoding="utf-8")
+    assert "goals_sum_season__player" in text
+    assert "goals_sum_season__team" not in text
+
+
+def test_the_most_specific_metric_wins_when_a_name_decomposes_two_ways(
+        monkeypatch, tmp_path):
+    """`goals_per_match_this_season` is `goals` + "per match, this season" AND
+    `goals_per_match` + "this season". Both render a true sentence, so neither
+    fails loudly — but only the second carries the definition the catalogue wrote
+    for that rate, null policy included. The composed form silently drops it.
+
+    ⚠ THIS TEST REPLACES A VACUOUS ONE. Its first version asserted "the longest
+    AFFIX wins" using `duels_won_pct_this_season`, and survived a mutation that
+    reversed the affix order — because `_decompose` tries every affix and only
+    accepts a stem that is a real metric, so ordering is irrelevant unless TWO
+    decompositions are valid. Mutation testing is the only reason that was found,
+    and it also showed the rule itself was wrong: longest-affix-first picks the
+    LESS specific metric here."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("goals", description="Goals scored."),
+        _row("goals_per_match", description="Goals per match. Null when no games."),
+    ]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_per_match_this_season"]))
+
+    assert _run(monkeypatch) == 0
+    body = _parse(gen.OUT.read_text(encoding="utf-8"))["goals_per_match_this_season__team"]
+    assert body.startswith("Goals per match. Null when no games.")
+    assert "Divided by matches played" not in body
+
+
+def test_a_per_match_affix_beats_the_plain_season_affix(monkeypatch, tmp_path):
+    """`goals_against_per_match_this_season` has no metric `goals_against_per_match`
+    in this seed, so it must strip the COMPOSITE affix and land on `goals_against`.
+    Trying `_this_season` first would leave `goals_against_per_match`, match
+    nothing, and emit no block at all — a silent hole rather than a wrong answer,
+    but still a hole."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("goals_against", description="Goals conceded."),
+    ]))
+    monkeypatch.setattr(gen, "MODELS",
+                        _models(tmp_path, ["goals_against_per_match_this_season"]))
+
+    assert _run(monkeypatch) == 0
+    blocks = _parse(gen.OUT.read_text(encoding="utf-8"))
+    body = blocks["goals_against_per_match_this_season__team"]
+    assert body.startswith("Goals conceded.")
+    assert "Divided by matches played" in body
+
+
+def test_a_dotted_column_name_produces_no_block(monkeypatch, tmp_path):
+    """Nested fields are spelled `recent_meetings.goals_against` and cannot be
+    blocks: dbt matches `\\w+` in both the docs tag and `doc()`.
+
+    ⚠ NO GUARD IS NEEDED FOR THIS AND THE FIRST VERSION HAD ONE ANYWAY. It filtered
+    dotted column names before decomposing, and a mutation deleting that filter
+    changed nothing — a dotted name cannot decompose at all, because the dot always
+    lands in the stem and no metric id contains one. The guard was dead and its
+    test could not fail. This asserts the PROPERTY, and the reachable guard is
+    tested separately below."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [_row("goals_against")]))
+    monkeypatch.setattr(gen, "MODELS", _models(
+        tmp_path, ["recent_meetings.goals_against", "goals_against_sum_season"]))
+
+    assert _run(monkeypatch) == 0
+    text = gen.OUT.read_text(encoding="utf-8")
+    assert "recent_meetings" not in text
+    assert "goals_against_sum_season__team" in text          # the sibling still works
+
+
+def test_an_affix_containing_a_dot_is_refused_at_the_output(monkeypatch, tmp_path, capsys):
+    """The reachable half. An affix with a dot in it — `recent_meetings.` was one,
+    and was removed — makes an emitted name dbt cannot address. Unlike the input
+    filter this replaces, deleting the check makes this test fail."""
+    monkeypatch.setattr(gen, "DERIVED_AFFIXES",
+                        (("recent_meetings.", "prefix", "From a recent meeting."),))
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [_row("goals_against")]))
+    monkeypatch.setattr(gen, "MODELS",
+                        _models(tmp_path, ["recent_meetings.goals_against"]))
+
+    assert _run(monkeypatch, "--check") == 1
+    assert "not addressable by dbt" in capsys.readouterr().err
+
+
+def test_the_derived_floor_fires_when_the_column_read_stops_matching(
+        monkeypatch, tmp_path, capsys):
+    """The second input needs the same floor as the first. A moved directory or a
+    parser change leaves the walk matching nothing, and quietly emitting no derived
+    blocks would blank every column that referenced one on the next build."""
+    monkeypatch.setattr(gen, "MIN_DERIVED", 5)
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [_row("goals")]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_this_season"]))
+
+    assert _run(monkeypatch, "--check") == 1
+    assert "floor 5" in capsys.readouterr().err
+
+
+def test_an_unparseable_model_yml_is_refused_not_silently_skipped(
+        monkeypatch, tmp_path, capsys):
+    """A file that will not parse means the column set is INCOMPLETE, and an
+    incomplete set silently drops blocks. Skipping it would make "no block for that
+    column" look like "that column does not exist"."""
+    root = _models(tmp_path, ["goals_this_season"])
+    (root / "broken.yml").write_text("models: [ unterminated\n", encoding="utf-8")
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [_row("goals")]))
+    monkeypatch.setattr(gen, "MODELS", root)
+
+    assert _run(monkeypatch, "--check") == 1
+    assert "incomplete" in capsys.readouterr().err
+
+
+def test_a_derived_block_colliding_with_a_metric_block_is_refused(
+        monkeypatch, tmp_path, capsys):
+    """Two producers, one name: one would overwrite the other in the dict and the
+    output would be correct-looking and wrong. Reachable when a metric is literally
+    named like a derived column AND is entity-split."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("goals", description="Goals scored."),
+        _row("goals_this_season", entity="team", description="One meaning."),
+        _row("goals_this_season", entity="player", description="Another meaning."),
+    ]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_this_season"]))
+
+    assert _run(monkeypatch, "--check") == 1
+    err = capsys.readouterr().err
+    assert "BOTH" in err and "goals_this_season__team" in err
+
+
+def test_a_totalling_affix_on_a_rate_metric_gets_no_block(monkeypatch, tmp_path, capsys):
+    """`clean_sheets` is the RATIO clean-sheet games over games played, and its
+    catalogue text carries that ratio's display convention ("e.g. 3/5"). The column
+    `clean_sheets_sum_season` is the raw count. Composing the two produced one
+    fluent sentence asserting the value is both a small fraction and a season
+    total. It shipped past every guard: the block resolved, the length was fine,
+    dbt parsed. Caught by a reviewer reading it.
+
+    The test is the catalogue's own `denominator_expr`, so it is the CLASS and not
+    the one name."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("clean_sheets", description="Clean sheets, shown as e.g. 3/5.",
+             denominator_expr="count(*)"),
+        _row("goals", description="Goals scored."),
+    ]))
+    monkeypatch.setattr(gen, "MODELS",
+                        _models(tmp_path, ["clean_sheets_sum_season", "goals_sum_season"]))
+
+    assert _run(monkeypatch) == 0
+    text = gen.OUT.read_text(encoding="utf-8")
+    assert "clean_sheets_sum_season__team" not in text
+    assert "goals_sum_season__team" in text            # a real count still composes
+    assert "clean_sheets_sum_season" in capsys.readouterr().out
+
+
+def test_a_rate_metric_still_takes_the_NON_totalling_affixes(monkeypatch, tmp_path):
+    """The refusal must be narrow. "This season's clean-sheet rate" is a perfectly
+    good sentence; only TOTALLING a rate is a different quantity. Twelve real rate
+    metrics take `_this_season` / `_prev_season` / `_delta_yoy` and must keep them.
+    """
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("clean_sheets", description="Clean sheets, shown as e.g. 3/5.",
+             denominator_expr="count(*)")]))
+    monkeypatch.setattr(gen, "MODELS", _models(
+        tmp_path, ["clean_sheets_this_season", "clean_sheets_sum_season"]))
+
+    assert _run(monkeypatch) == 0
+    text = gen.OUT.read_text(encoding="utf-8")
+    assert "clean_sheets_this_season__team" in text
+    assert "clean_sheets_sum_season__team" not in text
+
+
+def test_the_yoy_null_cause_differs_by_entity(monkeypatch, tmp_path):
+    """"A gap in statistical coverage" is a real NULL cause for a TEAM and an
+    impossible one for a PLAYER: a player's null per-match stat MEANS ZERO, so a
+    running sum never goes null for coverage, and the player model names only the
+    absent prior season at that club. Shipping the team sentence on four player
+    columns was a false claim in the warehouse."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("goals", entity="player", description="Goals scored."),
+        _row("clean_sheets", entity="team", description="Clean sheets."),
+    ]))
+    monkeypatch.setattr(gen, "MODELS",
+                        _models(tmp_path, ["goals_delta_yoy", "clean_sheets_delta_yoy"]))
+
+    assert _run(monkeypatch) == 0
+    blocks = _parse(gen.OUT.read_text(encoding="utf-8"))
+    assert "stat-covered" in blocks["clean_sheets_delta_yoy__team"]
+    assert "stat-cover" not in blocks["goals_delta_yoy__player"]
+    assert "no prior season at this club" in blocks["goals_delta_yoy__player"]
+    # ⚠ AND THE CAUSE THE FIRST FIX DROPPED. Removing the false coverage clause
+    # also removed a true one: the block is reused at `mart_player_profile`, which
+    # carries cup and tournament seasons where there is no year-on-year comparison
+    # at all. A shared block is only as true as its widest call site.
+    for entity in ("goals_delta_yoy__player", "clean_sheets_delta_yoy__team"):
+        assert "no year-on-year comparison" in blocks[entity], entity
+
+
+def test_an_entity_with_no_phrase_is_refused_rather_than_given_another_ones(
+        monkeypatch, tmp_path, capsys):
+    """The reachable half of the entity-specific phrasing. A third entity, or a
+    renamed one, must stop the run rather than quietly take the team sentence."""
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("goals", entity="squad", description="Goals scored.")]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_delta_yoy"]))
+
+    assert _run(monkeypatch, "--check") == 1
+    assert "another entity's sentence" in capsys.readouterr().err
+
+
+def _parse(text):
+    import re
+    return {m.group(1): " ".join(m.group(2).split()) for m in re.finditer(
+        r"\{%\s*docs\s+(\w+)\s*%\}(.*?)\{%\s*enddocs\s*%\}", text, re.S)}
+
+
 # ---------------------------------------------------------------- the real repo
+
+def test_no_line_breaks_a_hyphenated_word(monkeypatch, tmp_path):
+    """`textwrap.wrap` defaults to `break_on_hyphens=True` and split "year-on-year"
+    into "year-on-" / "year". This text is not laid out for a reader of the file:
+    `persist_docs` pushes it into the warehouse, where the newline collapses and it
+    renders as "year-on- year". Five such breaks were already live on main before
+    this MR, from the previous one."""
+    import re
+
+    # ⚠ A DELIBERATELY UNBREAKABLE-EXCEPT-AT-THE-HYPHEN TOKEN. The first version of
+    # this test used a natural sentence with "year-on-year" in it and SURVIVED the
+    # mutation, because at width 95 the wrapper never happened to choose that
+    # hyphen. One hyphenated token longer than the wrap width leaves it no other
+    # break point, so the mutation has nowhere to hide.
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
+        _row("goals", description="x" * 60 + "-" + "y" * 60 + ".")]))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_this_season"]))
+
+    assert _run(monkeypatch) == 0
+    broken = [ln for ln in gen.OUT.read_text(encoding="utf-8").splitlines()
+              if re.search(r"\w-$", ln)]
+    assert not broken, "a hyphenated word was split across lines: " + repr(broken)
+
+
+def test_the_real_file_breaks_no_hyphenated_word():
+    """The same property on the SHIPPED file, because the synthetic one above can
+    only prove the wrapper was called correctly for text this test chose."""
+    import re
+
+    import importlib
+    fresh = importlib.reload(gen)
+    broken = [ln for ln in fresh.OUT.read_text(encoding="utf-8").splitlines()
+              if re.search(r"\w-$", ln)]
+    assert not broken, (
+        "these lines end mid-word, so the rendered warehouse description reads "
+        "with a stray space inside the term: " + repr(broken))
+
+
+def test_the_real_repo_emits_no_bare_derived_block():
+    """The safety property, asserted against the ACTUAL generated file rather than
+    a synthetic one. Every block whose name ends in a known affix must carry an
+    entity suffix; a bare one is a block a column of the wrong entity can point at.
+    """
+    import importlib
+    import re
+
+    fresh = importlib.reload(gen)
+    text = fresh.OUT.read_text(encoding="utf-8")
+    names = set(re.findall(r"\{%\s*docs\s+(\w+)\s*%\}", text))
+    metrics = {r["metric_id"].strip() for r in fresh._read_rows()}
+
+    bare = sorted(n for n in names
+                  if not n.endswith(("__team", "__player"))
+                  and fresh._decompose(n, metrics))
+    assert not bare, (
+        "these derived blocks carry no entity suffix, so a column of either entity "
+        "could point at them: " + ", ".join(bare))
+    assert len(names) > fresh.MIN_DERIVED
+
 
 def test_the_real_seed_and_the_real_file_are_in_sync():
     """Run at FULL strength against the actual repo, with no monkeypatching of the
@@ -401,7 +727,7 @@ def test_the_real_seed_and_the_real_file_are_in_sync():
     fresh = importlib.reload(gen)
     try:
         rows = fresh._read_rows()
-        expected = fresh._render(rows)
+        expected = fresh._render(rows, fresh._column_names())
     except fresh.Abort as exc:                                  # pragma: no cover
         pytest.fail(f"the real catalogue does not render: {exc}")
 
