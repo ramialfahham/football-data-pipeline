@@ -58,57 +58,104 @@ models:
       - name: goals_for_this_season
       - name: goals_against_this_season
       - name: goals_per_match_this_season
+        description: "{{ doc('goals_per_match_this_season__team') }}"
       - name: goals_against_per_match_this_season
+        description: "{{ doc('goals_against_per_match_this_season__team') }}"
       - name: clean_sheets_this_season
+        description: "{{ doc('clean_sheets_this_season__team') }}"
       - name: shots_per_match_this_season
+        description: "{{ doc('shots_per_match_this_season__team') }}"
       - name: danger_zone_ratio_this_season
+        description: "{{ doc('danger_zone_ratio_this_season__team') }}"
       - name: shots_on_goal_per_match_this_season
+        description: "{{ doc('shots_on_goal_per_match_this_season__team') }}"
       - name: finishing_efficiency_this_season
+        description: "{{ doc('finishing_efficiency_this_season__team') }}"
       - name: duels_per_match_this_season
+        description: "{{ doc('duels_per_match_this_season__team') }}"
       - name: duels_won_pct_this_season
+        description: "{{ doc('duels_won_pct_this_season__team') }}"
       - name: defensive_actions_per_match_this_season
+        description: "{{ doc('defensive_actions_per_match_this_season__team') }}"
       - name: passes_per_match_this_season
+        description: "{{ doc('passes_per_match_this_season__team') }}"
       - name: pass_accuracy_this_season
+        description: "{{ doc('pass_accuracy_this_season__team') }}"
       - name: key_passes_per_match_this_season
+        description: "{{ doc('key_passes_per_match_this_season__team') }}"
       - name: corner_kicks_per_match_this_season
+        description: "{{ doc('corner_kicks_per_match_this_season__team') }}"
       - name: corners_against_per_match_this_season
+        description: "{{ doc('corners_against_per_match_this_season__team') }}"
       - name: save_ratio_this_season
+        description: "{{ doc('save_ratio_this_season__team') }}"
       - name: points_prev_season
       - name: goals_for_prev_season
       - name: goals_against_prev_season
       - name: goals_per_match_prev_season
+        description: "{{ doc('goals_per_match_prev_season__team') }}"
       - name: goals_against_per_match_prev_season
+        description: "{{ doc('goals_against_per_match_prev_season__team') }}"
       - name: clean_sheets_prev_season
+        description: "{{ doc('clean_sheets_prev_season__team') }}"
       - name: shots_per_match_prev_season
+        description: "{{ doc('shots_per_match_prev_season__team') }}"
       - name: danger_zone_ratio_prev_season
+        description: "{{ doc('danger_zone_ratio_prev_season__team') }}"
       - name: shots_on_goal_per_match_prev_season
+        description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
       - name: finishing_efficiency_prev_season
+        description: "{{ doc('finishing_efficiency_prev_season__team') }}"
       - name: duels_per_match_prev_season
+        description: "{{ doc('duels_per_match_prev_season__team') }}"
       - name: duels_won_pct_prev_season
+        description: "{{ doc('duels_won_pct_prev_season__team') }}"
       - name: defensive_actions_per_match_prev_season
+        description: "{{ doc('defensive_actions_per_match_prev_season__team') }}"
       - name: passes_per_match_prev_season
+        description: "{{ doc('passes_per_match_prev_season__team') }}"
       - name: pass_accuracy_prev_season
+        description: "{{ doc('pass_accuracy_prev_season__team') }}"
       - name: key_passes_per_match_prev_season
+        description: "{{ doc('key_passes_per_match_prev_season__team') }}"
       - name: corner_kicks_per_match_prev_season
+        description: "{{ doc('corner_kicks_per_match_prev_season__team') }}"
       - name: corners_against_per_match_prev_season
+        description: "{{ doc('corners_against_per_match_prev_season__team') }}"
       - name: save_ratio_prev_season
+        description: "{{ doc('save_ratio_prev_season__team') }}"
       - name: goals_for_delta_yoy
       - name: goals_against_delta_yoy
       - name: goals_against_per_match_delta_yoy
+        description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
       - name: clean_sheets_delta_yoy
+        description: "{{ doc('clean_sheets_delta_yoy__team') }}"
       - name: shots_per_match_delta_yoy
+        description: "{{ doc('shots_per_match_delta_yoy__team') }}"
       - name: danger_zone_ratio_delta_yoy
+        description: "{{ doc('danger_zone_ratio_delta_yoy__team') }}"
       - name: shots_on_goal_per_match_delta_yoy
+        description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
       - name: finishing_efficiency_delta_yoy
+        description: "{{ doc('finishing_efficiency_delta_yoy__team') }}"
       - name: duels_per_match_delta_yoy
+        description: "{{ doc('duels_per_match_delta_yoy__team') }}"
       - name: duels_won_pct_delta_yoy
+        description: "{{ doc('duels_won_pct_delta_yoy__team') }}"
       - name: defensive_actions_per_match_delta_yoy
+        description: "{{ doc('defensive_actions_per_match_delta_yoy__team') }}"
       - name: passes_per_match_delta_yoy
+        description: "{{ doc('passes_per_match_delta_yoy__team') }}"
       - name: pass_accuracy_delta_yoy
+        description: "{{ doc('pass_accuracy_delta_yoy__team') }}"
       - name: key_passes_per_match_delta_yoy
+        description: "{{ doc('key_passes_per_match_delta_yoy__team') }}"
       - name: corner_kicks_per_match_delta_yoy
+        description: "{{ doc('corner_kicks_per_match_delta_yoy__team') }}"
       - name: corners_against_per_match_delta_yoy
+        description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
       - name: save_ratio_delta_yoy
+        description: "{{ doc('save_ratio_delta_yoy__team') }}"
 
   - name: int_team_profile__streaks
     description: >

@@ -86,6 +86,7 @@ models:
       - name: season_matchdays_used
       - name: stat_coverage_season_games
       - name: points_won_sum_season
+        description: "{{ doc('points_won_sum_season__team') }}"
       - name: goals_for_sum_season
       - name: goals_against_sum_season
       - name: total_shots_sum_season
