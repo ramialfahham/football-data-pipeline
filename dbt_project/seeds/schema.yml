@@ -397,7 +397,7 @@ seeds:
       - name: source_code
         tests: [not_null]
       - name: prompt_version
-        description: "Version of the research prompt or ingest job (e.g. wc_squad_value_v1)."
+        description: "{{ doc('prompt_version') }}"
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:

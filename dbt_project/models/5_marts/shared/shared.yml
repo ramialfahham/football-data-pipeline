@@ -128,6 +128,7 @@ models:
           name: momentum_team_clean_sheets_in_range
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -226,6 +227,7 @@ models:
           name: momentum_player_rank_positive
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -305,6 +307,7 @@ models:
       - name: duels_won_pct
         description: "{{ doc('duels_won_pct__player') }}"
       - name: top_player_rank
+        description: "1 for the player picked first on this side for this fixture, then 2, 3 and so on, ordered by goals, then assists, then key passes over the form window. It is a selection order, not a rating: ties are broken so that no two players share a rank."
 
   - name: mart_team_momentum_window
     description: >
@@ -325,6 +328,7 @@ models:
           combination_of_columns: [upcoming_fixture_sk, team_sk, recency_rank]
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -372,9 +376,13 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: played_league_code
+        description: "The competition this past match was played in. It can differ from the competition of the fixture the window is built for, because form is taken across competitions - a cup tie counts towards the run into a league match."
       - name: played_kickoff_datetime
+        description: "When this past match kicked off, in UTC. Ordering by it walks the window from oldest to most recent."
       - name: played_round_name
+        description: "The provider's round label for this past match, free text such as 'Regular Season - 12' or 'Quarter-finals'. Its shape varies by competition, so it reads well and sorts badly."
       - name: home_away
+        description: "{{ doc('home_away') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -425,19 +433,25 @@ models:
       - name: shots_on_goal
         description: "{{ doc('shots_on_goal') }}"
       - name: shots_off_goal
+        description: "{{ doc('shots_off_goal') }}"
       - name: shots_total
         description: "{{ doc('shots_total') }}"
       - name: shots_blocked
+        description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
       - name: shots_outside_box
+        description: "{{ doc('shots_outside_box') }}"
       - name: fouls
+        description: "{{ doc('fouls') }}"
       - name: corner_kicks
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
         description: "{{ doc('ball_possession_percent') }}"
       - name: yellow_cards
+        description: "{{ doc('yellow_cards') }}"
       - name: red_cards
+        description: "{{ doc('red_cards') }}"
       - name: goalkeeper_saves
       - name: passes_total
         description: "{{ doc('passes_total') }}"
@@ -498,9 +512,13 @@ models:
       - name: player_photo_url
       - name: position_code
       - name: shirt_number
+        description: "{{ doc('shirt_number') }}"
       - name: minutes_played
+        description: "{{ doc('minutes_played') }}"
       - name: is_captain
+        description: "{{ doc('is_captain') }}"
       - name: is_substitute
+        description: "{{ doc('is_substitute') }}"
       - name: is_starter
         description: "{{ doc('is_starter') }}"
       - name: offsides
@@ -537,7 +555,9 @@ models:
       - name: dribbles_past
         description: "{{ doc('dribbles_past') }}"
       - name: fouls_drawn
+        description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
+        description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow') }}"
       - name: cards_red
@@ -547,8 +567,11 @@ models:
       - name: penalty_committed
         description: "{{ doc('penalty_committed') }}"
       - name: penalty_scored
+        description: "{{ doc('penalty_scored') }}"
       - name: penalty_missed
+        description: "{{ doc('penalty_missed') }}"
       - name: penalty_saved
+        description: "{{ doc('penalty_saved') }}"
 
   - name: mart_team_profile
     description: >
@@ -651,6 +674,7 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: goal_diff
+        description: "{{ doc('goal_diff') }}"
       - name: points
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
@@ -854,6 +878,7 @@ models:
           name: std_team_clean_sheets_in_range
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -962,6 +987,7 @@ models:
           name: std_player_dribbles_success_pct_in_range
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1201,6 +1227,7 @@ models:
         description: "{{ doc('goals_against') }}"
         tests: [not_null]
       - name: goal_diff
+        description: "{{ doc('goal_diff') }}"
         tests: [not_null]
       - name: points
         description: "3 points per win, 1 per draw."
@@ -1279,6 +1306,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: player_season_sk
+        description: "Identity key for one player in one competition-season: a surrogate built from player_sk and season_sk. It is this row's own key, and the handle to use when a player-season needs referring to as a single thing."
         tests: [unique, not_null]
       - name: player_sk
         description: "{{ doc('player_sk') }}"
@@ -1338,6 +1366,7 @@ models:
       - name: player_birth_date
       - name: player_photo_url
       - name: starts
+        description: "{{ doc('starts') }}"
       - name: substitute_appearances
       - name: minutes
       - name: goals
@@ -1502,9 +1531,11 @@ models:
       - name: opponent_logo_url
       - name: position_code
       - name: minutes_played
+        description: "{{ doc('minutes_played') }}"
       - name: is_starter
         description: "{{ doc('is_starter') }}"
       - name: is_substitute
+        description: "{{ doc('is_substitute') }}"
       - name: goals_total
       - name: goals_assists
       - name: saves
@@ -1531,7 +1562,9 @@ models:
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
       - name: fouls_drawn
+        description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
+        description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow') }}"
       - name: cards_red
@@ -1567,6 +1600,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: is_knockout
+        description: "True when the fixture's round looks like a knockout tie rather than table play. It is a heuristic over the provider's free-text round label, matching the common shapes (round of 16, quarter-final, final, play-off), and it is false when the label is missing or unrecognised - so a false is not a promise the round has a table."
         tests: [not_null]
       - name: season_sk
         description: "{{ doc('season_sk') }}"
@@ -1654,6 +1688,7 @@ models:
       - name: recent_meetings.result
       - name: pair_key
       - name: is_canonical
+        description: "True on exactly one of the two rows a pairing produces. Every pairing is held twice, once from each team's point of view; filter on this to count a pairing once, and ignore it when reading the record from one named team's side."
 
   - name: mart_leaderboards
     description: >
@@ -1838,6 +1873,7 @@ models:
         description: "{{ doc('team_api_id') }}"
       - name: team_country
       - name: prompt_version
+        description: "{{ doc('prompt_version') }}"
 
   - name: mart_team_fixtures
     description: >
@@ -1903,8 +1939,11 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: has_result
+        description: "True when a finished result is attached to this fixture. It is NOT the opposite of is_upcoming: a postponed, abandoned or cancelled fixture is false on both, so test the flag you mean rather than negating the other one."
       - name: is_upcoming
+        description: "True when the fixture is still to be played - the provider has it as not started or its date is still to be confirmed. It is NOT the opposite of has_result: a postponed or abandoned fixture is false on both."
       - name: upcoming_rank
+        description: "1 for this team's next fixture in this competition-season, 2 for the one after, and so on by kickoff time. NULL for any fixture that is not upcoming, so the ranks run 1..n over upcoming fixtures alone with no gaps."
       - name: recency_rank
 
   - name: mart_roster

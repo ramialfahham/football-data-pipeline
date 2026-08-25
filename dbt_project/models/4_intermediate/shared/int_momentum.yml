@@ -16,6 +16,7 @@ models:
           combination_of_columns: [upcoming_fixture_sk, team_sk]
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -103,6 +104,7 @@ models:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"

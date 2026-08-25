@@ -34,6 +34,7 @@ models:
           - accepted_values:
               values: ["W", "D", "L"]
       - name: home_away
+        description: "{{ doc('home_away') }}"
         tests:
           - accepted_values:
               values: ["home", "away"]
@@ -99,6 +100,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: home_away
+        description: "{{ doc('home_away') }}"
         tests:
           - accepted_values:
               values: ["home", "away"]
@@ -109,9 +111,11 @@ models:
       - name: round_name
       - name: competition_type
       - name: minutes_played
+        description: "{{ doc('minutes_played') }}"
       - name: is_starter
         description: "{{ doc('is_starter') }}"
       - name: is_substitute
+        description: "{{ doc('is_substitute') }}"
       - name: position_code
       - name: shots_total
         description: "{{ doc('shots_total') }}"
@@ -145,7 +149,9 @@ models:
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: fouls_drawn
+        description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
+        description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow') }}"
       - name: cards_red
@@ -205,4 +211,6 @@ models:
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
       - name: fouls_committed
+        description: "{{ doc('fouls_committed') }}"
       - name: fouls_drawn
+        description: "{{ doc('fouls_drawn') }}"
