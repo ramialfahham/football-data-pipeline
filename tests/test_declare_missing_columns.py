@@ -682,6 +682,206 @@ def test_the_two_wire_modes_together_are_refused(monkeypatch, tmp_path, capsys):
     assert "one at a time" in capsys.readouterr().err
 
 
+# ---------------------------------------------- --promote-shared-docs (#82 MR4b-2)
+#
+# This mode is the ONLY one that edits a line already in the file, in a script
+# whose contract is append-only. Its single reviewable claim is that nothing is
+# rewritten: the text the block resolves to is the text the column already had.
+# Every test below exists to make that claim falsifiable.
+
+PROMOTE_YML = """version: 2
+
+models:
+  - name: dim_thing
+    columns:
+      - name: shared_col
+        description: "The shared sentence."
+      - name: other_col
+        description: "Something else entirely."
+"""
+
+
+def _run_promote(monkeypatch, *extra):
+    monkeypatch.setattr(sys, "argv",
+                        ["declare_missing_columns.py", "--promote-shared-docs", *extra])
+    return gen.main()
+
+
+def _blocks_text(dbt, bodies, where="models/docs/shared_columns.md"):
+    """A .md whose blocks carry the exact bodies given."""
+    path = dbt / where
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n\n".join("{%% docs %s %%}\n%s\n{%% enddocs %%}" % (n, b)
+                    for n, b in bodies.items()) + "\n",
+        encoding="utf-8")
+    return path
+
+
+def test_promote_replaces_a_restatement_with_a_reference(monkeypatch, tmp_path):
+    dbt = _project(tmp_path, {"3_core/core.yml": PROMOTE_YML}, models={"dim_thing": "3_core"})
+    _blocks_text(dbt, {"shared_col": "The shared sentence."})
+    target = dbt / "models" / "3_core" / "core.yml"
+
+    assert _run_promote(monkeypatch) == 0
+
+    cols = {c["name"]: c for c in
+            yaml.safe_load(target.read_text(encoding="utf-8"))["models"][0]["columns"]}
+    assert cols["shared_col"]["description"] == "{{ doc('shared_col') }}"
+    assert cols["other_col"]["description"] == "Something else entirely."
+
+
+def test_promote_REFUSES_a_site_whose_text_is_not_the_blocks_text(
+        monkeypatch, tmp_path, capsys):
+    """The guard the whole mode rests on. If the block says something else, swapping
+    the reference in REWRITES the column — which is the opposite of promoting it,
+    and would be invisible afterwards because the reference resolves fine."""
+    dbt = _project(tmp_path, {"3_core/core.yml": PROMOTE_YML}, models={"dim_thing": "3_core"})
+    _blocks_text(dbt, {"shared_col": "A DIFFERENT sentence with the same name."})
+    target = dbt / "models" / "3_core" / "core.yml"
+    before = target.read_text(encoding="utf-8")
+
+    assert _run_promote(monkeypatch) == 1          # nothing left to do, and loud
+    out = capsys.readouterr()
+    assert "NOT the block's text" in out.out
+    assert target.read_text(encoding="utf-8") == before
+
+
+def test_promote_REFUSES_a_folded_description(monkeypatch, tmp_path, capsys):
+    """A folded scalar spans several lines and this script edits by LINE. Rewriting
+    one is how a file gets mangled, so it is reported for a human. Two real sites
+    are in exactly this shape."""
+    yml = PROMOTE_YML.replace(
+        '      - name: shared_col\n        description: "The shared sentence."\n',
+        "      - name: shared_col\n        description: >\n          The shared\n"
+        "          sentence.\n")
+    dbt = _project(tmp_path, {"3_core/core.yml": yml}, models={"dim_thing": "3_core"})
+    _blocks_text(dbt, {"shared_col": "The shared sentence."})
+    target = dbt / "models" / "3_core" / "core.yml"
+    before = target.read_text(encoding="utf-8")
+
+    assert _run_promote(monkeypatch) == 1
+    assert "folded scalar is for a human" in capsys.readouterr().out
+    assert target.read_text(encoding="utf-8") == before
+
+
+def test_promote_finds_the_line_inside_ITS_OWN_model(monkeypatch, tmp_path):
+    """The same sentence appears under five models in the real `shared.yml`, so a
+    whole-file search finds five candidates and can name none of them. Searching
+    the file instead of the model made this mode skip five sites it should have
+    promoted; only the model-scoped search gets them."""
+    yml = PROMOTE_YML + """
+  - name: dim_other
+    columns:
+      - name: shared_col
+        description: "The shared sentence."
+"""
+    dbt = _project(tmp_path, {"3_core/core.yml": yml},
+                   models={"dim_thing": "3_core", "dim_other": "3_core"})
+    _blocks_text(dbt, {"shared_col": "The shared sentence."})
+    target = dbt / "models" / "3_core" / "core.yml"
+
+    assert _run_promote(monkeypatch) == 0
+
+    doc = yaml.safe_load(target.read_text(encoding="utf-8"))
+    got = {m["name"]: {c["name"]: c.get("description") for c in m["columns"]}
+           for m in doc["models"]}
+    assert got["dim_thing"]["shared_col"] == "{{ doc('shared_col') }}"
+    assert got["dim_other"]["shared_col"] == "{{ doc('shared_col') }}"
+
+
+def test_promote_handles_a_description_that_is_not_the_first_line_of_its_column(
+        monkeypatch, tmp_path):
+    """`- name:` / `tests:` / `description:` is legal YAML and this repo already
+    uses that ordering. An earlier version of the writer assumed the description
+    was always the line immediately after the name and aborted the whole FILE for
+    anything else — an assumption mutation testing showed had no test, and then
+    showed was wrong."""
+    yml = """version: 2
+
+models:
+  - name: dim_thing
+    columns:
+      - name: shared_col
+        tests: [not_null]
+        description: "The shared sentence."
+"""
+    dbt = _project(tmp_path, {"3_core/core.yml": yml}, models={"dim_thing": "3_core"})
+    _blocks_text(dbt, {"shared_col": "The shared sentence."})
+    target = dbt / "models" / "3_core" / "core.yml"
+
+    assert _run_promote(monkeypatch) == 0
+
+    col = yaml.safe_load(target.read_text(encoding="utf-8"))["models"][0]["columns"][0]
+    assert col["description"] == "{{ doc('shared_col') }}"
+    assert col["tests"] == ["not_null"]          # survives untouched
+
+
+def test_promote_refuses_when_the_planned_line_is_no_longer_there(monkeypatch, tmp_path):
+    """The file changed between planning and writing. Overwriting an unexamined
+    line is exactly what this script exists not to do."""
+    lines = ['      - name: shared_col', '        description: "Something else."']
+    with pytest.raises(gen.Abort) as exc:
+        gen._replace_description(
+            ["models:", "  - name: dim_thing", "    columns:", *lines],
+            "dim_thing",
+            {"shared_col": ("shared_col", '        description: "The planned line."')})
+    assert "found 0" in str(exc.value)
+
+
+def test_verify_still_refuses_a_replace_the_run_did_not_plan():
+    """The append-only guard is NARROWED, not loosened. A replace on a line outside
+    the planned set — a reformat, a reorder, an off-by-one swap — is still refused,
+    and an empty planned set restores the original rule exactly."""
+    before = 'a: 1\nb: 2\nc: 3\n'
+    after = 'a: 1\nb: CHANGED\nc: 3\n'
+    expected = yaml.safe_load(after)
+
+    with pytest.raises(gen.Abort) as exc:
+        gen._verify(before, after, expected, "f.yml", "\n", frozenset())
+    assert "not append-only" in str(exc.value)
+
+    # The same edit, with that exact line planned, is allowed.
+    gen._verify(before, after, expected, "f.yml", "\n", frozenset({"b: 2"}))
+
+    # A DIFFERENT line planned does not license this one.
+    with pytest.raises(gen.Abort):
+        gen._verify(before, after, expected, "f.yml", "\n", frozenset({"c: 3"}))
+
+
+def test_an_unplanned_line_cannot_ride_along_inside_a_planned_replace():
+    """⚠ THE CASE EVERY OTHER TEST MISSES, and platform-reviewer found it by reading
+    rather than running. The guard requires EVERY old line inside a `replace` opcode
+    to have been planned. Weaken that to "at least one" and an unplanned line merged
+    into the same opcode as a legitimate swap slips through — and `_verify`'s second,
+    structural check cannot catch it either, because that one compares parsed YAML
+    and is blind to a reformat.
+
+    Every other test replaces ONE isolated line, where "all" and "any" are
+    identical, so the mutation had nowhere to show. This makes two ADJACENT lines
+    change together so difflib emits a single multi-line `replace`."""
+    before = "a: 1\nb: 2\nc: 3\nd: 4\n"
+    after = "a: 1\nb: CHANGED\nc: ALSO CHANGED\nd: 4\n"
+    expected = yaml.safe_load(after)
+
+    # Both lines planned: allowed, and this is what proves the test is not simply
+    # asserting that multi-line replaces are always refused.
+    gen._verify(before, after, expected, "f.yml", "\n", frozenset({"b: 2", "c: 3"}))
+
+    # Only ONE of the two planned: the other rode along, and that must be refused.
+    for planned in (frozenset({"b: 2"}), frozenset({"c: 3"})):
+        with pytest.raises(gen.Abort) as exc:
+            gen._verify(before, after, expected, "f.yml", "\n", planned)
+        assert "unexpected edit" in str(exc.value)
+
+
+def test_promote_refuses_to_run_alongside_another_mode(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["declare_missing_columns.py",
+                                      "--promote-shared-docs", "--wire-shared-docs"])
+    assert gen.main() == 1
+    assert "one mode at a time" in capsys.readouterr().err
+
+
 def test_every_MODEL_ENTITY_key_names_a_model_that_exists():
     """A stale entry is a silent no-op that hides a model nobody classified. Run
     against the REAL repo, with no monkeypatching."""

@@ -44,9 +44,12 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: round_order
+        description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -102,10 +105,12 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: competition_type
       - name: minutes_played
       - name: is_starter
+        description: "{{ doc('is_starter') }}"
       - name: is_substitute
       - name: position_code
       - name: shots_total
@@ -122,6 +127,7 @@ models:
       - name: passes_key
         description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
+        description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
         description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
@@ -153,7 +159,9 @@ models:
       - name: goals_penalty
         description: "{{ doc('goals_penalty__player') }}"
       - name: round_order
+        description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
 
   - name: int_legs__team_from_players
     description: >
@@ -179,8 +187,11 @@ models:
       - name: competition_type
       - name: entity_type
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_order
+        description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
       - name: key_passes
       - name: tackles
       - name: blocks

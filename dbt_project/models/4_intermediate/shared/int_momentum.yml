@@ -56,7 +56,7 @@ models:
       - name: goals_against_in_save_games
         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
       - name: contributing_competitions
-        description: "Array of distinct league_codes from which the window legs were drawn."
+        description: "{{ doc('contributing_competitions') }}"
         tests: [not_null]
       - name: games_with_player_stats
         description: "Count of the window legs that have a matching row in int_legs__team_from_players."

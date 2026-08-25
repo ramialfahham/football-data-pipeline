@@ -19,6 +19,7 @@ models:
       - name: league_code
         tests: [not_null]
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
 
   - name: base_apif__teams_global
@@ -40,6 +41,7 @@ models:
           combination_of_columns: [team_api_id]
     columns:
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: league_code
         tests: [not_null]
@@ -196,6 +198,7 @@ models:
           combination_of_columns: [player_api_id]
     columns:
       - name: player_api_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
 
   - name: base_apif__player_profiles
@@ -210,6 +213,7 @@ models:
           combination_of_columns: [player_api_id]
     columns:
       - name: player_api_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
 
   - name: base_apif__fixture_events
@@ -317,6 +321,7 @@ models:
       - name: coach_api_id
         tests: [not_null]
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: start_date
         tests: [not_null]

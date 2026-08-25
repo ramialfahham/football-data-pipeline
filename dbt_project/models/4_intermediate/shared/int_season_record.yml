@@ -46,7 +46,7 @@ models:
         description: "Cumulative count of those matches with goalkeeper_saves present — save_ratio's own coverage bucket, used to NULL save_ratio on partial coverage."
         tests: [not_null]
       - name: round_order
-        description: "Matchday number parsed from round_name (null if non-numeric). For deferred year-over-year alignment."
+        description: "{{ doc('round_order') }}"
       - name: match_number
         description: "The team's Nth match that season by kickoff (always present)."
         tests: [not_null]
@@ -61,11 +61,15 @@ models:
           Cumulative shots taken by this team's OPPONENTS through this match — the denominator
           half of a shot-share calculation.
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: points_won
         description: "{{ doc('points_won') }}"
       - name: wins
+        description: "{{ doc('wins') }}"
       - name: draws
+        description: "{{ doc('draws') }}"
       - name: losses
+        description: "{{ doc('losses') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -142,7 +146,9 @@ models:
         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."
       - name: entity_type
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_order
+        description: "{{ doc('round_order') }}"
       - name: match_number
       - name: goals_total
       - name: goals_against

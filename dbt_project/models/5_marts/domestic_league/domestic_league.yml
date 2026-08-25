@@ -68,11 +68,15 @@ models:
       - name: played
         description: "Finished matches from mart_team_season; null when standings rollup absent."
       - name: team_code
+        description: "{{ doc('team_code') }}"
       - name: team_country
       - name: team_logo_url
       - name: wins
+        description: "{{ doc('wins') }}"
       - name: draws
+        description: "{{ doc('draws') }}"
       - name: losses
+        description: "{{ doc('losses') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -81,8 +85,11 @@ models:
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
+        description: "{{ doc('latest_rank') }}"
       - name: latest_form
+        description: "{{ doc('latest_form') }}"
       - name: standings_group_description
+        description: "{{ doc('standings_group_description') }}"
       - name: season_matchdays_used
       - name: stat_coverage_season_games
       - name: points_won_sum_season
@@ -211,8 +218,10 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: fixture_date
+        description: "{{ doc('fixture_date') }}"
         tests: [not_null]
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
         tests: [not_null]
       - name: round_name
         description: "API round name for the upcoming matchday (e.g. Regular Season - 31)."
@@ -222,6 +231,7 @@ models:
         description: "Number of fixtures in this upcoming round (same round_name, league, season)."
         tests: [not_null]
       - name: home_team_sk
+        description: "{{ doc('home_team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -232,6 +242,7 @@ models:
       - name: home_team_logo_url
         description: "Home team crest URL from dim_team (API-Football); nullable."
       - name: away_team_sk
+        description: "{{ doc('away_team_sk') }}"
         tests:
           - not_null
           - relationships:

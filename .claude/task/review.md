@@ -1,118 +1,91 @@
-# Review — feat/82-mr4b-generate-and-promote — 2026-08-25
+# Review — feat/82-mr4b2-promote-shared-definitions — 2026-08-25
 
-diff_sha256: 19a8b38c24ad8d4290e62c7ebd2cb18e1943a0e77f511f948742e0f9a042f5ad
+diff_sha256: 12729abf2a09b53ecb8e375059d6b5a0987f42371f354d98c7bf777f1121396c
 
 rounds: 4
 
-rounds_cap_override: CPO, 2026-08-25: "run one more check". Asked in behaviour terms after the
-three-round pattern was put to him plainly — a reviewer has caught the same mistake in my paperwork
-three times, I have fixed the third one and nobody has checked it, one more check or ship? The
-reason for granting it, in my framing that he accepted: scope-auditor had found something real in
-every round, which argues against the cap rather than for it. Round 4 PASSed.
+rounds_cap_override: CPO, 2026-08-25: "one more review". Asked in plain terms after round 3 —
+the work is fine, my paperwork is not, ship it or check again — with my recommendation to SHIP,
+on the grounds that the outstanding fix was two marker sentences and I had by then built a
+mechanical check for the class. He chose the review. It PASSed, and it found nothing further.
 
-⚠ FOUR ROUNDS, SIX REAL DEFECTS, AND I FOUND ONE OF THEM. The one I found is the reason this MR
-exists — reading the composed output showed a fifth of the derived names taking a player's
-definition onto a team column. The other five were found by reviewers. The count is the finding
-and it is recorded in `escalations.log` rather than softened here.
+⚠ SIX NAMES WERE PULLED FROM THIS MR ACROSS TWO ROUNDS, every one a real defect I had approved,
+and I found none of them. The MR shipped to review at 37 names and merges at 31.
 
-⚠ ONE REVIEWER WAS ROUTED BY JUDGEMENT, NOT BY PATH, AND IT FOUND TWO OF THE SIX.
-`football-analytics-expert-reviewer`'s trigger is `metric_catalogue.csv`, which this MR never
-touches. The trigger names a file; the risk it exists to catch was in composed prose reaching 130
-warehouse columns.
+⚠ THE SAME PAPERWORK CLASS FAILED THREE ROUNDS RUNNING — the fifth instance across two MRs. It
+stopped when I replaced the prose rule with a search that cannot forget: extract every integer
+from the artifacts and check each, rather than sweeping for the ones I remember changing.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS (round 3)
 risks_checked:
-- ROUND 1 FAIL: `clean_sheets_sum_season__team` composed the catalogue's RATIO definition, display
-  convention and all ("shown as a count of games played, e.g. 3/5"), with "Totalled over the
-  season". One fluent sentence asserting the value is both a small fraction and a season total.
-  Established from the SQL that the column is `clean_sheet_games` alone while the metric is
-  `safe_divide(clean_sheet_games, games_played)`. Found by reading it; no guard could see it.
-- Independently enumerated all 16 `_sum_season` stems rather than accepting "exactly one name
-  affected", and checked each against the catalogue.
-- Ruled on whether `_delta_yoy` on a ratio is the same defect: it is not, because a delta of two
-  ratio values is well defined while a total of ratios is not, and only `clean_sheets` carries a
-  display-format clause.
-- Verified the `MODEL_ENTITY` table entry by entry against the models' own SQL headers, including
-  the three whose names do not state their entity.
-- Judged the entity-suffix decision and the 48 blank columns: sound, and reserved rather than cut.
-- Information loss at the three kept-sentence sites judged individually; confirmed the one dropped
-  clause is banned by the standard as a downstream-consumer claim.
-- ROUND 3: re-read every block it had flagged for content drift from the rewrap — only line-break
-  positions moved, no wording changed — and confirmed the new cup/tournament clause is traceable
-  to `mart_player_profile.sql`'s join rather than merely plausible.
+- ROUND 1 FAIL: `is_home`'s promoted sentence says "the home side of the UPCOMING fixture" and was
+  newly wired to `mart_team_fixture_stats`, `mart_player_fixture_stats`, `mart_player_match_log`
+  and `mart_team_fixtures` — all grained on a finished or arbitrary fixture. Established from each
+  model's SQL, not its YAML.
+- NAMED THE HOLE IN MY PROOF rather than only the instance: the machine check compares a block with
+  the text it REPLACED, so it is silent about the blank sites the block is then pointed at.
+- ROUND 2 FAIL: a sixth name, `result`, in one my own sweep had marked safe. Its sentence claims
+  the value comes from `int_legs__team_match`; `mart_player_match_log` never references that model
+  and recomputes it at lines 136-140.
+- ROUND 3: verified `result`'s removal site by site, then SQL-TRACED every remaining block making a
+  provenance claim — `last_kickoff_at`, `latest_rank`, `latest_form`,
+  `standings_group_description`, `round_order` — through every model each reaches. No mismatch.
+- Traced `team_slug` through `base_apif__teams_global.sql` → `dim_team.sql` → `mart_team_profile.sql`
+  and confirmed its "derived in base" claim holds wherever the value flows.
+- NAMED ITS OWN COVERAGE GAP: it did not open the SQL for the flatly generic names that assert no
+  provenance, and said so rather than implying full coverage.
+- Verified the folded-scalar hand edits lost nothing, and the staging/base layer-scope claim
+  against `check_description_hygiene.py`'s own code.
 
 ## platform-reviewer
-VERDICT: PASS (rounds 1, 2 and 3)
-⚠ DISCLOSED IN ALL THREE ROUNDS that it had no execution tools and had traced the code
-symbolically rather than running it. Recorded as it asked: judged on what was actually done.
+VERDICT: PASS (rounds 2 and 3)
+⚠ DISCLOSED IN EVERY ROUND that it had no execution tools and traced the code by hand instead.
 risks_checked:
-- Re-derived the `!98` line-ending fix from `_same()` and the parametrised endings tests rather
-  than believing the evidence; confirmed `.gitattributes` carries no `eol` rule for these types.
-- Traced all three round-2 mutations by hand and ran a fourth of its own (deleting the
-  already-has-a-description filter), finding it caught by `_verify`'s structural check rather than
-  the content assertion it first expected.
-- Hand-traced the round-3 synthetic hyphen test: a 122-character single token against width 95 has
-  no legal break point except the hyphen, so the mutation has nowhere to hide.
-- NAMED A REAL LIMIT IN ONE OF MY TESTS: `test_the_real_file_breaks_no_hyphenated_word` inspects
-  the shipped file without regenerating, so alone it could not tell "the code is correct" from
-  "the file happens to be clean" — then established that the pre-existing byte-comparison test
-  closes that gap, so the suite as a whole is not fooled.
-- Caught its OWN tool returning a stale read of the generated file and re-checked three ways
-  rather than reporting a repository defect.
-- Confirmed the refusal-reporting plumbing has no accidental `None` on the production path, the
-  `rated` set handles whitespace-only fields, and both reverted yml sites are genuinely blank
-  rather than carrying an empty description key.
-- Confirmed `_write_files` is genuinely reused by the new wiring mode rather than reimplemented.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS (round 3)
-risks_checked:
-- ROUND 1 FAIL: the `_delta_yoy` phrase claimed NULL could arise from "a gap in statistical
-  coverage" — true for a team, IMPOSSIBLE for a player, because a player's null per-match stat
-  means ZERO, so a running sum never goes null for coverage. Established from
-  `int_player_profile__yoy.sql`'s own statement and the project's player-null convention, not from
-  the neighbouring prose.
-- ROUND 2 FAIL: the fix removed a TRUE cause with the false one. The block is reused at
-  `mart_player_profile`, which carries every competition-season, so a cup or tournament row is NULL
-  for a reason the sentence no longer named. Named the general rule: a shared block is only as true
-  as its widest call site.
-- Traced every affix phrase to the SQL: the games-played and appearance alignments, the
-  domestic-league scope, and that `_prev_season_full` is never differenced.
-- Judged the entity-neutral wording of "matches played" honest rather than evasive, given the model
-  descriptions carry the precise rule.
-- Sampled the totalling affixes against rate metrics to check none got a nonsensical "totalled".
-- Confirmed the seven player-only metrics describe genuinely different quantities from their team
-  namesakes, so this is a catalogue gap for the CPO and not a misnaming — the read his decision
-  rests on.
-- ROUND 3: verified the new clause at BOTH call sites, swept the generated file for any residual
-  hyphen break, and raised as NON-BLOCKING that "a cup or an international tournament" does not
-  naturally cover a QUALIFYING campaign, of which six are active. Taken anyway.
+- ROUND 1 FAIL, found by READING: the `all()` in the narrowed replace guard was untested. Every
+  test replaced ONE isolated line, where `all` and `any` are identical, so a mutation weakening it
+  survived the whole suite — and the structural check could not catch it either, being blind to a
+  reformat. Traced difflib's opcode merging to prove the gap was real rather than theoretical.
+- Confirmed the guard is narrowed and not loosened: an empty planned set restores the original
+  append-only rule exactly, and a replace one line off is still refused.
+- Ran its own mutation in round 1 (deleting the already-has-a-description filter) and found it
+  caught by `_verify`'s structural check rather than the content assertion it first expected.
+- Recomputed the deletion accounting independently by grepping `^-\s+description:` rather than
+  trusting the contract's arithmetic, in two separate rounds as the figures moved.
+- Caught its own tool returning a stale read in an earlier MR and re-checked three ways; carried
+  the same scepticism here.
+- Flagged a stale figure in a CODE COMMENT as non-blocking rather than failing on it, and named it
+  as belonging to scope-auditor's class.
+- Confirmed the atomic write, line-ending preservation and `_write_files` reuse are genuinely
+  shared with the other modes rather than reimplemented.
 
 ## scope-auditor
 VERDICT: PASS (round 4, CPO-approved over the cap)
 risks_checked:
-- ROUNDS 1, 2 AND 3 FAIL, the same class each time: a stale claim corrected exactly where named and
-  left standing elsewhere in the same document. The objective; then the blast_radius and two
-  done_when bullets; then the blast_radius again, because the round-3 hyphen fix changes text
-  outside this MR's scope while the section still said "ONE intended effect" and "ONLY FIVE SITES".
-- Verified each fix by its OWN search rather than my list, grepping the whole contract for every
-  stale marker from prior rounds and cross-checking each hit against the diff.
-- Confirmed all three named rewrap blocks genuinely change in the diff and that no fourth was
-  missed or over-claimed.
-- Searched the whole diff for the superseded "a cup or an international tournament" phrasing to
-  confirm the fix propagated from its single source point.
-- Judged the scope-down to its own MR, the 48-column reservation and the three builder's calls:
-  each traced to a standing precedent rather than a fresh silent §10 decision.
-- Judged whether fixing three pre-existing hyphen breaks is drift: defensible, mechanical,
-  meaning-preserving, disclosed with reasoning, and confined to files already in scope.
-- Read amendment 8 for softening and found none, including its self-correction of my own miscount.
-- NOTED WITHOUT FAILING that `acceptance_evidence.md` was itself stale. Corrected rather than left,
-  because that is precisely the class it had already failed three times.
+- ROUNDS 1, 2 AND 3 FAIL, the same class each time. Round 1: the script's own docstring still said
+  "APPEND-ONLY, AND THAT IS THE WHOLE POINT ... the acceptance test is simply that the diff has zero
+  deleted lines", in the MR adding a replacing mode — I had flagged the tension in the contract and
+  fixed it only there. Rounds 2 and 3: stale figures left standing in a document I had said was
+  swept, the last one a single line in the evidence after I had swept the contract and the code.
+- Verified each fix by ITS OWN search rather than my list, every round.
+- ROUND 4: extracted every numeric token from both artifacts by grep, read each in its surrounding
+  sentence rather than its line, and judged marker adjacency rather than accepting that a marker
+  exists somewhere in the passage.
+- Judged the seven numbers my audit deliberately excludes and confirmed none is a live claim about
+  this MR's size being wrongly suppressed.
+- Re-derived the block count from the diff itself (`grep -c '^\+{% docs '` → 31) rather than
+  trusting the contract, and confirmed all six pulled names have zero references anywhere.
+- Reconciled the 508 → 422 arithmetic including a step I had not written down: 6 of the filled
+  sites are in staging and base, which sit outside the in-scope count.
+- Judged the staging/base inclusion against `check_description_hygiene.py` and confirmed it is
+  forced by the gate having no layer filter rather than a coverage decision of mine.
+- Judged the three builder's calls against §10, including changing a guard's stated contract, and
+  found each traceable to a standing precedent rather than a fresh silent decision.
+- Confirmed nothing in `decisions_reserved` is touched, and swept for credential-shaped content
+  every round.
 
 ## escalations
-- question: scope-auditor had FAILed three consecutive rounds on one defect class, correctly each
-  time, and the fix for its third finding was unreviewed at the cap of 3. Run a fourth round, or
-  ship and log the pattern? Put to the CPO in behaviour terms, with the recommendation to run one
-  more because the reviewer had found something real in every round.
-  CPO ANSWER, verbatim: "run one more check". Round 4 returned PASS.
+- question: after three rounds, all three of scope-auditor's FAILs were the same paperwork class
+  and the outstanding fix was two marker sentences. Ship, or review again? Put to the CPO plainly,
+  with the recommendation to ship and the note that a mechanical check for the class now exists.
+  CPO ANSWER, verbatim: "one more review". Round 4 returned PASS with nothing further found.

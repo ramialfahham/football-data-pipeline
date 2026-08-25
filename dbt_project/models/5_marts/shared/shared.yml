@@ -159,6 +159,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: contributing_competitions
+        description: "{{ doc('contributing_competitions') }}"
       - name: games_with_player_stats
       - name: points_won
         description: "{{ doc('points_won') }}"
@@ -356,6 +357,7 @@ models:
           - accepted_values:
               values: ["W", "D", "L"]
       - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
         tests: [not_null]
       - name: has_team_stats
         description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
@@ -416,6 +418,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: team_name
       - name: team_logo_url
@@ -432,6 +435,7 @@ models:
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
+        description: "{{ doc('ball_possession_percent') }}"
       - name: yellow_cards
       - name: red_cards
       - name: goalkeeper_saves
@@ -440,6 +444,7 @@ models:
       - name: passes_accurate
         description: "{{ doc('passes_accurate') }}"
       - name: passes_accuracy_percent
+        description: "{{ doc('passes_accuracy_percent') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -486,6 +491,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: team_name
       - name: player_name
@@ -496,6 +502,7 @@ models:
       - name: is_captain
       - name: is_substitute
       - name: is_starter
+        description: "{{ doc('is_starter') }}"
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: shots_total
@@ -512,6 +519,7 @@ models:
       - name: passes_key
         description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
+        description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
         description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
@@ -627,13 +635,18 @@ models:
         description: "{{ doc('season_api_year') }}"
       - name: team_name
       - name: team_slug
+        description: "{{ doc('team_slug') }}"
       - name: team_code
+        description: "{{ doc('team_code') }}"
       - name: team_country
       - name: team_logo_url
       - name: played
       - name: wins
+        description: "{{ doc('wins') }}"
       - name: draws
+        description: "{{ doc('draws') }}"
       - name: losses
+        description: "{{ doc('losses') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -642,7 +655,9 @@ models:
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
+        description: "{{ doc('latest_rank') }}"
       - name: latest_form
+        description: "{{ doc('latest_form') }}"
       - name: season_games_played
       - name: stat_coverage_season_games
       - name: goals_per_match
@@ -687,6 +702,7 @@ models:
       - name: points_capture
         description: "{{ doc('points_capture') }}"
       - name: yoy_games_played_cutoff
+        description: "{{ doc('yoy_games_played_cutoff') }}"
       - name: points_this_season
       - name: points_prev_season
       - name: goals_for_this_season
@@ -875,8 +891,11 @@ models:
       - name: points_won
         description: "{{ doc('points_won') }}"
       - name: wins
+        description: "{{ doc('wins') }}"
       - name: draws
+        description: "{{ doc('draws') }}"
       - name: losses
+        description: "{{ doc('losses') }}"
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: goals_per_match
@@ -1102,11 +1121,16 @@ models:
       - name: group_description
         description: "API zone annotation ($.description); display context only, not a key."
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
       - name: goals_diff
+        description: "{{ doc('goals_diff') }}"
       - name: played
       - name: wins
+        description: "{{ doc('wins') }}"
       - name: draws
+        description: "{{ doc('draws') }}"
       - name: losses
+        description: "{{ doc('losses') }}"
 
   - name: mart_team_season
     description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
@@ -1156,16 +1180,20 @@ models:
       - name: team_name
         tests: [not_null]
       - name: team_code
+        description: "{{ doc('team_code') }}"
       - name: team_country
       - name: team_logo_url
       - name: played
         description: "Count of finished matches this team took part in during the season."
         tests: [not_null]
       - name: wins
+        description: "{{ doc('wins') }}"
         tests: [not_null]
       - name: draws
+        description: "{{ doc('draws') }}"
         tests: [not_null]
       - name: losses
+        description: "{{ doc('losses') }}"
         tests: [not_null]
       - name: goals_for
         tests: [not_null]
@@ -1181,11 +1209,11 @@ models:
         description: "{{ doc('clean_sheets') }}"
         tests: [not_null]
       - name: latest_rank
-        description: "Rank from fct_standings for the team's standings row (after deduping multiple fct rows per team-season). Not unique across teams in the same league-season: qualifiers and tournaments reuse rank numbers across parallel groups or phases, and the API may repeat the same group_description label for different groups."
+        description: "{{ doc('latest_rank') }}"
       - name: latest_form
-        description: "Recent-form string from fct_standings (e.g. WDLWW). Null when standings are absent for that season."
+        description: "{{ doc('latest_form') }}"
       - name: standings_group_description
-        description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
+        description: "{{ doc('standings_group_description') }}"
 
   - name: mart_player_profile
     description: >
@@ -1303,7 +1331,9 @@ models:
         description: "{{ doc('season_api_year') }}"
       - name: player_name
       - name: player_first_name
+        description: "{{ doc('player_first_name') }}"
       - name: player_last_name
+        description: "{{ doc('player_last_name') }}"
       - name: player_nationality
       - name: player_birth_date
       - name: player_photo_url
@@ -1361,6 +1391,7 @@ models:
       - name: save_pct
         description: "{{ doc('save_pct') }}"
       - name: yoy_appearances_cutoff
+        description: "{{ doc('yoy_appearances_cutoff') }}"
       - name: goals_this_season
         description: "{{ doc('goals_this_season__player') }}"
       - name: goals_prev_season
@@ -1389,6 +1420,7 @@ models:
       - name: defensive_actions_delta_yoy
         description: "{{ doc('defensive_actions_delta_yoy__player') }}"
       - name: appearances_prev_full
+        description: "{{ doc('appearances_prev_full') }}"
       - name: goals_prev_season_full
         description: "{{ doc('goals_prev_season_full__player') }}"
       - name: assists_prev_season_full
@@ -1401,6 +1433,7 @@ models:
       - name: scorer_points
         description: "{{ doc('scorer_points') }}"
       - name: team_goals_season
+        description: "{{ doc('team_goals_season') }}"
       - name: contribution_share
         description: "{{ doc('contribution_share') }}"
 
@@ -1437,6 +1470,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1455,6 +1489,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: goals_for
       - name: goals_against
@@ -1468,6 +1503,7 @@ models:
       - name: position_code
       - name: minutes_played
       - name: is_starter
+        description: "{{ doc('is_starter') }}"
       - name: is_substitute
       - name: goals_total
       - name: goals_assists
@@ -1481,6 +1517,7 @@ models:
       - name: passes_key
         description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
+        description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
         description: "{{ doc('tackles_total') }}"
       - name: tackles_interceptions
@@ -1580,6 +1617,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -1592,8 +1630,11 @@ models:
           - accepted_values:
               values: ["W", "D", "L"]
       - name: wins
+        description: "{{ doc('wins') }}"
       - name: draws
+        description: "{{ doc('draws') }}"
       - name: losses
+        description: "{{ doc('losses') }}"
       - name: goals_for
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -1788,12 +1829,13 @@ models:
       - name: team_name
         tests: [not_null]
       - name: as_of_date
-        description: "Snapshot date for market_value_eur; null when no estimate loaded."
+        description: "{{ doc('as_of_date') }}"
       - name: market_value_eur
         description: "Published-style total squad estimate in whole EUR; null when unknown."
       - name: source_code
-        description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
+        description: "{{ doc('source_code') }}"
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
       - name: team_country
       - name: prompt_version
 
@@ -1841,7 +1883,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: opponent_team_sk
-        description: "The other side's team_sk; the row carries the team's perspective of the fixture."
+        description: "{{ doc('opponent_team_sk') }}"
       - name: result
         description: "W/D/L from int_legs__team_match for finished rows; null otherwise."
         tests:
@@ -1850,8 +1892,10 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: status_short
+        description: "{{ doc('status_short') }}"
       - name: is_home
       - name: opponent_name
       - name: opponent_logo_url
@@ -2218,7 +2262,7 @@ models:
         description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
         tests: [not_null]
       - name: last_kickoff_at
-        description: "The player's latest match at this club that competition-season (max kickoff, from int_player_club_season__metrics); a career-log ordering signal (within-club season order), not a displayed metric."
+        description: "{{ doc('last_kickoff_at') }}"
       - name: club_latest_kickoff_at
         description: >
           The club's latest match across all of this player's seasons there — a window max of
