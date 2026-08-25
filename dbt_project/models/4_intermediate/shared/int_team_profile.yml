@@ -44,7 +44,7 @@ models:
         description: "{{ doc('season_api_year') }} Here it is the team's current domestic season, the year-over-year anchor."
         tests: [not_null]
       - name: yoy_games_played_cutoff
-        description: "N = games played this season; the prior season is compared through its first N games."
+        description: "{{ doc('yoy_games_played_cutoff') }}"
         tests: [not_null]
       - name: points_delta_yoy
         description: "points_this_season - points_prev_season through N games. NULL when no prior season."

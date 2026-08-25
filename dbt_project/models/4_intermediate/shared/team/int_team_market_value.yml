@@ -16,6 +16,8 @@ models:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
       - name: as_of_date
+        description: "{{ doc('as_of_date') }}"
       - name: market_value_eur
       - name: source_code
+        description: "{{ doc('source_code') }}"
       - name: prompt_version

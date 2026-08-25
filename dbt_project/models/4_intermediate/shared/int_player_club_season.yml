@@ -69,6 +69,7 @@ models:
           the bench all season and never brought on keeps his row.
         tests: [not_null]
       - name: last_kickoff_at
+        description: "{{ doc('last_kickoff_at') }}"
       - name: starts
       - name: substitute_appearances
       - name: minutes

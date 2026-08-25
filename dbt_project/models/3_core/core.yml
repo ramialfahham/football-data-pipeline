@@ -232,7 +232,7 @@ models:
         description: "{{ doc('team_sk') }}"
         tests: [not_null, unique]
       - name: team_api_id
-        description: "API-Football team id."
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: team_name
         description: >
@@ -243,18 +243,10 @@ models:
           team is named, and a wrong value here is wrong in every one of those places at once.
         tests: [not_null]
       - name: team_slug
-        description: >
-          The team's permanent, locale-independent URL segment, derived in
-          base_apif__teams_global from the corrected name. It carries no provider id except in the
-          terminal collision case, the only place an id appears in any URL.
-
-          BOTH tests are load-bearing. `unique`: two teams on one slug means two pages resolving
-          to one path, and in a static build one silently overwrites the other. `not_null`: the
-          ladder yields NULL rather than invent a stranger URL, so that test IS the escalation
-          path — it stops the build and names the team for a human to resolve.
+        description: "{{ doc('team_slug') }}"
         tests: [not_null, unique]
       - name: team_code
-        description: "Short team code (3-4 letters) from API-Football."
+        description: "{{ doc('team_code') }}"
       - name: team_country
         description: >
           The country a team is registered in, already canonicalised and reconciled against
@@ -300,15 +292,15 @@ models:
         description: "{{ doc('player_sk') }}"
         tests: [not_null, unique]
       - name: player_api_id
-        description: "API-Football player id."
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: player_name
         description: "Player display name from API-Football."
         tests: [not_null]
       - name: player_first_name
-        description: "Player first name."
+        description: "{{ doc('player_first_name') }}"
       - name: player_last_name
-        description: "Player last name."
+        description: "{{ doc('player_last_name') }}"
       - name: player_birth_date
         description: "Player birth date (DATE) when parseable from API ``birth.date``."
       - name: player_nationality
@@ -497,14 +489,14 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: home_team_sk
-        description: "FK to dim_team for the home side."
+        description: "{{ doc('home_team_sk') }}"
         tests:
           - not_null
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: away_team_sk
-        description: "FK to dim_team for the away side."
+        description: "{{ doc('away_team_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -527,14 +519,14 @@ models:
       - name: away_team_api_id
         description: "API-Football away team id."
       - name: fixture_date
-        description: "Kickoff date (UTC)."
+        description: "{{ doc('fixture_date') }}"
         tests: [not_null]
       - name: kickoff_datetime
-        description: "Full kickoff timestamp."
+        description: "{{ doc('kickoff_datetime') }}"
       - name: kickoff_timezone
         description: "Kickoff timezone string as delivered by the API."
       - name: status_short
-        description: "API-Football short status code."
+        description: "{{ doc('status_short') }}"
         tests:
           - accepted_values:
               values:
@@ -597,6 +589,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
       - name: group_name
         description: "Standings section/table name from the API ($.group): the league name for a single-table league (e.g. 'Premier League'), the group for a group stage (e.g. 'Group A'), or the phase for a split-season league (e.g. '… Championship Round'). Part of the grain."
       - name: group_description
@@ -606,17 +599,17 @@ models:
       - name: points
         description: "Accumulated points."
       - name: goals_diff
-        description: "Goal difference."
+        description: "{{ doc('goals_diff') }}"
       - name: form
         description: "Recent form string (``WDLWW`` etc.). Degenerate attribute."
       - name: played
         description: "Games played (all)."
       - name: wins
-        description: "Wins (all)."
+        description: "{{ doc('wins') }}"
       - name: draws
-        description: "Draws (all)."
+        description: "{{ doc('draws') }}"
       - name: losses
-        description: "Losses (all)."
+        description: "{{ doc('losses') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -659,6 +652,7 @@ models:
         tests: [not_null]
       - name: fixture_api_id
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
       - name: shots_on_goal
         description: "{{ doc('shots_on_goal') }}"
       - name: shots_off_goal
@@ -672,7 +666,7 @@ models:
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
-        description: "Ball possession as an integer percent (0-100)."
+        description: "{{ doc('ball_possession_percent') }}"
       - name: yellow_cards
       - name: red_cards
       - name: goalkeeper_saves
@@ -681,7 +675,7 @@ models:
       - name: passes_accurate
         description: "{{ doc('passes_accurate') }}"
       - name: passes_accuracy_percent
-        description: "Pass accuracy as an integer percent (0-100)."
+        description: "{{ doc('passes_accuracy_percent') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -732,7 +726,9 @@ models:
         tests: [not_null]
       - name: fixture_api_id
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
       - name: player_api_id
+        description: "{{ doc('player_api_id') }}"
       - name: minutes_played
       - name: shirt_number
       - name: position_code
@@ -740,7 +736,7 @@ models:
       - name: is_captain
       - name: is_substitute
       - name: is_starter
-        description: "Derived: minutes_played > 0 AND NOT is_substitute."
+        description: "{{ doc('is_starter') }}"
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: shots_total
@@ -757,6 +753,7 @@ models:
       - name: passes_key
         description: "{{ doc('passes_key') }}"
       - name: passes_accuracy_percent
+        description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
         description: "{{ doc('tackles_total') }}"
       - name: tackles_blocks
@@ -833,7 +830,9 @@ models:
         tests: [not_null]
       - name: fixture_api_id
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
       - name: player_api_id
+        description: "{{ doc('player_api_id') }}"
       - name: minute_elapsed
       - name: minute_extra
       - name: event_type
@@ -874,10 +873,12 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: as_of_date
+        description: "{{ doc('as_of_date') }}"
         tests: [not_null]
       - name: market_value_eur
         description: "Whole EUR; null when unknown."
       - name: source_code
+        description: "{{ doc('source_code') }}"
         tests: [not_null]
       - name: prompt_version
 
@@ -978,6 +979,7 @@ models:
               to: ref('dim_coach')
               field: coach_sk
       - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: start_date
         tests: [not_null]

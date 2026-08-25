@@ -42,12 +42,12 @@ models:
         description: "{{ doc('season_api_year') }} Here it is the player's current domestic season, the year-over-year anchor."
         tests: [not_null]
       - name: yoy_appearances_cutoff
-        description: "N = appearances this season; the prior season is compared through its first N appearances."
+        description: "{{ doc('yoy_appearances_cutoff') }}"
         tests: [not_null]
       - name: goals_delta_yoy
         description: "{{ doc('goals_delta_yoy__player') }} Here the alignment is by appearances: the count of matches the player actually played."
       - name: appearances_prev_full
-        description: "The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev). NULL when no prior season."
+        description: "{{ doc('appearances_prev_full') }}"
       - name: goals_prev_season_full
         description: "{{ doc('goals_prev_season_full__player') }} Assists, shots on target, key passes and defensive actions follow the same pattern in this model."
       - name: goals_this_season
@@ -120,7 +120,7 @@ models:
       - name: scorer_points
         description: "{{ doc('scorer_points') }}"
       - name: team_goals_season
-        description: "The club's whole-season goals_for (the denominator)."
+        description: "{{ doc('team_goals_season') }}"
       - name: contribution_share
         description: "{{ doc('contribution_share') }}"
       - name: league_code

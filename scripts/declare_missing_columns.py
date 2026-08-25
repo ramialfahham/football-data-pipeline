@@ -12,14 +12,30 @@ text is an honest empty slot. Inventing text to fill it is the "thin filler" the
 CPO ruled against on 2026-08-21, and it would be far harder to find and replace
 later than an empty slot is.
 
-APPEND-ONLY, AND THAT IS THE WHOLE POINT. It adds `- name:` entries and never
-edits, reorders or reformats a line that is already there. That constraint is
-what separates it from a general yml formatter, which is why insertion is done on
-LINES and not by re-serialising YAML — every round-trip library reformats
-something, and a diff nobody can read is a diff nobody can review. The guarantee
-is checked twice before anything is written to disk (see `_verify`), and again by
-the reviewer, for whom the acceptance test is simply that the diff has zero
-deleted lines.
+IT NEVER REORDERS OR REFORMATS A LINE THAT IS ALREADY THERE, AND THAT IS THE
+WHOLE POINT. That constraint is what separates it from a general yml formatter,
+which is why every edit is done on LINES and not by re-serialising YAML — every
+round-trip library reformats something, and a diff nobody can read is a diff
+nobody can review. The guarantee is checked twice before anything is written to
+disk (see `_verify`), and again by the reviewer.
+
+THREE OF THE FOUR MODES ARE STRICTLY APPEND-ONLY: they add `- name:` entries or a
+`description:` line and delete nothing, so the reviewer's acceptance test is
+simply that the diff has zero deleted lines.
+
+⚠ `--promote-shared-docs` IS THE EXCEPTION, and it is narrow by construction. It
+replaces ONE line — a `description:` that restates a docs block — with a reference
+to that block, and it may do so only where the block's text EQUALS the text being
+replaced, so the rendered result does not change at all. `_verify` is not relaxed
+for it: it is handed the exact set of lines the run planned to swap, refuses a
+`replace` touching anything else, and behaves identically to the old rule when
+that set is empty, which is what every other mode passes. The acceptance test for
+that mode is therefore "exactly N deletions, one per planned replacement, and no
+others" rather than zero.
+⛔ AND THE CHECK IT CANNOT DO: it proves the sentence is unchanged where it
+already existed. It cannot know whether that sentence is TRUE at the blank sites
+the block is then pointed at. Five names were pulled from the first promotion for
+that reason. Read every model a block will reach before adding it.
 
 WHY IT IS SAFE TO EDIT THESE FILES BY LINE, checked rather than assumed:
 `columns:` is the last key in every model block in all 18 project ymls, indent is
@@ -449,6 +465,109 @@ def _metric_wire_plan() -> tuple[dict, dict[str, list[str]]]:
     return plan, no_block
 
 
+def _block_bodies() -> dict[str, str]:
+    """Block name -> its body text, whitespace-normalised.
+
+    The promote mode needs the TEXT, not just the names, because its whole claim
+    is that the block says what the column already said.
+    """
+    bodies: dict[str, str] = {}
+    for path in sorted(MODELS_DIR.rglob("*.md")):
+        rel = f"/{_rel(path)}"
+        if "/target/" in rel or "/dbt_packages/" in rel:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for match in DOC_BLOCK_RE.finditer(text):
+            body = match.group(0)
+            body = body[body.index("%}") + 2:]
+            body = body[: body.rindex("{%")]
+            bodies[match.group(1)] = " ".join(body.split())
+    return bodies
+
+
+def _promote_plan() -> tuple[dict, list[str]]:
+    """Sites restating a block inline -> a reference to it. file -> model -> col -> (block, line).
+
+    ⛔ THE ONE CLAIM THIS MODE MAKES is that nothing is rewritten: the text the
+    block resolves to is the text the column already carried. So a site is planned
+    ONLY when the block's body, whitespace-normalised, EQUALS the description it
+    would replace. A site whose text differs is not a promotion, it is an edit, and
+    it is reported and skipped rather than quietly improved.
+
+    Also skipped, and reported: a description that is not a single quoted line. A
+    folded or block scalar spans several lines and rewriting one by line is how a
+    file gets mangled; those are for a human.
+    """
+    bodies = _block_bodies()
+    if not bodies:
+        raise Abort(
+            f"no {'{%'} docs %{'}'} blocks found under {_rel(MODELS_DIR)}; refusing to "
+            f"run against an empty block set, which would make 'nothing to promote' "
+            f"trivially true."
+        )
+
+    plan: dict[pathlib.Path, dict[str, dict[str, tuple[str, str]]]] = {}
+    skipped: list[str] = []
+    for path in sorted(DBT_DIR.rglob("*.yml")):
+        rel = f"/{_rel(path)}"
+        if "/target/" in rel or "/dbt_packages/" in rel:
+            continue
+        raw = path.read_text(encoding="utf-8")
+        try:
+            doc = yaml.safe_load(raw)
+        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+            raise Abort(f"{_rel(path)}: cannot parse ({exc.__class__.__name__})") from exc
+        if not isinstance(doc, dict):
+            continue
+        lines = raw.split(_newline(raw, _rel(path)))
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict) or not isinstance(model.get("name"), str):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict):
+                    continue
+                name = column.get("name")
+                text = (column.get("description") or "").strip()
+                if not isinstance(name, str) or name not in bodies or not text:
+                    continue
+                if DOC_REF_RE.search(text):
+                    continue                       # already a reference
+                flat = " ".join(text.split())
+                if flat != bodies[name]:
+                    skipped.append(
+                        f"{_rel(path)} :: {model['name']}.{name} - its text is NOT the "
+                        f"block's text, so replacing it would REWRITE, not promote"
+                    )
+                    continue
+                lo, hi = _model_block(lines, model["name"])
+                hits = [ln for ln in lines[lo:hi]
+                        if (m := DESCRIPTION_LINE.match(ln))
+                        and " ".join(m.group(2)[1:-1].split()) == flat]
+                if len(hits) != 1:
+                    skipped.append(
+                        f"{_rel(path)} :: {model['name']}.{name} - its description is not "
+                        f"one uniquely identifiable quoted line inside its own model "
+                        f"({len(hits)} candidates); a folded scalar is for a human"
+                    )
+                    continue
+                plan.setdefault(path, {}).setdefault(model["name"], {})[name] = (
+                    name, hits[0])
+    return plan, skipped
+
+
+def _expect_promoted(before: str, per_model: dict) -> object:
+    """The parsed file with exactly those descriptions swapped for their reference."""
+    doc = yaml.safe_load(before)
+    for model in doc.get("models") or []:
+        if not isinstance(model, dict) or model.get("name") not in per_model:
+            continue
+        wanted = per_model[model["name"]]
+        for column in model.get("columns") or []:
+            if isinstance(column, dict) and column.get("name") in wanted:
+                column["description"] = _doc_reference(wanted[column["name"]][0])
+    return doc
+
+
 def _ambiguous_names(yml_docs: list[tuple[pathlib.Path, object]]) -> dict[str, set[str]]:
     """Column names that ALREADY reference more than one block, with those blocks.
 
@@ -591,7 +710,92 @@ def _insert_description(lines: list[str], model: str,
     return out
 
 
-def _verify(before: str, after: str, expected: object, rel: str, newline: str) -> None:
+# A `description:` value on ONE physical line. The promote mode edits only these.
+# ⚠ IT WILL NOT MATCH A FOLDED OR BLOCK SCALAR (`>` / `|`) or a value wrapped over
+# two lines, and that is the point: rewriting one of those by line is how a file
+# gets mangled. Measured across the 31 promotable written sites, 30 are one line;
+# the other is edited by hand and named in the evidence.
+DESCRIPTION_LINE = re.compile(r'^(\s+)description:\s*(".*"|\'.*\')\s*$')
+
+
+def _model_block(lines: list[str], model: str) -> tuple[int, int]:
+    """The half-open line range of one model's entry.
+
+    ⚠ ONE COPY, used by the planner and the writer alike. The planner needs it
+    because a description line is only unique WITHIN its model: `is_home` carries
+    the same sentence in five models of `shared.yml`, so a whole-file search finds
+    five candidates and cannot say which belongs to which. Searching the file
+    instead of the block made this mode skip five sites it should have promoted.
+    """
+    starts = [i for i, line in enumerate(lines)
+              if (m := MODEL_LINE.match(line)) and m.group(1) == model]
+    if len(starts) != 1:
+        raise Abort(f"expected exactly one `- name: {model}` line, found {len(starts)}")
+    start = starts[0]
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip():
+            continue
+        if INDENT_2_ITEM.match(line) or (line[:1].strip() and not line.startswith(" ")):
+            return start, i
+    return start, len(lines)
+
+
+def _replace_description(lines: list[str], model: str,
+                         per_column: dict[str, tuple[str, str]]) -> list[str]:
+    """Swap each named column's `description:` value for a reference to its block.
+
+    `per_column` maps column -> (block, the exact line expected to be there). The
+    expected line is carried from the plan and re-checked HERE, immediately before
+    the swap, so a file that changed between planning and writing is refused
+    rather than overwritten.
+    """
+    start, end = _model_block(lines, model)
+    remaining = dict(per_column)
+    out = list(lines)
+    for i in range(start + 1, end):
+        matched = COLUMN_NAME_LINE.match(out[i])
+        if not matched:
+            continue
+        indent, column = matched.group(1), matched.group(2)
+        planned = remaining.pop(column, None)
+        if planned is None:
+            continue
+        block, expected_line = planned
+        # SEARCH THE COLUMN'S OWN LINES for the exact line the plan saw, rather
+        # than assuming it is the very next one.
+        # ⚠ An earlier version DID assume that, and mutation testing showed the
+        # assumption had no test — then showed it was also wrong: a column written
+        # `- name:` / `tests:` / `description:` is perfectly legal YAML and this
+        # file already contains that ordering elsewhere. The assuming version
+        # aborted the whole file for it. Matching the exact line is both safer and
+        # more permissive: it cannot hit the wrong line, because the line it is
+        # looking for is the one the plan read.
+        stop = end
+        for k in range(i + 1, end):
+            if COLUMN_NAME_LINE.match(out[k]):
+                stop = k
+                break
+        found = [k for k in range(i + 1, stop) if out[k] == expected_line]
+        if len(found) != 1:
+            raise Abort(
+                f"{model}.{column}: expected exactly one line matching the description "
+                f"this run planned to replace, inside that column's own entry; found "
+                f"{len(found)}. Re-run the plan against the current file rather than "
+                f"writing over something unexamined."
+            )
+        out[found[0]] = f"{indent}  description: \"{_doc_reference(block)}\""
+
+    if remaining:
+        raise Abort(
+            f"{model}: could not find a `- name:` line for "
+            f"{', '.join(sorted(remaining))} inside its own block"
+        )
+    return out
+
+
+def _verify(before: str, after: str, expected: object, rel: str, newline: str,
+            replaceable: frozenset[str] = frozenset()) -> None:
     """Two independent proofs that nothing but an addition happened.
 
     They are deliberately different in kind. The first is textual and catches a
@@ -604,14 +808,32 @@ def _verify(before: str, after: str, expected: object, rel: str, newline: str) -
     Both modes build it from the BEFORE text plus their own intended change, so
     this function never has to know which mode it is serving.
     """
-    ops = difflib.SequenceMatcher(
-        None, before.split(newline), after.split(newline), autojunk=False
-    ).get_opcodes()
-    bad = [op for op in ops if op[0] not in ("equal", "insert")]
+    old_lines, new_lines = before.split(newline), after.split(newline)
+    ops = difflib.SequenceMatcher(None, old_lines, new_lines, autojunk=False).get_opcodes()
+    bad = []
+    for op, i1, i2, j1, j2 in ops:
+        if op in ("equal", "insert"):
+            continue
+        # ⚠ NARROWED, NOT LOOSENED. `replaceable` is the exact set of lines this
+        # run planned to swap, carried from the plan. A `replace` touching only
+        # those is the promote mode doing its job; anything else — a reformat, a
+        # reorder, a dropped line, a replace one line off — is still refused. An
+        # empty set, which every other mode passes, restores the original
+        # append-only rule exactly.
+        # ⚠ `all`, NOT `any`, and there is a test that dies if you change it. With
+        # `any`, an unplanned line merged into the same opcode as a legitimate swap
+        # rides along — and the structural check below cannot catch it, because it
+        # compares parsed YAML and is blind to a reformat. Found by
+        # platform-reviewer, whose point was that every other test replaces ONE
+        # isolated line, where the two are identical.
+        if op == "replace" and all(old_lines[k] in replaceable for k in range(i1, i2)):
+            continue
+        bad.append((op, i1))
     if bad:
         raise Abort(
-            f"{rel}: refusing to write, the change is not append-only. "
-            f"{len(bad)} non-insert edit(s), first is {bad[0][0]} at line {bad[0][1] + 1}."
+            f"{rel}: refusing to write, the change is not append-only and is not one "
+            f"of the {len(replaceable)} replacement(s) this run planned. "
+            f"{len(bad)} unexpected edit(s), first is {bad[0][0]} at line {bad[0][1] + 1}."
         )
 
     old_doc = yaml.safe_load(before)
@@ -672,10 +894,23 @@ def main() -> int:
              "affix) at the generated block for its model's entity. Needs no catalogue.",
     )
     parser.add_argument(
+        "--promote-shared-docs",
+        action="store_true",
+        help="Replace an inline description that RESTATES a docs block with a reference to "
+             "it. Refuses any site whose text is not the block's text, so it promotes and "
+             "never rewrites.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="Report what would be added; write nothing."
     )
     args = parser.parse_args()
 
+    if args.promote_shared_docs:
+        if args.wire_shared_docs or args.wire_metric_docs:
+            print("declare_missing_columns: run one mode at a time so each diff is "
+                  "attributable.", file=sys.stderr)
+            return 1
+        return _main_promote(args)
     if args.wire_shared_docs and args.wire_metric_docs:
         print("declare_missing_columns: --wire-shared-docs and --wire-metric-docs are "
               "separate passes over the same files; run them one at a time so each "
@@ -717,6 +952,43 @@ def main() -> int:
         return 0
 
     return _write_files(by_file, _insert, _expect_declared, "column entries")
+
+
+def _main_promote(args) -> int:
+    """`--promote-shared-docs`: point a site that restates a block at the block."""
+    try:
+        by_file, skipped = _promote_plan()
+    except Abort as exc:
+        print(f"declare_missing_columns: {exc}", file=sys.stderr)
+        return 1
+
+    if skipped:
+        # REPORTED, never silently dropped. A site skipped here is one a human has
+        # to look at, and saying nothing would make "everything promoted" look true.
+        print(f"NOT PROMOTED, {len(skipped)} site(s) this script will not touch:")
+        for line in sorted(skipped):
+            print(f"  {line}")
+        print()
+
+    total = sum(len(c) for payload in by_file.values() for c in payload.values())
+    if not total:
+        print(
+            "declare_missing_columns: nothing to promote. No column restates a block "
+            "whose text it matches exactly.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"{total} columns to promote, across {len(by_file)} files:")
+    for path in sorted(by_file):
+        n = sum(len(c) for c in by_file[path].values())
+        print(f"  {n:5d}  {_rel(path)}  ({len(by_file[path])} models)")
+
+    if args.dry_run:
+        print("\n--dry-run: nothing written.")
+        return 0
+
+    return _write_files(by_file, _replace_description, _expect_promoted, "promotions")
 
 
 def _main_metric_wire(args) -> int:
@@ -822,10 +1094,21 @@ def _write_files(by_file: dict, insert_fn, expect_fn, noun: str) -> int:
             # lines it is handed. An earlier version ordered these bottom-up and
             # said in a comment that it had to; mutation testing flipped the order
             # and every test stayed green, which is what showed the comment false.
+            # The lines this run planned to REPLACE, and only those. Empty for
+            # every append-only mode, which leaves `_verify` at its original rule.
+            # ⚠ The declare mode's payload is model -> LIST of column names, not a
+            # dict, so this has to tolerate both shapes rather than assume the
+            # wiring one. Both additive modes yield an empty set here, which leaves
+            # `_verify` at its original append-only rule.
+            replaceable = frozenset(
+                planned[1]
+                for per_column in payload.values() if isinstance(per_column, dict)
+                for planned in per_column.values() if isinstance(planned, tuple)
+            )
             for model in sorted(payload):
                 lines = insert_fn(lines, model, payload[model])
             after = nl.join(lines)
-            _verify(before, after, expect_fn(before, payload), _rel(path), nl)
+            _verify(before, after, expect_fn(before, payload), _rel(path), nl, replaceable)
         except Abort as exc:
             print(f"declare_missing_columns: {_rel(path)}: {exc}", file=sys.stderr)
             return 1
@@ -859,7 +1142,20 @@ def _write_files(by_file: dict, insert_fn, expect_fn, noun: str) -> int:
             return 1
 
     written = sum(len(v) for payload in by_file.values() for v in payload.values())
-    print(f"\nWrote {written} {noun}. `git diff --numstat` must show 0 deletions.")
+    # The acceptance test differs by mode, and printing the append-only one after a
+    # promote run would tell the reader to check for something that is SUPPOSED to
+    # be there. `replaced` counts the planned swaps: zero in every additive mode.
+    replaced = sum(
+        1
+        for payload in by_file.values()
+        for per_column in payload.values() if isinstance(per_column, dict)
+        for planned in per_column.values() if isinstance(planned, tuple)
+    )
+    if replaced:
+        print(f"\nWrote {written} {noun}. `git diff --numstat` must show EXACTLY "
+              f"{replaced} deletion(s), one per replaced description, and no others.")
+    else:
+        print(f"\nWrote {written} {noun}. `git diff --numstat` must show 0 deletions.")
     return 0
 
 

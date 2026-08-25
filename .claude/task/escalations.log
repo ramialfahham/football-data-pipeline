@@ -5086,3 +5086,83 @@ SIX REAL DEFECTS, AND I FOUND ONE OF THEM. The one I found is the reason the MR 
   BYTES; the 3 rewrapped pre-existing blocks measured by rendering both versions rather than
   described; eight offline gates green including ruff under `.ruff-ci.toml`; suite 998 passed,
   1 skipped, collection 977 stashed against 999 applied.
+
+
+2026-08-25 feat/82-mr4b2-promote-shared-definitions — #82 MR4b-2, one definition per name instead
+of one per model. FOUR ROUNDS. SIX NAMES PULLED, EVERY ONE A REAL DEFECT I HAD APPROVED. And the
+paperwork failed the same way a FIFTH time.
+
+  WHAT IT DOES: 31 column names carried a definition at some sites and nothing at others. Each
+  sentence moves into ONE docs block and all 123 sites point at it. Blank in-scope 508 to 422.
+  Nothing authored: `--promote-shared-docs` refuses to write unless the text the block resolves to
+  EQUALS the text it replaces, so "promoted, not rewritten" is machine-checked.
+
+  ⛔⛔ THE DEFECT CLASS, AND I SHIPPED IT INTO REVIEW TWICE. A sentence that is TRUE where it was
+  written can be FALSE at a blank site it is then pointed at, and my proof could not see it: it
+  compares a block against the text it REPLACED, which says nothing about the 92 blanks.
+  · ROUND 1, analytics-engineer-reviewer: `is_home` says "the home side of the UPCOMING fixture"
+    and was newly wired to four models grained on a FINISHED or arbitrary fixture. Sweeping the
+    class myself then found FOUR MORE nobody had named — `opponent_shots_total` says "cumulative"
+    while `int_legs__team_match.sql:124` holds the per-match value, and three "window legs"
+    sentences reached `int_team_season_record`, whose own header calls it the complement of the
+    five-match window.
+  · ROUND 2, the same reviewer: a SIXTH, `result`, in a name MY OWN SWEEP HAD MARKED SAFE. Its
+    sentence claims the value comes from `int_legs__team_match`; `mart_player_match_log` never
+    references that model and recomputes it at line 136-140. Verified before acting: `grep -c`
+    returns 0.
+  ⭐ THE LESSON IS ABOUT THE FIX, NOT THE DEFECT. My round-1 sweep shortlisted blocks whose TEXT
+  carried a scope word or named a model, then READ THE SENTENCE against the model list. `result`
+  survived because its sentence reads perfectly well at a match-log model. **A PROVENANCE CLAIM IS
+  CHECKABLE ONLY IN THE SQL.** Reading the sentence is not the check. Written into the block file's
+  own header so the next person meets it before adding a block.
+  ⚠ "A shared block is only as true as its widest call site" was recorded in memory from the
+  PREVIOUS MR, hours earlier, and I broke it immediately. Recording a rule is not applying it.
+
+  ⛔⛔ AND THE PAPERWORK CLASS, FIFTH INSTANCE ACROSS TWO MRs. scope-auditor FAILED rounds 1, 2 and
+  3, correctly each time: a stale figure corrected exactly where it was named and left standing
+  somewhere else. Round 3 was the sharpest — I had swept `contract.md` AND the code comment, told
+  the reviewer I had swept both documents, and stopped one file short.
+  ⭐ THE CAUSE IS A SEARCH KEY, NOT DISCIPLINE, and that is why four prose corrections did nothing.
+  I sweep for the figures I REMEMBER changing, so a figure I forgot survives every time. The fix is
+  to INVERT THE SEARCH: extract EVERY integer from the artifacts and ask of each "is this a value
+  measured this round, or is it next to a superseded-marker". Anything else is reported.
+  Running it found the line the reviewer named AND a second it had not reached. Its own first
+  version cried wolf — 39 findings, none real, because it looked for a marker on the same LINE
+  while a marker governs a PASSAGE. A check that cries wolf is a check nobody reads.
+  ⚠ platform-reviewer flagged a stale figure in a CODE COMMENT as non-blocking. Fixed rather than
+  banked: it is scope-auditor's class, and it slipped through in the very round that recorded it.
+
+  ⛔ A GUARD'S CONTRACT WAS CHANGED, AND NARROWED RATHER THAN LOOSENED.
+  `declare_missing_columns.py` was append-only by contract and `_verify` refused any non-insert
+  opcode. Promotion is not an insert. `_verify` now takes the exact set of lines the run planned to
+  swap: a `replace` touching only those passes, anything else is still refused, and an empty set —
+  what every other mode passes — restores the original rule exactly.
+  ⚠ platform-reviewer found, BY READING and with no execution tools, that the `all()` in that guard
+  was untested: every test replaced ONE isolated line, where `all` and `any` are identical, so a
+  mutation weakening it survived the whole suite and would let an unplanned line ride along inside
+  a legitimate swap. Pinned now by a test with two ADJACENT lines changing so difflib emits one
+  multi-line replace, asserting both directions.
+
+  ⛔ MUTATION TESTING, 6 RUN, 5 KILLED, 1 SURVIVED — and the survivor was a wrong assumption again.
+  The writer assumed a description is always the line immediately after `- name:`. That ordering is
+  not required, this repo already uses `- name:` / `tests:` / `description:` elsewhere, and the
+  assuming version aborted the WHOLE FILE for it. Redesigned to search the column's own lines for
+  the exact line the plan read. **Third MR running in which a surviving mutation meant the RULE was
+  wrong rather than the assertion weak.**
+
+  ⭐ AND ONE FOUND BY RUNNING IT: the planner searched the whole FILE for a description line, but a
+  description is only unique WITHIN its model — `is_home` carries the same sentence under five
+  models of one file. Five sites were skipped as unidentifiable. Scoping to the model's block fixed
+  it and removed a duplicated copy of the block-range logic; `_model_block` is now one function.
+
+  CPO DECISION, 2026-08-25: round 4 approved, over the cap of 3, asked as "the work is fine, my
+  paperwork isn't — ship it, or one more review?" with the recommendation to ship.
+  CPO ANSWER, verbatim: "one more review". It PASSed, having re-derived the block count from the
+  diff rather than the contract and judged each of the seven numbers the audit excludes.
+
+  MEASURED: 31 names, 123 sites, 92 blanks filled and 31 sites replaced with ZERO resolved-text
+  differences; blank in-scope 508 to 422; 40 blocks; 319 added / 39 deleted in the model ymls, the
+  39 decomposing as 30 one-for-one swaps plus 9 from one folded scalar; line endings unchanged as
+  BYTES; `dbt parse` clean with 0 unrendered `{{ doc(`; the gate reported exactly 146 findings the
+  moment the blocks existed and 0 when done; eight offline gates green; suite 1007 passed,
+  1 skipped, collection 999 stashed against 1008 applied.
