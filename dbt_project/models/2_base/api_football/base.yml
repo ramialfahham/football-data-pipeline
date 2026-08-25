@@ -303,6 +303,7 @@ models:
           combination_of_columns: [coach_api_id]
     columns:
       - name: coach_api_id
+        description: "{{ doc('coach_api_id') }}"
         tests: [not_null]
 
   - name: base_apif__coach_career
@@ -319,6 +320,7 @@ models:
           combination_of_columns: [coach_api_id, team_api_id, start_date]
     columns:
       - name: coach_api_id
+        description: "{{ doc('coach_api_id') }}"
         tests: [not_null]
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"

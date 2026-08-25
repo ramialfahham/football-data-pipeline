@@ -21,6 +21,7 @@ models:
           name: momentum_window_team_recency_rank_capped_for_last_5
     columns:
       - name: upcoming_fixture_sk
+        description: "{{ doc('upcoming_fixture_sk') }}"
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -52,9 +53,13 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: leg_league_code
+        description: "The competition the past match in this row was played in. It can differ from the competition of the fixture the window is being built for, because form is taken across competitions - a cup tie counts towards the run into a league match."
       - name: leg_kickoff_datetime
+        description: "When the past match in this row kicked off, in UTC. Ordering by it walks the window from oldest to most recent."
       - name: leg_round_name
+        description: "The provider's round label for the past match in this row, free text such as 'Regular Season - 12' or 'Quarter-finals'. Its shape varies by competition, so it reads well and sorts badly."
       - name: home_away
+        description: "{{ doc('home_away') }}"
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
       - name: goals_for

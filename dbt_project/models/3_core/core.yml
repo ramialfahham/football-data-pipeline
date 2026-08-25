@@ -656,19 +656,25 @@ models:
       - name: shots_on_goal
         description: "{{ doc('shots_on_goal') }}"
       - name: shots_off_goal
+        description: "{{ doc('shots_off_goal') }}"
       - name: shots_total
         description: "{{ doc('shots_total') }}"
       - name: shots_blocked
+        description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
       - name: shots_outside_box
+        description: "{{ doc('shots_outside_box') }}"
       - name: fouls
+        description: "{{ doc('fouls') }}"
       - name: corner_kicks
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
         description: "{{ doc('ball_possession_percent') }}"
       - name: yellow_cards
+        description: "{{ doc('yellow_cards') }}"
       - name: red_cards
+        description: "{{ doc('red_cards') }}"
       - name: goalkeeper_saves
       - name: passes_total
         description: "{{ doc('passes_total') }}"
@@ -730,11 +736,15 @@ models:
       - name: player_api_id
         description: "{{ doc('player_api_id') }}"
       - name: minutes_played
+        description: "{{ doc('minutes_played') }}"
       - name: shirt_number
+        description: "{{ doc('shirt_number') }}"
       - name: position_code
         description: "Position as reported by the API (e.g. G, D, M, F). Degenerate attribute; kept free-form to track future codes."
       - name: is_captain
+        description: "{{ doc('is_captain') }}"
       - name: is_substitute
+        description: "{{ doc('is_substitute') }}"
       - name: is_starter
         description: "{{ doc('is_starter') }}"
       - name: offsides
@@ -771,7 +781,9 @@ models:
       - name: dribbles_past
         description: "{{ doc('dribbles_past') }}"
       - name: fouls_drawn
+        description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
+        description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow') }}"
       - name: cards_red
@@ -781,8 +793,11 @@ models:
       - name: penalty_committed
         description: "{{ doc('penalty_committed') }}"
       - name: penalty_scored
+        description: "{{ doc('penalty_scored') }}"
       - name: penalty_missed
+        description: "{{ doc('penalty_missed') }}"
       - name: penalty_saved
+        description: "{{ doc('penalty_saved') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -834,14 +849,19 @@ models:
       - name: player_api_id
         description: "{{ doc('player_api_id') }}"
       - name: minute_elapsed
+        description: "The minute of normal time the event is recorded at, counting from 1. Added time is not folded in here: a goal in the 90+3rd minute is 90 with minute_extra set to 3."
       - name: minute_extra
+        description: "Minutes into added time, on top of minute_elapsed. NULL for an event in normal play, which is most of them."
       - name: event_type
         description: "High-level event type (e.g. Goal, Card, subst, Var)."
       - name: event_detail
         description: "Event subtype (e.g. Normal Goal, Yellow Card, Substitution 1)."
       - name: event_comments
+        description: "The provider's own free-text note on the event, passed through unparsed. Mostly NULL, and its wording is not a controlled vocabulary, so branch on event_type and event_detail rather than on this."
       - name: team_name_snapshot
+        description: "The team's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the team dimension, so join on team_api_id for a current name."
       - name: player_name_snapshot
+        description: "The player's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
       - name: assist_player_name
         description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
       - name: raw_ingested_at
@@ -881,6 +901,7 @@ models:
         description: "{{ doc('source_code') }}"
         tests: [not_null]
       - name: prompt_version
+        description: "{{ doc('prompt_version') }}"
 
   - name: fct_transfer
     description: >
@@ -911,11 +932,13 @@ models:
           name: fct_transfer_has_a_side
     columns:
       - name: transfer_sk
+        description: "Identity key for one move: a surrogate built from the player, both clubs and the transfer date. A player moving between the same two clubs twice gets two rows, one per date."
         tests: [unique, not_null]
       - name: player_sk
         description: "{{ doc('player_sk') }}"
         tests: [not_null]
       - name: transfer_date
+        description: "The date the provider records the move on. It is the date the transfer was reported, not necessarily the date the player was first registered or first played."
         tests: [not_null]
       - name: transfer_type
         description: "Raw provider transfer type (N/A, Loan, Free, Transfer, fee, …); no canonical taxonomy."
@@ -923,7 +946,9 @@ models:
         description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: team_in_sk
+        description: "The club the player moved TO, as a team_sk. It joins to dim_team like any other, but not every club in a career appears there - youth, reserve and untracked clubs show up in transfers without a dimension row, so treat this as a soft link."
       - name: team_out_sk
+        description: "The club the player moved FROM, as a team_sk. The same soft link as team_in_sk: a club may appear here without a dim_team row."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -936,8 +961,10 @@ models:
           combination_of_columns: [coach_sk]
     columns:
       - name: coach_sk
+        description: "{{ doc('coach_sk') }}"
         tests: [not_null, unique]
       - name: coach_api_id
+        description: "{{ doc('coach_api_id') }}"
         tests: [not_null]
       - name: coach_name
         description: "Coach display name from API-Football."
@@ -951,12 +978,19 @@ models:
               to: ref('dim_country')
               field: country_name
       - name: coach_first_name
+        description: "The coach's given name as the provider spells it. Held separately from the family name because the feed supplies the two parts, not because a display name is built from them here."
       - name: coach_last_name
+        description: "The coach's family name as the provider spells it."
       - name: coach_age
+        description: "The age the provider reported for this coach. It is a point-in-time value carried through from the feed rather than something recomputed here, so coach_birth_date is the field to derive an age from."
       - name: coach_birth_date
+        description: "The coach's date of birth as the provider gives it. NULL where the feed omits it, which is common for coaches outside the major European leagues."
       - name: coach_birth_place
+        description: "The town or city of birth as the provider gives it, free text and not a code. It is not a country - coach_nationality carries that."
       - name: coach_nationality
+        description: "The coach's nationality as the provider names it, in English and as free text rather than a country code, so it will not join to a country dimension without mapping."
       - name: coach_photo_url
+        description: "URL of the coach's portrait on the provider's image host. The image is served by the provider, so a link here is only as durable as their hosting."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -971,8 +1005,10 @@ models:
           combination_of_columns: [coach_sk, team_api_id, start_date]
     columns:
       - name: coach_team_stint_sk
+        description: "Identity key for one spell in charge: a surrogate built from the coach, the team and the start date, so a coach returning to a club later in their career gets a second row rather than overwriting the first."
         tests: [not_null, unique]
       - name: coach_sk
+        description: "{{ doc('coach_sk') }}"
         tests:
           - not_null
           - relationships:
@@ -982,11 +1018,14 @@ models:
         description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: start_date
+        description: "The date the coach's spell at this club began, as the provider's career record gives it. NULL where the feed omits it."
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
       - name: coach_api_id
+        description: "{{ doc('coach_api_id') }}"
       - name: team_name
       - name: end_date
+        description: "The date the coach's spell at this club ended. NULL for a spell the provider still shows as current - and also where the feed simply omits the date, so a NULL is not proof the coach is still in post."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"

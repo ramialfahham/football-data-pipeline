@@ -81,6 +81,7 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: goal_diff
+        description: "{{ doc('goal_diff') }}"
       - name: points
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
@@ -238,6 +239,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: home_team_name
+        description: "The home team's display name, taken from the team dimension rather than from the fixture feed, so it carries any correction made to that team's name."
         tests: [not_null]
       - name: home_team_logo_url
         description: "Home team crest URL from dim_team (API-Football); nullable."
@@ -249,6 +251,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: away_team_name
+        description: "The away team's display name, taken from the team dimension rather than from the fixture feed, so it carries any correction made to that team's name."
         tests: [not_null]
       - name: away_team_logo_url
         description: "Away team crest URL from dim_team (API-Football); nullable."

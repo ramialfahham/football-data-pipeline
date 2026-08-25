@@ -4,53 +4,54 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-25**. **main `fa61b46`.** #84 + #82 MR1-MR4b + the CI wiring MERGED;
-**MR4b-2 committed, reviewed, awaiting merge.** **NEXT once it merges: MR4c.** Product
-**Matchday Pilot**; **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-25**. **main `bf0e23c`.** #84 + #82 MR1-MR4b-2 + the CI wiring MERGED;
+**MR4c committed and in review.**
+**GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ CURRENT — **#82 MR4b-2 committed, awaiting merge. Next = MR4c** (2026-08-25)
+## ⭐⭐ CURRENT — **#82 MR4c committed, in review** (2026-08-25)
 
 ⭐ **READ `escalations.log`'s 08-20 to 08-25 entries FIRST** — numbers, rulings, each MR's defects.
 **Do not re-scope or re-audit any of it.**
 
-Plan `serialized-enchanting-frost.md`. **MR2** declared 979 columns, **MR3** wired 146, **MR4a**
-(`!98`) generated 80 metric blocks from `metric_catalogue.csv`, `!100` put `--check` in CI.
-**MR4b** closed **130** derived columns (a metric + one affix), **MR4b-2** promoted **31** names to
-one shared definition each; blank in-scope **635 → 422**.
-⚠ **REGENERATE** after editing the seed AND after adding a derived column: the generator's second
-input is the model YAML.
-⭐ **NEXT: MR4c**, and it is all judgement — 134 names no seed defines, 26 partials whose sites
-DISAGREE, **6 names pulled from MR4b-2** whose sentence is false at some site, and the 5 nested
-`recent_meetings.*` fields (a dotted name cannot be a docs block). Then **MR5**: presence on.
+Plan `serialized-enchanting-frost.md`. MR2-MR4b-2 declared, generated, wired and promoted every
+column whose definition already existed somewhere. **MR4c is the first that AUTHORS** — 56 names,
+22 shared blocks + 34 inline; blank in-scope **635 → 323**.
+⚠ **REGENERATE** `sync_metric_docs_blocks.py` after editing the seed AND after adding a derived
+column: the generator's second input is the model YAML.
+⭐ **WHAT IS LEFT, measured on the branch: 111 names / 300 columns.** 48 derived families (88 cols)
+· 14 names whose meaning CHANGES between sites (73) · 31 whose written sites DISAGREE (103) · 11
+blocked on the ruling below (25) · 7 head-to-head/opponent-mirror (11). Then **MR5**: presence on.
+⛔ **A NAME CAN MEAN TWO QUANTITIES AND EVERY SITE STILL BE BLANK.** `goals_for` is `f.goals_home`
+in `int_legs__team_match` and `sum(goals_for) over w` in `int_team_season_record`. Classify every
+site by what its own model's SQL DOES with the column before writing one sentence for the name.
+⛔ **A column that IS a catalogue metric under another column NAME is invisible to the generator** —
+`key_passes_prev_season_full` is `passes_key`, blank while its 4 siblings are filled. Fix is a
+rename (CPO's, needs `--full-refresh`). `key_passes`/`blocks` at team level, same.
 ⛔ **48 COLUMNS NEED A CPO RULING AND STAY BLANK.** Seven metrics (`goals`, `goals_against`,
 `defensive_actions`, `shots_on_goal`, `shots_total`, `passes_accurate`, `passes_total`) are
 `entity = player` ONLY while team models use the same names, so those team columns have nothing to
 point at. Team metrics the catalogue lacks, or misnamed columns? The football reviewer read them as
 genuinely different. Same family as **#88**.
 ⛔⛔ **A SHARED BLOCK IS ONLY AS TRUE AS ITS WIDEST CALL SITE — READ EVERY MODEL IT REACHES**, and
-read the SQL, not the sentence. **6 of 37 promotions were PULLED for this**: `is_home` said
-"upcoming fixture" at 4 finished-fixture models, `opponent_shots_total` said "cumulative" at a
-per-match model, 3 said "window legs" at a season-cumulative one, and `result` named a source model
-one site never reads. ⭐ **A PROVENANCE CLAIM IS CHECKABLE ONLY IN THE SQL** — my own sweep read the
-sentences and missed `result`, because it reads perfectly well there. Also hit twice in MR4b on one
-NULL clause: true for teams, impossible for players, then the fix dropped a TRUE cause.
+read the SQL, not the sentence: **6 of 37 promotions were PULLED for this** (detail in the log).
+⭐ **A PROVENANCE CLAIM IS CHECKABLE ONLY IN THE SQL** — my own sweep read the sentences and still
+missed `result`, whose claim reads perfectly well at the model whose SQL contradicts it.
 ⚠ **A REVIEWER PASS CAN BE THE WEAKER VERDICT** — check a PASS's supports, not just a FAIL's. And
 a `protected_override` goes in `escalations.log` BEFORE the branch touches the protected path.
 ⛔⛔ **A NAME THAT MEANS TWO THINGS IS INVISIBLE TO THE GATE** — it skips the bare name as
 ambiguous, so a wrong or blank site goes unseen. **ASSERT THESE FROM THE YAML DIRECTLY.**
 `league_code` = the competition EXCEPT on entity-scoped pulls (transfers, coaches, player
-profiles/teams, `base_apif__teams_global`) where it is INGEST PROVENANCE: **6 wrong**, review found
-all six; its 49 blanks stay blank; **ROOT CAUSE = #87**. ⚠ **NO CLASSIFIER WORKS** — 4 tried — so
+profiles/teams, `base_apif__teams_global`) where it is INGEST PROVENANCE; its 49 blanks stay blank;
+**ROOT CAUSE = #87**. ⚠ **NO CLASSIFIER WORKS** — 4 tried — so
 **EVERY derived block is entity-suffixed** and a metric undefined for a column's entity has nothing
 to point at. **Blank and visible beats documented and wrong.**
 ✅ **`persist_docs` WORKS EVERYWHERE** — **#86 said otherwise and is CLOSED AS WRONG.**
-⛔⛔ **A CHECK THAT AGREES WITH ITSELF PROVES NOTHING — 9× now, detail in the log.** 18 mutations
-over MR4b + MR4b-2, **5 SURVIVED**, every survivor a real defect and **3 of them a wrong RULE, not
-a weak assertion**. ⚠ **WRITING A TEST IS NOT HAVING ONE — break it and watch THAT test go red**,
-and when a mutation SURVIVES ask whether the guard is even reachable. ⚠ A green suite on ONE OS is
-not green — prove it on `git show main:<path>` bytes.
+⛔⛔ **A CHECK THAT AGREES WITH ITSELF PROVES NOTHING — 9× now, detail in the log.** Of 18 mutations
+over MR4b + MR4b-2, **5 SURVIVED**, every one a real defect and **3 a wrong RULE, not a weak
+assertion**. ⚠ **WRITING A TEST IS NOT HAVING ONE — break it and watch THAT test go red**, and when
+a mutation SURVIVES ask whether the guard is even reachable.
 
 ⛔ **A TOO-LONG DESCRIPTION BREAKS PROD.** `persist_docs` is on for 97 models + 9 seeds. **1,024**
 chars/column, **16,384**/relation; one over = HTTP 400 and the model FAILS.
@@ -65,8 +66,8 @@ and promote in ONE commit. ⚠ Rules match ANNOTATION forms, not plain verbs: ba
 "goal ruled out for offside".
 
 ⛔ **THE PROVIDER SENDS NO DESCRIPTIONS — CHECKED.** Stats are a label and a number; every
-definition is OURS. For an ambiguous name (`passes_total`: attempted or completed?) derive the
-answer from our own fixtures.
+definition is OURS. For an ambiguous name (`passes_total`: attempted or completed?) derive it from
+our own fixtures.
 ⚠ **CPO RULINGS 08-21:** "every column, no exception" (staging+base OUT) · no thin filler · docs
 blocks kept **only with a mechanism enforcing them** · **NO osmosis**.
 ⛔ **INHERITING UPSTREAM PROSE CARRIES AN INHERITED ERROR.** **GRAIN claims are safe to inherit;
@@ -80,8 +81,8 @@ a dim.
 
 ⛔ **FIVE TRAPS, every one hit for real. Do not re-learn them.**
 1. **A too-narrow grep reported as a clean sweep**, and **a keyword scan is blind to a claim using
-   NO keyword**. "partition key" is FALSE; 6 survivors = **#79**. A grep also matches the
-   DOCUMENTATION of a defect as the defect. Found by READING the SQL.
+   NO keyword**. "partition key" is FALSE; 6 survivors = **#79**. A grep also matches a defect's
+   DOCUMENTATION as the defect.
 2. **A bulk-edit script reporting success while matching nothing.** Assert it found work.
 3. **Verify a reviewer finding, then act** — both directions.
 4. **`--review-patch` writes to STDOUT**, so without redirect the patch is silently the PREVIOUS
@@ -92,9 +93,9 @@ a dim.
 ⛔⛔ **THE STANDING LESSON — 5 FAILs across MR4b and MR4b-2, same class each time.** CPO: *"you spam
 things all around the repo and then forget to clean up ... contradictions in our docs and files."*
 Each round I fixed only the figure the reviewer named. ⭐ **THE CAUSE IS A SEARCH KEY, NOT
-DISCIPLINE** — I sweep for the numbers I REMEMBER changing, so a forgotten one survives, and 4
-prose corrections changed nothing. **INVERT IT: pull EVERY number out of the artifacts and ask of
-each "is this still true".** That ended it. **#71**.
+DISCIPLINE** — I sweep for the numbers I REMEMBER, so a forgotten one survives, and 4 prose
+corrections changed nothing. **INVERT IT: pull EVERY number out of the artifacts and ask of each
+"is this still true".** It caught 2 in MR4c that no sweep of mine would have. **#71**.
 
 ⛔ **TEAM NAMES — paused.** The provider's `team_name` is often not the display name;
 `team_name_overrides` (in `base_apif__teams_global.sql`) fires on completeness OR collision. **97 of
