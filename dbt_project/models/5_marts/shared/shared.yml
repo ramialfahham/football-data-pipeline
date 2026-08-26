@@ -264,7 +264,7 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves') }}"
+        description: "{{ doc('saves__player') }}"
       - name: shots_on
       - name: passes_key
         description: "{{ doc('passes_key') }}"
@@ -446,7 +446,7 @@ models:
       - name: fouls
         description: "{{ doc('fouls') }}"
       - name: corner_kicks
-        description: "{{ doc('corner_kicks') }}"
+        description: "{{ doc('corners') }}"
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
@@ -456,7 +456,7 @@ models:
       - name: red_cards
         description: "{{ doc('red_cards') }}"
       - name: goalkeeper_saves
-        description: "{{ doc('goalkeeper_saves') }}"
+        description: "{{ doc('saves__team') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_accurate
@@ -536,7 +536,7 @@ models:
         description: "{{ doc('goals_against__player') }}"
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves') }}"
+        description: "{{ doc('saves__player') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_key
@@ -1029,7 +1029,7 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves') }}"
+        description: "{{ doc('saves__player') }}"
       - name: shots_on
       - name: passes_key
         description: "{{ doc('passes_key') }}"
@@ -1415,7 +1415,7 @@ models:
       - name: penalty_committed
         description: "{{ doc('penalty_committed') }}"
       - name: saves
-        description: "{{ doc('saves') }}"
+        description: "{{ doc('saves__player') }}"
       - name: shots_on_goal_against
         description: "{{ doc('shots_on_goal_against') }}"
       - name: pass_accuracy_pct
@@ -1547,7 +1547,7 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves') }}"
+        description: "{{ doc('saves__player') }}"
       - name: shots_total
         description: "{{ doc('shots_total') }}"
       - name: shots_on

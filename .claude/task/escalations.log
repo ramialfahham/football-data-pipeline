@@ -5392,6 +5392,33 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   Also verbatim, on the six remaining pattern breaks I put to him: "apply the suggested changes to
   ensure consistency."
 
+  ⚠⚠ THE SIX, ENUMERATED — ADDED 2026-08-26 AFTER scope-auditor FAILED `feat/metric-rename-catalogue-only`
+  FOR THEIR ABSENCE, and that timing is disclosed here rather than hidden. Its finding was exact:
+  the log recorded the blanket approval but not the list it was given against, so no reader could
+  verify which names it covered, and a contract asserting the content of that list was "the
+  builder's own unrecorded reconstruction dressed as the record". ⛔ I am completing the record, NOT
+  fitting it to a claim: these are the six rows of the table I put to him, transcribed as they were
+  written, and the approval quoted above was his reply to that message.
+    1. `sog_difference_per_match` → `shots_on_goal_difference_per_match` (the abbreviation survived
+       his own `sot`→`sog` ruling while the rest of the family spells it out)
+    2. `shot_share_pct` → `shots_share_pct` (singular where the family is plural)
+    3. `save_pct` / `save_player_pct` → `saves_pct` / `saves_player_pct` (same)
+    4. `goalkeeper_saves` (team) → `saves`, because the qualifier exists on one side only while the
+       player metric is already plain `saves`
+    5. `corner_kicks` / `corner_kicks_per_match` → `corners` / `corners_per_match`, because the
+       team's own conceded version is already `corners_against_per_match`
+    6. `pass_accuracy_pct` / `pass_accuracy_player_pct` → `passes_accuracy_pct` /
+       `passes_accuracy_player_pct` (singular where the family is plural)
+  ⭐ TWO REVIEWERS READ THE SAME GAP AND DECLINED TO FAIL ON IT, and their reasoning is worth
+  keeping: football-analytics-expert judged items 4 and 5 "a direct application of an approved
+  general rule rather than an unapproved new naming decision", since `corners_against_per_match`
+  already establishes the house noun and the player side is already `saves`;
+  analytics-engineer called it "a citation-precision question... no data/layer defect follows from
+  it either way". Completing the record settles it without anyone having to arbitrate.
+  ⭐ THE RULE THIS LEAVES, and it is the fourth variant of one root cause in a single session:
+  RECORD THE THING THE APPROVAL WAS GIVEN AGAINST, NOT ONLY THE APPROVAL. A blanket "yes" is
+  unverifiable unless the list it answered is in the record beside it.
+
   ⭐ THE PATTERN THIS PRODUCES, to be applied to any metric added later:
       noun [_qualifier] [_against] [_player] [_form]
   `_form` is `_per_match` for a team, `_per90` for a player, `_pct` for a percentage.

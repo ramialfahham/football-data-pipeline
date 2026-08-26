@@ -1,107 +1,102 @@
-# Review — feat/metric-rename-goals — 2026-08-26
+# Review — feat/metric-rename-catalogue-only — 2026-08-26
 
-diff_sha256: f16ef3354811f4f3976f171e0898577f89f4be8fedd8a19a9b094b1f188567de
+diff_sha256: 7bbe5787976d08f0a2709ded1bce7251676db410743769be6ea16433b7a89d96
 
-rounds: 2
-
-<!--
-WHAT CHANGED BETWEEN ROUND 1 AND ROUND 2. The CODE is byte-identical: 11 dbt files, +52/-57 in both
-rounds. The only substantive delta is that the round-1 scope-auditor FAIL is fixed at its root —
-the naming programme's six rulings are now recorded in `.claude/task/escalations.log` in the CPO's
-own words, and `contract.md`'s `refs` cites that entry instead of an uncommitted plan file outside
-the repo. scope-auditor is re-spawned. The two PASSes stand: neither depended on the citation, and
-analytics-engineer explicitly verified the ruling against `escalations.log` after it was written.
--->
-
+rounds: 3
 
 <!--
+⚠ THIS IS THE ROUND CAP. Past three, the working agreement says STOP and bring the open findings to
+the CPO rather than looping.
+
 Required reviewer set computed from .claude/review_routing.json against the staged paths:
   scope-auditor                       always
   analytics-engineer-reviewer         dbt_project/**
   football-analytics-expert-reviewer  dbt_project/seeds/metric_catalogue.csv
-No guard path is staged, so no opus promotion; all three run on the pinned sonnet. Verdicts are
-appended below as each blinded reviewer returns; none is written by the builder.
+
+HISTORY, so the standing PASSes are auditable rather than assumed.
+  Round 1: three FAILs. (a) all three — the contract cited an escalations.log entry this branch did
+    not contain, because the branch was cut from main before !111 merged. (b) analytics-engineer
+    only — the impact_map per-file tally was wrong in five of nine files.
+  Round 2: analytics-engineer PASS, football-analytics-expert PASS, scope-auditor FAIL. The log
+    recorded the blanket approval "apply the suggested changes to ensure consistency" but never
+    enumerated the six-item list it answered, so the contract's claim about what that list contained
+    was unverifiable from the record. All three reviewers saw it; two declined to fail on it.
+  Round 3 fix: the six are now ENUMERATED in the log entry, which also discloses that they were
+    added late and that a reviewer's finding is why. `refs` points at that enumeration.
+
+The RENAME has never changed across any round: the same two metric ids, the same 24 repoints, the
+same grain classification, verified independently by analytics-engineer in rounds 1 and 2. Only the
+authority record and one artifact tally moved. Only scope-auditor is re-spawned; the two round-2
+PASSes stand, and both explicitly examined the gap this round fixes.
 -->
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10 metric-naming authority: verified `escalations.log` now contains a committed, timestamped
-  entry "2026-08-26 THE METRIC CATALOGUE NAMING PROGRAMME" whose RULING 1 quotes the CPO verbatim,
-  "goals_for becomes goals", and that `contract.md`'s `refs` cites exactly that entry. This is the
-  defect round 1 FAILed on, an uncommitted unverifiable plan file substituted for the log; it is
-  resolved with a real, quotable, committed ruling.
-- Scope: every file in the diff falls inside `scope_paths`. No model SQL, no column rename, no
-  frontend file touched.
-- Reference-count arithmetic: counted the repoints directly in the patch. 12 team-grain, 6
-  player-grain, matching the claimed 18, including the non-obvious `mart_player_match_log` case
-  where the column is the team scoreline rather than a player stat.
-- Catalogue row: only `metric_id` and `label_i18n_key` changed. Formula, direction and
-  interpretation untouched, so a pure identifier rename rather than a redefinition.
-- Columns unchanged: `goals_for` remains the column name everywhere it appears; only the
-  description reference moves. `decisions_reserved` correctly leaves "whether the columns follow"
-  open rather than deciding it silently.
-- Credentials/secrets: swept the full diff; nothing credential-shaped.
-- Threshold crossings: no new mechanism, no recurring cost, no schedule change; `decisions_taken`
-  correctly declares none and nothing in the diff contradicts it.
-
-## escalations
-(none)
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- Read the single changed catalogue row in full: confirmed only `metric_id` and `label_i18n_key`
-  changed. Formula (`sum(goals_for)`), base_relation, direction, lower_is_better, group, tier and
-  the description and interpretation text are byte-identical. No football definition changed; this
-  is a pure identifier rename, not a redefinition.
-- Direction sanity: `higher_better` for a team's scored-goals count is football-correct and
-  unchanged.
-- Edge-case honesty: the description still states the count is read from the authoritative match
-  scoreline rather than summed from player or event records, which is the honest reason it does not
-  undercount own goals.
-- Traced the docs-block fan-out the rename forces: read both new blocks. The team block correctly
-  describes the scoreline-sourced team count, the player block correctly stays "Goals scored." for
-  `sum(goals_total)`. No conflation between the two entities' definitions.
-- Dangling references: grepped for every derived block being removed
-  (`goals_for_prev_season__team`, `goals_for_sum_season__team`, `goals_for_this_season__team`,
-  `goals_for_delta_yoy__team`, `last_meeting_goals_for__team`) — none is referenced anywhere, and
-  the corresponding columns carry no `description:` at all, confirming only the two bare blocks
-  dangled and both are repointed.
-- Frontend blast radius: grepped `site_v2/src` for `metrics.goals_for` and `metrics.goals.label` —
-  zero hits in the locale dictionaries, the row contract or any page spec. The displayed team goals
-  row is the separate `goals_per_match` metric, untouched. `metrics_display.md` confirms the raw
-  team total is not itself a rendered row.
-- Confirmed the team/player collision on `goals` is intentional and safe: the seed's uniqueness
-  tests scope per entity, and the same shared-bare-name pattern already exists for `goals_against`.
-- ⚠ On the contract's authority: noted that `refs` quotes a plan file rather than a verbatim
-  `escalations.log` entry, and classed that as a provenance question for scope-auditor rather than
-  a football-truth defect.
+- Scope: every changed file falls inside `scope_paths`; no file touched outside it.
+- §10 naming decision: checked `escalations.log`'s new "THE SIX, ENUMERATED" block. It now lists
+  both renames verbatim as items 4 and 5 of the table put to the CPO, and quotes his reply. This
+  closes the round-2 gap scope-auditor previously failed on.
+- Reference-count arithmetic, round 1's other defect: recounted the 24 repoints from the diff file
+  by file — core 3, int_team_season 1, int_legs 3, int_momentum 3, int_momentum_window 2,
+  int_player_club_season 1, int_player_season_position 1, int_season_record 3, shared 7 = 24.
+  Matches the corrected tally exactly; no drift.
+- Dangling-doc risk: grepped for the underlying column names behind the three dropped blocks and
+  confirmed every model reference to them is a bare `- name:` entry with no description line, so no
+  reference was orphaned.
+- Frontend and doc-sync: the only site references are to `corner_kicks_per_match` and
+  `corners_against_per_match`, untouched and deliberately deferred, not to the bare metric ids whose
+  label keys changed. No frontend break, no undisclosed doc-sync gap.
+- Impact map: no `.sql` file appears in the diff, consistent with "writers: NONE". The mutation
+  test recorded in the evidence is concrete proof of the no-dangling claim rather than a bare
+  assertion.
+- Secrets, threshold crossings, and `decisions_reserved`: nothing credential-shaped; no new
+  mechanism, cost or cadence; and none of the reserved items is actually touched in the diff.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
+<!-- Given in ROUND 2, against the same code. Round 3 changed only escalations.log and contract.md,
+     and this reviewer explicitly examined that exact gap and declined to fail on it. -->
 risks_checked:
-- Layer placement: zero model SQL files touched. Only the seed row, the generated docs blocks and
-  `description:` lines in nine yml files. No logic moved between layers; the layering contract is
-  not engaged.
-- Catalogue governance: the rename's authority is confirmed present, verbatim, in
-  `escalations.log` as RULING 1. A real quotable CPO decision backs the rename.
-- Per-reference classification: read the actual model behind every one of the 18 repointed
-  references rather than trusting the contract's prose. All 12 team repoints sit on team-grain
-  models, all 6 player repoints on player-grain models. The one non-obvious case,
-  `mart_player_match_log`, checked against `mart_player_match_log.sql:89-90`: its `goals_for` is
-  `if(team_sk = home_team_sk, f.goals_home, f.goals_away)`, the fixture scoreline, distinct from the
-  player's own `goals_total` which carries no doc reference. Classification correct.
-- Dangling-reference sweep: grepped the whole `dbt_project/` tree for both retired block names after
-  the patch. Zero hits.
-- Seed-as-config impact: `ref('metric_catalogue')` appears only in five singular tests, never in a
-  model, so the impact_map's "no lineage change" claim holds. The one test naming a `goals_for*`
-  string addresses the column `goals_for_sum_season`, unrenamed and untouched, not the metric id.
-- Orphaned derived blocks: verified the five deleted derived names correspond to columns that carry
-  no `description:` at all in the current tree, and none of those files is part of this diff, so
-  the loss is pre-existing rather than a regression introduced here.
-- Seed structural integrity: 87 lines, 15-column header, the renamed row keeps
-  `numerator_expr = sum(goals_for)` against the untouched column, and the pre-existing
-  `goals,player` row remains a distinct pair.
-- Consumption layer, competition-agnostic and same-window checks: no export script, no frontend
-  file, no league-code logic and no new ratio in this diff, so none of those triggers apply.
+- Re-derived the 24-reference tally directly from the diff rather than trusting it: core 3,
+  int_legs 3, int_momentum 3, int_momentum_window 2, int_season_record 3, int_team_season 1,
+  int_player_club_season 1, int_player_season_position 1, shared 7 = 24, split 6/6/12.
+- Verified each repoint against the model it sits on rather than the column name, including mapping
+  each of the 7 changed lines in `shared.yml` to its enclosing mart by header line number. Every one
+  lands on the grain the new block name claims; no misclassification found.
+- Tested the "no model column needs to move" claim: no `.sql` file is in the patch, and both raw
+  column names still live unrenamed in every SQL model that owns them.
+- Grepped the whole tree for all three old block names post-edit: zero hits, including outside
+  `scope_paths`.
+- The `*_sum_season` columns behind the dropped blocks carry no `description:` at all, so nothing
+  dangles.
+- Catalogue-row uniqueness holds against the pre-existing player `saves` row; each new label key
+  occurs exactly once.
+- Frontend exposure: only the untouched `corner_kicks_per_match`, consistent with the disclosed
+  transient. Neither renamed metric is displayed, so no locale string is orphaned.
+- The 22-metric benchmark `accepted_values` list contains only derivatives, none of which changed.
+- ⚠ Saw the unenumerated-six gap and declined to make it a finding: "a citation-precision question
+  ... no data/layer defect follows from it either way."
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+<!-- Given in ROUND 2, against the same code, same reasoning as above. -->
+risks_checked:
+- Diffed the two changed catalogue rows field by field: only `metric_id` and `label_i18n_key`
+  changed. Formula, description, direction, group, format and interpretation byte-identical. A pure
+  rename, no redefinition.
+- Direction correctness: both `higher_better`, correct for an attacking-pressure proxy and for
+  shot-stopping volume.
+- Edge-case honesty: both descriptions still disclose provider coverage gaps and the
+  team-versus-summed-goalkeeper mismatch, and the saves interpretation still flags that a high count
+  can mean strong goalkeeping OR a defence under pressure.
+- No composite or fabricated score: both are single-column sums.
+- Naming collision: no other team row labelled "Corners" or "Saves"; the player key namespace does
+  not collide; `(metric_id, entity)` stays unique.
+- Dangling fallout from the block merge: zero references to either deleted derived block anywhere.
+- ⚠ Saw the same gap and judged it in-class: both renames are "a direct application of an approved
+  general rule rather than an unapproved new naming decision", since `corners_against_per_match`
+  already establishes the house noun and the player side is already `saves`.
+
+## escalations
+(none)

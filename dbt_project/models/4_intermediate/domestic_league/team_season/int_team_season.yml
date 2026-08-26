@@ -523,7 +523,7 @@ models:
       - name: penalty_committed
         description: "{{ doc('penalty_committed') }}"
       - name: saves
-        description: "{{ doc('saves') }}"
+        description: "{{ doc('saves__player') }}"
       - name: goals_against
         description: "{{ doc('goals_against__player') }}"
       - name: goals_open_play

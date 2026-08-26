@@ -1,68 +1,83 @@
-# Task contract — rename the team metric `goals_for` to `goals`
+# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
 
 objective: >
-  Step 1 of 4 in the catalogue naming work the CPO ruled this session. It is deliberately alone,
-  because it is the only rename in the programme that is not a suffix or a spelling change.
+  Step 2 of the catalogue naming programme. Two renames, both of the same kind as `goals_for` to
+  `goals` in step 1: the METRIC is renamed, the columns keep their names.
 
-  The team's scored goals were `goals_for` while the player's were `goals`, and the team's own rate
-  and every breakdown already said plain `goals` (`goals_per_match`, `goals_penalty`, `goals_own`,
-  `goals_open_play`). One word out of step in its own family. The CPO ruled `goals_for` becomes
-  `goals`.
+  `corner_kicks` and `goalkeeper_saves` are the only two team metrics whose names carry a wording
+  the rest of the catalogue does not use. The team's own conceded version is already
+  `corners_against_per_match`, so `corner_kicks` is the odd one; and the player's equivalent metric
+  is already plain `saves`, so the `goalkeeper_` qualifier exists on one side only.
 
-  ⛔ THE COLUMNS KEEP THEIR NAME. `goals_for` is also a real column on the match-row, momentum,
-  season-record and mart models, where it pairs with `goals_against` and reads correctly. Only the
-  CATALOGUE METRIC is renamed. Whether those columns follow is a separate question the CPO has not
-  been asked and this task does not answer.
+  ⛔ THE COLUMNS KEEP THEIR NAMES, and the reason is measured, not assumed. Both names are also
+  per-match provider columns flowing up through the layers — `fct_fixture_team_stats`,
+  `int_legs__team_match`, `int_team_momentum__metrics`, `int_team_momentum_window`,
+  `int_team_season_record`, `mart_team_fixture_stats`. The METRICS are season totals whose model
+  column is `corner_kicks_sum_season` / `goalkeeper_saves_sum_season`, a different grain under a
+  different name. Renaming the metric therefore touches no model SQL, exactly like step 1.
 
-  ⛔ MEASURED ON THE BRANCH, AND IT IS BIGGER THAN THE FIRST DRAFT OF THIS CONTRACT SAID.
-  Renaming the metric does not merely move one block. `goals` now exists for BOTH entities and the
-  two define it differently (team `sum(goals_for)` from the scoreline, player `sum(goals_total)`
-  from the player stats), so `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule
-  and REPLACES the bare `goals` block with `goals__team` and `goals__player`. That dangles the
-  existing `doc('goals')` references as well as the `doc('goals_for')` ones.
+  ⭐ WHAT THIS EXCLUDES, AND WHY THE SPLIT MOVED. The approved plan bundled `sot_points_gap` with
+  these two as "catalogue-only". Measured on the branch, that is WRONG: `sot_points_gap` IS a model
+  column, declared in `int_team_season__deserved_vs_actual` and `mart_team_profile`. It belongs
+  with the ten column renames, not here, and has been moved there. The names the CPO ruled do not
+  change; only which MR carries this one does.
 
-  **18 references move, not 12**, counted on the branch:
-    · 12 × `doc('goals_for')` → `doc('goals__team')`
-    · 6 × `doc('goals')` → `doc('goals__player')`
+  MEASURED BEFORE ANY EDIT, so the contract is not amended mid-flight the way step 1's was:
+  **24 description references move.**
+    · 6 × `doc('corner_kicks')` → `doc('corners')`. No split: no player metric is called corners.
+    · 6 × `doc('goalkeeper_saves')` → `doc('saves__team')`
+    · 12 × `doc('saves')` → `doc('saves__player')`
+  The last two follow from a predicted BLOCK SPLIT: after the rename `saves` exists for both
+  entities with different formulas (team `sum(goalkeeper_saves)`, player `sum(saves)`), so
+  `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule and replaces the bare `saves`
+  block with `saves__team` and `saves__player`. This is the same mechanism that surprised step 1;
+  here it is predicted up front.
 
-  Every one classified by reading which MODEL the column sits on, never by the name:
-    TEAM (12): int_legs__team_match, int_team_momentum__metrics, int_team_momentum_window,
-    int_team_season_record, mart_team_season_insights, mart_team_momentum_window,
-    mart_team_fixture_stats, mart_team_profile, mart_team_season, mart_head_to_head,
-    mart_team_fixtures, and mart_player_match_log — that last one sits on a PLAYER model but its
-    `goals_for` is the TEAM's scoreline for that match
-    (`mart_player_match_log.sql:90`), so it takes the team block.
-    PLAYER (6): int_player_season__metrics, int_player_club_season__metrics,
-    int_player_season_position__metrics, mart_player_profile, mart_player_career, and
-    mart_leaderboards, whose grain is one row per player and board.
+  All 24 classified by reading which MODEL the column sits on, not by the name. All 6
+  `goalkeeper_saves` references are on team-grain models; all 12 `saves` references are on
+  player-grain models (`fct_fixture_player_stats`, `int_player_season__metrics`,
+  `int_legs__player_match`, `int_player_momentum__metrics`, `int_player_club_season__metrics`,
+  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
+  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
+  `mart_player_match_log`). No ambiguous case in this set.
 
 refs: >
-  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME", RULING 1**,
-  which records the CPO's own words verbatim: "goals_for becomes goals", given while he reviewed the
-  full list of 38 team metrics. That entry is the authority for all four renaming MRs and carries
-  the other five rulings, the resulting naming pattern, and two places where a later instruction
-  reversed an earlier one.
+  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME"**, the
+  entry that records all six rulings of this programme in the CPO's own words. These two renames
+  come from its final ruling, verbatim: "apply the suggested changes to ensure consistency".
+  **That list is now ENUMERATED in the log entry itself**, items 4 and 5, so a reader can verify
+  these two renames were among the six without taking this contract's word for it.
 
-  ⛔ AMENDED AFTER A ROUND-1 FAIL, and the amendment is the point. The first version of this
-  contract cited a PLAN FILE outside the repo as its sole authority for a §10 naming decision, and
-  `escalations.log` held no entry at all. scope-auditor FAILed it and quoted the 2026-08-26 entry
-  above back at me, where the CPO had already called out this exact failure class: claiming a record
-  supports something the record does not. This was worse than that instance, because it did not
-  cite the log at all, it substituted something uncommitted for it. The ruling is now recorded, and
-  the log entry discloses on its face that it was written after the fact.
-  Branched from main `d95a04f`, clean tree.
+  ⛔ ROUND 2 FAILED BECAUSE THAT ENUMERATION WAS MISSING, and scope-auditor's finding was exact:
+  the log held the blanket approval but not the list it answered, so this contract's claim about
+  what the list contained was "the builder's own unrecorded reconstruction dressed as the record".
+  Fixed by completing the log, which now also discloses that the enumeration was added late and
+  why. Two other reviewers saw the same gap and declined to fail on it; completing the record makes
+  that disagreement moot rather than resolving it in my favour.
+  Branched from main **`2dddf38`**, clean tree, which is main AFTER `!111` merged and therefore
+  the first commit that carries the ruling entry this contract cites.
+
+  ⛔ ROUND 1 FAILED ON EXACTLY THAT, ALL THREE REVIEWERS, AND THEY WERE RIGHT. The branch was
+  originally cut from `d95a04f`, main BEFORE `!111`. The entry was real and committed, but it lived
+  on the `!111` branch, so from this diff the citation pointed at nothing: `escalations.log` was
+  5337 lines here and 5407 there. One reviewer reasonably called it "apparently fabricated", which
+  is the correct reading from a branch that cannot see the record. Fixed by moving this work onto
+  post-`!111` main rather than by rewording the citation.
+  ⭐ THE LESSON, and it is the third variant of one root cause in this session: the RECORD AND THE
+  WORK MUST TRAVEL TOGETHER. First the rulings were not written down at all; then they were written
+  down but the next change was built where they could not be seen.
 
 scope_paths:
   - dbt_project/seeds/metric_catalogue.csv
   - dbt_project/models/docs/metric_columns.md
+  - dbt_project/models/3_core/core.yml
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
   - dbt_project/models/4_intermediate/shared/int_legs.yml
   - dbt_project/models/4_intermediate/shared/int_momentum.yml
   - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
   - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
   - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
   - dbt_project/models/5_marts/shared/shared.yml
   - .claude/task/contract.md
   - .claude/task/escalations.log
@@ -70,73 +85,80 @@ scope_paths:
   - .claude/task/acceptance_evidence.md
   - .claude/active_work.md
 
-# ⚠ NO model SQL is touched. No column is renamed. No frontend file is touched, so the acceptance
-# gate does not fire. `metric_columns.md` is GENERATED — regenerate, never hand-edit.
+# ⚠ NO model SQL. NO column renamed. NO frontend file, so the acceptance gate does not fire.
+# `metric_columns.md` is GENERATED — regenerate, never hand-edit.
 
 protected_override: >
   none required. No file in scope_paths is protected.
 
 impact_map: >
-  writers: NONE. No model computes anything differently. No SQL expression changes, no column is
-    added, renamed or removed. The seed's `metric_id` and `label_i18n_key` change on one row; the
-    rest is generated blocks and the references that point at them.
+  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
+    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
 
-  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing a row
-    cannot alter any model's `depends_on`. Confirmed the same way as the previous catalogue task:
-    the seed's only dependents in the manifest are tests.
+  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
+    alter any model's `depends_on`.
 
-  the 18 references, per file, counted not estimated:
-    `doc('goals_for')` → int_legs.yml 1 · int_momentum.yml 1 · int_momentum_window.yml 1 ·
-    int_season_record.yml 1 · domestic_league.yml 1 · shared.yml 7.
-    `doc('goals')` → int_team_season.yml 1 (the player model's section) ·
-    int_player_club_season.yml 1 · int_player_season_position.yml 1 · shared.yml 3.
+  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
+    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
+    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
+    int_player_season_position.yml 1 · shared.yml 7. Total 24.
 
-  ⚠ BLOCKS: 183 → 182, measured. Gone: `goals`, `goals_for` and five derived
-    `goals_for_*` / `last_meeting_goals_for__team` names whose stem stops being a catalogue metric.
-    New: `goals__team`, `goals__player` and four derived `goals_*` names. Every disappearing
-    DERIVED block was counted and has **0 references**, so only the two bare ones dangle and both
-    are repointed above.
+  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
+    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
+    files. The total of 24 was right and every individual reference was correct, but the
+    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
+    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
+    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
+    artifact that had already failed once on authority in the same round.
 
-  blast_radius: `persist_docs` is on, so the 12 columns get their description re-pushed on the next
-    build. The TEXT does not change, only the block name behind it, so no warehouse description
-    actually changes value.
+  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
+    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
+    player columns the text also stays, since the split preserves each entity's own definition.
 
-  layer_rules: none engaged. A seed row and description references; no model, no materialisation.
+  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
 
   deploy_order: none. Descriptions reach BigQuery the next time each model builds.
 
 decisions_taken: >
-  THRESHOLD DECLARATION — NEW MECHANISM: none. One seed row and existing generated blocks.
+  THRESHOLD DECLARATION — NEW MECHANISM: none.
   THRESHOLD DECLARATION — RECURRING COST: none.
 
-  ⛔ BUILDER'S CALL, AND IT IS THE ONE TO ATTACK: after this change a docs block named `goals`
-    describes 12 columns named `goals_for`. That is deliberate. The block is named for the METRIC,
-    the column is named for what the model holds, and the two are allowed to differ; the same
-    already happens elsewhere. The alternative was renaming those 12 columns, which the CPO has not
-    ruled on and which would drag the match-row `goals_for` / `goals_against` pair into a rename
-    that is not about it.
+  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
+    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
+    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
+    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
+    are the CPO's and none of them moves; only the packaging changed.
 
-  BUILDER'S CALL 2: `label_i18n_key` follows the metric_id, `metrics.goals_for.label` becomes
-    `metrics.goals.label`. Checked: that key is referenced nowhere in the frontend, because this
-    metric is not one of the sixteen displayed rows. So no locale dictionary changes.
+  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
+    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
+    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
+    for what the model holds.
 
 decisions_reserved:
-  - Whether the COLUMNS named `goals_for` follow the metric. Not asked, not answered, not done.
-  - The other three steps of the naming programme: the team `_pct` and spelling sweep, the player
-    `_player` sweep, and the nine "on target" labels. Each ships on its own.
-  - `assert_metric_catalogue_value_equivalence`, the parked checker (#91), still waits until the
-    renaming is finished. Shipping it first would bind it to names that are about to move.
+  - `sot_points_gap` → `deserved_points_gap`. Moved out of this MR because it IS a model column.
+  - The ELEVEN column renames: `points_capture`, `clean_sheets_share`, `danger_zone_ratio`,
+    `shot_accuracy`, `shot_share`, `finishing_efficiency`, `pass_accuracy`, `save_ratio`,
+    `sot_difference_per_match`, `key_passes_per_match`, `corner_kicks_per_match`, plus
+    `sot_points_gap` above. Each renames a computed column in the season models and runs through
+    model SQL, yml, marts and the site.
+  - ⚠ A TRANSIENT THIS MR CREATES ON PURPOSE, and it resolves in the next one:
+    `corner_kicks_per_match` is NOT renamed here, so after this merge the total is `corners` while
+    its own per-match rate is still `corner_kicks_per_match`. The alternative was to drag a column
+    rename into a catalogue-only diff, which is the seam this split exists to keep clean. Same
+    shape as the `finishing_efficiency` transient step 1 disclosed.
+  - The player `_player` sweep and the nine "on target" labels, both later steps.
+  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
+    asked, not answered, not done.
 
 done_when:
   - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
     re-derived offline: unique `(metric_id, entity)`, unique `label_i18n_key`, unique
-    `(entity, label_en)`, every `accepted_values`, every `not_null`.
-  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green. The block count
-    moves by a delta MEASURED on the branch, not predicted.
-  - `dbt parse` CLEAN, ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml and not
-    only the edited ones.
+    `(entity, label_en)`.
+  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green; the block count
+    delta MEASURED, not predicted.
+  - `dbt parse` CLEAN and ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml.
   - `check_description_hygiene.py` green repo-wide, read from its OUTPUT.
-  - ⛔ ZERO occurrences of the metric_id `goals_for` remain in the catalogue, and every REMAINING
-    `goals_for` in the repo is confirmed to be a COLUMN name, by reading the model.
+  - ⛔ ZERO occurrences of the metric_ids `corner_kicks` and `goalkeeper_saves` remain in the seed,
+    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
   - Offline gates green plus `ruff` and `python -m pytest tests/`.
   - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
