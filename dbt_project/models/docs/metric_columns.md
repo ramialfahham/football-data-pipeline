@@ -124,6 +124,14 @@ only covered appearances. Null when the club scored 0 that competition-season.
 {% enddocs %}
 
 
+{% docs corner_kicks %}
+Corner kicks won by the team, taken from the provider's team match statistics rather than from
+the scoreline or from player records. The provider does not supply team statistics for every
+fixture, so this can be missing, and a total over several fixtures can be understated rather
+than null.
+{% enddocs %}
+
+
 {% docs corner_kicks_per_match %}
 Average corner kicks won per match with available team stats.
 {% enddocs %}
@@ -148,6 +156,14 @@ compared at the same point of a campaign rather than a part season against a ful
 {% docs corner_kicks_per_match_this_season__team %}
 Average corner kicks won per match with available team stats. Value for the season now in
 progress, accumulated through the matches played so far.
+{% enddocs %}
+
+
+{% docs corner_kicks_sum_season__team %}
+Corner kicks won by the team, taken from the provider's team match statistics rather than from
+the scoreline or from player records. The provider does not supply team statistics for every
+fixture, so this can be missing, and a total over several fixtures can be understated rather
+than null. Totalled over the season.
 {% enddocs %}
 
 
@@ -506,13 +522,37 @@ Value for the season now in progress, accumulated through the matches played so 
 {% enddocs %}
 
 
+{% docs goalkeeper_saves %}
+Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
+than summed from the individual goalkeepers' counts; the two need not agree. The provider does
+not supply team statistics for every fixture, so this can be missing, and a total over several
+fixtures can be understated rather than null.
+{% enddocs %}
+
+
+{% docs goalkeeper_saves_sum_season__team %}
+Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
+than summed from the individual goalkeepers' counts; the two need not agree. The provider does
+not supply team statistics for every fixture, so this can be missing, and a total over several
+fixtures can be understated rather than null. Totalled over the season.
+{% enddocs %}
+
+
 {% docs goals %}
 Goals scored.
 {% enddocs %}
 
 
-{% docs goals_against %}
+{% docs goals_against__player %}
 Goals conceded by the team while the player was on the pitch (GK-relevant).
+{% enddocs %}
+
+
+{% docs goals_against__team %}
+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Distinct from
+the player metric of the same name, which is the provider's count of goals conceded while that
+player was on the pitch.
 {% enddocs %}
 
 
@@ -523,6 +563,17 @@ value minus the previous one. NULL when there is no prior season at this club to
 against, which covers a transfer, a first season at this level and a prior season that was
 never loaded, and NULL for a competition that carries no year-on-year comparison at all, such
 as a cup, a qualifying campaign or an international tournament.
+{% enddocs %}
+
+
+{% docs goals_against_delta_yoy__team %}
+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Distinct from
+the player metric of the same name, which is the provider's count of goals conceded while that
+player was on the pitch. The change from the previous season to the current one, compared at
+the same point of the campaign: the current value minus the previous one. NULL when either side
+is missing, which covers a competition that carries no year-on-year comparison, a prior season
+that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
@@ -561,15 +612,42 @@ one.
 {% enddocs %}
 
 
+{% docs goals_against_prev_season__team %}
+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Distinct from
+the player metric of the same name, which is the provider's count of goals conceded while that
+player was on the pitch. Value for the season before, through the same number of matches as the
+current season has played so far, so the two are compared at the same point of a campaign
+rather than a part season against a full one.
+{% enddocs %}
+
+
 {% docs goals_against_sum_season__player %}
 Goals conceded by the team while the player was on the pitch (GK-relevant). Totalled over the
 season.
 {% enddocs %}
 
 
+{% docs goals_against_sum_season__team %}
+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Distinct from
+the player metric of the same name, which is the provider's count of goals conceded while that
+player was on the pitch. Totalled over the season.
+{% enddocs %}
+
+
 {% docs goals_against_this_season__player %}
 Goals conceded by the team while the player was on the pitch (GK-relevant). Value for the
 season now in progress, accumulated through the matches played so far.
+{% enddocs %}
+
+
+{% docs goals_against_this_season__team %}
+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Distinct from
+the player metric of the same name, which is the provider's count of goals conceded while that
+player was on the pitch. Value for the season now in progress, accumulated through the matches
+played so far.
 {% enddocs %}
 
 
@@ -580,6 +658,45 @@ season at this club to compare against, which covers a transfer, a first season 
 and a prior season that was never loaded, and NULL for a competition that carries no
 year-on-year comparison at all, such as a cup, a qualifying campaign or an international
 tournament.
+{% enddocs %}
+
+
+{% docs goals_for %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records.
+{% enddocs %}
+
+
+{% docs goals_for_delta_yoy__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. The change from
+the previous season to the current one, compared at the same point of the campaign: the current
+value minus the previous one. NULL when either side is missing, which covers a competition that
+carries no year-on-year comparison, a prior season that was never loaded, and a season whose
+first matches are not fully stat-covered.
+{% enddocs %}
+
+
+{% docs goals_for_prev_season__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Value for the
+season before, through the same number of matches as the current season has played so far, so
+the two are compared at the same point of a campaign rather than a part season against a full
+one.
+{% enddocs %}
+
+
+{% docs goals_for_sum_season__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Totalled over
+the season.
+{% enddocs %}
+
+
+{% docs goals_for_this_season__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Value for the
+season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -719,6 +836,21 @@ recent previous meeting between these two teams.
 {% enddocs %}
 
 
+{% docs last_meeting_goals_against__team %}
+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Distinct from
+the player metric of the same name, which is the provider's count of goals conceded while that
+player was on the pitch. Taken from the most recent previous meeting between these two teams.
+{% enddocs %}
+
+
+{% docs last_meeting_goals_for__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Taken from the
+most recent previous meeting between these two teams.
+{% enddocs %}
+
+
 {% docs league_rank %}
 Current league standing. Sourced from standings snapshot; not derived from match legs.
 {% enddocs %}
@@ -734,6 +866,23 @@ safe_divide; this row registers its meaning.
 
 {% docs offsides %}
 Offsides caught.
+{% enddocs %}
+
+
+{% docs opponent_corner_kicks__team %}
+Corner kicks won by the team, taken from the provider's team match statistics rather than from
+the scoreline or from player records. The provider does not supply team statistics for every
+fixture, so this can be missing, and a total over several fixtures can be understated rather
+than null. Measured for the opposing team rather than this one.
+{% enddocs %}
+
+
+{% docs opponent_shots_inside_box__team %}
+Shots the team took from inside the penalty area, taken from the provider's team match
+statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
+provider does not supply team statistics for every fixture, so this can be missing, and a total
+over several fixtures can be understated rather than null. Measured for the opposing team
+rather than this one.
 {% enddocs %}
 
 
@@ -929,6 +1078,22 @@ zero.
 
 {% docs shot_share %}
 Share of all shots in the team's matches taken by the team. Null when no shots.
+{% enddocs %}
+
+
+{% docs shots_inside_box %}
+Shots the team took from inside the penalty area, taken from the provider's team match
+statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
+provider does not supply team statistics for every fixture, so this can be missing, and a total
+over several fixtures can be understated rather than null.
+{% enddocs %}
+
+
+{% docs shots_inside_box_sum_season__team %}
+Shots the team took from inside the penalty area, taken from the provider's team match
+statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
+provider does not supply team statistics for every fixture, so this can be missing, and a total
+over several fixtures can be understated rather than null. Totalled over the season.
 {% enddocs %}
 
 

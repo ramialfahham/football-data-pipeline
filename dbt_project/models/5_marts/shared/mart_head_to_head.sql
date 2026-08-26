@@ -11,8 +11,13 @@
   core -> intermediate -> mart build, NOT mart-from-mart.
 
   Raw record facts only — meetings, W/D/L, goals, last-5 splits, last meeting,
-  and a recent_meetings array. No derived performance ratios: those are catalogue
-  metrics and the H2H record is plain fact, not a catalogue metric
+  and a recent_meetings array. No derived performance ratios.
+
+  W/D/L are match RESULTS tallied over the pair, not metrics, and stay out of the
+  catalogue for that reason. `goals_for` / `goals_against` ARE catalogue metrics —
+  sum(goals_for) below is the catalogue's own formula, run over the head-to-head
+  window instead of a season, and a different window is not a different metric.
+  What stays out is a ratio invented for this mart alone
   (see feedback_metric_catalogue_governance).
 
   Scope: all finished meetings across ALL competitions between the pair (the

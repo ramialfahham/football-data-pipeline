@@ -525,7 +525,7 @@ models:
       - name: saves
         description: "{{ doc('saves') }}"
       - name: goals_against
-        description: "{{ doc('goals_against') }}"
+        description: "{{ doc('goals_against__player') }}"
       - name: goals_open_play
         description: "{{ doc('goals_open_play__player') }}"
       - name: scorer_points
