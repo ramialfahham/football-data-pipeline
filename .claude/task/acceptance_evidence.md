@@ -1,64 +1,64 @@
-# Acceptance evidence — refresh the committed export sample after #90
+# Evidence — rename the team metric `goals_for` to `goals`
 
-One file changed: `site_v2/src/data/teams/33.json`, replaced verbatim with
-`artifacts/site_data/teams/33.json` from `python scripts/export_site_data.py --entities teams`
-(3,289 payloads written to the gitignored `artifacts/site_data`; one copied across).
+Step 1 of 4 in the catalogue naming programme. Every figure measured on this branch against merged
+main `d95a04f`.
 
 ## The headline
 
 | | |
 |---|---|
-| tracked sample files changed | **1** of 22 |
-| benchmark rows in the payload | 466 |
-| `metric_key: "clean_sheets"` (old) | **0** |
-| `metric_key: "clean_sheets_share"` (new) | **22** |
-| old `clean_sheets_{this,prev}_season` / `_delta_yoy` keys | **0** |
-| new `clean_sheets_share_*` season keys | **75** |
-| seasons still carrying the COUNT `clean_sheets` | **25 of 25** |
-| BigQuery read, measured by dry-run before spending it | 157.7 MiB |
+| catalogue rows | 86, unchanged |
+| fields changed on the one row | 2 (`metric_id`, `label_i18n_key`) |
+| formula, direction, group, tier, description, interpretation | byte-identical |
+| generated docs blocks | **183 → 182** |
+| description references repointed | **18** (12 team, 6 player) |
+| dangling `{{ doc() }}` after the change | **0** |
+| model SQL files changed | **0** |
+| columns renamed | **0** |
+| files | 11 dbt files, +52 / −57 |
 
-## Acceptance criteria, demonstrated
+## What was bigger than the first draft of the contract predicted
 
-⚠ The key below is at column 0, NOT a `##` heading. `git_discipline._block()` anchors
-`^criteria_demonstrated[^\S\n]*:` at the line start, so a heading parses as zero criteria and the
-commit is denied. This is the second time in one session I have written it as a heading.
+The contract first said 12 references. It is 18. Renaming the metric made `goals` exist for both
+entities with different formulas (team `sum(goals_for)` from the scoreline, player
+`sum(goals_total)` from player stats), so the generator applied its one-name-two-meanings rule and
+replaced the bare `goals` block with `goals__team` and `goals__player`. That dangled the six
+existing `doc('goals')` references as well as the twelve `doc('goals_for')` ones. The contract was
+amended before any file outside its original scope was touched.
 
-criteria_demonstrated:
-  - **Post-#90 names present, count preserved**: the refreshed payload carries zero
-    `metric_key: "clean_sheets"` rows and 22 `clean_sheets_share` ones across its 466 benchmark
-    rows, zero old yoy keys and 75 `clean_sheets_share_*` ones, while all 25 seasons still carry
-    `clean_sheets` (the count) and `clean_sheet_run` — the columns the rename did not touch.
-  - **Built page renders in all three locales**: `npm run build` completed 60 pages with
-    `audit-seo: 61 built page(s) checked. OK.`, and each of
-    `dist/{en,de,fi}/teams/manchester-united-fc/index.html` renders its Performance tab without
-    error.
-  - **Tracked file SET unchanged**: `git status --porcelain` shows exactly one changed file under
-    `site_v2/src/data/`, so no `.gitignore` allowlist edit was needed and no internal link moved.
-  - **No stray payload left behind**: `git status --porcelain --ignored site_v2/src/data` returns
-    the one modified tracked file and nothing else, so the "every link resolves locally while only
-    the tracked ones reach CI" trap in `README.md:9-13` is not armed.
+## Classification, by reading the model rather than the name
 
-## ⛔ What the refresh does NOT restore, and why that is correct
+All 12 `goals_for` references are the team scoreline; all 6 `goals` references sit on player-grain
+models. The one that does not follow from its file name: `mart_player_match_log` is a player model,
+but its `goals_for` is `if(team_sk = home_team_sk, f.goals_home, f.goals_away)`
+(`mart_player_match_log.sql:89-90`), the fixture scoreline, so it takes the team block. Its own
+`goals_total` is a different column and carries no description reference. Confirmed independently
+by analytics-engineer-reviewer, which re-read all 18 rather than trusting this contract.
 
-The Performance tab renders **"Not enough games this season to rank Manchester United FC against
-the league"** in all three locales — 0 rows in both panels, not the 16 the first draft of this
-contract predicted.
+## Offline verification
 
-That is the product working. The export's featured season has rolled to **PL 2026, 1 game played**,
-and `mart_team_competition_benchmarks` ranks nothing below **3 games**, so that season carries 0
-benchmarks. PL 2025 is still in the payload with its 22 benchmark rows; it is simply no longer the
-season the page opens on (#846: the pipeline decides). The tab will populate itself once the season
-reaches three games.
+| check | result |
+|---|---|
+| `sync_metric_docs_blocks.py --check` | OK, 182 blocks match the seed and the model YAML |
+| `check_description_hygiene.py` | ok, 1604 descriptions, 244 blocks resolved, all within limits |
+| `dbt parse` (1.7.19 / bigquery 1.7.2) | clean, 0 errors, 0 dangling references |
+| seed tests re-derived offline | 86 rows, 15 fields, no duplicate `(metric_id, entity)`, no duplicate `label_i18n_key`, no duplicate `(entity, label_en)` |
+| `python -m pytest tests/` | 1007 passed, 1 skipped, 14 subtests |
+| remaining `goals_for` in the repo | 77 bare plus 23 derived, every one a COLUMN name, which is the intended outcome |
 
-⚠ So the visible state changed from "15 rows, clean-sheet row absent" to "tab not rankable yet".
-Both are honest-absent paths the tab already implements. Neither is a defect, and the clean-sheet
-rename is verified above in the PAYLOAD, which is where this task's evidence lives.
+## Mutations, watched failing
 
-## ⚠ A side effect this commit carries, disclosed not buried
+| mutation | guard | result |
+|---|---|---|
+| one reference pointed back at `doc('goals_for')`, the block the rename deleted | `dbt parse` | **Compilation Error** |
+| a block appended by hand to the generated file | `sync_metric_docs_blocks.py --check` | **failed, with the "do not edit the generated file" message** |
 
-The team's name and slug moved with the refresh — `Manchester United` → `Manchester United FC`,
-`manchester-united` → `manchester-united-fc` — so the built page relocates from
-`/{locale}/teams/manchester-united/` to `/{locale}/teams/manchester-united-fc/`. `dim_team.sql:7`
-calls `team_slug` "the team's permanent, locale-independent URL segment". Not caused by #90, not
-investigated here, and no internal link breaks (nothing links to a team page today). Registered in
-`decisions_reserved` as its own issue against #852.
+Restored after each; the code diff is byte-identical across both review rounds.
+
+## Review
+
+Round 1: analytics-engineer PASS, football-analytics-expert PASS, scope-auditor FAIL. The FAIL was
+about authority rather than code: the contract cited a plan file outside the repo for a §10 naming
+decision while `escalations.log` held no entry. Fixed at the root by recording the whole naming
+programme, six rulings in the CPO's own words, in `escalations.log`, and repointing `refs` at it.
+Round 2: scope-auditor PASS. The code did not move between rounds.

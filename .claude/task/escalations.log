@@ -5335,3 +5335,73 @@ OF THE PREMISE THIS FILE ITSELF RECORDED under RULING 2 above. Written in the tu
   ⚠ THE PROCESS DEFECT IS MINE: I put a naming recommendation to him without first checking the
   file's own convention for that class of name, so his first approval was made on incomplete
   information. Check the convention BEFORE recommending a name, not after implementing it.
+
+
+2026-08-26 THE METRIC CATALOGUE NAMING PROGRAMME — the CPO went through all 38 team metrics and
+then the 48 player metrics and ruled the names. This is the authority for the four renaming MRs.
+
+  ⚠⚠ RECORDED AFTER THE FACT, AND THAT IS ITSELF THE DEFECT scope-auditor FAILED THE FIRST MR ON.
+  The rulings below were given across a long conversation and I recorded none of them here as they
+  landed. The first MR's contract cited a PLAN FILE outside the repo instead, which is worse than
+  the failure logged in the entry above: that one cited this log for something it did not hold,
+  this one did not cite this log at all. The reviewer was right and quoted the earlier entry back
+  at me. The words below are his, copied from his messages; nothing is reconstructed. Where I am
+  paraphrasing rather than quoting, it says so.
+
+  ⭐ RULING 1, verbatim, the team renames as he wrote them:
+  "points_capture becomes points_capture_pct / goals_for becomes goals / clean_sheets_share becomes
+  clean_sheets_share_pct / danger_zone_ratio becomes danger_zone_pct / shot_accuracy becomes
+  shot_accuracy_pct / shot_share becomes shot_share_pct / finishing_efficiency becomes
+  finishing_efficiency_pct / sot_difference_per_match becomes sog_difference_per_match and Ø Shots
+  on target difference becomes Ø Shots on goal difference / pass_accuracy becomes pass_accuracy_pct
+  / save_ratiobecomes save_ratio_pct"
+
+  ⭐ RULING 2, on the labels, verbatim: "we have inconsistency between name and shown as / example:
+  shots_on_goal_per_match vs Ø Shots on target ->should be Ø Shots on goal (apply everywhere where
+  applicable)". Scope confirmed later, verbatim: "in the catalogue". And on the other languages,
+  verbatim: "i know, but here i explicitly want consistency between the metric name and what we
+  show (in english). German and Finnish or any other language should not be affected."
+  ⚠ This REVERSES the deliberate id-versus-label split recorded for `shots_on_goal_per_match`, and
+  he was shown that it did before ruling: "i know, but here i explicitly want". Measured after the
+  ruling and worth keeping: German already says Torschüsse and Finnish Maalilaukaukset, both
+  literally "goal shots", so only ENGLISH was out of step and neither other language changes.
+
+  ⭐ RULING 3, on doubled suffixes, verbatim: "use the shorter as recommended" — so
+  `clean_sheets_share_pct` became `clean_sheets_pct` and `save_ratio_pct` became `saves_pct`.
+
+  ⭐ RULING 4, three names put to him one per line, answered one per line, verbatim:
+  "1. deserved_points_gap / 2. shots_inside_box_pct / 3. shots_on_goal_pct" — replacing
+  `sot_points_gap`, `danger_zone_ratio` and `shot_accuracy`.
+
+  ⭐ RULING 5, THE PLAYER SUFFIX, verbatim: "suffix only for the player metrics / some of the team
+  metrics are derived from player metrics". Measured on his instruction and it is why he is right:
+  SEVEN team metrics are aggregated from player data via `int_legs__team_from_players` (tackles,
+  interceptions, blocks, defensive actions, duels, duels won, key passes), so the two do meet in
+  one model. My earlier claim that team and player metrics never share a namespace was WRONG and
+  he corrected it.
+  Its shape, verbatim: "goals_player / assists_player etc. / goals_per90_player not necessary /
+  duels_won_player_pct not duels_won_pct_player / minutes_per_appearance_player not necessary".
+  So: `_player` goes BEFORE a trailing `_pct`; it is omitted on `_per90` names because `_per90`
+  already means player; and omitted where no team version of the measurement could exist.
+
+  ⭐ RULING 6, verbatim: "key_passes_player". Then, after I showed that twelve other names put the
+  noun first (`goals_penalty`, `passes_accurate`, `duels_won`, `cards_yellow` and so on) and that
+  passing was the only family with the qualifier on both sides: "Ensure consistency here as well so
+  we are able to write down a pattern in case we will have to add new metrics." That REVERSES
+  ruling 6 to `passes_key_player`, and it is the higher-order instruction, so it wins.
+  Also verbatim, on the six remaining pattern breaks I put to him: "apply the suggested changes to
+  ensure consistency."
+
+  ⭐ THE PATTERN THIS PRODUCES, to be applied to any metric added later:
+      noun [_qualifier] [_against] [_player] [_form]
+  `_form` is `_per_match` for a team, `_per90` for a player, `_pct` for a percentage.
+
+  ⛔ AND A CORRECTION OF MINE THAT RAN THROUGH THE WHOLE CONVERSATION, because the class matters
+  more than any single name. I proposed a 31-name rename built on a grammar I invented, and it
+  would have replaced real football terms (`pass_accuracy`, `shot_accuracy`, `danger_zone_ratio`)
+  with machine-generated ones. He rejected it: "you are adding confusion. and you defend
+  inconsistency" and "I heavily doubt that this is necessary. You are fucking things up again."
+  Both were right. Earlier in the same conversation I had also proposed renaming `goals_against` to
+  `goals_conceded`, which would have BROKEN the `_against` convention that already works across
+  goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
+  follows before proposing one, and do not dress taste up as consistency.

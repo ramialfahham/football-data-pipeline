@@ -63,7 +63,7 @@ models:
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: goals_penalty
