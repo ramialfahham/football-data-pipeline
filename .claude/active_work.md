@@ -4,59 +4,48 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-26**. Branch **`fix/90-clean-sheets-count-vs-share`**, off main `5894aff`.
-**#90 is BUILT and VERIFIED; the blinded review round has not run.** **GITLAB** (`glab`, MRs);
-runner `ci-runner-01`, ZERO GitLab minutes.
+_Last updated **2026-08-26**. **main `7fbe8ac`.** **#90 MERGED** (`!107`, 4/4 reviewers PASS over
+2 rounds, all six MR jobs green including `data:build:mr`). **Nothing is in flight.**
+**GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ WHERE #90 STANDS — everything but the review is done
+## ⭐⭐ NEXT: refresh the export sample, THEN #91
 
 ⭐ **THE WORK IS IN THE TRACKER. `glab issue view <n>`.** Do not re-scope or re-audit it here.
-⭐ **READ `escalations.log`'s 08-20 to 08-26 entries FIRST.** The last two entries are this task's.
+⭐ **READ `escalations.log`'s 08-20 to 08-26 entries FIRST.** The last two entries are #90's, and
+both record a CPO **SELECTION between builder-authored options** — not a verbatim ruling. Never
+quote either as "you ruled".
 
-**DONE, all gates green offline:** the seed split (85 → 86 rows), the docs blocks regenerated
-(181 → 183), seven rate columns renamed, three `accepted_values` lists moved, the frontend's
-per-surface binding, three locale labels, two wireframes. `contract.md`,
-`acceptance_evidence.md` and `rendered_page_evidence.md` are written and current.
-`dbt parse` clean · `sqlfluff` clean · `npm test` 76/0 · `pytest` 1007 pass · `npm run build`
-60 pages · three MUTATIONS watched going RED.
+**1. THE SAMPLE REFRESH — #90's disclosed follow-up, and the ONLY loose end it left.**
+`site_v2/src/data/` is a gitignore-pinned export SAMPLE, refreshed as a **SET**
+(`site_v2/src/data/README.md`), never hand-edited. #90 renamed a benchmark `metric_key`, so until
+the sample is re-exported the team page's clean-sheet row is **omitted from the "vs the league"
+panel** (15 rows against the season panel's 16). That is the tab's honest-absent path, measured in
+`.claude/task/rendered_page_evidence.md` — **it is NOT a defect to chase.**
+⚠ **It is only possible AFTER `data:build:main` has materialised `clean_sheets_share` in
+BigQuery.** Check that the job succeeded before running the export, or the refresh writes the old
+names back.
 
-**NOT DONE — the next action, in order:**
-  1. Spawn the FOUR blinded reviewers the routing requires: **scope-auditor**,
-     **analytics-engineer-reviewer**, **football-analytics-expert-reviewer**, **bi-analyst-reviewer**
-     (computed from `review_routing.json`, not guessed). ⛔ NEVER WRITE A VERDICT YOURSELF.
-  2. Write their verdicts into `review.md` under `## <exact-routing-key>` headers, BEFORE writing
-     about them anywhere else, with `diff_sha256` from
-     `python .claude/hooks/git_discipline.py --staged-hash` and `rounds:`.
-  3. `git add` then a plain `git commit -F <scratchpad file>` as the SOLE command in its own call.
-     A post-commit hook auto-pushes and opens the MR.
+**2. #91 — the catalogue does not drive the SQL**, and the test that would catch it is BUILT and
+PARKED at `C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\parked\` with three
+reusable scripts; its yml companion is in the stash labelled **"PARK: value-equivalence test"** —
+match by MESSAGE, never by index. Needs 5 `model_column_alias` entries first.
 
-## ⛔ THE ONE THING A REVIEWER MUST NOT "FIX"
+## ⭐ WHAT #90 SETTLED, so nobody re-opens it
 
-**#90's own premise is FALSE and the contract says so.** The issue claims
-`mart_team_profile.clean_sheets` is a RATE and might be a live display bug. It is the COUNT —
-`mart_team_profile.sql:86` reads `ts.clean_sheets` and `ts` is the `mart_team_season` CTE (join at
-`:209-210`). The rate reaches the product through
-`int_team_competition_benchmark_metrics_long.sql:34` → `mart_team_competition_benchmarks.metric_key`,
-which the issue never mentions. **No wrong number was ever on screen.** Do not "restore" the
-issue's map; it was checked against the SQL and the committed payload.
+**`clean_sheets` is the COUNT of shut-out matches; `clean_sheets_share` is the proportion.** Both
+are catalogue rows. The count is served by the fixture windows (`x/y`), the share by the team
+page's benchmark and yoy family (`% Clean sheets`).
+⛔ **THE ISSUE'S PREMISE WAS FALSE and the merged contract says so.** #90 claimed
+`mart_team_profile.clean_sheets` was a RATE and possibly a live display bug. It is the COUNT —
+`:86` reads `ts.clean_sheets` and `ts` is the `mart_team_season` CTE (join at `:209-210`). **No
+wrong number was ever on screen.** Do not "restore" that map.
+(The two durable traps #90 produced — a display slot binding two metrics, and the `% ` label
+convention — live once, under THE METRIC LAYER below.)
 
-## ⚠ THE MR SHIPS ONE BUILD STALE, ON PURPOSE
+## ⛔ OPEN, ALL THE CPO'S — none blocks the sample refresh or #91
 
-`site_v2/src/data/` is a gitignore-pinned export SAMPLE. The renamed columns do not exist in
-BigQuery until `data:build:main` runs after merge, so the sample still keys the benchmark
-`clean_sheets` and the team page's clean-sheet row is **omitted from the "vs the league" panel**
-(15 rows vs the season panel's 16). That is the tab's honest-absent path, it is measured in
-`rendered_page_evidence.md`, and it is NOT a defect to chase. **Refreshing the sample as a SET is a
-follow-up commit after the first main build** — never a hand edit of exported JSON.
-
-## ⛔ OPEN, ALL THE CPO'S — none blocks the review
-
-- **#91** — the catalogue does not drive the SQL; the value-equivalence test is BUILT and PARKED at
-  `C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\parked\`, its yml companion in
-  the stash labelled **"PARK: value-equivalence test"** (match by MESSAGE, never by index). Needs 5
-  `model_column_alias` entries. Ships after #90.
 - **#92** — `--defer --favor-state` makes ALL 28 singular tests read PROD on an MR.
 - **#93** — `mart_team_momentum` is a SECOND copy of ~20 team formulas and has ALREADY DRIFTED.
   Same file carries a CPO attribution the log contradicts. ⚠ Put that to him as a contradicted
