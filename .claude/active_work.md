@@ -4,33 +4,35 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-26**. **main `7fbe8ac`.** **#90 MERGED** (`!107`, 4/4 reviewers PASS over
-2 rounds, all six MR jobs green including `data:build:mr`). **Nothing is in flight.**
+_Last updated **2026-08-26**. **main `c138600`.** **#90 MERGED** (`!107`) and its export-sample
+follow-up with it (`!109`). **Nothing is in flight.**
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ NEXT: refresh the export sample, THEN #91
+## ⭐⭐ NEXT: #91
 
 ⭐ **THE WORK IS IN THE TRACKER. `glab issue view <n>`.** Do not re-scope or re-audit it here.
 ⭐ **READ `escalations.log`'s 08-20 to 08-26 entries FIRST.** The last two entries are #90's, and
 both record a CPO **SELECTION between builder-authored options** — not a verbatim ruling. Never
 quote either as "you ruled".
 
-**1. THE SAMPLE REFRESH — #90's disclosed follow-up, and the ONLY loose end it left.**
-`site_v2/src/data/` is a gitignore-pinned export SAMPLE, refreshed as a **SET**
-(`site_v2/src/data/README.md`), never hand-edited. #90 renamed a benchmark `metric_key`, so until
-the sample is re-exported the team page's clean-sheet row is **omitted from the "vs the league"
-panel** (15 rows against the season panel's 16). That is the tab's honest-absent path, measured in
-`.claude/task/rendered_page_evidence.md` — **it is NOT a defect to chase.**
-⚠ **It is only possible AFTER `data:build:main` has materialised `clean_sheets_share` in
-BigQuery.** Check that the job succeeded before running the export, or the refresh writes the old
-names back.
-
-**2. #91 — the catalogue does not drive the SQL**, and the test that would catch it is BUILT and
+**#91 — the catalogue does not drive the SQL**, and the test that would catch it is BUILT and
 PARKED at `C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\parked\` with three
 reusable scripts; its yml companion is in the stash labelled **"PARK: value-equivalence test"** —
 match by MESSAGE, never by index. Needs 5 `model_column_alias` entries first.
+
+## ⛔ #95, FILED THIS SESSION — read it before touching any slug or team name
+
+**`team_slug` is documented as PERMANENT and is RE-DERIVED FROM `team_name` ON EVERY BUILD**
+(`base_apif__teams_global.sql:69-72,236`), so correcting a name MOVES A PUBLISHED URL. It fired for
+real: the sample refresh moved team 33 from `manchester-united` to `manchester-united-fc`, because
+`team_name_overrides.csv:75` corrects that club. `not_null` + `unique` (`core.yml:247`) both judge
+ONE build, so nothing can go red when a URL moves.
+⚠ **111 corrections are already in the seed and the team-names programme is PAUSED PART-WAY**, so
+every remaining correction moves another URL. Harmless only because nothing links to a team page
+today — which is exactly the protection that ends when something does.
+**The fork is in the issue and is the CPO's; do not decide it in passing.**
 
 ## ⭐ WHAT #90 SETTLED, so nobody re-opens it
 
@@ -92,9 +94,16 @@ never `pop`, which restores the whole index. ⚠ Do not leave a background build
 stash: it reads the reverted tree and its output is worthless.
 ⚠ **`--review-patch` writes to STDOUT** — without a redirect the patch is silently the PREVIOUS
 task's. `escalations.log` is in `hash_exclude_paths` but NOT `review_exclude_paths`.
-⛔ **THE ACCEPTANCE GATE FIRES ON ANY `site_v2/src/` DIFF**: the contract needs an
-`acceptance_criteria:` key and `acceptance_evidence.md` a `criteria_demonstrated:` block with at
-least as many bullets, each ≥15 chars, all distinct, indented under the key.
+⛔ **THE ACCEPTANCE GATE FIRES ON ANY `site_v2/src/` DIFF** — `site_v2/src/data/**` INCLUDED: the
+contract needs an `acceptance_criteria:` key and `acceptance_evidence.md` a `criteria_demonstrated:`
+block with at least as many bullets, each ≥15 chars, all distinct, indented under the key.
+⚠ **BOTH KEYS MUST SIT AT COLUMN 0, NOT AS A `##` MARKDOWN HEADING.** `_block()` anchors
+`^criteria_demonstrated[^\S\n]*:` at the line start, so a heading parses as ZERO criteria and the
+commit is denied with a message that reads like the evidence is missing. Cost two denials in one
+session — the second AFTER writing this trap down.
+⚠ **Write acceptance criteria the DATA can satisfy.** A criterion invented from an assumption
+about what a page will render is not a gate, it is a guess — and mine then argued against shipping
+correct work. If a criterion turns out unmeetable, fix the criterion; do not stop the task.
 ⛔ **NEVER WRITE A REVIEWER'S VERDICT YOURSELF.** Send it and WAIT.
 ⛔⛔ **INVERT THE NUMBER SWEEP**: pull EVERY integer out of the artifacts and ask of each "is this
 still true". **#71**.
