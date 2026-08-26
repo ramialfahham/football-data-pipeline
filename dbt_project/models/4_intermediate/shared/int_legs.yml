@@ -52,19 +52,23 @@ models:
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
       - name: goals_for
+        description: "{{ doc('goals_for') }}"
       - name: goals_against
-        description: "{{ doc('goals_against') }}"
+        description: "{{ doc('goals_against__team') }}"
       - name: shots_on_goal
         description: "{{ doc('shots_on_goal') }}"
       - name: shots_total
         description: "{{ doc('shots_total') }}"
       - name: shots_inside_box
+        description: "{{ doc('shots_inside_box') }}"
       - name: corner_kicks
+        description: "{{ doc('corner_kicks') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_accurate
         description: "{{ doc('passes_accurate') }}"
       - name: goalkeeper_saves
+        description: "{{ doc('goalkeeper_saves') }}"
       - name: opponent_shots_on_goal
       - name: opponent_shots_total
       - name: opponent_shots_inside_box
@@ -122,7 +126,7 @@ models:
       - name: shots_on
       - name: goals_total
       - name: goals_against
-        description: "{{ doc('goals_against') }}"
+        description: "{{ doc('goals_against__player') }}"
       - name: goals_assists
       - name: saves
         description: "{{ doc('saves') }}"

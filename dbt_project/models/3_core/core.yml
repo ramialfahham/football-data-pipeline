@@ -662,11 +662,13 @@ models:
       - name: shots_blocked
         description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
+        description: "{{ doc('shots_inside_box') }}"
       - name: shots_outside_box
         description: "{{ doc('shots_outside_box') }}"
       - name: fouls
         description: "{{ doc('fouls') }}"
       - name: corner_kicks
+        description: "{{ doc('corner_kicks') }}"
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: ball_possession_percent
@@ -676,6 +678,7 @@ models:
       - name: red_cards
         description: "{{ doc('red_cards') }}"
       - name: goalkeeper_saves
+        description: "{{ doc('goalkeeper_saves') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_accurate
@@ -754,7 +757,7 @@ models:
       - name: shots_on
       - name: goals_total
       - name: goals_against
-        description: "{{ doc('goals_against') }}"
+        description: "{{ doc('goals_against__player') }}"
       - name: goals_assists
       - name: saves
         description: "{{ doc('saves') }}"

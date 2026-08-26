@@ -11,7 +11,7 @@
 ## Tier semantics (ruled)
 
 > **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
-> The seed carries a tier on all 80 rows. This section keeps the SEMANTICS; the values are in
+> The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
 > the seed. What this document still owns exclusively is **order**, which was deliberately
 > removed from the catalogue: where a metric sits on a page is a frontend decision that changes
 > with a design, so the seed holds what a metric IS, not where it appears.
