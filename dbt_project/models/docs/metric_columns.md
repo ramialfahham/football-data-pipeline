@@ -88,30 +88,49 @@ Yellow cards.
 
 
 {% docs clean_sheets %}
-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5).
+Matches the team finished without conceding a goal, counted as whole matches.
+clean_sheets_share is the same measurement expressed as a proportion of the matches played.
 {% enddocs %}
 
 
-{% docs clean_sheets_delta_yoy__team %}
-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5). The change from
-the previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when either side is missing, which covers a competition that
-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-first matches are not fully stat-covered.
+{% docs clean_sheets_share %}
+The share of matches the team finished without conceding a goal: matches with zero goals
+against divided by matches played. clean_sheets is the same measurement expressed as a whole
+number of matches.
 {% enddocs %}
 
 
-{% docs clean_sheets_prev_season__team %}
-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5). Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
+{% docs clean_sheets_share_delta_yoy__team %}
+The share of matches the team finished without conceding a goal: matches with zero goals
+against divided by matches played. clean_sheets is the same measurement expressed as a whole
+number of matches. The change from the previous season to the current one, compared at the same
+point of the campaign: the current value minus the previous one. NULL when either side is
+missing, which covers a competition that carries no year-on-year comparison, a prior season
+that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
-{% docs clean_sheets_this_season__team %}
-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5). Value for the
-season now in progress, accumulated through the matches played so far.
+{% docs clean_sheets_share_prev_season__team %}
+The share of matches the team finished without conceding a goal: matches with zero goals
+against divided by matches played. clean_sheets is the same measurement expressed as a whole
+number of matches. Value for the season before, through the same number of matches as the
+current season has played so far, so the two are compared at the same point of a campaign
+rather than a part season against a full one.
+{% enddocs %}
+
+
+{% docs clean_sheets_share_this_season__team %}
+The share of matches the team finished without conceding a goal: matches with zero goals
+against divided by matches played. clean_sheets is the same measurement expressed as a whole
+number of matches. Value for the season now in progress, accumulated through the matches played
+so far.
+{% enddocs %}
+
+
+{% docs clean_sheets_sum_season__team %}
+Matches the team finished without conceding a goal, counted as whole matches.
+clean_sheets_share is the same measurement expressed as a proportion of the matches played.
+Totalled over the season.
 {% enddocs %}
 
 

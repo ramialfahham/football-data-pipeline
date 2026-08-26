@@ -148,7 +148,9 @@ export interface ScatterDot {
 /** One rank-vs-league benchmark row (mart_team_competition_benchmarks) — the Performance
  *  tab's "vs the league" panel. `rank` is RAW value-descending (the frontend makes it
  *  direction-aware for display); `metric_value`/`league_median` are the served units
- *  (ratios 0..1 for percent metrics; clean_sheets is served as a rate, not a count). */
+ *  (ratios 0..1 for percent metrics). ⚠ `metric_key` is the catalogue metric this panel ranks,
+ *  which is not always the display row's `field`: the clean-sheet row is keyed
+ *  `clean_sheets_share` here — resolve it with `teamBinding()`, never with `field`. */
 export interface Benchmark {
   metric_key: string;
   metric_value?: number | null;
@@ -200,6 +202,8 @@ export interface TeamSeason {
   goals_for?: number | null;
   goals_against?: number | null;
   goal_diff?: number | null;
+  /** The COUNT of shut-outs (mart_team_profile, from mart_team_season). The Performance tab's
+   *  rate lives on the benchmark and on `clean_sheets_share_*_season` below, not here. */
   clean_sheets?: number | null;
   latest_form?: string | null;
   season_games_played?: number | null;

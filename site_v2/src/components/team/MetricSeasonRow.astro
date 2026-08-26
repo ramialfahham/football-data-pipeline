@@ -1,13 +1,15 @@
 ---
 // One "vs last season" row (mock f6348775 .ss-row): metric name · current value · signed
 // year-over-year change (direction-aware green; percent rows read as "+N pp"). Value is the
-// season's served metric (from the benchmark, so clean_sheets stays the rate its delta is in);
-// the delta is the served `{field}_delta_yoy`. Null delta (e.g. save_ratio, no comparable prior
-// season) renders the en-dash. Display formatting only.
+// season's served metric (from the benchmark); the delta is the served `{field}_delta_yoy` for the
+// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_share` on both
+// sides here. Null delta (e.g. save_ratio, no comparable prior season) renders the en-dash.
+// Display formatting only.
 import { formatValue, signedDelta } from "../../lib/format";
-import type { Lang, SingleFormat } from "../../lib/format";
+import type { Lang } from "../../lib/format";
 import { beatsMedian } from "../../lib/bars";
 import { t, metricLabel } from "../../i18n/strings";
+import { teamBinding } from "../../lib/metricRows";
 import type { MetricRowDef } from "../../lib/metricRows";
 import type { Benchmark } from "../../lib/types";
 
@@ -19,13 +21,14 @@ interface Props {
 }
 const { row, bench, delta, lang } = Astro.props;
 
-const fmt: SingleFormat = row.format === "count_fraction" ? "percent" : row.format;
+const bind = teamBinding(row);
+const fmt = bind.format;
 const chg = signedDelta(delta, fmt, lang);
 const green = beatsMedian(delta, row.direction);
 ---
 
 <div class="ss-row">
-  <span class="vs-name">{metricLabel(lang, row.labelKey)}</span>
+  <span class="vs-name">{metricLabel(lang, bind.labelKey)}</span>
   <span class="ss-rt">
     <span class="vs-val num">{formatValue(bench?.metric_value, fmt, lang)}</span>
     <span class:list={["ss-chg", "num", { up: green }]}>{chg.value}{chg.unit && <span class="u">{t(lang, "unitPp")}</span>}</span>

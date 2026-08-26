@@ -5283,3 +5283,55 @@ programme. FOUR CPO RULINGS, three of them structural, and they cut the MR from 
   rewritten grain-free). The reviewer reconstructed ~218-220 by hand, could not close the gap with
   confidence, and REPORTED IT AS UNRESOLVED rather than asserting either number — which is what
   made it findable. Corrected here and in the evidence.
+
+
+2026-08-26 fix/90-clean-sheets-count-vs-share — THE DISPLAY NAME FOR THE RATE, plus a CORRECTION
+OF THE PREMISE THIS FILE ITSELF RECORDED under RULING 2 above. Written in the turn it happened.
+
+  ⚠ NOT A VERBATIM RULING, AND IT MUST NEVER BE QUOTED AS ONE. The CPO approved a plan that
+  carried a recommendation; he did not speak the words. What he approved, verbatim from the plan:
+  "Recommendation — EN 'Clean sheet share', DE 'Zu-Null-Quote', FI 'Nollapelien osuus'. The count
+  keeps 'Clean sheets' / 'Zu-Null-Spiele' / 'Nollapelit'." An APPROVAL of my words is what this
+  is; "you ruled" would be false.
+
+  WHY A SECOND DISPLAY NAME WAS NOT OPTIONAL. `seeds/schema.yml`'s
+  `metric_catalogue_label_en_unique_within_entity` forbids two team rows sharing `label_en`, so
+  splitting the metric forces a second name whether or not it is ever rendered. Rendering `21%`
+  under "Clean sheets" is also the ambiguity RULING 2 exists to remove.
+
+  ⛔ THE PREMISE UNDER RULING 2 IS FALSE, AND IT IS MY SENTENCE, NOT HIS. That entry narrates
+  "`mart_team_profile.clean_sheets` is a RATE (`int_team_season__metrics_cumulative.sql:91`)". It
+  is not. `mart_team_profile.sql:86` reads `ts.clean_sheets`, and `ts` is the `team_season` CTE
+  (`:209-210`, `from metrics as m left join team_season as ts`) = `mart_team_season`, i.e. the
+  COUNT (`mart_team_season.sql:41`). Same for `mart_team_season_insights.sql:57`. Ground truth in
+  the committed payload `site_v2/src/data/teams/33.json`: `seasons[0].clean_sheets = 8` beside
+  `clean_sheets_this_season = 0.2105`, and 8/38 = 0.2105. The CPO's own words — the two metric
+  names — are untouched and still stand; only my supporting map was wrong.
+  ⭐ WHERE THE RATE ACTUALLY REACHES THE PRODUCT, which that entry missed entirely:
+  `int_team_season__metrics_cumulative.sql:91` → `int_team_season__metrics`
+  (`sf.* except (match_number)`) → `int_team_competition_benchmark_metrics_long.sql:34` (the
+  UNPIVOT) → `mart_team_competition_benchmarks.metric_key = 'clean_sheets'`.
+
+  ⭐ SO THERE IS NO LIVE DISPLAY BUG, and #90 says there might be. Every surface is coherent
+  today: the fixture page renders the count as `1/4` from two count marts, and the team page
+  renders the benchmark rate as a percent because BOTH row components coerce
+  `count_fraction → percent` inline and say so in a comment. That coercion is the two-meanings
+  defect wearing frontend clothes; this MR deletes it and declares the binding instead.
+  ⚠ THE LESSON, and it is the one this file keeps recording: the entry above cited file:line
+  evidence and was still wrong, because the line was read for the COLUMN NAME and not for the
+  ALIAS IT RESOLVES TO. A citation is not a verification. Open the join.
+
+  ⭐ AND THE DISPLAY NAME WAS THEN CHANGED, same task, on a convention I had not surfaced when he
+  approved the plan. He CHOSE between two options I authored — so the words are mine and the
+  SELECTION is his; that is the whole provenance and it is not a quote. Chosen:
+  **`% Clean sheets` / `% Zu-Null-Spiele` / `% Nollapelit`**, and catalogue `label_en`
+  `% Clean sheets`. The count keeps `Clean sheets` / `Zu-Null-Spiele` / `Nollapelit` unchanged.
+  WHAT I HAD MISSED, and it is measurable: EVERY `percent`-format metric in the catalogue carries
+  a `% ` prefix in `label_en` — 7 of 7 team rows — and every percent label in all three locale
+  dicts does too (`% Duels won`, `% Trefferquote`, `% Torjuntaosuus`). "Clean sheet share" would
+  have been the ONE percent label in the file without it. The convention also says the thing
+  exactly: the share IS the percent form of the count, so prefixing the count's own label is not a
+  compromise, it is the shortest true name.
+  ⚠ THE PROCESS DEFECT IS MINE: I put a naming recommendation to him without first checking the
+  file's own convention for that class of name, so his first approval was made on incomplete
+  information. Check the convention BEFORE recommending a name, not after implementing it.

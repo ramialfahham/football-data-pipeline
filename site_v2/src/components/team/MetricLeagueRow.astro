@@ -3,12 +3,14 @@
 // a rank bar with the median notch · the value + direction-aware rank · the league median.
 // All served: value/median/rank/vs_median_delta come from the benchmark; the rank is made
 // DIRECTION-AWARE for display (the mart's is raw value-descending) and the fill/green are
-// presentation mappings (lib/bars.ts) — no fact is derived. clean_sheets is served as a rate,
-// so the contract's count_fraction renders as a percent here (matches the served unit + mock).
+// presentation mappings (lib/bars.ts) — no fact is derived. Which metric a row binds HERE comes
+// from `teamBinding()`: the clean-sheet slot ranks `clean_sheets_share`, a proportion, where the
+// fixture windows serve the count.
 import { formatValue, ordinal } from "../../lib/format";
-import type { Lang, SingleFormat } from "../../lib/format";
+import type { Lang } from "../../lib/format";
 import { displayRank, rankFill, beatsMedian } from "../../lib/bars";
 import { t, metricLabel } from "../../i18n/strings";
+import { teamBinding } from "../../lib/metricRows";
 import type { MetricRowDef } from "../../lib/metricRows";
 import type { Benchmark } from "../../lib/types";
 
@@ -20,7 +22,8 @@ interface Props {
 }
 const { row, bench, sub, lang } = Astro.props;
 
-const fmt: SingleFormat = row.format === "count_fraction" ? "percent" : row.format;
+const bind = teamBinding(row);
+const fmt = bind.format;
 const dr = displayRank(bench?.rank, bench?.team_count, row.direction);
 const fill = rankFill(dr, bench?.team_count);
 const green = beatsMedian(bench?.vs_median_delta, row.direction);
@@ -33,7 +36,7 @@ const rankLabel =
 ---
 
 <div class="vs-row">
-  <span class="vs-name">{metricLabel(lang, row.labelKey)}{sub && <span class="sub">{sub}</span>}</span>
+  <span class="vs-name">{metricLabel(lang, bind.labelKey)}{sub && <span class="sub">{sub}</span>}</span>
   <div class="vs-bar">
     {dr != null && <div class:list={["vs-fill", { up: green }]} style={`width:${fill}%`}></div>}
     <div class="vs-notch"></div>
