@@ -384,7 +384,7 @@ models:
       - name: home_away
         description: "{{ doc('home_away') }}"
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: opponent_name
@@ -464,7 +464,7 @@ models:
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
 
@@ -676,7 +676,7 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: goal_diff
@@ -1228,7 +1228,7 @@ models:
         description: "{{ doc('losses') }}"
         tests: [not_null]
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
         tests: [not_null]
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
@@ -1377,7 +1377,7 @@ models:
       - name: substitute_appearances
       - name: minutes
       - name: goals
-        description: "{{ doc('goals') }}"
+        description: "{{ doc('goals__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
       - name: shots_on_goal
@@ -1528,7 +1528,7 @@ models:
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: player_name
@@ -1678,7 +1678,7 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: meetings_last5
@@ -1800,7 +1800,7 @@ models:
       - name: appearances
       - name: minutes
       - name: goals
-        description: "{{ doc('goals') }}"
+        description: "{{ doc('goals__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
       - name: shots_on_goal
@@ -1945,7 +1945,7 @@ models:
       - name: opponent_name
       - name: opponent_logo_url
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: has_result
@@ -2328,6 +2328,6 @@ models:
       - name: team_logo_url
       - name: team_country
       - name: goals
-        description: "{{ doc('goals') }}"
+        description: "{{ doc('goals__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"

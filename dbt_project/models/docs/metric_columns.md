@@ -557,8 +557,14 @@ fixtures can be understated rather than null. Totalled over the season.
 {% enddocs %}
 
 
-{% docs goals %}
+{% docs goals__player %}
 Goals scored.
+{% enddocs %}
+
+
+{% docs goals__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records.
 {% enddocs %}
 
 
@@ -680,42 +686,13 @@ tournament.
 {% enddocs %}
 
 
-{% docs goals_for %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records.
-{% enddocs %}
-
-
-{% docs goals_for_delta_yoy__team %}
+{% docs goals_delta_yoy__team %}
 Goals scored by the team, read from the authoritative match scoreline (the score after extra
 time where a match went to it) rather than summed from player or event records. The change from
 the previous season to the current one, compared at the same point of the campaign: the current
 value minus the previous one. NULL when either side is missing, which covers a competition that
 carries no year-on-year comparison, a prior season that was never loaded, and a season whose
 first matches are not fully stat-covered.
-{% enddocs %}
-
-
-{% docs goals_for_prev_season__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
-{% enddocs %}
-
-
-{% docs goals_for_sum_season__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Totalled over
-the season.
-{% enddocs %}
-
-
-{% docs goals_for_this_season__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Value for the
-season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -791,6 +768,15 @@ part season against a full one.
 {% enddocs %}
 
 
+{% docs goals_prev_season__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Value for the
+season before, through the same number of matches as the current season has played so far, so
+the two are compared at the same point of a campaign rather than a part season against a full
+one.
+{% enddocs %}
+
+
 {% docs goals_prev_season_full__player %}
 Goals scored. The previous season's complete total, with no cutoff. It is context for how large
 that season was and is never subtracted from the season in progress, because a part season
@@ -798,9 +784,25 @@ against a full one would mislead.
 {% enddocs %}
 
 
+{% docs goals_prev_season_full__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. The previous
+season's complete total, with no cutoff. It is context for how large that season was and is
+never subtracted from the season in progress, because a part season against a full one would
+mislead.
+{% enddocs %}
+
+
 {% docs goals_this_season__player %}
 Goals scored. Value for the season now in progress, accumulated through the matches played so
 far.
+{% enddocs %}
+
+
+{% docs goals_this_season__team %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Value for the
+season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -860,13 +862,6 @@ Goals conceded by the team, read from the authoritative match scoreline (the sco
 time where a match went to it) rather than summed from player or event records. Distinct from
 the player metric of the same name, which is the provider's count of goals conceded while that
 player was on the pitch. Taken from the most recent previous meeting between these two teams.
-{% enddocs %}
-
-
-{% docs last_meeting_goals_for__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Taken from the
-most recent previous meeting between these two teams.
 {% enddocs %}
 
 

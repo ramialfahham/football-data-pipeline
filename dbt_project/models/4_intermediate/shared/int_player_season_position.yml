@@ -53,7 +53,7 @@ models:
           in each.
         tests: [not_null]
       - name: goals
-        description: "{{ doc('goals') }}"
+        description: "{{ doc('goals__player') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty__player') }}"
       - name: assists

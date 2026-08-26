@@ -78,7 +78,7 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_for
-        description: "{{ doc('goals_for') }}"
+        description: "{{ doc('goals__team') }}"
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: goal_diff

@@ -481,7 +481,7 @@ models:
       - name: substitute_appearances
       - name: minutes
       - name: goals
-        description: "{{ doc('goals') }}"
+        description: "{{ doc('goals__player') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty__player') }}"
       - name: assists
