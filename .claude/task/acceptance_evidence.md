@@ -1,132 +1,64 @@
-# Acceptance evidence — #90, `clean_sheets` (count) vs `clean_sheets_share` (rate)
+# Acceptance evidence — refresh the committed export sample after #90
 
-Every figure measured on this branch against merged main `5894aff`. Where a measurement
-contradicted an expectation, the contradiction is what is recorded — and one of them contradicted
-the issue itself.
+One file changed: `site_v2/src/data/teams/33.json`, replaced verbatim with
+`artifacts/site_data/teams/33.json` from `python scripts/export_site_data.py --entities teams`
+(3,289 payloads written to the gitignored `artifacts/site_data`; one copied across).
 
 ## The headline
 
 | | |
 |---|---|
-| catalogue rows | **85 → 86** (rate renamed in place, count added) |
-| generated docs blocks | **181 → 183** (+5 added, −3 removed) |
-| rate columns renamed | **7** — one expression, three yoy columns, one unpivot member, two mart pass-throughs |
-| count columns renamed | **0**, deliberately |
-| `accepted_values` lists moved | **3** (the issue named 2) |
-| dangling `{{ doc() }}` after the change | **0** (`dbt parse` clean) |
-| warehouse columns whose BigQuery description was WRONG and is now right | **2** |
-| files | 19 code and doc · added 165 · deleted 76 |
-
-## ⛔ The issue's premise is false, and verifying it was the first instruction
-
-#90 says `mart_team_profile.clean_sheets` is the RATE and asks whether that is a LIVE DISPLAY BUG.
-It is not, and the check that settles it is one join:
-
-```
-mart_team_profile.sql:86    ts.clean_sheets
-mart_team_profile.sql:209   from metrics as m
-mart_team_profile.sql:210   left join team_season as ts     <-- ts = mart_team_season, the COUNT
-mart_team_season.sql:41     m.clean_sheets_sum_season as clean_sheets
-```
-
-Identical for `mart_team_season_insights.sql:57` (`ts` = the `mart_team_season` CTE, join at `:91`).
-The committed payload agrees: `teams/33.json` carries `seasons[0].clean_sheets = 8` beside
-`clean_sheets_this_season = 0.2105`, and 8/38 = 0.2105.
-
-**Where the rate actually reaches the product** — a path the issue never names:
-
-```
-int_team_season__metrics_cumulative.sql:91   safe_divide(clean_sheet_games, games_played)
-int_team_season__metrics.sql                 sf.* except (match_number)      <-- passes through
-int_team_competition_benchmark_metrics_long.sql:34   UNPIVOT member
-mart_team_competition_benchmarks             metric_key = 'clean_sheets'
-```
-
-Same payload: `{metric_key: 'clean_sheets', metric_value: 0.2105}`.
-
-**So no wrong number was ever on screen.** The fixture surface serves counts from two count marts
-with `games_in_window` / `games_played` denominators; the team surface serves the benchmark rate
-and both row components coerced `count_fraction → percent` inline, each with a comment saying
-"clean_sheets is served as a rate". That coercion was the two-meanings defect wearing frontend
-clothes. It is deleted here and replaced by a declared per-surface binding.
-
-⚠ The lesson is narrower than "the issue was wrong": the issue cited `mart_team_profile.sql:86`
-correctly. The line was read for the column NAME and not for the alias it resolves to. A citation
-is not a verification.
-
-## The live defect this DOES fix
-
-`{{ doc('clean_sheets') }}` — whose text is the COUNT definition, "shown as a count of games played
-(e.g. 3/5)" — was attached to the two RATE columns at `int_team_season.yml:120` and `:256`.
-`persist_docs` has already pushed that sentence onto both in BigQuery. Same class as the
-`goals_against` defect `!104` fixed. After this change those two columns point at
-`doc('clean_sheets_share')` and the five count columns keep `doc('clean_sheets')`, which is correct
-for the first time.
+| tracked sample files changed | **1** of 22 |
+| benchmark rows in the payload | 466 |
+| `metric_key: "clean_sheets"` (old) | **0** |
+| `metric_key: "clean_sheets_share"` (new) | **22** |
+| old `clean_sheets_{this,prev}_season` / `_delta_yoy` keys | **0** |
+| new `clean_sheets_share_*` season keys | **75** |
+| seasons still carrying the COUNT `clean_sheets` | **25 of 25** |
+| BigQuery read, measured by dry-run before spending it | 157.7 MiB |
 
 ## Acceptance criteria, demonstrated
 
-⚠ The key below is at column 0 and its bullets are indented, because
-`git_discipline._block()` anchors `^criteria_demonstrated[^\S\n]*:` at the line start and stops at
-the first unindented line. Written as a markdown heading (`## criteria_demonstrated:`) it parses as
-zero criteria and the commit is denied — which is exactly what happened on the first attempt.
+⚠ The key below is at column 0, NOT a `##` heading. `git_discipline._block()` anchors
+`^criteria_demonstrated[^\S\n]*:` at the line start, so a heading parses as zero criteria and the
+commit is denied. This is the second time in one session I have written it as a heading.
 
 criteria_demonstrated:
-  - **EN/DE/FI label**, read from `site_v2/dist/{lang}/teams/manchester-united/index.html` after a
-    clean `npm run build` (60 pages, `audit-seo` OK): season-panel row 3 renders `% Clean sheets`,
-    `% Zu-Null-Spiele` and `% Nollapelit` respectively. No locale falls back to English and none
-    resolves to an empty label.
-  - **Fixture surface untouched**, read from
-    `dist/en/champions-league/matches/2026-08-18-dinamo-zagreb-vs-viking/index.html`: the string
-    `1/4 Clean sheets` appears twice, once per window — the count over its denominator, label
-    unchanged, exactly as before the rename.
-  - **Honest-absent on the stale sample**: the built team page shows 15 rows in the "vs the league"
-    panel against 16 in "vs last season", i.e. the clean-sheet row is OMITTED rather than rendered
-    as a zero bar, because the committed export still keys it `clean_sheets`. The season panel
-    shows that row with an en-dash for both value and delta.
-  - **Nothing else moved**: all 16 season-panel rows render in the locked block order in every
-    locale, and every label except row 3 is byte-identical to main — Ø Goals, Ø Goals against, Ø
-    Shots, % Shots from box, Ø Shots on target, % Goals per shot on target, Ø Duels, % Duels won, Ø
-    Defensive actions, Ø Passes, % Pass accuracy, Ø Key passes, Ø Corners, Ø Corners against, %
-    Save percentage.
+  - **Post-#90 names present, count preserved**: the refreshed payload carries zero
+    `metric_key: "clean_sheets"` rows and 22 `clean_sheets_share` ones across its 466 benchmark
+    rows, zero old yoy keys and 75 `clean_sheets_share_*` ones, while all 25 seasons still carry
+    `clean_sheets` (the count) and `clean_sheet_run` — the columns the rename did not touch.
+  - **Built page renders in all three locales**: `npm run build` completed 60 pages with
+    `audit-seo: 61 built page(s) checked. OK.`, and each of
+    `dist/{en,de,fi}/teams/manchester-united-fc/index.html` renders its Performance tab without
+    error.
+  - **Tracked file SET unchanged**: `git status --porcelain` shows exactly one changed file under
+    `site_v2/src/data/`, so no `.gitignore` allowlist edit was needed and no internal link moved.
+  - **No stray payload left behind**: `git status --porcelain --ignored site_v2/src/data` returns
+    the one modified tracked file and nothing else, so the "every link resolves locally while only
+    the tracked ones reach CI" trap in `README.md:9-13` is not armed.
 
-## Offline verification, re-derived rather than quoted
+## ⛔ What the refresh does NOT restore, and why that is correct
 
-| check | result |
-|---|---|
-| `sync_metric_docs_blocks.py --check` | OK, 183 blocks match the seed AND the model YAML |
-| `check_description_hygiene.py` | ok — 1604 descriptions, 245 blocks resolved, all within 1024/16384 |
-| `dbt parse` (1.7.19 / bigquery 1.7.2) | clean; 0 errors, 0 dangling `{{ doc() }}` |
-| `sqlfluff lint` on all 4 edited models, full rule set | All Finished! |
-| `npm test` (site_v2) | 76 pass, 0 fail |
-| `python -m pytest tests/` | 1007 passed, 1 skipped, 14 subtests |
-| `npm run build` | 60 pages, `audit-seo: 61 built page(s) checked. OK.` |
+The Performance tab renders **"Not enough games this season to rank Manchester United FC against
+the league"** in all three locales — 0 rows in both panels, not the 16 the first draft of this
+contract predicted.
 
-## ⛔ Mutation testing — the guards were watched going RED
+That is the product working. The export's featured season has rolled to **PL 2026, 1 game played**,
+and `mart_team_competition_benchmarks` ranks nothing below **3 games**, so that season carries 0
+benchmarks. PL 2025 is still in the payload with its 22 benchmark rows; it is simply no longer the
+season the page opens on (#846: the pipeline decides). The tab will populate itself once the season
+reaches three games.
 
-A passing test over a renamed column proves nothing. Each guard was broken deliberately and the
-failure observed, then restored; the restored diff is byte-identical (19 files, +165/−76 before and
-after).
+⚠ So the visible state changed from "15 rows, clean-sheet row absent" to "tab not rankable yet".
+Both are honest-absent paths the tab already implements. Neither is a defect, and the clean-sheet
+rename is verified above in the PAYLOAD, which is where this task's evidence lives.
 
-| mutation | guard | result |
-|---|---|---|
-| team binding points at `metrics.clean_sheet_share.label` (the key the plan originally proposed, which the catalogue declares nowhere) | `check-metric-labels.test.mjs` | **3 tests FAILED** |
-| `int_team_profile.yml:65` points back at `doc('clean_sheets_this_season__team')`, the block the rename deleted | `dbt parse` | **Compilation Error** |
-| `% Nollapelit` deleted from the FI dict only | `check-metric-labels.test.mjs` | **1 test FAILED**: "FI has no label for: metrics.clean_sheets_share.label" |
+## ⚠ A side effect this commit carries, disclosed not buried
 
-⚠ **NOT offline-checkable, stated rather than claimed**: renaming the unpivot member back to
-`clean_sheets` while the three `accepted_values` lists say `clean_sheets_share` produces a red
-`dbt test`, not a red offline gate. Nothing on this machine catches it. `data:build:mr` is where
-that half is proved.
-
-## Diff shape
-
-19 code and doc files, +165 / −76. Line endings verified as BYTES: every edited file is uniformly
-CRLF in the worktree (metricRows.ts 105/105, strings.ts 738/738, metric_catalogue.csv 87/87), so no
-file flipped its endings.
-
-## What is deliberately NOT here
-
-The committed sample under `site_v2/src/data/` is one build stale and stays that way: the renamed
-columns do not exist in BigQuery until `data:build:main` runs after merge, so the export cannot be
-rerun yet. Hand-editing exported JSON to fake the new key would relocate a violation rather than
-fix one. The visible consequence is measured above and is the honest-absent path, not a break.
+The team's name and slug moved with the refresh — `Manchester United` → `Manchester United FC`,
+`manchester-united` → `manchester-united-fc` — so the built page relocates from
+`/{locale}/teams/manchester-united/` to `/{locale}/teams/manchester-united-fc/`. `dim_team.sql:7`
+calls `team_slug` "the team's permanent, locale-independent URL segment". Not caused by #90, not
+investigated here, and no internal link breaks (nothing links to a team page today). Registered in
+`decisions_reserved` as its own issue against #852.
