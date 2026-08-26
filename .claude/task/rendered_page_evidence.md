@@ -1,60 +1,67 @@
-# Rendered-page evidence — chore/drop-browse-section
+# Rendered page evidence — #90
 
-> Required by #827 for any `site_v2/src/**` diff. Read from the BUILT output (`site_v2/dist/`) and
-> the running page, never from source. Replaces the previous file wholesale (it documented
-> `feat/shared-competition-order`, a different branch and change).
+Read from **`site_v2/dist/`** after `npm run build` (60 pages, `audit-seo: 61 built page(s)
+checked. OK.`), not from source and not from `outerHTML`. HTML comments are stripped before the
+text is collapsed, because Astro splits interpolated text with `<!-- -->` and a raw grep misses a
+label that straddles one.
 
-Build: `npm run build` in `site_v2` -> **60 pages**, `audit-seo: 61 built page(s) checked. OK.`
-Zero errors, zero dead-link failures (the class of defect the prior evidence file's build caught —
-this build had none).
+## Team page — Performance tab, all three locales
 
-## 1. What changed on the page
+`dist/{lang}/teams/manchester-united/index.html`
 
-The home page's LAST block is gone, not swapped. Before this branch, `[lang]/index.astro` rendered
-`HeroFixtures` then `BrowseGrid` (chips for competition groups + countries). After, it renders
-`HeroFixtures` alone.
+| | EN | DE | FI |
+|---|---|---|---|
+| season-panel rows | 16 | 16 | 16 |
+| league-panel rows | **15** | **15** | **15** |
+| season row 3 | `% Clean sheets – –` | `% Zu-Null-Spiele – –` | `% Nollapelit – –` |
+| league-panel clean-sheet row | omitted | omitted | omitted |
 
-## 2. Dev-server accessibility tree, before commit
+**The 15-vs-16 gap is the point, and it is expected.** The committed export still keys the
+benchmark `clean_sheets`; the page now looks up `clean_sheets_share`. `TeamPerformance.astro`'s
+`benchByKey.has(keyOf(r))` filter therefore drops the row from "vs the league" — the honest-absent
+path the tab already implements (14_team_stats.md §6: a metric with no benchmark is OMITTED, never
+a zero bar). The season panel keeps its 16 rows and dashes the value and delta. It resolves itself
+the first time the export is rerun after `data:build:main`.
 
-Read via the Browser pane against the live dev server (`site_v2` on :4321), `/en/`:
+## The full season panel, EN, in locked block order
 
 ```
-region [ref_22]            <- Next matches (HeroFixtures)
- ...fixtures...
-contentinfo [ref_46]        <- site footer, immediately after
- link "Matchday" ...
- generic "Competitions" / "Teams" / "Players" / "Stats" / "About" / "Imprint (pending)"
+ 1. Ø Goals                       1.8   +0.7
+ 2. Ø Goals against               1.3   -0.1
+ 3. % Clean sheets                  –      –     <-- the only row this task changes
+ 4. Ø Shots                      15.7   +1.8
+ 5. % Shots from box               66%   +3 pp
+ 6. Ø Shots on target             5.7   +1.1
+ 7. % Goals per shot on target     29%   +7 pp
+ 8. Ø Duels                         99      0
+ 9. % Duels won                    51%   +1 pp
+10. Ø Defensive actions           30.3   -3.4
+11. Ø Passes                       466     -32
+12. % Pass accuracy                83%   -2 pp
+13. Ø Key passes                  12.0   +1.3
+14. Ø Corners                      4.8   -0.4
+15. Ø Corners against              4.9   +0.1
+16. % Save percentage              65%      –
 ```
 
-`region` (the fixtures hero) is followed directly by `contentinfo` (the footer) — no intervening
-node of any kind. No orphaned wrapper `<div>`, no empty section, no leftover margin-only element.
-Console: `read_console_messages` (`onlyErrors: true`) returned no logs. Server logs
-(`preview_logs`, `level: error`): "No server errors found."
+DE and FI render the same sixteen in the same order with their own labels; row 3 is
+`% Zu-Null-Spiele` and `% Nollapelit`. Both were checked against the same built files, and both
+sit beside sibling percent labels that already carry the `% ` prefix (`% Trefferquote`,
+`% Torjuntaosuus`), which is the convention that decided the wording.
 
-`get_page_text` on the same page returned, verbatim, the fixture rows followed immediately by
-`MatchdayPilot / Competitions / Teams / Players / Stats / About / Imprint (pending) / EN · DE · FI
-· Data: API-Football` — the footer's own content, confirming no text content sits between the hero
-and the footer either.
+## Fixture page — the count surface, unchanged
 
-## 3. Built output, grepped directly (not from source)
+`dist/en/champions-league/matches/2026-08-18-dinamo-zagreb-vs-viking/index.html`
 
-`site_v2/dist/en/index.html`, after `npm run build`:
-- `grep -i "browse|linkchip"` — **zero matches**. The old block's marker classes are gone from the
-  emitted HTML, not just deprioritized or hidden.
-- File is well-formed: contains a `site-footer` node (the `contentinfo` region confirmed above) and
-  the same 3 `<script>` tags every locale root carries (timezone progressive-enhancement + theme
-  toggle + search), unrelated to this change and unaffected by it.
-- Page count and SEO audit both green (see Build line above) — no internal link to a Browse-chip
-  destination was ever emitted, so there is nothing for `audit-seo.mjs` to catch here (contrast
-  with the prior evidence file, where a stale sample DID produce a dead link the audit caught).
+```
+… 1/4 Clean sheets …      (twice — one per window)
+```
 
-## 4. Not covered here
+The count over its denominator, label untouched. This is what proves the rename did not leak into
+the surface it was never about.
 
-Geometry/scrollHeight was not re-measured at a fixed viewport (unlike the prior evidence file) —
-there is no new content whose height needs pinning; the block was deleted, not resized or
-reordered, so the page is simply shorter by however tall Browse was. de/fi were spot-read via
-`get_page_text`/accessibility tree on `/en/` only; the built HTML for `/de/` and `/fi/` was not
-independently grepped, though the same `shape_landing_payload` output feeds all three locales and
-the i18n keys removed (`homeBrowse`/`homeByCountry`/`group*`) were removed from all three locale
-blocks in `strings.ts` (checked directly, not assumed). Top players and Top teams remain unbuilt,
-unaffected by this change, out of scope.
+## Console
+
+The dev server render of the same three pages produced two console errors, both
+`Failed to load resource: 404` for remote crest images in the committed sample. Pre-existing, not
+from this change, and absent from the built output check.

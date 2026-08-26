@@ -616,6 +616,9 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.goals_per_match.label": "Ø Goals",
   "metrics.goals_against_per_match.label": "Ø Goals against",
   "metrics.clean_sheets.label": "Clean sheets",
+  // The percent form of the row above, per the "% " prefix every percent metric here carries.
+  // The fixture windows label the COUNT; the team page labels the SHARE (metricRows `team`).
+  "metrics.clean_sheets_share.label": "% Clean sheets",
   "metrics.shots_per_match.label": "Ø Shots",
   "metrics.danger_zone_ratio.label": "% Shots from box",
   "metrics.shots_on_target_per_match.label": "Ø Shots on target",
@@ -639,6 +642,9 @@ const METRIC_LABELS_DE: MetricLabels = {
   // Statista and FootyStats DE both use "Zu-Null-Spiele"; Transfermarkt's "weiße Weste" is the other
   // live German idiom and was not chosen, because the statistical label is the one a stat row wants.
   "metrics.clean_sheets.label": "Zu-Null-Spiele",
+  // The percent form of the row above. The "% " prefix carries the share, exactly as it does for
+  // "% Trefferquote" and "% Gehaltene Torschüsse" below, so the noun itself needs no second word.
+  "metrics.clean_sheets_share.label": "% Zu-Null-Spiele",
   "metrics.shots_per_match.label": "Ø Schüsse",
   "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
   // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
@@ -675,6 +681,9 @@ const METRIC_LABELS_FI: MetricLabels = {
   "metrics.goals_against_per_match.label": "Ø Päästetyt maalit",
   // Confirmed in Finnish football media (apu.fi on Veikkausliiga goalkeepers).
   "metrics.clean_sheets.label": "Nollapelit",
+  "metrics.clean_sheets_share.label": "% Nollapelit",
+  // The percent form of the row above. The "% " prefix carries the share, as it does for
+  // "% Torjuntaosuus" below, so no separate "osuus" compound is needed.
   "metrics.shots_per_match.label": "Ø Laukaukset",
   "metrics.danger_zone_ratio.label": "% Laukaukset boksista",
   // These three are CPO-SUPPLIED, 2026-07-31, including `vastaan`, which keeps Finnish parallel to

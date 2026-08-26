@@ -1,1190 +1,1299 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index aec7a38..cfc8d8c 100644
+index cfc8d8c..1584612 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,178 +1,263 @@
--# Task contract — #82 MR4c: write the definitions that do not exist yet
-+# Task contract — the missing team totals in the metric catalogue
+@@ -1,263 +1,326 @@
+-# Task contract — the missing team totals in the metric catalogue
++# Task contract — #90, split `clean_sheets` (count) from `clean_sheets_share` (rate)
  
  objective: >
--  Every merge in this programme so far MOVED text that already existed — generated from the metric
--  seed, or promoted from one model to a shared block. **This one authors it.** 422 in-scope columns
--  are blank and no sentence exists anywhere to copy, so each one is a judgement about what the
--  column actually holds, written from the SQL that produces it.
+-  The CPO, this session: **"add the missing team totals and the count metrics to the catalogue."**
 -
--  **56 column names, 99 in-scope columns.** 22 names appear in more than one model and get ONE
--  shared block each (67 sites wired, 2 of them in base, which is outside the in-scope count); 34
--  names appear once and are written inline. Blank in-scope columns fall from **422 to 323**.
+-  Measured cause. Classifying all 80 catalogue rows by formula shape: the PLAYER side carries **28**
+-  plain totals (`sum(x)`, no denominator); the TEAM side carries **4**. The team surface is 15
+-  per-match rates and 7 ratios. So team quantities the product displays — goals scored, goals
+-  conceded, corners, saves, shots inside the box — had **no catalogue row to point at**, which is
+-  why the description programme kept stalling on them.
 -
--  ⚠ 21 OF THE PLAN'S NAMES ARE NOT HERE. It sized this merge at 77 names / 183 columns, and the
--  measurement behind that number could not see what only a reading of the SQL shows. Each excluded
--  name is listed in decisions_reserved and none is silently dropped: **13 mean different quantities
--  at different sites** (`goals_for` is one match's goals in one model and a running season total in
--  another), **7 belong to the head-to-head and opponent-mirror families** the plan defers, and **1
--  is a catalogue metric under another column name**. 77 − 13 − 7 − 1 = 56 names;
--  183 − 71 − 11 − 2 = 99 columns. Writing one sentence for a name that means two things is the
--  exact defect that pulled six names from the previous merge.
-+  The CPO, this session: **"add the missing team totals and the count metrics to the catalogue."**
+-  This adds **5 team total rows**. 80 → 85.
+-
+-  ⛔ IT STARTED AT NINE AND TWO CPO RULINGS TOOK FOUR AWAY. Both are in `escalations.log`, and both
+-  are why this MR is small:
+-    · **"win, draw, loss are not metrics. they are results of a match."** W/D/L is a categorical
+-      attribute of a match, already carried by `result`; counting them tallies a dimension. Those
+-      three rows are gone, and with them the whole cascade they caused: the generator emitted
+-      `wins` / `draws` / `losses` blocks that COLLIDED with hand-written ones and made `dbt parse`
+-      fail. Without the rows there is no collision, no `standings_*` rename, and all 24 of their
+-      references stay untouched.
+-    · **"use clean_sheets (for the number of matches with clean sheets) and clean_sheets_share
+-      (for the percentage of matches with clean sheets)."** That RENAMES a metric that already
+-      ships, so it is its own change — see decisions_reserved.
+-
+-  ⚠ AND IT FIXES A LIVE WAREHOUSE DEFECT. Adding the team `goals_against` row splits the bare
+-  `goals_against` block into `__team` and `__player`. Today the single block carries the PLAYER
+-  definition — "goals conceded while the player was on the pitch" — and `persist_docs` has already
+-  attached that sentence to **12 TEAM columns** in BigQuery, where it is wrong.
++  CPO RULING, `escalations.log` 2026-08-26, verbatim: **"use clean_sheets (for the number of
++  matches with clean sheets) and clean_sheets_share (for the percentage of matches with clean
++  sheets)."**
 +
-+  Measured cause. Classifying all 80 catalogue rows by formula shape: the PLAYER side carries **28**
-+  plain totals (`sum(x)`, no denominator); the TEAM side carries **4**. The team surface is 15
-+  per-match rates and 7 ratios. So team quantities the product displays — goals scored, goals
-+  conceded, corners, saves, shots inside the box — had **no catalogue row to point at**, which is
-+  why the description programme kept stalling on them.
++  One name carries two quantities and one catalogue definition is attached to both. This gives the
++  rate its own name and its own catalogue row, and leaves every count where it is.
 +
-+  This adds **5 team total rows**. 80 → 85.
++  ⛔ THE ISSUE'S PREMISE IS WRONG AND THE VERIFICATION IT DEMANDED SAYS SO. #90 states that
++  `mart_team_profile.clean_sheets` is the RATE and that this may be a LIVE DISPLAY BUG. It is not.
++  `mart_team_profile.sql:86` reads `ts.clean_sheets`, and `ts` is the `team_season` CTE
++  (`:209-210`, `from metrics as m left join team_season as ts`) = `mart_team_season`, i.e. the
++  COUNT (`mart_team_season.sql:41`, `m.clean_sheets_sum_season as clean_sheets`). Identical for
++  `mart_team_season_insights.sql:57` (`ts` = the `mart_team_season` CTE, join at `:91`). Ground
++  truth in the committed payload `site_v2/src/data/teams/33.json`: `seasons[0].clean_sheets = 8`
++  beside `clean_sheets_this_season = 0.2105`, and 8/38 = 0.2105.
 +
-+  ⛔ IT STARTED AT NINE AND TWO CPO RULINGS TOOK FOUR AWAY. Both are in `escalations.log`, and both
-+  are why this MR is small:
-+    · **"win, draw, loss are not metrics. they are results of a match."** W/D/L is a categorical
-+      attribute of a match, already carried by `result`; counting them tallies a dimension. Those
-+      three rows are gone, and with them the whole cascade they caused: the generator emitted
-+      `wins` / `draws` / `losses` blocks that COLLIDED with hand-written ones and made `dbt parse`
-+      fail. Without the rows there is no collision, no `standings_*` rename, and all 24 of their
-+      references stay untouched.
-+    · **"use clean_sheets (for the number of matches with clean sheets) and clean_sheets_share
-+      (for the percentage of matches with clean sheets)."** That RENAMES a metric that already
-+      ships, so it is its own change — see decisions_reserved.
++  ⭐ THE RATE REACHES THE TEAM PAGE BY A PATH THE ISSUE NEVER NAMES:
++  `int_team_season__metrics_cumulative.sql:91` → `int_team_season__metrics`
++  (`sf.* except (match_number)`) → `int_team_competition_benchmark_metrics_long.sql:34` (the
++  unpivot) → `mart_team_competition_benchmarks.metric_key = 'clean_sheets'`. Same payload:
++  `{metric_key: 'clean_sheets', metric_value: 0.2105}`.
 +
-+  ⚠ AND IT FIXES A LIVE WAREHOUSE DEFECT. Adding the team `goals_against` row splits the bare
-+  `goals_against` block into `__team` and `__player`. Today the single block carries the PLAYER
-+  definition — "goals conceded while the player was on the pitch" — and `persist_docs` has already
-+  attached that sentence to **12 TEAM columns** in BigQuery, where it is wrong.
++  NO WRONG NUMBER IS ON SCREEN. The fixture surface serves counts from `mart_team_momentum` /
++  `mart_team_season_record` with `games_in_window` / `games_played` denominators and renders `1/4`.
++  The team surface serves the benchmark rate, and both row components coerce
++  `count_fraction → percent` inline (`MetricLeagueRow.astro:23`, `MetricSeasonRow.astro:22`) with
++  comments saying "clean_sheets is served as a rate". So this is a NAMING defect, not a display
++  bug, and the MR is smaller than the issue describes.
++
++  ⚠ IT DOES FIX A LIVE WAREHOUSE DEFECT, of the `!104` `goals_against` class:
++  `{{ doc('clean_sheets') }}` — text "…shown as a count of games played (e.g. 3/5)" — is attached
++  to the two RATE columns (`int_team_season.yml:120`, `:256`), and `persist_docs` has already
++  pushed the COUNT definition onto them in BigQuery.
  
  refs: >
--  GitLab #82, the description-coverage programme (`!82`-`!89`, `!91`, `!95`, `!97`, `!98`, `!100`,
--  `!101`, `!102` merged). Approved plan:
--  `C:\Users\Rami\.claude\plans\serialized-enchanting-frost.md`.
--  Standard: `dbt_project/docs/engineering_standards.md` §2 — written for a stranger querying the
--  table, no thin filler, no downstream-consumer claims, and a column documented in more than one
--  model gets ONE docs block referenced from each.
--  Branched from main `bf0e23c`, clean tree, no open MRs.
-+  CPO instruction and two follow-up rulings, this session, recorded in
-+  `.claude/task/escalations.log`. Design and adversarial review: workflow `wf_c797ac91-396`, whose
-+  football and breakage attacks each killed parts of the first draft. Four reviewers passed
-+  judgement on the NINE-row version; **their verdicts do not bind this one and the round is
-+  re-run.**
-+  Branched from main `21c1ce0`, clean tree.
+-  CPO instruction and two follow-up rulings, this session, recorded in
+-  `.claude/task/escalations.log`. Design and adversarial review: workflow `wf_c797ac91-396`, whose
+-  football and breakage attacks each killed parts of the first draft. Four reviewers passed
+-  judgement on the NINE-row version; **their verdicts do not bind this one and the round is
+-  re-run.**
+-  Branched from main `21c1ce0`, clean tree.
++  GitLab #90. CPO ruling 2026-08-26 in `.claude/task/escalations.log` (RULING 2), given while
++  `!104` was in flight and deliberately deferred out of it — the previous contract's
++  `decisions_reserved` reserved exactly this change.
++  ⚠ That reservation restates the premise corrected above; it is superseded by the verification in
++  `objective`, which was run against the SQL and the committed payload rather than against the
++  issue text.
++  Display name: TWO CPO decisions this session, both SELECTIONS from options I authored rather
++  than verbatim words, both recorded on their face in `escalations.log` — the second supersedes the
++  first (BUILDER'S CALL 3).
++  Branched from main `5894aff`, clean tree.
  
  scope_paths:
--  - dbt_project/models/docs/shared_columns.md
--  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/models/docs/metric_columns.md
-   - dbt_project/models/3_core/core.yml
+   - dbt_project/seeds/metric_catalogue.csv
+   - dbt_project/models/docs/metric_columns.md
+-  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
    - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-   - dbt_project/models/4_intermediate/shared/int_legs.yml
-   - dbt_project/models/4_intermediate/shared/int_momentum.yml
-   - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-   - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
--  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
--  - dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-   - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+-  - dbt_project/models/4_intermediate/shared/int_legs.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
    - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/seeds/schema.yml
-+  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
-+  - docs/wireframes/metrics_display.md
+-  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
++  - site_v2/src/lib/metricRows.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/components/team/TeamPerformance.astro
++  - site_v2/src/components/team/MetricLeagueRow.astro
++  - site_v2/src/components/team/MetricSeasonRow.astro
++  - site_v2/src/specs/teams/team.spec.json
+   - docs/wireframes/metrics_display.md
++  - docs/wireframes/14_team_stats.md
++  - docs/wireframes/02_team_profile.md
++  - docs/wireframes/01_fixture_page.md
++  - docs/wireframes/99_gaps_register.md
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
    - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
    - .claude/active_work.md
  
--# ⚠ THE YML PATHS ARE LISTED ONE BY ONE, not globbed, so an edit to any other model file is still
--# caught by the gate. ⚠ `base.yml` is in the list and that is NOT a coverage decision: the gate's
--# shared-block rule has no layer filter, so creating a block makes a blank column of that name a
--# finding in EVERY layer. See impact_map. ⚠ `seeds/schema.yml` carries the ONE deletion in this
--# MR — see decisions_taken, BUILDER'S CALL 3. ⚠ NO SCRIPT IS TOUCHED: this MR adds no mechanism
--# and changes none, so `scripts/` and `tests/` are deliberately absent.
-+# ⚠ `metric_columns.md` is GENERATED — `python scripts/sync_metric_docs_blocks.py`, never edited by
-+# hand; `--check` fails CI if it drifts. ⚠ ONE `.sql` file is in scope and the edit is COMMENT-ONLY.
-+# ⚠ `shared_columns.md` is NOT in scope and is untouched — the block rename it needed died with the
-+# W/D/L rows. ⚠ NO script and NO test file is touched: this adds no mechanism.
+ # ⚠ `metric_columns.md` is GENERATED — `python scripts/sync_metric_docs_blocks.py`, never edited by
+-# hand; `--check` fails CI if it drifts. ⚠ ONE `.sql` file is in scope and the edit is COMMENT-ONLY.
+-# ⚠ `shared_columns.md` is NOT in scope and is untouched — the block rename it needed died with the
+-# W/D/L rows. ⚠ NO script and NO test file is touched: this adds no mechanism.
++# hand; `--check` fails CI on drift. ⚠ NO script, NO test file, NO CI file is touched: this adds no
++# mechanism. ⚠ `site_v2/src/data/**` is NOT in scope — it is an exported sample set, refreshed by
++# rerunning the export, never hand-edited (see decisions_reserved).
  
  protected_override: >
    none required. No file in scope_paths is protected.
  
  impact_map: >
--  writers: NONE. No SQL changes, no model computes anything differently, no column added, renamed
--    or removed. The diff appends 22 docs blocks, adds a `description:` line under 67 existing
--    `- name:` entries as a `{{ doc() }}` reference and under 34 more as inline text, and replaces
--    ONE line in the seed schema.
+-  writers: NONE. No model computes anything differently, no column is added, renamed or removed, no
+-    SQL expression changes. The seed gains 5 rows; the rest is generated blocks and the references
+-    that point at them.
 -
--  downstream: NO lineage change. A description is not a dependency; `depends_on` is built from
--    `ref()`/`source()` in the SQL and no `.sql` file is touched. Proven, not asserted: the parsed
--    manifest before and after must carry an identical node set and identical `depends_on` per node.
+-  downstream: no lineage change. No model `ref()`s the seed — only tests do — so adding rows cannot
+-    alter any model's `depends_on`.
 -
--  ⛔ WHY THIS CANNOT SHIP IN HALVES, and it is the reason base.yml is in scope.
--    `check_description_hygiene.py`'s `_shared_block_coverage` walks EVERY model yml with no layer
--    filter. The moment a block named `X` exists, every blank column named `X` is a finding and
--    every column restating it inline is a different finding. So creating the blocks and wiring
--    every site of those names are ONE commit or the gate fails. Same constraint the previous three
--    merges ran under; the mechanism working as designed, not scope creep.
--
--  ⛔ THE RISK THIS MR CARRIES, stated plainly, because it is different from every merge before it.
--    Those moved text whose truth had already been established somewhere. This one writes 56 new
--    claims about what a column holds, and **nothing in the repo can check a claim about meaning.**
--    `dbt parse`, the hygiene gate and the length cap all pass on a sentence that is confidently
--    wrong. The only control is that every sentence was written from the SQL at every model the
--    text reaches, and that trace is recorded per name in the evidence for a reviewer to re-walk.
--
--  layer_rules: `check_layer_contract.py` polices per-competition staging subdirectories and the
--    staging/base materialisation policy. This MR creates no model, no directory, no materialisation
--    config.
--
--  deploy_order: none, no migration. Each description reaches BigQuery the next time its model
--    builds.
--
--  blast_radius: `persist_docs` is on for every model and seed, so **99 in-scope columns plus 2 in
--    base** that carry an EMPTY description in the warehouse today will carry text after the next
--    build, and one seed column's text is replaced by an identical rendering of itself. Nothing that
--    currently has meaning loses it: 101 of the 102 sites touched are blank today, and the 102nd is
--    the seed's, whose rendered text is unchanged. So the worst case here is a wrong new sentence,
--    never a lost right one. LENGTH CANNOT BREAK THE BUILD — the longest
--    rendered description is measured against the 1,024-character cap that fails the model, and the
--    gate measures rendered length independently on every run.
-+  writers: NONE. No model computes anything differently, no column is added, renamed or removed, no
-+    SQL expression changes. The seed gains 5 rows; the rest is generated blocks and the references
-+    that point at them.
+-  ⛔ WHY THIS CANNOT SHIP IN PIECES. Measured on the branch:
+-    1. 5 seed rows make the generator write 20 more blocks (161 → 181), including a
+-       `goals_against__team` / `goals_against__player` split that REPLACES the bare block.
+-    2. Removing the bare block dangles all 20 references to it — a hard `dbt parse` failure.
+-    3. The new block names make 30 blank columns a `check_description_hygiene` finding, measured
+-       exactly: `goals_for` x12, `corner_kicks` x6, `goalkeeper_saves` x6, `shots_inside_box` x6.
+-       Baseline today is zero findings.
+-    Any subset of this is a red build.
++  writers: ONE expression is renamed, none is changed.
++    · `int_team_season__metrics_cumulative.sql:91` — `safe_divide(clean_sheet_games, games_played)`
++      keeps its arithmetic and is aliased `clean_sheets_share`.
++    · `int_team_profile__yoy.sql:91,111,131` — the three yoy columns follow the rename on both
++      sides of the difference.
++    · `int_team_competition_benchmark_metrics_long.sql:34` — the UNPIVOT list, which is what makes
++      the benchmark's `metric_key` value change from `clean_sheets` to `clean_sheets_share`.
++    · `mart_team_profile.sql:140-142` — pass-through of the renamed yoy columns.
++    NOT touched, and each is already the COUNT under the right name: `mart_team_season.sql:41`,
++    `mart_team_season_record.sql:72,129`, `mart_team_momentum.sql:44`, `mart_team_profile.sql:86`,
++    `mart_team_season_insights.sql:57`.
 +
-+  downstream: no lineage change. No model `ref()`s the seed — only tests do — so adding rows cannot
-+    alter any model's `depends_on`.
++  downstream: PASTED, not hand-traced. `dbt ls --select <model>+ --resource-type model`, run on
++    this branch (`dbt=1.7.19`, 97 models) for each of the three renamed WRITERS.
 +
-+  ⛔ WHY THIS CANNOT SHIP IN PIECES. Measured on the branch:
-+    1. 5 seed rows make the generator write 20 more blocks (161 → 181), including a
-+       `goals_against__team` / `goals_against__player` split that REPLACES the bare block.
-+    2. Removing the bare block dangles all 20 references to it — a hard `dbt parse` failure.
-+    3. The new block names make 30 blank columns a `check_description_hygiene` finding, measured
-+       exactly: `goals_for` x12, `corner_kicks` x6, `goalkeeper_saves` x6, `shots_inside_box` x6.
-+       Baseline today is zero findings.
-+    Any subset of this is a red build.
++      $ dbt ls --select int_team_season__metrics_cumulative+ --resource-type model
++      football_data_pipeline.4_intermediate.shared.int_team_competition_benchmark_metrics_long
++      football_data_pipeline.4_intermediate.shared.int_team_competition_benchmarks
++      football_data_pipeline.4_intermediate.shared.int_team_profile__yoy
++      football_data_pipeline.4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
++      football_data_pipeline.4_intermediate.domestic_league.team_season.int_team_season__metrics
++      football_data_pipeline.4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
++      football_data_pipeline.5_marts.shared.mart_team_competition_benchmarks
++      football_data_pipeline.5_marts.shared.mart_team_profile
++      football_data_pipeline.5_marts.shared.mart_team_season
++      football_data_pipeline.5_marts.domestic_league.mart_team_season_insights
++      football_data_pipeline.5_marts.shared.mart_team_season_record
 +
-+  blast_radius: `persist_docs` is on, so every repointed column's BigQuery description changes on
-+    the next build. The 12 team `goals_against` columns move from a WRONG sentence to a right one;
-+    the 30 wired columns move from EMPTY to text. Nothing currently correct is replaced. Rendered
-+    length is measured against the 1,024-character cap that fails a model.
++      $ dbt ls --select int_team_profile__yoy+ --resource-type model
++      football_data_pipeline.4_intermediate.shared.int_team_profile__yoy
++      football_data_pipeline.5_marts.shared.mart_team_profile
 +
-+  layer_rules: no model, no directory, no materialisation config.
++      $ dbt ls --select int_team_competition_benchmark_metrics_long+ --resource-type model
++      football_data_pipeline.4_intermediate.shared.int_team_competition_benchmark_metrics_long
++      football_data_pipeline.4_intermediate.shared.int_team_competition_benchmarks
++      football_data_pipeline.5_marts.shared.mart_team_competition_benchmarks
 +
-+  deploy_order: none. Each description reaches BigQuery the next time its model builds.
++    All 11 classified by READING each model's projection, never by its name:
++    · `int_team_season__metrics` — `sf.* except (match_number)`, so it carries the rename with no
++      edit of its own. Not edited.
++    · `int_team_profile__yoy` — consumes the renamed column; its three yoy outputs follow. EDITED.
++    · `int_team_competition_benchmark_metrics_long` — the UNPIVOT member IS the `metric_key`
++      VALUE, which is why the frontend's lookup key changes at all. EDITED.
++    · `int_team_competition_benchmarks` / `mart_team_competition_benchmarks` — both aggregate or
++      rank the long form generically (`group by league_code, season_api_year, metric_key`); no
++      metric is named in either model's SQL. Only their `accepted_values` lists change.
++    · `mart_team_profile` — the three yoy pass-throughs from `y.` change; `:86` is
++      `ts.clean_sheets` off the `mart_team_season` CTE, the COUNT, and is untouched.
++    · `mart_team_season` / `mart_team_season_record` / `mart_team_season_insights` — each reads
++      `clean_sheets_sum_season` under the name `clean_sheets`. COUNT. Unaffected.
++    · ⚠ `int_team_season__deserved_vs_actual` — **IN THE LINEAGE AND ABSENT FROM THE FIRST DRAFT OF
++      THIS MAP.** That omission is precisely why this evidence is pasted rather than asserted. It
++      takes an EXPLICIT column list from `int_team_season__metrics` (`:70-79`:
++      `sot_difference_per_match`, `points_won_sum_season`, `season_games_played`) and no
++      clean-sheet column at all. UNAFFECTED — established by reading `:70-82`, not inferred from
++      its absence from a grep.
++
++    NOT in any of the three lineages, therefore untouched: `mart_team_momentum`. Its
++    `clean_sheets` is `b.clean_sheet_games` from `int_team_momentum__metrics`, a different chain,
++    and is a COUNT.
++
++    No model `ref()`s the seed — only tests do — so the seed row split cannot alter any
++    `depends_on`. No model is incremental (all `table` or `view`, checked per model), so there is
++    NO `--full-refresh` hazard.
++
++  ⛔ THE RENAME CROSSES THE WAREHOUSE/FRONTEND BOUNDARY AND CANNOT SHIP IN PIECES.
++    `mart_team_competition_benchmarks.metric_key` is a VALUE the frontend matches on
++    (`TeamPerformance.astro`, `benchByKey`). Renaming it in the warehouse without the frontend
++    binding silently drops the row from the "vs the league" panel; renaming the frontend without
++    the warehouse does the same. Both halves are in this MR.
+ 
+   blast_radius: `persist_docs` is on, so every repointed column's BigQuery description changes on
+-    the next build. The 12 team `goals_against` columns move from a WRONG sentence to a right one;
+-    the 30 wired columns move from EMPTY to text. Nothing currently correct is replaced. Rendered
+-    length is measured against the 1,024-character cap that fails a model.
++    the next build. The two RATE columns move from a WRONG sentence (the count's) to a right one;
++    the count columns that already point at `{{ doc('clean_sheets') }}` keep their reference and it
++    becomes correct for the first time. Rendered length measured against the 1,024-character
++    column cap that fails a model.
+ 
+-  layer_rules: no model, no directory, no materialisation config.
++  ⚠ A GATE, NOT LINEAGE: the count row carries an EMPTY `denominator_expr`, which lifts
++    `sync_metric_docs_blocks.py`'s `TOTALLING_AFFIXES` refusal and makes the generator emit a
++    `clean_sheets_sum_season` block it refuses to emit today. That is intended and the composed
++    sentence is true at the whole-season grain. The yml reference stays unwired (#82's programme),
++    so nothing new reaches BigQuery from it.
+ 
+-  deploy_order: none. Each description reaches BigQuery the next time its model builds.
++  layer_rules: no new model, no directory, no materialisation config, no macro. The rate is renamed
++    where it is COMPUTED (intermediate) and flows outward; nothing is derived in a mart or in the
++    frontend.
++
++  deploy_order: warehouse and frontend merge together. The renamed columns do not exist in BigQuery
++    until `data:build:main` runs post-merge, so the committed sample set lags by one build — see
++    decisions_reserved.
  
  decisions_taken: >
--  THRESHOLD DECLARATION — NEW MECHANISM: none. `shared_columns.md`, the block pattern and
--  `--wire-shared-docs` all shipped in MR3. No script is added or changed.
--  THRESHOLD DECLARATION — RECURRING COST: none. No new job, schedule, dependency or BigQuery scan.
+-  THRESHOLD DECLARATION — NEW MECHANISM: none. Rows in an existing seed, blocks from an existing
+-  generator.
++  THRESHOLD DECLARATION — NEW MECHANISM: one, declared for rejection. `metricRows.ts` gains an
++  optional per-surface `team` binding and one `teamBinding()` helper (see BUILDER'S CALL 2). It
++  adds no dependency, no script, no CI step and no recurring cost.
+   THRESHOLD DECLARATION — RECURRING COST: none.
+ 
+-  BUILDER'S CALL 1: `denominator_expr` IS BLANK ON ALL FIVE and `format` is `integer`. The seed's
+-  own schema says "Blank for raw count metrics"; a denominator declares a division the pipeline
+-  actually performs, and none of these five is divided anywhere. All five can exceed games played,
+-  so `integer` is right and `count_fraction` would be wrong.
 -
--  BUILDER'S CALL 1, and the one to reject if any: A NAME THAT MEANS TWO QUANTITIES GETS NO
--  SENTENCE HERE. 13 of the plan's names carry a per-match value at one site and a running or
--  windowed total at another — `goals_for` is `f.goals_home` in `int_legs__team_match` and
--  `sum(goals_for) over w` in `int_team_season_record`. One block cannot be true at both, and the
--  honest fix is either two blocks or per-site text, which is the grain question the next merge
--  exists to settle. They stay blank rather than take a sentence that is right in one model and
--  wrong in another. Measured, not eyeballed: every site of every candidate was classified by what
--  its model's own SQL does with the column.
+-  BUILDER'S CALL 2: ONE `.sql` FILE IS EDITED, COMMENT ONLY. `mart_head_to_head.sql:13-16` said
+-  "the H2H record is plain fact, not a catalogue metric". After this change that is half false —
+-  its `sum(goals_for)` IS the catalogue's formula over a different window, while its W/D/L are
+-  match results and are not. The comment now states both, which is the CPO's own distinction.
 -
--  BUILDER'S CALL 2: A NAME AT ONE SITE IS WRITTEN INLINE, A NAME AT TWO OR MORE GETS A BLOCK.
--  That is the standard's rule applied literally. It is also why the diff is 22 blocks and not 56:
--  a block for a single-site column buys nothing and adds a level of indirection to read through.
+-  ⛔ BUILDER'S CALL 3, AND IT IS THE ONE TO ATTACK: EVERY DESCRIPTION IS GRAIN-FREE, DELIBERATELY.
+-  Four of these five names — `goals_for`, `corner_kicks`, `shots_inside_box`, `goalkeeper_saves` —
+-  are among the thirteen "one word, two quantities" names the PREVIOUS merge deliberately left
+-  blank, because each is one match's value in one model and a running total in another. Giving
+-  them a catalogue row puts the name back in the generator's reach, so the description must be
+-  true at every one of those grains or the old defect returns.
+-  It DID return in round 1: the first descriptions said "Present on every finished match" and
+-  `--wire-shared-docs` pointed that at 18 cumulative, form-total and all-time-total columns.
+-  ⭐ THE FIX IS NOT TO NAME THE GRAIN. `sync_metric_docs_blocks.py:84` rejects the bare word
+-  "window" anywhere in a seed description because the seed declares itself window-free — the
+-  catalogue says WHAT is measured, the model says over what span. That is the CPO's own model of
+-  the layer, and it is why each description now carries the quantity and its provenance and
+-  nothing about how many matches it covers. The coverage caveat is worded to hold for a total as
+-  well as a single fixture: BigQuery SUM skips NULLs, so a missing fixture understates a sum
+-  rather than nulling it.
 -
--  BUILDER'S CALL 3: THE SEED'S `prompt_version` IS POINTED AT THE BLOCK, WHICH COSTS ONE DELETED
--  LINE. Its definition already existed in `seeds/schema.yml` and nowhere else, so the block's body
--  is that sentence copied verbatim — this name is promoted, not authored. Leaving the seed's inline
--  copy in place would leave the same words in two files, which is the restatement the standard
--  bans. The rendered text is identical before and after; the evidence shows both.
+-  BUILDER'S CALL 4: THE TIERS, ALL FIVE, AND THE RULE THAT DECIDES THEM. The rubric
+-  (`seeds/schema.yml:333-337`) has two clauses, and the seed itself shows mechanically which one
+-  a pair falls under — the DENOMINATOR, not the wording:
+-    · PERCENTAGE OF ATTEMPTS (`format: percent`, denominator a sum of related events) — the count
+-      and its percentage TIE. `saves`(1) / `save_pct`(1), denominator `sum(saves + goals_against)`.
+-      → `goalkeeper_saves` is **2**, tying with `save_ratio`(2), the same shape one tier down
+-      because team saves are not the core stat line.
+-    · EXPOSURE RATE (denominator `count(*)` or `sum(minutes_played)`) — the total and its rate sit
+-      ONE TIER APART. `goals`(1)/`goals_per90`(2), `points_won`(1)/`points_capture`(2).
+-      → `corner_kicks` is **2**, one above `corner_kicks_per_match`(3).
+-      → `goals_for` / `goals_against` are **2**, one BELOW `goals_per_match` / 
+-        `goals_against_per_match`(1).
+-    · BREAKDOWN → tier 3. `shots_inside_box` is **3**, a component of total shots, alongside
+-      `goals_penalty` / `goals_own` / `goals_open_play`.
+-  ⚠ THE GOALS PAIR IS INVERTED RELATIVE TO EVERY OTHER EXPOSURE PAIR, and that is the part to
+-  attack. The rule is one tier apart; the rate is LOCKED at 1 by the team display table, so "one
+-  above" is not expressible and 2 is the only value that keeps the pattern whole. It also reads
+-  right on merit: tier means visibility under constraint, and on a compact surface a team's
+-  per-match rate is the comparable number while the season total answers a different question.
+-  ⛔ THIS REPLACES A ROUND-1 READING THAT WAS WRONG. I had `goals_for`/`goals_against` at 1, tying
+-  with their rates, on the argument that a per-match rate is the "headline percentage" of the
+-  first clause. bi-analyst tabulated all 85 rows: `goals_per_match` is `decimal_1` over `count(*)`,
+-  not a percentage, every percentage-tie precedent is a ratio of attempts, and the tie was the
+-  SOLE exception in the file. Re-derived here and every pair now follows its clause.
+-  ⚠ Tier is a CPO-class column (the 2026-08-04 override put it in the catalogue precisely because
+-  it is "a judgement about what a fan wants to see"). This is a reading of the rubric, declared
+-  for rejection, not a ruling.
 -
--  BUILDER'S CALL 4: `key_passes_prev_season_full` IS NOT WRITTEN. It is the catalogue metric
--  `passes_key` under a different column name, which is why the generator never saw it while its
--  four siblings all carry generated text. Writing it inline would define a catalogue metric outside
--  the catalogue. Reported in decisions_reserved rather than fixed here, because the fix is a rename.
-+  THRESHOLD DECLARATION — NEW MECHANISM: none. Rows in an existing seed, blocks from an existing
-+  generator.
-+  THRESHOLD DECLARATION — RECURRING COST: none.
+-  ⚠ NOT A RULING: the seed schema's wording about denominators and about tiers is repo practice.
+-  Only `escalations.log` entries are quoted as CPO rulings anywhere here.
++  BUILDER'S CALL 1: THE TWO SEED ROWS.
++    · `clean_sheets_share` — the existing row RENAMED in place, keeping
++      `countif(goals_against = 0)` / `count(*)`, `format` moved `count_fraction` → `percent`
++      because a share of matches is a proportion and is displayed as one.
++    · `clean_sheets` — a NEW row with an EMPTY `denominator_expr`, the shape `!104` established for
++      a team total (`goals_for`, `corner_kicks`). `format` stays `count_fraction`, NOT `integer`:
++      the fixture surface serves the count together with the matches behind it and renders `1/4`,
++      and `metricRows.ts` states that its `format` mirrors the catalogue — `integer` would make
++      that claim false. This is the one place the two totals precedents diverge, deliberately.
++    · Both descriptions are GRAIN-FREE and neither contains the word "window"
++      (`sync_metric_docs_blocks.py:WINDOW_PHRASING` rejects it): the catalogue says WHAT is
++      measured, the model says over what span. Each names its sibling so a stranger reading one
++      column knows the other exists.
++    · Both stay `metric_group: goals`, `importance_tier: 2`, `direction: higher_better`. Tier is a
++      CPO-class column and the display contract already places clean sheets at tier 2; moving
++      either would be a display change this task does not carry.
++    · `label_i18n_key` FOLLOWS the metric_id — `metrics.clean_sheets_share.label`. The plan wrote
++      `metrics.clean_sheet_share.label`; that would have created a second deliberate id↔key
++      divergence beside `shots_on_goal_per_match`, for no reason. The user-facing WORDS are still
++      "Clean sheet share" (singular), which is the English that reads correctly.
 +
-+  BUILDER'S CALL 1: `denominator_expr` IS BLANK ON ALL FIVE and `format` is `integer`. The seed's
-+  own schema says "Blank for raw count metrics"; a denominator declares a division the pipeline
-+  actually performs, and none of these five is divided anywhere. All five can exceed games played,
-+  so `integer` is right and `count_fraction` would be wrong.
++  ⛔ BUILDER'S CALL 2, AND IT IS THE ONE TO ATTACK: ONE DISPLAY SLOT, TWO METRICS.
++    `metricRows.ts:50` binds `field: "clean_sheets"` for BOTH surfaces, and after the split those
++    are two different names. The row gains an optional
++    `team: { field, labelKey, format }` and `metricRows.ts` exports one `teamBinding(row)` that
++    returns it, falling back to the row itself.
++    ⭐ THIS REMOVES A HACK RATHER THAN ADDING ONE. Both team row components currently carry
++    `const fmt = row.format === "count_fraction" ? "percent" : row.format` plus a comment
++    explaining that clean_sheets is really a rate here. That coercion IS the two-meanings defect,
++    expressed in the frontend. Both lines are DELETED; the fallback is stated once, in the helper.
++    The contract stays SIXTEEN rows — order, groups, tiers and `denom` are untouched, so
++    `metrics_display.md`'s locked ordering is not reopened.
 +
-+  BUILDER'S CALL 2: ONE `.sql` FILE IS EDITED, COMMENT ONLY. `mart_head_to_head.sql:13-16` said
-+  "the H2H record is plain fact, not a catalogue metric". After this change that is half false —
-+  its `sum(goals_for)` IS the catalogue's formula over a different window, while its W/D/L are
-+  match results and are not. The comment now states both, which is the CPO's own distinction.
++  BUILDER'S CALL 3 — SUPERSEDED MID-TASK, AND THE SUPERSEDING IS THE POINT.
++    `metric_catalogue_label_en_unique_within_entity` forbids two team rows sharing `label_en`, so
++    the rate needs its own display name whether or not it is rendered. I first recommended
++    "Clean sheet share" / "Zu-Null-Quote" / "Nollapelien osuus" and the CPO approved it with the
++    plan.
++    ⛔ THAT RECOMMENDATION WAS MADE WITHOUT CHECKING THE FILE'S OWN CONVENTION, and the convention
++    is unanimous: EVERY `percent`-format team metric in the catalogue carries a `% ` prefix in
++    `label_en` — 7 of 7 — and so does every percent label in all three locale dicts
++    (`% Duels won`, `% Trefferquote`, `% Torjuntaosuus`). "Clean sheet share" would have been the
++    only percent label in the repo without it. Put back to him as one question; he chose the
++    convention.
++    SHIPPED: `% Clean sheets` / `% Zu-Null-Spiele` / `% Nollapelit`, and catalogue `label_en`
++    `% Clean sheets`. The count keeps `Clean sheets` / `Zu-Null-Spiele` / `Nollapelit` untouched.
++    ⚠ PROVENANCE, exactly: he SELECTED between two options I authored. The words are mine, the
++    choice is his, and neither approval is a verbatim ruling. Both are recorded that way in
++    `escalations.log`, including the process defect — check the convention BEFORE recommending a
++    name, not after implementing one.
 +
-+  ⛔ BUILDER'S CALL 3, AND IT IS THE ONE TO ATTACK: EVERY DESCRIPTION IS GRAIN-FREE, DELIBERATELY.
-+  Four of these five names — `goals_for`, `corner_kicks`, `shots_inside_box`, `goalkeeper_saves` —
-+  are among the thirteen "one word, two quantities" names the PREVIOUS merge deliberately left
-+  blank, because each is one match's value in one model and a running total in another. Giving
-+  them a catalogue row puts the name back in the generator's reach, so the description must be
-+  true at every one of those grains or the old defect returns.
-+  It DID return in round 1: the first descriptions said "Present on every finished match" and
-+  `--wire-shared-docs` pointed that at 18 cumulative, form-total and all-time-total columns.
-+  ⭐ THE FIX IS NOT TO NAME THE GRAIN. `sync_metric_docs_blocks.py:84` rejects the bare word
-+  "window" anywhere in a seed description because the seed declares itself window-free — the
-+  catalogue says WHAT is measured, the model says over what span. That is the CPO's own model of
-+  the layer, and it is why each description now carries the quantity and its provenance and
-+  nothing about how many matches it covers. The coverage caveat is worded to hold for a total as
-+  well as a single fixture: BigQuery SUM skips NULLs, so a missing fixture understates a sum
-+  rather than nulling it.
++  BUILDER'S CALL 4: THREE `accepted_values` LISTS, NOT TWO. #90 names
++    `int_competition_benchmarks.yml:27,66`. `shared.yml:2080` (`mart_team_competition_benchmarks`)
++    carries the same 22-metric list and is missing from the issue. All three move together or the
++    benchmark chain fails its own test.
 +
-+  BUILDER'S CALL 4: THE TIERS, ALL FIVE, AND THE RULE THAT DECIDES THEM. The rubric
-+  (`seeds/schema.yml:333-337`) has two clauses, and the seed itself shows mechanically which one
-+  a pair falls under — the DENOMINATOR, not the wording:
-+    · PERCENTAGE OF ATTEMPTS (`format: percent`, denominator a sum of related events) — the count
-+      and its percentage TIE. `saves`(1) / `save_pct`(1), denominator `sum(saves + goals_against)`.
-+      → `goalkeeper_saves` is **2**, tying with `save_ratio`(2), the same shape one tier down
-+      because team saves are not the core stat line.
-+    · EXPOSURE RATE (denominator `count(*)` or `sum(minutes_played)`) — the total and its rate sit
-+      ONE TIER APART. `goals`(1)/`goals_per90`(2), `points_won`(1)/`points_capture`(2).
-+      → `corner_kicks` is **2**, one above `corner_kicks_per_match`(3).
-+      → `goals_for` / `goals_against` are **2**, one BELOW `goals_per_match` / 
-+        `goals_against_per_match`(1).
-+    · BREAKDOWN → tier 3. `shots_inside_box` is **3**, a component of total shots, alongside
-+      `goals_penalty` / `goals_own` / `goals_open_play`.
-+  ⚠ THE GOALS PAIR IS INVERTED RELATIVE TO EVERY OTHER EXPOSURE PAIR, and that is the part to
-+  attack. The rule is one tier apart; the rate is LOCKED at 1 by the team display table, so "one
-+  above" is not expressible and 2 is the only value that keeps the pattern whole. It also reads
-+  right on merit: tier means visibility under constraint, and on a compact surface a team's
-+  per-match rate is the comparable number while the season total answers a different question.
-+  ⛔ THIS REPLACES A ROUND-1 READING THAT WAS WRONG. I had `goals_for`/`goals_against` at 1, tying
-+  with their rates, on the argument that a per-match rate is the "headline percentage" of the
-+  first clause. bi-analyst tabulated all 85 rows: `goals_per_match` is `decimal_1` over `count(*)`,
-+  not a percentage, every percentage-tie precedent is a ratio of attempts, and the tie was the
-+  SOLE exception in the file. Re-derived here and every pair now follows its clause.
-+  ⚠ Tier is a CPO-class column (the 2026-08-04 override put it in the catalogue precisely because
-+  it is "a judgement about what a fan wants to see"). This is a reading of the rubric, declared
-+  for rejection, not a ruling.
++  BUILDER'S CALL 5: THE DOC SWEEP IS NARROWER THAN THE PLAN SAID, ON PURPOSE. Five wireframes name
++    `clean_sheets`; only the two that would become FALSE are edited.
++    · EDITED — `14_team_stats.md` (§4 mock row, §5 binding table, the direction sentence, the
++      block table, the §10 caveat) and `metrics_display.md` (locked row 3 + a new paragraph on why
++      one slot carries two ids). These describe the TEAM screen, which now ranks the share.
++    · LEFT, because each is about the COUNT and stays true: `02_team_profile.md:96` (the record
++      block's integer), `01_fixture_page.md:150` and `99_gaps_register.md:22` and
++      `metrics_display.md:282` (GAP-11, whose subject is the count in the two WINDOW marts).
++    · `02_team_profile.md:137` says the team metric table shows x/y. That contradicts 14, it
++      contradicted it BEFORE this change (14 §10 says so in as many words), and resolving which
++      document owns the team metric table is not this rename's to settle.
 +
-+  ⚠ NOT A RULING: the seed schema's wording about denominators and about tiers is repo practice.
-+  Only `escalations.log` entries are quoted as CPO rulings anywhere here.
++  ⚠ NOT A RULING: the seed schema's wording about denominators, formats and tiers is REPO
++  PRACTICE. Only `escalations.log` entries are quoted as CPO rulings anywhere here.
  
  decisions_reserved:
--  - ⛔ THE 13 MULTI-MEANING NAMES ARE THE NEXT MERGE'S, with the derived families they share the
--    problem with: `goals_for`, `goals_total`, `goals_assists`, `shots_on`, `shots_inside_box`,
--    `corner_kicks`, `goalkeeper_saves`, `key_passes`, `tackles`, `blocks`, `interceptions`,
--    `clean_sheet_games`, `substitute_appearances`.
--  - The 7 head-to-head and opponent-mirror names the approved plan counted as plumbing travel with
--    their family, not with this merge: `last_meeting_at`, `last_meeting_league_code`, `pair_key`,
--    `recent_meetings.kickoff_datetime`, `recent_meetings.league_code`, `opponent_name`,
--    `opponent_logo_url`.
--  - ⛔ THE TEAM COLUMNS BLOCKED ON THE CATALOGUE ARE THE CPO'S and are untouched here. Seven
--    metrics are `entity = player` only while team models use the same names.
--  - ⚠ A CLASS THIS MR SURFACED AND DOES NOT FIX: a column that IS a catalogue metric under a
--    different column name is invisible to the generator, so it stays blank while its siblings are
--    filled. `key_passes_prev_season_full` is one. The remedy is a rename, which is a naming
--    decision and needs `--full-refresh` on an incremental model.
--  - The 5 nested `recent_meetings.*` fields cannot be docs blocks at all (a name with a dot is not
--    addressable by dbt) and must be written inline whenever they are done.
--  - MR5 switches the presence rule on. It cannot pass until the blanks above are closed.
-+  - ⛔ `clean_sheets` / `clean_sheets_share` IS ITS OWN CHANGE, on the CPO's ruling this session. It
-+    renames a metric that already ships, and the two-meanings defect it fixes is live:
-+    `mart_team_profile.clean_sheets` is a RATE (`int_team_season__metrics_cumulative.sql:91`) while
-+    `mart_team_season.clean_sheets` and `mart_team_momentum.clean_sheets` are COUNTS — one name,
-+    two numbers, one definition attached to both. ⭐ The FRONTEND already treats it as a count
-+    (`metricRows.ts:50` uses `count_fraction` with a `denom` mapping; the committed fixture JSON
-+    carries `"clean_sheets": 2`), so the warehouse is the side out of step. It reaches the 22-metric
-+    benchmark set, the yoy family and an i18n label key. Not folded in here.
-+  - Team totals for `shots_total`, `passes_total`, `passes_accurate`, `shots_on_goal` are NOT added:
-+    each would split an existing player block and dangle 14/19/14/11 references.
-+  - No catalogue row for the provider's standings W/D/L. A different quantity from a different feed,
-+    subject to points deductions.
-+  - ⚠ ~40 FURTHER BLANK COLUMNS STAY BLANK. The new blocks also cover the derived family
-+    (`goals_for_sum_season`, `goals_against_delta_yoy`), which resolves to the entity-suffixed block
-+    rather than to its own name, so `--wire-shared-docs` cannot reach them and `--wire-metric-docs`
-+    refuses (`int_team_momentum__metrics` is absent from `declare_missing_columns.py`'s
-+    `MODEL_ENTITY`, and it will not guess). Adding that entry is a SCRIPT edit this contract
-+    forbids. ⛔ THE GATE IS GREEN WITHOUT THEM — the 5 rows create exactly 30 findings and all 30
-+    are closed. Named so a green build is not read as "every new block is wired".
-+  - The value-equivalence test is PARKED and ships after this, carrying the five
-+    `model_column_alias` entries these rows need.
+-  - ⛔ `clean_sheets` / `clean_sheets_share` IS ITS OWN CHANGE, on the CPO's ruling this session. It
+-    renames a metric that already ships, and the two-meanings defect it fixes is live:
+-    `mart_team_profile.clean_sheets` is a RATE (`int_team_season__metrics_cumulative.sql:91`) while
+-    `mart_team_season.clean_sheets` and `mart_team_momentum.clean_sheets` are COUNTS — one name,
+-    two numbers, one definition attached to both. ⭐ The FRONTEND already treats it as a count
+-    (`metricRows.ts:50` uses `count_fraction` with a `denom` mapping; the committed fixture JSON
+-    carries `"clean_sheets": 2`), so the warehouse is the side out of step. It reaches the 22-metric
+-    benchmark set, the yoy family and an i18n label key. Not folded in here.
+-  - Team totals for `shots_total`, `passes_total`, `passes_accurate`, `shots_on_goal` are NOT added:
+-    each would split an existing player block and dangle 14/19/14/11 references.
+-  - No catalogue row for the provider's standings W/D/L. A different quantity from a different feed,
+-    subject to points deductions.
+-  - ⚠ ~40 FURTHER BLANK COLUMNS STAY BLANK. The new blocks also cover the derived family
+-    (`goals_for_sum_season`, `goals_against_delta_yoy`), which resolves to the entity-suffixed block
+-    rather than to its own name, so `--wire-shared-docs` cannot reach them and `--wire-metric-docs`
+-    refuses (`int_team_momentum__metrics` is absent from `declare_missing_columns.py`'s
+-    `MODEL_ENTITY`, and it will not guess). Adding that entry is a SCRIPT edit this contract
+-    forbids. ⛔ THE GATE IS GREEN WITHOUT THEM — the 5 rows create exactly 30 findings and all 30
+-    are closed. Named so a green build is not read as "every new block is wired".
+-  - The value-equivalence test is PARKED and ships after this, carrying the five
+-    `model_column_alias` entries these rows need.
++  - ⛔ THE COMMITTED SAMPLE SET IS NOT REFRESHED HERE AND THE MR SHIPS ONE BUILD STALE.
++    `site_v2/src/data/` is a gitignore-pinned export sample (`src/data/README.md`: refresh as a
++    SET, by rerunning `scripts/export_site_data.py`). The renamed columns do not exist in BigQuery
++    until `data:build:main` runs post-merge, so the sample keeps `metric_key: 'clean_sheets'` and
++    the team page's clean-sheet row is OMITTED from the "vs the league" panel on the sample build —
++    the honest-absent path the tab already implements, not a crash. Hand-editing exported JSON to
++    fake the new name is the defect this project calls the export "consumption too". Refresh is a
++    follow-up commit after the first main build.
++  - `mart_team_momentum.sql:42-117` is a SECOND hand-written copy of ~20 team formulas and has
++    already drifted (#93). Its `clean_sheets` is a COUNT and is correct under this ruling, so it is
++    untouched. Consolidating the copy is #93 and is the CPO's.
++  - The catalogue still does not drive the SQL (#91): nothing compares
++    `int_team_season__metrics_cumulative.sql:91` against the seed's `numerator_expr` /
++    `denominator_expr`. The parked value-equivalence test is what would, and it ships after this.
++  - `clean_sheets_sum_season` stays UNWIRED in both ymls even though the split makes a block
++    available for it, and so do the ~40 other blank columns of #82. Wiring them is that
++    programme's, and doing it here would make the diff unreviewable.
++  - The `_sum_season` affix's sentence "Totalled over the season." is cumulative-grain-false on
++    `int_team_season__metrics_cumulative`, where the column is a running total to matchday N. That
++    is a pre-existing property of EVERY `_sum_season` block (`goals_for_sum_season__team` and
++    siblings), not something this MR introduces, and it is why the reference stays unwired.
++  - No range test is ADDED for the count on `mart_team_season` / `mart_team_profile`. The count has
++    range tests where it already had them (`shared.yml:127-128`, `:883-884`); adding new ones is
++    coverage work outside this rename.
++
++acceptance_criteria:
++  - The team page Performance tab labels the clean-sheet row **`% Clean sheets`** in EN,
++    **`% Zu-Null-Spiele`** in DE and **`% Nollapelit`** in FI, read from the BUILT page in each
++    locale. A label falling back to English, or resolving to nothing, fails this.
++  - The fixture page still renders the clean-sheet row as the COUNT over its denominator
++    (`1/4` on the committed sample), with the label unchanged, in BOTH windows. The count surface
++    must be untouched by a rename that is not about it.
++  - Where the served benchmark set does not carry `clean_sheets_share`, the team page OMITS that
++    row from the "vs the league" panel and dashes the "vs last season" value, rather than showing a
++    zero bar, a stale number or a broken row. This is the state the committed sample produces until
++    the export is refreshed, so it is the state that must be demonstrated.
++  - All sixteen rows of the locked contract still render on the team page's season panel, in the
++    locked block order, with every label except row 3 byte-unchanged — the rename must not move,
++    drop or relabel anything else.
  
  done_when:
--  - Blank in-scope columns MEASURED from the raw YAML fall from **422 to 323**. ⚠ The manifest
--    CANNOT answer this: it stores the RESOLVED description, so a wired column is indistinguishable
--    from an inline one.
--  - All 67 sites of the 22 block names reference their block and 34 single-site columns carry
--    inline text: **0 blank**, asserted from the YAML across ALL layers, not only the in-scope ones.
--  - ⛔ EVERY SENTENCE IS TRACED TO THE SQL AT EVERY MODEL IT REACHES, and the trace is recorded per
--    name. Not the model that happens to be open, and not by reading the sentence and finding it
--    plausible — the previous merge lost a name to exactly that, where the text read perfectly well
--    at a model whose SQL contradicted it.
--  - ⛔ NO SENTENCE DEFINES A CATALOGUE METRIC. The seed is the only source of a metric definition,
--    so every written name is checked against `metric_catalogue.csv` — by concept, not only by
--    string, since the same metric appears under a different column name.
--  - `git diff --numstat` shows **exactly 1 deleted line**, in `seeds/schema.yml`, and every other
--    file shows 0. ⚠ `git diff` NORMALISES line endings and has hidden a whole-file CRLF→LF rewrite
--    in this programme — cross-check the CRLF/LF byte counts directly. It already caught one here:
--    the first block insertion wrote 110 `\r\r\n` sequences and rendered as a 254-line rewrite.
--  - `dbt parse` clean, every `{{ doc() }}` resolves, ZERO unrendered `{{ doc(` in the manifest, and
--    the manifest's node set and `depends_on` identical before and after.
--  - The longest RENDERED column description measured against the 1,024-character cap.
--  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT and not its exit code.
--  - `python -m pytest tests/` at a baseline MEASURED on this branch (collection with the diff
--    stashed and applied), never quoted from a previous MR's log.
--  - Six offline gates green plus `ruff check . --config .ruff-ci.toml`, a separate CI job.
--  - Every number in this contract and the evidence checked by extracting EVERY integer and asking
--    whether it is still true — not by sweeping for the figures I remember changing.
-+  - The seed parses at 85 rows, 15 fields each, pure ASCII, CRLF preserved, and every `schema.yml`
-+    seed test passes when re-derived offline: unique `(metric_id, entity)`, unique
-+    `label_i18n_key`, unique `(entity, label_en)`, every `accepted_values`, every `not_null`, and
-+    `direction` in lockstep with `lower_is_better`.
-+  - `assert_metric_catalogue_expr_resolvable` re-derived OFFLINE against `int_legs__team_match`'s
-+    real columns plus the test's stoplist: **zero unresolved tokens**. It cannot run without a
-+    warehouse, so the same tokenisation is done here.
-+  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green. Blocks
-+    161 → 181, measured.
-+  - `dbt parse` CLEAN, and ZERO dangling `{{ doc() }}` references anywhere — asserted across every
-+    model yml, not only the edited ones.
-+  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT. Baseline 0 findings; the
-+    5 rows create exactly 30 and all 30 are closed.
-+  - ⛔ EVERY ONE OF THE 20 `goals_against` REFERENCES IS CLASSIFIED `__team` OR `__player` BY
-+    READING THAT MODEL'S SQL, and recorded per site. This is the part that reaches the warehouse
-+    and no test can check it.
-+  - `git diff --numstat` shows the expected shape; line endings checked as BYTES.
-+  - Six offline gates green plus `ruff`, and `python -m pytest tests/` at a baseline measured on
-+    this branch.
-+  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED. The whole artifact set was first written for NINE
-+    rows; every figure in it is suspect until measured again.
-   - Handover updated in the SAME commit, under the 16,000-CHARACTER cap measured with Python
-     `len()`.
- 
--amendments: []
-+amendments:
-+  - >
-+    2. 2026-08-26, ROUND 2: TWO PASSES AND TWO FAILS, BOTH FAILS ON THE SAME COLUMN — `tier`.
-+    (a) bi-analyst FAIL, and this time the argument was empirical rather than interpretive. It
-+    tabulated EVERY count-versus-rate pair in all 85 rows: 13 player total/per-90 pairs, plus
-+    `points_won`/`points_capture`, plus `corner_kicks`/`corner_kicks_per_match` **in this same
-+    commit** — all one tier apart, no exceptions. My `goals_for`/`goals_against` tie at 1 was the
-+    only one in the file. It also showed why my reading failed: the tying clause says "raw counts
-+    and their headline PERCENTAGE", every percentage-tie precedent is `format: percent` over a sum
-+    of attempts, and `goals_per_match` is `decimal_1` over `count(*)` — an exposure rate, the same
-+    shape as a per-90. FIXED: both moved to tier 2, and BUILDER'S CALL 4 now states the mechanical
-+    test (the denominator) that separates the two clauses and re-derives all seven pairs.
-+    ⛔ THE LESSON IS ABOUT THE FIRST FIX, NOT THE DEFECT. Round 1 I responded to "the tier is
-+    undeclared" by DECLARING it and leaving the value alone. Declaring a wrong value is not a fix,
-+    and the reviewer had to come back a second time with the survey I should have run myself.
-+    (b) scope-auditor FAIL — BUILDER'S CALL 4 covered four of the five rows and never mentioned
-+    `goalkeeper_saves`. The same class it had just failed, 80% remediated. Its tier 2 is right (it
-+    is a percentage pair with `save_ratio`, so it ties) but nothing said so. Now stated.
-+    ⚠ AND IT ANSWERED THE HARDER QUESTION I PUT TO IT — whether a self-authored, after-the-fact
-+    `escalations.log` entry merely relocates the self-certification. Judged ACCEPTABLE, because the
-+    entry discloses its own timing on its face rather than in a chat message, is append-only under
-+    the same durable mechanism as every other ruling, was independently cross-read by another
-+    reviewer against the file, and records the CPO CORRECTING me and a claim of mine withdrawn —
-+    "not the shape of a fabricated self-serving record".
-+    (c) analytics-engineer PASS. It re-derived the grain fix at all 30 sites and verified the claim
-+    the fix rests on rather than accepting it: that each model's OWN yml description states its
-+    grain, so the catalogue-says-what / model-says-span split actually holds in the warehouse. It
-+    also confirmed a detail I had got right without saying why — `goals_for`/`goals_against` carry
-+    no missing-data caveat because `int_legs__team_match.sql:69-72,94-97` filters to a non-null
-+    scoreline, so the caveat would be FALSE on those two.
-+  - >
-+    1. 2026-08-26, ROUND 1: THREE FAILS, AND THE FIRST TWO ARE THE SAME MISTAKE I HAD ALREADY
-+    RECORDED.
-+    (a) scope-auditor FAIL — this contract cited `escalations.log` as recording the CPO's two
-+    rulings, the sole authority for removing §10 metric-definition rows, and **the log held
-+    nothing**. It read all 5,168 lines and confirmed no entry for this branch and none dated
-+    2026-08-26, while `escalations.log` sat in `scope_paths` with zero changes and was absent from
-+    the patch's own exclusion list. Its phrasing: a contract citing an authority record that does
-+    not corroborate it. ⛔ EARLIER THE SAME DAY I told the CPO "you ruled" about something that
-+    came from a seed description and got a flat "No, I didn't". This is the mirror image — the
-+    right source cited and never written to. Both make an unverifiable claim about authority.
-+    FIXED by writing the record: 89 lines, append-only, the rulings verbatim, and the entry states
-+    that it was written the same day but AFTER the fact so the disclosure travels with it.
-+    football-analytics-expert-reviewer, running later, checked the quotes against
-+    `escalations.log:5170-5258` and found them verbatim.
-+    (b) analytics-engineer FAIL — the descriptions were phrased as single-match facts and wired to
-+    18 columns that are not per-match values. See BUILDER'S CALL 3, which is the fix and the
-+    reasoning. ⛔ THE NAMES INVOLVED ARE FOUR OF THE THIRTEEN THE PREVIOUS MERGE EXCLUDED FOR THIS
-+    EXACT DEFECT, and this contract's first version never mentioned that precedent, let alone
-+    overturned it. The reviewer found the deleted precedent in the patch itself. The lesson is not
-+    "check the grain" — I knew the grain and had written it down; it is that giving a multi-grain
-+    name a catalogue row silently re-arms the generator against it.
-+    (c) bi-analyst FAIL — the tier choice for `goals_for`/`goals_against` was undeclared, in a
-+    column the CPO's own 2026-08-04 override made a product judgement. It read the rubric as
-+    requiring a total and its rate to differ by one tier. Re-read verbatim, the rubric's first
-+    clause puts a count and its headline rate at the SAME tier and gives an example that does
-+    exactly that; the one-tier-below clause is about per-90s. The VALUE stands, and BUILDER'S CALL
-+    4 now declares it with the citation, which is what was actually missing.
-+    ⚠ Its `escalations.log` grep predates the fix in (a) and is stale; the football review, which
-+    ran afterwards, is the one to read on that point.
+-  - The seed parses at 85 rows, 15 fields each, pure ASCII, CRLF preserved, and every `schema.yml`
+-    seed test passes when re-derived offline: unique `(metric_id, entity)`, unique
++  - The seed parses at 86 rows, 15 fields each, pure ASCII, line endings preserved as BYTES, and
++    every `schema.yml` seed test re-derived offline: unique `(metric_id, entity)`, unique
+     `label_i18n_key`, unique `(entity, label_en)`, every `accepted_values`, every `not_null`, and
+     `direction` in lockstep with `lower_is_better`.
+-  - `assert_metric_catalogue_expr_resolvable` re-derived OFFLINE against `int_legs__team_match`'s
+-    real columns plus the test's stoplist: **zero unresolved tokens**. It cannot run without a
+-    warehouse, so the same tokenisation is done here.
+-  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green. Blocks
+-    161 → 181, measured.
+-  - `dbt parse` CLEAN, and ZERO dangling `{{ doc() }}` references anywhere — asserted across every
++  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green. MEASURED on the
++    branch: **181 → 183**, five blocks added (`clean_sheets_share`, its three yoy siblings, and
++    `clean_sheets_sum_season__team` — the one the empty denominator un-refuses) and three removed
++    (the old `clean_sheets_{this,prev}_season__team` and `clean_sheets_delta_yoy__team`). The
++    `clean_sheets` block itself keeps its name and changes its TEXT to the count definition.
++  - `dbt parse` CLEAN and ZERO dangling `{{ doc() }}` references anywhere — asserted across every
+     model yml, not only the edited ones.
+-  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT. Baseline 0 findings; the
+-    5 rows create exactly 30 and all 30 are closed.
+-  - ⛔ EVERY ONE OF THE 20 `goals_against` REFERENCES IS CLASSIFIED `__team` OR `__player` BY
+-    READING THAT MODEL'S SQL, and recorded per site. This is the part that reaches the warehouse
+-    and no test can check it.
+-  - `git diff --numstat` shows the expected shape; line endings checked as BYTES.
+-  - Six offline gates green plus `ruff`, and `python -m pytest tests/` at a baseline measured on
+-    this branch.
+-  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED. The whole artifact set was first written for NINE
+-    rows; every figure in it is suspect until measured again.
+-  - Handover updated in the SAME commit, under the 16,000-CHARACTER cap measured with Python
+-    `len()`.
+-
+-amendments:
+-  - >
+-    2. 2026-08-26, ROUND 2: TWO PASSES AND TWO FAILS, BOTH FAILS ON THE SAME COLUMN — `tier`.
+-    (a) bi-analyst FAIL, and this time the argument was empirical rather than interpretive. It
+-    tabulated EVERY count-versus-rate pair in all 85 rows: 13 player total/per-90 pairs, plus
+-    `points_won`/`points_capture`, plus `corner_kicks`/`corner_kicks_per_match` **in this same
+-    commit** — all one tier apart, no exceptions. My `goals_for`/`goals_against` tie at 1 was the
+-    only one in the file. It also showed why my reading failed: the tying clause says "raw counts
+-    and their headline PERCENTAGE", every percentage-tie precedent is `format: percent` over a sum
+-    of attempts, and `goals_per_match` is `decimal_1` over `count(*)` — an exposure rate, the same
+-    shape as a per-90. FIXED: both moved to tier 2, and BUILDER'S CALL 4 now states the mechanical
+-    test (the denominator) that separates the two clauses and re-derives all seven pairs.
+-    ⛔ THE LESSON IS ABOUT THE FIRST FIX, NOT THE DEFECT. Round 1 I responded to "the tier is
+-    undeclared" by DECLARING it and leaving the value alone. Declaring a wrong value is not a fix,
+-    and the reviewer had to come back a second time with the survey I should have run myself.
+-    (b) scope-auditor FAIL — BUILDER'S CALL 4 covered four of the five rows and never mentioned
+-    `goalkeeper_saves`. The same class it had just failed, 80% remediated. Its tier 2 is right (it
+-    is a percentage pair with `save_ratio`, so it ties) but nothing said so. Now stated.
+-    ⚠ AND IT ANSWERED THE HARDER QUESTION I PUT TO IT — whether a self-authored, after-the-fact
+-    `escalations.log` entry merely relocates the self-certification. Judged ACCEPTABLE, because the
+-    entry discloses its own timing on its face rather than in a chat message, is append-only under
+-    the same durable mechanism as every other ruling, was independently cross-read by another
+-    reviewer against the file, and records the CPO CORRECTING me and a claim of mine withdrawn —
+-    "not the shape of a fabricated self-serving record".
+-    (c) analytics-engineer PASS. It re-derived the grain fix at all 30 sites and verified the claim
+-    the fix rests on rather than accepting it: that each model's OWN yml description states its
+-    grain, so the catalogue-says-what / model-says-span split actually holds in the warehouse. It
+-    also confirmed a detail I had got right without saying why — `goals_for`/`goals_against` carry
+-    no missing-data caveat because `int_legs__team_match.sql:69-72,94-97` filters to a non-null
+-    scoreline, so the caveat would be FALSE on those two.
+-  - >
+-    1. 2026-08-26, ROUND 1: THREE FAILS, AND THE FIRST TWO ARE THE SAME MISTAKE I HAD ALREADY
+-    RECORDED.
+-    (a) scope-auditor FAIL — this contract cited `escalations.log` as recording the CPO's two
+-    rulings, the sole authority for removing §10 metric-definition rows, and **the log held
+-    nothing**. It read all 5,168 lines and confirmed no entry for this branch and none dated
+-    2026-08-26, while `escalations.log` sat in `scope_paths` with zero changes and was absent from
+-    the patch's own exclusion list. Its phrasing: a contract citing an authority record that does
+-    not corroborate it. ⛔ EARLIER THE SAME DAY I told the CPO "you ruled" about something that
+-    came from a seed description and got a flat "No, I didn't". This is the mirror image — the
+-    right source cited and never written to. Both make an unverifiable claim about authority.
+-    FIXED by writing the record: 89 lines, append-only, the rulings verbatim, and the entry states
+-    that it was written the same day but AFTER the fact so the disclosure travels with it.
+-    football-analytics-expert-reviewer, running later, checked the quotes against
+-    `escalations.log:5170-5258` and found them verbatim.
+-    (b) analytics-engineer FAIL — the descriptions were phrased as single-match facts and wired to
+-    18 columns that are not per-match values. See BUILDER'S CALL 3, which is the fix and the
+-    reasoning. ⛔ THE NAMES INVOLVED ARE FOUR OF THE THIRTEEN THE PREVIOUS MERGE EXCLUDED FOR THIS
+-    EXACT DEFECT, and this contract's first version never mentioned that precedent, let alone
+-    overturned it. The reviewer found the deleted precedent in the patch itself. The lesson is not
+-    "check the grain" — I knew the grain and had written it down; it is that giving a multi-grain
+-    name a catalogue row silently re-arms the generator against it.
+-    (c) bi-analyst FAIL — the tier choice for `goals_for`/`goals_against` was undeclared, in a
+-    column the CPO's own 2026-08-04 override made a product judgement. It read the rubric as
+-    requiring a total and its rate to differ by one tier. Re-read verbatim, the rubric's first
+-    clause puts a count and its headline rate at the SAME tier and gives an example that does
+-    exactly that; the one-tier-below clause is about per-90s. The VALUE stands, and BUILDER'S CALL
+-    4 now declares it with the citation, which is what was actually missing.
+-    ⚠ Its `escalations.log` grep predates the fix in (a) and is stale; the football review, which
+-    ran afterwards, is the one to read on that point.
++  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT against a baseline
++    measured on this branch before the first edit.
++  - ⛔ EVERY REMAINING `clean_sheets` REFERENCE IN THE REPO IS CLASSIFIED COUNT OR RATE BY READING
++    THAT MODEL'S SQL, and recorded per site. This is the part that reaches the warehouse and no
++    test can check it.
++  - `npm test` in `site_v2` green — `check-metric-labels.test.mjs` (all three locales; every
++    `labelKey` a `label_i18n_key` the catalogue declares; no locale carrying a label nothing
++    renders) and `check-page-specs`, both of which run in `prebuild` and gate the build.
++  - ⛔ MUTATION, NOT A GREEN TICK: the renamed range tests and the spec check are each broken
++    deliberately and observed going RED. A passing test over a column that no longer exists proves
++    nothing.
++  - The fixture page still renders the count as `1/4` and the team page renders the sample's
++    honest-absent state, both captured in `rendered_page_evidence.md` from the running dev server.
++  - Offline gates green plus `ruff`, and `python -m pytest tests/` at a baseline measured on this
++    branch.
++  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit, by pulling each number out and
++    asking whether it is still true — not by sweeping for the ones I remember changing (#71).
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 792eb65..d751174 100644
+index d751174..d09f993 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -5166,3 +5166,120 @@ paperwork failed the same way a FIFTH time.
-   BYTES; `dbt parse` clean with 0 unrendered `{{ doc(`; the gate reported exactly 146 findings the
-   moment the blocks existed and 0 when done; eight offline gates green; suite 1007 passed,
-   1 skipped, collection 999 stashed against 1008 applied.
+@@ -5283,3 +5283,55 @@ programme. FOUR CPO RULINGS, three of them structural, and they cut the MR from
+   rewritten grain-free). The reviewer reconstructed ~218-220 by hand, could not close the gap with
+   confidence, and REPORTED IT AS UNRESOLVED rather than asserting either number — which is what
+   made it findable. Corrected here and in the evidence.
 +
-+2026-08-26 feat/catalogue-team-totals-and-counts — THE METRIC LAYER ITSELF, not the description
-+programme. FOUR CPO RULINGS, three of them structural, and they cut the MR from 9 rows to 5.
 +
-+  ⚠ RECORDED THE SAME DAY BUT AFTER THE FACT, and that is itself the first defect of this task.
-+  `contract.md` asserted these rulings were "recorded in escalations.log" while the log held
-+  nothing. scope-auditor FAILed on exactly that and was right: a contract citing an authority
-+  record that does not corroborate it is a self-certification wearing a citation. The words below
-+  are verbatim from the conversation; nothing is reconstructed or paraphrased.
++2026-08-26 fix/90-clean-sheets-count-vs-share — THE DISPLAY NAME FOR THE RATE, plus a CORRECTION
++OF THE PREMISE THIS FILE ITSELF RECORDED under RULING 2 above. Written in the turn it happened.
 +
-+  WHAT PROMPTED IT. The catalogue is declared the single source of every metric definition, and
-+  NO MODEL READS IT — checked in the compiled manifest, only tests depend on the seed. Formulas
-+  are hand-copied and nothing compares them: of 68 model expressions carrying a catalogue
-+  metric_id, 20 match the catalogue formula literally and 48 differ. Most differences are benign
-+  re-grounding (the formula is written at leg grain, the model composes pre-aggregated atoms) or
-+  the player zero-fill the 2026-06-25 ruling requires. ONE is a real divergence:
-+  `finishing_efficiency` clamps to NULL when goals-minus-penalties is negative or exceeds shots on
-+  target, and the catalogue's formula columns say nothing about it.
++  ⚠ NOT A VERBATIM RULING, AND IT MUST NEVER BE QUOTED AS ONE. The CPO approved a plan that
++  carried a recommendation; he did not speak the words. What he approved, verbatim from the plan:
++  "Recommendation — EN 'Clean sheet share', DE 'Zu-Null-Quote', FI 'Nollapelien osuus'. The count
++  keeps 'Clean sheets' / 'Zu-Null-Spiele' / 'Nollapelit'." An APPROVAL of my words is what this
++  is; "you ruled" would be false.
 +
-+  CPO INSTRUCTION, verbatim: "add the missing team totals and the count metrics to the catalogue."
-+  Measured cause: classifying all 80 rows by formula shape, the PLAYER side carries 28 plain
-+  totals (`sum(x)`, no denominator) and the TEAM side carries 4. The team surface is 15 per-match
-+  rates and 7 ratios, so team quantities the product displays had no row to point at.
++  WHY A SECOND DISPLAY NAME WAS NOT OPTIONAL. `seeds/schema.yml`'s
++  `metric_catalogue_label_en_unique_within_entity` forbids two team rows sharing `label_en`, so
++  splitting the metric forces a second name whether or not it is ever rendered. Rendering `21%`
++  under "Clean sheets" is also the ambiguity RULING 2 exists to remove.
 +
-+  ⭐ CPO RULING 1, verbatim: "win, draw, loss are not metrics. they are results of a match."
-+  W/D/L is a categorical attribute of a match, already carried by `result`; counting it tallies a
-+  dimension rather than measuring anything. THREE drafted rows dropped. That removed the entire
-+  cascade they had caused: the generator emitted `wins`/`draws`/`losses` blocks that COLLIDED with
-+  hand-written ones and made `dbt parse` fail outright; without the rows there is no collision, no
-+  `standings_wins/draws/losses` rename, no 6 repoints, `shared_columns.md` untouched, 16 files to
-+  14. It also dissolved the defect that had FAILED the previous review round in two places — a
-+  `draws` direction listed as an open question and shipped as a concrete value anyway.
++  ⛔ THE PREMISE UNDER RULING 2 IS FALSE, AND IT IS MY SENTENCE, NOT HIS. That entry narrates
++  "`mart_team_profile.clean_sheets` is a RATE (`int_team_season__metrics_cumulative.sql:91`)". It
++  is not. `mart_team_profile.sql:86` reads `ts.clean_sheets`, and `ts` is the `team_season` CTE
++  (`:209-210`, `from metrics as m left join team_season as ts`) = `mart_team_season`, i.e. the
++  COUNT (`mart_team_season.sql:41`). Same for `mart_team_season_insights.sql:57`. Ground truth in
++  the committed payload `site_v2/src/data/teams/33.json`: `seasons[0].clean_sheets = 8` beside
++  `clean_sheets_this_season = 0.2105`, and 8/38 = 0.2105. The CPO's own words — the two metric
++  names — are untouched and still stand; only my supporting map was wrong.
++  ⭐ WHERE THE RATE ACTUALLY REACHES THE PRODUCT, which that entry missed entirely:
++  `int_team_season__metrics_cumulative.sql:91` → `int_team_season__metrics`
++  (`sf.* except (match_number)`) → `int_team_competition_benchmark_metrics_long.sql:34` (the
++  UNPIVOT) → `mart_team_competition_benchmarks.metric_key = 'clean_sheets'`.
 +
-+  ⭐ CPO RULING 2, verbatim: "use clean_sheets (for the number of matches with clean sheets) and
-+  clean_sheets_share (for the percentage of matches with clean sheets)."
-+  This RENAMES a metric that already ships, so it is its own MR, not part of this one. It resolves
-+  a live two-meanings defect rather than working around it: `mart_team_profile.clean_sheets` is a
-+  RATE (`int_team_season__metrics_cumulative.sql:91`, `safe_divide(clean_sheet_games,
-+  games_played)`) while `mart_team_season.clean_sheets` and `mart_team_momentum.clean_sheets` are
-+  COUNTS — one name, two numbers, one definition attached to both. ⭐ The FRONTEND already agrees
-+  with the ruling: `metricRows.ts:50` serves it as `count_fraction` with a `denom` mapping and the
-+  committed fixture JSON carries `"clean_sheets": 2`, so the WAREHOUSE is the side out of step.
++  ⭐ SO THERE IS NO LIVE DISPLAY BUG, and #90 says there might be. Every surface is coherent
++  today: the fixture page renders the count as `1/4` from two count marts, and the team page
++  renders the benchmark rate as a percent because BOTH row components coerce
++  `count_fraction → percent` inline and say so in a comment. That coercion is the two-meanings
++  defect wearing frontend clothes; this MR deletes it and declares the binding instead.
++  ⚠ THE LESSON, and it is the one this file keeps recording: the entry above cited file:line
++  evidence and was still wrong, because the line was read for the COLUMN NAME and not for the
++  ALIAS IT RESOLVES TO. A citation is not a verification. Open the join.
 +
-+  ⭐ CPO RULING 3 — WHAT "CONTEXT" MEANS, and it is the foundation the naming work was blocked on.
-+  Verbatim: "we have metrics defined in the metric catalogue, from there they find their way into
-+  SQL, not vice versa. in the SQL we calculate the metrics in different contexts, which doesn't
-+  mean they become new metrics. Metrics may 'live' in different names, the names have the metric
-+  name and an addition for the context." And, correcting my reading of it: "goals_per_match is a
-+  unique standalone metric, it is calculated by the sum of all goals divided by the number of
-+  matches. We have this metric for the last 5 matches, for season to date etc. So the context is
-+  this window of last 5 matches etc. The essential formula is the same but the window is a
-+  different one."
-+  ⛔ SO CONTEXT = THE WINDOW THE FORMULA RUNS OVER, NEVER THE FORMULA. `_per_match` and `_per90`
-+  are formulas and each is its own metric; last-5, season-to-date and previous-season are
-+  contexts. I had claimed 30 of the 80 rows "carry a context inside the metric_id" and that the
-+  catalogue therefore broke its own rule. That claim is WITHDRAWN and false.
-+
-+  ⛔ AND A CORRECTION OF MINE THAT PRECEDED ALL OF IT, because the class matters more than the
-+  instance. I told the CPO "you ruled that a formula is fixed math — coverage and coalesce belong
-+  in the model, not the catalogue" and got a flat "No, I didn't." He was right. The words came
-+  from `seeds/schema.yml`'s own column descriptions (repo practice) plus my generalisation of a
-+  narrower #530 correction about `count(*)` versus coverage denominators. Worse, I had reached for
-+  the wrong ruling entirely: the one that actually governs coalesce is at 2026-06-25 above —
-+  "So for player treat NULL as zero is correct? Do it." — which says the opposite of what my
-+  paraphrase implied. ⭐ NEVER SAY "YOU RULED" WITHOUT A QUOTE FROM THIS FILE. A seed description,
-+  a code comment or my own memory file is REPO PRACTICE and must be labelled as such.
-+
-+  ⛔ THREE FINDINGS FROM THE SAME INVESTIGATION, none fixed, all still open:
-+  (a) `.gitlab-ci.yml:653-655` runs `dbt test --select test_type:singular --defer --favor-state`.
-+      In dbt 1.7.19 `--favor-state` replaces every model node not in the SELECTED set with the
-+      state node, and a test-only selection selects no models — so ALL 28 singular tests read PROD
-+      on an MR and cannot catch a model change until it has merged. The job's own comment at
-+      `:636-639` claims the opposite. A CI change of that class was built, FAILed twice and
-+      reverted, so this is untouched and is the CPO's to re-open.
-+  (b) `mart_team_momentum.sql:42-117` is a SECOND hand-written implementation of ~20 of the same
-+      team formulas and HAS ALREADY DRIFTED: its `shot_accuracy` (:56-59) gates on
-+      `games_with_sot_stats` alone while `int_team_season__metrics_cumulative.sql:100-104` gates
-+      on that AND `games_with_team_stats`.
-+  (c) `mart_team_momentum.sql:104-106` attributes leaving the player-derived team metrics ungated
-+      to "CPO 2026-06-25". The entry of that date above names key_passes/tackles/duels as IN scope
-+      of the gate. ⚠ A CONTRADICTED CPO ATTRIBUTION IN SHIPPED CODE — it must be put to him as
-+      that, never as evidence he ruled it.
-+
-+  WHAT SHIPPED: 5 team total rows (`goals_for`, `goals_against`, `corner_kicks`,
-+  `goalkeeper_saves`, `shots_inside_box`), 80 to 85; generated blocks 161 to 181; the bare
-+  `goals_against` block replaced by a `__team`/`__player` pair with all 20 references classified
-+  by reading each model's SQL, 12 team and 8 player; 30 blank columns wired; 14 code and doc
-+  files, 229 added and 24 deleted. ⚠ IT FIXES A LIVE WAREHOUSE DEFECT: the single block carries
-+  the PLAYER definition and `persist_docs` has already attached it to 12 TEAM columns in BigQuery.
-+
-+  CPO INSTRUCTION, 2026-08-26, verbatim: "commit it once they pass."
-+  Given after round 2, with three reviewers passed and two failing. It is the authority for
-+  running scope-auditor past ROUND_CAP = 3, recorded as `rounds_cap_override:` in `review.md`.
-+  ⚠ RECORDED AFTER THE FACT, on the reviewer's finding, and that is the FOURTH instance in this
-+  one task of the same root cause — claiming a record supports something the record does not:
-+    1. this contract cited `escalations.log` for the two rulings above while the log held nothing;
-+    2. BUILDER'S CALL 4 declared a tier for four of five rows, in the section arguing such values
-+       must be declared;
-+    3. `review.md` still read "pending" for two reviewers while the contract narrated a completed
-+       round in detail;
-+    4. and this — the cap-override field, whose entire job is to carry an authority, carrying one
-+       that existed only in prose.
-+  ⭐ THE MECHANISM, and it is not carelessness about any single artifact: I NARRATE AN OUTCOME IN
-+  PROSE AND DO NOT WRITE IT INTO THE FILE THAT IS PARSED. The contract is the file already open,
-+  so writing the story there FEELS like recording it. The artifacts have different jobs —
-+  `escalations.log` holds rulings, `review.md` holds verdicts, the contract holds the plan — and a
-+  fact that lives only in the contract is a builder's assertion about work nobody else witnessed.
-+  THE RULE THAT FOLLOWS: a ruling is appended here in the same turn it is given, and a verdict is
-+  written into `review.md` before it is written about anywhere else. Backfilling is allowed — it
-+  was judged acceptable at instance 1 because the entry disclosed its own timing on its face — but
-+  it is the second-best option and it has now cost four review rounds.
-+
-+  ⚠ A STALE FIGURE CAUGHT BY THE SAME AUDIT: the added-line count read 225 across three revisions
-+  of the artifacts and the true number is 229 (`metric_columns.md` grew when the descriptions were
-+  rewritten grain-free). The reviewer reconstructed ~218-220 by hand, could not close the gap with
-+  confidence, and REPORTED IT AS UNRESOLVED rather than asserting either number — which is what
-+  made it findable. Corrected here and in the evidence.
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 2f39ac7..29d2e6f 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -662,11 +662,13 @@ models:
-       - name: shots_blocked
-         description: "{{ doc('shots_blocked') }}"
-       - name: shots_inside_box
-+        description: "{{ doc('shots_inside_box') }}"
-       - name: shots_outside_box
-         description: "{{ doc('shots_outside_box') }}"
-       - name: fouls
-         description: "{{ doc('fouls') }}"
-       - name: corner_kicks
-+        description: "{{ doc('corner_kicks') }}"
-       - name: offsides
-         description: "{{ doc('offsides') }}"
-       - name: ball_possession_percent
-@@ -676,6 +678,7 @@ models:
-       - name: red_cards
-         description: "{{ doc('red_cards') }}"
-       - name: goalkeeper_saves
-+        description: "{{ doc('goalkeeper_saves') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-@@ -754,7 +757,7 @@ models:
-       - name: shots_on
-       - name: goals_total
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
-         description: "{{ doc('saves') }}"
++  ⭐ AND THE DISPLAY NAME WAS THEN CHANGED, same task, on a convention I had not surfaced when he
++  approved the plan. He CHOSE between two options I authored — so the words are mine and the
++  SELECTION is his; that is the whole provenance and it is not a quote. Chosen:
++  **`% Clean sheets` / `% Zu-Null-Spiele` / `% Nollapelit`**, and catalogue `label_en`
++  `% Clean sheets`. The count keeps `Clean sheets` / `Zu-Null-Spiele` / `Nollapelit` unchanged.
++  WHAT I HAD MISSED, and it is measurable: EVERY `percent`-format metric in the catalogue carries
++  a `% ` prefix in `label_en` — 7 of 7 team rows — and every percent label in all three locale
++  dicts does too (`% Duels won`, `% Trefferquote`, `% Torjuntaosuus`). "Clean sheet share" would
++  have been the ONE percent label in the file without it. The convention also says the thing
++  exactly: the share IS the percent form of the count, so prefixing the count's own label is not a
++  compromise, it is the shortest true name.
++  ⚠ THE PROCESS DEFECT IS MINE: I put a naming recommendation to him without first checking the
++  file's own convention for that class of name, so his first approval was made on incomplete
++  information. Check the convention BEFORE recommending a name, not after implementing it.
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 8401733..7e22e4e 100644
+index 7e22e4e..a3a6139 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -525,7 +525,7 @@ models:
-       - name: saves
-         description: "{{ doc('saves') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: goals_open_play
-         description: "{{ doc('goals_open_play__player') }}"
-       - name: scorer_points
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
-index f572f59..1983726 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
-@@ -52,19 +52,23 @@ models:
-       - name: opponent_team_sk
-         description: "{{ doc('opponent_team_sk') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: shots_on_goal
-         description: "{{ doc('shots_on_goal') }}"
-       - name: shots_total
-         description: "{{ doc('shots_total') }}"
-       - name: shots_inside_box
-+        description: "{{ doc('shots_inside_box') }}"
-       - name: corner_kicks
-+        description: "{{ doc('corner_kicks') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: goalkeeper_saves
-+        description: "{{ doc('goalkeeper_saves') }}"
-       - name: opponent_shots_on_goal
-       - name: opponent_shots_total
-       - name: opponent_shots_inside_box
-@@ -122,7 +126,7 @@ models:
-       - name: shots_on
-       - name: goals_total
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
-         description: "{{ doc('saves') }}"
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index 6c1ad94..e5332a7 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -65,21 +65,25 @@ models:
-       - name: points_won
-         description: "{{ doc('points_won') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: clean_sheet_games
-       - name: shots_total
-         description: "{{ doc('shots_total') }}"
-       - name: shots_on_goal
-         description: "{{ doc('shots_on_goal') }}"
-       - name: shots_inside_box
-+        description: "{{ doc('shots_inside_box') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: corner_kicks
-+        description: "{{ doc('corner_kicks') }}"
-       - name: opponent_corner_kicks
-       - name: goalkeeper_saves
-+        description: "{{ doc('goalkeeper_saves') }}"
-       - name: key_passes
-       - name: tackles
-       - name: interceptions
-@@ -139,7 +143,7 @@ models:
-         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
-       - name: goals_total
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
-         description: "{{ doc('saves') }}"
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-index 4a60681..ca18c49 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-@@ -63,8 +63,9 @@ models:
-       - name: opponent_team_sk
-         description: "{{ doc('opponent_team_sk') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: goals_penalty
-         description: "{{ doc('goals_penalty__team') }}"
-       - name: goals_own
-@@ -74,11 +75,14 @@ models:
-       - name: shots_on_goal
-         description: "{{ doc('shots_on_goal') }}"
-       - name: shots_inside_box
-+        description: "{{ doc('shots_inside_box') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: corner_kicks
-+        description: "{{ doc('corner_kicks') }}"
-       - name: opponent_corner_kicks
-       - name: goalkeeper_saves
-+        description: "{{ doc('goalkeeper_saves') }}"
-       - name: opponent_shots_on_goal
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-index f396980..97c1ac6 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-@@ -119,4 +119,4 @@ models:
-       - name: saves
-         description: "{{ doc('saves') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-index 1e5d464..513fd92 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-@@ -83,7 +83,7 @@ models:
-       - name: saves
-         description: "{{ doc('saves') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: scorer_points
-         description: "{{ doc('scorer_points') }}"
-       - name: defensive_actions
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index 9752f72..2e3b87d 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -71,8 +71,9 @@ models:
-       - name: losses
-         description: "{{ doc('losses') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: clean_sheet_games
-       - name: games_with_sot_stats
-       - name: games_with_opp_stats
-@@ -87,14 +88,17 @@ models:
-       - name: shots_on_goal
-         description: "{{ doc('shots_on_goal') }}"
-       - name: shots_inside_box
-+        description: "{{ doc('shots_inside_box') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: corner_kicks
-+        description: "{{ doc('corner_kicks') }}"
-       - name: opponent_corner_kicks
-       - name: opponent_shots_on_goal
-       - name: goalkeeper_saves
-+        description: "{{ doc('goalkeeper_saves') }}"
-       - name: games_with_player_stats
-       - name: key_passes
-       - name: tackles
-@@ -152,7 +156,7 @@ models:
-       - name: match_number
-       - name: goals_total
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
-         description: "{{ doc('saves') }}"
-diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-index 0eb7747..627bb46 100644
---- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-@@ -78,8 +78,9 @@ models:
-       - name: losses
-         description: "{{ doc('losses') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: goal_diff
-         description: "{{ doc('goal_diff') }}"
-       - name: points
-diff --git a/dbt_project/models/5_marts/shared/mart_head_to_head.sql b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-index b7e2506..b28ae87 100644
---- a/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-+++ b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-@@ -11,8 +11,13 @@
-   core -> intermediate -> mart build, NOT mart-from-mart.
- 
-   Raw record facts only — meetings, W/D/L, goals, last-5 splits, last meeting,
--  and a recent_meetings array. No derived performance ratios: those are catalogue
--  metrics and the H2H record is plain fact, not a catalogue metric
-+  and a recent_meetings array. No derived performance ratios.
-+
-+  W/D/L are match RESULTS tallied over the pair, not metrics, and stay out of the
-+  catalogue for that reason. `goals_for` / `goals_against` ARE catalogue metrics —
-+  sum(goals_for) below is the catalogue's own formula, run over the head-to-head
-+  window instead of a season, and a different window is not a different metric.
-+  What stays out is a ratio invented for this mart alone
-   (see feedback_metric_catalogue_governance).
- 
-   Scope: all finished meetings across ALL competitions between the pair (the
+@@ -50,7 +50,7 @@ models:
+             - season_api_year
+             - team_sk
+       - dbt_utils.expression_is_true:
+-          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets is null or clean_sheets between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
++          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+           name: int_team_season_ratios_in_range
+       # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
+       # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
+@@ -116,8 +116,8 @@ models:
+         description: "{{ doc('points_capture') }}"
+       - name: shot_share
+         description: "{{ doc('shot_share') }}"
+-      - name: clean_sheets
+-        description: "{{ doc('clean_sheets') }}"
++      - name: clean_sheets_share
++        description: "{{ doc('clean_sheets_share') }}"
+       - name: goals_per_match
+         description: "{{ doc('goals_per_match') }}"
+       - name: goals_against_per_match
+@@ -179,11 +179,11 @@ models:
+             - match_number
+       # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
+       # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
+-      # construction: points_capture (points <= 3*games), clean_sheets (clean_sheet_games <= games),
++      # construction: points_capture (points <= 3*games), clean_sheets_share (clean_sheet_games <= games),
+       # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
+       # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
+       - dbt_utils.expression_is_true:
+-          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets is null or clean_sheets between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
++          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+           name: int_team_season_cumulative_structural_ratios_in_range
+       # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
+       # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
+@@ -252,8 +252,8 @@ models:
+         description: "{{ doc('points_capture') }}"
+       - name: shot_share
+         description: "{{ doc('shot_share') }}"
+-      - name: clean_sheets
+-        description: "{{ doc('clean_sheets') }}"
++      - name: clean_sheets_share
++        description: "{{ doc('clean_sheets_share') }}"
+       - name: goals_per_match
+         description: "{{ doc('goals_per_match') }}"
+       - name: goals_against_per_match
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+index 6976fa9..110db7c 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+@@ -88,7 +88,7 @@ select
+         when games_with_opp_stats < games_played then null
+         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
+     end as shot_share,
+-    safe_divide(clean_sheet_games, games_played) as clean_sheets,
++    safe_divide(clean_sheet_games, games_played) as clean_sheets_share,
+     -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
+     -- from int_team_season__metrics — this model is now their single home.
+     safe_divide(goals_for, games_played) as goals_per_match,
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index 29ac573..96e21bb 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -24,7 +24,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: team_count
+         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
+         tests: [not_null]
+@@ -63,7 +63,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: metric_value
+         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 9189884..847ec64 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -31,7 +31,7 @@ unpivot (
+     metric_value for metric_key in (
+         goals_per_match,
+         goals_against_per_match,
+-        clean_sheets,
++        clean_sheets_share,
+         shots_per_match,
+         shot_accuracy,
+         danger_zone_ratio,
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index 923223c..2f28f44 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -22,9 +22,9 @@ models:
+       # (the composed source): the YoY cutoff N is low by construction early in every season, so a
+       # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
+       # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
+-      # goals); clean_sheets = clean_sheet_games/games) stay strict [0,1] on both sides.
++      # goals); clean_sheets_share = clean_sheet_games/games) stay strict [0,1] on both sides.
+       - dbt_utils.expression_is_true:
+-          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_this_season is null or clean_sheets_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_prev_season is null or clean_sheets_prev_season between 0 and 1)"
++          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_share_this_season is null or clean_sheets_share_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_share_prev_season is null or clean_sheets_share_prev_season between 0 and 1)"
+           name: team_profile_yoy_structural_ratios_in_range
+       # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
+       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
+@@ -61,8 +61,8 @@ models:
+         description: "{{ doc('goals_per_match_this_season__team') }}"
+       - name: goals_against_per_match_this_season
+         description: "{{ doc('goals_against_per_match_this_season__team') }}"
+-      - name: clean_sheets_this_season
+-        description: "{{ doc('clean_sheets_this_season__team') }}"
++      - name: clean_sheets_share_this_season
++        description: "{{ doc('clean_sheets_share_this_season__team') }}"
+       - name: shots_per_match_this_season
+         description: "{{ doc('shots_per_match_this_season__team') }}"
+       - name: danger_zone_ratio_this_season
+@@ -96,8 +96,8 @@ models:
+         description: "{{ doc('goals_per_match_prev_season__team') }}"
+       - name: goals_against_per_match_prev_season
+         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
+-      - name: clean_sheets_prev_season
+-        description: "{{ doc('clean_sheets_prev_season__team') }}"
++      - name: clean_sheets_share_prev_season
++        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
+       - name: shots_per_match_prev_season
+         description: "{{ doc('shots_per_match_prev_season__team') }}"
+       - name: danger_zone_ratio_prev_season
+@@ -128,8 +128,8 @@ models:
+       - name: goals_against_delta_yoy
+       - name: goals_against_per_match_delta_yoy
+         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
+-      - name: clean_sheets_delta_yoy
+-        description: "{{ doc('clean_sheets_delta_yoy__team') }}"
++      - name: clean_sheets_share_delta_yoy
++        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
+       - name: shots_per_match_delta_yoy
+         description: "{{ doc('shots_per_match_delta_yoy__team') }}"
+       - name: danger_zone_ratio_delta_yoy
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+index 43798cd..9fca7c4 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+@@ -88,7 +88,7 @@ select
+     cur.goals_against_sum_season as goals_against_this_season,
+     cur.goals_per_match as goals_per_match_this_season,
+     cur.goals_against_per_match as goals_against_per_match_this_season,
+-    cur.clean_sheets as clean_sheets_this_season,
++    cur.clean_sheets_share as clean_sheets_share_this_season,
+     cur.shots_per_match as shots_per_match_this_season,
+     cur.danger_zone_ratio as danger_zone_ratio_this_season,
+     cur.shots_on_goal_per_match as shots_on_goal_per_match_this_season,
+@@ -108,7 +108,7 @@ select
+     prev.goals_against_sum_season as goals_against_prev_season,
+     prev.goals_per_match as goals_per_match_prev_season,
+     prev.goals_against_per_match as goals_against_per_match_prev_season,
+-    prev.clean_sheets as clean_sheets_prev_season,
++    prev.clean_sheets_share as clean_sheets_share_prev_season,
+     prev.shots_per_match as shots_per_match_prev_season,
+     prev.danger_zone_ratio as danger_zone_ratio_prev_season,
+     prev.shots_on_goal_per_match as shots_on_goal_per_match_prev_season,
+@@ -128,7 +128,7 @@ select
+     cur.goals_against_sum_season - prev.goals_against_sum_season as goals_against_delta_yoy,
+     cur.goals_per_match - prev.goals_per_match as goals_per_match_delta_yoy,
+     cur.goals_against_per_match - prev.goals_against_per_match as goals_against_per_match_delta_yoy,
+-    cur.clean_sheets - prev.clean_sheets as clean_sheets_delta_yoy,
++    cur.clean_sheets_share - prev.clean_sheets_share as clean_sheets_share_delta_yoy,
+     cur.shots_per_match - prev.shots_per_match as shots_per_match_delta_yoy,
+     cur.danger_zone_ratio - prev.danger_zone_ratio as danger_zone_ratio_delta_yoy,
+     cur.shots_on_goal_per_match - prev.shots_on_goal_per_match as shots_on_goal_per_match_delta_yoy,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index 58e0207..a890b13 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -137,9 +137,9 @@ select
+     y.goals_against_per_match_this_season,
+     y.goals_against_per_match_prev_season,
+     y.goals_against_per_match_delta_yoy,
+-    y.clean_sheets_this_season,
+-    y.clean_sheets_prev_season,
+-    y.clean_sheets_delta_yoy,
++    y.clean_sheets_share_this_season,
++    y.clean_sheets_share_prev_season,
++    y.clean_sheets_share_delta_yoy,
+     y.shots_per_match_this_season,
+     y.shots_per_match_prev_season,
+     y.shots_per_match_delta_yoy,
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 1cf6009..180043d 100644
+index 180043d..6f2d36a 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -384,8 +384,9 @@ models:
-       - name: home_away
-         description: "{{ doc('home_away') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: opponent_name
-       - name: opponent_logo_url
- 
-@@ -439,11 +440,13 @@ models:
-       - name: shots_blocked
-         description: "{{ doc('shots_blocked') }}"
-       - name: shots_inside_box
-+        description: "{{ doc('shots_inside_box') }}"
-       - name: shots_outside_box
-         description: "{{ doc('shots_outside_box') }}"
-       - name: fouls
-         description: "{{ doc('fouls') }}"
-       - name: corner_kicks
-+        description: "{{ doc('corner_kicks') }}"
-       - name: offsides
-         description: "{{ doc('offsides') }}"
-       - name: ball_possession_percent
-@@ -453,6 +456,7 @@ models:
-       - name: red_cards
-         description: "{{ doc('red_cards') }}"
-       - name: goalkeeper_saves
-+        description: "{{ doc('goalkeeper_saves') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-@@ -460,8 +464,9 @@ models:
-       - name: passes_accuracy_percent
-         description: "{{ doc('passes_accuracy_percent') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
- 
-   - name: mart_player_fixture_stats
-     description: >
-@@ -528,7 +533,7 @@ models:
-       - name: shots_on
-       - name: goals_total
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
-         description: "{{ doc('saves') }}"
-@@ -671,8 +676,9 @@ models:
-       - name: losses
-         description: "{{ doc('losses') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: goal_diff
-         description: "{{ doc('goal_diff') }}"
-       - name: points
-@@ -1222,9 +1228,10 @@ models:
-         description: "{{ doc('losses') }}"
+@@ -751,12 +751,12 @@ models:
+         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
+       - name: goals_against_per_match_delta_yoy
+         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
+-      - name: clean_sheets_this_season
+-        description: "{{ doc('clean_sheets_this_season__team') }}"
+-      - name: clean_sheets_prev_season
+-        description: "{{ doc('clean_sheets_prev_season__team') }}"
+-      - name: clean_sheets_delta_yoy
+-        description: "{{ doc('clean_sheets_delta_yoy__team') }}"
++      - name: clean_sheets_share_this_season
++        description: "{{ doc('clean_sheets_share_this_season__team') }}"
++      - name: clean_sheets_share_prev_season
++        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
++      - name: clean_sheets_share_delta_yoy
++        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
+       - name: shots_per_match_this_season
+         description: "{{ doc('shots_per_match_this_season__team') }}"
+       - name: shots_per_match_prev_season
+@@ -2077,7 +2077,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: metric_value
+         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
          tests: [not_null]
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-         tests: [not_null]
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-         tests: [not_null]
-       - name: goal_diff
-         description: "{{ doc('goal_diff') }}"
-@@ -1521,8 +1528,9 @@ models:
-         description: "{{ doc('kickoff_datetime') }}"
-       - name: round_name
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: player_name
-       - name: player_photo_url
-       - name: team_name
-@@ -1670,8 +1678,9 @@ models:
-       - name: losses
-         description: "{{ doc('losses') }}"
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: meetings_last5
-       - name: wins_last5
-       - name: draws_last5
-@@ -1936,8 +1945,9 @@ models:
-       - name: opponent_name
-       - name: opponent_logo_url
-       - name: goals_for
-+        description: "{{ doc('goals_for') }}"
-       - name: goals_against
--        description: "{{ doc('goals_against') }}"
-+        description: "{{ doc('goals_against__team') }}"
-       - name: has_result
-         description: "True when a finished result is attached to this fixture. It is NOT the opposite of is_upcoming: a postponed, abandoned or cancelled fixture is false on both, so test the flag you mean rather than negating the other one."
-       - name: is_upcoming
 diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index d31e227..5346ef8 100644
+index 5346ef8..ef4440d 100644
 --- a/dbt_project/models/docs/metric_columns.md
 +++ b/dbt_project/models/docs/metric_columns.md
-@@ -124,6 +124,14 @@ only covered appearances. Null when the club scored 0 that competition-season.
+@@ -88,30 +88,49 @@ Yellow cards.
+ 
+ 
+ {% docs clean_sheets %}
+-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5).
++Matches the team finished without conceding a goal, counted as whole matches.
++clean_sheets_share is the same measurement expressed as a proportion of the matches played.
  {% enddocs %}
  
  
-+{% docs corner_kicks %}
-+Corner kicks won by the team, taken from the provider's team match statistics rather than from
-+the scoreline or from player records. The provider does not supply team statistics for every
-+fixture, so this can be missing, and a total over several fixtures can be understated rather
-+than null.
-+{% enddocs %}
-+
-+
- {% docs corner_kicks_per_match %}
- Average corner kicks won per match with available team stats.
- {% enddocs %}
-@@ -151,6 +159,14 @@ progress, accumulated through the matches played so far.
+-{% docs clean_sheets_delta_yoy__team %}
+-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5). The change from
+-the previous season to the current one, compared at the same point of the campaign: the current
+-value minus the previous one. NULL when either side is missing, which covers a competition that
+-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
+-first matches are not fully stat-covered.
++{% docs clean_sheets_share %}
++The share of matches the team finished without conceding a goal: matches with zero goals
++against divided by matches played. clean_sheets is the same measurement expressed as a whole
++number of matches.
  {% enddocs %}
  
  
-+{% docs corner_kicks_sum_season__team %}
-+Corner kicks won by the team, taken from the provider's team match statistics rather than from
-+the scoreline or from player records. The provider does not supply team statistics for every
-+fixture, so this can be missing, and a total over several fixtures can be understated rather
-+than null. Totalled over the season.
-+{% enddocs %}
-+
-+
- {% docs corners_against_per_match %}
- Average corner kicks conceded per match with available opponent stats.
- {% enddocs %}
-@@ -506,16 +522,40 @@ Value for the season now in progress, accumulated through the matches played so
- {% enddocs %}
- 
- 
-+{% docs goalkeeper_saves %}
-+Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
-+than summed from the individual goalkeepers' counts; the two need not agree. The provider does
-+not supply team statistics for every fixture, so this can be missing, and a total over several
-+fixtures can be understated rather than null.
-+{% enddocs %}
-+
-+
-+{% docs goalkeeper_saves_sum_season__team %}
-+Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
-+than summed from the individual goalkeepers' counts; the two need not agree. The provider does
-+not supply team statistics for every fixture, so this can be missing, and a total over several
-+fixtures can be understated rather than null. Totalled over the season.
-+{% enddocs %}
-+
-+
- {% docs goals %}
- Goals scored.
- {% enddocs %}
- 
- 
--{% docs goals_against %}
-+{% docs goals_against__player %}
- Goals conceded by the team while the player was on the pitch (GK-relevant).
- {% enddocs %}
- 
- 
-+{% docs goals_against__team %}
-+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Distinct from
-+the player metric of the same name, which is the provider's count of goals conceded while that
-+player was on the pitch.
-+{% enddocs %}
-+
-+
- {% docs goals_against_delta_yoy__player %}
- Goals conceded by the team while the player was on the pitch (GK-relevant). The change from the
- previous season to the current one, compared at the same point of the campaign: the current
-@@ -526,6 +566,17 @@ as a cup, a qualifying campaign or an international tournament.
- {% enddocs %}
- 
- 
-+{% docs goals_against_delta_yoy__team %}
-+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Distinct from
-+the player metric of the same name, which is the provider's count of goals conceded while that
-+player was on the pitch. The change from the previous season to the current one, compared at
-+the same point of the campaign: the current value minus the previous one. NULL when either side
-+is missing, which covers a competition that carries no year-on-year comparison, a prior season
+-{% docs clean_sheets_prev_season__team %}
+-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5). Value for the
+-season before, through the same number of matches as the current season has played so far, so
+-the two are compared at the same point of a campaign rather than a part season against a full
+-one.
++{% docs clean_sheets_share_delta_yoy__team %}
++The share of matches the team finished without conceding a goal: matches with zero goals
++against divided by matches played. clean_sheets is the same measurement expressed as a whole
++number of matches. The change from the previous season to the current one, compared at the same
++point of the campaign: the current value minus the previous one. NULL when either side is
++missing, which covers a competition that carries no year-on-year comparison, a prior season
 +that was never loaded, and a season whose first matches are not fully stat-covered.
-+{% enddocs %}
-+
-+
- {% docs goals_against_per_match %}
- Average goals conceded per match.
- {% enddocs %}
-@@ -561,18 +612,45 @@ one.
  {% enddocs %}
  
  
-+{% docs goals_against_prev_season__team %}
-+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Distinct from
-+the player metric of the same name, which is the provider's count of goals conceded while that
-+player was on the pitch. Value for the season before, through the same number of matches as the
+-{% docs clean_sheets_this_season__team %}
+-Matches with zero goals conceded, shown as a count of games played (e.g. 3/5). Value for the
+-season now in progress, accumulated through the matches played so far.
++{% docs clean_sheets_share_prev_season__team %}
++The share of matches the team finished without conceding a goal: matches with zero goals
++against divided by matches played. clean_sheets is the same measurement expressed as a whole
++number of matches. Value for the season before, through the same number of matches as the
 +current season has played so far, so the two are compared at the same point of a campaign
 +rather than a part season against a full one.
 +{% enddocs %}
 +
 +
- {% docs goals_against_sum_season__player %}
- Goals conceded by the team while the player was on the pitch (GK-relevant). Totalled over the
- season.
++{% docs clean_sheets_share_this_season__team %}
++The share of matches the team finished without conceding a goal: matches with zero goals
++against divided by matches played. clean_sheets is the same measurement expressed as a whole
++number of matches. Value for the season now in progress, accumulated through the matches played
++so far.
++{% enddocs %}
++
++
++{% docs clean_sheets_sum_season__team %}
++Matches the team finished without conceding a goal, counted as whole matches.
++clean_sheets_share is the same measurement expressed as a proportion of the matches played.
++Totalled over the season.
  {% enddocs %}
  
  
-+{% docs goals_against_sum_season__team %}
-+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Distinct from
-+the player metric of the same name, which is the provider's count of goals conceded while that
-+player was on the pitch. Totalled over the season.
-+{% enddocs %}
-+
-+
- {% docs goals_against_this_season__player %}
- Goals conceded by the team while the player was on the pitch (GK-relevant). Value for the
- season now in progress, accumulated through the matches played so far.
- {% enddocs %}
- 
- 
-+{% docs goals_against_this_season__team %}
-+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Distinct from
-+the player metric of the same name, which is the provider's count of goals conceded while that
-+player was on the pitch. Value for the season now in progress, accumulated through the matches
-+played so far.
-+{% enddocs %}
-+
-+
- {% docs goals_delta_yoy__player %}
- Goals scored. The change from the previous season to the current one, compared at the same
- point of the campaign: the current value minus the previous one. NULL when there is no prior
-@@ -583,6 +661,45 @@ tournament.
- {% enddocs %}
- 
- 
-+{% docs goals_for %}
-+Goals scored by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records.
-+{% enddocs %}
-+
-+
-+{% docs goals_for_delta_yoy__team %}
-+Goals scored by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. The change from
-+the previous season to the current one, compared at the same point of the campaign: the current
-+value minus the previous one. NULL when either side is missing, which covers a competition that
-+carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-+first matches are not fully stat-covered.
-+{% enddocs %}
-+
-+
-+{% docs goals_for_prev_season__team %}
-+Goals scored by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Value for the
-+season before, through the same number of matches as the current season has played so far, so
-+the two are compared at the same point of a campaign rather than a part season against a full
-+one.
-+{% enddocs %}
-+
-+
-+{% docs goals_for_sum_season__team %}
-+Goals scored by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Totalled over
-+the season.
-+{% enddocs %}
-+
-+
-+{% docs goals_for_this_season__team %}
-+Goals scored by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Value for the
-+season now in progress, accumulated through the matches played so far.
-+{% enddocs %}
-+
-+
- {% docs goals_open_play__player %}
- Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of
- finishing_efficiency. (goals_total already excludes own goals.)
-@@ -719,6 +836,21 @@ recent previous meeting between these two teams.
- {% enddocs %}
- 
- 
-+{% docs last_meeting_goals_against__team %}
-+Goals conceded by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Distinct from
-+the player metric of the same name, which is the provider's count of goals conceded while that
-+player was on the pitch. Taken from the most recent previous meeting between these two teams.
-+{% enddocs %}
-+
-+
-+{% docs last_meeting_goals_for__team %}
-+Goals scored by the team, read from the authoritative match scoreline (the score after extra
-+time where a match went to it) rather than summed from player or event records. Taken from the
-+most recent previous meeting between these two teams.
-+{% enddocs %}
-+
-+
- {% docs league_rank %}
- Current league standing. Sourced from standings snapshot; not derived from match legs.
- {% enddocs %}
-@@ -737,6 +869,23 @@ Offsides caught.
- {% enddocs %}
- 
- 
-+{% docs opponent_corner_kicks__team %}
-+Corner kicks won by the team, taken from the provider's team match statistics rather than from
-+the scoreline or from player records. The provider does not supply team statistics for every
-+fixture, so this can be missing, and a total over several fixtures can be understated rather
-+than null. Measured for the opposing team rather than this one.
-+{% enddocs %}
-+
-+
-+{% docs opponent_shots_inside_box__team %}
-+Shots the team took from inside the penalty area, taken from the provider's team match
-+statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-+provider does not supply team statistics for every fixture, so this can be missing, and a total
-+over several fixtures can be understated rather than null. Measured for the opposing team
-+rather than this one.
-+{% enddocs %}
-+
-+
- {% docs opponent_shots_on_goal__player %}
- Shots on target. Measured for the opposing team rather than this one.
- {% enddocs %}
-@@ -932,6 +1081,22 @@ Share of all shots in the team's matches taken by the team. Null when no shots.
- {% enddocs %}
- 
- 
-+{% docs shots_inside_box %}
-+Shots the team took from inside the penalty area, taken from the provider's team match
-+statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-+provider does not supply team statistics for every fixture, so this can be missing, and a total
-+over several fixtures can be understated rather than null.
-+{% enddocs %}
-+
-+
-+{% docs shots_inside_box_sum_season__team %}
-+Shots the team took from inside the penalty area, taken from the provider's team match
-+statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-+provider does not supply team statistics for every fixture, so this can be missing, and a total
-+over several fixtures can be understated rather than null. Totalled over the season.
-+{% enddocs %}
-+
-+
- {% docs shots_on_goal %}
- Shots on target.
- {% enddocs %}
 diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index 16ac0ff..1deac42 100644
+index 1deac42..ed5e551 100644
 --- a/dbt_project/seeds/metric_catalogue.csv
 +++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -79,3 +79,8 @@ deserved_points,team,metrics.deserved_points.label,Deserved points,"Points the o
- sot_points_gap,team,metrics.sot_points_gap.label,Deserved-points gap,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad"
- contribution_share,player,playerMetrics.contributionShare.label,% Share of team goals,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing, because the denominator is the whole season while the numerator counts only covered appearances. Null when the club scored 0 that competition-season.",,,,cross_grain,false,percent,goals,2,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
- minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Ø Minutes per appearance,"Average minutes played per appearance (minutes / appearances, where an appearance is a match the player actually played). A squad-list playing-time read describing role - a regular starter versus a rotation or impact-sub player - not quality. The mart computes the value inline via safe_divide; this row registers its meaning.",int_legs__player_match,sum(minutes_played),countif(minutes_played > 0),expression,false,decimal_0,playing_time,2,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad."
-+goals_for,team,metrics.goals_for.label,Goals,"Goals scored by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records.",int_legs__team_match,sum(goals_for),,expression,false,integer,goals,2,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)"
-+goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records. Distinct from the player metric of the same name, which is the provider's count of goals conceded while that player was on the pitch.",int_legs__team_match,sum(goals_against),,expression,true,integer,goals,2,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)"
-+corner_kicks,team,metrics.corner_kicks.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
-+goalkeeper_saves,team,metrics.goalkeeper_saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
-+shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - danger_zone_ratio is what measures that; a raw count, so it rises with matches played)"
+@@ -3,7 +3,7 @@ league_rank,team,metrics.league_rank.label,League position,Current league standi
+ points_won,team,metrics.points_won.label,Points won,"Total points earned: 3 per win, 1 per draw, 0 per loss.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,false,points_fraction,outcomes,1,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss)
+ goals_per_match,team,metrics.goals_per_match.label,Ø Goals,Average goals scored per match.,int_legs__team_match,sum(goals_for),count(*),expression,false,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack
+ goals_against_per_match,team,metrics.goals_against_per_match.label,Ø Goals against,Average goals conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,true,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence
+-clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches with zero goals conceded, shown as a count of games played (e.g. 3/5).",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,count_fraction,goals,2,higher_better,Shut-out rate - games conceding zero; high = reliable at the back
++clean_sheets_share,team,metrics.clean_sheets_share.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back
+ goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls
+ goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
+ goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
+@@ -84,3 +84,4 @@ goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by
+ corner_kicks,team,metrics.corner_kicks.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
+ goalkeeper_saves,team,metrics.goalkeeper_saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
+ shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - danger_zone_ratio is what measures that; a raw count, so it rises with matches played)"
++clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_share is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
+diff --git a/docs/wireframes/14_team_stats.md b/docs/wireframes/14_team_stats.md
+index 039a6e8..b7c88b3 100644
+--- a/docs/wireframes/14_team_stats.md
++++ b/docs/wireframes/14_team_stats.md
+@@ -58,7 +58,7 @@ next to the %), both being separate metrics already in the set.
+ │  GOALS                                            │  (4) group subhead (metrics_display order)
+ │  Ø Goals          2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
+ │  Ø Goals against  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
+-│  Clean sheets     43%   2nd of 18   +6pp  ▐███▌   │      the rate (metric_value); x/y needs atoms (§5)
++│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_share; the fixture windows show the count
+ │  SHOOTING                                         │      order = the LOCKED shooting funnel
+ │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
+ │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
+@@ -100,7 +100,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
+ | Label | `metric_key` | `metric_key` | label + format from `metric_catalogue` (never invented) |
+ | Value — per-match metric | `metric_value` | `metric_value` | the per-match rate, catalogue `format` (`decimal_0`/`decimal_1`) |
+ | Value — ratio metric (%) | `metric_value` | `metric_value` | the `percent`; its **volume is the adjacent count row** in the same block (no naked %) |
+-| Value — `clean_sheets` | `metric_value` | `metric_value` | the clean-sheet **rate** — the mart's `metric_value` for this key is `safe_divide(clean_sheet_games, games)`, a rate, NOT a stored count+denominator. The x/y form (as on 02 §8) needs the count atoms this mart does not carry, so it renders as the rate here (caveat, GAP-11 family, like `save_ratio`) |
++| Value — `clean_sheets_share` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
+ | Rank | `rank` (+ `team_count`, `direction`) | `rank`, `team_count` | **"{rank} of {team_count}"** (e.g. "3rd of 18") — direction-mirrored (rule below) |
+ | vs-median | `vs_median_delta` | `vs_median_delta` | signed, catalogue-formatted (`+0.4`, `+3pp` for percent) |
+ | Spread bar | derived from `metric_value` vs `p25`/`median`/`p75` | `league_p25`, `league_median`, `league_p75` | the value's position on a p25–median–p75 track; dashed median reference |
+@@ -116,7 +116,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
+ - `lower_better` metric → **mirror the rank**: `team_count + 1 − rank`, so "1st" marks the best (lowest-
+   value) end. A display-side step (the mart ranks DESC). Since the catalogue-wide direction sweep
+   (2026-07-21) **two rendered metrics are `lower_better`: `goals_against_per_match` and
+-  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets` is
++  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_share` is
+   `higher_better`. (Superseded: this used to say only `goals_against_per_match` was `lower_better` and that
+   `corners_against_per_match` was `neutral` and therefore not mirrored.)
+ 
+@@ -142,7 +142,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
+ 
+ | Block | Rendered metrics (metric_key) |
+ |---|---|
+-| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets` |
++| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_share` |
+ | Shooting | `shots_per_match` · `danger_zone_ratio` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
+ | Duels | `duels_per_match` · `duels_won_pct` (%) |
+ | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
+@@ -200,8 +200,10 @@ has that this does not; the per-row "of N" carries the sample size instead.)
+   applied at render from the catalogue `direction`). All 20 mart rows are carried — this screen renders the
+   LOCKED 16. Mirrors GAP-21/#627 for the player.
+ - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
+-- `clean_sheets` renders the **rate** here (the mart carries no count atoms); the x/y form (02 §8) would
+-  need `clean_sheet_games` + `games` on the mart — same GAP-11 family, not this screen.
++- `clean_sheets_share` renders as a **percent** here, and that is now the declared metric rather than a
++  compromise: the count and the share are two catalogue rows, and this screen ranks the share because
++  the teams it ranks have played different numbers of matches. The x/y form (02 §8) belongs to the
++  fixture windows, which serve `clean_sheets` with its denominator.
+ - A **games-played sample caption** (the team's sample size, like 12's minutes/apps) would need a
+   `season_games_played` column on `mart_team_competition_benchmarks` — a small mart enhancement, not part
+   of the GAP-23 export wiring; deferred.
 diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 40b9ee8..9856044 100644
+index 9856044..9526530 100644
 --- a/docs/wireframes/metrics_display.md
 +++ b/docs/wireframes/metrics_display.md
-@@ -11,7 +11,7 @@
- ## Tier semantics (ruled)
+@@ -132,7 +132,7 @@ Set pieces → Goalkeeping.
+ |---|---|---|---|---|---|
+ | 1 | Ø Goals | `goals_per_match` | Goals | 1 | live |
+ | 2 | Ø Goals against | `goals_against_per_match` | Goals | 1 | live |
+-| 3 | Clean sheets (x/y) | `clean_sheets` | Goals | 2 | **new** (GAP-11) |
++| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_share` (team page) | Goals | 2 | **new** (GAP-11) |
+ | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
+ | 5 | % Shots from box | `danger_zone_ratio` | Shooting | 2 | live |
+ | 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
+@@ -176,6 +176,16 @@ catalogue reconciles them in its `label_i18n_key` column, which for that row is
+ read as a metric id, judged dangling, and replaced with one the catalogue declares nowhere. **Resolve
+ a label by reading the `label_i18n_key` column; never infer it from an id or a payload field.**
  
- > **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
--> The seed carries a tier on all 80 rows. This section keeps the SEMANTICS; the values are in
-+> The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
- > the seed. What this document still owns exclusively is **order**, which was deliberately
- > removed from the catalogue: where a metric sits on a page is a frontend decision that changes
- > with a design, so the seed holds what a metric IS, not where it appears.
++⚠ **Row 3 carries TWO metric ids, and that is the contract, not a typo.** A row of this table is a
++display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
++window is five matches, so the honest reading is the COUNT beside its denominator — `clean_sheets`,
++`3/5`. A team season is ranked against a whole league, where matches played differ between teams, so
++the honest reading is the PROPORTION — `clean_sheets_share`, `21%`, labelled `% Clean sheets` under
++the same `% ` prefix every other percent metric here carries. They are two catalogue metrics with one
++formula between them, and the seed carries both. In `metricRows.ts` the row's own
++`field`/`labelKey`/`format` are the FIXTURE binding and the team surface reads `teamBinding(row)`;
++order, group and tier are shared and unchanged, so this table still locks sixteen rows.
++
+ Row 7's "relabeled" note is also load-bearing: this document rules that v2 ships
+ `% Goals per shot on target`, while the retired MVP corpus (`site/i18n/*.json`) says
+ `% Conversion rate`. #370 kept this document's version and left the divergence for the CPO.
+diff --git a/site_v2/src/components/team/MetricLeagueRow.astro b/site_v2/src/components/team/MetricLeagueRow.astro
+index c01bb00..af6bd5e 100644
+--- a/site_v2/src/components/team/MetricLeagueRow.astro
++++ b/site_v2/src/components/team/MetricLeagueRow.astro
+@@ -3,12 +3,14 @@
+ // a rank bar with the median notch · the value + direction-aware rank · the league median.
+ // All served: value/median/rank/vs_median_delta come from the benchmark; the rank is made
+ // DIRECTION-AWARE for display (the mart's is raw value-descending) and the fill/green are
+-// presentation mappings (lib/bars.ts) — no fact is derived. clean_sheets is served as a rate,
+-// so the contract's count_fraction renders as a percent here (matches the served unit + mock).
++// presentation mappings (lib/bars.ts) — no fact is derived. Which metric a row binds HERE comes
++// from `teamBinding()`: the clean-sheet slot ranks `clean_sheets_share`, a proportion, where the
++// fixture windows serve the count.
+ import { formatValue, ordinal } from "../../lib/format";
+-import type { Lang, SingleFormat } from "../../lib/format";
++import type { Lang } from "../../lib/format";
+ import { displayRank, rankFill, beatsMedian } from "../../lib/bars";
+ import { t, metricLabel } from "../../i18n/strings";
++import { teamBinding } from "../../lib/metricRows";
+ import type { MetricRowDef } from "../../lib/metricRows";
+ import type { Benchmark } from "../../lib/types";
+ 
+@@ -20,7 +22,8 @@ interface Props {
+ }
+ const { row, bench, sub, lang } = Astro.props;
+ 
+-const fmt: SingleFormat = row.format === "count_fraction" ? "percent" : row.format;
++const bind = teamBinding(row);
++const fmt = bind.format;
+ const dr = displayRank(bench?.rank, bench?.team_count, row.direction);
+ const fill = rankFill(dr, bench?.team_count);
+ const green = beatsMedian(bench?.vs_median_delta, row.direction);
+@@ -33,7 +36,7 @@ const rankLabel =
+ ---
+ 
+ <div class="vs-row">
+-  <span class="vs-name">{metricLabel(lang, row.labelKey)}{sub && <span class="sub">{sub}</span>}</span>
++  <span class="vs-name">{metricLabel(lang, bind.labelKey)}{sub && <span class="sub">{sub}</span>}</span>
+   <div class="vs-bar">
+     {dr != null && <div class:list={["vs-fill", { up: green }]} style={`width:${fill}%`}></div>}
+     <div class="vs-notch"></div>
+diff --git a/site_v2/src/components/team/MetricSeasonRow.astro b/site_v2/src/components/team/MetricSeasonRow.astro
+index 1621693..9b0f59a 100644
+--- a/site_v2/src/components/team/MetricSeasonRow.astro
++++ b/site_v2/src/components/team/MetricSeasonRow.astro
+@@ -1,13 +1,15 @@
+ ---
+ // One "vs last season" row (mock f6348775 .ss-row): metric name · current value · signed
+ // year-over-year change (direction-aware green; percent rows read as "+N pp"). Value is the
+-// season's served metric (from the benchmark, so clean_sheets stays the rate its delta is in);
+-// the delta is the served `{field}_delta_yoy`. Null delta (e.g. save_ratio, no comparable prior
+-// season) renders the en-dash. Display formatting only.
++// season's served metric (from the benchmark); the delta is the served `{field}_delta_yoy` for the
++// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_share` on both
++// sides here. Null delta (e.g. save_ratio, no comparable prior season) renders the en-dash.
++// Display formatting only.
+ import { formatValue, signedDelta } from "../../lib/format";
+-import type { Lang, SingleFormat } from "../../lib/format";
++import type { Lang } from "../../lib/format";
+ import { beatsMedian } from "../../lib/bars";
+ import { t, metricLabel } from "../../i18n/strings";
++import { teamBinding } from "../../lib/metricRows";
+ import type { MetricRowDef } from "../../lib/metricRows";
+ import type { Benchmark } from "../../lib/types";
+ 
+@@ -19,13 +21,14 @@ interface Props {
+ }
+ const { row, bench, delta, lang } = Astro.props;
+ 
+-const fmt: SingleFormat = row.format === "count_fraction" ? "percent" : row.format;
++const bind = teamBinding(row);
++const fmt = bind.format;
+ const chg = signedDelta(delta, fmt, lang);
+ const green = beatsMedian(delta, row.direction);
+ ---
+ 
+ <div class="ss-row">
+-  <span class="vs-name">{metricLabel(lang, row.labelKey)}</span>
++  <span class="vs-name">{metricLabel(lang, bind.labelKey)}</span>
+   <span class="ss-rt">
+     <span class="vs-val num">{formatValue(bench?.metric_value, fmt, lang)}</span>
+     <span class:list={["ss-chg", "num", { up: green }]}>{chg.value}{chg.unit && <span class="u">{t(lang, "unitPp")}</span>}</span>
+diff --git a/site_v2/src/components/team/TeamPerformance.astro b/site_v2/src/components/team/TeamPerformance.astro
+index 85e62a5..0bc7b0b 100644
+--- a/site_v2/src/components/team/TeamPerformance.astro
++++ b/site_v2/src/components/team/TeamPerformance.astro
+@@ -18,7 +18,7 @@ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { asNumber } from "../../lib/types";
+ import type { TeamSeason, Benchmark } from "../../lib/types";
+-import { METRIC_ROWS, GROUP_ORDER } from "../../lib/metricRows";
++import { METRIC_ROWS, GROUP_ORDER, teamBinding } from "../../lib/metricRows";
+ 
+ interface Props {
+   season: TeamSeason;
+@@ -33,7 +33,11 @@ for (const b of season.benchmarks ?? []) benchByKey.set(b.metric_key, b);
+ const sRec = season as unknown as Record<string, unknown>;
+ 
+ const hasBench = benchByKey.size > 0;
+-const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${r.field}_delta_yoy`]) != null);
++// Both panels key on the TEAM binding, not on `field`: the clean-sheet slot is served here as
++// `clean_sheets_share` (the benchmark's metric_key and the yoy column alike), while the fixture
++// windows serve the count under the bare name. Every other row binds the same name on both.
++const keyOf = (r: (typeof METRIC_ROWS)[number]): string => teamBinding(r).field;
++const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${keyOf(r)}_delta_yoy`]) != null);
+ 
+ // Per-panel captions (14_team_stats.md §5: NO single peer-count header — coverage varies
+ // per metric, so the honest N lives on each row's "of {team_count}", never in the caption).
+@@ -60,7 +64,7 @@ const subFor = (field: string): string | null =>
+ // omitted, never a zero bar). Season panel: all 16 (a null delta dashes out honestly).
+ const leagueGroups = GROUP_ORDER.map((group) => ({
+   group,
+-  rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(r.field)),
++  rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(keyOf(r))),
+ })).filter((g) => g.rows.length > 0);
+ const seasonGroups = GROUP_ORDER.map((group) => ({
+   group,
+@@ -92,7 +96,7 @@ const seasonGroups = GROUP_ORDER.map((group) => ({
+             )}
+           </div>
+           {grp.rows.map((r) => (
+-            <MetricLeagueRow row={r} bench={benchByKey.get(r.field)} sub={subFor(r.field)} lang={lang} />
++            <MetricLeagueRow row={r} bench={benchByKey.get(keyOf(r))} sub={subFor(r.field)} lang={lang} />
+           ))}
+         </>
+       ))}
+@@ -107,8 +111,8 @@ const seasonGroups = GROUP_ORDER.map((group) => ({
+             {grp.rows.map((r) => (
+               <MetricSeasonRow
+                 row={r}
+-                bench={benchByKey.get(r.field)}
+-                delta={asNumber(sRec[`${r.field}_delta_yoy`])}
++                bench={benchByKey.get(keyOf(r))}
++                delta={asNumber(sRec[`${keyOf(r)}_delta_yoy`])}
+                 lang={lang}
+               />
+             ))}
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index a79b832..b5225f9 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -616,6 +616,9 @@ const METRIC_LABELS_EN: MetricLabels = {
+   "metrics.goals_per_match.label": "Ø Goals",
+   "metrics.goals_against_per_match.label": "Ø Goals against",
+   "metrics.clean_sheets.label": "Clean sheets",
++  // The percent form of the row above, per the "% " prefix every percent metric here carries.
++  // The fixture windows label the COUNT; the team page labels the SHARE (metricRows `team`).
++  "metrics.clean_sheets_share.label": "% Clean sheets",
+   "metrics.shots_per_match.label": "Ø Shots",
+   "metrics.danger_zone_ratio.label": "% Shots from box",
+   "metrics.shots_on_target_per_match.label": "Ø Shots on target",
+@@ -639,6 +642,9 @@ const METRIC_LABELS_DE: MetricLabels = {
+   // Statista and FootyStats DE both use "Zu-Null-Spiele"; Transfermarkt's "weiße Weste" is the other
+   // live German idiom and was not chosen, because the statistical label is the one a stat row wants.
+   "metrics.clean_sheets.label": "Zu-Null-Spiele",
++  // The percent form of the row above. The "% " prefix carries the share, exactly as it does for
++  // "% Trefferquote" and "% Gehaltene Torschüsse" below, so the noun itself needs no second word.
++  "metrics.clean_sheets_share.label": "% Zu-Null-Spiele",
+   "metrics.shots_per_match.label": "Ø Schüsse",
+   "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
+   // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
+@@ -675,6 +681,9 @@ const METRIC_LABELS_FI: MetricLabels = {
+   "metrics.goals_against_per_match.label": "Ø Päästetyt maalit",
+   // Confirmed in Finnish football media (apu.fi on Veikkausliiga goalkeepers).
+   "metrics.clean_sheets.label": "Nollapelit",
++  "metrics.clean_sheets_share.label": "% Nollapelit",
++  // The percent form of the row above. The "% " prefix carries the share, as it does for
++  // "% Torjuntaosuus" below, so no separate "osuus" compound is needed.
+   "metrics.shots_per_match.label": "Ø Laukaukset",
+   "metrics.danger_zone_ratio.label": "% Laukaukset boksista",
+   // These three are CPO-SUPPLIED, 2026-07-31, including `vastaan`, which keeps Finnish parallel to
+diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
+index 42f2b33..6596b60 100644
+--- a/site_v2/src/lib/metricRows.ts
++++ b/site_v2/src/lib/metricRows.ts
+@@ -10,6 +10,11 @@
+ // `field` is the payload key on w1/w2 (the bare metric name) — NOT the display id.
+ // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
+ //
++// A row is a display SLOT, and one slot can bind a different catalogue metric per surface: the
++// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_share`
++// (a proportion). `field`/`labelKey`/`format` are the FIXTURE binding; the team surface reads
++// `teamBinding(row)`, which returns the row's `team` override or the row itself.
++//
+ // #370: there is no `label` field here. A metric's display name lives once, per locale, in
+ // `i18n/strings.ts` (METRIC_LABELS), keyed by the catalogue's own `label_i18n_key` — which is what
+ // `labelKey` below holds. Render a name with `metricLabel(lang, row.labelKey)`; never re-spell one
+@@ -17,11 +22,22 @@
+ // lives in this file; only the strings moved.
+ 
+ import type { Direction } from "./bars";
++import type { SingleFormat } from "./format";
+ 
+ export type RowFormat = "decimal_1" | "decimal_0" | "percent" | "count_fraction";
+ export type MetricGroup =
+   | "Goals" | "Shooting" | "Duels" | "Defending" | "Passing" | "Set pieces" | "Goalkeeping";
+ 
++/** What the TEAM surface binds for a slot whose two surfaces measure different things.
++ *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs beside the
++ *  matches behind it, while the league benchmark and the year-over-year delta serve
++ *  `clean_sheets_share`, the proportion — two catalogue metrics, one row of the display contract. */
++export interface TeamBinding {
++  field: string;              // key on the benchmark's `metric_key` / the `{field}_delta_yoy` column
++  labelKey: string;
++  format: SingleFormat;
++}
++
+ export interface MetricRowDef {
+   field: string;              // payload key on w1 / w2
+   // The catalogue's `label_i18n_key`, verbatim. Resolve it with `metricLabel(lang, labelKey)`.
+@@ -34,8 +50,21 @@ export interface MetricRowDef {
+   format: RowFormat;
+   direction: Direction;       // drives the green "better" side (never `lower_is_better`)
+   sublabel?: string;          // small caption under the label (e.g. the T·I·B aggregate)
+-  // count_fraction denominator field per window (both served: count + games).
++  // count_fraction denominator field per window (both served: count + games). Fixture surface
++  // only — a team season is ranked against a league, which is what `team` below binds instead.
+   denom?: { w1: string; w2: string };
++  team?: TeamBinding;         // set only where the team surface measures something else
++}
++
++/** The binding the TEAM surface renders for a row. Without an override that is the row itself;
++ *  `count_fraction` is a fixture-window form (numerator beside its denominator), and the team
++ *  surface serves neither pair, so it reads as a percent there. */
++export function teamBinding(row: MetricRowDef): TeamBinding {
++  return row.team ?? {
++    field: row.field,
++    labelKey: row.labelKey,
++    format: row.format === "count_fraction" ? "percent" : row.format,
++  };
+ }
+ 
+ // Fixed group order (metrics_display.md block order). The comparison renders groups
+@@ -47,7 +76,12 @@ export const GROUP_ORDER: MetricGroup[] = [
+ export const METRIC_ROWS: MetricRowDef[] = [
+   { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
+   { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
+-  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" } },
++  // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
++  //   `clean_sheets`, a count of shut-outs, rendered against the matches behind it (3/5). The team
++  //   page ranks `clean_sheets_share`, the proportion, because teams are compared across a league.
++  //   Read the team side through `teamBinding()`; never assume `field` covers both.
++  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
++    team: { field: "clean_sheets_share", labelKey: "metrics.clean_sheets_share.label", format: "percent" } },
+   { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
+   { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
+   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 01c37be..5067aec 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -148,7 +148,9 @@ export interface ScatterDot {
+ /** One rank-vs-league benchmark row (mart_team_competition_benchmarks) — the Performance
+  *  tab's "vs the league" panel. `rank` is RAW value-descending (the frontend makes it
+  *  direction-aware for display); `metric_value`/`league_median` are the served units
+- *  (ratios 0..1 for percent metrics; clean_sheets is served as a rate, not a count). */
++ *  (ratios 0..1 for percent metrics). ⚠ `metric_key` is the catalogue metric this panel ranks,
++ *  which is not always the display row's `field`: the clean-sheet row is keyed
++ *  `clean_sheets_share` here — resolve it with `teamBinding()`, never with `field`. */
+ export interface Benchmark {
+   metric_key: string;
+   metric_value?: number | null;
+@@ -200,6 +202,8 @@ export interface TeamSeason {
+   goals_for?: number | null;
+   goals_against?: number | null;
+   goal_diff?: number | null;
++  /** The COUNT of shut-outs (mart_team_profile, from mart_team_season). The Performance tab's
++   *  rate lives on the benchmark and on `clean_sheets_share_*_season` below, not here. */
+   clean_sheets?: number | null;
+   latest_form?: string | null;
+   season_games_played?: number | null;
+diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
+index 84c9a7c..5783f69 100644
+--- a/site_v2/src/specs/teams/team.spec.json
++++ b/site_v2/src/specs/teams/team.spec.json
+@@ -65,7 +65,7 @@
+         "noYoY",
+         "metrics.goals_per_match.label",
+         "metrics.goals_against_per_match.label",
+-        "metrics.clean_sheets.label",
++        "metrics.clean_sheets_share.label",
+         "metrics.shots_per_match.label",
+         "metrics.danger_zone_ratio.label",
+         "metrics.shots_on_target_per_match.label",
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1198,9 +1307,10 @@ index 40b9ee8..9856044 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |  143 +--
-#    .claude/task/acceptance_evidence.md |  302 ++----
-#    .claude/task/review.md              |  327 ++++--
-#    .claude/task/review_input.patch     | 1983 ++++++++++++++++++-----------------
-#    4 files changed, 1419 insertions(+), 1336 deletions(-)
+#   .claude/active_work.md                 |  145 +-
+#    .claude/task/acceptance_evidence.md    |  225 ++--
+#    .claude/task/rendered_page_evidence.md |  107 +-
+#    .claude/task/review.md                 |  369 ++----
+#    .claude/task/review_input.patch        | 2284 ++++++++++++++++----------------
+#    5 files changed, 1538 insertions(+), 1592 deletions(-)
 # ============================================================================

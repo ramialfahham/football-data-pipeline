@@ -1,147 +1,132 @@
-# Acceptance evidence — the missing team totals in the metric catalogue
+# Acceptance evidence — #90, `clean_sheets` (count) vs `clean_sheets_share` (rate)
 
-Every figure measured on this branch against merged main `21c1ce0`. Where a measurement
-contradicted an expectation, the contradiction is what is recorded.
-
-⚠ **EVERY FIGURE HERE IS THE FIVE-ROW ONE.** This started at nine rows and two CPO rulings took
-four away. The earlier version of this file was written for nine; none of its numbers survive
-here — each was re-derived after the rebuild rather than edited down.
+Every figure measured on this branch against merged main `5894aff`. Where a measurement
+contradicted an expectation, the contradiction is what is recorded — and one of them contradicted
+the issue itself.
 
 ## The headline
 
 | | |
 |---|---|
-| catalogue rows | **80 → 85** (5 team totals) |
-| generated docs blocks | **161 → 181** |
-| `{{ doc() }}` references repointed | **20** — the `goals_against` split, 12 team / 8 player |
-| blank columns wired to a new block | **30** |
-| dangling references after the change | **0** |
-| team columns whose BigQuery description was WRONG and is now right | **12** |
-| files | 14 code and doc · added 229 · deleted 24 |
+| catalogue rows | **85 → 86** (rate renamed in place, count added) |
+| generated docs blocks | **181 → 183** (+5 added, −3 removed) |
+| rate columns renamed | **7** — one expression, three yoy columns, one unpivot member, two mart pass-throughs |
+| count columns renamed | **0**, deliberately |
+| `accepted_values` lists moved | **3** (the issue named 2) |
+| dangling `{{ doc() }}` after the change | **0** (`dbt parse` clean) |
+| warehouse columns whose BigQuery description was WRONG and is now right | **2** |
+| files | 19 code and doc · added 165 · deleted 76 |
 
-## Why five and not nine
+## ⛔ The issue's premise is false, and verifying it was the first instruction
 
-The player side of the catalogue carries **28** plain totals (`sum(x)`, no denominator); the team
-side carried **4**. Everything team-facing is expressed as a rate — 15 per-match rates and 7
-ratios — so the quantities the product actually displays had nothing to point at.
-
-Nine rows were drafted. Two rulings removed four.
-
-**"win, draw, loss are not metrics. they are results of a match."** W/D/L is a categorical
-attribute already carried by `result`; counting it tallies a dimension. Removing those three rows
-removed the entire cascade they caused, which had been most of the change:
+#90 says `mart_team_profile.clean_sheets` is the RATE and asks whether that is a LIVE DISPLAY BUG.
+It is not, and the check that settles it is one join:
 
 ```
-                          with W/D/L rows    without them
-generated blocks                      188             181
-docs-block name collisions              3               0
-dbt parse                            FAILS           clean
-hand-written blocks renamed             3               0
-references repointed                   26              20
-files                                  16              14
+mart_team_profile.sql:86    ts.clean_sheets
+mart_team_profile.sql:209   from metrics as m
+mart_team_profile.sql:210   left join team_season as ts     <-- ts = mart_team_season, the COUNT
+mart_team_season.sql:41     m.clean_sheets_sum_season as clean_sheets
 ```
 
-**"use clean_sheets (for the number of matches) and clean_sheets_share (for the percentage)."**
-That renames a metric that already ships, so it left this MR entirely — see below.
+Identical for `mart_team_season_insights.sql:57` (`ts` = the `mart_team_season` CTE, join at `:91`).
+The committed payload agrees: `teams/33.json` carries `seasons[0].clean_sheets = 8` beside
+`clean_sheets_this_season = 0.2105`, and 8/38 = 0.2105.
 
-## The live defect this fixes
+**Where the rate actually reaches the product** — a path the issue never names:
 
-The bare `goals_against` block carries the **player** definition — goals conceded while that
-player was on the pitch. `persist_docs` has already attached that sentence to **12 TEAM columns**
-in BigQuery, where it is wrong. Splitting the block forces every reference to be classified, and
-12 of them move to a correct definition.
+```
+int_team_season__metrics_cumulative.sql:91   safe_divide(clean_sheet_games, games_played)
+int_team_season__metrics.sql                 sf.* except (match_number)      <-- passes through
+int_team_competition_benchmark_metrics_long.sql:34   UNPIVOT member
+mart_team_competition_benchmarks             metric_key = 'clean_sheets'
+```
 
-**Each of the 20 was classified by reading the expression in that model's own SQL**, never from the
-model's name. The two that look like exceptions are the ones that matter:
+Same payload: `{metric_key: 'clean_sheets', metric_value: 0.2105}`.
 
-| site | why it is not what the model name suggests |
-|---|---|
-| `mart_player_match_log` → **`__team`** | a PLAYER-grained model, but `:90` is `if(s.team_sk = f.home_team_sk, f.goals_away, f.goals_home)` — the team's goals against |
-| `int_legs__player_match` → **`__player`** | sits beside the team legs, but `:75` passes through `ps.goals_against` from the player-stat row |
+**So no wrong number was ever on screen.** The fixture surface serves counts from two count marts
+with `games_in_window` / `games_played` denominators; the team surface serves the benchmark rate
+and both row components coerced `count_fraction → percent` inline, each with a comment saying
+"clean_sheets is served as a rate". That coercion was the two-meanings defect wearing frontend
+clothes. It is deleted here and replaced by a declared per-surface binding.
 
-Counted from the diff: 12 `__team`, 8 `__player`, and **zero** bare references left.
+⚠ The lesson is narrower than "the issue was wrong": the issue cited `mart_team_profile.sql:86`
+correctly. The line was read for the column NAME and not for the alias it resolves to. A citation
+is not a verification.
+
+## The live defect this DOES fix
+
+`{{ doc('clean_sheets') }}` — whose text is the COUNT definition, "shown as a count of games played
+(e.g. 3/5)" — was attached to the two RATE columns at `int_team_season.yml:120` and `:256`.
+`persist_docs` has already pushed that sentence onto both in BigQuery. Same class as the
+`goals_against` defect `!104` fixed. After this change those two columns point at
+`doc('clean_sheets_share')` and the five count columns keep `doc('clean_sheets')`, which is correct
+for the first time.
+
+## Acceptance criteria, demonstrated
+
+⚠ The key below is at column 0 and its bullets are indented, because
+`git_discipline._block()` anchors `^criteria_demonstrated[^\S\n]*:` at the line start and stops at
+the first unindented line. Written as a markdown heading (`## criteria_demonstrated:`) it parses as
+zero criteria and the commit is denied — which is exactly what happened on the first attempt.
+
+criteria_demonstrated:
+  - **EN/DE/FI label**, read from `site_v2/dist/{lang}/teams/manchester-united/index.html` after a
+    clean `npm run build` (60 pages, `audit-seo` OK): season-panel row 3 renders `% Clean sheets`,
+    `% Zu-Null-Spiele` and `% Nollapelit` respectively. No locale falls back to English and none
+    resolves to an empty label.
+  - **Fixture surface untouched**, read from
+    `dist/en/champions-league/matches/2026-08-18-dinamo-zagreb-vs-viking/index.html`: the string
+    `1/4 Clean sheets` appears twice, once per window — the count over its denominator, label
+    unchanged, exactly as before the rename.
+  - **Honest-absent on the stale sample**: the built team page shows 15 rows in the "vs the league"
+    panel against 16 in "vs last season", i.e. the clean-sheet row is OMITTED rather than rendered
+    as a zero bar, because the committed export still keys it `clean_sheets`. The season panel
+    shows that row with an en-dash for both value and delta.
+  - **Nothing else moved**: all 16 season-panel rows render in the locked block order in every
+    locale, and every label except row 3 is byte-identical to main — Ø Goals, Ø Goals against, Ø
+    Shots, % Shots from box, Ø Shots on target, % Goals per shot on target, Ø Duels, % Duels won, Ø
+    Defensive actions, Ø Passes, % Pass accuracy, Ø Key passes, Ø Corners, Ø Corners against, %
+    Save percentage.
 
 ## Offline verification, re-derived rather than quoted
 
-Three guards that would catch a bad row cannot run here — `assert_metric_catalogue_expr_resolvable`,
-`assert_metric_direction_lower_is_better_agree` and the seed's schema tests all need a warehouse.
-⚠ **And on an MR they would not see these rows even then**: `--defer --favor-state` resolves
-`ref('metric_catalogue')` to main's seed. So each predicate was re-implemented against the file on
-disk:
+| check | result |
+|---|---|
+| `sync_metric_docs_blocks.py --check` | OK, 183 blocks match the seed AND the model YAML |
+| `check_description_hygiene.py` | ok — 1604 descriptions, 245 blocks resolved, all within 1024/16384 |
+| `dbt parse` (1.7.19 / bigquery 1.7.2) | clean; 0 errors, 0 dangling `{{ doc() }}` |
+| `sqlfluff lint` on all 4 edited models, full rule set | All Finished! |
+| `npm test` (site_v2) | 76 pass, 0 fail |
+| `python -m pytest tests/` | 1007 passed, 1 skipped, 14 subtests |
+| `npm run build` | 60 pages, `audit-seo: 61 built page(s) checked. OK.` |
 
-```
-catalogue rows: 85
-  unique (metric_id, entity)        : OK
-  unique label_i18n_key             : OK
-  unique (entity, label_en)         : OK
-  accepted_values on 5 columns      : OK
-  not_null on 9 columns             : OK
-  direction <-> lower_is_better     : OK
-  expr_resolvable (all rows)        : OK
-  DANGLING references               : none
-      goals_against__team       defined     12 references
-      goals_against__player     defined      8 references
-      goals_against             NOT DEFINED   0 references
-```
+## ⛔ Mutation testing — the guards were watched going RED
 
-⚠ **The first version of that checker reported 95 unresolved tokens and every one was a
-pre-existing row** — it regexed columns out of the model's `.sql` and missed passthroughs. The
-checker was wrong, not the seed. It now reads each model's declared column list. Recorded because
-a checker that cries wolf is a checker nobody runs.
+A passing test over a renamed column proves nothing. Each guard was broken deliberately and the
+failure observed, then restored; the restored diff is byte-identical (19 files, +165/−76 before and
+after).
 
-Gates: all six offline gates green, `sync_metric_docs_blocks --check` green (181 blocks in sync),
-`ruff` clean, `dbt parse` clean. Line endings read as BYTES: no doubled CRs, every file uniform,
-the seed still CRLF.
+| mutation | guard | result |
+|---|---|---|
+| team binding points at `metrics.clean_sheet_share.label` (the key the plan originally proposed, which the catalogue declares nowhere) | `check-metric-labels.test.mjs` | **3 tests FAILED** |
+| `int_team_profile.yml:65` points back at `doc('clean_sheets_this_season__team')`, the block the rename deleted | `dbt parse` | **Compilation Error** |
+| `% Nollapelit` deleted from the FI dict only | `check-metric-labels.test.mjs` | **1 test FAILED**: "FI has no label for: metrics.clean_sheets_share.label" |
+
+⚠ **NOT offline-checkable, stated rather than claimed**: renaming the unpivot member back to
+`clean_sheets` while the three `accepted_values` lists say `clean_sheets_share` produces a red
+`dbt test`, not a red offline gate. Nothing on this machine catches it. `data:build:mr` is where
+that half is proved.
 
 ## Diff shape
 
-The 24 deletions decompose exactly: **20** repointed `goals_against` lines, **1** in
-`metric_columns.md` (the bare block replaced by the pair), **2** in `mart_head_to_head.sql`
-(comment), **1** in the wireframes doc (a figure). Everything else is additions.
-
-## The field choices worth attacking
-
-**`format = integer` and a blank `denominator_expr` on all five.** The seed's schema says "Blank
-for raw count metrics", and a denominator declares a division the pipeline performs — none of
-these five is divided anywhere. All five can also exceed games played, which is why `integer` is
-right and `count_fraction` would not be: that format renders "3/5" and belongs to a quantity capped
-by the match count.
-
-**`goals_against` (team) is `lower_better`**, with `lower_is_better` in lockstep — checked.
-
-**`goalkeeper_saves` is the provider's TEAM statistics line**, not a sum of the individual
-goalkeepers' saves. Two different feeds, and the description says so, because the catalogue's
-existing `saves` is a PLAYER metric from the other one.
+19 code and doc files, +165 / −76. Line endings verified as BYTES: every edited file is uniformly
+CRLF in the worktree (metricRows.ts 105/105, strings.ts 738/738, metric_catalogue.csv 87/87), so no
+file flipped its endings.
 
 ## What is deliberately NOT here
 
-**`clean_sheets` / `clean_sheets_share` — its own change.** The ruling is right and the defect it
-fixes is live: `mart_team_profile.clean_sheets` is a RATE
-(`int_team_season__metrics_cumulative.sql:91`) while `mart_team_season.clean_sheets` and
-`mart_team_momentum.clean_sheets` are COUNTS. One name, two numbers, one definition attached to
-both. ⭐ The FRONTEND already agrees with the ruling — `metricRows.ts:50` serves it as
-`count_fraction` with a `denom` mapping, and the committed fixture JSON carries
-`"clean_sheets": 2` — so the warehouse is the side out of step. It reaches the 22-metric benchmark
-set, the yoy family and an i18n label key.
-
-**~40 further blank columns.** The new blocks also cover the derived family
-(`goals_for_sum_season`, `goals_against_delta_yoy`), which resolves to the entity-suffixed block
-rather than to its own name, so `--wire-shared-docs` cannot reach them. `--wire-metric-docs` can
-and REFUSES: `int_team_momentum__metrics` is absent from `declare_missing_columns.py`'s
-`MODEL_ENTITY`, so it will not guess the entity. That is a script edit this contract forbids.
-
-⛔ **The gate is green without them.** The 5 rows create exactly 30 findings and all 30 are closed.
-Unfinished work, not a failure — named so a green build is not read as "every new block is wired".
-
-**Team totals for `shots_total`, `passes_total`, `passes_accurate`, `shots_on_goal`**: each would
-split an existing player block and dangle 14/19/14/11 references.
-
-## For the CPO
-
-Nothing needs a decision to merge this. Two things to know:
-
-1. **These English names change nothing a visitor sees today.** They go into the exported glossary;
-   the site takes its labels from a separate hand-written file. Wiring them to the product is
-   separate work.
-2. **The clean-sheets rename is queued next**, on your ruling, and it is the one that moves a
-   published column.
+The committed sample under `site_v2/src/data/` is one build stale and stays that way: the renamed
+columns do not exist in BigQuery until `data:build:main` runs after merge, so the export cannot be
+rerun yet. Hand-editing exported JSON to fake the new key would relocate a violation rather than
+fix one. The visible consequence is measured above and is the honest-absent path, not a break.

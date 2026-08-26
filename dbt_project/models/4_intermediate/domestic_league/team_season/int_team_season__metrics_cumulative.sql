@@ -88,7 +88,7 @@ select
         when games_with_opp_stats < games_played then null
         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
     end as shot_share,
-    safe_divide(clean_sheet_games, games_played) as clean_sheets,
+    safe_divide(clean_sheet_games, games_played) as clean_sheets_share,
     -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
     -- from int_team_season__metrics — this model is now their single home.
     safe_divide(goals_for, games_played) as goals_per_match,

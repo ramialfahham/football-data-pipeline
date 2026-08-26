@@ -18,7 +18,7 @@ import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { asNumber } from "../../lib/types";
 import type { TeamSeason, Benchmark } from "../../lib/types";
-import { METRIC_ROWS, GROUP_ORDER } from "../../lib/metricRows";
+import { METRIC_ROWS, GROUP_ORDER, teamBinding } from "../../lib/metricRows";
 
 interface Props {
   season: TeamSeason;
@@ -33,7 +33,11 @@ for (const b of season.benchmarks ?? []) benchByKey.set(b.metric_key, b);
 const sRec = season as unknown as Record<string, unknown>;
 
 const hasBench = benchByKey.size > 0;
-const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${r.field}_delta_yoy`]) != null);
+// Both panels key on the TEAM binding, not on `field`: the clean-sheet slot is served here as
+// `clean_sheets_share` (the benchmark's metric_key and the yoy column alike), while the fixture
+// windows serve the count under the bare name. Every other row binds the same name on both.
+const keyOf = (r: (typeof METRIC_ROWS)[number]): string => teamBinding(r).field;
+const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${keyOf(r)}_delta_yoy`]) != null);
 
 // Per-panel captions (14_team_stats.md §5: NO single peer-count header — coverage varies
 // per metric, so the honest N lives on each row's "of {team_count}", never in the caption).
@@ -60,7 +64,7 @@ const subFor = (field: string): string | null =>
 // omitted, never a zero bar). Season panel: all 16 (a null delta dashes out honestly).
 const leagueGroups = GROUP_ORDER.map((group) => ({
   group,
-  rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(r.field)),
+  rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(keyOf(r))),
 })).filter((g) => g.rows.length > 0);
 const seasonGroups = GROUP_ORDER.map((group) => ({
   group,
@@ -92,7 +96,7 @@ const seasonGroups = GROUP_ORDER.map((group) => ({
             )}
           </div>
           {grp.rows.map((r) => (
-            <MetricLeagueRow row={r} bench={benchByKey.get(r.field)} sub={subFor(r.field)} lang={lang} />
+            <MetricLeagueRow row={r} bench={benchByKey.get(keyOf(r))} sub={subFor(r.field)} lang={lang} />
           ))}
         </>
       ))}
@@ -107,8 +111,8 @@ const seasonGroups = GROUP_ORDER.map((group) => ({
             {grp.rows.map((r) => (
               <MetricSeasonRow
                 row={r}
-                bench={benchByKey.get(r.field)}
-                delta={asNumber(sRec[`${r.field}_delta_yoy`])}
+                bench={benchByKey.get(keyOf(r))}
+                delta={asNumber(sRec[`${keyOf(r)}_delta_yoy`])}
                 lang={lang}
               />
             ))}
