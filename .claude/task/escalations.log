@@ -5493,3 +5493,100 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   `goals_conceded`, which would have BROKEN the `_against` convention that already works across
   goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
   follows before proposing one, and do not dress taste up as consistency.
+
+
+2026-08-27 #92 — THE MR DQ GATE WAS TESTING PRODUCTION, AND THE CPO APPROVED THE FIX.
+
+  ⭐ HIS RULING, verbatim: **"do as recommended"**. What he was recommended, and what he was told it
+  costs, both in the message he answered:
+    · the fix — "one flag on one line tells that second run to read live data instead of what the
+      branch just built. Remove it and it reads the branch"
+    · why it is worth more than unblocking one MR — "all 30 of those checks currently test
+      production, not your branch. They pass because production is fine, not because the change is"
+    · the cost, stated before he answered — "those checks would then read from a workspace shared
+      between branches, so they could pick up leftovers from another branch's run. Narrower hole
+      than the one we have"
+    · the alternative he did not take — renaming in two passes (add the new name beside the old,
+      merge, let prod catch up, delete the old), which needs no CI change but doubles the batches
+      and briefly puts two names on one number.
+  He was also told it is a locked CI file needing his go and the two senior reviewers. This is the
+  `protected_override` authority for `fix/92-singular-tests-read-the-branch`.
+
+  ⛔ THE DEFECT, precisely, because "reads prod" is too loose to act on. `data:build:mr` has TWO dbt
+  invocations. Both carried `--defer --favor-state`. `--favor-state` resolves every `ref()` to the
+  DEFERRED (prod) relation EVEN WHEN THE CURRENT RUN JUST BUILT THAT MODEL.
+    · on the `dbt build` line that is CORRECT and stays: a model being built must take its upstreams
+      from prod, never from a stale `ci_` copy another MR left, and a node being built is not
+      deferred anyway.
+    · on the `dbt test` line nothing is being built, so the flag threw away the MR's own models and
+      pointed all 30 singular tests at production.
+  The two lines are now ASYMMETRIC ON PURPOSE, and the file says so at the point of difference.
+
+  ⚠ THE FILE ASSERTED THE OPPOSITE, WHICH IS WHY THIS SURVIVED SO LONG. The comment above the test
+  line read "validates this MR's rebuilt ci_* models layered over prod (via defer) — an ISOLATED
+  view, not shared prod state". Exactly backwards for the rebuilt models, which is the half that
+  matters. ⭐ THE RULE: when a guard misbehaves, suspect the comment that says it does not. A
+  confident comment is why nobody re-derived the flag's semantics.
+
+  ⭐ THE REPRODUCTION, one job, ninety seconds apart — pipeline 2796272877, job 16145201830, on !114:
+    line 836  OK created sql table model ci_marts.mart_team_season_insights   (renamed column)
+    line 854  PASS assert_mart_team_season_insights_metric_consistency        (inside the build)
+    line 1021 Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?
+  Same assertion, same branch, same job. Only the database differed.
+
+  ⛔ AND WHY IT COULD NOT BE WAITED OUT: prod gains the renamed column only after the rename merges,
+  and the rename cannot merge while the gate is red. !114 could never go green on its own. Every
+  column rename that a singular test names has this shape, and step 4 is 35 more renames.
+
+  ⚠ WHAT #92 STILL HOLDS OPEN, so this entry is not read as closing it: `--defer` alone still
+  prefers a `ci_` relation WHEN ONE EXISTS, so an UNMODIFIED upstream can be read from another MR's
+  leftovers in the shared datasets. Narrower than aiming the whole suite at the wrong database, and
+  it fails loudly rather than silently green. Closing it properly means per-MR ephemeral datasets —
+  a RECURRING COST decision, and therefore the CPO's, not taken here.
+
+  ⛔⛔ SAME DAY, SECOND HALF: THAT RESIDUAL FIRED ON THE FIRST PIPELINE, AND THE CPO RULED TWICE.
+  `!115` — the branch carrying this fix, which changes NO models — went red on THREE singular tests
+  reading tables `!114` had built into the shared ci datasets an hour earlier. Headline error, the
+  exact mirror of the one that started #92:
+    `Unrecognized name: points_capture; Did you mean points_capture_pct?`
+
+  ⭐ RULING A, verbatim: **"fix it"**, answering the recommendation "give each merge request its own
+  workspace instead of sharing one". Applied: the profile anchor derives
+  `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names BOTH its output and its `dataset:` that, so
+  every merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
+  `ci_mr<IID>`, and `--defer` falls back to prod for anything it did not build.
+  `macros/generate_schema_name.sql` already prefixed non-prod datasets with `target.name`, so the
+  macro is UNTOUCHED and local `dev` is unchanged — the uniqueness went into the target name
+  precisely so the macro could stay put.
+  ⚠ BOTH lines are load-bearing: the target NAME isolates the four layer datasets, and `dataset:`
+  isolates the base models and every seed, which carry no `+schema` and ride bare `target.schema`.
+  `metric_catalogue` is one of them. An earlier version of the pin asserted only the target name;
+  platform-reviewer proved you could revert `dataset:` alone and stay green.
+
+  ⭐ RULING B, and it is a STANDING CONSTRAINT ON THIS WORK, not a one-off. I raised an automatic
+  table expiry as the way to bound the storage those datasets accumulate, and described its risk in
+  the same breath — "point it at the wrong place and it deletes the real warehouse". His reply:
+  **"Are you nuts???"**, and then, explicitly: **"You do nothing where you come any close to
+  introducing the risk of deleting the warehouse."** So no expiry, no TTL, no drop, no cleanup step
+  ships here or in the follow-up. The datasets accumulate and that is the accepted outcome.
+  ⭐ MEASURED, so the decision rests on a number rather than a worry: the five shared `ci_*` datasets
+  hold **6.0 GB** in total (`bq query ... __TABLES__`, live) — and that is the FULL set accumulated
+  across many branches, where one merge request builds only `state:modified+`. At EU active-storage
+  rates that is about **12 cents a month**.
+  ⚠ I HAD TOLD HIM THE COST WAS "storage for a few days per branch, which self-deletes". That was
+  FALSE of what ships — nothing self-deletes — and cto-reviewer caught it, not me. ⭐ THE RULE:
+  **never describe a cost by the mechanism you imagined; describe it by the one you are building.**
+
+  ⭐⭐ AND THE RULE THAT MATTERS MOST HERE, from RULING A's cause. I disclosed the shared-workspace
+  risk honestly, in his hearing, as "a narrower hole" that "fails loudly" — and he approved on that
+  description. Both halves were true and the description was still useless, because it said how BAD
+  the failure would be and never how OFTEN it would happen. It happened immediately, and would have
+  happened on every batch of a twelve-rename programme. **WHEN DISCLOSING A RESIDUAL RISK, STATE ITS
+  FREQUENCY, NOT ONLY ITS SEVERITY.** A risk that fires every time is not a narrower hole; it is a
+  gate nobody will trust.
+
+  ⚠ PRE-FLIGHT, done before building rather than discovered in CI: this is the first change that
+  requires dbt to CREATE datasets. The CI service account is
+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` — a name left over from
+  before the GitLab migration, not a GitHub dependency — and it holds `roles/bigquery.user`, which
+  grants `bigquery.datasets.create`. Read from the live project IAM policy.

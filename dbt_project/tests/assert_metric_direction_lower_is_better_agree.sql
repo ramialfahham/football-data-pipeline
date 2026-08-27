@@ -27,11 +27,23 @@
   silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
   (verified against the built table), so no cast is needed.
 
-  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
-  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
-  seed is never selected and `--favor-state` swaps it for the state relation). That is why the 4
-  corrections this guard depends on merged FIRST, in their own PR, before the guard followed. Do not
-  try to solve this with a CI workflow change.
+  CI note, REWRITTEN 2026-08-27 under #92. The previous version said that on a PR
+  `ref('metric_catalogue')` resolves to MAIN's seed rather than the branch's, because
+  `--favor-state` swaps it for the state relation; that this is why the 4 corrections this guard
+  depends on had to merge FIRST in their own PR before the guard followed; and "Do not try to solve
+  this with a CI workflow change."
+
+  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
+  `data:build:mr`'s `dbt test` invocation, `dbt seed --target "$DBT_CI_TARGET"` runs before it in
+  the same job, and plain `--defer` prefers the branch's seed relation because it exists. **This
+  guard now reads the branch's seed.** The split-the-PR rule above was a workaround for the flag,
+  not a property of the guard, and it no longer applies. The 4 corrections having merged first
+  remains a fact of history, not a rule for the next change.
+  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
+  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset.
+  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately. Both that
+  asymmetry and the per-merge-request naming are pinned in
+  `tests/test_ci_data_job_invariants.py`.
 #}
 
 select

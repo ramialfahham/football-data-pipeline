@@ -4,9 +4,9 @@
 #   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME.
 #   `prod` is the ONLY target that writes the canonical BARE datasets the live site export
 #   reads (`marts`, `core`, …). Every other target is auto-prefixed:
-#     target dev  -> dev_marts,  dev_core,  …   (local development)
-#     target ci   -> ci_marts,   ci_core,   …   (set by the CI workflows)
-#     target prod -> marts,      core,      …   (nightly / main-push / Pages only)
+#     target dev        -> dev_marts,      dev_core,      …  (local development)
+#     target ci_mr<IID> -> ci_mr114_marts, ci_mr114_core, …  (CI, ONE PER MERGE REQUEST)
+#     target prod       -> marts,          core,          …  (nightly / main-push only)
 #   So a local build can NEVER clobber prod as long as your target is named anything but
 #   `prod`. Keep your local default target = `dev`.
 #   Models WITHOUT a `+schema` (the base models + seeds) fall back to the profile `dataset` below,
@@ -27,13 +27,16 @@ football_data_pipeline:
       location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
       priority: interactive
 
-    # CI / PR builds — reference only; the ci-data-build workflow writes this profile itself
-    # (WIF/oauth). Slim builds run here and defer unchanged upstreams to prod. Writes ci_*.
+    # CI / merge-request builds — REFERENCE ONLY. `.gitlab-ci.yml`'s .dbt_profile anchor writes the
+    # real one (WIF/oauth) and names this target `ci_mr${CI_MERGE_REQUEST_IID}` — one per merge
+    # request, so no branch can read another's tables (#92, 2026-08-27). The literal `ci` below is a
+    # stand-in to keep this example readable; there is no shared `ci` target in CI.
+    # Slim builds run here and defer unchanged upstreams to prod.
     ci:
       type: bigquery
       method: oauth
       project: football-data-pipeline-gcp
-      dataset: ci_analytics  # fallback for base + seeds under CI
+      dataset: ci_analytics  # in CI this is ci_mr<IID>: fallback for base + seeds
       threads: 4
       timeout_seconds: 300
       location: EU

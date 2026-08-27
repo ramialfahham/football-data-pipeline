@@ -96,7 +96,21 @@ are already in the seed and the team-names programme is PAUSED PART-WAY.
 
 ## ⛔ OPEN, ALL THE CPO'S — none blocks the naming programme
 
-- **#92** — `--defer --favor-state` makes ALL 28 singular tests read PROD on an MR.
+- **#92** — FIXED 2026-08-27 in `!115`, **in two halves, and half two is not optional**.
+  (1) `--favor-state` is gone from `data:build:mr`'s **`dbt test`** line, so the 30 singular tests
+  read the BRANCH; it STAYS on the `dbt build` line — ⛔ **never "match the two lines up"**.
+  (2) ⛔ **THE CI DATASETS ARE PER MERGE REQUEST**: `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}`
+  names both the profile output AND its `dataset:`. **There is no shared `ci` target.** Half one
+  ALONE broke things — `!115`, which changes no models, went red on three tests reading `!114`'s
+  leftovers. `generate_schema_name` is UNTOUCHED (it already prefixes on `target.name`), so local
+  `dev` is unaffected. ⚠ BOTH profile lines are load-bearing: the target NAME isolates the layer
+  datasets, `dataset:` isolates base models + every seed (no `+schema` → bare `target.schema`).
+  ⛔ **NOTHING EXPIRES OR DELETES THESE DATASETS, BY CPO INSTRUCTION** — "you do nothing where you
+  come any close to introducing the risk of deleting the warehouse". They accumulate; measured, a
+  full set is 6.0 GB ≈ 12¢/month. Do not add a TTL, a drop or a cleanup step.
+  ⭐ **Any column rename a singular test names is unmergeable without this** — prod gains the column
+  only after the merge, so the gate can never go green first. Step 4's 35 player renames would have
+  hit it repeatedly.
 - **#93** — `mart_team_momentum` is a SECOND copy of ~20 team formulas and has ALREADY DRIFTED.
   ⚠ Its file carries a CPO attribution the log contradicts; put that to him as a contradicted
   attribution, never as evidence he ruled it.

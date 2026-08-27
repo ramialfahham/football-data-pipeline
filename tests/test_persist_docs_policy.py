@@ -172,8 +172,13 @@ def test_docs_are_generated_exactly_once_and_only_on_main():
 
     `data:nightly` was rejected because a description's content comes from the repo, not the data,
     so a nightly run re-publishes identical pages for recurring cost. `data:build:mr` was rejected
-    because it builds `state:modified+` into the shared ci_* datasets, so its catalog would cover
-    only what one branch changed — a partial column list presented as the column list.
+    because it builds `state:modified+` into that merge request's own `ci_mr<IID>_*` datasets, so
+    its catalog would cover only what one branch changed — a partial column list presented as the
+    column list.
+    ⚠ That rationale used to say "the shared ci_* datasets". There is no shared CI workspace any
+    more (#92, 2026-08-27) — each merge request writes its own — but the reason this job is still
+    the wrong place to generate docs is UNCHANGED and if anything stronger: a per-merge-request
+    dataset holds even less of the warehouse than the shared one did.
     """
     jobs = _jobs_running("dbt docs generate")
     assert jobs == ["data:build:main"], (

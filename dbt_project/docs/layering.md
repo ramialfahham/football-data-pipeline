@@ -26,10 +26,14 @@ dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is
 | Target | Written by | Layer datasets | base + seeds (profile `dataset`) |
 |--------|-----------|----------------|----------------------------------|
 | `prod` | `dbt-scheduled` (nightly), `ci-data-build` main-push, `pages-match-preview` | `marts`, `core`, `staging`, `intermediate` (**bare**) | `dbt_analytics` |
-| `ci`   | `ci-data-build` PR builds (slim + `--defer` to prod) | `ci_marts`, `ci_core`, … | `ci_analytics` |
+| `ci_mr<IID>` | `data:build:mr`, **one target per merge request** (slim + `--defer` to prod) | `ci_mr114_marts`, `ci_mr114_core`, … | `ci_mr114` |
 | `dev`  | local `dbt build` | `dev_marts`, `dev_core`, … | `dev_scratch` |
 
-`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a PR build or a local run cannot overwrite production. PR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod (`--defer --favor-state`). Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
+`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a merge-request build or a local run cannot overwrite production. MR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod. Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
+
+⚠ **The CI target is PER MERGE REQUEST; there is no shared `ci` target** (#92, 2026-08-27). It used to be one `ci` target writing `ci_marts` / `ci_analytics` for every branch, and that shared workspace became a real defect the moment the singular tests started reading it instead of prod: a merge request that rebuilt nothing read tables another branch had built, and went red on three tests for reasons that had nothing to do with it. `.gitlab-ci.yml` now derives `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and writes both the profile's output name and its `dataset:` from it, so `generate_schema_name`'s existing target-name prefix isolates the layer datasets and the profile `dataset:` isolates the base models and seeds. **The macro is unchanged.** These datasets are never expired or deleted; a full set is ~6 GB (~12¢/month).
+
+⚠ **The two dbt invocations in `data:build:mr` differ by one flag ON PURPOSE.** `dbt build` runs `--defer --favor-state`; `dbt test` runs `--defer` alone. `--favor-state` resolves a `ref()` to the deferred prod relation even when the current run just built that model — right for a BUILD (its upstreams must come from prod), wrong for a TEST (it discarded the merge request's own models and pointed the whole singular suite at production). Both the asymmetry and the per-MR naming are pinned in `tests/test_ci_data_job_invariants.py`.
 
 The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
 

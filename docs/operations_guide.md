@@ -263,8 +263,13 @@ The warehouse is split by dbt **target** so non-prod builds cannot touch product
 - **`prod`** — `dbt-scheduled` (nightly), `ci-data-build` on main-push, and `pages-match-preview`
   write the canonical **bare** datasets (`marts`, `core`, …) the site export reads. The only
   target that does.
-- **`ci`** — `ci-data-build` PR builds write **`ci_*`** datasets and `--defer` unchanged
-  upstreams to prod, so a PR validates its changes layered over prod without mutating it.
+- **`ci_mr<IID>`** — `data:build:mr` writes **one dataset set per merge request**
+  (`ci_mr114_marts`, `ci_mr114_core`, … and bare `ci_mr114`) and `--defer`s unchanged upstreams to
+  prod, so a merge request validates its changes layered over prod without mutating it — and
+  without reading any other branch's tables. ⚠ **There is no shared `ci` target** (#92,
+  2026-08-27): there used to be one, and once the data-quality tests started reading it instead of
+  prod, a merge request that rebuilt nothing read tables another branch had built. Details and the
+  full table: [`dbt_project/docs/layering.md`](../dbt_project/docs/layering.md).
 - **`dev`** — local `dbt build` writes **`dev_*`** datasets.
 
 Because prod stays unprefixed, `scripts/export_*.py` (hardcoded `marts`/`core`) needs no change.
