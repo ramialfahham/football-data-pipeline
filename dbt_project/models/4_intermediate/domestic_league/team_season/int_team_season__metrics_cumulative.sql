@@ -136,7 +136,7 @@ select
     case
         when games_with_team_stats < games_played then null
         else safe_divide(corner_kicks, games_with_team_stats)
-    end as corner_kicks_per_match,
+    end as corners_per_match,
     case
         when games_with_opp_stats < games_played then null
         else safe_divide(opponent_corner_kicks, games_with_opp_stats)
@@ -146,7 +146,7 @@ select
         else safe_divide(
             goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
         )
-    end as save_ratio,
+    end as saves_pct,
     safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
     safe_divide(tackles, games_with_player_stats) as tackles_per_match,
     safe_divide(interceptions, games_with_player_stats)

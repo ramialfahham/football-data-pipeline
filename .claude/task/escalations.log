@@ -5643,3 +5643,59 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   to the model columns they enumerate; only the warehouse `accepted_values` test inside
   `data:build:mr` fires. Filed as its own issue rather than folded into a rename MR — a new guard is
   a new mechanism and belongs in a task that is about the guard.
+
+
+2026-08-27 STEP 3, MR B — AND A STANDING APPROVAL THAT SAVES FOUR MORE INTERRUPTIONS.
+
+  ⭐ RULING, verbatim: **"do it"**, answering a message that (a) listed the four acceptance criteria
+  for MR B and (b) asked, in these words: "Can these stand for the remaining batches too? They're
+  the same shape every time, and approving once saves four more of these interruptions."
+  ⛔ SO THE FOUR ARE APPROVED FOR **MRs B THROUGH F**, not just for B, and the list it answered is
+  recorded here beside it rather than only the approval — the failure that FAILed an MR earlier in
+  this same programme. The four, as put to him:
+    1. Every metric name on the built site reads the same words as before, in all three languages.
+    2. Neither old name survives anywhere in the built site or the source.
+    3. The label tests pass — and one is broken on purpose to prove they would catch a mistake.
+    4. The team page still shows "not enough games to rank" where those rows would sit, written
+       down so a future reader does not mistake the gap for damage.
+  ⚠ HE WAS ALSO TOLD, in the same message, that MR B is the first of the step to touch the frozen
+  `site/` tree, that two live gates force it, and that only the internal name plumbing changes there
+  — no wording, no page code. The approval covers that too.
+  ⚠ THE FIRST TWO CRITERIA I DRAFTED FOR `!114` WERE UNPROVABLE and had to be replaced mid-task with
+  his authority. These four are the replacements, which is why they are worth making standing: they
+  are the ones that survived contact with a build.
+
+  ⭐ AND A CORRECTION TO A HABIT, from `!114`'s review, worth having in the record because it will
+  recur in every remaining batch: **a `dbt ls --select <model>+` lineage list is EVIDENCE, not the
+  file list.** For MR B, `mart_team_momentum`, `int_team_momentum__metrics` and
+  `mart_matchday_insights` are edited but do NOT appear in the lineage, because `mart_team_momentum`
+  computes the same two metrics AGAIN from the momentum window (#93) rather than reading the
+  cumulative model. A contract that took the lineage as the edit set would have missed three files.
+
+  ⛔⛔ TWO FINDINGS FROM MR B'S BUILD, BOTH ABOUT MEASUREMENT RATHER THAN ABOUT THE RENAME.
+
+  ⭐ ONE: THE SAMPLE-STALENESS TRANSIENT IS VISIBLE FROM MR B ONWARD, AND MY CONTRACT SAID IT WAS
+  NOT. `!114`'s renames touched the TEAM binding only, so the transient never reached a page.
+  `corner_kicks_per_match` and `save_ratio` are FIXTURE fields, and `MetricComparison.astro`'s
+  `hasData()` drops any row where neither side has a value — so until the sample is regenerated the
+  two renamed rows are OMITTED from the 16-row comparison on all 51 built fixture pages, in all
+  three locales. Measured: **16 rendered metric names before, 14 after.** I had written "on the page
+  this is invisible either way", reasoning from the team tab, and the build disproved it.
+  ⚠ It is honest-absent behaviour, not a break (omitted, never blank, never a fabricated zero, per
+  `14_team_stats.md` §6) and it closes with the sample refresh. ⭐ THE RULE: a transient's visibility
+  depends on WHICH SURFACE binds the renamed field, and the team page and the fixture page bind
+  different ones. Check the fixture surface before calling a rename invisible. This applies to MRs
+  C, D, E and F — `shot_accuracy`, `danger_zone_ratio`, `finishing_efficiency`, `pass_accuracy` and
+  `key_passes_per_match` are ALL fixture fields, so each of those MRs drops rows too, and the gap
+  ACCUMULATES until the closing refresh.
+
+  ⭐ TWO: MY OWN EVIDENCE SCRIPT WAS LYING, AND IT TOOK A RENAME OF A FIXTURE FIELD TO EXPOSE IT.
+  Criterion 1 was checked with a plain substring test, so `Ø Corners` tested TRUE against a page
+  containing only `Ø Corners against`. It reported 16 rendered names when the truth was 14 — it
+  would have certified two MISSING rows as present. Verified with `grep -o`: both strings occur
+  exactly twice on the EN page, so every "Ø Corners" hit IS an "against" hit. Fixed by subtracting
+  the occurrences of any longer label that contains the shorter one.
+  ⭐ THE RULE: **a substring test over rendered text is not a presence test** wherever one label is a
+  prefix of another, and this metric set is full of `X` / `X against` pairs. `!114`'s conclusion
+  still stands — nothing it renamed was a fixture field — but its method was weaker than its claim,
+  and the claim is what a reviewer reads.

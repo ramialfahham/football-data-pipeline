@@ -99,9 +99,9 @@ select
     cur.passes_per_match as passes_per_match_this_season,
     cur.pass_accuracy as pass_accuracy_this_season,
     cur.key_passes_per_match as key_passes_per_match_this_season,
-    cur.corner_kicks_per_match as corner_kicks_per_match_this_season,
+    cur.corners_per_match as corners_per_match_this_season,
     cur.corners_against_per_match as corners_against_per_match_this_season,
-    cur.save_ratio as save_ratio_this_season,
+    cur.saves_pct as saves_pct_this_season,
     -- prior-season values (through the same N)
     prev.points_won_sum_season as points_prev_season,
     prev.goals_for_sum_season as goals_for_prev_season,
@@ -119,9 +119,9 @@ select
     prev.passes_per_match as passes_per_match_prev_season,
     prev.pass_accuracy as pass_accuracy_prev_season,
     prev.key_passes_per_match as key_passes_per_match_prev_season,
-    prev.corner_kicks_per_match as corner_kicks_per_match_prev_season,
+    prev.corners_per_match as corners_per_match_prev_season,
     prev.corners_against_per_match as corners_against_per_match_prev_season,
-    prev.save_ratio as save_ratio_prev_season,
+    prev.saves_pct as saves_pct_prev_season,
     -- year-over-year deltas (this − prev; NULL when either side is NULL)
     cur.points_won_sum_season - prev.points_won_sum_season as points_delta_yoy,
     cur.goals_for_sum_season - prev.goals_for_sum_season as goals_for_delta_yoy,
@@ -139,9 +139,9 @@ select
     cur.passes_per_match - prev.passes_per_match as passes_per_match_delta_yoy,
     cur.pass_accuracy - prev.pass_accuracy as pass_accuracy_delta_yoy,
     cur.key_passes_per_match - prev.key_passes_per_match as key_passes_per_match_delta_yoy,
-    cur.corner_kicks_per_match - prev.corner_kicks_per_match as corner_kicks_per_match_delta_yoy,
+    cur.corners_per_match - prev.corners_per_match as corners_per_match_delta_yoy,
     cur.corners_against_per_match - prev.corners_against_per_match as corners_against_per_match_delta_yoy,
-    cur.save_ratio - prev.save_ratio as save_ratio_delta_yoy
+    cur.saves_pct - prev.saves_pct as saves_pct_delta_yoy
 from cur
 left join prev
     on

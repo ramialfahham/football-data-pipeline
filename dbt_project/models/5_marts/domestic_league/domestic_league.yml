@@ -127,12 +127,12 @@ models:
         description: "{{ doc('pass_accuracy') }}"
       - name: passes_per_match
         description: "{{ doc('passes_per_match') }}"
-      - name: corner_kicks_per_match
-        description: "{{ doc('corner_kicks_per_match') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
       - name: corners_against_per_match
         description: "{{ doc('corners_against_per_match') }}"
-      - name: save_ratio
-        description: "{{ doc('save_ratio') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
 
   - name: mart_matchday_insights
     description: >
@@ -183,11 +183,11 @@ models:
           expression: "away_pass_accuracy_recent is null or (away_pass_accuracy_recent between 0 and 1)"
           name: mmi_away_pass_accuracy_in_range
       - dbt_utils.expression_is_true:
-          expression: "home_save_ratio_recent is null or (home_save_ratio_recent between 0 and 1)"
-          name: mmi_home_save_ratio_in_range
+          expression: "home_saves_pct_recent is null or (home_saves_pct_recent between 0 and 1)"
+          name: mmi_home_saves_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "away_save_ratio_recent is null or (away_save_ratio_recent between 0 and 1)"
-          name: mmi_away_save_ratio_in_range
+          expression: "away_saves_pct_recent is null or (away_saves_pct_recent between 0 and 1)"
+          name: mmi_away_saves_pct_in_range
     columns:
       - name: fixture_sk
         description: "{{ doc('fixture_sk') }} This model's grain: one row per upcoming fixture in the next round per league."
@@ -316,16 +316,16 @@ models:
         description: "Home: total passes per game with team stats."
       - name: away_passes_per_match_recent
         description: "Away: total passes per game with team stats."
-      - name: home_corner_kicks_per_match_recent
+      - name: home_corners_per_match_recent
         description: "Home: corners won per game with team stats."
-      - name: away_corner_kicks_per_match_recent
+      - name: away_corners_per_match_recent
         description: "Away: corners won per game with team stats."
       - name: home_corners_against_per_match_recent
         description: "Home: corners conceded per game with opponent stats."
       - name: away_corners_against_per_match_recent
         description: "Away: corners conceded per game with opponent stats."
-      - name: home_save_ratio_recent
+      - name: home_saves_pct_recent
         description: "Home: saves / (saves + goals conceded in save-covered games); self-bounded."
-      - name: away_save_ratio_recent
+      - name: away_saves_pct_recent
         description: "Away: save ratio over the form window."
 

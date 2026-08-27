@@ -140,9 +140,9 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 | % Goals per shot on target | `finishing_efficiency` |
 | Ø Passes | `passes_per_match` |
 | % Pass accuracy | `pass_accuracy` |
-| Ø Corners | `corner_kicks_per_match` |
+| Ø Corners | `corners_per_match` |
 | Ø Corners against | `corners_against_per_match` |
-| % Save percentage | `save_ratio` |
+| % Save percentage | `saves_pct` |
 
 **Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
 Ø Defensive actions, Ø Key passes — the full-season intermediate predates the

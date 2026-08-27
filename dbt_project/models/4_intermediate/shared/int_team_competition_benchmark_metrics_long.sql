@@ -48,8 +48,8 @@ unpivot (
         passes_per_match,
         pass_accuracy,
         key_passes_per_match,
-        corner_kicks_per_match,
+        corners_per_match,
         corners_against_per_match,
-        save_ratio
+        saves_pct
     )
 )

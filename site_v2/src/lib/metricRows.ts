@@ -99,7 +99,7 @@ export const METRIC_ROWS: MetricRowDef[] = [
   { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
   { field: "pass_accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
   { field: "key_passes_per_match", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
-  { field: "corner_kicks_per_match", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
+  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
   { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
-  { field: "save_ratio", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
 ];

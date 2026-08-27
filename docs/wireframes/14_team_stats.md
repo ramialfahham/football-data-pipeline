@@ -147,12 +147,12 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
 | Duels | `duels_per_match` · `duels_won_pct` (%) |
 | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
 | Passing | `passes_per_match` · `pass_accuracy` (%) · `key_passes_per_match` |
-| Set pieces | `corner_kicks_per_match` · `corners_against_per_match` (lower_better) |
-| Goalkeeping | `save_ratio` (%) |
+| Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
+| Goalkeeping | `saves_pct` (%) |
 
 The six `percent` ratios sit next to their volume count in the same block (Ø Shots → % accuracy; Ø Duels
-→ % Duels won; Ø Passes → % accuracy). **`save_ratio` is the one `%` without a count peer in this set**
-(the Goalkeeping block is save_ratio alone) — it renders the `%` as the team profile 02 §8 already does;
+→ % Duels won; Ø Passes → % accuracy). **`saves_pct` is the one `%` without a count peer in this set**
+(the Goalkeeping block is saves_pct alone) — it renders the `%` as the team profile 02 §8 already does;
 adding a saves/faced count is a catalogue matter (GAP-11 family), not this screen.
 
 ### (5) Internal links
@@ -199,7 +199,7 @@ has that this does not; the per-row "of N" carries the sample size instead.)
   position nesting; select/reshape only, consumption-layer contract; the "k of N"/vs-median/spread labels
   applied at render from the catalogue `direction`). All 20 mart rows are carried — this screen renders the
   LOCKED 16. Mirrors GAP-21/#627 for the player.
-- `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
+- `saves_pct` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
 - `clean_sheets_pct` renders as a **percent** here, and that is now the declared metric rather than a
   compromise: the count and the share are two catalogue rows, and this screen ranks the share because
   the teams it ranks have played different numbers of matches. The x/y form (02 §8) belongs to the

@@ -51,7 +51,7 @@ team_agg as (
         -- its own coverage count (same-window rule)
         countif(shots_on_goal is not null) as games_with_sot_stats,
         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
-        -- save coverage: save_ratio is a team-feed (goalkeeper) metric, so it needs its own
+        -- save coverage: saves_pct is a team-feed (goalkeeper) metric, so it needs its own
         -- coverage count to NULL on partial coverage (universal incomplete-data rule)
         countif(goalkeeper_saves is not null) as games_with_save_stats,
         array_agg(distinct leg_league_code order by leg_league_code)
@@ -68,7 +68,7 @@ team_agg as (
         -- coverage-restricted goals sum to keep.
         sum(goals_penalty) as goals_penalty,
         sum(goals_own) as goals_own,
-        -- coverage-restricted scoreline sum keeps save_ratio same-window with its denominator
+        -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
         sum(if(goalkeeper_saves is not null, goals_against, null))
             as goals_against_in_save_games,
         sum(shots_total) as shots_total,

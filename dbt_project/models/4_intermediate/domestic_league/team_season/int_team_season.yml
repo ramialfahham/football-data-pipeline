@@ -50,7 +50,7 @@ models:
             - season_api_year
             - team_sk
       - dbt_utils.expression_is_true:
-          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_ratios_in_range
       # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
       # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
@@ -136,12 +136,12 @@ models:
         description: "{{ doc('passes_per_match') }}"
       - name: pass_accuracy
         description: "{{ doc('pass_accuracy') }}"
-      - name: corner_kicks_per_match
-        description: "{{ doc('corner_kicks_per_match') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
       - name: corners_against_per_match
         description: "{{ doc('corners_against_per_match') }}"
-      - name: save_ratio
-        description: "{{ doc('save_ratio') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
       - name: key_passes_per_match
         description: "{{ doc('key_passes_per_match') }}"
       - name: tackles_per_match
@@ -180,10 +180,10 @@ models:
       # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
       # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
       # construction: points_capture_pct (points <= 3*games), clean_sheets_pct (clean_sheet_games <= games),
-      # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
+      # shot_share (for/(for+against)), saves_pct (saves/(saves+goals)), finishing_efficiency
       # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
       - dbt_utils.expression_is_true:
-          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(saves_pct is null or saves_pct between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_cumulative_structural_ratios_in_range
       # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
       # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
@@ -276,12 +276,12 @@ models:
         description: "{{ doc('passes_per_match') }}"
       - name: pass_accuracy
         description: "{{ doc('pass_accuracy') }}"
-      - name: corner_kicks_per_match
-        description: "{{ doc('corner_kicks_per_match') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
       - name: corners_against_per_match
         description: "{{ doc('corners_against_per_match') }}"
-      - name: save_ratio
-        description: "{{ doc('save_ratio') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
       - name: key_passes_per_match
         description: "{{ doc('key_passes_per_match') }}"
       - name: tackles_per_match

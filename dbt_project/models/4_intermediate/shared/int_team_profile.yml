@@ -21,10 +21,10 @@ models:
       # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
       # (the composed source): the YoY cutoff N is low by construction early in every season, so a
       # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
-      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
+      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; saves_pct = saves/(saves+
       # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
       - dbt_utils.expression_is_true:
-          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
+          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
           name: team_profile_yoy_structural_ratios_in_range
       # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
@@ -83,12 +83,12 @@ models:
         description: "{{ doc('pass_accuracy_this_season__team') }}"
       - name: key_passes_per_match_this_season
         description: "{{ doc('key_passes_per_match_this_season__team') }}"
-      - name: corner_kicks_per_match_this_season
-        description: "{{ doc('corner_kicks_per_match_this_season__team') }}"
+      - name: corners_per_match_this_season
+        description: "{{ doc('corners_per_match_this_season__team') }}"
       - name: corners_against_per_match_this_season
         description: "{{ doc('corners_against_per_match_this_season__team') }}"
-      - name: save_ratio_this_season
-        description: "{{ doc('save_ratio_this_season__team') }}"
+      - name: saves_pct_this_season
+        description: "{{ doc('saves_pct_this_season__team') }}"
       - name: points_prev_season
       - name: goals_for_prev_season
       - name: goals_against_prev_season
@@ -118,12 +118,12 @@ models:
         description: "{{ doc('pass_accuracy_prev_season__team') }}"
       - name: key_passes_per_match_prev_season
         description: "{{ doc('key_passes_per_match_prev_season__team') }}"
-      - name: corner_kicks_per_match_prev_season
-        description: "{{ doc('corner_kicks_per_match_prev_season__team') }}"
+      - name: corners_per_match_prev_season
+        description: "{{ doc('corners_per_match_prev_season__team') }}"
       - name: corners_against_per_match_prev_season
         description: "{{ doc('corners_against_per_match_prev_season__team') }}"
-      - name: save_ratio_prev_season
-        description: "{{ doc('save_ratio_prev_season__team') }}"
+      - name: saves_pct_prev_season
+        description: "{{ doc('saves_pct_prev_season__team') }}"
       - name: goals_for_delta_yoy
       - name: goals_against_delta_yoy
       - name: goals_against_per_match_delta_yoy
@@ -150,12 +150,12 @@ models:
         description: "{{ doc('pass_accuracy_delta_yoy__team') }}"
       - name: key_passes_per_match_delta_yoy
         description: "{{ doc('key_passes_per_match_delta_yoy__team') }}"
-      - name: corner_kicks_per_match_delta_yoy
-        description: "{{ doc('corner_kicks_per_match_delta_yoy__team') }}"
+      - name: corners_per_match_delta_yoy
+        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
       - name: corners_against_per_match_delta_yoy
         description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
-      - name: save_ratio_delta_yoy
-        description: "{{ doc('save_ratio_delta_yoy__team') }}"
+      - name: saves_pct_delta_yoy
+        description: "{{ doc('saves_pct_delta_yoy__team') }}"
 
   - name: int_team_profile__streaks
     description: >

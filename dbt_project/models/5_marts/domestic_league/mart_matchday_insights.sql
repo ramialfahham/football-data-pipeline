@@ -151,9 +151,9 @@ select
     mh.finishing_efficiency as home_finishing_efficiency_recent,
     mh.passes_per_match as home_passes_per_match_recent,
     mh.pass_accuracy as home_pass_accuracy_recent,
-    mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
+    mh.corners_per_match as home_corners_per_match_recent,
     mh.corners_against_per_match as home_corners_against_per_match_recent,
-    mh.save_ratio as home_save_ratio_recent,
+    mh.saves_pct as home_saves_pct_recent,
     -- away form window (from mart_team_momentum).
     ma.goals_per_match as away_goals_per_match_recent,
     ma.goals_against_per_match as away_goals_against_per_match_recent,
@@ -163,9 +163,9 @@ select
     ma.finishing_efficiency as away_finishing_efficiency_recent,
     ma.passes_per_match as away_passes_per_match_recent,
     ma.pass_accuracy as away_pass_accuracy_recent,
-    ma.corner_kicks_per_match as away_corner_kicks_per_match_recent,
+    ma.corners_per_match as away_corners_per_match_recent,
     ma.corners_against_per_match as away_corners_against_per_match_recent,
-    ma.save_ratio as away_save_ratio_recent,
+    ma.saves_pct as away_saves_pct_recent,
     -- form games/points: 0 (not null) when a team has no finished matches in the
     -- window. coalesce calculations sort after the simple columns above (ST06).
     coalesce(mh.games_in_window, 0) as home_form_games_played,

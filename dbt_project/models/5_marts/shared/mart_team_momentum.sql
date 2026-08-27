@@ -88,7 +88,7 @@ select
     case
         when b.games_with_team_stats < b.games_in_window then null
         else safe_divide(b.corner_kicks, b.games_with_team_stats)
-    end as corner_kicks_per_match,
+    end as corners_per_match,
     case
         when b.games_with_opp_stats < b.games_in_window then null
         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
@@ -100,7 +100,7 @@ select
         else safe_divide(
             b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
         )
-    end as save_ratio,
+    end as saves_pct,
     -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
     -- gated) — these are player data, and missing player stats must not blank a team stat
     -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
