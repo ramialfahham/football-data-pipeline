@@ -25,14 +25,17 @@
   that mattered — "Do not try to solve this with a CI workflow change."
 
   It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
-  `data:build:mr`'s `dbt test` invocation. `dbt seed --target ci` runs before it, so the BRANCH's
-  `metric_catalogue` relation always exists in the ci target, and plain `--defer` prefers a relation
-  that exists over the deferred one. **This guard now reads the branch's seed, so catalogue values
-  and a guard that depends on them CAN land in the same PR.** Do not split a change on the strength
-  of the old rule.
-  ⚠ What is still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately,
-  and the asymmetry between the two is pinned by
-  `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
+  `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
+  in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
+  plain `--defer` prefers a relation that exists over the deferred one. **This guard now reads the
+  branch's seed, so catalogue values and a guard that depends on them CAN land in the same PR.** Do
+  not split a change on the strength of the old rule.
+  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
+  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
+  read or overwrite it.
+  ⚠ Also still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately.
+  Both that asymmetry and the per-merge-request naming are pinned in
+  `tests/test_ci_data_job_invariants.py`.
 #}
 
 select

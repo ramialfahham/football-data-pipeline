@@ -4,14 +4,60 @@ Branch `fix/92-singular-tests-read-the-branch`, from main `1804a64`.
 No `site_v2/src/` path is in scope, so the acceptance gate does not fire and there are no
 `acceptance_criteria` to demonstrate. This file carries the verification instead.
 
-## The change, in full
+## The change, in two halves
+
+**Half one — one flag.** The trailing singular-test run stops reading production:
 
 ```
-- dbt test --select test_type:singular --exclude tag:freshness_check --defer --favor-state --state /tmp/main-state --target ci
-+ dbt test --select test_type:singular --exclude tag:freshness_check --defer --state /tmp/main-state --target ci
+- dbt test --select test_type:singular ... --defer --favor-state --state /tmp/main-state --target ci
++ dbt test --select test_type:singular ... --defer              --state /tmp/main-state --target "$DBT_CI_TARGET"
 ```
 
-One flag, on one invocation. Everything else in the diff is the comment above it.
+**Half two — one dataset set per merge request.** Half one alone was not enough, and CI proved it
+on the first pipeline (below). The profile anchor now derives the target from the merge-request id:
+
+```
++ export DBT_CI_TARGET="ci_mr${CI_MERGE_REQUEST_IID:-shared}"
+    target: ${DBT_CI_TARGET}
+    ${DBT_CI_TARGET}:
+      dataset: ${DBT_CI_TARGET}
+```
+
+and all three dbt invocations use `--target "$DBT_CI_TARGET"`.
+
+⛔ **NOTHING IN THIS DIFF DELETES ANYTHING** — no expiry, no TTL, no drop, no cleanup step, no path
+by which a mis-scoped rule could reach production. Swept: `git diff` contains no `expiration`, no
+`bq rm`, no `drop dataset`. An expiry would bound the storage and was **deliberately refused** on
+the CPO's explicit instruction. The datasets accumulate; measured, a full set is 6.0 GB (~12¢/mo).
+
+### Why half two was necessary — measured, not argued
+
+`!115` changes NO models, so it rebuilt nothing and read whatever the shared datasets held. It went
+red on three tests against tables `!114` had built an hour earlier:
+
+| test | result | cause |
+|---|---|---|
+| `assert_mart_team_season_insights_metric_consistency` | Database Error | `!114`'s renamed column |
+| `assert_no_uncatalogued_season_metric` | 2 rows | `!114`'s model columns vs THIS branch's seed |
+| `assert_momentum_window_matches_momentum` | 257 rows | tables built by a different branch |
+
+Headline error: `Unrecognized name: points_capture; Did you mean points_capture_pct?` — the exact
+mirror of the failure that started #92, and proof half one works: the tests were reading the ci
+datasets, just the wrong branch's.
+
+### Both halves of the isolation, and why both are pinned
+
+`generate_schema_name` prefixes a model that HAS a `+schema` with `target.name` — that covers the
+four layer datasets. It returns **bare `target.schema`** for a model with none, which is the whole
+`2_base` layer and **every seed, `metric_catalogue` included**. Those are isolated by the profile's
+`dataset:` line alone. The macro itself is **not in the diff**.
+
+### Pre-flight, before building rather than after
+
+This is the first change requiring dbt to CREATE datasets. Read from the live project IAM policy:
+the CI service account `github-actions-dbt@…` holds `roles/bigquery.user`, which grants
+`bigquery.datasets.create`. (That name is a leftover from before the GitLab migration, not a
+GitHub dependency.)
 
 | check | result |
 |---|---|
@@ -92,17 +138,55 @@ invariants that can be broken while every pipeline stays GREEN"* — gains
 asymmetry. One-sided pinning would let someone "restore symmetry" by stripping the flag from the
 build line instead, which is a different bug that would pass.
 
-### The new pin, watched failing BOTH ways before being trusted
+### FIVE mutations, every one watched going RED, then restored
 
-| mutation | result |
-|---|---|
-| `--favor-state` re-added to the `dbt test` line | ✅ RED — *"data:build:mr's `dbt test` line carries --favor-state again … the 30 singular tests stop testing the branch and re-report on prod"* |
-| `--favor-state` removed from the `dbt build` line | ✅ RED — *"data:build:mr's `dbt build` line lost --favor-state … Do not make the two lines match."* |
-| both restored | 5 passed |
+Both halves are silently revertible, so both are pinned, and each pin was broken on purpose before
+being trusted. Run against this exact tree, not recalled from an earlier one:
+
+| # | mutation | result |
+|---|---|---|
+| 1 | `--favor-state` re-added to the `dbt test` line | ✅ RED — *"the 30 singular tests stop testing the branch and re-report on prod"* |
+| 2 | `--favor-state` removed from the `dbt build` line | ✅ RED — *"Do not make the two lines match."* |
+| 3 | a literal `--target ci` restored on the seed line | ✅ RED — *"targets a literal shared `ci` target"* |
+| 4 | `DBT_CI_TARGET` derived without `CI_MERGE_REQUEST_IID` | ✅ RED — *"the same for every merge request — the shared workspace is back"* |
+| 5 | profile `dataset:` reverted to `ci_analytics` | ✅ RED — *"the base models and every seed (metric_catalogue included) … this line is the only thing isolating them"* |
+| — | all restored | **6 passed** |
+
+Mutation 5 is the one a reviewer had to find: an earlier version of this pin asserted only the
+target name, so reverting `dataset:` alone put every base table and the seed back in one shared
+dataset with the whole suite still green.
 
 `scope_paths` was extended by three files to carry these fixes, on a clean tree, recorded under
 `amendments:` in the contract. The authority is the standing rules the FAILs invoked, not a new CPO
 decision — neither extension widens what this task decides.
+
+## FINAL ROUND — the same defect class, five more instances, all mine
+
+`platform-reviewer` and `analytics-engineer-reviewer` both failed the completed change, and both
+found the same thing: **half two abolished the shared workspace, and five comments elsewhere still
+described it as current.** I swept the places I was thinking about and not the rest — which is
+precisely the "corrections replace, never accumulate" failure this whole task exists to remove,
+committed inside the fix for it.
+
+| # | place | what it still said |
+|---|---|---|
+| 1 | `.gitlab-ci.yml`, build-line justification | "never from a stale ci_ copy left by **another MR**" |
+| 2 | `.gitlab-ci.yml`, above `dbt build` | "Writes ci_* datasets … never a stale ci_ copy left by **a prior MR**" |
+| 3 | `.gitlab-ci.yml`, the docs-generate note | "that job builds state:modified+ into the **shared** ci_* datasets" |
+| 4 | `tests/test_ci_data_job_invariants.py`, docstring + assertion message | "a stale `ci_` table **an earlier MR left**" |
+| 5 | `contract.md`, objective | "the **shared** `ci_*` datasets carry tables left by earlier merge requests" (present tense) |
+
+⭐ **AND THE FIX IS NOT JUST DELETING THE OLD REASON — platform-reviewer worked out the one that
+survives, which I had not.** With per-merge-request datasets, "another branch's leftovers" is
+structurally impossible, so `--favor-state` on the BUILD line looked like it guarded nothing, and
+the next reader would rightly have deleted it — the exact mutation the new pin exists to stop.
+The surviving case is an **earlier pipeline of the SAME merge request**: build a model, then push a
+commit reverting it to match main, and it drops out of `state:modified+` so the next pipeline does
+not rebuild it — leaving a superseded table that `--defer` alone would prefer. `--favor-state`
+forces prod for it. That reason is now stated in all four code locations and in the contract.
+
+Swept afterwards for any surviving instance across the CI file, the pin, both dbt guards and both
+docs: **zero**. Pins still 6 passed.
 
 ## One thing checked and deliberately NOT changed
 

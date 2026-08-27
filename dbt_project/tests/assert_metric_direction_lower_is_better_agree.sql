@@ -34,13 +34,16 @@
   this with a CI workflow change."
 
   It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
-  `data:build:mr`'s `dbt test` invocation, `dbt seed --target ci` runs before it, and plain
-  `--defer` prefers the branch's seed relation because it exists. **This guard now reads the
-  branch's seed.** The split-the-PR rule above was a workaround for the flag, not a property of the
-  guard, and it no longer applies. The 4 corrections having merged first remains a fact of history,
-  not a rule for the next change.
-  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately; the asymmetry is
-  pinned by `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
+  `data:build:mr`'s `dbt test` invocation, `dbt seed --target "$DBT_CI_TARGET"` runs before it in
+  the same job, and plain `--defer` prefers the branch's seed relation because it exists. **This
+  guard now reads the branch's seed.** The split-the-PR rule above was a workaround for the flag,
+  not a property of the guard, and it no longer applies. The 4 corrections having merged first
+  remains a fact of history, not a rule for the next change.
+  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
+  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset.
+  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately. Both that
+  asymmetry and the per-merge-request naming are pinned in
+  `tests/test_ci_data_job_invariants.py`.
 #}
 
 select

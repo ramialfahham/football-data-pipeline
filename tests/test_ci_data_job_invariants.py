@@ -281,8 +281,12 @@ def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
     THE DEFECT THIS PINS (GitLab #92, fixed 2026-08-27). Both invocations carried
     `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
     even when the current run has just built that model. On the `dbt build` line that is correct and
-    load-bearing — a model being BUILT must take its upstreams from prod, never from a stale `ci_`
-    table an earlier MR left, and a node dbt is building is not deferred anyway. On the `dbt test`
+    load-bearing — a model being BUILT must take its upstreams from prod rather than from a
+    superseded table, and a node dbt is building is not deferred anyway. (That reason is narrower
+    since the per-merge-request datasets landed: "another MR's leftovers" cannot occur any more, but
+    an EARLIER PIPELINE OF THE SAME merge request can leave a superseded table — build a model, then
+    revert it to match main and it drops out of `state:modified+` — and `--defer` alone would prefer
+    it.) On the `dbt test`
     line nothing is being built, so the identical flag threw away the MR's own models and pointed
     all 30 singular tests at PRODUCTION. The DQ gate was green because prod was healthy, not because
     the branch was.
@@ -323,7 +327,81 @@ def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
 
     assert "--favor-state" in build, (
         "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
-        "with the test line is the whole of #92's fix: a model being built must take its upstreams "
-        "from prod, never from a stale ci_ table another MR left behind. Do not make the two lines "
+        "with the test line is the whole of #92's first half. A model being built must take its "
+        "upstreams from prod rather than from a superseded table — an earlier pipeline of THIS "
+        "merge request can leave one (build a model, then revert it to match main and it drops "
+        "out of state:modified+), and --defer alone would prefer it. Do not make the two lines "
         f"match. Line: {build}"
+    )
+
+
+def test_each_merge_request_builds_into_its_own_datasets() -> None:
+    """No merge request may read another one's tables. #92 second half, 2026-08-27.
+
+    THE DEFECT THIS PINS, which only became reachable once the half above landed. Every merge
+    request used to build into ONE shared set of `ci_*` datasets. While the singular tests read
+    PRODUCTION that was invisible; the moment they read the ci datasets instead, a merge request
+    that rebuilt nothing began reading whatever another branch had left there. `!115`, which changes
+    no models, went red on THREE tests against tables `!114` had built an hour earlier — headline
+    error "Unrecognized name: points_capture; Did you mean points_capture_pct?", the exact mirror of
+    the failure that started #92.
+
+    BOTH HALVES OF THE ISOLATION ARE ASSERTED, and the second is not decoration.
+    `macros/generate_schema_name.sql` prefixes a model that HAS a custom schema with `target.name`,
+    so the per-MR target name isolates the four layer datasets. But it returns BARE `target.schema`
+    for a model with NO `+schema` — which is the whole `2_base` layer and EVERY seed,
+    `metric_catalogue` among them. Their isolation rests entirely on the profile's `dataset:` line.
+    Pinning only the target name would let someone revert `dataset:` to a shared literal and put the
+    base tables and the seed back in one shared dataset, silently, reinstating the `!115` failure on
+    the very relation two dbt guards were rewritten to depend on. platform-reviewer found that
+    omission in an earlier version of this test.
+
+    A literal `--target ci` anywhere in the job, or a `DBT_CI_TARGET` that does not carry the merge
+    request id, restores the shared workspace with every test and the whole pipeline still green —
+    the same invisible-breakage shape as this module's siblings, which is why it is pinned here
+    rather than left to the comments in the YAML.
+    """
+    config = _ci_config()
+    jobs = _script_lines_by_job(config)
+    assert "data:build:mr" in jobs, (
+        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
+        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
+    )
+    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
+
+    # Asserted on the DERIVATION, not on a literal name, so reformatting the export does not break
+    # this — but dropping the merge-request id from it does, and that is the property.
+    derivations = [ln for ln in lines if "DBT_CI_TARGET=" in ln]
+    assert derivations, (
+        "data:build:mr no longer derives DBT_CI_TARGET. Without it every merge request builds into "
+        "the same datasets and one branch's tables become another's upstreams (#92)."
+    )
+    assert any("CI_MERGE_REQUEST_IID" in ln for ln in derivations), (
+        "DBT_CI_TARGET is set without CI_MERGE_REQUEST_IID, so it is the same for every merge "
+        f"request — the shared workspace is back. Derivation seen: {derivations}"
+    )
+
+    shared = [ln for ln in lines if ln.startswith("dbt ") and "--target ci" in ln]
+    assert shared == [], (
+        "a dbt invocation in data:build:mr targets a literal shared `ci` target. Every dbt command "
+        'in this job must use "$DBT_CI_TARGET" so the merge request writes its own datasets. '
+        f"Offending: {shared}"
+    )
+    for line in [ln for ln in lines if ln.startswith("dbt ")]:
+        assert "$DBT_CI_TARGET" in line, (
+            f"a dbt invocation in data:build:mr does not use $DBT_CI_TARGET: {line}"
+        )
+
+    # The profile's `dataset:` is the OTHER half — base models and seeds carry no +schema and ride
+    # bare target.schema, so they are isolated by this line alone.
+    profile = "\n".join(_script_lines(config))
+    dataset_lines = [
+        " ".join(ln.split()) for ln in profile.splitlines()
+        if ln.strip().startswith("dataset:")
+    ]
+    assert "dataset: ${DBT_CI_TARGET}" in dataset_lines, (
+        "the CI profile's `dataset:` is not ${DBT_CI_TARGET}. The base models and every seed "
+        "(metric_catalogue included) have no +schema, so generate_schema_name gives them bare "
+        "target.schema — this line is the only thing isolating them per merge request. "
+        f"dataset: lines seen: {dataset_lines}"
     )

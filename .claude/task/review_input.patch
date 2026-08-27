@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 116fe2e..4390ebe 100644
+index 116fe2e..0f77379 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,164 +1,218 @@
+@@ -1,164 +1,376 @@
 -# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
 +# Task contract — #92: make the MR singular-test gate read the BRANCH, not production
  
@@ -46,33 +46,76 @@ index 116fe2e..4390ebe 100644
 -  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
 -  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
 -  `mart_player_match_log`). No ambiguous case in this set.
-+  One flag, one line. `data:build:mr`'s second dbt invocation — the full singular-test suite, the DQ
-+  gate — runs with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()` to the
-+  DEFERRED (production) relation **even when the current run has just built that model**. The suite
-+  therefore tests PRODUCTION on every merge request. Removing `--favor-state` from that ONE
++  TWO HALVES, and the second exists because CI proved the first insufficient. Both are in this MR.
++
++  **HALF ONE — one flag.** `data:build:mr`'s second dbt invocation — the full singular-test suite,
++  the DQ gate — ran with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()`
++  to the DEFERRED (production) relation **even when the current run has just built that model**. The
++  suite therefore tested PRODUCTION on every merge request. Removing `--favor-state` from that ONE
 +  invocation makes it test the branch. `--defer` stays, so an upstream this MR did not build still
 +  resolves to prod rather than to nothing.
 +
-+  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state` AND MUST. There are two invocations in this
-+  job and only the second changes. On the BUILD line the flag is correct and load-bearing: the
-+  shared `ci_*` datasets carry tables left by earlier merge requests, and when a model is being
-+  BUILT its own upstreams must come from prod, never from another branch's leftovers. A node dbt is
-+  building in the current run is not deferred at all, so the flag costs that line nothing and buys
-+  isolation. On the TEST line there is nothing being built, so the same flag has the opposite
-+  effect: it discards the models this MR just built.
++  **HALF TWO — one dataset set per merge request.** Half one alone is not enough, and this is
++  measured from a real pipeline, not argued. Every merge request built into the SAME five `ci_*`
++  datasets. While the tests read production that was invisible; the moment they read the ci datasets
++  instead, a merge request that rebuilt nothing began reading whatever another branch had left
++  there. `!115` — this branch, which changes no models — went red on THREE tests against tables
++  `!114` had built an hour earlier, headline error `Unrecognized name: points_capture; Did you mean
++  points_capture_pct?`, the exact mirror of the failure that started #92.
++  `macros/generate_schema_name.sql` already prefixes every non-prod dataset with `target.name`, so
++  isolation was ALWAYS keyed on the target name — it simply was not unique per branch. The profile
++  anchor now derives `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names its output that, so each
++  merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
++  `ci_mr<IID>`, and `--defer` falls back to PROD for everything it did not build.
++  ⭐ **`generate_schema_name.sql` IS NOT TOUCHED.** Putting the uniqueness in the target name is what
++  let the macro stay put, so local `dev` behaviour and the prod path are unchanged.
++
++  ⛔ NOTHING HERE DELETES ANYTHING. This change only CREATES datasets. No expiry, no TTL, no drop,
++  no cleanup step, and no path by which a mis-scoped rule could reach production — that was
++  considered as a way to bound the storage and DELIBERATELY REFUSED, on the CPO's explicit
++  instruction that nothing in this work go near a mechanism that could delete the warehouse.
++
++  ⭐ PRE-FLIGHT, checked before building rather than discovered in CI: the change requires dbt to
++  CREATE datasets, which it never had to before. The CI service account is
++  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` and it holds
++  `roles/bigquery.user` (read from the live project IAM policy with
++  `gcloud projects get-iam-policy`), which grants `bigquery.datasets.create`. So the mechanism has
++  the permission it needs.
++
++  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state`, AND ITS REASON IS NARROWER THAN IT WAS.
++  It used to be "another merge request's leftovers", and after half two that state cannot occur —
++  no other branch can write into `ci_mr<IID>_*`. ⚠ An earlier draft of this contract kept the old
++  wording in the present tense while the same change abolished it; platform-reviewer caught it, and
++  it is the exact defect class this task exists to remove.
++  THE SURVIVING REASON, and it is real: an EARLIER PIPELINE OF THE SAME merge request can leave a
++  superseded table in that merge request's own datasets. Build a model, then push a commit that
++  reverts it to match main — it drops out of `state:modified+`, so the next pipeline does not
++  rebuild it, and `--defer` alone would prefer the stale table that is still sitting there.
++  `--favor-state` forces prod for it. On the TEST line nothing is being built, so the identical flag
++  has the opposite effect: it discards the models this merge request just built.
 +
 +  ⭐ WHAT THIS IS WORTH, stated plainly rather than sold. Today all 30 singular tests are green on an
 +  MR because production is healthy, not because the branch is. That is a gate reporting on the wrong
 +  subject. After this change they report on the branch.
 +
-+  ⚠ AND WHAT IT COSTS, which is the reason #92 was left open rather than fixed on sight. Without
-+  `--favor-state`, `--defer` resolves a ref to the `ci_*` copy WHEN ONE EXISTS and to prod only when
-+  it does not. `data:build:mr` builds `state:modified+`, so everything this MR changed and everything
-+  downstream of it is freshly built and correct; an UNMODIFIED upstream, however, may be read from a
-+  `ci_*` table an earlier merge request left behind. So the trade is: a gate that currently tests the
-+  wrong database, against a gate that tests the right one but may read a stale unmodified upstream.
-+  Both are holes. This one is narrower, and unlike the current one it fails LOUDLY when it is wrong.
-+  ⛔ It is a trade, not a clean win, and the CPO was told so in those terms before approving.
++  ⚠ AND WHAT IT COSTS. ⛔ REWRITTEN — this paragraph described half one's cost as "an UNMODIFIED
++  upstream may be read from a `ci_*` table AN EARLIER MERGE REQUEST left behind", which half two
++  abolishes: no other branch can write into `ci_mr<IID>_*`. platform-reviewer caught that the sweep
++  had stopped one paragraph short of this one, twice.
++  WHAT THE COST ACTUALLY IS, after both halves. Without `--favor-state`, `--defer` resolves a ref to
++  a relation in the current target WHEN ONE EXISTS, and to prod only when it does not. Everything
++  this merge request changed, and everything downstream, is freshly built and correct. The residual
++  is one case: an EARLIER PIPELINE OF THIS SAME merge request can leave a SUPERSEDED table — build a
++  model, then push a commit reverting it to match main, and it drops out of `state:modified+` so the
++  next pipeline does not rebuild it. The gate then reads a table this branch no longer produces.
++  ⚠ TWO PATHS REACH THAT STATE, not one — cto-reviewer added the second. A build-then-revert inside
++  one merge request, AND a REBASE onto a main that has since absorbed the change (this very MR's
++  `deploy_order` does exactly that to `!114`): either way the model drops out of `state:modified+`
++  while its table survives.
++  ⚠ FREQUENCY, NOT ONLY SEVERITY — the discipline this task's own record now demands: both paths
++  need a specific sequence inside one merge request, so this is occasional, where the hole it
++  replaces fired on EVERY merge request. It is not benign, and it is ACCEPTED because the only way
++  to remove it is to restore `--favor-state` on the test line, which is #92 itself.
 +
 +  ⚠ A FALSE CLAIM IN THE FILE IS CORRECTED IN THE SAME CHANGE. The comment above the test line
 +  currently reads "On an MR it validates this MR's rebuilt ci_* models layered over prod (via defer)
@@ -146,7 +189,11 @@ index 116fe2e..4390ebe 100644
 -  - dbt_project/models/4_intermediate/shared/int_season_record.yml
 -  - dbt_project/models/5_marts/shared/shared.yml
 +  - .gitlab-ci.yml
++  - docs/operations_guide.md
++  - dbt_project/docs/layering.md
++  - dbt_project/profiles.example.yml
 +  - tests/test_ci_data_job_invariants.py
++  - tests/test_persist_docs_policy.py
 +  - dbt_project/tests/assert_metric_meaning_complete.sql
 +  - dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
    - .claude/task/contract.md
@@ -160,47 +207,24 @@ index 116fe2e..4390ebe 100644
 -
  protected_override: >
 -  none required. No file in scope_paths is protected.
--
--impact_map: >
--  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
--    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
--
--  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
--    alter any model's `depends_on`.
--
--  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
--    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
--    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
--    int_player_season_position.yml 1 · shared.yml 7. Total 24.
 +  **REQUIRED, and granted.** `.gitlab-ci.yml` is a PROTECTED governance path: it decides what CI
 +  enforces, and it carries the same authority `.github/workflows/**` carried before the migration —
 +  hence `cto-reviewer` + `platform-reviewer`, both at the opus floor.
- 
--  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
--    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
--    files. The total of 24 was right and every individual reference was correct, but the
--    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
--    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
--    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
--    artifact that had already failed once on authority in the same round.
++
 +  Authority: the CPO, in chat this session, answering the recommendation quoted in `refs` above with
 +  **"do as recommended"**. He had been given the mechanism, the benefit, the cost (cross-branch
 +  leftovers in the shared `ci_*` datasets) and the no-CI-change alternative (a two-pass
 +  expand/contract rename) before answering. Written into `escalations.log` in this same commit, so
 +  the authority and the change travel together.
- 
--  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
--    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
--    player columns the text also stays, since the split preserves each entity's own definition.
++
 +  ⛔ THIS IS A GUARD BEING NARROWED IN ONE DIRECTION AND WIDENED IN ANOTHER, and it must be read as
 +  such rather than as a pure fix. It does not delete an assertion, exclude a test, add a tag or skip
 +  a path — the same 30 tests run, with the same SQL, and the count in the job output must not drop.
 +  What changes is which database they read. Judge it on that.
  
--  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
--
--  deploy_order: none. Descriptions reach BigQuery the next time each model builds.
-+impact_map: >
+ impact_map: >
+-  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
+-    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
 +  This is a PROTECTED path, so the trace is of the GUARD, not of table lineage.
 +
 +  what fires it: `data:build:mr`, on a merge-request pipeline whose diff touches `*data_paths_mr`.
@@ -218,7 +242,7 @@ index 116fe2e..4390ebe 100644
 +    and a guard depending on those values cannot land in the same PR — closing with the standing
 +    instruction **"Do not try to solve this with a CI workflow change."**
 +    ⛔ This change makes all three of those things false, and overrides that instruction. `dbt seed
-+    --target ci` runs at `.gitlab-ci.yml:589` before both invocations, so the BRANCH's
++    --target "$DBT_CI_TARGET"` runs before both invocations, so the BRANCH's
 +    `metric_catalogue` relation always exists in the ci target; with `--favor-state` gone, plain
 +    `--defer` prefers it. Those two guards now read the BRANCH's seed, and the values-merge-first
 +    rule they impose is no longer needed. Both notes are corrected in this commit, and the standing
@@ -230,7 +254,9 @@ index 116fe2e..4390ebe 100644
 +    The other consumer of the same idea is `data:build:main` (`.gitlab-ci.yml:736`, re-measured —
 +    an earlier draft said 714), which runs the same suite `--target prod` with NO `--defer`, NO
 +    `--state` and NO `--favor-state`. It is untouched and remains the full-strength prod gate.
-+
+ 
+-  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
+-    alter any model's `depends_on`.
 +  what pins the change itself: `tests/test_ci_data_job_invariants.py` gains an assertion, and it is
 +    added here rather than argued away. That module exists for exactly this class — its own
 +    docstring opens "Pin three CI data-job invariants that can be broken while every pipeline stays
@@ -241,22 +267,59 @@ index 116fe2e..4390ebe 100644
 +    `--defer` and `--state` and must NOT carry `--favor-state`; the `dbt build` invocation must
 +    still carry it. Pinning only one half would let someone "restore symmetry" by stripping the flag
 +    from the build line instead, which breaks isolation in the other direction and would pass.
-+
+ 
+-  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
+-    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
+-    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
+-    int_player_season_position.yml 1 · shared.yml 7. Total 24.
 +  what stops being enforced if this is wrong: nothing stops. The failure mode of the change is a
 +    singular test reading a stale `ci_*` upstream left by an earlier MR, which produces a WRONG
 +    ANSWER (a spurious red, or a green that should have been red on that one upstream's data). It
 +    cannot silence a test: the selection `--select test_type:singular --exclude tag:freshness_check`
 +    is untouched, so the suite size is unchanged. `tests/test_ci_data_job_invariants.py` continues
 +    to pin the ingest-lock invariant on this job, which this change does not go near.
-+
+ 
+-  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
+-    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
+-    files. The total of 24 was right and every individual reference was correct, but the
+-    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
+-    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
+-    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
+-    artifact that had already failed once on authority in the same round.
 +  what happens on failure: the job exits non-zero exactly as now — the failing invocation above is
 +    proof that a red here blocks the MR. Fail-closed is preserved; nothing is made conditional,
 +    nothing gains an `|| true`, no `allow_failure` is introduced.
-+
+ 
+-  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
+-    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
+-    player columns the text also stays, since the split preserves each entity's own definition.
++  what pins the change: `tests/test_ci_data_job_invariants.py` — the module whose docstring opens
++    "Pin three CI data-job invariants that can be broken while every pipeline stays GREEN" — gains
++    TWO assertions, because both halves are silently revertible. Half one: re-adding `--favor-state`
++    to the test line restores the whole defect with every gate and the pipeline still green. Half
++    two: putting a literal `--target ci` back, or dropping `CI_MERGE_REQUEST_IID` from the
++    derivation, restores the shared workspace just as silently. Each is asserted from BOTH sides —
++    the test line must NOT carry `--favor-state` while the build line MUST, and every dbt invocation
++    must use `$DBT_CI_TARGET` while the profile's `dataset:` must be `${DBT_CI_TARGET}` too.
++    ⛔ THE `dataset:` HALF IS NOT DECORATION, and an earlier draft of this pin omitted it.
++    `generate_schema_name` returns bare `target.schema` for any model with no `+schema` — which is
++    the whole `2_base` layer AND every seed, `metric_catalogue` included. Their isolation rests
++    entirely on the profile's `dataset:` line, so pinning only the target name would leave the base
++    tables and the seed sharing one dataset again, reinstating the exact `!115` failure on the very
++    relation the two rewritten dbt guards depend on. platform-reviewer found that omission.
+ 
+-  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
 +  blast_radius: every future merge-request pipeline that touches a data path. That is wide, and it
-+    is why this is a CPO-approved governance task rather than a line edit. The change is confined to
-+    ONE invocation in ONE job; `git diff` is one line of flags plus the comment above it.
-+
++    is why this is a CPO-approved governance task rather than a line edit. ⚠ REWRITTEN — this said
++    "confined to ONE invocation in ONE job; `git diff` is one line of flags plus the comment above
++    it", which was true of half one and false of what ships. What ships touches FOUR lines of
++    `data:build:mr`: the `.dbt_profile` anchor (deriving `DBT_CI_TARGET` and naming its output
++    that), and the `dbt seed` / `dbt build` / `dbt test` invocations, all three now
++    `--target "$DBT_CI_TARGET"`. Plus two dbt guard comment blocks, two docs and two assertions.
++    Every merge-request pipeline now writes its OWN dataset set instead of the five shared `ci_*`
++    ones — which are left exactly where they are and simply stop being written to.
+ 
+-  deploy_order: none. Descriptions reach BigQuery the next time each model builds.
 +  deploy_order: this must merge BEFORE `!114`, and `!114` must then be rebased onto it — a merge
 +    request runs the `.gitlab-ci.yml` of its SOURCE branch, so `!114` keeps failing until it carries
 +    this commit. Rebasing `!114` moves its review hash, so its `review.md` must be rebound; a
@@ -265,32 +328,55 @@ index 116fe2e..4390ebe 100644
  decisions_taken: >
 -  THRESHOLD DECLARATION — NEW MECHANISM: none.
 -  THRESHOLD DECLARATION — RECURRING COST: none.
--
++  The change and its authority are quoted in `refs` and `protected_override`. Nothing here is chosen
++  by the builder: the mechanism was recommended, the cost was disclosed, and the CPO said "do as
++  recommended".
+ 
 -  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
 -    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
 -    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
 -    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
 -    are the CPO's and none of them moves; only the packaging changed.
--
++  THRESHOLD DECLARATIONS.
++  ⚠ REWRITTEN AFTER HALF TWO. These declarations described half one and were carried forward
++  unchanged when half two landed, so they said "none" to both questions while the diff created a
++  per-merge-request dataset set. cto-reviewer and scope-auditor both failed on it. Corrected:
+ 
 -  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
 -    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
 -    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
 -    for what the model holds.
-+  The change and its authority are quoted in `refs` and `protected_override`. Nothing here is chosen
-+  by the builder: the mechanism was recommended, the cost was disclosed, and the CPO said "do as
-+  recommended".
-+
-+  THRESHOLD DECLARATIONS.
-+  · NEW MECHANISM: **none.** No new job, stage, script, tag, selector, allow_failure or exclusion. A
-+    flag is removed from an existing invocation and a comment above it is corrected. The test added
-+    in round 2 is an assertion inside `tests/test_ci_data_job_invariants.py`, the module that
-+    already exists for this exact class and already parses this exact job's script list — no new
-+    file, no new runner, no new dependency, no new CI step. Adding a case to an existing guard is
-+    not a new mechanism; had it needed a new harness, that would be a different declaration.
-+  · RECURRING COST: **none, and this was reasoned rather than waved.** The same 30 tests run on the
-+    same schedule against the same row counts; only the dataset they read changes, and a `ci_*`
-+    table is the same size as its prod twin. No job is added, no cadence changes, nothing new is
-+    scheduled. If anything the queries get marginally cheaper, since `ci_*` holds the MR's slice.
++  · NEW MECHANISM: **none, and this was tested against the definition rather than asserted.** No new
++    job, stage, script, file, runner, dependency, CI step, tag, selector, `allow_failure` or
++    exclusion. Half one removes a flag. Half two exports ONE shell variable and lets the EXISTING
++    `macros/generate_schema_name.sql` do the isolating — the macro is deliberately untouched, which
++    is the whole reason this counts as configuration rather than machinery. The two assertions live
++    inside a module that already exists for this class and already parses this job's script list.
++  · RECURRING COST: **yes, small, and MEASURED rather than estimated.** Each merge request now
++    leaves its own BigQuery tables instead of overwriting a shared set, and nothing deletes them.
++    Measured on the live project with `bq query ... __TABLES__`: the five shared `ci_*` datasets
++    hold **6.0 GB** in total today (`ci_staging` 2.4 GB, `ci_marts` 1.4 GB, `ci_intermediate`
++    1.1 GB, `ci_core` 0.7 GB, `ci_analytics` 0.5 GB) — and that is the FULL set accumulated across
++    many branches, where a single merge request builds only `state:modified+` and leaves a fraction
++    of it. At EU BigQuery active-storage rates (~$0.02/GB/month) a whole 6 GB set is about **12
++    cents a month**. No job is added, no cadence changes, nothing is scheduled.
++    ⚠ QUERY VOLUME IS **NOT** UNCHANGED, and an earlier draft of this line said it was — twice,
++    after cto-reviewer had already flagged it once. Three models are incremental
++    (`fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`), and
++    `is_incremental()` keys on `{{ this }}` — the model's own relation in the CURRENT target, which
++    is never deferred. Under the shared datasets that relation persisted between merge requests, so
++    a selected fact ran as a MERGE above a high-water mark. With a fresh `ci_mr<IID>_core` it does
++    not exist on that merge request's FIRST pipeline, so the model does a FULL build instead.
++    That fires for any merge request whose `state:modified+` reaches one of those three or anything
++    upstream of them. Magnitude, measured rather than feared: the whole `ci_core` dataset is 0.7 GB,
++    so it is sub-cent per pipeline plus some `data:build:mr` wall time against a 2h timeout.
++    ⛔ Disclosed because this branch's own record says to describe the cost of the mechanism you are
++    BUILDING, not the one you imagined. It is small; it is not zero, and it is not "unchanged".
++    ⛔ AN AUTOMATIC EXPIRY WOULD BOUND IT AND IS DELIBERATELY NOT DONE. A mis-scoped expiry reaches
++    `prod` and deletes the warehouse; the CPO's instruction on this work is explicit that nothing go
++    near that class of mechanism. Storage is left to accumulate and filed instead. ⚠ I first
++    described this cost to him as "storage for a few days, which self-deletes" — that was FALSE of
++    what ships and cto-reviewer caught it. The number above is what he is actually approving.
 +  · GUARD WEAKENED: **no** in the sense that matters — no assertion is removed, no test excluded, no
 +    path skipped, and the suite count must stay at 30. But see the ⛔ in `protected_override`: this
 +    is a trade between two holes, not a clean win, and the reviewer should judge it as one.
@@ -310,10 +396,15 @@ index 116fe2e..4390ebe 100644
 -  - The player `_player` sweep and the nine "on target" labels, both later steps.
 -  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
 -    asked, not answered, not done.
-+  - none: the fix, its cost and the alternative were put to the CPO together and he chose this one.
-+    Whether the REMAINING hole — a singular test able to read a stale unmodified upstream from the
-+    shared `ci_*` datasets — is worth closing too, and how (an ephemeral per-MR dataset is the
-+    obvious candidate and a recurring-cost decision), stays open on #92 and is NOT decided here.
++  - none. ⚠ THIS FIELD PREVIOUSLY RESERVED THE PER-MR DATASET as "the obvious candidate and a
++    recurring-cost decision … NOT decided here", and then the same MR built it. Both reviewers were
++    right to fail that: a contract cannot reserve as open the exact thing it ships. It is now
++    DECIDED, on the CPO's "fix it" recorded in `escalations.log`, and declared under
++    `decisions_taken` with its measured cost. Nothing about this change is left open.
++  - The only genuinely open follow-on is BOUNDING the storage those datasets accumulate. It is not
++    reserved here because it is refused here: the CPO's instruction is that nothing in this work go
++    near a mechanism that could delete the warehouse, and an expiry is exactly that class. Filed, not
++    reserved.
  
  done_when:
 -  - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
@@ -327,19 +418,29 @@ index 116fe2e..4390ebe 100644
 -    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
 -  - Offline gates green plus `ruff` and `python -m pytest tests/`.
 -  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
-+  - `.gitlab-ci.yml` differs from main by exactly one flag removal on the `dbt test` invocation plus
-+    the corrected comment above it; the `dbt build` invocation is byte-identical.
++  - `.gitlab-ci.yml`'s `dbt test` invocation carries `--defer --state` and NOT `--favor-state`,
++    while the `dbt build` invocation still carries `--favor-state` — the asymmetry is the fix.
++  - Every dbt invocation in `data:build:mr` targets `"$DBT_CI_TARGET"`, that variable is derived
++    from `CI_MERGE_REQUEST_IID`, and the profile's `dataset:` is `${DBT_CI_TARGET}` — so the layer
++    datasets AND the base models and seeds are all per merge request.
++  - `macros/generate_schema_name.sql` does NOT appear in the diff.
++  - Nothing in the diff deletes, expires or drops a dataset or a table. `git diff` contains no
++    `expiration`, no `bq rm`, no `drop dataset`, no cleanup step.
 +  - `python -m pytest -q` passes, including `tests/test_ci_data_job_invariants.py`.
-+  - The YAML parses and the job's script list is unchanged apart from that one line, shown by
-+    parsing `.gitlab-ci.yml` and printing `data:build:mr`'s script before and after.
-+  - The claim is verified by RUNNING it, not by reading it: after merge, `!114` is rebased onto this
-+    and its pipeline is watched going green on the exact test that failed at job `16145201830`
-+    line 1021.
-+  - `.claude/task/escalations.log` carries the CPO's approval verbatim and the reproduction.
-+  - The new invariant is watched going RED against BOTH mutations before it is trusted: re-adding
-+    `--favor-state` to the `dbt test` line, and removing it from the `dbt build` line.
++  - The YAML parses and `data:build:mr`'s script list is still 13 steps.
++  - Both new invariants are watched going RED against every mutation before being trusted:
++    `--favor-state` re-added to the test line; `--favor-state` removed from the build line; a
++    literal `--target ci` restored; `CI_MERGE_REQUEST_IID` dropped from the derivation; and the
++    profile's `dataset:` reverted to a shared literal.
 +  - Neither dbt guard still tells a reader that `ref('metric_catalogue')` resolves to main's seed,
-+    and neither still carries "Do not try to solve this with a CI workflow change".
++    neither still carries "Do not try to solve this with a CI workflow change", and neither names a
++    `ci` target that no longer exists.
++  - No comment left in `.gitlab-ci.yml` still describes the shared workspace as current.
++  - The claim is verified by RUNNING it, not by reading it: this branch's own pipeline goes green —
++    the same pipeline that went red on three tests against another branch's tables — and then `!114`
++    is rebased onto this and watched going green on the exact test that failed at job
++    `16145201830` line 1021.
++  - `.claude/task/escalations.log` carries both CPO rulings verbatim and both reproductions.
 +
 +amendments: >
 +  2026-08-27, round 2: `scope_paths` EXTENDED by three files —
@@ -355,6 +456,56 @@ index 116fe2e..4390ebe 100644
 +  Both extensions make the task's own claims true; neither widens what the task decides. Written on
 +  a clean tree (the code was stashed by explicit path, the contract amended, then popped).
 +
++  2026-08-27, round 4 — ⛔ CI PROVED HALF ONE INSUFFICIENT ON THE FIRST PIPELINE, and the fix grew
++  a second half. Authority: the CPO, shown the failure and the recommendation "give each merge
++  request its own workspace instead of sharing one", answered **"fix it"**; and, after I raised an
++  automatic expiry as a way to bound the resulting storage, instructed that nothing in this work go
++  near anything that could delete the warehouse. Both are recorded in `escalations.log`.
++  `scope_paths` EXTENDED by `dbt_project/docs/layering.md` and `dbt_project/profiles.example.yml`,
++  which document the `ci` target's dataset names that this round changes — leaving them saying
++  `ci_marts` would be the same stale-comment defect this whole task exists to fix.
++  ⚠ WHAT ROUND 4 CORRECTS IN THIS CONTRACT, all found by reviewers rather than by me:
++  `decisions_taken`'s threshold declarations still said NEW MECHANISM none / RECURRING COST none,
++  written for half one and carried forward unchanged over a diff that creates a dataset set per
++  merge request (cto-reviewer, scope-auditor); `decisions_reserved` reserved as undecided the exact
++  mechanism the same commit builds (cto-reviewer); `blast_radius` and `done_when` still described
++  the one-line version (platform-reviewer); and `impact_map` cited `dbt seed --target ci`, a command
++  this round removes (platform-reviewer, analytics-engineer-reviewer). All corrected in place.
++  ⚠ AND ONE FACT I GOT WRONG TO THE CPO'S FACE: I described the storage cost to him as "a few days
++  per branch, which self-deletes". Nothing in this change makes that true — the datasets persist.
++  cto-reviewer caught it. The real figure is measured and declared under RECURRING COST above, and
++  it is ~12 cents a month for a full set. The approval now rests on the true number.
++
++  2026-08-27, LAST ROUND: `scope_paths` extended by `tests/test_persist_docs_policy.py` — a SIXTH
++  copy of the shared-workspace claim, in the docstring of the test that pins where `dbt docs
++  generate` runs, hand-mirroring a `.gitlab-ci.yml` comment this same MR corrected. Same doc-sync
++  authority as the two before it. Found by platform-reviewer, in its own territory, one file over.
++  ⚠ AND THE COST LINE WAS WRONG A SECOND TIME. `RECURRING COST` closed with "query volume is
++  unchanged"; it is not. A fresh per-merge-request dataset means the three incremental fact models
++  have no `{{ this }}` on an MR's first pipeline and FULL-build instead of merging. cto-reviewer
++  raised this in an earlier round and I did not fold it in; platform-reviewer had to raise it again.
++  Now measured and declared. ⭐ Twice now the cost sentence has described something other than what
++  is being built — the exact rule this task's record already carries.
++
++  2026-08-27, FINAL ROUND: `scope_paths` extended by `docs/operations_guide.md`, which carries a
++  DUPLICATE of the environment-isolation table already corrected in `dbt_project/docs/layering.md`
++  and still described a shared `ci` target writing `ci_*`. Authority: the same doc-sync rule that
++  brought `layering.md` in — consistency is both rows or neither. Found by platform-reviewer.
++  ⚠ THE REST OF THIS ROUND IS ME FIXING THE SAME DEFECT CLASS FIVE MORE TIMES, and the count is the
++  point. Half two abolished the shared workspace; five separate comments still called it current —
++  in `.gitlab-ci.yml` (three), in the new pin's docstring and assertion message, and in this
++  contract's own objective. I swept where I was looking and not where I was not, which IS the
++  "corrections replace, never accumulate" failure, committed inside the fix for it.
++  ⚠ AND ONE DEFECT I INTRODUCED WHILE FIXING THEM: a string replace spliced a sentence mid-line and
++  left "HERE" dangling with no antecedent inside the paragraph about the BUILD line, so the comment
++  read the asymmetry backwards. platform-reviewer caught it. Fixed.
++  ⭐ ONE THING A REVIEWER WORKED OUT THAT I HAD NOT, and it is now load-bearing documentation: with
++  per-merge-request datasets, "another branch's leftovers" is impossible, so `--favor-state` on the
++  BUILD line looked like it guarded nothing — and the next reader would rightly have deleted it,
++  which is the exact mutation the pin exists to stop. The surviving case is an earlier pipeline of
++  the SAME merge request holding a superseded table after a revert. That reason is now stated in
++  `.gitlab-ci.yml`, both places in the pin, and this contract.
++
 +  2026-08-27, round 3: no scope change. `impact_map`'s "what fires it" paragraph still said
 +  `data:build:main` was at line **714** while the paragraph 23 lines below it already said **736,
 +  re-measured**. Both numbers for the same line, in one file — the exact "#71 invert the number
@@ -364,10 +515,10 @@ index 116fe2e..4390ebe 100644
 +  correction that lands in one paragraph and not its neighbour is the accumulation this rule exists
 +  to stop. No code file changed in round 3.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 14edfa9..5893a8b 100644
+index 14edfa9..670027a 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -5493,3 +5493,53 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+@@ -5493,3 +5493,100 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
    `goals_conceded`, which would have BROKEN the `_against` convention that already works across
    goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
    follows before proposing one, and do not dress taste up as consistency.
@@ -421,18 +572,183 @@ index 14edfa9..5893a8b 100644
 +  leftovers in the shared datasets. Narrower than aiming the whole suite at the wrong database, and
 +  it fails loudly rather than silently green. Closing it properly means per-MR ephemeral datasets —
 +  a RECURRING COST decision, and therefore the CPO's, not taken here.
++
++  ⛔⛔ SAME DAY, SECOND HALF: THAT RESIDUAL FIRED ON THE FIRST PIPELINE, AND THE CPO RULED TWICE.
++  `!115` — the branch carrying this fix, which changes NO models — went red on THREE singular tests
++  reading tables `!114` had built into the shared ci datasets an hour earlier. Headline error, the
++  exact mirror of the one that started #92:
++    `Unrecognized name: points_capture; Did you mean points_capture_pct?`
++
++  ⭐ RULING A, verbatim: **"fix it"**, answering the recommendation "give each merge request its own
++  workspace instead of sharing one". Applied: the profile anchor derives
++  `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names BOTH its output and its `dataset:` that, so
++  every merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
++  `ci_mr<IID>`, and `--defer` falls back to prod for anything it did not build.
++  `macros/generate_schema_name.sql` already prefixed non-prod datasets with `target.name`, so the
++  macro is UNTOUCHED and local `dev` is unchanged — the uniqueness went into the target name
++  precisely so the macro could stay put.
++  ⚠ BOTH lines are load-bearing: the target NAME isolates the four layer datasets, and `dataset:`
++  isolates the base models and every seed, which carry no `+schema` and ride bare `target.schema`.
++  `metric_catalogue` is one of them. An earlier version of the pin asserted only the target name;
++  platform-reviewer proved you could revert `dataset:` alone and stay green.
++
++  ⭐ RULING B, and it is a STANDING CONSTRAINT ON THIS WORK, not a one-off. I raised an automatic
++  table expiry as the way to bound the storage those datasets accumulate, and described its risk in
++  the same breath — "point it at the wrong place and it deletes the real warehouse". His reply:
++  **"Are you nuts???"**, and then, explicitly: **"You do nothing where you come any close to
++  introducing the risk of deleting the warehouse."** So no expiry, no TTL, no drop, no cleanup step
++  ships here or in the follow-up. The datasets accumulate and that is the accepted outcome.
++  ⭐ MEASURED, so the decision rests on a number rather than a worry: the five shared `ci_*` datasets
++  hold **6.0 GB** in total (`bq query ... __TABLES__`, live) — and that is the FULL set accumulated
++  across many branches, where one merge request builds only `state:modified+`. At EU active-storage
++  rates that is about **12 cents a month**.
++  ⚠ I HAD TOLD HIM THE COST WAS "storage for a few days per branch, which self-deletes". That was
++  FALSE of what ships — nothing self-deletes — and cto-reviewer caught it, not me. ⭐ THE RULE:
++  **never describe a cost by the mechanism you imagined; describe it by the one you are building.**
++
++  ⭐⭐ AND THE RULE THAT MATTERS MOST HERE, from RULING A's cause. I disclosed the shared-workspace
++  risk honestly, in his hearing, as "a narrower hole" that "fails loudly" — and he approved on that
++  description. Both halves were true and the description was still useless, because it said how BAD
++  the failure would be and never how OFTEN it would happen. It happened immediately, and would have
++  happened on every batch of a twelve-rename programme. **WHEN DISCLOSING A RESIDUAL RISK, STATE ITS
++  FREQUENCY, NOT ONLY ITS SEVERITY.** A risk that fires every time is not a narrower hole; it is a
++  gate nobody will trust.
++
++  ⚠ PRE-FLIGHT, done before building rather than discovered in CI: this is the first change that
++  requires dbt to CREATE datasets. The CI service account is
++  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` — a name left over from
++  before the GitLab migration, not a GitHub dependency — and it holds `roles/bigquery.user`, which
++  grants `bigquery.datasets.create`. Read from the live project IAM policy.
 diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 3361053..fad3603 100644
+index 3361053..2ae9050 100644
 --- a/.gitlab-ci.yml
 +++ b/.gitlab-ci.yml
-@@ -633,10 +633,32 @@ data:build:mr:
+@@ -107,18 +107,50 @@ workflow:
+ # earlier revision of this file did, and no amount of static validation caught it.
+ # Editing .sqlfluff instead is not an option: local development uses that file too.
+ # ci-data-build.yml did the same thing (mkdir -p /home/runner/.dbt — that runner's ~).
++#
++# ⚠ THE CI TARGET IS NAMED PER MERGE REQUEST, so the heredoc below is UNQUOTED
++# (`<<EOF`, not `<<'EOF'`) and `$DBT_CI_TARGET` expands. Nothing else in the profile
++# body contains a `$`, a backtick or a backslash — checked — so unquoting expands
++# exactly the one thing it is meant to and can pull in nothing else.
++#
++# WHY (#92, 2026-08-27). `macros/generate_schema_name.sql` prefixes every non-prod
++# dataset with `target.name`, so isolation was ALREADY keyed on the target name — it
++# simply was not unique per branch. Every merge request built into the SAME five `ci_*`
++# datasets, which was invisible while the singular tests read production. The moment
++# they read the ci datasets instead (see the `dbt test` line below), a merge request
++# that rebuilt nothing began reading whatever another branch had left there: !115 —
++# which changes no models — went red on THREE tests against tables !114 had built an
++# hour earlier, headline error "Unrecognized name: points_capture; Did you mean
++# points_capture_pct?".
++# Now each merge request writes ci_mr<IID>_marts / _core / _staging / _intermediate and
++# bare ci_mr<IID>, and `--defer` falls back to PROD for everything it did not build.
++# ⭐ `generate_schema_name.sql` IS UNTOUCHED. Putting the uniqueness in the target name
++# is what let the macro stay put, so local `dev` and the prod path are unchanged.
++# ⚠ BOTH lines below are load-bearing and both are pinned: the output NAME isolates the
++# layer datasets, and `dataset:` isolates the base models and the seeds, which carry no
++# `+schema` and therefore ride bare `target.schema`. `metric_catalogue` is one of them.
++# ⚠ `:-shared` covers pipelines with no MR IID (main pushes, web runs). They pass
++# `--target prod` explicitly and never write it; it exists only so the profile's default
++# `target:` always names a defined output — sqlfluff resolves the DEFAULT target, so a
++# dangling name would break `data:build:main`'s lint.
++# ⛔ NOTHING HERE DELETES ANYTHING. These datasets accumulate and are never expired,
++# dropped or cleaned up. An automatic expiry would bound the storage and is deliberately
++# refused: a mis-scoped expiry reaches `prod` and deletes the warehouse. Measured cost of
++# letting them pile up: a full set is ~6 GB, about 12 cents a month.
+ .dbt_profile: &dbt_profile |
+   mkdir -p ~/.dbt
+-  cat > ~/.dbt/profiles.yml <<'EOF'
++  export DBT_CI_TARGET="ci_mr${CI_MERGE_REQUEST_IID:-shared}"
++  cat > ~/.dbt/profiles.yml <<EOF
+   football_data_pipeline:
+-    target: ci
++    target: ${DBT_CI_TARGET}
+     outputs:
+-      # PR builds — slim + deferred to prod. Writes ci_* datasets (isolated from prod).
+-      ci:
++      # Merge-request builds — slim + deferred to prod. Writes ci_mr<IID>_* datasets,
++      # isolated from prod AND from every other merge request.
++      ${DBT_CI_TARGET}:
+         type: bigquery
+         method: oauth
+         project: football-data-pipeline-gcp
+-        dataset: ci_analytics
++        dataset: ${DBT_CI_TARGET}
+         threads: 4
+         timeout_seconds: 300
+         location: EU
+@@ -563,19 +595,31 @@ build:site-v2:
+ .data_build_base: &data_build_base
+   <<: [*python, *gcp_job]
+   stage: data
+-  # Serialize warehouse-writing runs. MR builds share ONE physical ci_* dataset
+-  # (the locked "shared, not per-PR ephemeral" choice), so concurrent incremental
+-  # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not
+-  # serialize access". GitLab's resource_group is the concurrency-group analogue
+-  # and never drops an in-flight job.
++  # Serialize warehouse-writing runs.
++  # ⚠ THE ORIGINAL REASON NO LONGER HOLDS, and the rationale is corrected rather than
++  # quietly left standing (#92, 2026-08-27). It read: "MR builds share ONE physical ci_*
++  # dataset (the locked 'shared, not per-PR ephemeral' choice), so concurrent incremental
++  # builds (fct_fixture_* compile to BigQuery MERGE) could hit 'Could not serialize
++  # access'." That shared-not-ephemeral choice is exactly what this change reverses — each
++  # merge request now writes its own datasets, so two DIFFERENT merge requests can no
++  # longer collide on one table.
++  # It is KEPT anyway, for a reason that survives: two pipelines of the SAME merge request
++  # (a re-run, or a push landing on top of a running job) still share that MR's datasets
++  # and can still MERGE into the same incremental table concurrently. Narrowing the group
++  # to per-MR would be correct and is NOT done here — it is a concurrency change with its
++  # own blast radius, and this task is about what the tests read.
+   timeout: 2h
+ 
+ # MR builds: only what the MR changed + downstream children + tests
+ # (dbt state:modified+), diffed against a baseline manifest compiled from the
+ # target branch at MR time (Option 2 — no stored state, no BigQuery scan;
+-# CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt — their ref()s
+-# resolve to the tables already in the shared datasets, so no --defer is needed
+-# for them.
++# CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt.
++# ⚠ CORRECTED 2026-08-27 (#92). This used to read "their ref()s resolve to the tables
++# already in the shared datasets, so no --defer is needed for them." Both halves are now
++# false: there are no shared datasets, and `--defer` is the ONLY reason an unchanged
++# upstream resolves at all. With a per-merge-request target its dataset starts empty, so
++# every ref() the MR did not build falls back to PROD through --defer. Removing --defer
++# would break the job outright, not merely slow it.
+ data:build:mr:
+   <<: *data_build_base
+   resource_group: ci-data-build-write-ci
+@@ -586,7 +630,9 @@ data:build:mr:
+     - *gcp_auth
+     - cd dbt_project && dbt deps
+     - sqlfluff lint models
+-    - dbt seed --target ci
++    # $DBT_CI_TARGET is exported by the .dbt_profile anchor above, which runs earlier in
++    # this same job shell. Per merge request, so nothing here can touch another branch.
++    - dbt seed --target "$DBT_CI_TARGET"
+     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
+     # ⛔ THIS JOB DOES NOT INGEST, AND MUST NOT (#73, 2026-08-16). A bootstrap-ingest
+     # step lived here — `get_new_league_codes.py` then `python -m
+@@ -626,17 +672,54 @@ data:build:mr:
+     - git worktree prune
+     - git worktree add --detach /tmp/main-src FETCH_HEAD
+     - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
+-    # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
+-    # prod (never a stale ci_ copy left by a prior MR). An empty selection (an MR
+-    # that changes no models) is a no-op success.
++    # Writes this merge request's OWN ci_mr<IID>_* datasets (see .dbt_profile);
++    # --defer --favor-state resolves unbuilt upstreams to prod. An empty selection
++    # (an MR that changes no models) is a no-op success.
+     - cd dbt_project
      - >-
        dbt build --select state:modified+ --exclude tag:freshness_check
-       --defer --favor-state --state /tmp/main-state --target ci
+-      --defer --favor-state --state /tmp/main-state --target ci
 -    # DQ is non-negotiable and the full singular suite always runs. On an MR it
 -    # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
 -    # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
 -    # only, never to the DQ gate.
++      --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
 +    # DQ is non-negotiable and the full singular suite always runs. Slimming applies
 +    # to model BUILDS only, never to the DQ gate.
 +    #
@@ -440,10 +756,17 @@ index 3361053..fad3603 100644
 +    # is the whole point (#92, fixed 2026-08-27). `--favor-state` resolves every ref()
 +    # to the DEFERRED (prod) relation EVEN WHEN THIS RUN JUST BUILT THAT MODEL. On the
 +    # BUILD line that is correct and load-bearing — a model being built must take its
-+    # upstreams from prod, never from a stale ci_ copy left by another MR, and a node
-+    # dbt is building is not deferred anyway. HERE nothing is being built, so the same
-+    # flag threw away this MR's own models and pointed all 30 tests at PRODUCTION. The
-+    # gate was green because prod was healthy, not because the branch was.
++    # upstreams from prod rather than from a stale table, and a node dbt is building
++    # is not deferred anyway.
++    # ⚠ ITS REASON IS NARROWER THAN IT USED TO BE. "Another MR's leftovers" cannot
++    # happen any more — no other branch can write into ci_mr<IID>_*. What survives is
++    # an EARLIER PIPELINE OF THIS SAME merge request: build a model, then push a commit
++    # reverting it to match main, and it drops out of state:modified+ so the next
++    # pipeline does not rebuild it — leaving a superseded table that --defer alone
++    # would prefer. --favor-state forces prod for it. That is the whole remaining case.
++    # HERE, on the TEST line, nothing is being built, so the same flag threw away this
++    # MR's own models and pointed all 30 tests at PRODUCTION. The gate was green because
++    # prod was healthy, not because the branch was.
 +    # ⛔ The comment that stood here claimed the opposite — "validates this MR's rebuilt
 +    # ci_* models layered over prod ... an ISOLATED view, not shared prod state" — which
 +    # is exactly backwards for the rebuilt models, and is why the defect survived a year
@@ -453,29 +776,105 @@ index 3361053..fad3603 100644
 +    # PASSed assert_mart_team_season_insights_metric_consistency against it inside the
 +    # build, then failed the SAME test here with "Unrecognized name: points_capture_pct;
 +    # Did you mean points_capture?" — a column that exists only in prod.
-+    # ⚠ WHAT REMAINS OPEN (#92): `--defer` alone still prefers a ci_ relation when one
-+    # EXISTS, so an UNMODIFIED upstream can be read from another MR's leftovers. Narrower
-+    # than pointing the whole suite at the wrong database, and it fails loudly. Closing it
-+    # means per-MR ephemeral datasets, a recurring-cost decision that is the CPO's.
++    # ⚠ WHAT `--defer` ALONE STILL DOES: it prefers a relation in the current target when
++    # one EXISTS, and only falls back to prod when it does not. That was a real hole while
++    # every merge request shared one dataset set — it is CLOSED by the per-merge-request
++    # target above, so "another MR's leftovers" is no longer a state that can occur. What
++    # remains is an EARLIER PIPELINE OF THIS SAME merge request — and it is NOT simply
++    # "this branch's own work", so do not read it as harmless. In the revert case named
++    # above the leftover is what this branch USED TO produce and no longer does, so the
++    # gate can read a table the current commit does not generate and go green (or red) on
++    # it. ⚠ FREQUENCY, not just severity: it needs a model built and then reverted to
++    # match main within one merge request, so it is rare — but it is not impossible and it
++    # is not benign. It is ACCEPTED because removing it means restoring --favor-state
++    # here, which is #92 itself.
 +    # ⛔ Do NOT re-add --favor-state here to "match the build line". They are asymmetric
 +    # deliberately, and the reason is above.
      #
      # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
      # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
-@@ -652,7 +674,7 @@ data:build:mr:
+@@ -652,7 +735,7 @@ data:build:mr:
      # judgement, exactly as !50 was.
      - >-
        dbt test --select test_type:singular --exclude tag:freshness_check
 -      --defer --favor-state --state /tmp/main-state --target ci
-+      --defer --state /tmp/main-state --target ci
++      --defer --state /tmp/main-state --target "$DBT_CI_TARGET"
    rules:
      - *not_on_schedule
      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+@@ -722,7 +805,8 @@ data:build:main:
+     # docs only change when a model or a description changes, and that is exactly when this fires.
+     #   · NOT in data:nightly — a description's content comes from the repo, not from the data, so
+     #     a nightly run would re-publish identical pages for recurring cost.
+-    #   · NOT in data:build:mr — that job builds state:modified+ into the shared ci_* datasets, so
++    #   · NOT in data:build:mr — that job builds state:modified+ into that merge request's own
++    #     ci_mr<IID>_* datasets, so
+     #     its catalog would cover only what the branch happened to change. A partial column list
+     #     presented as the column list is worse than no column list.
+     #
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index b473284..c6163b2 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -26,10 +26,14 @@ dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is
+ | Target | Written by | Layer datasets | base + seeds (profile `dataset`) |
+ |--------|-----------|----------------|----------------------------------|
+ | `prod` | `dbt-scheduled` (nightly), `ci-data-build` main-push, `pages-match-preview` | `marts`, `core`, `staging`, `intermediate` (**bare**) | `dbt_analytics` |
+-| `ci`   | `ci-data-build` PR builds (slim + `--defer` to prod) | `ci_marts`, `ci_core`, … | `ci_analytics` |
++| `ci_mr<IID>` | `data:build:mr`, **one target per merge request** (slim + `--defer` to prod) | `ci_mr114_marts`, `ci_mr114_core`, … | `ci_mr114` |
+ | `dev`  | local `dbt build` | `dev_marts`, `dev_core`, … | `dev_scratch` |
+ 
+-`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a PR build or a local run cannot overwrite production. PR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod (`--defer --favor-state`). Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
++`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a merge-request build or a local run cannot overwrite production. MR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod. Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
++
++⚠ **The CI target is PER MERGE REQUEST; there is no shared `ci` target** (#92, 2026-08-27). It used to be one `ci` target writing `ci_marts` / `ci_analytics` for every branch, and that shared workspace became a real defect the moment the singular tests started reading it instead of prod: a merge request that rebuilt nothing read tables another branch had built, and went red on three tests for reasons that had nothing to do with it. `.gitlab-ci.yml` now derives `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and writes both the profile's output name and its `dataset:` from it, so `generate_schema_name`'s existing target-name prefix isolates the layer datasets and the profile `dataset:` isolates the base models and seeds. **The macro is unchanged.** These datasets are never expired or deleted; a full set is ~6 GB (~12¢/month).
++
++⚠ **The two dbt invocations in `data:build:mr` differ by one flag ON PURPOSE.** `dbt build` runs `--defer --favor-state`; `dbt test` runs `--defer` alone. `--favor-state` resolves a `ref()` to the deferred prod relation even when the current run just built that model — right for a BUILD (its upstreams must come from prod), wrong for a TEST (it discarded the merge request's own models and pointed the whole singular suite at production). Both the asymmetry and the per-MR naming are pinned in `tests/test_ci_data_job_invariants.py`.
+ 
+ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
+ 
+diff --git a/dbt_project/profiles.example.yml b/dbt_project/profiles.example.yml
+index 8bf2ca4..4b27425 100644
+--- a/dbt_project/profiles.example.yml
++++ b/dbt_project/profiles.example.yml
+@@ -4,9 +4,9 @@
+ #   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME.
+ #   `prod` is the ONLY target that writes the canonical BARE datasets the live site export
+ #   reads (`marts`, `core`, …). Every other target is auto-prefixed:
+-#     target dev  -> dev_marts,  dev_core,  …   (local development)
+-#     target ci   -> ci_marts,   ci_core,   …   (set by the CI workflows)
+-#     target prod -> marts,      core,      …   (nightly / main-push / Pages only)
++#     target dev        -> dev_marts,      dev_core,      …  (local development)
++#     target ci_mr<IID> -> ci_mr114_marts, ci_mr114_core, …  (CI, ONE PER MERGE REQUEST)
++#     target prod       -> marts,          core,          …  (nightly / main-push only)
+ #   So a local build can NEVER clobber prod as long as your target is named anything but
+ #   `prod`. Keep your local default target = `dev`.
+ #   Models WITHOUT a `+schema` (the base models + seeds) fall back to the profile `dataset` below,
+@@ -27,13 +27,16 @@ football_data_pipeline:
+       location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
+       priority: interactive
+ 
+-    # CI / PR builds — reference only; the ci-data-build workflow writes this profile itself
+-    # (WIF/oauth). Slim builds run here and defer unchanged upstreams to prod. Writes ci_*.
++    # CI / merge-request builds — REFERENCE ONLY. `.gitlab-ci.yml`'s .dbt_profile anchor writes the
++    # real one (WIF/oauth) and names this target `ci_mr${CI_MERGE_REQUEST_IID}` — one per merge
++    # request, so no branch can read another's tables (#92, 2026-08-27). The literal `ci` below is a
++    # stand-in to keep this example readable; there is no shared `ci` target in CI.
++    # Slim builds run here and defer unchanged upstreams to prod.
+     ci:
+       type: bigquery
+       method: oauth
+       project: football-data-pipeline-gcp
+-      dataset: ci_analytics  # fallback for base + seeds under CI
++      dataset: ci_analytics  # in CI this is ci_mr<IID>: fallback for base + seeds
+       threads: 4
+       timeout_seconds: 300
+       location: EU
 diff --git a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-index 79b32de..da4f02c 100644
+index 79b32de..98c1f99 100644
 --- a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
 +++ b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-@@ -27,11 +27,20 @@
+@@ -27,11 +27,23 @@
    silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
    (verified against the built table), so no cast is needed.
  
@@ -491,21 +890,24 @@ index 79b32de..da4f02c 100644
 +  this with a CI workflow change."
 +
 +  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
-+  `data:build:mr`'s `dbt test` invocation, `dbt seed --target ci` runs before it, and plain
-+  `--defer` prefers the branch's seed relation because it exists. **This guard now reads the
-+  branch's seed.** The split-the-PR rule above was a workaround for the flag, not a property of the
-+  guard, and it no longer applies. The 4 corrections having merged first remains a fact of history,
-+  not a rule for the next change.
-+  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately; the asymmetry is
-+  pinned by `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
++  `data:build:mr`'s `dbt test` invocation, `dbt seed --target "$DBT_CI_TARGET"` runs before it in
++  the same job, and plain `--defer` prefers the branch's seed relation because it exists. **This
++  guard now reads the branch's seed.** The split-the-PR rule above was a workaround for the flag,
++  not a property of the guard, and it no longer applies. The 4 corrections having merged first
++  remains a fact of history, not a rule for the next change.
++  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
++  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset.
++  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately. Both that
++  asymmetry and the per-merge-request naming are pinned in
++  `tests/test_ci_data_job_invariants.py`.
  #}
  
  select
 diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
-index e391bfe..ede42c6 100644
+index e391bfe..52126b1 100644
 --- a/dbt_project/tests/assert_metric_meaning_complete.sql
 +++ b/dbt_project/tests/assert_metric_meaning_complete.sql
-@@ -17,11 +17,22 @@
+@@ -17,11 +17,25 @@
  
    Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
  
@@ -522,22 +924,45 @@ index e391bfe..ede42c6 100644
 +  that mattered — "Do not try to solve this with a CI workflow change."
 +
 +  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
-+  `data:build:mr`'s `dbt test` invocation. `dbt seed --target ci` runs before it, so the BRANCH's
-+  `metric_catalogue` relation always exists in the ci target, and plain `--defer` prefers a relation
-+  that exists over the deferred one. **This guard now reads the branch's seed, so catalogue values
-+  and a guard that depends on them CAN land in the same PR.** Do not split a change on the strength
-+  of the old rule.
-+  ⚠ What is still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately,
-+  and the asymmetry between the two is pinned by
-+  `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
++  `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
++  in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
++  plain `--defer` prefers a relation that exists over the deferred one. **This guard now reads the
++  branch's seed, so catalogue values and a guard that depends on them CAN land in the same PR.** Do
++  not split a change on the strength of the old rule.
++  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
++  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
++  read or overwrite it.
++  ⚠ Also still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately.
++  Both that asymmetry and the per-merge-request naming are pinned in
++  `tests/test_ci_data_job_invariants.py`.
  #}
  
  select
+diff --git a/docs/operations_guide.md b/docs/operations_guide.md
+index 7836cae..0468303 100644
+--- a/docs/operations_guide.md
++++ b/docs/operations_guide.md
+@@ -263,8 +263,13 @@ The warehouse is split by dbt **target** so non-prod builds cannot touch product
+ - **`prod`** — `dbt-scheduled` (nightly), `ci-data-build` on main-push, and `pages-match-preview`
+   write the canonical **bare** datasets (`marts`, `core`, …) the site export reads. The only
+   target that does.
+-- **`ci`** — `ci-data-build` PR builds write **`ci_*`** datasets and `--defer` unchanged
+-  upstreams to prod, so a PR validates its changes layered over prod without mutating it.
++- **`ci_mr<IID>`** — `data:build:mr` writes **one dataset set per merge request**
++  (`ci_mr114_marts`, `ci_mr114_core`, … and bare `ci_mr114`) and `--defer`s unchanged upstreams to
++  prod, so a merge request validates its changes layered over prod without mutating it — and
++  without reading any other branch's tables. ⚠ **There is no shared `ci` target** (#92,
++  2026-08-27): there used to be one, and once the data-quality tests started reading it instead of
++  prod, a merge request that rebuilt nothing read tables another branch had built. Details and the
++  full table: [`dbt_project/docs/layering.md`](../dbt_project/docs/layering.md).
+ - **`dev`** — local `dbt build` writes **`dev_*`** datasets.
+ 
+ Because prod stays unprefixed, `scripts/export_*.py` (hardcoded `marts`/`core`) needs no change.
 diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
-index b6c98e6..c12b84a 100644
+index b6c98e6..d30a415 100644
 --- a/tests/test_ci_data_job_invariants.py
 +++ b/tests/test_ci_data_job_invariants.py
-@@ -254,3 +254,76 @@ def test_mr_data_build_never_ingests():
+@@ -254,3 +254,154 @@ def test_mr_data_build_never_ingests():
          "`data:build:main` job already ingests any new league, so nothing needs this here. "
          f"Offending: {offenders}"
      )
@@ -568,8 +993,12 @@ index b6c98e6..c12b84a 100644
 +    THE DEFECT THIS PINS (GitLab #92, fixed 2026-08-27). Both invocations carried
 +    `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
 +    even when the current run has just built that model. On the `dbt build` line that is correct and
-+    load-bearing — a model being BUILT must take its upstreams from prod, never from a stale `ci_`
-+    table an earlier MR left, and a node dbt is building is not deferred anyway. On the `dbt test`
++    load-bearing — a model being BUILT must take its upstreams from prod rather than from a
++    superseded table, and a node dbt is building is not deferred anyway. (That reason is narrower
++    since the per-merge-request datasets landed: "another MR's leftovers" cannot occur any more, but
++    an EARLIER PIPELINE OF THE SAME merge request can leave a superseded table — build a model, then
++    revert it to match main and it drops out of `state:modified+` — and `--defer` alone would prefer
++    it.) On the `dbt test`
 +    line nothing is being built, so the identical flag threw away the MR's own models and pointed
 +    all 30 singular tests at PRODUCTION. The DQ gate was green because prod was healthy, not because
 +    the branch was.
@@ -610,10 +1039,104 @@ index b6c98e6..c12b84a 100644
 +
 +    assert "--favor-state" in build, (
 +        "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
-+        "with the test line is the whole of #92's fix: a model being built must take its upstreams "
-+        "from prod, never from a stale ci_ table another MR left behind. Do not make the two lines "
++        "with the test line is the whole of #92's first half. A model being built must take its "
++        "upstreams from prod rather than from a superseded table — an earlier pipeline of THIS "
++        "merge request can leave one (build a model, then revert it to match main and it drops "
++        "out of state:modified+), and --defer alone would prefer it. Do not make the two lines "
 +        f"match. Line: {build}"
 +    )
++
++
++def test_each_merge_request_builds_into_its_own_datasets() -> None:
++    """No merge request may read another one's tables. #92 second half, 2026-08-27.
++
++    THE DEFECT THIS PINS, which only became reachable once the half above landed. Every merge
++    request used to build into ONE shared set of `ci_*` datasets. While the singular tests read
++    PRODUCTION that was invisible; the moment they read the ci datasets instead, a merge request
++    that rebuilt nothing began reading whatever another branch had left there. `!115`, which changes
++    no models, went red on THREE tests against tables `!114` had built an hour earlier — headline
++    error "Unrecognized name: points_capture; Did you mean points_capture_pct?", the exact mirror of
++    the failure that started #92.
++
++    BOTH HALVES OF THE ISOLATION ARE ASSERTED, and the second is not decoration.
++    `macros/generate_schema_name.sql` prefixes a model that HAS a custom schema with `target.name`,
++    so the per-MR target name isolates the four layer datasets. But it returns BARE `target.schema`
++    for a model with NO `+schema` — which is the whole `2_base` layer and EVERY seed,
++    `metric_catalogue` among them. Their isolation rests entirely on the profile's `dataset:` line.
++    Pinning only the target name would let someone revert `dataset:` to a shared literal and put the
++    base tables and the seed back in one shared dataset, silently, reinstating the `!115` failure on
++    the very relation two dbt guards were rewritten to depend on. platform-reviewer found that
++    omission in an earlier version of this test.
++
++    A literal `--target ci` anywhere in the job, or a `DBT_CI_TARGET` that does not carry the merge
++    request id, restores the shared workspace with every test and the whole pipeline still green —
++    the same invisible-breakage shape as this module's siblings, which is why it is pinned here
++    rather than left to the comments in the YAML.
++    """
++    config = _ci_config()
++    jobs = _script_lines_by_job(config)
++    assert "data:build:mr" in jobs, (
++        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
++        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
++    )
++    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
++
++    # Asserted on the DERIVATION, not on a literal name, so reformatting the export does not break
++    # this — but dropping the merge-request id from it does, and that is the property.
++    derivations = [ln for ln in lines if "DBT_CI_TARGET=" in ln]
++    assert derivations, (
++        "data:build:mr no longer derives DBT_CI_TARGET. Without it every merge request builds into "
++        "the same datasets and one branch's tables become another's upstreams (#92)."
++    )
++    assert any("CI_MERGE_REQUEST_IID" in ln for ln in derivations), (
++        "DBT_CI_TARGET is set without CI_MERGE_REQUEST_IID, so it is the same for every merge "
++        f"request — the shared workspace is back. Derivation seen: {derivations}"
++    )
++
++    shared = [ln for ln in lines if ln.startswith("dbt ") and "--target ci" in ln]
++    assert shared == [], (
++        "a dbt invocation in data:build:mr targets a literal shared `ci` target. Every dbt command "
++        'in this job must use "$DBT_CI_TARGET" so the merge request writes its own datasets. '
++        f"Offending: {shared}"
++    )
++    for line in [ln for ln in lines if ln.startswith("dbt ")]:
++        assert "$DBT_CI_TARGET" in line, (
++            f"a dbt invocation in data:build:mr does not use $DBT_CI_TARGET: {line}"
++        )
++
++    # The profile's `dataset:` is the OTHER half — base models and seeds carry no +schema and ride
++    # bare target.schema, so they are isolated by this line alone.
++    profile = "\n".join(_script_lines(config))
++    dataset_lines = [
++        " ".join(ln.split()) for ln in profile.splitlines()
++        if ln.strip().startswith("dataset:")
++    ]
++    assert "dataset: ${DBT_CI_TARGET}" in dataset_lines, (
++        "the CI profile's `dataset:` is not ${DBT_CI_TARGET}. The base models and every seed "
++        "(metric_catalogue included) have no +schema, so generate_schema_name gives them bare "
++        "target.schema — this line is the only thing isolating them per merge request. "
++        f"dataset: lines seen: {dataset_lines}"
++    )
+diff --git a/tests/test_persist_docs_policy.py b/tests/test_persist_docs_policy.py
+index 9c4f9d0..f421ac9 100644
+--- a/tests/test_persist_docs_policy.py
++++ b/tests/test_persist_docs_policy.py
+@@ -172,8 +172,13 @@ def test_docs_are_generated_exactly_once_and_only_on_main():
+ 
+     `data:nightly` was rejected because a description's content comes from the repo, not the data,
+     so a nightly run re-publishes identical pages for recurring cost. `data:build:mr` was rejected
+-    because it builds `state:modified+` into the shared ci_* datasets, so its catalog would cover
+-    only what one branch changed — a partial column list presented as the column list.
++    because it builds `state:modified+` into that merge request's own `ci_mr<IID>_*` datasets, so
++    its catalog would cover only what one branch changed — a partial column list presented as the
++    column list.
++    ⚠ That rationale used to say "the shared ci_* datasets". There is no shared CI workspace any
++    more (#92, 2026-08-27) — each merge request writes its own — but the reason this job is still
++    the wrong place to generate docs is UNCHANGED and if anything stronger: a per-merge-request
++    dataset holds even less of the warehouse than the shared one did.
+     """
+     jobs = _jobs_running("dbt docs generate")
+     assert jobs == ["data:build:main"], (
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -627,8 +1150,9 @@ index b6c98e6..c12b84a 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   10 +-
-#    .claude/task/acceptance_evidence.md |  183 +++---
-#    .claude/task/review_input.patch     | 1195 +++++++++++++++++------------------
-#    3 files changed, 694 insertions(+), 694 deletions(-)
+#   .claude/active_work.md              |   16 +-
+#    .claude/task/acceptance_evidence.md |  265 ++++--
+#    .claude/task/review.md              |  162 ++--
+#    .claude/task/review_input.patch     | 1639 ++++++++++++++++++++++-------------
+#    4 files changed, 1325 insertions(+), 757 deletions(-)
 # ============================================================================

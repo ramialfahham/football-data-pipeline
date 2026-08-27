@@ -1,33 +1,76 @@
 # Task contract — #92: make the MR singular-test gate read the BRANCH, not production
 
 objective: >
-  One flag, one line. `data:build:mr`'s second dbt invocation — the full singular-test suite, the DQ
-  gate — runs with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()` to the
-  DEFERRED (production) relation **even when the current run has just built that model**. The suite
-  therefore tests PRODUCTION on every merge request. Removing `--favor-state` from that ONE
+  TWO HALVES, and the second exists because CI proved the first insufficient. Both are in this MR.
+
+  **HALF ONE — one flag.** `data:build:mr`'s second dbt invocation — the full singular-test suite,
+  the DQ gate — ran with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()`
+  to the DEFERRED (production) relation **even when the current run has just built that model**. The
+  suite therefore tested PRODUCTION on every merge request. Removing `--favor-state` from that ONE
   invocation makes it test the branch. `--defer` stays, so an upstream this MR did not build still
   resolves to prod rather than to nothing.
 
-  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state` AND MUST. There are two invocations in this
-  job and only the second changes. On the BUILD line the flag is correct and load-bearing: the
-  shared `ci_*` datasets carry tables left by earlier merge requests, and when a model is being
-  BUILT its own upstreams must come from prod, never from another branch's leftovers. A node dbt is
-  building in the current run is not deferred at all, so the flag costs that line nothing and buys
-  isolation. On the TEST line there is nothing being built, so the same flag has the opposite
-  effect: it discards the models this MR just built.
+  **HALF TWO — one dataset set per merge request.** Half one alone is not enough, and this is
+  measured from a real pipeline, not argued. Every merge request built into the SAME five `ci_*`
+  datasets. While the tests read production that was invisible; the moment they read the ci datasets
+  instead, a merge request that rebuilt nothing began reading whatever another branch had left
+  there. `!115` — this branch, which changes no models — went red on THREE tests against tables
+  `!114` had built an hour earlier, headline error `Unrecognized name: points_capture; Did you mean
+  points_capture_pct?`, the exact mirror of the failure that started #92.
+  `macros/generate_schema_name.sql` already prefixes every non-prod dataset with `target.name`, so
+  isolation was ALWAYS keyed on the target name — it simply was not unique per branch. The profile
+  anchor now derives `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names its output that, so each
+  merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
+  `ci_mr<IID>`, and `--defer` falls back to PROD for everything it did not build.
+  ⭐ **`generate_schema_name.sql` IS NOT TOUCHED.** Putting the uniqueness in the target name is what
+  let the macro stay put, so local `dev` behaviour and the prod path are unchanged.
+
+  ⛔ NOTHING HERE DELETES ANYTHING. This change only CREATES datasets. No expiry, no TTL, no drop,
+  no cleanup step, and no path by which a mis-scoped rule could reach production — that was
+  considered as a way to bound the storage and DELIBERATELY REFUSED, on the CPO's explicit
+  instruction that nothing in this work go near a mechanism that could delete the warehouse.
+
+  ⭐ PRE-FLIGHT, checked before building rather than discovered in CI: the change requires dbt to
+  CREATE datasets, which it never had to before. The CI service account is
+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` and it holds
+  `roles/bigquery.user` (read from the live project IAM policy with
+  `gcloud projects get-iam-policy`), which grants `bigquery.datasets.create`. So the mechanism has
+  the permission it needs.
+
+  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state`, AND ITS REASON IS NARROWER THAN IT WAS.
+  It used to be "another merge request's leftovers", and after half two that state cannot occur —
+  no other branch can write into `ci_mr<IID>_*`. ⚠ An earlier draft of this contract kept the old
+  wording in the present tense while the same change abolished it; platform-reviewer caught it, and
+  it is the exact defect class this task exists to remove.
+  THE SURVIVING REASON, and it is real: an EARLIER PIPELINE OF THE SAME merge request can leave a
+  superseded table in that merge request's own datasets. Build a model, then push a commit that
+  reverts it to match main — it drops out of `state:modified+`, so the next pipeline does not
+  rebuild it, and `--defer` alone would prefer the stale table that is still sitting there.
+  `--favor-state` forces prod for it. On the TEST line nothing is being built, so the identical flag
+  has the opposite effect: it discards the models this merge request just built.
 
   ⭐ WHAT THIS IS WORTH, stated plainly rather than sold. Today all 30 singular tests are green on an
   MR because production is healthy, not because the branch is. That is a gate reporting on the wrong
   subject. After this change they report on the branch.
 
-  ⚠ AND WHAT IT COSTS, which is the reason #92 was left open rather than fixed on sight. Without
-  `--favor-state`, `--defer` resolves a ref to the `ci_*` copy WHEN ONE EXISTS and to prod only when
-  it does not. `data:build:mr` builds `state:modified+`, so everything this MR changed and everything
-  downstream of it is freshly built and correct; an UNMODIFIED upstream, however, may be read from a
-  `ci_*` table an earlier merge request left behind. So the trade is: a gate that currently tests the
-  wrong database, against a gate that tests the right one but may read a stale unmodified upstream.
-  Both are holes. This one is narrower, and unlike the current one it fails LOUDLY when it is wrong.
-  ⛔ It is a trade, not a clean win, and the CPO was told so in those terms before approving.
+  ⚠ AND WHAT IT COSTS. ⛔ REWRITTEN — this paragraph described half one's cost as "an UNMODIFIED
+  upstream may be read from a `ci_*` table AN EARLIER MERGE REQUEST left behind", which half two
+  abolishes: no other branch can write into `ci_mr<IID>_*`. platform-reviewer caught that the sweep
+  had stopped one paragraph short of this one, twice.
+  WHAT THE COST ACTUALLY IS, after both halves. Without `--favor-state`, `--defer` resolves a ref to
+  a relation in the current target WHEN ONE EXISTS, and to prod only when it does not. Everything
+  this merge request changed, and everything downstream, is freshly built and correct. The residual
+  is one case: an EARLIER PIPELINE OF THIS SAME merge request can leave a SUPERSEDED table — build a
+  model, then push a commit reverting it to match main, and it drops out of `state:modified+` so the
+  next pipeline does not rebuild it. The gate then reads a table this branch no longer produces.
+  ⚠ TWO PATHS REACH THAT STATE, not one — cto-reviewer added the second. A build-then-revert inside
+  one merge request, AND a REBASE onto a main that has since absorbed the change (this very MR's
+  `deploy_order` does exactly that to `!114`): either way the model drops out of `state:modified+`
+  while its table survives.
+  ⚠ FREQUENCY, NOT ONLY SEVERITY — the discipline this task's own record now demands: both paths
+  need a specific sequence inside one merge request, so this is occasional, where the hole it
+  replaces fired on EVERY merge request. It is not benign, and it is ACCEPTED because the only way
+  to remove it is to restore `--favor-state` on the test line, which is #92 itself.
 
   ⚠ A FALSE CLAIM IN THE FILE IS CORRECTED IN THE SAME CHANGE. The comment above the test line
   currently reads "On an MR it validates this MR's rebuilt ci_* models layered over prod (via defer)
@@ -66,7 +109,11 @@ refs: >
 
 scope_paths:
   - .gitlab-ci.yml
+  - docs/operations_guide.md
+  - dbt_project/docs/layering.md
+  - dbt_project/profiles.example.yml
   - tests/test_ci_data_job_invariants.py
+  - tests/test_persist_docs_policy.py
   - dbt_project/tests/assert_metric_meaning_complete.sql
   - dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
   - .claude/task/contract.md
@@ -109,7 +156,7 @@ impact_map: >
     and a guard depending on those values cannot land in the same PR — closing with the standing
     instruction **"Do not try to solve this with a CI workflow change."**
     ⛔ This change makes all three of those things false, and overrides that instruction. `dbt seed
-    --target ci` runs at `.gitlab-ci.yml:589` before both invocations, so the BRANCH's
+    --target "$DBT_CI_TARGET"` runs before both invocations, so the BRANCH's
     `metric_catalogue` relation always exists in the ci target; with `--favor-state` gone, plain
     `--defer` prefers it. Those two guards now read the BRANCH's seed, and the values-merge-first
     rule they impose is no longer needed. Both notes are corrected in this commit, and the standing
@@ -144,9 +191,30 @@ impact_map: >
     proof that a red here blocks the MR. Fail-closed is preserved; nothing is made conditional,
     nothing gains an `|| true`, no `allow_failure` is introduced.
 
+  what pins the change: `tests/test_ci_data_job_invariants.py` — the module whose docstring opens
+    "Pin three CI data-job invariants that can be broken while every pipeline stays GREEN" — gains
+    TWO assertions, because both halves are silently revertible. Half one: re-adding `--favor-state`
+    to the test line restores the whole defect with every gate and the pipeline still green. Half
+    two: putting a literal `--target ci` back, or dropping `CI_MERGE_REQUEST_IID` from the
+    derivation, restores the shared workspace just as silently. Each is asserted from BOTH sides —
+    the test line must NOT carry `--favor-state` while the build line MUST, and every dbt invocation
+    must use `$DBT_CI_TARGET` while the profile's `dataset:` must be `${DBT_CI_TARGET}` too.
+    ⛔ THE `dataset:` HALF IS NOT DECORATION, and an earlier draft of this pin omitted it.
+    `generate_schema_name` returns bare `target.schema` for any model with no `+schema` — which is
+    the whole `2_base` layer AND every seed, `metric_catalogue` included. Their isolation rests
+    entirely on the profile's `dataset:` line, so pinning only the target name would leave the base
+    tables and the seed sharing one dataset again, reinstating the exact `!115` failure on the very
+    relation the two rewritten dbt guards depend on. platform-reviewer found that omission.
+
   blast_radius: every future merge-request pipeline that touches a data path. That is wide, and it
-    is why this is a CPO-approved governance task rather than a line edit. The change is confined to
-    ONE invocation in ONE job; `git diff` is one line of flags plus the comment above it.
+    is why this is a CPO-approved governance task rather than a line edit. ⚠ REWRITTEN — this said
+    "confined to ONE invocation in ONE job; `git diff` is one line of flags plus the comment above
+    it", which was true of half one and false of what ships. What ships touches FOUR lines of
+    `data:build:mr`: the `.dbt_profile` anchor (deriving `DBT_CI_TARGET` and naming its output
+    that), and the `dbt seed` / `dbt build` / `dbt test` invocations, all three now
+    `--target "$DBT_CI_TARGET"`. Plus two dbt guard comment blocks, two docs and two assertions.
+    Every merge-request pipeline now writes its OWN dataset set instead of the five shared `ci_*`
+    ones — which are left exactly where they are and simply stop being written to.
 
   deploy_order: this must merge BEFORE `!114`, and `!114` must then be rebased onto it — a merge
     request runs the `.gitlab-ci.yml` of its SOURCE branch, so `!114` keeps failing until it carries
@@ -159,40 +227,80 @@ decisions_taken: >
   recommended".
 
   THRESHOLD DECLARATIONS.
-  · NEW MECHANISM: **none.** No new job, stage, script, tag, selector, allow_failure or exclusion. A
-    flag is removed from an existing invocation and a comment above it is corrected. The test added
-    in round 2 is an assertion inside `tests/test_ci_data_job_invariants.py`, the module that
-    already exists for this exact class and already parses this exact job's script list — no new
-    file, no new runner, no new dependency, no new CI step. Adding a case to an existing guard is
-    not a new mechanism; had it needed a new harness, that would be a different declaration.
-  · RECURRING COST: **none, and this was reasoned rather than waved.** The same 30 tests run on the
-    same schedule against the same row counts; only the dataset they read changes, and a `ci_*`
-    table is the same size as its prod twin. No job is added, no cadence changes, nothing new is
-    scheduled. If anything the queries get marginally cheaper, since `ci_*` holds the MR's slice.
+  ⚠ REWRITTEN AFTER HALF TWO. These declarations described half one and were carried forward
+  unchanged when half two landed, so they said "none" to both questions while the diff created a
+  per-merge-request dataset set. cto-reviewer and scope-auditor both failed on it. Corrected:
+
+  · NEW MECHANISM: **none, and this was tested against the definition rather than asserted.** No new
+    job, stage, script, file, runner, dependency, CI step, tag, selector, `allow_failure` or
+    exclusion. Half one removes a flag. Half two exports ONE shell variable and lets the EXISTING
+    `macros/generate_schema_name.sql` do the isolating — the macro is deliberately untouched, which
+    is the whole reason this counts as configuration rather than machinery. The two assertions live
+    inside a module that already exists for this class and already parses this job's script list.
+  · RECURRING COST: **yes, small, and MEASURED rather than estimated.** Each merge request now
+    leaves its own BigQuery tables instead of overwriting a shared set, and nothing deletes them.
+    Measured on the live project with `bq query ... __TABLES__`: the five shared `ci_*` datasets
+    hold **6.0 GB** in total today (`ci_staging` 2.4 GB, `ci_marts` 1.4 GB, `ci_intermediate`
+    1.1 GB, `ci_core` 0.7 GB, `ci_analytics` 0.5 GB) — and that is the FULL set accumulated across
+    many branches, where a single merge request builds only `state:modified+` and leaves a fraction
+    of it. At EU BigQuery active-storage rates (~$0.02/GB/month) a whole 6 GB set is about **12
+    cents a month**. No job is added, no cadence changes, nothing is scheduled.
+    ⚠ QUERY VOLUME IS **NOT** UNCHANGED, and an earlier draft of this line said it was — twice,
+    after cto-reviewer had already flagged it once. Three models are incremental
+    (`fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`), and
+    `is_incremental()` keys on `{{ this }}` — the model's own relation in the CURRENT target, which
+    is never deferred. Under the shared datasets that relation persisted between merge requests, so
+    a selected fact ran as a MERGE above a high-water mark. With a fresh `ci_mr<IID>_core` it does
+    not exist on that merge request's FIRST pipeline, so the model does a FULL build instead.
+    That fires for any merge request whose `state:modified+` reaches one of those three or anything
+    upstream of them. Magnitude, measured rather than feared: the whole `ci_core` dataset is 0.7 GB,
+    so it is sub-cent per pipeline plus some `data:build:mr` wall time against a 2h timeout.
+    ⛔ Disclosed because this branch's own record says to describe the cost of the mechanism you are
+    BUILDING, not the one you imagined. It is small; it is not zero, and it is not "unchanged".
+    ⛔ AN AUTOMATIC EXPIRY WOULD BOUND IT AND IS DELIBERATELY NOT DONE. A mis-scoped expiry reaches
+    `prod` and deletes the warehouse; the CPO's instruction on this work is explicit that nothing go
+    near that class of mechanism. Storage is left to accumulate and filed instead. ⚠ I first
+    described this cost to him as "storage for a few days, which self-deletes" — that was FALSE of
+    what ships and cto-reviewer caught it. The number above is what he is actually approving.
   · GUARD WEAKENED: **no** in the sense that matters — no assertion is removed, no test excluded, no
     path skipped, and the suite count must stay at 30. But see the ⛔ in `protected_override`: this
     is a trade between two holes, not a clean win, and the reviewer should judge it as one.
 
 decisions_reserved:
-  - none: the fix, its cost and the alternative were put to the CPO together and he chose this one.
-    Whether the REMAINING hole — a singular test able to read a stale unmodified upstream from the
-    shared `ci_*` datasets — is worth closing too, and how (an ephemeral per-MR dataset is the
-    obvious candidate and a recurring-cost decision), stays open on #92 and is NOT decided here.
+  - none. ⚠ THIS FIELD PREVIOUSLY RESERVED THE PER-MR DATASET as "the obvious candidate and a
+    recurring-cost decision … NOT decided here", and then the same MR built it. Both reviewers were
+    right to fail that: a contract cannot reserve as open the exact thing it ships. It is now
+    DECIDED, on the CPO's "fix it" recorded in `escalations.log`, and declared under
+    `decisions_taken` with its measured cost. Nothing about this change is left open.
+  - The only genuinely open follow-on is BOUNDING the storage those datasets accumulate. It is not
+    reserved here because it is refused here: the CPO's instruction is that nothing in this work go
+    near a mechanism that could delete the warehouse, and an expiry is exactly that class. Filed, not
+    reserved.
 
 done_when:
-  - `.gitlab-ci.yml` differs from main by exactly one flag removal on the `dbt test` invocation plus
-    the corrected comment above it; the `dbt build` invocation is byte-identical.
+  - `.gitlab-ci.yml`'s `dbt test` invocation carries `--defer --state` and NOT `--favor-state`,
+    while the `dbt build` invocation still carries `--favor-state` — the asymmetry is the fix.
+  - Every dbt invocation in `data:build:mr` targets `"$DBT_CI_TARGET"`, that variable is derived
+    from `CI_MERGE_REQUEST_IID`, and the profile's `dataset:` is `${DBT_CI_TARGET}` — so the layer
+    datasets AND the base models and seeds are all per merge request.
+  - `macros/generate_schema_name.sql` does NOT appear in the diff.
+  - Nothing in the diff deletes, expires or drops a dataset or a table. `git diff` contains no
+    `expiration`, no `bq rm`, no `drop dataset`, no cleanup step.
   - `python -m pytest -q` passes, including `tests/test_ci_data_job_invariants.py`.
-  - The YAML parses and the job's script list is unchanged apart from that one line, shown by
-    parsing `.gitlab-ci.yml` and printing `data:build:mr`'s script before and after.
-  - The claim is verified by RUNNING it, not by reading it: after merge, `!114` is rebased onto this
-    and its pipeline is watched going green on the exact test that failed at job `16145201830`
-    line 1021.
-  - `.claude/task/escalations.log` carries the CPO's approval verbatim and the reproduction.
-  - The new invariant is watched going RED against BOTH mutations before it is trusted: re-adding
-    `--favor-state` to the `dbt test` line, and removing it from the `dbt build` line.
+  - The YAML parses and `data:build:mr`'s script list is still 13 steps.
+  - Both new invariants are watched going RED against every mutation before being trusted:
+    `--favor-state` re-added to the test line; `--favor-state` removed from the build line; a
+    literal `--target ci` restored; `CI_MERGE_REQUEST_IID` dropped from the derivation; and the
+    profile's `dataset:` reverted to a shared literal.
   - Neither dbt guard still tells a reader that `ref('metric_catalogue')` resolves to main's seed,
-    and neither still carries "Do not try to solve this with a CI workflow change".
+    neither still carries "Do not try to solve this with a CI workflow change", and neither names a
+    `ci` target that no longer exists.
+  - No comment left in `.gitlab-ci.yml` still describes the shared workspace as current.
+  - The claim is verified by RUNNING it, not by reading it: this branch's own pipeline goes green —
+    the same pipeline that went red on three tests against another branch's tables — and then `!114`
+    is rebased onto this and watched going green on the exact test that failed at job
+    `16145201830` line 1021.
+  - `.claude/task/escalations.log` carries both CPO rulings verbatim and both reproductions.
 
 amendments: >
   2026-08-27, round 2: `scope_paths` EXTENDED by three files —
@@ -207,6 +315,56 @@ amendments: >
   a machine can hold the line" put the assertion in the module that already exists for this class.
   Both extensions make the task's own claims true; neither widens what the task decides. Written on
   a clean tree (the code was stashed by explicit path, the contract amended, then popped).
+
+  2026-08-27, round 4 — ⛔ CI PROVED HALF ONE INSUFFICIENT ON THE FIRST PIPELINE, and the fix grew
+  a second half. Authority: the CPO, shown the failure and the recommendation "give each merge
+  request its own workspace instead of sharing one", answered **"fix it"**; and, after I raised an
+  automatic expiry as a way to bound the resulting storage, instructed that nothing in this work go
+  near anything that could delete the warehouse. Both are recorded in `escalations.log`.
+  `scope_paths` EXTENDED by `dbt_project/docs/layering.md` and `dbt_project/profiles.example.yml`,
+  which document the `ci` target's dataset names that this round changes — leaving them saying
+  `ci_marts` would be the same stale-comment defect this whole task exists to fix.
+  ⚠ WHAT ROUND 4 CORRECTS IN THIS CONTRACT, all found by reviewers rather than by me:
+  `decisions_taken`'s threshold declarations still said NEW MECHANISM none / RECURRING COST none,
+  written for half one and carried forward unchanged over a diff that creates a dataset set per
+  merge request (cto-reviewer, scope-auditor); `decisions_reserved` reserved as undecided the exact
+  mechanism the same commit builds (cto-reviewer); `blast_radius` and `done_when` still described
+  the one-line version (platform-reviewer); and `impact_map` cited `dbt seed --target ci`, a command
+  this round removes (platform-reviewer, analytics-engineer-reviewer). All corrected in place.
+  ⚠ AND ONE FACT I GOT WRONG TO THE CPO'S FACE: I described the storage cost to him as "a few days
+  per branch, which self-deletes". Nothing in this change makes that true — the datasets persist.
+  cto-reviewer caught it. The real figure is measured and declared under RECURRING COST above, and
+  it is ~12 cents a month for a full set. The approval now rests on the true number.
+
+  2026-08-27, LAST ROUND: `scope_paths` extended by `tests/test_persist_docs_policy.py` — a SIXTH
+  copy of the shared-workspace claim, in the docstring of the test that pins where `dbt docs
+  generate` runs, hand-mirroring a `.gitlab-ci.yml` comment this same MR corrected. Same doc-sync
+  authority as the two before it. Found by platform-reviewer, in its own territory, one file over.
+  ⚠ AND THE COST LINE WAS WRONG A SECOND TIME. `RECURRING COST` closed with "query volume is
+  unchanged"; it is not. A fresh per-merge-request dataset means the three incremental fact models
+  have no `{{ this }}` on an MR's first pipeline and FULL-build instead of merging. cto-reviewer
+  raised this in an earlier round and I did not fold it in; platform-reviewer had to raise it again.
+  Now measured and declared. ⭐ Twice now the cost sentence has described something other than what
+  is being built — the exact rule this task's record already carries.
+
+  2026-08-27, FINAL ROUND: `scope_paths` extended by `docs/operations_guide.md`, which carries a
+  DUPLICATE of the environment-isolation table already corrected in `dbt_project/docs/layering.md`
+  and still described a shared `ci` target writing `ci_*`. Authority: the same doc-sync rule that
+  brought `layering.md` in — consistency is both rows or neither. Found by platform-reviewer.
+  ⚠ THE REST OF THIS ROUND IS ME FIXING THE SAME DEFECT CLASS FIVE MORE TIMES, and the count is the
+  point. Half two abolished the shared workspace; five separate comments still called it current —
+  in `.gitlab-ci.yml` (three), in the new pin's docstring and assertion message, and in this
+  contract's own objective. I swept where I was looking and not where I was not, which IS the
+  "corrections replace, never accumulate" failure, committed inside the fix for it.
+  ⚠ AND ONE DEFECT I INTRODUCED WHILE FIXING THEM: a string replace spliced a sentence mid-line and
+  left "HERE" dangling with no antecedent inside the paragraph about the BUILD line, so the comment
+  read the asymmetry backwards. platform-reviewer caught it. Fixed.
+  ⭐ ONE THING A REVIEWER WORKED OUT THAT I HAD NOT, and it is now load-bearing documentation: with
+  per-merge-request datasets, "another branch's leftovers" is impossible, so `--favor-state` on the
+  BUILD line looked like it guarded nothing — and the next reader would rightly have deleted it,
+  which is the exact mutation the pin exists to stop. The surviving case is an earlier pipeline of
+  the SAME merge request holding a superseded table after a revert. That reason is now stated in
+  `.gitlab-ci.yml`, both places in the pin, and this contract.
 
   2026-08-27, round 3: no scope change. `impact_map`'s "what fires it" paragraph still said
   `data:build:main` was at line **714** while the paragraph 23 lines below it already said **736,

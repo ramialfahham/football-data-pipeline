@@ -5543,3 +5543,50 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   leftovers in the shared datasets. Narrower than aiming the whole suite at the wrong database, and
   it fails loudly rather than silently green. Closing it properly means per-MR ephemeral datasets —
   a RECURRING COST decision, and therefore the CPO's, not taken here.
+
+  ⛔⛔ SAME DAY, SECOND HALF: THAT RESIDUAL FIRED ON THE FIRST PIPELINE, AND THE CPO RULED TWICE.
+  `!115` — the branch carrying this fix, which changes NO models — went red on THREE singular tests
+  reading tables `!114` had built into the shared ci datasets an hour earlier. Headline error, the
+  exact mirror of the one that started #92:
+    `Unrecognized name: points_capture; Did you mean points_capture_pct?`
+
+  ⭐ RULING A, verbatim: **"fix it"**, answering the recommendation "give each merge request its own
+  workspace instead of sharing one". Applied: the profile anchor derives
+  `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names BOTH its output and its `dataset:` that, so
+  every merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
+  `ci_mr<IID>`, and `--defer` falls back to prod for anything it did not build.
+  `macros/generate_schema_name.sql` already prefixed non-prod datasets with `target.name`, so the
+  macro is UNTOUCHED and local `dev` is unchanged — the uniqueness went into the target name
+  precisely so the macro could stay put.
+  ⚠ BOTH lines are load-bearing: the target NAME isolates the four layer datasets, and `dataset:`
+  isolates the base models and every seed, which carry no `+schema` and ride bare `target.schema`.
+  `metric_catalogue` is one of them. An earlier version of the pin asserted only the target name;
+  platform-reviewer proved you could revert `dataset:` alone and stay green.
+
+  ⭐ RULING B, and it is a STANDING CONSTRAINT ON THIS WORK, not a one-off. I raised an automatic
+  table expiry as the way to bound the storage those datasets accumulate, and described its risk in
+  the same breath — "point it at the wrong place and it deletes the real warehouse". His reply:
+  **"Are you nuts???"**, and then, explicitly: **"You do nothing where you come any close to
+  introducing the risk of deleting the warehouse."** So no expiry, no TTL, no drop, no cleanup step
+  ships here or in the follow-up. The datasets accumulate and that is the accepted outcome.
+  ⭐ MEASURED, so the decision rests on a number rather than a worry: the five shared `ci_*` datasets
+  hold **6.0 GB** in total (`bq query ... __TABLES__`, live) — and that is the FULL set accumulated
+  across many branches, where one merge request builds only `state:modified+`. At EU active-storage
+  rates that is about **12 cents a month**.
+  ⚠ I HAD TOLD HIM THE COST WAS "storage for a few days per branch, which self-deletes". That was
+  FALSE of what ships — nothing self-deletes — and cto-reviewer caught it, not me. ⭐ THE RULE:
+  **never describe a cost by the mechanism you imagined; describe it by the one you are building.**
+
+  ⭐⭐ AND THE RULE THAT MATTERS MOST HERE, from RULING A's cause. I disclosed the shared-workspace
+  risk honestly, in his hearing, as "a narrower hole" that "fails loudly" — and he approved on that
+  description. Both halves were true and the description was still useless, because it said how BAD
+  the failure would be and never how OFTEN it would happen. It happened immediately, and would have
+  happened on every batch of a twelve-rename programme. **WHEN DISCLOSING A RESIDUAL RISK, STATE ITS
+  FREQUENCY, NOT ONLY ITS SEVERITY.** A risk that fires every time is not a narrower hole; it is a
+  gate nobody will trust.
+
+  ⚠ PRE-FLIGHT, done before building rather than discovered in CI: this is the first change that
+  requires dbt to CREATE datasets. The CI service account is
+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` — a name left over from
+  before the GitLab migration, not a GitHub dependency — and it holds `roles/bigquery.user`, which
+  grants `bigquery.datasets.create`. Read from the live project IAM policy.
