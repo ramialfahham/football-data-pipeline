@@ -143,14 +143,6 @@ only covered appearances. Null when the club scored 0 that competition-season.
 {% enddocs %}
 
 
-{% docs corner_kicks %}
-Corner kicks won by the team, taken from the provider's team match statistics rather than from
-the scoreline or from player records. The provider does not supply team statistics for every
-fixture, so this can be missing, and a total over several fixtures can be understated rather
-than null.
-{% enddocs %}
-
-
 {% docs corner_kicks_per_match %}
 Average corner kicks won per match with available team stats.
 {% enddocs %}
@@ -178,11 +170,11 @@ progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs corner_kicks_sum_season__team %}
+{% docs corners %}
 Corner kicks won by the team, taken from the provider's team match statistics rather than from
 the scoreline or from player records. The provider does not supply team statistics for every
 fixture, so this can be missing, and a total over several fixtures can be understated rather
-than null. Totalled over the season.
+than null.
 {% enddocs %}
 
 
@@ -541,22 +533,6 @@ Value for the season now in progress, accumulated through the matches played so 
 {% enddocs %}
 
 
-{% docs goalkeeper_saves %}
-Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
-than summed from the individual goalkeepers' counts; the two need not agree. The provider does
-not supply team statistics for every fixture, so this can be missing, and a total over several
-fixtures can be understated rather than null.
-{% enddocs %}
-
-
-{% docs goalkeeper_saves_sum_season__team %}
-Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
-than summed from the individual goalkeepers' counts; the two need not agree. The provider does
-not supply team statistics for every fixture, so this can be missing, and a total over several
-fixtures can be understated rather than null. Totalled over the season.
-{% enddocs %}
-
-
 {% docs goals__player %}
 Goals scored.
 {% enddocs %}
@@ -883,14 +859,6 @@ Offsides caught.
 {% enddocs %}
 
 
-{% docs opponent_corner_kicks__team %}
-Corner kicks won by the team, taken from the provider's team match statistics rather than from
-the scoreline or from player records. The provider does not supply team statistics for every
-fixture, so this can be missing, and a total over several fixtures can be understated rather
-than null. Measured for the opposing team rather than this one.
-{% enddocs %}
-
-
 {% docs opponent_shots_inside_box__team %}
 Shots the team took from inside the penalty area, taken from the provider's team match
 statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
@@ -1064,8 +1032,16 @@ progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs saves %}
+{% docs saves__player %}
 Saves made.
+{% enddocs %}
+
+
+{% docs saves__team %}
+Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
+than summed from the individual goalkeepers' counts; the two need not agree. The provider does
+not supply team statistics for every fixture, so this can be missing, and a total over several
+fixtures can be understated rather than null.
 {% enddocs %}
 
 
