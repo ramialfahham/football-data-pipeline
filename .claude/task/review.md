@@ -4,9 +4,18 @@
 > `clean_sheets_share` → `clean_sheets_pct`, `points_capture` → `points_capture_pct`.
 > Branched from main `1804a64`.
 
-diff_sha256: 3fd9bfcf430248ac3805b97306aae94e7b9fa2d7292681ab7ee8d0cfed6b3208
+diff_sha256: 14e5aab3f3d784b0a297a23f5bd2e96f4139daf6ac2efcc641fc0cf235465cfd
 
 rounds: 2
+
+> ⚠ REBASED ONTO main `9b4b225` (the merge of `!115`) and the hash REBOUND — it was
+> `3fd9bfc…`, computed against main `1804a64`. **No file in this branch changed.** The rebase moved
+> the base, which moves the cumulative diff, which moves the hash; the four verdicts below were
+> given against byte-identical content and stand. The only conflicts were in the shared record
+> files: `escalations.log` keeps BOTH entries (`!115`'s #92 blocks and this branch's step-3 block),
+> and the four task artifacts took this branch's versions, which describe this task.
+> The rebase was necessary rather than cosmetic: a merge request runs the `.gitlab-ci.yml` of its
+> SOURCE branch, so this branch had to carry `!115`'s fix before its own pipeline could pass.
 
 > ROUND 1 → ROUND 2, and what changed: **no code file**. The cumulative code diff is byte-identical
 > between the two rounds. bi-analyst-reviewer's round-1 PASS carried a precision finding it
