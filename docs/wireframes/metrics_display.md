@@ -132,7 +132,7 @@ Set pieces → Goalkeeping.
 |---|---|---|---|---|---|
 | 1 | Ø Goals | `goals_per_match` | Goals | 1 | live |
 | 2 | Ø Goals against | `goals_against_per_match` | Goals | 1 | live |
-| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_share` (team page) | Goals | 2 | **new** (GAP-11) |
+| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | **new** (GAP-11) |
 | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
 | 5 | % Shots from box | `danger_zone_ratio` | Shooting | 2 | live |
 | 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
@@ -180,7 +180,7 @@ a label by reading the `label_i18n_key` column; never infer it from an id or a p
 display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
 window is five matches, so the honest reading is the COUNT beside its denominator — `clean_sheets`,
 `3/5`. A team season is ranked against a whole league, where matches played differ between teams, so
-the honest reading is the PROPORTION — `clean_sheets_share`, `21%`, labelled `% Clean sheets` under
+the honest reading is the PROPORTION — `clean_sheets_pct`, `21%`, labelled `% Clean sheets` under
 the same `% ` prefix every other percent metric here carries. They are two catalogue metrics with one
 formula between them, and the seed carries both. In `metricRows.ts` the row's own
 `field`/`labelKey`/`format` are the FIXTURE binding and the team surface reads `teamBinding(row)`;

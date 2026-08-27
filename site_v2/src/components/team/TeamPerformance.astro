@@ -34,7 +34,7 @@ const sRec = season as unknown as Record<string, unknown>;
 
 const hasBench = benchByKey.size > 0;
 // Both panels key on the TEAM binding, not on `field`: the clean-sheet slot is served here as
-// `clean_sheets_share` (the benchmark's metric_key and the yoy column alike), while the fixture
+// `clean_sheets_pct` (the benchmark's metric_key and the yoy column alike), while the fixture
 // windows serve the count under the bare name. Every other row binds the same name on both.
 const keyOf = (r: (typeof METRIC_ROWS)[number]): string => teamBinding(r).field;
 const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${keyOf(r)}_delta_yoy`]) != null);

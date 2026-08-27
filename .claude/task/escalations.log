@@ -5590,3 +5590,56 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` — a name left over from
   before the GitLab migration, not a GitHub dependency — and it holds `roles/bigquery.user`, which
   grants `bigquery.datasets.create`. Read from the live project IAM policy.
+
+
+2026-08-27 STEP 3 STARTS — MR A of six, and the CPO moved two locked acceptance criteria.
+
+  STEP 3 IS SPLIT INTO SIX MRs, one per family, keyed on the seed's own `metric_group` column so
+  that "family" has a definition in the repo rather than in the builder's taste. The record already
+  assigns that split to the builder ("must be split by family... the builder's call, already
+  taken"); this entry records only which grouping was chosen, not a new naming decision:
+    A `goals` + `outcomes`      — clean_sheets_share → clean_sheets_pct, points_capture → points_capture_pct
+    B `set_pieces` + `goalkeeping` — corner_kicks_per_match → corners_per_match, save_ratio → saves_pct
+    C `shooting` shares         — shot_accuracy, danger_zone_ratio, shot_share
+    D `passing`                 — pass_accuracy, key_passes_per_match
+    E the deserved chain        — sot_difference_per_match, sot_points_gap
+    F `finishing_efficiency` alone, because it is the one name that exists for BOTH entities
+    G a closing MR that regenerates the committed export sample once, for all twelve
+  Re-measured on `1804a64` rather than copied: 894 occurrences across the six families in live
+  surfaces, plus 1,532 in the generated sample. The record's "~600, measured 2026-08-26" was taken
+  over a narrower path set; the figure above is the one this work is sized from.
+
+  ⭐ RULING, verbatim, on moving two LOCKED acceptance criteria. Two of the four criteria the CPO
+  had approved before any code asked for the clean-sheet row's label and value to be READ OFF THE
+  BUILT PAGE. Both were undemonstrable, and had been from the moment they were written: team 33's
+  featured season is PL 2026 with ONE game played, below the `>= 3 finished games` benchmark floor,
+  so `season.benchmarks` is empty and `TeamPerformance.astro` renders the absent state for the whole
+  tab. `% Clean sheets` occurs 0 times across all 61 built pages, on main exactly as on the branch.
+  Put to him plainly; his answer: "then go ahead".
+  ⚠ THE PROCESS DEFECT IS MINE, and it is the same class as the one logged on 2026-08-26: I drafted
+  a criterion without first checking the artifact it would be read from. Check that the evidence
+  EXISTS before promising to read it.
+  ⛔ AND A REPLACEMENT HE REJECTED, worth keeping because the reasoning generalises. I first
+  proposed "build main, build the branch, diff the two dist trees — identical output proves the
+  rename is invisible". He asked why that should be done at all, and he was right: identical output
+  is ALSO what doing no work produces, so the check cannot distinguish a correct rename from a
+  missing one. ⭐ THE RULE: a check that passes equally on the work and on its absence is not a
+  check. It was dropped rather than defended.
+
+  ⛔ A LIVE TRANSIENT, declared as it is created, joining the two already recorded above. The
+  committed export sample under `site_v2/src/data/` can only be regenerated against the PROD marts,
+  which do not carry the renamed columns until `data:build:main` runs on merge. So from MR A until
+  the closing MR G, the sample serves the OLD keys (122 occurrences of these two names today).
+  Nothing public degrades: the site is unlisted and `deploy:site-v2` is manual-only. Precedent for
+  the sequencing is `!109`, "refresh the committed export sample after #90".
+
+  ⛔ A MUTATION SURVIVED, AND THE SURVIVOR IS THE FINDING. Four mutations were run against MR A.
+  Three went red as intended (stale `label_i18n_key` → the metric-label test; stale `metric_id` →
+  the docs-block check; dangling `doc()` → description hygiene AND `dbt parse`). The fourth —
+  reverting one entry of the 22-name `accepted_values` list in `int_competition_benchmarks.yml` —
+  left `dbt parse`, the docs-block check, description hygiene and the metric/benchmark/catalogue
+  pytest selection ALL GREEN. Nothing offline pins those THREE lists (two in
+  `int_competition_benchmarks.yml`, a third in `shared.yml` on `mart_team_competition_benchmarks`)
+  to the model columns they enumerate; only the warehouse `accepted_values` test inside
+  `data:build:mr` fires. Filed as its own issue rather than folded into a rename MR — a new guard is
+  a new mechanism and belongs in a task that is about the guard.

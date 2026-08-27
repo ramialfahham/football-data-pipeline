@@ -161,14 +161,14 @@ floors that guard `mart_leaderboards`' five rate boards are not needed for eight
 was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_on_goal_per_match` →
 `passes_per_match` → `duels_per_match`** (`design-mocks/gen_top_teams.py`). % Points captured and
 Ø Defensive actions are gone, and the surviving four are single-metric like the player boards.
-⚠ % Points captured leaving matters beyond this block: `points_capture` is built on the synthetic
+⚠ % Points captured leaving matters beyond this block: `points_capture_pct` is built on the synthetic
 3-1-0 tally, which is wrong for cup competitions.
 
 ~~**Six team boards.**~~
 
 | Board | Shown | Ranked by |
 |---|---|---|
-| % Points captured | `points_capture` · `points_won` · `deserved_points` | `points_capture` |
+| % Points captured | `points_capture_pct` · `points_won` · `deserved_points` | `points_capture_pct` |
 | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
 | Ø Shots on target difference | `sot_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency` | `sot_difference_per_match` |
 | Ø Defensive actions | `defensive_actions_per_match` | descending |
@@ -186,7 +186,7 @@ Outcomes metrics `league_rank` and `deserved_rank`, which are the standings the 
 ⛔ **SUPERSEDED 2026-08-10 — the paragraph below is about the REMOVED % Points captured board.**
 `gen_top_teams.py`'s header: *"'% Points captured' dropped as a board; `points_capture` is shown
 nowhere"* and *"deserved-vs-actual dropped … takes `deserved_points` and `points_won` off the block
-entirely."* Nothing on the reduced four-board block ranks on `points_capture`, so its reassurance
+entirely."* Nothing on the reduced four-board block ranks on `points_capture_pct`, so its reassurance
 is not merely stale, it is FALSE about the current design. Kept as the record of why that board was
 fragile, because the same structural problem returns anywhere `deserved_points` is used.
 
@@ -195,7 +195,7 @@ One is a coverage gap that can close: the league-season needs every team to carr
 a league rank and three finished games. The other is STRUCTURAL and will not close — MLS ranks by
 conference and the Apertura/Clausura formats reset points, so there is no single ladder to fit.
 That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leagues in pools 2 and
-3. Ranking is on `points_capture`, so a null `deserved_points` never affects the order.~~
+3. Ranking is on `points_capture_pct`, so a null `deserved_points` never affects the order.~~
 
 **Shared display rules.**
 

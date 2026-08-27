@@ -58,7 +58,7 @@ next to the %), both being separate metrics already in the set.
 │  GOALS                                            │  (4) group subhead (metrics_display order)
 │  Ø Goals          2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
 │  Ø Goals against  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
-│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_share; the fixture windows show the count
+│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_pct; the fixture windows show the count
 │  SHOOTING                                         │      order = the LOCKED shooting funnel
 │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
 │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
@@ -100,7 +100,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
 | Label | `metric_key` | `metric_key` | label + format from `metric_catalogue` (never invented) |
 | Value — per-match metric | `metric_value` | `metric_value` | the per-match rate, catalogue `format` (`decimal_0`/`decimal_1`) |
 | Value — ratio metric (%) | `metric_value` | `metric_value` | the `percent`; its **volume is the adjacent count row** in the same block (no naked %) |
-| Value — `clean_sheets_share` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
+| Value — `clean_sheets_pct` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
 | Rank | `rank` (+ `team_count`, `direction`) | `rank`, `team_count` | **"{rank} of {team_count}"** (e.g. "3rd of 18") — direction-mirrored (rule below) |
 | vs-median | `vs_median_delta` | `vs_median_delta` | signed, catalogue-formatted (`+0.4`, `+3pp` for percent) |
 | Spread bar | derived from `metric_value` vs `p25`/`median`/`p75` | `league_p25`, `league_median`, `league_p75` | the value's position on a p25–median–p75 track; dashed median reference |
@@ -116,7 +116,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
 - `lower_better` metric → **mirror the rank**: `team_count + 1 − rank`, so "1st" marks the best (lowest-
   value) end. A display-side step (the mart ranks DESC). Since the catalogue-wide direction sweep
   (2026-07-21) **two rendered metrics are `lower_better`: `goals_against_per_match` and
-  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_share` is
+  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_pct` is
   `higher_better`. (Superseded: this used to say only `goals_against_per_match` was `lower_better` and that
   `corners_against_per_match` was `neutral` and therefore not mirrored.)
 
@@ -142,7 +142,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
 
 | Block | Rendered metrics (metric_key) |
 |---|---|
-| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_share` |
+| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_pct` |
 | Shooting | `shots_per_match` · `danger_zone_ratio` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
 | Duels | `duels_per_match` · `duels_won_pct` (%) |
 | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
@@ -200,7 +200,7 @@ has that this does not; the per-row "of N" carries the sample size instead.)
   applied at render from the catalogue `direction`). All 20 mart rows are carried — this screen renders the
   LOCKED 16. Mirrors GAP-21/#627 for the player.
 - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
-- `clean_sheets_share` renders as a **percent** here, and that is now the declared metric rather than a
+- `clean_sheets_pct` renders as a **percent** here, and that is now the declared metric rather than a
   compromise: the count and the share are two catalogue rows, and this screen ranks the share because
   the teams it ranks have played different numbers of matches. The x/y form (02 §8) belongs to the
   fixture windows, which serve `clean_sheets` with its denominator.

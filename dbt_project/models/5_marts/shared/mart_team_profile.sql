@@ -116,7 +116,7 @@ select
     m.defensive_actions_per_match,
     -- shooting dominance + results efficiency (catalogued season metrics)
     m.shot_share,
-    m.points_capture,
+    m.points_capture_pct,
     -- year-over-year (domestic only; NULL otherwise / when prior season absent)
     y.yoy_games_played_cutoff,
     y.points_this_season,
@@ -137,9 +137,9 @@ select
     y.goals_against_per_match_this_season,
     y.goals_against_per_match_prev_season,
     y.goals_against_per_match_delta_yoy,
-    y.clean_sheets_share_this_season,
-    y.clean_sheets_share_prev_season,
-    y.clean_sheets_share_delta_yoy,
+    y.clean_sheets_pct_this_season,
+    y.clean_sheets_pct_prev_season,
+    y.clean_sheets_pct_delta_yoy,
     y.shots_per_match_this_season,
     y.shots_per_match_prev_season,
     y.shots_per_match_delta_yoy,

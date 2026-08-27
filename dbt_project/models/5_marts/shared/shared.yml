@@ -597,8 +597,8 @@ models:
           expression: "shot_share is null or (shot_share between 0 and 1)"
           name: team_profile_shot_share_in_range
       - dbt_utils.expression_is_true:
-          expression: "points_capture is null or (points_capture between 0 and 1)"
-          name: team_profile_points_capture_in_range
+          expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
+          name: team_profile_points_capture_pct_in_range
       # GAP-13 season variant of the duel win rate — same-window ratio bound
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
@@ -729,8 +729,8 @@ models:
         description: "{{ doc('defensive_actions_per_match') }}"
       - name: shot_share
         description: "{{ doc('shot_share') }}"
-      - name: points_capture
-        description: "{{ doc('points_capture') }}"
+      - name: points_capture_pct
+        description: "{{ doc('points_capture_pct') }}"
       - name: yoy_games_played_cutoff
         description: "{{ doc('yoy_games_played_cutoff') }}"
       - name: points_this_season
@@ -751,12 +751,12 @@ models:
         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
       - name: goals_against_per_match_delta_yoy
         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
-      - name: clean_sheets_share_this_season
-        description: "{{ doc('clean_sheets_share_this_season__team') }}"
-      - name: clean_sheets_share_prev_season
-        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
-      - name: clean_sheets_share_delta_yoy
-        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
+      - name: clean_sheets_pct_this_season
+        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
+      - name: clean_sheets_pct_prev_season
+        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
+      - name: clean_sheets_pct_delta_yoy
+        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
       - name: shots_per_match_this_season
         description: "{{ doc('shots_per_match_this_season__team') }}"
       - name: shots_per_match_prev_season
@@ -2077,7 +2077,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]

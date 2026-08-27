@@ -50,7 +50,7 @@ models:
             - season_api_year
             - team_sk
       - dbt_utils.expression_is_true:
-          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_ratios_in_range
       # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
       # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
@@ -112,12 +112,12 @@ models:
       - name: passes_accurate_sum_season
       - name: passes_total_sum_season
       - name: goalkeeper_saves_sum_season
-      - name: points_capture
-        description: "{{ doc('points_capture') }}"
+      - name: points_capture_pct
+        description: "{{ doc('points_capture_pct') }}"
       - name: shot_share
         description: "{{ doc('shot_share') }}"
-      - name: clean_sheets_share
-        description: "{{ doc('clean_sheets_share') }}"
+      - name: clean_sheets_pct
+        description: "{{ doc('clean_sheets_pct') }}"
       - name: goals_per_match
         description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match
@@ -179,11 +179,11 @@ models:
             - match_number
       # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
       # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
-      # construction: points_capture (points <= 3*games), clean_sheets_share (clean_sheet_games <= games),
+      # construction: points_capture_pct (points <= 3*games), clean_sheets_pct (clean_sheet_games <= games),
       # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
       # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
       - dbt_utils.expression_is_true:
-          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_cumulative_structural_ratios_in_range
       # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
       # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
@@ -248,12 +248,12 @@ models:
       - name: passes_accurate_sum_season
       - name: passes_total_sum_season
       - name: goalkeeper_saves_sum_season
-      - name: points_capture
-        description: "{{ doc('points_capture') }}"
+      - name: points_capture_pct
+        description: "{{ doc('points_capture_pct') }}"
       - name: shot_share
         description: "{{ doc('shot_share') }}"
-      - name: clean_sheets_share
-        description: "{{ doc('clean_sheets_share') }}"
+      - name: clean_sheets_pct
+        description: "{{ doc('clean_sheets_pct') }}"
       - name: goals_per_match
         description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match

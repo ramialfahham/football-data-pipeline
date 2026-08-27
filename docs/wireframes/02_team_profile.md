@@ -101,7 +101,7 @@ All season-scoped keys come from the selected `seasons[]` row.
 | Element | JSON key | Display |
 |---|---|---|
 | Shot share | `shot_share` | percent + bar |
-| Points capture | `points_capture` | percent + bar |
+| Points capture | `points_capture_pct` | percent + bar |
 | Gap | `performance_vs_results_gap` | signed percentage-point delta + plain-language label ("dominates play more than results show" / inverse); ⓘ → glossary |
 
 Two real ratios and their difference — NEVER a composite score gauge (ruled).
