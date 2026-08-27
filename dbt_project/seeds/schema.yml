@@ -279,7 +279,7 @@ seeds:
         description: >
           The metric's fixed mathematical denominator: count(*) = number of matches in the window
           (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
-          numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
+          numerator_expr); 3 * count(*) for points_capture_pct. Like the numerator it is the DEFINITION
           only — coverage/availability handling lives in the model, never here. Blank for raw count
           metrics and the blank-base_relation rows above.
       - name: computation_kind

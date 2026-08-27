@@ -1,10 +1,10 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 116fe2e..0f77379 100644
+index 116fe2e..7034e10 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,164 +1,376 @@
+@@ -1,164 +1,271 @@
 -# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
-+# Task contract — #92: make the MR singular-test gate read the BRANCH, not production
++# Task contract — rename the team metrics `clean_sheets_share` to `clean_sheets_pct` and `points_capture` to `points_capture_pct`
  
  objective: >
 -  Step 2 of the catalogue naming programme. Two renames, both of the same kind as `goals_for` to
@@ -46,83 +46,35 @@ index 116fe2e..0f77379 100644
 -  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
 -  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
 -  `mart_player_match_log`). No ambiguous case in this set.
-+  TWO HALVES, and the second exists because CI proved the first insufficient. Both are in this MR.
++  Step 3 of the catalogue naming programme, MR A of six. Two renames from the `goals` and
++  `outcomes` metric groups, both of the same shape: a share metric gains the `_pct` suffix the
++  programme's pattern requires, and `clean_sheets_share` loses the now-doubled `share` word.
 +
-+  **HALF ONE — one flag.** `data:build:mr`'s second dbt invocation — the full singular-test suite,
-+  the DQ gate — ran with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()`
-+  to the DEFERRED (production) relation **even when the current run has just built that model**. The
-+  suite therefore tested PRODUCTION on every merge request. Removing `--favor-state` from that ONE
-+  invocation makes it test the branch. `--defer` stays, so an upstream this MR did not build still
-+  resolves to prod rather than to nothing.
++  ⛔ THIS STEP IS NOT LIKE STEPS 1 AND 2, and that is the whole reason it is split into six MRs.
++  `!111` (`goals_for` → `goals`) and `!112` (`corner_kicks` → `corners`, `goalkeeper_saves` →
++  `saves`) were catalogue-only: the metric moved, the model column stayed, because the column was a
++  provider name that read correctly beside its siblings. Here the metric IS the column. Both names
++  are computed in `int_team_season__metrics_cumulative`, so each runs through model SQL, the ymls,
++  the marts and the site.
 +
-+  **HALF TWO — one dataset set per merge request.** Half one alone is not enough, and this is
-+  measured from a real pipeline, not argued. Every merge request built into the SAME five `ci_*`
-+  datasets. While the tests read production that was invisible; the moment they read the ci datasets
-+  instead, a merge request that rebuilt nothing began reading whatever another branch had left
-+  there. `!115` — this branch, which changes no models — went red on THREE tests against tables
-+  `!114` had built an hour earlier, headline error `Unrecognized name: points_capture; Did you mean
-+  points_capture_pct?`, the exact mirror of the failure that started #92.
-+  `macros/generate_schema_name.sql` already prefixes every non-prod dataset with `target.name`, so
-+  isolation was ALWAYS keyed on the target name — it simply was not unique per branch. The profile
-+  anchor now derives `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names its output that, so each
-+  merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
-+  `ci_mr<IID>`, and `--defer` falls back to PROD for everything it did not build.
-+  ⭐ **`generate_schema_name.sql` IS NOT TOUCHED.** Putting the uniqueness in the target name is what
-+  let the macro stay put, so local `dev` behaviour and the prod path are unchanged.
++  ⭐ THE COLUMN MUST FOLLOW, AND THAT IS MACHINE-CHECKED, NOT TASTE.
++  `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` requires every metric-bearing column
++  of `int_team_season__metrics` to be a registered `metric_id`. Renaming the `metric_id` and leaving
++  the column would fail that test on the next build. The same test is why the reverse — renaming the
++  column without the metric — is also not an option.
 +
-+  ⛔ NOTHING HERE DELETES ANYTHING. This change only CREATES datasets. No expiry, no TTL, no drop,
-+  no cleanup step, and no path by which a mis-scoped rule could reach production — that was
-+  considered as a way to bound the storage and DELIBERATELY REFUSED, on the CPO's explicit
-+  instruction that nothing in this work go near a mechanism that could delete the warehouse.
++  MEASURED ON THIS BRANCH BEFORE ANY EDIT, so no number here is copied from an earlier count:
++  **105 occurrences across 25 files** (`git grep -o -E 'clean_sheets_share|points_capture'` over the
++  scope set below). Of those, 7 are in the GENERATED `models/docs/metric_columns.md` and are
++  produced by `scripts/sync_metric_docs_blocks.py`, never hand-edited.
 +
-+  ⭐ PRE-FLIGHT, checked before building rather than discovered in CI: the change requires dbt to
-+  CREATE datasets, which it never had to before. The CI service account is
-+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` and it holds
-+  `roles/bigquery.user` (read from the live project IAM policy with
-+  `gcloud projects get-iam-policy`), which grants `bigquery.datasets.create`. So the mechanism has
-+  the permission it needs.
-+
-+  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state`, AND ITS REASON IS NARROWER THAN IT WAS.
-+  It used to be "another merge request's leftovers", and after half two that state cannot occur —
-+  no other branch can write into `ci_mr<IID>_*`. ⚠ An earlier draft of this contract kept the old
-+  wording in the present tense while the same change abolished it; platform-reviewer caught it, and
-+  it is the exact defect class this task exists to remove.
-+  THE SURVIVING REASON, and it is real: an EARLIER PIPELINE OF THE SAME merge request can leave a
-+  superseded table in that merge request's own datasets. Build a model, then push a commit that
-+  reverts it to match main — it drops out of `state:modified+`, so the next pipeline does not
-+  rebuild it, and `--defer` alone would prefer the stale table that is still sitting there.
-+  `--favor-state` forces prod for it. On the TEST line nothing is being built, so the identical flag
-+  has the opposite effect: it discards the models this merge request just built.
-+
-+  ⭐ WHAT THIS IS WORTH, stated plainly rather than sold. Today all 30 singular tests are green on an
-+  MR because production is healthy, not because the branch is. That is a gate reporting on the wrong
-+  subject. After this change they report on the branch.
-+
-+  ⚠ AND WHAT IT COSTS. ⛔ REWRITTEN — this paragraph described half one's cost as "an UNMODIFIED
-+  upstream may be read from a `ci_*` table AN EARLIER MERGE REQUEST left behind", which half two
-+  abolishes: no other branch can write into `ci_mr<IID>_*`. platform-reviewer caught that the sweep
-+  had stopped one paragraph short of this one, twice.
-+  WHAT THE COST ACTUALLY IS, after both halves. Without `--favor-state`, `--defer` resolves a ref to
-+  a relation in the current target WHEN ONE EXISTS, and to prod only when it does not. Everything
-+  this merge request changed, and everything downstream, is freshly built and correct. The residual
-+  is one case: an EARLIER PIPELINE OF THIS SAME merge request can leave a SUPERSEDED table — build a
-+  model, then push a commit reverting it to match main, and it drops out of `state:modified+` so the
-+  next pipeline does not rebuild it. The gate then reads a table this branch no longer produces.
-+  ⚠ TWO PATHS REACH THAT STATE, not one — cto-reviewer added the second. A build-then-revert inside
-+  one merge request, AND a REBASE onto a main that has since absorbed the change (this very MR's
-+  `deploy_order` does exactly that to `!114`): either way the model drops out of `state:modified+`
-+  while its table survives.
-+  ⚠ FREQUENCY, NOT ONLY SEVERITY — the discipline this task's own record now demands: both paths
-+  need a specific sequence inside one merge request, so this is occasional, where the hole it
-+  replaces fired on EVERY merge request. It is not benign, and it is ACCEPTED because the only way
-+  to remove it is to restore `--favor-state` on the test line, which is #92 itself.
-+
-+  ⚠ A FALSE CLAIM IN THE FILE IS CORRECTED IN THE SAME CHANGE. The comment above the test line
-+  currently reads "On an MR it validates this MR's rebuilt ci_* models layered over prod (via defer)
-+  — an ISOLATED view, not shared prod state." That is exactly backwards for the rebuilt models,
-+  which is the half that matters, and it is why the defect survived: the file asserts the behaviour
-+  the flag prevents. Corrected, with the mechanism named, so the next reader is not misled the same
-+  way.
++  ⭐ NO DESCRIPTION-BLOCK SPLIT IS EXPECTED, and it was checked rather than assumed — the mechanism
++  that surprised `!111` mid-flight. Both metrics are team-only in the catalogue (verified: the seed
++  holds one row each, `entity=team`), and neither `clean_sheets_pct` nor `points_capture_pct` exists
++  for any entity today, so `sync_metric_docs_blocks.py` emits a bare block for each new name and no
++  `__team`/`__player` pair appears. `doc('clean_sheets_share')` → `doc('clean_sheets_pct')` and
++  `doc('points_capture')` → `doc('points_capture_pct')`, one for one. The regeneration is the proof,
++  not this sentence.
  
  refs: >
 -  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME"**, the
@@ -149,53 +101,61 @@ index 116fe2e..0f77379 100644
 -  ⭐ THE LESSON, and it is the third variant of one root cause in this session: the RECORD AND THE
 -  WORK MUST TRAVEL TOGETHER. First the rulings were not written down at all; then they were written
 -  down but the next change was built where they could not be seen.
-+  **GitLab #92**, open before today: "`--defer --favor-state` makes ALL 28 singular tests read PROD
-+  on an MR." (28 was the count when it was filed; the suite is 30 today, re-counted from the failing
-+  job's own output — `Done. PASS=29 WARN=0 ERROR=1 SKIP=0 TOTAL=30`.)
++  **`.claude/task/escalations.log`, the block "THE METRIC CATALOGUE NAMING PROGRAMME"** — its
++  rulings section dated 2026-08-26, and the complete rename tables appended 2026-08-27 under
++  "⭐⭐ THE COMPLETE RENAME LIST, WRITTEN INTO THE RECORD 2026-08-27 SO IT CANNOT BE LOST". Both
++  renames appear verbatim in that entry's "⛔ TEAM, 12 REMAINING" table:
++  `clean_sheets_share → clean_sheets_pct` and `points_capture → points_capture_pct`.
 +
-+  ⭐ THE CPO'S APPROVAL, this session, in chat. He was shown the choice in these terms: fix the CI
-+  check — "one flag on one line tells that second run to read live data instead of what the branch
-+  just built. Remove it and it reads the branch" — together with the cost, that "those checks would
-+  then read from a workspace shared between branches, so they could pick up leftovers from another
-+  branch's run", and the alternative of renaming in two passes instead. His answer, verbatim:
-+  **"do as recommended"**. That is the `protected_override` authority recorded below.
++  Their authority is RULING 1, quoted in the same entry in the CPO's own words: "points_capture
++  becomes points_capture_pct / ... / clean_sheets_share becomes clean_sheets_share_pct / ...",
++  narrowed by RULING 3 on doubled suffixes, also verbatim: "use the shorter as recommended" — which
++  is why `clean_sheets_share_pct` became `clean_sheets_pct`. The log records the shortening as
++  already applied, so this contract asserts nothing the record does not hold.
 +
-+  ⭐ THE FIRST CONCRETE REPRODUCTION, and the reason this stopped being theoretical. Pipeline
-+  `2796272877`, job `16145201830`, on `!114` (the first column rename of naming-programme step 3):
-+    · line 836 — `OK created sql table model ci_marts.mart_team_season_insights`, carrying the
-+      renamed column `points_capture_pct`
-+    · line 854 — `PASS assert_mart_team_season_insights_metric_consistency [PASS in 0.75s]`,
-+      INSIDE the build, against that freshly built table
-+    · line 1021 — the SAME test, in the second invocation:
-+      `Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?`
-+  The same assertion passed and then failed, ninety seconds apart, in one job, on one branch. The
-+  only difference is which database the second run was pointed at.
++  ⛔ NO PLAN FILE IS CITED, DELIBERATELY. `feat/metric-rename-goals` and
++  `feat/metric-rename-catalogue-only` were each FAILed by scope-auditor for citing a plan file
++  outside the repo for a naming decision. The tables now live in the log itself.
 +
-+  ⛔ WHY THIS CANNOT BE WAITED OUT. The production table only gains the new column after the rename
-+  merges, and the rename cannot merge while the gate is red. `!114` can never go green on its own.
-+  That is the shape of EVERY column rename that a singular test names — and naming-programme step 4
-+  is 35 more renames.
++  Branched from main **`1804a64`**, clean tree — the merge commit of `!113`, which is the first
++  commit on main carrying the 2026-08-27 rename tables this contract cites. Branching from
++  `dd01215` (the previous main, and what the local checkout was stale at) would have reproduced the
++  session's own recorded failure variant: a citation that points at nothing when read from the
++  branch's own diff.
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/models/docs/metric_columns.md
+   - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/schema.yml
+   - dbt_project/models/docs/metric_columns.md
 -  - dbt_project/models/3_core/core.yml
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 -  - dbt_project/models/4_intermediate/shared/int_legs.yml
 -  - dbt_project/models/4_intermediate/shared/int_momentum.yml
 -  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
 -  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
 -  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
 -  - dbt_project/models/4_intermediate/shared/int_season_record.yml
--  - dbt_project/models/5_marts/shared/shared.yml
-+  - .gitlab-ci.yml
-+  - docs/operations_guide.md
-+  - dbt_project/docs/layering.md
-+  - dbt_project/profiles.example.yml
-+  - tests/test_ci_data_job_invariants.py
-+  - tests/test_persist_docs_policy.py
-+  - dbt_project/tests/assert_metric_meaning_complete.sql
-+  - dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+   - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
++  - docs/wireframes/02_team_profile.md
++  - docs/wireframes/10_home.md
++  - docs/wireframes/14_team_stats.md
++  - docs/wireframes/metrics_display.md
++  - site_v2/src/lib/metricRows.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/specs/teams/team.spec.json
++  - site_v2/src/components/team/TeamPerformance.astro
++  - site_v2/src/components/team/MetricSeasonRow.astro
++  - site_v2/src/components/team/MetricLeagueRow.astro
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
@@ -204,80 +164,73 @@ index 116fe2e..0f77379 100644
  
 -# ⚠ NO model SQL. NO column renamed. NO frontend file, so the acceptance gate does not fire.
 -# `metric_columns.md` is GENERATED — regenerate, never hand-edit.
--
++# ⚠ NOT IN SCOPE, each for a stated reason rather than by omission:
++#  · site_v2/src/data/** — the GENERATED export sample. It is regenerated by
++#    scripts/export_site_data.py against the PROD marts and cannot carry the new keys until
++#    data:build:main has materialised them, i.e. after this merges. Never hand-edited (the fake
++#    that motivated bi-analyst-reviewer's routing was two metrics typed into this sample). The
++#    resulting transient is declared under decisions_taken and closes in the step's final MR.
++#  · site/** — neither name appears in the retired MVP's bindings, i18n corpus or manifest
++#    (verified: `git grep -l -E 'clean_sheets_share|points_capture' -- site/` is empty), so no
++#    frozen file is touched by this MR at all.
++#  · docs/audits/**, docs/match_preview_pages_refinement.md, docs/working_agreement.md — records of
++#    HISTORY. Renaming inside a record of what happened falsifies the record.
+ 
  protected_override: >
--  none required. No file in scope_paths is protected.
-+  **REQUIRED, and granted.** `.gitlab-ci.yml` is a PROTECTED governance path: it decides what CI
-+  enforces, and it carries the same authority `.github/workflows/**` carried before the migration —
-+  hence `cto-reviewer` + `platform-reviewer`, both at the opus floor.
-+
-+  Authority: the CPO, in chat this session, answering the recommendation quoted in `refs` above with
-+  **"do as recommended"**. He had been given the mechanism, the benefit, the cost (cross-branch
-+  leftovers in the shared `ci_*` datasets) and the no-CI-change alternative (a two-pass
-+  expand/contract rename) before answering. Written into `escalations.log` in this same commit, so
-+  the authority and the change travel together.
-+
-+  ⛔ THIS IS A GUARD BEING NARROWED IN ONE DIRECTION AND WIDENED IN ANOTHER, and it must be read as
-+  such rather than as a pure fix. It does not delete an assertion, exclude a test, add a tag or skip
-+  a path — the same 30 tests run, with the same SQL, and the count in the job output must not drop.
-+  What changes is which database they read. Judge it on that.
+   none required. No file in scope_paths is protected.
  
  impact_map: >
 -  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
 -    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
-+  This is a PROTECTED path, so the trace is of the GUARD, not of table lineage.
-+
-+  what fires it: `data:build:mr`, on a merge-request pipeline whose diff touches `*data_paths_mr`.
-+    Not on schedules (`*not_on_schedule`), not on main. The sibling `data:build:main` (line 736)
-+    runs `dbt test --select test_type:singular --exclude tag:freshness_check --target prod` with NO
-+    `--defer` and NO `--favor-state`, so it is untouched by this change and remains the full-strength
-+    production gate. `data:nightly` likewise unaffected.
-+
-+  what else imports from it: nothing imports a CI job, but TWO DBT GUARDS DOCUMENT AND DEPEND ON
-+    THIS FLAG'S SEMANTICS, and an earlier draft of this map said "nothing" and was wrong.
-+    `dbt_project/tests/assert_metric_meaning_complete.sql` and
-+    `assert_metric_direction_lower_is_better_agree.sql` each carry a CI note stating that on a PR
-+    `ref('metric_catalogue')` resolves to MAIN's seed "because `--favor-state` swaps it for the
-+    state relation", and each derives a WORKFLOW RULE from it — that a change to catalogue VALUES
-+    and a guard depending on those values cannot land in the same PR — closing with the standing
-+    instruction **"Do not try to solve this with a CI workflow change."**
-+    ⛔ This change makes all three of those things false, and overrides that instruction. `dbt seed
-+    --target "$DBT_CI_TARGET"` runs before both invocations, so the BRANCH's
-+    `metric_catalogue` relation always exists in the ci target; with `--favor-state` gone, plain
-+    `--defer` prefers it. Those two guards now read the BRANCH's seed, and the values-merge-first
-+    rule they impose is no longer needed. Both notes are corrected in this commit, and the standing
-+    instruction is re-aimed rather than left contradicting the merged change.
-+    ⭐ That is not a side effect to tolerate — it is the same defect class this task exists to fix
-+    ("the file asserted the behaviour the flag prevented"), and correcting it in `.gitlab-ci.yml`
-+    while leaving it standing in two dbt guards would be the "corrections must replace EVERYWHERE"
-+    failure. Found by cto-reviewer and platform-reviewer in round 1, independently.
-+    The other consumer of the same idea is `data:build:main` (`.gitlab-ci.yml:736`, re-measured —
-+    an earlier draft said 714), which runs the same suite `--target prod` with NO `--defer`, NO
-+    `--state` and NO `--favor-state`. It is untouched and remains the full-strength prod gate.
++  writers: `int_team_season__metrics_cumulative` is the single home of both formulas —
++    `safe_divide(points_won, 3 * games_played) as points_capture` and
++    `safe_divide(clean_sheet_games, games_played) as clean_sheets_share`. Nothing else computes
++    either; `int_team_season__metrics` is its final-row projection and carries them through
++    `select sf.* except (match_number)`, so it is not edited and cannot drift.
  
 -  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
 -    alter any model's `depends_on`.
-+  what pins the change itself: `tests/test_ci_data_job_invariants.py` gains an assertion, and it is
-+    added here rather than argued away. That module exists for exactly this class — its own
-+    docstring opens "Pin three CI data-job invariants that can be broken while every pipeline stays
-+    GREEN" — and platform-reviewer's round-1 finding was that re-adding `--favor-state` to the test
-+    line would restore the whole defect with every offline gate, every test and the pipeline still
-+    green, leaving only a comment in its way. A comment is precisely what failed here the first
-+    time. The assertion pins BOTH HALVES of the asymmetry: the `dbt test` invocation must carry
-+    `--defer` and `--state` and must NOT carry `--favor-state`; the `dbt build` invocation must
-+    still carry it. Pinning only one half would let someone "restore symmetry" by stripping the flag
-+    from the build line instead, which breaks isolation in the other direction and would pass.
++  downstream: pasted from `dbt ls --select int_team_season__metrics_cumulative+ --resource-type
++    model` run on this branch (dbt 1.7.19, `.venv/Scripts/dbt.exe`), not asserted from memory:
++      4_intermediate.shared.int_team_competition_benchmark_metrics_long
++      4_intermediate.shared.int_team_competition_benchmarks
++      4_intermediate.shared.int_team_profile__yoy
++      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
++      4_intermediate.domestic_league.team_season.int_team_season__metrics
++      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
++      5_marts.shared.mart_team_competition_benchmarks
++      5_marts.shared.mart_team_profile
++      5_marts.shared.mart_team_season
++      5_marts.domestic_league.mart_team_season_insights
++      5_marts.shared.mart_team_season_record
++    Of those, four name a column and are edited: `int_team_competition_benchmark_metrics_long`
++    (the UNPIVOT list), `int_team_profile__yoy`, `mart_team_profile`, `mart_team_season_insights`.
++    `int_team_season__metrics`, `int_team_competition_benchmarks`, `mart_team_season`,
++    `mart_team_competition_benchmarks` and `mart_team_season_record` propagate by `select *` /
++    `select * except`, so their OUTPUT changes while their SQL does not.
++    `int_team_season__deserved_vs_actual` reads neither name (verified by grep) — it is downstream
++    of the model, not of these two columns.
  
 -  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
 -    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
 -    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
 -    int_player_season_position.yml 1 · shared.yml 7. Total 24.
-+  what stops being enforced if this is wrong: nothing stops. The failure mode of the change is a
-+    singular test reading a stale `ci_*` upstream left by an earlier MR, which produces a WRONG
-+    ANSWER (a spurious red, or a green that should have been red on that one upstream's data). It
-+    cannot silence a test: the selection `--select test_type:singular --exclude tag:freshness_check`
-+    is untouched, so the suite size is unchanged. `tests/test_ci_data_job_invariants.py` continues
-+    to pin the ingest-lock invariant on this job, which this change does not go near.
++  layer_rules: `scripts/check_layer_contract.py` — no per-competition staging subdirectory is
++    created and no model overrides its layer materialisation; both names stay inside
++    4_intermediate/5_marts, so no layer boundary moves. `assert_no_uncatalogued_season_metric`
++    (column ⇄ catalogue identity) and the THREE `accepted_values` lists of the 22 benchmark
++    metric_keys — two in `int_competition_benchmarks.yml` (lines 27 and 66) and a third in
++    `shared.yml` (line 2080, on `mart_team_competition_benchmarks`) — are the guards that MUST move
++    with the rename or the build goes red; that is the intended coupling, not collateral.
++    ⚠ The count is THREE, not the two an earlier draft of this contract asserted. The `shared.yml`
++    copy was found by grepping for the list rather than by recalling where it lived, and the number
++    is corrected here rather than left for a reviewer to catch.
++    ⛔ AND NO OFFLINE GATE ENFORCES THAT COUPLING — measured, not assumed. Reverting one entry of the
++    `int_competition_benchmarks.yml` list to the old name left `dbt parse`, the docs-block check,
++    description hygiene and the metric/benchmark/catalogue pytest selection ALL GREEN. The only
++    guard that fires is the warehouse `accepted_values` test inside `data:build:mr`. That gap is a
++    real finding of this task, it is NOT closed here (a new guard is out of this contract's scope),
++    and it is filed rather than folded in.
  
 -  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
 -    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
@@ -286,100 +239,102 @@ index 116fe2e..0f77379 100644
 -    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
 -    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
 -    artifact that had already failed once on authority in the same round.
-+  what happens on failure: the job exits non-zero exactly as now — the failing invocation above is
-+    proof that a red here blocks the MR. Fail-closed is preserved; nothing is made conditional,
-+    nothing gains an `|| true`, no `allow_failure` is introduced.
++  deploy_order: none needed, and this was checked rather than waved through. No touched model is
++    incremental — `int_team_season__metrics_cumulative`, `int_team_season__metrics`,
++    `int_team_profile__yoy`, `mart_team_profile` and `mart_team_season_insights` are all
++    `materialized='table'`; `mart_team_season_record` and `mart_team_competition_benchmarks` are
++    views; `dbt_project.yml` declares no `incremental` anywhere. So the recorded
++    "renaming a column on an incremental fact NULLs history without --full-refresh" hazard does not
++    fire here. `data:build:main` rebuilds every affected table in one pass on merge. There is no
++    nightly SCHEDULE on GitLab today, so nothing races the merge.
  
 -  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
 -    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
 -    player columns the text also stays, since the split preserves each entity's own definition.
-+  what pins the change: `tests/test_ci_data_job_invariants.py` — the module whose docstring opens
-+    "Pin three CI data-job invariants that can be broken while every pipeline stays GREEN" — gains
-+    TWO assertions, because both halves are silently revertible. Half one: re-adding `--favor-state`
-+    to the test line restores the whole defect with every gate and the pipeline still green. Half
-+    two: putting a literal `--target ci` back, or dropping `CI_MERGE_REQUEST_IID` from the
-+    derivation, restores the shared workspace just as silently. Each is asserted from BOTH sides —
-+    the test line must NOT carry `--favor-state` while the build line MUST, and every dbt invocation
-+    must use `$DBT_CI_TARGET` while the profile's `dataset:` must be `${DBT_CI_TARGET}` too.
-+    ⛔ THE `dataset:` HALF IS NOT DECORATION, and an earlier draft of this pin omitted it.
-+    `generate_schema_name` returns bare `target.schema` for any model with no `+schema` — which is
-+    the whole `2_base` layer AND every seed, `metric_catalogue` included. Their isolation rests
-+    entirely on the profile's `dataset:` line, so pinning only the target name would leave the base
-+    tables and the seed sharing one dataset again, reinstating the exact `!115` failure on the very
-+    relation the two rewritten dbt guards depend on. platform-reviewer found that omission.
++  blast_radius: two columns change name on `int_team_season__metrics_cumulative`,
++    `int_team_season__metrics`, `mart_team_season`, `mart_team_season_insights`,
++    `mart_team_season_record` and `mart_team_profile` (the last also via its three yoy forms
++    `_this_season`, `_prev_season`, `_delta_yoy`); two `metric_key` VALUES change on
++    `int_team_competition_benchmark_metrics_long`, `int_team_competition_benchmarks` and
++    `mart_team_competition_benchmarks`. **No number changes.** Every formula, coverage gate and
++    denominator is byte-identical before and after; this is a rename, and the value-equivalence
++    checker parked as #91 exists to prove exactly that class of claim once it ships.
++    Consumption: `scripts/export_site_data.py` copies mart keys through unchanged, so the committed
++    sample keeps the OLD keys until it is regenerated after merge — the declared transient below.
  
 -  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
-+  blast_radius: every future merge-request pipeline that touches a data path. That is wide, and it
-+    is why this is a CPO-approved governance task rather than a line edit. ⚠ REWRITTEN — this said
-+    "confined to ONE invocation in ONE job; `git diff` is one line of flags plus the comment above
-+    it", which was true of half one and false of what ships. What ships touches FOUR lines of
-+    `data:build:mr`: the `.dbt_profile` anchor (deriving `DBT_CI_TARGET` and naming its output
-+    that), and the `dbt seed` / `dbt build` / `dbt test` invocations, all three now
-+    `--target "$DBT_CI_TARGET"`. Plus two dbt guard comment blocks, two docs and two assertions.
-+    Every merge-request pipeline now writes its OWN dataset set instead of the five shared `ci_*`
-+    ones — which are left exactly where they are and simply stop being written to.
++acceptance_criteria:
++  - Every metric name the BUILT site renders reads in the same words after the rename as before it, in all three locales, shown by extracting the rendered metric labels from the pages under `site_v2/dist/` and reading them back — a rename must be invisible in the words a reader sees.
++  - No built page and no `site_v2/src` source file outside the generated sample contains the string `clean_sheets_share` or `points_capture`, shown by a grep over `site_v2/dist/` and over `site_v2/src/` excluding `src/data/`.
++  - `npm test` passes in `site_v2/`, including the metric-label cross-check that compares at least 27 CPO-validated MVP labels against `site/i18n/` and reports zero wording drift, AND that same check is watched going RED against a deliberately stale key — a green guard nobody has broken proves nothing.
++  - The BUILT team page shows the "not enough games to rank" absent state where the clean-sheet share row would sit, in all three locales, shown by reading the built page's rendered text — recorded so that the missing row is read as the sample's 1-game featured season, never as a defect of this rename.
  
 -  deploy_order: none. Descriptions reach BigQuery the next time each model builds.
-+  deploy_order: this must merge BEFORE `!114`, and `!114` must then be rebased onto it — a merge
-+    request runs the `.gitlab-ci.yml` of its SOURCE branch, so `!114` keeps failing until it carries
-+    this commit. Rebasing `!114` moves its review hash, so its `review.md` must be rebound; a
-+    `review.md`-only commit is artifact-exempt, so that rebinding is free.
++# ⚠ AMENDED MID-TASK, WITH THE CPO'S AUTHORITY — see `amendments:` at the foot. Criteria 1 and 4
++# originally asked for the clean-sheet row's LABEL and VALUE to be read off the built page. Both
++# were undemonstrable and had been from the start: team 33's featured season is PL 2026 with ONE
++# game played, below `int_team_competition_benchmark_metrics_long`'s `>= 3 finished games` floor, so
++# `season.benchmarks` is empty and `TeamPerformance.astro`'s `hasBench` guard renders the absent
++# state for the WHOLE tab. `% Clean sheets` occurs 0 times across all 61 built pages, on main
++# exactly as on this branch. I drafted those two without checking the sample carried benchmarks.
++# A first replacement — "build main, build the branch, diff the two dist trees" — was put to the
++# CPO and he rejected it, correctly: identical output is also what doing nothing produces, so that
++# check cannot tell a correct rename from a missing one. It was dropped rather than argued.
  
  decisions_taken: >
 -  THRESHOLD DECLARATION — NEW MECHANISM: none.
 -  THRESHOLD DECLARATION — RECURRING COST: none.
-+  The change and its authority are quoted in `refs` and `protected_override`. Nothing here is chosen
-+  by the builder: the mechanism was recommended, the cost was disclosed, and the CPO said "do as
-+  recommended".
++  Both names come from the record and neither is chosen here. Quoted in refs above: RULING 1 for
++  `points_capture` → `points_capture_pct`, RULING 1 as narrowed by RULING 3 ("use the shorter as
++  recommended") for `clean_sheets_share` → `clean_sheets_pct`.
++
++  ⭐ WHICH METRICS TRAVEL TOGETHER IS THE BUILDER'S CALL, and the record says so in terms: the
++  twelve "must be split by family, not shipped as one diff", and that split "is the builder's call,
++  already taken". The grouping used across step 3 keys on the seed's own `metric_group` column so
++  that "family" has a definition in the repo rather than in my taste — this MR is `goals` +
++  `outcomes`. It goes first because it is the smallest of the six and touches no frozen file, while
++  still exercising every layer the other five will touch.
++
++  ⭐ `label_i18n_key` FOLLOWS `metric_id`, as it did in `!111` and `!112` (`metrics.goals_for.label`
++  → `metrics.goals.label`; `metrics.corner_kicks.label` → `metrics.corners.label`). That is the
++  form the file already follows, not a new rule. The catalogue's ONE deliberate id≠key
++  disagreement — `shots_on_goal_per_match` declaring `metrics.shots_on_target_per_match.label` — is
++  not in this set and is not touched.
  
 -  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
 -    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
 -    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
 -    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
 -    are the CPO's and none of them moves; only the packaging changed.
-+  THRESHOLD DECLARATIONS.
-+  ⚠ REWRITTEN AFTER HALF TWO. These declarations described half one and were carried forward
-+  unchanged when half two landed, so they said "none" to both questions while the diff created a
-+  per-merge-request dataset set. cto-reviewer and scope-auditor both failed on it. Corrected:
++  ⛔ A LIVE TRANSIENT IS CREATED AND IS DECLARED HERE RATHER THAN DISCOVERED LATER. The committed
++  export sample under `site_v2/src/data/` can only be regenerated against the prod marts, which do
++  not carry the new columns until `data:build:main` runs on merge. So between this merge and the
++  step's closing refresh MR the sample serves the OLD keys while the page asks for the new ones.
++  Precedent: `!109` ("refresh the committed export sample after #90") did the same sequencing. The
++  site is unlisted and `deploy:site-v2` is manual-only, so nothing public degrades. This joins the
++  two transients the record already carries and is written into `escalations.log` in the same commit.
  
 -  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
 -    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
 -    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
 -    for what the model holds.
-+  · NEW MECHANISM: **none, and this was tested against the definition rather than asserted.** No new
-+    job, stage, script, file, runner, dependency, CI step, tag, selector, `allow_failure` or
-+    exclusion. Half one removes a flag. Half two exports ONE shell variable and lets the EXISTING
-+    `macros/generate_schema_name.sql` do the isolating — the macro is deliberately untouched, which
-+    is the whole reason this counts as configuration rather than machinery. The two assertions live
-+    inside a module that already exists for this class and already parses this job's script list.
-+  · RECURRING COST: **yes, small, and MEASURED rather than estimated.** Each merge request now
-+    leaves its own BigQuery tables instead of overwriting a shared set, and nothing deletes them.
-+    Measured on the live project with `bq query ... __TABLES__`: the five shared `ci_*` datasets
-+    hold **6.0 GB** in total today (`ci_staging` 2.4 GB, `ci_marts` 1.4 GB, `ci_intermediate`
-+    1.1 GB, `ci_core` 0.7 GB, `ci_analytics` 0.5 GB) — and that is the FULL set accumulated across
-+    many branches, where a single merge request builds only `state:modified+` and leaves a fraction
-+    of it. At EU BigQuery active-storage rates (~$0.02/GB/month) a whole 6 GB set is about **12
-+    cents a month**. No job is added, no cadence changes, nothing is scheduled.
-+    ⚠ QUERY VOLUME IS **NOT** UNCHANGED, and an earlier draft of this line said it was — twice,
-+    after cto-reviewer had already flagged it once. Three models are incremental
-+    (`fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`), and
-+    `is_incremental()` keys on `{{ this }}` — the model's own relation in the CURRENT target, which
-+    is never deferred. Under the shared datasets that relation persisted between merge requests, so
-+    a selected fact ran as a MERGE above a high-water mark. With a fresh `ci_mr<IID>_core` it does
-+    not exist on that merge request's FIRST pipeline, so the model does a FULL build instead.
-+    That fires for any merge request whose `state:modified+` reaches one of those three or anything
-+    upstream of them. Magnitude, measured rather than feared: the whole `ci_core` dataset is 0.7 GB,
-+    so it is sub-cent per pipeline plus some `data:build:mr` wall time against a 2h timeout.
-+    ⛔ Disclosed because this branch's own record says to describe the cost of the mechanism you are
-+    BUILDING, not the one you imagined. It is small; it is not zero, and it is not "unchanged".
-+    ⛔ AN AUTOMATIC EXPIRY WOULD BOUND IT AND IS DELIBERATELY NOT DONE. A mis-scoped expiry reaches
-+    `prod` and deletes the warehouse; the CPO's instruction on this work is explicit that nothing go
-+    near that class of mechanism. Storage is left to accumulate and filed instead. ⚠ I first
-+    described this cost to him as "storage for a few days, which self-deletes" — that was FALSE of
-+    what ships and cto-reviewer caught it. The number above is what he is actually approving.
-+  · GUARD WEAKENED: **no** in the sense that matters — no assertion is removed, no test excluded, no
-+    path skipped, and the suite count must stay at 30. But see the ⛔ in `protected_override`: this
-+    is a trade between two holes, not a clean win, and the reviewer should judge it as one.
++  ⚠ WHAT THAT LOOKS LIKE ON THE PAGE DIFFERS BY PANEL, and an earlier draft of this contract had it
++  wrong: it said the row "renders its label correctly and its value as the en-dash", which is true
++  of ONE of the two panels only. `TeamPerformance.astro` builds `leagueGroups` with
++  `benchByKey.has(keyOf(r))`, so in the **vs-the-league** panel a metric with no benchmark row is
++  OMITTED ENTIRELY — 14_team_stats.md §6's "metric-absent = omitted, never a zero bar". The
++  **vs-last-season** panel renders all 16 and lets a null delta dash out honestly. Corrected in
++  place rather than annotated beside the wrong sentence.
++  ⭐ Neither state can occur on any built page today in any case: the sample's featured season is
++  PL 2026 with one game played, so `hasBench` is false and the whole tab renders its absent state.
++  Found by bi-analyst-reviewer in round 1, which read the mechanism and declined to FAIL on it. The
++  wording is fixed anyway because MRs B–F reuse this paragraph — a wrong sentence here is a wrong
++  sentence six times.
++
++  THRESHOLD DECLARATIONS. No NEW MECHANISM: no new script, macro, hook, test or dependency — every
++  guard and generator involved already exists and is re-run, not written. No RECURRING COST: no new
++  CI job, no extra build, no schedule; `data:build:main` rebuilds the same models it rebuilds for
++  any model edit, and the renamed columns are the same width and count as the ones they replace.
  
  decisions_reserved:
 -  - `sot_points_gap` → `deserved_points_gap`. Moved out of this MR because it IS a model column.
@@ -396,15 +351,8 @@ index 116fe2e..0f77379 100644
 -  - The player `_player` sweep and the nine "on target" labels, both later steps.
 -  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
 -    asked, not answered, not done.
-+  - none. ⚠ THIS FIELD PREVIOUSLY RESERVED THE PER-MR DATASET as "the obvious candidate and a
-+    recurring-cost decision … NOT decided here", and then the same MR built it. Both reviewers were
-+    right to fail that: a contract cannot reserve as open the exact thing it ships. It is now
-+    DECIDED, on the CPO's "fix it" recorded in `escalations.log`, and declared under
-+    `decisions_taken` with its measured cost. Nothing about this change is left open.
-+  - The only genuinely open follow-on is BOUNDING the storage those datasets accumulate. It is not
-+    reserved here because it is refused here: the CPO's instruction is that nothing in this work go
-+    near a mechanism that could delete the warehouse, and an expiry is exactly that class. Filed, not
-+    reserved.
++  - none: both names are ruled in `escalations.log` and quoted above, and the only judgement this
++    contract makes — which metrics ride together — is the builder's call the record assigns.
  
  done_when:
 -  - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
@@ -418,725 +366,805 @@ index 116fe2e..0f77379 100644
 -    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
 -  - Offline gates green plus `ruff` and `python -m pytest tests/`.
 -  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
-+  - `.gitlab-ci.yml`'s `dbt test` invocation carries `--defer --state` and NOT `--favor-state`,
-+    while the `dbt build` invocation still carries `--favor-state` — the asymmetry is the fix.
-+  - Every dbt invocation in `data:build:mr` targets `"$DBT_CI_TARGET"`, that variable is derived
-+    from `CI_MERGE_REQUEST_IID`, and the profile's `dataset:` is `${DBT_CI_TARGET}` — so the layer
-+    datasets AND the base models and seeds are all per merge request.
-+  - `macros/generate_schema_name.sql` does NOT appear in the diff.
-+  - Nothing in the diff deletes, expires or drops a dataset or a table. `git diff` contains no
-+    `expiration`, no `bq rm`, no `drop dataset`, no cleanup step.
-+  - `python -m pytest -q` passes, including `tests/test_ci_data_job_invariants.py`.
-+  - The YAML parses and `data:build:mr`'s script list is still 13 steps.
-+  - Both new invariants are watched going RED against every mutation before being trusted:
-+    `--favor-state` re-added to the test line; `--favor-state` removed from the build line; a
-+    literal `--target ci` restored; `CI_MERGE_REQUEST_IID` dropped from the derivation; and the
-+    profile's `dataset:` reverted to a shared literal.
-+  - Neither dbt guard still tells a reader that `ref('metric_catalogue')` resolves to main's seed,
-+    neither still carries "Do not try to solve this with a CI workflow change", and neither names a
-+    `ci` target that no longer exists.
-+  - No comment left in `.gitlab-ci.yml` still describes the shared workspace as current.
-+  - The claim is verified by RUNNING it, not by reading it: this branch's own pipeline goes green —
-+    the same pipeline that went red on three tests against another branch's tables — and then `!114`
-+    is rebased onto this and watched going green on the exact test that failed at job
-+    `16145201830` line 1021.
-+  - `.claude/task/escalations.log` carries both CPO rulings verbatim and both reproductions.
++  - `python scripts/sync_metric_docs_blocks.py --check` passes with no drift after regeneration.
++  - `python scripts/check_description_hygiene.py`, `python scripts/check_layer_contract.py` and
++    `python scripts/check_ui_i18n_metrics.py` all pass.
++  - `python -m pytest -q` passes with no new failures against the count on `1804a64`.
++  - `DBT_PROFILES_DIR=C:/Users/Rami/.dbt .venv/Scripts/dbt.exe parse` is clean, with zero dangling
++    `doc()` references.
++  - `python -m sqlfluff lint` is clean on every changed model, run from the repo root with the full
++    rule set.
++  - `cd site_v2 && npm test && node scripts/check-page-specs.mjs` passes.
++  - `git grep -n -E 'clean_sheets_share|points_capture[^_]' ` returns hits ONLY in the excluded
++    history/record paths named above and in the not-yet-regenerated `site_v2/src/data/`.
++  - Each acceptance criterion is demonstrated in `.claude/task/acceptance_evidence.md` under
++    `criteria_demonstrated:`, read from the BUILT site, never from source.
++  - At least two mutations are watched going RED and then restored. Run and recorded: a stale
++    `label_i18n_key` in the seed turns `check-metric-labels.test.mjs` red; a stale `metric_id` in
++    the seed turns `sync_metric_docs_blocks.py --check` red; a dangling `doc()` in
++    `domestic_league.yml` turns BOTH `check_description_hygiene.py` and `dbt parse` red. A fourth,
++    a stale `accepted_values` entry, SURVIVED the whole offline suite — reported as a survivor, not
++    quietly dropped, and recorded in `impact_map` above.
 +
 +amendments: >
-+  2026-08-27, round 2: `scope_paths` EXTENDED by three files —
-+  `tests/test_ci_data_job_invariants.py`,
-+  `dbt_project/tests/assert_metric_meaning_complete.sql` and
-+  `dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql`.
-+  Authority: the standing rules the round-1 FAILs invoked, not a new CPO decision. cto-reviewer and
-+  platform-reviewer independently found that the two dbt guards carry CI notes this change makes
-+  false, including a standing instruction it overrides — "corrections replace, never accumulate"
-+  makes fixing them part of THIS change, not a follow-up. platform-reviewer separately found the
-+  change unpinned by anything but a comment — "verify the test fails" and "never rely on prose where
-+  a machine can hold the line" put the assertion in the module that already exists for this class.
-+  Both extensions make the task's own claims true; neither widens what the task decides. Written on
-+  a clean tree (the code was stashed by explicit path, the contract amended, then popped).
-+
-+  2026-08-27, round 4 — ⛔ CI PROVED HALF ONE INSUFFICIENT ON THE FIRST PIPELINE, and the fix grew
-+  a second half. Authority: the CPO, shown the failure and the recommendation "give each merge
-+  request its own workspace instead of sharing one", answered **"fix it"**; and, after I raised an
-+  automatic expiry as a way to bound the resulting storage, instructed that nothing in this work go
-+  near anything that could delete the warehouse. Both are recorded in `escalations.log`.
-+  `scope_paths` EXTENDED by `dbt_project/docs/layering.md` and `dbt_project/profiles.example.yml`,
-+  which document the `ci` target's dataset names that this round changes — leaving them saying
-+  `ci_marts` would be the same stale-comment defect this whole task exists to fix.
-+  ⚠ WHAT ROUND 4 CORRECTS IN THIS CONTRACT, all found by reviewers rather than by me:
-+  `decisions_taken`'s threshold declarations still said NEW MECHANISM none / RECURRING COST none,
-+  written for half one and carried forward unchanged over a diff that creates a dataset set per
-+  merge request (cto-reviewer, scope-auditor); `decisions_reserved` reserved as undecided the exact
-+  mechanism the same commit builds (cto-reviewer); `blast_radius` and `done_when` still described
-+  the one-line version (platform-reviewer); and `impact_map` cited `dbt seed --target ci`, a command
-+  this round removes (platform-reviewer, analytics-engineer-reviewer). All corrected in place.
-+  ⚠ AND ONE FACT I GOT WRONG TO THE CPO'S FACE: I described the storage cost to him as "a few days
-+  per branch, which self-deletes". Nothing in this change makes that true — the datasets persist.
-+  cto-reviewer caught it. The real figure is measured and declared under RECURRING COST above, and
-+  it is ~12 cents a month for a full set. The approval now rests on the true number.
-+
-+  2026-08-27, LAST ROUND: `scope_paths` extended by `tests/test_persist_docs_policy.py` — a SIXTH
-+  copy of the shared-workspace claim, in the docstring of the test that pins where `dbt docs
-+  generate` runs, hand-mirroring a `.gitlab-ci.yml` comment this same MR corrected. Same doc-sync
-+  authority as the two before it. Found by platform-reviewer, in its own territory, one file over.
-+  ⚠ AND THE COST LINE WAS WRONG A SECOND TIME. `RECURRING COST` closed with "query volume is
-+  unchanged"; it is not. A fresh per-merge-request dataset means the three incremental fact models
-+  have no `{{ this }}` on an MR's first pipeline and FULL-build instead of merging. cto-reviewer
-+  raised this in an earlier round and I did not fold it in; platform-reviewer had to raise it again.
-+  Now measured and declared. ⭐ Twice now the cost sentence has described something other than what
-+  is being built — the exact rule this task's record already carries.
-+
-+  2026-08-27, FINAL ROUND: `scope_paths` extended by `docs/operations_guide.md`, which carries a
-+  DUPLICATE of the environment-isolation table already corrected in `dbt_project/docs/layering.md`
-+  and still described a shared `ci` target writing `ci_*`. Authority: the same doc-sync rule that
-+  brought `layering.md` in — consistency is both rows or neither. Found by platform-reviewer.
-+  ⚠ THE REST OF THIS ROUND IS ME FIXING THE SAME DEFECT CLASS FIVE MORE TIMES, and the count is the
-+  point. Half two abolished the shared workspace; five separate comments still called it current —
-+  in `.gitlab-ci.yml` (three), in the new pin's docstring and assertion message, and in this
-+  contract's own objective. I swept where I was looking and not where I was not, which IS the
-+  "corrections replace, never accumulate" failure, committed inside the fix for it.
-+  ⚠ AND ONE DEFECT I INTRODUCED WHILE FIXING THEM: a string replace spliced a sentence mid-line and
-+  left "HERE" dangling with no antecedent inside the paragraph about the BUILD line, so the comment
-+  read the asymmetry backwards. platform-reviewer caught it. Fixed.
-+  ⭐ ONE THING A REVIEWER WORKED OUT THAT I HAD NOT, and it is now load-bearing documentation: with
-+  per-merge-request datasets, "another branch's leftovers" is impossible, so `--favor-state` on the
-+  BUILD line looked like it guarded nothing — and the next reader would rightly have deleted it,
-+  which is the exact mutation the pin exists to stop. The surviving case is an earlier pipeline of
-+  the SAME merge request holding a superseded table after a revert. That reason is now stated in
-+  `.gitlab-ci.yml`, both places in the pin, and this contract.
-+
-+  2026-08-27, round 3: no scope change. `impact_map`'s "what fires it" paragraph still said
-+  `data:build:main` was at line **714** while the paragraph 23 lines below it already said **736,
-+  re-measured**. Both numbers for the same line, in one file — the exact "#71 invert the number
-+  sweep" failure this repo keeps repeating, committed in the very artifact that corrects the same
-+  number elsewhere. 736 is right; 714 is a comment line inside the job. Caught by cto-reviewer,
-+  which judged it not worth a round and recommended fixing it in passing; fixed anyway, because a
-+  correction that lands in one paragraph and not its neighbour is the accumulation this rule exists
-+  to stop. No code file changed in round 3.
++  2026-08-27: acceptance_criteria 1 and 4 REPLACED — authority: the CPO, in chat this session,
++  asked plainly ("Before I started you approved a short list... I want to swap those two for two I
++  can actually prove — yes or no?") and answered "then go ahead". Content: both original criteria
++  asked for the clean-sheet row's label and value to be READ OFF THE BUILT PAGE. The row renders on
++  no built page, and did not before this branch either — team 33's featured season is PL 2026 with
++  one game played, under the `>= 3 finished games` benchmark floor, so `hasBench` is false and the
++  Performance tab renders its absent state. `% Clean sheets` occurs 0 times across all 61 built
++  pages. Criterion 1 now asks that no rendered metric wording changed anywhere; criterion 4 records
++  the absent state so the missing row is never mistaken for a defect of this rename. Criteria 2 and
++  3 are unchanged, and criterion 3 gained the requirement that the guard be watched going red.
++  ⚠ An intermediate proposal — build main, build the branch, diff the two `dist` trees — was put to
++  the CPO and REJECTED by him: identical output is also what doing no work produces, so the check
++  cannot distinguish a correct rename from a missing one. Dropped, not argued.
++  ⚠ Written on a clean tree: the code changes were stashed by EXPLICIT PATH
++  (`git stash push -m TEMP-mrA-code-while-contract-amended -- dbt_project docs site_v2`), the
++  contract amended, then popped immediately. `.claude/task/` was never in the stash's path set.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 14edfa9..670027a 100644
+index 14edfa9..07de7f7 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -5493,3 +5493,100 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+@@ -5493,3 +5493,56 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
    `goals_conceded`, which would have BROKEN the `_against` convention that already works across
    goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
    follows before proposing one, and do not dress taste up as consistency.
 +
 +
-+2026-08-27 #92 — THE MR DQ GATE WAS TESTING PRODUCTION, AND THE CPO APPROVED THE FIX.
++2026-08-27 STEP 3 STARTS — MR A of six, and the CPO moved two locked acceptance criteria.
 +
-+  ⭐ HIS RULING, verbatim: **"do as recommended"**. What he was recommended, and what he was told it
-+  costs, both in the message he answered:
-+    · the fix — "one flag on one line tells that second run to read live data instead of what the
-+      branch just built. Remove it and it reads the branch"
-+    · why it is worth more than unblocking one MR — "all 30 of those checks currently test
-+      production, not your branch. They pass because production is fine, not because the change is"
-+    · the cost, stated before he answered — "those checks would then read from a workspace shared
-+      between branches, so they could pick up leftovers from another branch's run. Narrower hole
-+      than the one we have"
-+    · the alternative he did not take — renaming in two passes (add the new name beside the old,
-+      merge, let prod catch up, delete the old), which needs no CI change but doubles the batches
-+      and briefly puts two names on one number.
-+  He was also told it is a locked CI file needing his go and the two senior reviewers. This is the
-+  `protected_override` authority for `fix/92-singular-tests-read-the-branch`.
++  STEP 3 IS SPLIT INTO SIX MRs, one per family, keyed on the seed's own `metric_group` column so
++  that "family" has a definition in the repo rather than in the builder's taste. The record already
++  assigns that split to the builder ("must be split by family... the builder's call, already
++  taken"); this entry records only which grouping was chosen, not a new naming decision:
++    A `goals` + `outcomes`      — clean_sheets_share → clean_sheets_pct, points_capture → points_capture_pct
++    B `set_pieces` + `goalkeeping` — corner_kicks_per_match → corners_per_match, save_ratio → saves_pct
++    C `shooting` shares         — shot_accuracy, danger_zone_ratio, shot_share
++    D `passing`                 — pass_accuracy, key_passes_per_match
++    E the deserved chain        — sot_difference_per_match, sot_points_gap
++    F `finishing_efficiency` alone, because it is the one name that exists for BOTH entities
++    G a closing MR that regenerates the committed export sample once, for all twelve
++  Re-measured on `1804a64` rather than copied: 894 occurrences across the six families in live
++  surfaces, plus 1,532 in the generated sample. The record's "~600, measured 2026-08-26" was taken
++  over a narrower path set; the figure above is the one this work is sized from.
 +
-+  ⛔ THE DEFECT, precisely, because "reads prod" is too loose to act on. `data:build:mr` has TWO dbt
-+  invocations. Both carried `--defer --favor-state`. `--favor-state` resolves every `ref()` to the
-+  DEFERRED (prod) relation EVEN WHEN THE CURRENT RUN JUST BUILT THAT MODEL.
-+    · on the `dbt build` line that is CORRECT and stays: a model being built must take its upstreams
-+      from prod, never from a stale `ci_` copy another MR left, and a node being built is not
-+      deferred anyway.
-+    · on the `dbt test` line nothing is being built, so the flag threw away the MR's own models and
-+      pointed all 30 singular tests at production.
-+  The two lines are now ASYMMETRIC ON PURPOSE, and the file says so at the point of difference.
++  ⭐ RULING, verbatim, on moving two LOCKED acceptance criteria. Two of the four criteria the CPO
++  had approved before any code asked for the clean-sheet row's label and value to be READ OFF THE
++  BUILT PAGE. Both were undemonstrable, and had been from the moment they were written: team 33's
++  featured season is PL 2026 with ONE game played, below the `>= 3 finished games` benchmark floor,
++  so `season.benchmarks` is empty and `TeamPerformance.astro` renders the absent state for the whole
++  tab. `% Clean sheets` occurs 0 times across all 61 built pages, on main exactly as on the branch.
++  Put to him plainly; his answer: "then go ahead".
++  ⚠ THE PROCESS DEFECT IS MINE, and it is the same class as the one logged on 2026-08-26: I drafted
++  a criterion without first checking the artifact it would be read from. Check that the evidence
++  EXISTS before promising to read it.
++  ⛔ AND A REPLACEMENT HE REJECTED, worth keeping because the reasoning generalises. I first
++  proposed "build main, build the branch, diff the two dist trees — identical output proves the
++  rename is invisible". He asked why that should be done at all, and he was right: identical output
++  is ALSO what doing no work produces, so the check cannot distinguish a correct rename from a
++  missing one. ⭐ THE RULE: a check that passes equally on the work and on its absence is not a
++  check. It was dropped rather than defended.
 +
-+  ⚠ THE FILE ASSERTED THE OPPOSITE, WHICH IS WHY THIS SURVIVED SO LONG. The comment above the test
-+  line read "validates this MR's rebuilt ci_* models layered over prod (via defer) — an ISOLATED
-+  view, not shared prod state". Exactly backwards for the rebuilt models, which is the half that
-+  matters. ⭐ THE RULE: when a guard misbehaves, suspect the comment that says it does not. A
-+  confident comment is why nobody re-derived the flag's semantics.
++  ⛔ A LIVE TRANSIENT, declared as it is created, joining the two already recorded above. The
++  committed export sample under `site_v2/src/data/` can only be regenerated against the PROD marts,
++  which do not carry the renamed columns until `data:build:main` runs on merge. So from MR A until
++  the closing MR G, the sample serves the OLD keys (122 occurrences of these two names today).
++  Nothing public degrades: the site is unlisted and `deploy:site-v2` is manual-only. Precedent for
++  the sequencing is `!109`, "refresh the committed export sample after #90".
 +
-+  ⭐ THE REPRODUCTION, one job, ninety seconds apart — pipeline 2796272877, job 16145201830, on !114:
-+    line 836  OK created sql table model ci_marts.mart_team_season_insights   (renamed column)
-+    line 854  PASS assert_mart_team_season_insights_metric_consistency        (inside the build)
-+    line 1021 Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?
-+  Same assertion, same branch, same job. Only the database differed.
-+
-+  ⛔ AND WHY IT COULD NOT BE WAITED OUT: prod gains the renamed column only after the rename merges,
-+  and the rename cannot merge while the gate is red. !114 could never go green on its own. Every
-+  column rename that a singular test names has this shape, and step 4 is 35 more renames.
-+
-+  ⚠ WHAT #92 STILL HOLDS OPEN, so this entry is not read as closing it: `--defer` alone still
-+  prefers a `ci_` relation WHEN ONE EXISTS, so an UNMODIFIED upstream can be read from another MR's
-+  leftovers in the shared datasets. Narrower than aiming the whole suite at the wrong database, and
-+  it fails loudly rather than silently green. Closing it properly means per-MR ephemeral datasets —
-+  a RECURRING COST decision, and therefore the CPO's, not taken here.
-+
-+  ⛔⛔ SAME DAY, SECOND HALF: THAT RESIDUAL FIRED ON THE FIRST PIPELINE, AND THE CPO RULED TWICE.
-+  `!115` — the branch carrying this fix, which changes NO models — went red on THREE singular tests
-+  reading tables `!114` had built into the shared ci datasets an hour earlier. Headline error, the
-+  exact mirror of the one that started #92:
-+    `Unrecognized name: points_capture; Did you mean points_capture_pct?`
-+
-+  ⭐ RULING A, verbatim: **"fix it"**, answering the recommendation "give each merge request its own
-+  workspace instead of sharing one". Applied: the profile anchor derives
-+  `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and names BOTH its output and its `dataset:` that, so
-+  every merge request writes `ci_mr<IID>_marts` / `_core` / `_staging` / `_intermediate` and bare
-+  `ci_mr<IID>`, and `--defer` falls back to prod for anything it did not build.
-+  `macros/generate_schema_name.sql` already prefixed non-prod datasets with `target.name`, so the
-+  macro is UNTOUCHED and local `dev` is unchanged — the uniqueness went into the target name
-+  precisely so the macro could stay put.
-+  ⚠ BOTH lines are load-bearing: the target NAME isolates the four layer datasets, and `dataset:`
-+  isolates the base models and every seed, which carry no `+schema` and ride bare `target.schema`.
-+  `metric_catalogue` is one of them. An earlier version of the pin asserted only the target name;
-+  platform-reviewer proved you could revert `dataset:` alone and stay green.
-+
-+  ⭐ RULING B, and it is a STANDING CONSTRAINT ON THIS WORK, not a one-off. I raised an automatic
-+  table expiry as the way to bound the storage those datasets accumulate, and described its risk in
-+  the same breath — "point it at the wrong place and it deletes the real warehouse". His reply:
-+  **"Are you nuts???"**, and then, explicitly: **"You do nothing where you come any close to
-+  introducing the risk of deleting the warehouse."** So no expiry, no TTL, no drop, no cleanup step
-+  ships here or in the follow-up. The datasets accumulate and that is the accepted outcome.
-+  ⭐ MEASURED, so the decision rests on a number rather than a worry: the five shared `ci_*` datasets
-+  hold **6.0 GB** in total (`bq query ... __TABLES__`, live) — and that is the FULL set accumulated
-+  across many branches, where one merge request builds only `state:modified+`. At EU active-storage
-+  rates that is about **12 cents a month**.
-+  ⚠ I HAD TOLD HIM THE COST WAS "storage for a few days per branch, which self-deletes". That was
-+  FALSE of what ships — nothing self-deletes — and cto-reviewer caught it, not me. ⭐ THE RULE:
-+  **never describe a cost by the mechanism you imagined; describe it by the one you are building.**
-+
-+  ⭐⭐ AND THE RULE THAT MATTERS MOST HERE, from RULING A's cause. I disclosed the shared-workspace
-+  risk honestly, in his hearing, as "a narrower hole" that "fails loudly" — and he approved on that
-+  description. Both halves were true and the description was still useless, because it said how BAD
-+  the failure would be and never how OFTEN it would happen. It happened immediately, and would have
-+  happened on every batch of a twelve-rename programme. **WHEN DISCLOSING A RESIDUAL RISK, STATE ITS
-+  FREQUENCY, NOT ONLY ITS SEVERITY.** A risk that fires every time is not a narrower hole; it is a
-+  gate nobody will trust.
-+
-+  ⚠ PRE-FLIGHT, done before building rather than discovered in CI: this is the first change that
-+  requires dbt to CREATE datasets. The CI service account is
-+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` — a name left over from
-+  before the GitLab migration, not a GitHub dependency — and it holds `roles/bigquery.user`, which
-+  grants `bigquery.datasets.create`. Read from the live project IAM policy.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 3361053..2ae9050 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -107,18 +107,50 @@ workflow:
- # earlier revision of this file did, and no amount of static validation caught it.
- # Editing .sqlfluff instead is not an option: local development uses that file too.
- # ci-data-build.yml did the same thing (mkdir -p /home/runner/.dbt — that runner's ~).
-+#
-+# ⚠ THE CI TARGET IS NAMED PER MERGE REQUEST, so the heredoc below is UNQUOTED
-+# (`<<EOF`, not `<<'EOF'`) and `$DBT_CI_TARGET` expands. Nothing else in the profile
-+# body contains a `$`, a backtick or a backslash — checked — so unquoting expands
-+# exactly the one thing it is meant to and can pull in nothing else.
-+#
-+# WHY (#92, 2026-08-27). `macros/generate_schema_name.sql` prefixes every non-prod
-+# dataset with `target.name`, so isolation was ALREADY keyed on the target name — it
-+# simply was not unique per branch. Every merge request built into the SAME five `ci_*`
-+# datasets, which was invisible while the singular tests read production. The moment
-+# they read the ci datasets instead (see the `dbt test` line below), a merge request
-+# that rebuilt nothing began reading whatever another branch had left there: !115 —
-+# which changes no models — went red on THREE tests against tables !114 had built an
-+# hour earlier, headline error "Unrecognized name: points_capture; Did you mean
-+# points_capture_pct?".
-+# Now each merge request writes ci_mr<IID>_marts / _core / _staging / _intermediate and
-+# bare ci_mr<IID>, and `--defer` falls back to PROD for everything it did not build.
-+# ⭐ `generate_schema_name.sql` IS UNTOUCHED. Putting the uniqueness in the target name
-+# is what let the macro stay put, so local `dev` and the prod path are unchanged.
-+# ⚠ BOTH lines below are load-bearing and both are pinned: the output NAME isolates the
-+# layer datasets, and `dataset:` isolates the base models and the seeds, which carry no
-+# `+schema` and therefore ride bare `target.schema`. `metric_catalogue` is one of them.
-+# ⚠ `:-shared` covers pipelines with no MR IID (main pushes, web runs). They pass
-+# `--target prod` explicitly and never write it; it exists only so the profile's default
-+# `target:` always names a defined output — sqlfluff resolves the DEFAULT target, so a
-+# dangling name would break `data:build:main`'s lint.
-+# ⛔ NOTHING HERE DELETES ANYTHING. These datasets accumulate and are never expired,
-+# dropped or cleaned up. An automatic expiry would bound the storage and is deliberately
-+# refused: a mis-scoped expiry reaches `prod` and deletes the warehouse. Measured cost of
-+# letting them pile up: a full set is ~6 GB, about 12 cents a month.
- .dbt_profile: &dbt_profile |
-   mkdir -p ~/.dbt
--  cat > ~/.dbt/profiles.yml <<'EOF'
-+  export DBT_CI_TARGET="ci_mr${CI_MERGE_REQUEST_IID:-shared}"
-+  cat > ~/.dbt/profiles.yml <<EOF
-   football_data_pipeline:
--    target: ci
-+    target: ${DBT_CI_TARGET}
-     outputs:
--      # PR builds — slim + deferred to prod. Writes ci_* datasets (isolated from prod).
--      ci:
-+      # Merge-request builds — slim + deferred to prod. Writes ci_mr<IID>_* datasets,
-+      # isolated from prod AND from every other merge request.
-+      ${DBT_CI_TARGET}:
-         type: bigquery
-         method: oauth
-         project: football-data-pipeline-gcp
--        dataset: ci_analytics
-+        dataset: ${DBT_CI_TARGET}
-         threads: 4
-         timeout_seconds: 300
-         location: EU
-@@ -563,19 +595,31 @@ build:site-v2:
- .data_build_base: &data_build_base
-   <<: [*python, *gcp_job]
-   stage: data
--  # Serialize warehouse-writing runs. MR builds share ONE physical ci_* dataset
--  # (the locked "shared, not per-PR ephemeral" choice), so concurrent incremental
--  # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not
--  # serialize access". GitLab's resource_group is the concurrency-group analogue
--  # and never drops an in-flight job.
-+  # Serialize warehouse-writing runs.
-+  # ⚠ THE ORIGINAL REASON NO LONGER HOLDS, and the rationale is corrected rather than
-+  # quietly left standing (#92, 2026-08-27). It read: "MR builds share ONE physical ci_*
-+  # dataset (the locked 'shared, not per-PR ephemeral' choice), so concurrent incremental
-+  # builds (fct_fixture_* compile to BigQuery MERGE) could hit 'Could not serialize
-+  # access'." That shared-not-ephemeral choice is exactly what this change reverses — each
-+  # merge request now writes its own datasets, so two DIFFERENT merge requests can no
-+  # longer collide on one table.
-+  # It is KEPT anyway, for a reason that survives: two pipelines of the SAME merge request
-+  # (a re-run, or a push landing on top of a running job) still share that MR's datasets
-+  # and can still MERGE into the same incremental table concurrently. Narrowing the group
-+  # to per-MR would be correct and is NOT done here — it is a concurrency change with its
-+  # own blast radius, and this task is about what the tests read.
-   timeout: 2h
++  ⛔ A MUTATION SURVIVED, AND THE SURVIVOR IS THE FINDING. Four mutations were run against MR A.
++  Three went red as intended (stale `label_i18n_key` → the metric-label test; stale `metric_id` →
++  the docs-block check; dangling `doc()` → description hygiene AND `dbt parse`). The fourth —
++  reverting one entry of the 22-name `accepted_values` list in `int_competition_benchmarks.yml` —
++  left `dbt parse`, the docs-block check, description hygiene and the metric/benchmark/catalogue
++  pytest selection ALL GREEN. Nothing offline pins those THREE lists (two in
++  `int_competition_benchmarks.yml`, a third in `shared.yml` on `mart_team_competition_benchmarks`)
++  to the model columns they enumerate; only the warehouse `accepted_values` test inside
++  `data:build:mr` fires. Filed as its own issue rather than folded into a rename MR — a new guard is
++  a new mechanism and belongs in a task that is about the guard.
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index a662bc3..e8f87be 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -50,7 +50,7 @@ models:
+             - season_api_year
+             - team_sk
+       - dbt_utils.expression_is_true:
+-          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
++          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+           name: int_team_season_ratios_in_range
+       # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
+       # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
+@@ -112,12 +112,12 @@ models:
+       - name: passes_accurate_sum_season
+       - name: passes_total_sum_season
+       - name: goalkeeper_saves_sum_season
+-      - name: points_capture
+-        description: "{{ doc('points_capture') }}"
++      - name: points_capture_pct
++        description: "{{ doc('points_capture_pct') }}"
+       - name: shot_share
+         description: "{{ doc('shot_share') }}"
+-      - name: clean_sheets_share
+-        description: "{{ doc('clean_sheets_share') }}"
++      - name: clean_sheets_pct
++        description: "{{ doc('clean_sheets_pct') }}"
+       - name: goals_per_match
+         description: "{{ doc('goals_per_match') }}"
+       - name: goals_against_per_match
+@@ -179,11 +179,11 @@ models:
+             - match_number
+       # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
+       # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
+-      # construction: points_capture (points <= 3*games), clean_sheets_share (clean_sheet_games <= games),
++      # construction: points_capture_pct (points <= 3*games), clean_sheets_pct (clean_sheet_games <= games),
+       # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
+       # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
+       - dbt_utils.expression_is_true:
+-          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
++          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+           name: int_team_season_cumulative_structural_ratios_in_range
+       # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
+       # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
+@@ -248,12 +248,12 @@ models:
+       - name: passes_accurate_sum_season
+       - name: passes_total_sum_season
+       - name: goalkeeper_saves_sum_season
+-      - name: points_capture
+-        description: "{{ doc('points_capture') }}"
++      - name: points_capture_pct
++        description: "{{ doc('points_capture_pct') }}"
+       - name: shot_share
+         description: "{{ doc('shot_share') }}"
+-      - name: clean_sheets_share
+-        description: "{{ doc('clean_sheets_share') }}"
++      - name: clean_sheets_pct
++        description: "{{ doc('clean_sheets_pct') }}"
+       - name: goals_per_match
+         description: "{{ doc('goals_per_match') }}"
+       - name: goals_against_per_match
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+index 110db7c..c3ba468 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+@@ -82,13 +82,13 @@ select
+         when games_with_save_stats < games_played then null else goalkeeper_saves
+     end as goalkeeper_saves_sum_season,
+     -- window-specific metrics (stay inline; same as the whole-season model)
+-    safe_divide(points_won, 3 * games_played) as points_capture,
++    safe_divide(points_won, 3 * games_played) as points_capture_pct,
+     case
+         when games_with_team_stats < games_played then null
+         when games_with_opp_stats < games_played then null
+         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
+     end as shot_share,
+-    safe_divide(clean_sheet_games, games_played) as clean_sheets_share,
++    safe_divide(clean_sheet_games, games_played) as clean_sheets_pct,
+     -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
+     -- from int_team_season__metrics — this model is now their single home.
+     safe_divide(goals_for, games_played) as goals_per_match,
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index 96e21bb..2c83dca 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -24,7 +24,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: team_count
+         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
+         tests: [not_null]
+@@ -63,7 +63,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: metric_value
+         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 847ec64..cf48603 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -31,7 +31,7 @@ unpivot (
+     metric_value for metric_key in (
+         goals_per_match,
+         goals_against_per_match,
+-        clean_sheets_share,
++        clean_sheets_pct,
+         shots_per_match,
+         shot_accuracy,
+         danger_zone_ratio,
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index 2f28f44..ade1e02 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -22,9 +22,9 @@ models:
+       # (the composed source): the YoY cutoff N is low by construction early in every season, so a
+       # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
+       # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
+-      # goals); clean_sheets_share = clean_sheet_games/games) stay strict [0,1] on both sides.
++      # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
+       - dbt_utils.expression_is_true:
+-          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_share_this_season is null or clean_sheets_share_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_share_prev_season is null or clean_sheets_share_prev_season between 0 and 1)"
++          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
+           name: team_profile_yoy_structural_ratios_in_range
+       # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
+       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
+@@ -61,8 +61,8 @@ models:
+         description: "{{ doc('goals_per_match_this_season__team') }}"
+       - name: goals_against_per_match_this_season
+         description: "{{ doc('goals_against_per_match_this_season__team') }}"
+-      - name: clean_sheets_share_this_season
+-        description: "{{ doc('clean_sheets_share_this_season__team') }}"
++      - name: clean_sheets_pct_this_season
++        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
+       - name: shots_per_match_this_season
+         description: "{{ doc('shots_per_match_this_season__team') }}"
+       - name: danger_zone_ratio_this_season
+@@ -96,8 +96,8 @@ models:
+         description: "{{ doc('goals_per_match_prev_season__team') }}"
+       - name: goals_against_per_match_prev_season
+         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
+-      - name: clean_sheets_share_prev_season
+-        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
++      - name: clean_sheets_pct_prev_season
++        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
+       - name: shots_per_match_prev_season
+         description: "{{ doc('shots_per_match_prev_season__team') }}"
+       - name: danger_zone_ratio_prev_season
+@@ -128,8 +128,8 @@ models:
+       - name: goals_against_delta_yoy
+       - name: goals_against_per_match_delta_yoy
+         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
+-      - name: clean_sheets_share_delta_yoy
+-        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
++      - name: clean_sheets_pct_delta_yoy
++        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
+       - name: shots_per_match_delta_yoy
+         description: "{{ doc('shots_per_match_delta_yoy__team') }}"
+       - name: danger_zone_ratio_delta_yoy
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+index 9fca7c4..9b1c510 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+@@ -88,7 +88,7 @@ select
+     cur.goals_against_sum_season as goals_against_this_season,
+     cur.goals_per_match as goals_per_match_this_season,
+     cur.goals_against_per_match as goals_against_per_match_this_season,
+-    cur.clean_sheets_share as clean_sheets_share_this_season,
++    cur.clean_sheets_pct as clean_sheets_pct_this_season,
+     cur.shots_per_match as shots_per_match_this_season,
+     cur.danger_zone_ratio as danger_zone_ratio_this_season,
+     cur.shots_on_goal_per_match as shots_on_goal_per_match_this_season,
+@@ -108,7 +108,7 @@ select
+     prev.goals_against_sum_season as goals_against_prev_season,
+     prev.goals_per_match as goals_per_match_prev_season,
+     prev.goals_against_per_match as goals_against_per_match_prev_season,
+-    prev.clean_sheets_share as clean_sheets_share_prev_season,
++    prev.clean_sheets_pct as clean_sheets_pct_prev_season,
+     prev.shots_per_match as shots_per_match_prev_season,
+     prev.danger_zone_ratio as danger_zone_ratio_prev_season,
+     prev.shots_on_goal_per_match as shots_on_goal_per_match_prev_season,
+@@ -128,7 +128,7 @@ select
+     cur.goals_against_sum_season - prev.goals_against_sum_season as goals_against_delta_yoy,
+     cur.goals_per_match - prev.goals_per_match as goals_per_match_delta_yoy,
+     cur.goals_against_per_match - prev.goals_against_per_match as goals_against_per_match_delta_yoy,
+-    cur.clean_sheets_share - prev.clean_sheets_share as clean_sheets_share_delta_yoy,
++    cur.clean_sheets_pct - prev.clean_sheets_pct as clean_sheets_pct_delta_yoy,
+     cur.shots_per_match - prev.shots_per_match as shots_per_match_delta_yoy,
+     cur.danger_zone_ratio - prev.danger_zone_ratio as danger_zone_ratio_delta_yoy,
+     cur.shots_on_goal_per_match - prev.shots_on_goal_per_match as shots_on_goal_per_match_delta_yoy,
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index a9103a6..e6a5370 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -107,8 +107,8 @@ models:
+       - name: passes_accurate_sum_season
+       - name: passes_total_sum_season
+       - name: goalkeeper_saves_sum_season
+-      - name: points_capture
+-        description: "{{ doc('points_capture') }}"
++      - name: points_capture_pct
++        description: "{{ doc('points_capture_pct') }}"
+       - name: goals_per_match
+         description: "{{ doc('goals_per_match') }}"
+       - name: goals_against_per_match
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+index 3794ff4..614911e 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+@@ -73,7 +73,7 @@ select
+     m.passes_accurate_sum_season,
+     m.passes_total_sum_season,
+     m.goalkeeper_saves_sum_season,
+-    m.points_capture,
++    m.points_capture_pct,
+     m.goals_per_match,
+     m.goals_against_per_match,
+     m.shots_per_match,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index a890b13..1db205a 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -116,7 +116,7 @@ select
+     m.defensive_actions_per_match,
+     -- shooting dominance + results efficiency (catalogued season metrics)
+     m.shot_share,
+-    m.points_capture,
++    m.points_capture_pct,
+     -- year-over-year (domestic only; NULL otherwise / when prior season absent)
+     y.yoy_games_played_cutoff,
+     y.points_this_season,
+@@ -137,9 +137,9 @@ select
+     y.goals_against_per_match_this_season,
+     y.goals_against_per_match_prev_season,
+     y.goals_against_per_match_delta_yoy,
+-    y.clean_sheets_share_this_season,
+-    y.clean_sheets_share_prev_season,
+-    y.clean_sheets_share_delta_yoy,
++    y.clean_sheets_pct_this_season,
++    y.clean_sheets_pct_prev_season,
++    y.clean_sheets_pct_delta_yoy,
+     y.shots_per_match_this_season,
+     y.shots_per_match_prev_season,
+     y.shots_per_match_delta_yoy,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 68d37bb..448f5bb 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -597,8 +597,8 @@ models:
+           expression: "shot_share is null or (shot_share between 0 and 1)"
+           name: team_profile_shot_share_in_range
+       - dbt_utils.expression_is_true:
+-          expression: "points_capture is null or (points_capture between 0 and 1)"
+-          name: team_profile_points_capture_in_range
++          expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
++          name: team_profile_points_capture_pct_in_range
+       # GAP-13 season variant of the duel win rate — same-window ratio bound
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+@@ -729,8 +729,8 @@ models:
+         description: "{{ doc('defensive_actions_per_match') }}"
+       - name: shot_share
+         description: "{{ doc('shot_share') }}"
+-      - name: points_capture
+-        description: "{{ doc('points_capture') }}"
++      - name: points_capture_pct
++        description: "{{ doc('points_capture_pct') }}"
+       - name: yoy_games_played_cutoff
+         description: "{{ doc('yoy_games_played_cutoff') }}"
+       - name: points_this_season
+@@ -751,12 +751,12 @@ models:
+         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
+       - name: goals_against_per_match_delta_yoy
+         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
+-      - name: clean_sheets_share_this_season
+-        description: "{{ doc('clean_sheets_share_this_season__team') }}"
+-      - name: clean_sheets_share_prev_season
+-        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
+-      - name: clean_sheets_share_delta_yoy
+-        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
++      - name: clean_sheets_pct_this_season
++        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
++      - name: clean_sheets_pct_prev_season
++        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
++      - name: clean_sheets_pct_delta_yoy
++        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
+       - name: shots_per_match_this_season
+         description: "{{ doc('shots_per_match_this_season__team') }}"
+       - name: shots_per_match_prev_season
+@@ -2077,7 +2077,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: metric_value
+         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
+         tests: [not_null]
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index a345e2f..3bad323 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -88,19 +88,19 @@ Yellow cards.
  
- # MR builds: only what the MR changed + downstream children + tests
- # (dbt state:modified+), diffed against a baseline manifest compiled from the
- # target branch at MR time (Option 2 — no stored state, no BigQuery scan;
--# CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt — their ref()s
--# resolve to the tables already in the shared datasets, so no --defer is needed
--# for them.
-+# CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt.
-+# ⚠ CORRECTED 2026-08-27 (#92). This used to read "their ref()s resolve to the tables
-+# already in the shared datasets, so no --defer is needed for them." Both halves are now
-+# false: there are no shared datasets, and `--defer` is the ONLY reason an unchanged
-+# upstream resolves at all. With a per-merge-request target its dataset starts empty, so
-+# every ref() the MR did not build falls back to PROD through --defer. Removing --defer
-+# would break the job outright, not merely slow it.
- data:build:mr:
-   <<: *data_build_base
-   resource_group: ci-data-build-write-ci
-@@ -586,7 +630,9 @@ data:build:mr:
-     - *gcp_auth
-     - cd dbt_project && dbt deps
-     - sqlfluff lint models
--    - dbt seed --target ci
-+    # $DBT_CI_TARGET is exported by the .dbt_profile anchor above, which runs earlier in
-+    # this same job shell. Per merge request, so nothing here can touch another branch.
-+    - dbt seed --target "$DBT_CI_TARGET"
-     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
-     # ⛔ THIS JOB DOES NOT INGEST, AND MUST NOT (#73, 2026-08-16). A bootstrap-ingest
-     # step lived here — `get_new_league_codes.py` then `python -m
-@@ -626,17 +672,54 @@ data:build:mr:
-     - git worktree prune
-     - git worktree add --detach /tmp/main-src FETCH_HEAD
-     - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
--    # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to
--    # prod (never a stale ci_ copy left by a prior MR). An empty selection (an MR
--    # that changes no models) is a no-op success.
-+    # Writes this merge request's OWN ci_mr<IID>_* datasets (see .dbt_profile);
-+    # --defer --favor-state resolves unbuilt upstreams to prod. An empty selection
-+    # (an MR that changes no models) is a no-op success.
-     - cd dbt_project
-     - >-
-       dbt build --select state:modified+ --exclude tag:freshness_check
--      --defer --favor-state --state /tmp/main-state --target ci
--    # DQ is non-negotiable and the full singular suite always runs. On an MR it
--    # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
--    # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
--    # only, never to the DQ gate.
-+      --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
-+    # DQ is non-negotiable and the full singular suite always runs. Slimming applies
-+    # to model BUILDS only, never to the DQ gate.
-+    #
-+    # ⚠ `--defer` WITHOUT `--favor-state`, and the asymmetry with the build line above
-+    # is the whole point (#92, fixed 2026-08-27). `--favor-state` resolves every ref()
-+    # to the DEFERRED (prod) relation EVEN WHEN THIS RUN JUST BUILT THAT MODEL. On the
-+    # BUILD line that is correct and load-bearing — a model being built must take its
-+    # upstreams from prod rather than from a stale table, and a node dbt is building
-+    # is not deferred anyway.
-+    # ⚠ ITS REASON IS NARROWER THAN IT USED TO BE. "Another MR's leftovers" cannot
-+    # happen any more — no other branch can write into ci_mr<IID>_*. What survives is
-+    # an EARLIER PIPELINE OF THIS SAME merge request: build a model, then push a commit
-+    # reverting it to match main, and it drops out of state:modified+ so the next
-+    # pipeline does not rebuild it — leaving a superseded table that --defer alone
-+    # would prefer. --favor-state forces prod for it. That is the whole remaining case.
-+    # HERE, on the TEST line, nothing is being built, so the same flag threw away this
-+    # MR's own models and pointed all 30 tests at PRODUCTION. The gate was green because
-+    # prod was healthy, not because the branch was.
-+    # ⛔ The comment that stood here claimed the opposite — "validates this MR's rebuilt
-+    # ci_* models layered over prod ... an ISOLATED view, not shared prod state" — which
-+    # is exactly backwards for the rebuilt models, and is why the defect survived a year
-+    # of readings: the file asserted the behaviour the flag prevented.
-+    # Proof it was real, one job, ninety seconds apart: pipeline 2796272877 job
-+    # 16145201830 created ci_marts.mart_team_season_insights with a renamed column,
-+    # PASSed assert_mart_team_season_insights_metric_consistency against it inside the
-+    # build, then failed the SAME test here with "Unrecognized name: points_capture_pct;
-+    # Did you mean points_capture?" — a column that exists only in prod.
-+    # ⚠ WHAT `--defer` ALONE STILL DOES: it prefers a relation in the current target when
-+    # one EXISTS, and only falls back to prod when it does not. That was a real hole while
-+    # every merge request shared one dataset set — it is CLOSED by the per-merge-request
-+    # target above, so "another MR's leftovers" is no longer a state that can occur. What
-+    # remains is an EARLIER PIPELINE OF THIS SAME merge request — and it is NOT simply
-+    # "this branch's own work", so do not read it as harmless. In the revert case named
-+    # above the leftover is what this branch USED TO produce and no longer does, so the
-+    # gate can read a table the current commit does not generate and go green (or red) on
-+    # it. ⚠ FREQUENCY, not just severity: it needs a model built and then reverted to
-+    # match main within one merge request, so it is rare — but it is not impossible and it
-+    # is not benign. It is ACCEPTED because removing it means restoring --favor-state
-+    # here, which is #92 itself.
-+    # ⛔ Do NOT re-add --favor-state here to "match the build line". They are asymmetric
-+    # deliberately, and the reason is above.
-     #
-     # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
-     # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
-@@ -652,7 +735,7 @@ data:build:mr:
-     # judgement, exactly as !50 was.
-     - >-
-       dbt test --select test_type:singular --exclude tag:freshness_check
--      --defer --favor-state --state /tmp/main-state --target ci
-+      --defer --state /tmp/main-state --target "$DBT_CI_TARGET"
-   rules:
-     - *not_on_schedule
-     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-@@ -722,7 +805,8 @@ data:build:main:
-     # docs only change when a model or a description changes, and that is exactly when this fires.
-     #   · NOT in data:nightly — a description's content comes from the repo, not from the data, so
-     #     a nightly run would re-publish identical pages for recurring cost.
--    #   · NOT in data:build:mr — that job builds state:modified+ into the shared ci_* datasets, so
-+    #   · NOT in data:build:mr — that job builds state:modified+ into that merge request's own
-+    #     ci_mr<IID>_* datasets, so
-     #     its catalog would cover only what the branch happened to change. A partial column list
-     #     presented as the column list is worse than no column list.
-     #
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index b473284..c6163b2 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -26,10 +26,14 @@ dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is
- | Target | Written by | Layer datasets | base + seeds (profile `dataset`) |
- |--------|-----------|----------------|----------------------------------|
- | `prod` | `dbt-scheduled` (nightly), `ci-data-build` main-push, `pages-match-preview` | `marts`, `core`, `staging`, `intermediate` (**bare**) | `dbt_analytics` |
--| `ci`   | `ci-data-build` PR builds (slim + `--defer` to prod) | `ci_marts`, `ci_core`, … | `ci_analytics` |
-+| `ci_mr<IID>` | `data:build:mr`, **one target per merge request** (slim + `--defer` to prod) | `ci_mr114_marts`, `ci_mr114_core`, … | `ci_mr114` |
- | `dev`  | local `dbt build` | `dev_marts`, `dev_core`, … | `dev_scratch` |
  
--`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a PR build or a local run cannot overwrite production. PR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod (`--defer --favor-state`). Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
-+`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a merge-request build or a local run cannot overwrite production. MR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod. Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
-+
-+⚠ **The CI target is PER MERGE REQUEST; there is no shared `ci` target** (#92, 2026-08-27). It used to be one `ci` target writing `ci_marts` / `ci_analytics` for every branch, and that shared workspace became a real defect the moment the singular tests started reading it instead of prod: a merge request that rebuilt nothing read tables another branch had built, and went red on three tests for reasons that had nothing to do with it. `.gitlab-ci.yml` now derives `DBT_CI_TARGET=ci_mr${CI_MERGE_REQUEST_IID}` and writes both the profile's output name and its `dataset:` from it, so `generate_schema_name`'s existing target-name prefix isolates the layer datasets and the profile `dataset:` isolates the base models and seeds. **The macro is unchanged.** These datasets are never expired or deleted; a full set is ~6 GB (~12¢/month).
-+
-+⚠ **The two dbt invocations in `data:build:mr` differ by one flag ON PURPOSE.** `dbt build` runs `--defer --favor-state`; `dbt test` runs `--defer` alone. `--favor-state` resolves a `ref()` to the deferred prod relation even when the current run just built that model — right for a BUILD (its upstreams must come from prod), wrong for a TEST (it discarded the merge request's own models and pointed the whole singular suite at production). Both the asymmetry and the per-MR naming are pinned in `tests/test_ci_data_job_invariants.py`.
+ {% docs clean_sheets %}
+-Matches the team finished without conceding a goal, counted as whole matches.
+-clean_sheets_share is the same measurement expressed as a proportion of the matches played.
++Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
++is the same measurement expressed as a proportion of the matches played.
+ {% enddocs %}
  
- The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
  
-diff --git a/dbt_project/profiles.example.yml b/dbt_project/profiles.example.yml
-index 8bf2ca4..4b27425 100644
---- a/dbt_project/profiles.example.yml
-+++ b/dbt_project/profiles.example.yml
-@@ -4,9 +4,9 @@
- #   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME.
- #   `prod` is the ONLY target that writes the canonical BARE datasets the live site export
- #   reads (`marts`, `core`, …). Every other target is auto-prefixed:
--#     target dev  -> dev_marts,  dev_core,  …   (local development)
--#     target ci   -> ci_marts,   ci_core,   …   (set by the CI workflows)
--#     target prod -> marts,      core,      …   (nightly / main-push / Pages only)
-+#     target dev        -> dev_marts,      dev_core,      …  (local development)
-+#     target ci_mr<IID> -> ci_mr114_marts, ci_mr114_core, …  (CI, ONE PER MERGE REQUEST)
-+#     target prod       -> marts,          core,          …  (nightly / main-push only)
- #   So a local build can NEVER clobber prod as long as your target is named anything but
- #   `prod`. Keep your local default target = `dev`.
- #   Models WITHOUT a `+schema` (the base models + seeds) fall back to the profile `dataset` below,
-@@ -27,13 +27,16 @@ football_data_pipeline:
-       location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
-       priority: interactive
+-{% docs clean_sheets_share %}
++{% docs clean_sheets_pct %}
+ The share of matches the team finished without conceding a goal: matches with zero goals
+ against divided by matches played. clean_sheets is the same measurement expressed as a whole
+ number of matches.
+ {% enddocs %}
  
--    # CI / PR builds — reference only; the ci-data-build workflow writes this profile itself
--    # (WIF/oauth). Slim builds run here and defer unchanged upstreams to prod. Writes ci_*.
-+    # CI / merge-request builds — REFERENCE ONLY. `.gitlab-ci.yml`'s .dbt_profile anchor writes the
-+    # real one (WIF/oauth) and names this target `ci_mr${CI_MERGE_REQUEST_IID}` — one per merge
-+    # request, so no branch can read another's tables (#92, 2026-08-27). The literal `ci` below is a
-+    # stand-in to keep this example readable; there is no shared `ci` target in CI.
-+    # Slim builds run here and defer unchanged upstreams to prod.
-     ci:
-       type: bigquery
-       method: oauth
-       project: football-data-pipeline-gcp
--      dataset: ci_analytics  # fallback for base + seeds under CI
-+      dataset: ci_analytics  # in CI this is ci_mr<IID>: fallback for base + seeds
-       threads: 4
-       timeout_seconds: 300
-       location: EU
-diff --git a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-index 79b32de..98c1f99 100644
---- a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-+++ b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-@@ -27,11 +27,23 @@
-   silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
-   (verified against the built table), so no cast is needed.
  
--  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
--  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
--  seed is never selected and `--favor-state` swaps it for the state relation). That is why the 4
--  corrections this guard depends on merged FIRST, in their own PR, before the guard followed. Do not
--  try to solve this with a CI workflow change.
-+  CI note, REWRITTEN 2026-08-27 under #92. The previous version said that on a PR
-+  `ref('metric_catalogue')` resolves to MAIN's seed rather than the branch's, because
-+  `--favor-state` swaps it for the state relation; that this is why the 4 corrections this guard
-+  depends on had to merge FIRST in their own PR before the guard followed; and "Do not try to solve
-+  this with a CI workflow change."
-+
-+  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
-+  `data:build:mr`'s `dbt test` invocation, `dbt seed --target "$DBT_CI_TARGET"` runs before it in
-+  the same job, and plain `--defer` prefers the branch's seed relation because it exists. **This
-+  guard now reads the branch's seed.** The split-the-PR rule above was a workaround for the flag,
-+  not a property of the guard, and it no longer applies. The 4 corrections having merged first
-+  remains a fact of history, not a rule for the next change.
-+  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
-+  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset.
-+  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately. Both that
-+  asymmetry and the per-merge-request naming are pinned in
-+  `tests/test_ci_data_job_invariants.py`.
- #}
+-{% docs clean_sheets_share_delta_yoy__team %}
++{% docs clean_sheets_pct_delta_yoy__team %}
+ The share of matches the team finished without conceding a goal: matches with zero goals
+ against divided by matches played. clean_sheets is the same measurement expressed as a whole
+ number of matches. The change from the previous season to the current one, compared at the same
+@@ -110,7 +110,7 @@ that was never loaded, and a season whose first matches are not fully stat-cover
+ {% enddocs %}
  
- select
-diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
-index e391bfe..52126b1 100644
---- a/dbt_project/tests/assert_metric_meaning_complete.sql
-+++ b/dbt_project/tests/assert_metric_meaning_complete.sql
-@@ -17,11 +17,25 @@
  
-   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
+-{% docs clean_sheets_share_prev_season__team %}
++{% docs clean_sheets_pct_prev_season__team %}
+ The share of matches the team finished without conceding a goal: matches with zero goals
+ against divided by matches played. clean_sheets is the same measurement expressed as a whole
+ number of matches. Value for the season before, through the same number of matches as the
+@@ -119,7 +119,7 @@ rather than a part season against a full one.
+ {% enddocs %}
  
--  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
--  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
--  seed is never selected and `--favor-state` swaps it for the state relation). That is why a change
--  to catalogue VALUES and a guard that depends on those values cannot land in the same PR — the
--  values merge first, then the guard. Do not try to solve this with a CI workflow change.
-+  CI note, REWRITTEN 2026-08-27 under #92 — the previous version of this paragraph is now false in
-+  every particular, and it is kept in git rather than paraphrased. It said: on a PR this runs in the
-+  deferred singular-test step, where `ref('metric_catalogue')` resolves to MAIN's seed rather than
-+  the branch's, because `--favor-state` swaps it for the state relation; that a change to catalogue
-+  VALUES and a guard depending on those values therefore cannot land in the same PR; and — the line
-+  that mattered — "Do not try to solve this with a CI workflow change."
-+
-+  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
-+  `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
-+  in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
-+  plain `--defer` prefers a relation that exists over the deferred one. **This guard now reads the
-+  branch's seed, so catalogue values and a guard that depends on them CAN land in the same PR.** Do
-+  not split a change on the strength of the old rule.
-+  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
-+  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
-+  read or overwrite it.
-+  ⚠ Also still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately.
-+  Both that asymmetry and the per-merge-request naming are pinned in
-+  `tests/test_ci_data_job_invariants.py`.
- #}
  
- select
-diff --git a/docs/operations_guide.md b/docs/operations_guide.md
-index 7836cae..0468303 100644
---- a/docs/operations_guide.md
-+++ b/docs/operations_guide.md
-@@ -263,8 +263,13 @@ The warehouse is split by dbt **target** so non-prod builds cannot touch product
- - **`prod`** — `dbt-scheduled` (nightly), `ci-data-build` on main-push, and `pages-match-preview`
-   write the canonical **bare** datasets (`marts`, `core`, …) the site export reads. The only
-   target that does.
--- **`ci`** — `ci-data-build` PR builds write **`ci_*`** datasets and `--defer` unchanged
--  upstreams to prod, so a PR validates its changes layered over prod without mutating it.
-+- **`ci_mr<IID>`** — `data:build:mr` writes **one dataset set per merge request**
-+  (`ci_mr114_marts`, `ci_mr114_core`, … and bare `ci_mr114`) and `--defer`s unchanged upstreams to
-+  prod, so a merge request validates its changes layered over prod without mutating it — and
-+  without reading any other branch's tables. ⚠ **There is no shared `ci` target** (#92,
-+  2026-08-27): there used to be one, and once the data-quality tests started reading it instead of
-+  prod, a merge request that rebuilt nothing read tables another branch had built. Details and the
-+  full table: [`dbt_project/docs/layering.md`](../dbt_project/docs/layering.md).
- - **`dev`** — local `dbt build` writes **`dev_*`** datasets.
+-{% docs clean_sheets_share_this_season__team %}
++{% docs clean_sheets_pct_this_season__team %}
+ The share of matches the team finished without conceding a goal: matches with zero goals
+ against divided by matches played. clean_sheets is the same measurement expressed as a whole
+ number of matches. Value for the season now in progress, accumulated through the matches played
+@@ -128,9 +128,9 @@ so far.
  
- Because prod stays unprefixed, `scripts/export_*.py` (hardcoded `marts`/`core`) needs no change.
-diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
-index b6c98e6..d30a415 100644
---- a/tests/test_ci_data_job_invariants.py
-+++ b/tests/test_ci_data_job_invariants.py
-@@ -254,3 +254,154 @@ def test_mr_data_build_never_ingests():
-         "`data:build:main` job already ingests any new league, so nothing needs this here. "
-         f"Offending: {offenders}"
-     )
-+
-+
-+def _mr_dbt_invocations() -> tuple[str, str]:
-+    """`data:build:mr`'s (build, test) dbt invocations, as single strings.
-+
-+    Both are `>-` folded scalars in the YAML, so each arrives as ONE line with its flags
-+    space-separated — which is why matching on substrings here is safe rather than fragile.
-+    """
-+    jobs = _script_lines_by_job(_ci_config())
-+    assert "data:build:mr" in jobs, (
-+        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
-+        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
-+    )
-+    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
-+    builds = [ln for ln in lines if ln.startswith("dbt build ")]
-+    tests = [ln for ln in lines if ln.startswith("dbt test ")]
-+    assert len(builds) == 1, f"expected exactly one `dbt build` in data:build:mr, saw {builds}"
-+    assert len(tests) == 1, f"expected exactly one `dbt test` in data:build:mr, saw {tests}"
-+    return builds[0], tests[0]
-+
-+
-+def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
-+    """`--favor-state` belongs on data:build:mr's BUILD line and must never return to its TEST line.
-+
-+    THE DEFECT THIS PINS (GitLab #92, fixed 2026-08-27). Both invocations carried
-+    `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
-+    even when the current run has just built that model. On the `dbt build` line that is correct and
-+    load-bearing — a model being BUILT must take its upstreams from prod rather than from a
-+    superseded table, and a node dbt is building is not deferred anyway. (That reason is narrower
-+    since the per-merge-request datasets landed: "another MR's leftovers" cannot occur any more, but
-+    an EARLIER PIPELINE OF THE SAME merge request can leave a superseded table — build a model, then
-+    revert it to match main and it drops out of `state:modified+` — and `--defer` alone would prefer
-+    it.) On the `dbt test`
-+    line nothing is being built, so the identical flag threw away the MR's own models and pointed
-+    all 30 singular tests at PRODUCTION. The DQ gate was green because prod was healthy, not because
-+    the branch was.
-+
-+    WHY IT IS PINNED HERE. This module exists for invariants that can be broken while every pipeline
-+    stays GREEN, and this is one: re-adding `--favor-state` to the test line restores the whole
-+    defect with pytest, sqlfluff, every offline gate and the pipeline itself all still green — the
-+    tests simply go back to reporting on the wrong database. Before this assertion the only thing
-+    standing in the way was a comment, and a confident comment is precisely what let the defect
-+    survive in the first place (the paragraph above the line asserted the isolation the flag
-+    prevented). platform-reviewer's round-1 finding, and it was right.
-+
-+    BOTH HALVES ARE ASSERTED, deliberately. Pinning only the test line would let someone "restore
-+    symmetry" by stripping the flag from the BUILD line instead — which breaks isolation in the
-+    other direction, is a different bug, and would pass a one-sided guard.
-+
-+    Reproduction, one job, ninety seconds apart: pipeline 2796272877 job 16145201830 created
-+    `ci_marts.mart_team_season_insights` with a renamed column, PASSed
-+    `assert_mart_team_season_insights_metric_consistency` against it inside the build, then failed
-+    the SAME test in the trailing run with "Unrecognized name: points_capture_pct; Did you mean
-+    points_capture?" — a column that exists only in prod.
-+    """
-+    build, test = _mr_dbt_invocations()
-+
-+    assert "--favor-state" not in test, (
-+        "data:build:mr's `dbt test` line carries --favor-state again. That resolves every ref() to "
-+        "PRODUCTION even for models this run just built, so the 30 singular tests stop testing the "
-+        "branch and re-report on prod — green because prod is healthy, not because the change is "
-+        "(GitLab #92). It also makes any column rename unmergeable: prod gains the column only "
-+        f"after the merge, so the gate can never go green first. Line: {test}"
-+    )
-+    for flag in ("--defer", "--state /tmp/main-state"):
-+        assert flag in test, (
-+            f"data:build:mr's `dbt test` line lost `{flag}`. Deferral itself must STAY — without it "
-+            "an upstream this MR did not build resolves to nothing instead of to prod. Only "
-+            f"--favor-state was removed. Line: {test}"
-+        )
-+
-+    assert "--favor-state" in build, (
-+        "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
-+        "with the test line is the whole of #92's first half. A model being built must take its "
-+        "upstreams from prod rather than from a superseded table — an earlier pipeline of THIS "
-+        "merge request can leave one (build a model, then revert it to match main and it drops "
-+        "out of state:modified+), and --defer alone would prefer it. Do not make the two lines "
-+        f"match. Line: {build}"
-+    )
-+
-+
-+def test_each_merge_request_builds_into_its_own_datasets() -> None:
-+    """No merge request may read another one's tables. #92 second half, 2026-08-27.
-+
-+    THE DEFECT THIS PINS, which only became reachable once the half above landed. Every merge
-+    request used to build into ONE shared set of `ci_*` datasets. While the singular tests read
-+    PRODUCTION that was invisible; the moment they read the ci datasets instead, a merge request
-+    that rebuilt nothing began reading whatever another branch had left there. `!115`, which changes
-+    no models, went red on THREE tests against tables `!114` had built an hour earlier — headline
-+    error "Unrecognized name: points_capture; Did you mean points_capture_pct?", the exact mirror of
-+    the failure that started #92.
-+
-+    BOTH HALVES OF THE ISOLATION ARE ASSERTED, and the second is not decoration.
-+    `macros/generate_schema_name.sql` prefixes a model that HAS a custom schema with `target.name`,
-+    so the per-MR target name isolates the four layer datasets. But it returns BARE `target.schema`
-+    for a model with NO `+schema` — which is the whole `2_base` layer and EVERY seed,
-+    `metric_catalogue` among them. Their isolation rests entirely on the profile's `dataset:` line.
-+    Pinning only the target name would let someone revert `dataset:` to a shared literal and put the
-+    base tables and the seed back in one shared dataset, silently, reinstating the `!115` failure on
-+    the very relation two dbt guards were rewritten to depend on. platform-reviewer found that
-+    omission in an earlier version of this test.
-+
-+    A literal `--target ci` anywhere in the job, or a `DBT_CI_TARGET` that does not carry the merge
-+    request id, restores the shared workspace with every test and the whole pipeline still green —
-+    the same invisible-breakage shape as this module's siblings, which is why it is pinned here
-+    rather than left to the comments in the YAML.
-+    """
-+    config = _ci_config()
-+    jobs = _script_lines_by_job(config)
-+    assert "data:build:mr" in jobs, (
-+        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
-+        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
-+    )
-+    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
-+
-+    # Asserted on the DERIVATION, not on a literal name, so reformatting the export does not break
-+    # this — but dropping the merge-request id from it does, and that is the property.
-+    derivations = [ln for ln in lines if "DBT_CI_TARGET=" in ln]
-+    assert derivations, (
-+        "data:build:mr no longer derives DBT_CI_TARGET. Without it every merge request builds into "
-+        "the same datasets and one branch's tables become another's upstreams (#92)."
-+    )
-+    assert any("CI_MERGE_REQUEST_IID" in ln for ln in derivations), (
-+        "DBT_CI_TARGET is set without CI_MERGE_REQUEST_IID, so it is the same for every merge "
-+        f"request — the shared workspace is back. Derivation seen: {derivations}"
-+    )
-+
-+    shared = [ln for ln in lines if ln.startswith("dbt ") and "--target ci" in ln]
-+    assert shared == [], (
-+        "a dbt invocation in data:build:mr targets a literal shared `ci` target. Every dbt command "
-+        'in this job must use "$DBT_CI_TARGET" so the merge request writes its own datasets. '
-+        f"Offending: {shared}"
-+    )
-+    for line in [ln for ln in lines if ln.startswith("dbt ")]:
-+        assert "$DBT_CI_TARGET" in line, (
-+            f"a dbt invocation in data:build:mr does not use $DBT_CI_TARGET: {line}"
-+        )
-+
-+    # The profile's `dataset:` is the OTHER half — base models and seeds carry no +schema and ride
-+    # bare target.schema, so they are isolated by this line alone.
-+    profile = "\n".join(_script_lines(config))
-+    dataset_lines = [
-+        " ".join(ln.split()) for ln in profile.splitlines()
-+        if ln.strip().startswith("dataset:")
-+    ]
-+    assert "dataset: ${DBT_CI_TARGET}" in dataset_lines, (
-+        "the CI profile's `dataset:` is not ${DBT_CI_TARGET}. The base models and every seed "
-+        "(metric_catalogue included) have no +schema, so generate_schema_name gives them bare "
-+        "target.schema — this line is the only thing isolating them per merge request. "
-+        f"dataset: lines seen: {dataset_lines}"
-+    )
-diff --git a/tests/test_persist_docs_policy.py b/tests/test_persist_docs_policy.py
-index 9c4f9d0..f421ac9 100644
---- a/tests/test_persist_docs_policy.py
-+++ b/tests/test_persist_docs_policy.py
-@@ -172,8 +172,13 @@ def test_docs_are_generated_exactly_once_and_only_on_main():
  
-     `data:nightly` was rejected because a description's content comes from the repo, not the data,
-     so a nightly run re-publishes identical pages for recurring cost. `data:build:mr` was rejected
--    because it builds `state:modified+` into the shared ci_* datasets, so its catalog would cover
--    only what one branch changed — a partial column list presented as the column list.
-+    because it builds `state:modified+` into that merge request's own `ci_mr<IID>_*` datasets, so
-+    its catalog would cover only what one branch changed — a partial column list presented as the
-+    column list.
-+    ⚠ That rationale used to say "the shared ci_* datasets". There is no shared CI workspace any
-+    more (#92, 2026-08-27) — each merge request writes its own — but the reason this job is still
-+    the wrong place to generate docs is UNCHANGED and if anything stronger: a per-merge-request
-+    dataset holds even less of the warehouse than the shared one did.
-     """
-     jobs = _jobs_running("dbt docs generate")
-     assert jobs == ["data:build:main"], (
+ {% docs clean_sheets_sum_season__team %}
+-Matches the team finished without conceding a goal, counted as whole matches.
+-clean_sheets_share is the same measurement expressed as a proportion of the matches played.
+-Totalled over the season.
++Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
++is the same measurement expressed as a proportion of the matches played. Totalled over the
++season.
+ {% enddocs %}
+ 
+ 
+@@ -981,7 +981,7 @@ Penalties won.
+ {% enddocs %}
+ 
+ 
+-{% docs points_capture %}
++{% docs points_capture_pct %}
+ Share of available points won (points / (3 * games)).
+ {% enddocs %}
+ 
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index bbe572c..35d0bb2 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -3,7 +3,7 @@ league_rank,team,metrics.league_rank.label,League position,Current league standi
+ points_won,team,metrics.points_won.label,Points won,"Total points earned: 3 per win, 1 per draw, 0 per loss.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,false,points_fraction,outcomes,1,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss)
+ goals_per_match,team,metrics.goals_per_match.label,Ø Goals,Average goals scored per match.,int_legs__team_match,sum(goals_for),count(*),expression,false,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack
+ goals_against_per_match,team,metrics.goals_against_per_match.label,Ø Goals against,Average goals conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,true,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence
+-clean_sheets_share,team,metrics.clean_sheets_share.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back
++clean_sheets_pct,team,metrics.clean_sheets_pct.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back
+ goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls
+ goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
+ goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
+@@ -55,7 +55,7 @@ save_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percen
+ shots_total,player,playerMetrics.shots.label,Shots,Total shots (on and off target).,int_legs__player_match,sum(shots_total),,expression,false,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played)
+ goals_against,player,playerMetrics.goalsConceded.label,Goals conceded,Goals conceded by the team while the player was on the pitch (GK-relevant).,int_legs__player_match,sum(goals_against),,expression,true,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual)
+ shot_share,team,metrics.shot_share.label,% Share of shots,Share of all shots in the team's matches taken by the team. Null when no shots.,int_legs__team_match,sum(shots_total),sum(shots_total + opponent_shots_total),expression,false,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
+-points_capture,team,metrics.points_capture.label,% Points captured,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,false,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
++points_capture_pct,team,metrics.points_capture_pct.label,% Points captured,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,false,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
+ scorer_points,player,playerMetrics.scorerPoints.label,Goal contributions,Goals plus assists (combined goal contributions).,int_legs__player_match,sum(goals_total + goals_assists),,expression,false,integer,goals,1,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played)
+ defensive_actions,player,playerMetrics.defensiveActions.label,Defensive actions,Tackles plus interceptions plus blocks (combined defensive actions).,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks),,expression,false,integer,defending,1,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend)
+ cards_total,player,playerMetrics.cards.label,Cards,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",int_legs__player_match,sum(cards_yellow + cards_red),,expression,true,integer,discipline,1,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red)
+@@ -84,4 +84,4 @@ goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by
+ corners,team,metrics.corners.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
+ saves,team,metrics.saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
+ shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - danger_zone_ratio is what measures that; a raw count, so it rises with matches played)"
+-clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_share is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
++clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 329a435..dfdf7a7 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -279,7 +279,7 @@ seeds:
+         description: >
+           The metric's fixed mathematical denominator: count(*) = number of matches in the window
+           (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
+-          numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
++          numerator_expr); 3 * count(*) for points_capture_pct. Like the numerator it is the DEFINITION
+           only — coverage/availability handling lives in the model, never here. Blank for raw count
+           metrics and the blank-base_relation rows above.
+       - name: computation_kind
+diff --git a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+index ebba3de..c0503ae 100644
+--- a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
++++ b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+@@ -26,9 +26,9 @@ checks as (
+             else abs(goals_against_per_match * season_games_played - goals_against_sum_season)
+         end as goals_against_per_match_err,
+         case
+-            when points_capture is null or points_won_sum_season is null then 0
+-            else abs(points_capture * (3 * season_games_played) - points_won_sum_season)
+-        end as points_capture_err,
++            when points_capture_pct is null or points_won_sum_season is null then 0
++            else abs(points_capture_pct * (3 * season_games_played) - points_won_sum_season)
++        end as points_capture_pct_err,
+         case
+             when shots_per_match is null or total_shots_sum_season is null then 0
+             else abs(shots_per_match * season_games_played - total_shots_sum_season)
+@@ -41,6 +41,6 @@ from checks
+ where greatest(
+     goals_per_match_err,
+     goals_against_per_match_err,
+-    points_capture_err,
++    points_capture_pct_err,
+     shots_per_match_err
+ ) > 0.001
+diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
+index 2d3a396..c9351a5 100644
+--- a/docs/wireframes/02_team_profile.md
++++ b/docs/wireframes/02_team_profile.md
+@@ -101,7 +101,7 @@ All season-scoped keys come from the selected `seasons[]` row.
+ | Element | JSON key | Display |
+ |---|---|---|
+ | Shot share | `shot_share` | percent + bar |
+-| Points capture | `points_capture` | percent + bar |
++| Points capture | `points_capture_pct` | percent + bar |
+ | Gap | `performance_vs_results_gap` | signed percentage-point delta + plain-language label ("dominates play more than results show" / inverse); ⓘ → glossary |
+ 
+ Two real ratios and their difference — NEVER a composite score gauge (ruled).
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index e1ed94f..6a9cdc3 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -161,14 +161,14 @@ floors that guard `mart_leaderboards`' five rate boards are not needed for eight
+ was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_on_goal_per_match` →
+ `passes_per_match` → `duels_per_match`** (`design-mocks/gen_top_teams.py`). % Points captured and
+ Ø Defensive actions are gone, and the surviving four are single-metric like the player boards.
+-⚠ % Points captured leaving matters beyond this block: `points_capture` is built on the synthetic
++⚠ % Points captured leaving matters beyond this block: `points_capture_pct` is built on the synthetic
+ 3-1-0 tally, which is wrong for cup competitions.
+ 
+ ~~**Six team boards.**~~
+ 
+ | Board | Shown | Ranked by |
+ |---|---|---|
+-| % Points captured | `points_capture` · `points_won` · `deserved_points` | `points_capture` |
++| % Points captured | `points_capture_pct` · `points_won` · `deserved_points` | `points_capture_pct` |
+ | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
+ | Ø Shots on target difference | `sot_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency` | `sot_difference_per_match` |
+ | Ø Defensive actions | `defensive_actions_per_match` | descending |
+@@ -186,7 +186,7 @@ Outcomes metrics `league_rank` and `deserved_rank`, which are the standings the
+ ⛔ **SUPERSEDED 2026-08-10 — the paragraph below is about the REMOVED % Points captured board.**
+ `gen_top_teams.py`'s header: *"'% Points captured' dropped as a board; `points_capture` is shown
+ nowhere"* and *"deserved-vs-actual dropped … takes `deserved_points` and `points_won` off the block
+-entirely."* Nothing on the reduced four-board block ranks on `points_capture`, so its reassurance
++entirely."* Nothing on the reduced four-board block ranks on `points_capture_pct`, so its reassurance
+ is not merely stale, it is FALSE about the current design. Kept as the record of why that board was
+ fragile, because the same structural problem returns anywhere `deserved_points` is used.
+ 
+@@ -195,7 +195,7 @@ One is a coverage gap that can close: the league-season needs every team to carr
+ a league rank and three finished games. The other is STRUCTURAL and will not close — MLS ranks by
+ conference and the Apertura/Clausura formats reset points, so there is no single ladder to fit.
+ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leagues in pools 2 and
+-3. Ranking is on `points_capture`, so a null `deserved_points` never affects the order.~~
++3. Ranking is on `points_capture_pct`, so a null `deserved_points` never affects the order.~~
+ 
+ **Shared display rules.**
+ 
+diff --git a/docs/wireframes/14_team_stats.md b/docs/wireframes/14_team_stats.md
+index b7c88b3..0681f82 100644
+--- a/docs/wireframes/14_team_stats.md
++++ b/docs/wireframes/14_team_stats.md
+@@ -58,7 +58,7 @@ next to the %), both being separate metrics already in the set.
+ │  GOALS                                            │  (4) group subhead (metrics_display order)
+ │  Ø Goals          2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
+ │  Ø Goals against  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
+-│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_share; the fixture windows show the count
++│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_pct; the fixture windows show the count
+ │  SHOOTING                                         │      order = the LOCKED shooting funnel
+ │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
+ │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
+@@ -100,7 +100,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
+ | Label | `metric_key` | `metric_key` | label + format from `metric_catalogue` (never invented) |
+ | Value — per-match metric | `metric_value` | `metric_value` | the per-match rate, catalogue `format` (`decimal_0`/`decimal_1`) |
+ | Value — ratio metric (%) | `metric_value` | `metric_value` | the `percent`; its **volume is the adjacent count row** in the same block (no naked %) |
+-| Value — `clean_sheets_share` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
++| Value — `clean_sheets_pct` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
+ | Rank | `rank` (+ `team_count`, `direction`) | `rank`, `team_count` | **"{rank} of {team_count}"** (e.g. "3rd of 18") — direction-mirrored (rule below) |
+ | vs-median | `vs_median_delta` | `vs_median_delta` | signed, catalogue-formatted (`+0.4`, `+3pp` for percent) |
+ | Spread bar | derived from `metric_value` vs `p25`/`median`/`p75` | `league_p25`, `league_median`, `league_p75` | the value's position on a p25–median–p75 track; dashed median reference |
+@@ -116,7 +116,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
+ - `lower_better` metric → **mirror the rank**: `team_count + 1 − rank`, so "1st" marks the best (lowest-
+   value) end. A display-side step (the mart ranks DESC). Since the catalogue-wide direction sweep
+   (2026-07-21) **two rendered metrics are `lower_better`: `goals_against_per_match` and
+-  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_share` is
++  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_pct` is
+   `higher_better`. (Superseded: this used to say only `goals_against_per_match` was `lower_better` and that
+   `corners_against_per_match` was `neutral` and therefore not mirrored.)
+ 
+@@ -142,7 +142,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
+ 
+ | Block | Rendered metrics (metric_key) |
+ |---|---|
+-| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_share` |
++| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_pct` |
+ | Shooting | `shots_per_match` · `danger_zone_ratio` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
+ | Duels | `duels_per_match` · `duels_won_pct` (%) |
+ | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
+@@ -200,7 +200,7 @@ has that this does not; the per-row "of N" carries the sample size instead.)
+   applied at render from the catalogue `direction`). All 20 mart rows are carried — this screen renders the
+   LOCKED 16. Mirrors GAP-21/#627 for the player.
+ - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
+-- `clean_sheets_share` renders as a **percent** here, and that is now the declared metric rather than a
++- `clean_sheets_pct` renders as a **percent** here, and that is now the declared metric rather than a
+   compromise: the count and the share are two catalogue rows, and this screen ranks the share because
+   the teams it ranks have played different numbers of matches. The x/y form (02 §8) belongs to the
+   fixture windows, which serve `clean_sheets` with its denominator.
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index 9526530..35bc38e 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -132,7 +132,7 @@ Set pieces → Goalkeeping.
+ |---|---|---|---|---|---|
+ | 1 | Ø Goals | `goals_per_match` | Goals | 1 | live |
+ | 2 | Ø Goals against | `goals_against_per_match` | Goals | 1 | live |
+-| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_share` (team page) | Goals | 2 | **new** (GAP-11) |
++| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | **new** (GAP-11) |
+ | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
+ | 5 | % Shots from box | `danger_zone_ratio` | Shooting | 2 | live |
+ | 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
+@@ -180,7 +180,7 @@ a label by reading the `label_i18n_key` column; never infer it from an id or a p
+ display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
+ window is five matches, so the honest reading is the COUNT beside its denominator — `clean_sheets`,
+ `3/5`. A team season is ranked against a whole league, where matches played differ between teams, so
+-the honest reading is the PROPORTION — `clean_sheets_share`, `21%`, labelled `% Clean sheets` under
++the honest reading is the PROPORTION — `clean_sheets_pct`, `21%`, labelled `% Clean sheets` under
+ the same `% ` prefix every other percent metric here carries. They are two catalogue metrics with one
+ formula between them, and the seed carries both. In `metricRows.ts` the row's own
+ `field`/`labelKey`/`format` are the FIXTURE binding and the team surface reads `teamBinding(row)`;
+diff --git a/site_v2/src/components/team/MetricLeagueRow.astro b/site_v2/src/components/team/MetricLeagueRow.astro
+index af6bd5e..888e679 100644
+--- a/site_v2/src/components/team/MetricLeagueRow.astro
++++ b/site_v2/src/components/team/MetricLeagueRow.astro
+@@ -4,7 +4,7 @@
+ // All served: value/median/rank/vs_median_delta come from the benchmark; the rank is made
+ // DIRECTION-AWARE for display (the mart's is raw value-descending) and the fill/green are
+ // presentation mappings (lib/bars.ts) — no fact is derived. Which metric a row binds HERE comes
+-// from `teamBinding()`: the clean-sheet slot ranks `clean_sheets_share`, a proportion, where the
++// from `teamBinding()`: the clean-sheet slot ranks `clean_sheets_pct`, a proportion, where the
+ // fixture windows serve the count.
+ import { formatValue, ordinal } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+diff --git a/site_v2/src/components/team/MetricSeasonRow.astro b/site_v2/src/components/team/MetricSeasonRow.astro
+index 9b0f59a..6f865fc 100644
+--- a/site_v2/src/components/team/MetricSeasonRow.astro
++++ b/site_v2/src/components/team/MetricSeasonRow.astro
+@@ -2,7 +2,7 @@
+ // One "vs last season" row (mock f6348775 .ss-row): metric name · current value · signed
+ // year-over-year change (direction-aware green; percent rows read as "+N pp"). Value is the
+ // season's served metric (from the benchmark); the delta is the served `{field}_delta_yoy` for the
+-// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_share` on both
++// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_pct` on both
+ // sides here. Null delta (e.g. save_ratio, no comparable prior season) renders the en-dash.
+ // Display formatting only.
+ import { formatValue, signedDelta } from "../../lib/format";
+diff --git a/site_v2/src/components/team/TeamPerformance.astro b/site_v2/src/components/team/TeamPerformance.astro
+index 0bc7b0b..2776349 100644
+--- a/site_v2/src/components/team/TeamPerformance.astro
++++ b/site_v2/src/components/team/TeamPerformance.astro
+@@ -34,7 +34,7 @@ const sRec = season as unknown as Record<string, unknown>;
+ 
+ const hasBench = benchByKey.size > 0;
+ // Both panels key on the TEAM binding, not on `field`: the clean-sheet slot is served here as
+-// `clean_sheets_share` (the benchmark's metric_key and the yoy column alike), while the fixture
++// `clean_sheets_pct` (the benchmark's metric_key and the yoy column alike), while the fixture
+ // windows serve the count under the bare name. Every other row binds the same name on both.
+ const keyOf = (r: (typeof METRIC_ROWS)[number]): string => teamBinding(r).field;
+ const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${keyOf(r)}_delta_yoy`]) != null);
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index b5225f9..03b09ed 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -618,7 +618,7 @@ const METRIC_LABELS_EN: MetricLabels = {
+   "metrics.clean_sheets.label": "Clean sheets",
+   // The percent form of the row above, per the "% " prefix every percent metric here carries.
+   // The fixture windows label the COUNT; the team page labels the SHARE (metricRows `team`).
+-  "metrics.clean_sheets_share.label": "% Clean sheets",
++  "metrics.clean_sheets_pct.label": "% Clean sheets",
+   "metrics.shots_per_match.label": "Ø Shots",
+   "metrics.danger_zone_ratio.label": "% Shots from box",
+   "metrics.shots_on_target_per_match.label": "Ø Shots on target",
+@@ -644,7 +644,7 @@ const METRIC_LABELS_DE: MetricLabels = {
+   "metrics.clean_sheets.label": "Zu-Null-Spiele",
+   // The percent form of the row above. The "% " prefix carries the share, exactly as it does for
+   // "% Trefferquote" and "% Gehaltene Torschüsse" below, so the noun itself needs no second word.
+-  "metrics.clean_sheets_share.label": "% Zu-Null-Spiele",
++  "metrics.clean_sheets_pct.label": "% Zu-Null-Spiele",
+   "metrics.shots_per_match.label": "Ø Schüsse",
+   "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
+   // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
+@@ -681,7 +681,7 @@ const METRIC_LABELS_FI: MetricLabels = {
+   "metrics.goals_against_per_match.label": "Ø Päästetyt maalit",
+   // Confirmed in Finnish football media (apu.fi on Veikkausliiga goalkeepers).
+   "metrics.clean_sheets.label": "Nollapelit",
+-  "metrics.clean_sheets_share.label": "% Nollapelit",
++  "metrics.clean_sheets_pct.label": "% Nollapelit",
+   // The percent form of the row above. The "% " prefix carries the share, as it does for
+   // "% Torjuntaosuus" below, so no separate "osuus" compound is needed.
+   "metrics.shots_per_match.label": "Ø Laukaukset",
+diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
+index 6596b60..2b89fa5 100644
+--- a/site_v2/src/lib/metricRows.ts
++++ b/site_v2/src/lib/metricRows.ts
+@@ -11,7 +11,7 @@
+ // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
+ //
+ // A row is a display SLOT, and one slot can bind a different catalogue metric per surface: the
+-// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_share`
++// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_pct`
+ // (a proportion). `field`/`labelKey`/`format` are the FIXTURE binding; the team surface reads
+ // `teamBinding(row)`, which returns the row's `team` override or the row itself.
+ //
+@@ -31,7 +31,7 @@ export type MetricGroup =
+ /** What the TEAM surface binds for a slot whose two surfaces measure different things.
+  *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs beside the
+  *  matches behind it, while the league benchmark and the year-over-year delta serve
+- *  `clean_sheets_share`, the proportion — two catalogue metrics, one row of the display contract. */
++ *  `clean_sheets_pct`, the proportion — two catalogue metrics, one row of the display contract. */
+ export interface TeamBinding {
+   field: string;              // key on the benchmark's `metric_key` / the `{field}_delta_yoy` column
+   labelKey: string;
+@@ -78,10 +78,10 @@ export const METRIC_ROWS: MetricRowDef[] = [
+   { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
+   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
+   //   `clean_sheets`, a count of shut-outs, rendered against the matches behind it (3/5). The team
+-  //   page ranks `clean_sheets_share`, the proportion, because teams are compared across a league.
++  //   page ranks `clean_sheets_pct`, the proportion, because teams are compared across a league.
+   //   Read the team side through `teamBinding()`; never assume `field` covers both.
+   { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
+-    team: { field: "clean_sheets_share", labelKey: "metrics.clean_sheets_share.label", format: "percent" } },
++    team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
+   { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
+   { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
+   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 5067aec..b0a8961 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -150,7 +150,7 @@ export interface ScatterDot {
+  *  direction-aware for display); `metric_value`/`league_median` are the served units
+  *  (ratios 0..1 for percent metrics). ⚠ `metric_key` is the catalogue metric this panel ranks,
+  *  which is not always the display row's `field`: the clean-sheet row is keyed
+- *  `clean_sheets_share` here — resolve it with `teamBinding()`, never with `field`. */
++ *  `clean_sheets_pct` here — resolve it with `teamBinding()`, never with `field`. */
+ export interface Benchmark {
+   metric_key: string;
+   metric_value?: number | null;
+@@ -203,7 +203,7 @@ export interface TeamSeason {
+   goals_against?: number | null;
+   goal_diff?: number | null;
+   /** The COUNT of shut-outs (mart_team_profile, from mart_team_season). The Performance tab's
+-   *  rate lives on the benchmark and on `clean_sheets_share_*_season` below, not here. */
++   *  rate lives on the benchmark and on `clean_sheets_pct_*_season` below, not here. */
+   clean_sheets?: number | null;
+   latest_form?: string | null;
+   season_games_played?: number | null;
+diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
+index 5783f69..771999e 100644
+--- a/site_v2/src/specs/teams/team.spec.json
++++ b/site_v2/src/specs/teams/team.spec.json
+@@ -65,7 +65,7 @@
+         "noYoY",
+         "metrics.goals_per_match.label",
+         "metrics.goals_against_per_match.label",
+-        "metrics.clean_sheets_share.label",
++        "metrics.clean_sheets_pct.label",
+         "metrics.shots_per_match.label",
+         "metrics.danger_zone_ratio.label",
+         "metrics.shots_on_target_per_match.label",
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1150,9 +1178,8 @@ index 9c4f9d0..f421ac9 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   16 +-
-#    .claude/task/acceptance_evidence.md |  265 ++++--
-#    .claude/task/review.md              |  162 ++--
-#    .claude/task/review_input.patch     | 1639 ++++++++++++++++++++++-------------
-#    4 files changed, 1325 insertions(+), 757 deletions(-)
+#   .claude/active_work.md              |   27 +-
+#    .claude/task/acceptance_evidence.md |  141 ++-
+#    .claude/task/review_input.patch     | 1646 +++++++++++++++++++++++------------
+#    3 files changed, 1160 insertions(+), 654 deletions(-)
 # ============================================================================

@@ -11,7 +11,7 @@
 // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
 //
 // A row is a display SLOT, and one slot can bind a different catalogue metric per surface: the
-// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_share`
+// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_pct`
 // (a proportion). `field`/`labelKey`/`format` are the FIXTURE binding; the team surface reads
 // `teamBinding(row)`, which returns the row's `team` override or the row itself.
 //
@@ -31,7 +31,7 @@ export type MetricGroup =
 /** What the TEAM surface binds for a slot whose two surfaces measure different things.
  *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs beside the
  *  matches behind it, while the league benchmark and the year-over-year delta serve
- *  `clean_sheets_share`, the proportion — two catalogue metrics, one row of the display contract. */
+ *  `clean_sheets_pct`, the proportion — two catalogue metrics, one row of the display contract. */
 export interface TeamBinding {
   field: string;              // key on the benchmark's `metric_key` / the `{field}_delta_yoy` column
   labelKey: string;
@@ -78,10 +78,10 @@ export const METRIC_ROWS: MetricRowDef[] = [
   { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
   //   `clean_sheets`, a count of shut-outs, rendered against the matches behind it (3/5). The team
-  //   page ranks `clean_sheets_share`, the proportion, because teams are compared across a league.
+  //   page ranks `clean_sheets_pct`, the proportion, because teams are compared across a league.
   //   Read the team side through `teamBinding()`; never assume `field` covers both.
   { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
-    team: { field: "clean_sheets_share", labelKey: "metrics.clean_sheets_share.label", format: "percent" } },
+    team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
   { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
   { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares

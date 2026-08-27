@@ -4,8 +4,9 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-27**. **main `dd01215`.** The METRIC CATALOGUE NAMING PROGRAMME is running:
-`!111` and `!112` merged, **47 renames still to go**. **Nothing else is in flight.**
+_Last updated **2026-08-27**. **main `1804a64`.** The METRIC CATALOGUE NAMING PROGRAMME is running:
+`!111`, `!112` and `!113` merged, **47 renames still to go**, and **STEP 3 IS IN FLIGHT** — MR A of
+six is committed and in review. **Nothing else is in flight.**
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
@@ -18,13 +19,27 @@ holds the CPO's six rulings verbatim, the six-item list his blanket approval ans
 remaining names, the 9 label changes, and the two live transients. **Do not re-derive any of it and
 do not cite a plan file: two MRs were FAILed for exactly that.**
 
-**STEP 3 — the 12 TEAM column renames.** Unlike `!111` and `!112`, every one is a COMPUTED COLUMN
-in the season models, so each runs through model SQL, the ymls, the marts and the site. Measured:
-**~600 occurrences** across the set. **SPLIT IT BY FAMILY** — one diff for all twelve is not
-reviewable. That split is the builder's call, already taken; the NAMES are the CPO's and none moves.
+**STEP 3 — the 12 TEAM column renames, SPLIT INTO SIX MRs + a closing refresh.** Every one is a
+COMPUTED COLUMN in the season models, so each runs through model SQL, the ymls, the marts and the
+site. Re-measured on `1804a64`: **894 occurrences** in live surfaces (not the ~600 an earlier count
+gave — that was taken over a narrower path set), plus 1,532 in the generated sample. The split keys
+on the seed's own `metric_group` column, and is recorded in `escalations.log` under
+"2026-08-27 STEP 3 STARTS":
+**A** goals+outcomes ← IN REVIEW · **B** set_pieces+goalkeeping · **C** shooting shares ·
+**D** passing · **E** the deserved chain · **F** `finishing_efficiency` alone · **G** sample refresh.
+⭐ **Branch each MR from the main that already carries the previous one's record.**
 ⚠ The acceptance gate FIRES on step 3 (it touches `site_v2/src/`), so the contract needs
 `acceptance_criteria:` and the evidence a `criteria_demonstrated:` block. **Both keys at column 0,
 NOT as `##` headings** — that cost two commit denials in one session.
+⛔ **THE METRIC ROWS RENDER ON NO BUILT PAGE TODAY**, and this will bite every one of B–F the same
+way. Team 33's featured season is PL 2026 with ONE game played, below the `>= 3 finished games`
+benchmark floor, so `TeamPerformance.astro`'s `hasBench` guard renders the absent state for the
+whole tab. **Do not write an acceptance criterion that reads a metric row off the built page.**
+What IS demonstrable: the 16 metric NAMES render on the fixture pages, in all three locales.
+⛔ **NO OFFLINE GATE PINS THE THREE 22-NAME `accepted_values` LISTS** (two in
+`int_competition_benchmarks.yml`, one in `shared.yml`) to the columns they enumerate — proved by a
+mutation that survived the whole offline suite. Only `data:build:mr` catches a forgotten entry.
+Filed as its own issue; do not fold a new guard into a rename MR.
 
 **STEP 4** — the 35 player renames. **STEP 5** — the 9 English labels.
 

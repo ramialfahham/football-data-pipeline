@@ -82,13 +82,13 @@ select
         when games_with_save_stats < games_played then null else goalkeeper_saves
     end as goalkeeper_saves_sum_season,
     -- window-specific metrics (stay inline; same as the whole-season model)
-    safe_divide(points_won, 3 * games_played) as points_capture,
+    safe_divide(points_won, 3 * games_played) as points_capture_pct,
     case
         when games_with_team_stats < games_played then null
         when games_with_opp_stats < games_played then null
         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
     end as shot_share,
-    safe_divide(clean_sheet_games, games_played) as clean_sheets_share,
+    safe_divide(clean_sheet_games, games_played) as clean_sheets_pct,
     -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
     -- from int_team_season__metrics — this model is now their single home.
     safe_divide(goals_for, games_played) as goals_per_match,

@@ -26,9 +26,9 @@ checks as (
             else abs(goals_against_per_match * season_games_played - goals_against_sum_season)
         end as goals_against_per_match_err,
         case
-            when points_capture is null or points_won_sum_season is null then 0
-            else abs(points_capture * (3 * season_games_played) - points_won_sum_season)
-        end as points_capture_err,
+            when points_capture_pct is null or points_won_sum_season is null then 0
+            else abs(points_capture_pct * (3 * season_games_played) - points_won_sum_season)
+        end as points_capture_pct_err,
         case
             when shots_per_match is null or total_shots_sum_season is null then 0
             else abs(shots_per_match * season_games_played - total_shots_sum_season)
@@ -41,6 +41,6 @@ from checks
 where greatest(
     goals_per_match_err,
     goals_against_per_match_err,
-    points_capture_err,
+    points_capture_pct_err,
     shots_per_match_err
 ) > 0.001

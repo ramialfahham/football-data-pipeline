@@ -88,19 +88,19 @@ Yellow cards.
 
 
 {% docs clean_sheets %}
-Matches the team finished without conceding a goal, counted as whole matches.
-clean_sheets_share is the same measurement expressed as a proportion of the matches played.
+Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
+is the same measurement expressed as a proportion of the matches played.
 {% enddocs %}
 
 
-{% docs clean_sheets_share %}
+{% docs clean_sheets_pct %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
 number of matches.
 {% enddocs %}
 
 
-{% docs clean_sheets_share_delta_yoy__team %}
+{% docs clean_sheets_pct_delta_yoy__team %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
 number of matches. The change from the previous season to the current one, compared at the same
@@ -110,7 +110,7 @@ that was never loaded, and a season whose first matches are not fully stat-cover
 {% enddocs %}
 
 
-{% docs clean_sheets_share_prev_season__team %}
+{% docs clean_sheets_pct_prev_season__team %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
 number of matches. Value for the season before, through the same number of matches as the
@@ -119,7 +119,7 @@ rather than a part season against a full one.
 {% enddocs %}
 
 
-{% docs clean_sheets_share_this_season__team %}
+{% docs clean_sheets_pct_this_season__team %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
 number of matches. Value for the season now in progress, accumulated through the matches played
@@ -128,9 +128,9 @@ so far.
 
 
 {% docs clean_sheets_sum_season__team %}
-Matches the team finished without conceding a goal, counted as whole matches.
-clean_sheets_share is the same measurement expressed as a proportion of the matches played.
-Totalled over the season.
+Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
+is the same measurement expressed as a proportion of the matches played. Totalled over the
+season.
 {% enddocs %}
 
 
@@ -981,7 +981,7 @@ Penalties won.
 {% enddocs %}
 
 
-{% docs points_capture %}
+{% docs points_capture_pct %}
 Share of available points won (points / (3 * games)).
 {% enddocs %}
 

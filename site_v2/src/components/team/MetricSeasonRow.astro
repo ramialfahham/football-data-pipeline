@@ -2,7 +2,7 @@
 // One "vs last season" row (mock f6348775 .ss-row): metric name · current value · signed
 // year-over-year change (direction-aware green; percent rows read as "+N pp"). Value is the
 // season's served metric (from the benchmark); the delta is the served `{field}_delta_yoy` for the
-// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_share` on both
+// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_pct` on both
 // sides here. Null delta (e.g. save_ratio, no comparable prior season) renders the en-dash.
 // Display formatting only.
 import { formatValue, signedDelta } from "../../lib/format";

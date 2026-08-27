@@ -31,7 +31,7 @@ unpivot (
     metric_value for metric_key in (
         goals_per_match,
         goals_against_per_match,
-        clean_sheets_share,
+        clean_sheets_pct,
         shots_per_match,
         shot_accuracy,
         danger_zone_ratio,

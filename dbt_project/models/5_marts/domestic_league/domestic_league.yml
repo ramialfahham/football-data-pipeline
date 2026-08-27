@@ -107,8 +107,8 @@ models:
       - name: passes_accurate_sum_season
       - name: passes_total_sum_season
       - name: goalkeeper_saves_sum_season
-      - name: points_capture
-        description: "{{ doc('points_capture') }}"
+      - name: points_capture_pct
+        description: "{{ doc('points_capture_pct') }}"
       - name: goals_per_match
         description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match

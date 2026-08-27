@@ -73,7 +73,7 @@ select
     m.passes_accurate_sum_season,
     m.passes_total_sum_season,
     m.goalkeeper_saves_sum_season,
-    m.points_capture,
+    m.points_capture_pct,
     m.goals_per_match,
     m.goals_against_per_match,
     m.shots_per_match,
