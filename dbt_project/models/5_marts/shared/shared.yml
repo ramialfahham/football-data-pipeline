@@ -117,8 +117,8 @@ models:
           expression: "pass_accuracy is null or (pass_accuracy between 0 and 1)"
           name: momentum_team_pass_accuracy_in_range
       - dbt_utils.expression_is_true:
-          expression: "save_ratio is null or (save_ratio between 0 and 1)"
-          name: momentum_team_save_ratio_in_range
+          expression: "saves_pct is null or (saves_pct between 0 and 1)"
+          name: momentum_team_saves_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: momentum_team_duels_won_pct_in_range
@@ -184,12 +184,12 @@ models:
         description: "{{ doc('passes_per_match') }}"
       - name: pass_accuracy
         description: "{{ doc('pass_accuracy') }}"
-      - name: corner_kicks_per_match
-        description: "{{ doc('corner_kicks_per_match') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
       - name: corners_against_per_match
         description: "{{ doc('corners_against_per_match') }}"
-      - name: save_ratio
-        description: "{{ doc('save_ratio') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
       - name: key_passes_per_match
         description: "{{ doc('key_passes_per_match') }}"
       - name: tackles_per_match
@@ -706,12 +706,12 @@ models:
         description: "{{ doc('pass_accuracy') }}"
       - name: passes_per_match
         description: "{{ doc('passes_per_match') }}"
-      - name: corner_kicks_per_match
-        description: "{{ doc('corner_kicks_per_match') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
       - name: corners_against_per_match
         description: "{{ doc('corners_against_per_match') }}"
-      - name: save_ratio
-        description: "{{ doc('save_ratio') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
       - name: player_stat_coverage_season_games
       - name: shots_on_goal_per_match
         description: "{{ doc('shots_on_goal_per_match') }}"
@@ -817,24 +817,24 @@ models:
         description: "{{ doc('key_passes_per_match_prev_season__team') }}"
       - name: key_passes_per_match_delta_yoy
         description: "{{ doc('key_passes_per_match_delta_yoy__team') }}"
-      - name: corner_kicks_per_match_this_season
-        description: "{{ doc('corner_kicks_per_match_this_season__team') }}"
-      - name: corner_kicks_per_match_prev_season
-        description: "{{ doc('corner_kicks_per_match_prev_season__team') }}"
-      - name: corner_kicks_per_match_delta_yoy
-        description: "{{ doc('corner_kicks_per_match_delta_yoy__team') }}"
+      - name: corners_per_match_this_season
+        description: "{{ doc('corners_per_match_this_season__team') }}"
+      - name: corners_per_match_prev_season
+        description: "{{ doc('corners_per_match_prev_season__team') }}"
+      - name: corners_per_match_delta_yoy
+        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
       - name: corners_against_per_match_this_season
         description: "{{ doc('corners_against_per_match_this_season__team') }}"
       - name: corners_against_per_match_prev_season
         description: "{{ doc('corners_against_per_match_prev_season__team') }}"
       - name: corners_against_per_match_delta_yoy
         description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
-      - name: save_ratio_this_season
-        description: "{{ doc('save_ratio_this_season__team') }}"
-      - name: save_ratio_prev_season
-        description: "{{ doc('save_ratio_prev_season__team') }}"
-      - name: save_ratio_delta_yoy
-        description: "{{ doc('save_ratio_delta_yoy__team') }}"
+      - name: saves_pct_this_season
+        description: "{{ doc('saves_pct_this_season__team') }}"
+      - name: saves_pct_prev_season
+        description: "{{ doc('saves_pct_prev_season__team') }}"
+      - name: saves_pct_delta_yoy
+        description: "{{ doc('saves_pct_delta_yoy__team') }}"
       - name: unbeaten_run
       - name: win_run
       - name: winless_run
@@ -867,8 +867,8 @@ models:
           expression: "pass_accuracy is null or (pass_accuracy between 0 and 1)"
           name: std_team_pass_accuracy_in_range
       - dbt_utils.expression_is_true:
-          expression: "save_ratio is null or (save_ratio between 0 and 1)"
-          name: std_team_save_ratio_in_range
+          expression: "saves_pct is null or (saves_pct between 0 and 1)"
+          name: std_team_saves_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: std_team_duels_won_pct_in_range
@@ -947,12 +947,12 @@ models:
         description: "{{ doc('passes_per_match') }}"
       - name: pass_accuracy
         description: "{{ doc('pass_accuracy') }}"
-      - name: corner_kicks_per_match
-        description: "{{ doc('corner_kicks_per_match') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
       - name: corners_against_per_match
         description: "{{ doc('corners_against_per_match') }}"
-      - name: save_ratio
-        description: "{{ doc('save_ratio') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
       - name: key_passes_per_match
         description: "{{ doc('key_passes_per_match') }}"
       - name: tackles_per_match
@@ -2077,7 +2077,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]

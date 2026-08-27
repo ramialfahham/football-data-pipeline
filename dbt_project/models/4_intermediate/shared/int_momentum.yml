@@ -48,14 +48,14 @@ models:
         description: "Count of window legs with opponent team stats present. Denominator/gate for corners_against_per_match."
         tests: [not_null]
       - name: games_with_save_stats
-        description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
+        description: "Count of window legs with goalkeeper_saves present — saves_pct's own coverage bucket (saves can be null where other team stats are present), used to NULL saves_pct on partial coverage."
         tests: [not_null]
       - name: goals_penalty
         description: "{{ doc('goals_penalty__team') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: goals_against_in_save_games
-        description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
+        description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps saves_pct same-window."
       - name: contributing_competitions
         description: "{{ doc('contributing_competitions') }}"
         tests: [not_null]

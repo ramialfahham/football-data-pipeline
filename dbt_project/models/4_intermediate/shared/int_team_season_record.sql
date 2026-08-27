@@ -111,7 +111,7 @@ select
     -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)
     sum(case when opponent_shots_on_goal is not null then 1 else 0 end) over w
         as games_with_opp_sot_stats,
-    -- save coverage (cumulative): save_ratio is a team-feed (goalkeeper) metric, so it needs its
+    -- save coverage (cumulative): saves_pct is a team-feed (goalkeeper) metric, so it needs its
     -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
         as games_with_save_stats,
@@ -120,7 +120,7 @@ select
     -- window is fully shot-covered, so no coverage-restricted goals sum is needed.
     sum(goals_penalty) over w as goals_penalty,
     sum(goals_own) over w as goals_own,
-    -- coverage-restricted scoreline sum keeps save_ratio same-window with its denominator
+    -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
         as goals_against_in_save_games,
     -- team stats (cumulative)

@@ -1,560 +1,584 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 116fe2e..7034e10 100644
+index 7034e10..f760e59 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,164 +1,271 @@
--# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
-+# Task contract — rename the team metrics `clean_sheets_share` to `clean_sheets_pct` and `points_capture` to `points_capture_pct`
+@@ -1,62 +1,55 @@
+-# Task contract — rename the team metrics `clean_sheets_share` to `clean_sheets_pct` and `points_capture` to `points_capture_pct`
++# Task contract — rename `corner_kicks_per_match` to `corners_per_match` and `save_ratio` to `saves_pct`
  
  objective: >
--  Step 2 of the catalogue naming programme. Two renames, both of the same kind as `goals_for` to
--  `goals` in step 1: the METRIC is renamed, the columns keep their names.
--
--  `corner_kicks` and `goalkeeper_saves` are the only two team metrics whose names carry a wording
--  the rest of the catalogue does not use. The team's own conceded version is already
--  `corners_against_per_match`, so `corner_kicks` is the odd one; and the player's equivalent metric
--  is already plain `saves`, so the `goalkeeper_` qualifier exists on one side only.
--
--  ⛔ THE COLUMNS KEEP THEIR NAMES, and the reason is measured, not assumed. Both names are also
--  per-match provider columns flowing up through the layers — `fct_fixture_team_stats`,
--  `int_legs__team_match`, `int_team_momentum__metrics`, `int_team_momentum_window`,
--  `int_team_season_record`, `mart_team_fixture_stats`. The METRICS are season totals whose model
--  column is `corner_kicks_sum_season` / `goalkeeper_saves_sum_season`, a different grain under a
--  different name. Renaming the metric therefore touches no model SQL, exactly like step 1.
--
--  ⭐ WHAT THIS EXCLUDES, AND WHY THE SPLIT MOVED. The approved plan bundled `sot_points_gap` with
--  these two as "catalogue-only". Measured on the branch, that is WRONG: `sot_points_gap` IS a model
--  column, declared in `int_team_season__deserved_vs_actual` and `mart_team_profile`. It belongs
--  with the ten column renames, not here, and has been moved there. The names the CPO ruled do not
--  change; only which MR carries this one does.
--
--  MEASURED BEFORE ANY EDIT, so the contract is not amended mid-flight the way step 1's was:
--  **24 description references move.**
--    · 6 × `doc('corner_kicks')` → `doc('corners')`. No split: no player metric is called corners.
--    · 6 × `doc('goalkeeper_saves')` → `doc('saves__team')`
--    · 12 × `doc('saves')` → `doc('saves__player')`
--  The last two follow from a predicted BLOCK SPLIT: after the rename `saves` exists for both
--  entities with different formulas (team `sum(goalkeeper_saves)`, player `sum(saves)`), so
--  `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule and replaces the bare `saves`
--  block with `saves__team` and `saves__player`. This is the same mechanism that surprised step 1;
--  here it is predicted up front.
--
--  All 24 classified by reading which MODEL the column sits on, not by the name. All 6
--  `goalkeeper_saves` references are on team-grain models; all 12 `saves` references are on
--  player-grain models (`fct_fixture_player_stats`, `int_player_season__metrics`,
--  `int_legs__player_match`, `int_player_momentum__metrics`, `int_player_club_season__metrics`,
--  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
--  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
--  `mart_player_match_log`). No ambiguous case in this set.
-+  Step 3 of the catalogue naming programme, MR A of six. Two renames from the `goals` and
-+  `outcomes` metric groups, both of the same shape: a share metric gains the `_pct` suffix the
-+  programme's pattern requires, and `clean_sheets_share` loses the now-doubled `share` word.
+-  Step 3 of the catalogue naming programme, MR A of six. Two renames from the `goals` and
+-  `outcomes` metric groups, both of the same shape: a share metric gains the `_pct` suffix the
+-  programme's pattern requires, and `clean_sheets_share` loses the now-doubled `share` word.
++  Step 3 of the catalogue naming programme, MR B of six. Two renames from the `set_pieces` and
++  `goalkeeping` groups, and they belong together because they close the SAME transient: `!112`
++  renamed the totals `corner_kicks` → `corners` and `goalkeeper_saves` → `saves` and left both
++  rates behind, so main has said `corners` beside `corner_kicks_per_match` since it merged. That
++  was disclosed at the time as a live transient; this closes it.
+ 
+-  ⛔ THIS STEP IS NOT LIKE STEPS 1 AND 2, and that is the whole reason it is split into six MRs.
+-  `!111` (`goals_for` → `goals`) and `!112` (`corner_kicks` → `corners`, `goalkeeper_saves` →
+-  `saves`) were catalogue-only: the metric moved, the model column stayed, because the column was a
+-  provider name that read correctly beside its siblings. Here the metric IS the column. Both names
+-  are computed in `int_team_season__metrics_cumulative`, so each runs through model SQL, the ymls,
+-  the marts and the site.
++  Both are COMPUTED COLUMNS in `int_team_season__metrics_cumulative`, so unlike `!111`/`!112` each
++  runs through model SQL, the ymls, the marts and the site.
+ 
+-  ⭐ THE COLUMN MUST FOLLOW, AND THAT IS MACHINE-CHECKED, NOT TASTE.
++  ⭐ THE COLUMN MUST FOLLOW THE METRIC, and it is machine-checked rather than a matter of taste:
+   `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` requires every metric-bearing column
+-  of `int_team_season__metrics` to be a registered `metric_id`. Renaming the `metric_id` and leaving
+-  the column would fail that test on the next build. The same test is why the reverse — renaming the
+-  column without the metric — is also not an option.
++  of `int_team_season__metrics` to be a registered `metric_id`.
+ 
+-  MEASURED ON THIS BRANCH BEFORE ANY EDIT, so no number here is copied from an earlier count:
+-  **105 occurrences across 25 files** (`git grep -o -E 'clean_sheets_share|points_capture'` over the
+-  scope set below). Of those, 7 are in the GENERATED `models/docs/metric_columns.md` and are
+-  produced by `scripts/sync_metric_docs_blocks.py`, never hand-edited.
++  MEASURED ON THIS BRANCH BEFORE ANY EDIT: **196 occurrences across 34 files**.
+ 
+-  ⭐ NO DESCRIPTION-BLOCK SPLIT IS EXPECTED, and it was checked rather than assumed — the mechanism
+-  that surprised `!111` mid-flight. Both metrics are team-only in the catalogue (verified: the seed
+-  holds one row each, `entity=team`), and neither `clean_sheets_pct` nor `points_capture_pct` exists
+-  for any entity today, so `sync_metric_docs_blocks.py` emits a bare block for each new name and no
+-  `__team`/`__player` pair appears. `doc('clean_sheets_share')` → `doc('clean_sheets_pct')` and
+-  `doc('points_capture')` → `doc('points_capture_pct')`, one for one. The regeneration is the proof,
+-  not this sentence.
++  ⭐ NO DESCRIPTION-BLOCK SPLIT, checked rather than assumed — the mechanism that surprised `!111`
++  mid-flight. Both metrics are team-only, and neither `corners_per_match` nor `saves_pct` exists for
++  any entity today, so the generator emits one bare block each. ⚠ Note `saves` and `corners` DO now
++  exist as team metrics (from `!112`) — `saves_pct` and `corners_per_match` are distinct ids and
++  collide with neither. The regeneration is the proof, not this sentence.
 +
-+  ⛔ THIS STEP IS NOT LIKE STEPS 1 AND 2, and that is the whole reason it is split into six MRs.
-+  `!111` (`goals_for` → `goals`) and `!112` (`corner_kicks` → `corners`, `goalkeeper_saves` →
-+  `saves`) were catalogue-only: the metric moved, the model column stayed, because the column was a
-+  provider name that read correctly beside its siblings. Here the metric IS the column. Both names
-+  are computed in `int_team_season__metrics_cumulative`, so each runs through model SQL, the ymls,
-+  the marts and the site.
-+
-+  ⭐ THE COLUMN MUST FOLLOW, AND THAT IS MACHINE-CHECKED, NOT TASTE.
-+  `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` requires every metric-bearing column
-+  of `int_team_season__metrics` to be a registered `metric_id`. Renaming the `metric_id` and leaving
-+  the column would fail that test on the next build. The same test is why the reverse — renaming the
-+  column without the metric — is also not an option.
-+
-+  MEASURED ON THIS BRANCH BEFORE ANY EDIT, so no number here is copied from an earlier count:
-+  **105 occurrences across 25 files** (`git grep -o -E 'clean_sheets_share|points_capture'` over the
-+  scope set below). Of those, 7 are in the GENERATED `models/docs/metric_columns.md` and are
-+  produced by `scripts/sync_metric_docs_blocks.py`, never hand-edited.
-+
-+  ⭐ NO DESCRIPTION-BLOCK SPLIT IS EXPECTED, and it was checked rather than assumed — the mechanism
-+  that surprised `!111` mid-flight. Both metrics are team-only in the catalogue (verified: the seed
-+  holds one row each, `entity=team`), and neither `clean_sheets_pct` nor `points_capture_pct` exists
-+  for any entity today, so `sync_metric_docs_blocks.py` emits a bare block for each new name and no
-+  `__team`/`__player` pair appears. `doc('clean_sheets_share')` → `doc('clean_sheets_pct')` and
-+  `doc('points_capture')` → `doc('points_capture_pct')`, one for one. The regeneration is the proof,
-+  not this sentence.
++  ⭐ THIS IS THE FIRST MR OF THE STEP TO TOUCH THE FROZEN `site/` TREE, and only where a live gate
++  forces it. Both names are in `site/match-preview/metric_bindings.csv`, so
++  `tests/test_metric_bindings.py` (which regenerates `metric_definitions.json` and asserts
++  byte-identity) and `scripts/check_ui_i18n_metrics.py` (CI `validate:ui`, which requires
++  `metrics.<catalogue_metric_id>` to exist in `site/i18n/*.json`) would both go red otherwise.
  
  refs: >
--  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME"**, the
--  entry that records all six rulings of this programme in the CPO's own words. These two renames
--  come from its final ruling, verbatim: "apply the suggested changes to ensure consistency".
--  **That list is now ENUMERATED in the log entry itself**, items 4 and 5, so a reader can verify
--  these two renames were among the six without taking this contract's word for it.
--
--  ⛔ ROUND 2 FAILED BECAUSE THAT ENUMERATION WAS MISSING, and scope-auditor's finding was exact:
--  the log held the blanket approval but not the list it answered, so this contract's claim about
--  what the list contained was "the builder's own unrecorded reconstruction dressed as the record".
--  Fixed by completing the log, which now also discloses that the enumeration was added late and
--  why. Two other reviewers saw the same gap and declined to fail on it; completing the record makes
--  that disagreement moot rather than resolving it in my favour.
--  Branched from main **`2dddf38`**, clean tree, which is main AFTER `!111` merged and therefore
--  the first commit that carries the ruling entry this contract cites.
--
--  ⛔ ROUND 1 FAILED ON EXACTLY THAT, ALL THREE REVIEWERS, AND THEY WERE RIGHT. The branch was
--  originally cut from `d95a04f`, main BEFORE `!111`. The entry was real and committed, but it lived
--  on the `!111` branch, so from this diff the citation pointed at nothing: `escalations.log` was
--  5337 lines here and 5407 there. One reviewer reasonably called it "apparently fabricated", which
--  is the correct reading from a branch that cannot see the record. Fixed by moving this work onto
--  post-`!111` main rather than by rewording the citation.
--  ⭐ THE LESSON, and it is the third variant of one root cause in this session: the RECORD AND THE
--  WORK MUST TRAVEL TOGETHER. First the rulings were not written down at all; then they were written
--  down but the next change was built where they could not be seen.
-+  **`.claude/task/escalations.log`, the block "THE METRIC CATALOGUE NAMING PROGRAMME"** — its
-+  rulings section dated 2026-08-26, and the complete rename tables appended 2026-08-27 under
-+  "⭐⭐ THE COMPLETE RENAME LIST, WRITTEN INTO THE RECORD 2026-08-27 SO IT CANNOT BE LOST". Both
-+  renames appear verbatim in that entry's "⛔ TEAM, 12 REMAINING" table:
-+  `clean_sheets_share → clean_sheets_pct` and `points_capture → points_capture_pct`.
-+
-+  Their authority is RULING 1, quoted in the same entry in the CPO's own words: "points_capture
-+  becomes points_capture_pct / ... / clean_sheets_share becomes clean_sheets_share_pct / ...",
-+  narrowed by RULING 3 on doubled suffixes, also verbatim: "use the shorter as recommended" — which
-+  is why `clean_sheets_share_pct` became `clean_sheets_pct`. The log records the shortening as
-+  already applied, so this contract asserts nothing the record does not hold.
-+
-+  ⛔ NO PLAN FILE IS CITED, DELIBERATELY. `feat/metric-rename-goals` and
-+  `feat/metric-rename-catalogue-only` were each FAILed by scope-auditor for citing a plan file
-+  outside the repo for a naming decision. The tables now live in the log itself.
-+
-+  Branched from main **`1804a64`**, clean tree — the merge commit of `!113`, which is the first
-+  commit on main carrying the 2026-08-27 rename tables this contract cites. Branching from
-+  `dd01215` (the previous main, and what the local checkout was stale at) would have reproduced the
-+  session's own recorded failure variant: a citation that points at nothing when read from the
-+  branch's own diff.
+   **`.claude/task/escalations.log`, the block "THE METRIC CATALOGUE NAMING PROGRAMME"** — its
+-  rulings section dated 2026-08-26, and the complete rename tables appended 2026-08-27 under
+-  "⭐⭐ THE COMPLETE RENAME LIST, WRITTEN INTO THE RECORD 2026-08-27 SO IT CANNOT BE LOST". Both
+-  renames appear verbatim in that entry's "⛔ TEAM, 12 REMAINING" table:
+-  `clean_sheets_share → clean_sheets_pct` and `points_capture → points_capture_pct`.
++  rulings dated 2026-08-26 and the complete tables appended 2026-08-27. Both renames appear verbatim
++  in the "⛔ TEAM, 12 REMAINING" table: `corner_kicks_per_match → corners_per_match` and
++  `save_ratio → saves_pct`.
+ 
+-  Their authority is RULING 1, quoted in the same entry in the CPO's own words: "points_capture
+-  becomes points_capture_pct / ... / clean_sheets_share becomes clean_sheets_share_pct / ...",
+-  narrowed by RULING 3 on doubled suffixes, also verbatim: "use the shorter as recommended" — which
+-  is why `clean_sheets_share_pct` became `clean_sheets_pct`. The log records the shortening as
+-  already applied, so this contract asserts nothing the record does not hold.
++  Authority for `save_ratio` → `saves_pct` is RULING 1 ("save_ratiobecomes save_ratio_pct") as
++  narrowed by RULING 3 on doubled suffixes ("use the shorter as recommended") and by item 3 of the
++  enumerated six (`save_pct` / `save_player_pct` → `saves_pct` / `saves_player_pct`, singular where
++  the family is plural). Authority for `corner_kicks_per_match` → `corners_per_match` is item 5 of
++  that same enumerated six, whose stated reason is that the team's own conceded version is already
++  `corners_against_per_match`. The CPO's reply to the six, verbatim: "apply the suggested changes to
++  ensure consistency."
+ 
+-  ⛔ NO PLAN FILE IS CITED, DELIBERATELY. `feat/metric-rename-goals` and
+-  `feat/metric-rename-catalogue-only` were each FAILed by scope-auditor for citing a plan file
+-  outside the repo for a naming decision. The tables now live in the log itself.
++  ⛔ NO PLAN FILE IS CITED. `feat/metric-rename-goals` and `feat/metric-rename-catalogue-only` were
++  each FAILed for citing one; the tables live in the log itself.
+ 
+-  Branched from main **`1804a64`**, clean tree — the merge commit of `!113`, which is the first
+-  commit on main carrying the 2026-08-27 rename tables this contract cites. Branching from
+-  `dd01215` (the previous main, and what the local checkout was stale at) would have reproduced the
+-  session's own recorded failure variant: a citation that points at nothing when read from the
+-  branch's own diff.
++  Branched from main **`a70b7e2`**, clean tree — main after `!114`, so it carries the step-3 record
++  AND the `!115` CI fix this branch's pipeline depends on.
  
  scope_paths:
    - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/seeds/schema.yml
+-  - dbt_project/seeds/schema.yml
    - dbt_project/models/docs/metric_columns.md
--  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
    - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_legs.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-+  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-+  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-+  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
-+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -64,22 +57,30 @@ scope_paths:
+   - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+   - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+   - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+   - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_team_season_record.sql
++  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
    - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
-+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+  - dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-+  - docs/wireframes/02_team_profile.md
-+  - docs/wireframes/10_home.md
-+  - docs/wireframes/14_team_stats.md
-+  - docs/wireframes/metrics_display.md
-+  - site_v2/src/lib/metricRows.ts
-+  - site_v2/src/lib/types.ts
-+  - site_v2/src/i18n/strings.ts
-+  - site_v2/src/specs/teams/team.spec.json
-+  - site_v2/src/components/team/TeamPerformance.astro
-+  - site_v2/src/components/team/MetricSeasonRow.astro
-+  - site_v2/src/components/team/MetricLeagueRow.astro
+   - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+   - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+-  - dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+   - docs/wireframes/02_team_profile.md
+-  - docs/wireframes/10_home.md
+   - docs/wireframes/14_team_stats.md
+   - docs/wireframes/metrics_display.md
++  - site/match-preview/metric_bindings.csv
++  - site/match-preview/metric_definitions.json
++  - site/i18n/de.json
++  - site/i18n/en.json
++  - site/i18n/fi.json
+   - site_v2/src/lib/metricRows.ts
+-  - site_v2/src/lib/types.ts
+   - site_v2/src/i18n/strings.ts
+   - site_v2/src/specs/teams/team.spec.json
+-  - site_v2/src/components/team/TeamPerformance.astro
++  - site_v2/src/specs/competition/matches/fixture.spec.json
+   - site_v2/src/components/team/MetricSeasonRow.astro
+-  - site_v2/src/components/team/MetricLeagueRow.astro
    - .claude/task/contract.md
    - .claude/task/escalations.log
    - .claude/task/review.md
-   - .claude/task/acceptance_evidence.md
+@@ -87,14 +88,14 @@ scope_paths:
    - .claude/active_work.md
  
--# ⚠ NO model SQL. NO column renamed. NO frontend file, so the acceptance gate does not fire.
--# `metric_columns.md` is GENERATED — regenerate, never hand-edit.
-+# ⚠ NOT IN SCOPE, each for a stated reason rather than by omission:
-+#  · site_v2/src/data/** — the GENERATED export sample. It is regenerated by
-+#    scripts/export_site_data.py against the PROD marts and cannot carry the new keys until
-+#    data:build:main has materialised them, i.e. after this merges. Never hand-edited (the fake
-+#    that motivated bi-analyst-reviewer's routing was two metrics typed into this sample). The
-+#    resulting transient is declared under decisions_taken and closes in the step's final MR.
-+#  · site/** — neither name appears in the retired MVP's bindings, i18n corpus or manifest
-+#    (verified: `git grep -l -E 'clean_sheets_share|points_capture' -- site/` is empty), so no
-+#    frozen file is touched by this MR at all.
-+#  · docs/audits/**, docs/match_preview_pages_refinement.md, docs/working_agreement.md — records of
-+#    HISTORY. Renaming inside a record of what happened falsifies the record.
+ # ⚠ NOT IN SCOPE, each for a stated reason rather than by omission:
+-#  · site_v2/src/data/** — the GENERATED export sample. It is regenerated by
+-#    scripts/export_site_data.py against the PROD marts and cannot carry the new keys until
+-#    data:build:main has materialised them, i.e. after this merges. Never hand-edited (the fake
+-#    that motivated bi-analyst-reviewer's routing was two metrics typed into this sample). The
+-#    resulting transient is declared under decisions_taken and closes in the step's final MR.
+-#  · site/** — neither name appears in the retired MVP's bindings, i18n corpus or manifest
+-#    (verified: `git grep -l -E 'clean_sheets_share|points_capture' -- site/` is empty), so no
+-#    frozen file is touched by this MR at all.
++#  · site_v2/src/data/** — the GENERATED export sample, regenerated from the PROD marts and unable
++#    to carry the new columns until data:build:main has run. Never hand-edited. The declared
++#    transient below; closes in the step's final refresh MR.
++#  · site/match-preview/metric_manifest.json — holds the retired MVP's own `live_id`s
++#    (`save_ratio_recent`, `corner_kicks_per_match_recent`). Those are that product's display ids,
++#    not catalogue ids; `check_ui_i18n_metrics.py` maps them THROUGH the bindings, so they stay
++#    valid untouched. `points_won_form` already shows a live_id that names no catalogue metric.
++#  · site/team-season/index.html — a page of the product RETIRED on 2026-07-21. No gate reads it.
+ #  · docs/audits/**, docs/match_preview_pages_refinement.md, docs/working_agreement.md — records of
+ #    HISTORY. Renaming inside a record of what happened falsifies the record.
  
- protected_override: >
-   none required. No file in scope_paths is protected.
+@@ -103,13 +104,17 @@ protected_override: >
  
  impact_map: >
--  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
--    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
-+  writers: `int_team_season__metrics_cumulative` is the single home of both formulas —
-+    `safe_divide(points_won, 3 * games_played) as points_capture` and
-+    `safe_divide(clean_sheet_games, games_played) as clean_sheets_share`. Nothing else computes
-+    either; `int_team_season__metrics` is its final-row projection and carries them through
-+    `select sf.* except (match_number)`, so it is not edited and cannot drift.
+   writers: `int_team_season__metrics_cumulative` is the single home of both formulas —
+-    `safe_divide(points_won, 3 * games_played) as points_capture` and
+-    `safe_divide(clean_sheet_games, games_played) as clean_sheets_share`. Nothing else computes
+-    either; `int_team_season__metrics` is its final-row projection and carries them through
++    `safe_divide(corner_kicks, games_with_team_stats) as corner_kicks_per_match` and the
++    save-coverage-gated `safe_divide(goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games)
++    as save_ratio`. `int_team_season__metrics` is its final-row projection via
+     `select sf.* except (match_number)`, so it is not edited and cannot drift.
++    ⚠ `mart_team_momentum` computes BOTH AGAIN — it is a second copy of ~20 team formulas and is
++    open as **#93**. Its columns carry the same metric names and are renamed here too; the
++    duplication itself is NOT addressed by this MR and #93 stays open.
  
--  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
--    alter any model's `depends_on`.
-+  downstream: pasted from `dbt ls --select int_team_season__metrics_cumulative+ --resource-type
-+    model` run on this branch (dbt 1.7.19, `.venv/Scripts/dbt.exe`), not asserted from memory:
-+      4_intermediate.shared.int_team_competition_benchmark_metrics_long
-+      4_intermediate.shared.int_team_competition_benchmarks
-+      4_intermediate.shared.int_team_profile__yoy
-+      4_intermediate.domestic_league.team_season.int_team_season__deserved_vs_actual
-+      4_intermediate.domestic_league.team_season.int_team_season__metrics
-+      4_intermediate.domestic_league.team_season.int_team_season__metrics_cumulative
-+      5_marts.shared.mart_team_competition_benchmarks
-+      5_marts.shared.mart_team_profile
-+      5_marts.shared.mart_team_season
-+      5_marts.domestic_league.mart_team_season_insights
-+      5_marts.shared.mart_team_season_record
-+    Of those, four name a column and are edited: `int_team_competition_benchmark_metrics_long`
-+    (the UNPIVOT list), `int_team_profile__yoy`, `mart_team_profile`, `mart_team_season_insights`.
-+    `int_team_season__metrics`, `int_team_competition_benchmarks`, `mart_team_season`,
-+    `mart_team_competition_benchmarks` and `mart_team_season_record` propagate by `select *` /
-+    `select * except`, so their OUTPUT changes while their SQL does not.
-+    `int_team_season__deserved_vs_actual` reads neither name (verified by grep) — it is downstream
-+    of the model, not of these two columns.
+   downstream: pasted from `dbt ls --select int_team_season__metrics_cumulative+ --resource-type
+-    model` run on this branch (dbt 1.7.19, `.venv/Scripts/dbt.exe`), not asserted from memory:
++    model` run on this branch (dbt 1.7.19, `.venv/Scripts/dbt.exe`) BEFORE the first structural
++    edit, not asserted from memory:
+       4_intermediate.shared.int_team_competition_benchmark_metrics_long
+       4_intermediate.shared.int_team_competition_benchmarks
+       4_intermediate.shared.int_team_profile__yoy
+@@ -121,151 +126,103 @@ impact_map: >
+       5_marts.shared.mart_team_season
+       5_marts.domestic_league.mart_team_season_insights
+       5_marts.shared.mart_team_season_record
+-    Of those, four name a column and are edited: `int_team_competition_benchmark_metrics_long`
++    ⚠ THAT LIST IS NOT THE WHOLE EDIT SET, and saying so matters. `mart_team_momentum`,
++    `int_team_momentum__metrics` and `mart_matchday_insights` do NOT appear in it because they are
++    not downstream of the cumulative model — `mart_team_momentum` computes both metrics AGAIN from
++    the momentum window (#93), and `mart_matchday_insights` reads THAT. They are edited anyway,
++    which is exactly why a lineage list must be read as evidence and not as the file list.
++    Of the eleven above, four name a column and are edited: `int_team_competition_benchmark_metrics_long`
+     (the UNPIVOT list), `int_team_profile__yoy`, `mart_team_profile`, `mart_team_season_insights`.
+-    `int_team_season__metrics`, `int_team_competition_benchmarks`, `mart_team_season`,
+-    `mart_team_competition_benchmarks` and `mart_team_season_record` propagate by `select *` /
+-    `select * except`, so their OUTPUT changes while their SQL does not.
+-    `int_team_season__deserved_vs_actual` reads neither name (verified by grep) — it is downstream
+-    of the model, not of these two columns.
+-
+-  layer_rules: `scripts/check_layer_contract.py` — no per-competition staging subdirectory is
+-    created and no model overrides its layer materialisation; both names stay inside
+-    4_intermediate/5_marts, so no layer boundary moves. `assert_no_uncatalogued_season_metric`
+-    (column ⇄ catalogue identity) and the THREE `accepted_values` lists of the 22 benchmark
+-    metric_keys — two in `int_competition_benchmarks.yml` (lines 27 and 66) and a third in
+-    `shared.yml` (line 2080, on `mart_team_competition_benchmarks`) — are the guards that MUST move
+-    with the rename or the build goes red; that is the intended coupling, not collateral.
+-    ⚠ The count is THREE, not the two an earlier draft of this contract asserted. The `shared.yml`
+-    copy was found by grepping for the list rather than by recalling where it lived, and the number
+-    is corrected here rather than left for a reviewer to catch.
+-    ⛔ AND NO OFFLINE GATE ENFORCES THAT COUPLING — measured, not assumed. Reverting one entry of the
+-    `int_competition_benchmarks.yml` list to the old name left `dbt parse`, the docs-block check,
+-    description hygiene and the metric/benchmark/catalogue pytest selection ALL GREEN. The only
+-    guard that fires is the warehouse `accepted_values` test inside `data:build:mr`. That gap is a
+-    real finding of this task, it is NOT closed here (a new guard is out of this contract's scope),
+-    and it is filed rather than folded in.
+-
+-  deploy_order: none needed, and this was checked rather than waved through. No touched model is
+-    incremental — `int_team_season__metrics_cumulative`, `int_team_season__metrics`,
+-    `int_team_profile__yoy`, `mart_team_profile` and `mart_team_season_insights` are all
+-    `materialized='table'`; `mart_team_season_record` and `mart_team_competition_benchmarks` are
+-    views; `dbt_project.yml` declares no `incremental` anywhere. So the recorded
+-    "renaming a column on an incremental fact NULLs history without --full-refresh" hazard does not
+-    fire here. `data:build:main` rebuilds every affected table in one pass on merge. There is no
+-    nightly SCHEDULE on GitLab today, so nothing races the merge.
+-
+-  blast_radius: two columns change name on `int_team_season__metrics_cumulative`,
+-    `int_team_season__metrics`, `mart_team_season`, `mart_team_season_insights`,
+-    `mart_team_season_record` and `mart_team_profile` (the last also via its three yoy forms
+-    `_this_season`, `_prev_season`, `_delta_yoy`); two `metric_key` VALUES change on
+-    `int_team_competition_benchmark_metrics_long`, `int_team_competition_benchmarks` and
+-    `mart_team_competition_benchmarks`. **No number changes.** Every formula, coverage gate and
+-    denominator is byte-identical before and after; this is a rename, and the value-equivalence
+-    checker parked as #91 exists to prove exactly that class of claim once it ships.
+-    Consumption: `scripts/export_site_data.py` copies mart keys through unchanged, so the committed
+-    sample keeps the OLD keys until it is regenerated after merge — the declared transient below.
++    `int_team_season__metrics`, `int_team_competition_benchmarks`, `mart_team_season` and
++    `mart_team_competition_benchmarks` propagate by `select *`, so their OUTPUT changes while their
++    SQL does not. `int_team_season__deserved_vs_actual` reads neither name (verified by grep).
++
++  layer_rules: `check_layer_contract.py`; both names stay inside 4_intermediate/5_marts, so no
++    layer boundary moves. The coupled guards are `assert_no_uncatalogued_season_metric` (column ⇄
++    catalogue identity) and the THREE 22-name `accepted_values` lists — two in
++    `int_competition_benchmarks.yml`, one in `shared.yml`.
++    ⛔ NO OFFLINE GATE ENFORCES THOSE THREE LISTS — proved by a surviving mutation on `!114` and
++    filed as **#96**. Only the warehouse `accepted_values` test in `data:build:mr` catches a
++    forgotten entry, so they get checked by eye here as well as by the build.
++
++  deploy_order: none needed. No touched model is incremental; `data:build:main` rebuilds every
++    affected table in one pass on merge.
++
++  blast_radius: two columns rename on the season, momentum, record and profile models plus
++    `mart_team_profile`'s three yoy forms; two `metric_key` VALUES change on the benchmark chain;
++    and two `home_*_recent` / `away_*_recent` aliases change on `mart_matchday_insights`, which
++    feeds only the retired MVP's export. **No number changes** — every formula and coverage gate is
++    byte-identical.
  
--  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
--    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
--    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
--    int_player_season_position.yml 1 · shared.yml 7. Total 24.
-+  layer_rules: `scripts/check_layer_contract.py` — no per-competition staging subdirectory is
-+    created and no model overrides its layer materialisation; both names stay inside
-+    4_intermediate/5_marts, so no layer boundary moves. `assert_no_uncatalogued_season_metric`
-+    (column ⇄ catalogue identity) and the THREE `accepted_values` lists of the 22 benchmark
-+    metric_keys — two in `int_competition_benchmarks.yml` (lines 27 and 66) and a third in
-+    `shared.yml` (line 2080, on `mart_team_competition_benchmarks`) — are the guards that MUST move
-+    with the rename or the build goes red; that is the intended coupling, not collateral.
-+    ⚠ The count is THREE, not the two an earlier draft of this contract asserted. The `shared.yml`
-+    copy was found by grepping for the list rather than by recalling where it lived, and the number
-+    is corrected here rather than left for a reviewer to catch.
-+    ⛔ AND NO OFFLINE GATE ENFORCES THAT COUPLING — measured, not assumed. Reverting one entry of the
-+    `int_competition_benchmarks.yml` list to the old name left `dbt parse`, the docs-block check,
-+    description hygiene and the metric/benchmark/catalogue pytest selection ALL GREEN. The only
-+    guard that fires is the warehouse `accepted_values` test inside `data:build:mr`. That gap is a
-+    real finding of this task, it is NOT closed here (a new guard is out of this contract's scope),
-+    and it is filed rather than folded in.
- 
--  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
--    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
--    files. The total of 24 was right and every individual reference was correct, but the
--    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
--    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
--    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
--    artifact that had already failed once on authority in the same round.
-+  deploy_order: none needed, and this was checked rather than waved through. No touched model is
-+    incremental — `int_team_season__metrics_cumulative`, `int_team_season__metrics`,
-+    `int_team_profile__yoy`, `mart_team_profile` and `mart_team_season_insights` are all
-+    `materialized='table'`; `mart_team_season_record` and `mart_team_competition_benchmarks` are
-+    views; `dbt_project.yml` declares no `incremental` anywhere. So the recorded
-+    "renaming a column on an incremental fact NULLs history without --full-refresh" hazard does not
-+    fire here. `data:build:main` rebuilds every affected table in one pass on merge. There is no
-+    nightly SCHEDULE on GitLab today, so nothing races the merge.
- 
--  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
--    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
--    player columns the text also stays, since the split preserves each entity's own definition.
-+  blast_radius: two columns change name on `int_team_season__metrics_cumulative`,
-+    `int_team_season__metrics`, `mart_team_season`, `mart_team_season_insights`,
-+    `mart_team_season_record` and `mart_team_profile` (the last also via its three yoy forms
-+    `_this_season`, `_prev_season`, `_delta_yoy`); two `metric_key` VALUES change on
-+    `int_team_competition_benchmark_metrics_long`, `int_team_competition_benchmarks` and
-+    `mart_team_competition_benchmarks`. **No number changes.** Every formula, coverage gate and
-+    denominator is byte-identical before and after; this is a rename, and the value-equivalence
-+    checker parked as #91 exists to prove exactly that class of claim once it ships.
-+    Consumption: `scripts/export_site_data.py` copies mart keys through unchanged, so the committed
-+    sample keeps the OLD keys until it is regenerated after merge — the declared transient below.
- 
--  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
-+acceptance_criteria:
-+  - Every metric name the BUILT site renders reads in the same words after the rename as before it, in all three locales, shown by extracting the rendered metric labels from the pages under `site_v2/dist/` and reading them back — a rename must be invisible in the words a reader sees.
-+  - No built page and no `site_v2/src` source file outside the generated sample contains the string `clean_sheets_share` or `points_capture`, shown by a grep over `site_v2/dist/` and over `site_v2/src/` excluding `src/data/`.
-+  - `npm test` passes in `site_v2/`, including the metric-label cross-check that compares at least 27 CPO-validated MVP labels against `site/i18n/` and reports zero wording drift, AND that same check is watched going RED against a deliberately stale key — a green guard nobody has broken proves nothing.
-+  - The BUILT team page shows the "not enough games to rank" absent state where the clean-sheet share row would sit, in all three locales, shown by reading the built page's rendered text — recorded so that the missing row is read as the sample's 1-game featured season, never as a defect of this rename.
- 
--  deploy_order: none. Descriptions reach BigQuery the next time each model builds.
-+# ⚠ AMENDED MID-TASK, WITH THE CPO'S AUTHORITY — see `amendments:` at the foot. Criteria 1 and 4
-+# originally asked for the clean-sheet row's LABEL and VALUE to be read off the built page. Both
-+# were undemonstrable and had been from the start: team 33's featured season is PL 2026 with ONE
-+# game played, below `int_team_competition_benchmark_metrics_long`'s `>= 3 finished games` floor, so
-+# `season.benchmarks` is empty and `TeamPerformance.astro`'s `hasBench` guard renders the absent
-+# state for the WHOLE tab. `% Clean sheets` occurs 0 times across all 61 built pages, on main
-+# exactly as on this branch. I drafted those two without checking the sample carried benchmarks.
-+# A first replacement — "build main, build the branch, diff the two dist trees" — was put to the
-+# CPO and he rejected it, correctly: identical output is also what doing nothing produces, so that
-+# check cannot tell a correct rename from a missing one. It was dropped rather than argued.
+ acceptance_criteria:
+-  - Every metric name the BUILT site renders reads in the same words after the rename as before it, in all three locales, shown by extracting the rendered metric labels from the pages under `site_v2/dist/` and reading them back — a rename must be invisible in the words a reader sees.
+-  - No built page and no `site_v2/src` source file outside the generated sample contains the string `clean_sheets_share` or `points_capture`, shown by a grep over `site_v2/dist/` and over `site_v2/src/` excluding `src/data/`.
+-  - `npm test` passes in `site_v2/`, including the metric-label cross-check that compares at least 27 CPO-validated MVP labels against `site/i18n/` and reports zero wording drift, AND that same check is watched going RED against a deliberately stale key — a green guard nobody has broken proves nothing.
+-  - The BUILT team page shows the "not enough games to rank" absent state where the clean-sheet share row would sit, in all three locales, shown by reading the built page's rendered text — recorded so that the missing row is read as the sample's 1-game featured season, never as a defect of this rename.
+-
+-# ⚠ AMENDED MID-TASK, WITH THE CPO'S AUTHORITY — see `amendments:` at the foot. Criteria 1 and 4
+-# originally asked for the clean-sheet row's LABEL and VALUE to be read off the built page. Both
+-# were undemonstrable and had been from the start: team 33's featured season is PL 2026 with ONE
+-# game played, below `int_team_competition_benchmark_metrics_long`'s `>= 3 finished games` floor, so
+-# `season.benchmarks` is empty and `TeamPerformance.astro`'s `hasBench` guard renders the absent
+-# state for the WHOLE tab. `% Clean sheets` occurs 0 times across all 61 built pages, on main
+-# exactly as on this branch. I drafted those two without checking the sample carried benchmarks.
+-# A first replacement — "build main, build the branch, diff the two dist trees" — was put to the
+-# CPO and he rejected it, correctly: identical output is also what doing nothing produces, so that
+-# check cannot tell a correct rename from a missing one. It was dropped rather than argued.
++  - Every metric name the BUILT site renders reads in the same words after the rename as before it, in all three locales, shown by extracting the rendered metric labels from the pages under `site_v2/dist/` and comparing each against the untouched CPO-validated wording in `site/i18n/<loc>.json`.
++  - No built page and no `site_v2/src` source file outside the generated sample contains the string `corner_kicks_per_match` or `save_ratio`, shown by a grep over `site_v2/dist/` and over `site_v2/src/` excluding `src/data/`.
++  - `npm test` passes in `site_v2/`, including the metric-label cross-check against `site/i18n/`, AND that check is watched going RED against a deliberately stale key — a green guard nobody has broken proves nothing.
++  - The BUILT team page still shows the "not enough games to rank" absent state where these rows would sit, in all three locales, shown by reading the built page's rendered text — recorded so the missing rows are read as the sample's one-game featured season and never as a defect of this rename.
  
  decisions_taken: >
--  THRESHOLD DECLARATION — NEW MECHANISM: none.
--  THRESHOLD DECLARATION — RECURRING COST: none.
-+  Both names come from the record and neither is chosen here. Quoted in refs above: RULING 1 for
-+  `points_capture` → `points_capture_pct`, RULING 1 as narrowed by RULING 3 ("use the shorter as
-+  recommended") for `clean_sheets_share` → `clean_sheets_pct`.
+-  Both names come from the record and neither is chosen here. Quoted in refs above: RULING 1 for
+-  `points_capture` → `points_capture_pct`, RULING 1 as narrowed by RULING 3 ("use the shorter as
+-  recommended") for `clean_sheets_share` → `clean_sheets_pct`.
+-
+-  ⭐ WHICH METRICS TRAVEL TOGETHER IS THE BUILDER'S CALL, and the record says so in terms: the
+-  twelve "must be split by family, not shipped as one diff", and that split "is the builder's call,
+-  already taken". The grouping used across step 3 keys on the seed's own `metric_group` column so
+-  that "family" has a definition in the repo rather than in my taste — this MR is `goals` +
+-  `outcomes`. It goes first because it is the smallest of the six and touches no frozen file, while
+-  still exercising every layer the other five will touch.
+-
+-  ⭐ `label_i18n_key` FOLLOWS `metric_id`, as it did in `!111` and `!112` (`metrics.goals_for.label`
+-  → `metrics.goals.label`; `metrics.corner_kicks.label` → `metrics.corners.label`). That is the
+-  form the file already follows, not a new rule. The catalogue's ONE deliberate id≠key
+-  disagreement — `shots_on_goal_per_match` declaring `metrics.shots_on_target_per_match.label` — is
+-  not in this set and is not touched.
+-
+-  ⛔ A LIVE TRANSIENT IS CREATED AND IS DECLARED HERE RATHER THAN DISCOVERED LATER. The committed
+-  export sample under `site_v2/src/data/` can only be regenerated against the prod marts, which do
+-  not carry the new columns until `data:build:main` runs on merge. So between this merge and the
+-  step's closing refresh MR the sample serves the OLD keys while the page asks for the new ones.
+-  Precedent: `!109` ("refresh the committed export sample after #90") did the same sequencing. The
+-  site is unlisted and `deploy:site-v2` is manual-only, so nothing public degrades. This joins the
+-  two transients the record already carries and is written into `escalations.log` in the same commit.
+-
+-  ⚠ WHAT THAT LOOKS LIKE ON THE PAGE DIFFERS BY PANEL, and an earlier draft of this contract had it
+-  wrong: it said the row "renders its label correctly and its value as the en-dash", which is true
+-  of ONE of the two panels only. `TeamPerformance.astro` builds `leagueGroups` with
+-  `benchByKey.has(keyOf(r))`, so in the **vs-the-league** panel a metric with no benchmark row is
+-  OMITTED ENTIRELY — 14_team_stats.md §6's "metric-absent = omitted, never a zero bar". The
+-  **vs-last-season** panel renders all 16 and lets a null delta dash out honestly. Corrected in
+-  place rather than annotated beside the wrong sentence.
+-  ⭐ Neither state can occur on any built page today in any case: the sample's featured season is
+-  PL 2026 with one game played, so `hasBench` is false and the whole tab renders its absent state.
+-  Found by bi-analyst-reviewer in round 1, which read the mechanism and declined to FAIL on it. The
+-  wording is fixed anyway because MRs B–F reuse this paragraph — a wrong sentence here is a wrong
+-  sentence six times.
+-
+-  THRESHOLD DECLARATIONS. No NEW MECHANISM: no new script, macro, hook, test or dependency — every
+-  guard and generator involved already exists and is re-run, not written. No RECURRING COST: no new
+-  CI job, no extra build, no schedule; `data:build:main` rebuilds the same models it rebuilds for
+-  any model edit, and the renamed columns are the same width and count as the ones they replace.
++  Both names come from the record and neither is chosen here; the authorities are quoted in `refs`.
 +
-+  ⭐ WHICH METRICS TRAVEL TOGETHER IS THE BUILDER'S CALL, and the record says so in terms: the
-+  twelve "must be split by family, not shipped as one diff", and that split "is the builder's call,
-+  already taken". The grouping used across step 3 keys on the seed's own `metric_group` column so
-+  that "family" has a definition in the repo rather than in my taste — this MR is `goals` +
-+  `outcomes`. It goes first because it is the smallest of the six and touches no frozen file, while
-+  still exercising every layer the other five will touch.
++  ⭐ `label_i18n_key` FOLLOWS `metric_id`, as in `!111`, `!112` and `!114`. The catalogue's one
++  deliberate id≠key disagreement (`shots_on_goal_per_match` → `metrics.shots_on_target_per_match.label`)
++  is not in this set and is not touched.
 +
-+  ⭐ `label_i18n_key` FOLLOWS `metric_id`, as it did in `!111` and `!112` (`metrics.goals_for.label`
-+  → `metrics.goals.label`; `metrics.corner_kicks.label` → `metrics.corners.label`). That is the
-+  form the file already follows, not a new rule. The catalogue's ONE deliberate id≠key
-+  disagreement — `shots_on_goal_per_match` declaring `metrics.shots_on_target_per_match.label` — is
-+  not in this set and is not touched.
- 
--  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
--    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
--    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
--    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
--    are the CPO's and none of them moves; only the packaging changed.
-+  ⛔ A LIVE TRANSIENT IS CREATED AND IS DECLARED HERE RATHER THAN DISCOVERED LATER. The committed
-+  export sample under `site_v2/src/data/` can only be regenerated against the prod marts, which do
-+  not carry the new columns until `data:build:main` runs on merge. So between this merge and the
-+  step's closing refresh MR the sample serves the OLD keys while the page asks for the new ones.
-+  Precedent: `!109` ("refresh the committed export sample after #90") did the same sequencing. The
-+  site is unlisted and `deploy:site-v2` is manual-only, so nothing public degrades. This joins the
-+  two transients the record already carries and is written into `escalations.log` in the same commit.
- 
--  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
--    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
--    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
--    for what the model holds.
-+  ⚠ WHAT THAT LOOKS LIKE ON THE PAGE DIFFERS BY PANEL, and an earlier draft of this contract had it
-+  wrong: it said the row "renders its label correctly and its value as the en-dash", which is true
-+  of ONE of the two panels only. `TeamPerformance.astro` builds `leagueGroups` with
-+  `benchByKey.has(keyOf(r))`, so in the **vs-the-league** panel a metric with no benchmark row is
-+  OMITTED ENTIRELY — 14_team_stats.md §6's "metric-absent = omitted, never a zero bar". The
-+  **vs-last-season** panel renders all 16 and lets a null delta dash out honestly. Corrected in
-+  place rather than annotated beside the wrong sentence.
-+  ⭐ Neither state can occur on any built page today in any case: the sample's featured season is
-+  PL 2026 with one game played, so `hasBench` is false and the whole tab renders its absent state.
-+  Found by bi-analyst-reviewer in round 1, which read the mechanism and declined to FAIL on it. The
-+  wording is fixed anyway because MRs B–F reuse this paragraph — a wrong sentence here is a wrong
-+  sentence six times.
++  ⭐ THE FROZEN `site/` TREE IS EDITED ONLY WHERE A LIVE GATE FORCES IT, and only the catalogue-id
++  plumbing: `metric_bindings.csv`'s `catalogue_metric_id` (plus its `home_column`/`away_column`,
++  because `mart_matchday_insights` aliases them `home_<metric>_recent`), the `metrics.<id>` KEYS in
++  `site/i18n/*.json`, and the REGENERATED `metric_definitions.json`. **No wording changes, no page
++  code, no `live_id`.** Every label string in the corpus stays byte-identical, which is what keeps
++  `check-metric-labels.test.mjs`'s "CPO-validated MVP labels" comparison at full strength rather
++  than needing a rename map bolted into three guards.
 +
-+  THRESHOLD DECLARATIONS. No NEW MECHANISM: no new script, macro, hook, test or dependency — every
-+  guard and generator involved already exists and is re-run, not written. No RECURRING COST: no new
-+  CI job, no extra build, no schedule; `data:build:main` rebuilds the same models it rebuilds for
-+  any model edit, and the renamed columns are the same width and count as the ones they replace.
++  ⛔ THE LIVE TRANSIENT, declared as it is created: the committed export sample can only be
++  regenerated against the prod marts, so between this merge and the step's closing refresh MR it
++  serves the OLD keys. Nothing public degrades — the site is unlisted and `deploy:site-v2` is
++  manual-only.
++
++  ⛔ AND IT IS **VISIBLE THIS TIME**, unlike `!114`'s. An earlier draft of this paragraph said "on
++  the page this is invisible either way", reasoning from the team Performance tab, which renders its
++  absent state regardless. That is wrong about the FIXTURE page, and MEASURED on the built site
++  rather than reasoned: `MetricComparison.astro`'s `hasData()` drops any row where neither side has
++  a value, so the two renamed rows disappear from the 16-row comparison on **all 51 built fixture
++  pages, in all three locales — 16 rendered names before, 14 after**. `!114` did not do this because
++  its renames touched the TEAM binding only; `corner_kicks_per_match` and `save_ratio` are FIXTURE
++  fields, so this is the first MR of the step where the transient is on screen.
++  ⚠ It is the codebase's honest-absent behaviour, not a break: the rows are OMITTED, never rendered
++  as a blank or a fabricated zero, exactly as `14_team_stats.md` §6 requires. It closes the moment
++  the sample is regenerated. But it is visible, and calling it invisible would have been a false
++  statement in the contract a reviewer would have had to catch.
++
++  ⚠ ONE MORE THING THAT MEASUREMENT EXPOSED, about my own method rather than this diff: the evidence
++  script I used on `!114` matched labels by plain substring, so "Ø Corners" tested TRUE against a
++  page containing only "Ø Corners against". It reported 16 rendered names here when the true figure
++  was 14. Fixed to subtract the occurrences of any longer label that contains the shorter one.
++  ⭐ THE RULE: a substring test over rendered text is not a presence test wherever one label is a
++  prefix of another — and this metric set is full of `X` / `X against` pairs.
++
++  THRESHOLD DECLARATIONS. NEW MECHANISM: none — no new script, macro, hook, test or dependency;
++  every generator and guard already exists and is re-run. RECURRING COST: none — no new CI job, no
++  extra build, no schedule; the renamed columns are the same width and count as the ones they
++  replace.
  
  decisions_reserved:
--  - `sot_points_gap` → `deserved_points_gap`. Moved out of this MR because it IS a model column.
--  - The ELEVEN column renames: `points_capture`, `clean_sheets_share`, `danger_zone_ratio`,
--    `shot_accuracy`, `shot_share`, `finishing_efficiency`, `pass_accuracy`, `save_ratio`,
--    `sot_difference_per_match`, `key_passes_per_match`, `corner_kicks_per_match`, plus
--    `sot_points_gap` above. Each renames a computed column in the season models and runs through
--    model SQL, yml, marts and the site.
--  - ⚠ A TRANSIENT THIS MR CREATES ON PURPOSE, and it resolves in the next one:
--    `corner_kicks_per_match` is NOT renamed here, so after this merge the total is `corners` while
--    its own per-match rate is still `corner_kicks_per_match`. The alternative was to drag a column
--    rename into a catalogue-only diff, which is the seam this split exists to keep clean. Same
--    shape as the `finishing_efficiency` transient step 1 disclosed.
--  - The player `_player` sweep and the nine "on target" labels, both later steps.
--  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
--    asked, not answered, not done.
-+  - none: both names are ruled in `escalations.log` and quoted above, and the only judgement this
-+    contract makes — which metrics ride together — is the builder's call the record assigns.
+-  - none: both names are ruled in `escalations.log` and quoted above, and the only judgement this
+-    contract makes — which metrics ride together — is the builder's call the record assigns.
++  - none: both names are ruled in `escalations.log` and quoted above, and the only judgement here —
++    which metrics ride together — is the builder's call the record assigns.
  
  done_when:
--  - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
--    re-derived offline: unique `(metric_id, entity)`, unique `label_i18n_key`, unique
--    `(entity, label_en)`.
--  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green; the block count
--    delta MEASURED, not predicted.
--  - `dbt parse` CLEAN and ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml.
--  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT.
--  - ⛔ ZERO occurrences of the metric_ids `corner_kicks` and `goalkeeper_saves` remain in the seed,
--    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
--  - Offline gates green plus `ruff` and `python -m pytest tests/`.
--  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
-+  - `python scripts/sync_metric_docs_blocks.py --check` passes with no drift after regeneration.
-+  - `python scripts/check_description_hygiene.py`, `python scripts/check_layer_contract.py` and
-+    `python scripts/check_ui_i18n_metrics.py` all pass.
-+  - `python -m pytest -q` passes with no new failures against the count on `1804a64`.
-+  - `DBT_PROFILES_DIR=C:/Users/Rami/.dbt .venv/Scripts/dbt.exe parse` is clean, with zero dangling
-+    `doc()` references.
-+  - `python -m sqlfluff lint` is clean on every changed model, run from the repo root with the full
-+    rule set.
-+  - `cd site_v2 && npm test && node scripts/check-page-specs.mjs` passes.
-+  - `git grep -n -E 'clean_sheets_share|points_capture[^_]' ` returns hits ONLY in the excluded
-+    history/record paths named above and in the not-yet-regenerated `site_v2/src/data/`.
-+  - Each acceptance criterion is demonstrated in `.claude/task/acceptance_evidence.md` under
-+    `criteria_demonstrated:`, read from the BUILT site, never from source.
-+  - At least two mutations are watched going RED and then restored. Run and recorded: a stale
-+    `label_i18n_key` in the seed turns `check-metric-labels.test.mjs` red; a stale `metric_id` in
-+    the seed turns `sync_metric_docs_blocks.py --check` red; a dangling `doc()` in
-+    `domestic_league.yml` turns BOTH `check_description_hygiene.py` and `dbt parse` red. A fourth,
-+    a stale `accepted_values` entry, SURVIVED the whole offline suite — reported as a survivor, not
-+    quietly dropped, and recorded in `impact_map` above.
-+
-+amendments: >
-+  2026-08-27: acceptance_criteria 1 and 4 REPLACED — authority: the CPO, in chat this session,
-+  asked plainly ("Before I started you approved a short list... I want to swap those two for two I
-+  can actually prove — yes or no?") and answered "then go ahead". Content: both original criteria
-+  asked for the clean-sheet row's label and value to be READ OFF THE BUILT PAGE. The row renders on
-+  no built page, and did not before this branch either — team 33's featured season is PL 2026 with
-+  one game played, under the `>= 3 finished games` benchmark floor, so `hasBench` is false and the
-+  Performance tab renders its absent state. `% Clean sheets` occurs 0 times across all 61 built
-+  pages. Criterion 1 now asks that no rendered metric wording changed anywhere; criterion 4 records
-+  the absent state so the missing row is never mistaken for a defect of this rename. Criteria 2 and
-+  3 are unchanged, and criterion 3 gained the requirement that the guard be watched going red.
-+  ⚠ An intermediate proposal — build main, build the branch, diff the two `dist` trees — was put to
-+  the CPO and REJECTED by him: identical output is also what doing no work produces, so the check
-+  cannot distinguish a correct rename from a missing one. Dropped, not argued.
-+  ⚠ Written on a clean tree: the code changes were stashed by EXPLICIT PATH
-+  (`git stash push -m TEMP-mrA-code-while-contract-amended -- dbt_project docs site_v2`), the
-+  contract amended, then popped immediately. `.claude/task/` was never in the stash's path set.
+-  - `python scripts/sync_metric_docs_blocks.py --check` passes with no drift after regeneration.
+-  - `python scripts/check_description_hygiene.py`, `python scripts/check_layer_contract.py` and
+-    `python scripts/check_ui_i18n_metrics.py` all pass.
+-  - `python -m pytest -q` passes with no new failures against the count on `1804a64`.
+-  - `DBT_PROFILES_DIR=C:/Users/Rami/.dbt .venv/Scripts/dbt.exe parse` is clean, with zero dangling
+-    `doc()` references.
+-  - `python -m sqlfluff lint` is clean on every changed model, run from the repo root with the full
+-    rule set.
++  - `python scripts/sync_metric_docs_blocks.py --check` passes after regeneration.
++  - `python scripts/export_metric_definitions_json.py` regenerates `metric_definitions.json` and
++    `python -m pytest -q tests/test_metric_bindings.py` passes on byte-identity.
++  - `python scripts/check_description_hygiene.py`, `check_layer_contract.py` and
++    `check_ui_i18n_metrics.py` all pass.
++  - `python -m pytest -q` passes with no new failures against the count on `a70b7e2`.
++  - `dbt parse` is clean with zero dangling `doc()` references; `sqlfluff lint` clean on every
++    changed model from the repo root.
+   - `cd site_v2 && npm test && node scripts/check-page-specs.mjs` passes.
+-  - `git grep -n -E 'clean_sheets_share|points_capture[^_]' ` returns hits ONLY in the excluded
+-    history/record paths named above and in the not-yet-regenerated `site_v2/src/data/`.
+-  - Each acceptance criterion is demonstrated in `.claude/task/acceptance_evidence.md` under
+-    `criteria_demonstrated:`, read from the BUILT site, never from source.
+-  - At least two mutations are watched going RED and then restored. Run and recorded: a stale
+-    `label_i18n_key` in the seed turns `check-metric-labels.test.mjs` red; a stale `metric_id` in
+-    the seed turns `sync_metric_docs_blocks.py --check` red; a dangling `doc()` in
+-    `domestic_league.yml` turns BOTH `check_description_hygiene.py` and `dbt parse` red. A fourth,
+-    a stale `accepted_values` entry, SURVIVED the whole offline suite — reported as a survivor, not
+-    quietly dropped, and recorded in `impact_map` above.
++  - The three 22-name `accepted_values` lists are updated in all THREE places and checked by eye,
++    because #96 means no offline gate will catch a miss.
++  - Each acceptance criterion is demonstrated in `acceptance_evidence.md` under
++    `criteria_demonstrated:`, read from the BUILT site.
++  - At least two mutations are watched going RED and then restored.
+ 
+-amendments: >
+-  2026-08-27: acceptance_criteria 1 and 4 REPLACED — authority: the CPO, in chat this session,
+-  asked plainly ("Before I started you approved a short list... I want to swap those two for two I
+-  can actually prove — yes or no?") and answered "then go ahead". Content: both original criteria
+-  asked for the clean-sheet row's label and value to be READ OFF THE BUILT PAGE. The row renders on
+-  no built page, and did not before this branch either — team 33's featured season is PL 2026 with
+-  one game played, under the `>= 3 finished games` benchmark floor, so `hasBench` is false and the
+-  Performance tab renders its absent state. `% Clean sheets` occurs 0 times across all 61 built
+-  pages. Criterion 1 now asks that no rendered metric wording changed anywhere; criterion 4 records
+-  the absent state so the missing row is never mistaken for a defect of this rename. Criteria 2 and
+-  3 are unchanged, and criterion 3 gained the requirement that the guard be watched going red.
+-  ⚠ An intermediate proposal — build main, build the branch, diff the two `dist` trees — was put to
+-  the CPO and REJECTED by him: identical output is also what doing no work produces, so the check
+-  cannot distinguish a correct rename from a missing one. Dropped, not argued.
+-  ⚠ Written on a clean tree: the code changes were stashed by EXPLICIT PATH
+-  (`git stash push -m TEMP-mrA-code-while-contract-amended -- dbt_project docs site_v2`), the
+-  contract amended, then popped immediately. `.claude/task/` was never in the stash's path set.
++amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 14edfa9..07de7f7 100644
+index dc37f51..c34f1e1 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -5493,3 +5493,56 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
-   `goals_conceded`, which would have BROKEN the `_against` convention that already works across
-   goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
-   follows before proposing one, and do not dress taste up as consistency.
+@@ -5643,3 +5643,59 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+   to the model columns they enumerate; only the warehouse `accepted_values` test inside
+   `data:build:mr` fires. Filed as its own issue rather than folded into a rename MR — a new guard is
+   a new mechanism and belongs in a task that is about the guard.
 +
 +
-+2026-08-27 STEP 3 STARTS — MR A of six, and the CPO moved two locked acceptance criteria.
++2026-08-27 STEP 3, MR B — AND A STANDING APPROVAL THAT SAVES FOUR MORE INTERRUPTIONS.
 +
-+  STEP 3 IS SPLIT INTO SIX MRs, one per family, keyed on the seed's own `metric_group` column so
-+  that "family" has a definition in the repo rather than in the builder's taste. The record already
-+  assigns that split to the builder ("must be split by family... the builder's call, already
-+  taken"); this entry records only which grouping was chosen, not a new naming decision:
-+    A `goals` + `outcomes`      — clean_sheets_share → clean_sheets_pct, points_capture → points_capture_pct
-+    B `set_pieces` + `goalkeeping` — corner_kicks_per_match → corners_per_match, save_ratio → saves_pct
-+    C `shooting` shares         — shot_accuracy, danger_zone_ratio, shot_share
-+    D `passing`                 — pass_accuracy, key_passes_per_match
-+    E the deserved chain        — sot_difference_per_match, sot_points_gap
-+    F `finishing_efficiency` alone, because it is the one name that exists for BOTH entities
-+    G a closing MR that regenerates the committed export sample once, for all twelve
-+  Re-measured on `1804a64` rather than copied: 894 occurrences across the six families in live
-+  surfaces, plus 1,532 in the generated sample. The record's "~600, measured 2026-08-26" was taken
-+  over a narrower path set; the figure above is the one this work is sized from.
++  ⭐ RULING, verbatim: **"do it"**, answering a message that (a) listed the four acceptance criteria
++  for MR B and (b) asked, in these words: "Can these stand for the remaining batches too? They're
++  the same shape every time, and approving once saves four more of these interruptions."
++  ⛔ SO THE FOUR ARE APPROVED FOR **MRs B THROUGH F**, not just for B, and the list it answered is
++  recorded here beside it rather than only the approval — the failure that FAILed an MR earlier in
++  this same programme. The four, as put to him:
++    1. Every metric name on the built site reads the same words as before, in all three languages.
++    2. Neither old name survives anywhere in the built site or the source.
++    3. The label tests pass — and one is broken on purpose to prove they would catch a mistake.
++    4. The team page still shows "not enough games to rank" where those rows would sit, written
++       down so a future reader does not mistake the gap for damage.
++  ⚠ HE WAS ALSO TOLD, in the same message, that MR B is the first of the step to touch the frozen
++  `site/` tree, that two live gates force it, and that only the internal name plumbing changes there
++  — no wording, no page code. The approval covers that too.
++  ⚠ THE FIRST TWO CRITERIA I DRAFTED FOR `!114` WERE UNPROVABLE and had to be replaced mid-task with
++  his authority. These four are the replacements, which is why they are worth making standing: they
++  are the ones that survived contact with a build.
 +
-+  ⭐ RULING, verbatim, on moving two LOCKED acceptance criteria. Two of the four criteria the CPO
-+  had approved before any code asked for the clean-sheet row's label and value to be READ OFF THE
-+  BUILT PAGE. Both were undemonstrable, and had been from the moment they were written: team 33's
-+  featured season is PL 2026 with ONE game played, below the `>= 3 finished games` benchmark floor,
-+  so `season.benchmarks` is empty and `TeamPerformance.astro` renders the absent state for the whole
-+  tab. `% Clean sheets` occurs 0 times across all 61 built pages, on main exactly as on the branch.
-+  Put to him plainly; his answer: "then go ahead".
-+  ⚠ THE PROCESS DEFECT IS MINE, and it is the same class as the one logged on 2026-08-26: I drafted
-+  a criterion without first checking the artifact it would be read from. Check that the evidence
-+  EXISTS before promising to read it.
-+  ⛔ AND A REPLACEMENT HE REJECTED, worth keeping because the reasoning generalises. I first
-+  proposed "build main, build the branch, diff the two dist trees — identical output proves the
-+  rename is invisible". He asked why that should be done at all, and he was right: identical output
-+  is ALSO what doing no work produces, so the check cannot distinguish a correct rename from a
-+  missing one. ⭐ THE RULE: a check that passes equally on the work and on its absence is not a
-+  check. It was dropped rather than defended.
++  ⭐ AND A CORRECTION TO A HABIT, from `!114`'s review, worth having in the record because it will
++  recur in every remaining batch: **a `dbt ls --select <model>+` lineage list is EVIDENCE, not the
++  file list.** For MR B, `mart_team_momentum`, `int_team_momentum__metrics` and
++  `mart_matchday_insights` are edited but do NOT appear in the lineage, because `mart_team_momentum`
++  computes the same two metrics AGAIN from the momentum window (#93) rather than reading the
++  cumulative model. A contract that took the lineage as the edit set would have missed three files.
 +
-+  ⛔ A LIVE TRANSIENT, declared as it is created, joining the two already recorded above. The
-+  committed export sample under `site_v2/src/data/` can only be regenerated against the PROD marts,
-+  which do not carry the renamed columns until `data:build:main` runs on merge. So from MR A until
-+  the closing MR G, the sample serves the OLD keys (122 occurrences of these two names today).
-+  Nothing public degrades: the site is unlisted and `deploy:site-v2` is manual-only. Precedent for
-+  the sequencing is `!109`, "refresh the committed export sample after #90".
++  ⛔⛔ TWO FINDINGS FROM MR B'S BUILD, BOTH ABOUT MEASUREMENT RATHER THAN ABOUT THE RENAME.
 +
-+  ⛔ A MUTATION SURVIVED, AND THE SURVIVOR IS THE FINDING. Four mutations were run against MR A.
-+  Three went red as intended (stale `label_i18n_key` → the metric-label test; stale `metric_id` →
-+  the docs-block check; dangling `doc()` → description hygiene AND `dbt parse`). The fourth —
-+  reverting one entry of the 22-name `accepted_values` list in `int_competition_benchmarks.yml` —
-+  left `dbt parse`, the docs-block check, description hygiene and the metric/benchmark/catalogue
-+  pytest selection ALL GREEN. Nothing offline pins those THREE lists (two in
-+  `int_competition_benchmarks.yml`, a third in `shared.yml` on `mart_team_competition_benchmarks`)
-+  to the model columns they enumerate; only the warehouse `accepted_values` test inside
-+  `data:build:mr` fires. Filed as its own issue rather than folded into a rename MR — a new guard is
-+  a new mechanism and belongs in a task that is about the guard.
++  ⭐ ONE: THE SAMPLE-STALENESS TRANSIENT IS VISIBLE FROM MR B ONWARD, AND MY CONTRACT SAID IT WAS
++  NOT. `!114`'s renames touched the TEAM binding only, so the transient never reached a page.
++  `corner_kicks_per_match` and `save_ratio` are FIXTURE fields, and `MetricComparison.astro`'s
++  `hasData()` drops any row where neither side has a value — so until the sample is regenerated the
++  two renamed rows are OMITTED from the 16-row comparison on all 51 built fixture pages, in all
++  three locales. Measured: **16 rendered metric names before, 14 after.** I had written "on the page
++  this is invisible either way", reasoning from the team tab, and the build disproved it.
++  ⚠ It is honest-absent behaviour, not a break (omitted, never blank, never a fabricated zero, per
++  `14_team_stats.md` §6) and it closes with the sample refresh. ⭐ THE RULE: a transient's visibility
++  depends on WHICH SURFACE binds the renamed field, and the team page and the fixture page bind
++  different ones. Check the fixture surface before calling a rename invisible. This applies to MRs
++  C, D, E and F — `shot_accuracy`, `danger_zone_ratio`, `finishing_efficiency`, `pass_accuracy` and
++  `key_passes_per_match` are ALL fixture fields, so each of those MRs drops rows too, and the gap
++  ACCUMULATES until the closing refresh.
++
++  ⭐ TWO: MY OWN EVIDENCE SCRIPT WAS LYING, AND IT TOOK A RENAME OF A FIXTURE FIELD TO EXPOSE IT.
++  Criterion 1 was checked with a plain substring test, so `Ø Corners` tested TRUE against a page
++  containing only `Ø Corners against`. It reported 16 rendered names when the truth was 14 — it
++  would have certified two MISSING rows as present. Verified with `grep -o`: both strings occur
++  exactly twice on the EN page, so every "Ø Corners" hit IS an "against" hit. Fixed by subtracting
++  the occurrences of any longer label that contains the shorter one.
++  ⭐ THE RULE: **a substring test over rendered text is not a presence test** wherever one label is a
++  prefix of another, and this metric set is full of `X` / `X against` pairs. `!114`'s conclusion
++  still stands — nothing it renamed was a fixture field — but its method was weaker than its claim,
++  and the claim is what a reviewer reads.
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index a662bc3..e8f87be 100644
+index e8f87be..6000c7b 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 @@ -50,7 +50,7 @@ models:
              - season_api_year
              - team_sk
        - dbt_utils.expression_is_true:
--          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
-+          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+-          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
++          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
            name: int_team_season_ratios_in_range
        # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
        # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
-@@ -112,12 +112,12 @@ models:
-       - name: passes_accurate_sum_season
-       - name: passes_total_sum_season
-       - name: goalkeeper_saves_sum_season
--      - name: points_capture
--        description: "{{ doc('points_capture') }}"
-+      - name: points_capture_pct
-+        description: "{{ doc('points_capture_pct') }}"
-       - name: shot_share
-         description: "{{ doc('shot_share') }}"
--      - name: clean_sheets_share
--        description: "{{ doc('clean_sheets_share') }}"
-+      - name: clean_sheets_pct
-+        description: "{{ doc('clean_sheets_pct') }}"
-       - name: goals_per_match
-         description: "{{ doc('goals_per_match') }}"
-       - name: goals_against_per_match
-@@ -179,11 +179,11 @@ models:
-             - match_number
+@@ -136,12 +136,12 @@ models:
+         description: "{{ doc('passes_per_match') }}"
+       - name: pass_accuracy
+         description: "{{ doc('pass_accuracy') }}"
+-      - name: corner_kicks_per_match
+-        description: "{{ doc('corner_kicks_per_match') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
+       - name: corners_against_per_match
+         description: "{{ doc('corners_against_per_match') }}"
+-      - name: save_ratio
+-        description: "{{ doc('save_ratio') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
+       - name: key_passes_per_match
+         description: "{{ doc('key_passes_per_match') }}"
+       - name: tackles_per_match
+@@ -180,10 +180,10 @@ models:
        # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
        # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
--      # construction: points_capture (points <= 3*games), clean_sheets_share (clean_sheet_games <= games),
-+      # construction: points_capture_pct (points <= 3*games), clean_sheets_pct (clean_sheet_games <= games),
-       # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
+       # construction: points_capture_pct (points <= 3*games), clean_sheets_pct (clean_sheet_games <= games),
+-      # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
++      # shot_share (for/(for+against)), saves_pct (saves/(saves+goals)), finishing_efficiency
        # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
        - dbt_utils.expression_is_true:
--          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets_share is null or clean_sheets_share between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
-+          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+-          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
++          expression: "(saves_pct is null or saves_pct between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
            name: int_team_season_cumulative_structural_ratios_in_range
        # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
        # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
-@@ -248,12 +248,12 @@ models:
-       - name: passes_accurate_sum_season
-       - name: passes_total_sum_season
-       - name: goalkeeper_saves_sum_season
--      - name: points_capture
--        description: "{{ doc('points_capture') }}"
-+      - name: points_capture_pct
-+        description: "{{ doc('points_capture_pct') }}"
-       - name: shot_share
-         description: "{{ doc('shot_share') }}"
--      - name: clean_sheets_share
--        description: "{{ doc('clean_sheets_share') }}"
-+      - name: clean_sheets_pct
-+        description: "{{ doc('clean_sheets_pct') }}"
-       - name: goals_per_match
-         description: "{{ doc('goals_per_match') }}"
-       - name: goals_against_per_match
+@@ -276,12 +276,12 @@ models:
+         description: "{{ doc('passes_per_match') }}"
+       - name: pass_accuracy
+         description: "{{ doc('pass_accuracy') }}"
+-      - name: corner_kicks_per_match
+-        description: "{{ doc('corner_kicks_per_match') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
+       - name: corners_against_per_match
+         description: "{{ doc('corners_against_per_match') }}"
+-      - name: save_ratio
+-        description: "{{ doc('save_ratio') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
+       - name: key_passes_per_match
+         description: "{{ doc('key_passes_per_match') }}"
+       - name: tackles_per_match
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-index 110db7c..c3ba468 100644
+index c3ba468..6841657 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-@@ -82,13 +82,13 @@ select
-         when games_with_save_stats < games_played then null else goalkeeper_saves
-     end as goalkeeper_saves_sum_season,
-     -- window-specific metrics (stay inline; same as the whole-season model)
--    safe_divide(points_won, 3 * games_played) as points_capture,
-+    safe_divide(points_won, 3 * games_played) as points_capture_pct,
+@@ -136,7 +136,7 @@ select
      case
          when games_with_team_stats < games_played then null
+         else safe_divide(corner_kicks, games_with_team_stats)
+-    end as corner_kicks_per_match,
++    end as corners_per_match,
+     case
          when games_with_opp_stats < games_played then null
-         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
-     end as shot_share,
--    safe_divide(clean_sheet_games, games_played) as clean_sheets_share,
-+    safe_divide(clean_sheet_games, games_played) as clean_sheets_pct,
-     -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
-     -- from int_team_season__metrics — this model is now their single home.
-     safe_divide(goals_for, games_played) as goals_per_match,
+         else safe_divide(opponent_corner_kicks, games_with_opp_stats)
+@@ -146,7 +146,7 @@ select
+         else safe_divide(
+             goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
+         )
+-    end as save_ratio,
++    end as saves_pct,
+     safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
+     safe_divide(tackles, games_with_player_stats) as tackles_per_match,
+     safe_divide(interceptions, games_with_player_stats)
 diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-index 96e21bb..2c83dca 100644
+index 2c83dca..36b2a29 100644
 --- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
 +++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
 @@ -24,7 +24,7 @@ models:
          tests:
            - not_null
            - accepted_values:
--              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
-+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
        - name: team_count
          description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
          tests: [not_null]
@@ -562,609 +586,961 @@ index 96e21bb..2c83dca 100644
          tests:
            - not_null
            - accepted_values:
--              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
-+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
        - name: metric_value
          description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
          tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 034ff2a..8f7f16d 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -48,14 +48,14 @@ models:
+         description: "Count of window legs with opponent team stats present. Denominator/gate for corners_against_per_match."
+         tests: [not_null]
+       - name: games_with_save_stats
+-        description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
++        description: "Count of window legs with goalkeeper_saves present — saves_pct's own coverage bucket (saves can be null where other team stats are present), used to NULL saves_pct on partial coverage."
+         tests: [not_null]
+       - name: goals_penalty
+         description: "{{ doc('goals_penalty__team') }}"
+       - name: goals_own
+         description: "{{ doc('goals_own') }}"
+       - name: goals_against_in_save_games
+-        description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
++        description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps saves_pct same-window."
+       - name: contributing_competitions
+         description: "{{ doc('contributing_competitions') }}"
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index ccc8462..971814a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -43,7 +43,7 @@ models:
+         description: "Cumulative count of those matches with team stats present; denominator for per-match team-stat rates."
+         tests: [not_null]
+       - name: games_with_save_stats
+-        description: "Cumulative count of those matches with goalkeeper_saves present — save_ratio's own coverage bucket, used to NULL save_ratio on partial coverage."
++        description: "Cumulative count of those matches with goalkeeper_saves present — saves_pct's own coverage bucket, used to NULL saves_pct on partial coverage."
+         tests: [not_null]
+       - name: round_order
+         description: "{{ doc('round_order') }}"
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-index 847ec64..cf48603 100644
+index cf48603..d1c6e50 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-@@ -31,7 +31,7 @@ unpivot (
-     metric_value for metric_key in (
-         goals_per_match,
-         goals_against_per_match,
--        clean_sheets_share,
-+        clean_sheets_pct,
-         shots_per_match,
-         shot_accuracy,
-         danger_zone_ratio,
+@@ -48,8 +48,8 @@ unpivot (
+         passes_per_match,
+         pass_accuracy,
+         key_passes_per_match,
+-        corner_kicks_per_match,
++        corners_per_match,
+         corners_against_per_match,
+-        save_ratio
++        saves_pct
+     )
+ )
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+index 32ce800..85e428d 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+@@ -51,7 +51,7 @@ team_agg as (
+         -- its own coverage count (same-window rule)
+         countif(shots_on_goal is not null) as games_with_sot_stats,
+         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
+-        -- save coverage: save_ratio is a team-feed (goalkeeper) metric, so it needs its own
++        -- save coverage: saves_pct is a team-feed (goalkeeper) metric, so it needs its own
+         -- coverage count to NULL on partial coverage (universal incomplete-data rule)
+         countif(goalkeeper_saves is not null) as games_with_save_stats,
+         array_agg(distinct leg_league_code order by leg_league_code)
+@@ -68,7 +68,7 @@ team_agg as (
+         -- coverage-restricted goals sum to keep.
+         sum(goals_penalty) as goals_penalty,
+         sum(goals_own) as goals_own,
+-        -- coverage-restricted scoreline sum keeps save_ratio same-window with its denominator
++        -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
+         sum(if(goalkeeper_saves is not null, goals_against, null))
+             as goals_against_in_save_games,
+         sum(shots_total) as shots_total,
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
-index 2f28f44..ade1e02 100644
+index ade1e02..54aa69a 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
 +++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
-@@ -22,9 +22,9 @@ models:
+@@ -21,10 +21,10 @@ models:
+       # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
        # (the composed source): the YoY cutoff N is low by construction early in every season, so a
        # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
-       # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
--      # goals); clean_sheets_share = clean_sheet_games/games) stay strict [0,1] on both sides.
-+      # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
+-      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
++      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; saves_pct = saves/(saves+
+       # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
        - dbt_utils.expression_is_true:
--          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_share_this_season is null or clean_sheets_share_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_share_prev_season is null or clean_sheets_share_prev_season between 0 and 1)"
-+          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
+-          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
++          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
            name: team_profile_yoy_structural_ratios_in_range
        # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
        # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
-@@ -61,8 +61,8 @@ models:
-         description: "{{ doc('goals_per_match_this_season__team') }}"
-       - name: goals_against_per_match_this_season
-         description: "{{ doc('goals_against_per_match_this_season__team') }}"
--      - name: clean_sheets_share_this_season
--        description: "{{ doc('clean_sheets_share_this_season__team') }}"
-+      - name: clean_sheets_pct_this_season
-+        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
-       - name: shots_per_match_this_season
-         description: "{{ doc('shots_per_match_this_season__team') }}"
-       - name: danger_zone_ratio_this_season
-@@ -96,8 +96,8 @@ models:
-         description: "{{ doc('goals_per_match_prev_season__team') }}"
-       - name: goals_against_per_match_prev_season
-         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
--      - name: clean_sheets_share_prev_season
--        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
-+      - name: clean_sheets_pct_prev_season
-+        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
-       - name: shots_per_match_prev_season
-         description: "{{ doc('shots_per_match_prev_season__team') }}"
-       - name: danger_zone_ratio_prev_season
-@@ -128,8 +128,8 @@ models:
+@@ -83,12 +83,12 @@ models:
+         description: "{{ doc('pass_accuracy_this_season__team') }}"
+       - name: key_passes_per_match_this_season
+         description: "{{ doc('key_passes_per_match_this_season__team') }}"
+-      - name: corner_kicks_per_match_this_season
+-        description: "{{ doc('corner_kicks_per_match_this_season__team') }}"
++      - name: corners_per_match_this_season
++        description: "{{ doc('corners_per_match_this_season__team') }}"
+       - name: corners_against_per_match_this_season
+         description: "{{ doc('corners_against_per_match_this_season__team') }}"
+-      - name: save_ratio_this_season
+-        description: "{{ doc('save_ratio_this_season__team') }}"
++      - name: saves_pct_this_season
++        description: "{{ doc('saves_pct_this_season__team') }}"
+       - name: points_prev_season
+       - name: goals_for_prev_season
+       - name: goals_against_prev_season
+@@ -118,12 +118,12 @@ models:
+         description: "{{ doc('pass_accuracy_prev_season__team') }}"
+       - name: key_passes_per_match_prev_season
+         description: "{{ doc('key_passes_per_match_prev_season__team') }}"
+-      - name: corner_kicks_per_match_prev_season
+-        description: "{{ doc('corner_kicks_per_match_prev_season__team') }}"
++      - name: corners_per_match_prev_season
++        description: "{{ doc('corners_per_match_prev_season__team') }}"
+       - name: corners_against_per_match_prev_season
+         description: "{{ doc('corners_against_per_match_prev_season__team') }}"
+-      - name: save_ratio_prev_season
+-        description: "{{ doc('save_ratio_prev_season__team') }}"
++      - name: saves_pct_prev_season
++        description: "{{ doc('saves_pct_prev_season__team') }}"
+       - name: goals_for_delta_yoy
        - name: goals_against_delta_yoy
        - name: goals_against_per_match_delta_yoy
-         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
--      - name: clean_sheets_share_delta_yoy
--        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
-+      - name: clean_sheets_pct_delta_yoy
-+        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
-       - name: shots_per_match_delta_yoy
-         description: "{{ doc('shots_per_match_delta_yoy__team') }}"
-       - name: danger_zone_ratio_delta_yoy
+@@ -150,12 +150,12 @@ models:
+         description: "{{ doc('pass_accuracy_delta_yoy__team') }}"
+       - name: key_passes_per_match_delta_yoy
+         description: "{{ doc('key_passes_per_match_delta_yoy__team') }}"
+-      - name: corner_kicks_per_match_delta_yoy
+-        description: "{{ doc('corner_kicks_per_match_delta_yoy__team') }}"
++      - name: corners_per_match_delta_yoy
++        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
+       - name: corners_against_per_match_delta_yoy
+         description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
+-      - name: save_ratio_delta_yoy
+-        description: "{{ doc('save_ratio_delta_yoy__team') }}"
++      - name: saves_pct_delta_yoy
++        description: "{{ doc('saves_pct_delta_yoy__team') }}"
+ 
+   - name: int_team_profile__streaks
+     description: >
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-index 9fca7c4..9b1c510 100644
+index 9b1c510..9acea73 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-@@ -88,7 +88,7 @@ select
-     cur.goals_against_sum_season as goals_against_this_season,
-     cur.goals_per_match as goals_per_match_this_season,
-     cur.goals_against_per_match as goals_against_per_match_this_season,
--    cur.clean_sheets_share as clean_sheets_share_this_season,
-+    cur.clean_sheets_pct as clean_sheets_pct_this_season,
-     cur.shots_per_match as shots_per_match_this_season,
-     cur.danger_zone_ratio as danger_zone_ratio_this_season,
-     cur.shots_on_goal_per_match as shots_on_goal_per_match_this_season,
-@@ -108,7 +108,7 @@ select
-     prev.goals_against_sum_season as goals_against_prev_season,
-     prev.goals_per_match as goals_per_match_prev_season,
-     prev.goals_against_per_match as goals_against_per_match_prev_season,
--    prev.clean_sheets_share as clean_sheets_share_prev_season,
-+    prev.clean_sheets_pct as clean_sheets_pct_prev_season,
-     prev.shots_per_match as shots_per_match_prev_season,
-     prev.danger_zone_ratio as danger_zone_ratio_prev_season,
-     prev.shots_on_goal_per_match as shots_on_goal_per_match_prev_season,
-@@ -128,7 +128,7 @@ select
-     cur.goals_against_sum_season - prev.goals_against_sum_season as goals_against_delta_yoy,
-     cur.goals_per_match - prev.goals_per_match as goals_per_match_delta_yoy,
-     cur.goals_against_per_match - prev.goals_against_per_match as goals_against_per_match_delta_yoy,
--    cur.clean_sheets_share - prev.clean_sheets_share as clean_sheets_share_delta_yoy,
-+    cur.clean_sheets_pct - prev.clean_sheets_pct as clean_sheets_pct_delta_yoy,
-     cur.shots_per_match - prev.shots_per_match as shots_per_match_delta_yoy,
-     cur.danger_zone_ratio - prev.danger_zone_ratio as danger_zone_ratio_delta_yoy,
-     cur.shots_on_goal_per_match - prev.shots_on_goal_per_match as shots_on_goal_per_match_delta_yoy,
+@@ -99,9 +99,9 @@ select
+     cur.passes_per_match as passes_per_match_this_season,
+     cur.pass_accuracy as pass_accuracy_this_season,
+     cur.key_passes_per_match as key_passes_per_match_this_season,
+-    cur.corner_kicks_per_match as corner_kicks_per_match_this_season,
++    cur.corners_per_match as corners_per_match_this_season,
+     cur.corners_against_per_match as corners_against_per_match_this_season,
+-    cur.save_ratio as save_ratio_this_season,
++    cur.saves_pct as saves_pct_this_season,
+     -- prior-season values (through the same N)
+     prev.points_won_sum_season as points_prev_season,
+     prev.goals_for_sum_season as goals_for_prev_season,
+@@ -119,9 +119,9 @@ select
+     prev.passes_per_match as passes_per_match_prev_season,
+     prev.pass_accuracy as pass_accuracy_prev_season,
+     prev.key_passes_per_match as key_passes_per_match_prev_season,
+-    prev.corner_kicks_per_match as corner_kicks_per_match_prev_season,
++    prev.corners_per_match as corners_per_match_prev_season,
+     prev.corners_against_per_match as corners_against_per_match_prev_season,
+-    prev.save_ratio as save_ratio_prev_season,
++    prev.saves_pct as saves_pct_prev_season,
+     -- year-over-year deltas (this − prev; NULL when either side is NULL)
+     cur.points_won_sum_season - prev.points_won_sum_season as points_delta_yoy,
+     cur.goals_for_sum_season - prev.goals_for_sum_season as goals_for_delta_yoy,
+@@ -139,9 +139,9 @@ select
+     cur.passes_per_match - prev.passes_per_match as passes_per_match_delta_yoy,
+     cur.pass_accuracy - prev.pass_accuracy as pass_accuracy_delta_yoy,
+     cur.key_passes_per_match - prev.key_passes_per_match as key_passes_per_match_delta_yoy,
+-    cur.corner_kicks_per_match - prev.corner_kicks_per_match as corner_kicks_per_match_delta_yoy,
++    cur.corners_per_match - prev.corners_per_match as corners_per_match_delta_yoy,
+     cur.corners_against_per_match - prev.corners_against_per_match as corners_against_per_match_delta_yoy,
+-    cur.save_ratio - prev.save_ratio as save_ratio_delta_yoy
++    cur.saves_pct - prev.saves_pct as saves_pct_delta_yoy
+ from cur
+ left join prev
+     on
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+index 8027c10..37f7ae5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+@@ -111,7 +111,7 @@ select
+     -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)
+     sum(case when opponent_shots_on_goal is not null then 1 else 0 end) over w
+         as games_with_opp_sot_stats,
+-    -- save coverage (cumulative): save_ratio is a team-feed (goalkeeper) metric, so it needs its
++    -- save coverage (cumulative): saves_pct is a team-feed (goalkeeper) metric, so it needs its
+     -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
+     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
+         as games_with_save_stats,
+@@ -120,7 +120,7 @@ select
+     -- window is fully shot-covered, so no coverage-restricted goals sum is needed.
+     sum(goals_penalty) over w as goals_penalty,
+     sum(goals_own) over w as goals_own,
+-    -- coverage-restricted scoreline sum keeps save_ratio same-window with its denominator
++    -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
+     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
+         as goals_against_in_save_games,
+     -- team stats (cumulative)
 diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-index a9103a6..e6a5370 100644
+index e6a5370..9e1c3a9 100644
 --- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
 +++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-@@ -107,8 +107,8 @@ models:
-       - name: passes_accurate_sum_season
-       - name: passes_total_sum_season
-       - name: goalkeeper_saves_sum_season
--      - name: points_capture
--        description: "{{ doc('points_capture') }}"
-+      - name: points_capture_pct
-+        description: "{{ doc('points_capture_pct') }}"
-       - name: goals_per_match
-         description: "{{ doc('goals_per_match') }}"
-       - name: goals_against_per_match
+@@ -127,12 +127,12 @@ models:
+         description: "{{ doc('pass_accuracy') }}"
+       - name: passes_per_match
+         description: "{{ doc('passes_per_match') }}"
+-      - name: corner_kicks_per_match
+-        description: "{{ doc('corner_kicks_per_match') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
+       - name: corners_against_per_match
+         description: "{{ doc('corners_against_per_match') }}"
+-      - name: save_ratio
+-        description: "{{ doc('save_ratio') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
+ 
+   - name: mart_matchday_insights
+     description: >
+@@ -183,11 +183,11 @@ models:
+           expression: "away_pass_accuracy_recent is null or (away_pass_accuracy_recent between 0 and 1)"
+           name: mmi_away_pass_accuracy_in_range
+       - dbt_utils.expression_is_true:
+-          expression: "home_save_ratio_recent is null or (home_save_ratio_recent between 0 and 1)"
+-          name: mmi_home_save_ratio_in_range
++          expression: "home_saves_pct_recent is null or (home_saves_pct_recent between 0 and 1)"
++          name: mmi_home_saves_pct_in_range
+       - dbt_utils.expression_is_true:
+-          expression: "away_save_ratio_recent is null or (away_save_ratio_recent between 0 and 1)"
+-          name: mmi_away_save_ratio_in_range
++          expression: "away_saves_pct_recent is null or (away_saves_pct_recent between 0 and 1)"
++          name: mmi_away_saves_pct_in_range
+     columns:
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }} This model's grain: one row per upcoming fixture in the next round per league."
+@@ -316,16 +316,16 @@ models:
+         description: "Home: total passes per game with team stats."
+       - name: away_passes_per_match_recent
+         description: "Away: total passes per game with team stats."
+-      - name: home_corner_kicks_per_match_recent
++      - name: home_corners_per_match_recent
+         description: "Home: corners won per game with team stats."
+-      - name: away_corner_kicks_per_match_recent
++      - name: away_corners_per_match_recent
+         description: "Away: corners won per game with team stats."
+       - name: home_corners_against_per_match_recent
+         description: "Home: corners conceded per game with opponent stats."
+       - name: away_corners_against_per_match_recent
+         description: "Away: corners conceded per game with opponent stats."
+-      - name: home_save_ratio_recent
++      - name: home_saves_pct_recent
+         description: "Home: saves / (saves + goals conceded in save-covered games); self-bounded."
+-      - name: away_save_ratio_recent
++      - name: away_saves_pct_recent
+         description: "Away: save ratio over the form window."
+ 
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+index 8b18dd1..f9c6e66 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+@@ -151,9 +151,9 @@ select
+     mh.finishing_efficiency as home_finishing_efficiency_recent,
+     mh.passes_per_match as home_passes_per_match_recent,
+     mh.pass_accuracy as home_pass_accuracy_recent,
+-    mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
++    mh.corners_per_match as home_corners_per_match_recent,
+     mh.corners_against_per_match as home_corners_against_per_match_recent,
+-    mh.save_ratio as home_save_ratio_recent,
++    mh.saves_pct as home_saves_pct_recent,
+     -- away form window (from mart_team_momentum).
+     ma.goals_per_match as away_goals_per_match_recent,
+     ma.goals_against_per_match as away_goals_against_per_match_recent,
+@@ -163,9 +163,9 @@ select
+     ma.finishing_efficiency as away_finishing_efficiency_recent,
+     ma.passes_per_match as away_passes_per_match_recent,
+     ma.pass_accuracy as away_pass_accuracy_recent,
+-    ma.corner_kicks_per_match as away_corner_kicks_per_match_recent,
++    ma.corners_per_match as away_corners_per_match_recent,
+     ma.corners_against_per_match as away_corners_against_per_match_recent,
+-    ma.save_ratio as away_save_ratio_recent,
++    ma.saves_pct as away_saves_pct_recent,
+     -- form games/points: 0 (not null) when a team has no finished matches in the
+     -- window. coalesce calculations sort after the simple columns above (ST06).
+     coalesce(mh.games_in_window, 0) as home_form_games_played,
 diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
-index 3794ff4..614911e 100644
+index 614911e..5627a9f 100644
 --- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
 +++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
-@@ -73,7 +73,7 @@ select
-     m.passes_accurate_sum_season,
-     m.passes_total_sum_season,
-     m.goalkeeper_saves_sum_season,
--    m.points_capture,
-+    m.points_capture_pct,
-     m.goals_per_match,
-     m.goals_against_per_match,
-     m.shots_per_match,
+@@ -83,9 +83,9 @@ select
+     m.finishing_efficiency,
+     m.pass_accuracy,
+     m.passes_per_match,
+-    m.corner_kicks_per_match,
++    m.corners_per_match,
+     m.corners_against_per_match,
+-    m.save_ratio
++    m.saves_pct
+ from latest_season_metrics as m
+ inner join dim_team as t on m.team_sk = t.team_sk
+ left join mart_team_season as ts
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+index e98d4b5..88ca7fa 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+@@ -88,7 +88,7 @@ select
+     case
+         when b.games_with_team_stats < b.games_in_window then null
+         else safe_divide(b.corner_kicks, b.games_with_team_stats)
+-    end as corner_kicks_per_match,
++    end as corners_per_match,
+     case
+         when b.games_with_opp_stats < b.games_in_window then null
+         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
+@@ -100,7 +100,7 @@ select
+         else safe_divide(
+             b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
+         )
+-    end as save_ratio,
++    end as saves_pct,
+     -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
+     -- gated) — these are player data, and missing player stats must not blank a team stat
+     -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
 diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index a890b13..1db205a 100644
+index 1db205a..a539c32 100644
 --- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
 +++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -116,7 +116,7 @@ select
-     m.defensive_actions_per_match,
-     -- shooting dominance + results efficiency (catalogued season metrics)
-     m.shot_share,
--    m.points_capture,
-+    m.points_capture_pct,
-     -- year-over-year (domestic only; NULL otherwise / when prior season absent)
-     y.yoy_games_played_cutoff,
-     y.points_this_season,
-@@ -137,9 +137,9 @@ select
-     y.goals_against_per_match_this_season,
-     y.goals_against_per_match_prev_season,
-     y.goals_against_per_match_delta_yoy,
--    y.clean_sheets_share_this_season,
--    y.clean_sheets_share_prev_season,
--    y.clean_sheets_share_delta_yoy,
-+    y.clean_sheets_pct_this_season,
-+    y.clean_sheets_pct_prev_season,
-+    y.clean_sheets_pct_delta_yoy,
-     y.shots_per_match_this_season,
-     y.shots_per_match_prev_season,
-     y.shots_per_match_delta_yoy,
+@@ -97,9 +97,9 @@ select
+     m.finishing_efficiency,
+     m.pass_accuracy,
+     m.passes_per_match,
+-    m.corner_kicks_per_match,
++    m.corners_per_match,
+     m.corners_against_per_match,
+-    m.save_ratio,
++    m.saves_pct,
+     -- GAP-13: locked-contract season variants (player-derived ones inherit
+     -- player-stat coverage gaps; caption from player_stat_coverage_season_games)
+     m.player_stat_coverage_season_games,
+@@ -170,15 +170,15 @@ select
+     y.key_passes_per_match_this_season,
+     y.key_passes_per_match_prev_season,
+     y.key_passes_per_match_delta_yoy,
+-    y.corner_kicks_per_match_this_season,
+-    y.corner_kicks_per_match_prev_season,
+-    y.corner_kicks_per_match_delta_yoy,
++    y.corners_per_match_this_season,
++    y.corners_per_match_prev_season,
++    y.corners_per_match_delta_yoy,
+     y.corners_against_per_match_this_season,
+     y.corners_against_per_match_prev_season,
+     y.corners_against_per_match_delta_yoy,
+-    y.save_ratio_this_season,
+-    y.save_ratio_prev_season,
+-    y.save_ratio_delta_yoy,
++    y.saves_pct_this_season,
++    y.saves_pct_prev_season,
++    y.saves_pct_delta_yoy,
+     -- streaks (trailing run as of the latest match)
+     s.unbeaten_run,
+     s.win_run,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_season_record.sql b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+index 8abeed8..9b647cb 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+@@ -79,9 +79,9 @@ matched as (
+         m.finishing_efficiency,
+         m.passes_per_match,
+         m.pass_accuracy,
+-        m.corner_kicks_per_match,
++        m.corners_per_match,
+         m.corners_against_per_match,
+-        m.save_ratio,
++        m.saves_pct,
+         m.key_passes_per_match,
+         m.tackles_per_match,
+         m.interceptions_per_match,
+@@ -136,9 +136,9 @@ select
+     finishing_efficiency,
+     passes_per_match,
+     pass_accuracy,
+-    corner_kicks_per_match,
++    corners_per_match,
+     corners_against_per_match,
+-    save_ratio,
++    saves_pct,
+     key_passes_per_match,
+     tackles_per_match,
+     interceptions_per_match,
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 68d37bb..448f5bb 100644
+index 448f5bb..1cda7d1 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -597,8 +597,8 @@ models:
-           expression: "shot_share is null or (shot_share between 0 and 1)"
-           name: team_profile_shot_share_in_range
+@@ -117,8 +117,8 @@ models:
+           expression: "pass_accuracy is null or (pass_accuracy between 0 and 1)"
+           name: momentum_team_pass_accuracy_in_range
        - dbt_utils.expression_is_true:
--          expression: "points_capture is null or (points_capture between 0 and 1)"
--          name: team_profile_points_capture_in_range
-+          expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
-+          name: team_profile_points_capture_pct_in_range
-       # GAP-13 season variant of the duel win rate — same-window ratio bound
+-          expression: "save_ratio is null or (save_ratio between 0 and 1)"
+-          name: momentum_team_save_ratio_in_range
++          expression: "saves_pct is null or (saves_pct between 0 and 1)"
++          name: momentum_team_saves_pct_in_range
        - dbt_utils.expression_is_true:
            expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
-@@ -729,8 +729,8 @@ models:
-         description: "{{ doc('defensive_actions_per_match') }}"
-       - name: shot_share
-         description: "{{ doc('shot_share') }}"
--      - name: points_capture
--        description: "{{ doc('points_capture') }}"
-+      - name: points_capture_pct
-+        description: "{{ doc('points_capture_pct') }}"
-       - name: yoy_games_played_cutoff
-         description: "{{ doc('yoy_games_played_cutoff') }}"
-       - name: points_this_season
-@@ -751,12 +751,12 @@ models:
-         description: "{{ doc('goals_against_per_match_prev_season__team') }}"
-       - name: goals_against_per_match_delta_yoy
-         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
--      - name: clean_sheets_share_this_season
--        description: "{{ doc('clean_sheets_share_this_season__team') }}"
--      - name: clean_sheets_share_prev_season
--        description: "{{ doc('clean_sheets_share_prev_season__team') }}"
--      - name: clean_sheets_share_delta_yoy
--        description: "{{ doc('clean_sheets_share_delta_yoy__team') }}"
-+      - name: clean_sheets_pct_this_season
-+        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
-+      - name: clean_sheets_pct_prev_season
-+        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
-+      - name: clean_sheets_pct_delta_yoy
-+        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
-       - name: shots_per_match_this_season
-         description: "{{ doc('shots_per_match_this_season__team') }}"
-       - name: shots_per_match_prev_season
+           name: momentum_team_duels_won_pct_in_range
+@@ -184,12 +184,12 @@ models:
+         description: "{{ doc('passes_per_match') }}"
+       - name: pass_accuracy
+         description: "{{ doc('pass_accuracy') }}"
+-      - name: corner_kicks_per_match
+-        description: "{{ doc('corner_kicks_per_match') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
+       - name: corners_against_per_match
+         description: "{{ doc('corners_against_per_match') }}"
+-      - name: save_ratio
+-        description: "{{ doc('save_ratio') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
+       - name: key_passes_per_match
+         description: "{{ doc('key_passes_per_match') }}"
+       - name: tackles_per_match
+@@ -706,12 +706,12 @@ models:
+         description: "{{ doc('pass_accuracy') }}"
+       - name: passes_per_match
+         description: "{{ doc('passes_per_match') }}"
+-      - name: corner_kicks_per_match
+-        description: "{{ doc('corner_kicks_per_match') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
+       - name: corners_against_per_match
+         description: "{{ doc('corners_against_per_match') }}"
+-      - name: save_ratio
+-        description: "{{ doc('save_ratio') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
+       - name: player_stat_coverage_season_games
+       - name: shots_on_goal_per_match
+         description: "{{ doc('shots_on_goal_per_match') }}"
+@@ -817,24 +817,24 @@ models:
+         description: "{{ doc('key_passes_per_match_prev_season__team') }}"
+       - name: key_passes_per_match_delta_yoy
+         description: "{{ doc('key_passes_per_match_delta_yoy__team') }}"
+-      - name: corner_kicks_per_match_this_season
+-        description: "{{ doc('corner_kicks_per_match_this_season__team') }}"
+-      - name: corner_kicks_per_match_prev_season
+-        description: "{{ doc('corner_kicks_per_match_prev_season__team') }}"
+-      - name: corner_kicks_per_match_delta_yoy
+-        description: "{{ doc('corner_kicks_per_match_delta_yoy__team') }}"
++      - name: corners_per_match_this_season
++        description: "{{ doc('corners_per_match_this_season__team') }}"
++      - name: corners_per_match_prev_season
++        description: "{{ doc('corners_per_match_prev_season__team') }}"
++      - name: corners_per_match_delta_yoy
++        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
+       - name: corners_against_per_match_this_season
+         description: "{{ doc('corners_against_per_match_this_season__team') }}"
+       - name: corners_against_per_match_prev_season
+         description: "{{ doc('corners_against_per_match_prev_season__team') }}"
+       - name: corners_against_per_match_delta_yoy
+         description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
+-      - name: save_ratio_this_season
+-        description: "{{ doc('save_ratio_this_season__team') }}"
+-      - name: save_ratio_prev_season
+-        description: "{{ doc('save_ratio_prev_season__team') }}"
+-      - name: save_ratio_delta_yoy
+-        description: "{{ doc('save_ratio_delta_yoy__team') }}"
++      - name: saves_pct_this_season
++        description: "{{ doc('saves_pct_this_season__team') }}"
++      - name: saves_pct_prev_season
++        description: "{{ doc('saves_pct_prev_season__team') }}"
++      - name: saves_pct_delta_yoy
++        description: "{{ doc('saves_pct_delta_yoy__team') }}"
+       - name: unbeaten_run
+       - name: win_run
+       - name: winless_run
+@@ -867,8 +867,8 @@ models:
+           expression: "pass_accuracy is null or (pass_accuracy between 0 and 1)"
+           name: std_team_pass_accuracy_in_range
+       - dbt_utils.expression_is_true:
+-          expression: "save_ratio is null or (save_ratio between 0 and 1)"
+-          name: std_team_save_ratio_in_range
++          expression: "saves_pct is null or (saves_pct between 0 and 1)"
++          name: std_team_saves_pct_in_range
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+           name: std_team_duels_won_pct_in_range
+@@ -947,12 +947,12 @@ models:
+         description: "{{ doc('passes_per_match') }}"
+       - name: pass_accuracy
+         description: "{{ doc('pass_accuracy') }}"
+-      - name: corner_kicks_per_match
+-        description: "{{ doc('corner_kicks_per_match') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
+       - name: corners_against_per_match
+         description: "{{ doc('corners_against_per_match') }}"
+-      - name: save_ratio
+-        description: "{{ doc('save_ratio') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
+       - name: key_passes_per_match
+         description: "{{ doc('key_passes_per_match') }}"
+       - name: tackles_per_match
 @@ -2077,7 +2077,7 @@ models:
          tests:
            - not_null
            - accepted_values:
--              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_share", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
-+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
        - name: metric_value
          description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
          tests: [not_null]
 diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index a345e2f..3bad323 100644
+index 3bad323..5d4619d 100644
 --- a/dbt_project/models/docs/metric_columns.md
 +++ b/dbt_project/models/docs/metric_columns.md
-@@ -88,19 +88,19 @@ Yellow cards.
- 
- 
- {% docs clean_sheets %}
--Matches the team finished without conceding a goal, counted as whole matches.
--clean_sheets_share is the same measurement expressed as a proportion of the matches played.
-+Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
-+is the same measurement expressed as a proportion of the matches played.
+@@ -143,33 +143,6 @@ only covered appearances. Null when the club scored 0 that competition-season.
  {% enddocs %}
  
  
--{% docs clean_sheets_share %}
-+{% docs clean_sheets_pct %}
- The share of matches the team finished without conceding a goal: matches with zero goals
- against divided by matches played. clean_sheets is the same measurement expressed as a whole
- number of matches.
+-{% docs corner_kicks_per_match %}
+-Average corner kicks won per match with available team stats.
+-{% enddocs %}
+-
+-
+-{% docs corner_kicks_per_match_delta_yoy__team %}
+-Average corner kicks won per match with available team stats. The change from the previous
+-season to the current one, compared at the same point of the campaign: the current value minus
+-the previous one. NULL when either side is missing, which covers a competition that carries no
+-year-on-year comparison, a prior season that was never loaded, and a season whose first matches
+-are not fully stat-covered.
+-{% enddocs %}
+-
+-
+-{% docs corner_kicks_per_match_prev_season__team %}
+-Average corner kicks won per match with available team stats. Value for the season before,
+-through the same number of matches as the current season has played so far, so the two are
+-compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs corner_kicks_per_match_this_season__team %}
+-Average corner kicks won per match with available team stats. Value for the season now in
+-progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs corners %}
+ Corner kicks won by the team, taken from the provider's team match statistics rather than from
+ the scoreline or from player records. The provider does not supply team statistics for every
+@@ -205,6 +178,33 @@ in progress, accumulated through the matches played so far.
  {% enddocs %}
  
  
--{% docs clean_sheets_share_delta_yoy__team %}
-+{% docs clean_sheets_pct_delta_yoy__team %}
- The share of matches the team finished without conceding a goal: matches with zero goals
- against divided by matches played. clean_sheets is the same measurement expressed as a whole
- number of matches. The change from the previous season to the current one, compared at the same
-@@ -110,7 +110,7 @@ that was never loaded, and a season whose first matches are not fully stat-cover
++{% docs corners_per_match %}
++Average corner kicks won per match with available team stats.
++{% enddocs %}
++
++
++{% docs corners_per_match_delta_yoy__team %}
++Average corner kicks won per match with available team stats. The change from the previous
++season to the current one, compared at the same point of the campaign: the current value minus
++the previous one. NULL when either side is missing, which covers a competition that carries no
++year-on-year comparison, a prior season that was never loaded, and a season whose first matches
++are not fully stat-covered.
++{% enddocs %}
++
++
++{% docs corners_per_match_prev_season__team %}
++Average corner kicks won per match with available team stats. Value for the season before,
++through the same number of matches as the current season has played so far, so the two are
++compared at the same point of a campaign rather than a part season against a full one.
++{% enddocs %}
++
++
++{% docs corners_per_match_this_season__team %}
++Average corner kicks won per match with available team stats. Value for the season now in
++progress, accumulated through the matches played so far.
++{% enddocs %}
++
++
+ {% docs danger_zone_ratio %}
+ Share of shots taken from inside the penalty area. Null when shots_total is zero.
+ {% enddocs %}
+@@ -1001,13 +1001,26 @@ Goalkeeper save percentage. Null when denominator is zero.
  {% enddocs %}
  
  
--{% docs clean_sheets_share_prev_season__team %}
-+{% docs clean_sheets_pct_prev_season__team %}
- The share of matches the team finished without conceding a goal: matches with zero goals
- against divided by matches played. clean_sheets is the same measurement expressed as a whole
- number of matches. Value for the season before, through the same number of matches as the
-@@ -119,7 +119,7 @@ rather than a part season against a full one.
+-{% docs save_ratio %}
++{% docs saves__player %}
++Saves made.
++{% enddocs %}
++
++
++{% docs saves__team %}
++Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
++than summed from the individual goalkeepers' counts; the two need not agree. The provider does
++not supply team statistics for every fixture, so this can be missing, and a total over several
++fixtures can be understated rather than null.
++{% enddocs %}
++
++
++{% docs saves_pct %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+ conceded in save-covered games). Null when no save-covered games.
  {% enddocs %}
  
  
--{% docs clean_sheets_share_this_season__team %}
-+{% docs clean_sheets_pct_this_season__team %}
- The share of matches the team finished without conceding a goal: matches with zero goals
- against divided by matches played. clean_sheets is the same measurement expressed as a whole
- number of matches. Value for the season now in progress, accumulated through the matches played
-@@ -128,9 +128,9 @@ so far.
- 
- 
- {% docs clean_sheets_sum_season__team %}
--Matches the team finished without conceding a goal, counted as whole matches.
--clean_sheets_share is the same measurement expressed as a proportion of the matches played.
--Totalled over the season.
-+Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
-+is the same measurement expressed as a proportion of the matches played. Totalled over the
-+season.
+-{% docs save_ratio_delta_yoy__team %}
++{% docs saves_pct_delta_yoy__team %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+ conceded in save-covered games). Null when no save-covered games. The change from the previous
+ season to the current one, compared at the same point of the campaign: the current value minus
+@@ -1017,7 +1030,7 @@ are not fully stat-covered.
  {% enddocs %}
  
  
-@@ -981,7 +981,7 @@ Penalties won.
+-{% docs save_ratio_prev_season__team %}
++{% docs saves_pct_prev_season__team %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+ conceded in save-covered games). Null when no save-covered games. Value for the season before,
+ through the same number of matches as the current season has played so far, so the two are
+@@ -1025,26 +1038,13 @@ compared at the same point of a campaign rather than a part season against a ful
  {% enddocs %}
  
  
--{% docs points_capture %}
-+{% docs points_capture_pct %}
- Share of available points won (points / (3 * games)).
+-{% docs save_ratio_this_season__team %}
++{% docs saves_pct_this_season__team %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+ conceded in save-covered games). Null when no save-covered games. Value for the season now in
+ progress, accumulated through the matches played so far.
  {% enddocs %}
  
+ 
+-{% docs saves__player %}
+-Saves made.
+-{% enddocs %}
+-
+-
+-{% docs saves__team %}
+-Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
+-than summed from the individual goalkeepers' counts; the two need not agree. The provider does
+-not supply team statistics for every fixture, so this can be missing, and a total over several
+-fixtures can be understated rather than null.
+-{% enddocs %}
+-
+-
+ {% docs saves_per90 %}
+ Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+ {% enddocs %}
 diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index bbe572c..35d0bb2 100644
+index 35d0bb2..47fee7c 100644
 --- a/dbt_project/seeds/metric_catalogue.csv
 +++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -3,7 +3,7 @@ league_rank,team,metrics.league_rank.label,League position,Current league standi
- points_won,team,metrics.points_won.label,Points won,"Total points earned: 3 per win, 1 per draw, 0 per loss.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,false,points_fraction,outcomes,1,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss)
- goals_per_match,team,metrics.goals_per_match.label,Ø Goals,Average goals scored per match.,int_legs__team_match,sum(goals_for),count(*),expression,false,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack
- goals_against_per_match,team,metrics.goals_against_per_match.label,Ø Goals against,Average goals conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,true,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence
--clean_sheets_share,team,metrics.clean_sheets_share.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back
-+clean_sheets_pct,team,metrics.clean_sheets_pct.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back
- goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls
- goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
- goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
-@@ -55,7 +55,7 @@ save_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percen
- shots_total,player,playerMetrics.shots.label,Shots,Total shots (on and off target).,int_legs__player_match,sum(shots_total),,expression,false,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played)
- goals_against,player,playerMetrics.goalsConceded.label,Goals conceded,Goals conceded by the team while the player was on the pitch (GK-relevant).,int_legs__player_match,sum(goals_against),,expression,true,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual)
- shot_share,team,metrics.shot_share.label,% Share of shots,Share of all shots in the team's matches taken by the team. Null when no shots.,int_legs__team_match,sum(shots_total),sum(shots_total + opponent_shots_total),expression,false,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
--points_capture,team,metrics.points_capture.label,% Points captured,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,false,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
-+points_capture_pct,team,metrics.points_capture_pct.label,% Points captured,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,false,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
- scorer_points,player,playerMetrics.scorerPoints.label,Goal contributions,Goals plus assists (combined goal contributions).,int_legs__player_match,sum(goals_total + goals_assists),,expression,false,integer,goals,1,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played)
- defensive_actions,player,playerMetrics.defensiveActions.label,Defensive actions,Tackles plus interceptions plus blocks (combined defensive actions).,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks),,expression,false,integer,defending,1,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend)
- cards_total,player,playerMetrics.cards.label,Cards,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",int_legs__player_match,sum(cards_yellow + cards_red),,expression,true,integer,discipline,1,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red)
-@@ -84,4 +84,4 @@ goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by
- corners,team,metrics.corners.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
- saves,team,metrics.saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
- shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - danger_zone_ratio is what measures that; a raw count, so it rises with matches played)"
--clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_share is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
-+clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 329a435..dfdf7a7 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -279,7 +279,7 @@ seeds:
-         description: >
-           The metric's fixed mathematical denominator: count(*) = number of matches in the window
-           (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
--          numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
-+          numerator_expr); 3 * count(*) for points_capture_pct. Like the numerator it is the DEFINITION
-           only — coverage/availability handling lives in the model, never here. Blank for raw count
-           metrics and the blank-base_relation rows above.
-       - name: computation_kind
-diff --git a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-index ebba3de..c0503ae 100644
---- a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-+++ b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-@@ -26,9 +26,9 @@ checks as (
-             else abs(goals_against_per_match * season_games_played - goals_against_sum_season)
-         end as goals_against_per_match_err,
-         case
--            when points_capture is null or points_won_sum_season is null then 0
--            else abs(points_capture * (3 * season_games_played) - points_won_sum_season)
--        end as points_capture_err,
-+            when points_capture_pct is null or points_won_sum_season is null then 0
-+            else abs(points_capture_pct * (3 * season_games_played) - points_won_sum_season)
-+        end as points_capture_pct_err,
-         case
-             when shots_per_match is null or total_shots_sum_season is null then 0
-             else abs(shots_per_match * season_games_played - total_shots_sum_season)
-@@ -41,6 +41,6 @@ from checks
- where greatest(
-     goals_per_match_err,
-     goals_against_per_match_err,
--    points_capture_err,
-+    points_capture_pct_err,
-     shots_per_match_err
- ) > 0.001
+@@ -23,9 +23,9 @@ blocks_per_match,team,metrics.blocks_per_match.label,Ø Blocks,Average shots blo
+ passes_per_match,team,metrics.passes_per_match.label,Ø Passes,Average passes attempted per match with available team stats.,int_legs__team_match,sum(passes_total),count(*),expression,false,decimal_0,passing,3,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept)
+ pass_accuracy,team,metrics.pass_accuracy.label,% Pass accuracy,Share of passes successfully completed. Null when passes_total is zero.,int_legs__team_match,sum(passes_accurate),sum(passes_total),expression,false,percent,passing,2,higher_better,Passing security - completion rate; high = keeps the ball well
+ key_passes_per_match,team,metrics.key_passes_per_match.label,Ø Key passes,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),expression,false,decimal_1,passing,2,higher_better,Creativity - passes leading to a shot; high = creates chances
+-corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Ø Corners,Average corner kicks won per match with available team stats.,int_legs__team_match,sum(corner_kicks),count(*),expression,false,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy)
++corners_per_match,team,metrics.corners_per_match.label,Ø Corners,Average corner kicks won per match with available team stats.,int_legs__team_match,sum(corner_kicks),count(*),expression,false,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy)
+ corners_against_per_match,team,metrics.corners_against_per_match.label,Ø Corners against,Average corner kicks conceded per match with available opponent stats.,int_legs__team_match,sum(opponent_corner_kicks),count(*),expression,true,decimal_1,set_pieces,3,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy)
+-save_ratio,team,metrics.save_ratio.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
++saves_pct,team,metrics.saves_pct.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
+ goals,player,playerMetrics.scorerPoints.goals,Goals,Goals scored.,int_legs__player_match,sum(goals_total),,expression,false,integer,goals,1,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played)
+ assists,player,playerMetrics.scorerPoints.assists,Assists,Goal assists.,int_legs__player_match,sum(goals_assists),,expression,false,integer,goals,1,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played)
+ goals_penalty,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties
 diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
-index 2d3a396..c9351a5 100644
+index c9351a5..99990f8 100644
 --- a/docs/wireframes/02_team_profile.md
 +++ b/docs/wireframes/02_team_profile.md
-@@ -101,7 +101,7 @@ All season-scoped keys come from the selected `seasons[]` row.
- | Element | JSON key | Display |
- |---|---|---|
- | Shot share | `shot_share` | percent + bar |
--| Points capture | `points_capture` | percent + bar |
-+| Points capture | `points_capture_pct` | percent + bar |
- | Gap | `performance_vs_results_gap` | signed percentage-point delta + plain-language label ("dominates play more than results show" / inverse); ⓘ → glossary |
+@@ -140,9 +140,9 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
+ | % Goals per shot on target | `finishing_efficiency` |
+ | Ø Passes | `passes_per_match` |
+ | % Pass accuracy | `pass_accuracy` |
+-| Ø Corners | `corner_kicks_per_match` |
++| Ø Corners | `corners_per_match` |
+ | Ø Corners against | `corners_against_per_match` |
+-| % Save percentage | `save_ratio` |
++| % Save percentage | `saves_pct` |
  
- Two real ratios and their difference — NEVER a composite score gauge (ruled).
-diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
-index e1ed94f..6a9cdc3 100644
---- a/docs/wireframes/10_home.md
-+++ b/docs/wireframes/10_home.md
-@@ -161,14 +161,14 @@ floors that guard `mart_leaderboards`' five rate boards are not needed for eight
- was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_on_goal_per_match` →
- `passes_per_match` → `duels_per_match`** (`design-mocks/gen_top_teams.py`). % Points captured and
- Ø Defensive actions are gone, and the surviving four are single-metric like the player boards.
--⚠ % Points captured leaving matters beyond this block: `points_capture` is built on the synthetic
-+⚠ % Points captured leaving matters beyond this block: `points_capture_pct` is built on the synthetic
- 3-1-0 tally, which is wrong for cup competitions.
- 
- ~~**Six team boards.**~~
- 
- | Board | Shown | Ranked by |
- |---|---|---|
--| % Points captured | `points_capture` · `points_won` · `deserved_points` | `points_capture` |
-+| % Points captured | `points_capture_pct` · `points_won` · `deserved_points` | `points_capture_pct` |
- | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
- | Ø Shots on target difference | `sot_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency` | `sot_difference_per_match` |
- | Ø Defensive actions | `defensive_actions_per_match` | descending |
-@@ -186,7 +186,7 @@ Outcomes metrics `league_rank` and `deserved_rank`, which are the standings the
- ⛔ **SUPERSEDED 2026-08-10 — the paragraph below is about the REMOVED % Points captured board.**
- `gen_top_teams.py`'s header: *"'% Points captured' dropped as a board; `points_capture` is shown
- nowhere"* and *"deserved-vs-actual dropped … takes `deserved_points` and `points_won` off the block
--entirely."* Nothing on the reduced four-board block ranks on `points_capture`, so its reassurance
-+entirely."* Nothing on the reduced four-board block ranks on `points_capture_pct`, so its reassurance
- is not merely stale, it is FALSE about the current design. Kept as the record of why that board was
- fragile, because the same structural problem returns anywhere `deserved_points` is used.
- 
-@@ -195,7 +195,7 @@ One is a coverage gap that can close: the league-season needs every team to carr
- a league rank and three finished games. The other is STRUCTURAL and will not close — MLS ranks by
- conference and the Apertura/Clausura formats reset points, so there is no single ladder to fit.
- That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leagues in pools 2 and
--3. Ranking is on `points_capture`, so a null `deserved_points` never affects the order.~~
-+3. Ranking is on `points_capture_pct`, so a null `deserved_points` never affects the order.~~
- 
- **Shared display rules.**
- 
+ **Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
+ Ø Defensive actions, Ø Key passes — the full-season intermediate predates the
 diff --git a/docs/wireframes/14_team_stats.md b/docs/wireframes/14_team_stats.md
-index b7c88b3..0681f82 100644
+index 0681f82..566b40b 100644
 --- a/docs/wireframes/14_team_stats.md
 +++ b/docs/wireframes/14_team_stats.md
-@@ -58,7 +58,7 @@ next to the %), both being separate metrics already in the set.
- │  GOALS                                            │  (4) group subhead (metrics_display order)
- │  Ø Goals          2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
- │  Ø Goals against  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
--│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_share; the fixture windows show the count
-+│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_pct; the fixture windows show the count
- │  SHOOTING                                         │      order = the LOCKED shooting funnel
- │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
- │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
-@@ -100,7 +100,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
- | Label | `metric_key` | `metric_key` | label + format from `metric_catalogue` (never invented) |
- | Value — per-match metric | `metric_value` | `metric_value` | the per-match rate, catalogue `format` (`decimal_0`/`decimal_1`) |
- | Value — ratio metric (%) | `metric_value` | `metric_value` | the `percent`; its **volume is the adjacent count row** in the same block (no naked %) |
--| Value — `clean_sheets_share` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
-+| Value — `clean_sheets_pct` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
- | Rank | `rank` (+ `team_count`, `direction`) | `rank`, `team_count` | **"{rank} of {team_count}"** (e.g. "3rd of 18") — direction-mirrored (rule below) |
- | vs-median | `vs_median_delta` | `vs_median_delta` | signed, catalogue-formatted (`+0.4`, `+3pp` for percent) |
- | Spread bar | derived from `metric_value` vs `p25`/`median`/`p75` | `league_p25`, `league_median`, `league_p75` | the value's position on a p25–median–p75 track; dashed median reference |
-@@ -116,7 +116,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
- - `lower_better` metric → **mirror the rank**: `team_count + 1 − rank`, so "1st" marks the best (lowest-
-   value) end. A display-side step (the mart ranks DESC). Since the catalogue-wide direction sweep
-   (2026-07-21) **two rendered metrics are `lower_better`: `goals_against_per_match` and
--  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_share` is
-+  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets_pct` is
-   `higher_better`. (Superseded: this used to say only `goals_against_per_match` was `lower_better` and that
-   `corners_against_per_match` was `neutral` and therefore not mirrored.)
- 
-@@ -142,7 +142,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
- 
- | Block | Rendered metrics (metric_key) |
- |---|---|
--| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_share` |
-+| Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_pct` |
- | Shooting | `shots_per_match` · `danger_zone_ratio` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
+@@ -147,12 +147,12 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
  | Duels | `duels_per_match` · `duels_won_pct` (%) |
  | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
-@@ -200,7 +200,7 @@ has that this does not; the per-row "of N" carries the sample size instead.)
+ | Passing | `passes_per_match` · `pass_accuracy` (%) · `key_passes_per_match` |
+-| Set pieces | `corner_kicks_per_match` · `corners_against_per_match` (lower_better) |
+-| Goalkeeping | `save_ratio` (%) |
++| Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
++| Goalkeeping | `saves_pct` (%) |
+ 
+ The six `percent` ratios sit next to their volume count in the same block (Ø Shots → % accuracy; Ø Duels
+-→ % Duels won; Ø Passes → % accuracy). **`save_ratio` is the one `%` without a count peer in this set**
+-(the Goalkeeping block is save_ratio alone) — it renders the `%` as the team profile 02 §8 already does;
++→ % Duels won; Ø Passes → % accuracy). **`saves_pct` is the one `%` without a count peer in this set**
++(the Goalkeeping block is saves_pct alone) — it renders the `%` as the team profile 02 §8 already does;
+ adding a saves/faced count is a catalogue matter (GAP-11 family), not this screen.
+ 
+ ### (5) Internal links
+@@ -199,7 +199,7 @@ has that this does not; the per-row "of N" carries the sample size instead.)
+   position nesting; select/reshape only, consumption-layer contract; the "k of N"/vs-median/spread labels
    applied at render from the catalogue `direction`). All 20 mart rows are carried — this screen renders the
    LOCKED 16. Mirrors GAP-21/#627 for the player.
- - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
--- `clean_sheets_share` renders as a **percent** here, and that is now the declared metric rather than a
-+- `clean_sheets_pct` renders as a **percent** here, and that is now the declared metric rather than a
+-- `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
++- `saves_pct` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
+ - `clean_sheets_pct` renders as a **percent** here, and that is now the declared metric rather than a
    compromise: the count and the share are two catalogue rows, and this screen ranks the share because
    the teams it ranks have played different numbers of matches. The x/y form (02 §8) belongs to the
-   fixture windows, which serve `clean_sheets` with its denominator.
 diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 9526530..35bc38e 100644
+index 35bc38e..ff51faa 100644
 --- a/docs/wireframes/metrics_display.md
 +++ b/docs/wireframes/metrics_display.md
-@@ -132,7 +132,7 @@ Set pieces → Goalkeeping.
- |---|---|---|---|---|---|
- | 1 | Ø Goals | `goals_per_match` | Goals | 1 | live |
- | 2 | Ø Goals against | `goals_against_per_match` | Goals | 1 | live |
--| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_share` (team page) | Goals | 2 | **new** (GAP-11) |
-+| 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | **new** (GAP-11) |
- | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
- | 5 | % Shots from box | `danger_zone_ratio` | Shooting | 2 | live |
- | 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
-@@ -180,7 +180,7 @@ a label by reading the `label_i18n_key` column; never infer it from an id or a p
- display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
- window is five matches, so the honest reading is the COUNT beside its denominator — `clean_sheets`,
- `3/5`. A team season is ranked against a whole league, where matches played differ between teams, so
--the honest reading is the PROPORTION — `clean_sheets_share`, `21%`, labelled `% Clean sheets` under
-+the honest reading is the PROPORTION — `clean_sheets_pct`, `21%`, labelled `% Clean sheets` under
- the same `% ` prefix every other percent metric here carries. They are two catalogue metrics with one
- formula between them, and the seed carries both. In `metricRows.ts` the row's own
- `field`/`labelKey`/`format` are the FIXTURE binding and the team surface reads `teamBinding(row)`;
-diff --git a/site_v2/src/components/team/MetricLeagueRow.astro b/site_v2/src/components/team/MetricLeagueRow.astro
-index af6bd5e..888e679 100644
---- a/site_v2/src/components/team/MetricLeagueRow.astro
-+++ b/site_v2/src/components/team/MetricLeagueRow.astro
-@@ -4,7 +4,7 @@
- // All served: value/median/rank/vs_median_delta come from the benchmark; the rank is made
- // DIRECTION-AWARE for display (the mart's is raw value-descending) and the fill/green are
- // presentation mappings (lib/bars.ts) — no fact is derived. Which metric a row binds HERE comes
--// from `teamBinding()`: the clean-sheet slot ranks `clean_sheets_share`, a proportion, where the
-+// from `teamBinding()`: the clean-sheet slot ranks `clean_sheets_pct`, a proportion, where the
- // fixture windows serve the count.
- import { formatValue, ordinal } from "../../lib/format";
- import type { Lang } from "../../lib/format";
+@@ -143,9 +143,9 @@ Set pieces → Goalkeeping.
+ | 11 | Ø Passes | `passes_per_match` | Passing | 3 | live |
+ | 12 | % Pass accuracy | `pass_accuracy` | Passing | 2 | live |
+ | 13 | Ø Key passes | `key_passes_per_match` | Passing | 2 | live |
+-| 14 | Ø Corners | `corner_kicks_per_match` | Set pieces | 3 | live |
++| 14 | Ø Corners | `corners_per_match` | Set pieces | 3 | live |
+ | 15 | Ø Corners against | `corners_against_per_match` | Set pieces | 3 | live |
+-| 16 | % Save percentage | `save_ratio` | Goalkeeping | 2 | live |
++| 16 | % Save percentage | `saves_pct` | Goalkeeping | 2 | live |
+ 
+ Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
+ 
+diff --git a/site/i18n/de.json b/site/i18n/de.json
+index 1c39c6f..2804817 100644
+--- a/site/i18n/de.json
++++ b/site/i18n/de.json
+@@ -45,7 +45,7 @@
+       "label": "% Angekommene Pässe",
+       "description": "Anteil genauer Pässe an allen Pässen im Formfenster."
+     },
+-    "corner_kicks_per_match": {
++    "corners_per_match": {
+       "label": "Ø Ecken",
+       "description": "Durchschnittliche Anzahl eigener Ecken pro Spiel im Formfenster."
+     },
+@@ -53,7 +53,7 @@
+       "label": "Ø Ecken gegen",
+       "description": "Durchschnittliche Anzahl zugelassener Ecken pro Spiel im Formfenster."
+     },
+-    "save_ratio": {
++    "saves_pct": {
+       "label": "% Gehaltene Torschüsse",
+       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren im Formfenster."
+     }
+diff --git a/site/i18n/en.json b/site/i18n/en.json
+index 2db0f8d..a6a039d 100644
+--- a/site/i18n/en.json
++++ b/site/i18n/en.json
+@@ -45,7 +45,7 @@
+       "label": "% Pass accuracy",
+       "description": "Share of accurate passes out of all passes in the form window."
+     },
+-    "corner_kicks_per_match": {
++    "corners_per_match": {
+       "label": "Ø Corners",
+       "description": "Average corners won per match in the form window."
+     },
+@@ -53,7 +53,7 @@
+       "label": "Ø Corners against",
+       "description": "Average corners conceded per match in the form window."
+     },
+-    "save_ratio": {
++    "saves_pct": {
+       "label": "% Save percentage",
+       "description": "Saves as a share of saves plus goals conceded in the form window."
+     }
+diff --git a/site/i18n/fi.json b/site/i18n/fi.json
+index 7cedf79..cf64100 100644
+--- a/site/i18n/fi.json
++++ b/site/i18n/fi.json
+@@ -45,7 +45,7 @@
+       "label": "% Syöttötarkkuus",
+       "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä kuntojakson aikana."
+     },
+-    "corner_kicks_per_match": {
++    "corners_per_match": {
+       "label": "Ø Kulmapotkut",
+       "description": "Voitetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
+     },
+@@ -53,7 +53,7 @@
+       "label": "Ø Päästetyt kulmapotkut",
+       "description": "Vastustajalle annetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
+     },
+-    "save_ratio": {
++    "saves_pct": {
+       "label": "% Torjuntaosuus",
+       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
+     }
+diff --git a/site/match-preview/metric_bindings.csv b/site/match-preview/metric_bindings.csv
+index 7a9df08..139dff7 100644
+--- a/site/match-preview/metric_bindings.csv
++++ b/site/match-preview/metric_bindings.csv
+@@ -9,6 +9,6 @@ danger_zone_ratio_recent,danger_zone_ratio,team,home_danger_zone_ratio_recent,aw
+ finishing_efficiency_recent,finishing_efficiency,team,home_finishing_efficiency_recent,away_finishing_efficiency_recent,match_preview
+ passes_per_match_recent,passes_per_match,team,home_passes_per_match_recent,away_passes_per_match_recent,match_preview
+ pass_accuracy_recent,pass_accuracy,team,home_pass_accuracy_recent,away_pass_accuracy_recent,match_preview
+-corner_kicks_per_match_recent,corner_kicks_per_match,team,home_corner_kicks_per_match_recent,away_corner_kicks_per_match_recent,match_preview
++corner_kicks_per_match_recent,corners_per_match,team,home_corners_per_match_recent,away_corners_per_match_recent,match_preview
+ corners_against_per_match_recent,corners_against_per_match,team,home_corners_against_per_match_recent,away_corners_against_per_match_recent,match_preview
+-save_ratio_recent,save_ratio,team,home_save_ratio_recent,away_save_ratio_recent,match_preview
++save_ratio_recent,saves_pct,team,home_saves_pct_recent,away_saves_pct_recent,match_preview
+diff --git a/site/match-preview/metric_definitions.json b/site/match-preview/metric_definitions.json
+index 9195a60..55d6a0e 100644
+--- a/site/match-preview/metric_definitions.json
++++ b/site/match-preview/metric_definitions.json
+@@ -72,11 +72,11 @@
+     "away_column": "away_pass_accuracy_recent"
+   },
+   "corner_kicks_per_match_recent": {
+-    "label": "metrics.corner_kicks_per_match.label",
++    "label": "metrics.corners_per_match.label",
+     "format": "decimal_1",
+     "context": "match_preview",
+-    "home_column": "home_corner_kicks_per_match_recent",
+-    "away_column": "away_corner_kicks_per_match_recent"
++    "home_column": "home_corners_per_match_recent",
++    "away_column": "away_corners_per_match_recent"
+   },
+   "corners_against_per_match_recent": {
+     "label": "metrics.corners_against_per_match.label",
+@@ -87,10 +87,10 @@
+     "away_column": "away_corners_against_per_match_recent"
+   },
+   "save_ratio_recent": {
+-    "label": "metrics.save_ratio.label",
++    "label": "metrics.saves_pct.label",
+     "format": "percent",
+     "context": "match_preview",
+-    "home_column": "home_save_ratio_recent",
+-    "away_column": "away_save_ratio_recent"
++    "home_column": "home_saves_pct_recent",
++    "away_column": "away_saves_pct_recent"
+   }
+ }
 diff --git a/site_v2/src/components/team/MetricSeasonRow.astro b/site_v2/src/components/team/MetricSeasonRow.astro
-index 9b0f59a..6f865fc 100644
+index 6f865fc..67f63b4 100644
 --- a/site_v2/src/components/team/MetricSeasonRow.astro
 +++ b/site_v2/src/components/team/MetricSeasonRow.astro
-@@ -2,7 +2,7 @@
- // One "vs last season" row (mock f6348775 .ss-row): metric name · current value · signed
+@@ -3,7 +3,7 @@
  // year-over-year change (direction-aware green; percent rows read as "+N pp"). Value is the
  // season's served metric (from the benchmark); the delta is the served `{field}_delta_yoy` for the
--// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_share` on both
-+// SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_pct` on both
- // sides here. Null delta (e.g. save_ratio, no comparable prior season) renders the en-dash.
+ // SAME metric, which `teamBinding()` names — the clean-sheet slot is `clean_sheets_pct` on both
+-// sides here. Null delta (e.g. save_ratio, no comparable prior season) renders the en-dash.
++// sides here. Null delta (e.g. saves_pct, no comparable prior season) renders the en-dash.
  // Display formatting only.
  import { formatValue, signedDelta } from "../../lib/format";
-diff --git a/site_v2/src/components/team/TeamPerformance.astro b/site_v2/src/components/team/TeamPerformance.astro
-index 0bc7b0b..2776349 100644
---- a/site_v2/src/components/team/TeamPerformance.astro
-+++ b/site_v2/src/components/team/TeamPerformance.astro
-@@ -34,7 +34,7 @@ const sRec = season as unknown as Record<string, unknown>;
- 
- const hasBench = benchByKey.size > 0;
- // Both panels key on the TEAM binding, not on `field`: the clean-sheet slot is served here as
--// `clean_sheets_share` (the benchmark's metric_key and the yoy column alike), while the fixture
-+// `clean_sheets_pct` (the benchmark's metric_key and the yoy column alike), while the fixture
- // windows serve the count under the bare name. Every other row binds the same name on both.
- const keyOf = (r: (typeof METRIC_ROWS)[number]): string => teamBinding(r).field;
- const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${keyOf(r)}_delta_yoy`]) != null);
+ import type { Lang } from "../../lib/format";
 diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index b5225f9..03b09ed 100644
+index 03b09ed..3b65611 100644
 --- a/site_v2/src/i18n/strings.ts
 +++ b/site_v2/src/i18n/strings.ts
-@@ -618,7 +618,7 @@ const METRIC_LABELS_EN: MetricLabels = {
-   "metrics.clean_sheets.label": "Clean sheets",
-   // The percent form of the row above, per the "% " prefix every percent metric here carries.
-   // The fixture windows label the COUNT; the team page labels the SHARE (metricRows `team`).
--  "metrics.clean_sheets_share.label": "% Clean sheets",
-+  "metrics.clean_sheets_pct.label": "% Clean sheets",
-   "metrics.shots_per_match.label": "Ø Shots",
-   "metrics.danger_zone_ratio.label": "% Shots from box",
-   "metrics.shots_on_target_per_match.label": "Ø Shots on target",
-@@ -644,7 +644,7 @@ const METRIC_LABELS_DE: MetricLabels = {
-   "metrics.clean_sheets.label": "Zu-Null-Spiele",
-   // The percent form of the row above. The "% " prefix carries the share, exactly as it does for
-   // "% Trefferquote" and "% Gehaltene Torschüsse" below, so the noun itself needs no second word.
--  "metrics.clean_sheets_share.label": "% Zu-Null-Spiele",
-+  "metrics.clean_sheets_pct.label": "% Zu-Null-Spiele",
-   "metrics.shots_per_match.label": "Ø Schüsse",
+@@ -631,9 +631,9 @@ const METRIC_LABELS_EN: MetricLabels = {
+   "metrics.passes_per_match.label": "Ø Passes",
+   "metrics.pass_accuracy.label": "% Pass accuracy",
+   "metrics.key_passes_per_match.label": "Ø Key passes",
+-  "metrics.corner_kicks_per_match.label": "Ø Corners",
++  "metrics.corners_per_match.label": "Ø Corners",
+   "metrics.corners_against_per_match.label": "Ø Corners against",
+-  "metrics.save_ratio.label": "% Save percentage",
++  "metrics.saves_pct.label": "% Save percentage",
+ };
+ 
+ const METRIC_LABELS_DE: MetricLabels = {
+@@ -649,7 +649,7 @@ const METRIC_LABELS_DE: MetricLabels = {
    "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
    // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
-@@ -681,7 +681,7 @@ const METRIC_LABELS_FI: MetricLabels = {
-   "metrics.goals_against_per_match.label": "Ø Päästetyt maalit",
-   // Confirmed in Finnish football media (apu.fi on Veikkausliiga goalkeepers).
-   "metrics.clean_sheets.label": "Nollapelit",
--  "metrics.clean_sheets_share.label": "% Nollapelit",
-+  "metrics.clean_sheets_pct.label": "% Nollapelit",
-   // The percent form of the row above. The "% " prefix carries the share, as it does for
-   // "% Torjuntaosuus" below, so no separate "osuus" compound is needed.
-   "metrics.shots_per_match.label": "Ø Laukaukset",
+   // replaces `Schüsse aufs Tor`, and it is the compact form Bundesliga, kicker and sport.de all use
+-  // as a stat label. It also makes the German internally consistent, since `save_ratio` already reads
++  // as a stat label. It also makes the German internally consistent, since `saves_pct` already reads
+   // `% Gehaltene Torschüsse`. The Ø prefix is retained: the underlying metrics are per-match, and
+   // without it `Torschüsse` reads as a season total.
+   // ⚠ He chose `Torschussdifferenz` after being shown, with measurements, that an 18-character
+@@ -671,9 +671,9 @@ const METRIC_LABELS_DE: MetricLabels = {
+   "metrics.pass_accuracy.label": "% Angekommene Pässe",
+   // "Schlüsselpässe", not "Torschussvorlagen": the latter means shot assists, a different metric.
+   "metrics.key_passes_per_match.label": "Ø Schlüsselpässe",
+-  "metrics.corner_kicks_per_match.label": "Ø Ecken",
++  "metrics.corners_per_match.label": "Ø Ecken",
+   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
+-  "metrics.save_ratio.label": "% Gehaltene Torschüsse",
++  "metrics.saves_pct.label": "% Gehaltene Torschüsse",
+ };
+ 
+ const METRIC_LABELS_FI: MetricLabels = {
+@@ -710,9 +710,9 @@ const METRIC_LABELS_FI: MetricLabels = {
+   "metrics.pass_accuracy.label": "% Syöttötarkkuus",
+   // CPO-confirmed 2026-07-31, same unverified caveat as Puolustustoimet.
+   "metrics.key_passes_per_match.label": "Ø Avainsyötöt",
+-  "metrics.corner_kicks_per_match.label": "Ø Kulmapotkut",
++  "metrics.corners_per_match.label": "Ø Kulmapotkut",
+   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
+-  "metrics.save_ratio.label": "% Torjuntaosuus",
++  "metrics.saves_pct.label": "% Torjuntaosuus",
+ };
+ 
+ const METRIC_LABELS: Record<Lang, MetricLabels> = {
 diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
-index 6596b60..2b89fa5 100644
+index 2b89fa5..1fa0c3f 100644
 --- a/site_v2/src/lib/metricRows.ts
 +++ b/site_v2/src/lib/metricRows.ts
-@@ -11,7 +11,7 @@
- // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
- //
- // A row is a display SLOT, and one slot can bind a different catalogue metric per surface: the
--// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_share`
-+// fixture windows serve `clean_sheets` (a count) where the team page ranks `clean_sheets_pct`
- // (a proportion). `field`/`labelKey`/`format` are the FIXTURE binding; the team surface reads
- // `teamBinding(row)`, which returns the row's `team` override or the row itself.
- //
-@@ -31,7 +31,7 @@ export type MetricGroup =
- /** What the TEAM surface binds for a slot whose two surfaces measure different things.
-  *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs beside the
-  *  matches behind it, while the league benchmark and the year-over-year delta serve
-- *  `clean_sheets_share`, the proportion — two catalogue metrics, one row of the display contract. */
-+ *  `clean_sheets_pct`, the proportion — two catalogue metrics, one row of the display contract. */
- export interface TeamBinding {
-   field: string;              // key on the benchmark's `metric_key` / the `{field}_delta_yoy` column
-   labelKey: string;
-@@ -78,10 +78,10 @@ export const METRIC_ROWS: MetricRowDef[] = [
-   { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
-   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
-   //   `clean_sheets`, a count of shut-outs, rendered against the matches behind it (3/5). The team
--  //   page ranks `clean_sheets_share`, the proportion, because teams are compared across a league.
-+  //   page ranks `clean_sheets_pct`, the proportion, because teams are compared across a league.
-   //   Read the team side through `teamBinding()`; never assume `field` covers both.
-   { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
--    team: { field: "clean_sheets_share", labelKey: "metrics.clean_sheets_share.label", format: "percent" } },
-+    team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
-   { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
-   { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
-   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
-diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
-index 5067aec..b0a8961 100644
---- a/site_v2/src/lib/types.ts
-+++ b/site_v2/src/lib/types.ts
-@@ -150,7 +150,7 @@ export interface ScatterDot {
-  *  direction-aware for display); `metric_value`/`league_median` are the served units
-  *  (ratios 0..1 for percent metrics). ⚠ `metric_key` is the catalogue metric this panel ranks,
-  *  which is not always the display row's `field`: the clean-sheet row is keyed
-- *  `clean_sheets_share` here — resolve it with `teamBinding()`, never with `field`. */
-+ *  `clean_sheets_pct` here — resolve it with `teamBinding()`, never with `field`. */
- export interface Benchmark {
-   metric_key: string;
-   metric_value?: number | null;
-@@ -203,7 +203,7 @@ export interface TeamSeason {
-   goals_against?: number | null;
-   goal_diff?: number | null;
-   /** The COUNT of shut-outs (mart_team_profile, from mart_team_season). The Performance tab's
--   *  rate lives on the benchmark and on `clean_sheets_share_*_season` below, not here. */
-+   *  rate lives on the benchmark and on `clean_sheets_pct_*_season` below, not here. */
-   clean_sheets?: number | null;
-   latest_form?: string | null;
-   season_games_played?: number | null;
+@@ -99,7 +99,7 @@ export const METRIC_ROWS: MetricRowDef[] = [
+   { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
+   { field: "pass_accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
+   { field: "key_passes_per_match", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
+-  { field: "corner_kicks_per_match", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
++  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
+   { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
+-  { field: "save_ratio", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
+ ];
+diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
+index 7b39cf6..f5d8cbc 100644
+--- a/site_v2/src/specs/competition/matches/fixture.spec.json
++++ b/site_v2/src/specs/competition/matches/fixture.spec.json
+@@ -47,9 +47,9 @@
+         "metrics.passes_per_match.label",
+         "metrics.pass_accuracy.label",
+         "metrics.key_passes_per_match.label",
+-        "metrics.corner_kicks_per_match.label",
++        "metrics.corners_per_match.label",
+         "metrics.corners_against_per_match.label",
+-        "metrics.save_ratio.label"
++        "metrics.saves_pct.label"
+       ]
+     },
+     {
 diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
-index 5783f69..771999e 100644
+index 771999e..c71ed30 100644
 --- a/site_v2/src/specs/teams/team.spec.json
 +++ b/site_v2/src/specs/teams/team.spec.json
-@@ -65,7 +65,7 @@
-         "noYoY",
-         "metrics.goals_per_match.label",
-         "metrics.goals_against_per_match.label",
--        "metrics.clean_sheets_share.label",
-+        "metrics.clean_sheets_pct.label",
-         "metrics.shots_per_match.label",
-         "metrics.danger_zone_ratio.label",
-         "metrics.shots_on_target_per_match.label",
+@@ -76,9 +76,9 @@
+         "metrics.passes_per_match.label",
+         "metrics.pass_accuracy.label",
+         "metrics.key_passes_per_match.label",
+-        "metrics.corner_kicks_per_match.label",
++        "metrics.corners_per_match.label",
+         "metrics.corners_against_per_match.label",
+-        "metrics.save_ratio.label"
++        "metrics.saves_pct.label"
+       ]
+     },
+     {
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1178,8 +1554,7 @@ index 5783f69..771999e 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   27 +-
-#    .claude/task/acceptance_evidence.md |  141 ++-
-#    .claude/task/review_input.patch     | 1646 +++++++++++++++++++++++------------
-#    3 files changed, 1160 insertions(+), 654 deletions(-)
+#   .claude/active_work.md              |  17 ++++-
+#    .claude/task/acceptance_evidence.md | 133 +++++++++++++++++++++---------------
+#    2 files changed, 93 insertions(+), 57 deletions(-)
 # ============================================================================

@@ -31,9 +31,22 @@ site. Re-measured on `1804a64`: **894 occurrences** in live surfaces (not the ~6
 gave — that was taken over a narrower path set), plus 1,532 in the generated sample. The split keys
 on the seed's own `metric_group` column, and is recorded in `escalations.log` under
 "2026-08-27 STEP 3 STARTS":
-**A** goals+outcomes ← IN REVIEW · **B** set_pieces+goalkeeping · **C** shooting shares ·
-**D** passing · **E** the deserved chain · **F** `finishing_efficiency` alone · **G** sample refresh.
+**A** goals+outcomes ✅ MERGED (`!114`) · **B** set_pieces+goalkeeping ← IN REVIEW · **C** shooting
+shares · **D** passing · **E** the deserved chain · **F** `finishing_efficiency` alone ·
+**G** sample refresh.
 ⭐ **Branch each MR from the main that already carries the previous one's record.**
+⭐ **THE FOUR ACCEPTANCE CRITERIA ARE STANDING FOR B–F** (CPO "do it", in `escalations.log`) — do
+not re-draft or re-ask them per MR.
+⛔ **FROM MR B ON, THE SAMPLE-STALENESS TRANSIENT IS VISIBLE AND ACCUMULATES.** A renamed FIXTURE
+field drops its row from the 16-row comparison on all 51 fixture pages until the sample is
+regenerated (`MetricComparison.astro`'s `hasData()`; measured 16 names → 14 on MR B). `!114` did not
+do this because its renames were team-binding only. ⚠ C, D, E and F ALL rename fixture fields
+(`shot_accuracy`, `danger_zone_ratio`, `pass_accuracy`, `key_passes_per_match`,
+`finishing_efficiency`), so the gap grows to ~10 missing rows by F. **Consider pulling the refresh
+(G) forward to straight after B** rather than letting it accumulate — put to the CPO, undecided.
+⚠ **A SUBSTRING TEST IS NOT A PRESENCE TEST.** The evidence script matched `Ø Corners` inside
+`Ø Corners against` and reported 16 rendered names when 14 was true. Fixed; this metric set is full
+of `X` / `X against` pairs, so any future check must subtract the longer label's occurrences.
 ⚠ The acceptance gate FIRES on step 3 (it touches `site_v2/src/`), so the contract needs
 `acceptance_criteria:` and the evidence a `criteria_demonstrated:` block. **Both keys at column 0,
 NOT as `##` headings** — that cost two commit denials in one session.

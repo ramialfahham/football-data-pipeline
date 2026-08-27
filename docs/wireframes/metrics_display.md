@@ -143,9 +143,9 @@ Set pieces → Goalkeeping.
 | 11 | Ø Passes | `passes_per_match` | Passing | 3 | live |
 | 12 | % Pass accuracy | `pass_accuracy` | Passing | 2 | live |
 | 13 | Ø Key passes | `key_passes_per_match` | Passing | 2 | live |
-| 14 | Ø Corners | `corner_kicks_per_match` | Set pieces | 3 | live |
+| 14 | Ø Corners | `corners_per_match` | Set pieces | 3 | live |
 | 15 | Ø Corners against | `corners_against_per_match` | Set pieces | 3 | live |
-| 16 | % Save percentage | `save_ratio` | Goalkeeping | 2 | live |
+| 16 | % Save percentage | `saves_pct` | Goalkeeping | 2 | live |
 
 Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
 

@@ -143,33 +143,6 @@ only covered appearances. Null when the club scored 0 that competition-season.
 {% enddocs %}
 
 
-{% docs corner_kicks_per_match %}
-Average corner kicks won per match with available team stats.
-{% enddocs %}
-
-
-{% docs corner_kicks_per_match_delta_yoy__team %}
-Average corner kicks won per match with available team stats. The change from the previous
-season to the current one, compared at the same point of the campaign: the current value minus
-the previous one. NULL when either side is missing, which covers a competition that carries no
-year-on-year comparison, a prior season that was never loaded, and a season whose first matches
-are not fully stat-covered.
-{% enddocs %}
-
-
-{% docs corner_kicks_per_match_prev_season__team %}
-Average corner kicks won per match with available team stats. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
-compared at the same point of a campaign rather than a part season against a full one.
-{% enddocs %}
-
-
-{% docs corner_kicks_per_match_this_season__team %}
-Average corner kicks won per match with available team stats. Value for the season now in
-progress, accumulated through the matches played so far.
-{% enddocs %}
-
-
 {% docs corners %}
 Corner kicks won by the team, taken from the provider's team match statistics rather than from
 the scoreline or from player records. The provider does not supply team statistics for every
@@ -202,6 +175,33 @@ are compared at the same point of a campaign rather than a part season against a
 {% docs corners_against_per_match_this_season__team %}
 Average corner kicks conceded per match with available opponent stats. Value for the season now
 in progress, accumulated through the matches played so far.
+{% enddocs %}
+
+
+{% docs corners_per_match %}
+Average corner kicks won per match with available team stats.
+{% enddocs %}
+
+
+{% docs corners_per_match_delta_yoy__team %}
+Average corner kicks won per match with available team stats. The change from the previous
+season to the current one, compared at the same point of the campaign: the current value minus
+the previous one. NULL when either side is missing, which covers a competition that carries no
+year-on-year comparison, a prior season that was never loaded, and a season whose first matches
+are not fully stat-covered.
+{% enddocs %}
+
+
+{% docs corners_per_match_prev_season__team %}
+Average corner kicks won per match with available team stats. Value for the season before,
+through the same number of matches as the current season has played so far, so the two are
+compared at the same point of a campaign rather than a part season against a full one.
+{% enddocs %}
+
+
+{% docs corners_per_match_this_season__team %}
+Average corner kicks won per match with available team stats. Value for the season now in
+progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -1001,37 +1001,6 @@ Goalkeeper save percentage. Null when denominator is zero.
 {% enddocs %}
 
 
-{% docs save_ratio %}
-Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games.
-{% enddocs %}
-
-
-{% docs save_ratio_delta_yoy__team %}
-Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. The change from the previous
-season to the current one, compared at the same point of the campaign: the current value minus
-the previous one. NULL when either side is missing, which covers a competition that carries no
-year-on-year comparison, a prior season that was never loaded, and a season whose first matches
-are not fully stat-covered.
-{% enddocs %}
-
-
-{% docs save_ratio_prev_season__team %}
-Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
-compared at the same point of a campaign rather than a part season against a full one.
-{% enddocs %}
-
-
-{% docs save_ratio_this_season__team %}
-Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. Value for the season now in
-progress, accumulated through the matches played so far.
-{% enddocs %}
-
-
 {% docs saves__player %}
 Saves made.
 {% enddocs %}
@@ -1042,6 +1011,37 @@ Saves made by the team's goalkeepers, taken from the provider's team-statistics 
 than summed from the individual goalkeepers' counts; the two need not agree. The provider does
 not supply team statistics for every fixture, so this can be missing, and a total over several
 fixtures can be understated rather than null.
+{% enddocs %}
+
+
+{% docs saves_pct %}
+Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+conceded in save-covered games). Null when no save-covered games.
+{% enddocs %}
+
+
+{% docs saves_pct_delta_yoy__team %}
+Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+conceded in save-covered games). Null when no save-covered games. The change from the previous
+season to the current one, compared at the same point of the campaign: the current value minus
+the previous one. NULL when either side is missing, which covers a competition that carries no
+year-on-year comparison, a prior season that was never loaded, and a season whose first matches
+are not fully stat-covered.
+{% enddocs %}
+
+
+{% docs saves_pct_prev_season__team %}
+Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+conceded in save-covered games). Null when no save-covered games. Value for the season before,
+through the same number of matches as the current season has played so far, so the two are
+compared at the same point of a campaign rather than a part season against a full one.
+{% enddocs %}
+
+
+{% docs saves_pct_this_season__team %}
+Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+conceded in save-covered games). Null when no save-covered games. Value for the season now in
+progress, accumulated through the matches played so far.
 {% enddocs %}
 
 

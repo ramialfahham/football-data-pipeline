@@ -1,79 +1,66 @@
-# Review — refactor/metric-rename-team-goals-outcomes — 2026-08-27
+# Review — refactor/metric-rename-team-set-pieces-goalkeeping — 2026-08-27
 
-> Step 3 of the metric catalogue naming programme, MR A of six:
-> `clean_sheets_share` → `clean_sheets_pct`, `points_capture` → `points_capture_pct`.
-> Branched from main `1804a64`.
+> Step 3 of the metric catalogue naming programme, MR B of six:
+> `corner_kicks_per_match` → `corners_per_match`, `save_ratio` → `saves_pct`.
+> Branched from main `a70b7e2`. Closes the transient `!112` opened, where the totals were renamed
+> and both rates were left behind.
 
-diff_sha256: 14e5aab3f3d784b0a297a23f5bd2e96f4139daf6ac2efcc641fc0cf235465cfd
+diff_sha256: e1af7d2656e06de6da7fca2e0a7d7d390ed127a40be7e9e380f36f426a440868
 
-rounds: 2
+rounds: 1
 
-> ⚠ REBASED ONTO main `9b4b225` (the merge of `!115`) and the hash REBOUND — it was
-> `3fd9bfc…`, computed against main `1804a64`. **No file in this branch changed.** The rebase moved
-> the base, which moves the cumulative diff, which moves the hash; the four verdicts below were
-> given against byte-identical content and stand. The only conflicts were in the shared record
-> files: `escalations.log` keeps BOTH entries (`!115`'s #92 blocks and this branch's step-3 block),
-> and the four task artifacts took this branch's versions, which describe this task.
-> The rebase was necessary rather than cosmetic: a merge request runs the `.gitlab-ci.yml` of its
-> SOURCE branch, so this branch had to carry `!115`'s fix before its own pipeline could pass.
-
-> ROUND 1 → ROUND 2, and what changed: **no code file**. The cumulative code diff is byte-identical
-> between the two rounds. bi-analyst-reviewer's round-1 PASS carried a precision finding it
-> explicitly declined to fail on — the `decisions_taken` paragraph described the declared transient
-> as the row "renders its label correctly and its value as the en-dash", which is true of the
-> vs-last-season panel only; the vs-the-league panel OMITS an unbenchmarked metric entirely via
-> `benchByKey.has(keyOf(r))`. The paragraph was corrected in place rather than annotated, because
-> MRs B–F of this step reuse it. Correcting `contract.md` moves the hash, so the two reviewers whose
-> territory the change touches were re-run; **analytics-engineer-reviewer and
-> football-analytics-expert-reviewer carry their round-1 verdicts forward unchanged**, their
-> territories (the models, the catalogue seed) being byte-identical across the two rounds.
+> Four reviewers, one round, four PASSes. Two non-blocking findings from bi-analyst-reviewer were
+> folded into `acceptance_evidence.md` (which is hash-excluded, so no round was needed): that the
+> **Goalkeeping group heading disappears entirely** — `saves_pct` was its only row, verified 0
+> occurrences of `Goalkeeping` on the built EN page — and that `rendered_page_evidence.md` still
+> holds an unrelated earlier task's content, which is named rather than silently left.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Verified the stated round-1→round-2 delta is exactly what it claims: diffed `contract.md`'s `decisions_taken` correction against `site_v2/src/components/team/TeamPerformance.astro` (lines 31-131) — `leagueGroups` does filter with `benchByKey.has(keyOf(r))` (row 67, omits absent metrics entirely from the vs-league panel) while the vs-last-season panel renders all rows with a possibly-null delta; both panels sit inside the same `hasBench` gate, so on the current sample (PL 2026, 1 game played) neither state is reachable and the whole tab shows the absent state — the corrected paragraph is factually accurate and no code changed alongside it.
-- Confirmed the naming authority for both renames (`clean_sheets_share`→`clean_sheets_pct`, `points_capture`→`points_capture_pct`) exists verbatim in `.claude/task/escalations.log` lines 5351-5445 — RULING 1 and RULING 3 quote the CPO directly, and both names appear in the "TEAM, 12 REMAINING" table exactly as the contract cites them; this is not a builder reconstruction.
-- Checked every file touched in the cumulative diff against `contract.md`'s `scope_paths` — all 26 non-task-artifact files (seeds, intermediate/mart models+ymls, wireframes, i18n strings, metricRows/types/spec, Astro components) are listed in scope; no drift-by-addition found.
-- Checked `impact_map` against the diff: the `dbt ls --select int_team_season__metrics_cumulative+` lineage list matches the models actually edited (`int_team_competition_benchmark_metrics_long`, `int_team_profile__yoy`, `mart_team_profile`, `mart_team_season_insights`), and the disclosed guard gap (accepted_values lists not offline-enforced) is filed as an open finding rather than silently dropped or smuggled as "fixed" — this satisfies the evidence bar, it is not hand-waved.
-- Checked `decisions_taken`'s threshold declarations against the diff: no new script/macro/hook/test/CI job appears anywhere in the patch, and no cadence or query-volume change is present — the "no new mechanism, no recurring cost" claim holds up against the actual file list.
-- Swept the full diff text for credential-shaped strings (keys, tokens, connection strings, widened permissions) — none found; all changes are metric-id renames across SQL, yml, csv, docs and TS/Astro source.
+- Diff file set vs `scope_paths`: all 34 touched files (dbt models/ymls, seed, docs, generated `metric_columns.md`, `site/i18n/*.json`, `site/match-preview/metric_bindings.csv` + `metric_definitions.json`, `site_v2/src/lib/metricRows.ts`, `site_v2/src/i18n/strings.ts`, two spec.json files, `MetricSeasonRow.astro`) match entries in `contract.md`'s `scope_paths`; nothing touched outside it.
+- Naming authority: cross-checked `corner_kicks_per_match → corners_per_match` and `save_ratio → saves_pct` against `.claude/task/escalations.log:5351-5445` (RULING 1, RULING 3, and item 5/item 3 of the "SIX, ENUMERATED" table) and the "TEAM, 12 REMAINING" list — both renames are verbatim-ruled, not chosen in this diff.
+- Frozen `site/` tree edit: verified `metric_bindings.csv` and `metric_definitions.json` keep the old `live_id` (`corner_kicks_per_match_recent`, `save_ratio_recent`) untouched and rename only `catalogue_metric_id`/`home_column`/`away_column`/i18n keys, matching the contract's "only the catalogue-id plumbing, no live_id, no wording" claim.
+- `accepted_values` guard sync: confirmed all three 22-name lists (`int_competition_benchmarks.yml` ×2, `shared.yml` ×1) were updated with the new names — the contract flags these as unenforced by an offline gate (#96) and they were checked by eye as required.
+- Doc-sync: `docs/wireframes/02_team_profile.md`, `14_team_stats.md`, `metrics_display.md` all updated in the same diff — no stale doc left behind describing the old metric names.
+- Secrets/credentials sweep across the full diff: nothing credential-shaped, no widened permissions.
+- Threshold declarations: `decisions_taken` states no new mechanism, no recurring cost; confirmed no new file, script, macro, hook, dependency or CI job appears in the diff — every edit is a rename inside existing generators/guards.
+- `decisions_reserved`: contract states "none," and nothing in the diff decides a §10-reserved item silently — product wording is explicitly unchanged, verified byte-identical in the i18n label strings, with only the JSON key names shifted.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Layer placement: both renames stay inside `4_intermediate`/`5_marts` (formulas untouched, only identifiers renamed). `int_team_season__metrics_cumulative.sql`, `int_team_momentum__metrics.sql` and `int_team_season_record.sql` show only comment-text renames where the coverage-count columns themselves (`games_with_save_stats`, `goals_against_in_save_games`) are unrelated to the two renamed metric columns. No staging/base/core file touched, no `ref('mart_*')` introduced upstream. No new formula, no redefinition.
+- Catalogue governance (A1): the two seed rows have only `metric_id`/`label_i18n_key` changed; label text, formula, entity, group, direction all byte-identical — a rename, not a redefinition.
+- Three 22-name `accepted_values` lists (open gap #96, no offline gate): read all three in the diff — `int_competition_benchmarks.yml` (twice) and `shared.yml` (`mart_team_competition_benchmarks`) — each counted to exactly 22 entries both before and after, with both names swapped in place and nothing dropped or duplicated.
+- `mart_team_momentum`'s second computation of both formulas (open #93): confirmed it independently recomputes `safe_divide(...)` for both metrics rather than reading the cumulative model, and that the rename was applied consistently there too, plus in the range test in `shared.yml` (`momentum_team_saves_pct_in_range`). The duplication is pre-existing, disclosed and filed separately — not introduced or worsened here.
+- Consumption layer (A5): `metric_bindings.csv`, `metric_definitions.json`, `site/i18n/*.json`, `strings.ts`, `metricRows.ts`, both `*.spec.json` — all changes are identifier renames of existing mapping data (live_id kept, `catalogue_metric_id` and column aliases updated); `mart_matchday_insights.sql` only re-aliases already-computed mart columns (`mh.saves_pct as home_saves_pct_recent`). No new math, filter, ranking or taxonomy logic anywhere in scope.
+- Residual old-name sweep: zero hits across `dbt_project/`; in `site_v2/src` only `src/data/**` (the declared out-of-scope transient); in `site/` only the retired MVP's own `live_id`s and the two files explicitly declared out of scope with a stated reason.
+- Authority chain: the quoted rulings in `refs:` verified verbatim against the log — RULING 1, RULING 3, enumerated items 3 and 5, and "apply the suggested changes to ensure consistency"; the MR-B grouping is explicit in the log.
+- Impact map (A6): the pasted `dbt ls` output cross-checked against the actual edited-file set; `mart_team_momentum`, `int_team_momentum__metrics` and `mart_matchday_insights` correctly called out as edited-but-absent-from-lineage, consistent with what the diff shows.
+- No new mechanism, no hardcoded competition identifier, no incremental-model rename hazard (all touched models are `table`/`view`) — checked, none present.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Confirmed both catalogue rows are byte-identical renames — only `metric_id` and `label_i18n_key` changed; formula (`sum(corner_kicks)/count(*)`; `sum(goalkeeper_saves)/sum(goalkeeper_saves+goals_against)`), format, `metric_group`, tier, `direction` and the plain-English interpretation column are untouched. No formula, coverage-gate or denominator change rode along.
+- Direction correctness post-rename: `corners_per_match` stays `higher_better` (own corners won — the catalogue honestly flags it "a weak proxy", unchanged), `saves_pct` stays `higher_better`. Both remain correct.
+- Edge-case honesty preserved verbatim: `saves_pct`'s description still states the self-bounding denominator and nulls on no save-covered games; `corners_per_match`'s still ties to "available team stats" coverage. Only the doc-block anchor name moved.
+- No composite/index smuggling: both remain single transparent ratios over raw provider counts.
+- Verified the CPO approval quoted in the contract against the log directly — `save_ratio → saves_pct` is RULING 1 narrowed by RULING 3 plus enumerated item 3; `corner_kicks_per_match → corners_per_match` is enumerated item 5. Quotes match exactly; no fabricated authority.
+- Checked all three `accepted_values` lists updated consistently with no stale entries, and that the pairing with the untouched sibling `corners_against_per_match` (still `lower_better`) stays internally consistent — won vs conceded corners correctly diverge in direction.
+- Checked no rendered wording changed anywhere in `site/i18n/*.json`, `strings.ts` or `metric_definitions.json` — "Ø Corners", "% Save percentage", "% Gehaltene Torschüsse" etc. are byte-identical; only keys and catalogue ids moved, so no fan-facing meaning shifted.
+- No new metric or unrelated addition rode along in the seed — the diff touches exactly the two declared rows.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- This is a legitimate delta re-review: I previously passed an earlier hash of this same branch, and the round-1 finding (`decisions_taken` paragraph wrongly generalizing the transient's on-page appearance) is the only thing that changed — no code file differs from the version I already reviewed.
-- Verified the corrected paragraph against the actual code in `site_v2/src/components/team/TeamPerformance.astro`. Line 67, `leagueGroups`, filters `METRIC_ROWS` with `benchByKey.has(keyOf(r))` — a metric with no benchmark row is omitted entirely from the vs-the-league panel, exactly as the corrected text now says. Line 69–72, `seasonGroups`, applies no such filter — all `METRIC_ROWS` render in the vs-last-season panel regardless of benchmark presence, matching "renders all 16." Traced `MetricSeasonRow.astro` and `signedDelta()`/`formatValue()` in `site_v2/src/lib/format.ts`: a null/undefined delta or value renders the en-dash (`DASH`) rather than a fabricated zero, confirming "lets a null delta dash out honestly" is accurate, not merely asserted.
-- Checked the corrected paragraph's citation, `14_team_stats.md §6's "metric-absent = omitted, never a zero bar"`, against the actual wireframe. `docs/wireframes/14_team_stats.md:169`, in section "6. States," reads "Metric absent | no row for that `metric_key` … | that row omitted (not a zero bar)" — a faithful paraphrase, not a fabricated citation.
-- Confirmed the paragraph's closing claim — that neither panel state is reachable on any built page today because the sample's featured season (team 33, PL 2026, 1 game played) is below the `>= 3 finished games` benchmark floor, so `hasBench` is false and the whole tab renders the absent state (`TeamPerformance.astro` lines 35, 75–131) — is consistent with the code path: `hasBench = benchByKey.size > 0`, and when false the component renders only the `notRankable` absent-state branch, never reaching either `leagueGroups` or `seasonGroups`.
-- No other file in the cumulative diff changed since my prior pass, per the task framing (dbt models, wireframes, `metricRows.ts`, `strings.ts`, `types.ts`, `team.spec.json`, `MetricLeagueRow.astro`, `MetricSeasonRow.astro`), so no re-audit of the binding rule, locked metric order, naked-percentage rule, or i18n label parity was performed this round — those were the substance of the prior PASS and remain unchanged.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-> Verdict from ROUND 1, carried forward: this reviewer's territory (`dbt_project/**`) is
-> byte-identical between round 1 and round 2. Only `contract.md` prose changed.
-risks_checked:
-- Catalogue governance (A1): both renames (`clean_sheets_share`→`clean_sheets_pct`, `points_capture`→`points_capture_pct`) are quoted verbatim from `escalations.log`'s RULING 1/RULING 3 and appear in the 2026-08-27 "COMPLETE RENAME LIST" table; `dbt_project/seeds/metric_catalogue.csv` rows updated accordingly — no uncatalogued rename found.
-- Formula/value equivalence (same-window rule): diffed `int_team_season__metrics_cumulative.sql` — both `safe_divide(...)` expressions are byte-identical before/after, only the `as` alias changed. No computation, coverage gate or denominator touched.
-- Layer placement: the metric stays computed in `4_intermediate/.../int_team_season__metrics_cumulative.sql` exactly where it already lived (not moved layers); `int_team_season__metrics` still projects via `select sf.* except (...)`, confirmed by reading the model — no new logic introduced at any layer.
-- Consumption layer (A5): read all touched `site_v2/` files (`metricRows.ts`, `types.ts`, `i18n/strings.ts`, `TeamPerformance.astro`, `MetricSeasonRow.astro`, `MetricLeagueRow.astro`, `team.spec.json`) — every change is a field-name/label-key rename or comment update, no metric math, ranking, or derivation added.
-- Tests kept in lockstep: range tests (`int_team_season.yml` ×2), consistency test (`assert_mart_team_season_insights_metric_consistency.sql`), and all three `accepted_values` lists (`int_competition_benchmarks.yml` ×2, `shared.yml` ×1) were all updated to the new names — verified via grep that no old name remains in `dbt_project/`.
-- Downstream completeness: grepped the live repo tree (post-diff) for `clean_sheets_share`/`points_capture` — zero hits anywhere under `dbt_project/`, confirming the rename is complete for every warehouse consumer, including `mart_team_season.sql`, `mart_team_season_record.sql` and `int_team_competition_benchmarks.sql`, which the contract claims propagate by `select *` and were correctly left unedited.
-- Declared transient: `site_v2/src/data/teams/33.json` (the generated export sample) still carries the old names — matches the contract's disclosed, scoped-out transient (regenerated post-merge against prod marts); not a silent gap.
-- Impact map: downstream lineage list cross-checked by grepping for `ref('int_team_season__metrics_cumulative')` and `ref('int_team_season__metrics')` — matches the contract's pasted `dbt ls` output.
-- Hardcoded competition identifiers: none introduced in this diff.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-> Verdict from ROUND 1, carried forward: this reviewer's trigger
-> (`dbt_project/seeds/metric_catalogue.csv`) is byte-identical between round 1 and round 2.
-risks_checked:
-- Formula integrity: confirmed both renamed metrics carry byte-identical formulas pre/post rename. `clean_sheets_pct` = `countif(goals_against = 0) / count(*)` and in `int_team_season__metrics_cumulative.sql` = `safe_divide(clean_sheet_games, games_played)`. `points_capture_pct` = `sum(case result when 'W' then 3 when 'D' then 1 else 0 end) / (3*count(*))` and cumulative model `safe_divide(points_won, 3 * games_played)`. Both are standard, well-understood football ratios (share of matches shut out; share of available points won) — no defect.
-- Direction correctness: both rows retain `higher_better`. Correct on football grounds — more clean sheets and more points captured relative to available are both unambiguously good; neither is a "conceded/cards/lower-is-better" class metric. No direction flip introduced.
-- Zero-denominator / coverage honesty: both use `safe_divide`/`count(*)` unchanged, no new caps or silent zero-fill introduced; description text (`clean_sheets_pct` and `points_capture_pct` doc blocks in `dbt_project/models/docs/metric_columns.md`) is untouched apart from the name substitution — still plain and accurate for a fan.
-- No composite/index introduced: both remain single transparent ratios, not scores; no fabricated probability or blended index appears anywhere in the diff.
-- Cross-reference consistency: the sibling `clean_sheets` (count) row's description was correctly updated to point at the new name, so the count/share pairing documented in `docs/wireframes/14_team_stats.md` and `metrics_display.md` stays internally consistent — no orphaned reference to the old name left in a description a reader would see.
-- CPO approval: verified directly in `.claude/task/escalations.log` (not just via the contract's quote) — lines 5352-5353 "points_capture becomes points_capture_pct / ... / clean_sheets_share becomes clean_sheets_share_pct" (RULING 1) and lines 5369-5370 "use the shorter as recommended" (RULING 3), which is why `clean_sheets_share_pct` shortened to `clean_sheets_pct`. Both renamed rows in this diff match that ruling exactly — no unapproved metric change slipped in under cover of the ruling.
-- Scope check for a smuggled formula/direction change riding along with the rename: read every hunk touching `metric_catalogue.csv`, `schema.yml`, `int_team_season.yml`, `int_team_season__metrics_cumulative.sql`, `int_competition_benchmarks.yml`, `int_team_competition_benchmark_metrics_long.sql`, `int_team_profile.yml`/`.sql`, `mart_team_profile.sql`, `shared.yml`, `domestic_league.yml`, `mart_team_season_insights.sql`, the consistency test, wireframes and site_v2 files — every hunk is a 1:1 identifier substitution; no numeric literal, comparison operator, join, or filter condition changed anywhere in the diff.
+- **Transient visibility/disclosure.** Read `MetricComparison.astro`: `hasData()` looks up `home?.[def.field]`/`away?.[def.field]` and the group filter drops any group left with zero rows. Since `metricRows.ts` now binds `corners_per_match`/`saves_pct` while the committed sample still carries the old keys (confirmed by grep: 214 hits across `teams/33.json` and 17 fixture files, untouched by this diff), the two rows — and the whole **Goalkeeping** group, since `saves_pct` is its only row — disappear from the built comparison until the sample is regenerated. That is exactly what the contract, the log and the evidence disclose (16→14 rendered names, all 51 fixture pages, three locales), and it is the codebase's existing honest-absent path, matching `14_team_stats.md` §6. The disclosure holds up against the actual component logic and the actual sample contents. Confirmed `scripts/export_site_data.py` selects marts with `select *` rather than naming columns, so nothing blocks the transient from closing on the next refresh.
+- **Frozen `site/` tree edits.** Read the full context around the changed keys in `site/i18n/en.json`; `de.json`/`fi.json` confirm the same. Only the JSON key changed; every `"label"`/`"description"` string is byte-identical. `metric_bindings.csv` keeps `live_id` unchanged and renames only `catalogue_metric_id`/`home_column`/`away_column`, consistent with `mart_matchday_insights`' new aliases. `metric_definitions.json` matches (regenerated). `metric_manifest.json`, correctly out of scope, still references only the unchanged `live_id`s — checked directly, no drift.
+- **Binding-rule sweep of `site_v2/src/**`.** Search for the two old names returns hits only inside `src/data/**` (the declared transient); `metricRows.ts`, `strings.ts`, `MetricSeasonRow.astro` and both spec files are fully renamed and internally consistent, so `check-metric-labels.test.mjs`'s byte-identity test compares the right keys post-rename rather than silently skipping them.
+- **Locked contract / no reordering / no metric creep.** `metricRows.ts` shows `tier`, `group`, `format`, `direction` unchanged for both rows — only `field`/`labelKey` renamed. `metrics_display.md` rows keep their tier/group/position and the tier-shape line is untouched. No new metric on any surface; no naked-percentage or fabricated-zero pattern introduced.
+- **Stale-reference sweep of `docs/wireframes/`.** Grepped the whole directory, not just the two files in scope — zero hits, so no wireframe still cites the retired ids.
+- **`rendered_page_evidence.md`.** Exists but holds an unrelated earlier task's content and says nothing about this branch. `acceptance_evidence.md` independently supplies genuine built-output evidence for the flagged risk (locale-by-locale rendered-name counts from `site_v2/dist/`, 16→14, methodology disclosed, with a self-caught substring-matching bug corrected mid-task), so the built-output requirement is substantively met — noted rather than treated as a silent gap.
 
 ## escalations
 (none)

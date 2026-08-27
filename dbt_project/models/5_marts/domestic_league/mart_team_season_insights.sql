@@ -83,9 +83,9 @@ select
     m.finishing_efficiency,
     m.pass_accuracy,
     m.passes_per_match,
-    m.corner_kicks_per_match,
+    m.corners_per_match,
     m.corners_against_per_match,
-    m.save_ratio
+    m.saves_pct
 from latest_season_metrics as m
 inner join dim_team as t on m.team_sk = t.team_sk
 left join mart_team_season as ts

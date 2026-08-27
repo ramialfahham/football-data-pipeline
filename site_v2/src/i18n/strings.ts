@@ -631,9 +631,9 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.passes_per_match.label": "Ø Passes",
   "metrics.pass_accuracy.label": "% Pass accuracy",
   "metrics.key_passes_per_match.label": "Ø Key passes",
-  "metrics.corner_kicks_per_match.label": "Ø Corners",
+  "metrics.corners_per_match.label": "Ø Corners",
   "metrics.corners_against_per_match.label": "Ø Corners against",
-  "metrics.save_ratio.label": "% Save percentage",
+  "metrics.saves_pct.label": "% Save percentage",
 };
 
 const METRIC_LABELS_DE: MetricLabels = {
@@ -649,7 +649,7 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
   // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
   // replaces `Schüsse aufs Tor`, and it is the compact form Bundesliga, kicker and sport.de all use
-  // as a stat label. It also makes the German internally consistent, since `save_ratio` already reads
+  // as a stat label. It also makes the German internally consistent, since `saves_pct` already reads
   // `% Gehaltene Torschüsse`. The Ø prefix is retained: the underlying metrics are per-match, and
   // without it `Torschüsse` reads as a season total.
   // ⚠ He chose `Torschussdifferenz` after being shown, with measurements, that an 18-character
@@ -671,9 +671,9 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.pass_accuracy.label": "% Angekommene Pässe",
   // "Schlüsselpässe", not "Torschussvorlagen": the latter means shot assists, a different metric.
   "metrics.key_passes_per_match.label": "Ø Schlüsselpässe",
-  "metrics.corner_kicks_per_match.label": "Ø Ecken",
+  "metrics.corners_per_match.label": "Ø Ecken",
   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
-  "metrics.save_ratio.label": "% Gehaltene Torschüsse",
+  "metrics.saves_pct.label": "% Gehaltene Torschüsse",
 };
 
 const METRIC_LABELS_FI: MetricLabels = {
@@ -710,9 +710,9 @@ const METRIC_LABELS_FI: MetricLabels = {
   "metrics.pass_accuracy.label": "% Syöttötarkkuus",
   // CPO-confirmed 2026-07-31, same unverified caveat as Puolustustoimet.
   "metrics.key_passes_per_match.label": "Ø Avainsyötöt",
-  "metrics.corner_kicks_per_match.label": "Ø Kulmapotkut",
+  "metrics.corners_per_match.label": "Ø Kulmapotkut",
   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
-  "metrics.save_ratio.label": "% Torjuntaosuus",
+  "metrics.saves_pct.label": "% Torjuntaosuus",
 };
 
 const METRIC_LABELS: Record<Lang, MetricLabels> = {
