@@ -5419,6 +5419,67 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   RECORD THE THING THE APPROVAL WAS GIVEN AGAINST, NOT ONLY THE APPROVAL. A blanket "yes" is
   unverifiable unless the list it answered is in the record beside it.
 
+  ⭐⭐ THE COMPLETE RENAME LIST, WRITTEN INTO THE RECORD 2026-08-27 SO IT CANNOT BE LOST.
+  Until now the full tables lived only in a plan file OUTSIDE the repo
+  (`C:\Users\Rami\.claude\plans\validated-cuddling-dragon.md`), which is precisely the defect
+  scope-auditor FAILed `feat/metric-rename-goals` and `feat/metric-rename-catalogue-only` for. The
+  authority is the rulings above; this is their full application, and every later MR cites THIS.
+
+  DONE — `!111` (main `2dddf38`): goals_for → goals.
+  DONE — `!112` (main `dd01215`): corner_kicks → corners, goalkeeper_saves → saves.
+
+  ⛔ TEAM, 12 REMAINING. Every one is a COMPUTED COLUMN in the season models, so unlike the three
+  above each runs through model SQL, the ymls, the marts and the site. Measured 2026-08-26: ~600
+  occurrences across the set, which is why it must be split by family, not shipped as one diff.
+      points_capture              → points_capture_pct
+      clean_sheets_share          → clean_sheets_pct
+      danger_zone_ratio           → shots_inside_box_pct
+      shot_accuracy               → shots_on_goal_pct
+      shot_share                  → shots_share_pct
+      finishing_efficiency        → finishing_efficiency_pct
+      pass_accuracy               → passes_accuracy_pct
+      save_ratio                  → saves_pct
+      corner_kicks_per_match      → corners_per_match
+      key_passes_per_match        → passes_key_per_match
+      sot_difference_per_match    → shots_on_goal_difference_per_match
+      sot_points_gap              → deserved_points_gap
+
+  ⛔ PLAYER, 35 REMAINING. `_player` is added only where the name would otherwise read as a team
+  metric; it is omitted on `_per90` names because `_per90` already means player, and omitted where
+  no team version could exist. It sits BEFORE a trailing `_pct`.
+      goals → goals_player · goals_penalty → goals_penalty_player ·
+      goals_open_play → goals_open_play_player · goals_against → goals_against_player ·
+      assists → assists_player · scorer_points → scorer_points_player ·
+      penalty_won → penalty_won_player · penalty_committed → penalty_committed_player ·
+      contribution_share → contribution_player_pct · shots_total → shots_player ·
+      shots_on_goal → shots_on_goal_player · shots_on_goal_against → shots_on_goal_against_player ·
+      finishing_efficiency → finishing_efficiency_player_pct · passes_total → passes_player ·
+      passes_accurate → passes_accurate_player · passes_key → passes_key_player ·
+      key_passes_per90 → passes_key_per90 · pass_accuracy_pct → passes_accuracy_player_pct ·
+      duels_total → duels_player · duels_won → duels_won_player ·
+      duels_won_pct → duels_won_player_pct · dribbles_attempts → dribbles_attempts_player ·
+      dribbles_success → dribbles_success_player ·
+      dribbles_success_pct → dribbles_success_player_pct · dribbles_past → dribbles_past_player ·
+      tackles_total → tackles_player · tackles_interceptions → interceptions_player ·
+      tackles_blocks → blocks_player · defensive_actions → defensive_actions_player ·
+      saves → saves_player · save_pct → saves_player_pct · cards_yellow → cards_yellow_player ·
+      cards_red → cards_red_player · cards_total → cards_player · offsides → offsides_player
+  UNCHANGED, all 14: the 13 `_per90` names and `minutes_per_appearance`.
+  ⚠ `contribution_player_pct` is the ONE name in this list the CPO did not rule on directly; it was
+  my proposal and he did not object. Flag it rather than quote it as his.
+
+  ⛔ LABELS, 9 CATALOGUE ROWS: English "on target" → "on goal", per RULING 2. Team:
+  `shots_on_goal_per_match`, `shots_on_goal_against_per_match`, `sot_difference_per_match`,
+  `shot_accuracy`, `finishing_efficiency`. Player: `finishing_efficiency`, `shots_on_goal`,
+  `shots_on_goal_against`, `shots_on_goal_per90`. German and Finnish are NOT touched: measured, both
+  already mean "on goal" (Torschüsse, Maalilaukaukset), so only English was out of step.
+
+  ⚠ TWO TRANSIENTS ARE LIVE ON MAIN RIGHT NOW, both disclosed when they were created:
+    · the total reads `corners` while its rate still reads `corner_kicks_per_match`
+    · team `finishing_efficiency` and player `finishing_efficiency` will diverge the moment the
+      team `_pct` sweep lands, until the player sweep follows
+  Neither is a defect; both close as the remaining MRs land.
+
   ⭐ THE PATTERN THIS PRODUCES, to be applied to any metric added later:
       noun [_qualifier] [_against] [_player] [_form]
   `_form` is `_per_match` for a team, `_per90` for a player, `_pct` for a percentage.
