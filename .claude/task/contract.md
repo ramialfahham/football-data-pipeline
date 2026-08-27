@@ -1,164 +1,218 @@
-# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
+# Task contract — #92: make the MR singular-test gate read the BRANCH, not production
 
 objective: >
-  Step 2 of the catalogue naming programme. Two renames, both of the same kind as `goals_for` to
-  `goals` in step 1: the METRIC is renamed, the columns keep their names.
+  One flag, one line. `data:build:mr`'s second dbt invocation — the full singular-test suite, the DQ
+  gate — runs with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()` to the
+  DEFERRED (production) relation **even when the current run has just built that model**. The suite
+  therefore tests PRODUCTION on every merge request. Removing `--favor-state` from that ONE
+  invocation makes it test the branch. `--defer` stays, so an upstream this MR did not build still
+  resolves to prod rather than to nothing.
 
-  `corner_kicks` and `goalkeeper_saves` are the only two team metrics whose names carry a wording
-  the rest of the catalogue does not use. The team's own conceded version is already
-  `corners_against_per_match`, so `corner_kicks` is the odd one; and the player's equivalent metric
-  is already plain `saves`, so the `goalkeeper_` qualifier exists on one side only.
+  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state` AND MUST. There are two invocations in this
+  job and only the second changes. On the BUILD line the flag is correct and load-bearing: the
+  shared `ci_*` datasets carry tables left by earlier merge requests, and when a model is being
+  BUILT its own upstreams must come from prod, never from another branch's leftovers. A node dbt is
+  building in the current run is not deferred at all, so the flag costs that line nothing and buys
+  isolation. On the TEST line there is nothing being built, so the same flag has the opposite
+  effect: it discards the models this MR just built.
 
-  ⛔ THE COLUMNS KEEP THEIR NAMES, and the reason is measured, not assumed. Both names are also
-  per-match provider columns flowing up through the layers — `fct_fixture_team_stats`,
-  `int_legs__team_match`, `int_team_momentum__metrics`, `int_team_momentum_window`,
-  `int_team_season_record`, `mart_team_fixture_stats`. The METRICS are season totals whose model
-  column is `corner_kicks_sum_season` / `goalkeeper_saves_sum_season`, a different grain under a
-  different name. Renaming the metric therefore touches no model SQL, exactly like step 1.
+  ⭐ WHAT THIS IS WORTH, stated plainly rather than sold. Today all 30 singular tests are green on an
+  MR because production is healthy, not because the branch is. That is a gate reporting on the wrong
+  subject. After this change they report on the branch.
 
-  ⭐ WHAT THIS EXCLUDES, AND WHY THE SPLIT MOVED. The approved plan bundled `sot_points_gap` with
-  these two as "catalogue-only". Measured on the branch, that is WRONG: `sot_points_gap` IS a model
-  column, declared in `int_team_season__deserved_vs_actual` and `mart_team_profile`. It belongs
-  with the ten column renames, not here, and has been moved there. The names the CPO ruled do not
-  change; only which MR carries this one does.
+  ⚠ AND WHAT IT COSTS, which is the reason #92 was left open rather than fixed on sight. Without
+  `--favor-state`, `--defer` resolves a ref to the `ci_*` copy WHEN ONE EXISTS and to prod only when
+  it does not. `data:build:mr` builds `state:modified+`, so everything this MR changed and everything
+  downstream of it is freshly built and correct; an UNMODIFIED upstream, however, may be read from a
+  `ci_*` table an earlier merge request left behind. So the trade is: a gate that currently tests the
+  wrong database, against a gate that tests the right one but may read a stale unmodified upstream.
+  Both are holes. This one is narrower, and unlike the current one it fails LOUDLY when it is wrong.
+  ⛔ It is a trade, not a clean win, and the CPO was told so in those terms before approving.
 
-  MEASURED BEFORE ANY EDIT, so the contract is not amended mid-flight the way step 1's was:
-  **24 description references move.**
-    · 6 × `doc('corner_kicks')` → `doc('corners')`. No split: no player metric is called corners.
-    · 6 × `doc('goalkeeper_saves')` → `doc('saves__team')`
-    · 12 × `doc('saves')` → `doc('saves__player')`
-  The last two follow from a predicted BLOCK SPLIT: after the rename `saves` exists for both
-  entities with different formulas (team `sum(goalkeeper_saves)`, player `sum(saves)`), so
-  `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule and replaces the bare `saves`
-  block with `saves__team` and `saves__player`. This is the same mechanism that surprised step 1;
-  here it is predicted up front.
-
-  All 24 classified by reading which MODEL the column sits on, not by the name. All 6
-  `goalkeeper_saves` references are on team-grain models; all 12 `saves` references are on
-  player-grain models (`fct_fixture_player_stats`, `int_player_season__metrics`,
-  `int_legs__player_match`, `int_player_momentum__metrics`, `int_player_club_season__metrics`,
-  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
-  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
-  `mart_player_match_log`). No ambiguous case in this set.
+  ⚠ A FALSE CLAIM IN THE FILE IS CORRECTED IN THE SAME CHANGE. The comment above the test line
+  currently reads "On an MR it validates this MR's rebuilt ci_* models layered over prod (via defer)
+  — an ISOLATED view, not shared prod state." That is exactly backwards for the rebuilt models,
+  which is the half that matters, and it is why the defect survived: the file asserts the behaviour
+  the flag prevents. Corrected, with the mechanism named, so the next reader is not misled the same
+  way.
 
 refs: >
-  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME"**, the
-  entry that records all six rulings of this programme in the CPO's own words. These two renames
-  come from its final ruling, verbatim: "apply the suggested changes to ensure consistency".
-  **That list is now ENUMERATED in the log entry itself**, items 4 and 5, so a reader can verify
-  these two renames were among the six without taking this contract's word for it.
+  **GitLab #92**, open before today: "`--defer --favor-state` makes ALL 28 singular tests read PROD
+  on an MR." (28 was the count when it was filed; the suite is 30 today, re-counted from the failing
+  job's own output — `Done. PASS=29 WARN=0 ERROR=1 SKIP=0 TOTAL=30`.)
 
-  ⛔ ROUND 2 FAILED BECAUSE THAT ENUMERATION WAS MISSING, and scope-auditor's finding was exact:
-  the log held the blanket approval but not the list it answered, so this contract's claim about
-  what the list contained was "the builder's own unrecorded reconstruction dressed as the record".
-  Fixed by completing the log, which now also discloses that the enumeration was added late and
-  why. Two other reviewers saw the same gap and declined to fail on it; completing the record makes
-  that disagreement moot rather than resolving it in my favour.
-  Branched from main **`2dddf38`**, clean tree, which is main AFTER `!111` merged and therefore
-  the first commit that carries the ruling entry this contract cites.
+  ⭐ THE CPO'S APPROVAL, this session, in chat. He was shown the choice in these terms: fix the CI
+  check — "one flag on one line tells that second run to read live data instead of what the branch
+  just built. Remove it and it reads the branch" — together with the cost, that "those checks would
+  then read from a workspace shared between branches, so they could pick up leftovers from another
+  branch's run", and the alternative of renaming in two passes instead. His answer, verbatim:
+  **"do as recommended"**. That is the `protected_override` authority recorded below.
 
-  ⛔ ROUND 1 FAILED ON EXACTLY THAT, ALL THREE REVIEWERS, AND THEY WERE RIGHT. The branch was
-  originally cut from `d95a04f`, main BEFORE `!111`. The entry was real and committed, but it lived
-  on the `!111` branch, so from this diff the citation pointed at nothing: `escalations.log` was
-  5337 lines here and 5407 there. One reviewer reasonably called it "apparently fabricated", which
-  is the correct reading from a branch that cannot see the record. Fixed by moving this work onto
-  post-`!111` main rather than by rewording the citation.
-  ⭐ THE LESSON, and it is the third variant of one root cause in this session: the RECORD AND THE
-  WORK MUST TRAVEL TOGETHER. First the rulings were not written down at all; then they were written
-  down but the next change was built where they could not be seen.
+  ⭐ THE FIRST CONCRETE REPRODUCTION, and the reason this stopped being theoretical. Pipeline
+  `2796272877`, job `16145201830`, on `!114` (the first column rename of naming-programme step 3):
+    · line 836 — `OK created sql table model ci_marts.mart_team_season_insights`, carrying the
+      renamed column `points_capture_pct`
+    · line 854 — `PASS assert_mart_team_season_insights_metric_consistency [PASS in 0.75s]`,
+      INSIDE the build, against that freshly built table
+    · line 1021 — the SAME test, in the second invocation:
+      `Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?`
+  The same assertion passed and then failed, ninety seconds apart, in one job, on one branch. The
+  only difference is which database the second run was pointed at.
+
+  ⛔ WHY THIS CANNOT BE WAITED OUT. The production table only gains the new column after the rename
+  merges, and the rename cannot merge while the gate is red. `!114` can never go green on its own.
+  That is the shape of EVERY column rename that a singular test names — and naming-programme step 4
+  is 35 more renames.
 
 scope_paths:
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/models/docs/metric_columns.md
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/models/4_intermediate/shared/int_legs.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-  - dbt_project/models/5_marts/shared/shared.yml
+  - .gitlab-ci.yml
+  - tests/test_ci_data_job_invariants.py
+  - dbt_project/tests/assert_metric_meaning_complete.sql
+  - dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
   - .claude/task/contract.md
   - .claude/task/escalations.log
   - .claude/task/review.md
   - .claude/task/acceptance_evidence.md
   - .claude/active_work.md
 
-# ⚠ NO model SQL. NO column renamed. NO frontend file, so the acceptance gate does not fire.
-# `metric_columns.md` is GENERATED — regenerate, never hand-edit.
-
 protected_override: >
-  none required. No file in scope_paths is protected.
+  **REQUIRED, and granted.** `.gitlab-ci.yml` is a PROTECTED governance path: it decides what CI
+  enforces, and it carries the same authority `.github/workflows/**` carried before the migration —
+  hence `cto-reviewer` + `platform-reviewer`, both at the opus floor.
+
+  Authority: the CPO, in chat this session, answering the recommendation quoted in `refs` above with
+  **"do as recommended"**. He had been given the mechanism, the benefit, the cost (cross-branch
+  leftovers in the shared `ci_*` datasets) and the no-CI-change alternative (a two-pass
+  expand/contract rename) before answering. Written into `escalations.log` in this same commit, so
+  the authority and the change travel together.
+
+  ⛔ THIS IS A GUARD BEING NARROWED IN ONE DIRECTION AND WIDENED IN ANOTHER, and it must be read as
+  such rather than as a pure fix. It does not delete an assertion, exclude a test, add a tag or skip
+  a path — the same 30 tests run, with the same SQL, and the count in the job output must not drop.
+  What changes is which database they read. Judge it on that.
 
 impact_map: >
-  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
-    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
+  This is a PROTECTED path, so the trace is of the GUARD, not of table lineage.
 
-  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
-    alter any model's `depends_on`.
+  what fires it: `data:build:mr`, on a merge-request pipeline whose diff touches `*data_paths_mr`.
+    Not on schedules (`*not_on_schedule`), not on main. The sibling `data:build:main` (line 736)
+    runs `dbt test --select test_type:singular --exclude tag:freshness_check --target prod` with NO
+    `--defer` and NO `--favor-state`, so it is untouched by this change and remains the full-strength
+    production gate. `data:nightly` likewise unaffected.
 
-  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
-    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
-    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
-    int_player_season_position.yml 1 · shared.yml 7. Total 24.
+  what else imports from it: nothing imports a CI job, but TWO DBT GUARDS DOCUMENT AND DEPEND ON
+    THIS FLAG'S SEMANTICS, and an earlier draft of this map said "nothing" and was wrong.
+    `dbt_project/tests/assert_metric_meaning_complete.sql` and
+    `assert_metric_direction_lower_is_better_agree.sql` each carry a CI note stating that on a PR
+    `ref('metric_catalogue')` resolves to MAIN's seed "because `--favor-state` swaps it for the
+    state relation", and each derives a WORKFLOW RULE from it — that a change to catalogue VALUES
+    and a guard depending on those values cannot land in the same PR — closing with the standing
+    instruction **"Do not try to solve this with a CI workflow change."**
+    ⛔ This change makes all three of those things false, and overrides that instruction. `dbt seed
+    --target ci` runs at `.gitlab-ci.yml:589` before both invocations, so the BRANCH's
+    `metric_catalogue` relation always exists in the ci target; with `--favor-state` gone, plain
+    `--defer` prefers it. Those two guards now read the BRANCH's seed, and the values-merge-first
+    rule they impose is no longer needed. Both notes are corrected in this commit, and the standing
+    instruction is re-aimed rather than left contradicting the merged change.
+    ⭐ That is not a side effect to tolerate — it is the same defect class this task exists to fix
+    ("the file asserted the behaviour the flag prevented"), and correcting it in `.gitlab-ci.yml`
+    while leaving it standing in two dbt guards would be the "corrections must replace EVERYWHERE"
+    failure. Found by cto-reviewer and platform-reviewer in round 1, independently.
+    The other consumer of the same idea is `data:build:main` (`.gitlab-ci.yml:736`, re-measured —
+    an earlier draft said 714), which runs the same suite `--target prod` with NO `--defer`, NO
+    `--state` and NO `--favor-state`. It is untouched and remains the full-strength prod gate.
 
-  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
-    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
-    files. The total of 24 was right and every individual reference was correct, but the
-    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
-    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
-    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
-    artifact that had already failed once on authority in the same round.
+  what pins the change itself: `tests/test_ci_data_job_invariants.py` gains an assertion, and it is
+    added here rather than argued away. That module exists for exactly this class — its own
+    docstring opens "Pin three CI data-job invariants that can be broken while every pipeline stays
+    GREEN" — and platform-reviewer's round-1 finding was that re-adding `--favor-state` to the test
+    line would restore the whole defect with every offline gate, every test and the pipeline still
+    green, leaving only a comment in its way. A comment is precisely what failed here the first
+    time. The assertion pins BOTH HALVES of the asymmetry: the `dbt test` invocation must carry
+    `--defer` and `--state` and must NOT carry `--favor-state`; the `dbt build` invocation must
+    still carry it. Pinning only one half would let someone "restore symmetry" by stripping the flag
+    from the build line instead, which breaks isolation in the other direction and would pass.
 
-  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
-    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
-    player columns the text also stays, since the split preserves each entity's own definition.
+  what stops being enforced if this is wrong: nothing stops. The failure mode of the change is a
+    singular test reading a stale `ci_*` upstream left by an earlier MR, which produces a WRONG
+    ANSWER (a spurious red, or a green that should have been red on that one upstream's data). It
+    cannot silence a test: the selection `--select test_type:singular --exclude tag:freshness_check`
+    is untouched, so the suite size is unchanged. `tests/test_ci_data_job_invariants.py` continues
+    to pin the ingest-lock invariant on this job, which this change does not go near.
 
-  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
+  what happens on failure: the job exits non-zero exactly as now — the failing invocation above is
+    proof that a red here blocks the MR. Fail-closed is preserved; nothing is made conditional,
+    nothing gains an `|| true`, no `allow_failure` is introduced.
 
-  deploy_order: none. Descriptions reach BigQuery the next time each model builds.
+  blast_radius: every future merge-request pipeline that touches a data path. That is wide, and it
+    is why this is a CPO-approved governance task rather than a line edit. The change is confined to
+    ONE invocation in ONE job; `git diff` is one line of flags plus the comment above it.
+
+  deploy_order: this must merge BEFORE `!114`, and `!114` must then be rebased onto it — a merge
+    request runs the `.gitlab-ci.yml` of its SOURCE branch, so `!114` keeps failing until it carries
+    this commit. Rebasing `!114` moves its review hash, so its `review.md` must be rebound; a
+    `review.md`-only commit is artifact-exempt, so that rebinding is free.
 
 decisions_taken: >
-  THRESHOLD DECLARATION — NEW MECHANISM: none.
-  THRESHOLD DECLARATION — RECURRING COST: none.
+  The change and its authority are quoted in `refs` and `protected_override`. Nothing here is chosen
+  by the builder: the mechanism was recommended, the cost was disclosed, and the CPO said "do as
+  recommended".
 
-  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
-    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
-    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
-    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
-    are the CPO's and none of them moves; only the packaging changed.
-
-  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
-    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
-    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
-    for what the model holds.
+  THRESHOLD DECLARATIONS.
+  · NEW MECHANISM: **none.** No new job, stage, script, tag, selector, allow_failure or exclusion. A
+    flag is removed from an existing invocation and a comment above it is corrected. The test added
+    in round 2 is an assertion inside `tests/test_ci_data_job_invariants.py`, the module that
+    already exists for this exact class and already parses this exact job's script list — no new
+    file, no new runner, no new dependency, no new CI step. Adding a case to an existing guard is
+    not a new mechanism; had it needed a new harness, that would be a different declaration.
+  · RECURRING COST: **none, and this was reasoned rather than waved.** The same 30 tests run on the
+    same schedule against the same row counts; only the dataset they read changes, and a `ci_*`
+    table is the same size as its prod twin. No job is added, no cadence changes, nothing new is
+    scheduled. If anything the queries get marginally cheaper, since `ci_*` holds the MR's slice.
+  · GUARD WEAKENED: **no** in the sense that matters — no assertion is removed, no test excluded, no
+    path skipped, and the suite count must stay at 30. But see the ⛔ in `protected_override`: this
+    is a trade between two holes, not a clean win, and the reviewer should judge it as one.
 
 decisions_reserved:
-  - `sot_points_gap` → `deserved_points_gap`. Moved out of this MR because it IS a model column.
-  - The ELEVEN column renames: `points_capture`, `clean_sheets_share`, `danger_zone_ratio`,
-    `shot_accuracy`, `shot_share`, `finishing_efficiency`, `pass_accuracy`, `save_ratio`,
-    `sot_difference_per_match`, `key_passes_per_match`, `corner_kicks_per_match`, plus
-    `sot_points_gap` above. Each renames a computed column in the season models and runs through
-    model SQL, yml, marts and the site.
-  - ⚠ A TRANSIENT THIS MR CREATES ON PURPOSE, and it resolves in the next one:
-    `corner_kicks_per_match` is NOT renamed here, so after this merge the total is `corners` while
-    its own per-match rate is still `corner_kicks_per_match`. The alternative was to drag a column
-    rename into a catalogue-only diff, which is the seam this split exists to keep clean. Same
-    shape as the `finishing_efficiency` transient step 1 disclosed.
-  - The player `_player` sweep and the nine "on target" labels, both later steps.
-  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
-    asked, not answered, not done.
+  - none: the fix, its cost and the alternative were put to the CPO together and he chose this one.
+    Whether the REMAINING hole — a singular test able to read a stale unmodified upstream from the
+    shared `ci_*` datasets — is worth closing too, and how (an ephemeral per-MR dataset is the
+    obvious candidate and a recurring-cost decision), stays open on #92 and is NOT decided here.
 
 done_when:
-  - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
-    re-derived offline: unique `(metric_id, entity)`, unique `label_i18n_key`, unique
-    `(entity, label_en)`.
-  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green; the block count
-    delta MEASURED, not predicted.
-  - `dbt parse` CLEAN and ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml.
-  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT.
-  - ⛔ ZERO occurrences of the metric_ids `corner_kicks` and `goalkeeper_saves` remain in the seed,
-    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
-  - Offline gates green plus `ruff` and `python -m pytest tests/`.
-  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
+  - `.gitlab-ci.yml` differs from main by exactly one flag removal on the `dbt test` invocation plus
+    the corrected comment above it; the `dbt build` invocation is byte-identical.
+  - `python -m pytest -q` passes, including `tests/test_ci_data_job_invariants.py`.
+  - The YAML parses and the job's script list is unchanged apart from that one line, shown by
+    parsing `.gitlab-ci.yml` and printing `data:build:mr`'s script before and after.
+  - The claim is verified by RUNNING it, not by reading it: after merge, `!114` is rebased onto this
+    and its pipeline is watched going green on the exact test that failed at job `16145201830`
+    line 1021.
+  - `.claude/task/escalations.log` carries the CPO's approval verbatim and the reproduction.
+  - The new invariant is watched going RED against BOTH mutations before it is trusted: re-adding
+    `--favor-state` to the `dbt test` line, and removing it from the `dbt build` line.
+  - Neither dbt guard still tells a reader that `ref('metric_catalogue')` resolves to main's seed,
+    and neither still carries "Do not try to solve this with a CI workflow change".
+
+amendments: >
+  2026-08-27, round 2: `scope_paths` EXTENDED by three files —
+  `tests/test_ci_data_job_invariants.py`,
+  `dbt_project/tests/assert_metric_meaning_complete.sql` and
+  `dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql`.
+  Authority: the standing rules the round-1 FAILs invoked, not a new CPO decision. cto-reviewer and
+  platform-reviewer independently found that the two dbt guards carry CI notes this change makes
+  false, including a standing instruction it overrides — "corrections replace, never accumulate"
+  makes fixing them part of THIS change, not a follow-up. platform-reviewer separately found the
+  change unpinned by anything but a comment — "verify the test fails" and "never rely on prose where
+  a machine can hold the line" put the assertion in the module that already exists for this class.
+  Both extensions make the task's own claims true; neither widens what the task decides. Written on
+  a clean tree (the code was stashed by explicit path, the contract amended, then popped).
+
+  2026-08-27, round 3: no scope change. `impact_map`'s "what fires it" paragraph still said
+  `data:build:main` was at line **714** while the paragraph 23 lines below it already said **736,
+  re-measured**. Both numbers for the same line, in one file — the exact "#71 invert the number
+  sweep" failure this repo keeps repeating, committed in the very artifact that corrects the same
+  number elsewhere. 736 is right; 714 is a comment line inside the job. Caught by cto-reviewer,
+  which judged it not worth a round and recommended fixing it in passing; fixed anyway, because a
+  correction that lands in one paragraph and not its neighbour is the accumulation this rule exists
+  to stop. No code file changed in round 3.

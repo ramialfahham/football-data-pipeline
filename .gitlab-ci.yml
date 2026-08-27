@@ -633,10 +633,32 @@ data:build:mr:
     - >-
       dbt build --select state:modified+ --exclude tag:freshness_check
       --defer --favor-state --state /tmp/main-state --target ci
-    # DQ is non-negotiable and the full singular suite always runs. On an MR it
-    # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
-    # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
-    # only, never to the DQ gate.
+    # DQ is non-negotiable and the full singular suite always runs. Slimming applies
+    # to model BUILDS only, never to the DQ gate.
+    #
+    # ⚠ `--defer` WITHOUT `--favor-state`, and the asymmetry with the build line above
+    # is the whole point (#92, fixed 2026-08-27). `--favor-state` resolves every ref()
+    # to the DEFERRED (prod) relation EVEN WHEN THIS RUN JUST BUILT THAT MODEL. On the
+    # BUILD line that is correct and load-bearing — a model being built must take its
+    # upstreams from prod, never from a stale ci_ copy left by another MR, and a node
+    # dbt is building is not deferred anyway. HERE nothing is being built, so the same
+    # flag threw away this MR's own models and pointed all 30 tests at PRODUCTION. The
+    # gate was green because prod was healthy, not because the branch was.
+    # ⛔ The comment that stood here claimed the opposite — "validates this MR's rebuilt
+    # ci_* models layered over prod ... an ISOLATED view, not shared prod state" — which
+    # is exactly backwards for the rebuilt models, and is why the defect survived a year
+    # of readings: the file asserted the behaviour the flag prevented.
+    # Proof it was real, one job, ninety seconds apart: pipeline 2796272877 job
+    # 16145201830 created ci_marts.mart_team_season_insights with a renamed column,
+    # PASSed assert_mart_team_season_insights_metric_consistency against it inside the
+    # build, then failed the SAME test here with "Unrecognized name: points_capture_pct;
+    # Did you mean points_capture?" — a column that exists only in prod.
+    # ⚠ WHAT REMAINS OPEN (#92): `--defer` alone still prefers a ci_ relation when one
+    # EXISTS, so an UNMODIFIED upstream can be read from another MR's leftovers. Narrower
+    # than pointing the whole suite at the wrong database, and it fails loudly. Closing it
+    # means per-MR ephemeral datasets, a recurring-cost decision that is the CPO's.
+    # ⛔ Do NOT re-add --favor-state here to "match the build line". They are asymmetric
+    # deliberately, and the reason is above.
     #
     # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
     # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
@@ -652,7 +674,7 @@ data:build:mr:
     # judgement, exactly as !50 was.
     - >-
       dbt test --select test_type:singular --exclude tag:freshness_check
-      --defer --favor-state --state /tmp/main-state --target ci
+      --defer --state /tmp/main-state --target ci
   rules:
     - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

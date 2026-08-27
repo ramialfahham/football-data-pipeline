@@ -17,11 +17,22 @@
 
   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
 
-  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
-  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
-  seed is never selected and `--favor-state` swaps it for the state relation). That is why a change
-  to catalogue VALUES and a guard that depends on those values cannot land in the same PR — the
-  values merge first, then the guard. Do not try to solve this with a CI workflow change.
+  CI note, REWRITTEN 2026-08-27 under #92 — the previous version of this paragraph is now false in
+  every particular, and it is kept in git rather than paraphrased. It said: on a PR this runs in the
+  deferred singular-test step, where `ref('metric_catalogue')` resolves to MAIN's seed rather than
+  the branch's, because `--favor-state` swaps it for the state relation; that a change to catalogue
+  VALUES and a guard depending on those values therefore cannot land in the same PR; and — the line
+  that mattered — "Do not try to solve this with a CI workflow change."
+
+  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
+  `data:build:mr`'s `dbt test` invocation. `dbt seed --target ci` runs before it, so the BRANCH's
+  `metric_catalogue` relation always exists in the ci target, and plain `--defer` prefers a relation
+  that exists over the deferred one. **This guard now reads the branch's seed, so catalogue values
+  and a guard that depends on them CAN land in the same PR.** Do not split a change on the strength
+  of the old rule.
+  ⚠ What is still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately,
+  and the asymmetry between the two is pinned by
+  `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
 #}
 
 select

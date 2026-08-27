@@ -27,11 +27,20 @@
   silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
   (verified against the built table), so no cast is needed.
 
-  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
-  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
-  seed is never selected and `--favor-state` swaps it for the state relation). That is why the 4
-  corrections this guard depends on merged FIRST, in their own PR, before the guard followed. Do not
-  try to solve this with a CI workflow change.
+  CI note, REWRITTEN 2026-08-27 under #92. The previous version said that on a PR
+  `ref('metric_catalogue')` resolves to MAIN's seed rather than the branch's, because
+  `--favor-state` swaps it for the state relation; that this is why the 4 corrections this guard
+  depends on had to merge FIRST in their own PR before the guard followed; and "Do not try to solve
+  this with a CI workflow change."
+
+  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
+  `data:build:mr`'s `dbt test` invocation, `dbt seed --target ci` runs before it, and plain
+  `--defer` prefers the branch's seed relation because it exists. **This guard now reads the
+  branch's seed.** The split-the-PR rule above was a workaround for the flag, not a property of the
+  guard, and it no longer applies. The 4 corrections having merged first remains a fact of history,
+  not a rule for the next change.
+  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately; the asymmetry is
+  pinned by `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
 #}
 
 select

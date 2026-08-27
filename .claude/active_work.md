@@ -96,7 +96,15 @@ are already in the seed and the team-names programme is PAUSED PART-WAY.
 
 ## ⛔ OPEN, ALL THE CPO'S — none blocks the naming programme
 
-- **#92** — `--defer --favor-state` makes ALL 28 singular tests read PROD on an MR.
+- **#92** — PARTLY FIXED 2026-08-27. `--favor-state` is gone from `data:build:mr`'s **`dbt test`**
+  line, so the 30 singular tests now read the BRANCH; it STAYS on the `dbt build` line, and the
+  asymmetry is deliberate — ⛔ **never "match the two lines up"**, the file says why at the seam.
+  ⚠ Still open: `--defer` alone prefers a `ci_` relation when one EXISTS, so an UNMODIFIED upstream
+  can still come from another MR's leftovers. Closing that = per-MR ephemeral datasets = a
+  RECURRING-COST decision, the CPO's.
+  ⭐ **Any column rename a singular test names is unmergeable without this** — prod gains the column
+  only after the merge, so the gate can never go green first. Step 4's 35 player renames would have
+  hit it repeatedly.
 - **#93** — `mart_team_momentum` is a SECOND copy of ~20 team formulas and has ALREADY DRIFTED.
   ⚠ Its file carries a CPO attribution the log contradicts; put that to him as a contradicted
   attribution, never as evidence he ruled it.

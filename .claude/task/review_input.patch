@@ -1,645 +1,619 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index c64d86f..116fe2e 100644
+index 116fe2e..4390ebe 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,68 +1,83 @@
--# Task contract — rename the team metric `goals_for` to `goals`
-+# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
+@@ -1,164 +1,218 @@
+-# Task contract — rename the team metrics `corner_kicks` to `corners` and `goalkeeper_saves` to `saves`
++# Task contract — #92: make the MR singular-test gate read the BRANCH, not production
  
  objective: >
--  Step 1 of 4 in the catalogue naming work the CPO ruled this session. It is deliberately alone,
--  because it is the only rename in the programme that is not a suffix or a spelling change.
+-  Step 2 of the catalogue naming programme. Two renames, both of the same kind as `goals_for` to
+-  `goals` in step 1: the METRIC is renamed, the columns keep their names.
 -
--  The team's scored goals were `goals_for` while the player's were `goals`, and the team's own rate
--  and every breakdown already said plain `goals` (`goals_per_match`, `goals_penalty`, `goals_own`,
--  `goals_open_play`). One word out of step in its own family. The CPO ruled `goals_for` becomes
--  `goals`.
+-  `corner_kicks` and `goalkeeper_saves` are the only two team metrics whose names carry a wording
+-  the rest of the catalogue does not use. The team's own conceded version is already
+-  `corners_against_per_match`, so `corner_kicks` is the odd one; and the player's equivalent metric
+-  is already plain `saves`, so the `goalkeeper_` qualifier exists on one side only.
 -
--  ⛔ THE COLUMNS KEEP THEIR NAME. `goals_for` is also a real column on the match-row, momentum,
--  season-record and mart models, where it pairs with `goals_against` and reads correctly. Only the
--  CATALOGUE METRIC is renamed. Whether those columns follow is a separate question the CPO has not
--  been asked and this task does not answer.
+-  ⛔ THE COLUMNS KEEP THEIR NAMES, and the reason is measured, not assumed. Both names are also
+-  per-match provider columns flowing up through the layers — `fct_fixture_team_stats`,
+-  `int_legs__team_match`, `int_team_momentum__metrics`, `int_team_momentum_window`,
+-  `int_team_season_record`, `mart_team_fixture_stats`. The METRICS are season totals whose model
+-  column is `corner_kicks_sum_season` / `goalkeeper_saves_sum_season`, a different grain under a
+-  different name. Renaming the metric therefore touches no model SQL, exactly like step 1.
 -
--  ⛔ MEASURED ON THE BRANCH, AND IT IS BIGGER THAN THE FIRST DRAFT OF THIS CONTRACT SAID.
--  Renaming the metric does not merely move one block. `goals` now exists for BOTH entities and the
--  two define it differently (team `sum(goals_for)` from the scoreline, player `sum(goals_total)`
--  from the player stats), so `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule
--  and REPLACES the bare `goals` block with `goals__team` and `goals__player`. That dangles the
--  existing `doc('goals')` references as well as the `doc('goals_for')` ones.
+-  ⭐ WHAT THIS EXCLUDES, AND WHY THE SPLIT MOVED. The approved plan bundled `sot_points_gap` with
+-  these two as "catalogue-only". Measured on the branch, that is WRONG: `sot_points_gap` IS a model
+-  column, declared in `int_team_season__deserved_vs_actual` and `mart_team_profile`. It belongs
+-  with the ten column renames, not here, and has been moved there. The names the CPO ruled do not
+-  change; only which MR carries this one does.
 -
--  **18 references move, not 12**, counted on the branch:
--    · 12 × `doc('goals_for')` → `doc('goals__team')`
--    · 6 × `doc('goals')` → `doc('goals__player')`
+-  MEASURED BEFORE ANY EDIT, so the contract is not amended mid-flight the way step 1's was:
+-  **24 description references move.**
+-    · 6 × `doc('corner_kicks')` → `doc('corners')`. No split: no player metric is called corners.
+-    · 6 × `doc('goalkeeper_saves')` → `doc('saves__team')`
+-    · 12 × `doc('saves')` → `doc('saves__player')`
+-  The last two follow from a predicted BLOCK SPLIT: after the rename `saves` exists for both
+-  entities with different formulas (team `sum(goalkeeper_saves)`, player `sum(saves)`), so
+-  `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule and replaces the bare `saves`
+-  block with `saves__team` and `saves__player`. This is the same mechanism that surprised step 1;
+-  here it is predicted up front.
 -
--  Every one classified by reading which MODEL the column sits on, never by the name:
--    TEAM (12): int_legs__team_match, int_team_momentum__metrics, int_team_momentum_window,
--    int_team_season_record, mart_team_season_insights, mart_team_momentum_window,
--    mart_team_fixture_stats, mart_team_profile, mart_team_season, mart_head_to_head,
--    mart_team_fixtures, and mart_player_match_log — that last one sits on a PLAYER model but its
--    `goals_for` is the TEAM's scoreline for that match
--    (`mart_player_match_log.sql:90`), so it takes the team block.
--    PLAYER (6): int_player_season__metrics, int_player_club_season__metrics,
--    int_player_season_position__metrics, mart_player_profile, mart_player_career, and
--    mart_leaderboards, whose grain is one row per player and board.
-+  Step 2 of the catalogue naming programme. Two renames, both of the same kind as `goals_for` to
-+  `goals` in step 1: the METRIC is renamed, the columns keep their names.
+-  All 24 classified by reading which MODEL the column sits on, not by the name. All 6
+-  `goalkeeper_saves` references are on team-grain models; all 12 `saves` references are on
+-  player-grain models (`fct_fixture_player_stats`, `int_player_season__metrics`,
+-  `int_legs__player_match`, `int_player_momentum__metrics`, `int_player_club_season__metrics`,
+-  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
+-  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
+-  `mart_player_match_log`). No ambiguous case in this set.
++  One flag, one line. `data:build:mr`'s second dbt invocation — the full singular-test suite, the DQ
++  gate — runs with `--defer --favor-state`. `--favor-state` tells dbt to resolve every `ref()` to the
++  DEFERRED (production) relation **even when the current run has just built that model**. The suite
++  therefore tests PRODUCTION on every merge request. Removing `--favor-state` from that ONE
++  invocation makes it test the branch. `--defer` stays, so an upstream this MR did not build still
++  resolves to prod rather than to nothing.
 +
-+  `corner_kicks` and `goalkeeper_saves` are the only two team metrics whose names carry a wording
-+  the rest of the catalogue does not use. The team's own conceded version is already
-+  `corners_against_per_match`, so `corner_kicks` is the odd one; and the player's equivalent metric
-+  is already plain `saves`, so the `goalkeeper_` qualifier exists on one side only.
++  ⛔ THE `dbt build` INVOCATION KEEPS `--favor-state` AND MUST. There are two invocations in this
++  job and only the second changes. On the BUILD line the flag is correct and load-bearing: the
++  shared `ci_*` datasets carry tables left by earlier merge requests, and when a model is being
++  BUILT its own upstreams must come from prod, never from another branch's leftovers. A node dbt is
++  building in the current run is not deferred at all, so the flag costs that line nothing and buys
++  isolation. On the TEST line there is nothing being built, so the same flag has the opposite
++  effect: it discards the models this MR just built.
 +
-+  ⛔ THE COLUMNS KEEP THEIR NAMES, and the reason is measured, not assumed. Both names are also
-+  per-match provider columns flowing up through the layers — `fct_fixture_team_stats`,
-+  `int_legs__team_match`, `int_team_momentum__metrics`, `int_team_momentum_window`,
-+  `int_team_season_record`, `mart_team_fixture_stats`. The METRICS are season totals whose model
-+  column is `corner_kicks_sum_season` / `goalkeeper_saves_sum_season`, a different grain under a
-+  different name. Renaming the metric therefore touches no model SQL, exactly like step 1.
++  ⭐ WHAT THIS IS WORTH, stated plainly rather than sold. Today all 30 singular tests are green on an
++  MR because production is healthy, not because the branch is. That is a gate reporting on the wrong
++  subject. After this change they report on the branch.
 +
-+  ⭐ WHAT THIS EXCLUDES, AND WHY THE SPLIT MOVED. The approved plan bundled `sot_points_gap` with
-+  these two as "catalogue-only". Measured on the branch, that is WRONG: `sot_points_gap` IS a model
-+  column, declared in `int_team_season__deserved_vs_actual` and `mart_team_profile`. It belongs
-+  with the ten column renames, not here, and has been moved there. The names the CPO ruled do not
-+  change; only which MR carries this one does.
++  ⚠ AND WHAT IT COSTS, which is the reason #92 was left open rather than fixed on sight. Without
++  `--favor-state`, `--defer` resolves a ref to the `ci_*` copy WHEN ONE EXISTS and to prod only when
++  it does not. `data:build:mr` builds `state:modified+`, so everything this MR changed and everything
++  downstream of it is freshly built and correct; an UNMODIFIED upstream, however, may be read from a
++  `ci_*` table an earlier merge request left behind. So the trade is: a gate that currently tests the
++  wrong database, against a gate that tests the right one but may read a stale unmodified upstream.
++  Both are holes. This one is narrower, and unlike the current one it fails LOUDLY when it is wrong.
++  ⛔ It is a trade, not a clean win, and the CPO was told so in those terms before approving.
 +
-+  MEASURED BEFORE ANY EDIT, so the contract is not amended mid-flight the way step 1's was:
-+  **24 description references move.**
-+    · 6 × `doc('corner_kicks')` → `doc('corners')`. No split: no player metric is called corners.
-+    · 6 × `doc('goalkeeper_saves')` → `doc('saves__team')`
-+    · 12 × `doc('saves')` → `doc('saves__player')`
-+  The last two follow from a predicted BLOCK SPLIT: after the rename `saves` exists for both
-+  entities with different formulas (team `sum(goalkeeper_saves)`, player `sum(saves)`), so
-+  `sync_metric_docs_blocks.py` applies its one-name-two-meanings rule and replaces the bare `saves`
-+  block with `saves__team` and `saves__player`. This is the same mechanism that surprised step 1;
-+  here it is predicted up front.
-+
-+  All 24 classified by reading which MODEL the column sits on, not by the name. All 6
-+  `goalkeeper_saves` references are on team-grain models; all 12 `saves` references are on
-+  player-grain models (`fct_fixture_player_stats`, `int_player_season__metrics`,
-+  `int_legs__player_match`, `int_player_momentum__metrics`, `int_player_club_season__metrics`,
-+  `int_player_season_position__metrics`, `int_player_season_record`, `mart_player_momentum`,
-+  `mart_player_fixture_stats`, `mart_player_season_record`, `mart_player_profile`,
-+  `mart_player_match_log`). No ambiguous case in this set.
++  ⚠ A FALSE CLAIM IN THE FILE IS CORRECTED IN THE SAME CHANGE. The comment above the test line
++  currently reads "On an MR it validates this MR's rebuilt ci_* models layered over prod (via defer)
++  — an ISOLATED view, not shared prod state." That is exactly backwards for the rebuilt models,
++  which is the half that matters, and it is why the defect survived: the file asserts the behaviour
++  the flag prevents. Corrected, with the mechanism named, so the next reader is not misled the same
++  way.
  
  refs: >
--  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME", RULING 1**,
--  which records the CPO's own words verbatim: "goals_for becomes goals", given while he reviewed the
--  full list of 38 team metrics. That entry is the authority for all four renaming MRs and carries
--  the other five rulings, the resulting naming pattern, and two places where a later instruction
--  reversed an earlier one.
+-  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME"**, the
+-  entry that records all six rulings of this programme in the CPO's own words. These two renames
+-  come from its final ruling, verbatim: "apply the suggested changes to ensure consistency".
+-  **That list is now ENUMERATED in the log entry itself**, items 4 and 5, so a reader can verify
+-  these two renames were among the six without taking this contract's word for it.
 -
--  ⛔ AMENDED AFTER A ROUND-1 FAIL, and the amendment is the point. The first version of this
--  contract cited a PLAN FILE outside the repo as its sole authority for a §10 naming decision, and
--  `escalations.log` held no entry at all. scope-auditor FAILed it and quoted the 2026-08-26 entry
--  above back at me, where the CPO had already called out this exact failure class: claiming a record
--  supports something the record does not. This was worse than that instance, because it did not
--  cite the log at all, it substituted something uncommitted for it. The ruling is now recorded, and
--  the log entry discloses on its face that it was written after the fact.
--  Branched from main `d95a04f`, clean tree.
-+  **`.claude/task/escalations.log`, 2026-08-26, "THE METRIC CATALOGUE NAMING PROGRAMME"**, the
-+  entry that records all six rulings of this programme in the CPO's own words. These two renames
-+  come from its final ruling, verbatim: "apply the suggested changes to ensure consistency".
-+  **That list is now ENUMERATED in the log entry itself**, items 4 and 5, so a reader can verify
-+  these two renames were among the six without taking this contract's word for it.
+-  ⛔ ROUND 2 FAILED BECAUSE THAT ENUMERATION WAS MISSING, and scope-auditor's finding was exact:
+-  the log held the blanket approval but not the list it answered, so this contract's claim about
+-  what the list contained was "the builder's own unrecorded reconstruction dressed as the record".
+-  Fixed by completing the log, which now also discloses that the enumeration was added late and
+-  why. Two other reviewers saw the same gap and declined to fail on it; completing the record makes
+-  that disagreement moot rather than resolving it in my favour.
+-  Branched from main **`2dddf38`**, clean tree, which is main AFTER `!111` merged and therefore
+-  the first commit that carries the ruling entry this contract cites.
+-
+-  ⛔ ROUND 1 FAILED ON EXACTLY THAT, ALL THREE REVIEWERS, AND THEY WERE RIGHT. The branch was
+-  originally cut from `d95a04f`, main BEFORE `!111`. The entry was real and committed, but it lived
+-  on the `!111` branch, so from this diff the citation pointed at nothing: `escalations.log` was
+-  5337 lines here and 5407 there. One reviewer reasonably called it "apparently fabricated", which
+-  is the correct reading from a branch that cannot see the record. Fixed by moving this work onto
+-  post-`!111` main rather than by rewording the citation.
+-  ⭐ THE LESSON, and it is the third variant of one root cause in this session: the RECORD AND THE
+-  WORK MUST TRAVEL TOGETHER. First the rulings were not written down at all; then they were written
+-  down but the next change was built where they could not be seen.
++  **GitLab #92**, open before today: "`--defer --favor-state` makes ALL 28 singular tests read PROD
++  on an MR." (28 was the count when it was filed; the suite is 30 today, re-counted from the failing
++  job's own output — `Done. PASS=29 WARN=0 ERROR=1 SKIP=0 TOTAL=30`.)
 +
-+  ⛔ ROUND 2 FAILED BECAUSE THAT ENUMERATION WAS MISSING, and scope-auditor's finding was exact:
-+  the log held the blanket approval but not the list it answered, so this contract's claim about
-+  what the list contained was "the builder's own unrecorded reconstruction dressed as the record".
-+  Fixed by completing the log, which now also discloses that the enumeration was added late and
-+  why. Two other reviewers saw the same gap and declined to fail on it; completing the record makes
-+  that disagreement moot rather than resolving it in my favour.
-+  Branched from main **`2dddf38`**, clean tree, which is main AFTER `!111` merged and therefore
-+  the first commit that carries the ruling entry this contract cites.
++  ⭐ THE CPO'S APPROVAL, this session, in chat. He was shown the choice in these terms: fix the CI
++  check — "one flag on one line tells that second run to read live data instead of what the branch
++  just built. Remove it and it reads the branch" — together with the cost, that "those checks would
++  then read from a workspace shared between branches, so they could pick up leftovers from another
++  branch's run", and the alternative of renaming in two passes instead. His answer, verbatim:
++  **"do as recommended"**. That is the `protected_override` authority recorded below.
 +
-+  ⛔ ROUND 1 FAILED ON EXACTLY THAT, ALL THREE REVIEWERS, AND THEY WERE RIGHT. The branch was
-+  originally cut from `d95a04f`, main BEFORE `!111`. The entry was real and committed, but it lived
-+  on the `!111` branch, so from this diff the citation pointed at nothing: `escalations.log` was
-+  5337 lines here and 5407 there. One reviewer reasonably called it "apparently fabricated", which
-+  is the correct reading from a branch that cannot see the record. Fixed by moving this work onto
-+  post-`!111` main rather than by rewording the citation.
-+  ⭐ THE LESSON, and it is the third variant of one root cause in this session: the RECORD AND THE
-+  WORK MUST TRAVEL TOGETHER. First the rulings were not written down at all; then they were written
-+  down but the next change was built where they could not be seen.
++  ⭐ THE FIRST CONCRETE REPRODUCTION, and the reason this stopped being theoretical. Pipeline
++  `2796272877`, job `16145201830`, on `!114` (the first column rename of naming-programme step 3):
++    · line 836 — `OK created sql table model ci_marts.mart_team_season_insights`, carrying the
++      renamed column `points_capture_pct`
++    · line 854 — `PASS assert_mart_team_season_insights_metric_consistency [PASS in 0.75s]`,
++      INSIDE the build, against that freshly built table
++    · line 1021 — the SAME test, in the second invocation:
++      `Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?`
++  The same assertion passed and then failed, ninety seconds apart, in one job, on one branch. The
++  only difference is which database the second run was pointed at.
++
++  ⛔ WHY THIS CANNOT BE WAITED OUT. The production table only gains the new column after the rename
++  merges, and the rename cannot merge while the gate is red. `!114` can never go green on its own.
++  That is the shape of EVERY column rename that a singular test names — and naming-programme step 4
++  is 35 more renames.
  
  scope_paths:
-   - dbt_project/seeds/metric_catalogue.csv
-   - dbt_project/models/docs/metric_columns.md
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-   - dbt_project/models/4_intermediate/shared/int_legs.yml
-   - dbt_project/models/4_intermediate/shared/int_momentum.yml
-   - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-   - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-   - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/models/docs/metric_columns.md
+-  - dbt_project/models/3_core/core.yml
 -  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-   - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/4_intermediate/shared/int_legs.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/models/5_marts/shared/shared.yml
++  - .gitlab-ci.yml
++  - tests/test_ci_data_job_invariants.py
++  - dbt_project/tests/assert_metric_meaning_complete.sql
++  - dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
    - .claude/task/contract.md
    - .claude/task/escalations.log
-@@ -70,73 +85,80 @@ scope_paths:
+   - .claude/task/review.md
    - .claude/task/acceptance_evidence.md
    - .claude/active_work.md
  
--# ⚠ NO model SQL is touched. No column is renamed. No frontend file is touched, so the acceptance
--# gate does not fire. `metric_columns.md` is GENERATED — regenerate, never hand-edit.
-+# ⚠ NO model SQL. NO column renamed. NO frontend file, so the acceptance gate does not fire.
-+# `metric_columns.md` is GENERATED — regenerate, never hand-edit.
- 
+-# ⚠ NO model SQL. NO column renamed. NO frontend file, so the acceptance gate does not fire.
+-# `metric_columns.md` is GENERATED — regenerate, never hand-edit.
+-
  protected_override: >
-   none required. No file in scope_paths is protected.
+-  none required. No file in scope_paths is protected.
+-
+-impact_map: >
+-  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
+-    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
+-
+-  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
+-    alter any model's `depends_on`.
+-
+-  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
+-    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
+-    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
+-    int_player_season_position.yml 1 · shared.yml 7. Total 24.
++  **REQUIRED, and granted.** `.gitlab-ci.yml` is a PROTECTED governance path: it decides what CI
++  enforces, and it carries the same authority `.github/workflows/**` carried before the migration —
++  hence `cto-reviewer` + `platform-reviewer`, both at the opus floor.
  
- impact_map: >
--  writers: NONE. No model computes anything differently. No SQL expression changes, no column is
--    added, renamed or removed. The seed's `metric_id` and `label_i18n_key` change on one row; the
--    rest is generated blocks and the references that point at them.
-+  writers: NONE. No model computes anything differently. Two seed rows change their `metric_id` and
-+    `label_i18n_key`; everything else is generated blocks and the references pointing at them.
+-  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
+-    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
+-    files. The total of 24 was right and every individual reference was correct, but the
+-    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
+-    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
+-    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
+-    artifact that had already failed once on authority in the same round.
++  Authority: the CPO, in chat this session, answering the recommendation quoted in `refs` above with
++  **"do as recommended"**. He had been given the mechanism, the benefit, the cost (cross-branch
++  leftovers in the shared `ci_*` datasets) and the no-CI-change alternative (a two-pass
++  expand/contract rename) before answering. Written into `escalations.log` in this same commit, so
++  the authority and the change travel together.
  
--  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing a row
--    cannot alter any model's `depends_on`. Confirmed the same way as the previous catalogue task:
--    the seed's only dependents in the manifest are tests.
-+  downstream: no lineage change. No model `ref()`s the seed, only tests do, so editing rows cannot
-+    alter any model's `depends_on`.
+-  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
+-    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
+-    player columns the text also stays, since the split preserves each entity's own definition.
++  ⛔ THIS IS A GUARD BEING NARROWED IN ONE DIRECTION AND WIDENED IN ANOTHER, and it must be read as
++  such rather than as a pure fix. It does not delete an assertion, exclude a test, add a tag or skip
++  a path — the same 30 tests run, with the same SQL, and the count in the job output must not drop.
++  What changes is which database they read. Judge it on that.
  
--  the 18 references, per file, counted not estimated:
--    `doc('goals_for')` → int_legs.yml 1 · int_momentum.yml 1 · int_momentum_window.yml 1 ·
--    int_season_record.yml 1 · domestic_league.yml 1 · shared.yml 7.
--    `doc('goals')` → int_team_season.yml 1 (the player model's section) ·
--    int_player_club_season.yml 1 · int_player_season_position.yml 1 · shared.yml 3.
-+  the 24 references, per file, MEASURED ON THE BRANCH AFTER THE EDIT:
-+    core.yml 3 · int_legs.yml 3 · int_momentum.yml 3 · int_momentum_window.yml 2 ·
-+    int_season_record.yml 3 · int_team_season.yml 1 · int_player_club_season.yml 1 ·
-+    int_player_season_position.yml 1 · shared.yml 7. Total 24.
- 
--  ⚠ BLOCKS: 183 → 182, measured. Gone: `goals`, `goals_for` and five derived
--    `goals_for_*` / `last_meeting_goals_for__team` names whose stem stops being a catalogue metric.
--    New: `goals__team`, `goals__player` and four derived `goals_*` names. Every disappearing
--    DERIVED block was counted and has **0 references**, so only the two bare ones dangle and both
--    are repointed above.
-+  ⛔ THIS TALLY WAS WRONG IN ROUND 1 AND analytics-engineer-reviewer CAUGHT IT. It read
-+    core 2, int_legs 2, int_momentum 2, int_season_record 2, shared 11 — wrong in five of nine
-+    files. The total of 24 was right and every individual reference was correct, but the
-+    DISTRIBUTION was copied from the count of the OLD reference names taken BEFORE the block split
-+    redistributed them, and never re-measured afterwards. Re-derived above by counting the new
-+    names in the edited files. That is the "#71 invert the number sweep" rule failing in an
-+    artifact that had already failed once on authority in the same round.
- 
--  blast_radius: `persist_docs` is on, so the 12 columns get their description re-pushed on the next
--    build. The TEXT does not change, only the block name behind it, so no warehouse description
--    actually changes value.
-+  blast_radius: `persist_docs` is on, so the 24 columns get their description re-pushed on the next
-+    build. For the 12 team columns the TEXT is unchanged and only the block name moves. For the 12
-+    player columns the text also stays, since the split preserves each entity's own definition.
- 
--  layer_rules: none engaged. A seed row and description references; no model, no materialisation.
-+  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
- 
-   deploy_order: none. Descriptions reach BigQuery the next time each model builds.
+-  layer_rules: none engaged. Seed rows and description references; no model, no materialisation.
+-
+-  deploy_order: none. Descriptions reach BigQuery the next time each model builds.
++impact_map: >
++  This is a PROTECTED path, so the trace is of the GUARD, not of table lineage.
++
++  what fires it: `data:build:mr`, on a merge-request pipeline whose diff touches `*data_paths_mr`.
++    Not on schedules (`*not_on_schedule`), not on main. The sibling `data:build:main` (line 736)
++    runs `dbt test --select test_type:singular --exclude tag:freshness_check --target prod` with NO
++    `--defer` and NO `--favor-state`, so it is untouched by this change and remains the full-strength
++    production gate. `data:nightly` likewise unaffected.
++
++  what else imports from it: nothing imports a CI job, but TWO DBT GUARDS DOCUMENT AND DEPEND ON
++    THIS FLAG'S SEMANTICS, and an earlier draft of this map said "nothing" and was wrong.
++    `dbt_project/tests/assert_metric_meaning_complete.sql` and
++    `assert_metric_direction_lower_is_better_agree.sql` each carry a CI note stating that on a PR
++    `ref('metric_catalogue')` resolves to MAIN's seed "because `--favor-state` swaps it for the
++    state relation", and each derives a WORKFLOW RULE from it — that a change to catalogue VALUES
++    and a guard depending on those values cannot land in the same PR — closing with the standing
++    instruction **"Do not try to solve this with a CI workflow change."**
++    ⛔ This change makes all three of those things false, and overrides that instruction. `dbt seed
++    --target ci` runs at `.gitlab-ci.yml:589` before both invocations, so the BRANCH's
++    `metric_catalogue` relation always exists in the ci target; with `--favor-state` gone, plain
++    `--defer` prefers it. Those two guards now read the BRANCH's seed, and the values-merge-first
++    rule they impose is no longer needed. Both notes are corrected in this commit, and the standing
++    instruction is re-aimed rather than left contradicting the merged change.
++    ⭐ That is not a side effect to tolerate — it is the same defect class this task exists to fix
++    ("the file asserted the behaviour the flag prevented"), and correcting it in `.gitlab-ci.yml`
++    while leaving it standing in two dbt guards would be the "corrections must replace EVERYWHERE"
++    failure. Found by cto-reviewer and platform-reviewer in round 1, independently.
++    The other consumer of the same idea is `data:build:main` (`.gitlab-ci.yml:736`, re-measured —
++    an earlier draft said 714), which runs the same suite `--target prod` with NO `--defer`, NO
++    `--state` and NO `--favor-state`. It is untouched and remains the full-strength prod gate.
++
++  what pins the change itself: `tests/test_ci_data_job_invariants.py` gains an assertion, and it is
++    added here rather than argued away. That module exists for exactly this class — its own
++    docstring opens "Pin three CI data-job invariants that can be broken while every pipeline stays
++    GREEN" — and platform-reviewer's round-1 finding was that re-adding `--favor-state` to the test
++    line would restore the whole defect with every offline gate, every test and the pipeline still
++    green, leaving only a comment in its way. A comment is precisely what failed here the first
++    time. The assertion pins BOTH HALVES of the asymmetry: the `dbt test` invocation must carry
++    `--defer` and `--state` and must NOT carry `--favor-state`; the `dbt build` invocation must
++    still carry it. Pinning only one half would let someone "restore symmetry" by stripping the flag
++    from the build line instead, which breaks isolation in the other direction and would pass.
++
++  what stops being enforced if this is wrong: nothing stops. The failure mode of the change is a
++    singular test reading a stale `ci_*` upstream left by an earlier MR, which produces a WRONG
++    ANSWER (a spurious red, or a green that should have been red on that one upstream's data). It
++    cannot silence a test: the selection `--select test_type:singular --exclude tag:freshness_check`
++    is untouched, so the suite size is unchanged. `tests/test_ci_data_job_invariants.py` continues
++    to pin the ingest-lock invariant on this job, which this change does not go near.
++
++  what happens on failure: the job exits non-zero exactly as now — the failing invocation above is
++    proof that a red here blocks the MR. Fail-closed is preserved; nothing is made conditional,
++    nothing gains an `|| true`, no `allow_failure` is introduced.
++
++  blast_radius: every future merge-request pipeline that touches a data path. That is wide, and it
++    is why this is a CPO-approved governance task rather than a line edit. The change is confined to
++    ONE invocation in ONE job; `git diff` is one line of flags plus the comment above it.
++
++  deploy_order: this must merge BEFORE `!114`, and `!114` must then be rebased onto it — a merge
++    request runs the `.gitlab-ci.yml` of its SOURCE branch, so `!114` keeps failing until it carries
++    this commit. Rebasing `!114` moves its review hash, so its `review.md` must be rebound; a
++    `review.md`-only commit is artifact-exempt, so that rebinding is free.
  
  decisions_taken: >
--  THRESHOLD DECLARATION — NEW MECHANISM: none. One seed row and existing generated blocks.
-+  THRESHOLD DECLARATION — NEW MECHANISM: none.
-   THRESHOLD DECLARATION — RECURRING COST: none.
- 
--  ⛔ BUILDER'S CALL, AND IT IS THE ONE TO ATTACK: after this change a docs block named `goals`
--    describes 12 columns named `goals_for`. That is deliberate. The block is named for the METRIC,
--    the column is named for what the model holds, and the two are allowed to differ; the same
--    already happens elsewhere. The alternative was renaming those 12 columns, which the CPO has not
--    ruled on and which would drag the match-row `goals_for` / `goals_against` pair into a rename
--    that is not about it.
-+  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
-+    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
-+    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
-+    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
-+    are the CPO's and none of them moves; only the packaging changed.
- 
--  BUILDER'S CALL 2: `label_i18n_key` follows the metric_id, `metrics.goals_for.label` becomes
--    `metrics.goals.label`. Checked: that key is referenced nowhere in the frontend, because this
--    metric is not one of the sixteen displayed rows. So no locale dictionary changes.
-+  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
-+    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
-+    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
-+    for what the model holds.
+-  THRESHOLD DECLARATION — NEW MECHANISM: none.
+-  THRESHOLD DECLARATION — RECURRING COST: none.
+-
+-  BUILDER'S CALL 1: THE SPLIT OF THE PROGRAMME INTO MRs IS MINE, NOT THE CPO's. The approved plan
+-    said four MRs. Measured, the remaining team work is 600 occurrences across 13 names, which is
+-    not reviewable in one diff, and the 13 divide cleanly by whether a model column carries the
+-    name. So the two catalogue-only ones ship here and the rest follow grouped by family. The NAMES
+-    are the CPO's and none of them moves; only the packaging changed.
+-
+-  BUILDER'S CALL 2: after this change a block named `saves__team` describes 12 columns named
+-    `goalkeeper_saves`, and `corners` describes 6 named `corner_kicks`. Deliberate, and the same
+-    shape step 1 shipped and three reviewers accepted: the block is named for the METRIC, the column
+-    for what the model holds.
++  The change and its authority are quoted in `refs` and `protected_override`. Nothing here is chosen
++  by the builder: the mechanism was recommended, the cost was disclosed, and the CPO said "do as
++  recommended".
++
++  THRESHOLD DECLARATIONS.
++  · NEW MECHANISM: **none.** No new job, stage, script, tag, selector, allow_failure or exclusion. A
++    flag is removed from an existing invocation and a comment above it is corrected. The test added
++    in round 2 is an assertion inside `tests/test_ci_data_job_invariants.py`, the module that
++    already exists for this exact class and already parses this exact job's script list — no new
++    file, no new runner, no new dependency, no new CI step. Adding a case to an existing guard is
++    not a new mechanism; had it needed a new harness, that would be a different declaration.
++  · RECURRING COST: **none, and this was reasoned rather than waved.** The same 30 tests run on the
++    same schedule against the same row counts; only the dataset they read changes, and a `ci_*`
++    table is the same size as its prod twin. No job is added, no cadence changes, nothing new is
++    scheduled. If anything the queries get marginally cheaper, since `ci_*` holds the MR's slice.
++  · GUARD WEAKENED: **no** in the sense that matters — no assertion is removed, no test excluded, no
++    path skipped, and the suite count must stay at 30. But see the ⛔ in `protected_override`: this
++    is a trade between two holes, not a clean win, and the reviewer should judge it as one.
  
  decisions_reserved:
--  - Whether the COLUMNS named `goals_for` follow the metric. Not asked, not answered, not done.
--  - The other three steps of the naming programme: the team `_pct` and spelling sweep, the player
--    `_player` sweep, and the nine "on target" labels. Each ships on its own.
--  - `assert_metric_catalogue_value_equivalence`, the parked checker (#91), still waits until the
--    renaming is finished. Shipping it first would bind it to names that are about to move.
-+  - `sot_points_gap` → `deserved_points_gap`. Moved out of this MR because it IS a model column.
-+  - The ELEVEN column renames: `points_capture`, `clean_sheets_share`, `danger_zone_ratio`,
-+    `shot_accuracy`, `shot_share`, `finishing_efficiency`, `pass_accuracy`, `save_ratio`,
-+    `sot_difference_per_match`, `key_passes_per_match`, `corner_kicks_per_match`, plus
-+    `sot_points_gap` above. Each renames a computed column in the season models and runs through
-+    model SQL, yml, marts and the site.
-+  - ⚠ A TRANSIENT THIS MR CREATES ON PURPOSE, and it resolves in the next one:
-+    `corner_kicks_per_match` is NOT renamed here, so after this merge the total is `corners` while
-+    its own per-match rate is still `corner_kicks_per_match`. The alternative was to drag a column
-+    rename into a catalogue-only diff, which is the seam this split exists to keep clean. Same
-+    shape as the `finishing_efficiency` transient step 1 disclosed.
-+  - The player `_player` sweep and the nine "on target" labels, both later steps.
-+  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
-+    asked, not answered, not done.
+-  - `sot_points_gap` → `deserved_points_gap`. Moved out of this MR because it IS a model column.
+-  - The ELEVEN column renames: `points_capture`, `clean_sheets_share`, `danger_zone_ratio`,
+-    `shot_accuracy`, `shot_share`, `finishing_efficiency`, `pass_accuracy`, `save_ratio`,
+-    `sot_difference_per_match`, `key_passes_per_match`, `corner_kicks_per_match`, plus
+-    `sot_points_gap` above. Each renames a computed column in the season models and runs through
+-    model SQL, yml, marts and the site.
+-  - ⚠ A TRANSIENT THIS MR CREATES ON PURPOSE, and it resolves in the next one:
+-    `corner_kicks_per_match` is NOT renamed here, so after this merge the total is `corners` while
+-    its own per-match rate is still `corner_kicks_per_match`. The alternative was to drag a column
+-    rename into a catalogue-only diff, which is the seam this split exists to keep clean. Same
+-    shape as the `finishing_efficiency` transient step 1 disclosed.
+-  - The player `_player` sweep and the nine "on target" labels, both later steps.
+-  - Whether the COLUMNS named `corner_kicks` and `goalkeeper_saves` ever follow their metrics. Not
+-    asked, not answered, not done.
++  - none: the fix, its cost and the alternative were put to the CPO together and he chose this one.
++    Whether the REMAINING hole — a singular test able to read a stale unmodified upstream from the
++    shared `ci_*` datasets — is worth closing too, and how (an ephemeral per-MR dataset is the
++    obvious candidate and a recurring-cost decision), stays open on #92 and is NOT decided here.
  
  done_when:
-   - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
-     re-derived offline: unique `(metric_id, entity)`, unique `label_i18n_key`, unique
--    `(entity, label_en)`, every `accepted_values`, every `not_null`.
--  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green. The block count
--    moves by a delta MEASURED on the branch, not predicted.
--  - `dbt parse` CLEAN, ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml and not
--    only the edited ones.
-+    `(entity, label_en)`.
-+  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green; the block count
-+    delta MEASURED, not predicted.
-+  - `dbt parse` CLEAN and ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml.
-   - `check_description_hygiene.py` green repo-wide, read from its OUTPUT.
--  - ⛔ ZERO occurrences of the metric_id `goals_for` remain in the catalogue, and every REMAINING
--    `goals_for` in the repo is confirmed to be a COLUMN name, by reading the model.
-+  - ⛔ ZERO occurrences of the metric_ids `corner_kicks` and `goalkeeper_saves` remain in the seed,
-+    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
-   - Offline gates green plus `ruff` and `python -m pytest tests/`.
-   - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
+-  - The seed parses at 86 rows, 15 fields, line endings preserved as BYTES, and every seed test
+-    re-derived offline: unique `(metric_id, entity)`, unique `label_i18n_key`, unique
+-    `(entity, label_en)`.
+-  - `python scripts/sync_metric_docs_blocks.py` regenerates and `--check` is green; the block count
+-    delta MEASURED, not predicted.
+-  - `dbt parse` CLEAN and ZERO dangling `{{ doc() }}` anywhere, asserted across every model yml.
+-  - `check_description_hygiene.py` green repo-wide, read from its OUTPUT.
+-  - ⛔ ZERO occurrences of the metric_ids `corner_kicks` and `goalkeeper_saves` remain in the seed,
+-    and every REMAINING occurrence in the repo is confirmed to be a COLUMN name by reading the model.
+-  - Offline gates green plus `ruff` and `python -m pytest tests/`.
+-  - ⚠ EVERY INTEGER IN THE ARTIFACTS RE-DERIVED before commit (#71).
++  - `.gitlab-ci.yml` differs from main by exactly one flag removal on the `dbt test` invocation plus
++    the corrected comment above it; the `dbt build` invocation is byte-identical.
++  - `python -m pytest -q` passes, including `tests/test_ci_data_job_invariants.py`.
++  - The YAML parses and the job's script list is unchanged apart from that one line, shown by
++    parsing `.gitlab-ci.yml` and printing `data:build:mr`'s script before and after.
++  - The claim is verified by RUNNING it, not by reading it: after merge, `!114` is rebased onto this
++    and its pipeline is watched going green on the exact test that failed at job `16145201830`
++    line 1021.
++  - `.claude/task/escalations.log` carries the CPO's approval verbatim and the reproduction.
++  - The new invariant is watched going RED against BOTH mutations before it is trusted: re-adding
++    `--favor-state` to the `dbt test` line, and removing it from the `dbt build` line.
++  - Neither dbt guard still tells a reader that `ref('metric_catalogue')` resolves to main's seed,
++    and neither still carries "Do not try to solve this with a CI workflow change".
++
++amendments: >
++  2026-08-27, round 2: `scope_paths` EXTENDED by three files —
++  `tests/test_ci_data_job_invariants.py`,
++  `dbt_project/tests/assert_metric_meaning_complete.sql` and
++  `dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql`.
++  Authority: the standing rules the round-1 FAILs invoked, not a new CPO decision. cto-reviewer and
++  platform-reviewer independently found that the two dbt guards carry CI notes this change makes
++  false, including a standing instruction it overrides — "corrections replace, never accumulate"
++  makes fixing them part of THIS change, not a follow-up. platform-reviewer separately found the
++  change unpinned by anything but a comment — "verify the test fails" and "never rely on prose where
++  a machine can hold the line" put the assertion in the module that already exists for this class.
++  Both extensions make the task's own claims true; neither widens what the task decides. Written on
++  a clean tree (the code was stashed by explicit path, the contract amended, then popped).
++
++  2026-08-27, round 3: no scope change. `impact_map`'s "what fires it" paragraph still said
++  `data:build:main` was at line **714** while the paragraph 23 lines below it already said **736,
++  re-measured**. Both numbers for the same line, in one file — the exact "#71 invert the number
++  sweep" failure this repo keeps repeating, committed in the very artifact that corrects the same
++  number elsewhere. 736 is right; 714 is a comment line inside the job. Caught by cto-reviewer,
++  which judged it not worth a round and recommended fixing it in passing; fixed anyway, because a
++  correction that lands in one paragraph and not its neighbour is the accumulation this rule exists
++  to stop. No code file changed in round 3.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index d5250bd..7aa5e92 100644
+index 14edfa9..5893a8b 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -5392,6 +5392,33 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
-   Also verbatim, on the six remaining pattern breaks I put to him: "apply the suggested changes to
-   ensure consistency."
- 
-+  ⚠⚠ THE SIX, ENUMERATED — ADDED 2026-08-26 AFTER scope-auditor FAILED `feat/metric-rename-catalogue-only`
-+  FOR THEIR ABSENCE, and that timing is disclosed here rather than hidden. Its finding was exact:
-+  the log recorded the blanket approval but not the list it was given against, so no reader could
-+  verify which names it covered, and a contract asserting the content of that list was "the
-+  builder's own unrecorded reconstruction dressed as the record". ⛔ I am completing the record, NOT
-+  fitting it to a claim: these are the six rows of the table I put to him, transcribed as they were
-+  written, and the approval quoted above was his reply to that message.
-+    1. `sog_difference_per_match` → `shots_on_goal_difference_per_match` (the abbreviation survived
-+       his own `sot`→`sog` ruling while the rest of the family spells it out)
-+    2. `shot_share_pct` → `shots_share_pct` (singular where the family is plural)
-+    3. `save_pct` / `save_player_pct` → `saves_pct` / `saves_player_pct` (same)
-+    4. `goalkeeper_saves` (team) → `saves`, because the qualifier exists on one side only while the
-+       player metric is already plain `saves`
-+    5. `corner_kicks` / `corner_kicks_per_match` → `corners` / `corners_per_match`, because the
-+       team's own conceded version is already `corners_against_per_match`
-+    6. `pass_accuracy_pct` / `pass_accuracy_player_pct` → `passes_accuracy_pct` /
-+       `passes_accuracy_player_pct` (singular where the family is plural)
-+  ⭐ TWO REVIEWERS READ THE SAME GAP AND DECLINED TO FAIL ON IT, and their reasoning is worth
-+  keeping: football-analytics-expert judged items 4 and 5 "a direct application of an approved
-+  general rule rather than an unapproved new naming decision", since `corners_against_per_match`
-+  already establishes the house noun and the player side is already `saves`;
-+  analytics-engineer called it "a citation-precision question... no data/layer defect follows from
-+  it either way". Completing the record settles it without anyone having to arbitrate.
-+  ⭐ THE RULE THIS LEAVES, and it is the fourth variant of one root cause in a single session:
-+  RECORD THE THING THE APPROVAL WAS GIVEN AGAINST, NOT ONLY THE APPROVAL. A blanket "yes" is
-+  unverifiable unless the list it answered is in the record beside it.
-+
-   ⭐ THE PATTERN THIS PRODUCES, to be applied to any metric added later:
-       noun [_qualifier] [_against] [_player] [_form]
-   `_form` is `_per_match` for a team, `_per90` for a player, `_pct` for a percentage.
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 29d2e6f..a4875df 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -668,7 +668,7 @@ models:
-       - name: fouls
-         description: "{{ doc('fouls') }}"
-       - name: corner_kicks
--        description: "{{ doc('corner_kicks') }}"
-+        description: "{{ doc('corners') }}"
-       - name: offsides
-         description: "{{ doc('offsides') }}"
-       - name: ball_possession_percent
-@@ -678,7 +678,7 @@ models:
-       - name: red_cards
-         description: "{{ doc('red_cards') }}"
-       - name: goalkeeper_saves
--        description: "{{ doc('goalkeeper_saves') }}"
-+        description: "{{ doc('saves__team') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-@@ -760,7 +760,7 @@ models:
-         description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_key
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 200eee3..a662bc3 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -523,7 +523,7 @@ models:
-       - name: penalty_committed
-         description: "{{ doc('penalty_committed') }}"
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: goals_against
-         description: "{{ doc('goals_against__player') }}"
-       - name: goals_open_play
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
-index 3c2b566..f81e705 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
-@@ -62,13 +62,13 @@ models:
-       - name: shots_inside_box
-         description: "{{ doc('shots_inside_box') }}"
-       - name: corner_kicks
--        description: "{{ doc('corner_kicks') }}"
-+        description: "{{ doc('corners') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: goalkeeper_saves
--        description: "{{ doc('goalkeeper_saves') }}"
-+        description: "{{ doc('saves__team') }}"
-       - name: opponent_shots_on_goal
-       - name: opponent_shots_total
-       - name: opponent_shots_inside_box
-@@ -129,7 +129,7 @@ models:
-         description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_key
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index 3227145..034ff2a 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -80,10 +80,10 @@ models:
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: corner_kicks
--        description: "{{ doc('corner_kicks') }}"
-+        description: "{{ doc('corners') }}"
-       - name: opponent_corner_kicks
-       - name: goalkeeper_saves
--        description: "{{ doc('goalkeeper_saves') }}"
-+        description: "{{ doc('saves__team') }}"
-       - name: key_passes
-       - name: tackles
-       - name: interceptions
-@@ -146,7 +146,7 @@ models:
-         description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: shots_total
-         description: "{{ doc('shots_total') }}"
-       - name: shots_on
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-index f7d107f..8d4c93d 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-@@ -81,8 +81,8 @@ models:
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: corner_kicks
--        description: "{{ doc('corner_kicks') }}"
-+        description: "{{ doc('corners') }}"
-       - name: opponent_corner_kicks
-       - name: goalkeeper_saves
--        description: "{{ doc('goalkeeper_saves') }}"
-+        description: "{{ doc('saves__team') }}"
-       - name: opponent_shots_on_goal
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-index 9cc8eae..09570cf 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-@@ -117,6 +117,6 @@ models:
-       - name: penalty_committed
-         description: "{{ doc('penalty_committed') }}"
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: goals_against
-         description: "{{ doc('goals_against__player') }}"
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-index b780eb3..3fd6b6e 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-@@ -81,7 +81,7 @@ models:
-       - name: dribbles_success
-         description: "{{ doc('dribbles_success') }}"
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: goals_against
-         description: "{{ doc('goals_against__player') }}"
-       - name: scorer_points
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index ebef309..ccc8462 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -94,11 +94,11 @@ models:
-       - name: passes_accurate
-         description: "{{ doc('passes_accurate') }}"
-       - name: corner_kicks
--        description: "{{ doc('corner_kicks') }}"
-+        description: "{{ doc('corners') }}"
-       - name: opponent_corner_kicks
-       - name: opponent_shots_on_goal
-       - name: goalkeeper_saves
--        description: "{{ doc('goalkeeper_saves') }}"
-+        description: "{{ doc('saves__team') }}"
-       - name: games_with_player_stats
-       - name: key_passes
-       - name: tackles
-@@ -159,7 +159,7 @@ models:
-         description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: shots_total
-         description: "{{ doc('shots_total') }}"
-       - name: shots_on
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 68d2633..68d37bb 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -264,7 +264,7 @@ models:
-       - name: goals_total
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: shots_on
-       - name: passes_key
-         description: "{{ doc('passes_key') }}"
-@@ -446,7 +446,7 @@ models:
-       - name: fouls
-         description: "{{ doc('fouls') }}"
-       - name: corner_kicks
--        description: "{{ doc('corner_kicks') }}"
-+        description: "{{ doc('corners') }}"
-       - name: offsides
-         description: "{{ doc('offsides') }}"
-       - name: ball_possession_percent
-@@ -456,7 +456,7 @@ models:
-       - name: red_cards
-         description: "{{ doc('red_cards') }}"
-       - name: goalkeeper_saves
--        description: "{{ doc('goalkeeper_saves') }}"
-+        description: "{{ doc('saves__team') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_accurate
-@@ -536,7 +536,7 @@ models:
-         description: "{{ doc('goals_against__player') }}"
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: passes_total
-         description: "{{ doc('passes_total') }}"
-       - name: passes_key
-@@ -1029,7 +1029,7 @@ models:
-       - name: goals_total
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: shots_on
-       - name: passes_key
-         description: "{{ doc('passes_key') }}"
-@@ -1415,7 +1415,7 @@ models:
-       - name: penalty_committed
-         description: "{{ doc('penalty_committed') }}"
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: shots_on_goal_against
-         description: "{{ doc('shots_on_goal_against') }}"
-       - name: pass_accuracy_pct
-@@ -1547,7 +1547,7 @@ models:
-       - name: goals_total
-       - name: goals_assists
-       - name: saves
--        description: "{{ doc('saves') }}"
-+        description: "{{ doc('saves__player') }}"
-       - name: shots_total
-         description: "{{ doc('shots_total') }}"
-       - name: shots_on
-diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index bfb1c71..a345e2f 100644
---- a/dbt_project/models/docs/metric_columns.md
-+++ b/dbt_project/models/docs/metric_columns.md
-@@ -143,14 +143,6 @@ only covered appearances. Null when the club scored 0 that competition-season.
- {% enddocs %}
- 
- 
--{% docs corner_kicks %}
--Corner kicks won by the team, taken from the provider's team match statistics rather than from
--the scoreline or from player records. The provider does not supply team statistics for every
--fixture, so this can be missing, and a total over several fixtures can be understated rather
--than null.
--{% enddocs %}
--
--
- {% docs corner_kicks_per_match %}
- Average corner kicks won per match with available team stats.
- {% enddocs %}
-@@ -178,11 +170,11 @@ progress, accumulated through the matches played so far.
- {% enddocs %}
- 
- 
--{% docs corner_kicks_sum_season__team %}
-+{% docs corners %}
- Corner kicks won by the team, taken from the provider's team match statistics rather than from
- the scoreline or from player records. The provider does not supply team statistics for every
- fixture, so this can be missing, and a total over several fixtures can be understated rather
--than null. Totalled over the season.
-+than null.
- {% enddocs %}
- 
- 
-@@ -541,22 +533,6 @@ Value for the season now in progress, accumulated through the matches played so
- {% enddocs %}
- 
- 
--{% docs goalkeeper_saves %}
--Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
--than summed from the individual goalkeepers' counts; the two need not agree. The provider does
--not supply team statistics for every fixture, so this can be missing, and a total over several
--fixtures can be understated rather than null.
--{% enddocs %}
--
--
--{% docs goalkeeper_saves_sum_season__team %}
--Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
--than summed from the individual goalkeepers' counts; the two need not agree. The provider does
--not supply team statistics for every fixture, so this can be missing, and a total over several
--fixtures can be understated rather than null. Totalled over the season.
--{% enddocs %}
--
--
- {% docs goals__player %}
- Goals scored.
- {% enddocs %}
-@@ -883,14 +859,6 @@ Offsides caught.
- {% enddocs %}
- 
- 
--{% docs opponent_corner_kicks__team %}
--Corner kicks won by the team, taken from the provider's team match statistics rather than from
--the scoreline or from player records. The provider does not supply team statistics for every
--fixture, so this can be missing, and a total over several fixtures can be understated rather
--than null. Measured for the opposing team rather than this one.
--{% enddocs %}
--
--
- {% docs opponent_shots_inside_box__team %}
- Shots the team took from inside the penalty area, taken from the provider's team match
- statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-@@ -1064,11 +1032,19 @@ progress, accumulated through the matches played so far.
- {% enddocs %}
- 
- 
--{% docs saves %}
-+{% docs saves__player %}
- Saves made.
- {% enddocs %}
- 
- 
-+{% docs saves__team %}
-+Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
-+than summed from the individual goalkeepers' counts; the two need not agree. The provider does
-+not supply team statistics for every fixture, so this can be missing, and a total over several
-+fixtures can be understated rather than null.
-+{% enddocs %}
+@@ -5493,3 +5493,53 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+   `goals_conceded`, which would have BROKEN the `_against` convention that already works across
+   goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
+   follows before proposing one, and do not dress taste up as consistency.
 +
 +
- {% docs saves_per90 %}
- Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.
- {% enddocs %}
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index a5ae8e6..bbe572c 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -81,7 +81,7 @@ contribution_share,player,playerMetrics.contributionShare.label,% Share of team
- minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Ø Minutes per appearance,"Average minutes played per appearance (minutes / appearances, where an appearance is a match the player actually played). A squad-list playing-time read describing role - a regular starter versus a rotation or impact-sub player - not quality. The mart computes the value inline via safe_divide; this row registers its meaning.",int_legs__player_match,sum(minutes_played),countif(minutes_played > 0),expression,false,decimal_0,playing_time,2,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad."
- goals,team,metrics.goals.label,Goals,"Goals scored by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records.",int_legs__team_match,sum(goals_for),,expression,false,integer,goals,2,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)"
- goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records. Distinct from the player metric of the same name, which is the provider's count of goals conceded while that player was on the pitch.",int_legs__team_match,sum(goals_against),,expression,true,integer,goals,2,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)"
--corner_kicks,team,metrics.corner_kicks.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
--goalkeeper_saves,team,metrics.goalkeeper_saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
-+corners,team,metrics.corners.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
-+saves,team,metrics.saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
- shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - danger_zone_ratio is what measures that; a raw count, so it rises with matches played)"
- clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_share is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
++2026-08-27 #92 — THE MR DQ GATE WAS TESTING PRODUCTION, AND THE CPO APPROVED THE FIX.
++
++  ⭐ HIS RULING, verbatim: **"do as recommended"**. What he was recommended, and what he was told it
++  costs, both in the message he answered:
++    · the fix — "one flag on one line tells that second run to read live data instead of what the
++      branch just built. Remove it and it reads the branch"
++    · why it is worth more than unblocking one MR — "all 30 of those checks currently test
++      production, not your branch. They pass because production is fine, not because the change is"
++    · the cost, stated before he answered — "those checks would then read from a workspace shared
++      between branches, so they could pick up leftovers from another branch's run. Narrower hole
++      than the one we have"
++    · the alternative he did not take — renaming in two passes (add the new name beside the old,
++      merge, let prod catch up, delete the old), which needs no CI change but doubles the batches
++      and briefly puts two names on one number.
++  He was also told it is a locked CI file needing his go and the two senior reviewers. This is the
++  `protected_override` authority for `fix/92-singular-tests-read-the-branch`.
++
++  ⛔ THE DEFECT, precisely, because "reads prod" is too loose to act on. `data:build:mr` has TWO dbt
++  invocations. Both carried `--defer --favor-state`. `--favor-state` resolves every `ref()` to the
++  DEFERRED (prod) relation EVEN WHEN THE CURRENT RUN JUST BUILT THAT MODEL.
++    · on the `dbt build` line that is CORRECT and stays: a model being built must take its upstreams
++      from prod, never from a stale `ci_` copy another MR left, and a node being built is not
++      deferred anyway.
++    · on the `dbt test` line nothing is being built, so the flag threw away the MR's own models and
++      pointed all 30 singular tests at production.
++  The two lines are now ASYMMETRIC ON PURPOSE, and the file says so at the point of difference.
++
++  ⚠ THE FILE ASSERTED THE OPPOSITE, WHICH IS WHY THIS SURVIVED SO LONG. The comment above the test
++  line read "validates this MR's rebuilt ci_* models layered over prod (via defer) — an ISOLATED
++  view, not shared prod state". Exactly backwards for the rebuilt models, which is the half that
++  matters. ⭐ THE RULE: when a guard misbehaves, suspect the comment that says it does not. A
++  confident comment is why nobody re-derived the flag's semantics.
++
++  ⭐ THE REPRODUCTION, one job, ninety seconds apart — pipeline 2796272877, job 16145201830, on !114:
++    line 836  OK created sql table model ci_marts.mart_team_season_insights   (renamed column)
++    line 854  PASS assert_mart_team_season_insights_metric_consistency        (inside the build)
++    line 1021 Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?
++  Same assertion, same branch, same job. Only the database differed.
++
++  ⛔ AND WHY IT COULD NOT BE WAITED OUT: prod gains the renamed column only after the rename merges,
++  and the rename cannot merge while the gate is red. !114 could never go green on its own. Every
++  column rename that a singular test names has this shape, and step 4 is 35 more renames.
++
++  ⚠ WHAT #92 STILL HOLDS OPEN, so this entry is not read as closing it: `--defer` alone still
++  prefers a `ci_` relation WHEN ONE EXISTS, so an UNMODIFIED upstream can be read from another MR's
++  leftovers in the shared datasets. Narrower than aiming the whole suite at the wrong database, and
++  it fails loudly rather than silently green. Closing it properly means per-MR ephemeral datasets —
++  a RECURRING COST decision, and therefore the CPO's, not taken here.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 3361053..fad3603 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -633,10 +633,32 @@ data:build:mr:
+     - >-
+       dbt build --select state:modified+ --exclude tag:freshness_check
+       --defer --favor-state --state /tmp/main-state --target ci
+-    # DQ is non-negotiable and the full singular suite always runs. On an MR it
+-    # validates this MR's rebuilt ci_* models layered over prod (via defer) — an
+-    # ISOLATED view, not shared prod state. Slimming applies to model BUILDS
+-    # only, never to the DQ gate.
++    # DQ is non-negotiable and the full singular suite always runs. Slimming applies
++    # to model BUILDS only, never to the DQ gate.
++    #
++    # ⚠ `--defer` WITHOUT `--favor-state`, and the asymmetry with the build line above
++    # is the whole point (#92, fixed 2026-08-27). `--favor-state` resolves every ref()
++    # to the DEFERRED (prod) relation EVEN WHEN THIS RUN JUST BUILT THAT MODEL. On the
++    # BUILD line that is correct and load-bearing — a model being built must take its
++    # upstreams from prod, never from a stale ci_ copy left by another MR, and a node
++    # dbt is building is not deferred anyway. HERE nothing is being built, so the same
++    # flag threw away this MR's own models and pointed all 30 tests at PRODUCTION. The
++    # gate was green because prod was healthy, not because the branch was.
++    # ⛔ The comment that stood here claimed the opposite — "validates this MR's rebuilt
++    # ci_* models layered over prod ... an ISOLATED view, not shared prod state" — which
++    # is exactly backwards for the rebuilt models, and is why the defect survived a year
++    # of readings: the file asserted the behaviour the flag prevented.
++    # Proof it was real, one job, ninety seconds apart: pipeline 2796272877 job
++    # 16145201830 created ci_marts.mart_team_season_insights with a renamed column,
++    # PASSed assert_mart_team_season_insights_metric_consistency against it inside the
++    # build, then failed the SAME test here with "Unrecognized name: points_capture_pct;
++    # Did you mean points_capture?" — a column that exists only in prod.
++    # ⚠ WHAT REMAINS OPEN (#92): `--defer` alone still prefers a ci_ relation when one
++    # EXISTS, so an UNMODIFIED upstream can be read from another MR's leftovers. Narrower
++    # than pointing the whole suite at the wrong database, and it fails loudly. Closing it
++    # means per-MR ephemeral datasets, a recurring-cost decision that is the CPO's.
++    # ⛔ Do NOT re-add --favor-state here to "match the build line". They are asymmetric
++    # deliberately, and the reason is above.
+     #
+     # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
+     # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
+@@ -652,7 +674,7 @@ data:build:mr:
+     # judgement, exactly as !50 was.
+     - >-
+       dbt test --select test_type:singular --exclude tag:freshness_check
+-      --defer --favor-state --state /tmp/main-state --target ci
++      --defer --state /tmp/main-state --target ci
+   rules:
+     - *not_on_schedule
+     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+diff --git a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
+index 79b32de..da4f02c 100644
+--- a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
++++ b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
+@@ -27,11 +27,20 @@
+   silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
+   (verified against the built table), so no cast is needed.
+ 
+-  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
+-  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
+-  seed is never selected and `--favor-state` swaps it for the state relation). That is why the 4
+-  corrections this guard depends on merged FIRST, in their own PR, before the guard followed. Do not
+-  try to solve this with a CI workflow change.
++  CI note, REWRITTEN 2026-08-27 under #92. The previous version said that on a PR
++  `ref('metric_catalogue')` resolves to MAIN's seed rather than the branch's, because
++  `--favor-state` swaps it for the state relation; that this is why the 4 corrections this guard
++  depends on had to merge FIRST in their own PR before the guard followed; and "Do not try to solve
++  this with a CI workflow change."
++
++  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
++  `data:build:mr`'s `dbt test` invocation, `dbt seed --target ci` runs before it, and plain
++  `--defer` prefers the branch's seed relation because it exists. **This guard now reads the
++  branch's seed.** The split-the-PR rule above was a workaround for the flag, not a property of the
++  guard, and it no longer applies. The 4 corrections having merged first remains a fact of history,
++  not a rule for the next change.
++  ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately; the asymmetry is
++  pinned by `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
+ #}
+ 
+ select
+diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
+index e391bfe..ede42c6 100644
+--- a/dbt_project/tests/assert_metric_meaning_complete.sql
++++ b/dbt_project/tests/assert_metric_meaning_complete.sql
+@@ -17,11 +17,22 @@
+ 
+   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
+ 
+-  CI note: on a PR this runs in the deferred singular-test step, where `ref('metric_catalogue')`
+-  resolves to MAIN's seed rather than the branch's (`dbt test` can only select test nodes, so the
+-  seed is never selected and `--favor-state` swaps it for the state relation). That is why a change
+-  to catalogue VALUES and a guard that depends on those values cannot land in the same PR — the
+-  values merge first, then the guard. Do not try to solve this with a CI workflow change.
++  CI note, REWRITTEN 2026-08-27 under #92 — the previous version of this paragraph is now false in
++  every particular, and it is kept in git rather than paraphrased. It said: on a PR this runs in the
++  deferred singular-test step, where `ref('metric_catalogue')` resolves to MAIN's seed rather than
++  the branch's, because `--favor-state` swaps it for the state relation; that a change to catalogue
++  VALUES and a guard depending on those values therefore cannot land in the same PR; and — the line
++  that mattered — "Do not try to solve this with a CI workflow change."
++
++  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
++  `data:build:mr`'s `dbt test` invocation. `dbt seed --target ci` runs before it, so the BRANCH's
++  `metric_catalogue` relation always exists in the ci target, and plain `--defer` prefers a relation
++  that exists over the deferred one. **This guard now reads the branch's seed, so catalogue values
++  and a guard that depends on them CAN land in the same PR.** Do not split a change on the strength
++  of the old rule.
++  ⚠ What is still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately,
++  and the asymmetry between the two is pinned by
++  `tests/test_ci_data_job_invariants.py::test_the_mr_singular_test_gate_reads_the_branch_not_prod`.
+ #}
+ 
+ select
+diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+index b6c98e6..c12b84a 100644
+--- a/tests/test_ci_data_job_invariants.py
++++ b/tests/test_ci_data_job_invariants.py
+@@ -254,3 +254,76 @@ def test_mr_data_build_never_ingests():
+         "`data:build:main` job already ingests any new league, so nothing needs this here. "
+         f"Offending: {offenders}"
+     )
++
++
++def _mr_dbt_invocations() -> tuple[str, str]:
++    """`data:build:mr`'s (build, test) dbt invocations, as single strings.
++
++    Both are `>-` folded scalars in the YAML, so each arrives as ONE line with its flags
++    space-separated — which is why matching on substrings here is safe rather than fragile.
++    """
++    jobs = _script_lines_by_job(_ci_config())
++    assert "data:build:mr" in jobs, (
++        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
++        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
++    )
++    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
++    builds = [ln for ln in lines if ln.startswith("dbt build ")]
++    tests = [ln for ln in lines if ln.startswith("dbt test ")]
++    assert len(builds) == 1, f"expected exactly one `dbt build` in data:build:mr, saw {builds}"
++    assert len(tests) == 1, f"expected exactly one `dbt test` in data:build:mr, saw {tests}"
++    return builds[0], tests[0]
++
++
++def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
++    """`--favor-state` belongs on data:build:mr's BUILD line and must never return to its TEST line.
++
++    THE DEFECT THIS PINS (GitLab #92, fixed 2026-08-27). Both invocations carried
++    `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
++    even when the current run has just built that model. On the `dbt build` line that is correct and
++    load-bearing — a model being BUILT must take its upstreams from prod, never from a stale `ci_`
++    table an earlier MR left, and a node dbt is building is not deferred anyway. On the `dbt test`
++    line nothing is being built, so the identical flag threw away the MR's own models and pointed
++    all 30 singular tests at PRODUCTION. The DQ gate was green because prod was healthy, not because
++    the branch was.
++
++    WHY IT IS PINNED HERE. This module exists for invariants that can be broken while every pipeline
++    stays GREEN, and this is one: re-adding `--favor-state` to the test line restores the whole
++    defect with pytest, sqlfluff, every offline gate and the pipeline itself all still green — the
++    tests simply go back to reporting on the wrong database. Before this assertion the only thing
++    standing in the way was a comment, and a confident comment is precisely what let the defect
++    survive in the first place (the paragraph above the line asserted the isolation the flag
++    prevented). platform-reviewer's round-1 finding, and it was right.
++
++    BOTH HALVES ARE ASSERTED, deliberately. Pinning only the test line would let someone "restore
++    symmetry" by stripping the flag from the BUILD line instead — which breaks isolation in the
++    other direction, is a different bug, and would pass a one-sided guard.
++
++    Reproduction, one job, ninety seconds apart: pipeline 2796272877 job 16145201830 created
++    `ci_marts.mart_team_season_insights` with a renamed column, PASSed
++    `assert_mart_team_season_insights_metric_consistency` against it inside the build, then failed
++    the SAME test in the trailing run with "Unrecognized name: points_capture_pct; Did you mean
++    points_capture?" — a column that exists only in prod.
++    """
++    build, test = _mr_dbt_invocations()
++
++    assert "--favor-state" not in test, (
++        "data:build:mr's `dbt test` line carries --favor-state again. That resolves every ref() to "
++        "PRODUCTION even for models this run just built, so the 30 singular tests stop testing the "
++        "branch and re-report on prod — green because prod is healthy, not because the change is "
++        "(GitLab #92). It also makes any column rename unmergeable: prod gains the column only "
++        f"after the merge, so the gate can never go green first. Line: {test}"
++    )
++    for flag in ("--defer", "--state /tmp/main-state"):
++        assert flag in test, (
++            f"data:build:mr's `dbt test` line lost `{flag}`. Deferral itself must STAY — without it "
++            "an upstream this MR did not build resolves to nothing instead of to prod. Only "
++            f"--favor-state was removed. Line: {test}"
++        )
++
++    assert "--favor-state" in build, (
++        "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
++        "with the test line is the whole of #92's fix: a model being built must take its upstreams "
++        "from prod, never from a stale ci_ table another MR left behind. Do not make the two lines "
++        f"match. Line: {build}"
++    )
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -653,8 +627,8 @@ index a5ae8e6..bbe572c 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  104 ++--
-#    .claude/task/review.md              |  174 +++---
-#    .claude/task/review_input.patch     | 1098 ++++++++++++++++-------------------
-#    3 files changed, 662 insertions(+), 714 deletions(-)
+#   .claude/active_work.md              |   10 +-
+#    .claude/task/acceptance_evidence.md |  183 +++---
+#    .claude/task/review_input.patch     | 1195 +++++++++++++++++------------------
+#    3 files changed, 694 insertions(+), 694 deletions(-)
 # ============================================================================

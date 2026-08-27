@@ -5493,3 +5493,53 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   `goals_conceded`, which would have BROKEN the `_against` convention that already works across
   goals, corners and shots on target. ⭐ THE RULE THIS LEAVES: find the convention the file already
   follows before proposing one, and do not dress taste up as consistency.
+
+
+2026-08-27 #92 — THE MR DQ GATE WAS TESTING PRODUCTION, AND THE CPO APPROVED THE FIX.
+
+  ⭐ HIS RULING, verbatim: **"do as recommended"**. What he was recommended, and what he was told it
+  costs, both in the message he answered:
+    · the fix — "one flag on one line tells that second run to read live data instead of what the
+      branch just built. Remove it and it reads the branch"
+    · why it is worth more than unblocking one MR — "all 30 of those checks currently test
+      production, not your branch. They pass because production is fine, not because the change is"
+    · the cost, stated before he answered — "those checks would then read from a workspace shared
+      between branches, so they could pick up leftovers from another branch's run. Narrower hole
+      than the one we have"
+    · the alternative he did not take — renaming in two passes (add the new name beside the old,
+      merge, let prod catch up, delete the old), which needs no CI change but doubles the batches
+      and briefly puts two names on one number.
+  He was also told it is a locked CI file needing his go and the two senior reviewers. This is the
+  `protected_override` authority for `fix/92-singular-tests-read-the-branch`.
+
+  ⛔ THE DEFECT, precisely, because "reads prod" is too loose to act on. `data:build:mr` has TWO dbt
+  invocations. Both carried `--defer --favor-state`. `--favor-state` resolves every `ref()` to the
+  DEFERRED (prod) relation EVEN WHEN THE CURRENT RUN JUST BUILT THAT MODEL.
+    · on the `dbt build` line that is CORRECT and stays: a model being built must take its upstreams
+      from prod, never from a stale `ci_` copy another MR left, and a node being built is not
+      deferred anyway.
+    · on the `dbt test` line nothing is being built, so the flag threw away the MR's own models and
+      pointed all 30 singular tests at production.
+  The two lines are now ASYMMETRIC ON PURPOSE, and the file says so at the point of difference.
+
+  ⚠ THE FILE ASSERTED THE OPPOSITE, WHICH IS WHY THIS SURVIVED SO LONG. The comment above the test
+  line read "validates this MR's rebuilt ci_* models layered over prod (via defer) — an ISOLATED
+  view, not shared prod state". Exactly backwards for the rebuilt models, which is the half that
+  matters. ⭐ THE RULE: when a guard misbehaves, suspect the comment that says it does not. A
+  confident comment is why nobody re-derived the flag's semantics.
+
+  ⭐ THE REPRODUCTION, one job, ninety seconds apart — pipeline 2796272877, job 16145201830, on !114:
+    line 836  OK created sql table model ci_marts.mart_team_season_insights   (renamed column)
+    line 854  PASS assert_mart_team_season_insights_metric_consistency        (inside the build)
+    line 1021 Database Error ... Unrecognized name: points_capture_pct; Did you mean points_capture?
+  Same assertion, same branch, same job. Only the database differed.
+
+  ⛔ AND WHY IT COULD NOT BE WAITED OUT: prod gains the renamed column only after the rename merges,
+  and the rename cannot merge while the gate is red. !114 could never go green on its own. Every
+  column rename that a singular test names has this shape, and step 4 is 35 more renames.
+
+  ⚠ WHAT #92 STILL HOLDS OPEN, so this entry is not read as closing it: `--defer` alone still
+  prefers a `ci_` relation WHEN ONE EXISTS, so an UNMODIFIED upstream can be read from another MR's
+  leftovers in the shared datasets. Narrower than aiming the whole suite at the wrong database, and
+  it fails loudly rather than silently green. Closing it properly means per-MR ephemeral datasets —
+  a RECURRING COST decision, and therefore the CPO's, not taken here.

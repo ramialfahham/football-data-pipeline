@@ -254,3 +254,76 @@ def test_mr_data_build_never_ingests():
         "`data:build:main` job already ingests any new league, so nothing needs this here. "
         f"Offending: {offenders}"
     )
+
+
+def _mr_dbt_invocations() -> tuple[str, str]:
+    """`data:build:mr`'s (build, test) dbt invocations, as single strings.
+
+    Both are `>-` folded scalars in the YAML, so each arrives as ONE line with its flags
+    space-separated — which is why matching on substrings here is safe rather than fragile.
+    """
+    jobs = _script_lines_by_job(_ci_config())
+    assert "data:build:mr" in jobs, (
+        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
+        f"rather than deleting it. Jobs seen: {sorted(jobs)}"
+    )
+    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
+    builds = [ln for ln in lines if ln.startswith("dbt build ")]
+    tests = [ln for ln in lines if ln.startswith("dbt test ")]
+    assert len(builds) == 1, f"expected exactly one `dbt build` in data:build:mr, saw {builds}"
+    assert len(tests) == 1, f"expected exactly one `dbt test` in data:build:mr, saw {tests}"
+    return builds[0], tests[0]
+
+
+def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
+    """`--favor-state` belongs on data:build:mr's BUILD line and must never return to its TEST line.
+
+    THE DEFECT THIS PINS (GitLab #92, fixed 2026-08-27). Both invocations carried
+    `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
+    even when the current run has just built that model. On the `dbt build` line that is correct and
+    load-bearing — a model being BUILT must take its upstreams from prod, never from a stale `ci_`
+    table an earlier MR left, and a node dbt is building is not deferred anyway. On the `dbt test`
+    line nothing is being built, so the identical flag threw away the MR's own models and pointed
+    all 30 singular tests at PRODUCTION. The DQ gate was green because prod was healthy, not because
+    the branch was.
+
+    WHY IT IS PINNED HERE. This module exists for invariants that can be broken while every pipeline
+    stays GREEN, and this is one: re-adding `--favor-state` to the test line restores the whole
+    defect with pytest, sqlfluff, every offline gate and the pipeline itself all still green — the
+    tests simply go back to reporting on the wrong database. Before this assertion the only thing
+    standing in the way was a comment, and a confident comment is precisely what let the defect
+    survive in the first place (the paragraph above the line asserted the isolation the flag
+    prevented). platform-reviewer's round-1 finding, and it was right.
+
+    BOTH HALVES ARE ASSERTED, deliberately. Pinning only the test line would let someone "restore
+    symmetry" by stripping the flag from the BUILD line instead — which breaks isolation in the
+    other direction, is a different bug, and would pass a one-sided guard.
+
+    Reproduction, one job, ninety seconds apart: pipeline 2796272877 job 16145201830 created
+    `ci_marts.mart_team_season_insights` with a renamed column, PASSed
+    `assert_mart_team_season_insights_metric_consistency` against it inside the build, then failed
+    the SAME test in the trailing run with "Unrecognized name: points_capture_pct; Did you mean
+    points_capture?" — a column that exists only in prod.
+    """
+    build, test = _mr_dbt_invocations()
+
+    assert "--favor-state" not in test, (
+        "data:build:mr's `dbt test` line carries --favor-state again. That resolves every ref() to "
+        "PRODUCTION even for models this run just built, so the 30 singular tests stop testing the "
+        "branch and re-report on prod — green because prod is healthy, not because the change is "
+        "(GitLab #92). It also makes any column rename unmergeable: prod gains the column only "
+        f"after the merge, so the gate can never go green first. Line: {test}"
+    )
+    for flag in ("--defer", "--state /tmp/main-state"):
+        assert flag in test, (
+            f"data:build:mr's `dbt test` line lost `{flag}`. Deferral itself must STAY — without it "
+            "an upstream this MR did not build resolves to nothing instead of to prod. Only "
+            f"--favor-state was removed. Line: {test}"
+        )
+
+    assert "--favor-state" in build, (
+        "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
+        "with the test line is the whole of #92's fix: a model being built must take its upstreams "
+        "from prod, never from a stale ci_ table another MR left behind. Do not make the two lines "
+        f"match. Line: {build}"
+    )
