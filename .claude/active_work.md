@@ -4,9 +4,15 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-27**. **main `1804a64`.** The METRIC CATALOGUE NAMING PROGRAMME is running:
-`!111`, `!112` and `!113` merged, **47 renames still to go**, and **STEP 3 IS IN FLIGHT** — MR A of
-six is committed and in review. **Nothing else is in flight.**
+_Last updated **2026-08-27**. **main `9b4b225`** (after `!115`, the #92 CI fix). The METRIC CATALOGUE
+NAMING PROGRAMME is running: `!111`, `!112`, `!113` and `!115` merged, **47 renames still to go**,
+and **STEP 3 IS IN FLIGHT** — **MR A (`!114`) is GREEN and awaiting merge**: rebased onto `9b4b225`,
+all six jobs pass, 234/234 build and 30/30 singular tests, `ci_mr114_*` datasets.
+⭐ **`!114` proves `!115` worked**: `assert_mart_team_season_insights_metric_consistency` now passes
+in BOTH runs, where before it errored in the trailing one with "Unrecognized name:
+points_capture_pct". **Nothing else is in flight.**
+⚠ **MR A ships BOTH renames** — splitting `points_capture` out was considered when it was blocked,
+and became unnecessary once `!115` landed. Do not split it.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`, ZERO GitLab minutes.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding
 on `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
