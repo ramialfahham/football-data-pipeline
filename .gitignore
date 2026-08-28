@@ -237,7 +237,7 @@ artifacts/site_data/
 # committed samples are tracked; a full export populates these dirs at build time (100s MB to >1 GB)
 # and must never be committed. Keep the samples, ignore the bulk.
 #
-# THE SAMPLE SET MUST BE SELF-CONSISTENT (#367). The landing page links to the next 12 fixtures,
+# THE SAMPLE SET MUST BE SELF-CONSISTENT (#367). The landing page links to the next matchday,
 # and `audit-seo.mjs` fails the build on any internal link that does not resolve to an emitted page.
 # So every entity the committed `landing.json` points at needs its payload here, or CI goes red
 # while a local build with a full export stays green -- which is exactly the trap this list sprang
@@ -251,29 +251,42 @@ artifacts/site_data/
 # ⚠ REGENERATE AS A SET. `landing.json` is a snapshot of whatever fixtures are next, so refreshing
 # it changes WHICH ids belong below. Refresh the landing sample and these entries together, or the
 # next build fails on links to ids that are no longer here.
+# Export byproducts: `export_site_data.py` writes both into its output dir on every run. Neither is
+# part of the tracked sample, and both turned up as untracked strays the first time this sample was
+# refreshed from a full export. Ignored rather than deleted, so the next refresh does not re-arm the
+# same stray-file gate.
+site_v2/src/data/manifest.json
+site_v2/src/data/slug_map.json
 site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/33.json
 site_v2/src/data/fixtures/*.json
-!site_v2/src/data/fixtures/1492306.json
-!site_v2/src/data/fixtures/1493034.json
-!site_v2/src/data/fixtures/1493039.json
-!site_v2/src/data/fixtures/1493042.json
-!site_v2/src/data/fixtures/1493045.json
-!site_v2/src/data/fixtures/1493046.json
-!site_v2/src/data/fixtures/1495750.json
-!site_v2/src/data/fixtures/1598825.json
-!site_v2/src/data/fixtures/1605370.json
-!site_v2/src/data/fixtures/1607166.json
-!site_v2/src/data/fixtures/1607167.json
-!site_v2/src/data/fixtures/1607168.json
-!site_v2/src/data/fixtures/1607573.json
-# The 2026-08-18 matchday, added with the landing refresh (CPO 2026-08-18: the hero is now the next
-# matchday, not a fixed 12). These four are what landing.json links to; the rows above are the
-# 2026-08-03 set the previous sample was built from. Refresh as a SET — see src/data/README.md.
-!site_v2/src/data/fixtures/1547770.json
-!site_v2/src/data/fixtures/1622620.json
-!site_v2/src/data/fixtures/1622621.json
-!site_v2/src/data/fixtures/1622622.json
+# The 2026-08-28 matchday: 19 fixtures across 13 competitions, exactly what `landing.json` links to.
+#
+# ⛔ THIS SET REPLACED THE 2026-08-18 ONE WHOLESALE, and a future refresh must do the same rather
+# than append. The export emits UPCOMING fixtures only — `status_short in ('NS', 'TBD') and
+# fixture_date >= current_date()` in `fetch_fixture_payloads` — and once a fixture kicks off its
+# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether (queried:
+# 0 rows for both of the previous set's ids). So a past id can never be re-exported, and a stale
+# entry left here would pin a payload that no rerun can ever update. Replace, never add.
+!site_v2/src/data/fixtures/1493106.json
+!site_v2/src/data/fixtures/1550097.json
+!site_v2/src/data/fixtures/1552144.json
+!site_v2/src/data/fixtures/1552746.json
+!site_v2/src/data/fixtures/1553147.json
+!site_v2/src/data/fixtures/1553153.json
+!site_v2/src/data/fixtures/1557381.json
+!site_v2/src/data/fixtures/1558608.json
+!site_v2/src/data/fixtures/1570353.json
+!site_v2/src/data/fixtures/1570359.json
+!site_v2/src/data/fixtures/1575140.json
+!site_v2/src/data/fixtures/1575481.json
+!site_v2/src/data/fixtures/1576152.json
+!site_v2/src/data/fixtures/1576153.json
+!site_v2/src/data/fixtures/1584391.json
+!site_v2/src/data/fixtures/1602998.json
+!site_v2/src/data/fixtures/1602999.json
+!site_v2/src/data/fixtures/1603000.json
+!site_v2/src/data/fixtures/1603001.json
 
 # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
 # Not project source, so not committed -- and not deleted either: the contract and stop gates flag

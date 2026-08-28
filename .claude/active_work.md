@@ -4,35 +4,39 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-27**. **main `4975934`** (after `!116`). The METRIC CATALOGUE NAMING
-PROGRAMME step 3 is running: **4 of 12 team renames merged**, `!114` + `!116`. `#92` is FIXED
-(`!115`). **Nothing else is in flight.** **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
+_Last updated **2026-08-28**. **main `b022909`**. The METRIC CATALOGUE NAMING PROGRAMME step 3 is
+running: **4 of 12 team renames merged**, `!114` + `!116`. `#92` is FIXED (`!115`). **The export
+sample refresh is DONE** — branch `chore/refresh-export-sample-after-mr-b`, the fixture set rolled
+forward to 19 payloads, fixture pages back to **16 metric rows with Goalkeeping present** in all
+three locales. **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ NEXT ACTION: the export-sample refresh, PULLED FORWARD ON CPO INSTRUCTION
+## ⭐⭐ NEXT ACTION: renaming batch C. Names are FIXED; do not re-derive
 
-⭐ **His words: "116 merged, do the refresh".** It was planned as the LAST step of the programme;
-he moved it to NOW. Do this before renaming batch C.
+## ⛔ WHAT THE REFRESH TAUGHT — read before ever refreshing the sample again
 
-**WHY IT MOVED.** A renamed FIXTURE field drops its row from the 16-row comparison on all 51 fixture
-pages until the sample carries the new key — `MetricComparison.astro`'s `hasData()` omits a row with
-no value. `!116` measured **16 rendered metric names → 14**, and the whole **Goalkeeping** heading
-vanished because `saves_pct` was its only row. C–F rename five more fixture fields, so the gap would
-grow to ~10 missing rows. `!114` did not do this (its renames were team-binding only).
+⛔ **THE OBVIOUS RECIPE IS A TRAP AND IT COST A ROUND.** "Rerun the export and the committed
+payloads update" **CANNOT WORK** for a fixture. `fetch_fixture_payloads`
+(`scripts/export_site_data.py:806`) selects `status_short in ('NS','TBD') and fixture_date >=
+current_date()` — UPCOMING ONLY. The export exited **0**, reported **5,066 fixture payloads
+written**, and changed **not one** of the 17 committed files.
+⛔ **AND A PAST ID CAN NEVER BE RE-EXPORTED**: `mart_team_momentum` / `mart_team_season_record` are
+keyed on `upcoming_fixture_sk` and hold PRE-match form, so a kicked-off fixture has **0 rows** in
+both (queried). **ROLL THE WHOLE SET FORWARD** — regenerate `landing.json`, rewrite the `.gitignore`
+allowlist to exactly its ids (**replace, never append**), `git rm` the departed payloads, drop the
+ignored bulk, rebuild. Full recipe now lives in `site_v2/src/data/README.md`.
+⭐ **THE RULE: an exit code of 0 and a big "written" count are not evidence the files you care about
+were written.** Diff the specific artifacts, never the summary line.
+⚠ `git clean -fX` is BLOCKED in this environment. Use a scoped equivalent driven by
+`git ls-files --others --ignored --exclude-standard <dir>` — git's own listing, `--others` makes it
+structurally unable to pick a tracked file. Dry-run it first.
+⚠ **A FINAL REFRESH AFTER F IS STILL OWED**, and it must be another roll-forward.
+⚠ **GitLab #98 opened**: the seven metric GROUP HEADINGS render in ENGLISH on DE/FI
+(`MetricComparison.astro:40`, `TeamPerformance.astro:89`/`:110`). Pre-existing, §10 (the words are
+the CPO's), NOT fixed. `TeamSquad.astro:99` already does it right — copy that pattern.
 
-**THE RECIPE** (precedent `!109`, "refresh the committed export sample after #90"):
-1. ⛔ **WAIT for `data:build:main` to be GREEN on `4975934`** — the export reads PROD, so the new
-   columns must exist there first. Check `glab ci list`.
-2. Branch from the main that carries `!116`. Contract: scope is `site_v2/src/data/**` + artifacts.
-3. `python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data`
-   — ⚠ that `--entities` list is LOAD-BEARING, copy it exactly from `.gitlab-ci.yml`'s
-   `deploy:export`. **Never hand-edit the sample.**
-4. Rebuild the site and re-measure: the count must return to **16** rendered names per locale and
-   `Goalkeeping` must reappear. That is the acceptance evidence.
-5. ⚠ The sample is a gitignore-pinned SET (22 tracked files). Its README's "18 files" is stale.
-
-## ⭐ THEN: renaming batches C–F. Names are FIXED; do not re-derive
+## ⭐ BATCHES C–F. Names are FIXED; do not re-derive
 
 ⛔⛔ **THE AUTHORITY IS `.claude/task/escalations.log`** — the block "THE METRIC CATALOGUE NAMING
 PROGRAMME" (rulings 2026-08-26, full tables appended 2026-08-27). **CITE IT, never a plan file: two
@@ -76,7 +80,7 @@ green AND watched going red on a stale key; (4) the team page's absent state rec
    Then REGENERATE `metric_definitions.json`. C, D and F all have names in the bindings.
 4. Regenerate, never hand-edit: `sync_metric_docs_blocks.py`, `export_metric_definitions_json.py`.
 5. Gates: `sync_metric_docs_blocks.py --check`, `check_description_hygiene.py`,
-   `check_layer_contract.py`, `check_ui_i18n_metrics.py`, `pytest` (1009 on `4975934`), `dbt parse`,
+   `check_layer_contract.py`, `check_ui_i18n_metrics.py`, `pytest` (1009 on `b022909`), `dbt parse`,
    `sqlfluff lint` from the REPO ROOT, `cd site_v2 && npm test && node scripts/check-page-specs.mjs`.
 6. Mutations watched going RED, then restored. Evidence read from the BUILT site.
 
@@ -85,7 +89,11 @@ green AND watched going red on a stale key; (4) the team page's absent state rec
 ⛔ **A SUBSTRING TEST IS NOT A PRESENCE TEST.** My evidence script matched `Ø Corners` inside
 `Ø Corners against` and reported 16 rendered names when 14 was true — it would have certified two
 MISSING rows as present. This metric set is full of `X` / `X against` pairs. Subtract the longer
-label's occurrences. The fixed script is in the session scratchpad; rewrite it if lost.
+label's occurrences. ⚠ **IT HAS A SOURCE-TEXT FORM TOO**, hit on 2026-08-28: `grep -o points_capture`
+returned 25 hits that were all inside `points_capture_pct`; the true count was 0. Tally WHOLE TOKENS
+(`grep -oE 'stem[a-z_0-9]*' | sort | uniq -c`). ⭐ Better than either: count STRUCTURALLY — the
+fixture comparison emits `<div class="mrow">` per row and `<div class="mgroup">` per heading, which
+no substring can fake. The fixed script is in the session scratchpad; rewrite it if lost.
 ⛔ **CWD PERSISTS BETWEEN Bash CALLS.** `pytest` launched from `site_v2/` printed "no tests ran in
 0.14s" — a green-looking result that ran NOTHING. Always `cd /d/Projects/football-data-pipeline &&`.
 ⛔ **CHECK THE FIXTURE SURFACE BEFORE CALLING A TRANSIENT INVISIBLE.** The team page and the fixture
