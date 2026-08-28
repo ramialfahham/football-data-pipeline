@@ -5759,3 +5759,60 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   fixture payload at all. **C takes 16 → 15, and no heading is lost** (Shooting keeps 3 of 4). A
   final refresh after F is still owed, and it must be another ROLL-FORWARD for the reason above —
   a stale id in the allowlist pins a payload that no rerun can ever update.
+
+
+2026-08-28 STEP 3, MR C — AND A RENAME CLASS THAT WORD-BOUNDARY REPLACEMENT CANNOT REACH.
+
+  Batch C shipped the three `shooting` share metrics. No new naming decision was taken; the
+  authorities are RULING 4 verbatim ("2. shots_inside_box_pct / 3. shots_on_goal_pct") and, for
+  `shot_share` → `shots_share_pct`, RULING 1 as corrected by item 2 of the enumerated six.
+  The transient landed on the predicted number: **16 → 15 rendered rows, no group heading lost**,
+  predicted in the contract before any code and measured on the built site after.
+
+  ⛔⛔ THE FINDING, and it will recur on D, E, F and all 35 player renames: **`\b` FAILS AGAINST `_`,
+  BECAUSE `_` IS A WORD CHARACTER.** So `\bshot_accuracy\b` does not match inside
+  `home_shot_accuracy_recent`, `danger_zone_ratio_this_season`, or `std_team_shot_accuracy_in_range`.
+  I anticipated the FIRST family and wrote it as an explicit pass. I did not anticipate the other
+  two, and the rename shipped incomplete until `check_description_hygiene.py` went red on **six
+  dangling `doc()` references**. A third pass then swept the CLASS rather than the instance —
+  **31 further occurrences** across:
+    · the yoy forms `_this_season` / `_prev_season` / `_delta_yoy` and their `__team` doc-block names
+    · NINE named dbt tests — `std_team_<id>_in_range`, `momentum_team_<id>_in_range`,
+      `mmi_home_<id>_in_range`, `mmi_away_<id>_in_range`, `team_profile_<id>_in_range`
+      (precedent: `!116` renamed `momentum_team_saves_pct_in_range` the same way)
+  ⭐ THE RULE: **on an identifier rename, sweep for the name as a SUBSTRING of other identifiers, not
+  as a whole token.** The whole-token form is what you change; the substring form is what tells you
+  where the derived names are hiding. One command does it:
+  `git grep -ohE "[a-z_0-9]*(<old>)[a-z_0-9]*" | sort | uniq -c`
+  ⛔ ONE FORM IS PROTECTED and must be excluded programmatically, not by hand: `<id>_recent`
+  standing ALONE is the retired MVP's `live_id` in `metric_bindings.csv`. `check_ui_i18n_metrics.py`
+  maps it THROUGH the bindings, so renaming it breaks the mapping while changing nothing a catalogue
+  reader sees. The `home_`/`away_` prefixed forms are NOT protected.
+
+  ⭐ A MUTATION THAT SURVIVED, AND THE SURVIVAL IS NOT A DEFECT — it is a scoping fact worth
+  recording. Reverting `shots_on_goal_pct`'s `label_i18n_key` in the seed left `npm test` at
+  **76/76 GREEN**. Correctly: `shots_on_goal_pct` is not one of the 16 rows `metricRows.ts` binds,
+  so the site's label test has nothing to compare. The guard that DID fire is
+  `tests/test_metric_bindings.py::test_regenerated_json_matches_committed`. The same mutation on
+  `shots_inside_box_pct`, which IS one of the 16, went **RED** immediately.
+  ⭐ THE RULE: **"the label test is green" is evidence only for the metrics that test reaches.**
+  Choosing a non-displayed metric for the criterion-3 mutation would have proved nothing and nearly
+  did — the criterion would have been signed off on a guard that never ran.
+
+  ⚠ #96 RE-CONFIRMED ON THIS BATCH, not assumed from `!114`: reverting one entry of the 22-name
+  `accepted_values` list in `shared.yml` survived `sync_metric_docs_blocks.py --check`,
+  `check_layer_contract.py`, `check_ui_i18n_metrics.py`, `check_description_hygiene.py` AND
+  `dbt parse`. All five green with a wrong entry in the list. The three lists were therefore checked
+  by eye — `int_competition_benchmarks.yml:27` and `:66`, `shared.yml:2080`, each back to 22 values
+  with no duplicates.
+
+  ⚠ A MEASUREMENT ERROR OF MINE, caught before it reached the contract and recorded because the
+  shape recurs: the first occurrence count came out 38 / 46 / 21 and looked entirely plausible. The
+  shell was still inside `dbt_project/` from the `dbt ls` call, and **`git grep` scopes to the CWD**.
+  The true figures are 177 / 185 / 50. CWD persists between Bash calls; assert `cd <repo root>` in
+  the same command as any counting grep.
+  ⚠ AND A THIRD SUBSTRING ARTIFACT in one programme, this time in a throwaway diff script rather
+  than the evidence: it reported FI as 15 → 14 while the measurement said 16 → 15, because its regex
+  needed a trailing newline the output file lacks and dropped the last name from both sides. The
+  disagreement between two counts is what exposed it — which is the argument for always measuring
+  the same thing two independent ways.

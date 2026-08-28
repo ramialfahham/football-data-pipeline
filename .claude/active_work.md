@@ -4,15 +4,40 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-28**. **main `b022909`**. The METRIC CATALOGUE NAMING PROGRAMME step 3 is
-running: **4 of 12 team renames merged**, `!114` + `!116`. `#92` is FIXED (`!115`). **The export
-sample refresh is DONE** — branch `chore/refresh-export-sample-after-mr-b`, the fixture set rolled
-forward to 19 payloads, fixture pages back to **16 metric rows with Goalkeeping present** in all
-three locales. **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
+_Last updated **2026-08-28**. **main `9e2aaf9`** (after `!118`, the sample refresh). The METRIC
+CATALOGUE NAMING PROGRAMME step 3: **4 of 12 team renames merged** (`!114` + `!116`), and **batch C
+is BUILT on `refactor/metric-rename-team-shooting-shares`** — 3 more renames, awaiting review/merge.
+`#92` FIXED (`!115`). The export sample was rolled forward by `!118` to 19 fixture payloads.
+**GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⭐⭐ NEXT ACTION: renaming batch C. Names are FIXED; do not re-derive
+## ⭐⭐ NEXT ACTION: batch D once C merges. Names are FIXED; do not re-derive
+
+## ⛔ WHAT BATCH C TAUGHT — read before ANY further rename, including all 35 player ones
+
+⛔⛔ **`\b` FAILS AGAINST `_`, BECAUSE `_` IS A WORD CHARACTER.** A word-boundary replace CANNOT
+reach `home_<id>_recent`, `<id>_this_season` / `_prev_season` / `_delta_yoy`, or
+`std_team_<id>_in_range`. C shipped incomplete until `check_description_hygiene.py` went red on six
+dangling `doc()` refs; a third pass then swept **31 more occurrences** across the yoy forms and
+**nine named dbt tests** (`std_team_`, `momentum_team_`, `mmi_home_`, `mmi_away_`, `team_profile_`
+… `_in_range`).
+⭐ **SWEEP FOR THE NAME AS A SUBSTRING, NOT A WHOLE TOKEN:**
+`git grep -ohE "[a-z_0-9]*(<old>)[a-z_0-9]*" | sort | uniq -c` — run it BEFORE and AFTER.
+⚠ **MEASURED FOR THE REMAINING BATCHES so nobody has to rediscover it** — yoy-form counts in
+`dbt_project/models`: `pass_accuracy` **16**, `key_passes_per_match` **12** (both batch D),
+`finishing_efficiency` **16** (batch F). `sot_difference_per_match` and `sot_points_gap` (batch E)
+have **0**. So D and F BOTH need the derived-identifier pass; E does not.
+⛔ **PROTECT `<id>_recent` STANDING ALONE** — the retired MVP's `live_id` in `metric_bindings.csv`.
+`check_ui_i18n_metrics.py` maps it THROUGH the bindings. `home_`/`away_` forms are NOT protected.
+⭐ **A GREEN `npm test` ONLY COVERS THE 16 ROWS `metricRows.ts` BINDS.** Mutating a NON-displayed
+metric's `label_i18n_key` left it 76/76 green; `tests/test_metric_bindings.py` caught it instead.
+Pick a DISPLAYED metric for the criterion-3 mutation or it proves nothing.
+⚠ **`git grep` SCOPES TO THE CWD** and CWD persists between calls. A count taken from inside
+`dbt_project/` returned 38/46/21 against a true 177/185/50. Assert `cd <repo root>` in the same
+command as any counting grep.
+
+## ⛔ WHAT THE REFRESH TAUGHT — read before ever refreshing the sample again
 
 ## ⛔ WHAT THE REFRESH TAUGHT — read before ever refreshing the sample again
 
@@ -36,7 +61,7 @@ structurally unable to pick a tracked file. Dry-run it first.
 (`MetricComparison.astro:40`, `TeamPerformance.astro:89`/`:110`). Pre-existing, §10 (the words are
 the CPO's), NOT fixed. `TeamSquad.astro:99` already does it right — copy that pattern.
 
-## ⭐ BATCHES C–F. Names are FIXED; do not re-derive
+## ⭐ BATCHES D–F. Names are FIXED; do not re-derive (C is BUILT, awaiting merge)
 
 ⛔⛔ **THE AUTHORITY IS `.claude/task/escalations.log`** — the block "THE METRIC CATALOGUE NAMING
 PROGRAMME" (rulings 2026-08-26, full tables appended 2026-08-27). **CITE IT, never a plan file: two
@@ -44,7 +69,7 @@ MRs were FAILed for citing one.** Remaining, verbatim from its "TEAM, 12 REMAINI
 
 | MR | renames |
 |---|---|
-| **C** shooting shares | `shot_accuracy`→`shots_on_goal_pct` · `danger_zone_ratio`→`shots_inside_box_pct` · `shot_share`→`shots_share_pct` |
+| ~~**C** shooting shares~~ | ~~`shot_accuracy`→`shots_on_goal_pct` · `danger_zone_ratio`→`shots_inside_box_pct` · `shot_share`→`shots_share_pct`~~ **BUILT, awaiting merge** |
 | **D** passing | `pass_accuracy`→`passes_accuracy_pct` · `key_passes_per_match`→`passes_key_per_match` |
 | **E** deserved chain | `sot_difference_per_match`→`shots_on_goal_difference_per_match` · `sot_points_gap`→`deserved_points_gap` |
 | **F** alone | `finishing_efficiency`→`finishing_efficiency_pct` |

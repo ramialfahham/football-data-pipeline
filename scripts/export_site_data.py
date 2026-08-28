@@ -404,7 +404,7 @@ def _shape_team_benchmark_member(row: dict) -> dict:
     only — the "k of N" / vs-median / spread-bar labels and the direction-mirror (only lower_better rows)
     are applied at render from the catalogue direction (the mart is direction-agnostic: rank is by value
     DESC). No num/den atoms — the team mart carries none; team ratios use the adjacent-count-row mechanism
-    (metrics_display.md). The frontend renders the LOCKED 16 (dropping shot_accuracy + the T/I/B sub-display)."""
+    (metrics_display.md). The frontend renders the LOCKED 16 (dropping shots_on_goal_pct + the T/I/B sub-display)."""
     return {
         "metric_key": row.get("metric_key"),
         "metric_value": row.get("metric_value"),

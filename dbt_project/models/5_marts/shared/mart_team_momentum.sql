@@ -47,7 +47,7 @@ select
     safe_divide(b.goals_for, b.games_in_window) as goals_per_match,
     safe_divide(b.goals_against, b.games_in_window) as goals_against_per_match,
     -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
-    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shot_accuracy / danger_zone
+    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shots_on_goal_pct / danger_zone
     -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
     case
         when b.games_with_team_stats < b.games_in_window then null
@@ -56,11 +56,11 @@ select
     case
         when b.games_with_sot_stats < b.games_in_window then null
         else safe_divide(b.shots_on_goal, b.shots_total)
-    end as shot_accuracy,
+    end as shots_on_goal_pct,
     case
         when b.games_with_team_stats < b.games_in_window then null
         else safe_divide(b.shots_inside_box, b.shots_total)
-    end as danger_zone_ratio,
+    end as shots_inside_box_pct,
     case
         when b.games_with_sot_stats < b.games_in_window then null
         else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end

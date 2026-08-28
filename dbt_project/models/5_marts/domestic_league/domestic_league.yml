@@ -115,12 +115,12 @@ models:
         description: "{{ doc('goals_against_per_match') }}"
       - name: shots_per_match
         description: "{{ doc('shots_per_match') }}"
-      - name: shot_share
-        description: "{{ doc('shot_share') }}"
-      - name: danger_zone_ratio
-        description: "{{ doc('danger_zone_ratio') }}"
-      - name: shot_accuracy
-        description: "{{ doc('shot_accuracy') }}"
+      - name: shots_share_pct
+        description: "{{ doc('shots_share_pct') }}"
+      - name: shots_inside_box_pct
+        description: "{{ doc('shots_inside_box_pct') }}"
+      - name: shots_on_goal_pct
+        description: "{{ doc('shots_on_goal_pct') }}"
       - name: finishing_efficiency
         description: "{{ doc('finishing_efficiency__team') }}"
       - name: pass_accuracy
@@ -159,17 +159,17 @@ models:
       # mart_team_momentum; this mart only renames those columns, so range checks
       # are the consumer-contract guard here.
       - dbt_utils.expression_is_true:
-          expression: "home_shot_accuracy_recent is null or (home_shot_accuracy_recent between 0 and 1)"
-          name: mmi_home_shot_accuracy_in_range
+          expression: "home_shots_on_goal_pct_recent is null or (home_shots_on_goal_pct_recent between 0 and 1)"
+          name: mmi_home_shots_on_goal_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "away_shot_accuracy_recent is null or (away_shot_accuracy_recent between 0 and 1)"
-          name: mmi_away_shot_accuracy_in_range
+          expression: "away_shots_on_goal_pct_recent is null or (away_shots_on_goal_pct_recent between 0 and 1)"
+          name: mmi_away_shots_on_goal_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "home_danger_zone_ratio_recent is null or (home_danger_zone_ratio_recent between 0 and 1)"
-          name: mmi_home_danger_zone_ratio_in_range
+          expression: "home_shots_inside_box_pct_recent is null or (home_shots_inside_box_pct_recent between 0 and 1)"
+          name: mmi_home_shots_inside_box_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "away_danger_zone_ratio_recent is null or (away_danger_zone_ratio_recent between 0 and 1)"
-          name: mmi_away_danger_zone_ratio_in_range
+          expression: "away_shots_inside_box_pct_recent is null or (away_shots_inside_box_pct_recent between 0 and 1)"
+          name: mmi_away_shots_inside_box_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "home_finishing_efficiency_recent is null or (home_finishing_efficiency_recent between 0 and 1)"
           name: mmi_home_finishing_efficiency_in_range
@@ -294,13 +294,13 @@ models:
         description: "Home: total shots per game with team stats."
       - name: away_shots_per_match_recent
         description: "Away: total shots per game with team stats."
-      - name: home_shot_accuracy_recent
+      - name: home_shots_on_goal_pct_recent
         description: "Home: shots on target / total shots."
-      - name: away_shot_accuracy_recent
+      - name: away_shots_on_goal_pct_recent
         description: "Away: shots on target / total shots."
-      - name: home_danger_zone_ratio_recent
+      - name: home_shots_inside_box_pct_recent
         description: "Home: shots inside box / total shots."
-      - name: away_danger_zone_ratio_recent
+      - name: away_shots_inside_box_pct_recent
         description: "Away: shots inside box / total shots."
       - name: home_finishing_efficiency_recent
         description: >

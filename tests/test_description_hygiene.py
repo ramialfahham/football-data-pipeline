@@ -284,7 +284,7 @@ OFFENDERS = [
     ("no-consumer claim", "This model has NO consumer today."),
     ("nothing-downstream claim", "Nothing downstream resolves its versions."),
     ("feeds-a-model claim", "Feeds fct_fixture and nothing else."),
-    ("feeds-a-column claim", "Cumulative opponent shots; feeds shot_share downstream."),
+    ("feeds-a-column claim", "Cumulative opponent shots; feeds shots_share_pct downstream."),
     ("read-by claim", "READ by mart_competition_index for the page."),
     ("severity emoji", "⚠ This is a trap for the unwary."),
 ]

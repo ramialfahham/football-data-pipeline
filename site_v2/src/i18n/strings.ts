@@ -620,7 +620,7 @@ const METRIC_LABELS_EN: MetricLabels = {
   // The fixture windows label the COUNT; the team page labels the SHARE (metricRows `team`).
   "metrics.clean_sheets_pct.label": "% Clean sheets",
   "metrics.shots_per_match.label": "Ø Shots",
-  "metrics.danger_zone_ratio.label": "% Shots from box",
+  "metrics.shots_inside_box_pct.label": "% Shots from box",
   "metrics.shots_on_target_per_match.label": "Ø Shots on target",
   "metrics.shots_on_goal_against_per_match.label": "Ø Shots on target against",
   "metrics.sot_difference_per_match.label": "Ø Shots on target difference",
@@ -646,7 +646,7 @@ const METRIC_LABELS_DE: MetricLabels = {
   // "% Trefferquote" and "% Gehaltene Torschüsse" below, so the noun itself needs no second word.
   "metrics.clean_sheets_pct.label": "% Zu-Null-Spiele",
   "metrics.shots_per_match.label": "Ø Schüsse",
-  "metrics.danger_zone_ratio.label": "% Schüsse aus dem Strafraum",
+  "metrics.shots_inside_box_pct.label": "% Schüsse aus dem Strafraum",
   // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
   // replaces `Schüsse aufs Tor`, and it is the compact form Bundesliga, kicker and sport.de all use
   // as a stat label. It also makes the German internally consistent, since `saves_pct` already reads
@@ -685,7 +685,7 @@ const METRIC_LABELS_FI: MetricLabels = {
   // The percent form of the row above. The "% " prefix carries the share, as it does for
   // "% Torjuntaosuus" below, so no separate "osuus" compound is needed.
   "metrics.shots_per_match.label": "Ø Laukaukset",
-  "metrics.danger_zone_ratio.label": "% Laukaukset boksista",
+  "metrics.shots_inside_box_pct.label": "% Laukaukset boksista",
   // These three are CPO-SUPPLIED, 2026-07-31, including `vastaan`, which keeps Finnish parallel to
   // the German `gegen`. He chose them after being shown that his validated corpus and the old hero
   // tiles used two different forms for the same metric. His first form for the third one was

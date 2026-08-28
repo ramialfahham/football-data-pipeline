@@ -87,7 +87,7 @@ select
         when games_with_team_stats < games_played then null
         when games_with_opp_stats < games_played then null
         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
-    end as shot_share,
+    end as shots_share_pct,
     safe_divide(clean_sheet_games, games_played) as clean_sheets_pct,
     -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
     -- from int_team_season__metrics — this model is now their single home.
@@ -101,11 +101,11 @@ select
         when games_with_sot_stats < games_played then null
         when games_with_team_stats < games_played then null
         else safe_divide(shots_on_goal, shots_total)
-    end as shot_accuracy,
+    end as shots_on_goal_pct,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(shots_inside_box, shots_total)
-    end as danger_zone_ratio,
+    end as shots_inside_box_pct,
     case
         when games_with_sot_stats < games_played then null
         else safe_divide(shots_on_goal, games_with_sot_stats)

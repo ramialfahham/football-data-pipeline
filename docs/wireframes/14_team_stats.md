@@ -63,7 +63,7 @@ next to the %), both being separate metrics already in the set.
 │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
 │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
 │  Ø Shots on target 5.3  3rd of 18   +0.8  ▐███▌   │      on-target volume →
-│  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shot_accuracy mart-ranked but UNRENDERED — contract)
+│  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
 ├────────────────── fold (~700px) ──────────────────┤
 │  DUELS                                            │
 │  Ø Duels          51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
@@ -135,7 +135,7 @@ remaining justification.)
 
 The mart **ranks all 20** metrics; the screen **renders the LOCKED 16** (the `metrics_display.md` team
 table). **Four** benchmark metrics are ranked in the mart but **NOT independently rendered**, per the
-locked "defined but not displayed" list: `shot_accuracy` (superseded by the Ø-shots vs Ø-on-target
+locked "defined but not displayed" list: `shots_on_goal_pct` (superseded by the Ø-shots vs Ø-on-target
 juxtaposition) and `tackles_per_match` / `interceptions_per_match` / `blocks_per_match` (the **T · I · B
 sub-display of the single Ø Defensive actions row**, not separate ranked rows). `02_team_profile.md` §8
 renders the same 16. Grouped and ordered per the metrics_display block order:
@@ -143,7 +143,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
 | Block | Rendered metrics (metric_key) |
 |---|---|
 | Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_pct` |
-| Shooting | `shots_per_match` · `danger_zone_ratio` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
+| Shooting | `shots_per_match` · `shots_inside_box_pct` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
 | Duels | `duels_per_match` · `duels_won_pct` (%) |
 | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
 | Passing | `passes_per_match` · `pass_accuracy` (%) · `key_passes_per_match` |

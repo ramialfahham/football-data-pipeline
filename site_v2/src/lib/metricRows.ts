@@ -83,7 +83,7 @@ export const METRIC_ROWS: MetricRowDef[] = [
   { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
     team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
   { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
-  { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
   //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
   // The internal id says "on goal", the user-facing term is "on target". Do NOT "fix" this to

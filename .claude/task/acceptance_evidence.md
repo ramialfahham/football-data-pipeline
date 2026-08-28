@@ -1,80 +1,140 @@
-# Acceptance evidence — refresh the committed export sample onto the four renamed columns
+# Acceptance evidence — batch C: the three `shooting` share metrics
 
-Branch `chore/refresh-export-sample-after-mr-b`, from main `b022909`.
-Step 3 of the metric catalogue naming programme: MR **G**, pulled forward ahead of batch C on the
-CPO's instruction ("116 merged, do the refresh").
+Branch `refactor/metric-rename-team-shooting-shares`, from main `9e2aaf9`.
+Step 3 of the metric catalogue naming programme, **MR C of six**:
+`shot_accuracy` → `shots_on_goal_pct`, `danger_zone_ratio` → `shots_inside_box_pct`,
+`shot_share` → `shots_share_pct`.
 
-⛔ **THE FIVE CRITERIA BELOW ARE THIS MR'S OWN.** The four criteria the CPO made STANDING are for
-MRs B–F, the rename batches, and their subject is a rename being invisible. This MR's subject is the
-opposite — a rename becoming visible again — so it uses the criterion he stated for it directly
-("get that count back to 16 with Goalkeeping present"), expanded into commands. Criterion 5 was
-REPLACED mid-task under his authority; see `contract.md` `amendments:`.
-
-Everything below is read from the BUILT site under `site_v2/dist/`, from a test run, or from a
-payload deliberately broken and watched.
+The four criteria are the CPO's STANDING set for MRs B–F ("do it", recorded in `escalations.log`
+beside the list it answered). Reproduced, not re-drafted, and not re-put to him. Everything below is
+read from the BUILT site under `site_v2/dist/`, from a test run, or from a guard deliberately broken
+and watched.
 
 criteria_demonstrated:
-  - **Criterion 1 — 16 metric rows and a Goalkeeping heading are back, in all three locales.** Read structurally from the built pages, counting `<div class="mrow">` and listing every `<div class="mgroup">` inside each `<div class="cmp">` block. **BEFORE** (main `b022909`, 17 fixture pages per locale): **14 rows**, **6** group headings — `Goals, Shooting, Duels, Defending, Passing, Set pieces` — and `Goalkeeping present: NO` in EN, DE and FI alike. **AFTER** (19 fixture pages per locale): **16 rows**, **7** headings with `Goalkeeping` restored, `Goalkeeping present: YES`, in EN, DE and FI. ⚠ Those heading strings are English in all three locales — a real pre-existing defect this evidence originally reported without flagging, caught by `bi-analyst-reviewer`, verified independently, and filed as GitLab **#98**. It is not caused or fixed here; see `contract.md` `decisions_reserved`. Not a spot check: across all 19 pages the w1 row counts are `[16]` and the w2 row counts are `[16]` (min 16, max 16) in every locale, and `blocks with NO Goalkeeping heading: 0`. Every page renders both windows — 38 `cmp` blocks over 19 EN pages, exactly 2 each, so no page is silently missing from that aggregate.
-  - **Criterion 2 — the 16 are confirmed by NAME, substring-safe.** Each label's occurrences on the built page minus the occurrences of any longer label containing it. EN renders exactly 16: `% Duels won, % Goals per shot on target, % Pass accuracy, % Save percentage, % Shots from box, Clean sheets, Ø Corners, Ø Corners against, Ø Defensive actions, Ø Duels, Ø Goals, Ø Goals against, Ø Key passes, Ø Passes, Ø Shots, Ø Shots on target`. DE and FI also render 16. ⭐ The method earned its keep on the BEFORE run, which reported `names a naive substring test would have FALSELY reported present: ['Ø Corners']` — the exact false positive that produced a wrong 16 on `!116`.
-  - **Criterion 3 — no old key survives in the sample.** Counted as WHOLE TOKENS, because a plain count of `points_capture` also matches inside `points_capture_pct` and reported a false 25 on the first attempt. Tallying every token matching `(points_capture|clean_sheets|corner_kicks|corners|save_ratio|saves)[a-z_0-9]*` under `site_v2/src/data/`: **`corner_kicks_per_match` 0, `save_ratio` 0, `clean_sheets_share` 0, bare `points_capture` 0** — against 183 / 181 / 97 / 25 before. The new names are present in their place: `corners_per_match` 121, `saves_pct` 119, `clean_sheets_pct` 22, `points_capture_pct` 25, plus the `_this_season` / `_prev_season` / `_delta_yoy` yoy forms at 25 each.
-  - **The before/after pair is NOT like-for-like, and that objection is answered rather than ignored.** The fixture SET changed underneath the measurement, so "14 became 16" could in principle mean nothing more than "the new fixtures carry more data". It does not, and the rendered-name sets settle it: EN before → after is `ADDED: ['% Save percentage', 'Ø Corners']`, `REMOVED: []`. The set difference is **exactly the two renamed fixture fields and nothing else** — `saves_pct` and `corners_per_match`. A richer-data effect would have added other names too; it added none. The causal claim rests on this and on the mutation below, never on the raw 14→16 pair.
-  - **Criterion 4 — the measurement was watched FAILING.** A check that passes equally on the work and on its absence is not a check. `site_v2/src/data/fixtures/1576153.json` had its 4 occurrences of `"corners_per_match"` reverted to `"corner_kicks_per_match"`, the site was rebuilt, and the reference page went **16 → 15 rows** in both windows (the aggregate widened to `[15, 16]`). `Set pieces` kept its heading, as expected — `corners_against_per_match` is its surviving sibling. The file was restored from a byte copy (`corner_kicks_per_match` 0, `corners_per_match` 4), rebuilt, and the count returned to **16** in all three locales.
-  - **Criterion 5 — the SET moves coherently.** `landing.json`, the `.gitignore` allowlist and the committed payloads all name the same 19 fixture ids. Settled by the build: `audit-seo: 67 built page(s) checked. OK.` — it fails on any internal link resolving to no emitted page, which is exactly the trap the sample's README says a local build cannot catch. Page-count driver went `/[lang]/[competition]/matches/[fixture] -> 51` before, `-> 57` after (19 × 3 locales).
+  - **Criterion 1 — no rendered metric name changed its words, in any locale.** Read back from the built fixture pages, the surface that renders the metric block. Each locale renders **15** metric names; of those, the ones the untouched CPO-validated corpus `site/i18n/<loc>.json` also declares were compared word for word — EN **8** compared, DE **9**, FI **9**, and **wording differences: NONE** in all three. The one reported divergence is pre-existing and already exempted by name in `check-metric-labels.test.mjs`: EN `finishing_efficiency` renders `% Goals per shot on target` where the corpus says `% Conversion rate`. Source pages: `site_v2/dist/<loc>/2-bundesliga/matches/2026-08-28-eintracht-braunschweig-vs-hertha-bsc/index.html`.
+  - **Criterion 2 — no old name survives in the built site or the hand-written source.** `grep -rl` over `site_v2/dist/` for all three names → **0 files** of 66 built pages plus every asset. `git grep -l` over `site_v2/src` excluding `src/data` → **0 files**. The generated sample still holds **267** occurrences: that is the declared transient, and it closes with the final refresh after F.
+  - **Criterion 3 — the label suite passes AND was watched failing.** `npm test`: **76 tests, 76 pass, 0 fail**. Then broken on purpose: the seed's `shots_inside_box_pct` row was reverted to `label_i18n_key = metrics.danger_zone_ratio.label` and the suite went **RED — 75 pass, 1 fail** — `AssertionError [ERR_ASSERTION]: label keys the catalogue does not declare in label_i18n_key: metrics.shots_inside_box_pct.label`. Restored, green again at 76/76.
+  - **Criterion 4 — the built team page still shows the absent state where these rows would sit, in all three locales.** Read from `site_v2/dist/<loc>/teams/manchester-united-fc/index.html`: EN *"Not enough games this season to rank Manchester United FC against the league."*, DE *"Zu wenige Spiele in dieser Saison, um Manchester United FC mit der Liga zu vergleichen."*, FI *"Liian vähän otteluita tällä kaudella, jotta Manchester United FC voisi verrata sarjaan."* That page's featured season has one game played, below the `>= 3 finished games` benchmark floor, so it is unchanged by the rename and is recorded so the absence is never read as a defect of it.
+
+## The declared transient came out at exactly the predicted number
+
+The contract predicted **16 → 15, no group heading lost**, written before any code was changed.
+Measured on the built site afterwards:
+
+| | before (`9e2aaf9`) | after |
+|---|---|---|
+| metric rows per comparison block, EN / DE / FI | 16 / 16 / 16 | **15 / 15 / 15** |
+| group headings | 7 | **7 — none lost** |
+| blocks with no Goalkeeping heading | 0 | **0** |
+
+Not a spot check: across all 19 fixture pages the w1 and w2 row counts are both `[15]` (min 15,
+max 15) in every locale. The rendered-name set difference isolates the cause — the only name removed
+is `danger_zone_ratio`'s label in each locale (EN `% Shots from box`, DE `% Schüsse aus dem
+Strafraum`, FI `% Laukaukset boksista`) and **nothing was added or otherwise removed**. `Shooting`
+keeps its heading because it still has 3 of its 4 rows, unlike `!116` where `saves_pct` was
+Goalkeeping's only row.
 
 ## Gates
 
 | gate | result |
 |---|---|
 | `npm test` (site_v2) | **76 tests, 76 pass, 0 fail** |
-| `node scripts/check-page-specs.mjs` | 4 pages validated against their specs — OK |
+| `node scripts/check-page-specs.mjs` | 4 pages validated — OK |
 | `astro build` | 66 pages built, `audit-seo` 67 checked — OK |
+| `sync_metric_docs_blocks.py --check` | OK (179 blocks regenerated from the seed) |
+| `export_metric_definitions_json.py` + `pytest tests/test_metric_bindings.py` | 13 definitions regenerated; **4 passed** on byte-identity |
+| `check_description_hygiene.py` | OK — 1604 descriptions, 241 docs blocks resolved, rendered lengths within 1024/16384 |
 | `check_layer_contract.py` | OK |
-| `check_registry_var_sync.py` | OK |
-| `check_competition_type_seed.py` | OK |
-| `check_copy_gate.py` | OK |
-| `check_description_hygiene.py` | OK |
-| `sync_metric_docs_blocks.py --check` | OK |
 | `check_ui_i18n_metrics.py` | OK |
-| `pytest -q` (repo root) | **1009 passed, 1 skipped, 14 subtests** — identical to the baseline measured on `b022909` before any edit, so no new failure |
-| `check_task_artifacts.py` | run against `gitlab/main`, not `origin/main` — `origin` here is the dormant GitHub remote |
+| `check_copy_gate.py` | OK |
+| `dbt parse` | clean, zero dangling `doc()` |
+| `sqlfluff lint` (all 8 changed models, from the REPO ROOT) | **All Finished!** — clean |
+| `pytest -q` (repo root) | **1009 passed, 1 skipped, 14 subtests** — identical to the count on `9e2aaf9`, so no new failure |
 
-## ⛔ THE HANDOVER'S RECIPE DID NOT WORK, AND THAT IS THE FINDING
+## The three `accepted_values` lists — checked by eye, because #96 means nothing else does
 
-The recipe said: run the export, the sample carries the new keys. Run verbatim from the repo root it
-exited **0** and reported **3,289 team + 5,066 fixture payloads written** — and changed **exactly one
-tracked file**, `teams/33.json`. Every one of the 17 committed fixture payloads was untouched, mtimes
-unchanged, still serving `corner_kicks_per_match` and `save_ratio`.
+`int_competition_benchmarks.yml:27`, `int_competition_benchmarks.yml:66`, `shared.yml:2080`.
+Each re-counted after the edit: **22 values, both new names present, zero old names, no duplicates.**
+`shot_share` is correctly NOT among the 22 — it is not a benchmarked metric and was not added.
 
-`fetch_fixture_payloads` (`scripts/export_site_data.py:806`) selects
-`status_short in ('NS', 'TBD') and fixture_date >= current_date()` — upcoming fixtures only — and the
-committed set was the 2026-08-18 matchday. **And the ids could not be re-exported at all**:
-`mart_team_momentum` and `mart_team_season_record` are keyed on `upcoming_fixture_sk` and hold
-PRE-match form, so a kicked-off fixture has no row. Queried against prod rather than assumed —
-`1492306` and `1622620` each return **0 rows from both marts**.
+## Mutations — three run, and the two that did NOT go red are the informative ones
 
-⭐ The export mechanism was never at fault, which is why the fix is a set swap and not a code change:
-of the 5,083 payloads on disk after the run, **exactly the 17 stale ones** carried the old keys and
-all **5,066** fresh ones carried `corners_per_match` / `saves_pct`.
+**Mutation 1 — stale `label_i18n_key` on `shots_on_goal_pct`. SURVIVED `npm test` (76/76 green),
+caught by `pytest`.** Not a hole, and worth stating precisely rather than filing as a defect:
+`shots_on_goal_pct` is not one of the 16 rows `metricRows.ts` binds, so the site's label test has
+nothing to check it against — correctly. The guard that did fire is
+`tests/test_metric_bindings.py::test_regenerated_json_matches_committed`, which regenerates
+`metric_definitions.json` from the seed plus the bindings and asserts byte-identity. ⭐ THE LESSON:
+"the label test is green" is only evidence for the metrics that test actually reaches. Choosing a
+non-displayed metric for the criterion-3 mutation would have proved nothing, and nearly did.
 
-⚠ **Nothing is wrong in production.** `deploy:export` runs fresh and always emits upcoming fixtures
-with whatever names prod holds. The missing rows existed only in the committed CI sample.
+**Mutation 2 — the same mutation on `shots_inside_box_pct`, which IS one of the 16. RED**, as quoted
+under criterion 3. This is the mutation criterion 3 rests on.
 
-⭐ THE RULE THIS LEAVES: **an exit code of 0 and a large "written" count are not evidence that the
-files you care about were written.** The export reported 5,066 successes while doing nothing to any
-of the 17 files the task was about. Diff the specific artifacts, never the summary line.
+**Mutation 3 — one entry of the 22-name `accepted_values` list in `shared.yml` reverted to
+`danger_zone_ratio`. SURVIVED the ENTIRE offline suite**: `sync_metric_docs_blocks.py --check`,
+`check_layer_contract.py`, `check_ui_i18n_metrics.py`, `check_description_hygiene.py` and
+`dbt parse` all green. That reproduces `!114`'s finding on this batch and is why the three lists are
+checked by eye above. Only the warehouse `accepted_values` test inside `data:build:mr` catches it.
+Filed as **#96**; not fixed here, because a new guard is a new mechanism and belongs in a task about
+the guard.
 
-## What the CPO decided, and what it cost
+## ⛔ A RENAME CLASS THAT WORD-BOUNDARY REPLACEMENT CANNOT REACH, and a gate caught it, not me
 
-Put to him as a blinded two-way fork with the measurements above: **"Roll the set forward"**. The
-`.gitignore` fixture allowlist now pins the 19 ids the fresh `landing.json` links (the 2026-08-28
-matchday, 13 competitions), the 17 stale payloads are removed, and built fixture pages go 51 → 57 at
-new URLs. 17 of the 19 carry a fully populated W1 (29/29 non-null); `1575140` (BL1) has a null W1 —
-pre-season — which exercises the absent path deliberately.
+`\b` fails against `_`, because `_` is a word character. So `\bshot_accuracy\b` does not match
+inside `home_shot_accuracy_recent`, `danger_zone_ratio_this_season`, or
+`std_team_shot_accuracy_in_range`. I anticipated the first family and handled it as an explicit
+pass; I did **not** anticipate the other two, and the rename shipped incomplete until
+`check_description_hygiene.py` went red on **six dangling `doc()` references**
+(`danger_zone_ratio_this_season__team` and its siblings). A third pass then swept the class rather
+than the instance, renaming **31 more occurrences** across two families:
 
-⚠ **The residual, restated because it governs the next four MRs.** This closes the gap for `!114` +
-`!116` only. Batches C–F rename more fixture payload fields and the count drops again on each.
-Measured now so C's expected number is known rather than guessed: of C's three names only
-`danger_zone_ratio` is one of the rendered 16 — `shot_accuracy` is a payload field the 16-row
-contract in `metricRows.ts` deliberately drops, and `shot_share` is not in the fixture payload at
-all. **C will take 16 → 15, with no heading lost** (Shooting keeps 3 of 4). A final refresh after F
-is still owed, and it must be another roll-forward, for the reason above.
+- the yoy forms `_this_season` / `_prev_season` / `_delta_yoy` and their `__team` doc-block names
+- **nine** named dbt tests: `std_team_<id>_in_range`, `momentum_team_<id>_in_range`,
+  `mmi_home_<id>_in_range`, `mmi_away_<id>_in_range`, `team_profile_<id>_in_range`
+  (precedent: `!116` renamed `momentum_team_saves_pct_in_range` the same way)
+
+⛔ ONE FORM IS PROTECTED AND WAS PROGRAMMATICALLY EXCLUDED: `<id>_recent` standing alone is the
+retired MVP's own `live_id` in `metric_bindings.csv`. `check_ui_i18n_metrics.py` maps it THROUGH the
+bindings to the catalogue id, so renaming it would break the mapping while changing nothing a
+catalogue reader sees. Verified untouched: `shot_accuracy_recent` and `danger_zone_ratio_recent`
+both still present, 3 occurrences each.
+
+⭐ THE RULE: **on an identifier rename, sweep for the metric name as a SUBSTRING of other
+identifiers, not as a whole token.** The whole-token form is what you want to CHANGE; the substring
+form is what tells you where the derived names are hiding.
+
+## Occurrence reconciliation, so nothing is silently left behind
+
+Measured before any edit, from the repo root: **412 occurrences** — `shot_accuracy` 177,
+`danger_zone_ratio` 185, `shot_share` 50 — of which **267 are the generated sample** and **145 are
+live surfaces**. Of those 145: **128** were replaced as whole tokens by the rename passes, **8** were
+cleared by REGENERATING the two generated artifacts, and **9** remain, each declared. 128 + 8 + 9 =
+145. Separately, **51** derived identifiers were replaced (20 `_recent` aliases + 31 yoy forms and
+test names); those are substrings of longer tokens and so are not part of the 145.
+
+| count | where | disposition |
+|---|---|---|
+| 6 | `dbt_project/models/docs/metric_columns.md` | **cleared** by regenerating with `sync_metric_docs_blocks.py` — 0 remain |
+| 2 | `site/match-preview/metric_definitions.json` | **cleared** by regenerating with `export_metric_definitions_json.py` — 0 remain |
+| 4 | `site/team-season/index.html` | STAYS — frozen PAGE CODE of the retired MVP; `!116` left the byte-identical construct alone |
+| 1 | `docs/working_agreement.md:348` | STAYS — Appendix A anti-pattern A1 names a **player** `shot_accuracy` that was invented and REJECTED |
+| 1 | `dbt_project/models/5_marts/shared/mart_player_profile.sql:16` | STAYS — same rejected player metric, in a comment |
+| 3 | `.claude/active_work.md` | STAYS — the handover's own batch C table, struck through in this commit |
+
+⚠ **THIS TABLE WAS WRONG IN ROUND 1 AND `bi-analyst-reviewer` CAUGHT IT.** It listed the first two
+rows under "why it stays" and counted them in a total of 17. They do not stay: regenerating cleared
+them, and a direct grep of both files returns **0**. The reconciliation had been computed at the
+moment the rename passes ran and never re-checked against the final tree — the exact failure #71
+names. Re-verified now: 9 remain, in the four files marked STAYS.
+
+⚠ ONE MORE MEASUREMENT ERROR, MINE, CAUGHT BEFORE IT REACHED THE CONTRACT. The first occurrence
+count came out 38 / 46 / 21 and looked entirely plausible. The shell was still inside `dbt_project/`
+from the `dbt ls` call, and `git grep` scopes to the CWD. CWD persists between calls; every figure
+above was re-taken with `cd /d/Projects/football-data-pipeline` asserted in the same command.
+
+⚠ AND A THIRD SUBSTRING ARTIFACT, in a throwaway diff script rather than in the evidence: an ad-hoc
+before/after comparison reported FI as 15 → 14 while the measurement itself said 16 → 15. Its regex
+required a trailing newline the output file does not have, so it dropped the last FI name from both
+sides equally. The evidence script's own counts were correct; the ad-hoc one was not, and the
+disagreement is what exposed it.

@@ -26,13 +26,13 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
           name: team_profile_yoy_structural_ratios_in_range
-      # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
+      # Provider-subset ratios (shots_inside_box_pct = inside_box/shots, pass_accuracy = accurate/total,
       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
       # where the provider reports numerator > denominator (a known API inconsistency) is not yet
       # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
       # sign-flip). Per-match count rates are unbounded, so not tested here.
       - dbt_utils.expression_is_true:
-          expression: "(danger_zone_ratio_this_season is null or danger_zone_ratio_this_season >= 0) and (pass_accuracy_this_season is null or pass_accuracy_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (danger_zone_ratio_prev_season is null or danger_zone_ratio_prev_season >= 0) and (pass_accuracy_prev_season is null or pass_accuracy_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
+          expression: "(shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0) and (pass_accuracy_this_season is null or pass_accuracy_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0) and (pass_accuracy_prev_season is null or pass_accuracy_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
           name: team_profile_yoy_subset_ratios_non_negative
     columns:
       - name: team_sk
@@ -65,8 +65,8 @@ models:
         description: "{{ doc('clean_sheets_pct_this_season__team') }}"
       - name: shots_per_match_this_season
         description: "{{ doc('shots_per_match_this_season__team') }}"
-      - name: danger_zone_ratio_this_season
-        description: "{{ doc('danger_zone_ratio_this_season__team') }}"
+      - name: shots_inside_box_pct_this_season
+        description: "{{ doc('shots_inside_box_pct_this_season__team') }}"
       - name: shots_on_goal_per_match_this_season
         description: "{{ doc('shots_on_goal_per_match_this_season__team') }}"
       - name: finishing_efficiency_this_season
@@ -100,8 +100,8 @@ models:
         description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
       - name: shots_per_match_prev_season
         description: "{{ doc('shots_per_match_prev_season__team') }}"
-      - name: danger_zone_ratio_prev_season
-        description: "{{ doc('danger_zone_ratio_prev_season__team') }}"
+      - name: shots_inside_box_pct_prev_season
+        description: "{{ doc('shots_inside_box_pct_prev_season__team') }}"
       - name: shots_on_goal_per_match_prev_season
         description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
       - name: finishing_efficiency_prev_season
@@ -132,8 +132,8 @@ models:
         description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
       - name: shots_per_match_delta_yoy
         description: "{{ doc('shots_per_match_delta_yoy__team') }}"
-      - name: danger_zone_ratio_delta_yoy
-        description: "{{ doc('danger_zone_ratio_delta_yoy__team') }}"
+      - name: shots_inside_box_pct_delta_yoy
+        description: "{{ doc('shots_inside_box_pct_delta_yoy__team') }}"
       - name: shots_on_goal_per_match_delta_yoy
         description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
       - name: finishing_efficiency_delta_yoy

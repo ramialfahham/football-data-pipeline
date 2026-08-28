@@ -50,7 +50,7 @@ models:
             - season_api_year
             - team_sk
       - dbt_utils.expression_is_true:
-          expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(shots_on_goal_pct is null or shots_on_goal_pct between 0 and 1) and (shots_inside_box_pct is null or shots_inside_box_pct between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (shots_share_pct is null or shots_share_pct between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_ratios_in_range
       # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
       # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
@@ -114,8 +114,8 @@ models:
       - name: goalkeeper_saves_sum_season
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
-      - name: shot_share
-        description: "{{ doc('shot_share') }}"
+      - name: shots_share_pct
+        description: "{{ doc('shots_share_pct') }}"
       - name: clean_sheets_pct
         description: "{{ doc('clean_sheets_pct') }}"
       - name: goals_per_match
@@ -124,10 +124,10 @@ models:
         description: "{{ doc('goals_against_per_match') }}"
       - name: shots_per_match
         description: "{{ doc('shots_per_match') }}"
-      - name: shot_accuracy
-        description: "{{ doc('shot_accuracy') }}"
-      - name: danger_zone_ratio
-        description: "{{ doc('danger_zone_ratio') }}"
+      - name: shots_on_goal_pct
+        description: "{{ doc('shots_on_goal_pct') }}"
+      - name: shots_inside_box_pct
+        description: "{{ doc('shots_inside_box_pct') }}"
       - name: shots_on_goal_per_match
         description: "{{ doc('shots_on_goal_per_match') }}"
       - name: finishing_efficiency
@@ -180,20 +180,20 @@ models:
       # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
       # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
       # construction: points_capture_pct (points <= 3*games), clean_sheets_pct (clean_sheet_games <= games),
-      # shot_share (for/(for+against)), saves_pct (saves/(saves+goals)), finishing_efficiency
+      # shots_share_pct (for/(for+against)), saves_pct (saves/(saves+goals)), finishing_efficiency
       # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
       - dbt_utils.expression_is_true:
-          expression: "(saves_pct is null or saves_pct between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(saves_pct is null or saves_pct between 0 and 1) and (shots_share_pct is null or shots_share_pct between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_cumulative_structural_ratios_in_range
-      # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
-      # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
+      # Provider-subset ratios (one provider stat over another: shots_on_goal_pct = SoT/shots,
+      # shots_inside_box_pct = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
       # won/total) are bounded >= 0 ONLY. At a low matchday a single game where the provider reports
       # numerator > denominator (a known API inconsistency, e.g. inside_box > total shots) is not yet
       # diluted, so a cumulative value > 1 is a genuine data reality — not a model bug (clamping would
       # hide it). The whole-season projection keeps strict [0,1] (dilution holds at season scale). A
       # negative would still be a real sign-flip bug.
       - dbt_utils.expression_is_true:
-          expression: "(shot_accuracy is null or shot_accuracy >= 0) and (danger_zone_ratio is null or danger_zone_ratio >= 0) and (pass_accuracy is null or pass_accuracy >= 0) and (duels_won_pct is null or duels_won_pct >= 0)"
+          expression: "(shots_on_goal_pct is null or shots_on_goal_pct >= 0) and (shots_inside_box_pct is null or shots_inside_box_pct >= 0) and (pass_accuracy is null or pass_accuracy >= 0) and (duels_won_pct is null or duels_won_pct >= 0)"
           name: int_team_season_cumulative_subset_ratios_non_negative
       - dbt_utils.expression_is_true:
           expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
@@ -250,8 +250,8 @@ models:
       - name: goalkeeper_saves_sum_season
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
-      - name: shot_share
-        description: "{{ doc('shot_share') }}"
+      - name: shots_share_pct
+        description: "{{ doc('shots_share_pct') }}"
       - name: clean_sheets_pct
         description: "{{ doc('clean_sheets_pct') }}"
       - name: goals_per_match
@@ -260,10 +260,10 @@ models:
         description: "{{ doc('goals_against_per_match') }}"
       - name: shots_per_match
         description: "{{ doc('shots_per_match') }}"
-      - name: shot_accuracy
-        description: "{{ doc('shot_accuracy') }}"
-      - name: danger_zone_ratio
-        description: "{{ doc('danger_zone_ratio') }}"
+      - name: shots_on_goal_pct
+        description: "{{ doc('shots_on_goal_pct') }}"
+      - name: shots_inside_box_pct
+        description: "{{ doc('shots_inside_box_pct') }}"
       - name: shots_on_goal_per_match
         description: "{{ doc('shots_on_goal_per_match') }}"
       - name: shots_on_goal_against_per_match
