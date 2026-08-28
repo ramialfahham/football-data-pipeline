@@ -227,7 +227,7 @@ def deserved_scatter_index(all_profile_rows: list[dict]) -> dict:
         key = (r.get("league_code"), r.get("season_api_year"))
         idx.setdefault(key, []).append({
             "team_sk": int(r["team_sk"]),
-            "sotd": r.get("sot_difference_per_match"),
+            "sotd": r.get("shots_on_goal_difference_per_match"),
             "points": r.get("points"),
             "deserved": r.get("deserved_points"),
         })

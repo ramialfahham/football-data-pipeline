@@ -107,7 +107,7 @@ select
         as games_with_sot_stats,
     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
         as games_with_opp_stats,
-    -- opponent shots-on-target coverage (cumulative): sot_difference_per_match / shots_on_goal_against_per_match
+    -- opponent shots-on-target coverage (cumulative): shots_on_goal_difference_per_match / shots_on_goal_against_per_match
     -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)
     sum(case when opponent_shots_on_goal is not null then 1 else 0 end) over w
         as games_with_opp_sot_stats,

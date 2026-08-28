@@ -5,7 +5,7 @@
   neither a SQL keyword/function (the stoplist) nor a column of the row's base_relation.
 
   Rows with a blank base_relation are skipped (the lookup and fitted / rank-derived metrics —
-  league_rank / deserved_points / deserved_rank / sot_points_gap — and the deferred entity-dual rows
+  league_rank / deserved_points / deserved_rank / deserved_points_gap — and the deferred entity-dual rows
   have no leg formula to resolve). The skip keys on base_relation being blank, never on these names,
   so the list is documentation and adding one does not require touching this test. Quoted string
   literals (e.g. result = 'W') are stripped before tokenizing; numeric literals never match the

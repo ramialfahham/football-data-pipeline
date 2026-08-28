@@ -4,10 +4,10 @@
   TEAM deserved-vs-actual read (points-space). One row per (team_sk, season_sk): the points the
   team's process deserved, versus the points it actually has.
 
-  Method (CPO-locked 2026-07-22, escalations.log): deserved signal = sot_difference_per_match
+  Method (CPO-locked 2026-07-22, escalations.log): deserved signal = shots_on_goal_difference_per_match
   (SoT for - against per match). Within each league-season, fit ordinary least squares of
   points-per-match on that signal, then deserved_points = the fitted points-per-match * the team's
-  own games played. sot_points_gap = points_won_sum_season - deserved_points, so NEGATIVE = under-
+  own games played. deserved_points_gap = points_won_sum_season - deserved_points, so NEGATIVE = under-
   performing (results lag the process) and POSITIVE = over-performing. deserved_rank = rank teams by
   deserved_points within their league-season (descending; 1 = best). TEAM only; no xG.
 
@@ -30,12 +30,12 @@
   number. The registry join now restricts this explicitly. A tournament-appropriate version is
   wanted eventually and is deliberately NOT designed here.
 
-  Composes int_team_season__metrics (the gated sot_difference_per_match plus the season points and
+  Composes int_team_season__metrics (the gated shots_on_goal_difference_per_match plus the season points and
   games-played totals — never recomputed here) and int_team_season__standings_primary. Availability
   handling lives upstream / here, never in the catalogue formula (formula-vs-availability ruling).
 
   Full-table coverage gate: deserved_points is computed only for league-seasons where EVERY team has
-  a computable sot_difference_per_match (full SoT coverage) AND an actual league rank AND at least 3
+  a computable shots_on_goal_difference_per_match (full SoT coverage) AND an actual league rank AND at least 3
   finished games (the same >= 3 threshold int_team_competition_benchmark_metrics_long uses; below it
   the fit is small-sample noise and can predict impossible point totals). Otherwise NULL for every
   team in that league-season. deserved_points is additionally NULL when the signal has no spread
@@ -72,7 +72,7 @@ with metrics as (
         league_code,
         season_api_year,
         entity_type,
-        sot_difference_per_match,
+        shots_on_goal_difference_per_match,
         points_won_sum_season,
         season_games_played,
         safe_divide(points_won_sum_season, season_games_played) as points_per_match
@@ -114,14 +114,14 @@ joined as (
 ),
 
 -- full-table coverage gate: a league-season is fittable only when EVERY team has a computable
--- sot_difference_per_match, an actual league rank, and at least 3 finished games.
+-- shots_on_goal_difference_per_match, an actual league rank, and at least 3 finished games.
 -- `distinct_actual_ranks` vs `teams` additionally detects a league whose table is NOT a single
 -- ladder — see actual_table_is_single_ladder below.
 coverage as (
     select
         league_code,
         season_sk,
-        countif(sot_difference_per_match is null) as teams_missing_sot,
+        countif(shots_on_goal_difference_per_match is null) as teams_missing_sot,
         countif(actual_rank is null) as teams_missing_rank,
         min(season_games_played) as min_games_played,
         count(*) as teams,
@@ -170,10 +170,10 @@ stats as (
     select
         g.*,
         avg(g.points_per_match) over w as mean_points_per_match,
-        avg(g.sot_difference_per_match) over w as mean_sot_difference,
+        avg(g.shots_on_goal_difference_per_match) over w as mean_sot_difference,
         stddev(g.points_per_match) over w as sd_points_per_match,
-        stddev(g.sot_difference_per_match) over w as sd_sot_difference,
-        corr(g.sot_difference_per_match, g.points_per_match) over w as corr_sot_points
+        stddev(g.shots_on_goal_difference_per_match) over w as sd_sot_difference,
+        corr(g.shots_on_goal_difference_per_match, g.points_per_match) over w as corr_sot_points
     from gated as g
     window w as (partition by g.league_code, g.season_sk)
 ),
@@ -194,7 +194,7 @@ deserved as (
             when f.league_season_fittable
                 then (
                     (f.mean_points_per_match - f.slope * f.mean_sot_difference)
-                    + f.slope * f.sot_difference_per_match
+                    + f.slope * f.shots_on_goal_difference_per_match
                 ) * f.season_games_played
         end as deserved_points
     from fitted as f
@@ -224,7 +224,7 @@ select
     league_code,
     season_api_year,
     entity_type,
-    sot_difference_per_match,
+    shots_on_goal_difference_per_match,
     points_won_sum_season,
     season_games_played,
     actual_rank,
@@ -236,5 +236,5 @@ select
     actual_table_is_single_ladder,
     deserved_rank,
     -- negative = under-performing (fewer points than the process deserved); null when not fittable
-    points_won_sum_season - deserved_points as sot_points_gap
+    points_won_sum_season - deserved_points as deserved_points_gap
 from ranked

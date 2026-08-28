@@ -278,15 +278,15 @@ def test_shape_team_payload_venue_absent_is_none():
 def test_deserved_scatter_index_groups_by_league_season_and_excludes_null():
     rows = [
         {"team_sk": 1, "league_code": "PL", "season_api_year": 2024,
-         "sot_difference_per_match": 2.4, "points": 84, "deserved_points": 77.0},
+         "shots_on_goal_difference_per_match": 2.4, "points": 84, "deserved_points": 77.0},
         {"team_sk": 2, "league_code": "PL", "season_api_year": 2024,
-         "sot_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
+         "shots_on_goal_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
         # a tournament / non-single-ladder row: deserved is null -> excluded entirely
         {"team_sk": 3, "league_code": "WC", "season_api_year": 2026,
-         "sot_difference_per_match": 1.0, "points": 6, "deserved_points": None},
+         "shots_on_goal_difference_per_match": 1.0, "points": 6, "deserved_points": None},
         # a different league-season -> its own bucket
         {"team_sk": 4, "league_code": "BL1", "season_api_year": 2024,
-         "sot_difference_per_match": 1.1, "points": 70, "deserved_points": 66.0},
+         "shots_on_goal_difference_per_match": 1.1, "points": 70, "deserved_points": 66.0},
     ]
     idx = deserved_scatter_index(rows)
     assert set(idx.keys()) == {("PL", 2024), ("BL1", 2024)}   # WC dropped (deserved null)
@@ -299,12 +299,12 @@ def test_deserved_scatter_index_groups_by_league_season_and_excludes_null():
 def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
     rows = [{"team_sk": 2, "season_api_year": 2024, "league_code": "PL",
              "team_name": "Forest", "points": 65, "deserved_points": 50.0,
-             "sot_difference_per_match": -0.3}]
+             "shots_on_goal_difference_per_match": -0.3}]
     idx = deserved_scatter_index([
         {"team_sk": 1, "league_code": "PL", "season_api_year": 2024,
-         "sot_difference_per_match": 2.4, "points": 84, "deserved_points": 77.0},
+         "shots_on_goal_difference_per_match": 2.4, "points": 84, "deserved_points": 77.0},
         {"team_sk": 2, "league_code": "PL", "season_api_year": 2024,
-         "sot_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
+         "shots_on_goal_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
     ])
     p = shape_team_payload(_mark_featured(rows), scatter_index=idx)
     sc = p["seasons"][0]["deserved_scatter"]
@@ -334,14 +334,14 @@ def test_deserved_scatter_preserves_the_fitted_line():
     sotds = [-2.0, -0.5, 0.5, 1.5, 3.0]
     league = [
         {"team_sk": i, "league_code": "PL", "season_api_year": 2024,
-         "sot_difference_per_match": x, "points": 50 + i,
+         "shots_on_goal_difference_per_match": x, "points": 50 + i,
          "deserved_points": intercept + slope * x}
         for i, x in enumerate(sotds)
     ]
     idx = deserved_scatter_index(league)
     self_rows = [{"team_sk": 2, "season_api_year": 2024, "league_code": "PL",
                   "team_name": "Self", "points": 52,
-                  "sot_difference_per_match": 0.5,
+                  "shots_on_goal_difference_per_match": 0.5,
                   "deserved_points": intercept + slope * 0.5}]
     sc = shape_team_payload(_mark_featured(self_rows), scatter_index=idx)["seasons"][0]["deserved_scatter"]
     assert len(sc) == len(sotds)

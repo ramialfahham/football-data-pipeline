@@ -209,8 +209,8 @@ export interface TeamSeason {
   season_games_played?: number | null;
   // deserved-vs-actual (domestic single-ladder only; null otherwise)
   deserved_points?: number | null;
-  sot_points_gap?: number | null;
-  sot_difference_per_match?: number | null;
+  deserved_points_gap?: number | null;
+  shots_on_goal_difference_per_match?: number | null;
   shots_on_goal_per_match?: number | null;
   shots_on_goal_against_per_match?: number | null;
   deserved_scatter?: ScatterDot[];

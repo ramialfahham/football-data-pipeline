@@ -5928,3 +5928,83 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   ⚠ SECOND-ORDER LESSON FOR THE REVIEW LOOP: a reviewer hunting for a per-name quote will keep
   finding this "gap" on every pattern-derived name in steps 4 and 5. Cite the pattern explicitly in
   the contract from the start and the question does not arise.
+
+
+2026-08-28 STEP 3, MR E — THE QUIET ONE, AND A RULE OF MINE IT DISPROVED.
+
+  `sot_difference_per_match` → `shots_on_goal_difference_per_match` (RULING 1 as corrected by
+  enumerated item 1) and `sot_points_gap` → `deserved_points_gap` (RULING 4, verbatim). Both also
+  satisfy the RULED PATTERN, which the contract cited UP FRONT this time — the lesson from D, where
+  three review rounds went on hunting for a per-name quote the pattern had already settled.
+
+  ⭐ E IS THE FIRST BATCH WHERE THE TRANSIENT DOES NOT GROW, predicted before any code and confirmed
+  on the build: neither name is among the LOCKED 16 in `metricRows.ts`, so the fixture row count
+  HELD AT 13 and the rendered-name set difference was EMPTY in all three locales. Programme running
+  total: 16 → 15 (C) → 13 (D) → 13 (E). F takes it to 12.
+  ⭐ E also has NO frozen `site/` presence at all — 0 occurrences tree-wide — so no
+  `metric_bindings.csv`, no `site/i18n` keys, no `metric_definitions.json` regeneration. The
+  simplest frozen-side batch of the six.
+
+  ⛔⛔ **A MUTATION DISPROVED A RULE I HAD RECORDED ON BATCH C. THIS ENTRY IS THE CORRECTION; THE C
+  ENTRY ITSELF STANDS EXACTLY AS IT WAS REVIEWED AND MERGED.**
+  ⚠ I first "fixed" it by editing the C block in place. `scope-auditor` FAILed that, citing
+  `docs/working_agreement.md:118` — "history stays append-only… Escalations are appended to
+  `.claude/task/escalations.log`" — and it was right. The C block belongs to a merged, already-
+  reviewed MR; rewriting it means a reader cannot tell, without diffing git, that what they are
+  reading is not what was reviewed. Reverted to verbatim; the correction lives here instead.
+  ⭐ THE DISTINCTION THAT RESOLVES THE APPARENT CONFLICT WITH THE CPO'S OWN "A CORRECTION REPLACES,
+  IT DOES NOT ACCUMULATE" RULE (`:424`): that rule governs LIVING documents — code comments,
+  contracts, evidence artifacts, issue bodies — where only the current truth should stand. This log
+  is a DATED CHRONOLOGICAL RECORD; each block is "what happened on this date". Replacing text in a
+  dated block falsifies the chronology, which is the one property the log exists to provide.
+  **Living document → replace. Dated log → append.**
+  C's entry claimed a green `npm test` "ONLY COVERS THE 16 ROWS `metricRows.ts` BINDS",
+  inferred from `shots_on_goal_pct` surviving that mutation. On E the identical mutation on
+  `shots_on_goal_difference_per_match` — ALSO not one of the 16 — went **RED at 75/1**.
+  THE ACTUAL BOUNDARY, and it took THREE attempts because I twice inferred it from behaviour instead
+  of reading the test. `site_v2/scripts/check-metric-labels.test.mjs:36-38` builds its set as
+      asked = rowKeys ∪ heroKeys
+  where `rowKeys` are the `labelKey:` entries in `src/lib/metricRows.ts` (the 16) and `heroKeys` are
+  the keys `src/components/team/DeservedHero.astro` passes to `metricLabel(lang, "…")`. Every
+  `asked` key must be declared in the seed's `label_i18n_key` COLUMN.
+  **Covered set = the 16 PLUS whatever DeservedHero asks for, and nothing else.**
+  `shots_on_goal_difference_per_match` is not one of the 16 but IS a DeservedHero key → covered.
+  `shots_on_goal_pct` is in neither → nothing asks for it → nothing can catch a stale key for it.
+  ⚠ MY SECOND ATTEMPT AT THIS RULE SAID "the `METRIC_LABELS` dicts in `strings.ts` plus the
+  `*.spec.json` files". Also wrong: `strings.ts` is the DEFINITION side, asserted in the OPPOSITE
+  direction (every label defined must be asked for), and the spec files are not read by this test at
+  all. `bi-analyst-reviewer` read the source and caught it.
+  ⭐ THE RULE, CORRECTED: **grep `metricRows.ts` AND `DeservedHero.astro` before trusting that
+  guard.** ⚠ It bites in step 4: for the 35 player renames that set is close to EMPTY — the player
+  surface is largely unbuilt — so this guard will cover almost none of them.
+  ⭐⭐ THE LESSON UNDER THE LESSON, which is the durable one: I wrote this rule twice from OBSERVED
+  BEHAVIOUR and was wrong both times about WHY, while being right both times about WHAT happened.
+  Fifteen lines of the test source settled it in one read. **When a guard's scope matters, read the
+  guard. Inferring scope from which mutations went red gives you a rule that is right about the
+  instance and wrong about the mechanism — and the mechanism is what you carry to the next batch.**
+
+  ⛔ THE ONE DECISION IN E: `sotd` IS NOT RENAMED. It is the export payload key
+  (`export_site_data.py:230`), the frontend type field (`types.ts:142`), the variable throughout
+  `DeservedHero.astro`, and decisively an **i18n PLACEHOLDER TOKEN inside translated sentences** in
+  all three locales (`strings.ts:94-95, 299-300, 476-477`). Renaming it forces edits to six
+  translated strings — wording, forbidden in a rename MR and §10. Only the COLUMN references it
+  reads from moved.
+  ⭐ THE GENERAL FORM, for F and step 4: **protect anything an i18n string interpolates.** A payload
+  key that appears as `{token}` inside a translated sentence is a wording dependency wearing an
+  identifier's clothes.
+  Also unrenamed, same class as D's bare `key_passes`: `mean_sot_difference`, `sd_sot_difference`,
+  `corr_sot_points` — local CTE aliases in the OLS block, not published columns, not metric_ids.
+
+  ⭐ THE SCRIPT GAINED A GUARD ON THE GUARD: it now ABORTS before writing if any protected token's
+  count would change. Cheap, and it fails loudly instead of corrupting a shared stem silently.
+
+  ⚠ #96 REPRODUCED FOR THE FOURTH CONSECUTIVE BATCH (`!114`, `!119`, `!120`, E): reverting one entry
+  of a 22-name `accepted_values` list survived `check_layer_contract`, `check_ui_i18n_metrics`,
+  `sync_metric_docs_blocks --check` and `check_description_hygiene`. `platform-reviewer` recommended
+  on `!120` closing it with a small offline test alongside E; that is a NEW MECHANISM and was not
+  taken here. Four reproductions is no longer evidence of a risk, it is a measurement of a hole.
+
+  ⚠ SQLFLUFF NOISE VERIFIED PRE-EXISTING RATHER THAN ASSUMED: 4 LT02 + 1 TMP on
+  `assert_metric_catalogue_expr_resolvable.sql`, caused by `run_query` being unresolvable under the
+  jinja templater. Stashed the file, re-linted it unmodified, got byte-identical output. `CLAUDE.md`
+  warns about exactly this class; checking took one command.

@@ -53,7 +53,7 @@ models:
           expression: "(shots_on_goal_pct is null or shots_on_goal_pct between 0 and 1) and (shots_inside_box_pct is null or shots_inside_box_pct between 0 and 1) and (passes_accuracy_pct is null or passes_accuracy_pct between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (shots_share_pct is null or shots_share_pct between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_ratios_in_range
       # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
-      # numerator would trip this). sot_difference_per_match is signed, so it is intentionally not range-tested.
+      # numerator would trip this). shots_on_goal_difference_per_match is signed, so it is intentionally not range-tested.
       - dbt_utils.expression_is_true:
           expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
           name: int_team_season_sot_against_non_negative
@@ -77,8 +77,8 @@ models:
         tests: [not_null]
       - name: season_games_played
         tests: [not_null]
-      - name: sot_difference_per_match
-        description: "{{ doc('sot_difference_per_match') }}"
+      - name: shots_on_goal_difference_per_match
+        description: "{{ doc('shots_on_goal_difference_per_match') }}"
       - name: shots_on_goal_against_per_match
         description: "{{ doc('shots_on_goal_against_per_match') }}"
       - name: league_sk
@@ -268,8 +268,8 @@ models:
         description: "{{ doc('shots_on_goal_per_match') }}"
       - name: shots_on_goal_against_per_match
         description: "{{ doc('shots_on_goal_against_per_match') }}"
-      - name: sot_difference_per_match
-        description: "{{ doc('sot_difference_per_match') }}"
+      - name: shots_on_goal_difference_per_match
+        description: "{{ doc('shots_on_goal_difference_per_match') }}"
       - name: finishing_efficiency
         description: "{{ doc('finishing_efficiency__team') }}"
       - name: passes_per_match
@@ -302,8 +302,8 @@ models:
       The points a team's process deserved, against the points it actually has. Grain: (team_sk,
       season_sk). DOMESTIC LEAGUES ONLY: a group-stage standing is not a comparable league rank.
 
-      Least squares fits points-per-match on sot_difference_per_match within each league-season.
-      deserved_points is that rate times the team's games played; sot_points_gap is actual minus
+      Least squares fits points-per-match on shots_on_goal_difference_per_match within each league-season.
+      deserved_points is that rate times the team's games played; deserved_points_gap is actual minus
       deserved, NEGATIVE meaning under-performing.
 
       The gap redistributes: it sums to zero across a balanced season. NULL unless every team in
@@ -333,7 +333,7 @@ models:
       # gate invariant: a non-null deserved_points means the league-season passed the full-table
       # gate, so this row's own inputs must both be present.
       - dbt_utils.expression_is_true:
-          expression: "deserved_points is null or (sot_difference_per_match is not null and actual_rank is not null)"
+          expression: "deserved_points is null or (shots_on_goal_difference_per_match is not null and actual_rank is not null)"
           name: int_team_season_deserved_points_requires_inputs
       # LEGAL-RANGE INVARIANT. A fitted value can leave the possible range when the fit is degenerate
       # (a tiny league, a signal with no spread, too few games). Asserting the invariant catches every
@@ -342,12 +342,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: "deserved_points is null or (deserved_points >= 0 and deserved_points <= 3 * season_games_played)"
           name: int_team_season_deserved_points_in_legal_range
-      # sot_points_gap null/arithmetic contract: null exactly when not fittable, else exactly
+      # deserved_points_gap null/arithmetic contract: null exactly when not fittable, else exactly
       # points_won_sum_season - deserved_points. Pins the SIGN CONVENTION, which is inverted relative
       # to the sot_rank_gap this replaced (there, positive meant under-performing).
       - dbt_utils.expression_is_true:
-          expression: "(deserved_points is null and sot_points_gap is null) or (deserved_points is not null and sot_points_gap = points_won_sum_season - deserved_points)"
-          name: int_team_season_sot_points_gap_contract
+          expression: "(deserved_points is null and deserved_points_gap is null) or (deserved_points is not null and deserved_points_gap = points_won_sum_season - deserved_points)"
+          name: int_team_season_deserved_points_gap_contract
       # SINGLE-LADDER GUARD. Wherever a deserved_rank is published, the actual ranks in that
       # league-season must be a 1..N permutation — otherwise a competition-wide deserved position is
       # being compared against a within-conference actual one. Asserted as uniqueness over the real
@@ -398,15 +398,15 @@ models:
         description: "TRUE when the league-season's actual ranks form a 1..N permutation, i.e. one table rather than conferences (MLS) or a split year of two tournaments (Apertura/Clausura). Part of the fittability gate, and emitted so a consumer can say WHY a league-season carries no deserved read at all."
       - name: deserved_rank
         description: "{{ doc('deserved_rank') }}"
-      - name: sot_points_gap
-        description: "{{ doc('sot_points_gap') }}"
+      - name: deserved_points_gap
+        description: "{{ doc('deserved_points_gap') }}"
       - name: league_sk
         description: "{{ doc('league_sk') }}"
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: entity_type
-      - name: sot_difference_per_match
-        description: "{{ doc('sot_difference_per_match') }}"
+      - name: shots_on_goal_difference_per_match
+        description: "{{ doc('shots_on_goal_difference_per_match') }}"
 
   - name: int_player_season__metrics
     description: >

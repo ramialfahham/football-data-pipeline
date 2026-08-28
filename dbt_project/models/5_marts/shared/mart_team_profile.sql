@@ -107,9 +107,9 @@ select
     -- the on-target pair behind deserved-vs-actual. Gated upstream in
     -- int_team_season__metrics_cumulative and never re-gated here:
     -- shots_on_goal_against_per_match is NULL unless OPPONENT shots-on-target data
-    -- covers every season game; sot_difference_per_match needs BOTH sides covered.
+    -- covers every season game; shots_on_goal_difference_per_match needs BOTH sides covered.
     m.shots_on_goal_against_per_match,
-    m.sot_difference_per_match,
+    m.shots_on_goal_difference_per_match,
     m.passes_key_per_match,
     m.duels_per_match,
     m.duels_won_pct,
@@ -188,13 +188,13 @@ select
     -- deserved-vs-actual (points-space; DOMESTIC LEAGUES only, so NULL for every tournament row --
     -- a within-group standing is not a comparable league position). The "actual" points are
     -- `points` above; the "actual" rank is latest_rank (same source: standings_primary).
-    -- sot_points_gap is NEGATIVE when under-performing, the inverse of the retired sot_rank_gap.
+    -- deserved_points_gap is NEGATIVE when under-performing, the inverse of the retired sot_rank_gap.
     -- All three null together. They are withheld for any table that is not a single ladder (MLS
     -- conferences, Apertura/Clausura), because there the actual rank is a within-section position
     -- and, for the split formats, the season points total sums two separate tournaments.
     d.deserved_points,
     d.deserved_rank,
-    d.sot_points_gap,
+    d.deserved_points_gap,
     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
     -- with no league season. Ruled a warehouse fact (CPO 2026-08-02), so the export and the page

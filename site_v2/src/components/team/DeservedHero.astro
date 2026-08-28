@@ -8,7 +8,7 @@
 // component ONLY maps served numbers to SVG coordinates (consumption contract): the
 // trend line is a polyline THROUGH the served `deserved` values (no re-fitting, no
 // slope math), and the self dot's vertical distance to that line is the served
-// `sot_points_gap`. When there is no scatter (non-domestic / non-single-ladder
+// `deserved_points_gap`. When there is no scatter (non-domestic / non-single-ladder
 // season, deserved_points null) it renders the honest absent state — never a broken
 // scatter.
 import { decimal1, integer, DASH } from "../../lib/format";
@@ -45,7 +45,7 @@ const nums = [
   // payload field name.
   { label: metricLabel(lang, "metrics.shots_on_target_per_match.label"), value: decimal1(s.shots_on_goal_per_match, lang) },
   { label: metricLabel(lang, "metrics.shots_on_goal_against_per_match.label"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
-  { label: metricLabel(lang, "metrics.sot_difference_per_match.label"), value: signedDec1(s.sot_difference_per_match) },
+  { label: metricLabel(lang, "metrics.shots_on_goal_difference_per_match.label"), value: signedDec1(s.shots_on_goal_difference_per_match) },
 ];
 
 // verdict: which template (over / under / in line) is the display encoding of the
@@ -62,17 +62,17 @@ let svg: {
 } | null = null;
 
 if (canPlot && self) {
-  // The verdict keys off the SIGN of the served sot_points_gap only — the catalogue's
+  // The verdict keys off the SIGN of the served deserved_points_gap only — the catalogue's
   // own documented semantics (negative = under-performed, positive = over-performed).
   // No rounding threshold / "in line" tier is invented here: classifying the gap would
   // be a result/perspective computation the consumption layer must not make.
-  const gap = s.sot_points_gap ?? 0;
+  const gap = s.deserved_points_gap ?? 0;
   const dir = gap < 0 ? "Under" : "Over";
   // The record strip already shows the actual points; the verdict speaks only to the
   // deserved value and the gap so the same number is not restated a second time.
   verdict = t(lang, `heroVerdict${dir}`, {
     team: teamName,
-    sotd: signedDec1(s.sot_difference_per_match),
+    sotd: signedDec1(s.shots_on_goal_difference_per_match),
     deserved: integer(s.deserved_points, lang),
     gap: integer(Math.abs(gap), lang),
   });
