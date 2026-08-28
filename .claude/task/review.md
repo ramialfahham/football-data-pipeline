@@ -4,9 +4,27 @@
 > `sot_difference_per_match` → `shots_on_goal_difference_per_match`,
 > `sot_points_gap` → `deserved_points_gap`. Branched from main `db47b0a` (after `!120`, batch D).
 
-diff_sha256: ede3838d7c362e4b22b44c7c24ab2956ee430090f021d8072cfb5fb4cb6ec5ad
+diff_sha256: 87ab2637af4df9522139bd8006fca9183e8ab196338ccad288fe50e90544c008
 
-rounds: 6
+rounds: 7
+
+⛔ **ROUND 7 IS A PARTIAL RE-REVIEW, ON EXPLICIT CPO AUTHORITY. Read this before the verdicts.**
+CI's `data:build:mr` FAILED after the round-6 commit attempt, on
+`int_team_season_record.sql:110 — LT05 Line is too long (123 > 120)`: the rename lengthened a `--`
+comment past the limit. **I had linted that exact file and reported it clean** — my command ended
+`| tail -3`, which truncated the LT05 away and left only sqlfluff's `All Finished!` banner, which it
+prints on failure too; the pipe also masked the exit code. The fix is a two-line comment reflow, no
+SQL touched.
+The CPO was offered a full five-reviewer re-run or a narrower option, and chose the narrower one:
+**only `analytics-engineer-reviewer` and `platform-reviewer` re-issue** — the two whose territory a
+model-file comment reflow and a lint gate actually fall in. `scope-auditor`,
+`football-analytics-expert-reviewer` and `bi-analyst-reviewer` **carry their round-6 verdicts and
+were NOT re-issued against this hash.** That is a deviation from the normal rule that every required
+reviewer binds to the current hash, it is the CPO's call and not mine, and it is named here rather
+than left for a reader to infer from the round count.
+
+rounds_cap_override_note: the override recorded below was given at round 6. Round 7 exists because
+  CI found a real defect after it, not because the loop continued on my judgement.
 
 rounds_cap_override: CPO instruction, verbatim — **"commit it once the last two pass"** — given
   after being shown, in these terms: that all five reviewers PASS with NO open findings; that every
@@ -57,6 +75,10 @@ rounds_cap_override: CPO instruction, verbatim — **"commit it once the last tw
 
 ## scope-auditor
 VERDICT: PASS
+> ⚠ **ROUND 6 VERDICT, NOT RE-ISSUED AGAINST HASH `87ab2637`.** Carried forward on CPO authority for
+> the partial round-7 re-review (see the header). It last bound to `ede3838d`; the only change since
+> is a two-line `--` comment reflow in a dbt model plus appended prose in two hash-excluded
+> artifacts. No `scope_paths`, authority citation, protection claim or number moved.
 risks_checked:
 - Round-5 finding re-verified fixed: `assert_metric_catalogue_expr_resolvable.sql:8` and `int_team_season.yml:350` now read `deserved_points_gap` / `int_team_season_deserved_points_gap_contract`; the pre-rename test name returns zero hits anywhere under `dbt_project/`.
 - Swept every remaining occurrence of both old names in `contract.md` — each is a rename mapping, a before-edit measurement, a quoted historical ruling, or an absence-assertion criterion; none misdescribes current shipped state.
@@ -69,8 +91,10 @@ risks_checked:
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
+> Round 7, re-issued against hash `87ab2637`.
 risks_checked:
-- OLS regression read in full: `corr(g.shots_on_goal_difference_per_match, g.points_per_match)` keeps x = SoG-diff and y = points (**no swap**); `slope = corr_sot_points * safe_divide(sd_points_per_match, sd_sot_difference)` unchanged; the fitted intercept-plus-slope expression unchanged. Byte-identical arithmetic, only the renamed token substituted.
+- **Round 7 (the lint fix):** `int_team_season_record.sql` has exactly one hunk — a `--` comment split across two lines; no SQL token, expression, alias, column reference or window clause touched. The reflowed comment was checked for ACCURACY, not just length: the `games_with_opp_sot_stats` counter it describes is the coverage gate at `int_team_season__metrics_cumulative.sql:114-121` for exactly the two columns the comment now names. Line-length sweep of the whole file (`.{121,}`) returns zero; the two new lines are 63 and 65 characters. No second edit slipped in alongside it.
+- **Rounds 1–2 findings, unaffected by the round-7 delta and not re-derived:** OLS regression read in full: `corr(g.shots_on_goal_difference_per_match, g.points_per_match)` keeps x = SoG-diff and y = points (**no swap**); `slope = corr_sot_points * safe_divide(sd_points_per_match, sd_sot_difference)` unchanged; the fitted intercept-plus-slope expression unchanged. Byte-identical arithmetic, only the renamed token substituted.
 - The three protected CTE aliases confirmed present, unrenamed, and not published as model columns.
 - `sotd` unrenamed and still used as-is in `export_site_data.py:230`, `types.ts`, `DeservedHero.astro` and all three locales of `strings.ts`.
 - Named test renamed correctly; no stale `sot_points_gap_contract` remains.
@@ -84,6 +108,10 @@ risks_checked:
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
+> ⚠ **ROUND 6 VERDICT, NOT RE-ISSUED AGAINST HASH `87ab2637`.** Carried forward on CPO authority for
+> the partial round-7 re-review (see the header). It last bound to `ede3838d`; the only change since
+> is a two-line `--` comment reflow in a dbt model plus appended prose. No seed row, formula,
+> direction, label or naming authority moved.
 risks_checked:
 - RULING 4 verified verbatim for `deserved_points_gap` ("1. deserved_points_gap / 2. shots_inside_box_pct / 3. shots_on_goal_pct").
 - RULING 1 plus item 1 of "THE SIX, ENUMERATED" verified verbatim for `shots_on_goal_difference_per_match`, including the CPO's "apply the suggested changes to ensure consistency" reply. Chain intact.
@@ -95,8 +123,14 @@ risks_checked:
 
 ## platform-reviewer
 VERDICT: PASS
+> Round 7, re-issued against hash `87ab2637`. **It FAILed first, then withdrew the finding on
+> evidence** — see below; the withdrawal is its own, not an override.
 risks_checked:
-- Guard identifiers verified against the tree: `assert_metric_catalogue_expr_resolvable.sql:8` and `int_team_season.yml:350` carry the post-rename names the `impact_map` now claims; `grep -r sot_points_gap dbt_project/` → zero hits.
+- **Round 7 (the lint fix):** the comment reflow verified comment-only; `3_core/` swept for any line over 120 (`.{121,}`) — zero matches, consistent with the reworded tree-wide claim.
+- **A FINDING RAISED AND THEN WITHDRAWN, recorded because the reasoning matters.** It first FAILed, claiming `mart_roster.sql:4` (124 raw chars, untouched by this branch) also violates LT05 and would gate the same unscoped `sqlfluff lint models` job. Disproved on three facts it could not gather without a shell: that file lints `exit=0`/`All Finished!`; the full-tree run returns **zero LT05 findings**; and CI's own trace named exactly one FAIL file. THE MECHANISM: `mart_roster.sql:4` sits inside a `{# … #}` JINJA comment, which the templater STRIPS before LT05 measures, whereas the line that failed was a `--` SQL comment, which survives. **Raw file length is not what LT05 measures; templated length is.** It re-checked and withdrew, identifying its own error — it had inferred that LT05 applies inside jinja comments without demonstrating it.
+- ⭐ **AND IT WAS RIGHT ABOUT SOMETHING I HAD BEEN LOOSE ON:** my log wording called the 10 remaining tree-wide FAILs "`dbt_utils`-under-jinja noise", a rule class I had inferred rather than checked per file. Reworded to what is actually evidenced — zero LT05 tree-wide, the 10 confined to untouched `3_core/` files, absent from CI's own run — which it then confirmed does not overstate.
+- ⚠ **A REAL PROPERTY IT FLAGGED THAT STANDS:** `sqlfluff lint models` is unscoped in both `data:build:mr` and `data:build:main` (`.gitlab-ci.yml:632,755`), so a pre-existing violation in an untouched file WOULD gate any MR. It does not fire here, but the exposure is real.
+- **Rounds 1–3 findings, unaffected and not re-derived:** Guard identifiers verified against the tree: `assert_metric_catalogue_expr_resolvable.sql:8` and `int_team_season.yml:350` carry the post-rename names the `impact_map` now claims; `grep -r sot_points_gap dbt_project/` → zero hits.
 - `sotd` protected-token claim read directly at `export_site_data.py:230` — literal key unchanged, only the `.get()` source column moved.
 - `tests/test_export_site_data.py` assertions bind to the new column name in their fixtures and would turn `sotd` into `None` and fail on a revert — genuine coverage of the changed branch, not happy-path only.
 - Mutation-coverage mechanism verified mechanically at `check-metric-labels.test.mjs:37-39`: `asked = rowKeys ∪ heroKeys`, and the patched `DeservedHero.astro` now calls `metricLabel(lang, "metrics.shots_on_goal_difference_per_match.label")` — so the claimed guard scope is true, not inferred from behaviour.
@@ -108,6 +142,10 @@ risks_checked:
 
 ## bi-analyst-reviewer
 VERDICT: PASS
+> ⚠ **ROUND 6 VERDICT, NOT RE-ISSUED AGAINST HASH `87ab2637`.** Carried forward on CPO authority for
+> the partial round-7 re-review (see the header). It last bound to `ede3838d`; the only change since
+> is a two-line `--` comment reflow inside a dbt model — no `site_v2/**`, `site/**` or `docs/**`
+> file, no rendered wording, and no built-page count moved.
 risks_checked:
 - `metricRows.ts` read directly: 16 rows, 7 groups, `Passing` intact with its 3 rows; neither renamed identifier present — the 13-row / 7-heading render is unaffected by this branch.
 - `sotd` and its `{sotd}` placeholder byte-identical at all six cited locations in `strings.ts` (EN/DE/FI × 2 hero sentences).

@@ -58,8 +58,13 @@ work: `fetch_fixture_payloads` emits UPCOMING fixtures only, and a kicked-off fi
 in `mart_team_momentum` / `mart_team_season_record` (queried), so a past id can never be
 re-exported. The export exits **0**, reports thousands written, and changes **nothing** you care
 about. **ROLL THE WHOLE SET FORWARD** — full recipe in `site_v2/src/data/README.md`.
-⭐ **THE RULE: exit code 0 and a big "written" count are not evidence the files you care about were
-written.** Diff the specific artifacts, never the summary line.
+⭐⭐ **NEVER PIPE A GATE THROUGH `tail`/`head`, AND NEVER READ A CLOSING BANNER AS A VERDICT.**
+Three instances in one session: the export printed `exit 0` + "5,066 written" while changing none of
+the 17 files that mattered; the evidence said "see below" for a number never written down; and
+`sqlfluff … | tail -3` truncated away an `LT05` FAIL, leaving only `All Finished!` — which sqlfluff
+prints on failure too. **`data:build:mr` caught that one, not me.** The pipe also masks the exit
+code: `$?` becomes `tail`'s. Redirect to a file and grep for the failure token, or run bare and read
+the exit code UNPIPED.
 ⚠ `git clean -fX` is BLOCKED here. Use `git ls-files --others --ignored --exclude-standard <dir>`
 as the delete set — `--others` makes it structurally unable to pick a tracked file. Dry-run first.
 ⚠ **The rendered fixture rows are drifting below the locked 16 as the batches land**: 16 → 15 (C)

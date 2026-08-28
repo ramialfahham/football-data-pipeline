@@ -429,10 +429,10 @@ index 0e78e34..57b7d68 100644
 -    is rewritten to the stronger, honest chain rather than to whichever reviewer is more convenient.
 +amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index cb050f1..3e32c13 100644
+index cb050f1..d27663d 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -5928,3 +5928,83 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+@@ -5928,3 +5928,104 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
    ⚠ SECOND-ORDER LESSON FOR THE REVIEW LOOP: a reviewer hunting for a per-name quote will keep
    finding this "gap" on every pattern-derived name in steps 4 and 5. Cite the pattern explicitly in
    the contract from the start and the question does not arise.
@@ -516,6 +516,27 @@ index cb050f1..3e32c13 100644
 +  `assert_metric_catalogue_expr_resolvable.sql`, caused by `run_query` being unresolvable under the
 +  jinja templater. Stashed the file, re-linted it unmodified, got byte-identical output. `CLAUDE.md`
 +  warns about exactly this class; checking took one command.
++
++  ⛔⛔ AND THEN CI CAUGHT A REAL LINT DEFECT I HAD REPORTED AS CLEAN — `| tail -3` DID IT.
++  `data:build:mr` FAILED on `int_team_season_record.sql:110`: `LT05 Line is too long (123 > 120)`.
++  A COMMENT that the longer name pushed over the limit — `sot_difference_per_match` →
++  `shots_on_goal_difference_per_match` is +10 characters.
++  ⚠ MY LOCAL RUN HAD LINTED THAT EXACT FILE AND I REPORTED "clean". The command ended
++  `... --dialect bigquery 2>&1 | tail -3`, and the LT05 line sat ABOVE the last three. What I read
++  was `All Finished!` — which sqlfluff prints whether or not it found violations. The pipe ALSO
++  masked the exit code: `$?` was `tail`'s, not sqlfluff's.
++  ⭐⭐ THE RULE, and it is the THIRD instance of one pattern in this single session:
++    · the export printed `exit 0` and "5,066 written" while changing none of the 17 files that
++      mattered;
++    · `acceptance_evidence.md` said "see below" for a gate whose number was never written down;
++    · and here a linter's FAIL was truncated away by `tail` while its success banner survived.
++  **NEVER PIPE A GATE THROUGH `tail`/`head`, AND NEVER READ A TOOL'S CLOSING BANNER AS ITS VERDICT.**
++  Redirect to a file and grep for the failure token, or run it bare and read the exit code UNPIPED.
++  `All Finished!`, `exit 0` and a large success count are all things a FAILING run also prints.
++  ⚠ Re-linted afterwards with the output untruncated and the exit code unmasked: the five changed
++  models come back `exit=0`, `All Finished!`, no findings. The 10 remaining FAILs in the tree are
++  all `3_core/` files this branch never touches, failing on the documented `dbt_utils`-under-jinja
++  noise that CI's dbt templater does not reproduce.
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 index 90de953..776483f 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
@@ -753,15 +774,16 @@ index 0630973..fe9d6ee 100644
          duels_per_match,
          duels_won_pct,
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
-index 37f7ae5..e1a3096 100644
+index 37f7ae5..52e7993 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
-@@ -107,7 +107,7 @@ select
+@@ -107,7 +107,8 @@ select
          as games_with_sot_stats,
      sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
          as games_with_opp_stats,
 -    -- opponent shots-on-target coverage (cumulative): sot_difference_per_match / shots_on_goal_against_per_match
-+    -- opponent shots-on-target coverage (cumulative): shots_on_goal_difference_per_match / shots_on_goal_against_per_match
++    -- opponent shots-on-target coverage (cumulative), for
++    -- shots_on_goal_difference_per_match / shots_on_goal_against_per_match:
      -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)
      sum(case when opponent_shots_on_goal is not null then 1 else 0 end) over w
          as games_with_opp_sot_stats,
@@ -1179,9 +1201,10 @@ index 66e2f08..159fd9c 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md                 |   71 +-
+#   .claude/active_work.md                 |   80 +-
 #    .claude/task/acceptance_evidence.md    |  237 ++--
 #    .claude/task/rendered_page_evidence.md |   91 +-
-#    .claude/task/review_input.patch        | 2295 ++++++++++++++------------------
-#    4 files changed, 1219 insertions(+), 1475 deletions(-)
+#    .claude/task/review.md                 |  164 ++-
+#    .claude/task/review_input.patch        | 2300 ++++++++++++++------------------
+#    5 files changed, 1323 insertions(+), 1549 deletions(-)
 # ============================================================================

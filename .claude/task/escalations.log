@@ -6008,3 +6008,34 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   `assert_metric_catalogue_expr_resolvable.sql`, caused by `run_query` being unresolvable under the
   jinja templater. Stashed the file, re-linted it unmodified, got byte-identical output. `CLAUDE.md`
   warns about exactly this class; checking took one command.
+
+  ⛔⛔ AND THEN CI CAUGHT A REAL LINT DEFECT I HAD REPORTED AS CLEAN — `| tail -3` DID IT.
+  `data:build:mr` FAILED on `int_team_season_record.sql:110`: `LT05 Line is too long (123 > 120)`.
+  A COMMENT that the longer name pushed over the limit — `sot_difference_per_match` →
+  `shots_on_goal_difference_per_match` is +10 characters.
+  ⚠ MY LOCAL RUN HAD LINTED THAT EXACT FILE AND I REPORTED "clean". The command ended
+  `... --dialect bigquery 2>&1 | tail -3`, and the LT05 line sat ABOVE the last three. What I read
+  was `All Finished!` — which sqlfluff prints whether or not it found violations. The pipe ALSO
+  masked the exit code: `$?` was `tail`'s, not sqlfluff's.
+  ⭐⭐ THE RULE, and it is the THIRD instance of one pattern in this single session:
+    · the export printed `exit 0` and "5,066 written" while changing none of the 17 files that
+      mattered;
+    · `acceptance_evidence.md` said "see below" for a gate whose number was never written down;
+    · and here a linter's FAIL was truncated away by `tail` while its success banner survived.
+  **NEVER PIPE A GATE THROUGH `tail`/`head`, AND NEVER READ A TOOL'S CLOSING BANNER AS ITS VERDICT.**
+  Redirect to a file and grep for the failure token, or run it bare and read the exit code UNPIPED.
+  `All Finished!`, `exit 0` and a large success count are all things a FAILING run also prints.
+  ⚠ Re-linted afterwards with the output untruncated and the exit code unmasked: the five changed
+  models come back `exit=0`, `All Finished!`, no findings, and a full-tree
+  `sqlfluff lint dbt_project/models` returns **ZERO LT05 findings anywhere**. The 10 remaining FAILs
+  are all `3_core/` files this branch never touches, and none of them is LT05; CI's own run under
+  the dbt templater reported exactly ONE FAIL file, mine.
+  ⚠ AN EARLIER WORDING HERE CALLED THOSE 10 "`dbt_utils`-under-jinja noise". I had INFERRED that
+  rule class rather than checked it, and `platform-reviewer` was right to push on the totality
+  claim. The evidenced statement is the narrower one above: zero LT05 tree-wide, the 10 confined to
+  untouched `3_core/` files, and absent from CI's own run.
+  ⭐ WHY A 124-CHARACTER LINE ELSEWHERE DOES *NOT* VIOLATE, since it came up and the distinction is
+  not obvious: `mart_roster.sql:4` is 124 raw characters but sits inside a `{# … #}` JINJA comment,
+  which the templater STRIPS — so it is not present in the templated output LT05 measures, and the
+  file lints clean (`exit=0`, verified). The line that DID fail was a `--` SQL comment, which
+  survives templating. **Raw file length is not what LT05 measures; templated length is.**
