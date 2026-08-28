@@ -139,7 +139,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 | % Shots from box | `shots_inside_box_pct` |
 | % Goals per shot on target | `finishing_efficiency` |
 | Ø Passes | `passes_per_match` |
-| % Pass accuracy | `pass_accuracy` |
+| % Pass accuracy | `passes_accuracy_pct` |
 | Ø Corners | `corners_per_match` |
 | Ø Corners against | `corners_against_per_match` |
 | % Save percentage | `saves_pct` |

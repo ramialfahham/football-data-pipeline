@@ -26,13 +26,13 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
           name: team_profile_yoy_structural_ratios_in_range
-      # Provider-subset ratios (shots_inside_box_pct = inside_box/shots, pass_accuracy = accurate/total,
+      # Provider-subset ratios (shots_inside_box_pct = inside_box/shots, passes_accuracy_pct = accurate/total,
       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
       # where the provider reports numerator > denominator (a known API inconsistency) is not yet
       # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
       # sign-flip). Per-match count rates are unbounded, so not tested here.
       - dbt_utils.expression_is_true:
-          expression: "(shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0) and (pass_accuracy_this_season is null or pass_accuracy_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0) and (pass_accuracy_prev_season is null or pass_accuracy_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
+          expression: "(shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0) and (passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0) and (passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
           name: team_profile_yoy_subset_ratios_non_negative
     columns:
       - name: team_sk
@@ -79,10 +79,10 @@ models:
         description: "{{ doc('defensive_actions_per_match_this_season__team') }}"
       - name: passes_per_match_this_season
         description: "{{ doc('passes_per_match_this_season__team') }}"
-      - name: pass_accuracy_this_season
-        description: "{{ doc('pass_accuracy_this_season__team') }}"
-      - name: key_passes_per_match_this_season
-        description: "{{ doc('key_passes_per_match_this_season__team') }}"
+      - name: passes_accuracy_pct_this_season
+        description: "{{ doc('passes_accuracy_pct_this_season__team') }}"
+      - name: passes_key_per_match_this_season
+        description: "{{ doc('passes_key_per_match_this_season__team') }}"
       - name: corners_per_match_this_season
         description: "{{ doc('corners_per_match_this_season__team') }}"
       - name: corners_against_per_match_this_season
@@ -114,10 +114,10 @@ models:
         description: "{{ doc('defensive_actions_per_match_prev_season__team') }}"
       - name: passes_per_match_prev_season
         description: "{{ doc('passes_per_match_prev_season__team') }}"
-      - name: pass_accuracy_prev_season
-        description: "{{ doc('pass_accuracy_prev_season__team') }}"
-      - name: key_passes_per_match_prev_season
-        description: "{{ doc('key_passes_per_match_prev_season__team') }}"
+      - name: passes_accuracy_pct_prev_season
+        description: "{{ doc('passes_accuracy_pct_prev_season__team') }}"
+      - name: passes_key_per_match_prev_season
+        description: "{{ doc('passes_key_per_match_prev_season__team') }}"
       - name: corners_per_match_prev_season
         description: "{{ doc('corners_per_match_prev_season__team') }}"
       - name: corners_against_per_match_prev_season
@@ -146,10 +146,10 @@ models:
         description: "{{ doc('defensive_actions_per_match_delta_yoy__team') }}"
       - name: passes_per_match_delta_yoy
         description: "{{ doc('passes_per_match_delta_yoy__team') }}"
-      - name: pass_accuracy_delta_yoy
-        description: "{{ doc('pass_accuracy_delta_yoy__team') }}"
-      - name: key_passes_per_match_delta_yoy
-        description: "{{ doc('key_passes_per_match_delta_yoy__team') }}"
+      - name: passes_accuracy_pct_delta_yoy
+        description: "{{ doc('passes_accuracy_pct_delta_yoy__team') }}"
+      - name: passes_key_per_match_delta_yoy
+        description: "{{ doc('passes_key_per_match_delta_yoy__team') }}"
       - name: corners_per_match_delta_yoy
         description: "{{ doc('corners_per_match_delta_yoy__team') }}"
       - name: corners_against_per_match_delta_yoy

@@ -4,9 +4,9 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-28**. **main `9e2aaf9`** (after `!118`, the sample refresh). The METRIC
-CATALOGUE NAMING PROGRAMME step 3: **4 of 12 team renames merged** (`!114` + `!116`), and **batch C
-is BUILT on `refactor/metric-rename-team-shooting-shares`** — 3 more renames, awaiting review/merge.
+_Last updated **2026-08-28**. **main `62d3b18`** (after `!119`, batch C). The METRIC CATALOGUE
+NAMING PROGRAMME step 3: **7 of 12 team renames merged** (`!111`, `!112`, `!114`, `!116`, `!119`),
+and **batch D is BUILT on `refactor/metric-rename-team-passing`** — 2 more, awaiting review/merge.
 `#92` FIXED (`!115`). The export sample was rolled forward by `!118` to 19 fixture payloads.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
@@ -30,6 +30,17 @@ dangling `doc()` refs; a third pass then swept **31 more occurrences** across th
 have **0**. So D and F BOTH need the derived-identifier pass; E does not.
 ⛔ **PROTECT `<id>_recent` STANDING ALONE** — the retired MVP's `live_id` in `metric_bindings.csv`.
 `check_ui_i18n_metrics.py` maps it THROUGH the bindings. `home_`/`away_` forms are NOT protected.
+⭐ **D's METHOD IS THE ONE TO COPY FOR E, F AND ALL 35 PLAYER RENAMES: classify every token
+containing the stem ONCE and PRINT the decision** (D: 147 renamed, 34 protected). A reviewer can
+check a decision list; nobody can check an exclusion you kept in your head. Re-count every protected
+token against `git grep <base-sha>` afterwards, never against a number you wrote down — that caught
+a slip of mine mid-check on D.
+⛔ **F WILL NEED THE SAME PROTECTION WORK AS D**: `finishing_efficiency` exists for BOTH entities,
+so the player rows must be excluded token by token exactly as `pass_accuracy_pct` was in D.
+⚠ **CATALOGUE-ONLY IS IMPOSSIBLE for the 12** and the CPO asked why — the answer, if it comes up
+again: `assert_no_uncatalogued_season_metric.sql` requires every metric-bearing column of
+`int_team_season__metrics` to be a registered `metric_id`, so moving the id without the column turns
+`data:build:mr` red. That is what separates these from `!111`/`!112`, which were seed-only.
 ⭐ **A GREEN `npm test` ONLY COVERS THE 16 ROWS `metricRows.ts` BINDS.** Mutating a NON-displayed
 metric's `label_i18n_key` left it 76/76 green; `tests/test_metric_bindings.py` caught it instead.
 Pick a DISPLAYED metric for the criterion-3 mutation or it proves nothing.
@@ -37,26 +48,20 @@ Pick a DISPLAYED metric for the criterion-3 mutation or it proves nothing.
 `dbt_project/` returned 38/46/21 against a true 177/185/50. Assert `cd <repo root>` in the same
 command as any counting grep.
 
-## ⛔ WHAT THE REFRESH TAUGHT — read before ever refreshing the sample again
+## ⛔ THE SAMPLE REFRESH — a FINAL one is owed after F
 
-## ⛔ WHAT THE REFRESH TAUGHT — read before ever refreshing the sample again
-
-⛔ **THE OBVIOUS RECIPE IS A TRAP AND IT COST A ROUND.** "Rerun the export and the committed
-payloads update" **CANNOT WORK** for a fixture. `fetch_fixture_payloads`
-(`scripts/export_site_data.py:806`) selects `status_short in ('NS','TBD') and fixture_date >=
-current_date()` — UPCOMING ONLY. The export exited **0**, reported **5,066 fixture payloads
-written**, and changed **not one** of the 17 committed files.
-⛔ **AND A PAST ID CAN NEVER BE RE-EXPORTED**: `mart_team_momentum` / `mart_team_season_record` are
-keyed on `upcoming_fixture_sk` and hold PRE-match form, so a kicked-off fixture has **0 rows** in
-both (queried). **ROLL THE WHOLE SET FORWARD** — regenerate `landing.json`, rewrite the `.gitignore`
-allowlist to exactly its ids (**replace, never append**), `git rm` the departed payloads, drop the
-ignored bulk, rebuild. Full recipe now lives in `site_v2/src/data/README.md`.
-⭐ **THE RULE: an exit code of 0 and a big "written" count are not evidence the files you care about
-were written.** Diff the specific artifacts, never the summary line.
-⚠ `git clean -fX` is BLOCKED in this environment. Use a scoped equivalent driven by
-`git ls-files --others --ignored --exclude-standard <dir>` — git's own listing, `--others` makes it
-structurally unable to pick a tracked file. Dry-run it first.
-⚠ **A FINAL REFRESH AFTER F IS STILL OWED**, and it must be another roll-forward.
+⛔ **THE OBVIOUS RECIPE IS A TRAP.** "Rerun the export and the committed payloads update" CANNOT
+work: `fetch_fixture_payloads` emits UPCOMING fixtures only, and a kicked-off fixture has **0 rows**
+in `mart_team_momentum` / `mart_team_season_record` (queried), so a past id can never be
+re-exported. The export exits **0**, reports thousands written, and changes **nothing** you care
+about. **ROLL THE WHOLE SET FORWARD** — full recipe in `site_v2/src/data/README.md`.
+⭐ **THE RULE: exit code 0 and a big "written" count are not evidence the files you care about were
+written.** Diff the specific artifacts, never the summary line.
+⚠ `git clean -fX` is BLOCKED here. Use `git ls-files --others --ignored --exclude-standard <dir>`
+as the delete set — `--others` makes it structurally unable to pick a tracked file. Dry-run first.
+⚠ **The rendered fixture rows are drifting below the locked 16 as the batches land**: 16 → 15 (C)
+→ 13 (D). E touches no fixture payload field so it holds at 13; F takes it to 12. Honest-absent,
+not broken — closes with the final refresh.
 ⚠ **GitLab #98 opened**: the seven metric GROUP HEADINGS render in ENGLISH on DE/FI
 (`MetricComparison.astro:40`, `TeamPerformance.astro:89`/`:110`). Pre-existing, §10 (the words are
 the CPO's), NOT fixed. `TeamSquad.astro:99` already does it right — copy that pattern.
@@ -70,7 +75,7 @@ MRs were FAILed for citing one.** Remaining, verbatim from its "TEAM, 12 REMAINI
 | MR | renames |
 |---|---|
 | ~~**C** shooting shares~~ | ~~`shot_accuracy`→`shots_on_goal_pct` · `danger_zone_ratio`→`shots_inside_box_pct` · `shot_share`→`shots_share_pct`~~ **BUILT, awaiting merge** |
-| **D** passing | `pass_accuracy`→`passes_accuracy_pct` · `key_passes_per_match`→`passes_key_per_match` |
+| ~~**D** passing~~ | ~~`pass_accuracy`→`passes_accuracy_pct` · `key_passes_per_match`→`passes_key_per_match`~~ **BUILT, awaiting merge** |
 | **E** deserved chain | `sot_difference_per_match`→`shots_on_goal_difference_per_match` · `sot_points_gap`→`deserved_points_gap` |
 | **F** alone | `finishing_efficiency`→`finishing_efficiency_pct` |
 

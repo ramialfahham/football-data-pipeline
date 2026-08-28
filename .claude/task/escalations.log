@@ -5816,3 +5816,115 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   needed a trailing newline the output file lacks and dropped the last name from both sides. The
   disagreement between two counts is what exposed it — which is the argument for always measuring
   the same thing two independent ways.
+
+
+2026-08-28 STEP 3, MR D — AND A CHALLENGE FROM THE CPO THAT WAS WORTH ANSWERING PROPERLY.
+
+  Batch D shipped `pass_accuracy` → `passes_accuracy_pct` and `key_passes_per_match` →
+  `passes_key_per_match`. No new naming decision; RULING 1 as corrected by enumerated item 6, and
+  RULING 6 as reversed by the CPO's own higher-order "ensure consistency here as well". The
+  transient landed on the predicted number again: **15 → 13, no group heading lost**, predicted in
+  the contract before any code.
+
+  ⭐⭐ THE CPO CHALLENGED THE WHOLE APPROACH, and the answer belongs in the record because it will be
+  asked again. His words: **"We need to rename the metrics in the catalogue. I'm not sure why you
+  are digging into the models at the same time. You are drifting?"**
+  The answer is that a catalogue-only rename is IMPOSSIBLE for these twelve, and it is mechanical
+  rather than a matter of judgement. `dbt_project/tests/assert_no_uncatalogued_season_metric.sql`
+  says so in its own header: "every metric-bearing column must be registered in metric_catalogue.
+  The test FAILS (returns rows) if a model computes a metric that is not catalogued." Move the
+  `metric_id` and leave the column and that test goes red in `data:build:mr`. This log already said
+  the same thing in the "TEAM, 12 REMAINING" preamble — "Every one is a COMPUTED COLUMN in the
+  season models, so unlike the three above each runs through model SQL, the ymls, the marts and the
+  site" — and it is exactly what separates these twelve from `!111`/`!112`, which WERE seed-only.
+  ⚠ THE FAIR HALF OF HIS CHALLENGE, and it was fair: I had read into `int_player_profile__yoy.sql`
+  and `mart_player_profile.sql`, which this MR does not touch, and presented the paths without
+  saying why. That reads as scope creep. The reason was narrow — working out what must NOT be
+  renamed — and I should have framed it as hazard-mapping rather than as a file list.
+  ⭐ THE RULE: **when a read goes outside the edit set, say what it is FOR in the same breath.**
+  A list of files a reviewer or the CPO cannot place looks like drift whether or not it is.
+
+  ⛔ AND A CORRECTION OF MINE HE CAUGHT. I wrote that bare `key_passes` "sits alongside
+  `tackles`/`interceptions`/`blocks`". He replied that key passes have nothing to do with those
+  three, which are defensive actions. He is right about the football. What I meant was STRUCTURAL —
+  four consecutive, identically shaped lines in `int_team_season__metrics_cumulative.sql:150-154`,
+  each a bare aggregate input over `games_with_player_stats` — and the structural point is what
+  justifies leaving bare `key_passes` unrenamed. The phrasing implied a semantic family and was
+  wrong. ⭐ THE RULE: **do not borrow a similarity from one axis to argue a point on another without
+  naming the axis.**
+
+  ⭐ THE PROTECTION PROBLEM, which is what made D harder than C. Three different things share these
+  stems, and the substring pass that COMPLETED C would have corrupted all of them:
+    · `pass_accuracy_pct` (51) is the PLAYER metric, a step-4 name — a sweep makes it
+      `passes_accuracy_pct_pct`
+    · `key_passes_this_season` / `_prev_season` / `_prev_season_full` / `_delta_yoy` (23) are PLAYER
+      yoy forms, verified by reading WHICH MODEL they sit in, not by guessing from the name
+    · four PLAYER test names `*_pass_accuracy_pct_in_range`
+    · `pass_accuracy_recent` STANDING ALONE is the retired MVP's live_id; the `home_`/`away_` forms
+      are not protected and were renamed
+  Handled by classifying EVERY token containing a stem once and printing the decision — 147 renamed,
+  34 protected — so the protection is auditable instead of being a trusted exclusion list.
+  ⭐ THE RULE: **on a rename whose stem is shared, print the classification, not just the diff.**
+  A reviewer can check a decision list; they cannot check an exclusion you kept in your head.
+
+  ⚠ EVERY PROTECTED TOKEN WAS RE-COUNTED AGAINST THE BASE COMMIT, not against a number I had written
+  down. That caught my own slip mid-check: I recorded `passes_key`'s baseline as 15 when 15 was
+  `key_passes`, a different token. `git grep <base-sha>` settled it in one command. This is the same
+  discipline #71 asks for and the same one `bi-analyst-reviewer` FAILed `!119` round 1 for missing.
+
+  ⚠ #96 REPRODUCED FOR THE THIRD BATCH RUNNING (`!114`, `!119`, D): reverting one entry of a 22-name
+  `accepted_values` list survived `check_layer_contract`, `check_ui_i18n_metrics`,
+  `sync_metric_docs_blocks --check` AND `check_description_hygiene`. Three independent
+  reproductions; only `data:build:mr` catches it.
+
+  ⚠ THE CWD TRAP FIRED AGAIN, twice in one session, despite already being in the handover: a
+  `sqlfluff` run inherited `dbt_project/` from a preceding `dbt` call and reported "path does not
+  exist". Harmless because it failed loudly — but on C the same trap produced WRONG NUMBERS that
+  looked right. A tool that fails loudly under this trap is lucky, not safe.
+
+  ⛔⛔ AND THE FIFTH TIME THIS PROGRAMME HAS BEEN FAILED ON NAMING AUTHORITY — this time on
+  `key_passes_per_match` → `passes_key_per_match`, and `football-analytics-expert-reviewer` was
+  right. My contract cited it as "RULING 6 as reversed by the higher-order instruction". RULING 6
+  verbatim is **"key_passes_player"**, reversed to `passes_key_player` — the **PLAYER** metric
+  throughout. It never names the team metric. I cited a player ruling as authority for a team name.
+  ⚠ AND THE REVIEWER WENT ONE STEP FURTHER, which is the part worth keeping: this rename is NOT
+  among "THE SIX, ENUMERATED" — the list that exists *specifically* because scope-auditor FAILed two
+  earlier branches for "the builder's own unrecorded reconstruction dressed as the record". So the
+  defect that round was built to cure had simply reappeared on a different name.
+  ⭐ TWO REVIEWERS SPLIT ON IT, and both readings belong in the record. `scope-auditor` read the same
+  citation and PASSED, on three grounds: it is "a direct application of an approved general rule
+  rather than an unapproved new naming decision" (the same reasoning two reviewers used for
+  enumerated items 4/5); the CPO engaged with this exact MR mid-flight and challenged the SCOPE, not
+  the name; and no data, label or layer outcome turns on the choice.
+  ⛔⛔ AND THEN I MADE IT WORSE BEFORE I MADE IT BETTER. My round-2 fix replaced the false RULING-6
+  citation with a claim that the load-bearing authority was the CPO approving THIS MR's plan, quoting
+  his "then go ahead". BOTH `football-analytics-expert-reviewer` AND `analytics-engineer-reviewer`
+  FAILed round 2 on that, independently, and both were right: I recorded the APPROVAL without
+  reproducing the TABLE it answered, so from the record it is unverifiable — and the identical
+  phrase appears at line 5618 answering a completely different question. The quote is real (he did
+  say it, approving the plan) but an approval is only checkable authority when what it approved is
+  quoted beside it. That is this log's own 2026-08-26 rule, broken by me for the second time in one
+  merge request.
+  ⚠ I THEN ESCALATED THE NAME TO THE CPO as an open §10 question. His reply, verbatim and entirely
+  deserved: **"we have defined it. you should be able to look it up, no?"**
+
+  ⭐⭐ THE AUTHORITY WAS IN THE RECORD THE WHOLE TIME, AND IT IS NEITHER OF THE THINGS I CITED.
+  `escalations.log:5483-5485`, verbatim:
+      "⭐ THE PATTERN THIS PRODUCES, to be applied to any metric added later:
+           noun [_qualifier] [_against] [_player] [_form]
+       `_form` is `_per_match` for a team, `_per90` for a player, `_pct` for a percentage."
+  Applied: noun `passes` (the family noun already fixed by `passes_total`, `passes_accurate`,
+  `passes_key`, `passes_per_match`) + qualifier `key` + team form `_per_match` =
+  **`passes_key_per_match`**, uniquely. No other pattern-consistent name exists.
+
+  ⭐⭐ THE RULE, and it is the one worth carrying into step 4's THIRTY-FIVE player renames:
+  **WHEN A RULING IS A PATTERN, THE PATTERN IS THE AUTHORITY FOR EVERY NAME IT DETERMINES.**
+  The CPO's own stated purpose for it was exactly this — "so we are able to write down a pattern in
+  case we will have to add new metrics". He replaced per-name rulings with a rule. Hunting for a
+  per-instance quote where a general rule already decides the name does not make the citation more
+  rigorous; it MANUFACTURES A GAP, and I then escalated the manufactured gap back to him. Two
+  reviewers were correct that my citations were bad, and all three of us were wrong that the name
+  lacked authority.
+  ⚠ SECOND-ORDER LESSON FOR THE REVIEW LOOP: a reviewer hunting for a per-name quote will keep
+  finding this "gap" on every pattern-derived name in steps 4 and 5. Cite the pattern explicitly in
+  the contract from the start and the question does not arise.

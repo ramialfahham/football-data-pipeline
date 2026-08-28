@@ -132,7 +132,7 @@ select
     case
         when games_with_team_stats < games_played then null
         else safe_divide(passes_accurate, passes_total)
-    end as pass_accuracy,
+    end as passes_accuracy_pct,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(corner_kicks, games_with_team_stats)
@@ -147,7 +147,7 @@ select
             goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
         )
     end as saves_pct,
-    safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
+    safe_divide(key_passes, games_with_player_stats) as passes_key_per_match,
     safe_divide(tackles, games_with_player_stats) as tackles_per_match,
     safe_divide(interceptions, games_with_player_stats)
         as interceptions_per_match,

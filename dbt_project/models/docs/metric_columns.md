@@ -771,34 +771,6 @@ minutes is zero.
 {% enddocs %}
 
 
-{% docs key_passes_per_match %}
-Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-{% enddocs %}
-
-
-{% docs key_passes_per_match_delta_yoy__team %}
-Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-The change from the previous season to the current one, compared at the same point of the
-campaign: the current value minus the previous one. NULL when either side is missing, which
-covers a competition that carries no year-on-year comparison, a prior season that was never
-loaded, and a season whose first matches are not fully stat-covered.
-{% enddocs %}
-
-
-{% docs key_passes_per_match_prev_season__team %}
-Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-Value for the season before, through the same number of matches as the current season has
-played so far, so the two are compared at the same point of a campaign rather than a part
-season against a full one.
-{% enddocs %}
-
-
-{% docs key_passes_per_match_this_season__team %}
-Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-Value for the season now in progress, accumulated through the matches played so far.
-{% enddocs %}
-
-
 {% docs last_meeting_goals_against__player %}
 Goals conceded by the team while the player was on the pitch (GK-relevant). Taken from the most
 recent previous meeting between these two teams.
@@ -850,12 +822,18 @@ Total shots (on and off target). Measured for the opposing team rather than this
 {% enddocs %}
 
 
-{% docs pass_accuracy %}
+{% docs pass_accuracy_pct %}
+Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier
+passing game weighs more. Null when passes_total is zero.
+{% enddocs %}
+
+
+{% docs passes_accuracy_pct %}
 Share of passes successfully completed. Null when passes_total is zero.
 {% enddocs %}
 
 
-{% docs pass_accuracy_delta_yoy__team %}
+{% docs passes_accuracy_pct_delta_yoy__team %}
 Share of passes successfully completed. Null when passes_total is zero. The change from the
 previous season to the current one, compared at the same point of the campaign: the current
 value minus the previous one. NULL when either side is missing, which covers a competition that
@@ -864,20 +842,14 @@ first matches are not fully stat-covered.
 {% enddocs %}
 
 
-{% docs pass_accuracy_pct %}
-Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier
-passing game weighs more. Null when passes_total is zero.
-{% enddocs %}
-
-
-{% docs pass_accuracy_prev_season__team %}
+{% docs passes_accuracy_pct_prev_season__team %}
 Share of passes successfully completed. Null when passes_total is zero. Value for the season
 before, through the same number of matches as the current season has played so far, so the two
 are compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
-{% docs pass_accuracy_this_season__team %}
+{% docs passes_accuracy_pct_this_season__team %}
 Share of passes successfully completed. Null when passes_total is zero. Value for the season
 now in progress, accumulated through the matches played so far.
 {% enddocs %}
@@ -897,6 +869,34 @@ per-fixture rounding error. Totalled over the season.
 
 {% docs passes_key %}
 Key passes. API definition: a pass leading directly to a shot.
+{% enddocs %}
+
+
+{% docs passes_key_per_match %}
+Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
+{% enddocs %}
+
+
+{% docs passes_key_per_match_delta_yoy__team %}
+Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
+The change from the previous season to the current one, compared at the same point of the
+campaign: the current value minus the previous one. NULL when either side is missing, which
+covers a competition that carries no year-on-year comparison, a prior season that was never
+loaded, and a season whose first matches are not fully stat-covered.
+{% enddocs %}
+
+
+{% docs passes_key_per_match_prev_season__team %}
+Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
+Value for the season before, through the same number of matches as the current season has
+played so far, so the two are compared at the same point of a campaign rather than a part
+season against a full one.
+{% enddocs %}
+
+
+{% docs passes_key_per_match_this_season__team %}
+Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
+Value for the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 

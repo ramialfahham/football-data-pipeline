@@ -97,8 +97,8 @@ export const METRIC_ROWS: MetricRowDef[] = [
   // metric name, so it is outside this task's criteria — recorded in the contract as residual.
   { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
   { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
-  { field: "pass_accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
-  { field: "key_passes_per_match", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
+  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
   { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
   { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
   { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },

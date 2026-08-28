@@ -46,8 +46,8 @@ unpivot (
         interceptions_per_match,
         blocks_per_match,
         passes_per_match,
-        pass_accuracy,
-        key_passes_per_match,
+        passes_accuracy_pct,
+        passes_key_per_match,
         corners_per_match,
         corners_against_per_match,
         saves_pct
