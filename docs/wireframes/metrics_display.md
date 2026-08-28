@@ -141,8 +141,8 @@ Set pieces → Goalkeeping.
 | 9 | % Duels won | `duels_won_pct` | Duels | 2 | live |
 | 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
 | 11 | Ø Passes | `passes_per_match` | Passing | 3 | live |
-| 12 | % Pass accuracy | `pass_accuracy` | Passing | 2 | live |
-| 13 | Ø Key passes | `key_passes_per_match` | Passing | 2 | live |
+| 12 | % Pass accuracy | `passes_accuracy_pct` | Passing | 2 | live |
+| 13 | Ø Key passes | `passes_key_per_match` | Passing | 2 | live |
 | 14 | Ø Corners | `corners_per_match` | Set pieces | 3 | live |
 | 15 | Ø Corners against | `corners_against_per_match` | Set pieces | 3 | live |
 | 16 | % Save percentage | `saves_pct` | Goalkeeping | 2 | live |

@@ -123,8 +123,8 @@ models:
         description: "{{ doc('shots_on_goal_pct') }}"
       - name: finishing_efficiency
         description: "{{ doc('finishing_efficiency__team') }}"
-      - name: pass_accuracy
-        description: "{{ doc('pass_accuracy') }}"
+      - name: passes_accuracy_pct
+        description: "{{ doc('passes_accuracy_pct') }}"
       - name: passes_per_match
         description: "{{ doc('passes_per_match') }}"
       - name: corners_per_match
@@ -177,11 +177,11 @@ models:
           expression: "away_finishing_efficiency_recent is null or (away_finishing_efficiency_recent between 0 and 1)"
           name: mmi_away_finishing_efficiency_in_range
       - dbt_utils.expression_is_true:
-          expression: "home_pass_accuracy_recent is null or (home_pass_accuracy_recent between 0 and 1)"
-          name: mmi_home_pass_accuracy_in_range
+          expression: "home_passes_accuracy_pct_recent is null or (home_passes_accuracy_pct_recent between 0 and 1)"
+          name: mmi_home_passes_accuracy_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "away_pass_accuracy_recent is null or (away_pass_accuracy_recent between 0 and 1)"
-          name: mmi_away_pass_accuracy_in_range
+          expression: "away_passes_accuracy_pct_recent is null or (away_passes_accuracy_pct_recent between 0 and 1)"
+          name: mmi_away_passes_accuracy_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "home_saves_pct_recent is null or (home_saves_pct_recent between 0 and 1)"
           name: mmi_home_saves_pct_in_range
@@ -308,9 +308,9 @@ models:
           goals) over shots on goal, across a fully shot-covered window. Range 0 to 1.
       - name: away_finishing_efficiency_recent
         description: "Away: open-play goal conversion (open-play goals / shots on goal, in [0, 1])."
-      - name: home_pass_accuracy_recent
+      - name: home_passes_accuracy_pct_recent
         description: "Home: accurate passes / total passes."
-      - name: away_pass_accuracy_recent
+      - name: away_passes_accuracy_pct_recent
         description: "Away: accurate passes / total passes."
       - name: home_passes_per_match_recent
         description: "Home: total passes per game with team stats."

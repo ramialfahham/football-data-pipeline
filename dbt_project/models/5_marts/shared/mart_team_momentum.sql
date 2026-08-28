@@ -12,7 +12,7 @@
   Grain: (upcoming_fixture_sk, team_sk).
 
   league_rank is not computed here — it comes from the standings surface (#322).
-  player-derived metrics (key_passes_per_match through duels_won_pct) are
+  player-derived metrics (passes_key_per_match through duels_won_pct) are
   NULL when no player stats exist for the window (coverage gap, honest absence).
 #}
 
@@ -83,7 +83,7 @@ select
     case
         when b.games_with_team_stats < b.games_in_window then null
         else safe_divide(b.passes_accurate, b.passes_total)
-    end as pass_accuracy,
+    end as passes_accuracy_pct,
     -- set pieces (team-stat window; conceded uses opponent-stat coverage): NULL on partial coverage
     case
         when b.games_with_team_stats < b.games_in_window then null
@@ -104,7 +104,7 @@ select
     -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
     -- gated) — these are player data, and missing player stats must not blank a team stat
     -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
-    safe_divide(b.key_passes, b.games_with_player_stats) as key_passes_per_match,
+    safe_divide(b.key_passes, b.games_with_player_stats) as passes_key_per_match,
     safe_divide(b.tackles, b.games_with_player_stats) as tackles_per_match,
     safe_divide(b.interceptions, b.games_with_player_stats)
         as interceptions_per_match,

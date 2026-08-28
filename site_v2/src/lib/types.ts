@@ -12,7 +12,7 @@ export interface WindowStats {
   draws?: number | null;             // W2
   losses?: number | null;            // W2
   season_api_year?: number | null;
-  // metric fields (goals_per_match, pass_accuracy, clean_sheets, games, …)
+  // metric fields (goals_per_match, passes_accuracy_pct, clean_sheets, games, …)
   [key: string]: number | string | string[] | null | undefined;
 }
 

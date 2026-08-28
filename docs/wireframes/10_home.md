@@ -172,7 +172,7 @@ was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_o
 | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
 | Ø Shots on target difference | `sot_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency` | `sot_difference_per_match` |
 | Ø Defensive actions | `defensive_actions_per_match` | descending |
-| Ø Passes | `pass_accuracy` · `key_passes_per_match` · `passes_per_match` | `passes_per_match` |
+| Ø Passes | `passes_accuracy_pct` · `passes_key_per_match` · `passes_per_match` | `passes_per_match` |
 | Ø Duels | `duels_per_match` · `duels_won_pct` | `duels_per_match` |
 
 The mirror of the player rule does NOT hold here: team metrics are almost all per-match rates, so

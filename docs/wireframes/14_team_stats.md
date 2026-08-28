@@ -146,7 +146,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
 | Shooting | `shots_per_match` · `shots_inside_box_pct` (%) · `shots_on_goal_per_match` · `finishing_efficiency` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
 | Duels | `duels_per_match` · `duels_won_pct` (%) |
 | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
-| Passing | `passes_per_match` · `pass_accuracy` (%) · `key_passes_per_match` |
+| Passing | `passes_per_match` · `passes_accuracy_pct` (%) · `passes_key_per_match` |
 | Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
 | Goalkeeping | `saves_pct` (%) |
 

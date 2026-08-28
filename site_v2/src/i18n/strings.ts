@@ -629,8 +629,8 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.duels_won_pct.label": "% Duels won",
   "metrics.defensive_actions_per_match.label": "Ø Defensive actions",
   "metrics.passes_per_match.label": "Ø Passes",
-  "metrics.pass_accuracy.label": "% Pass accuracy",
-  "metrics.key_passes_per_match.label": "Ø Key passes",
+  "metrics.passes_accuracy_pct.label": "% Pass accuracy",
+  "metrics.passes_key_per_match.label": "Ø Key passes",
   "metrics.corners_per_match.label": "Ø Corners",
   "metrics.corners_against_per_match.label": "Ø Corners against",
   "metrics.saves_pct.label": "% Save percentage",
@@ -668,9 +668,9 @@ const METRIC_LABELS_DE: MetricLabels = {
   // completed, duels won. It is also the denominator in the German PPDA definition.
   "metrics.defensive_actions_per_match.label": "Ø Defensivaktionen",
   "metrics.passes_per_match.label": "Ø Pässe",
-  "metrics.pass_accuracy.label": "% Angekommene Pässe",
+  "metrics.passes_accuracy_pct.label": "% Angekommene Pässe",
   // "Schlüsselpässe", not "Torschussvorlagen": the latter means shot assists, a different metric.
-  "metrics.key_passes_per_match.label": "Ø Schlüsselpässe",
+  "metrics.passes_key_per_match.label": "Ø Schlüsselpässe",
   "metrics.corners_per_match.label": "Ø Ecken",
   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
   "metrics.saves_pct.label": "% Gehaltene Torschüsse",
@@ -707,9 +707,9 @@ const METRIC_LABELS_FI: MetricLabels = {
   // stats pages serve a broken certificate chain — and said so before he confirmed it.
   "metrics.defensive_actions_per_match.label": "Ø Puolustustoimet",
   "metrics.passes_per_match.label": "Ø Syötöt",
-  "metrics.pass_accuracy.label": "% Syöttötarkkuus",
+  "metrics.passes_accuracy_pct.label": "% Syöttötarkkuus",
   // CPO-confirmed 2026-07-31, same unverified caveat as Puolustustoimet.
-  "metrics.key_passes_per_match.label": "Ø Avainsyötöt",
+  "metrics.passes_key_per_match.label": "Ø Avainsyötöt",
   "metrics.corners_per_match.label": "Ø Kulmapotkut",
   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
   "metrics.saves_pct.label": "% Torjuntaosuus",
