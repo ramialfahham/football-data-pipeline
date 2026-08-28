@@ -205,34 +205,6 @@ progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs danger_zone_ratio %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero.
-{% enddocs %}
-
-
-{% docs danger_zone_ratio_delta_yoy__team %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero. The change
-from the previous season to the current one, compared at the same point of the campaign: the
-current value minus the previous one. NULL when either side is missing, which covers a
-competition that carries no year-on-year comparison, a prior season that was never loaded, and
-a season whose first matches are not fully stat-covered.
-{% enddocs %}
-
-
-{% docs danger_zone_ratio_prev_season__team %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero. Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
-{% enddocs %}
-
-
-{% docs danger_zone_ratio_this_season__team %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero. Value for the
-season now in progress, accumulated through the matches played so far.
-{% enddocs %}
-
-
 {% docs defensive_actions %}
 Tackles plus interceptions plus blocks (combined defensive actions).
 {% enddocs %}
@@ -861,9 +833,9 @@ Offsides caught.
 
 {% docs opponent_shots_inside_box__team %}
 Shots the team took from inside the penalty area, taken from the provider's team match
-statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-provider does not supply team statistics for every fixture, so this can be missing, and a total
-over several fixtures can be understated rather than null. Measured for the opposing team
+statistics. A component of the team's total shots and the numerator of shots_inside_box_pct.
+The provider does not supply team statistics for every fixture, so this can be missing, and a
+total over several fixtures can be understated rather than null. Measured for the opposing team
 rather than this one.
 {% enddocs %}
 
@@ -1060,30 +1032,47 @@ Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes 
 {% enddocs %}
 
 
-{% docs shot_accuracy %}
-Share of shots that were on target. Total shots include blocked shots. Null when shots_total is
-zero.
-{% enddocs %}
-
-
-{% docs shot_share %}
-Share of all shots in the team's matches taken by the team. Null when no shots.
-{% enddocs %}
-
-
 {% docs shots_inside_box %}
 Shots the team took from inside the penalty area, taken from the provider's team match
-statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-provider does not supply team statistics for every fixture, so this can be missing, and a total
-over several fixtures can be understated rather than null.
+statistics. A component of the team's total shots and the numerator of shots_inside_box_pct.
+The provider does not supply team statistics for every fixture, so this can be missing, and a
+total over several fixtures can be understated rather than null.
+{% enddocs %}
+
+
+{% docs shots_inside_box_pct %}
+Share of shots taken from inside the penalty area. Null when shots_total is zero.
+{% enddocs %}
+
+
+{% docs shots_inside_box_pct_delta_yoy__team %}
+Share of shots taken from inside the penalty area. Null when shots_total is zero. The change
+from the previous season to the current one, compared at the same point of the campaign: the
+current value minus the previous one. NULL when either side is missing, which covers a
+competition that carries no year-on-year comparison, a prior season that was never loaded, and
+a season whose first matches are not fully stat-covered.
+{% enddocs %}
+
+
+{% docs shots_inside_box_pct_prev_season__team %}
+Share of shots taken from inside the penalty area. Null when shots_total is zero. Value for the
+season before, through the same number of matches as the current season has played so far, so
+the two are compared at the same point of a campaign rather than a part season against a full
+one.
+{% enddocs %}
+
+
+{% docs shots_inside_box_pct_this_season__team %}
+Share of shots taken from inside the penalty area. Null when shots_total is zero. Value for the
+season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
 {% docs shots_inside_box_sum_season__team %}
 Shots the team took from inside the penalty area, taken from the provider's team match
-statistics. A component of the team's total shots and the numerator of danger_zone_ratio. The
-provider does not supply team statistics for every fixture, so this can be missing, and a total
-over several fixtures can be understated rather than null. Totalled over the season.
+statistics. A component of the team's total shots and the numerator of shots_inside_box_pct.
+The provider does not supply team statistics for every fixture, so this can be missing, and a
+total over several fixtures can be understated rather than null. Totalled over the season.
 {% enddocs %}
 
 
@@ -1111,6 +1100,12 @@ season at this club to compare against, which covers a transfer, a first season 
 and a prior season that was never loaded, and NULL for a competition that carries no
 year-on-year comparison at all, such as a cup, a qualifying campaign or an international
 tournament.
+{% enddocs %}
+
+
+{% docs shots_on_goal_pct %}
+Share of shots that were on target. Total shots include blocked shots. Null when shots_total is
+zero.
 {% enddocs %}
 
 
@@ -1201,6 +1196,11 @@ campaign rather than a part season against a full one.
 Average total shots attempted per match with available team stats. Includes on-target,
 off-target and blocked shots. Value for the season now in progress, accumulated through the
 matches played so far.
+{% enddocs %}
+
+
+{% docs shots_share_pct %}
+Share of all shots in the team's matches taken by the team. Null when no shots.
 {% enddocs %}
 
 

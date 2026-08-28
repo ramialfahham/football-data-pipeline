@@ -148,7 +148,7 @@ fixed order under group subheads (Goals → Shooting → Duels → Defending →
 Set pieces → Goalkeeping), identical set in W1 and W2. Tier semantics per that
 document (tier never reorders; tier 1 feeds compact surfaces). Four rows are
 GAP-11-pending (`clean_sheets`, `shots_on_target_per_match`, `duels_per_match`,
-`defensive_actions_per_match`) and render only once exported; `shot_accuracy` is
+`defensive_actions_per_match`) and render only once exported; `shots_on_goal_pct` is
 defined but not displayed. Formats and `lower_is_better` per catalogue row. Paired
 bars are normalized to the larger of the two values (a relative share, never a
 probability).

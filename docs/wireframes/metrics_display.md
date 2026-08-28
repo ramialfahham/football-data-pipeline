@@ -134,7 +134,7 @@ Set pieces → Goalkeeping.
 | 2 | Ø Goals against | `goals_against_per_match` | Goals | 1 | live |
 | 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | **new** (GAP-11) |
 | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
-| 5 | % Shots from box | `danger_zone_ratio` | Shooting | 2 | live |
+| 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
 | 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
 | 7 | % Goals per shot on target | `finishing_efficiency` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11) |
 | 8 | Ø Duels | `duels_per_match` | Duels | 2 | **new** (GAP-11) |
@@ -216,7 +216,7 @@ Performance row's is 77px, both measured at 375px.
 Any locale that compounds (Dutch is next) inherits all of this.
 
 **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
-comparison): `shot_accuracy` (% shots on target — superseded by the Ø-shots vs
+comparison): `shots_on_goal_pct` (% shots on target — superseded by the Ø-shots vs
 Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /
 `blocks_per_match` (sub-display of row 10 only), `dribbles_success_pct`
 (dropped team-side; stays a player metric), `points_won` + `league_rank`
@@ -270,7 +270,7 @@ mixes groups; (3) ratio displays standardized to the full triple
   `0 of 0 · —`.
 - Atomics not in a bundle (offsides, dribbled past, penalties won/committed,
   goals conceded) stay defined in the catalogue but unrendered — same status as
-  team `shot_accuracy`.
+  team `shots_on_goal_pct`.
 
 ## Data work implied (see 99_gaps_register.md)
 
@@ -299,7 +299,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | Duels + Defending blocks placed before Passing. |
 | 2026-06-11 | Clean sheets added (new metric); team dribbles dropped; T·I·B aggregated. |
 | 2026-06-11 | Ø Duels added as context row before % Duels won; context pairs share a tier. |
-| 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shot_accuracy` unrendered; finishing relabeled (fix "a"). |
+| 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
 | 2026-06-11 | Tier 1 = goals, goals against, shots on target, finishing. Duels stay tier 2 (coverage + discrimination + compact-surface budget). |
 | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
 | 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |

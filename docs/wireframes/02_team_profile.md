@@ -100,7 +100,7 @@ All season-scoped keys come from the selected `seasons[]` row.
 
 | Element | JSON key | Display |
 |---|---|---|
-| Shot share | `shot_share` | percent + bar |
+| Shot share | `shots_share_pct` | percent + bar |
 | Points capture | `points_capture_pct` | percent + bar |
 | Gap | `performance_vs_results_gap` | signed percentage-point delta + plain-language label ("dominates play more than results show" / inverse); ⓘ → glossary |
 
@@ -136,7 +136,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 | Ø Goals against | `goals_against_per_match` |
 | Clean sheets (x/y) | derivable: `clean_sheets` of `played` |
 | Ø Shots | `shots_per_match` |
-| % Shots from box | `danger_zone_ratio` |
+| % Shots from box | `shots_inside_box_pct` |
 | % Goals per shot on target | `finishing_efficiency` |
 | Ø Passes | `passes_per_match` |
 | % Pass accuracy | `pass_accuracy` |
@@ -149,7 +149,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 player-stat-derived team metrics. Until GAP-13 ships these rows render only in
 the fixture comparison, not here. Coverage caption from
 `stat_coverage_season_games` vs `season_games_played` ("stats from N of M").
-`shot_accuracy` exists but is unrendered (contract).
+`shots_on_goal_pct` exists but is unrendered (contract).
 
 ### (9) Fixtures + (10) links
 

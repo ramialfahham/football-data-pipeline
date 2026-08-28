@@ -115,7 +115,7 @@ RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|\bdownstream of this\b"
             r"|\bREAD by\b"
             # "feeds <identifier>" where the target is snake_case, so a named model
-            # OR a named column is caught (`feeds fct_fixture`, `feeds shot_share`)
+            # OR a named column is caught (`feeds fct_fixture`, `feeds shots_share_pct`)
             # while ordinary prose is not (`feeds the calculation`, `feeds into`).
             # Requiring a model prefix instead was tried and silently dropped a real
             # column-level claim.
