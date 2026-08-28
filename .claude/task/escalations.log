@@ -5699,3 +5699,63 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   prefix of another, and this metric set is full of `X` / `X against` pairs. `!114`'s conclusion
   still stands — nothing it renamed was a fixture field — but its method was weaker than its claim,
   and the claim is what a reviewer reads.
+
+
+2026-08-28 STEP 3, THE SAMPLE REFRESH — THE RECIPE WAS IMPOSSIBLE, AND THE CPO CHOSE THE REPLACEMENT.
+
+  ⛔ THE PREMISE FAILED, and it had been written into the handover as a mechanical five-step recipe.
+  "Run the export and the sample carries the new key" CANNOT happen for a fixture payload.
+  `fetch_fixture_payloads` (`scripts/export_site_data.py:806`) selects
+  `status_short in ('NS', 'TBD') and fixture_date >= current_date()` — UPCOMING FIXTURES ONLY — and
+  the committed set was the 2026-08-18 matchday, ten days past. Run verbatim from the repo root the
+  export exited **0** and reported **3,289 team + 5,066 fixture payloads written**, and changed
+  **exactly one tracked file**: `teams/33.json`. All 17 committed fixture payloads were untouched,
+  mtimes unchanged, still serving `corner_kicks_per_match` and `save_ratio`.
+
+  ⛔ AND THE IDS COULD NOT BE RE-EXPORTED AT ALL, which is what ruled out every workaround short of
+  replacing the set. `mart_team_momentum` and `mart_team_season_record` are keyed on
+  `upcoming_fixture_sk` and hold PRE-MATCH form; once a fixture kicks off its rows are gone. Queried
+  against prod rather than reasoned about: `1492306` and `1622620` each return **0 rows from both
+  marts**. There was no W1 or W2 data left to export for any committed fixture.
+
+  ⭐ THE EXPORT ITSELF WAS NEVER AT FAULT, which is why the fix is a set swap and not a code change:
+  of the 5,083 payloads on disk after the run, **exactly the 17 stale ones** carried the old keys and
+  all **5,066** fresh ones carried `corners_per_match` / `saves_pct`.
+  ⚠ AND NOTHING IS WRONG IN PRODUCTION. `deploy:export` runs fresh and always emits upcoming fixtures
+  with whatever names prod holds. The 14-row regression existed ONLY in the committed CI sample.
+
+  ⭐ RULING, verbatim as the option he selected: **"Roll the set forward"**, answering a blinded
+  two-way fork. Recorded here with the list it was given against, per the rule this programme has
+  already been FAILed for ignoring. He was shown, before answering:
+    · that the handover's recipe cannot work, with the SQL predicate quoted
+    · that the committed ids cannot be re-exported, with the 0-row query result
+    · the measured size of the replacement — 19 fixtures, 13 competitions, all kicking off
+      2026-08-28; 17 of the 19 fully populated (29/29 non-null W1), one (`1575140`, BL1) with a null
+      W1 that exercises the absent path; built fixture pages 51 → 57 at NEW URLs
+    · the alternative of shipping `teams/33.json` alone, stated plainly as failing the criterion he
+      had set, and a third option of parking the refresh and going straight to batch C
+  The `.gitignore` allowlist and acceptance criterion 5 were amended on his authority; criterion 5
+  had asserted the SET would not move, which his decision falsified.
+
+  ⭐⭐ THE RULE, and it generalises well past this task: **an exit code of 0 and a large "written"
+  count are not evidence that the files you care about were written.** The export reported 5,066
+  successes while doing nothing whatever to the 17 files the task existed to change. A summary line
+  describes the run; only a diff of the specific artifacts describes the outcome. Had the acceptance
+  criterion been "the export ran clean" rather than "the built page renders 16 rows with a
+  Goalkeeping heading", this MR would have merged a commit that changed one team file and left every
+  fixture page short two rows and a section heading.
+
+  ⚠ A SECOND SUBSTRING FALSE POSITIVE, in the same session as the one logged above and in a
+  different tool, which is why the class matters more than the fix. Counting old keys in the sample
+  with a plain `grep -o "points_capture"` returned **25** — every one of them inside
+  `points_capture_pct`. Re-counted as whole tokens the true figure is **0**. The rendered-text form
+  of this trap was already recorded on `!116`; this is the source-text form, and both were mine.
+
+  ⚠ THE RESIDUAL, which governs the four remaining rename MRs. This closes the gap for `!114` +
+  `!116` only. C–F rename more fixture payload fields and the count drops again on each. Measured so
+  the next MR's number is known rather than guessed: of batch C's three names only
+  `danger_zone_ratio` is one of the rendered 16 — `shot_accuracy` is a payload field the 16-row
+  contract in `site_v2/src/lib/metricRows.ts` deliberately drops, and `shot_share` is not in the
+  fixture payload at all. **C takes 16 → 15, and no heading is lost** (Shooting keeps 3 of 4). A
+  final refresh after F is still owed, and it must be another ROLL-FORWARD for the reason above —
+  a stale id in the allowlist pins a payload that no rerun can ever update.
