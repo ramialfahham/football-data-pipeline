@@ -647,8 +647,8 @@ models:
         description: "{{ doc('deserved_rank') }}"
       - name: deserved_points
         description: "{{ doc('deserved_points') }}"
-      - name: sot_points_gap
-        description: "{{ doc('sot_points_gap') }}"
+      - name: deserved_points_gap
+        description: "{{ doc('deserved_points_gap') }}"
       - name: team_founded_year
         description: "Club founded year, from dim_team. Nullable — sparse in the provider feed."
       - name: venue_name
@@ -717,8 +717,8 @@ models:
         description: "{{ doc('shots_on_goal_per_match') }}"
       - name: shots_on_goal_against_per_match
         description: "{{ doc('shots_on_goal_against_per_match') }}"
-      - name: sot_difference_per_match
-        description: "{{ doc('sot_difference_per_match') }}"
+      - name: shots_on_goal_difference_per_match
+        description: "{{ doc('shots_on_goal_difference_per_match') }}"
       - name: passes_key_per_match
         description: "{{ doc('passes_key_per_match') }}"
       - name: duels_per_match
@@ -2077,7 +2077,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]

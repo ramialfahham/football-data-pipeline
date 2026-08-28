@@ -280,8 +280,8 @@ in progress, accumulated through the matches played so far.
 
 {% docs deserved_points %}
 Points the on-target process deserved across the season. Within each league-season, ordinary
-least squares fits points-per-match on sot_difference_per_match; this is that fitted rate
-multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it
+least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted
+rate multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it
 carries no formula. Domestic leagues only - a group-stage tournament's standing is a
 within-group position, not a comparable league table. Null when the league-season is not
 fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished
@@ -289,6 +289,21 @@ games; or the actual table is not a single ladder (MLS conferences, and the Aper
 formats where one season spans two separate tournaments whose points reset, so a season points
 total is a figure nobody tracks); or the signal has no spread across the league-season (the
 slope is then undefined rather than flat).
+{% enddocs %}
+
+
+{% docs deserved_points_gap %}
+Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE =
+under-performing (fewer points than the on-target process deserved); POSITIVE =
+over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where
+positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is
+least squares within the league-season the gap is a redistribution: it sums to zero across a
+balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning
+some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual
+table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one
+season spans two separate tournaments whose points reset, so a season points total is a figure
+nobody tracks); or the signal has no spread across the league-season (the slope is then
+undefined rather than flat).
 {% enddocs %}
 
 
@@ -1088,8 +1103,8 @@ Shots on target faced. Derived as saves + goals conceded.
 
 {% docs shots_on_goal_against_per_match %}
 Average shots on target conceded per match. The defensive companion to
-sot_difference_per_match. Null when opponent shots-on-target data does not cover every season
-game.
+shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover
+every season game.
 {% enddocs %}
 
 
@@ -1100,6 +1115,13 @@ season at this club to compare against, which covers a transfer, a first season 
 and a prior season that was never loaded, and NULL for a competition that carries no
 year-on-year comparison at all, such as a cup, a qualifying campaign or an international
 tournament.
+{% enddocs %}
+
+
+{% docs shots_on_goal_difference_per_match %}
+Average shots-on-target difference per match (on target for - against). The best non-outcome
+predictor of league position; the deserved process signal behind deserved-vs-actual. Null
+unless both own and opponent shots-on-target data cover every season game.
 {% enddocs %}
 
 
@@ -1206,28 +1228,6 @@ Share of all shots in the team's matches taken by the team. Null when no shots.
 
 {% docs shots_total %}
 Total shots (on and off target).
-{% enddocs %}
-
-
-{% docs sot_difference_per_match %}
-Average shots-on-target difference per match (on target for - against). The best non-outcome
-predictor of league position; the deserved process signal behind deserved-vs-actual. Null
-unless both own and opponent shots-on-target data cover every season game.
-{% enddocs %}
-
-
-{% docs sot_points_gap %}
-Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE =
-under-performing (fewer points than the on-target process deserved); POSITIVE =
-over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where
-positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is
-least squares within the league-season the gap is a redistribution: it sums to zero across a
-balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning
-some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual
-table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one
-season spans two separate tournaments whose points reset, so a season points total is a figure
-nobody tracks); or the signal has no spread across the league-season (the slope is then
-undefined rather than flat).
 {% enddocs %}
 
 

@@ -118,7 +118,7 @@ select
         when games_with_sot_stats < games_played then null
         when games_with_opp_sot_stats < games_played then null
         else safe_divide(shots_on_goal - opponent_shots_on_goal, games_played)
-    end as sot_difference_per_match,
+    end as shots_on_goal_difference_per_match,
     case
         when games_with_sot_stats < games_played then null
         when (goals_for - goals_penalty - goals_own) < 0 then null

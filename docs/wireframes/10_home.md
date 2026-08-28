@@ -170,7 +170,7 @@ was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_o
 |---|---|---|
 | % Points captured | `points_capture_pct` · `points_won` · `deserved_points` | `points_capture_pct` |
 | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
-| Ø Shots on target difference | `sot_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency` | `sot_difference_per_match` |
+| Ø Shots on target difference | `shots_on_goal_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency` | `shots_on_goal_difference_per_match` |
 | Ø Defensive actions | `defensive_actions_per_match` | descending |
 | Ø Passes | `passes_accuracy_pct` · `passes_key_per_match` · `passes_per_match` | `passes_per_match` |
 | Ø Duels | `duels_per_match` · `duels_won_pct` | `duels_per_match` |
@@ -709,9 +709,9 @@ block: ranking is business logic, the consumption layer may not do it, and the p
 draft of the trending export ranked teams in Python from raw streak columns; that is why the mart
 existed. Top players and Top teams inherit the same rule — see the corrected gap list in §10.
 
-**Deserved-vs-actual is excluded, on data.** `sot_points_gap` is non-null for **0 of those 359
+**Deserved-vs-actual is excluded, on data.** `deserved_points_gap` is non-null for **0 of those 359
 teams**. The full-table gate in `int_team_season__deserved_vs_actual.sql` requires every team in a
-league-season to carry `sot_difference_per_match`; measured today KL1 is missing 12 of 12, VL 12 of
+league-season to carry `shots_on_goal_difference_per_match`; measured today KL1 is missing 12 of 12, VL 12 of
 12, BSA 2 of 20 plus a missing rank, LMX 2 of 18, while MLS and APD are correctly withheld as
 non-single-ladder. #810 separately holds two open CPO decisions on rendering it mid-season. It
 returns to this screen when both change, not before.

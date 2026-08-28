@@ -4,9 +4,10 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-28**. **main `62d3b18`** (after `!119`, batch C). The METRIC CATALOGUE
-NAMING PROGRAMME step 3: **7 of 12 team renames merged** (`!111`, `!112`, `!114`, `!116`, `!119`),
-and **batch D is BUILT on `refactor/metric-rename-team-passing`** — 2 more, awaiting review/merge.
+_Last updated **2026-08-28**. **main `db47b0a`** (after `!120`, batch D). The METRIC CATALOGUE
+NAMING PROGRAMME step 3: **9 of 12 team renames merged** (`!111`, `!112`, `!114`, `!116`, `!119`,
+`!120`), and **batch E is BUILT on `refactor/metric-rename-team-deserved-chain`** — 2 more,
+awaiting review/merge. **Only F remains after it** (`finishing_efficiency` → `finishing_efficiency_pct`).
 `#92` FIXED (`!115`). The export sample was rolled forward by `!118` to 19 fixture payloads.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
@@ -14,36 +15,38 @@ and **batch D is BUILT on `refactor/metric-rename-team-passing`** — 2 more, aw
 
 ## ⭐⭐ NEXT ACTION: batch D once C merges. Names are FIXED; do not re-derive
 
-## ⛔ WHAT BATCH C TAUGHT — read before ANY further rename, including all 35 player ones
+## ⛔ THE RENAME METHOD — proven over C, D and E; use it for F and all 35 player renames
 
-⛔⛔ **`\b` FAILS AGAINST `_`, BECAUSE `_` IS A WORD CHARACTER.** A word-boundary replace CANNOT
-reach `home_<id>_recent`, `<id>_this_season` / `_prev_season` / `_delta_yoy`, or
-`std_team_<id>_in_range`. C shipped incomplete until `check_description_hygiene.py` went red on six
-dangling `doc()` refs; a third pass then swept **31 more occurrences** across the yoy forms and
-**nine named dbt tests** (`std_team_`, `momentum_team_`, `mmi_home_`, `mmi_away_`, `team_profile_`
-… `_in_range`).
-⭐ **SWEEP FOR THE NAME AS A SUBSTRING, NOT A WHOLE TOKEN:**
-`git grep -ohE "[a-z_0-9]*(<old>)[a-z_0-9]*" | sort | uniq -c` — run it BEFORE and AFTER.
-⚠ **MEASURED FOR THE REMAINING BATCHES so nobody has to rediscover it** — yoy-form counts in
-`dbt_project/models`: `pass_accuracy` **16**, `key_passes_per_match` **12** (both batch D),
-`finishing_efficiency` **16** (batch F). `sot_difference_per_match` and `sot_points_gap` (batch E)
-have **0**. So D and F BOTH need the derived-identifier pass; E does not.
-⛔ **PROTECT `<id>_recent` STANDING ALONE** — the retired MVP's `live_id` in `metric_bindings.csv`.
-`check_ui_i18n_metrics.py` maps it THROUGH the bindings. `home_`/`away_` forms are NOT protected.
-⭐ **D's METHOD IS THE ONE TO COPY FOR E, F AND ALL 35 PLAYER RENAMES: classify every token
-containing the stem ONCE and PRINT the decision** (D: 147 renamed, 34 protected). A reviewer can
-check a decision list; nobody can check an exclusion you kept in your head. Re-count every protected
-token against `git grep <base-sha>` afterwards, never against a number you wrote down — that caught
-a slip of mine mid-check on D.
-⛔ **F WILL NEED THE SAME PROTECTION WORK AS D**: `finishing_efficiency` exists for BOTH entities,
-so the player rows must be excluded token by token exactly as `pass_accuracy_pct` was in D.
+⛔⛔ **`\b` FAILS AGAINST `_`.** A word-boundary replace cannot reach `home_<id>_recent`,
+`<id>_this_season`/`_prev_season`/`_delta_yoy`, or `std_team_<id>_in_range`. C shipped incomplete
+until `check_description_hygiene.py` went red on six dangling `doc()` refs.
+⭐ **THE METHOD: classify EVERY token containing the stem once, and PRINT the decision**
+(D: 147 renamed / 34 protected; E: 77 renamed, 4 protected tokens asserted unchanged). A reviewer
+can check a decision list; nobody can check an exclusion you kept in your head. E's script
+additionally ABORTS if a protected token's count would change — cheap and it fails loudly.
+⭐ Sweep before AND after: `git grep -ohE "[a-z_0-9]*(<old>)[a-z_0-9]*" | sort | uniq -c`.
+⭐ **Re-count every protected token against `git grep <base-sha>`, never against a number you wrote
+down** — that caught a slip of mine mid-check on D.
+⛔ **PROTECT `<id>_recent` STANDING ALONE** — the retired MVP's `live_id`; `check_ui_i18n_metrics.py`
+maps it THROUGH the bindings. `home_`/`away_` forms are NOT protected.
+⛔ **PROTECT ANYTHING AN i18n STRING INTERPOLATES.** E's `sotd` is the export key, the frontend
+field AND a `{sotd}` placeholder inside translated sentences in all three locales — renaming it
+would have forced wording edits, which are forbidden here and are §10.
+⛔ **F NEEDS BOTH PASSES**: `finishing_efficiency` has **16** yoy forms AND exists for BOTH
+entities, so the player rows must be excluded token by token exactly as `pass_accuracy_pct` was in D.
 ⚠ **CATALOGUE-ONLY IS IMPOSSIBLE for the 12** and the CPO asked why — the answer, if it comes up
 again: `assert_no_uncatalogued_season_metric.sql` requires every metric-bearing column of
 `int_team_season__metrics` to be a registered `metric_id`, so moving the id without the column turns
 `data:build:mr` red. That is what separates these from `!111`/`!112`, which were seed-only.
-⭐ **A GREEN `npm test` ONLY COVERS THE 16 ROWS `metricRows.ts` BINDS.** Mutating a NON-displayed
-metric's `label_i18n_key` left it 76/76 green; `tests/test_metric_bindings.py` caught it instead.
-Pick a DISPLAYED metric for the criterion-3 mutation or it proves nothing.
+⭐ **THE LABEL GUARD COVERS `metricRows.ts`'s 16 PLUS the keys `DeservedHero.astro` asks for —
+NOTHING ELSE.** Read from `check-metric-labels.test.mjs:36-38`: `asked = rowKeys ∪ heroKeys`.
+So `shots_on_goal_difference_per_match` (a DeservedHero key, not one of the 16) goes RED on a stale
+key, while `shots_on_goal_pct` (in neither) survives silently.
+⚠ **Grep BOTH files before relying on it for a criterion-3 mutation.** Two earlier versions of this
+line were wrong — "only the 16", then "strings.ts + the specs". `strings.ts` is the DEFINITION side,
+checked in the opposite direction; the specs are not read by this test at all.
+⚠ **For step 4 that covered set is nearly EMPTY** — the player surface is largely unbuilt, so this
+guard will catch almost none of the 35 player renames. Plan a different mutation target.
 ⚠ **`git grep` SCOPES TO THE CWD** and CWD persists between calls. A count taken from inside
 `dbt_project/` returned 38/46/21 against a true 177/185/50. Assert `cd <repo root>` in the same
 command as any counting grep.
@@ -55,8 +58,13 @@ work: `fetch_fixture_payloads` emits UPCOMING fixtures only, and a kicked-off fi
 in `mart_team_momentum` / `mart_team_season_record` (queried), so a past id can never be
 re-exported. The export exits **0**, reports thousands written, and changes **nothing** you care
 about. **ROLL THE WHOLE SET FORWARD** — full recipe in `site_v2/src/data/README.md`.
-⭐ **THE RULE: exit code 0 and a big "written" count are not evidence the files you care about were
-written.** Diff the specific artifacts, never the summary line.
+⭐⭐ **NEVER PIPE A GATE THROUGH `tail`/`head`, AND NEVER READ A CLOSING BANNER AS A VERDICT.**
+Three instances in one session: the export printed `exit 0` + "5,066 written" while changing none of
+the 17 files that mattered; the evidence said "see below" for a number never written down; and
+`sqlfluff … | tail -3` truncated away an `LT05` FAIL, leaving only `All Finished!` — which sqlfluff
+prints on failure too. **`data:build:mr` caught that one, not me.** The pipe also masks the exit
+code: `$?` becomes `tail`'s. Redirect to a file and grep for the failure token, or run bare and read
+the exit code UNPIPED.
 ⚠ `git clean -fX` is BLOCKED here. Use `git ls-files --others --ignored --exclude-standard <dir>`
 as the delete set — `--others` makes it structurally unable to pick a tracked file. Dry-run first.
 ⚠ **The rendered fixture rows are drifting below the locked 16 as the batches land**: 16 → 15 (C)
@@ -76,7 +84,7 @@ MRs were FAILed for citing one.** Remaining, verbatim from its "TEAM, 12 REMAINI
 |---|---|
 | ~~**C** shooting shares~~ | ~~`shot_accuracy`→`shots_on_goal_pct` · `danger_zone_ratio`→`shots_inside_box_pct` · `shot_share`→`shots_share_pct`~~ **BUILT, awaiting merge** |
 | ~~**D** passing~~ | ~~`pass_accuracy`→`passes_accuracy_pct` · `key_passes_per_match`→`passes_key_per_match`~~ **BUILT, awaiting merge** |
-| **E** deserved chain | `sot_difference_per_match`→`shots_on_goal_difference_per_match` · `sot_points_gap`→`deserved_points_gap` |
+| ~~**E** deserved chain~~ | ~~`sot_difference_per_match`→`shots_on_goal_difference_per_match` · `sot_points_gap`→`deserved_points_gap`~~ **BUILT, awaiting merge** |
 | **F** alone | `finishing_efficiency`→`finishing_efficiency_pct` |
 
 ⭐ **F IS LAST AND ALONE ON PURPOSE**: `finishing_efficiency` exists for BOTH entities, so the doc
@@ -84,9 +92,11 @@ block splits/merges and every occurrence must be classified by reading the model
 `site_v2/scripts/check-metric-labels.test.mjs` carries an EN exemption keyed on the literal string
 `finishing_efficiency` — re-point it or the test compares v2's label against the corpus's
 "% Conversion rate" and goes red.
-⚠ **D's `pass_accuracy` must not match the player's `pass_accuracy_pct`** (a step-4 name). Anchor it.
-⚠ **STEP 4** = the 35 player renames. **STEP 5** = the 9 English labels ("on target"→"on goal"),
-which includes `sot_difference_per_match`'s label — do NOT do it in E.
+⚠ **STEP 4** = the 35 player renames. **STEP 5** = the 9 English labels ("on target"→"on goal").
+⚠ **STEP 5 HAS A TARGET THE 9-ROW LIST MAY MISS**, found in E and not fixed there: the EN hero
+sentences at `site_v2/src/i18n/strings.ts:94-95` read "shots-on-target difference". Those are UI
+SENTENCE strings, not catalogue `label_en` rows, so the nine-row list does not obviously cover them.
+Wording is §10 — put it to the CPO when step 5 is scoped.
 
 ## ⭐ THE PER-MR RECIPE (proven on `!114` and `!116`)
 
