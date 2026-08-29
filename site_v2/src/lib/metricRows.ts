@@ -90,7 +90,7 @@ export const METRIC_ROWS: MetricRowDef[] = [
   // `metrics.shots_on_goal_per_match.label` — the catalogue declares no such key and the label would
   // resolve to nothing.
   { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
-  { field: "finishing_efficiency", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
+  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
   { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
   { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
   // ⚠ `sublabel` is still an ENGLISH string rendered in all three locales. It is a caption, not a

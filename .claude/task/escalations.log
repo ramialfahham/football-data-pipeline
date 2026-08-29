@@ -6039,3 +6039,105 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   which the templater STRIPS — so it is not present in the templated output LT05 measures, and the
   file lints clean (`exit=0`, verified). The line that DID fail was a `--` SQL comment, which
   survives templating. **Raw file length is not what LT05 measures; templated length is.**
+
+
+2026-08-29 STEP 3, MR F — THE LAST TEAM RENAME, AND THE ONE WHERE A DOC BLOCK MERGED.
+
+  `finishing_efficiency` → `finishing_efficiency_pct`, TEAM entity only. Authority: **RULING 1**,
+  verbatim — "finishing_efficiency becomes finishing_efficiency_pct" — and the row of the same
+  block's "⛔ TEAM, 12 REMAINING" table. It is not among "THE SIX, ENUMERATED" and needs no
+  correction: RULING 1 names the target spelling exactly. It also satisfies THE RULED PATTERN
+  (`noun [_qualifier] [_against] [_player] [_form]`, `_form` = `_pct`), which the contract cited UP
+  FRONT — the lesson from D, where three rounds went on hunting a per-name quote the pattern had
+  already settled. **This closes step 3: all twelve team renames are done.**
+
+  ⛔⛔ **THE DOC BLOCK MERGED, AND THAT IS WHY F WAS HELD BACK.** `finishing_efficiency` is a
+  `metric_id` for BOTH entities. `_blocks()` in `sync_metric_docs_blocks.py` emits ONE block per
+  `metric_id` where its rows AGREE and splits on `entity` only where they DISAGREE — so today's
+  `__team`/`__player` pair exists solely because the two descriptions differ. Renaming only the team
+  side leaves each name with a SINGLE row, so the generator emits **two BARE blocks** and every
+  reference to a suffixed name dangles. Measured on `cdd2218` and handled deliberately, not
+  discovered by a red gate:
+    · 6 `doc('finishing_efficiency__team')`   → `doc('finishing_efficiency_pct')`
+    · 3 `doc('finishing_efficiency__player')` → `doc('finishing_efficiency')` — ⛔ **these dangle
+      even though this MR renames NOTHING on the player side**, in `int_team_season.yml`,
+      `int_player_season_position.yml` and `shared.yml`
+    · the three `*__player` yoy blocks lose their referent column and the generator drops them; they
+      had 0 references, so nothing dangles from their removal
+  Confirmed against `main`'s own shape before relying on it: `save_pct`/`saves_pct` and
+  `pass_accuracy_pct`/`passes_accuracy_pct` each hold a BARE block today, and derived yoy blocks
+  always carry `__team`. `check_description_hygiene.py` came back with **238 blocks resolved**.
+  ⭐ THE RULE FOR STEP 4, where it fires again in reverse: **renaming one entity's side of a shared
+  `metric_id` restructures the OTHER entity's generated blocks.** The un-renamed side is not
+  untouched — its block loses a suffix and every `doc()` pointing at it must move with it. Step 4
+  renames the player side of this same metric and will merge `finishing_efficiency_pct`'s block the
+  same way if the two ever share a name again.
+
+  ⛔ **A HAZARD THE HANDOVER DID NOT CARRY: THREE *PLAYER* `accepted_values` LISTS ALSO HOLD THE BARE
+  STEM.** The record has always named the three 22-name TEAM lists. `int_competition_benchmarks.yml`
+  and `shared.yml` also carry an 18-name player benchmark list each, plus a 14-name player rate-board
+  list — all three containing `finishing_efficiency` as the PLAYER metric. A bare-token sweep would
+  have corrupted every one. Found by mapping each occurrence to its OWNING MODEL rather than reading
+  file names, and asserted unchanged afterwards.
+  ⭐ THE RULE: **`mart_leaderboards` is a PLAYER mart whose name contains neither "player" nor
+  "team".** Model→entity was therefore an EXPLICIT map that ABORTS on an unlisted model, not a
+  substring rule. A substring rule would have mis-scoped five occurrences and renamed
+  `mart_leaderboards_finishing_efficiency_in_range` — the one of the seven `*_in_range` tests that
+  must NOT move, because it is the player board's.
+
+  ⭐ THE CLASSIFIER, unchanged in method from D and E: every token containing the stem decided once
+  with its reason PRINTED — **108 renamed, 36 protected** across 40 files, the bare stem splitting
+  61 TEAM / 34 PLAYER. It aborts before writing if a protected token's count would change and
+  verifies the post-transform token multiset per file. Protected counts re-derived from
+  `git grep cdd2218`, never from a note.
+  ⚠ ONE MECHANICAL DEFECT IN IT, worth recording because the gate caught it and I did not: it
+  rewrote files whose every occurrence was PROTECTED. The content was byte-identical — `git diff`
+  listed 31 files, not 39 — but eight player-scoped files were touched on disk and the contract gate
+  refused, correctly. Reverted with `git checkout --`. **A no-op write is still a write to the file
+  system, and a scope gate watches the file system, not the diff.**
+
+  ⛔⛔ **AND A CHECK OF MINE THAT PASSED VACUOUSLY, which is the finding I would keep from this
+  batch.** To prove no file sqlfluff flags is a file this branch changed, I intersected two path
+  lists in the shell. The `sed` normalising backslashes failed to compile, so the flagged list came
+  back EMPTY and the intersection was empty for that reason — and it printed the same reassuring
+  line it would have printed on a real pass. It is exactly the class the CPO ruled on when he
+  rejected the build-both-trees-and-diff check: **a check that passes equally on the work and on its
+  absence is not a check.** Rewritten to ask `git diff --quiet <base> -- <file>` per flagged file:
+  18 files FAIL on LT02/ST11, **all 18 proved byte-identical to `cdd2218`**, and **0 LT05 tree-wide**.
+  ⚠ The lint was read UNPIPED with the exit code bare, per E's rule. E's entry said the remaining
+  FAILs were "10, all `3_core/`"; the complete run here shows 18 across `3_core/`, four player marts,
+  `int_team_season__metrics` and `mart_team_competition_benchmarks`. Both statements are about
+  untouched files; the number is stated as measured rather than carried forward.
+
+  ⭐ THE MUTATION LANDED ON A COVERED METRIC, AND THAT WAS CHECKED BEFORE IT WAS RELIED ON.
+  `finishing_efficiency_pct` IS one of the 16 `labelKey:` entries in `metricRows.ts`, so the guard's
+  `asked = rowKeys ∪ heroKeys` set reaches it. Reverting its `label_i18n_key` took `npm test` to
+  **75 pass / 1 fail, exit 1**. Batch C nearly signed a criterion off on a guard that never ran;
+  reading the fifteen lines of the test first is what makes this evidence rather than a green tick.
+
+  ⚠ #96 REPRODUCED FOR THE FIFTH CONSECUTIVE BATCH (`!114`, `!119`, `!120`, `!121`, F). Nothing
+  offline pins those lists. Checked by eye instead: the three TEAM lists are each exactly 22 values,
+  duplicate-free and byte-identical to one another; the player lists were asserted unchanged. The
+  offline test `platform-reviewer` recommends is a NEW MECHANISM and remains the CPO's call.
+
+  ⭐ THE TRANSIENT LANDED ON THE PREDICTED NUMBER AGAIN: **13 → 12 rendered fixture rows, no group
+  heading lost**, predicted in the contract before any code and measured structurally on the built
+  site (`<div class="mrow">` / `<div class="mgroup">`, never by substring). Exactly one rendered name
+  disappears per locale and none is added. Programme total: 16 → 15 (C) → 13 (D) → 13 (E) → 12 (F).
+  Shooting keeps `Ø Shots` and `Ø Shots on target`. **The final sample roll-forward is now owed**,
+  and it must be a ROLL-FORWARD: `fetch_fixture_payloads` emits upcoming fixtures only, so a rerun
+  cannot update a past id. Not started — the CPO decides when it runs.
+
+  ⭐ TWO PROSE JUDGEMENT CALLS, recorded because neither is mechanical.
+  (1) `scripts/sync_metric_docs_blocks.py` and `tests/test_sync_metric_docs_blocks.py` each carry one
+  mention, narrating the window-phrasing defect the guard once missed. The description that carried
+  it was the **TEAM** row's, and the record says so in those words: the block headed
+  `feat/82-metric-docs-blocks-generated`, under "DEFECT 1", reads "`finishing_efficiency` (team)
+  still said 'window' three times after the 35-row sweep". Traced, not inferred from the name — so
+  both were renamed and the QUOTED phrases left verbatim. Precedent: batch C updated
+  exactly this class in `check_description_hygiene.py`, `export_site_data.py` and
+  `test_description_hygiene.py`.
+  (2) The seed's `goals_open_play` TEAM row says "The numerator of finishing_efficiency." and moves;
+  the PLAYER `goals_open_play` row says the same words about the player metric and does not. Same
+  sentence, two entities, opposite decisions — which is the whole shape of this batch.
+

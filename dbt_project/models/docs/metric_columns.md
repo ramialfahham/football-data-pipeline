@@ -443,14 +443,14 @@ Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 {% enddocs %}
 
 
-{% docs finishing_efficiency__player %}
+{% docs finishing_efficiency %}
 Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
 own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
 finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
 {% enddocs %}
 
 
-{% docs finishing_efficiency__team %}
+{% docs finishing_efficiency_pct %}
 Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
@@ -458,19 +458,7 @@ unless shots-on-target data covers every game counted, or the value would fall o
 {% enddocs %}
 
 
-{% docs finishing_efficiency_delta_yoy__player %}
-Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
-own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
-finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
-The change from the previous season to the current one, compared at the same point of the
-campaign: the current value minus the previous one. NULL when there is no prior season at this
-club to compare against, which covers a transfer, a first season at this level and a prior
-season that was never loaded, and NULL for a competition that carries no year-on-year
-comparison at all, such as a cup, a qualifying campaign or an international tournament.
-{% enddocs %}
-
-
-{% docs finishing_efficiency_delta_yoy__team %}
+{% docs finishing_efficiency_pct_delta_yoy__team %}
 Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
@@ -482,17 +470,7 @@ loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
-{% docs finishing_efficiency_prev_season__player %}
-Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
-own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
-finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
-Value for the season before, through the same number of matches as the current season has
-played so far, so the two are compared at the same point of a campaign rather than a part
-season against a full one.
-{% enddocs %}
-
-
-{% docs finishing_efficiency_prev_season__team %}
+{% docs finishing_efficiency_pct_prev_season__team %}
 Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
@@ -503,15 +481,7 @@ season against a full one.
 {% enddocs %}
 
 
-{% docs finishing_efficiency_this_season__player %}
-Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
-own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
-finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
-Value for the season now in progress, accumulated through the matches played so far.
-{% enddocs %}
-
-
-{% docs finishing_efficiency_this_season__team %}
+{% docs finishing_efficiency_pct_this_season__team %}
 Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
@@ -667,7 +637,7 @@ finishing_efficiency. (goals_total already excludes own goals.)
 
 {% docs goals_open_play__team %}
 Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for -
-goals_penalty - goals_own). The numerator of finishing_efficiency.
+goals_penalty - goals_own). The numerator of finishing_efficiency_pct.
 {% enddocs %}
 
 

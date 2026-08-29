@@ -137,7 +137,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 | Clean sheets (x/y) | derivable: `clean_sheets` of `played` |
 | Ø Shots | `shots_per_match` |
 | % Shots from box | `shots_inside_box_pct` |
-| % Goals per shot on target | `finishing_efficiency` |
+| % Goals per shot on target | `finishing_efficiency_pct` |
 | Ø Passes | `passes_per_match` |
 | % Pass accuracy | `passes_accuracy_pct` |
 | Ø Corners | `corners_per_match` |

@@ -94,9 +94,9 @@ test("the CPO-validated MVP labels are byte-identical to site/i18n", () => {
       const id = key.replace(/^metrics\./, "").replace(/\.label$/, "");
       const validated = corpus[loc][id]?.label;
       if (!validated) continue;
-      // EN diverges for finishing_efficiency by design: v2's locked label is kept and the corpus's
+      // EN diverges for finishing_efficiency_pct by design: v2's locked label is kept and the corpus's
       // "% Conversion rate" is a §10 pick reserved to the CPO. Recorded in the task contract.
-      if (loc === "EN" && id === "finishing_efficiency") continue;
+      if (loc === "EN" && id === "finishing_efficiency_pct") continue;
       compared += 1;
       if (val !== validated) drift.push(`${loc}.${id}: "${val}" != validated "${validated}"`);
     }

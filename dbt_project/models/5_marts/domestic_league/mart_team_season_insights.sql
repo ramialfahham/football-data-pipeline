@@ -80,7 +80,7 @@ select
     m.shots_share_pct,
     m.shots_inside_box_pct,
     m.shots_on_goal_pct,
-    m.finishing_efficiency,
+    m.finishing_efficiency_pct,
     m.passes_accuracy_pct,
     m.passes_per_match,
     m.corners_per_match,

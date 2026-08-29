@@ -27,11 +27,11 @@ models:
           combination_of_columns:
             - league_code
             - team_sk
-      # finishing_efficiency is open-play conversion in [0,1] (CPO Option A); passthrough
+      # finishing_efficiency_pct is open-play conversion in [0,1] (CPO Option A); passthrough
       # from int_team_season__metrics — range-checked here as the consumer-contract guard.
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
-          name: tsi_finishing_efficiency_in_range
+          expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+          name: tsi_finishing_efficiency_pct_in_range
     columns:
       - name: team_season_sk
         tests: [not_null, unique]
@@ -121,8 +121,8 @@ models:
         description: "{{ doc('shots_inside_box_pct') }}"
       - name: shots_on_goal_pct
         description: "{{ doc('shots_on_goal_pct') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency__team') }}"
+      - name: finishing_efficiency_pct
+        description: "{{ doc('finishing_efficiency_pct') }}"
       - name: passes_accuracy_pct
         description: "{{ doc('passes_accuracy_pct') }}"
       - name: passes_per_match
@@ -171,11 +171,11 @@ models:
           expression: "away_shots_inside_box_pct_recent is null or (away_shots_inside_box_pct_recent between 0 and 1)"
           name: mmi_away_shots_inside_box_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "home_finishing_efficiency_recent is null or (home_finishing_efficiency_recent between 0 and 1)"
-          name: mmi_home_finishing_efficiency_in_range
+          expression: "home_finishing_efficiency_pct_recent is null or (home_finishing_efficiency_pct_recent between 0 and 1)"
+          name: mmi_home_finishing_efficiency_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "away_finishing_efficiency_recent is null or (away_finishing_efficiency_recent between 0 and 1)"
-          name: mmi_away_finishing_efficiency_in_range
+          expression: "away_finishing_efficiency_pct_recent is null or (away_finishing_efficiency_pct_recent between 0 and 1)"
+          name: mmi_away_finishing_efficiency_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "home_passes_accuracy_pct_recent is null or (home_passes_accuracy_pct_recent between 0 and 1)"
           name: mmi_home_passes_accuracy_pct_in_range
@@ -302,11 +302,11 @@ models:
         description: "Home: shots inside box / total shots."
       - name: away_shots_inside_box_pct_recent
         description: "Away: shots inside box / total shots."
-      - name: home_finishing_efficiency_recent
+      - name: home_finishing_efficiency_pct_recent
         description: >
           Home: open-play goal conversion — open-play goals (goals minus penalties minus own
           goals) over shots on goal, across a fully shot-covered window. Range 0 to 1.
-      - name: away_finishing_efficiency_recent
+      - name: away_finishing_efficiency_pct_recent
         description: "Away: open-play goal conversion (open-play goals / shots on goal, in [0, 1])."
       - name: home_passes_accuracy_pct_recent
         description: "Home: accurate passes / total passes."
