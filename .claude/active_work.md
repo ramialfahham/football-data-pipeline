@@ -23,9 +23,12 @@ plan file** — two MRs were FAILed for citing a plan file, one for a decayed li
 `noun [_qualifier] [_against] [_player] [_form]`. Cite it up front; D burned three rounds hunting a
 per-name quote the pattern had already settled.
 
-⛔ **BLOCKED ON ONE CPO RULING, and it must be settled BEFORE the work, not mid-batch:**
-`contribution_share` → `contribution_player_pct` is the ONE name in the 35 he did not rule on
-directly — my proposal, unobjected.
+✅ **THE 35-ROW LIST IS NOW FULLY RULED — NO NAME IS OPEN.** `contribution_share` →
+`contribution_player_pct` was the last one, ruled **2026-08-29**, verbatim: "contribution_player_pct
+is fine, go with it". Recorded in `escalations.log` beside the proposal it answered. The old warning
+"flag it rather than quote it as his" is DISCHARGED — do not carry it forward.
+⚠ **THAT RULING SETTLED A NAME, NOT THE WORK.** Step 4 still needs its own contract, its own
+acceptance criteria and approval before any file is touched.
 
 ⛔ **#99 — THE EXPORT SILENTLY NULLS OUT ON THIS RENAME.** `scripts/export_site_data.py` reads two
 catalogue PLAYER metrics by literal key with `.get()` and no default: `_shape_squad_member`
