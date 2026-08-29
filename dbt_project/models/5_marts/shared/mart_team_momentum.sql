@@ -74,7 +74,7 @@ select
         when (b.goals_for - b.goals_penalty - b.goals_own) < 0 then null
         when (b.goals_for - b.goals_penalty - b.goals_own) > b.shots_on_goal then null
         else safe_divide(b.goals_for - b.goals_penalty - b.goals_own, b.shots_on_goal)
-    end as finishing_efficiency,
+    end as finishing_efficiency_pct,
     -- passing (team-stat window): NULL on partial coverage
     case
         when b.games_with_team_stats < b.games_in_window then null

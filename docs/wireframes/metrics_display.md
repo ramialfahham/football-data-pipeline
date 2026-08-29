@@ -136,7 +136,7 @@ Set pieces → Goalkeeping.
 | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
 | 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
 | 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
-| 7 | % Goals per shot on target | `finishing_efficiency` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11) |
+| 7 | % Goals per shot on target | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11) |
 | 8 | Ø Duels | `duels_per_match` | Duels | 2 | **new** (GAP-11) |
 | 9 | % Duels won | `duels_won_pct` | Duels | 2 | live |
 | 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |

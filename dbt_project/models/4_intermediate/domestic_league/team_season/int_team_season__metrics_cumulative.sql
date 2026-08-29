@@ -124,7 +124,7 @@ select
         when (goals_for - goals_penalty - goals_own) < 0 then null
         when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
         else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
-    end as finishing_efficiency,
+    end as finishing_efficiency_pct,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(passes_total, games_with_team_stats)

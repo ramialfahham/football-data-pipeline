@@ -156,7 +156,7 @@ def test_disagreeing_rows_sharing_an_entity_are_refused(tmp_path):
     "in the window",
     "same-window",
     # ⚠ The three below are the ones an enumerated phrase list MISSES.
-    # `finishing_efficiency` said "share the window" and "the window is not fully
+    # `finishing_efficiency_pct` said "share the window" and "the window is not fully
     # shot-covered" and slipped through, and the MR's own verification used the
     # same narrow pattern as the guard, so it could only ever agree with it.
     # Found by football-analytics-expert-reviewer.

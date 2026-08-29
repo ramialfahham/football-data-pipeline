@@ -38,7 +38,7 @@ unpivot (
         shots_on_goal_per_match,
         shots_on_goal_against_per_match,
         shots_on_goal_difference_per_match,
-        finishing_efficiency,
+        finishing_efficiency_pct,
         duels_per_match,
         duels_won_pct,
         defensive_actions_per_match,

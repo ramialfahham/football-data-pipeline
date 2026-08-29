@@ -624,7 +624,7 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.shots_on_target_per_match.label": "Ø Shots on target",
   "metrics.shots_on_goal_against_per_match.label": "Ø Shots on target against",
   "metrics.shots_on_goal_difference_per_match.label": "Ø Shots on target difference",
-  "metrics.finishing_efficiency.label": "% Goals per shot on target",
+  "metrics.finishing_efficiency_pct.label": "% Goals per shot on target",
   "metrics.duels_per_match.label": "Ø Duels",
   "metrics.duels_won_pct.label": "% Duels won",
   "metrics.defensive_actions_per_match.label": "Ø Defensive actions",
@@ -658,7 +658,7 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.shots_on_target_per_match.label": "Ø Torschüsse",
   "metrics.shots_on_goal_against_per_match.label": "Ø Torschüsse gegen",
   "metrics.shots_on_goal_difference_per_match.label": "Ø Torschussdifferenz",
-  "metrics.finishing_efficiency.label": "% Trefferquote",
+  "metrics.finishing_efficiency_pct.label": "% Trefferquote",
   // NOT "Duelle". Every German football source uses Zweikampf/Zweikämpfe — bundesliga.com's own stat
   // category is literally "Gewonnene Zweikämpfe", and kicker and sport.de agree. `Duelle` was my
   // first draft and it reads as a translation rather than as football German.
@@ -699,7 +699,7 @@ const METRIC_LABELS_FI: MetricLabels = {
   // genitive plural of `maalilaukaus` and so matches `maalilaukaukset` above; `laukaisujen` came off a
   // different stem (`laukaisu`) and was internally inconsistent.
   "metrics.shots_on_goal_difference_per_match.label": "Ø Maalilaukauksien ero",
-  "metrics.finishing_efficiency.label": "% Viimeistelytehokkuus",
+  "metrics.finishing_efficiency_pct.label": "% Viimeistelytehokkuus",
   // Veikkausliiga's own reporting uses kaksinkamppailut, and reports duels won as a percentage.
   "metrics.duels_per_match.label": "Ø Kaksinkamppailut",
   "metrics.duels_won_pct.label": "% Voitetut kaksinkamppailut",

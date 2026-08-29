@@ -42,7 +42,7 @@ models:
         description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows."
         tests: [not_null]
       - name: games_with_team_stats
-        description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency."
+        description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency_pct."
         tests: [not_null]
       - name: games_with_opp_stats
         description: "Count of window legs with opponent team stats present. Denominator/gate for corners_against_per_match."

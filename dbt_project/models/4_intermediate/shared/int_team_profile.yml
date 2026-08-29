@@ -21,10 +21,10 @@ models:
       # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
       # (the composed source): the YoY cutoff N is low by construction early in every season, so a
       # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
-      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; saves_pct = saves/(saves+
+      # ratios (finishing_efficiency_pct — guarded to NULL when goals>SoT; saves_pct = saves/(saves+
       # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
       - dbt_utils.expression_is_true:
-          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
+          expression: "(finishing_efficiency_pct_this_season is null or finishing_efficiency_pct_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_pct_prev_season is null or finishing_efficiency_pct_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
           name: team_profile_yoy_structural_ratios_in_range
       # Provider-subset ratios (shots_inside_box_pct = inside_box/shots, passes_accuracy_pct = accurate/total,
       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
@@ -69,8 +69,8 @@ models:
         description: "{{ doc('shots_inside_box_pct_this_season__team') }}"
       - name: shots_on_goal_per_match_this_season
         description: "{{ doc('shots_on_goal_per_match_this_season__team') }}"
-      - name: finishing_efficiency_this_season
-        description: "{{ doc('finishing_efficiency_this_season__team') }}"
+      - name: finishing_efficiency_pct_this_season
+        description: "{{ doc('finishing_efficiency_pct_this_season__team') }}"
       - name: duels_per_match_this_season
         description: "{{ doc('duels_per_match_this_season__team') }}"
       - name: duels_won_pct_this_season
@@ -104,8 +104,8 @@ models:
         description: "{{ doc('shots_inside_box_pct_prev_season__team') }}"
       - name: shots_on_goal_per_match_prev_season
         description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
-      - name: finishing_efficiency_prev_season
-        description: "{{ doc('finishing_efficiency_prev_season__team') }}"
+      - name: finishing_efficiency_pct_prev_season
+        description: "{{ doc('finishing_efficiency_pct_prev_season__team') }}"
       - name: duels_per_match_prev_season
         description: "{{ doc('duels_per_match_prev_season__team') }}"
       - name: duels_won_pct_prev_season
@@ -136,8 +136,8 @@ models:
         description: "{{ doc('shots_inside_box_pct_delta_yoy__team') }}"
       - name: shots_on_goal_per_match_delta_yoy
         description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
-      - name: finishing_efficiency_delta_yoy
-        description: "{{ doc('finishing_efficiency_delta_yoy__team') }}"
+      - name: finishing_efficiency_pct_delta_yoy
+        description: "{{ doc('finishing_efficiency_pct_delta_yoy__team') }}"
       - name: duels_per_match_delta_yoy
         description: "{{ doc('duels_per_match_delta_yoy__team') }}"
       - name: duels_won_pct_delta_yoy

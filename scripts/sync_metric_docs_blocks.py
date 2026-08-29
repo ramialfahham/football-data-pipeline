@@ -74,7 +74,7 @@ MIN_METRICS = 50
 # a per-match core column, and these blocks are attached to core columns.
 #
 # ⚠ THE WORD ALONE, not a list of phrasings. An earlier version matched only
-# `form window|in the window|same-window` and MISSED `finishing_efficiency`, whose
+# `form window|in the window|same-window` and MISSED `finishing_efficiency_pct`, whose
 # text said "share the window" and "the window is not fully shot-covered" — three
 # occurrences, none of them on the list. Worse, the MR's own verification searched
 # with this same pattern, so it could only ever agree with the guard: a too-narrow

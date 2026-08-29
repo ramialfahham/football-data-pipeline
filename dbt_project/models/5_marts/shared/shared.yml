@@ -111,8 +111,8 @@ models:
           expression: "shots_inside_box_pct is null or (shots_inside_box_pct between 0 and 1)"
           name: momentum_team_shots_inside_box_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
-          name: momentum_team_finishing_efficiency_in_range
+          expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+          name: momentum_team_finishing_efficiency_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "passes_accuracy_pct is null or (passes_accuracy_pct between 0 and 1)"
           name: momentum_team_passes_accuracy_pct_in_range
@@ -178,8 +178,8 @@ models:
         description: "{{ doc('shots_inside_box_pct') }}"
       - name: shots_on_goal_per_match
         description: "{{ doc('shots_on_goal_per_match') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency__team') }}"
+      - name: finishing_efficiency_pct
+        description: "{{ doc('finishing_efficiency_pct') }}"
       - name: passes_per_match
         description: "{{ doc('passes_per_match') }}"
       - name: passes_accuracy_pct
@@ -603,10 +603,10 @@ models:
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: team_profile_duels_won_pct_in_range
-      # finishing_efficiency is open-play conversion in [0,1] (CPO Option A)
+      # finishing_efficiency_pct is open-play conversion in [0,1] (CPO Option A)
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
-          name: team_profile_finishing_efficiency_in_range
+          expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+          name: team_profile_finishing_efficiency_pct_in_range
     columns:
       - name: is_featured_season
         description: >
@@ -700,8 +700,8 @@ models:
         description: "{{ doc('shots_on_goal_pct') }}"
       - name: shots_inside_box_pct
         description: "{{ doc('shots_inside_box_pct') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency__team') }}"
+      - name: finishing_efficiency_pct
+        description: "{{ doc('finishing_efficiency_pct') }}"
       - name: passes_accuracy_pct
         description: "{{ doc('passes_accuracy_pct') }}"
       - name: passes_per_match
@@ -775,12 +775,12 @@ models:
         description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
       - name: shots_on_goal_per_match_delta_yoy
         description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
-      - name: finishing_efficiency_this_season
-        description: "{{ doc('finishing_efficiency_this_season__team') }}"
-      - name: finishing_efficiency_prev_season
-        description: "{{ doc('finishing_efficiency_prev_season__team') }}"
-      - name: finishing_efficiency_delta_yoy
-        description: "{{ doc('finishing_efficiency_delta_yoy__team') }}"
+      - name: finishing_efficiency_pct_this_season
+        description: "{{ doc('finishing_efficiency_pct_this_season__team') }}"
+      - name: finishing_efficiency_pct_prev_season
+        description: "{{ doc('finishing_efficiency_pct_prev_season__team') }}"
+      - name: finishing_efficiency_pct_delta_yoy
+        description: "{{ doc('finishing_efficiency_pct_delta_yoy__team') }}"
       - name: duels_per_match_this_season
         description: "{{ doc('duels_per_match_this_season__team') }}"
       - name: duels_per_match_prev_season
@@ -861,8 +861,8 @@ models:
           expression: "shots_inside_box_pct is null or (shots_inside_box_pct between 0 and 1)"
           name: std_team_shots_inside_box_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
-          name: std_team_finishing_efficiency_in_range
+          expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+          name: std_team_finishing_efficiency_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "passes_accuracy_pct is null or (passes_accuracy_pct between 0 and 1)"
           name: std_team_passes_accuracy_pct_in_range
@@ -941,8 +941,8 @@ models:
         description: "{{ doc('shots_inside_box_pct') }}"
       - name: shots_on_goal_per_match
         description: "{{ doc('shots_on_goal_per_match') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency__team') }}"
+      - name: finishing_efficiency_pct
+        description: "{{ doc('finishing_efficiency_pct') }}"
       - name: passes_per_match
         description: "{{ doc('passes_per_match') }}"
       - name: passes_accuracy_pct
@@ -1844,7 +1844,7 @@ models:
       - name: save_pct
         description: "{{ doc('save_pct') }}"
       - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency__player') }}"
+        description: "{{ doc('finishing_efficiency') }}"
 
   - name: mart_team_market_value
     description: >
@@ -2077,7 +2077,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]
