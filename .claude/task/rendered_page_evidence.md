@@ -1,74 +1,71 @@
-# Rendered page evidence — step 4 MR 2, the player `discipline` metrics
+# Rendered page evidence — step 4 MR 3, the player `defending` metrics
 
-Branch `refactor/metric-rename-player-discipline`, base main `3e5b25b`.
+Branch `refactor/metric-rename-player-defending`, base main `a3fb952`.
 
 Read from `site_v2/dist/` after `npm run build` (66 pages, 57 fixture pages, `audit-seo: 67 built
 page(s) checked. OK.`) — never from source, never from `outerHTML`. HTML comments stripped and
 whitespace collapsed before any comparison, because Astro splits interpolated text with `<!-- -->`.
 
-**BOTH SIDES WERE BUILT.** The base side is not asserted from the base commit's numbers: the 24
-changed files were stashed by explicit path, `npm run build` was run at base content, the dist
-measured, then the stash popped and the tree confirmed back at 24 modified files. That second build
-is not redundant even though `git diff --name-only HEAD -- site_v2/` is empty, because the build's
-`prebuild` step (`npm test && node scripts/check-page-specs.mjs`) reads `dbt_project/models/5_marts/**`
-and `dbt_project/seeds/`, which this branch DOES change.
+**BOTH SIDES WERE BUILT.** The 28 changed files were stashed by explicit path, `npm run build` run
+at base content, the dist measured, the stash popped and the tree confirmed back at 28 modified.
 
-## The prediction, and why it is a different one from `!125`'s
+## ⭐ Why this measurement is a REAL check here, and was not on `!125` or `!127`
 
-`!125` could say its three names never reached the payload at all. **Four of these five do.** The
-committed fixture sample carries `offsides`, `penalty_committed`, `cards_yellow` and `cards_red`
-under `top_players[]` — ten per fixture across 19 files — and that payload is built from
-**`mart_player_momentum`** (`export_site_data.py:871`), a player METRIC mart this MR renames, not
-from `mart_player_fixture_stats`. `shape_top_players` filters with a DROP list (`_TOPPLAYER_DROP`)
-that names none of the five, so a renamed mart column flows straight through into a payload key.
+On the two previous batches an unchanged build only *confirmed a prediction* — none of those names
+was rendered, so nothing could have moved. **This batch is different.**
+`defensive_actions_per_match` is one of the **12 rendered metric rows**, and its stem
+`defensive_actions` is the player metric being renamed. It appears in five frontend files, all
+PROTECTED tokens:
 
-The prediction was therefore: **the pages still do not change**, for two reasons that both had to
-hold — `site_v2/src/data/**` is the declared transient and is not swept, and no `.astro`, `.ts` or
-spec file reads any of the five.
+    site_v2/src/lib/metricRows.ts:98              field: "defensive_actions_per_match"
+    site_v2/src/i18n/strings.ts:630 / 669 / 708   the EN / DE / FI labels
+    site_v2/src/components/team/TeamPerformance.astro:61
+    site_v2/src/specs/competition/matches/fixture.spec.json:46
+    site_v2/src/specs/teams/team.spec.json:75
+
+**Mis-scope any one of them and a rendered label disappears from every built page.** So a clean
+comparison is evidence that the team/player split held, not merely that nothing was expected to
+change.
 
 Counted STRUCTURALLY: one `<div class="mrow">` per row, one `<div class="mgroup">` per heading, two
 comparison blocks per fixture page.
 
-| | base (`3e5b25b`) | after |
+| | base (`a3fb952`) | after |
 |---|---|---|
 | metric rows per comparison block — EN / DE / FI | 12 / 12 / 12 | **12 / 12 / 12** |
 | group headings per block | 7 / 7 / 7 | **7 / 7 / 7** |
 | distinct rendered labels | 12 / 12 / 12 | **12 / 12 / 12** |
 | names ADDED / REMOVED | — | **none / none** |
 
-Across all **19** fixture pages in each locale, both windows. The distinct label set compares
-**identical in all three locales**, element for element; 7 of the 12 rendered names in each locale
-are also declared in the untouched CPO-validated `site/i18n/<loc>.json` corpus and every one of
-those matches word for word.
+Across all **19** fixture pages in each locale, both windows. 7 of the 12 rendered names in each
+locale are also declared in the untouched CPO-validated `site/i18n/<loc>.json` corpus and every one
+matches word for word.
 
-## The sharper measurement: the payload keys are not in the HTML at all
+**The protected row itself, present after the rename** — the specific thing that would have broken:
 
-Whole-token grep over the whole of `site_v2/dist`:
+    EN  "Ø Defensive actionstackles + interceptions + blocks"   19 built pages
+    DE  "Ø Defensivaktionentackles + interceptions + blocks"    19 built pages
+    FI  "Ø Puolustustoimettackles + interceptions + blocks"     19 built pages
 
-| name | built files containing it |
-|---|---|
-| `cards_yellow` | **0** |
-| `cards_red` | **0** |
-| `cards_total` | **0** |
-| `offsides` | **0** |
-| `penalty_committed` | **0** |
+(The run-together label is the row plus its `T · I · B` subtitle with tags stripped; it reads that
+way on the base build too, so it is not a defect introduced here.)
 
-Astro renders server-side, so a payload key that no component reads never reaches the emitted HTML.
-`01_fixture_page.md:196` describes these four as "available in the payload for an expanded row
-(design decision)" and `03_player_profile.md:106` says they "stay unrendered" — the build confirms
-both. **So the roll-forward changes the payload keys and still changes no built page.**
+## Not one frontend file changed
 
-⛔⛔ **THIS IS NOT THE PROOF THE RENAME HAPPENED.** An unchanged build is exactly what doing no work
-produces — the shape of check the CPO rejected on `!114` ("identical output is ALSO what doing no
-work produces"). It is recorded as **the confirmation of a stated prediction**, a different claim.
-What proves the work is criterion 2 (48 yml column entries reconciled against their own models'
-SQL, in both directions) and criterion 4 (42 column references resolved, and the resolver watched
-going red three times, once on an exact reproduction of the `!125` round-2 defect inside this
-batch's own code).
+`git diff --name-only -- site_v2/` is **empty**. Five frontend files were deliberately swept rather
+than skipped, so the classifier printed a decision for each; all five decisions were PROTECT and
+none was written. Whole-token grep over `site_v2/dist` finds all five old names in **0** built
+files — Astro renders server-side, so a payload key no component reads never reaches the HTML.
+
+⛔⛔ **THIS IS STILL NOT THE PROOF THE RENAME HAPPENED.** An unchanged build is also what doing
+nothing produces — the check the CPO rejected on `!114`. What it proves *here* is narrower and
+worth stating exactly: **the protected team row survived a batch that renamed its stem.** What
+proves the work is criterion 2 (72 yml column entries reconciled against their own models, the
+frontend diff empty, the surviving old names pinned by count per file) and criterion 4 (48
+references resolved, the resolver repaired and re-proved red on the `!125` round-2 defect).
 
 ## Row count in context
 
 12 is where `!123` left it — 16 catalogue rows minus the four dropped by batches C, D and F. The
-sample roll-forward is what takes it back to 16, and it is owed and unscheduled: it needs ingestion
-to have run, and there is still no nightly schedule on GitLab. Nothing in this MR moves that number
-in either direction.
+sample roll-forward is what takes it back to 16, and it is owed and unscheduled. Nothing in this MR
+moves that number in either direction.

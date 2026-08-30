@@ -94,7 +94,7 @@ catalogue metrics; rendered as a one-line summary.
 | Shots on target | `shots_on_target` |
 | Duels won | `duels_won`, `duels_total`, `duels_won_pct` |
 | Successful dribbles | `dribbles_success`, `dribbles_attempts`, `dribbles_success_pct` |
-| Tackles + Interceptions + Blocks | `tackles_total`, `tackles_interceptions`, `tackles_blocks` |
+| Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
 | Pass accuracy | `passes_accurate`, `passes_total`, `pass_accuracy_pct` |
 | Key passes | `passes_key` |
 | Cards | `cards_yellow_player`, `cards_red_player` |
@@ -103,7 +103,7 @@ catalogue metrics; rendered as a one-line summary.
 Rendering rules per contract: group subheads optional (design call), order fixed,
 zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the
 GK block on keeper profiles = design call #366). Unbundled atomics
-(`dribbles_past`, `offsides_player`, `penalty_won`, `penalty_committed_player`) stay unrendered.
+(`dribbles_past_player`, `offsides_player`, `penalty_won`, `penalty_committed_player`) stay unrendered.
 
 ### (6) Match log — `match_log[]`, latest first
 

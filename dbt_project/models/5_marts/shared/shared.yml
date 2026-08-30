@@ -272,12 +272,12 @@ models:
         description: "{{ doc('passes_accurate') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
-      - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
-      - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
-      - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
       - name: duels_won
         description: "{{ doc('duels_won') }}"
       - name: duels_total
@@ -286,8 +286,8 @@ models:
         description: "{{ doc('dribbles_success') }}"
       - name: dribbles_attempts
         description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+      - name: dribbles_past_player
+        description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
       - name: penalty_won
@@ -544,11 +544,11 @@ models:
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
+        description: "{{ doc('tackles_player') }}"
       - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
+        description: "{{ doc('blocks_player') }}"
       - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
+        description: "{{ doc('interceptions_player') }}"
       - name: duels_total
         description: "{{ doc('duels_total') }}"
       - name: duels_won
@@ -558,7 +558,7 @@ models:
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+        description: "{{ doc('dribbles_past_player') }}"
       - name: fouls_drawn
         description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
@@ -1037,12 +1037,12 @@ models:
         description: "{{ doc('passes_accurate') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
-      - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
-      - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
-      - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
       - name: duels_won
         description: "{{ doc('duels_won') }}"
       - name: duels_total
@@ -1051,8 +1051,8 @@ models:
         description: "{{ doc('dribbles_success') }}"
       - name: dribbles_attempts
         description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+      - name: dribbles_past_player
+        description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
       - name: penalty_won
@@ -1388,12 +1388,12 @@ models:
         description: "{{ doc('passes_key') }}"
       - name: passes_accurate
         description: "{{ doc('passes_accurate') }}"
-      - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
-      - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
-      - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
       - name: duels_total
         description: "{{ doc('duels_total') }}"
       - name: duels_won
@@ -1402,8 +1402,8 @@ models:
         description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
-      - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+      - name: dribbles_past_player
+        description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
       - name: cards_yellow_player
@@ -1449,12 +1449,12 @@ models:
       - name: key_passes_this_season
       - name: key_passes_prev_season
       - name: key_passes_delta_yoy
-      - name: defensive_actions_this_season
-        description: "{{ doc('defensive_actions_this_season__player') }}"
-      - name: defensive_actions_prev_season
-        description: "{{ doc('defensive_actions_prev_season__player') }}"
-      - name: defensive_actions_delta_yoy
-        description: "{{ doc('defensive_actions_delta_yoy__player') }}"
+      - name: defensive_actions_player_this_season
+        description: "{{ doc('defensive_actions_player_this_season__player') }}"
+      - name: defensive_actions_player_prev_season
+        description: "{{ doc('defensive_actions_player_prev_season__player') }}"
+      - name: defensive_actions_player_delta_yoy
+        description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
       - name: appearances_prev_full
         description: "{{ doc('appearances_prev_full') }}"
       - name: goals_prev_season_full
@@ -1464,8 +1464,8 @@ models:
       - name: shots_on_goal_player_prev_season_full
         description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: key_passes_prev_season_full
-      - name: defensive_actions_prev_season_full
-        description: "{{ doc('defensive_actions_prev_season_full__player') }}"
+      - name: defensive_actions_player_prev_season_full
+        description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
       - name: scorer_points
         description: "{{ doc('scorer_points') }}"
       - name: team_goals_season
@@ -1558,9 +1558,9 @@ models:
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
+        description: "{{ doc('tackles_player') }}"
       - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
+        description: "{{ doc('interceptions_player') }}"
       - name: duels_total
         description: "{{ doc('duels_total') }}"
       - name: duels_won
@@ -1753,7 +1753,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_player", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
+              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions_player", "cards_player", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -1817,20 +1817,20 @@ models:
         description: "{{ doc('duels_total') }}"
       - name: duels_won
         description: "{{ doc('duels_won') }}"
-      - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
-      - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
-      - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
       - name: cards_yellow_player
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
       - name: scorer_points
         description: "{{ doc('scorer_points') }}"
-      - name: defensive_actions
-        description: "{{ doc('defensive_actions') }}"
+      - name: defensive_actions_player
+        description: "{{ doc('defensive_actions_player') }}"
       - name: cards_player
         description: "{{ doc('cards_player') }}"
       # RATE-board values (#506) — the player's season rate, carried on every row as a display

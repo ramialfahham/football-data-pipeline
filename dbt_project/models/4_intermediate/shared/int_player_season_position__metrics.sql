@@ -105,9 +105,9 @@ aggregated as (
         sum(
             cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)
         ) as passes_accurate,
-        sum(coalesce(tackles_total, 0)) as tackles_total,
-        sum(coalesce(tackles_interceptions, 0)) as tackles_interceptions,
-        sum(coalesce(tackles_blocks, 0)) as tackles_blocks,
+        sum(coalesce(tackles_total, 0)) as tackles_player,
+        sum(coalesce(tackles_interceptions, 0)) as interceptions_player,
+        sum(coalesce(tackles_blocks, 0)) as blocks_player,
         sum(coalesce(duels_total, 0)) as duels_total,
         sum(coalesce(duels_won, 0)) as duels_won,
         sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
@@ -135,9 +135,9 @@ select
     passes_total,
     passes_accurate,
     passes_key,
-    tackles_total,
-    tackles_interceptions,
-    tackles_blocks,
+    tackles_player,
+    interceptions_player,
+    blocks_player,
     duels_total,
     duels_won,
     dribbles_attempts,
@@ -146,7 +146,7 @@ select
     goals_against,
     -- count composites (sums of the atoms above) — metric_catalogue rows
     goals + assists as scorer_points,
-    tackles_total + tackles_interceptions + tackles_blocks as defensive_actions,
+    tackles_player + interceptions_player + blocks_player as defensive_actions_player,
     -- rates: NULL when the denominator is zero (never coerced to 0)
     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
     safe_divide(duels_won, duels_total) as duels_won_pct,
@@ -168,11 +168,11 @@ select
     safe_divide(passes_key * 90, minutes) as key_passes_per90,
     safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
     safe_divide(passes_total * 90, minutes) as passes_per90,
-    safe_divide(tackles_total * 90, minutes) as tackles_per90,
-    safe_divide(tackles_interceptions * 90, minutes) as interceptions_per90,
-    safe_divide(tackles_blocks * 90, minutes) as blocks_per90,
+    safe_divide(tackles_player * 90, minutes) as tackles_per90,
+    safe_divide(interceptions_player * 90, minutes) as interceptions_per90,
+    safe_divide(blocks_player * 90, minutes) as blocks_per90,
     safe_divide(
-        (tackles_total + tackles_interceptions + tackles_blocks) * 90, minutes
+        (tackles_player + interceptions_player + blocks_player) * 90, minutes
     ) as defensive_actions_per90,
     safe_divide(duels_won * 90, minutes) as duels_won_per90,
     safe_divide(saves * 90, minutes) as saves_per90

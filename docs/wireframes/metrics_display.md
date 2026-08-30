@@ -258,7 +258,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
 | 3 | Duels won | `{won} of {total} · {pct}%` | duels_won, duels_total, duels_won_pct | Duels |
 | 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success, dribbles_attempts, dribbles_success_pct | Duels |
-| 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_total, tackles_interceptions, tackles_blocks | Defending |
+| 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
 | 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate, passes_total, pass_accuracy_pct | Passing |
 | 7 | Key passes | `{count}` | passes_key | Passing |
 | 8 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |

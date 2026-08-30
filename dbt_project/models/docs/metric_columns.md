@@ -71,6 +71,11 @@ gaps.
 {% enddocs %}
 
 
+{% docs blocks_player %}
+Shots blocked.
+{% enddocs %}
+
+
 {% docs cards_player %}
 Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a
 yellow plus a red, so a two-yellow dismissal counts as 3.
@@ -205,21 +210,6 @@ progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs defensive_actions %}
-Tackles plus interceptions plus blocks (combined defensive actions).
-{% enddocs %}
-
-
-{% docs defensive_actions_delta_yoy__player %}
-Tackles plus interceptions plus blocks (combined defensive actions). The change from the
-previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when there is no prior season at this club to compare
-against, which covers a transfer, a first season at this level and a prior season that was
-never loaded, and NULL for a competition that carries no year-on-year comparison at all, such
-as a cup, a qualifying campaign or an international tournament.
-{% enddocs %}
-
-
 {% docs defensive_actions_per90 %}
 Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised.
 Null when minutes is zero.
@@ -258,21 +248,36 @@ season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs defensive_actions_prev_season__player %}
+{% docs defensive_actions_player %}
+Tackles plus interceptions plus blocks (combined defensive actions).
+{% enddocs %}
+
+
+{% docs defensive_actions_player_delta_yoy__player %}
+Tackles plus interceptions plus blocks (combined defensive actions). The change from the
+previous season to the current one, compared at the same point of the campaign: the current
+value minus the previous one. NULL when there is no prior season at this club to compare
+against, which covers a transfer, a first season at this level and a prior season that was
+never loaded, and NULL for a competition that carries no year-on-year comparison at all, such
+as a cup, a qualifying campaign or an international tournament.
+{% enddocs %}
+
+
+{% docs defensive_actions_player_prev_season__player %}
 Tackles plus interceptions plus blocks (combined defensive actions). Value for the season
 before, through the same number of matches as the current season has played so far, so the two
 are compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
-{% docs defensive_actions_prev_season_full__player %}
+{% docs defensive_actions_player_prev_season_full__player %}
 Tackles plus interceptions plus blocks (combined defensive actions). The previous season's
 complete total, with no cutoff. It is context for how large that season was and is never
 subtracted from the season in progress, because a part season against a full one would mislead.
 {% enddocs %}
 
 
-{% docs defensive_actions_this_season__player %}
+{% docs defensive_actions_player_this_season__player %}
 Tackles plus interceptions plus blocks (combined defensive actions). Value for the season now
 in progress, accumulated through the matches played so far.
 {% enddocs %}
@@ -321,7 +326,7 @@ Dribble attempts.
 {% enddocs %}
 
 
-{% docs dribbles_past %}
+{% docs dribbles_past_player %}
 Times dribbled past by an opponent.
 {% enddocs %}
 
@@ -747,6 +752,11 @@ Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is ze
 {% docs interceptions_per_match %}
 Average interceptions per match. Aggregated from player stats; inherits player-stat coverage
 gaps.
+{% enddocs %}
+
+
+{% docs interceptions_player %}
+Interceptions.
 {% enddocs %}
 
 
@@ -1186,16 +1196,6 @@ Share of all shots in the team's matches taken by the team. Null when no shots.
 {% enddocs %}
 
 
-{% docs tackles_blocks %}
-Shots blocked.
-{% enddocs %}
-
-
-{% docs tackles_interceptions %}
-Interceptions.
-{% enddocs %}
-
-
 {% docs tackles_per90 %}
 Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 {% enddocs %}
@@ -1206,6 +1206,6 @@ Average tackles per match. Aggregated from player stats; inherits player-stat co
 {% enddocs %}
 
 
-{% docs tackles_total %}
+{% docs tackles_player %}
 Tackles made.
 {% enddocs %}

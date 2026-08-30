@@ -768,11 +768,11 @@ models:
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
+        description: "{{ doc('tackles_player') }}"
       - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
+        description: "{{ doc('blocks_player') }}"
       - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
+        description: "{{ doc('interceptions_player') }}"
       - name: duels_total
         description: "{{ doc('duels_total') }}"
       - name: duels_won
@@ -782,7 +782,7 @@ models:
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+        description: "{{ doc('dribbles_past_player') }}"
       - name: fouls_drawn
         description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed

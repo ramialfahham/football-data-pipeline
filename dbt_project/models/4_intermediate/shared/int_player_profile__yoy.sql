@@ -47,7 +47,7 @@ with std as (
         goals_assists,
         shots_on,
         passes_key,
-        tackles_total + tackles_interceptions + tackles_blocks as defensive_actions
+        tackles_player + interceptions_player + blocks_player as defensive_actions_player
     from {{ ref('int_player_season_record') }}
 ),
 
@@ -79,7 +79,7 @@ cur as (
         goals_assists as assists_this_season,
         shots_on as shots_on_goal_player_this_season,
         passes_key as key_passes_this_season,
-        defensive_actions as defensive_actions_this_season
+        defensive_actions_player as defensive_actions_player_this_season
     from dom
     qualify row_number() over (
         partition by team_sk, player_sk, league_code
@@ -99,7 +99,7 @@ prev as (
         d.goals_assists as assists_prev_season,
         d.shots_on as shots_on_goal_player_prev_season,
         d.passes_key as key_passes_prev_season,
-        d.defensive_actions as defensive_actions_prev_season
+        d.defensive_actions_player as defensive_actions_player_prev_season
     from dom as d
     inner join cur as c
         on
@@ -128,7 +128,7 @@ prev_full as (
         d.goals_assists as assists_prev_season_full,
         d.shots_on as shots_on_goal_player_prev_season_full,
         d.passes_key as key_passes_prev_season_full,
-        d.defensive_actions as defensive_actions_prev_season_full
+        d.defensive_actions_player as defensive_actions_player_prev_season_full
     from dom as d
     inner join cur as c
         on
@@ -152,27 +152,27 @@ select
     cur.assists_this_season,
     cur.shots_on_goal_player_this_season,
     cur.key_passes_this_season,
-    cur.defensive_actions_this_season,
+    cur.defensive_actions_player_this_season,
     prev.appearances_prev,
     prev.goals_prev_season,
     prev.assists_prev_season,
     prev.shots_on_goal_player_prev_season,
     prev.key_passes_prev_season,
-    prev.defensive_actions_prev_season,
+    prev.defensive_actions_player_prev_season,
     -- prior-season FULL totals (context anchor; NULL when no prior season at this club)
     prev_full.appearances_prev_full,
     prev_full.goals_prev_season_full,
     prev_full.assists_prev_season_full,
     prev_full.shots_on_goal_player_prev_season_full,
     prev_full.key_passes_prev_season_full,
-    prev_full.defensive_actions_prev_season_full,
+    prev_full.defensive_actions_player_prev_season_full,
     cur.goals_this_season - prev.goals_prev_season as goals_delta_yoy,
     cur.assists_this_season - prev.assists_prev_season as assists_delta_yoy,
     cur.shots_on_goal_player_this_season - prev.shots_on_goal_player_prev_season
         as shots_on_goal_player_delta_yoy,
     cur.key_passes_this_season - prev.key_passes_prev_season as key_passes_delta_yoy,
-    cur.defensive_actions_this_season - prev.defensive_actions_prev_season
-        as defensive_actions_delta_yoy
+    cur.defensive_actions_player_this_season - prev.defensive_actions_player_prev_season
+        as defensive_actions_player_delta_yoy
 from cur
 left join prev
     on

@@ -149,7 +149,7 @@ exists and the gap is VOID.
 | Dribbles attempted | `dribbles_attempts` · `dribbles_success` · `dribbles_success_pct` | `dribbles_attempts` |
 | Passes | `passes_total` · `passes_accurate` · `pass_accuracy_pct` | `passes_total` |
 | Key passes | `passes_key` | `passes_key` |
-| Tackles | `tackles_total` · `tackles_interceptions` · `tackles_blocks` · `defensive_actions` | `tackles_total` |
+| Tackles | `tackles_player` · `interceptions_player` · `blocks_player` · `defensive_actions_player` | `tackles_player` |
 | Goals conceded | `goals_against` · `shots_on_goal_against` | `goals_against`, ASCENDING |
 | Cards | `cards_yellow_player` · `cards_red_player` · `cards_player` | `cards_player`, DESCENDING |
 
@@ -267,7 +267,7 @@ cut, so building any of it would serve nothing. Struck rather than deleted — t
 foot of this file carries the corrected status of all of them. The bullets AFTER them are still
 live and unchanged.
 
-- ~~**Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`.
+- ~~**Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_player`, `goals_against`.
   Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal_player`,
   `passes_total`, `passes_key`, `cards_player`.~~ VOID — all four were cut.
 - ~~**Three display columns.** `passes_accurate` and `goals_against` exist in
@@ -857,7 +857,7 @@ register row.
 nine-board design; three of those are VOID and three gaps registered since were missing. The
 register is the authority — check it, not this summary.
 
-- ~~**GAP-24** — four new board keys (`duels_total`, `dribbles_attempts`, `tackles_total`,
+- ~~**GAP-24** — four new board keys (`duels_total`, `dribbles_attempts`, `tackles_player`,
   `goals_against`).~~ **VOID**: all four metrics were cut by the 2026-08-10 reduction.
 - ~~**GAP-25** — three display columns (`passes_accurate`, `goals_against`,
   `shots_on_goal_against`).~~ **VOID**: all three served boards that no longer exist.

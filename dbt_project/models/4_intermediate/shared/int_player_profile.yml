@@ -9,7 +9,7 @@ models:
 
       Carries cumulative goals, assists, shots on target, key passes and defensive actions through
       the latest N appearances this season, against the prior season AT THE SAME CLUB through its
-      first N. defensive_actions is tackles plus interceptions plus blocks.
+      first N. defensive_actions_player is tackles plus interceptions plus blocks.
 
       Deltas are NULL when there is no prior season at this club — a transfer, or a first season.
     tests:
@@ -19,7 +19,7 @@ models:
       # full >= pace-matched for every metric (all are monotonic cumulative counts), and a
       # pace-matched prev row implies a full prev row exists. Catches a broken prev_full window.
       - dbt_utils.expression_is_true:
-          expression: "appearances_prev is null or (appearances_prev_full >= appearances_prev and goals_prev_season_full >= goals_prev_season and assists_prev_season_full >= assists_prev_season and shots_on_goal_player_prev_season_full >= shots_on_goal_player_prev_season and key_passes_prev_season_full >= key_passes_prev_season and defensive_actions_prev_season_full >= defensive_actions_prev_season)"
+          expression: "appearances_prev is null or (appearances_prev_full >= appearances_prev and goals_prev_season_full >= goals_prev_season and assists_prev_season_full >= assists_prev_season and shots_on_goal_player_prev_season_full >= shots_on_goal_player_prev_season and key_passes_prev_season_full >= key_passes_prev_season and defensive_actions_player_prev_season_full >= defensive_actions_player_prev_season)"
           name: player_yoy_full_season_ref_ge_pace_matched
     columns:
       - name: team_sk
@@ -57,8 +57,8 @@ models:
       - name: shots_on_goal_player_this_season
         description: "{{ doc('shots_on_goal_player_this_season__player') }}"
       - name: key_passes_this_season
-      - name: defensive_actions_this_season
-        description: "{{ doc('defensive_actions_this_season__player') }}"
+      - name: defensive_actions_player_this_season
+        description: "{{ doc('defensive_actions_player_this_season__player') }}"
       - name: appearances_prev
       - name: goals_prev_season
         description: "{{ doc('goals_prev_season__player') }}"
@@ -67,22 +67,22 @@ models:
       - name: shots_on_goal_player_prev_season
         description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
       - name: key_passes_prev_season
-      - name: defensive_actions_prev_season
-        description: "{{ doc('defensive_actions_prev_season__player') }}"
+      - name: defensive_actions_player_prev_season
+        description: "{{ doc('defensive_actions_player_prev_season__player') }}"
       - name: assists_prev_season_full
         description: "{{ doc('assists_prev_season_full__player') }}"
       - name: shots_on_goal_player_prev_season_full
         description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: key_passes_prev_season_full
-      - name: defensive_actions_prev_season_full
-        description: "{{ doc('defensive_actions_prev_season_full__player') }}"
+      - name: defensive_actions_player_prev_season_full
+        description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
       - name: assists_delta_yoy
         description: "{{ doc('assists_delta_yoy__player') }}"
       - name: shots_on_goal_player_delta_yoy
         description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
       - name: key_passes_delta_yoy
-      - name: defensive_actions_delta_yoy
-        description: "{{ doc('defensive_actions_delta_yoy__player') }}"
+      - name: defensive_actions_player_delta_yoy
+        description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
 
   - name: int_player_profile__contribution
     description: >

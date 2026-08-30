@@ -496,12 +496,12 @@ models:
         description: "{{ doc('passes_accurate') }}"
       - name: passes_key
         description: "{{ doc('passes_key') }}"
-      - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
-      - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
-      - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
       - name: duels_total
         description: "{{ doc('duels_total') }}"
       - name: duels_won
@@ -510,8 +510,8 @@ models:
         description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
-      - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+      - name: dribbles_past_player
+        description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
       - name: cards_yellow_player
@@ -530,8 +530,8 @@ models:
         description: "{{ doc('goals_open_play__player') }}"
       - name: scorer_points
         description: "{{ doc('scorer_points') }}"
-      - name: defensive_actions
-        description: "{{ doc('defensive_actions') }}"
+      - name: defensive_actions_player
+        description: "{{ doc('defensive_actions_player') }}"
       - name: cards_player
         description: "{{ doc('cards_player') }}"
       - name: duels_won_pct
