@@ -16,10 +16,10 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, season_sk, position_group]
-      # finishing_efficiency is open-play conversion in [0,1] (CPO Option A); range-guarded on this
+      # finishing_efficiency_player_pct is open-play conversion in [0,1] (CPO Option A); range-guarded on this
       # surface itself, not only on the benchmark consumer (covers sub-floor / GK rows too).
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
+          expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"
           name: int_player_season_position_finishing_in_range
     columns:
       - name: player_sk
@@ -58,8 +58,8 @@ models:
         description: "{{ doc('goals_penalty__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
-      - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_accurate
@@ -96,8 +96,8 @@ models:
         description: "{{ doc('dribbles_success_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency') }}"
+      - name: finishing_efficiency_player_pct
+        description: "{{ doc('finishing_efficiency_player_pct') }}"
       - name: goals_per90
         description: "{{ doc('goals_per90') }}"
       - name: assists_per90

@@ -144,7 +144,7 @@ exists and the gap is VOID.
 | Board | Shown | Ranked by |
 |---|---|---|
 | Goal contributions | `goals` · `assists` · `scorer_points` | `scorer_points` |
-| Shots on target | `shots_on_goal` | `shots_on_goal` |
+| Shots on target | `shots_on_goal_player` | `shots_on_goal_player` |
 | Duels | `duels_won` · `duels_total` · `duels_won_pct` | `duels_total` |
 | Dribbles attempted | `dribbles_attempts` · `dribbles_success` · `dribbles_success_pct` | `dribbles_attempts` |
 | Passes | `passes_total` · `passes_accurate` · `pass_accuracy_pct` | `passes_total` |
@@ -268,7 +268,7 @@ foot of this file carries the corrected status of all of them. The bullets AFTER
 live and unchanged.
 
 - ~~**Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`.
-  Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal`,
+  Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal_player`,
   `passes_total`, `passes_key`, `cards_total`.~~ VOID — all four were cut.
 - ~~**Three display columns.** `passes_accurate` and `goals_against` exist in
   `int_player_season__metrics` and are simply not selected into the mart. `shots_on_goal_against`

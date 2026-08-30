@@ -1,89 +1,63 @@
-# Rendered page evidence — batch F, finishing_efficiency → finishing_efficiency_pct
+# Rendered page evidence — step 4 MR 1 (rebuilt), the player `shooting` metrics
 
-Branch `refactor/metric-rename-team-finishing-efficiency`, base main `cdd2218`.
+Branch `refactor/metric-rename-player-shooting`, base main `1fa7e5f`.
 
-Read from `site_v2/dist/` after `npm run build` (66 pages built, `audit-seo: 67 built page(s)
-checked. OK.`) — never from source, never from `outerHTML`. HTML comments are stripped and
-whitespace collapsed before any comparison, because Astro splits interpolated text with `<!-- -->`.
-Both the before and the after were built and measured; the before was taken on the untouched tree at
-`cdd2218`, not reconstructed from batch E's numbers.
+Read from `site_v2/dist/` after `npm run build` (66 pages, `audit-seo: 67 built page(s) checked.
+OK.`) — never from source, never from `outerHTML`. HTML comments stripped and whitespace collapsed
+before any comparison, because Astro splits interpolated text with `<!-- -->`.
 
-## The fixture metric comparison — 13 → 12, which is what the contract predicted
+## The prediction: nothing moves
 
-Counted STRUCTURALLY: one `<div class="mrow">` per row, one `<div class="mgroup">` per heading. Each
-fixture page renders two comparison blocks (W1 and W2), so a 12-row page shows 24 `mrow` and 14
-`mgroup`.
+Stated in the contract before any code. None of the three names is among the 16 locked rows in
+`site_v2/src/lib/metricRows.ts`, and the player surface they feed — the fixture `top_players`
+block — carries `shots_on`, the LEG column, which does not move.
 
-⛔ Not a substring test. `Ø Corners` occurs inside `Ø Corners against`, and a containment check
-certifies a MISSING row as present — that is how `!116`'s evidence reported 16 rendered names when
-the truth was 14. Every label below is a whole rendered element text.
+Counted STRUCTURALLY: one `<div class="mrow">` per row, one `<div class="mgroup">` per heading, two
+comparison blocks per fixture page.
 
-| | before (`cdd2218`) | after |
+| | base (`1fa7e5f`) | after |
 |---|---|---|
-| metric rows per comparison block — EN / DE / FI | 13 / 13 / 13 | **12 / 12 / 12** |
+| metric rows per comparison block — EN / DE / FI | 12 / 12 / 12 | **12 / 12 / 12** |
 | group headings per block | 7 / 7 / 7 | **7 / 7 / 7** |
-| rendered names ADDED | — | **none, in any locale** |
-| rendered names REMOVED | — | **exactly one per locale** |
+| distinct rendered labels | 12 / 12 / 12 | **12 / 12 / 12** |
+| names ADDED / REMOVED | — | **none / none** |
 
-Across all **19** fixture pages in each locale, both windows: `[12]` (min 12, max 12).
+Across all **19** fixture pages in each locale, both windows: `[12]`, min 12 max 12. The distinct
+label set compares **identical in all three locales**, element for element.
 
-The one removed name per locale, and it is this metric's own row:
+⛔⛔ **THIS IS NOT THE PROOF THE RENAME HAPPENED.** An unchanged build is exactly what doing no work
+produces — the shape of check the CPO rejected on `!114` ("identical output is ALSO what doing no
+work produces"). It is recorded as **the confirmation of a stated prediction**, a different claim.
+The evidence the work happened is criterion 2 (0 old-name files in `src` outside the sample, new
+names in 15 / 21 / 15 files), the four gates, and the guards watched going red — including the
+column-reference resolver reproducing the exact defect that failed round 1.
 
-| locale | removed |
-|---|---|
-| EN | `% Goals per shot on target` |
-| DE | `% Trefferquote` |
-| FI | `% Viimeistelytehokkuus` |
+## Why the player surface cannot show a change
 
-⭐ **Why it is absent rather than wrong.** `finishing_efficiency_pct` IS one of the LOCKED 16 in
-`site_v2/src/lib/metricRows.ts`, and the committed export sample still serves the old
-`finishing_efficiency` key, so `MetricComparison.astro`'s `hasData()` drops a row where neither side
-has a value. Honest-absent behaviour — omitted, never blank, never a fabricated zero
-(`14_team_stats.md` §6). It closes with the final sample roll-forward, which is owed after F and is
-deliberately not in this branch.
+`shape_top_players` (`scripts/export_site_data.py:566`) is a passthrough: `_drop(row,
+_TOPPLAYER_DROP)` removes eight internal keys and emits the rest verbatim, so the payload keys are
+the mart's column names. Read from the committed sample, a `top_players` member carries `shots_on`,
+`goals_total`, `goals_assists`, `saves`, `save_pct`, the duels/dribbles/passes/tackles counts and the
+cards — **none of the three names this MR renames.** `shots_on` is the leg column and is not a
+catalogue `metric_id`.
 
-⭐ **The Shooting heading survives**, which was the other half of the prediction: the group keeps
-`Ø Shots` and `Ø Shots on target`. All seven headings render in all three locales, before and after.
+The team Squad tab reads `goals`/`assists`, which belong to MR 7. The first batch whose rename
+reaches a rendered player value will be `duels` (MR 5) or `goalkeeping` (MR 6); the transient will be
+declared there.
 
-Programme running total: 16 → 15 (C) → 13 (D) → 13 (E) → **12 (F)**.
+## The team page — unchanged, absent for the same pre-existing reason
 
-Reference page, all three locales:
-`site_v2/dist/<loc>/2-bundesliga/matches/2026-08-28-eintracht-braunschweig-vs-hertha-bsc/index.html`
-
-## The wording of every surviving name is unchanged
-
-Compared against the UNTOUCHED CPO-validated corpus `site/i18n/<loc>.json`, by exact equality of
-whole strings:
-
-| locale | corpus-declared names rendered, before | after | lost | gained |
-|---|---|---|---|---|
-| EN | 7 | 7 | none | none |
-| DE | 8 | 7 | `% Trefferquote` | none |
-| FI | 8 | 7 | `% Viimeistelytehokkuus` | none |
-
-⚠ EN is 7 both times, and that is not an omission. v2's EN label for this metric diverges from the
-MVP corpus by design — the corpus says "% Conversion rate" and v2 keeps its own locked wording — so
-this row was never in the EN compared set. That divergence is the reason
-`check-metric-labels.test.mjs` carries an EN exemption keyed on the metric id, and re-pointing that
-exemption is part of this diff.
-
-## The team page — criterion 4, unchanged
-
-Read from the `<div class="cb">` element inside the `data-page="performance"` panel of
-`site_v2/dist/<loc>/teams/manchester-united-fc/index.html`. Matched on the element, not by searching
-for a phrase.
+`site_v2/dist/<loc>/teams/manchester-united-fc/index.html`, `<div class="cb">` inside the
+`data-page="performance"` panel, identical to the base build:
 
     EN  Not enough games this season to rank Manchester United FC against the league.
     DE  Zu wenige Spiele in dieser Saison, um Manchester United FC mit der Liga zu vergleichen.
     FI  Liian vähän otteluita tällä kaudella, jotta Manchester United FC voisi verrata sarjaan.
 
-Byte-identical before and after. The metric ROWS render on no built team page in this sample: the
-featured season (team 33, PL 2026) has one game played, below the `>= 3 finished games` benchmark
-floor, so `season.benchmarks` is empty and the whole Performance tab renders the absent state. That
-is pre-existing and is recorded here so the gap is never read as damage from this rename.
+Team 33's featured season (PL 2026) has one game played, below the `>= 3 finished games` benchmark
+floor. Pre-existing; recorded so the gap is never read as damage from this rename.
 
-## ⚠ #98 is visible in this evidence and is NOT caused here
+## ⚠ #98 is visible here and is NOT caused by this MR
 
-The seven group headings render in ENGLISH on the DE and FI pages — `Defending · Duels ·
-Goalkeeping · Goals · Passing · Set pieces · Shooting` in all three locales. That is GitLab **#98**,
-open and the CPO's (the words are his). It is identical before and after this branch.
+The seven group headings render in ENGLISH on the DE and FI pages. GitLab **#98**, open and the
+CPO's. Identical before and after.

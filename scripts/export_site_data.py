@@ -45,12 +45,12 @@ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 # Player leaderboards: the 9 COUNT boards from mart_leaderboards (LONG, one row per
 # board, pre-ranked by the warehouse). metric_key drives the board; the 5 rate boards
 # are deferred (#506). The order here is the display order.
-_LEADERBOARD_METRICS = ("goals", "scorer_points", "shots_on_goal", "dribbles_success",
+_LEADERBOARD_METRICS = ("goals", "scorer_points", "shots_on_goal_player", "dribbles_success",
                         "passes_total", "passes_key", "duels_won", "defensive_actions",
                         "cards_total")
 _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
             "appearances", "minutes", "rank", "sort_value",
-            "goals", "assists", "shots_on_goal", "dribbles_success", "dribbles_attempts",
+            "goals", "assists", "shots_on_goal_player", "dribbles_success", "dribbles_attempts",
             "passes_total", "passes_key", "duels_won", "duels_total",
             "tackles_total", "tackles_interceptions", "tackles_blocks",
             "cards_yellow", "cards_red",

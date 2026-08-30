@@ -139,14 +139,14 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
 |---|---|---|
 | `save_pct` | `saves` | `saves + goals_against` |
 | `pass_accuracy_pct` | `passes_accurate` | `passes_total` |
-| `finishing_efficiency` | `goals − goals_penalty` | `shots_on_goal` |
+| `finishing_efficiency_player_pct` | `goals − goals_penalty` | `shots_on_goal_player` |
 | `dribbles_success_pct` | `dribbles_success` | `dribbles_attempts` |
 | `duels_won_pct` | `duels_won` | `duels_total` |
 
 The benchmarked set is the **18 metrics** of `player_benchmark_metrics()`, each ranked **within its own
 position group**: **GK** = saves, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
 goals, assists, scorer points, shots on target, key passes, finishing, dribbles (count + %), duels won
-(count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency` and `duels_won_pct`
+(count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency_player_pct` and `duels_won_pct`
 are now catalogued (both `higher_better`, via #530b/#621) — they were the last blockers, so the screen can
 bind all 18 honestly.
 
@@ -161,7 +161,7 @@ its glossary entry). No new player-level targets invented.
 |---|---|---|
 | Normal | — | grouped rows above |
 | Below the minutes floor | player has no mart rows for the season (mart filters `minutes >= 270` in the position) | no bars; "Not enough minutes this season to rank {player} against peers" |
-| Metric not eligible / below its floor | no row for that `metric_key` (position eligibility, or finishing with `shots_on_goal < 10`) | that row omitted (not a zero bar) |
+| Metric not eligible / below its floor | no row for that `metric_key` (position eligibility, or finishing with `shots_on_goal_player < 10`) | that row omitted (not a zero bar) |
 | Thin peer group | small `peer_count` | render, but the sample line states `peer_count` plainly (honest small-N) |
 | Multi-position | several `position_group` sets | position selector; **default = the position with the most `minutes`** (a display selection, not a derived fact) |
 | No value | `metric_value` null | row omitted |

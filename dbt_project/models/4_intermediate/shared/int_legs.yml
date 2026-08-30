@@ -56,9 +56,9 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against__team') }}"
       - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
       - name: corner_kicks
@@ -122,7 +122,7 @@ models:
         description: "{{ doc('is_substitute') }}"
       - name: position_code
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_on
       - name: goals_total
       - name: goals_against

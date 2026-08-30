@@ -432,11 +432,11 @@ models:
       - name: team_name
       - name: team_logo_url
       - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_off_goal
         description: "{{ doc('shots_off_goal') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_blocked
         description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
@@ -529,7 +529,7 @@ models:
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_on
       - name: goals_total
       - name: goals_against
@@ -1380,8 +1380,8 @@ models:
         description: "{{ doc('goals__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
-      - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_key
@@ -1440,12 +1440,12 @@ models:
         description: "{{ doc('assists_prev_season__player') }}"
       - name: assists_delta_yoy
         description: "{{ doc('assists_delta_yoy__player') }}"
-      - name: shots_on_goal_this_season
-        description: "{{ doc('shots_on_goal_this_season__player') }}"
-      - name: shots_on_goal_prev_season
-        description: "{{ doc('shots_on_goal_prev_season__player') }}"
-      - name: shots_on_goal_delta_yoy
-        description: "{{ doc('shots_on_goal_delta_yoy__player') }}"
+      - name: shots_on_goal_player_this_season
+        description: "{{ doc('shots_on_goal_player_this_season__player') }}"
+      - name: shots_on_goal_player_prev_season
+        description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
+      - name: shots_on_goal_player_delta_yoy
+        description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
       - name: key_passes_this_season
       - name: key_passes_prev_season
       - name: key_passes_delta_yoy
@@ -1461,8 +1461,8 @@ models:
         description: "{{ doc('goals_prev_season_full__player') }}"
       - name: assists_prev_season_full
         description: "{{ doc('assists_prev_season_full__player') }}"
-      - name: shots_on_goal_prev_season_full
-        description: "{{ doc('shots_on_goal_prev_season_full__player') }}"
+      - name: shots_on_goal_player_prev_season_full
+        description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: key_passes_prev_season_full
       - name: defensive_actions_prev_season_full
         description: "{{ doc('defensive_actions_prev_season_full__player') }}"
@@ -1549,7 +1549,7 @@ models:
       - name: saves
         description: "{{ doc('saves__player') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_on
       - name: passes_total
         description: "{{ doc('passes_total') }}"
@@ -1726,7 +1726,7 @@ models:
       - dbt_utils.expression_is_true:
           expression: "sort_value > 0"
           name: mart_leaderboards_sort_value_positive
-      # RATE-board ratios are all bounded [0,1]. finishing_efficiency is now open-play
+      # RATE-board ratios are all bounded [0,1]. finishing_efficiency_player_pct is now open-play
       # conversion in [0,1] (CPO Option A), so it is range-checked here like the other rates.
       # Rates are null when their denominator is zero.
       - dbt_utils.expression_is_true:
@@ -1742,8 +1742,8 @@ models:
           expression: "save_pct is null or (save_pct between 0 and 1)"
           name: mart_leaderboards_save_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
-          name: mart_leaderboards_finishing_efficiency_in_range
+          expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"
+          name: mart_leaderboards_finishing_efficiency_player_pct_in_range
     columns:
       - name: player_leaderboard_sk
         description: "Surrogate from (player_sk, season_sk, metric_key)."
@@ -1753,7 +1753,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_goal", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
+              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -1803,8 +1803,8 @@ models:
         description: "{{ doc('goals__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
-      - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: dribbles_attempts
         description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
@@ -1843,8 +1843,8 @@ models:
         description: "{{ doc('dribbles_success_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency') }}"
+      - name: finishing_efficiency_player_pct
+        description: "{{ doc('finishing_efficiency_player_pct') }}"
 
   - name: mart_team_market_value
     description: >
@@ -2129,17 +2129,17 @@ models:
       - dbt_utils.expression_is_true:
           expression: "percentile >= 0 and percentile <= 1"
           name: mart_competition_benchmarks_player_percentile_in_range
-      # finishing_efficiency is the one bounded metric in the LONG metric_value column (the
+      # finishing_efficiency_player_pct is the one bounded metric in the LONG metric_value column (the
       # per-90 metrics are unbounded). It is open-play conversion in [0,1] (CPO Option A) —
       # range-check the finishing rows; this is the only finishing surface on the player benchmark.
       - dbt_utils.expression_is_true:
-          expression: "metric_key != 'finishing_efficiency' or metric_value is null or (metric_value between 0 and 1)"
+          expression: "metric_key != 'finishing_efficiency_player_pct' or metric_value is null or (metric_value between 0 and 1)"
           name: mart_competition_benchmarks_player_finishing_in_range
       # GAP-21 (#391): the 5 ratio metrics carry their volume (num/den) for the no-naked-% triple; the 13
       # per-90 metrics do not. num AND den are non-null EXACTLY on the ratio rows (and, since a ranked row
       # always has a non-null metric_value, safe_divide guarantees a non-null, non-zero den there).
       - dbt_utils.expression_is_true:
-          expression: "(metric_key in ('save_pct', 'pass_accuracy_pct', 'finishing_efficiency', 'dribbles_success_pct', 'duels_won_pct')) = (metric_numerator is not null and metric_denominator is not null)"
+          expression: "(metric_key in ('save_pct', 'pass_accuracy_pct', 'finishing_efficiency_player_pct', 'dribbles_success_pct', 'duels_won_pct')) = (metric_numerator is not null and metric_denominator is not null)"
           name: mart_competition_benchmarks_player_ratio_atoms_present
     columns:
       - name: player_benchmark_sk
@@ -2183,7 +2183,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]
@@ -2192,7 +2192,7 @@ models:
           The count behind a RATIO metric's percentage — duels_won for duels_won_pct, for example
           — so the rate can always be shown with the volume it rests on.
 
-          Non-null ONLY on the five ratio rows (save_pct, pass_accuracy_pct, finishing_efficiency,
+          Non-null ONLY on the five ratio rows (save_pct, pass_accuracy_pct, finishing_efficiency_player_pct,
           dribbles_success_pct, duels_won_pct), and NULL on the per-90 rows, which have no such
           pair. From int_player_season_position__metrics, gated identically to metric_value.
       - name: metric_denominator

@@ -8,7 +8,7 @@
   and percentile display. The player analog of int_team_competition_benchmarks.
 
   Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
-  finishing_efficiency, also >= 10 shots on target in the position (its denominator is shots, not minutes —
+  finishing_efficiency_player_pct, also >= 10 shots on target in the position (its denominator is shots, not minutes —
   D4). Metric x position eligibility comes from player_benchmark_metrics() (CPO B3): a metric ineligible for
   a position (e.g. saves for an outfielder) yields a null value and is not counted.
 

@@ -80,10 +80,10 @@ models:
         description: "{{ doc('goals_penalty__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
-      - name: shots_total
-        description: "{{ doc('shots_total') }}"
-      - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+      - name: shots_player
+        description: "{{ doc('shots_player') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_key

@@ -654,11 +654,11 @@ models:
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
       - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_off_goal
         description: "{{ doc('shots_off_goal') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_blocked
         description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
@@ -753,7 +753,7 @@ models:
       - name: offsides
         description: "{{ doc('offsides') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_on
       - name: goals_total
       - name: goals_against

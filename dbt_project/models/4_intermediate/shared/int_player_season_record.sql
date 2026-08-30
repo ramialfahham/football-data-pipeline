@@ -47,7 +47,7 @@ select
     sum(goals_against) over w as goals_against,
     sum(goals_assists) over w as goals_assists,
     sum(saves) over w as saves,
-    sum(shots_total) over w as shots_total,
+    sum(shots_total) over w as shots_player,
     sum(shots_on) over w as shots_on,
     sum(passes_total) over w as passes_total,
     sum(passes_key) over w as passes_key,

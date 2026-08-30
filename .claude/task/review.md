@@ -1,125 +1,123 @@
-# Review — refactor/metric-rename-team-finishing-efficiency — 2026-08-29
+# Review — refactor/metric-rename-player-shooting — 2026-08-30
 
-> Step 3 of the metric catalogue naming programme, MR **F of six and the LAST of the twelve team
-> renames**: `finishing_efficiency` → `finishing_efficiency_pct`, TEAM entity only. The PLAYER row
-> of the same `metric_id` is deliberately untouched (step 4). Branched from main `cdd2218`
-> (after `!122`).
+> **STEP 4 of the metric catalogue naming programme, MR 1 of seven.** The three player `shooting`
+> metrics: `shots_total` → `shots_player`, `shots_on_goal` → `shots_on_goal_player`,
+> `finishing_efficiency` → `finishing_efficiency_player_pct`, PLAYER entity only. Branched from main
+> `1fa7e5f`.
 
-diff_sha256: bef67750e60b02c74b74e09915c54af32ed89809652434a689271d7c81983bd2
+diff_sha256: 97f964957e77e83c62bdf568dfa3f10a5c2e55d7a3614301af93dd1b919ca0e0
 
-rounds: 1
+rounds: 3
 
-> All five required reviewers returned PASS with **no open findings** in round 1. Each was given the
-> contract, the cumulative branch diff and `escalations.log`, and each was pointed at the specific
-> hazards this batch carries — the doc-block merge, the six-of-seven `*_in_range` split, and the
-> player `accepted_values` lists — so that a PASS means those were looked at rather than missed.
+⛔⛔ **THE FIRST TWO ROUNDS BOTH FAILED, ON ONE DEFECT, AND THE HISTORY IS RECORDED RATHER THAN
+TIDIED.** Round 1 FAILED 4–1 and was fully reverted with nothing committed. Round 2 FAILED 5–0.
+Every failure was the same mistake in a different shape: **for dotted reads I asked "did the source
+relation rename this column?", and for bare reads I asked "does the alias match the inner name?"**
+Those questions agree most of the time and disagree exactly where it matters. Corrected to one rule
+applied uniformly across alias / dotted / bare / prose / seed. Round 3 is the cap and all five
+reviewers PASS with no open findings.
+
+⚠ **ONE IMPRECISION RAISED AT ROUND 3 AND NOT FIXED IN PLACE.** `platform-reviewer` noted that
+`contract.md`'s "no gate in this repo resolves a column reference" overreaches —
+`assert_metric_catalogue_expr_resolvable.sql` does, for the seed's formula fields, against a live
+warehouse. It judged this an imprecision, not a defect, since the sentence is true inside the "nine
+OFFLINE gates" framing its own paragraph opens with. Correcting `contract.md` would void all five
+verdicts and force a round 4 past the cap, so **the correction is appended to `escalations.log`**
+(hash-excluded) instead. Named here so no reader has to infer it.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Verified every quoted ruling in `contract.md` against `escalations.log` — RULING 1's verbatim
-  clause, the "⛔ TEAM, 12 REMAINING" row, the "THE SIX, ENUMERATED" exclusion, "THE RULED PATTERN",
-  and the disclosed-transient quote from the PLAYER list. All present verbatim. No plan-file
-  citation and no line-number citation into the log.
-- Confirmed the `escalations.log` change is a PURE APPEND: the only hunk adds the new
-  `2026-08-29 STEP 3, MR F` block after unchanged context; no merged block was edited in place.
-- Reconciled the mechanical counts against the diff rather than the prose: exactly 6
-  `doc('finishing_efficiency__team')` → `doc('finishing_efficiency_pct')` and exactly 3
-  `doc('finishing_efficiency__player')` → `doc('finishing_efficiency')` rewrites, matching the
-  claimed 6/3.
-- Confirmed the 6 named range tests renamed with the column and
-  `mart_leaderboards_finishing_efficiency_in_range` does not appear in the diff at all.
-- Confirmed the seed renames only the TEAM row; the PLAYER row immediately below it is byte-identical.
-- Confirmed every file in the diff appears in `scope_paths`, no scoped file was left undone, and the
-  threshold declarations (no new mechanism, cost or dependency) match what the diff actually does.
-- Confirmed `decisions_reserved` honestly carries #96, #98 and the deferred
-  `contribution_share` → `contribution_player_pct` question rather than silently deciding it.
+- The round-2 defect at `int_player_season__metrics.sql:45-46` now reads `sum(shots_player)` /
+  `sum(shots_on_goal_player)` from `club_season = ref('int_player_club_season__metrics')`, which
+  renames those same aliases at `:120-121`. Chain resolves; no dangling column.
+- `docs/wireframes/03_player_profile.md` (bi-analyst's round-2 defect) is absent from the patch
+  entirely and absent from `scope_paths` — the erroneous prose rename reverted and scope corrected.
+- The seed's formula fields keep `sum(shots_total)` / `sum(shots_on)` against `int_legs__player_match`,
+  a provider relation that does not rename — the round-1 defect class, still fixed.
+- `core.yml` and `int_legs.yml` move only `doc()` references; the `name:` column fields stay
+  `shots_total` / `shots_on_goal`, matching both CPO rulings.
+- The `escalations.log` hunk is a pure addition — no line removed or edited — and the record
+  correction's arithmetic (48 seed rows − 35 renamed = 13 unchanged = 12 `_per90` +
+  `minutes_per_appearance`) checks out independently.
+- `scope_paths` reconciled against every file in the patch, both directions.
+- `decisions_reserved` honestly withholds the CI-gate call rather than taking it; no other §10-class
+  decision appears without a quoted ruling. No credentials, no threshold crossings.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Swept all 20 files under `dbt_project/models/` carrying the stem and confirmed each occurrence is
-  either correctly renamed (team) or correctly left bare (player). No team surface missed, no player
-  surface renamed.
-- Enumerated all 15 `doc('finishing_efficiency…')` call sites against the blocks the generator now
-  emits: 6 resolve to `finishing_efficiency_pct`, 3 to the re-pointed bare `finishing_efficiency`,
-  6 to the surviving `*__team` yoy blocks. **Zero dangling `doc()`**; the three `*__player` yoy
-  blocks were dropped with 0 remaining references.
-- Confirmed all three 22-name TEAM `accepted_values` lists carry `finishing_efficiency_pct` at
-  exactly 22 values with no duplication, and all three PLAYER lists still carry the bare name.
-- Found exactly 7 `*_finishing_efficiency*_in_range` tests tree-wide: 6 renamed,
-  `mart_leaderboards_finishing_efficiency_in_range` correctly left as the player board's test.
-- Diffed every renamed `case` / `safe_divide` expression against its pre-rename form — logic
-  unchanged, only the output alias moved. Formula, floor, null policy, direction and tier are all
-  byte-identical on the catalogue row.
-- Confirmed no touched model is `materialized='incremental'`, so no `--full-refresh` was owed.
-- Confirmed the export script carries no hardcoded reference to this metric and no derivation was
-  moved into the consumption layer.
-- Confirmed no step-4 leakage: `finishing_efficiency_player_pct` appears only in contract and
-  handover prose, never in code.
+- Traced the full composition chain that broke in both earlier rounds — `int_legs__player_match` →
+  `int_player_club_season__metrics` → `int_player_season__metrics` → the marts — and it resolves at
+  every hop. `finishing_efficiency_player_pct` and `shots_on_goal_per90` consistently reference the
+  renamed column.
+- Reads that must NOT move, verified unmoved: `int_player_club_season__metrics.sql:67-68` (`s.` =
+  `fct_fixture_player_stats`), `int_player_momentum__metrics.sql:67-68` (`p.` =
+  `int_legs__player_match`), `int_player_season_record.sql:50-51` (bare, from the legs).
+- Reads that must move, verified moved: `mart_player_profile.sql:146,180-182,194` (`a.` = season,
+  `y.` = yoy), `mart_leaderboards.sql` (`s.` = season), `int_player_profile__yoy.sql`'s four
+  `shots_on_goal_player_*` write-columns.
+- Seed rows: `metric_id` renamed, `base_relation` / `numerator_expr` / `denominator_expr` untouched.
+- Doc blocks: no `doc('shots_total')` / `doc('shots_on_goal')` / `doc('finishing_efficiency')`
+  reference remains anywhere; the three orphaned blocks removed with their owning TEAM columns left
+  bare rather than dangling.
+- The three PLAYER `accepted_values` lists moved; the three 22-name TEAM lists are byte-unchanged and
+  absent from the diff. Repo-wide sweep found no half-renamed name.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Confirmed the naming authority independently in the log: RULING 1 verbatim, the "TEAM, 12
-  REMAINING" row, absence from "THE SIX, ENUMERATED", and THE RULED PATTERN (`_form` = `_pct` for a
-  percentage) all supporting the name. No manufactured gap.
-- Diffed the seed row byte for byte: only `metric_id` and `label_i18n_key` moved. `label_en`
-  ("% Goals per shot on target"), the description, base relation, numerator
-  (`sum(goals_for - goals_penalty - goals_own)`), denominator (`sum(shots_on_goal)`), format, group,
-  tier and `direction: higher_better` are all unchanged — and `higher_better` remains football-correct
-  for a conversion rate.
-- Confirmed the "on target" → "on goal" wording is correctly deferred to step 5 and not taken here,
-  in the seed and in all three locale files.
-- Confirmed the team/player divergence is football-coherent and disclosed twice — in the programme
-  block's own transient note and again in this MR's appended block.
-- Traced the two renamed prose mentions to the TEAM description via the log's
-  `feat/82-metric-docs-blocks-generated` DEFECT 1 entry, and confirmed the player-side
-  `goals_open_play` mention was correctly left bare.
-- Confirmed no composite or fabricated metric is introduced; this is a pure identifier rename.
+- Its round-1 finding (seed formula naming a nonexistent column) re-verified fixed: all three rows
+  read the actual upstream leg columns, not the new metric ids.
+- Its round-2 finding (bare read of a renamed relation) verified fixed at `:45-46`.
+- Naming authority: all three renames verbatim in the log's "PLAYER, 35 REMAINING" table, with
+  `_player` before the trailing `_pct` per RULING 5's quoted shape.
+- Definitions byte-identical across every field of the three seed rows except `metric_id` —
+  label keys, label_en, description, base relation, format, group, tier, direction, interpretation.
+- `higher_better` is football-correct for all three; none is a conceded/cards class.
+- **Meaning preserved at every grain it is computed**: season and position keep the identical
+  NULL/zero-cap logic; club-season and momentum correctly do not compute the ratio at all, which is
+  pre-existing design, so no coverage or NULL policy was silently introduced or dropped.
+- No cross-entity leakage: the TEAM catalogue rows still read `int_legs__team_match` under the
+  original column names.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Traced `asked = rowKeys ∪ heroKeys` in `check-metric-labels.test.mjs:36-38` and confirmed
-  `metricRows.ts:93` still feeds `rowKeys`, so the re-pointed EN exemption at `:99` keys off a name
-  that IS in `asked` — the guard exercises it rather than passing vacuously. The exemption narrows on
-  exactly one id in one locale, exactly as before: **not widened**.
-- Verified the generated `metric_columns.md` merge — both blocks bare, the three `*__player` yoy
-  blocks deleted, the three `*__team` yoy blocks renamed — and cross-checked all 9 moved `doc()`
-  sites as consistent and non-dangling.
-- Checked `metric_bindings.csv` and `metric_definitions.json` against `check_ui_i18n_metrics.py`,
-  which reads by `DictReader` column name: the `live_id` `finishing_efficiency_recent` is unchanged
-  in both while `catalogue_metric_id` / `home_column` / `away_column` moved — the required shape.
-- Checked the batch-E LT05 risk on every changed `.sql` file's longest touched line — none crosses
-  120 characters. The one very long line is a YAML `expression_is_true` string, which sqlfluff does
-  not lint and which was already over-length before this branch.
-- Confirmed `tests/test_sync_metric_docs_blocks.py` runs against the real seed and the real generated
-  file, so a wrong merge or a leftover suffixed block would fail it generically, not by convention.
-- Swept the full patch for credential-shaped content — no matches.
-- Checked the gate table in `acceptance_evidence.md`: every exit code is a bare number alongside a
-  concrete count, none of the banner / "see below" / piped-exit forms that can mask a failing run.
+- Its round-2 headline defect verified fixed, and every dotted/bare read in every touched model
+  traced against its actual source — not only the previously-broken one. No broken reference found.
+- Provider / per-match surfaces genuinely untouched per the "yes" ruling, including
+  `03_player_profile.md:126` now reading `shots_total` verbatim.
+- ⭐ Found and named the contract imprecision recorded above — `assert_metric_catalogue_expr_resolvable.sql`
+  already resolves the seed-formula surface against a live warehouse, so the categorical claim
+  overreaches. Judged an imprecision, not a defect.
+- The three claimed-orphaned doc blocks confirmed genuinely unreferenced tree-wide.
+- Borrowed-doc-block re-pointing verified across five ymls: column names unchanged, only `doc()`
+  moved — consistent with the 1604 description count being base-identical.
+- `_LEADERBOARD_METRICS` / `_LB_KEEP` correctly updated with no stale sibling, and its round-2
+  observation that these are pinned by no test is confirmed recorded in the log rather than lost.
+- Nothing loosened: no hook, workflow, CI file, gate script, requirements or lockfile appears in the
+  patch at all. No new LT05.
+- Confirmed the log records both failed rounds plainly, including that the builder's own resolver
+  repeated in miniature the mistake it was built to catch.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Binding rule: traced `finishing_efficiency_pct` from `metricRows.ts:93` back through the mart chain
-  to the models that emit it, and confirmed the export selects generically rather than from a
-  hardcoded field list — the field is genuinely real, not typed only into a sample.
-- Honest absence: read `MetricComparison.astro`'s `hasData()` and `asNumber()`; with the sample still
-  keyed on the old name both sides resolve to `null` and the row is **dropped from the group**, so it
-  is omitted — never blank, never a fabricated zero.
-- Wording: diffed all three `METRIC_LABELS_*` blocks and all three `site/i18n/*.json` entries — only
-  the KEYS moved; every label string is byte-identical. Same for the seed's `label_en`.
-- Specs: both `team.spec.json` and `fixture.spec.json` moved to the new key in the same ordered
-  position as `metricRows.ts`, so the spec/label cross-check will not drift.
-- Wireframes: the four team documents renamed; `metrics_display.md`'s five-ratio-metric list was
-  correctly left bare because it documents the PLAYER row contract, and `12_player_stats.md` /
-  `99_gaps_register.md` are player surfaces and correctly untouched.
-- Swept `site_v2/src` outside `src/data` for the old key — zero hits; every remaining occurrence is
-  inside the disclosed sample transient.
-- Checked `rendered_page_evidence.md`'s 13 → 12 claim against what the source code actually does,
-  independently rather than on faith.
+- Its round-2 finding verified fixed: `03_player_profile.md:126` reads `shots_total`, the file is
+  absent from the diff, and `scope_paths` no longer lists it.
+- The remaining four wireframes checked occurrence by occurrence: every renamed mention binds to a
+  surface that actually renamed (`mart_leaderboards`' board list, the benchmark chain); every
+  remaining old-name mention binds to one that did not (the TEAM stems, and the distinct
+  `shots_on_goal_against` goalkeeping metric).
+- Binding rule: repo-wide grep shows none of the three old names or three new names anywhere in
+  `site_v2/src` outside `src/data`. `TopPlayer.shots_on` traced through the untouched
+  `mart_player_momentum` back to an unrenamed `sum(p.shots_on) as shots_on` — the field the frontend
+  reads never moved.
+- The rendered-page evidence is structural, not substring, and explicitly distinguishes "prediction
+  confirmed" from "proof of work", pointing at the whole-token grep and gate results as the proof.
+- No user-facing wording change: `label_i18n_key` and `label_en` byte-identical for all three rows;
+  no `site/i18n/**` or `site_v2/src/i18n/**` file in the diff.
 
 ## escalations
 (none)
