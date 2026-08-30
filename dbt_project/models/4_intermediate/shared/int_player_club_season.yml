@@ -90,12 +90,12 @@ models:
         description: "{{ doc('passes_key') }}"
       - name: passes_accurate
         description: "{{ doc('passes_accurate') }}"
-      - name: tackles_total
-        description: "{{ doc('tackles_total') }}"
-      - name: tackles_interceptions
-        description: "{{ doc('tackles_interceptions') }}"
-      - name: tackles_blocks
-        description: "{{ doc('tackles_blocks') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
       - name: duels_total
         description: "{{ doc('duels_total') }}"
       - name: duels_won
@@ -104,8 +104,8 @@ models:
         description: "{{ doc('dribbles_attempts') }}"
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
-      - name: dribbles_past
-        description: "{{ doc('dribbles_past') }}"
+      - name: dribbles_past_player
+        description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
       - name: cards_yellow_player
