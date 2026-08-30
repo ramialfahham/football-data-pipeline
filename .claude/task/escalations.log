@@ -6424,3 +6424,99 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   re-open it: the catalogue stays machine-readable as the on-ramp, and nothing built now should have
   to be undone to adopt it.
 
+
+2026-08-30 STEP 4 MR 2 — THE `discipline` GROUP, AND THE FIRST BATCH WHERE ONE SHAPE HAS TWO ANSWERS.
+
+  `cards_yellow → cards_yellow_player`, `cards_red → cards_red_player`, `cards_total → cards_player`,
+  `offsides → offsides_player`, `penalty_committed → penalty_committed_player`. PLAYER entity only.
+  Authority: the "⛔ PLAYER, 35 REMAINING" table, all five verbatim. The seed holds exactly five
+  `entity=player, metric_group=discipline` rows and these are all five — checked both directions.
+  No CPO decision was needed and none was asked for; both governing rulings ("re-point them", "yes")
+  already existed and are applied unchanged.
+
+  ⭐⭐ **THE FINDING WORTH KEEPING: THREE `sum(X) … as X` SITES, IDENTICAL IN SHAPE, WITH TWO
+  OPPOSITE CORRECT ANSWERS.** `!125` established the rule — a reference follows its SOURCE — but its
+  three names produced only one answer per shape, so the rule was never exercised against itself.
+  Here it is, in one batch:
+      int_player_club_season__metrics.sql:135  sum(coalesce(offsides, 0)) as offsides_player
+                                               ← per_fixture ← fct_fixture_player_stats  READ KEPT
+      int_player_season_record.sql:63          sum(offsides) over w as offsides_player
+                                               ← player_legs = int_legs__player_match    READ KEPT
+      int_player_season__metrics.sql:58        sum(offsides_player) as offsides_player
+                                               ← club_season = int_player_club_season__metrics,
+                                                 A METRIC RELATION THIS MR RENAMES        READ MOVED
+  ⭐ The landed `!125` code carries the same pair and settles it without argument:
+  `int_player_season_record.sql:50` is `sum(shots_total) over w as shots_player` while
+  `int_player_season__metrics.sql:45` is `sum(shots_player) as shots_player`. **Precedent read out
+  of the code, not reconstructed from memory.**
+
+  ⭐ **THE FOURTH SURFACE THE `!125` ENTRY SAID TO EXPECT, and it turned up on schedule:
+  `label_i18n_key`.** Seed row 50's key is `playerMetrics.offsides.label`, so a stem matches INSIDE
+  a dotted i18n key. It does NOT move. The proof is `!125`'s own diff — `playerMetrics.shots.label`
+  stayed while `shots_total → shots_player` — and the other four rows settle it independently: their
+  keys are `playerMetrics.cards.yellow`, `.cards.red`, `.cards.label`, `.penalties.committed`, none
+  of which contains a stem at all. These keys never tracked the metric_id.
+  ⭐ The question that found it is the one `!125` left: **"is this the metric, or a reference to
+  something upstream of it?"** asked of every occurrence rather than every file. Expect a fifth.
+
+  ⛔ **THE ONE THAT INVERTS THE NAIVE READING, and it is a built-page fact: `01_fixture_page.md`
+  RENAMES THIS TIME.** Its lines 198-199 document the `top_players[]` payload, and that payload is
+  built from **`mart_player_momentum`** (`export_site_data.py:871`) — a player METRIC mart this MR
+  renames — NOT from `mart_player_fixture_stats`. `shape_top_players` filters with a DROP list
+  naming none of the five, so a renamed mart column flows straight into a payload key. `!125`
+  classified the SAME FILE as team-side prose to protect and was right to: its only stem there was
+  the TEAM `shots_on_goal_pct` at line 151. One file, two sources, two answers — the rule working,
+  not an exception to it.
+  ⚠ **A CORRECTION TO `.claude/active_work.md`, which said of step 4 as a whole: "Step 4's own
+  renames do NOT reach the built pages — the `top_players` payload carries `shots_on`, a leg
+  column."** True of `!125`, FALSE as a general claim about step 4. The payload carries all four of
+  this batch's per-player names. Corrected in the handover rather than qualified.
+  ⭐ Measured, so the consequence is not overstated either: whole-token grep over `site_v2/dist`
+  finds all five names in **ZERO** built files. Astro renders server-side, so a payload key no
+  component reads never reaches the HTML. The roll-forward will change those four keys and still
+  change no built page. Built pages: **12 rows / 7 headings, EN+DE+FI, base and branch, ADDED none /
+  REMOVED none** — measured from two real builds, not asserted from `!125`'s numbers.
+
+  ⭐ **#96 FIRED AGAIN — SEVENTH REPRODUCTION — AND IT WAS THE CHEAPEST ONE YET TO FIND.**
+  `shared.yml:1756`, the 14-name `mart_leaderboards.metric_key` `accepted_values` list, contains
+  `cards_total`. Had it not moved, `data:build:mr` would have gone red and nothing offline would
+  have said why. All six lists were read by eye; exactly one changes. Then pinned mechanically,
+  which is the part worth keeping: the set `mart_leaderboards.sql` EMITS, the `accepted_values` list
+  and `export_site_data.py`'s `_LEADERBOARD_METRICS` were compared as SETS and must agree — a check
+  that fails if any one of the three moves alone. ⛔ Still not a committed gate; still the CPO's.
+
+  ⭐ **THE RESOLVER WAS PROVEN BEFORE IT WAS TRUSTED, THREE TIMES**, per the CPO's instruction to
+  check it catches a deliberately broken reference: a dotted break and a bare break on the BASE
+  tree, then — the one that matters — an exact reproduction of the `!125` round-2 defect on the
+  POST-RENAME tree (`int_player_season__metrics.sql:58` reverted to `sum(offsides)`), which it named
+  with the right diagnosis and exit 1. 42 references checked, 0 broken, 2 unresolved and REPORTED.
+  ⚠ Its limits are unchanged and were not quietly widened: it cannot check a read whose source is a
+  staging/base/core relation, so the two protected inner reads over `fct_fixture_player_stats` rest
+  on the printed classification and on review, not on it.
+
+  ⚠ **A VERIFICATION BUG OF MY OWN, recorded because the class already has three entries.** The
+  post-transform "no half-rename" check passed `HEAD` to `git grep`, so it read the COMMITTED BASE
+  instead of the working tree and reported 107 unexplained survivals on work that was correct. It
+  failed loudly rather than passing, which is the only reason it cost minutes rather than a round.
+  ⭐ THE RULE: **name the tree a check reads.** Same family as the vacuous `sed` intersection and
+  the corroboration read from a file overwritten to zero lines — a check aimed at the wrong thing
+  gives an answer that has nothing to do with the work.
+  ⚠ Its second form then asked a WHOLE-FILE question of three models that only PARTLY move, where a
+  provider read and a metric write sit on the same line. Replaced with an exact protected count per
+  file (8 / 4 / 4), so a read that wrongly moved — or a write that wrongly did not — changes a
+  number rather than passing a whitelist.
+
+  ⚠ `docs/ui_design_brief.md` is NEW to the sweep and was found by the classifier ABORTING on an
+  unlisted file, not by a search. Both its hits are the ordinary English word "offsides" in prose
+  whose every sibling is deliberately not an identifier ("cards (Y/R)", "penalties (won/committed)").
+  Protected, and declared as a judgement rather than left silent — as are
+  `metrics_display.md:271` (same reason) and
+  `assert_metric_direction_lower_is_better_agree.sql:9` (a DATED statement about the catalogue as it
+  stood on 2026-07-21; dated log → append, never rewrite). ⚠ The counter-argument to the third is
+  recorded with it: a reader grepping the live seed for `cards_yellow` will not find it.
+
+  ⭐ The 1604-description count is the CPO's "re-point them" ruling measured a third time: identical
+  to the base, where blanking the 48 borrowed references would have given 1592. 48 doc references
+  move; 16 columns keep their provider name while their `doc()` re-points, two of them TEAM columns
+  (`fct_fixture_team_stats.offsides`, `mart_team_fixture_stats.offsides`).
+

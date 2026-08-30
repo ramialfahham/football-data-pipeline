@@ -261,7 +261,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_total, tackles_interceptions, tackles_blocks | Defending |
 | 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate, passes_total, pass_accuracy_pct | Passing |
 | 7 | Key passes | `{count}` | passes_key | Passing |
-| 8 | Cards | `{Y} Y · {R} R` | cards_yellow, cards_red | Discipline |
+| 8 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
 | 9 | Save percentage | `{saves} of {faced} · {pct}%` | **saves (new)**, **shots_on_target_faced (new)**, save_pct | Goalkeeping |
 
 - Row 9 renders only for `position_code = 'G'`; whether a GK profile pulls the

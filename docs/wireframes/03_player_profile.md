@@ -97,13 +97,13 @@ catalogue metrics; rendered as a one-line summary.
 | Tackles + Interceptions + Blocks | `tackles_total`, `tackles_interceptions`, `tackles_blocks` |
 | Pass accuracy | `passes_accurate`, `passes_total`, `pass_accuracy_pct` |
 | Key passes | `passes_key` |
-| Cards | `cards_yellow`, `cards_red` |
+| Cards | `cards_yellow_player`, `cards_red_player` |
 | Save percentage | `save_pct` + **GAP-12** atomics (`saves`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
 
 Rendering rules per contract: group subheads optional (design call), order fixed,
 zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the
 GK block on keeper profiles = design call #366). Unbundled atomics
-(`dribbles_past`, `offsides`, `penalty_won`, `penalty_committed`) stay unrendered.
+(`dribbles_past`, `offsides_player`, `penalty_won`, `penalty_committed_player`) stay unrendered.
 
 ### (6) Match log — `match_log[]`, latest first
 

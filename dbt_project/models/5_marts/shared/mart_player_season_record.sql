@@ -84,11 +84,11 @@ matched as (
         sf.dribbles_success,
         sf.dribbles_attempts,
         sf.dribbles_past,
-        sf.offsides,
+        sf.offsides_player,
         sf.penalty_won,
-        sf.penalty_committed,
-        sf.cards_yellow,
-        sf.cards_red,
+        sf.penalty_committed_player,
+        sf.cards_yellow_player,
+        sf.cards_red_player,
         1 as priority
     from sides as s
     inner join season_final as sf
@@ -126,11 +126,11 @@ matched as (
         sf.dribbles_success,
         sf.dribbles_attempts,
         sf.dribbles_past,
-        sf.offsides,
+        sf.offsides_player,
         sf.penalty_won,
-        sf.penalty_committed,
-        sf.cards_yellow,
-        sf.cards_red,
+        sf.penalty_committed_player,
+        sf.cards_yellow_player,
+        sf.cards_red_player,
         2 as priority
     from sides as s
     inner join season_final as sf
@@ -176,11 +176,11 @@ select
     dribbles_success,
     dribbles_attempts,
     dribbles_past,
-    offsides,
+    offsides_player,
     penalty_won,
-    penalty_committed,
-    cards_yellow,
-    cards_red,
+    penalty_committed_player,
+    cards_yellow_player,
+    cards_red_player,
     -- ratios
     safe_divide(saves, saves + goals_against) as save_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,

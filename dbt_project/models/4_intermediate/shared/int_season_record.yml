@@ -185,13 +185,13 @@ models:
         description: "{{ doc('dribbles_success') }}"
       - name: dribbles_past
         description: "{{ doc('dribbles_past') }}"
-      - name: offsides
-        description: "{{ doc('offsides') }}"
+      - name: offsides_player
+        description: "{{ doc('offsides_player') }}"
       - name: penalty_won
         description: "{{ doc('penalty_won') }}"
-      - name: penalty_committed
-        description: "{{ doc('penalty_committed') }}"
-      - name: cards_yellow
-        description: "{{ doc('cards_yellow') }}"
-      - name: cards_red
-        description: "{{ doc('cards_red') }}"
+      - name: penalty_committed_player
+        description: "{{ doc('penalty_committed_player') }}"
+      - name: cards_yellow_player
+        description: "{{ doc('cards_yellow_player') }}"
+      - name: cards_red_player
+        description: "{{ doc('cards_red_player') }}"

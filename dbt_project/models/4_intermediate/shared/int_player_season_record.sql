@@ -60,11 +60,11 @@ select
     sum(dribbles_attempts) over w as dribbles_attempts,
     sum(dribbles_success) over w as dribbles_success,
     sum(dribbles_past) over w as dribbles_past,
-    sum(offsides) over w as offsides,
+    sum(offsides) over w as offsides_player,
     sum(penalty_won) over w as penalty_won,
-    sum(penalty_committed) over w as penalty_committed,
-    sum(cards_yellow) over w as cards_yellow,
-    sum(cards_red) over w as cards_red
+    sum(penalty_committed) over w as penalty_committed_player,
+    sum(cards_yellow) over w as cards_yellow_player,
+    sum(cards_red) over w as cards_red_player
 from player_legs
 window
     w as (

@@ -57,11 +57,11 @@ select
     b.dribbles_success,
     b.dribbles_attempts,
     b.dribbles_past,
-    b.offsides,
+    b.offsides_player,
     b.penalty_won,
-    b.penalty_committed,
-    b.cards_yellow,
-    b.cards_red,
+    b.penalty_committed_player,
+    b.cards_yellow_player,
+    b.cards_red_player,
     -- calculations
     b.team_sk = f.home_team_sk as is_home,
     -- ratios

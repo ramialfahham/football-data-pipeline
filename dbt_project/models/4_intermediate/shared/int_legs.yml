@@ -151,21 +151,21 @@ models:
       - name: dribbles_success
         description: "{{ doc('dribbles_success') }}"
       - name: offsides
-        description: "{{ doc('offsides') }}"
+        description: "{{ doc('offsides_player') }}"
       - name: fouls_drawn
         description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
         description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
-        description: "{{ doc('cards_yellow') }}"
+        description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red
-        description: "{{ doc('cards_red') }}"
+        description: "{{ doc('cards_red_player') }}"
       - name: dribbles_past
         description: "{{ doc('dribbles_past') }}"
       - name: penalty_won
         description: "{{ doc('penalty_won') }}"
       - name: penalty_committed
-        description: "{{ doc('penalty_committed') }}"
+        description: "{{ doc('penalty_committed_player') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty__player') }}"
       - name: round_order
