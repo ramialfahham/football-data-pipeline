@@ -431,7 +431,7 @@ models:
           expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
           name: int_player_season_pass_accuracy_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1) and (finishing_efficiency_player_pct is null or finishing_efficiency_player_pct between 0 and 1)"
           name: int_player_season_ratios_in_range
       # per-90 metrics (benchmark inputs) are unbounded above but can never be negative — a sign-flip
       # or a bad numerator would trip this. NULL is allowed (minutes = 0).
@@ -486,10 +486,10 @@ models:
         description: "{{ doc('goals_penalty__player') }}"
       - name: assists
         description: "{{ doc('assists') }}"
-      - name: shots_total
-        description: "{{ doc('shots_total') }}"
-      - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+      - name: shots_player
+        description: "{{ doc('shots_player') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_total
         description: "{{ doc('passes_total') }}"
       - name: passes_accurate
@@ -540,8 +540,8 @@ models:
         description: "{{ doc('dribbles_success_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
-      - name: finishing_efficiency
-        description: "{{ doc('finishing_efficiency') }}"
+      - name: finishing_efficiency_player_pct
+        description: "{{ doc('finishing_efficiency_player_pct') }}"
       - name: goals_per90
         description: "{{ doc('goals_per90') }}"
       - name: assists_per90

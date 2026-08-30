@@ -119,7 +119,7 @@ N" + vs-median, honest at N≈18) — never a percentile.
    the team one for no remaining reason. Were a neutral metric ever added back to this set, it renders
    uncoloured, exactly as the team rule already prescribes.)
 6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `pass_accuracy_pct`,
-   `finishing_efficiency`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
+   `finishing_efficiency_player_pct`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
 
 ## Team metrics — LOCKED (CPO, 2026-06-11)

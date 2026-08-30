@@ -33,7 +33,7 @@ def load_catalogue(path: Path) -> dict[tuple[str, str], dict[str, object]]:
     collapsed that grain to whichever row came last in file order.
 
     That was invisible while the two rows agreed on everything read here. It stopped being invisible
-    when `finishing_efficiency`'s player row was split onto its own key: last-wins then handed the
+    when `finishing_efficiency_player_pct`'s player row was split onto its own key: last-wins then handed the
     PLAYER key to a binding whose subject is a team, while `site/team-season/index.html` calls the
     TEAM key. `tests/test_metric_bindings.py` caught it as a byte-identity failure.
 

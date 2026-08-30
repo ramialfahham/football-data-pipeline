@@ -443,13 +443,6 @@ Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 {% enddocs %}
 
 
-{% docs finishing_efficiency %}
-Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
-own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
-finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
-{% enddocs %}
-
-
 {% docs finishing_efficiency_pct %}
 Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
@@ -487,6 +480,13 @@ goal, counted over the same set of games on both sides of the division. In [0, 1
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
 unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].
 Value for the season now in progress, accumulated through the matches played so far.
+{% enddocs %}
+
+
+{% docs finishing_efficiency_player_pct %}
+Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
+own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
+finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
 {% enddocs %}
 
 
@@ -631,7 +631,7 @@ first matches are not fully stat-covered.
 
 {% docs goals_open_play__player %}
 Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of
-finishing_efficiency. (goals_total already excludes own goals.)
+finishing_efficiency_player_pct. (goals_total already excludes own goals.)
 {% enddocs %}
 
 
@@ -794,16 +794,6 @@ statistics. A component of the team's total shots and the numerator of shots_ins
 The provider does not supply team statistics for every fixture, so this can be missing, and a
 total over several fixtures can be understated rather than null. Measured for the opposing team
 rather than this one.
-{% enddocs %}
-
-
-{% docs opponent_shots_on_goal__player %}
-Shots on target. Measured for the opposing team rather than this one.
-{% enddocs %}
-
-
-{% docs opponent_shots_total__player %}
-Total shots (on and off target). Measured for the opposing team rather than this one.
 {% enddocs %}
 
 
@@ -1061,11 +1051,6 @@ total over several fixtures can be understated rather than null. Totalled over t
 {% enddocs %}
 
 
-{% docs shots_on_goal %}
-Shots on target.
-{% enddocs %}
-
-
 {% docs shots_on_goal_against %}
 Shots on target faced. Derived as saves + goals conceded.
 {% enddocs %}
@@ -1075,16 +1060,6 @@ Shots on target faced. Derived as saves + goals conceded.
 Average shots on target conceded per match. The defensive companion to
 shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover
 every season game.
-{% enddocs %}
-
-
-{% docs shots_on_goal_delta_yoy__player %}
-Shots on target. The change from the previous season to the current one, compared at the same
-point of the campaign: the current value minus the previous one. NULL when there is no prior
-season at this club to compare against, which covers a transfer, a first season at this level
-and a prior season that was never loaded, and NULL for a competition that carries no
-year-on-year comparison at all, such as a cup, a qualifying campaign or an international
-tournament.
 {% enddocs %}
 
 
@@ -1136,26 +1111,36 @@ matches played so far.
 {% enddocs %}
 
 
-{% docs shots_on_goal_prev_season__player %}
+{% docs shots_on_goal_player %}
+Shots on target.
+{% enddocs %}
+
+
+{% docs shots_on_goal_player_delta_yoy__player %}
+Shots on target. The change from the previous season to the current one, compared at the same
+point of the campaign: the current value minus the previous one. NULL when there is no prior
+season at this club to compare against, which covers a transfer, a first season at this level
+and a prior season that was never loaded, and NULL for a competition that carries no
+year-on-year comparison at all, such as a cup, a qualifying campaign or an international
+tournament.
+{% enddocs %}
+
+
+{% docs shots_on_goal_player_prev_season__player %}
 Shots on target. Value for the season before, through the same number of matches as the current
 season has played so far, so the two are compared at the same point of a campaign rather than a
 part season against a full one.
 {% enddocs %}
 
 
-{% docs shots_on_goal_prev_season_full__player %}
+{% docs shots_on_goal_player_prev_season_full__player %}
 Shots on target. The previous season's complete total, with no cutoff. It is context for how
 large that season was and is never subtracted from the season in progress, because a part
 season against a full one would mislead.
 {% enddocs %}
 
 
-{% docs shots_on_goal_sum_season__player %}
-Shots on target. Totalled over the season.
-{% enddocs %}
-
-
-{% docs shots_on_goal_this_season__player %}
+{% docs shots_on_goal_player_this_season__player %}
 Shots on target. Value for the season now in progress, accumulated through the matches played
 so far.
 {% enddocs %}
@@ -1191,13 +1176,13 @@ matches played so far.
 {% enddocs %}
 
 
-{% docs shots_share_pct %}
-Share of all shots in the team's matches taken by the team. Null when no shots.
+{% docs shots_player %}
+Total shots (on and off target).
 {% enddocs %}
 
 
-{% docs shots_total %}
-Total shots (on and off target).
+{% docs shots_share_pct %}
+Share of all shots in the team's matches taken by the team. Null when no shots.
 {% enddocs %}
 
 

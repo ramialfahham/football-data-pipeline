@@ -99,7 +99,7 @@ aggregated as (
         sum(coalesce(goals_total, 0)) as goals,
         sum(goals_penalty) as goals_penalty,
         sum(coalesce(goals_assists, 0)) as assists,
-        sum(coalesce(shots_on, 0)) as shots_on_goal,
+        sum(coalesce(shots_on, 0)) as shots_on_goal_player,
         sum(coalesce(passes_total, 0)) as passes_total,
         sum(coalesce(passes_key, 0)) as passes_key,
         sum(
@@ -131,7 +131,7 @@ select
     goals,
     goals_penalty,
     assists,
-    shots_on_goal,
+    shots_on_goal_player,
     passes_total,
     passes_accurate,
     passes_key,
@@ -153,18 +153,18 @@ select
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
     safe_divide(saves, nullif(saves + goals_against, 0)) as save_pct,
     -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty) /
-    -- shots_on_goal. NULL when shots_on_goal is zero or the numerator falls outside
-    -- [0, shots_on_goal] — never >100%.
+    -- shots_on_goal_player. NULL when shots_on_goal_player is zero or the numerator falls outside
+    -- [0, shots_on_goal_player] — never >100%.
     case
         when (goals - goals_penalty) < 0 then null
-        when (goals - goals_penalty) > shots_on_goal then null
-        else safe_divide(goals - goals_penalty, shots_on_goal)
-    end as finishing_efficiency,
+        when (goals - goals_penalty) > shots_on_goal_player then null
+        else safe_divide(goals - goals_penalty, shots_on_goal_player)
+    end as finishing_efficiency_player_pct,
     -- per-90 rates IN POSITION: count * 90 / minutes (null when minutes is zero)
     safe_divide(goals * 90, minutes) as goals_per90,
     safe_divide(assists * 90, minutes) as assists_per90,
     safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
-    safe_divide(shots_on_goal * 90, minutes) as shots_on_goal_per90,
+    safe_divide(shots_on_goal_player * 90, minutes) as shots_on_goal_per90,
     safe_divide(passes_key * 90, minutes) as key_passes_per90,
     safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
     safe_divide(passes_total * 90, minutes) as passes_per90,

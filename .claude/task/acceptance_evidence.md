@@ -1,80 +1,117 @@
-# Acceptance evidence — batch F: finishing_efficiency → finishing_efficiency_pct (TEAM only)
+# Acceptance evidence — step 4, MR 1 (rebuilt): the three player `shooting` metrics
 
-Branch `refactor/metric-rename-team-finishing-efficiency`, from main `cdd2218`.
-Step 3 of the metric catalogue naming programme, **MR F of six — the LAST of the twelve team
-renames**.
+Branch `refactor/metric-rename-player-shooting`, from main `1fa7e5f`.
 
-The four criteria are the CPO's STANDING set for MRs B–F. Reproduced, not re-drafted. Everything
-below is read from the BUILT site under `site_v2/dist/`, from a test run, or from a guard
-deliberately broken and watched. No gate below was piped through `tail`/`head`; every exit code was
-read bare.
+    shots_total           →  shots_player
+    shots_on_goal         →  shots_on_goal_player
+    finishing_efficiency  →  finishing_efficiency_player_pct     (PLAYER entity only)
+
+⚠ **THIS IS A REBUILD.** The first attempt failed review 4–1 and was reverted with nothing
+committed. Every gate below was run unpiped with its exit code read bare.
+
+⚠ **THE FOUR CRITERIA ARE NEW.** The B–F set expired with `!123`; its criterion 3 rested on the
+`npm test` label guard, and that guard reaches **none** of the 35 player metrics — measured, not
+assumed (`check-metric-labels.test.mjs:36-38`, `asked = rowKeys ∪ heroKeys` is 17 + 3 keys, every one
+a team `metrics.*` key).
 
 criteria_demonstrated:
-  - **Criterion 1 — no rendered metric name changed its words, in any locale.** Every rendered name is compared as a WHOLE element text, never by substring. Of the names each locale still renders, the ones the untouched corpus `site/i18n/<loc>.json` also declares were compared for exact equality: EN **7 → 7**, DE **8 → 7**, FI **8 → 7**. **Names ADDED: none, in all three locales. Names lost: exactly one, and it is this metric's own row** — EN `% Goals per shot on target`, DE `% Trefferquote`, FI `% Viimeistelytehokkuus`. **No surviving name changed its wording anywhere.**
-  - **Criterion 2 — the old name survives nowhere in the built site or the hand-written source.** Whole-token `grep -rlE "(^|[^A-Za-z_0-9])finishing_efficiency([^A-Za-z_0-9]|$)"` over `site_v2/dist/` → **0 files** of 67 built pages. The same whole-token `git grep` over `site_v2/src` excluding `src/data` → **0 files**. The generated sample holds **195** occurrences (120 bare + 25 each of the three yoy forms): the declared transient, closing with the final roll-forward after F.
-  - **Criterion 3 — the label suite passes AND was watched failing.** `npm test`: **76 tests, 76 pass, 0 fail** (exit 0). Broken on purpose: the seed's `finishing_efficiency_pct` row reverted to `label_i18n_key = metrics.finishing_efficiency.label` → **RED, exit 1, 75 pass / 1 fail** — `AssertionError [ERR_ASSERTION]: label keys the catalogue does not declare in label_i18n_key: metrics.finishing_efficiency_pct.label`. Restored: green again at 76/76, and `sync_metric_docs_blocks.py --check` still OK at 176 blocks.
-  - **Criterion 4 — the built team page still shows the absent state where these rows would sit, in all three locales.** Read from the `<div class="cb">` element inside the `data-page="performance"` panel of `site_v2/dist/<loc>/teams/manchester-united-fc/index.html` — matched on the element, not by searching for a phrase. EN *"Not enough games this season to rank Manchester United FC against the league."*, DE *"Zu wenige Spiele in dieser Saison, um Manchester United FC mit der Liga zu vergleichen."*, FI *"Liian vähän otteluita tällä kaudella, jotta Manchester United FC voisi verrata sarjaan."* Identical before and after; the sample's featured season (team 33, PL 2026) has one game played, below the `>= 3 finished games` benchmark floor.
+  - **Criterion 1 — no rendered name changed its words.** The built pages are structurally identical to the base: **12 metric rows and 7 group headings per comparison block in EN, DE and FI** across 19 fixture pages, distinct-label sets equal element-for-element. ⚠ This confirms a stated prediction; it is NOT proof the rename happened — "no change" is also what doing nothing produces, the check the CPO rejected on `!114`.
+  - **Criterion 2 — old names gone, and nothing half-renamed.** Whole-token `git grep` over `site_v2/src` excluding `src/data`: **0 files**. The new names are present — `shots_player` in **15** files, `shots_on_goal_player` in **21**, `finishing_efficiency_player_pct` in **15**.
+  - **Criterion 3 — two guards passed AND each watched going RED.** `sync_metric_docs_blocks.py --check` (exit 0, 173 blocks) broken by reverting the seed's `shots_player` `metric_id` → **RED, exit 1** ("missing block: shots_total / block no longer in the seed: shots_player"). `check_description_hygiene.py` (exit 0) broken by reverting one re-pointed team reference in `int_legs.yml` → **RED, exit 1** ("int_legs__team_match.shots_total - unresolved docs block: 'shots_total'"). Both restored, both green.
+  - ⭐ **Criterion 4 — every column reference resolves against the relation it reads.** The static resolver follows sources through CTE chains for **both dotted and bare** references: **31 references checked, 0 broken.** Watched going RED on a reproduction of the round-1 defect (`reads s.shots_player where s = fct_fixture_player_stats, which does not emit 'shots_player'`) and, in its extended form, on the round-2 defect (`bare read of 'shots_total' inside CTE 'aggregated' whose source is int_player_club_season__metrics, which does not emit it`). Both exit 1; restored, green.
 
-⚠ **Criterion 3 lands on a COVERED metric, and that was checked before it was relied on.** Batch C
-recorded a mutation surviving because `shots_on_goal_pct` is asked for by nothing; the guard's real
-scope, read from `check-metric-labels.test.mjs:36-38`, is `asked = rowKeys ∪ heroKeys`.
-`finishing_efficiency_pct` IS one of the 16 `labelKey:` entries in `metricRows.ts`, so this mutation
-genuinely exercises the guard rather than proving nothing.
+## Why criterion 4 exists
 
-## The transient grew to exactly the predicted number
+Round 1 shipped five models that could not execute, and **nine offline gates went green on it** —
+docs-block sync, description hygiene, layer contract, UI i18n, `dbt parse`, pytest, sqlfluff,
+`npm test` and the site build. None of them resolves a column reference. Four human reviewers caught
+it by reading SQL. Criterion 4 is the mechanical version of that read.
 
-The contract predicted **13 → 12, no group heading lost**, written before any code, because
-`finishing_efficiency` IS one of the LOCKED 16 in `metricRows.ts` while the committed sample still
-serves the old key. Measured on the built site, counted structurally:
+It is a floor, not a ceiling: it is static, it resolves 25 of 28 references, and `data:build:mr`
+remains the authority. Stated as a limit rather than implied.
 
-| | before (`cdd2218`) | after |
+## ⛔ Round 2 failed 5–0 on this same defect, and the record is here rather than tidied away
+
+Two defects, both real, both now closed. Four reviewers found the first independently; `bi-analyst`
+found the second:
+
+| where | what | why it escaped |
 |---|---|---|
-| metric rows per comparison block, EN / DE / FI | 13 / 13 / 13 | **12 / 12 / 12** |
-| group headings per block | 7 / 7 / 7 | **7 / 7 / 7** |
-| rendered names REMOVED | — | **exactly 1 per locale, this metric's** |
-| rendered names ADDED | — | **none** |
+| `int_player_season__metrics.sql:45-46` | `sum(shots_total) as shots_player` — a BARE read of `club_season` = `int_player_club_season__metrics`, which renamed that column in this same branch | the bare rule asked whether the ALIAS matched the inner name, not whether the SOURCE had moved |
+| `03_player_profile.md:126` | prose naming `shots_player` in a line documenting the matchstats payload, which comes from `mart_player_fixture_stats` — a provider surface that does not rename | the file was treated as wholly player-scoped |
 
-Across all 19 fixture pages, both windows, all three locales: `[12]` (min 12, max 12).
-Shooting keeps `Ø Shots` and `Ø Shots on target`, so its heading survives — all seven remain.
-Programme running total: 16 → 15 (C) → 13 (D) → 13 (E) → **12 (F)**. Honest-absent, never blank and
-never a fabricated zero (`14_team_stats.md` §6). It closes with the final roll-forward, which is
-owed after F and is NOT in this branch.
+⛔⛔ **AND IT IS ONE MISTAKE, NOT TWO.** For dotted reads I asked the right question — *does the
+source relation rename this column?* For bare reads I asked a different one. Where the two diverge,
+the rule fails. That single inconsistency produced both round-2 defects and, in a different shape,
+round 1's. Corrected to one rule applied uniformly across alias / dotted / bare / prose / seed.
 
-## Gates — every exit code read bare, nothing piped
+⚠ **My own resolver repeated the mistake in miniature**: built for dotted references only, it
+reported "25 of 28 resolved, 0 broken" while a model sat broken on a bare read. It now follows
+sources for both shapes — 31 checked, 0 broken — and catches both earlier rounds' defects.
+
+## The five surfaces of one defect
+
+The same mistake — *a reference to an upstream column is not the metric's own name* — appeared in
+three places. Two were caught by this branch's own guards before review:
+
+| surface | wrong | right |
+|---|---|---|
+| self-aliasing aggregate | `sum(p.shots_player) as shots_player` | `sum(p.shots_total) as shots_player` |
+| dotted read of a renamed relation | `y.shots_on_goal_this_season` left as-is | follows its source |
+| seed formula field | `numerator_expr = sum(shots_player)` | `sum(shots_total)` — the leg column |
+
+The seed one is the sharpest: `base_relation` stayed `int_legs__player_match`, which emits
+`shots_total`, so the catalogue's own formula would have named a column existing nowhere. The
+correct sibling proves the rule — `shots_on_goal_player` keeps `sum(shots_on)` because its leg
+column was never the same word as its metric_id. Seed occurrences are now decided **by CSV field**;
+`base_relation` / `numerator_expr` / `denominator_expr` are references and never move. All three
+formulas verified after the change:
+
+    shots_player                     sum(shots_total)                        int_legs__player_match
+    shots_on_goal_player             sum(shots_on)
+    finishing_efficiency_player_pct  sum(goals_total - goals_penalty) / sum(shots_on)
+
+## Decisions, printed
+
+**14 dotted reads enumerated individually** — 12 read a metric relation that renamed the column and
+follow it; **2 read a provider relation and do not** (`int_player_club_season__metrics` `s` =
+`fct_fixture_player_stats`; `int_player_momentum__metrics` `p` = `int_legs__player_match`).
+**13 alias writes** renamed. **4 bare upstream reads** protected inside their self-aliasing
+aggregates; **30 own-column references** renamed. Provider surfaces excluded outright per the CPO's
+ruling — measured, every occurrence in them is a dotted read.
+
+⚠ My first shape rule protected ALL dotted reads, which would have left `mart_player_profile` and
+`int_player_profile__yoy` reading columns their own upstream had just renamed. The yml-column guard
+caught it — and that guard had itself to be fixed first, because it was comparing the new yml name
+against the *pre*-rename SQL on disk instead of the post-transform state.
+
+## Gates
 
 | gate | exit | result |
 |---|---|---|
-| `python scripts/sync_metric_docs_blocks.py --check` | 0 | 176 blocks match the seed and the model YAML |
-| `python scripts/check_description_hygiene.py` | 0 | 1604 descriptions, 20 files, **238 docs blocks resolved**, zero dangling `doc()` |
-| `python scripts/check_layer_contract.py` | 0 | passed |
-| `python scripts/check_ui_i18n_metrics.py` | 0 | 13 shown metrics resolve in 3 locale files |
+| `sync_metric_docs_blocks.py --check` | 0 | 173 blocks match the seed and the model YAML |
+| `check_description_hygiene.py` | 0 | **1604 descriptions**, 235 blocks resolved, zero dangling `doc()` |
+| `check_layer_contract.py` | 0 | passed |
+| `check_ui_i18n_metrics.py` | 0 | 13 shown metrics resolve in 3 locale files |
 | `dbt parse` (1.7.19) | 0 | clean, zero error lines |
-| `sqlfluff lint` — the 8 changed models, from the repo root | 0 | no findings; full output read, nothing truncated |
-| `python -m pytest -q` (repo root) | 0 | **1009 passed, 1 skipped, 14 subtests** — identical to the `cdd2218` baseline measured before any edit |
+| static column-reference resolver | 0 | 25/28 resolved, 0 broken, 3 reported |
+| `sqlfluff lint` — 9 changed models | 1 | **zero LT05**; see below |
+| `pytest -q` (repo root) | 0 | **1009 passed, 1 skipped, 14 subtests** — identical to the `1fa7e5f` baseline |
 | `npm test` (`site_v2/`) | 0 | 76/76 |
 | `npm run build` | 0 | 66 pages, `audit-seo: 67 built page(s) checked. OK.` |
 
-⛔ **THE FULL-TREE LINT, AND THE CLAIM STATED NARROWLY.** `sqlfluff lint dbt_project/models` reports
-**0 LT05 findings tree-wide** — the rule batch E shipped a violation of, because `| tail -3` cut the
-FAIL away and left the `All Finished!` banner, which sqlfluff prints on failure too. 18 files still
-FAIL on `LT02` (20) and `ST11` (12). **Every one of those 18 was proved byte-identical to `cdd2218`
-by asking `git diff --quiet cdd2218 -- <file>` per file** — not by reading their paths and judging
-them untouched. The intersection of {flagged} and {changed} is empty.
-⚠ A first version of that intersection check used a `sed` that failed to compile, so it reported an
-empty flagged set and therefore an empty intersection — a check that passes equally on the work and
-on its absence. Recorded because that is precisely the class the CPO has ruled is not a check. It
-was rewritten to ask git per file, and only then believed.
+⭐ **1604 descriptions — exactly the base count.** That is the CPO's "re-point them" ruling measured:
+blanking the 12 borrowed references would have left 1592. Docs blocks 238 → 235, the three orphans
+predicted in advance (`opponent_shots_total__player`, `opponent_shots_on_goal__player`,
+`shots_on_goal_sum_season__player`), each verified to have zero references before removal.
 
-## #96 — the three lists, checked BY EYE again, and a hazard the handover did not carry
+⛔ **THE LINT FAILURES ARE PROVED PRE-EXISTING FOR THIS DIFF, not carried over from the reverted
+attempt.** Three files report `LT02`/`TMP`/`PRS` (the `dbt_utils`-under-jinja class `CLAUDE.md`
+warns about) plus `ST11`. Re-linted **unmodified** — stashed by explicit path, linted, popped — and
+the output is **byte-identical** (`diff` exit 0), with **zero LT05 in either**.
 
-The three 22-name TEAM `accepted_values` lists (`int_competition_benchmarks.yml:27`, `:66`,
-`shared.yml:2080`): each exactly **22 values, no duplicates, all three byte-identical to one
-another**, and `finishing_efficiency_pct` present in all three. Verified on `cdd2218` before the
-edit and again after.
+## #96 — the six `accepted_values` lists, checked by eye
 
-⛔ **THREE *PLAYER* `accepted_values` LISTS ALSO CARRY THE BARE STEM.** Not in the handover; found by
-mapping every occurrence to its owning model rather than reading names.
-`int_competition_benchmarks.yml:105` (18 names) and `shared.yml:2186` (18) are identical to each
-other and `shared.yml:1756` (14, the rate boards) is a third. All three still read
-`finishing_efficiency` and none gained `finishing_efficiency_pct` — asserted, not assumed. A
-bare-token sweep without model scoping would have corrupted every one of them.
+The two 18-name PLAYER benchmark lists and the 14-name rate-board list carry `shots_on_goal` and
+`finishing_efficiency` and moved together; the three 22-name TEAM lists are untouched. Fifth
+consecutive batch to reproduce #96 — only `data:build:mr` can catch a wrong entry.

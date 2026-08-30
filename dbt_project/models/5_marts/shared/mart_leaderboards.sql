@@ -14,8 +14,8 @@
   RATE boards add a qualification rule (CPO, #506) so a tiny sample can't game a rate: minutes >= 270
   (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
   dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
-  shots_on_goal >= 10 (minutes don't bound shot count, so a 1-shot 1-goal player would otherwise
-  read a perfect rate). finishing_efficiency is now open-play conversion in [0, 1] (CPO Option A).
+  shots_on_goal_player >= 10 (minutes don't bound shot count, so a 1-shot 1-goal player would otherwise
+  read a perfect rate). finishing_efficiency_player_pct is now open-play conversion in [0, 1] (CPO Option A).
   sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
 
   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
@@ -25,7 +25,7 @@
 {% set count_boards = [
     'goals',
     'scorer_points',
-    'shots_on_goal',
+    'shots_on_goal_player',
     'dribbles_success',
     'passes_total',
     'passes_key',
@@ -40,7 +40,7 @@
     {'key': 'pass_accuracy_pct', 'qualify': outfield},
     {'key': 'duels_won_pct', 'qualify': outfield},
     {'key': 'dribbles_success_pct', 'qualify': outfield},
-    {'key': 'finishing_efficiency', 'qualify': outfield ~ ' and shots_on_goal >= 10'},
+    {'key': 'finishing_efficiency_player_pct', 'qualify': outfield ~ ' and shots_on_goal_player >= 10'},
     {'key': 'save_pct', 'qualify': "player_position = 'Goalkeeper'"},
 ] %}
 
@@ -80,7 +80,7 @@ base as (
         s.minutes,
         s.goals,
         s.assists,
-        s.shots_on_goal,
+        s.shots_on_goal_player,
         s.dribbles_attempts,
         s.dribbles_success,
         s.passes_total,
@@ -99,7 +99,7 @@ base as (
         s.duels_won_pct,
         s.dribbles_success_pct,
         s.save_pct,
-        s.finishing_efficiency,
+        s.finishing_efficiency_player_pct,
         p.player_name,
         p.player_nationality,
         p.player_position,
@@ -145,7 +145,7 @@ select
     minutes,
     goals,
     assists,
-    shots_on_goal,
+    shots_on_goal_player,
     dribbles_attempts,
     dribbles_success,
     passes_total,
@@ -164,6 +164,6 @@ select
     duels_won_pct,
     dribbles_success_pct,
     save_pct,
-    finishing_efficiency
+    finishing_efficiency_player_pct
 from ranked
 where board_rank <= 10

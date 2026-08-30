@@ -71,9 +71,9 @@ models:
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
       - name: passes_total

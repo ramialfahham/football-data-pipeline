@@ -70,9 +70,9 @@ models:
         description: "{{ doc('goals_against__team') }}"
       - name: clean_sheet_games
       - name: shots_total
-        description: "{{ doc('shots_total') }}"
+        description: "{{ doc('shots_player') }}"
       - name: shots_on_goal
-        description: "{{ doc('shots_on_goal') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
       - name: passes_total
@@ -147,8 +147,8 @@ models:
       - name: goals_assists
       - name: saves
         description: "{{ doc('saves__player') }}"
-      - name: shots_total
-        description: "{{ doc('shots_total') }}"
+      - name: shots_player
+        description: "{{ doc('shots_player') }}"
       - name: shots_on
       - name: passes_total
         description: "{{ doc('passes_total') }}"

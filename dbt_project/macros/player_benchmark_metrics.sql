@@ -29,7 +29,7 @@
         {'key': 'scorer_points_per90', 'col': 'scorer_points_per90', 'pos': outfield},
         {'key': 'shots_on_goal_per90', 'col': 'shots_on_goal_per90', 'pos': outfield},
         {'key': 'key_passes_per90', 'col': 'key_passes_per90', 'pos': outfield},
-        {'key': 'finishing_efficiency', 'col': 'finishing_efficiency', 'pos': outfield, 'floor': 'shots_on_goal >= 10', 'num': 'goals - goals_penalty', 'den': 'shots_on_goal'},
+        {'key': 'finishing_efficiency_player_pct', 'col': 'finishing_efficiency_player_pct', 'pos': outfield, 'floor': 'shots_on_goal_player >= 10', 'num': 'goals - goals_penalty', 'den': 'shots_on_goal_player'},
         {'key': 'dribbles_success_per90', 'col': 'dribbles_success_per90', 'pos': outfield},
         {'key': 'dribbles_success_pct', 'col': 'dribbles_success_pct', 'pos': outfield, 'num': 'dribbles_success', 'den': 'dribbles_attempts'},
         {'key': 'duels_won_per90', 'col': 'duels_won_per90', 'pos': outfield},
