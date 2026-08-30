@@ -118,7 +118,7 @@ N" + vs-median, honest at N≈18) — never a percentile.
    are no neutral metrics in this set, and dropping colour entirely made the player screen inconsistent with
    the team one for no remaining reason. Were a neutral metric ever added back to this set, it renders
    uncoloured, exactly as the team rule already prescribes.)
-6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `pass_accuracy_pct`,
+6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `passes_accuracy_player_pct`,
    `finishing_efficiency_player_pct`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
 
@@ -259,8 +259,8 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 3 | Duels won | `{won} of {total} · {pct}%` | duels_won, duels_total, duels_won_pct | Duels |
 | 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success, dribbles_attempts, dribbles_success_pct | Duels |
 | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
-| 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate, passes_total, pass_accuracy_pct | Passing |
-| 7 | Key passes | `{count}` | passes_key | Passing |
+| 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
+| 7 | Key passes | `{count}` | passes_key_player | Passing |
 | 8 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
 | 9 | Save percentage | `{saves} of {faced} · {pct}%` | **saves (new)**, **shots_on_target_faced (new)**, save_pct | Goalkeeping |
 

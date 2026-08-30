@@ -138,7 +138,7 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
 | Ratio metric | numerator | denominator |
 |---|---|---|
 | `save_pct` | `saves` | `saves + goals_against` |
-| `pass_accuracy_pct` | `passes_accurate` | `passes_total` |
+| `passes_accuracy_player_pct` | `passes_accurate_player` | `passes_player` |
 | `finishing_efficiency_player_pct` | `goals − goals_penalty` | `shots_on_goal_player` |
 | `dribbles_success_pct` | `dribbles_success` | `dribbles_attempts` |
 | `duels_won_pct` | `duels_won` | `duels_total` |

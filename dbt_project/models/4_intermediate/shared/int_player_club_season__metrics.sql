@@ -12,7 +12,7 @@
   downstream slicing (each is functionally determined by season_sk).
 
   Atoms only — the summable COUNT measures, computed exactly as int_player_season__metrics does today
-  (same coalesce-to-0, same per-fixture ROUND-weighted passes_accurate numerator). Ratios / per-90 / count
+  (same coalesce-to-0, same per-fixture ROUND-weighted passes_accurate_player numerator). Ratios / per-90 / count
   composites are NOT here: they are non-summable, so they are derived where consumed (the competition-season
   rollup and any future per-club consumer), per the COMPOSE pattern. last_kickoff_at carries the club's
   latest kickoff so the rollup can reproduce the "last club that season" stamp.
@@ -119,11 +119,11 @@ aggregated as (
         sum(coalesce(goals_assists, 0)) as assists,
         sum(coalesce(shots_total, 0)) as shots_player,
         sum(coalesce(shots_on, 0)) as shots_on_goal_player,
-        sum(coalesce(passes_total, 0)) as passes_total,
-        sum(coalesce(passes_key, 0)) as passes_key,
+        sum(coalesce(passes_total, 0)) as passes_player,
+        sum(coalesce(passes_key, 0)) as passes_key_player,
         sum(
             cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)
-        ) as passes_accurate,
+        ) as passes_accurate_player,
         sum(coalesce(tackles_total, 0)) as tackles_player,
         sum(coalesce(tackles_interceptions, 0)) as interceptions_player,
         sum(coalesce(tackles_blocks, 0)) as blocks_player,
@@ -162,9 +162,9 @@ select
     assists,
     shots_player,
     shots_on_goal_player,
-    passes_total,
-    passes_key,
-    passes_accurate,
+    passes_player,
+    passes_key_player,
+    passes_accurate_player,
     tackles_player,
     interceptions_player,
     blocks_player,

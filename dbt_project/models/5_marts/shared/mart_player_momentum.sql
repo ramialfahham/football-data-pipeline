@@ -5,7 +5,7 @@
 
   Computes final displayed metrics from the raw sums in int_player_momentum__metrics.
   Raw counts (goals, assists, cards, …) are passed through directly. Ratios
-  (save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct) are
+  (save_pct, dribbles_success_pct, passes_accuracy_player_pct, duels_won_pct) are
   computed here via safe_divide — NULL when denominator is zero.
 
   window_type is carried through from the builder: last_5 for most fixtures, or the
@@ -46,9 +46,9 @@ select
     b.goals_assists,
     b.saves,
     b.shots_on,
-    b.passes_key,
-    b.passes_accurate,
-    b.passes_total,
+    b.passes_key_player,
+    b.passes_accurate_player,
+    b.passes_player,
     b.tackles_player,
     b.blocks_player,
     b.interceptions_player,
@@ -67,7 +67,7 @@ select
     -- ratios
     safe_divide(b.saves, b.saves + b.goals_against) as save_pct,
     safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct,
-    safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy_pct,
+    safe_divide(b.passes_accurate_player, b.passes_player) as passes_accuracy_player_pct,
     safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
     -- per-side ranking for the top-players strip (GAP-19.2): goals, then assists, then
     -- key passes (the order named in the GAP); ROW_NUMBER = strict pick order, player_sk
@@ -77,7 +77,7 @@ select
         order by
             coalesce(b.goals_total, 0) desc,
             coalesce(b.goals_assists, 0) desc,
-            coalesce(b.passes_key, 0) desc,
+            coalesce(b.passes_key_player, 0) desc,
             b.player_sk asc
     ) as top_player_rank
 from builder as b

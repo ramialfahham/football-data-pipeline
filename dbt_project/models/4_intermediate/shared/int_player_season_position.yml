@@ -60,12 +60,12 @@ models:
         description: "{{ doc('assists') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
-      - name: passes_total
-        description: "{{ doc('passes_total') }}"
-      - name: passes_accurate
-        description: "{{ doc('passes_accurate') }}"
-      - name: passes_key
-        description: "{{ doc('passes_key') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_accurate_player
+        description: "{{ doc('passes_accurate_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
       - name: tackles_player
         description: "{{ doc('tackles_player') }}"
       - name: interceptions_player
@@ -88,8 +88,8 @@ models:
         description: "{{ doc('scorer_points') }}"
       - name: defensive_actions_player
         description: "{{ doc('defensive_actions_player') }}"
-      - name: pass_accuracy_pct
-        description: "{{ doc('pass_accuracy_pct') }}"
+      - name: passes_accuracy_player_pct
+        description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: duels_won_pct
         description: "{{ doc('duels_won_pct__player') }}"
       - name: dribbles_success_pct
@@ -106,8 +106,8 @@ models:
         description: "{{ doc('scorer_points_per90') }}"
       - name: shots_on_goal_per90
         description: "{{ doc('shots_on_goal_per90') }}"
-      - name: key_passes_per90
-        description: "{{ doc('key_passes_per90') }}"
+      - name: passes_key_per90
+        description: "{{ doc('passes_key_per90') }}"
       - name: dribbles_success_per90
         description: "{{ doc('dribbles_success_per90') }}"
       - name: passes_per90

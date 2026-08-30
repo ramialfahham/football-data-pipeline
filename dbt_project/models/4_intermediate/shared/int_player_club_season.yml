@@ -10,7 +10,7 @@ models:
       The single source of those atoms, so anything needing player-season numbers re-sums these
       rather than re-aggregating the matches itself.
 
-      Atoms follow the metric_catalogue seed exactly: passes_accurate rounded per fixture then
+      Atoms follow the metric_catalogue seed exactly: passes_accurate_player rounded per fixture then
       summed, counts treating NULL as 0, `appearances` counting only matches PLAYED. Ratios and
       per-90s are derived where consumed, never here.
     config:
@@ -84,12 +84,12 @@ models:
         description: "{{ doc('shots_player') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
-      - name: passes_total
-        description: "{{ doc('passes_total') }}"
-      - name: passes_key
-        description: "{{ doc('passes_key') }}"
-      - name: passes_accurate
-        description: "{{ doc('passes_accurate') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
+      - name: passes_accurate_player
+        description: "{{ doc('passes_accurate_player') }}"
       - name: tackles_player
         description: "{{ doc('tackles_player') }}"
       - name: interceptions_player

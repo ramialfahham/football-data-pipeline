@@ -28,7 +28,7 @@
   the player actually PLAYED (minutes > 0), so 0 is legitimate: named in the matchday squad for the
   window's legs but never brought on.
 
-  passes_accurate is derived per fixture as ROUND(passes_total * passes_accuracy_percent / 100)
+  passes_accurate_player is derived per fixture as ROUND(passes_player * passes_accuracy_percent / 100)
   then summed; inherits small rounding error.
 
   save_pct requires goals_against which is not currently carried in int_legs__player_match —
@@ -66,8 +66,8 @@ player_agg as (
         sum(p.saves) as saves,
         sum(p.shots_total) as shots_player,
         sum(p.shots_on) as shots_on,
-        sum(p.passes_total) as passes_total,
-        sum(p.passes_key) as passes_key,
+        sum(p.passes_total) as passes_player,
+        sum(p.passes_key) as passes_key_player,
         sum(p.tackles_total) as tackles_player,
         sum(p.tackles_blocks) as blocks_player,
         sum(p.tackles_interceptions) as interceptions_player,
@@ -81,12 +81,12 @@ player_agg as (
         sum(p.dribbles_past) as dribbles_past_player,
         sum(p.penalty_won) as penalty_won,
         sum(p.penalty_committed) as penalty_committed_player,
-        -- passes_accurate: derived per fixture, then summed (small rounding error)
+        -- passes_accurate_player: derived per fixture, then summed (small rounding error)
         sum(
             safe_cast(
                 round(p.passes_total * p.passes_accuracy_percent / 100.0) as int64
             )
-        ) as passes_accurate
+        ) as passes_accurate_player
     from window_legs as wl
     inner join {{ ref('int_legs__player_match') }} as p
         on
@@ -116,9 +116,9 @@ select
     saves,
     shots_player,
     shots_on,
-    passes_total,
-    passes_key,
-    passes_accurate,
+    passes_player,
+    passes_key_player,
+    passes_accurate_player,
     tackles_player,
     blocks_player,
     interceptions_player,

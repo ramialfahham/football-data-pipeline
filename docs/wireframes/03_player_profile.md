@@ -95,8 +95,8 @@ catalogue metrics; rendered as a one-line summary.
 | Duels won | `duels_won`, `duels_total`, `duels_won_pct` |
 | Successful dribbles | `dribbles_success`, `dribbles_attempts`, `dribbles_success_pct` |
 | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
-| Pass accuracy | `passes_accurate`, `passes_total`, `pass_accuracy_pct` |
-| Key passes | `passes_key` |
+| Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
+| Key passes | `passes_key_player` |
 | Cards | `cards_yellow_player`, `cards_red_player` |
 | Save percentage | `save_pct` + **GAP-12** atomics (`saves`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
 
