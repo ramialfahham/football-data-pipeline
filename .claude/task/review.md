@@ -1,123 +1,159 @@
-# Review — refactor/metric-rename-player-shooting — 2026-08-30
+# Review — refactor/metric-rename-player-discipline — 2026-08-30
 
-> **STEP 4 of the metric catalogue naming programme, MR 1 of seven.** The three player `shooting`
-> metrics: `shots_total` → `shots_player`, `shots_on_goal` → `shots_on_goal_player`,
-> `finishing_efficiency` → `finishing_efficiency_player_pct`, PLAYER entity only. Branched from main
-> `1fa7e5f`.
+> **STEP 4 of the metric catalogue naming programme, MR 2 of seven.** The five player `discipline`
+> metrics: `cards_yellow` → `cards_yellow_player`, `cards_red` → `cards_red_player`, `cards_total`
+> → `cards_player`, `offsides` → `offsides_player`, `penalty_committed` →
+> `penalty_committed_player`, PLAYER entity only. Branched from main `3e5b25b`.
 
-diff_sha256: 97f964957e77e83c62bdf568dfa3f10a5c2e55d7a3614301af93dd1b919ca0e0
+diff_sha256: 4e3b49b0a03dc2b0e1e03c0d8d8c2113e8dcd247dae4589d39b634131d122d53
 
-rounds: 3
+rounds: 1
 
-⛔⛔ **THE FIRST TWO ROUNDS BOTH FAILED, ON ONE DEFECT, AND THE HISTORY IS RECORDED RATHER THAN
-TIDIED.** Round 1 FAILED 4–1 and was fully reverted with nothing committed. Round 2 FAILED 5–0.
-Every failure was the same mistake in a different shape: **for dotted reads I asked "did the source
-relation rename this column?", and for bare reads I asked "does the alias match the inner name?"**
-Those questions agree most of the time and disagree exactly where it matters. Corrected to one rule
-applied uniformly across alias / dotted / bare / prose / seed. Round 3 is the cap and all five
-reviewers PASS with no open findings.
+⭐ **ALL FIVE REVIEWERS PASS AT ROUND 1, and the thing they were pointed at is the thing they
+checked.** `!125` lost two rounds to one mistake — for dotted reads it asked "did the source
+relation rename this column?" and for bare reads it asked a different question. This batch is the
+first where that rule is tested against itself: **three `sum(X) … as X` sites with identical shape
+and two opposite correct answers.** Four of the five reviewers traced all three by hand, from the
+source relation up, rather than accepting the contract's narration of them.
 
-⚠ **ONE IMPRECISION RAISED AT ROUND 3 AND NOT FIXED IN PLACE.** `platform-reviewer` noted that
-`contract.md`'s "no gate in this repo resolves a column reference" overreaches —
-`assert_metric_catalogue_expr_resolvable.sql` does, for the seed's formula fields, against a live
-warehouse. It judged this an imprecision, not a defect, since the sentence is true inside the "nine
-OFFLINE gates" framing its own paragraph opens with. Correcting `contract.md` would void all five
-verdicts and force a round 4 past the cap, so **the correction is appended to `escalations.log`**
-(hash-excluded) instead. Named here so no reader has to infer it.
+⚠ **NO FINDING WAS RAISED THAT REQUIRED A CODE CHANGE, so nothing in the tree moved after the
+reviewers were spawned.** The tree they read is the tree being committed.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The round-2 defect at `int_player_season__metrics.sql:45-46` now reads `sum(shots_player)` /
-  `sum(shots_on_goal_player)` from `club_season = ref('int_player_club_season__metrics')`, which
-  renames those same aliases at `:120-121`. Chain resolves; no dangling column.
-- `docs/wireframes/03_player_profile.md` (bi-analyst's round-2 defect) is absent from the patch
-  entirely and absent from `scope_paths` — the erroneous prose rename reverted and scope corrected.
-- The seed's formula fields keep `sum(shots_total)` / `sum(shots_on)` against `int_legs__player_match`,
-  a provider relation that does not rename — the round-1 defect class, still fixed.
-- `core.yml` and `int_legs.yml` move only `doc()` references; the `name:` column fields stay
-  `shots_total` / `shots_on_goal`, matching both CPO rulings.
-- The `escalations.log` hunk is a pure addition — no line removed or edited — and the record
-  correction's arithmetic (48 seed rows − 35 renamed = 13 unchanged = 12 `_per90` +
-  `minutes_per_appearance`) checks out independently.
-- `scope_paths` reconciled against every file in the patch, both directions.
-- `decisions_reserved` honestly withholds the CI-gate call rather than taking it; no other §10-class
-  decision appears without a quoted ruling. No credentials, no threshold crossings.
+- Verified all five renamed names against `escalations.log`'s "⛔ PLAYER, 35 REMAINING" table
+  verbatim, cited by content — matches the contract's `refs` claim exactly. Both governing rulings
+  ("re-point them", "yes") are present in the log saying what the contract attributes to them.
+- Verified the `escalations.log` diff hunk is a pure APPEND — every added line is `+`, nothing
+  edited or removed from prior entries.
+- Reconciled `scope_paths` against every `diff --git` header in both directions — nothing extra,
+  nothing missing; the four unedited entries are task-artifact files.
+- Traced the "reference follows source" classification against the actual SQL diffs in
+  `int_player_club_season__metrics.sql`, `int_player_momentum__metrics.sql`,
+  `int_player_season_record.sql` and `int_player_season__metrics.sql` — the two-opposite-answers
+  bare-read case resolves exactly as the contract and log describe.
+- Read `core.yml` and `shared.yml` post-branch to confirm the borrowed doc-block re-pointing for the
+  TEAM columns (`fct_fixture_team_stats.offsides`, `mart_team_fixture_stats.offsides`) landed as
+  `doc('offsides_player')` with no column rename on those provider surfaces.
+- Checked for credentials, new mechanisms, recurring-cost or cadence changes anywhere in the diff —
+  none found; `decisions_reserved` carries the open items forward without deciding any of them.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Traced the full composition chain that broke in both earlier rounds — `int_legs__player_match` →
-  `int_player_club_season__metrics` → `int_player_season__metrics` → the marts — and it resolves at
-  every hop. `finishing_efficiency_player_pct` and `shots_on_goal_per90` consistently reference the
-  renamed column.
-- Reads that must NOT move, verified unmoved: `int_player_club_season__metrics.sql:67-68` (`s.` =
-  `fct_fixture_player_stats`), `int_player_momentum__metrics.sql:67-68` (`p.` =
-  `int_legs__player_match`), `int_player_season_record.sql:50-51` (bare, from the legs).
-- Reads that must move, verified moved: `mart_player_profile.sql:146,180-182,194` (`a.` = season,
-  `y.` = yoy), `mart_leaderboards.sql` (`s.` = season), `int_player_profile__yoy.sql`'s four
-  `shots_on_goal_player_*` write-columns.
-- Seed rows: `metric_id` renamed, `base_relation` / `numerator_expr` / `denominator_expr` untouched.
-- Doc blocks: no `doc('shots_total')` / `doc('shots_on_goal')` / `doc('finishing_efficiency')`
-  reference remains anywhere; the three orphaned blocks removed with their owning TEAM columns left
-  bare rather than dangling.
-- The three PLAYER `accepted_values` lists moved; the three 22-name TEAM lists are byte-unchanged and
-  absent from the diff. Repo-wide sweep found no half-renamed name.
+- Traced all three `sum(X) … as X` self-aliasing sites: `int_player_club_season__metrics.sql:135-139`
+  (source `fct_fixture_player_stats` via `per_fixture`, provider — inner reads correctly kept, only
+  the alias moves), `int_player_season_record.sql:60-67` (source `int_legs__player_match` via
+  `player_legs`, provider — inner reads correctly kept), `int_player_season__metrics.sql:58-62`
+  (source `int_player_club_season__metrics` via `club_season`, a metric relation this MR renames —
+  both inner read and alias correctly moved). No defect.
+- Followed every dotted/bare read of the renamed names through `int_player_momentum__metrics.sql`,
+  `mart_player_momentum.sql`, `mart_player_season_record.sql`, `mart_player_profile.sql` and
+  `mart_leaderboards.sql` — every read resolves against a relation that actually emits the
+  referenced column after the change.
+- Checked the seed: the five `metric_id` values move; `base_relation` / `numerator_expr` stay
+  pointed at `int_legs__player_match` and reference the provider's unrenamed columns, which that
+  model still emits. `lower_is_better` / `direction` still agree, so
+  `assert_metric_direction_lower_is_better_agree.sql` still passes.
+- Grepped for the five old `doc()` names across `dbt_project/models` — zero hits. 48 `doc()`
+  occurrences of the new names across the 7 touched ymls, matching the contract's count;
+  `metric_columns.md` blocks verified by direct read, no content swapped between blocks.
+- Read all six `accepted_values` lists directly: `shared.yml:1756` correctly moved
+  `cards_total` → `cards_player`; the other five contain none of the names and are untouched.
+- Checked layer boundaries: no column name changed on any staging/base/core model or on
+  `int_legs__player_match`, `mart_player_fixture_stats`, `mart_player_match_log`,
+  `mart_team_fixture_stats` — every bare `- name:` hit mapped by hand to its owning provider model.
+- Checked the export against the consumption-layer contract: only the two leaderboard literal
+  tuples change; `shape_top_players` uses a DROP list and derives nothing.
+- Checked the over-counted lineage files (`int_player_profile__yoy`, `mart_player_career`,
+  `int_player_competition_benchmarks`, `int_player_season_position__metrics`, the benchmark macro)
+  for any of the five names — none found, consistent with the contract's impact map.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Its round-1 finding (seed formula naming a nonexistent column) re-verified fixed: all three rows
-  read the actual upstream leg columns, not the new metric ids.
-- Its round-2 finding (bare read of a renamed relation) verified fixed at `:45-46`.
-- Naming authority: all three renames verbatim in the log's "PLAYER, 35 REMAINING" table, with
-  `_player` before the trailing `_pct` per RULING 5's quoted shape.
-- Definitions byte-identical across every field of the three seed rows except `metric_id` —
-  label keys, label_en, description, base relation, format, group, tier, direction, interpretation.
-- `higher_better` is football-correct for all three; none is a conceded/cards class.
-- **Meaning preserved at every grain it is computed**: season and position keep the identical
-  NULL/zero-cap logic; club-season and momentum correctly do not compute the ratio at all, which is
-  pre-existing design, so no coverage or NULL policy was silently introduced or dropped.
-- No cross-entity leakage: the TEAM catalogue rows still read `int_legs__team_match` under the
-  original column names.
+- Cross-checked all five renames against the "⛔ PLAYER, 35 REMAINING" table — all verbatim; RULING
+  5's shape confirmed present. No fabricated authority.
+- Read the seed rows in full and diffed against the patch: **only `metric_id` changed on each of the
+  five rows.** `label_i18n_key`, `label_en`, `description`, `base_relation`, `numerator_expr`,
+  `denominator_expr`, `computation_kind`, `lower_is_better`, `format`, `metric_group`,
+  `importance_tier`, `direction` and `interpretation` are byte-identical before and after.
+- Confirmed `base_relation` and every formula field still name real columns of the relation they
+  point at — the exact class the prior MR was FAILed for. No dangling formula reference.
+- Read the three self-aliasing sites directly; all three answers match "a reference follows its
+  source". Traced the four downstream marts' dotted reads to their renamed metric relations.
+- Group-split completeness: scanned the full seed — exactly 5 rows with
+  `entity=player, metric_group=discipline`, no more and no fewer; no team-side `discipline` group
+  exists to be missed.
+- Football validity, judged independently rather than diff-checked: `lower_better` on all five
+  (cards, offsides, penalties conceded) is correct, and `cards_player`'s `sum(cards_yellow +
+  cards_red)` is a transparent disclosed sum, not an opaque composite index.
+- Read `assert_metric_direction_lower_is_better_agree.sql:9` directly and confirmed it is inert
+  prose inside a `{# #}` comment recording a dated fact — leaving it unrenamed is the declared
+  judgement call, not a half-rename defect.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Its round-2 headline defect verified fixed, and every dotted/bare read in every touched model
-  traced against its actual source — not only the previously-broken one. No broken reference found.
-- Provider / per-match surfaces genuinely untouched per the "yes" ruling, including
-  `03_player_profile.md:126` now reading `shots_total` verbatim.
-- ⭐ Found and named the contract imprecision recorded above — `assert_metric_catalogue_expr_resolvable.sql`
-  already resolves the seed-formula surface against a live warehouse, so the categorical claim
-  overreaches. Judged an imprecision, not a defect.
-- The three claimed-orphaned doc blocks confirmed genuinely unreferenced tree-wide.
-- Borrowed-doc-block re-pointing verified across five ymls: column names unchanged, only `doc()`
-  moved — consistent with the 1604 description count being base-identical.
-- `_LEADERBOARD_METRICS` / `_LB_KEEP` correctly updated with no stale sibling, and its round-2
-  observation that these are pinned by no test is confirmed recorded in the log rather than lost.
-- Nothing loosened: no hook, workflow, CI file, gate script, requirements or lockfile appears in the
-  patch at all. No new LT05.
-- Confirmed the log records both failed rounds plainly, including that the builder's own resolver
-  repeated in miniature the mistake it was built to catch.
+- Confirmed no file under `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+  `*requirements*.txt`, `package*.json`, `astro.config.mjs`, `tsconfig.json`, `firebase.json`,
+  `.gitignore` or `tests/` is touched — the diff is dbt models/ymls/seed/docs/wireframes plus one
+  script, so most machinery hunt items have no changed surface.
+- Traced the "reference follows source" rule through every changed SQL file **by hand rather than
+  trusting the contract's narration**; all three self-aliasing sites resolve to the two opposite
+  correct answers claimed, and `cards_yellow_player + cards_red_player as cards_player` is correct.
+- Verified provider surfaces genuinely untouched by grepping `int_legs__player_match.sql` and
+  `fct_fixture_player_stats.sql` — they still emit the unrenamed columns the seed's formulas and the
+  protected inner reads read.
+- Grepped the whole `dbt_project` tree for the five old `doc()` names — zero hits; spot-checked
+  `metric_columns.md` content mapping, no content swapped between blocks during the rename.
+- Verified `int_team_season.yml`'s renamed columns fall inside the `int_player_season__metrics`
+  model block, not inside `int_team_season__metrics` — the file's dual naming is confusing but the
+  renamed lines are on the correct model.
+- Read all six `accepted_values` lists in full: `shared.yml:1756` is the only one that changes.
+  Verified `mart_leaderboards.sql`'s `count_boards`, `_LEADERBOARD_METRICS` / `_LB_KEEP` and that
+  `accepted_values` list all agree on `cards_player` with no `cards_total` retained anywhere.
+- Checked `tests/test_export_site_data.py`: `shape_leaderboards` / `shape_top_players` are exercised
+  with synthetic keys only, so no committed test would catch a stale literal in those tuples. **A
+  real coverage gap — but explicitly disclosed in `decisions_reserved` as pre-existing across the
+  whole programme (identical in `!125`), not introduced here; the values were independently
+  verified correct.**
+- Checked the wireframe judgement calls by direct read: `03_player_profile.md:100/106` renamed vs
+  `:119` correctly left (the exact class that failed `!125` round 2), `metrics_display.md:264`
+  renamed vs `:271` left, `docs/ui_design_brief.md` untouched.
+- Noted that `rendered_page_evidence.md` names and disclaims its own zero-built-file grep as "not
+  proof the rename happened" — the vacuous-check class this brief hunts for is disclosed by the
+  author rather than hidden.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Its round-2 finding verified fixed: `03_player_profile.md:126` reads `shots_total`, the file is
-  absent from the diff, and `scope_paths` no longer lists it.
-- The remaining four wireframes checked occurrence by occurrence: every renamed mention binds to a
-  surface that actually renamed (`mart_leaderboards`' board list, the benchmark chain); every
-  remaining old-name mention binds to one that did not (the TEAM stems, and the distinct
-  `shots_on_goal_against` goalkeeping metric).
-- Binding rule: repo-wide grep shows none of the three old names or three new names anywhere in
-  `site_v2/src` outside `src/data`. `TopPlayer.shots_on` traced through the untouched
-  `mart_player_momentum` back to an unrenamed `sum(p.shots_on) as shots_on` — the field the frontend
-  reads never moved.
-- The rendered-page evidence is structural, not substring, and explicitly distinguishes "prediction
-  confirmed" from "proof of work", pointing at the whole-token grep and gate results as the proof.
-- No user-facing wording change: `label_i18n_key` and `label_en` byte-identical for all three rows;
-  no `site/i18n/**` or `site_v2/src/i18n/**` file in the diff.
+- **Verified the provenance claim independently**, which was the central hunt item:
+  `scripts/export_site_data.py:871` builds `top_players[]` from `mart_player_momentum`, not
+  `mart_player_fixture_stats`, and `_TOPPLAYER_DROP` (`:66-67`) names none of the five — so the
+  renamed mart columns flow straight through into the payload keys, exactly as the contract states.
+- Grepped all five old names and `cards_player` across `site_v2/src`: only the 19 committed
+  `src/data/fixtures/*.json` sample files match; no `.astro` / `.ts` matches. Checked
+  `metricRows.ts` (team-only, correctly carries none), `PlayerRow.astro` and the `TopPlayer`
+  interface in `types.ts` — none reads or declares any of the five, confirming they are genuinely
+  unrendered.
+- Wireframe-to-code binding: confirmed `03_player_profile.md:100` matches `mart_player_profile.sql`'s
+  actual output columns and `:119` matches the untouched `mart_player_match_log.sql`; confirmed
+  `10_home.md`'s board table and `metrics_display.md` row 8 match `mart_leaderboards.sql`'s output
+  and the `shared.yml:1756` list.
+- Doc re-pointing completeness: grepped for any leftover old-name `doc()` across `dbt_project` —
+  zero, so nothing was left to break `check_description_hygiene.py`.
+- Spot-checked the reference-follows-source classification repo-wide for three of the five names;
+  the two opposite-answer self-aliasing sites are exactly as the contract claims.
+- Read the three prose judgement calls directly (`ui_design_brief.md:98,166`,
+  `metrics_display.md:271`, the dated test comment) and agreed each is plain English or inert
+  historical prose, correctly left unrenamed.
+- Confirmed `rendered_page_evidence.md` measures structurally (`div.mrow` / `div.mgroup` counts,
+  whole-token grep over built HTML) across 19 fixture pages × 3 locales, from `dist/` rather than
+  source or `outerHTML`, with both base and branch independently built.
+- No metric creep, no naked percentage, no double-render: none of the five is new to any display
+  surface, none takes a `_pct` form, and no component renders any of them today.
 
 ## escalations
 (none)

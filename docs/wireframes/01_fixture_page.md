@@ -195,8 +195,8 @@ Compact row: `player_photo_url`, `player_name` (▸ player profile via `player_s
 Full per-player window stats available in the payload for an expanded row (design
 decision): `passes_total/passes_accurate/pass_accuracy_pct, tackles_total,
 tackles_blocks, tackles_interceptions, duels_won/duels_total/duels_won_pct,
-dribbles_success/dribbles_attempts/dribbles_past, offsides, penalty_won/
-penalty_committed, cards_yellow, cards_red, games_in_window`.
+dribbles_success/dribbles_attempts/dribbles_past, offsides_player, penalty_won/
+penalty_committed_player, cards_yellow_player, cards_red_player, games_in_window`.
 Ranking is transparent (counts), never a composite score.
 
 ### (6) Head-to-head — `head_to_head` (perspective = **home team**)

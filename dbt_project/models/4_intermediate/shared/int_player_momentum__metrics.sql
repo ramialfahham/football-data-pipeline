@@ -75,12 +75,12 @@ player_agg as (
         sum(p.duels_won) as duels_won,
         sum(p.dribbles_attempts) as dribbles_attempts,
         sum(p.dribbles_success) as dribbles_success,
-        sum(p.cards_yellow) as cards_yellow,
-        sum(p.cards_red) as cards_red,
-        sum(p.offsides) as offsides,
+        sum(p.cards_yellow) as cards_yellow_player,
+        sum(p.cards_red) as cards_red_player,
+        sum(p.offsides) as offsides_player,
         sum(p.dribbles_past) as dribbles_past,
         sum(p.penalty_won) as penalty_won,
-        sum(p.penalty_committed) as penalty_committed,
+        sum(p.penalty_committed) as penalty_committed_player,
         -- passes_accurate: derived per fixture, then summed (small rounding error)
         sum(
             safe_cast(
@@ -126,10 +126,10 @@ select
     duels_won,
     dribbles_attempts,
     dribbles_success,
-    cards_yellow,
-    cards_red,
-    offsides,
+    cards_yellow_player,
+    cards_red_player,
+    offsides_player,
     dribbles_past,
     penalty_won,
-    penalty_committed
+    penalty_committed_player
 from player_agg

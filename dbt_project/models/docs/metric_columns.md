@@ -71,18 +71,18 @@ gaps.
 {% enddocs %}
 
 
-{% docs cards_red %}
-Red cards.
-{% enddocs %}
-
-
-{% docs cards_total %}
+{% docs cards_player %}
 Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a
 yellow plus a red, so a two-yellow dismissal counts as 3.
 {% enddocs %}
 
 
-{% docs cards_yellow %}
+{% docs cards_red_player %}
+Red cards.
+{% enddocs %}
+
+
+{% docs cards_yellow_player %}
 Yellow cards.
 {% enddocs %}
 
@@ -783,7 +783,7 @@ safe_divide; this row registers its meaning.
 {% enddocs %}
 
 
-{% docs offsides %}
+{% docs offsides_player %}
 Offsides caught.
 {% enddocs %}
 
@@ -917,7 +917,7 @@ Total passes attempted. Totalled over the season.
 {% enddocs %}
 
 
-{% docs penalty_committed %}
+{% docs penalty_committed_player %}
 Penalties the player conceded. The provider spells the source field `penalty.commited`, which
 is misspelled at source and spelled correctly here.
 {% enddocs %}

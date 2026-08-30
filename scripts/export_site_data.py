@@ -47,14 +47,14 @@ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 # are deferred (#506). The order here is the display order.
 _LEADERBOARD_METRICS = ("goals", "scorer_points", "shots_on_goal_player", "dribbles_success",
                         "passes_total", "passes_key", "duels_won", "defensive_actions",
-                        "cards_total")
+                        "cards_player")
 _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
             "appearances", "minutes", "rank", "sort_value",
             "goals", "assists", "shots_on_goal_player", "dribbles_success", "dribbles_attempts",
             "passes_total", "passes_key", "duels_won", "duels_total",
             "tackles_total", "tackles_interceptions", "tackles_blocks",
-            "cards_yellow", "cards_red",
-            "scorer_points", "defensive_actions", "cards_total")
+            "cards_yellow_player", "cards_red_player",
+            "scorer_points", "defensive_actions", "cards_player")
 
 # Join/identity keys dropped from each per-side block in the fixture payload
 # (they live at the fixture top level or are join plumbing, not display data).

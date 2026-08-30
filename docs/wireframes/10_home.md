@@ -151,7 +151,7 @@ exists and the gap is VOID.
 | Key passes | `passes_key` | `passes_key` |
 | Tackles | `tackles_total` · `tackles_interceptions` · `tackles_blocks` · `defensive_actions` | `tackles_total` |
 | Goals conceded | `goals_against` · `shots_on_goal_against` | `goals_against`, ASCENDING |
-| Cards | `cards_yellow` · `cards_red` · `cards_total` | `cards_total`, DESCENDING |
+| Cards | `cards_yellow_player` · `cards_red_player` · `cards_player` | `cards_player`, DESCENDING |
 
 Every board ranks on a VOLUME metric, never a rate. That is deliberate and it carries a
 consequence: percentages ride along as context instead of deciding position, so the qualification
@@ -269,7 +269,7 @@ live and unchanged.
 
 - ~~**Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_total`, `goals_against`.
   Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal_player`,
-  `passes_total`, `passes_key`, `cards_total`.~~ VOID — all four were cut.
+  `passes_total`, `passes_key`, `cards_player`.~~ VOID — all four were cut.
 - ~~**Three display columns.** `passes_accurate` and `goals_against` exist in
   `int_player_season__metrics` and are simply not selected into the mart. `shots_on_goal_against`
   is computed nowhere, but the catalogue already defines it as `sum(saves + goals_against)` and

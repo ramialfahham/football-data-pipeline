@@ -132,11 +132,11 @@ aggregated as (
         sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
         sum(coalesce(dribbles_success, 0)) as dribbles_success,
         sum(coalesce(dribbles_past, 0)) as dribbles_past,
-        sum(coalesce(offsides, 0)) as offsides,
-        sum(coalesce(cards_yellow, 0)) as cards_yellow,
-        sum(coalesce(cards_red, 0)) as cards_red,
+        sum(coalesce(offsides, 0)) as offsides_player,
+        sum(coalesce(cards_yellow, 0)) as cards_yellow_player,
+        sum(coalesce(cards_red, 0)) as cards_red_player,
         sum(coalesce(penalty_won, 0)) as penalty_won,
-        sum(coalesce(penalty_committed, 0)) as penalty_committed,
+        sum(coalesce(penalty_committed, 0)) as penalty_committed_player,
         sum(coalesce(saves, 0)) as saves,
         sum(coalesce(goals_against, 0)) as goals_against
     from per_fixture
@@ -173,11 +173,11 @@ select
     dribbles_attempts,
     dribbles_success,
     dribbles_past,
-    offsides,
-    cards_yellow,
-    cards_red,
+    offsides_player,
+    cards_yellow_player,
+    cards_red_player,
     penalty_won,
-    penalty_committed,
+    penalty_committed_player,
     saves,
     goals_against
 from aggregated
