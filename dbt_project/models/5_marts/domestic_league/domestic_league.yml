@@ -80,7 +80,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
       - name: points

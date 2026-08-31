@@ -47,8 +47,8 @@ export interface TopPlayer {
   position_code?: string | null;
   goals_total?: number | null;
   goals_assists?: number | null;
-  saves?: number | null;
-  save_pct?: number | null;
+  saves_player?: number | null;
+  saves_player_pct?: number | null;
   shots_on?: number | null;
   passes_key_player?: number | null;
   player_name?: string | null;

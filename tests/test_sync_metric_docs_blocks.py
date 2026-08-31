@@ -413,11 +413,16 @@ def test_a_write_creates_the_directory_and_reports_the_count(monkeypatch, tmp_pa
 
 # ------------------------------------------------------------- derived columns
 #
-# The defect these exist for, in one sentence: the catalogue defines
-# `goals_against` for a PLAYER ("while the player was on the pitch") and every
-# column of that name lives on a TEAM model, so composing a block from the metric
-# alone put a player's definition into a team column. 21 of 76 derived names had
-# that shape. It was caught by reading the output, by nothing automatic.
+# The defect these exist for, in one sentence: a stem with ONE catalogue row says
+# nothing about which entity the columns carrying its derived name belong to, so
+# composing a block from the metric alone put one entity's definition into the
+# other's column. 21 of 76 derived names had that shape. It was caught by reading
+# the output, by nothing automatic.
+# ⚠ The worked example was `goals_against` — defined for a PLAYER ("while the player
+# was on the pitch") while the columns of that name lived on TEAM models. Step 4 of
+# the naming programme renamed the player metric to `goals_against_player`, so THAT
+# EXAMPLE IS HISTORICAL; the fixtures below keep using it because they exercise the
+# mechanism, which is not.
 
 def test_a_derived_block_is_ALWAYS_entity_suffixed(monkeypatch, tmp_path):
     """The whole safety property. A bare `goals_this_season` block is a block any

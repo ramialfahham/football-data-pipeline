@@ -21,7 +21,7 @@
     {% set all_pos = ['GK', 'DEF', 'MID', 'ATT'] %}
     {% set metrics = [
         {'key': 'saves_per90', 'col': 'saves_per90', 'pos': ['GK']},
-        {'key': 'save_pct', 'col': 'save_pct', 'pos': ['GK'], 'num': 'saves', 'den': 'saves + goals_against'},
+        {'key': 'saves_player_pct', 'col': 'saves_player_pct', 'pos': ['GK'], 'num': 'saves_player', 'den': 'saves_player + goals_against_player'},
         {'key': 'passes_per90', 'col': 'passes_per90', 'pos': all_pos},
         {'key': 'passes_accuracy_player_pct', 'col': 'passes_accuracy_player_pct', 'pos': all_pos, 'num': 'passes_accurate_player', 'den': 'passes_player'},
         {'key': 'goals_per90', 'col': 'goals_per90', 'pos': outfield},

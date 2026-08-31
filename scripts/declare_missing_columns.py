@@ -361,9 +361,13 @@ def _shared_blocks() -> set[str]:
 
 # ─── WHICH MODELS ARE TEAM-SCOPED AND WHICH ARE PLAYER-SCOPED ───────────────────
 # `sync_metric_docs_blocks.py` emits every derived block with an entity suffix,
-# because the catalogue defines `goals_against` for a PLAYER ("while the player was
-# on the pitch") while every column of that name sits on a TEAM model. It refuses
-# to guess which is which, so the answer lives here: a TABLE, decided by reading
+# because a stem with one catalogue row says nothing about which entity the columns
+# carrying its derived name belong to — they may be the other one. (The worked
+# example was `goals_against`, defined for a PLAYER while the columns of that name
+# sat on TEAM models; step 4 of the naming programme renamed that metric to
+# `goals_against_player`, so the example is historical and the hazard is not.) The
+# generator refuses to guess which is which, so the answer lives here: a TABLE,
+# decided by reading
 # each model's own SQL header, with the header quoted where the model's name does
 # not say it. A reviewer can check every line against the file it names.
 #

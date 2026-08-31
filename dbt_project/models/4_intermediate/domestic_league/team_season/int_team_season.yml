@@ -431,7 +431,7 @@ models:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: int_player_season_passes_accuracy_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "(duels_won_player_pct is null or duels_won_player_pct between 0 and 1) and (dribbles_success_player_pct is null or dribbles_success_player_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1) and (finishing_efficiency_player_pct is null or finishing_efficiency_player_pct between 0 and 1)"
+          expression: "(duels_won_player_pct is null or duels_won_player_pct between 0 and 1) and (dribbles_success_player_pct is null or dribbles_success_player_pct between 0 and 1) and (saves_player_pct is null or saves_player_pct between 0 and 1) and (finishing_efficiency_player_pct is null or finishing_efficiency_player_pct between 0 and 1)"
           name: int_player_season_ratios_in_range
       # per-90 metrics (benchmark inputs) are unbounded above but can never be negative — a sign-flip
       # or a bad numerator would trip this. NULL is allowed (minutes = 0).
@@ -522,10 +522,10 @@ models:
         description: "{{ doc('penalty_won') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
-      - name: saves
-        description: "{{ doc('saves__player') }}"
-      - name: goals_against
-        description: "{{ doc('goals_against__player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
+      - name: goals_against_player
+        description: "{{ doc('goals_against_player') }}"
       - name: goals_open_play
         description: "{{ doc('goals_open_play__player') }}"
       - name: scorer_points
@@ -538,8 +538,8 @@ models:
         description: "{{ doc('duels_won_player_pct') }}"
       - name: dribbles_success_player_pct
         description: "{{ doc('dribbles_success_player_pct') }}"
-      - name: save_pct
-        description: "{{ doc('save_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
       - name: finishing_efficiency_player_pct
         description: "{{ doc('finishing_efficiency_player_pct') }}"
       - name: goals_per90

@@ -211,10 +211,10 @@ models:
       as mart_team_momentum. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
       Raw counts (goals, assists, cards, …) pass through unchanged from the builder. The ratios —
-      save_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct — are computed here with
+      saves_player_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct — are computed here with
       safe_divide, so a zero denominator gives NULL rather than an error.
 
-      save_pct is only meaningful for goalkeepers (position_code = 'G').
+      saves_player_pct is only meaningful for goalkeepers (position_code = 'G').
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -255,7 +255,7 @@ models:
         description: "The player's appearance count within the side's window (1..5 for last_5, uncapped for tournament windows)."
         tests: [not_null]
       - name: position_code
-        description: "Player position code (e.g. G, D, M, F). Used to scope save_pct to goalkeepers."
+        description: "Player position code (e.g. G, D, M, F). Used to scope saves_player_pct to goalkeepers."
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
@@ -263,8 +263,8 @@ models:
         description: "{{ doc('season_api_year') }}"
       - name: goals_total
       - name: goals_assists
-      - name: saves
-        description: "{{ doc('saves__player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
       - name: shots_on
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
@@ -298,8 +298,8 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
-      - name: save_pct
-        description: "{{ doc('save_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
       - name: dribbles_success_player_pct
         description: "{{ doc('dribbles_success_player_pct') }}"
       - name: passes_accuracy_player_pct
@@ -386,7 +386,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: opponent_name
       - name: opponent_logo_url
 
@@ -456,7 +456,7 @@ models:
       - name: red_cards
         description: "{{ doc('red_cards') }}"
       - name: goalkeeper_saves
-        description: "{{ doc('saves__team') }}"
+        description: "{{ doc('saves') }}"
       - name: passes_total
         description: "{{ doc('passes_player') }}"
       - name: passes_accurate
@@ -466,7 +466,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
 
   - name: mart_player_fixture_stats
     description: >
@@ -533,10 +533,10 @@ models:
       - name: shots_on
       - name: goals_total
       - name: goals_against
-        description: "{{ doc('goals_against__player') }}"
+        description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves__player') }}"
+        description: "{{ doc('saves_player') }}"
       - name: passes_total
         description: "{{ doc('passes_player') }}"
       - name: passes_key
@@ -678,7 +678,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
       - name: points
@@ -980,8 +980,8 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
       - dbt_utils.expression_is_true:
-          expression: "save_pct is null or (save_pct between 0 and 1)"
-          name: std_player_save_pct_in_range
+          expression: "saves_player_pct is null or (saves_player_pct between 0 and 1)"
+          name: std_player_saves_player_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: std_player_passes_accuracy_player_pct_in_range
@@ -1018,7 +1018,7 @@ models:
           - accepted_values:
               values: ["season_to_date", "prev_season"]
       - name: position_code
-        description: "Player position code; used to scope save_pct to goalkeepers."
+        description: "Player position code; used to scope saves_player_pct to goalkeepers."
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
@@ -1028,8 +1028,8 @@ models:
       - name: games_played
       - name: goals_total
       - name: goals_assists
-      - name: saves
-        description: "{{ doc('saves__player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
       - name: shots_on
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
@@ -1063,8 +1063,8 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
-      - name: save_pct
-        description: "{{ doc('save_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
       - name: dribbles_success_player_pct
         description: "{{ doc('dribbles_success_player_pct') }}"
       - name: passes_accuracy_player_pct
@@ -1231,7 +1231,7 @@ models:
         description: "{{ doc('goals__team') }}"
         tests: [not_null]
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
         tests: [not_null]
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
@@ -1259,8 +1259,8 @@ models:
       player shot accuracy. Otherwise only raw descriptors are carried: appearances, starts,
       minutes, identity, position.
 
-      save_pct is only meaningful for goalkeepers (position_code = 'G'); saves and
-      shots_on_goal_against carry its numerator and denominator, so it can be shown with its
+      saves_player_pct is only meaningful for goalkeepers (position_code = 'G'); saves_player and
+      shots_on_goal_against_player carry its numerator and denominator, so it can be shown with its
       volume.
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -1275,12 +1275,12 @@ models:
           expression: "dribbles_success_player_pct is null or (dribbles_success_player_pct between 0 and 1)"
           name: player_profile_dribbles_success_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "save_pct is null or (save_pct between 0 and 1)"
-          name: player_profile_save_pct_in_range
-      # GK full-triple (GAP-12): saves can never exceed shots on target faced
+          expression: "saves_player_pct is null or (saves_player_pct between 0 and 1)"
+          name: player_profile_saves_player_pct_in_range
+      # GK full-triple (GAP-12): saves_player can never exceed shots on target faced
       - dbt_utils.expression_is_true:
-          expression: "saves <= shots_on_goal_against"
-          name: player_profile_saves_lte_faced
+          expression: "saves_player <= shots_on_goal_against_player"
+          name: player_profile_saves_player_lte_faced
     columns:
       - name: is_featured_season
         description: >
@@ -1414,18 +1414,18 @@ models:
         description: "{{ doc('penalty_won') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
-      - name: saves
-        description: "{{ doc('saves__player') }}"
-      - name: shots_on_goal_against
-        description: "{{ doc('shots_on_goal_against') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
+      - name: shots_on_goal_against_player
+        description: "{{ doc('shots_on_goal_against_player') }}"
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: duels_won_player_pct
         description: "{{ doc('duels_won_player_pct') }}"
       - name: dribbles_success_player_pct
         description: "{{ doc('dribbles_success_player_pct') }}"
-      - name: save_pct
-        description: "{{ doc('save_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
       - name: yoy_appearances_cutoff
         description: "{{ doc('yoy_appearances_cutoff') }}"
       - name: goals_this_season
@@ -1530,7 +1530,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: player_name
       - name: player_photo_url
       - name: team_name
@@ -1547,7 +1547,7 @@ models:
       - name: goals_total
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves__player') }}"
+        description: "{{ doc('saves_player') }}"
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
@@ -1680,7 +1680,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: meetings_last5
       - name: wins_last5
       - name: draws_last5
@@ -1739,8 +1739,8 @@ models:
           expression: "dribbles_success_player_pct is null or (dribbles_success_player_pct between 0 and 1)"
           name: mart_leaderboards_dribbles_success_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "save_pct is null or (save_pct between 0 and 1)"
-          name: mart_leaderboards_save_pct_in_range
+          expression: "saves_player_pct is null or (saves_player_pct between 0 and 1)"
+          name: mart_leaderboards_saves_player_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"
           name: mart_leaderboards_finishing_efficiency_player_pct_in_range
@@ -1753,7 +1753,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "save_pct"]
+              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -1841,8 +1841,8 @@ models:
         description: "{{ doc('duels_won_player_pct') }}"
       - name: dribbles_success_player_pct
         description: "{{ doc('dribbles_success_player_pct') }}"
-      - name: save_pct
-        description: "{{ doc('save_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
       - name: finishing_efficiency_player_pct
         description: "{{ doc('finishing_efficiency_player_pct') }}"
 
@@ -1947,7 +1947,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: has_result
         description: "True when a finished result is attached to this fixture. It is NOT the opposite of is_upcoming: a postponed, abandoned or cancelled fixture is false on both, so test the flag you mean rather than negating the other one."
       - name: is_upcoming
@@ -2139,7 +2139,7 @@ models:
       # per-90 metrics do not. num AND den are non-null EXACTLY on the ratio rows (and, since a ranked row
       # always has a non-null metric_value, safe_divide guarantees a non-null, non-zero den there).
       - dbt_utils.expression_is_true:
-          expression: "(metric_key in ('save_pct', 'passes_accuracy_player_pct', 'finishing_efficiency_player_pct', 'dribbles_success_player_pct', 'duels_won_player_pct')) = (metric_numerator is not null and metric_denominator is not null)"
+          expression: "(metric_key in ('saves_player_pct', 'passes_accuracy_player_pct', 'finishing_efficiency_player_pct', 'dribbles_success_player_pct', 'duels_won_player_pct')) = (metric_numerator is not null and metric_denominator is not null)"
           name: mart_competition_benchmarks_player_ratio_atoms_present
     columns:
       - name: player_benchmark_sk
@@ -2183,7 +2183,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "save_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]
@@ -2192,7 +2192,7 @@ models:
           The count behind a RATIO metric's percentage — duels_won_player for duels_won_player_pct, for example
           — so the rate can always be shown with the volume it rests on.
 
-          Non-null ONLY on the five ratio rows (save_pct, passes_accuracy_player_pct, finishing_efficiency_player_pct,
+          Non-null ONLY on the five ratio rows (saves_player_pct, passes_accuracy_player_pct, finishing_efficiency_player_pct,
           dribbles_success_player_pct, duels_won_player_pct), and NULL on the per-90 rows, which have no such
           pair. From int_player_season_position__metrics, gated identically to metric_value.
       - name: metric_denominator

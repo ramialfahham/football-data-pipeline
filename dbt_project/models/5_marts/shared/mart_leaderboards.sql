@@ -41,7 +41,7 @@
     {'key': 'duels_won_player_pct', 'qualify': outfield},
     {'key': 'dribbles_success_player_pct', 'qualify': outfield},
     {'key': 'finishing_efficiency_player_pct', 'qualify': outfield ~ ' and shots_on_goal_player >= 10'},
-    {'key': 'save_pct', 'qualify': "player_position = 'Goalkeeper'"},
+    {'key': 'saves_player_pct', 'qualify': "player_position = 'Goalkeeper'"},
 ] %}
 
 {# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
@@ -98,7 +98,7 @@ base as (
         s.passes_accuracy_player_pct,
         s.duels_won_player_pct,
         s.dribbles_success_player_pct,
-        s.save_pct,
+        s.saves_player_pct,
         s.finishing_efficiency_player_pct,
         p.player_name,
         p.player_nationality,
@@ -163,7 +163,7 @@ select
     passes_accuracy_player_pct,
     duels_won_player_pct,
     dribbles_success_player_pct,
-    save_pct,
+    saves_player_pct,
     finishing_efficiency_player_pct
 from ranked
 where board_rank <= 10

@@ -7,7 +7,7 @@
   authority; `lower_is_better` is retained only because the live MVP export
   (`scripts/export_metric_definitions_json.py`) still reads it. Nothing checked that the two agreed,
   and by 2026-07-21 four rows contradicted each other (`cards_yellow`, `cards_red`, `cards_total`,
-  `shots_on_goal_against` — each `lower_is_better = false` beside `direction = 'lower_better'`). Two
+  `shots_on_goal_against_player` — each `lower_is_better = false` beside `direction = 'lower_better'`). Two
   columns saying opposite things about one metric is precisely the "surprising ambiguity" this layer
   must not contain. The four were corrected to follow `direction`, and this guard landed with the
   fix. (CPO 2026-07-21.)

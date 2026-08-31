@@ -132,7 +132,7 @@ deleted, per this file's own convention.
 What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points`
 (goals and assists became boards in their own right, so the combined metric had nothing left to
 combine), every second/context column (`passes_accuracy_player_pct`, `dribbles_success_player_pct`,
-`duels_won_player_pct`, `save_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
+`duels_won_player_pct`, `saves_player_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
 Cards entirely. ⚠ **There is therefore NO GOALKEEPER BOARD** — the four survivors are all
 attacking/possession metrics, so an outfield creator can top every board and a keeper can top none.
 ⚠ The Goals-conceded row's "ASCENDING" note is what GAP-26 was written about; that board no longer
@@ -150,7 +150,7 @@ exists and the gap is VOID.
 | Passes | `passes_player` · `passes_accurate_player` · `passes_accuracy_player_pct` | `passes_player` |
 | Key passes | `passes_key_player` | `passes_key_player` |
 | Tackles | `tackles_player` · `interceptions_player` · `blocks_player` · `defensive_actions_player` | `tackles_player` |
-| Goals conceded | `goals_against` · `shots_on_goal_against` | `goals_against`, ASCENDING |
+| Goals conceded | `goals_against_player` · `shots_on_goal_against_player` | `goals_against_player`, ASCENDING |
 | Cards | `cards_yellow_player` · `cards_red_player` · `cards_player` | `cards_player`, DESCENDING |
 
 Every board ranks on a VOLUME metric, never a rate. That is deliberate and it carries a
@@ -267,15 +267,15 @@ cut, so building any of it would serve nothing. Struck rather than deleted — t
 foot of this file carries the corrected status of all of them. The bullets AFTER them are still
 live and unchanged.
 
-- ~~**Four new board keys**: `duels_player`, `dribbles_attempts_player`, `tackles_player`, `goals_against`.
+- ~~**Four new board keys**: `duels_player`, `dribbles_attempts_player`, `tackles_player`, `goals_against_player`.
   Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal_player`,
   `passes_player`, `passes_key_player`, `cards_player`.~~ VOID — all four were cut.
-- ~~**Three display columns.** `passes_accurate_player` and `goals_against` exist in
-  `int_player_season__metrics` and are simply not selected into the mart. `shots_on_goal_against`
-  is computed nowhere, but the catalogue already defines it as `sum(saves + goals_against)` and
+- ~~**Three display columns.** `passes_accurate_player` and `goals_against_player` exist in
+  `int_player_season__metrics` and are simply not selected into the mart. `shots_on_goal_against_player`
+  is computed nowhere, but the catalogue already defines it as `sum(saves_player + goals_against_player)` and
   both inputs are present.~~ VOID — all three served boards that no longer exist.
 - ~~**A reversed ranking mode.** The mart ranks descending and ranks only players with a positive
-  value. Applied to `goals_against` ascending, that rule excludes every keeper on zero — exactly
+  value. Applied to `goals_against_player` ascending, that rule excludes every keeper on zero — exactly
   the ones the board exists for. It also needs a floor: one appearance and a clean sheet would
   otherwise top it. This is the one board where volume ranking does not protect the result.~~
   VOID — there is no Goals conceded board. ⚠ The limitation it describes is REAL and returns with
@@ -858,9 +858,9 @@ nine-board design; three of those are VOID and three gaps registered since were 
 register is the authority — check it, not this summary.
 
 - ~~**GAP-24** — four new board keys (`duels_player`, `dribbles_attempts_player`, `tackles_player`,
-  `goals_against`).~~ **VOID**: all four metrics were cut by the 2026-08-10 reduction.
-- ~~**GAP-25** — three display columns (`passes_accurate_player`, `goals_against`,
-  `shots_on_goal_against`).~~ **VOID**: all three served boards that no longer exist.
+  `goals_against_player`).~~ **VOID**: all four metrics were cut by the 2026-08-10 reduction.
+- ~~**GAP-25** — three display columns (`passes_accurate_player`, `goals_against_player`,
+  `shots_on_goal_against_player`).~~ **VOID**: all three served boards that no longer exist.
 - ~~**GAP-26** — ascending ranking mode plus a minutes floor for the Goals conceded board.~~
   **VOID**: there is no Goals conceded board. ⚠ It carried "the highest-risk of the six" for eight
   days after the board was deleted. The underlying limitation is real and returns with any future

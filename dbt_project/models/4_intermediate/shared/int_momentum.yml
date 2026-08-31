@@ -67,7 +67,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: clean_sheet_games
       - name: shots_total
         description: "{{ doc('shots_player') }}"
@@ -83,7 +83,7 @@ models:
         description: "{{ doc('corners') }}"
       - name: opponent_corner_kicks
       - name: goalkeeper_saves
-        description: "{{ doc('saves__team') }}"
+        description: "{{ doc('saves') }}"
       - name: key_passes
       - name: tackles
       - name: interceptions
@@ -140,13 +140,13 @@ models:
           greater than 0), so 0 means named in the matchday squad and never brought on.
         tests: [not_null]
       - name: position_code
-        description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
+        description: "Player position from fct_fixture_player_stats. Used to scope saves_player_pct to GK."
       - name: goals_total
-      - name: goals_against
-        description: "{{ doc('goals_against__player') }}"
+      - name: goals_against_player
+        description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
-      - name: saves
-        description: "{{ doc('saves__player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
       - name: shots_player
         description: "{{ doc('shots_player') }}"
       - name: shots_on

@@ -137,14 +137,14 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
 
 | Ratio metric | numerator | denominator |
 |---|---|---|
-| `save_pct` | `saves` | `saves + goals_against` |
+| `saves_player_pct` | `saves_player` | `saves_player + goals_against_player` |
 | `passes_accuracy_player_pct` | `passes_accurate_player` | `passes_player` |
 | `finishing_efficiency_player_pct` | `goals − goals_penalty` | `shots_on_goal_player` |
 | `dribbles_success_player_pct` | `dribbles_success_player` | `dribbles_attempts_player` |
 | `duels_won_player_pct` | `duels_won_player` | `duels_player` |
 
 The benchmarked set is the **18 metrics** of `player_benchmark_metrics()`, each ranked **within its own
-position group**: **GK** = saves, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
+position group**: **GK** = saves_player, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
 goals, assists, scorer points, shots on target, key passes, finishing, dribbles (count + %), duels won
 (count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency_player_pct` and `duels_won_player_pct`
 are now catalogued (both `higher_better`, via #530b/#621) — they were the last blockers, so the screen can

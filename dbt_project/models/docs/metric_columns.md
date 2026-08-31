@@ -483,26 +483,11 @@ time where a match went to it) rather than summed from player or event records.
 {% enddocs %}
 
 
-{% docs goals_against__player %}
-Goals conceded by the team while the player was on the pitch (GK-relevant).
-{% enddocs %}
-
-
-{% docs goals_against__team %}
+{% docs goals_against %}
 Goals conceded by the team, read from the authoritative match scoreline (the score after extra
 time where a match went to it) rather than summed from player or event records. Distinct from
 the player metric of the same name, which is the provider's count of goals conceded while that
 player was on the pitch.
-{% enddocs %}
-
-
-{% docs goals_against_delta_yoy__player %}
-Goals conceded by the team while the player was on the pitch (GK-relevant). The change from the
-previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when there is no prior season at this club to compare
-against, which covers a transfer, a first season at this level and a prior season that was
-never loaded, and NULL for a competition that carries no year-on-year comparison at all, such
-as a cup, a qualifying campaign or an international tournament.
 {% enddocs %}
 
 
@@ -544,11 +529,8 @@ matches played so far.
 {% enddocs %}
 
 
-{% docs goals_against_prev_season__player %}
-Goals conceded by the team while the player was on the pitch (GK-relevant). Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
+{% docs goals_against_player %}
+Goals conceded by the team while the player was on the pitch (GK-relevant).
 {% enddocs %}
 
 
@@ -562,23 +544,11 @@ rather than a part season against a full one.
 {% enddocs %}
 
 
-{% docs goals_against_sum_season__player %}
-Goals conceded by the team while the player was on the pitch (GK-relevant). Totalled over the
-season.
-{% enddocs %}
-
-
 {% docs goals_against_sum_season__team %}
 Goals conceded by the team, read from the authoritative match scoreline (the score after extra
 time where a match went to it) rather than summed from player or event records. Distinct from
 the player metric of the same name, which is the provider's count of goals conceded while that
 player was on the pitch. Totalled over the season.
-{% enddocs %}
-
-
-{% docs goals_against_this_season__player %}
-Goals conceded by the team while the player was on the pitch (GK-relevant). Value for the
-season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -734,12 +704,6 @@ gaps.
 
 {% docs interceptions_player %}
 Interceptions.
-{% enddocs %}
-
-
-{% docs last_meeting_goals_against__player %}
-Goals conceded by the team while the player was on the pitch (GK-relevant). Taken from the most
-recent previous meeting between these two teams.
 {% enddocs %}
 
 
@@ -949,17 +913,7 @@ Total points earned: 3 per win, 1 per draw, 0 per loss. Totalled over the season
 {% enddocs %}
 
 
-{% docs save_pct %}
-Goalkeeper save percentage. Null when denominator is zero.
-{% enddocs %}
-
-
-{% docs saves__player %}
-Saves made.
-{% enddocs %}
-
-
-{% docs saves__team %}
+{% docs saves %}
 Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather
 than summed from the individual goalkeepers' counts; the two need not agree. The provider does
 not supply team statistics for every fixture, so this can be missing, and a total over several
@@ -1000,6 +954,16 @@ progress, accumulated through the matches played so far.
 
 {% docs saves_per90 %}
 Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+{% enddocs %}
+
+
+{% docs saves_player %}
+Saves made.
+{% enddocs %}
+
+
+{% docs saves_player_pct %}
+Goalkeeper save percentage. Null when denominator is zero.
 {% enddocs %}
 
 
@@ -1057,15 +1021,15 @@ total over several fixtures can be understated rather than null. Totalled over t
 {% enddocs %}
 
 
-{% docs shots_on_goal_against %}
-Shots on target faced. Derived as saves + goals conceded.
-{% enddocs %}
-
-
 {% docs shots_on_goal_against_per_match %}
 Average shots on target conceded per match. The defensive companion to
 shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover
 every season game.
+{% enddocs %}
+
+
+{% docs shots_on_goal_against_player %}
+Shots on target faced. Derived as saves + goals conceded.
 {% enddocs %}
 
 
