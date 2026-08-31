@@ -139,7 +139,7 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
 |---|---|---|
 | `saves_player_pct` | `saves_player` | `saves_player + goals_against_player` |
 | `passes_accuracy_player_pct` | `passes_accurate_player` | `passes_player` |
-| `finishing_efficiency_player_pct` | `goals − goals_penalty` | `shots_on_goal_player` |
+| `finishing_efficiency_player_pct` | `goals_player − goals_penalty_player` | `shots_on_goal_player` |
 | `dribbles_success_player_pct` | `dribbles_success_player` | `dribbles_attempts_player` |
 | `duels_won_player_pct` | `duels_won_player` | `duels_player` |
 

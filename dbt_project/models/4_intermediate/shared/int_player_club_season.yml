@@ -74,12 +74,12 @@ models:
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
       - name: minutes
-      - name: goals
-        description: "{{ doc('goals__player') }}"
-      - name: goals_penalty
-        description: "{{ doc('goals_penalty__player') }}"
-      - name: assists
-        description: "{{ doc('assists') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: goals_penalty_player
+        description: "{{ doc('goals_penalty_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: shots_player
         description: "{{ doc('shots_player') }}"
       - name: shots_on_goal_player
@@ -112,8 +112,8 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
       - name: saves_player

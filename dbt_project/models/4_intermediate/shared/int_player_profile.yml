@@ -19,7 +19,7 @@ models:
       # full >= pace-matched for every metric (all are monotonic cumulative counts), and a
       # pace-matched prev row implies a full prev row exists. Catches a broken prev_full window.
       - dbt_utils.expression_is_true:
-          expression: "appearances_prev is null or (appearances_prev_full >= appearances_prev and goals_prev_season_full >= goals_prev_season and assists_prev_season_full >= assists_prev_season and shots_on_goal_player_prev_season_full >= shots_on_goal_player_prev_season and passes_key_player_prev_season_full >= passes_key_player_prev_season and defensive_actions_player_prev_season_full >= defensive_actions_player_prev_season)"
+          expression: "appearances_prev is null or (appearances_prev_full >= appearances_prev and goals_player_prev_season_full >= goals_player_prev_season and assists_player_prev_season_full >= assists_player_prev_season and shots_on_goal_player_prev_season_full >= shots_on_goal_player_prev_season and passes_key_player_prev_season_full >= passes_key_player_prev_season and defensive_actions_player_prev_season_full >= defensive_actions_player_prev_season)"
           name: player_yoy_full_season_ref_ge_pace_matched
     columns:
       - name: team_sk
@@ -44,40 +44,40 @@ models:
       - name: yoy_appearances_cutoff
         description: "{{ doc('yoy_appearances_cutoff') }}"
         tests: [not_null]
-      - name: goals_delta_yoy
-        description: "{{ doc('goals_delta_yoy__player') }} Here the alignment is by appearances: the count of matches the player actually played."
+      - name: goals_player_delta_yoy
+        description: "{{ doc('goals_player_delta_yoy__player') }} Here the alignment is by appearances: the count of matches the player actually played."
       - name: appearances_prev_full
         description: "{{ doc('appearances_prev_full') }}"
-      - name: goals_prev_season_full
-        description: "{{ doc('goals_prev_season_full__player') }} Assists, shots on target, key passes and defensive actions follow the same pattern in this model."
-      - name: goals_this_season
-        description: "{{ doc('goals_this_season__player') }}"
-      - name: assists_this_season
-        description: "{{ doc('assists_this_season__player') }}"
+      - name: goals_player_prev_season_full
+        description: "{{ doc('goals_player_prev_season_full__player') }} Assists, shots on target, key passes and defensive actions follow the same pattern in this model."
+      - name: goals_player_this_season
+        description: "{{ doc('goals_player_this_season__player') }}"
+      - name: assists_player_this_season
+        description: "{{ doc('assists_player_this_season__player') }}"
       - name: shots_on_goal_player_this_season
         description: "{{ doc('shots_on_goal_player_this_season__player') }}"
       - name: passes_key_player_this_season
       - name: defensive_actions_player_this_season
         description: "{{ doc('defensive_actions_player_this_season__player') }}"
       - name: appearances_prev
-      - name: goals_prev_season
-        description: "{{ doc('goals_prev_season__player') }}"
-      - name: assists_prev_season
-        description: "{{ doc('assists_prev_season__player') }}"
+      - name: goals_player_prev_season
+        description: "{{ doc('goals_player_prev_season__player') }}"
+      - name: assists_player_prev_season
+        description: "{{ doc('assists_player_prev_season__player') }}"
       - name: shots_on_goal_player_prev_season
         description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
       - name: passes_key_player_prev_season
       - name: defensive_actions_player_prev_season
         description: "{{ doc('defensive_actions_player_prev_season__player') }}"
-      - name: assists_prev_season_full
-        description: "{{ doc('assists_prev_season_full__player') }}"
+      - name: assists_player_prev_season_full
+        description: "{{ doc('assists_player_prev_season_full__player') }}"
       - name: shots_on_goal_player_prev_season_full
         description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: passes_key_player_prev_season_full
       - name: defensive_actions_player_prev_season_full
         description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
-      - name: assists_delta_yoy
-        description: "{{ doc('assists_delta_yoy__player') }}"
+      - name: assists_player_delta_yoy
+        description: "{{ doc('assists_player_delta_yoy__player') }}"
       - name: shots_on_goal_player_delta_yoy
         description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
       - name: passes_key_player_delta_yoy
@@ -97,8 +97,8 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, team_sk, season_sk]
       - dbt_utils.expression_is_true:
-          expression: "contribution_share is null or (contribution_share >= 0 and contribution_share <= 1)"
-          name: player_contribution_share_within_unit
+          expression: "contribution_player_pct is null or (contribution_player_pct >= 0 and contribution_player_pct <= 1)"
+          name: player_contribution_player_pct_within_unit
     columns:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
@@ -117,12 +117,12 @@ models:
       - name: season_sk
         description: "{{ doc('season_sk') }}"
         tests: [not_null]
-      - name: scorer_points
-        description: "{{ doc('scorer_points') }}"
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
       - name: team_goals_season
         description: "{{ doc('team_goals_season') }}"
-      - name: contribution_share
-        description: "{{ doc('contribution_share') }}"
+      - name: contribution_player_pct
+        description: "{{ doc('contribution_player_pct') }}"
       - name: league_code
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"

@@ -82,7 +82,7 @@ per_fixture as (
         s.cards_red,
         s.penalty_won,
         s.penalty_committed,
-        coalesce(ev.penalty_goals, 0) as goals_penalty
+        coalesce(ev.penalty_goals, 0) as goals_penalty_player
     from player_stats as s
     inner join finished as f
         on s.fixture_sk = f.fixture_sk
@@ -114,9 +114,9 @@ aggregated as (
         countif(coalesce(is_substitute, false) and coalesce(minutes_played, 0) > 0)
             as substitute_appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
-        sum(coalesce(goals_total, 0)) as goals,
-        sum(goals_penalty) as goals_penalty,
-        sum(coalesce(goals_assists, 0)) as assists,
+        sum(coalesce(goals_total, 0)) as goals_player,
+        sum(goals_penalty_player) as goals_penalty_player,
+        sum(coalesce(goals_assists, 0)) as assists_player,
         sum(coalesce(shots_total, 0)) as shots_player,
         sum(coalesce(shots_on, 0)) as shots_on_goal_player,
         sum(coalesce(passes_total, 0)) as passes_player,
@@ -135,7 +135,7 @@ aggregated as (
         sum(coalesce(offsides, 0)) as offsides_player,
         sum(coalesce(cards_yellow, 0)) as cards_yellow_player,
         sum(coalesce(cards_red, 0)) as cards_red_player,
-        sum(coalesce(penalty_won, 0)) as penalty_won,
+        sum(coalesce(penalty_won, 0)) as penalty_won_player,
         sum(coalesce(penalty_committed, 0)) as penalty_committed_player,
         sum(coalesce(saves, 0)) as saves_player,
         sum(coalesce(goals_against, 0)) as goals_against_player
@@ -157,9 +157,9 @@ select
     starts,
     substitute_appearances,
     minutes,
-    goals,
-    goals_penalty,
-    assists,
+    goals_player,
+    goals_penalty_player,
+    assists_player,
     shots_player,
     shots_on_goal_player,
     passes_player,
@@ -176,7 +176,7 @@ select
     offsides_player,
     cards_yellow_player,
     cards_red_player,
-    penalty_won,
+    penalty_won_player,
     penalty_committed_player,
     saves_player,
     goals_against_player

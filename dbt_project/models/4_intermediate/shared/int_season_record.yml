@@ -71,7 +71,7 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: clean_sheet_games
@@ -79,7 +79,7 @@ models:
       - name: games_with_opp_stats
       - name: games_with_opp_sot_stats
       - name: goals_penalty
-        description: "{{ doc('goals_penalty__team') }}"
+        description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: goals_against_in_save_games
@@ -187,8 +187,8 @@ models:
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
       - name: cards_yellow_player

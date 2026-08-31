@@ -51,7 +51,7 @@ models:
         description: "Count of window legs with goalkeeper_saves present — saves_pct's own coverage bucket (saves can be null where other team stats are present), used to NULL saves_pct on partial coverage."
         tests: [not_null]
       - name: goals_penalty
-        description: "{{ doc('goals_penalty__team') }}"
+        description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: goals_against_in_save_games
@@ -65,7 +65,7 @@ models:
       - name: points_won
         description: "{{ doc('points_won') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: clean_sheet_games
@@ -178,7 +178,7 @@ models:
         description: "{{ doc('offsides_player') }}"
       - name: dribbles_past_player
         description: "{{ doc('dribbles_past_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"

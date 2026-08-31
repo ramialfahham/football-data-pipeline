@@ -89,7 +89,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` differentiator | ✓ team (rank-space #606) |
 | | Vs-own-history / YoY *(flagship)* | team (player v1.x) | YoY model | ✓ team |
 | | Opponent / schedule context *(flagship, v1.x)* | team, player | (uses the benchmark engine) | ✗ SHELVED 2026-07-03 (no display home — season-level SoS ≈ constant in a balanced league) |
-| | Contribution-share *(bonus)* | player↔team | `int_player_profile__contribution` → `mart_player_profile` | ✓ (#645; catalogued `contribution_share`, NEUTRAL) |
+| | Contribution-share *(bonus)* | player↔team | `int_player_profile__contribution` → `mart_player_profile` | ✓ (#645; catalogued `contribution_player_pct`, NEUTRAL) |
 | | Streaks | team (player?) | `int_*_profile__streaks` | ✓ team · player SKIPPED (CPO 2026-07-03) |
 
 A block works for any competition and either subject because it's just a mart sliced by

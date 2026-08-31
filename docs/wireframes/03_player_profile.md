@@ -90,7 +90,7 @@ catalogue metrics; rendered as a one-line summary.
 
 | Bundle (contract) | JSON keys (selected season row) |
 |---|---|
-| Scorer points | `goals`, `assists` |
+| Scorer points | `goals_player`, `assists_player` |
 | Shots on target | `shots_on_target` |
 | Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
 | Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
@@ -103,7 +103,7 @@ catalogue metrics; rendered as a one-line summary.
 Rendering rules per contract: group subheads optional (design call), order fixed,
 zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the
 GK block on keeper profiles = design call #366). Unbundled atomics
-(`dribbles_past_player`, `offsides_player`, `penalty_won`, `penalty_committed_player`) stay unrendered.
+(`dribbles_past_player`, `offsides_player`, `penalty_won_player`, `penalty_committed_player`) stay unrendered.
 
 ### (6) Match log — `match_log[]`, latest first
 

@@ -61,7 +61,7 @@ select
     sum(dribbles_success) over w as dribbles_success_player,
     sum(dribbles_past) over w as dribbles_past_player,
     sum(offsides) over w as offsides_player,
-    sum(penalty_won) over w as penalty_won,
+    sum(penalty_won) over w as penalty_won_player,
     sum(penalty_committed) over w as penalty_committed_player,
     sum(cards_yellow) over w as cards_yellow_player,
     sum(cards_red) over w as cards_red_player

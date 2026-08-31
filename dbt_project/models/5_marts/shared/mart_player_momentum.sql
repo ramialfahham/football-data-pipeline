@@ -58,7 +58,7 @@ select
     b.dribbles_attempts_player,
     b.dribbles_past_player,
     b.offsides_player,
-    b.penalty_won,
+    b.penalty_won_player,
     b.penalty_committed_player,
     b.cards_yellow_player,
     b.cards_red_player,

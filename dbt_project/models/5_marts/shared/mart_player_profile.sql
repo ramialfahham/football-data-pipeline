@@ -141,8 +141,8 @@ select
     a.substitute_appearances,
     a.minutes,
     -- catalogue count metrics
-    a.goals,
-    a.assists,
+    a.goals_player,
+    a.assists_player,
     a.shots_on_goal_player,
     a.passes_player,
     a.passes_key_player,
@@ -158,7 +158,7 @@ select
     a.offsides_player,
     a.cards_yellow_player,
     a.cards_red_player,
-    a.penalty_won,
+    a.penalty_won_player,
     a.penalty_committed_player,
     -- GK atomics (GAP-12): the save full-triple — saves_player of shots faced
     a.saves_player,
@@ -171,12 +171,12 @@ select
     -- year-over-year (domestic only; the player's primary club that season; NULL
     -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
     y.yoy_appearances_cutoff,
-    y.goals_this_season,
-    y.goals_prev_season,
-    y.goals_delta_yoy,
-    y.assists_this_season,
-    y.assists_prev_season,
-    y.assists_delta_yoy,
+    y.goals_player_this_season,
+    y.goals_player_prev_season,
+    y.goals_player_delta_yoy,
+    y.assists_player_this_season,
+    y.assists_player_prev_season,
+    y.assists_player_delta_yoy,
     y.shots_on_goal_player_this_season,
     y.shots_on_goal_player_prev_season,
     y.shots_on_goal_player_delta_yoy,
@@ -189,16 +189,16 @@ select
     -- prior-season FULL totals: the "how big was last season" anchor for the pace-matched
     -- deltas above (context only, no delta-vs-full; NULL when the prior season is absent).
     y.appearances_prev_full,
-    y.goals_prev_season_full,
-    y.assists_prev_season_full,
+    y.goals_player_prev_season_full,
+    y.assists_player_prev_season_full,
     y.shots_on_goal_player_prev_season_full,
     y.passes_key_player_prev_season_full,
     y.defensive_actions_player_prev_season_full,
     -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
     -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
-    c.scorer_points,
+    c.scorer_points_player,
     c.team_goals_season,
-    c.contribution_share,
+    c.contribution_player_pct,
     -- The season this player's page opens on (#846). Exactly one row per player is true: the most
     -- recent CLUB season, preferring a domestic league over a cup, and falling back to the most
     -- recent season of any kind for a player with no club football at all. Scoped to club because

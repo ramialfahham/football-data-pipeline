@@ -45,16 +45,16 @@ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 # Player leaderboards: the 9 COUNT boards from mart_leaderboards (LONG, one row per
 # board, pre-ranked by the warehouse). metric_key drives the board; the 5 rate boards
 # are deferred (#506). The order here is the display order.
-_LEADERBOARD_METRICS = ("goals", "scorer_points", "shots_on_goal_player", "dribbles_success_player",
+_LEADERBOARD_METRICS = ("goals_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player",
                         "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player",
                         "cards_player")
 _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
             "appearances", "minutes", "rank", "sort_value",
-            "goals", "assists", "shots_on_goal_player", "dribbles_success_player", "dribbles_attempts_player",
+            "goals_player", "assists_player", "shots_on_goal_player", "dribbles_success_player", "dribbles_attempts_player",
             "passes_player", "passes_key_player", "duels_won_player", "duels_player",
             "tackles_player", "interceptions_player", "blocks_player",
             "cards_yellow_player", "cards_red_player",
-            "scorer_points", "defensive_actions_player", "cards_player")
+            "scorer_points_player", "defensive_actions_player", "cards_player")
 
 # Join/identity keys dropped from each per-side block in the fixture payload
 # (they live at the fixture top level or are join plumbing, not display data).
@@ -173,7 +173,7 @@ def _shape_team_fixture(row: dict) -> dict:
 
 def _shape_squad_member(row: dict, career: dict | None = None) -> dict:
     """One mart_roster row -> a squad member. Identity from the roster row; the per-club
-    season stats (appearances / mins-per-app / goals / assists) are JOINED from that
+    season stats (appearances / mins-per-app / goals_player / assists_player) are JOINED from that
     player's mart_player_career row for the same (league_code, season) — selection, not
     derivation: minutes_per_appearance is the mart's precomputed column, never divided
     here. A member with no career row never appeared in a finished-match squad -> stats
@@ -189,8 +189,8 @@ def _shape_squad_member(row: dict, career: dict | None = None) -> dict:
         "photo": row.get("player_photo_url"),
         "appearances": career.get("appearances") if career else None,
         "minutes_per_appearance": career.get("minutes_per_appearance") if career else None,
-        "goals": career.get("goals") if career else None,
-        "assists": career.get("assists") if career else None,
+        "goals": career.get("goals_player") if career else None,
+        "assists": career.get("assists_player") if career else None,
     }
 
 
@@ -440,8 +440,8 @@ def _shape_career_row(row: dict) -> dict:
         "entity_type": row.get("entity_type"),
         "team": _player_team_block(row),
         "appearances": row.get("appearances"),
-        "goals": row.get("goals"),
-        "assists": row.get("assists"),
+        "goals": row.get("goals_player"),
+        "assists": row.get("assists_player"),
     }
 
 
@@ -552,7 +552,7 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
 
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
     """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
-    (goals -> assists -> key passes, computed in mart_player_momentum; the export
+    (goals_player -> assists_player -> key passes, computed in mart_player_momentum; the export
     does not rank). Names/photos joined from dim_player. Relies on the mart column
     being present (ship-the-mart-first); a Python ranking fallback is intentionally
     NOT provided — re-deriving the rank here would violate the consumption-layer
@@ -1014,7 +1014,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         "league_code", "season_api_year",
     )
     scorers = _group2(
-        _query(client, f"select * from `{marts}.mart_leaderboards` where metric_key = 'goals'"),
+        _query(client, f"select * from `{marts}.mart_leaderboards` where metric_key = 'goals_player'"),
         "league_code", "season_api_year",
     )
     teams = {

@@ -20,12 +20,17 @@ way and forgetting to regenerate fails the drift check in CI.
 -->
 
 
-{% docs assists %}
+{% docs assists_per90 %}
+Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+{% enddocs %}
+
+
+{% docs assists_player %}
 Goal assists.
 {% enddocs %}
 
 
-{% docs assists_delta_yoy__player %}
+{% docs assists_player_delta_yoy__player %}
 Goal assists. The change from the previous season to the current one, compared at the same
 point of the campaign: the current value minus the previous one. NULL when there is no prior
 season at this club to compare against, which covers a transfer, a first season at this level
@@ -35,26 +40,21 @@ tournament.
 {% enddocs %}
 
 
-{% docs assists_per90 %}
-Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.
-{% enddocs %}
-
-
-{% docs assists_prev_season__player %}
+{% docs assists_player_prev_season__player %}
 Goal assists. Value for the season before, through the same number of matches as the current
 season has played so far, so the two are compared at the same point of a campaign rather than a
 part season against a full one.
 {% enddocs %}
 
 
-{% docs assists_prev_season_full__player %}
+{% docs assists_player_prev_season_full__player %}
 Goal assists. The previous season's complete total, with no cutoff. It is context for how large
 that season was and is never subtracted from the season in progress, because a part season
 against a full one would mislead.
 {% enddocs %}
 
 
-{% docs assists_this_season__player %}
+{% docs assists_player_this_season__player %}
 Goal assists. Value for the season now in progress, accumulated through the matches played so
 far.
 {% enddocs %}
@@ -139,7 +139,7 @@ season.
 {% enddocs %}
 
 
-{% docs contribution_share %}
+{% docs contribution_player_pct %}
 Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's
 whole-season goals. Involved in X% of the club's goals. Computed in
 int_player_profile__contribution (not a single-leg aggregate). Understates where the player's
@@ -472,12 +472,7 @@ finishing the player's own on-target shots. Null when not fully shot-covered or 
 {% enddocs %}
 
 
-{% docs goals__player %}
-Goals scored.
-{% enddocs %}
-
-
-{% docs goals__team %}
+{% docs goals %}
 Goals scored by the team, read from the authoritative match scoreline (the score after extra
 time where a match went to it) rather than summed from player or event records.
 {% enddocs %}
@@ -561,35 +556,15 @@ played so far.
 {% enddocs %}
 
 
-{% docs goals_delta_yoy__player %}
-Goals scored. The change from the previous season to the current one, compared at the same
-point of the campaign: the current value minus the previous one. NULL when there is no prior
-season at this club to compare against, which covers a transfer, a first season at this level
-and a prior season that was never loaded, and NULL for a competition that carries no
-year-on-year comparison at all, such as a cup, a qualifying campaign or an international
-tournament.
-{% enddocs %}
-
-
-{% docs goals_delta_yoy__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. The change from
-the previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when either side is missing, which covers a competition that
-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-first matches are not fully stat-covered.
-{% enddocs %}
-
-
-{% docs goals_open_play__player %}
-Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of
-finishing_efficiency_player_pct. (goals_total already excludes own goals.)
-{% enddocs %}
-
-
-{% docs goals_open_play__team %}
+{% docs goals_open_play %}
 Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for -
 goals_penalty - goals_own). The numerator of finishing_efficiency_pct.
+{% enddocs %}
+
+
+{% docs goals_open_play_player %}
+Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of
+finishing_efficiency_player_pct. (goals_total already excludes own goals.)
 {% enddocs %}
 
 
@@ -599,16 +574,16 @@ from match events (event_detail = 'Own Goal'). A component of the open-play spli
 {% enddocs %}
 
 
-{% docs goals_penalty__player %}
+{% docs goals_penalty %}
 Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
-'Penalty'). A component of the open-play split — not the player finishing his own on-target
+'Penalty'). A component of the open-play split — not the team finishing its own on-target
 shots.
 {% enddocs %}
 
 
-{% docs goals_penalty__team %}
+{% docs goals_penalty_player %}
 Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
-'Penalty'). A component of the open-play split — not the team finishing its own on-target
+'Penalty'). A component of the open-play split — not the player finishing his own on-target
 shots.
 {% enddocs %}
 
@@ -646,48 +621,38 @@ matches played so far.
 {% enddocs %}
 
 
-{% docs goals_prev_season__player %}
+{% docs goals_player %}
+Goals scored.
+{% enddocs %}
+
+
+{% docs goals_player_delta_yoy__player %}
+Goals scored. The change from the previous season to the current one, compared at the same
+point of the campaign: the current value minus the previous one. NULL when there is no prior
+season at this club to compare against, which covers a transfer, a first season at this level
+and a prior season that was never loaded, and NULL for a competition that carries no
+year-on-year comparison at all, such as a cup, a qualifying campaign or an international
+tournament.
+{% enddocs %}
+
+
+{% docs goals_player_prev_season__player %}
 Goals scored. Value for the season before, through the same number of matches as the current
 season has played so far, so the two are compared at the same point of a campaign rather than a
 part season against a full one.
 {% enddocs %}
 
 
-{% docs goals_prev_season__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
-{% enddocs %}
-
-
-{% docs goals_prev_season_full__player %}
+{% docs goals_player_prev_season_full__player %}
 Goals scored. The previous season's complete total, with no cutoff. It is context for how large
 that season was and is never subtracted from the season in progress, because a part season
 against a full one would mislead.
 {% enddocs %}
 
 
-{% docs goals_prev_season_full__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. The previous
-season's complete total, with no cutoff. It is context for how large that season was and is
-never subtracted from the season in progress, because a part season against a full one would
-mislead.
-{% enddocs %}
-
-
-{% docs goals_this_season__player %}
+{% docs goals_player_this_season__player %}
 Goals scored. Value for the season now in progress, accumulated through the matches played so
 far.
-{% enddocs %}
-
-
-{% docs goals_this_season__team %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Value for the
-season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -893,7 +858,7 @@ is misspelled at source and spelled correctly here.
 {% enddocs %}
 
 
-{% docs penalty_won %}
+{% docs penalty_won_player %}
 Penalties won.
 {% enddocs %}
 
@@ -967,13 +932,13 @@ Goalkeeper save percentage. Null when denominator is zero.
 {% enddocs %}
 
 
-{% docs scorer_points %}
-Goals plus assists (combined goal contributions).
+{% docs scorer_points_per90 %}
+Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 {% enddocs %}
 
 
-{% docs scorer_points_per90 %}
-Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+{% docs scorer_points_player %}
+Goals plus assists (combined goal contributions).
 {% enddocs %}
 
 

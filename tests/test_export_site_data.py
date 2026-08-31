@@ -48,15 +48,15 @@ def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
     # mart_leaderboards is LONG: one row per (player, board) with metric_key + rank already
     # set by the warehouse. The export groups by metric_key and orders by rank — no Python ranking.
     rows = [
-        {"metric_key": "goals", "rank": 2, "player_sk": 3, "player_name": "C"},
-        {"metric_key": "goals", "rank": 1, "player_sk": 2, "player_name": "B"},
-        {"metric_key": "scorer_points", "rank": 1, "player_sk": 1, "player_name": "A"},
-        {"metric_key": "goals", "rank": 99, "player_sk": 4, "player_name": "D"},   # beyond the limit
+        {"metric_key": "goals_player", "rank": 2, "player_sk": 3, "player_name": "C"},
+        {"metric_key": "goals_player", "rank": 1, "player_sk": 2, "player_name": "B"},
+        {"metric_key": "scorer_points_player", "rank": 1, "player_sk": 1, "player_name": "A"},
+        {"metric_key": "goals_player", "rank": 99, "player_sk": 4, "player_name": "D"},   # beyond the limit
     ]
-    boards = shape_leaderboards(rows, metrics=("goals", "scorer_points"), limit=10)
-    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]   # by rank; D dropped (> limit)
-    assert [p["player_name"] for p in boards["scorer_points"]] == ["A"]
-    assert len(boards["goals"]) == 2
+    boards = shape_leaderboards(rows, metrics=("goals_player", "scorer_points_player"), limit=10)
+    assert [p["player_name"] for p in boards["goals_player"]] == ["B", "C"]   # by rank; D dropped (> limit)
+    assert [p["player_name"] for p in boards["scorer_points_player"]] == ["A"]
+    assert len(boards["goals_player"]) == 2
 
 
 def test_display_group_of_type_reads_seed():
@@ -462,9 +462,9 @@ def test_shape_team_payload_joins_career_stats_to_squad_by_player_sk():
     career = [
         # Kane: a career row for THIS season -> stats join; his 2024 row must NOT match 2025
         {"team_sk": 157, "player_sk": 9, "league_code": "BL1", "season_api_year": 2025,
-         "appearances": 30, "minutes_per_appearance": 88.0, "goals": 26, "assists": 8},
+         "appearances": 30, "minutes_per_appearance": 88.0, "goals_player": 26, "assists_player": 8},
         {"team_sk": 157, "player_sk": 9, "league_code": "BL1", "season_api_year": 2024,
-         "appearances": 32, "minutes_per_appearance": 90.0, "goals": 36, "assists": 8},
+         "appearances": 32, "minutes_per_appearance": 90.0, "goals_player": 36, "assists_player": 8},
         # Neuer: no career row -> stats null (never appeared in a finished-match squad)
     ]
     p = shape_team_payload(_mark_featured(rows), None, roster, None, None, career)
@@ -535,7 +535,7 @@ def test_shape_player_payload_orders_match_log_desc():
         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
          "player_name": "Jamal Musiala", "player_photo_url": "ph",
          "player_nationality": "Germany", "player_birth_date": "2003-02-26",
-         "position_code": "M", "goals": 12},
+         "position_code": "M", "goals_player": 12},
     ]
     matches = [
         {"player_sk": 1090, "kickoff_datetime": "2025-09-01T18:30:00",
@@ -661,7 +661,7 @@ def test_shape_career_row_carries_mart_columns():
         "player_career_sk": "hash", "season_api_year": 2024, "league_code": "BL1",
         "player_name": "Harry Kane", "entity_type": "club",
         "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany",
-        "appearances": 32, "goals": 26, "assists": 8, "national_appearances_total": 12,
+        "appearances": 32, "goals_player": 26, "assists_player": 8, "national_appearances_total": 12,
         "last_kickoff_at": "2024-05-18T15:30:00", "club_latest_kickoff_at": "2024-05-18T15:30:00",
     }
     assert _shape_career_row(row) == {
@@ -686,7 +686,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
     def row(team_sk, year, comp, name, entity, apps, last, club_latest):
         return {"player_sk": 9, "team_sk": team_sk, "season_api_year": year, "league_code": comp,
                 "entity_type": entity, "team_name": name, "team_logo_url": "x.png",
-                "team_country": "X", "appearances": apps, "goals": 1, "assists": 1,
+                "team_country": "X", "appearances": apps, "goals_player": 1, "assists_player": 1,
                 "national_appearances_total": 23,
                 "last_kickoff_at": last, "club_latest_kickoff_at": club_latest}
     profiles = [
@@ -702,7 +702,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
         row(500, 2023, "WC", "England", "national", 10, "2023-07-09T20:00:00", "2023-07-09T20:00:00"),
         # unresolved identity (null team_name = broken FK) -> omitted from career[]
         {"player_sk": 9, "team_sk": 999, "season_api_year": 2019, "league_code": "WC",
-         "entity_type": "national", "team_name": None, "appearances": 5, "goals": 0, "assists": 0,
+         "entity_type": "national", "team_name": None, "appearances": 5, "goals_player": 0, "assists_player": 0,
          "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
          "club_latest_kickoff_at": "2019-06-01T20:00:00"},
     ]

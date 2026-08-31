@@ -117,8 +117,8 @@ Squad members come from the selected season's `squad[]`. All keys **wired** (GAP
 |-------|-------------|---------------|-------|
 | Appearances | `squad[].appearances` | `mart_player_career.appearances` | matches actually played (minutes > 0) |
 | Mins per appearance | `squad[].minutes_per_appearance` | `mart_player_career.minutes_per_appearance` | catalogue metric (neutral); read, never divided in the frontend |
-| Goals | `squad[].goals` | `mart_player_career.goals` | competition-season |
-| Assists | `squad[].assists` | `mart_player_career.assists` | competition-season |
+| Goals | `squad[].goals` | `mart_player_career.goals_player` | competition-season |
+| Assists | `squad[].assists` | `mart_player_career.assists_player` | competition-season |
 
 Position-group header labels are **new i18n keys** (copy work, not metric labels). Only
 `minutes_per_appearance` is a catalogue metric; appearances / goals / assists are dimensions.
