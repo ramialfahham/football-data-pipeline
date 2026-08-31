@@ -137,8 +137,8 @@ aggregated as (
         sum(coalesce(cards_red, 0)) as cards_red_player,
         sum(coalesce(penalty_won, 0)) as penalty_won,
         sum(coalesce(penalty_committed, 0)) as penalty_committed_player,
-        sum(coalesce(saves, 0)) as saves,
-        sum(coalesce(goals_against, 0)) as goals_against
+        sum(coalesce(saves, 0)) as saves_player,
+        sum(coalesce(goals_against, 0)) as goals_against_player
     from per_fixture
     group by player_sk, team_sk, league_sk, season_sk, league_code, season_api_year
 )
@@ -178,6 +178,6 @@ select
     cards_red_player,
     penalty_won,
     penalty_committed_player,
-    saves,
-    goals_against
+    saves_player,
+    goals_against_player
 from aggregated

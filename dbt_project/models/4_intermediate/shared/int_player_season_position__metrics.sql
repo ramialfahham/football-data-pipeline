@@ -112,8 +112,8 @@ aggregated as (
         sum(coalesce(duels_won, 0)) as duels_won_player,
         sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts_player,
         sum(coalesce(dribbles_success, 0)) as dribbles_success_player,
-        sum(coalesce(saves, 0)) as saves,
-        sum(coalesce(goals_against, 0)) as goals_against
+        sum(coalesce(saves, 0)) as saves_player,
+        sum(coalesce(goals_against, 0)) as goals_against_player
     from per_fixture
     group by
         player_sk, league_sk, season_sk, league_code, season_api_year, position_group
@@ -142,8 +142,8 @@ select
     duels_won_player,
     dribbles_attempts_player,
     dribbles_success_player,
-    saves,
-    goals_against,
+    saves_player,
+    goals_against_player,
     -- count composites (sums of the atoms above) — metric_catalogue rows
     goals + assists as scorer_points,
     tackles_player + interceptions_player + blocks_player as defensive_actions_player,
@@ -151,7 +151,7 @@ select
     safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
     safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
     safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
-    safe_divide(saves, nullif(saves + goals_against, 0)) as save_pct,
+    safe_divide(saves_player, nullif(saves_player + goals_against_player, 0)) as saves_player_pct,
     -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty) /
     -- shots_on_goal_player. NULL when shots_on_goal_player is zero or the numerator falls outside
     -- [0, shots_on_goal_player] — never >100%.
@@ -175,5 +175,5 @@ select
         (tackles_player + interceptions_player + blocks_player) * 90, minutes
     ) as defensive_actions_per90,
     safe_divide(duels_won_player * 90, minutes) as duels_won_per90,
-    safe_divide(saves * 90, minutes) as saves_per90
+    safe_divide(saves_player * 90, minutes) as saves_per90
 from aggregated

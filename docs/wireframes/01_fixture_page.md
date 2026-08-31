@@ -190,7 +190,7 @@ in [`metrics_display.md`](metrics_display.md)):
 Compact row: `player_photo_url`, `player_name` (▸ player profile via `player_sk`),
 `position_code` badge, then by position:
 - Outfield: `goals_total`, `goals_assists`, `shots_on`, `passes_key_player`
-- GK (`position_code = 'G'`): `goals_saves`, `save_pct`
+- GK (`position_code = 'G'`): `goals_saves`, `saves_player_pct`
 
 Full per-player window stats available in the payload for an expanded row (design
 decision): `passes_player/passes_accurate_player/passes_accuracy_player_pct, tackles_player,

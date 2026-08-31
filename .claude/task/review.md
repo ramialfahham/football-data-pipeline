@@ -1,154 +1,136 @@
-# Review — refactor/metric-rename-player-duels — 2026-08-31
+# Review — refactor/metric-rename-player-goalkeeping — 2026-08-31
 
-> **STEP 4 of the metric catalogue naming programme, MR 5 of seven.** The six player `duels`
-> metrics: `duels_total` → `duels_player`, `duels_won` → `duels_won_player`, `duels_won_pct` →
-> `duels_won_player_pct`, `dribbles_attempts` → `dribbles_attempts_player`, `dribbles_success` →
-> `dribbles_success_player`, `dribbles_success_pct` → `dribbles_success_player_pct`.
-> PLAYER entity only. Branched from main `9ea88b5`.
+> **STEP 4 of the metric catalogue naming programme, MR 6 of seven.** The four player
+> `goalkeeping` metrics: `saves` → `saves_player`, `save_pct` → `saves_player_pct`,
+> `goals_against` → `goals_against_player`, `shots_on_goal_against` →
+> `shots_on_goal_against_player`. PLAYER entity only. Branched from main `9ee88a4`.
 
-diff_sha256: 68a0aa111fd8cbfc97ea1a7c525ea332c35ce7d75b64d251d4c1e1df4c49ca86
+diff_sha256: 16375de0b6f7047f6328ff39485df26e2102dccb37f48485b12dd1071a51bf17
 
-rounds: 1
+rounds: 2
 
-⭐ **ALL FIVE REVIEWERS PASS AT ROUND 1** — the first batch of step 4 to do so since `!127`.
-537 tokens across 46 files, 348 renamed / 189 protected. No new CPO ruling was needed: every target
-name is in the record verbatim.
+⛔⛔ **ROUND 1 FAILED 5–0 ON TWO REAL DEFECTS, BOTH MINE — AND EVERY GATE WAS GREEN WITH BOTH IN THE
+TREE.** `dbt parse`, the hygiene gate, the yml-vs-projection check, the resolver, `pytest`,
+`npm test` and both site builds all passed. **The blinded round was the only thing between these and
+production.** Counts moved 217/459 → **210/466**; `scope_paths` 45 → 43.
 
-⭐⭐ **THE BATCH WHERE THE SAME TOKEN MOVES ON ONE ENTITY AND STAYS ON THE OTHER.** `duels_won_pct`
-is a `metric_id` on BOTH entities; `duels_total` and `duels_won` name TEAM columns on the
-`int_legs__team_from_players` chain and PLAYER metric columns on the `int_legs__player_match` chain.
-Measured split: `duels_won_pct` 48 renamed / 46 protected, `duels_total` 61/30, `duels_won` 60/27.
-⚠ The planning note claimed a token→decision map could not express this and that the classifier
-needed re-keying by entity. **Tested rather than believed, and it was wrong** — `decide()` already
-resolves entity on every path; the change made was to PRINT the entity in every reason so the
-discrimination is checkable rather than trusted.
+⭐⭐ **BOTH DEFECTS WERE ONE HABIT, NOT TWO BUGS: A SCOPE COARSER THAN THE ENTITY IT HAD TO RESOLVE.**
 
-⭐⭐ **A RENAME CAN COLLAPSE A DISAMBIGUATION, AND THAT EDITS THE OTHER ENTITY.** `_blocks()` splits
-a metric into `__team`/`__player` only where its rows disagree, so renaming the player row makes
-`duels_won_pct` unambiguous and the pair collapses: `doc('duels_won_pct__team')` →
-`doc('duels_won_pct')` on **5 TEAM-side references caused by a player rename**, which no token sweep
-finds from the player side. Blocks 175 → 172; 77 `doc()` references re-point in all.
+- **The TEAM scoreline pair (6 sites, found independently by 4 reviewers).** `goals_for` /
+  `goals_against` is the team per-fixture scoreline from `int_legs__team_match`, reaching
+  `mart_team_fixtures`, `mart_head_to_head` and `mart_team_momentum_window` — none renamed. I scoped
+  four files as PLAYER wholesale. `export_site_data.py:166`'s `_TEAM_FIXTURE_FIELDS` is a KEEP-list
+  applied to `mart_team_fixtures` rows via `row.get(k)`, so it would have emitted
+  `goals_against_player: null` for every team fixture **forever, with no crash**, while
+  `TeamFixtureRow.astro:23` still read `fx.goals_against`.
+- **The seed's `interpretation` column (found by 3).** The protect list was a BLOCKLIST of 5 of the
+  seed's 15 columns, so `saves_per90`'s prose became "More **saves_player** per 90 is better…" — an
+  internal identifier in reader-facing text, on a row the contract states three times does not change.
 
-⭐ **THREE PREDICTIONS WRITTEN INTO THE CONTRACT BEFORE THE CODE, THEN MEASURED** — after `!129` had
-three of mine disproved after the fact. The block count and its exact removed/added sets were
-predicted by running the real generator against the renamed seed in memory during planning, and
-measured identical term for term; the description count held at **1604**; the hygiene gate's
-ambiguous-name list dropped **5 → 4**. All three CONFIRMED.
+⭐ **BOTH FIXES ARE THE CLASS, NOT THE INSTANCE.** The blocklist became an ALLOWLIST
+(`SEED_RENAMEABLE_FIELDS = {"metric_id"}`), so a seed column added later is protected by default.
+The scoreline fix is a fact about the domain rather than an exemption list — **there is no player
+`goals_for`** — and, measured against the round-1 diff, it separates all 6 wrong renames from all 60
+correct ones exactly.
 
-⛔ **TWO SELF-CORRECTIONS, BOTH MADE BEFORE THE REVIEW ROUND.** (1) The contract first claimed the
-rendered-page comparison would discriminate a mis-scope; performing the mis-scope shows **the build
-never completes**, so it is a confirmation, not a discriminating check — and the failed build left a
-stale dist that was nearly reported as a fresh measurement. (2) The contract speculated
-`check_description_hygiene` has no dangling-reference check and one might need writing; **it has
-one**, found by mutation. No new guard was needed and none is proposed.
+⛔ **TWO SECONDARY LESSONS WORTH MORE THAN THE DEFECTS.** (1) **The test was mutated to match the
+bug**: the sweep renamed `test_export_site_data.py:367`'s fixture key in lockstep with the code, so
+`pytest` could not disagree — "verify the test fails" has a blind spot exactly where an automated
+rename touches both sides. (2) **A file that falls to ZERO renames is never reopened** by the
+no-op-write guard, so it silently keeps its previous text while every other file is rewritten from
+base; `export_site_data.py` and its test had to be restored from base explicitly.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- All nine changed intermediate/mart models traced **in full rather than by diff hunk** — every CTE,
-  join and final SELECT projects the new names consistently; no stale name survives in any final
-  projection, checked specifically against the `!129` round-2 failure mode.
-- The self-aliasing aggregate pattern in each model: inner reads of provider/leg columns stay
-  unrenamed while outer aliases move, matching "a reference follows its source".
-- `int_legs__team_from_players.sql:32-35`, the junction, is untouched — both the leg-column read and
-  the team-column alias remain — and its two consumers still read those team names unrenamed.
-- The whole team chain is unmodified SQL and still resolves `duels_total` / `duels_won` /
-  `duels_won_pct` at the team grain.
-- The macro moved all four fields on both rate rows, while the seed's `numerator_expr` /
-  `denominator_expr` stayed as leg-column names on team AND player rows — the two opposite rules.
-- The block collapse verified in the tree: both suffixed blocks gone, exactly 5 `doc('duels_won_pct')`
-  references now exist (3 `shared.yml`, 2 `int_team_season.yml`), matching the predicted count.
-- All six `accepted_values` lists and all nine singular range tests, by eye.
-- The export's literal changes are select/filter/sort only — consumption-layer contract intact.
+- `export_site_data.py` and `tests/test_export_site_data.py` **absent from the patch entirely** and
+  read on disk to confirm `_TEAM_FIXTURE_FIELDS` carries the unrenamed pair — genuinely restored to
+  base, not patched back at one line.
+- Whole-repo sweep for `goals_for` co-occurring with `goals_against_player`, by line AND by proximity
+  within 80 characters in either order: **zero matches.** Every team-side re-point moves only the
+  `doc()` pointer, never the column name beside `goals_for`.
+- The seed differs from base in `metric_id` only, on all four rows; `saves_per90`'s `interpretation`
+  is absent from the diff entirely.
+- **Over-protection checked in the other direction**: every legitimate player occurrence still
+  renames across all ten models and the macro, read hunk by hunk — no dangling old name, no orphaned
+  alias, every `safe_divide` num/den pair moved together.
+- The GK chain end to end; all six `accepted_values` lists; the 172→167 block regeneration matching
+  the simulation term for term; the four prose rewrites keeping mechanism, guard and fixtures intact.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- All six renamed fields traced from the wireframes through the four player marts back to the
-  renamed catalogue rows — **every field a wireframe now names is actually produced by the export
-  chain**; no fabrication.
-- `03_player_profile.md`'s two surfaces checked independently: the season-stats bundle renamed, the
-  wrapped "full per-match line" provider row correctly protected, and those provider names confirmed
-  to still exist on `mart_player_match_log`. The zero-denominator example correctly renamed.
-- **Both dual-entity wireframes checked at EVERY occurrence, not just the three cited anchors** —
-  including `metrics_display.md:221-222`, where the overriding sentence wraps onto the next line.
-- Frontend containment verified independently rather than trusted: zero `site_v2` files in the
-  patch, all four swept files byte-identical and still carrying only the TEAM label keys, no player
-  stem anywhere under `site_v2/src/`.
-- `rendered_page_evidence.md` judged as evidence: the self-correction is honest, the stale-dist
-  near-miss is disclosed, and the two guards that do discriminate are named with real output.
-- The seed's formula atoms still point at the provider chain while the macro's `num`/`den` use the
-  renamed atoms — confirmed as two different, correct rules.
-- `mart_player_season_record.sql` read end to end — the exact shape of the `!129` round-2 defect —
-  both `matched` branches and the final SELECT project the new names.
-- No naked percentage, no metric added or removed, no display wording invented.
+- **My round-1 finding is fixed**: `export_site_data.py` restored and absent from the diff, and the
+  binding traced end to end — `TeamFixtureRow.astro:23` reads `fx.goals_against`, `types.ts` keeps it
+  on all five team interfaces (8 occurrences unrenamed), and `mart_team_fixtures` /
+  `mart_head_to_head` / `mart_team_momentum_window` remain untouched sources.
+- All four wireframe scoreline rows read `goals_for` / `goals_against` again and describe fields the
+  team marts actually emit.
+- **Over-protection checked**: every legitimate player rename still lands across five wireframes and
+  every in-scope player model and yml.
+- The GK chain walked in the working tree, including `t(lang, "saves")` correctly left as a UI word
+  key in all three locales.
+- The ten byte-identical frontend files grepped individually, including both rendered team labels.
+- Evidence judged for honesty: both files disclose the 5–0 fail, name both defects, **credit this
+  reviewer for the second rendering-binding break rather than claiming self-discovery**, and state
+  plainly that the dist comparison could not see it because it builds from the frozen sample.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- The seed diffed row by row: on all six renamed rows **only `metric_id` changed**; every other
-  field is byte-identical to base.
-- **The dual-entity row**: the TEAM `duels_won_pct` row is untouched context in the hunk with no
-  `+`/`-` at all; only the PLAYER row moved. No entity mix-up.
-- All 13 seed formula occurrences unchanged on both entities, per the "yes" ruling.
-- The macro traced term-for-term against the catalogue: still duels won over duels contested, and
-  dribbles completed over dribbles attempted.
-- `duels_won_per90` / `dribbles_success_per90` confirmed unrenamed in the macro, both 18-name lists
-  and every model — each reads the renamed atom while keeping its unrenamed output name.
-- Full trace of both new ratios from the mart's `safe_divide` back through the intermediates to the
-  catalogue's own numerator/denominator.
-- **Doc-block prose compared byte-for-byte on every renamed block** — all identical to what they
-  replaced; the three deleted `__player` yoy blocks confirmed as orphans with zero references.
-- Team-side protection verified live in the repo, not from the contract's prose.
-- CPO authority checked verbatim against the log, including that no new ruling was needed.
+- Re-audited the whole branch rather than a delta, since round 1 had no PASS to build on.
+- **My round-1 finding is fixed**: the seed's single hunk touches four lines; on each, all fourteen
+  other columns — including `interpretation` — are byte-identical. `saves_per90`'s interpretation
+  read from the live file is the exact pre-round-1 wording, and the row is absent from the diff.
+- Both TEAM dual-entity rows (`saves_pct`, `goals_against_per_match`) absent from the diff with
+  formulas intact — no entity mix-up.
+- `saves_player_pct` traced term-for-term from the seed's `sum(saves)` over `sum(saves + goals_against)`
+  through the macro and all four consuming models — still shot-stopping percentage.
+- `mart_player_profile.sql`'s composed `a.saves_player + a.goals_against_player as
+  shots_on_goal_against_player` matches the catalogue formula; direction correct on all four rows.
+- **Doc-block prose compared byte-for-byte on every renamed and collapsed block**, including that the
+  surviving team `saves` and `goals_against` blocks keep team language with no player wording leaking
+  in; the five deleted orphans confirmed at 0 references.
+- The scoreline fix checked for over-protection in both directions.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- `_LEADERBOARD_METRICS` (9) and `_LB_KEEP` (25) diffed against `mart_leaderboards.sql` and the
-  14-name list — matching SETS post-rename. Confirmed **no test exercises either constant** (the
-  leaderboard test fabricates its own metrics), so the gap is real but carried unchanged in kind
-  from `!127`/`!128`/`!129`, not newly introduced or widened.
-- `tests/test_export_site_data.py` grepped for every other step-4 renamed name: **zero hits**,
-  substantiating the "no precedent in this file" claim; the changed literals match a real
-  `metric_id` and a real `position_group`.
-- The three prose-only edits confirmed to sit entirely inside comments / `description:` blocks, with
-  the executable `DERIVED_AFFIXES` tuple and the singular test's SQL body byte-identical around them.
-- **The 175→172 arithmetic reconciled term by term against the real `metric_columns.md` diff** —
-  10 removed, 7 added, exact match, no slippage. The 5 and 6 re-point counts verified by grep.
-- The contract's self-correction substantiated at source: the literal string
-  `"unresolved docs block: {name!r}"` found in `check_description_hygiene.py` — not a fabricated claim.
-- **The disclosed yml-vs-projection blind spot independently re-derived rather than taken on trust**:
-  every renamed atom used inside a `safe_divide(...)` is ALSO separately projected as its own output
-  column, so **the bound has no live instance in this MR's delivered tree**.
-- Materialisation swept across every model: the only `incremental` model is `fct_fixture_player_stats`,
-  whose diff touches only `doc()` pointers — no renamed column lands on an incremental fact, so
-  `protected_override`'s claim holds and no `--full-refresh` is implied.
-- Whole-patch grep: nothing under `.claude/hooks/`, `.github/workflows/`, `.gitlab-ci.yml` or any
-  dependency manifest; no gate committed.
-- The three 22-name TEAM lists confirmed absent from the diff and byte-identical in the tree.
+- **Both my round-1 findings verified fixed at source**, not from the write-up: the two Python files
+  absent from the patch and read on disk; the seed differing in `metric_id` only on all four rows.
+- ⭐ **The restore was checked for the failure mode it could introduce**: swept all 34 changed
+  non-paperwork files for any carrying stale round-1 content with zero renames — **none**. Every
+  touched file is internally coherent, and `goals_for` never appears as a rename target anywhere,
+  including inside `mart_player_match_log`'s mixed team/player block in `shared.yml`, where the team
+  scoreline stays untouched while that model's own player `saves` column re-points correctly.
+- `_LEADERBOARD_METRICS` / `_LB_KEEP` confirmed to carry no goalkeeping-stem token, so the restore
+  did not undo something that should have moved.
+- The four prose-only files: every changed line is inside a comment or docstring; no executable line,
+  fixture or assertion moved.
+- **The gate-credibility narrative judged rather than accepted**: the "every gate green with both
+  defects" claim is consistent with the defects' nature — a `dict.get` null-emission with no crash,
+  and seed prose — and the mutated-in-lockstep test is disclosed honestly as the verify-the-test-fails
+  blind spot.
+- No `.claude/hooks/`, `.gitlab-ci.yml`, `.github/workflows/` or dependency manifest touched; no
+  credentials; `fct_fixture_player_stats` confirmed as the only incremental model, its SQL untouched
+  and only its yml doc-pointer moved — no `--full-refresh` implied.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- `scope_paths` reconciles exactly against the 34 changed entries in both directions; the four
-  absent entries are the review paperwork and active-work exclusions, by design.
-- All six renames checked verbatim against the record's "PLAYER, 35 REMAINING" table — no name in
-  the diff was invented.
-- **The §3 FORM decision judged as a classification, not just an edit**: only illustrative comment
-  and description text changed; no formula, label, mechanism or name moved, and `_blocks()` /
-  `_derived()` are untouched code — so FORM rather than a silent §10 decision holds.
-- The carried observation about the block split losing its last live instance: confirmed nothing was
-  removed or weakened on its strength.
-- **Honesty of the record**: the contract's self-correction and `rendered_page_evidence.md` say the
-  same thing — the mis-scope was actually performed and the build never completes, not "might" — and
-  both flag the stale-dist near-miss. The yml-vs-projection bound is stated plainly as a weakness
-  rather than glossed. **No over-claiming found.**
-- `escalations.log` is a pure APPEND — single hunk, three lines of unchanged context, then addition.
-- Credential sweep across the full patch: every "token" hit is the classifier's word-token
-  terminology.
-- Threshold declarations: no CI gate, schedule or cost change; the renamed singular tests track
-  their column rather than being deleted or loosened.
+- `scope_paths` (43) reconciles exactly: 39 diff entries plus the 4 review-paperwork exclusions, no
+  orphan either direction.
+- **My round-1 finding verified by reading the live files**, not the claim: `_TEAM_FIXTURE_FIELDS`
+  and the test fixture both carry `goals_against` again; both correctly dropped from scope.
+- **The failure record checked across all four documents** — contract §11, both evidence files and
+  the log append — for completeness and honesty. All state 5–0, both defects, "both mine", and that
+  every gate was green; both secondary traps are recorded; `rendered_page_evidence.md` explicitly
+  credits `bi-analyst-reviewer` rather than self-claiming. **Nothing softened or reattributed.**
+- The two fixes judged as decisions: the allowlist and the domain-fact discriminator are both class
+  fixes, and neither quietly widens what this MR may do; the classifier remains unshipped.
+- Authority unchanged — four names verbatim, no new CPO ruling, §5/§6 still correctly FORM.
+- `escalations.log` a single-hunk pure append (`@@ -6955,3 +6955,124 @@`).
+- Credential sweep: every "token" hit is the programme's own term of art.
 
 ## escalations
 (none)

@@ -65,7 +65,7 @@ models:
       - name: goals_for
         description: "{{ doc('goals__team') }}"
       - name: goals_against
-        description: "{{ doc('goals_against__team') }}"
+        description: "{{ doc('goals_against') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty__team') }}"
       - name: goals_own
@@ -84,5 +84,5 @@ models:
         description: "{{ doc('corners') }}"
       - name: opponent_corner_kicks
       - name: goalkeeper_saves
-        description: "{{ doc('saves__team') }}"
+        description: "{{ doc('saves') }}"
       - name: opponent_shots_on_goal

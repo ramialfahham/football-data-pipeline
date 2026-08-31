@@ -678,7 +678,7 @@ models:
       - name: red_cards
         description: "{{ doc('red_cards') }}"
       - name: goalkeeper_saves
-        description: "{{ doc('saves__team') }}"
+        description: "{{ doc('saves') }}"
       - name: passes_total
         description: "{{ doc('passes_player') }}"
       - name: passes_accurate
@@ -757,10 +757,10 @@ models:
       - name: shots_on
       - name: goals_total
       - name: goals_against
-        description: "{{ doc('goals_against__player') }}"
+        description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
       - name: saves
-        description: "{{ doc('saves__player') }}"
+        description: "{{ doc('saves_player') }}"
       - name: passes_total
         description: "{{ doc('passes_player') }}"
       - name: passes_key

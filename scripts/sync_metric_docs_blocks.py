@@ -372,11 +372,18 @@ def _derived_blocks(rows: list[dict], names: list[str],
 
     ⛔ THE ENTITY SUFFIX IS NOT COSMETIC AND THE UNSUFFIXED FORM IS NOT AN OPTION.
     The first version of this function emitted a bare `goals_against_sum_season`
-    whenever the catalogue held one row for `goals_against` — and the catalogue
-    holds exactly one, for a PLAYER: "goals conceded by the team while the player
-    was on the pitch". Every column of that name lives on a TEAM model. Twenty-one
-    of seventy-six derived names had that shape, so a fifth of them would have
-    carried a player's definition into a team column, silently, into the warehouse.
+    whenever the catalogue held ONE row for the stem — which says nothing about
+    WHICH entity that row describes, while the columns carrying the derived name may
+    be the other one. Twenty-one of seventy-six derived names had that shape, so a
+    fifth of them would have carried one entity's definition into the other's
+    column, silently, into the warehouse.
+    ⚠ The worked example was `goals_against`: the catalogue defined it for a PLAYER
+    ("goals conceded by the team while the player was on the pitch") while the
+    columns of that name sat on TEAM models. **That example is HISTORICAL** — step 4
+    of the naming programme renamed the player metric to `goals_against_player`, so
+    the single surviving row is the team's. The hazard is not historical: any stem
+    with one row and columns on the other entity reproduces it, and nothing stops a
+    future catalogue row from recreating exactly this one.
     Found by READING the composed output; no check in this repo would have caught
     it, because the block resolves, the length is fine and the YAML parses.
 

@@ -582,10 +582,14 @@ def test_other_models_in_the_same_file_are_untouched(monkeypatch, tmp_path):
 
 # ------------------------------------------------- --wire-metric-docs (#82 MR4b)
 #
-# A derived column name has no bare block, only `__team` and/or `__player`,
-# because the catalogue defines `goals_against` for a PLAYER while every column of
-# that name sits on a TEAM model. Choosing between them is what this mode does, and
-# choosing WRONG is invisible: the block resolves, the length is fine, dbt parses.
+# A derived column name has no bare block, only `__team` and/or `__player`, because
+# a stem with one catalogue row says nothing about which entity the columns carrying
+# its derived name belong to. (The worked example was `goals_against`, defined for a
+# PLAYER while the columns of that name sat on TEAM models; step 4 of the naming
+# programme renamed it to `goals_against_player`, so the example is historical — the
+# fixtures below still exercise the mechanism, which is not.) Choosing between them
+# is what this mode does, and choosing WRONG is invisible: the block resolves, the
+# length is fine, dbt parses.
 
 METRIC_YML = """version: 2
 

@@ -7,7 +7,7 @@
   #480 consolidation: the per-season aggregation now COMPOSES the shared
   int_player_season__metrics (the single player-season rollup) instead of re-aggregating
   fct_fixture_player_stats inline. Identity (dim_player), the modal season position, and the GK
-  full-triple (saves / shots_on_goal_against) are assembled here. Numbers are unchanged — the shared
+  full-triple (saves_player / shots_on_goal_against_player) are assembled here. Numbers are unchanged — the shared
   int reproduces the catalogue (ROUND-weighted) computations this mart used. Per-board leaderboard
   ranks moved to mart_leaderboards (the LONG single-surface; the 3 rank columns here were retired).
 
@@ -160,14 +160,14 @@ select
     a.cards_red_player,
     a.penalty_won,
     a.penalty_committed_player,
-    -- GK atomics (GAP-12): the save full-triple — saves of shots faced
-    a.saves,
-    a.saves + a.goals_against as shots_on_goal_against,
+    -- GK atomics (GAP-12): the save full-triple — saves_player of shots faced
+    a.saves_player,
+    a.saves_player + a.goals_against_player as shots_on_goal_against_player,
     -- catalogue ratio metrics (catalogue formula; null when denom 0)
     a.passes_accuracy_player_pct,
     a.duels_won_player_pct,
     a.dribbles_success_player_pct,
-    a.save_pct,
+    a.saves_player_pct,
     -- year-over-year (domestic only; the player's primary club that season; NULL
     -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
     y.yoy_appearances_cutoff,

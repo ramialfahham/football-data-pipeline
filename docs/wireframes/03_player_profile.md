@@ -98,7 +98,7 @@ catalogue metrics; rendered as a one-line summary.
 | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
 | Key passes | `passes_key_player` |
 | Cards | `cards_yellow_player`, `cards_red_player` |
-| Save percentage | `save_pct` + **GAP-12** atomics (`saves`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
+| Save percentage | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
 
 Rendering rules per contract: group subheads optional (design call), order fixed,
 zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the

@@ -34,7 +34,7 @@ const initials = (player.player_name ?? "")
   </span>
   <span class="pstat">
     {isGK ? (
-      <><b>{player.saves ?? 0}</b> {t(lang, "saves")} · <b>{percent(player.save_pct, lang)}</b></>
+      <><b>{player.saves_player ?? 0}</b> {t(lang, "saves")} · <b>{percent(player.saves_player_pct, lang)}</b></>
     ) : (
       <><b>{player.goals_total ?? 0}</b> {t(lang, "goals")} · <b>{player.goals_assists ?? 0}</b> {t(lang, "assists")}</>
     )}

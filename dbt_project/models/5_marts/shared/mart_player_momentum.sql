@@ -5,7 +5,7 @@
 
   Computes final displayed metrics from the raw sums in int_player_momentum__metrics.
   Raw counts (goals, assists, cards, …) are passed through directly. Ratios
-  (save_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct) are
+  (saves_player_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct) are
   computed here via safe_divide — NULL when denominator is zero.
 
   window_type is carried through from the builder: last_5 for most fixtures, or the
@@ -14,9 +14,9 @@
 
   Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
-  save_pct is only meaningful for goalkeepers (position_code = 'G'); the column
+  saves_player_pct is only meaningful for goalkeepers (position_code = 'G'); the column
   is present for all players but will be NULL for outfield players whose
-  saves and goals_against are both zero/null.
+  saves_player and goals_against_player are both zero/null.
 #}
 
 with builder as (
@@ -44,7 +44,7 @@ select
     -- raw counts
     b.goals_total,
     b.goals_assists,
-    b.saves,
+    b.saves_player,
     b.shots_on,
     b.passes_key_player,
     b.passes_accurate_player,
@@ -65,7 +65,7 @@ select
     -- calculations
     b.team_sk = f.home_team_sk as is_home,
     -- ratios
-    safe_divide(b.saves, b.saves + b.goals_against) as save_pct,
+    safe_divide(b.saves_player, b.saves_player + b.goals_against_player) as saves_player_pct,
     safe_divide(b.dribbles_success_player, b.dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(b.passes_accurate_player, b.passes_player) as passes_accuracy_player_pct,
     safe_divide(b.duels_won_player, b.duels_player) as duels_won_player_pct,

@@ -118,7 +118,7 @@ N" + vs-median, honest at N≈18) — never a percentile.
    are no neutral metrics in this set, and dropping colour entirely made the player screen inconsistent with
    the team one for no remaining reason. Were a neutral metric ever added back to this set, it renders
    uncoloured, exactly as the team rule already prescribes.)
-6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `passes_accuracy_player_pct`,
+6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`saves_player_pct`, `passes_accuracy_player_pct`,
    `finishing_efficiency_player_pct`, `dribbles_success_player_pct`, `duels_won_player_pct`) render the triple `{num} of {den} ·
    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
 
@@ -243,7 +243,7 @@ cannot ground a per-position importance claim. Every player metric now carries a
 to see rather than a statistical claim. See the tier-semantics section above for the rubric.
 
 Per-surface rules still apply where a surface needs an ordering the tier does not give (e.g. the
-fixture top-players strip ranks goals → assists → key passes, GK variant saves + save %).
+fixture top-players strip ranks goals → assists → key passes, GK variant saves_player + save %).
 
 Changes vs the legacy player rows (definitions / formulas now live in the
 `metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows
@@ -262,7 +262,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
 | 7 | Key passes | `{count}` | passes_key_player | Passing |
 | 8 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
-| 9 | Save percentage | `{saves} of {faced} · {pct}%` | **saves (new)**, **shots_on_target_faced (new)**, save_pct | Goalkeeping |
+| 9 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
 
 - Row 9 renders only for `position_code = 'G'`; whether a GK profile pulls the
   Goalkeeping block forward is a design call (#366).
@@ -283,9 +283,9 @@ mixes groups; (3) ratio displays standardized to the full triple
   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),
   the finishing relabel, catalogue description tightenings (coverage denominators,
   blocked-shots note, >100% finishing caveat).
-- **GAP-12** — player additions: `saves` + `shots_on_target_faced` atomics (data
+- **GAP-12** — player additions: `saves_player` + `shots_on_target_faced` atomics (data
   exists as `goals_saves`/`goals_conceded`), display strings standardized to the
-  full triple (duels, pass accuracy, saves), the legacy player display table
+  full triple (duels, pass accuracy, saves_player), the legacy player display table
   superseded by this document.
 - **GAP-13** — full-season variants of the five player-stat-derived team rows
   (shots on target, duels pair, defensive actions, key passes) in the season
@@ -304,6 +304,6 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
 | 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
 | 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
-| 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
+| 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
 | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
 | 2026-06-11 | Tournament window exception (cumulative + qualifier preview) confirmed as the matrix rule for display; found unimplemented in the new window marts → GAP-18, scheduled before WC 2026. |
