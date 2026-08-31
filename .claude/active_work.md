@@ -4,33 +4,51 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-31**. **main `5e121e7`**, clean, no open MRs.
-⭐⭐ **STEP 4 IS COMPLETE AND MERGED.** All 35 player metrics carry `_player`, across seven MRs —
-`!125` `shooting`, `!127` `discipline`, `!128` `defending`, `!129` `passing`, `!130` `duels`,
-`!131` `goalkeeping`, `!132` `goals`. Verified on main: of 48 player catalogue rows, exactly one
-lacks a `_player` marker — `minutes_per_appearance` — which is the one name the record's
-"UNCHANGED, all 14" list names. **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
+_Last updated **2026-08-31**. **main `b34c4c0`**, clean, no open MRs.
+⭐⭐ **THE NAMING PROGRAMME IS DONE — STEPS 4 AND 5 BOTH MERGED.** Step 4: all 35 player metrics
+carry `_player` across seven MRs (`!125`–`!132`); verified on main — of 48 player catalogue rows the
+only one without a `_player` marker is `minutes_per_appearance`, which is the one name the record's
+"UNCHANGED, all 14" list names. Step 5 (`!134`): the English label reads "on goal", not "on target";
+verified on main — **0** `label_en` and **0** `METRIC_LABELS_EN` values still say "on target".
+**GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔⛔ NEXT ACTION: NONE. ASK THE CPO WHICH OF THE TWO RUNS NEXT.
+## ⛔⛔ NEXT ACTION: NONE. THE SAMPLE ROLL-FORWARD IS THE CPO'S CALL.
 
-The programme's standing instruction is explicit: **"AFTER STEP 4 — do not start either of these
-without telling me; I decide when they run."** Both are ready and neither is started.
+**THE SAMPLE ROLL-FORWARD**, owed and unscheduled — the last item of the "after step 4" pair.
+⚠ The obvious recipe is a trap: `fetch_fixture_payloads` emits UPCOMING fixtures only. The comparison
+block has rendered **12** rows since `!123` (16 catalogue rows minus four the committed sample cannot
+feed); the roll-forward is what restores them, and it is the only thing that will.
 
-**STEP 5 — nine English `label_en` rows, "on target" → "on goal"** (RULING 2). Team:
-`shots_on_goal_per_match`, `shots_on_goal_against_per_match`, `sot_difference_per_match`,
-`shot_accuracy`, `finishing_efficiency`. Player: `finishing_efficiency`, `shots_on_goal`,
-`shots_on_goal_against`, `shots_on_goal_per90`. ⚠ German and Finnish are NOT touched — measured, both
-already mean "on goal" (Torschüsse, Maalilaukaukset), so only English was out of step.
-⚠ These are the seed's `label_en` column, which every step-4 classifier deliberately PROTECTS. Step 5
-is the opposite job: `label_en` only, `metric_id` never. ⭐ Confirmed still pending by the `!132`
-dist measurement: the rendered EN label is still "Ø Shots on target".
+## ⛔ TWO FOLLOW-UPS STEP 5 DELIBERATELY LEFT — flagged to the CPO, not folded in
 
-**THE SAMPLE ROLL-FORWARD**, owed and unscheduled. ⚠ The obvious recipe is a trap:
-`fetch_fixture_payloads` emits UPCOMING fixtures only. The comparison block has rendered **12** rows
-since `!123` (16 catalogue rows minus four the committed sample cannot feed); the roll-forward is
-what restores them, and it is the only thing that will.
+Both were disclosed in `!134`'s `decisions_reserved` and confirmed untouched by two reviewers. Each
+is small; neither was taken, because widening scope mid-MR is what this programme was FAILed on.
+
+  - **The seed's `description` column.** ~19 descriptions still say "shots on target" as prose, so a
+    row's label now reads "on goal" while its own description disagrees — and `persist_docs`
+    publishes those descriptions to BigQuery.
+  - **Four CHROME strings in `strings.ts`'s `Dict`** that name the same metric in rendered English:
+    `axPlay` ("Shots on target difference / match", the team hero's x-axis) and
+    `heroVerdictUnder`/`heroVerdictOver`/`heroCaption` ("a shots-on-target difference of {sotd}…").
+    ⚠ **When the team Performance surface ships, that axis will read "Shots on target difference"
+    beside a metric row reading "Ø Shots on goal difference".** Neither renders today.
+  ⛔ **`label_i18n_key` is NOT one of these.** `metrics.shots_on_target_per_match.label` stays: it is
+  the join key across the seed, `strings.ts`, `metricRows.ts`, three parsers and the page specs, and
+  the catalogue declares no `..._on_goal_...` variant, so "fixing" it resolves the label to nothing.
+  Four separate comments now say so; one more (`check-page-specs.test.mjs:179`) is still true because
+  it compares the id to the KEY, not to the user-facing term.
+
+## ⛔ WHAT STEP 5 IS PINNED BY — and what it is NOT
+
+**Nothing pins the wording of the four rendered labels.** Mutation-tested and confirmed by two
+reviewers independently: emptying a label goes RED, but putting `"Ø Bananas per fortnight"` in one
+leaves `npm test` **green**. Three of the four also render on **zero** built pages (they live on the
+unbuilt team Performance surface), so only `Ø Shots on goal` is provable from `dist/`.
+⭐ The reason is structural, not accidental: the byte-identical gate compares only keys present in
+BOTH `strings.ts` and the frozen `site/i18n` corpus — three of the four are absent from it and the
+fourth is skipped by name.
 
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
@@ -79,6 +97,13 @@ finer rule with a stated, checkable property:
 from the sites a reviewer named, and each was reported as a two-sided count: **51 in-table
 occurrences → 6 move, 45 stay**; **26 comment occurrences → 2 move, 24 stay**. A one-sided claim
 ("the prose is fixed") is what let the over-correction through.
+⛔⛔ **AND THE CENSUS ITSELF NEEDS A PATTERN, NOT A LIST OF SPELLINGS — step 5 FAILed round 1 on
+exactly this.** I searched `"on target"` and `"on-target"` and never searched `"on_target"`, so a
+live stale comment in `DeservedHero.astro` survived and `bi-analyst` found it. Re-swept with
+`on[\s_-]?target`: **136 occurrences, 5 of them CLAIMS**, two of which were stale. **An enumeration
+of spellings loses by one variant** — the same shape as the word list that holed a guard four rounds
+running. Write the separator as a character class before you count anything.
+⚠ Watch the false positives a pattern buys you: `README.md`'s "ingesti**on target**" matches.
 
 **3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** The seed protect-list was a
 blocklist of 5 of 15 columns and swept `interpretation` (`!131`); it is now
