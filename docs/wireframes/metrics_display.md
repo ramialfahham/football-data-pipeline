@@ -254,7 +254,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 
 | # | Row | Display string | Atomics | Group |
 |---|---|---|---|---|
-| 1 | Scorer points | `{goals} G · {assists} A` | goals, assists | Goals |
+| 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
 | 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
 | 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | Duels |
 | 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | Duels |

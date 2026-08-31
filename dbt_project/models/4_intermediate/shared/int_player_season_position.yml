@@ -52,12 +52,12 @@ models:
           that is minutes greater than 0. A player who moved role mid-season is counted separately
           in each.
         tests: [not_null]
-      - name: goals
-        description: "{{ doc('goals__player') }}"
-      - name: goals_penalty
-        description: "{{ doc('goals_penalty__player') }}"
-      - name: assists
-        description: "{{ doc('assists') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: goals_penalty_player
+        description: "{{ doc('goals_penalty_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_player
@@ -84,8 +84,8 @@ models:
         description: "{{ doc('saves_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
-      - name: scorer_points
-        description: "{{ doc('scorer_points') }}"
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
       - name: defensive_actions_player
         description: "{{ doc('defensive_actions_player') }}"
       - name: passes_accuracy_player_pct

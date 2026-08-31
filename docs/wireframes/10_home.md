@@ -112,8 +112,8 @@ halves stop being a pair).
 
 **A BOARD IS NAMED BY THE METRIC THAT RANKS IT** (CPO 2026-08-08). Not by its catalogue group. ⚠ The
 RULE stands; its original EXAMPLE does not. It read *"the first player board is Goal contributions,
-not 'Goals', because it ranks on `scorer_points`"* — but the 2026-08-10 reduction cut
-`scorer_points`, and the first board now ranks on `goals`, so under the same rule it IS called
+not 'Goals', because it ranks on `scorer_points_player`"* — but the 2026-08-10 reduction cut
+`scorer_points_player`, and the first board now ranks on `goals_player`, so under the same rule it IS called
 **Goals**. The example inverted when the boards changed; the rule is what produced both answers.
 Two consequences worth stating, because both were ruled:
 
@@ -129,7 +129,7 @@ passes** (recorded in `design-mocks/gen_top_players.py`'s header, which lists wh
 `99_gaps_register.md` — GAP-24/25/26 are VOID *because* of this reduction). Struck rather than
 deleted, per this file's own convention.
 
-What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points`
+What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points_player`
 (goals and assists became boards in their own right, so the combined metric had nothing left to
 combine), every second/context column (`passes_accuracy_player_pct`, `dribbles_success_player_pct`,
 `duels_won_player_pct`, `saves_player_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
@@ -143,7 +143,7 @@ exists and the gap is VOID.
 
 | Board | Shown | Ranked by |
 |---|---|---|
-| Goal contributions | `goals` · `assists` · `scorer_points` | `scorer_points` |
+| Goal contributions | `goals_player` · `assists_player` · `scorer_points_player` | `scorer_points_player` |
 | Shots on target | `shots_on_goal_player` | `shots_on_goal_player` |
 | Duels | `duels_won_player` · `duels_player` · `duels_won_player_pct` | `duels_player` |
 | Dribbles attempted | `dribbles_attempts_player` · `dribbles_success_player` · `dribbles_success_player_pct` | `dribbles_attempts_player` |
@@ -268,7 +268,7 @@ foot of this file carries the corrected status of all of them. The bullets AFTER
 live and unchanged.
 
 - ~~**Four new board keys**: `duels_player`, `dribbles_attempts_player`, `tackles_player`, `goals_against_player`.
-  Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal_player`,
+  Five of the nine rank metrics already exist as boards: `scorer_points_player`, `shots_on_goal_player`,
   `passes_player`, `passes_key_player`, `cards_player`.~~ VOID — all four were cut.
 - ~~**Three display columns.** `passes_accurate_player` and `goals_against_player` exist in
   `int_player_season__metrics` and are simply not selected into the mart. `shots_on_goal_against_player`
@@ -280,9 +280,9 @@ live and unchanged.
   otherwise top it. This is the one board where volume ranking does not protect the result.~~
   VOID — there is no Goals conceded board. ⚠ The limitation it describes is REAL and returns with
   any future ascending board; it is recorded on GAP-26's withdrawal for that reason.
-- ⭐ **STILL MISSING and registered as GAP-30**: `assists` is not a ranked board at all. It is the
+- ⭐ **STILL MISSING and registered as GAP-30**: `assists_player` is not a ranked board at all. It is the
   second of the four surviving boards, so the reduced set cannot be built without it — a gap the
-  nine-board list above never had to name, because `scorer_points` covered assists back then.
+  nine-board list above never had to name, because `scorer_points_player` covered assists back then.
 - **The club on a leaderboard row.** `int_player_season__metrics` already carries `team_sk`, the
   last club that competition-season; it is not selected into `mart_leaderboards`. Without it a row
   links to a player and nothing else, which halves the navigation purpose this block exists for.
@@ -870,7 +870,7 @@ register is the authority — check it, not this summary.
 - **GAP-28** — LIVE, but SMALLER than written: `tier` and `season_type` are ALREADY projected into
   the seed (8 columns, verified). Only the authored pool field remains.
 - **GAP-29** — LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.
-- **GAP-30** — LIVE, registered 2026-08-18. `assists` is not a ranked board, so the reduced set's
+- **GAP-30** — LIVE, registered 2026-08-18. `assists_player` is not a ranked board, so the reduced set's
   second board has no rank-1 to take.
 - ~~**GAP-31** — a pooled rank across the pool.~~ **WITHDRAWN 2026-08-18**: the block is one player
   per league, so the per-league rank the mart already computes is the one it needs.

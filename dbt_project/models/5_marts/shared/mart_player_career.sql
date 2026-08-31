@@ -70,8 +70,8 @@ typed as (
         cs.season_api_year,
         cs.appearances,
         cs.minutes,
-        cs.goals,
-        cs.assists,
+        cs.goals_player,
+        cs.assists_player,
         cs.last_kickoff_at,
         types.entity_type
     from club_season as cs
@@ -90,8 +90,8 @@ with_caps as (
         typed.entity_type,
         typed.appearances,
         typed.minutes,
-        typed.goals,
-        typed.assists,
+        typed.goals_player,
+        typed.assists_player,
         typed.last_kickoff_at,
         -- the CLUB's latest match across all the player's seasons at that club (season-collapsed recency).
         -- The export sorts the career log by this so a club's rows stay contiguous and clubs sort
@@ -126,7 +126,7 @@ select
     -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics).
     -- `minutes` and `appearances` are playing-time DIMENSIONS and are deliberately absent from the
     -- catalogue. An earlier version of this comment lumped goals and assists in with them and called
-    -- all three "not a catalogue metric" — false: `goals` and `assists` are both catalogue rows
+    -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
     -- (entity=player, group=goals, tier 1). Only the playing-time pair is uncatalogued, and the one
     -- catalogued member of that family is the RATE below, minutes_per_appearance (group
     -- playing_time as of 2026-08-04).
@@ -136,8 +136,8 @@ select
     -- appearances = 0 (a squad member who never played), which is honest: no mins/app without an
     -- appearance. `appearances` here is the corrected played-legs count (#813).
     safe_divide(wc.minutes, wc.appearances) as minutes_per_appearance,
-    wc.goals,
-    wc.assists,
+    wc.goals_player,
+    wc.assists_player,
     wc.national_appearances_total,
     -- ordering SIGNALS for the export's career log (sort keys, not displayed metrics): last_kickoff_at =
     -- this club-season's latest match (within-club season order); club_latest_kickoff_at = the club's latest

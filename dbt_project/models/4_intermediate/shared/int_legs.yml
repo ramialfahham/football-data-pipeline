@@ -52,7 +52,7 @@ models:
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: shots_on_goal
@@ -74,7 +74,7 @@ models:
       - name: opponent_shots_inside_box
       - name: opponent_corner_kicks
       - name: goals_penalty
-        description: "{{ doc('goals_penalty__team') }}"
+        description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
 
@@ -163,11 +163,11 @@ models:
       - name: dribbles_past
         description: "{{ doc('dribbles_past_player') }}"
       - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed
         description: "{{ doc('penalty_committed_player') }}"
       - name: goals_penalty
-        description: "{{ doc('goals_penalty__player') }}"
+        description: "{{ doc('goals_penalty_player') }}"
       - name: round_order
         description: "{{ doc('round_order') }}"
       - name: opponent_team_sk

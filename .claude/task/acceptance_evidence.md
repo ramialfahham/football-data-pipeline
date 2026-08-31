@@ -1,254 +1,206 @@
-# Acceptance evidence — step 4, MR 6: the four player `goalkeeping` metrics
+# Acceptance evidence — step 4, MR 7: the seven player `goals` metrics. THE LAST BATCH.
 
-Branch `refactor/metric-rename-player-goalkeeping`, from main `9ee88a4`.
+Branch `refactor/metric-rename-player-goals`, from main `6f0ee07`.
 
-    saves                 →  saves_player
-    save_pct              →  saves_player_pct
-    goals_against         →  goals_against_player
-    shots_on_goal_against →  shots_on_goal_against_player
+    goals           →  goals_player            assists       →  assists_player
+    goals_penalty   →  goals_penalty_player    scorer_points →  scorer_points_player
+    goals_open_play →  goals_open_play_player  penalty_won   →  penalty_won_player
+    contribution_share →  contribution_player_pct
 
-**676 tokens across 76 files — 210 renamed, 466 protected.** The largest and most entangled batch of
-step 4 (`!130`: 537 / 46), and the first where protections outnumber renames more than two to one.
-All four names are in the record verbatim; no new CPO ruling was needed.
+**1,519 occurrences across 93 swept files → 38 files changed.** Decided once each:
+**279 renames · 63 `doc()` re-points (19 TEAM-side) · 1,177 protected.** The most protective batch
+of the programme by a distance — `goals` is the most generic stem in the domain, and 78% of every
+occurrence carrying the stem stays exactly where it is.
 
-⛔⛔ **THIS IS ROUND 2. ROUND 1 FAILED 5–0 ON TWO REAL DEFECTS, BOTH MINE.** Counts moved
-217/459 → **210/466**. Four reviewers found the first independently, three the second. **Every gate
-in the list below was GREEN with both defects present** — the reviewers were the only thing between
-them and production. Full account in "Round 1" below.
+⭐ `contribution_player_pct` **IS ruled**, verbatim: *"contribution_player_pct is fine, go with it"*
+(`escalations.log`, 2026-08-29). That entry also says the older *"flag it rather than quote it as
+his"* caveat is **DISCHARGED and does not need to travel further** — I carried it anyway into this
+MR's contract, evidence and log entry. Corrected; found by `football-analytics-expert-reviewer`.
 
 Every gate below was run **unpiped, with its exit code read bare**.
 ⚠ `check_ui_i18n_metrics.py` is run because it is a real CI gate but is **NOT evidence** here.
 
 criteria_demonstrated:
 
-  - **The unguarded frontend chain, verified by reading every link.** `mart_player_momentum.sql:47,68`
-    emits `saves_player` / `saves_player_pct`; `shared.yml:266,301` declares them; `_TOPPLAYER_DROP`
-    does not drop them so the payload key follows with no export edit; `types.ts:50-51` declares them
-    on `TopPlayer`; `PlayerRow.astro:37` reads them. Reported as a manual verification of a path no
-    gate covers — no typecheck exists, no test references `PlayerRow`/`TopPlayer`/`top_players`.
-  - **Criterion 1 is a CONFIRMATION, declared as such before the work.** The GK saves line renders on
-    **0 of 67** built pages, measured over `dist` with comments stripped, so the dist comparison
-    cannot catch a `PlayerRow.astro` mistake. What it does prove: base vs branch, **12/12/12 rows,
-    7/7/7 headings, none added, none removed** in EN/DE/FI across 19 fixture pages, both sides built.
-  - **The two rendered team labels survive.** `"% Save percentage"` (`saves_pct`) and
-    `"Ø Goals against"` (`goals_against_per_match`) are among the seven names also declared in the
-    CPO-validated `site/i18n/*.json` corpus and were compared word for word against it — identical in
-    all three locales. `save_pct` and `shots_on_goal_against` appear in **0** files under `dist`.
-  - **Frontend containment: exactly two files, four tokens.** `git diff --name-only -- site_v2/`
-    returns `PlayerRow.astro` and `lib/types.ts` only, 6 changed lines. The other **ten** swept
-    frontend files were each checked individually and are byte-identical, and `types.ts` moves 2 of
-    its 11 occurrences — only `TopPlayer`'s.
-  - **Both doc gates pass and both were watched going RED.** `sync_metric_docs_blocks --check`
-    EXIT=0 at 167 blocks and EXIT=1 on a stale seed `metric_id`; `check_description_hygiene` EXIT=0 at
-    1604 descriptions and EXIT=1 on a dangling `doc()` (`unresolved docs block:
-    'saves_player_NO_SUCH_BLOCK'`). Both reverted and re-run green.
-  - **Every dotted and bare reference resolves, and the projection check was mutated in BOTH forms.**
-    The resolver reports zero broken references; `check_yml_vs_projection` reports zero mismatches,
-    went **RED (EXIT=1)** on the strong form (name absent from the final SELECT) and **stayed GREEN**
-    on the known-weak form (dropped from the projection but still inside a `safe_divide` on that same
-    SELECT) — `!130`'s bound re-stated rather than re-discovered.
-  - **The three 22-name TEAM `accepted_values` lists are byte-identical**, each keeping all three of
-    its hits (`goals_against_per_match`, `shots_on_goal_against_per_match`, `saves_pct`). Compared
-    base-vs-branch in FILE ORDER with a length assertion: 6 lists carry a swept token, **3 entries
-    move across 3 lists**, no list changed length.
-  - **No half-rename anywhere.** All 45 `doc()` re-points verified mechanically to preserve entity —
-    zero crossovers — and after the round-1 fix, **zero** lines carry `goals_against_player` beside
-    `goals_for`. The seed differs from base in `metric_id` only, on every row.
+  - **The TEAM scoreline family is untouched.** Asserted mechanically over the whole diff: **zero**
+    added lines carry a renamed token beside `goals_for`, `goals_home`, `goals_away`, `goals_diff` or
+    `goals_own`. `export_site_data.py:1044/1046` — `"goals": r.get("goals_home")` — is byte-identical,
+    which is the exact shape that FAILed `!131` round 1.
+  - **The CPO's payload ruling is implemented on both sides of all four lines.**
+    `_shape_squad_member` and `_shape_player_career_season` now read
+    `career.get("goals_player")` / `row.get("goals_player")` while still emitting the key `"goals"`.
+    Verified by reading `export_site_data.py:192-193` and `:443-444` directly.
+  - **No `site_v2/` file changes** — `git diff --name-only -- site_v2/` is empty. Thirteen frontend
+    files carry a swept token and every one protects: `PlayerRow.astro` reads the PROVIDER columns
+    `goals_total`/`goals_assists`, the rest are team scoreline fields, TEAM label keys or UI words.
+    Re-derived for this batch rather than carried from `!131`, where the opposite was true.
+  - **Doc blocks 167 → 163**, matching the pre-code simulation term for term: 22 removed, 18 added,
+    three collapses and the eight renamed yoy blocks. `sync_metric_docs_blocks --check` EXIT=0.
+  - **All 16 `doc()` references to the eight derived player yoy blocks resolve** —
+    `check_description_hygiene` EXIT=0 at **1604 descriptions, 225 blocks resolved** (229 at base;
+    the −4 is the three collapses plus the four deleted orphans), which is the proof none dangles.
+  - **The seed differs from base in `metric_id` ONLY**, on every row — checked field by field across
+    the whole file, after a first apply that did not (see §(a) below).
+  - **Every dotted and bare reference resolves**: the resolver reports zero broken references and
+    `check_yml_vs_projection` zero mismatches, over both the old and new names.
+  - **Documentation prose survives the sweep; identifier references in documentation move; and a
+    formula quoted in a comment moves WHOLE** — the round-1 defect, its over-correction and the
+    round-2 defect, closed by one role rule in two reaches (§(d), §(e)). Verified in both directions:
+    **0** hits for eleven prose-corruption strings, **0** half-renamed formula comments, and each
+    named identifier site confirmed moved.
+  - **The rendered pages are unchanged**: base vs branch, **12/12/12 rows, 7/7/7 headings, none added,
+    none removed** in EN/DE/FI across 19 fixture pages, both sides built from a stashed tree.
 
 ## Gates
 
-  - `python scripts/sync_metric_docs_blocks.py --check` — **EXIT=0**, 167 blocks.
-  - `python scripts/check_description_hygiene.py` — **EXIT=0**, **1604 descriptions**, 229 blocks
-    resolved (234 at base, −5 matching the deleted orphans).
-  - `python scripts/check_layer_contract.py` — **EXIT=0**.
-  - `python scripts/check_registry_var_sync.py` — **EXIT=0**.
+  - `sync_metric_docs_blocks.py --check` — **EXIT=0**, 163 blocks.
+  - `check_description_hygiene.py` — **EXIT=0**, 1604 descriptions, 225 blocks resolved.
+  - `check_layer_contract.py` — **EXIT=0**. `check_registry_var_sync.py` — **EXIT=0** (48
+    competitions). `check_ui_i18n_metrics.py` — **EXIT=0** (13 shown metrics).
   - `dbt parse` — **EXIT=0**.
-  - `python -m pytest -q` — **1009 passed, 1 skipped, 14 subtests**, matching the `9ee88a4` baseline.
-  - `sqlfluff lint` on the ten changed models, from the REPO ROOT, jinja templater, full rule set —
-    **byte-identical** to a re-lint of the same files stashed back to base. LT05 0→0; rule tally
-    `['LT02','PRS','ST11','TMP']` both sides.
-  - `npm test` — **76/76**. `node scripts/check-page-specs.mjs` — **EXIT=0**.
-  - The site built **TWICE**, base and branch: 66 pages, `audit-seo: 67 built page(s) checked. OK.`
+  - `python -m pytest -q` — **1009 passed, 1 skipped, 14 subtests**, matching the `6f0ee07` baseline.
+    Re-run in full after the sweep was re-applied from base for round 3.
+  - `sqlfluff lint` on the thirteen changed models, from the REPO ROOT, full rule set —
+    **byte-identical** to a re-lint of the same files stashed back to base: 27 violations both
+    sides, same rules, same lines. ⚠ §(e)'s fix lengthens two comment lines by 7 characters; measured
+    at ~106 against `.sqlfluff`'s `max_line_length = 120`, and the byte-identical result confirms no
+    LT05 newly trips.
+  - `npm test` — **76/76**. The site built: 66 pages, `audit-seo: 67 built page(s) checked. OK.`
 
-## ⛔⛔ Round 1 — two defects, both mine, both a scope coarser than the entity it had to resolve
+## ⛔⛔ FIVE defects the implementation surfaced — and how each was found
 
-**(a) THE TEAM SCORELINE PAIR, 6 SITES.** `goals_for` / `goals_against` is the TEAM per-fixture
-scoreline from `int_legs__team_match`, reaching `mart_team_fixtures`, `mart_head_to_head` and
-`mart_team_momentum_window` — none of which this MR renames. I scoped `export_site_data.py`,
-`tests/test_export_site_data.py`, `01_fixture_page.md` and `03_player_profile.md` as PLAYER files,
-so all six occurrences were renamed.
+Each was fixed as a RULE, not an edit. **The means matter more than the defects.**
 
-`export_site_data.py:166`'s `_TEAM_FIXTURE_FIELDS` is a KEEP-list applied to `mart_team_fixtures`
-rows via `{k: row.get(k) …}`. Renamed, it would have emitted `goals_against_player: null` for every
-team's `next_fixture` and every `recent_results` entry — **forever, with no crash** — while
-`TeamFixtureRow.astro:23` still read `fx.goals_against`, a field the export had stopped emitting.
-⚠ **The test was mutated to match the bug**: `test_export_site_data.py:367`'s fixture dict key was
-renamed in lockstep, so `pytest` stayed green. That is the "verify the test fails" trap in its purest
-form — the sweep edited the test and the code together, so the test could not disagree.
+**(a) Found by a CHECK.** The seed's `contribution_share` row glosses its own formula as *"the
+player's goals + assists (scorer_points)"*. The token-level rule — placed BEFORE the seed's field
+allowlist — rewrote it to `(scorer_points_player)`. **A rule checked before the allowlist silently
+reopens the hole `!131` closed.** The allowlist now outranks it. Verified after: **0 non-`metric_id`
+seed fields differ from base.**
 
-⭐ **THE FIX IS A FACT ABOUT THE DOMAIN, NOT AN EXEMPTION LIST.** There is no player `goals_for` — a
-player does not score or concede "for" in the scoreline sense — so wherever the pair appears,
-`goals_against` is the team field. `in_team_scoreline()` is scoped to the PARAGRAPH in markdown and
-the enclosing statement elsewhere, because a line-scoped test on a construct that wraps is exactly
-how `!128` round 1 failed. Measured against the round-1 diff: **it separates all 6 wrong renames from
-all 60 correct ones, exactly.** Verified after the fix: **0** lines carry `goals_against_player`
-beside `goals_for`.
+**(b) Found by READING the applied diff.** `mart_player_career.sql:130` documents the catalogue row
+as *"(entity=player, group=goals, tier 1)"*; the first apply made it `group=goals_player`, naming a
+metric_group that does not exist. `goals` is a metric_GROUP value as well as a metric_id
+(`seeds/schema.yml:330` lists it beside "shooting"), so the rule is now positional. ⚠ **The token
+counts were identical before and after the fix** — no total, guard or gate could have shown it.
 
-⚠ A consequence worth recording: once the six were protected, `export_site_data.py` and
-`tests/test_export_site_data.py` fell to ZERO renames — so the no-op-write guard never reopened them
-and they kept their round-1 text on disk. **A file that drops to zero renames must be restored from
-base explicitly.** Both were, and both left `scope_paths` (45 → 43 entries, 42 changed files).
+**(c) Found by the TEST SUITE.** I put `tests/test_export_site_data.py` in the same role set as the
+export and **pytest failed three tests**. The rule was not stale, it was INVERTED: in the test file a
+dict KEY is a fixture (a mart row, which must move) while the payload keys appear as SUBSCRIPTS and
+as members of an expected-key set. No single subscript rule works either —
+`boards["goals_player"]` subscripts a dict keyed by metric_key, which does move. So the test file
+follows the mart, and five assertions about the shaped OUTPUT are corrected by hand.
+⭐ **`!131` recorded that an automated rename editing code and test together leaves the suite unable
+to disagree. Here it disagreed** — because §2's ruling deliberately holds one side still, so the two
+could no longer move in lockstep. **A rule that forces the code and its test apart is what makes the
+test able to fail.**
 
-**(b) THE SEED'S `interpretation` COLUMN.** `SEED_REFERENCE_FIELDS` was a BLOCKLIST of five columns
-to protect; the seed has fifteen. `interpretation` was not on it, so `saves_per90`'s prose became
-"More **saves_player** per 90 is better…" — an internal identifier in reader-facing text
-(`seeds/schema.yml` calls that column the seed of the site's good/bad reading and auto-narrative), on
-a row the contract states three times does not change.
+**(d) Found by the BLINDED REVIEW — and I got it wrong twice before getting it right.**
+Round 1 FAILed **5–0**. `scope-auditor`, `analytics-engineer` and `football-analytics-expert` all
+found the same class: the sweep had rewritten ENGLISH PROSE, because `goals`/`assists` are ordinary
+words. It shipped *"the club's WHOLE-SEASON goals_player"*, *"own goals_player"*, *"Involved in 45%
+of Bayern's goals_player"* — and `+persist_docs` publishes those to BigQuery, so a stranger would be
+told a club's season goal total is called `goals_player`. **Worse, `int_player_profile__contribution`
+said it two ways in ONE docstring**: the prose mislabelled, the formula line beneath it correct.
+⛔ **My first fix over-corrected.** I protected any occurrence that was not a whole backticked span,
+and `bi-analyst` caught the other side of it in the same round — `` `mart_player_career.goals` ``
+(dotted), `` `goals − goals_penalty_player` `` (a formula operand) and the `Atomics` column's
+`goals, assists` were all left stale, the last one two rows above ids `!130` had already renamed.
+⭐ **The rule that actually holds is ROLE, not punctuation**, which is what step 4 has been
+learning all along. In a markdown table the **column header** states the role, so the census was
+taken over every table cell in the repo carrying the bare stem — **16 distinct column headers, three
+roles**:
+    IDENTIFIER  `Source column` · `Atomics` · `numerator` · `denominator`      → moves
+    PAYLOAD     `Payload key` · `JSON key`                                     → stays (the CPO's ruling)
+    PROSE       Element · Ruling · Gap · Notes · Component · Display string …  → stays
+Outside a table the backtick still decides, and `{goals}` is excluded as a template slot — proved by
+its own sibling row, where `{won} of {total} · {pct}%` sits against atomics `duels_won_player,
+duels_player, duels_won_player_pct`. **The slots were never the ids.**
+⭐ `11_team_squad.md:120` is the single line that demonstrates both rulings at once, and it is now
+right in both halves: `` `squad[].goals` `` stays, `` `mart_player_career.goals_player` `` moves.
+**Measured over all 51 in-table occurrences: exactly 6 move, 45 stay**, and the 100 occurrences the
+prose rule moved out of RENAME are the whole difference between round 1's counts and these.
 
-⭐ **THE FIX IS THE SHAPE, NOT THE ENTRY.** Adding `interpretation` would have left the next added
-column exposed identically. It is now an ALLOWLIST — `SEED_RENAMEABLE_FIELDS = {"metric_id"}` — so a
-new seed column is protected by default. Verified across every row: **zero non-`metric_id` seed
-fields differ from base.**
+**(e) Found by the BLINDED REVIEW AGAIN — round 2, and it is (d)'s rule meeting a construct outside
+its reach.** Round 2 came back 4 PASS / 1 FAIL. `analytics-engineer` found two SQL comments —
+`int_player_season__metrics.sql:112` and `int_player_season_position__metrics.sql:155` — reading
 
-## ⛔⛔ The one part of this MR that no gate covers — read `rendered_page_evidence.md`
+    -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty_player) /
 
-The first rendering-component change of step 4. `mart_player_momentum` → `_TOPPLAYER_DROP` (a
-DROP-list, so no export edit) → `TopPlayer` → `PlayerRow.astro`. There is **no typecheck**, **no test
-touching `PlayerRow`/`TopPlayer`/`top_players`**, and **the GK line renders on 0 of 67 pages**. The
-chain was verified by reading every link. This is reported as a manual verification of an unguarded
-path, not as a passing check.
+directly above code that correctly computes `(goals_player - goals_penalty_player)`. A **formula
+quoted in a comment**, half-renamed: every other name in the sentence had already moved, so the
+comment contradicted the three lines beneath it.
+⭐ **It is the identical construct (d) fixed at `12_player_stats.md:142` via the `numerator` column
+— the role rule simply had no reach outside a markdown table.** The fix gives it one:
+`in_operand_position()` treats a token inside a parenthesised arithmetic expression that also names
+an underscored identifier as an operand, not a word. Both conditions are required, and together they
+are exactly what separates a quoted formula from English: prose says *"penalty goals"* and *"own
+goals"* with no operator and no underscored neighbour, and never inside parentheses holding both.
+⭐ **Census over every comment line in the repo carrying a bare swept token — 26 occurrences: the
+rule moves exactly 2 and keeps all 24.** The 24 include "own goals", "Penalty goals", "goals/subs",
+"goals sum", `group=goals`, and `mart_player_momentum.sql:72`'s *"goals, then assists, then key
+passes"* — which describes an ORDER BY over the PROVIDER columns `goals_total`/`goals_assists`, so it
+is doubly protected.
+⛔ **The honest reading of (d) and (e) together: I set this rule three times.** Too wide (prose
+rewritten), too narrow (identifier references left stale), then correct in tables but blind outside
+them. Each miss was the same root — a scope coarser than the role it had to resolve — and each was
+found by review, never by a gate.
 
-## ⭐ Predictions written into the contract BEFORE the code, then measured
+## Predictions written before the code, then measured
 
-  - **Doc blocks 172 → 167.** Predicted by running the real generator against the renamed seed held
-    in memory. Measured: **167**, with the removed/added sets identical to the simulation term for
-    term — 11 removed (6 plain/collapsed names and 5 `goals_against_*__player` orphans), 6 added.
-    **CONFIRMED.**
-  - **Description count holds.** Measured **1604** on both sides, by stashing the change and
-    re-running. The "re-point them" ruling, a seventh measurement. **CONFIRMED.**
-  - **The "means more than one thing" list drops 4 → 3.** **DISPROVED — see below.**
+  - **Blocks 167 → 163** with the exact removed/added sets, simulated against the real generator with
+    both the seed renames and the eight derived-column renames applied in memory. Measured:
+    **163**, sets identical. **CONFIRMED.**
+  - **The eight derived player yoy blocks are NOT orphans** — 2 live references each, 16 in all.
+    Confirmed by grep before the work, and by the hygiene gate staying green after it.
+  - ⛔ **DISPROVED, and the correction is the interesting half.** I predicted `goals`,
+    `goals_open_play` and `goals_penalty` would all leave the hygiene gate's ambiguous-name list,
+    leaving `league_code` alone. Measured base-vs-branch: the list goes **4 → 3**, not 4 → 1.
+        base    goals_against · goals_open_play · goals_penalty · league_code
+        branch  goals_against · goals_penalty · league_code
+    `goals_open_play` leaves. **`goals_penalty` does not** — and its two variants CHANGE identity,
+    from the doc-block pair `goals_penalty__player`/`__team` to the real columns
+    `goals_penalty`/`goals_penalty_player`. The cause is exactly `!131`'s ruling, which this MR's own
+    plan named in §3 and this evidence then contradicted: **`goals_penalty` is also a PROVIDER leg
+    column**, so renaming the metric cannot disambiguate the name. `goals_against` stays for the
+    same reason, from `!131`. **A rename frees a name from #87 only when no provider column shares
+    it** — that is the general rule, and it now has two independent confirmations.
 
-## ⛔⛔ The disproved prediction, and why it generalises
+## The three collapses, and a mechanism that runs out of instances
 
-The list **stays at 4**; the `goals_against` entry only changes shape:
+    167 → 163   (22 removed, 18 added)
+    REMOVED  goals__{player,team} · goals_penalty__{player,team} · goals_open_play__{player,team} ·
+             assists · penalty_won · scorer_points · contribution_share ·
+             the 8 goals_/assists_ yoy __player blocks · 4 goals_*__team orphans (0 refs, verified)
+    ADDED    goals · goals_player · goals_penalty · goals_penalty_player · goals_open_play ·
+             goals_open_play_player · assists_player · penalty_won_player ·
+             scorer_points_player · contribution_player_pct · the 8 renamed yoy __player blocks
 
-    before   goals_against: goals_against__player, goals_against__team
-    after    goals_against: goals_against, goals_against_player
+**63 `doc()` re-points, 19 of them TEAM-side.** ⛔ **After this MR no metric in the catalogue
+disagrees across entities** — all six dual-entity ids have been renamed across step 4.
+`sync_metric_docs_blocks.py`'s module docstring used `goals_open_play` as its worked example of the
+collision; it is rewritten to state the rule and mark every such example historical. **Nothing is
+deleted**: `_derived()` still suffixes unconditionally, `_blocks()` still splits and still aborts,
+and the synthetic fixtures stay. One new seed row recreates the collision.
 
-`_ambiguous_names()` groups by COLUMN NAME. Columns literally named `goals_against` still split two
-ways: TEAM surfaces point at `goals_against`, while the PLAYER PROVIDER surfaces
-(`fct_fixture_player_stats`, `int_legs__player_match`, `mart_player_fixture_stats`) keep the provider
-column NAME under the **"yes"** ruling but had their `doc()` re-pointed under **"re-point them"**.
+## Two more trap classes this stem adds
 
-⭐ **The two standing rulings interact, and the consequence is general: a metric rename can never
-disambiguate a column name the PROVIDER also uses.** `duels_won_pct` resolved on `!130` only because
-it is a computed rate with no provider column of that name. `goals_against` and `saves` are provider
-fields, so they cannot. **This corrects an expectation `!130`'s own contract recorded** — that the
-naming programme frees some of #87's 49 blank columns. It does not: the blank count is **unchanged at
-49**, and #87 is untouched by this programme rather than partly solved by it.
+**`goals` as an ENGLISH WORD**, across nine documentation files including `CLAUDE.md`,
+`docs/north_star.md` and `docs/data_contract.md` — all protected, each a printed decision, and §(d)
+above is what it cost to get right.
+**`goals` as a metric_GROUP value** — `seeds/schema.yml:330`'s enum, and the inline `group=goals` in
+(b) above.
+⭐ Where a token rule met documentation prose, the **backtick** decides outside a table and the
+**column** decides inside one: `content_architecture.md:92`'s backticked `` `contribution_share` ``
+renames, while `schema.yml:339`'s plain-prose *"goals, assists and scorer_points"* does not — because
+renaming only the third would have shipped an internally inconsistent sentence. **`seeds/schema.yml`
+therefore does not change at all.**
 
-## The block collapse — two at once
+## #96 and #99
 
-    172 → 167   (11 removed, 6 added)
-    REMOVED  saves__player · saves__team · goals_against__player · goals_against__team ·
-             save_pct · shots_on_goal_against ·
-             goals_against_{this_season,prev_season,delta_yoy,sum_season}__player ·
-             last_meeting_goals_against__player
-    ADDED    saves · saves_player · saves_player_pct · goals_against ·
-             goals_against_player · shots_on_goal_against_player
-
-**45 `doc()` re-points, verified mechanically to preserve entity in every case — zero crossovers:**
-`saves__team`→`saves` ×6, `saves__player`→`saves_player` ×12, `goals_against__team`→`goals_against`
-×12, `goals_against__player`→`goals_against_player` ×8, `save_pct`→`saves_player_pct` ×6,
-`shots_on_goal_against`→`shots_on_goal_against_player` ×1. **18 of them are TEAM-side**, caused by a
-player rename, against five on `!130`. All five deleted orphans verified at 0 references, including
-`last_meeting_goals_against__player` — a PREFIX-affix orphan, a shape `!130` did not have.
-
-## Mutations — watched RED, reverted, re-run green
-
-  - **Stale `metric_id` in the seed** → `sync_metric_docs_blocks --check` **EXIT=1**. Reverted: 0.
-  - **A `doc()` naming a block that does not exist** → `check_description_hygiene` **EXIT=1**,
-    `core.yml :: core/fct_fixture_player_stats/saves - unresolved docs block:
-    'saves_player_NO_SUCH_BLOCK'`. Reverted: 0.
-  - ⭐ **The yml-vs-projection check mutated in BOTH forms, so `!130`'s disclosed bound is RE-STATED
-    rather than re-discovered:**
-      · STRONG (`saves_player` absent from the whole final SELECT) → **EXIT=1**,
-        "yml declares ['saves_player'] but the final SELECT does not project them".
-      · WEAK (dropped from the projection but still named inside the `safe_divide` on the same
-        SELECT) → **EXIT=0, GREEN.** It tests token PRESENCE, not projection. The model still could
-        not compile. The delivered tree is clean under both forms.
-
-## Independent checks
-
-`check_yml_vs_projection.py` over both old and new names: **zero mismatches**. The column-reference
-resolver: **zero broken references**, unresolved bare reads reported rather than skipped.
-
-## The entity discrimination, verified where it is invisible
-
-**Two dual-entity ids this batch, not one.** The seed is the only file where an entity error leaves
-no diff trace, because both rows of a pair carry the same token. `seed_entity_lines()` was verified
-directly against all ten goalkeeping-stem seed rows: **0 mismatches** —
-`saves` player@52 / team@85, `goals_against` player@56 / team@83.
-
-⚠ The two entities even disagree on the provider column: team `saves` computes
-`sum(goalkeeper_saves)`, player `saves` computes `sum(saves)`; player `shots_on_goal_against` is
-`sum(saves + goals_against)` while team `shots_on_goal_against_per_match` is
-`sum(opponent_shots_on_goal)`. All 16 seed formula occurrences protect; only the four `metric_id`s
-move. `player_benchmark_metrics.sql` is the mirror case and its `num`/`den` do move.
-
-## ⭐ A defect in my own tool, found by reading the printed reasons rather than the counts
-
-`mart_player_season_record.sql:13`, inside a `{# … #}` docstring: "…computed here via safe_divide.
-save_pct is only meaningful for goalkeepers." That `.` is SENTENCE PUNCTUATION, but `sql_shape()`
-saw `safe_divide.` before the token and reported "dotted", labelling the occurrence **"RENAME read —
-safe_divide. reads a metric relation that renamed it"**. The DECISION was right; the REASON was a
-lie — the class `!127` fixed for bare reads and `!129` for aliases. The comment test already existed
-but lived INSIDE `bare_decision()`, reachable only after `sql_shape` returned "bare", so prose could
-never reach it. Hoisted ahead of shape analysis; the jinja-comment count went 11 → 13 and the false
-reason is gone. **The counts were identical before and after — only reading the reasons found it.**
-
-## `saves` is an ordinary English word — a trap class no previous stem had
-
-All PROTECT, each a printed decision rather than an invisible exclusion:
-
-    ingestion/api_football/bigquery.py          "the extra call costs 13 KB and saves gigabytes"
-    dbt_project/docs/engineering_standards.md   "what the macro saves"
-    tests/test_governance_hooks.py              "`changes:` filter saves neither"
-    docs/ui_design_brief.md  ×3                 "GK: saves, goals conceded, save %"
-
-And `goals_saves` is the PROVIDER's own field name, normalised to the leg column `saves` — protected,
-sitting beside `save_pct`, which moves.
-
-## #96 — all six lists again, and the split inverts from `!130`
-
-  - `shared.yml:1756` (14-name board) and both 18-name player lists
-    (`shared.yml:2186`, `int_competition_benchmarks.yml:105`) — **1 entry each**: `save_pct` →
-    `saves_player_pct`. `saves_per90` stays.
-  - The three 22-name TEAM lists (`shared.yml:2080`, `int_competition_benchmarks.yml:27`, `:66`) —
-    **0 move**, each keeping all **three** of its hits (`goals_against_per_match`,
-    `shots_on_goal_against_per_match`, `saves_pct`).
-
-**3 entries across 3 of 6 lists; no list changed length.** Compared base-vs-branch in FILE ORDER with
-an identity assertion — the method `!130` had to correct after a sort-keyed comparison mis-paired the
-lists.
-
-## Eight singular tests, split four and four
-
-Player rename: `std_player_`, `player_profile_`, `mart_leaderboards_save_pct_in_range`, and
-`player_profile_saves_lte_faced` — **the first test in this programme that is not an `*_in_range`
-name**; its expression moved with it, `saves <= shots_on_goal_against` →
-`saves_player <= shots_on_goal_against_player`. Team protect: `momentum_team_`, `std_team_`,
-`mmi_home_`, `mmi_away_saves_pct_in_range`.
-
-## Prose the rename falsifies — four sites, rewritten by hand
-
-`sync_metric_docs_blocks.py`, `declare_missing_columns.py`, `test_declare_missing_columns.py` and
-`test_sync_metric_docs_blocks.py` all argue the entity suffix is mandatory using `goals_against` as
-the worked example: "the catalogue defines it for a PLAYER while every column of that name sits on a
-TEAM model." **After this MR the single surviving row is the TEAM's**, so the entity matches and the
-specific hazard that sentence describes is gone. Each was rewritten to state the RULE — a stem with
-one catalogue row says nothing about which entity its derived columns belong to — and to mark the
-example historical. ⛔ Nothing deleted: `_derived()` still suffixes by entity, the guard still
-protects a future collision, and the synthetic `__team`/`__player` fixtures stay because they
-exercise a mechanism that still exists. The classifier PROTECTS all 13 tokens in these files and
-prints "prose the rename FALSIFIES", so the rewrite is a visible separate edit.
+**#96 is narrow**: only `shared.yml:1756`'s 14-name board list moves, **2 entries** (`goals`,
+`scorer_points`); the other five lists carry protected-only hits, including all three 22-name TEAM
+lists and both 18-name player lists (whose hits are all `_per90`). Compared base-vs-branch in FILE
+ORDER with a length assertion.
+**#99 comes due, as the handover predicted**: `_LEADERBOARD_METRICS` / `_LB_KEEP` carry the literal
+board keys `"goals"`, `"assists"`, `"scorer_points"`, and they follow the mart's `metric_key`.
+**Still pinned by no test** — carried, not closed.

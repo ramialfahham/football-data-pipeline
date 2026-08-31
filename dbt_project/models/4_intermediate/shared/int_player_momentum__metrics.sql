@@ -79,7 +79,7 @@ player_agg as (
         sum(p.cards_red) as cards_red_player,
         sum(p.offsides) as offsides_player,
         sum(p.dribbles_past) as dribbles_past_player,
-        sum(p.penalty_won) as penalty_won,
+        sum(p.penalty_won) as penalty_won_player,
         sum(p.penalty_committed) as penalty_committed_player,
         -- passes_accurate_player: derived per fixture, then summed (small rounding error)
         sum(
@@ -130,6 +130,6 @@ select
     cards_red_player,
     offsides_player,
     dribbles_past_player,
-    penalty_won,
+    penalty_won_player,
     penalty_committed_player
 from player_agg

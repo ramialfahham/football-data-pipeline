@@ -4,7 +4,7 @@
 > the per-club player-season foundation `int_player_club_season__metrics` → the rebuilt career mart). The mart
 > is **wired** — every key in §5 is carried by the player export ([GAP-22](99_gaps_register.md), shipped
 > #634); this spec preceded the wiring PR, the same way Squad (11) preceded its wiring (#619) and Stats
-> (12) preceded [GAP-21](99_gaps_register.md) (#627). **Counts only:** labels/formats for `goals`/`assists` come
+> (12) preceded [GAP-21](99_gaps_register.md) (#627). **Counts only:** labels/formats for `goals_player`/`assists_player` come
 > from `metric_catalogue.csv` (the 00 binding rule); **no per-90, no composite scores** — deliberately not
 > offered yet ([`ui_design_brief.md`](../ui_design_brief.md) §6.4) — and a career-long rate across mixed
 > clubs/seasons is not meaningful (the CPO counts-only ruling on `mart_player_career`).
@@ -44,7 +44,7 @@ top-level **`career[]`** set, one member per `(club, competition, season)`, sour
 The export **selects/reshapes only** — grouping into clubs and any subtotals are display concerns (§5, §10);
 no fact is derived in the export (consumption-layer contract). The nesting shipped as a **flat `career[]`**
 (club grouping is display-side); each member carries `season`, `competition`, `entity_type`, a nested `team`
-block, `appearances`, `goals`, `assists`. A player with no career rows carries no `career[]` (§6).
+block, `appearances`, `goals_player`, `assists_player`. A player with no career rows carries no `career[]` (§6).
 
 ## 4. Layout
 
@@ -75,7 +75,7 @@ block, `appearances`, `goals`, `assists`. A player with no career rows carries n
 
 Rows are **grouped by club** (`entity_type = 'club'`), each club's seasons newest-first, clubs ordered by most
 recent season descending; then a **National team** section (`entity_type = 'national'`). Each season row:
-`season_api_year` · competition badge (`league_code`) · appearances · goals · assists. **Desktop (≥ ~900px)**:
+`season_api_year` · competition badge (`league_code`) · appearances · goals_player · assists_player. **Desktop (≥ ~900px)**:
 the club groups sit in one column; identity header full-width. The per-club subtotal and career-total lines are
 **display aggregations of the rows** (or a reserved precompute — §5, §10).
 
@@ -98,8 +98,8 @@ All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` colu
 | Row — season | `career[].season` | `season_api_year` | e.g. "2025/26" (locale season format) |
 | Row — competition | `career[].competition` | `league_code` | competition badge; ▸ competition hub |
 | Row — appearances | `career[].appearances` | `appearances` | integer (a playing-time fact, not a catalogue metric) |
-| Row — goals | `career[].goals` | `goals` | integer; label/format from `metric_catalogue` (`goals`) |
-| Row — assists | `career[].assists` | `assists` | integer; label/format from `metric_catalogue` (`assists`) |
+| Row — goals | `career[].goals` | `goals_player` | integer; label/format from `metric_catalogue` (`goals_player`) |
+| Row — assists | `career[].assists` | `assists_player` | integer; label/format from `metric_catalogue` (`assists_player`) |
 | Per-club subtotal | (display grouping) | sum of the club's rows | **display-side grouping** of `career[]` — resolved #634 (the export ships raw rows only, computes nothing; §10) |
 | Career total | (display grouping) | sum of all club rows | same — display-side grouping (#634) |
 
@@ -110,7 +110,7 @@ All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` colu
 | Split club vs national | `career[].entity_type` | `entity_type` | `club` rows in the club groups; `national` rows in this section |
 | Caps line | top-level `national_appearances_total` | `national_appearances_total` | "{national_team} · {n} appearances (covered competitions)" — **precomputed on the mart**; worded as covered-competition appearances, **never** "caps" |
 
-`goals`/`assists` labels, formats, and better/worse direction come **only** from `metric_catalogue.csv` (never
+`goals_player`/`assists_player` labels, formats, and better/worse direction come **only** from `metric_catalogue.csv` (never
 invented); `appearances` is a playing-time fact rendered as an integer. No per-90, no ratios on this screen.
 
 ### (7) Internal links

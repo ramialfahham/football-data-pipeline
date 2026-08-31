@@ -6,10 +6,10 @@
   int_player_profile__yoy). "Involved in 45% of Bayern's goals."
 
   Metric definition (CPO, AskUserQuestion 2026-07-03):
-    - numerator = scorer_points = goals_total + goals_assists (summed over the player's appearances-with-stats)
+    - numerator = scorer_points_player = goals_total + goals_assists (summed over the player's appearances-with-stats)
     - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
       authoritative scoreline), NOT just the matches the player appeared in.
-    - contribution_share = scorer_points / team_goals_season. Range [0, 1] (a player's G+A over his
+    - contribution_player_pct = scorer_points_player / team_goals_season. Range [0, 1] (a player's G+A over his
       appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
 
   Honest limit (CPO-accepted): player stats are sparse (many matches lack statistics_players). Where the
@@ -55,7 +55,7 @@ involvements as (
         tl.season_sk,
         any_value(tl.league_code) as league_code,
         any_value(tl.season_api_year) as season_api_year,
-        sum(pl.goals_total + pl.goals_assists) as scorer_points
+        sum(pl.goals_total + pl.goals_assists) as scorer_points_player
     from player_legs as pl
     inner join team_legs as tl
         on pl.fixture_sk = tl.fixture_sk and pl.team_sk = tl.team_sk
@@ -78,9 +78,9 @@ select
     inv.season_sk,
     inv.league_code,
     inv.season_api_year,
-    inv.scorer_points,
+    inv.scorer_points_player,
     tg.team_goals_season,
-    safe_divide(inv.scorer_points, tg.team_goals_season) as contribution_share
+    safe_divide(inv.scorer_points_player, tg.team_goals_season) as contribution_player_pct
 from involvements as inv
 inner join team_goals as tg
     on inv.team_sk = tg.team_sk and inv.season_sk = tg.season_sk

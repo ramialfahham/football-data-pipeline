@@ -7076,3 +7076,126 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   After the fix, `export_site_data.py` and its test had no renames left, so the no-op-write guard
   skipped them and they kept their ROUND-1 text on disk while every other file was rewritten from
   base. Restoring them explicitly is now part of the recipe. Silent, and it would have shipped.
+
+---
+
+## 2026-08-31 — STEP 4, MR 7 of 7: the player `goals` group (`!132`). STEP 4 IS COMPLETE.
+
+    goals           -> goals_player            assists       -> assists_player
+    goals_penalty   -> goals_penalty_player    scorer_points -> scorer_points_player
+    goals_open_play -> goals_open_play_player  penalty_won   -> penalty_won_player
+    contribution_share -> contribution_player_pct
+
+  All seven from "THE METRIC CATALOGUE NAMING PROGRAMME", table "PLAYER, 35 REMAINING".
+  ⭐ `contribution_player_pct` IS RULED, verbatim: **"contribution_player_pct is fine, go with it"**
+  (2026-08-29). ⛔ I first wrote here that it was "the one name he did not rule on" — that caveat was
+  DISCHARGED by that entry, which says so in those words and adds the rule I then broke: **living
+  document → replace; dated log → append.** Caught by `football-analytics-expert-reviewer`. **THE SHIPPED COUNTS, WHICH ARE THE
+  ROUND-3 COUNTS: 1,519 occurrences across 93 swept files, landing on 38 changed files — 279
+  renames · 63 `doc()` re-points (19 TEAM-side) · 1,177 protected.** The biggest batch of the
+  programme and by far the most protective: 78% of every occurrence carrying the stem stays put.
+  ⛔ **An earlier draft of THIS ENTRY said "442 renamed, 1,077 protected" and, below, "70 re-points,
+  20 TEAM-side".** Those are the ROUND-1 numbers, superseded by §9(d) (whose prose rule moved exactly
+  100 occurrences into PROTECT) and §9(e). I corrected them in the contract and the evidence and left
+  them standing HERE — in the append-only record other work cites as ground truth. `scope-auditor`
+  FAILed round 3 on it.
+  ⭐ **This is `feedback_corrections_replace` again, and the fix is the one that memory prescribes:
+  do not sweep for the numbers you remember changing — EXTRACT EVERY NUMBER IN THE DOCUMENT and ask
+  of each whether it is still true.** Doing that caught a third stale figure the reviewer never named.
+
+  ⭐⭐ **A CPO RULING TAKEN THIS SESSION, AND IT IS THE ENTRY WORTH KEEPING.** `_shape_squad_member`
+  writes `"goals": career.get("goals")` — a published payload key on the left, a warehouse column on
+  the right. Asked whether the key moves with the column, he ruled: **"Naming conventions in the
+  warehouse are one thing. What we show on the website is another."** So only the right half moves.
+  ⭐ **AND THE ASYMMETRY IS WHAT MADE A TEST ABLE TO FAIL.** `!131` recorded that when an automated
+  rename edits code and test together, the suite cannot disagree — the sweep moves both sides in
+  lockstep and green means nothing. Here the ruling deliberately HOLDS ONE SIDE STILL, so the two
+  could not move together, and **pytest caught a real rule inversion**: I had put
+  `tests/test_export_site_data.py` in the same role set as the export, but in the TEST file a dict
+  KEY is a FIXTURE (a mart row, which must move) while the payload keys appear as SUBSCRIPTS and as
+  members of an expected-key set. Three tests failed. **A rule that forces the code and its test
+  apart is what restores the suite's power to disagree.**
+
+  ⭐⭐ **THREE DEFECTS, THREE DIFFERENT DETECTION MEANS — and that is the lesson, not the defects.**
+  · **A CHECK found one**: the seed's `contribution_share` row glosses its own formula as "(scorer_points)",
+    and the token rule — placed BEFORE the seed's field allowlist — rewrote it. **A rule checked
+    before an allowlist silently reopens the hole the allowlist closed.** The done_when item "the
+    seed differs from base in metric_id ONLY" is what caught it.
+  · **READING THE DIFF found one**: `mart_player_career.sql:130` documents the row as
+    "(entity=player, group=goals, tier 1)"; the apply made it `group=goals_player`, naming a
+    metric_group that does not exist. `goals` is a metric_GROUP value as well as a metric_id.
+    ⚠ **The token counts were identical before and after the fix** — no total, guard or gate could
+    ever have shown it.
+  · **THE TEST SUITE found one** — see above.
+  Each was fixed as a RULE, not an edit: the allowlist now outranks the token rule; `group=` is a
+  positional marker; the test file follows the mart and four output assertions are corrected by hand.
+
+  ⭐ **AND WHERE A TOKEN RULE MET DOCUMENTATION PROSE, THE BACKTICK DECIDED.**
+  `contribution_share` and `scorer_points` are only ever the metric id — verified across every
+  occurrence — so they are decided by token, before file scope. But `seeds/schema.yml:339` says in
+  plain prose "Redundancy at tier 1 is deliberate — goals, assists and scorer_points", where the
+  first two are protected; renaming only the third would have shipped **"goals, assists and
+  scorer_points_player"**. In a DOC file a backticked token is an identifier reference and a bare one
+  is a word. `content_architecture.md`'s backticked mention moves; the prose does not.
+
+  ⭐ **EIGHT DERIVED YOY COLUMNS MOVED, AND UNLIKE `!131`'s THEY WERE NOT ORPHANS** — each block
+  carried two live references on `int_player_profile__yoy` and `mart_player_profile`, 16 in all, so
+  leaving the columns would have dangled every one. Applied `!129`'s ruled class rather than
+  re-deciding it. Blocks 167 -> 163, simulated before any code with both the seed renames AND the
+  derived-column renames in memory, and measured identical term for term. **63 doc() re-points, 19
+  TEAM-side.**
+
+  ⛔ **`goals_for` CONTAINS THE STEM, so `!131`'s defect class was everywhere.** The scoreline guard
+  widened from one companion token to the family — goals_for, goals_against, goals_home, goals_away,
+  goals_diff, standing_goals_diff, goals_own — still scoped to the construct. Asserted over the whole
+  diff: **zero** renamed tokens beside a scoreline field, and `export_site_data.py:1044/1046`
+  (`"goals": r.get("goals_home")`) byte-identical — the exact line-shape that failed `!131`.
+
+  ⛔⛔ **STEP 4 IS COMPLETE, AND THE `__team`/`__player` SPLIT NOW HAS NO LIVE INSTANCE.** All six
+  dual-entity ids have been renamed across the seven batches; no metric in the catalogue disagrees
+  across entities any more. `sync_metric_docs_blocks.py`'s docstring used `goals_open_play` as its
+  worked example, the last one standing; it is rewritten to state the rule and mark every such
+  example historical. **Nothing was deleted** — `_derived()` still suffixes unconditionally,
+  `_blocks()` still splits and still aborts, the synthetic fixtures stay, and one new seed row
+  recreates the collision. Whether a guard with no live instance should remain is the CPO's, and it
+  is the one item this programme leaves open.
+
+  #99 came due exactly where the handover predicted — the export's literal board keys `"goals"`,
+  `"assists"`, `"scorer_points"` follow the mart's metric_key — and remains pinned by no test.
+  #96 was narrow: 2 entries in one list, five lists protected-only.
+
+  ⛔⛔ **AND THE ROUND-2 LESSON IS ABOUT THE REVIEW MACHINERY, NOT THE CODE.** The first round-2
+  attempt handed all five reviewers a **STALE `review_input.patch`** — the round-1 diff — and two of
+  them FAILed on defects that had already been fixed, quoting patch offsets that no longer existed.
+  Cause: `git_discipline.py --review-patch` **PRINTS to stdout**, and builds from
+  `git diff --staged <base>`. Run bare, with nothing staged, it emits to the terminal and leaves the
+  previous round's file untouched on disk — **exit 0, no warning**. The correct call is
+  `--review-patch > .claude/task/review_input.patch` after `git add -u`.
+  ⭐ **The free tell**: `--staged-hash` printed `e3b0c442…`, which is `sha256("")`. The hook's own
+  docstring names that exact value as the signature of a review binding covering ZERO bytes.
+  ⭐ **The cross-check that found it in one step**: `analytics-engineer` was reading the FILES and
+  reported the prose clean repo-wide; `platform` was reading the PATCH and reported it corrupted.
+  **Two reviewers contradicting each other on the same tokens means the ARTIFACT is wrong, not the
+  code.** Verified after: 0 hits on disk for all eleven round-1 defect strings.
+  ⚠ This is `feedback_review_exclude_false_positive`'s class again — a reviewer reasoning
+  confidently from an artifact that does not represent the tree — and it is the third distinct way
+  this repo has produced one. The trap is now in `active_work.md`.
+
+  ⛔⛔ **AND THE REAL ROUND 2, ON THE CORRECT PATCH, CAME BACK 4 PASS / 1 FAIL.**
+  `analytics-engineer` found two SQL comments quoting the finishing-efficiency formula as
+  `(goals − goals_penalty_player)` directly above code computing `(goals_player -
+  goals_penalty_player)` — a **formula quoted in a comment, half-renamed**, so the sentence
+  contradicted the three lines beneath it.
+  ⭐ **It is the SAME construct the markdown `numerator` column had already fixed** at
+  `12_player_stats.md:142`; the role rule simply had no reach outside a table. `in_operand_position()`
+  gives it one — a token inside parentheses that hold BOTH an arithmetic operator and another
+  underscored identifier is an operand. Census over every comment line carrying a bare swept token:
+  **26 occurrences, the rule moves exactly 2 and keeps all 24** ("own goals", "Penalty goals",
+  `group=goals`, and an ORDER BY description over PROVIDER columns).
+
+  ⛔⛔ **THE HONEST SUMMARY OF THIS MR: I SET ONE RULE THREE TIMES AND REVIEW CAUGHT IT EACH TIME.**
+  Too wide (English prose rewritten, shipped to BigQuery by `persist_docs`), too narrow (identifier
+  references in doc tables left stale), then right inside markdown tables and blind outside them.
+  One root — **a scope coarser than the role it had to resolve**, which is the same sentence `!131`
+  ended on. **Every gate was green at all three stages.** The blinded review is the only thing that
+  found any of it, which is now four MRs running.

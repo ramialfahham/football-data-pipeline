@@ -290,8 +290,8 @@ models:
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
       - name: cards_yellow_player
@@ -384,7 +384,7 @@ models:
       - name: home_away
         description: "{{ doc('home_away') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: opponent_name
@@ -464,7 +464,7 @@ models:
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
 
@@ -568,7 +568,7 @@ models:
       - name: cards_red
         description: "{{ doc('cards_red_player') }}"
       - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed
         description: "{{ doc('penalty_committed_player') }}"
       - name: penalty_scored
@@ -676,7 +676,7 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: goal_diff
@@ -1055,8 +1055,8 @@ models:
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
         description: "{{ doc('offsides_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
       - name: cards_yellow_player
@@ -1228,7 +1228,7 @@ models:
         description: "{{ doc('losses') }}"
         tests: [not_null]
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
         tests: [not_null]
       - name: goals_against
         description: "{{ doc('goals_against') }}"
@@ -1376,10 +1376,10 @@ models:
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
       - name: minutes
-      - name: goals
-        description: "{{ doc('goals__player') }}"
-      - name: assists
-        description: "{{ doc('assists') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_player
@@ -1410,8 +1410,8 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
       - name: saves_player
@@ -1428,18 +1428,18 @@ models:
         description: "{{ doc('saves_player_pct') }}"
       - name: yoy_appearances_cutoff
         description: "{{ doc('yoy_appearances_cutoff') }}"
-      - name: goals_this_season
-        description: "{{ doc('goals_this_season__player') }}"
-      - name: goals_prev_season
-        description: "{{ doc('goals_prev_season__player') }}"
-      - name: goals_delta_yoy
-        description: "{{ doc('goals_delta_yoy__player') }}"
-      - name: assists_this_season
-        description: "{{ doc('assists_this_season__player') }}"
-      - name: assists_prev_season
-        description: "{{ doc('assists_prev_season__player') }}"
-      - name: assists_delta_yoy
-        description: "{{ doc('assists_delta_yoy__player') }}"
+      - name: goals_player_this_season
+        description: "{{ doc('goals_player_this_season__player') }}"
+      - name: goals_player_prev_season
+        description: "{{ doc('goals_player_prev_season__player') }}"
+      - name: goals_player_delta_yoy
+        description: "{{ doc('goals_player_delta_yoy__player') }}"
+      - name: assists_player_this_season
+        description: "{{ doc('assists_player_this_season__player') }}"
+      - name: assists_player_prev_season
+        description: "{{ doc('assists_player_prev_season__player') }}"
+      - name: assists_player_delta_yoy
+        description: "{{ doc('assists_player_delta_yoy__player') }}"
       - name: shots_on_goal_player_this_season
         description: "{{ doc('shots_on_goal_player_this_season__player') }}"
       - name: shots_on_goal_player_prev_season
@@ -1457,21 +1457,21 @@ models:
         description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
       - name: appearances_prev_full
         description: "{{ doc('appearances_prev_full') }}"
-      - name: goals_prev_season_full
-        description: "{{ doc('goals_prev_season_full__player') }}"
-      - name: assists_prev_season_full
-        description: "{{ doc('assists_prev_season_full__player') }}"
+      - name: goals_player_prev_season_full
+        description: "{{ doc('goals_player_prev_season_full__player') }}"
+      - name: assists_player_prev_season_full
+        description: "{{ doc('assists_player_prev_season_full__player') }}"
       - name: shots_on_goal_player_prev_season_full
         description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: passes_key_player_prev_season_full
       - name: defensive_actions_player_prev_season_full
         description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
-      - name: scorer_points
-        description: "{{ doc('scorer_points') }}"
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
       - name: team_goals_season
         description: "{{ doc('team_goals_season') }}"
-      - name: contribution_share
-        description: "{{ doc('contribution_share') }}"
+      - name: contribution_player_pct
+        description: "{{ doc('contribution_player_pct') }}"
 
   - name: mart_player_match_log
     description: >
@@ -1528,7 +1528,7 @@ models:
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: player_name
@@ -1678,7 +1678,7 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: meetings_last5
@@ -1753,7 +1753,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["goals_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -1799,10 +1799,10 @@ models:
       # breakdown values the UI shows alongside sort_value (the board's own ranked metric).
       - name: appearances
       - name: minutes
-      - name: goals
-        description: "{{ doc('goals__player') }}"
-      - name: assists
-        description: "{{ doc('assists') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
       - name: dribbles_attempts_player
@@ -1827,8 +1827,8 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
-      - name: scorer_points
-        description: "{{ doc('scorer_points') }}"
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
       - name: defensive_actions_player
         description: "{{ doc('defensive_actions_player') }}"
       - name: cards_player
@@ -1945,7 +1945,7 @@ models:
       - name: opponent_name
       - name: opponent_logo_url
       - name: goals_for
-        description: "{{ doc('goals__team') }}"
+        description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: has_result
@@ -2327,7 +2327,7 @@ models:
       - name: team_name
       - name: team_logo_url
       - name: team_country
-      - name: goals
-        description: "{{ doc('goals__player') }}"
-      - name: assists
-        description: "{{ doc('assists') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"

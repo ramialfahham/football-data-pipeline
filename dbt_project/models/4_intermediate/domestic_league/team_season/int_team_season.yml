@@ -98,11 +98,11 @@ models:
       - name: goals_for_sum_season
       - name: goals_against_sum_season
       - name: goals_penalty
-        description: "{{ doc('goals_penalty__team') }}"
+        description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: goals_open_play
-        description: "{{ doc('goals_open_play__team') }}"
+        description: "{{ doc('goals_open_play') }}"
       - name: total_shots_sum_season
       - name: opponent_total_shots_sum_season
       - name: shots_inside_box_sum_season
@@ -234,11 +234,11 @@ models:
       - name: goals_for_sum_season
       - name: goals_against_sum_season
       - name: goals_penalty
-        description: "{{ doc('goals_penalty__team') }}"
+        description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: goals_open_play
-        description: "{{ doc('goals_open_play__team') }}"
+        description: "{{ doc('goals_open_play') }}"
       - name: total_shots_sum_season
       - name: opponent_total_shots_sum_season
       - name: shots_inside_box_sum_season
@@ -480,12 +480,12 @@ models:
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
       - name: minutes
-      - name: goals
-        description: "{{ doc('goals__player') }}"
-      - name: goals_penalty
-        description: "{{ doc('goals_penalty__player') }}"
-      - name: assists
-        description: "{{ doc('assists') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: goals_penalty_player
+        description: "{{ doc('goals_penalty_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: shots_player
         description: "{{ doc('shots_player') }}"
       - name: shots_on_goal_player
@@ -518,18 +518,18 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
-      - name: penalty_won
-        description: "{{ doc('penalty_won') }}"
+      - name: penalty_won_player
+        description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
-      - name: goals_open_play
-        description: "{{ doc('goals_open_play__player') }}"
-      - name: scorer_points
-        description: "{{ doc('scorer_points') }}"
+      - name: goals_open_play_player
+        description: "{{ doc('goals_open_play_player') }}"
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
       - name: defensive_actions_player
         description: "{{ doc('defensive_actions_player') }}"
       - name: cards_player
