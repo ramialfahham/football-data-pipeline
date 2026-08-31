@@ -108,10 +108,10 @@ aggregated as (
         sum(coalesce(tackles_total, 0)) as tackles_player,
         sum(coalesce(tackles_interceptions, 0)) as interceptions_player,
         sum(coalesce(tackles_blocks, 0)) as blocks_player,
-        sum(coalesce(duels_total, 0)) as duels_total,
-        sum(coalesce(duels_won, 0)) as duels_won,
-        sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
-        sum(coalesce(dribbles_success, 0)) as dribbles_success,
+        sum(coalesce(duels_total, 0)) as duels_player,
+        sum(coalesce(duels_won, 0)) as duels_won_player,
+        sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts_player,
+        sum(coalesce(dribbles_success, 0)) as dribbles_success_player,
         sum(coalesce(saves, 0)) as saves,
         sum(coalesce(goals_against, 0)) as goals_against
     from per_fixture
@@ -138,10 +138,10 @@ select
     tackles_player,
     interceptions_player,
     blocks_player,
-    duels_total,
-    duels_won,
-    dribbles_attempts,
-    dribbles_success,
+    duels_player,
+    duels_won_player,
+    dribbles_attempts_player,
+    dribbles_success_player,
     saves,
     goals_against,
     -- count composites (sums of the atoms above) — metric_catalogue rows
@@ -149,8 +149,8 @@ select
     tackles_player + interceptions_player + blocks_player as defensive_actions_player,
     -- rates: NULL when the denominator is zero (never coerced to 0)
     safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
-    safe_divide(duels_won, duels_total) as duels_won_pct,
-    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
+    safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
+    safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(saves, nullif(saves + goals_against, 0)) as save_pct,
     -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty) /
     -- shots_on_goal_player. NULL when shots_on_goal_player is zero or the numerator falls outside
@@ -166,7 +166,7 @@ select
     safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
     safe_divide(shots_on_goal_player * 90, minutes) as shots_on_goal_per90,
     safe_divide(passes_key_player * 90, minutes) as passes_key_per90,
-    safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
+    safe_divide(dribbles_success_player * 90, minutes) as dribbles_success_per90,
     safe_divide(passes_player * 90, minutes) as passes_per90,
     safe_divide(tackles_player * 90, minutes) as tackles_per90,
     safe_divide(interceptions_player * 90, minutes) as interceptions_per90,
@@ -174,6 +174,6 @@ select
     safe_divide(
         (tackles_player + interceptions_player + blocks_player) * 90, minutes
     ) as defensive_actions_per90,
-    safe_divide(duels_won * 90, minutes) as duels_won_per90,
+    safe_divide(duels_won_player * 90, minutes) as duels_won_per90,
     safe_divide(saves * 90, minutes) as saves_per90
 from aggregated

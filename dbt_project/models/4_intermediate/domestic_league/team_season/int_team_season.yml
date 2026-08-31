@@ -155,7 +155,7 @@ models:
       - name: duels_per_match
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__team') }}"
+        description: "{{ doc('duels_won_pct') }}"
       - name: season_matchdays_used
 
   - name: int_team_season__metrics_cumulative
@@ -295,7 +295,7 @@ models:
       - name: duels_per_match
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__team') }}"
+        description: "{{ doc('duels_won_pct') }}"
 
   - name: int_team_season__deserved_vs_actual
     description: >
@@ -431,7 +431,7 @@ models:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: int_player_season_passes_accuracy_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1) and (finishing_efficiency_player_pct is null or finishing_efficiency_player_pct between 0 and 1)"
+          expression: "(duels_won_player_pct is null or duels_won_player_pct between 0 and 1) and (dribbles_success_player_pct is null or dribbles_success_player_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1) and (finishing_efficiency_player_pct is null or finishing_efficiency_player_pct between 0 and 1)"
           name: int_player_season_ratios_in_range
       # per-90 metrics (benchmark inputs) are unbounded above but can never be negative — a sign-flip
       # or a bad numerator would trip this. NULL is allowed (minutes = 0).
@@ -502,14 +502,14 @@ models:
         description: "{{ doc('interceptions_player') }}"
       - name: blocks_player
         description: "{{ doc('blocks_player') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
       - name: dribbles_past_player
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
@@ -534,10 +534,10 @@ models:
         description: "{{ doc('defensive_actions_player') }}"
       - name: cards_player
         description: "{{ doc('cards_player') }}"
-      - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__player') }}"
-      - name: dribbles_success_pct
-        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
       - name: finishing_efficiency_player_pct

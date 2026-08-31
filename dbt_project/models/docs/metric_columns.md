@@ -321,7 +321,7 @@ disappear together, so a team never shows one without the other.
 {% enddocs %}
 
 
-{% docs dribbles_attempts %}
+{% docs dribbles_attempts_player %}
 Dribble attempts.
 {% enddocs %}
 
@@ -331,18 +331,18 @@ Times dribbled past by an opponent.
 {% enddocs %}
 
 
-{% docs dribbles_success %}
+{% docs dribbles_success_per90 %}
+Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+{% enddocs %}
+
+
+{% docs dribbles_success_player %}
 Successful dribbles.
 {% enddocs %}
 
 
-{% docs dribbles_success_pct %}
+{% docs dribbles_success_player_pct %}
 Dribble success rate. Null when dribbles_attempts is zero.
-{% enddocs %}
-
-
-{% docs dribbles_success_per90 %}
-Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 {% enddocs %}
 
 
@@ -377,33 +377,13 @@ through the matches played so far.
 {% enddocs %}
 
 
-{% docs duels_total %}
+{% docs duels_player %}
 Total duels contested.
 {% enddocs %}
 
 
-{% docs duels_won %}
-Duels won. A duel is any 1v1 physical contest (ground and aerial pooled).
-{% enddocs %}
-
-
-{% docs duels_won_pct__player %}
-Duel win rate. Null when duels_total is zero.
-{% enddocs %}
-
-
-{% docs duels_won_pct__team %}
+{% docs duels_won_pct %}
 Duel win rate. Null when duels_total is zero. Aggregated from player stats.
-{% enddocs %}
-
-
-{% docs duels_won_pct_delta_yoy__player %}
-Duel win rate. Null when duels_total is zero. The change from the previous season to the
-current one, compared at the same point of the campaign: the current value minus the previous
-one. NULL when there is no prior season at this club to compare against, which covers a
-transfer, a first season at this level and a prior season that was never loaded, and NULL for a
-competition that carries no year-on-year comparison at all, such as a cup, a qualifying
-campaign or an international tournament.
 {% enddocs %}
 
 
@@ -416,24 +396,11 @@ first matches are not fully stat-covered.
 {% enddocs %}
 
 
-{% docs duels_won_pct_prev_season__player %}
-Duel win rate. Null when duels_total is zero. Value for the season before, through the same
-number of matches as the current season has played so far, so the two are compared at the same
-point of a campaign rather than a part season against a full one.
-{% enddocs %}
-
-
 {% docs duels_won_pct_prev_season__team %}
 Duel win rate. Null when duels_total is zero. Aggregated from player stats. Value for the
 season before, through the same number of matches as the current season has played so far, so
 the two are compared at the same point of a campaign rather than a part season against a full
 one.
-{% enddocs %}
-
-
-{% docs duels_won_pct_this_season__player %}
-Duel win rate. Null when duels_total is zero. Value for the season now in progress, accumulated
-through the matches played so far.
 {% enddocs %}
 
 
@@ -445,6 +412,16 @@ season now in progress, accumulated through the matches played so far.
 
 {% docs duels_won_per90 %}
 Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+{% enddocs %}
+
+
+{% docs duels_won_player %}
+Duels won. A duel is any 1v1 physical contest (ground and aerial pooled).
+{% enddocs %}
+
+
+{% docs duels_won_player_pct %}
+Duel win rate. Null when duels_total is zero.
 {% enddocs %}
 
 

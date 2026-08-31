@@ -96,14 +96,14 @@ models:
         description: "{{ doc('interceptions_player') }}"
       - name: blocks_player
         description: "{{ doc('blocks_player') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
       - name: dribbles_past_player
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player

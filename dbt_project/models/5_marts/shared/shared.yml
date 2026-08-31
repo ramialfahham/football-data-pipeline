@@ -203,7 +203,7 @@ models:
       - name: duels_per_match
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__team') }}"
+        description: "{{ doc('duels_won_pct') }}"
 
   - name: mart_player_momentum
     description: >
@@ -211,7 +211,7 @@ models:
       as mart_team_momentum. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
       Raw counts (goals, assists, cards, …) pass through unchanged from the builder. The ratios —
-      save_pct, dribbles_success_pct, passes_accuracy_player_pct, duels_won_pct — are computed here with
+      save_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct — are computed here with
       safe_divide, so a zero denominator gives NULL rather than an error.
 
       save_pct is only meaningful for goalkeepers (position_code = 'G').
@@ -278,14 +278,14 @@ models:
         description: "{{ doc('blocks_player') }}"
       - name: interceptions_player
         description: "{{ doc('interceptions_player') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
       - name: dribbles_past_player
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
@@ -300,12 +300,12 @@ models:
         description: "{{ doc('cards_red_player') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
-      - name: dribbles_success_pct
-        description: "{{ doc('dribbles_success_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
-      - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__player') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
       - name: top_player_rank
         description: "1 for the player picked first on this side for this fixture, then 2, 3 and so on, ordered by goals, then assists, then key passes over the form window. It is a selection order, not a rating: ties are broken so that no two players share a rank."
 
@@ -550,13 +550,13 @@ models:
       - name: tackles_interceptions
         description: "{{ doc('interceptions_player') }}"
       - name: duels_total
-        description: "{{ doc('duels_total') }}"
+        description: "{{ doc('duels_player') }}"
       - name: duels_won
-        description: "{{ doc('duels_won') }}"
+        description: "{{ doc('duels_won_player') }}"
       - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
+        description: "{{ doc('dribbles_attempts_player') }}"
       - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+        description: "{{ doc('dribbles_success_player') }}"
       - name: dribbles_past
         description: "{{ doc('dribbles_past_player') }}"
       - name: fouls_drawn
@@ -724,7 +724,7 @@ models:
       - name: duels_per_match
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__team') }}"
+        description: "{{ doc('duels_won_pct') }}"
       - name: defensive_actions_per_match
         description: "{{ doc('defensive_actions_per_match') }}"
       - name: shots_share_pct
@@ -966,7 +966,7 @@ models:
       - name: duels_per_match
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__team') }}"
+        description: "{{ doc('duels_won_pct') }}"
 
   - name: mart_player_season_record
     description: >
@@ -986,11 +986,11 @@ models:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: std_player_passes_accuracy_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
-          name: std_player_duels_won_pct_in_range
+          expression: "duels_won_player_pct is null or (duels_won_player_pct between 0 and 1)"
+          name: std_player_duels_won_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
-          name: std_player_dribbles_success_pct_in_range
+          expression: "dribbles_success_player_pct is null or (dribbles_success_player_pct between 0 and 1)"
+          name: std_player_dribbles_success_player_pct_in_range
     columns:
       - name: upcoming_fixture_sk
         description: "{{ doc('upcoming_fixture_sk') }}"
@@ -1043,14 +1043,14 @@ models:
         description: "{{ doc('blocks_player') }}"
       - name: interceptions_player
         description: "{{ doc('interceptions_player') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
       - name: dribbles_past_player
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
@@ -1065,12 +1065,12 @@ models:
         description: "{{ doc('cards_red_player') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
-      - name: dribbles_success_pct
-        description: "{{ doc('dribbles_success_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
-      - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__player') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
 
   - name: mart_standings
     description: >
@@ -1269,11 +1269,11 @@ models:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: player_profile_passes_accuracy_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
-          name: player_profile_duels_won_pct_in_range
+          expression: "duels_won_player_pct is null or (duels_won_player_pct between 0 and 1)"
+          name: player_profile_duels_won_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
-          name: player_profile_dribbles_success_pct_in_range
+          expression: "dribbles_success_player_pct is null or (dribbles_success_player_pct between 0 and 1)"
+          name: player_profile_dribbles_success_player_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "save_pct is null or (save_pct between 0 and 1)"
           name: player_profile_save_pct_in_range
@@ -1394,14 +1394,14 @@ models:
         description: "{{ doc('interceptions_player') }}"
       - name: blocks_player
         description: "{{ doc('blocks_player') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
       - name: dribbles_past_player
         description: "{{ doc('dribbles_past_player') }}"
       - name: offsides_player
@@ -1420,10 +1420,10 @@ models:
         description: "{{ doc('shots_on_goal_against') }}"
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
-      - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__player') }}"
-      - name: dribbles_success_pct
-        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
       - name: yoy_appearances_cutoff
@@ -1562,13 +1562,13 @@ models:
       - name: tackles_interceptions
         description: "{{ doc('interceptions_player') }}"
       - name: duels_total
-        description: "{{ doc('duels_total') }}"
+        description: "{{ doc('duels_player') }}"
       - name: duels_won
-        description: "{{ doc('duels_won') }}"
+        description: "{{ doc('duels_won_player') }}"
       - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
+        description: "{{ doc('dribbles_attempts_player') }}"
       - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+        description: "{{ doc('dribbles_success_player') }}"
       - name: fouls_drawn
         description: "{{ doc('fouls_drawn') }}"
       - name: fouls_committed
@@ -1733,11 +1733,11 @@ models:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: mart_leaderboards_passes_accuracy_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
-          name: mart_leaderboards_duels_won_pct_in_range
+          expression: "duels_won_player_pct is null or (duels_won_player_pct between 0 and 1)"
+          name: mart_leaderboards_duels_won_player_pct_in_range
       - dbt_utils.expression_is_true:
-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
-          name: mart_leaderboards_dribbles_success_pct_in_range
+          expression: "dribbles_success_player_pct is null or (dribbles_success_player_pct between 0 and 1)"
+          name: mart_leaderboards_dribbles_success_player_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "save_pct is null or (save_pct between 0 and 1)"
           name: mart_leaderboards_save_pct_in_range
@@ -1753,7 +1753,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success", "passes_player", "passes_key_player", "duels_won", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
+              values: ["goals", "scorer_points", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "save_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -1805,18 +1805,18 @@ models:
         description: "{{ doc('assists') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
       - name: passes_player
         description: "{{ doc('passes_player') }}"
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
       - name: tackles_player
         description: "{{ doc('tackles_player') }}"
       - name: interceptions_player
@@ -1837,10 +1837,10 @@ models:
       # atom; each is the ranked value of its own board. Null when the denominator is zero.
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
-      - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__player') }}"
-      - name: dribbles_success_pct
-        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
       - name: finishing_efficiency_player_pct
@@ -2139,7 +2139,7 @@ models:
       # per-90 metrics do not. num AND den are non-null EXACTLY on the ratio rows (and, since a ranked row
       # always has a non-null metric_value, safe_divide guarantees a non-null, non-zero den there).
       - dbt_utils.expression_is_true:
-          expression: "(metric_key in ('save_pct', 'passes_accuracy_player_pct', 'finishing_efficiency_player_pct', 'dribbles_success_pct', 'duels_won_pct')) = (metric_numerator is not null and metric_denominator is not null)"
+          expression: "(metric_key in ('save_pct', 'passes_accuracy_player_pct', 'finishing_efficiency_player_pct', 'dribbles_success_player_pct', 'duels_won_player_pct')) = (metric_numerator is not null and metric_denominator is not null)"
           name: mart_competition_benchmarks_player_ratio_atoms_present
     columns:
       - name: player_benchmark_sk
@@ -2183,21 +2183,21 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "save_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]
       - name: metric_numerator
         description: >
-          The count behind a RATIO metric's percentage — duels_won for duels_won_pct, for example
+          The count behind a RATIO metric's percentage — duels_won_player for duels_won_player_pct, for example
           — so the rate can always be shown with the volume it rests on.
 
           Non-null ONLY on the five ratio rows (save_pct, passes_accuracy_player_pct, finishing_efficiency_player_pct,
-          dribbles_success_pct, duels_won_pct), and NULL on the per-90 rows, which have no such
+          dribbles_success_player_pct, duels_won_player_pct), and NULL on the per-90 rows, which have no such
           pair. From int_player_season_position__metrics, gated identically to metric_value.
       - name: metric_denominator
         description: >
-          The denominator behind a ratio metric's percentage, e.g. duels_total. Non-null on
+          The denominator behind a ratio metric's percentage, e.g. duels_player. Non-null on
           exactly the same rows as metric_numerator, and NULL on the per-90 rows.
       - name: peer_mean
         description: "Mean peer value this league-season-position (skew-sensitive)."

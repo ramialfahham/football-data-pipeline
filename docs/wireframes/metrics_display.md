@@ -119,7 +119,7 @@ N" + vs-median, honest at N≈18) — never a percentile.
    the team one for no remaining reason. Were a neutral metric ever added back to this set, it renders
    uncoloured, exactly as the team rule already prescribes.)
 6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `passes_accuracy_player_pct`,
-   `finishing_efficiency_player_pct`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
+   `finishing_efficiency_player_pct`, `dribbles_success_player_pct`, `duels_won_player_pct`) render the triple `{num} of {den} ·
    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
 
 ## Team metrics — LOCKED (CPO, 2026-06-11)
@@ -218,7 +218,7 @@ Any locale that compounds (Dutch is next) inherits all of this.
 **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
 comparison): `shots_on_goal_pct` (% shots on target — superseded by the Ø-shots vs
 Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /
-`blocks_per_match` (sub-display of row 10 only), `dribbles_success_pct`
+`blocks_per_match` (sub-display of row 10 only), `dribbles_success_player_pct`
 (dropped team-side; stays a player metric), `points_won` + `league_rank`
 (window header / standing chip, not metric rows).
 
@@ -256,8 +256,8 @@ mixes groups; (3) ratio displays standardized to the full triple
 |---|---|---|---|---|
 | 1 | Scorer points | `{goals} G · {assists} A` | goals, assists | Goals |
 | 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
-| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won, duels_total, duels_won_pct | Duels |
-| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success, dribbles_attempts, dribbles_success_pct | Duels |
+| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | Duels |
+| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | Duels |
 | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
 | 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
 | 7 | Key passes | `{count}` | passes_key_player | Passing |

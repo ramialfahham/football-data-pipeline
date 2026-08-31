@@ -1,70 +1,79 @@
-# Rendered page evidence — step 4 MR 4, the player `passing` metrics
+# Rendered page evidence — step 4 MR 5, the player `duels` metrics
 
-Branch `refactor/metric-rename-player-passing`, base main `1cf0d40`.
+Branch `refactor/metric-rename-player-duels`, base main `9ea88b5`.
 
 Read from `site_v2/dist/` after `npm run build` (66 pages, 57 fixture pages, `audit-seo: 67 built
 page(s) checked. OK.`) — never from source, never from `outerHTML`. HTML comments stripped and
 whitespace collapsed before any comparison, because Astro splits interpolated text with `<!-- -->`.
 
-**BOTH SIDES WERE BUILT.** The 33 changed files were stashed by explicit path, `npm run build` run
-at base content, the dist measured, the stash popped and the tree confirmed back at 33 modified.
+**BOTH SIDES WERE BUILT.** The 33 changed files were stashed by explicit path under a `TEMP-`
+label, `npm run build` run at base content (tree confirmed at 0 modified), the dist measured, the
+stash popped and the tree confirmed back at 33 modified.
 
-| | base (`1cf0d40`) | after |
+| | base (`9ea88b5`) | after |
 |---|---|---|
 | metric rows per comparison block — EN / DE / FI | 12 / 12 / 12 | **12 / 12 / 12** |
 | group headings per block | 7 / 7 / 7 | **7 / 7 / 7** |
 | distinct rendered labels | 12 / 12 / 12 | **12 / 12 / 12** |
 | names ADDED / REMOVED | — | **none / none** |
 
-Across all **19** fixture pages in each locale, both windows. Whole-token grep over the whole of
-`site_v2/dist` finds all five old names in **0** built files.
+Across all **19** fixture pages in each locale, both windows. The branch measurement was taken
+twice, from two separate builds, and reproduces byte-identically.
 
-## ⛔⛔ This measurement CONFIRMS A PREDICTION here — it does not discriminate
+Whole-token grep over the whole of `site_v2/dist` finds all four old stems in **0** files — and all
+four new names in **0** files as well. Nothing in this batch reaches the frontend in either
+direction.
 
-`!128` was the exception in this programme: there `defensive_actions_per_match` genuinely rendered,
-so a mis-scope would have deleted a visible label and the comparison would have caught it. **I
-carried that framing into this batch and it is wrong.** Measured:
+## ⛔⛔ I CLAIMED THIS COMPARISON DISCRIMINATED. I MEASURED IT. IT DOES NOT.
 
-  - `site_v2/src/lib/metricRows.ts` declares **16** rows; **12** render. ⚠ An earlier draft said 17,
-    counting `field:` string occurrences and so double-counting the nested `team:` override on the
-    `clean_sheets` row. Corrected after `bi-analyst-reviewer` and `platform-reviewer` each
-    re-derived it independently; the conclusion below is unchanged.
-  - The twelve rendered EN labels are `% Duels won · % Save percentage · Clean sheets · Ø Corners ·
-    Ø Corners against · Ø Defensive actions… · Ø Duels · Ø Goals · Ø Goals against · Ø Passes ·
-    Ø Shots · Ø Shots on target`.
-  - **"Ø Key passes" is not among them.** `passes_key_per_match` is one of the rows the committed
-    sample cannot feed, and whole-token grep finds its label on **zero** built pages.
+The contract's first draft said: `"% Duels won"` and `"Ø Duels"` are among the 12 rendered rows, so
+mis-scoping the TEAM `duels_won_pct` would delete a visible label and this comparison would catch
+it. That was reasoning, not evidence, so it was tested — `duels_won_pct` → `duels_won_player_pct`
+applied to `metricRows.ts` and `strings.ts` exactly as a mis-scope would, then `npm run build`:
 
-So an unchanged build here is the same weak evidence it was on `!125` and `!127` — it is exactly
-what doing no work also produces, the shape the CPO rejected on `!114`.
+**The build never completes.** `prebuild` is `npm test && node scripts/check-page-specs.mjs`, and
+both fail before Astro renders anything. There is no dist to compare, so the comparison cannot be
+what catches it. ⚠ On the first attempt this nearly went unnoticed: the failed build left the
+PREVIOUS dist in place, and measuring it printed a perfectly healthy `"% Duels won"`. A stale
+artifact reported as a fresh measurement is the same shape as reading `tail`'s exit code instead of
+the gate's.
 
-## ⭐ What actually guards the protected team row
+So this table is the same evidence class as `!125`, `!127` and `!129`: it confirms the delivered
+tree is correct. **It is not a discriminating check**, and `!128` remains the only batch of step 4
+where the dist comparison would itself have caught a mis-scope.
 
-`site_v2/scripts/check-metric-labels.test.mjs` extracts every `labelKey` from `metricRows.ts` and
-asserts, **in both directions and in all three locales**, that each is defined in `strings.ts` and
-that no defined label goes unasked. Rename one side of `metrics.passes_key_per_match.label` without
-the other and `npm test` goes red. It passed 76/76.
+## ⭐ What actually discriminates — measured under the same mis-scope
 
-⚠ `!125` measured that this guard's covered set is entirely TEAM `metrics.*` keys and reaches none
-of the 35 player metrics — which is precisely why it is load-bearing **here**, where the thing at
-risk is a team row rather than a renamed player metric.
+**1. `npm test`, 75 pass / 1 fail:**
 
-## ⭐ The frontend changes for the first time in step 4
+    ✖ every labelKey is a label_i18n_key the catalogue actually declares
+      AssertionError: label keys the catalogue does not declare in label_i18n_key:
+      metrics.duels_won_player_pct.label. Read the column; never infer the key from
+      the metric_id or the payload field.
 
-`site_v2/src/lib/types.ts` is the **only** file under `site_v2/` that changes, and it changes one
-token: `passes_key?: number | null` → `passes_key_player?: number | null` on the `TopPlayer`
-interface. `top_players[]` is built from `mart_player_momentum` (`export_site_data.py:871`), which
-renames that column, so the type would otherwise declare a field the payload stops carrying. Its
-neighbours in that interface (`goals_total`, `goals_assists`, `saves`, `shots_on`) are leg names
-that pass through unrenamed.
+⭐ **This is a stronger guard than the one `!129` named.** That MR pointed at
+`check-metric-labels.test.mjs`'s `metricRows.ts` ↔ `strings.ts` binding, which a consistent
+two-sided rename would satisfy. The assertion that actually fires binds `metricRows.ts` to the
+**SEED's `label_i18n_key` column** — and the team row keeps `metrics.duels_won_pct.label`, so no
+edit of the two frontend files alone can satisfy it. On the delivered tree: **76/76**.
 
-**No component reads it**, so the built pages still do not change — but MRs 1–3 each asserted an
-empty `site_v2/` diff, and repeating that here would have been the same inherited-claim defect that
-cost `!128` two review rounds.
+**2. `check-page-specs.mjs`, exit 1**, read UNPIPED (`> file 2>&1` then `$?`, not through `tail`):
 
-The other four swept frontend files — `i18n/strings.ts`, `lib/metricRows.ts` and both page specs —
-are byte-identical and still carry `passes_key_per_match`, verified individually rather than by the
-empty diff alone.
+    - specs/teams/team.spec.json: blocks[4] … i18n key "metrics.duels_won_pct.label"
+      does not exist in the EN dict
+    - specs/competition/matches/fixture.spec.json: blocks[1] … same
+
+Two independent bindings, both in `prebuild`, both pointing at the seed and the specs rather than at
+the two files a mis-scope would touch.
+
+## The frontend does not change at all this batch
+
+`git diff --name-only -- site_v2/` is **empty**, and that is re-derived here rather than inherited:
+`!129` was the first frontend source change of step 4 and said so loudly, so the opposite claim had
+to be measured, not assumed — carrying a previous batch's claim forward is what cost `!128` two
+rounds. All four swept frontend files were checked individually and still carry the TEAM keys
+(`strings.ts` 3, `metricRows.ts` 1, both page specs 1 each), and no new name appears anywhere under
+`site_v2/src/` outside the committed sample.
 
 ## Row count in context
 

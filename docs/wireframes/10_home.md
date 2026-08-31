@@ -131,8 +131,8 @@ deleted, per this file's own convention.
 
 What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points`
 (goals and assists became boards in their own right, so the combined metric had nothing left to
-combine), every second/context column (`passes_accuracy_player_pct`, `dribbles_success_pct`,
-`duels_won_pct`, `save_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
+combine), every second/context column (`passes_accuracy_player_pct`, `dribbles_success_player_pct`,
+`duels_won_player_pct`, `save_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
 Cards entirely. ⚠ **There is therefore NO GOALKEEPER BOARD** — the four survivors are all
 attacking/possession metrics, so an outfield creator can top every board and a keeper can top none.
 ⚠ The Goals-conceded row's "ASCENDING" note is what GAP-26 was written about; that board no longer
@@ -145,8 +145,8 @@ exists and the gap is VOID.
 |---|---|---|
 | Goal contributions | `goals` · `assists` · `scorer_points` | `scorer_points` |
 | Shots on target | `shots_on_goal_player` | `shots_on_goal_player` |
-| Duels | `duels_won` · `duels_total` · `duels_won_pct` | `duels_total` |
-| Dribbles attempted | `dribbles_attempts` · `dribbles_success` · `dribbles_success_pct` | `dribbles_attempts` |
+| Duels | `duels_won_player` · `duels_player` · `duels_won_player_pct` | `duels_player` |
+| Dribbles attempted | `dribbles_attempts_player` · `dribbles_success_player` · `dribbles_success_player_pct` | `dribbles_attempts_player` |
 | Passes | `passes_player` · `passes_accurate_player` · `passes_accuracy_player_pct` | `passes_player` |
 | Key passes | `passes_key_player` | `passes_key_player` |
 | Tackles | `tackles_player` · `interceptions_player` · `blocks_player` · `defensive_actions_player` | `tackles_player` |
@@ -267,7 +267,7 @@ cut, so building any of it would serve nothing. Struck rather than deleted — t
 foot of this file carries the corrected status of all of them. The bullets AFTER them are still
 live and unchanged.
 
-- ~~**Four new board keys**: `duels_total`, `dribbles_attempts`, `tackles_player`, `goals_against`.
+- ~~**Four new board keys**: `duels_player`, `dribbles_attempts_player`, `tackles_player`, `goals_against`.
   Five of the nine rank metrics already exist as boards: `scorer_points`, `shots_on_goal_player`,
   `passes_player`, `passes_key_player`, `cards_player`.~~ VOID — all four were cut.
 - ~~**Three display columns.** `passes_accurate_player` and `goals_against` exist in
@@ -857,7 +857,7 @@ register row.
 nine-board design; three of those are VOID and three gaps registered since were missing. The
 register is the authority — check it, not this summary.
 
-- ~~**GAP-24** — four new board keys (`duels_total`, `dribbles_attempts`, `tackles_player`,
+- ~~**GAP-24** — four new board keys (`duels_player`, `dribbles_attempts_player`, `tackles_player`,
   `goals_against`).~~ **VOID**: all four metrics were cut by the 2026-08-10 reduction.
 - ~~**GAP-25** — three display columns (`passes_accurate_player`, `goals_against`,
   `shots_on_goal_against`).~~ **VOID**: all three served boards that no longer exist.
