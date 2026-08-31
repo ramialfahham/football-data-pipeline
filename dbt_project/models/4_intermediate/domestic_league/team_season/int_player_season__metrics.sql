@@ -50,10 +50,10 @@ aggregated as (
         sum(tackles_player) as tackles_player,
         sum(interceptions_player) as interceptions_player,
         sum(blocks_player) as blocks_player,
-        sum(duels_total) as duels_total,
-        sum(duels_won) as duels_won,
-        sum(dribbles_attempts) as dribbles_attempts,
-        sum(dribbles_success) as dribbles_success,
+        sum(duels_player) as duels_player,
+        sum(duels_won_player) as duels_won_player,
+        sum(dribbles_attempts_player) as dribbles_attempts_player,
+        sum(dribbles_success_player) as dribbles_success_player,
         sum(dribbles_past_player) as dribbles_past_player,
         sum(offsides_player) as offsides_player,
         sum(cards_yellow_player) as cards_yellow_player,
@@ -88,10 +88,10 @@ select
     tackles_player,
     interceptions_player,
     blocks_player,
-    duels_total,
-    duels_won,
-    dribbles_attempts,
-    dribbles_success,
+    duels_player,
+    duels_won_player,
+    dribbles_attempts_player,
+    dribbles_success_player,
     dribbles_past_player,
     offsides_player,
     cards_yellow_player,
@@ -106,8 +106,8 @@ select
     tackles_player + interceptions_player + blocks_player as defensive_actions_player,
     cards_yellow_player + cards_red_player as cards_player,
     safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
-    safe_divide(duels_won, duels_total) as duels_won_pct,
-    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
+    safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
+    safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(saves, nullif(saves + goals_against, 0)) as save_pct,
     -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty) /
     -- shots_on_goal_player. NULL ('—') when shots_on_goal_player is zero or the numerator falls outside
@@ -124,7 +124,7 @@ select
     safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
     safe_divide(shots_on_goal_player * 90, minutes) as shots_on_goal_per90,
     safe_divide(passes_key_player * 90, minutes) as passes_key_per90,
-    safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
+    safe_divide(dribbles_success_player * 90, minutes) as dribbles_success_per90,
     safe_divide(passes_player * 90, minutes) as passes_per90,
     safe_divide(tackles_player * 90, minutes) as tackles_per90,
     safe_divide(interceptions_player * 90, minutes) as interceptions_per90,
@@ -132,6 +132,6 @@ select
     safe_divide(
         (tackles_player + interceptions_player + blocks_player) * 90, minutes
     ) as defensive_actions_per90,
-    safe_divide(duels_won * 90, minutes) as duels_won_per90,
+    safe_divide(duels_won_player * 90, minutes) as duels_won_per90,
     safe_divide(saves * 90, minutes) as saves_per90
 from aggregated

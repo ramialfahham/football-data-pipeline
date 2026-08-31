@@ -72,14 +72,14 @@ models:
         description: "{{ doc('interceptions_player') }}"
       - name: blocks_player
         description: "{{ doc('blocks_player') }}"
-      - name: duels_total
-        description: "{{ doc('duels_total') }}"
-      - name: duels_won
-        description: "{{ doc('duels_won') }}"
-      - name: dribbles_attempts
-        description: "{{ doc('dribbles_attempts') }}"
-      - name: dribbles_success
-        description: "{{ doc('dribbles_success') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
       - name: saves
         description: "{{ doc('saves__player') }}"
       - name: goals_against
@@ -90,10 +90,10 @@ models:
         description: "{{ doc('defensive_actions_player') }}"
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
-      - name: duels_won_pct
-        description: "{{ doc('duels_won_pct__player') }}"
-      - name: dribbles_success_pct
-        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
       - name: save_pct
         description: "{{ doc('save_pct') }}"
       - name: finishing_efficiency_player_pct

@@ -9,8 +9,8 @@
   players' latest season-to-date row for the fixture's (league_code, season_api_year);
   before-phase fallback to the same competition's previous season (window_type='prev_season').
 
-  Raw counts passed through; ratios (save_pct, passes_accuracy_player_pct, duels_won_pct,
-  dribbles_success_pct) computed here via safe_divide. save_pct is only meaningful for
+  Raw counts passed through; ratios (save_pct, passes_accuracy_player_pct, duels_won_player_pct,
+  dribbles_success_player_pct) computed here via safe_divide. save_pct is only meaningful for
   goalkeepers. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 #}
 
@@ -79,10 +79,10 @@ matched as (
         sf.tackles_player,
         sf.blocks_player,
         sf.interceptions_player,
-        sf.duels_won,
-        sf.duels_total,
-        sf.dribbles_success,
-        sf.dribbles_attempts,
+        sf.duels_won_player,
+        sf.duels_player,
+        sf.dribbles_success_player,
+        sf.dribbles_attempts_player,
         sf.dribbles_past_player,
         sf.offsides_player,
         sf.penalty_won,
@@ -121,10 +121,10 @@ matched as (
         sf.tackles_player,
         sf.blocks_player,
         sf.interceptions_player,
-        sf.duels_won,
-        sf.duels_total,
-        sf.dribbles_success,
-        sf.dribbles_attempts,
+        sf.duels_won_player,
+        sf.duels_player,
+        sf.dribbles_success_player,
+        sf.dribbles_attempts_player,
         sf.dribbles_past_player,
         sf.offsides_player,
         sf.penalty_won,
@@ -171,10 +171,10 @@ select
     tackles_player,
     blocks_player,
     interceptions_player,
-    duels_won,
-    duels_total,
-    dribbles_success,
-    dribbles_attempts,
+    duels_won_player,
+    duels_player,
+    dribbles_success_player,
+    dribbles_attempts_player,
     dribbles_past_player,
     offsides_player,
     penalty_won,
@@ -183,7 +183,7 @@ select
     cards_red_player,
     -- ratios
     safe_divide(saves, saves + goals_against) as save_pct,
-    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
+    safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
-    safe_divide(duels_won, duels_total) as duels_won_pct
+    safe_divide(duels_won_player, duels_player) as duels_won_player_pct
 from chosen

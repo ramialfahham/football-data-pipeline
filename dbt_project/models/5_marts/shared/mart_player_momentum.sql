@@ -5,7 +5,7 @@
 
   Computes final displayed metrics from the raw sums in int_player_momentum__metrics.
   Raw counts (goals, assists, cards, …) are passed through directly. Ratios
-  (save_pct, dribbles_success_pct, passes_accuracy_player_pct, duels_won_pct) are
+  (save_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct) are
   computed here via safe_divide — NULL when denominator is zero.
 
   window_type is carried through from the builder: last_5 for most fixtures, or the
@@ -52,10 +52,10 @@ select
     b.tackles_player,
     b.blocks_player,
     b.interceptions_player,
-    b.duels_won,
-    b.duels_total,
-    b.dribbles_success,
-    b.dribbles_attempts,
+    b.duels_won_player,
+    b.duels_player,
+    b.dribbles_success_player,
+    b.dribbles_attempts_player,
     b.dribbles_past_player,
     b.offsides_player,
     b.penalty_won,
@@ -66,9 +66,9 @@ select
     b.team_sk = f.home_team_sk as is_home,
     -- ratios
     safe_divide(b.saves, b.saves + b.goals_against) as save_pct,
-    safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct,
+    safe_divide(b.dribbles_success_player, b.dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(b.passes_accurate_player, b.passes_player) as passes_accuracy_player_pct,
-    safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
+    safe_divide(b.duels_won_player, b.duels_player) as duels_won_player_pct,
     -- per-side ranking for the top-players strip (GAP-19.2): goals, then assists, then
     -- key passes (the order named in the GAP); ROW_NUMBER = strict pick order, player_sk
     -- breaks ties deterministically. Selection rank, so ROW_NUMBER not DENSE_RANK.

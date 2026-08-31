@@ -110,8 +110,11 @@ WINDOW_PHRASING = re.compile(r"\bwindow\b", re.I)
 # `_this_season`, or `goals_against_per_match_this_season` decomposes to the
 # non-existent metric `goals_against_per_match` and silently emits nothing. The
 # same trap in reverse cost a scratch measurement: a naive stripper read
-# `duels_won_pct_this_season` as `duels_won` + `_pct`, which is a REAL metric, so
-# it would have attached the wrong definition instead of failing.
+# `duels_won_pct_this_season` as `duels_won` + `_pct`, and `duels_won` WAS a real
+# metric id when that was measured, so it would have attached the wrong definition
+# instead of failing. ⚠ That id is now `duels_won_player` (step 4, MR 5), which makes
+# the EXAMPLE historical. The trap is not: `_pct` is still a suffix a greedy stripper
+# can peel off a longer real name, and the ordering below is what prevents it.
 DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
     ("_per_match_this_season", "suffix",
      "Divided by matches played, for the season now in progress, through the matches played so "

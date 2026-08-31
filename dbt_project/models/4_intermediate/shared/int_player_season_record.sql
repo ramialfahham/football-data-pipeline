@@ -12,7 +12,7 @@
   because this model's row IS an appearance ("one row per match the player appeared in") and
   match_number/games_played must count matches actually played, not matchday selections. Before
   2026-07-23 they did not (CPO: "Then it is wrong"). Player ratios
-  (save_pct, passes_accuracy_player_pct, duels_won_pct, dribbles_success_pct) are stat-over-stat
+  (save_pct, passes_accuracy_player_pct, duels_won_player_pct, dribbles_success_player_pct) are stat-over-stat
   from the same rows, so no coverage-restriction is needed (unlike the team builder's
   scoreline-vs-stat mix). Raw sums only — ratios live in the mart.
 
@@ -55,10 +55,10 @@ select
     sum(tackles_total) over w as tackles_player,
     sum(tackles_blocks) over w as blocks_player,
     sum(tackles_interceptions) over w as interceptions_player,
-    sum(duels_total) over w as duels_total,
-    sum(duels_won) over w as duels_won,
-    sum(dribbles_attempts) over w as dribbles_attempts,
-    sum(dribbles_success) over w as dribbles_success,
+    sum(duels_total) over w as duels_player,
+    sum(duels_won) over w as duels_won_player,
+    sum(dribbles_attempts) over w as dribbles_attempts_player,
+    sum(dribbles_success) over w as dribbles_success_player,
     sum(dribbles_past) over w as dribbles_past_player,
     sum(offsides) over w as offsides_player,
     sum(penalty_won) over w as penalty_won,

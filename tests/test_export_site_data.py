@@ -580,14 +580,14 @@ def test_shape_benchmark_member_carries_mart_columns_and_ratio_atoms():
     # GAP-21: a RATIO metric row keeps numerator/denominator (for the {num} of {den} · {pct}% triple);
     # a per-90 row has null num/den. The export copies straight from the mart — no computation.
     ratio = {
-        "metric_key": "duels_won_pct", "metric_value": 0.54, "percentile": 0.70,
+        "metric_key": "duels_won_player_pct", "metric_value": 0.54, "percentile": 0.70,
         "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
         "position_group": "ATT", "minutes": 2470, "appearances": 29,
         "metric_numerator": 96, "metric_denominator": 178,
     }
     m = _shape_benchmark_member(ratio)
     assert m == {
-        "metric_key": "duels_won_pct", "metric_value": 0.54, "percentile": 0.70,
+        "metric_key": "duels_won_player_pct", "metric_value": 0.54, "percentile": 0.70,
         "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
         "numerator": 96, "denominator": 178,
     }
@@ -614,7 +614,7 @@ def test_shape_benchmarks_groups_by_position_and_orders_by_metric_key():
         row("MID", "passes_per90"),
         row("ATT", "goals_per90"),
         row("ATT", "assists_per90"),
-        row("MID", "duels_won_pct", metric_numerator=50, metric_denominator=90),
+        row("MID", "duels_won_player_pct", metric_numerator=50, metric_denominator=90),
     ]
     groups = _shape_benchmarks(rows)
     # position groups sorted (ATT before MID)
@@ -623,7 +623,7 @@ def test_shape_benchmarks_groups_by_position_and_orders_by_metric_key():
     assert groups[0]["minutes"] == 2000 and groups[0]["appearances"] == 24
     # metrics ordered byte-stable by metric_key
     assert [m["metric_key"] for m in groups[0]["metrics"]] == ["assists_per90", "goals_per90"]
-    assert [m["metric_key"] for m in groups[1]["metrics"]] == ["duels_won_pct", "passes_per90"]
+    assert [m["metric_key"] for m in groups[1]["metrics"]] == ["duels_won_player_pct", "passes_per90"]
     # the ratio metric's atoms survive
     duels = groups[1]["metrics"][0]
     assert duels["numerator"] == 50 and duels["denominator"] == 90

@@ -92,8 +92,8 @@ catalogue metrics; rendered as a one-line summary.
 |---|---|
 | Scorer points | `goals`, `assists` |
 | Shots on target | `shots_on_target` |
-| Duels won | `duels_won`, `duels_total`, `duels_won_pct` |
-| Successful dribbles | `dribbles_success`, `dribbles_attempts`, `dribbles_success_pct` |
+| Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
+| Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
 | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
 | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
 | Key passes | `passes_key_player` |
@@ -134,7 +134,7 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
 |---|---|---|
 | Normal | — | everything above |
 | GK profile | `position = 'G'` | Save-percentage bundle renders; GK match-log line |
-| Zero denominator | e.g. `duels_total = 0` | `0 of 0 · —` (counts shown, ratio undefined) |
+| Zero denominator | e.g. `duels_player = 0` | `0 of 0 · —` (counts shown, ratio undefined) |
 | No stat line for a match | match absent from `match_log[]` | nothing fabricated — the log only contains matches with player stats (a COMMON state, brief §2: style it, don't hide it) |
 | Multi-competition season | several `seasons[]` rows per year | selector lists each; no blending |
 | Thin page | no `mart_player_profile` row | page not generated |

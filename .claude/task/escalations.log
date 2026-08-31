@@ -6857,3 +6857,101 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   evidence says rather than a preference.** The check that actually caught things — yml vs final
   projection — is simpler than the resolver and is the better candidate if a gate is ever wanted.
 
+
+---
+
+## 2026-08-31 — STEP 4, MR 5 of 7: the player `duels` group (`!130`)
+
+    duels_total          -> duels_player
+    duels_won            -> duels_won_player
+    duels_won_pct        -> duels_won_player_pct
+    dribbles_attempts    -> dribbles_attempts_player
+    dribbles_success     -> dribbles_success_player
+    dribbles_success_pct -> dribbles_success_player_pct
+
+  All six verbatim from "THE METRIC CATALOGUE NAMING PROGRAMME", table "⛔ PLAYER, 35 REMAINING".
+  **No name in this batch was proposed by me and NO NEW CPO RULING WAS NEEDED.** Group membership
+  verified from the seed: `player`/`duels` is 8 rows — these six plus `duels_won_per90` and
+  `dribbles_success_per90`, which do not change because `_per90` already means player.
+  **537 tokens across 46 files: 348 renamed, 189 protected.** All five reviewers PASS.
+
+  ⭐ **ONE FORM DECISION, MINE, TAKEN UNDER "the transformation layer decides the FORM, the CPO
+  decides the NAME".** Three prose sites cite `duels_won_pct` as the live EXAMPLE of a dual-entity
+  metric id — `seeds/schema.yml`, `tests/assert_metric_catalogue_unique_by_entity.sql`, and
+  `sync_metric_docs_blocks.py`. After this MR every one is FALSE either way: renaming the token
+  makes the sentence wrong, and leaving it makes the sentence wrong. **And there is no durable
+  replacement** — all six dual-entity ids (`duels_won_pct`, `saves`, `goals_against`, `goals`,
+  `goals_open_play`, `goals_penalty`) rename on the player side, five of them in the two remaining
+  batches. Each was rewritten to state the RULE without naming an instance; the generator's is
+  marked historical rather than deleted, because the trap it warns about is still real. No name was
+  chosen and no mechanism changed.
+
+  ⭐⭐ **THE ENTRY WORTH KEEPING: A RENAME CAN COLLAPSE A DISAMBIGUATION, AND THAT EDITS THE OTHER
+  ENTITY.** `sync_metric_docs_blocks._blocks()` splits a metric into `__team`/`__player` only "where
+  a metric's rows disagree". Renaming the PLAYER `duels_won_pct` makes the name unambiguous, so the
+  pair collapses and `doc('duels_won_pct__team')` must become `doc('duels_won_pct')` — **five
+  TEAM-side edits caused by a player rename, with no team metric changing.** Nothing in this
+  programme had required that before, and no token sweep would find it from the player side alone.
+  ⚠ `_derived()` behaves differently and it matters: it splits by entity ALWAYS, not only on
+  disagreement, so the three `duels_won_pct_*__team` blocks survive untouched while their `__player`
+  twins — orphans with zero references — are DELETED. Blocks 175 → 172.
+
+  ⭐⭐ **AND THE METHOD THAT MADE THAT SAFE: SIMULATE THE GENERATOR BEFORE WRITING ANY CODE.**
+  `!129` had three of my predictions disproved by measurement after the fact. This time the real
+  generator was run against the renamed seed held in memory, during planning, and the predicted
+  block count and the exact removed/added sets were written into the contract. Measured after
+  regeneration: identical, term for term. Two further contract predictions also held — the
+  description count stayed **1604** (the "re-point them" ruling, a sixth measurement) and the
+  hygiene gate's "means more than one thing" list dropped **5 names to 4**. A prediction written
+  down before the work is checkable; one produced afterwards is a description.
+
+  ⭐ **THE SAME TOKEN MOVES ON ONE ENTITY AND STAYS ON THE OTHER — and the planning note about how
+  to handle it was WRONG.** The handover asserted that "a token→decision map cannot resolve it" and
+  that the classifier needed re-keying by entity. Tested rather than believed: `decide()` ALREADY
+  resolves entity on every path, and only `PROTECT_TOKENS` is consulted before entity is known —
+  which is sound because no token here needs both decisions. The flat maps were kept; what changed
+  is that the entity is now PRINTED in every reason, so a reviewer can check the discrimination
+  instead of trusting it. Measured split: `duels_won_pct` 48 renamed / 46 protected.
+  ⚠ **The one real bug was in the place where an error leaves NO TRACE IN THE DIFF.**
+  `seed_entity_lines()` numbered the first data row as physical line 1 instead of 2, shifting every
+  entity by one row — which would have handed the TEAM `duels_won_pct` row the PLAYER decision and
+  vice versa, in a file where both rows carry the same token. Found before the first run and
+  verified against all 11 duels/dribbles rows: 0 mismatches. **Where the diff cannot show an error,
+  test the resolver against the data directly.**
+
+  ⛔⛔ **I CLAIMED THE RENDERED-PAGE COMPARISON DISCRIMINATED THIS BATCH. I MEASURED IT. IT DOES
+  NOT, AND THE CONTRACT WAS CORRECTED BEFORE THE REVIEW ROUND.** `"% Duels won"` and `"Ø Duels"`
+  really are among the 12 rendered rows, so the reasoning looked sound — but performing the
+  mis-scope shows the build NEVER COMPLETES: `prebuild` runs the label guards first, so no page is
+  produced and there is nothing to compare. ⚠ The failed build left the PREVIOUS dist in place, and
+  measuring it printed a perfectly healthy `"% Duels won"` — **a stale artifact reported as a fresh
+  measurement**, the same shape as reading `tail`'s exit code instead of the gate's.
+  ⭐ What actually discriminates is stronger than what `!129` named: `npm test` fails 75/1 on
+  "every labelKey is a label_i18n_key the catalogue actually declares", which binds `metricRows.ts`
+  to the **SEED's `label_i18n_key` column** rather than to `strings.ts`, so a consistent two-sided
+  frontend rename cannot satisfy it; and `check-page-specs.mjs` exits 1, read unpiped.
+
+  ⭐ **A GUARD I HAD DOUBTED TURNED OUT TO EXIST, and a guard I had trusted turned out to be
+  weaker.** The contract speculated that `check_description_hygiene` has no dangling-reference check
+  and that one might need writing. It has one — I had grepped for "dangling"/"unknown block" rather
+  than its actual wording, "unresolved docs block" — so **no new guard was needed or proposed**.
+  In the other direction, the yml-vs-projection check built on `!129` was mutation-tested and has a
+  real bound: a column dropped from the final SELECT but still named inside a `safe_divide(...)` in
+  that same SELECT leaves it GREEN. It tests token PRESENCE, not projection. It catches the defect
+  it was built for (EXIT=1 on the faithful `!129` round-2 reproduction) and this tree is clean under
+  both forms, but it is weaker than `!129`'s write-up implied. **Mutation-test the guards you are
+  about to cite, in both the strong and the weak form.**
+
+  ⛔ **CARRIED, NOT DECIDED — a question for the CPO.** All six dual-entity `metric_id`s rename on
+  the player side across step 4. After the `goals` batch, `_blocks()`'s `__team`/`__player`
+  disambiguation branch will never fire on real data again. Nothing is proposed and nothing was
+  removed: `_derived()` still suffixes by entity, `(metric_id, entity)` is still the seed's real
+  key, and the abort still guards a future collision. Raised because whether a mechanism with no
+  live instance should stay is his call, not mine.
+
+  #96 at its widest yet: **all six `accepted_values` lists contain a swept token**, and for the
+  first time the same token sits in both a renaming list and a protecting one — 8 entries move
+  across 3 lists, and the three 22-name TEAM lists must not move at all. Also a first: the nine
+  singular range tests SPLIT by entity, six renaming and three protecting. And a surface with no
+  precedent — `tests/test_export_site_data.py`, whose player benchmark fixtures carry the metric id
+  and which no step-4 batch had touched.

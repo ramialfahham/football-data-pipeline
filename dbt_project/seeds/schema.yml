@@ -208,8 +208,11 @@ seeds:
       - name: metric_id
         description: >
           Stable semantic id. Window-agnostic — no _recent or _pretournament suffix.
-          Unique per (metric_id, entity) — e.g. duels_won_pct exists for both team and
-          player (enforced by assert_metric_catalogue_unique_by_entity).
+          The key is (metric_id, entity), not metric_id alone: one id may carry a team
+          definition and a player definition that differ (enforced by
+          assert_metric_catalogue_unique_by_entity). No instance is named here on
+          purpose — step 4 of the naming programme renames every player id that
+          currently collides, so a quoted example would date.
         tests:
           - not_null
       - name: entity

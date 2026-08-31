@@ -150,10 +150,10 @@ select
     a.tackles_player,
     a.interceptions_player,
     a.blocks_player,
-    a.duels_total,
-    a.duels_won,
-    a.dribbles_attempts,
-    a.dribbles_success,
+    a.duels_player,
+    a.duels_won_player,
+    a.dribbles_attempts_player,
+    a.dribbles_success_player,
     a.dribbles_past_player,
     a.offsides_player,
     a.cards_yellow_player,
@@ -165,8 +165,8 @@ select
     a.saves + a.goals_against as shots_on_goal_against,
     -- catalogue ratio metrics (catalogue formula; null when denom 0)
     a.passes_accuracy_player_pct,
-    a.duels_won_pct,
-    a.dribbles_success_pct,
+    a.duels_won_player_pct,
+    a.dribbles_success_player_pct,
     a.save_pct,
     -- year-over-year (domestic only; the player's primary club that season; NULL
     -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
