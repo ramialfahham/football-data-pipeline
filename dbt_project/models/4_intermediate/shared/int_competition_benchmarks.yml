@@ -102,7 +102,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency_player_pct", "save_pct"]
       - name: player_count
         description: "Players with a non-null value for this metric in this league-season-position — the N for rank-of-N / percentile."
         tests: [not_null]

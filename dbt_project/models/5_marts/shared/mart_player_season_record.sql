@@ -9,7 +9,7 @@
   players' latest season-to-date row for the fixture's (league_code, season_api_year);
   before-phase fallback to the same competition's previous season (window_type='prev_season').
 
-  Raw counts passed through; ratios (save_pct, pass_accuracy_pct, duels_won_pct,
+  Raw counts passed through; ratios (save_pct, passes_accuracy_player_pct, duels_won_pct,
   dribbles_success_pct) computed here via safe_divide. save_pct is only meaningful for
   goalkeepers. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 #}
@@ -73,9 +73,9 @@ matched as (
         sf.goals_assists,
         sf.saves,
         sf.shots_on,
-        sf.passes_key,
-        sf.passes_accurate,
-        sf.passes_total,
+        sf.passes_key_player,
+        sf.passes_accurate_player,
+        sf.passes_player,
         sf.tackles_player,
         sf.blocks_player,
         sf.interceptions_player,
@@ -115,9 +115,9 @@ matched as (
         sf.goals_assists,
         sf.saves,
         sf.shots_on,
-        sf.passes_key,
-        sf.passes_accurate,
-        sf.passes_total,
+        sf.passes_key_player,
+        sf.passes_accurate_player,
+        sf.passes_player,
         sf.tackles_player,
         sf.blocks_player,
         sf.interceptions_player,
@@ -165,9 +165,9 @@ select
     goals_assists,
     saves,
     shots_on,
-    passes_key,
-    passes_accurate,
-    passes_total,
+    passes_key_player,
+    passes_accurate_player,
+    passes_player,
     tackles_player,
     blocks_player,
     interceptions_player,
@@ -184,6 +184,6 @@ select
     -- ratios
     safe_divide(saves, saves + goals_against) as save_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
-    safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
+    safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
     safe_divide(duels_won, duels_total) as duels_won_pct
 from chosen

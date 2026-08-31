@@ -8,7 +8,7 @@
   #480 §8.3: this now COMPOSES int_player_club_season__metrics (the per-club atoms base) — it re-sums the
   club rows up to the competition-season and re-derives the ratios / per-90 / count composites from the
   re-summed atoms. Output columns and values are unchanged from the prior fct-direct aggregation: sum of
-  per-club sums = the single sum, and the per-fixture ROUND-weighted passes_accurate is invariant to the
+  per-club sums = the single sum, and the per-fixture ROUND-weighted passes_accurate_player is invariant to the
   grouping level. team_sk = the player's last known club that competition-season, reproduced from the
   base's per-club last_kickoff_at.
 
@@ -44,9 +44,9 @@ aggregated as (
         sum(assists) as assists,
         sum(shots_player) as shots_player,
         sum(shots_on_goal_player) as shots_on_goal_player,
-        sum(passes_total) as passes_total,
-        sum(passes_key) as passes_key,
-        sum(passes_accurate) as passes_accurate,
+        sum(passes_player) as passes_player,
+        sum(passes_key_player) as passes_key_player,
+        sum(passes_accurate_player) as passes_accurate_player,
         sum(tackles_player) as tackles_player,
         sum(interceptions_player) as interceptions_player,
         sum(blocks_player) as blocks_player,
@@ -82,9 +82,9 @@ select
     assists,
     shots_player,
     shots_on_goal_player,
-    passes_total,
-    passes_accurate,
-    passes_key,
+    passes_player,
+    passes_accurate_player,
+    passes_key_player,
     tackles_player,
     interceptions_player,
     blocks_player,
@@ -105,7 +105,7 @@ select
     goals + assists as scorer_points,
     tackles_player + interceptions_player + blocks_player as defensive_actions_player,
     cards_yellow_player + cards_red_player as cards_player,
-    safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
+    safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
     safe_divide(duels_won, duels_total) as duels_won_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
     safe_divide(saves, nullif(saves + goals_against, 0)) as save_pct,
@@ -123,9 +123,9 @@ select
     safe_divide(assists * 90, minutes) as assists_per90,
     safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
     safe_divide(shots_on_goal_player * 90, minutes) as shots_on_goal_per90,
-    safe_divide(passes_key * 90, minutes) as key_passes_per90,
+    safe_divide(passes_key_player * 90, minutes) as passes_key_per90,
     safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
-    safe_divide(passes_total * 90, minutes) as passes_per90,
+    safe_divide(passes_player * 90, minutes) as passes_per90,
     safe_divide(tackles_player * 90, minutes) as tackles_per90,
     safe_divide(interceptions_player * 90, minutes) as interceptions_per90,
     safe_divide(blocks_player * 90, minutes) as blocks_per90,

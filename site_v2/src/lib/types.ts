@@ -50,7 +50,7 @@ export interface TopPlayer {
   saves?: number | null;
   save_pct?: number | null;
   shots_on?: number | null;
-  passes_key?: number | null;
+  passes_key_player?: number | null;
   player_name?: string | null;
   player_photo_url?: string | null;
 }

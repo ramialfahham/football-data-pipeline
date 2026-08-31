@@ -76,9 +76,9 @@ models:
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
       - name: passes_total
-        description: "{{ doc('passes_total') }}"
+        description: "{{ doc('passes_player') }}"
       - name: passes_accurate
-        description: "{{ doc('passes_accurate') }}"
+        description: "{{ doc('passes_accurate_player') }}"
       - name: corner_kicks
         description: "{{ doc('corners') }}"
       - name: opponent_corner_kicks
@@ -150,12 +150,12 @@ models:
       - name: shots_player
         description: "{{ doc('shots_player') }}"
       - name: shots_on
-      - name: passes_total
-        description: "{{ doc('passes_total') }}"
-      - name: passes_key
-        description: "{{ doc('passes_key') }}"
-      - name: passes_accurate
-        description: "{{ doc('passes_accurate') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
+      - name: passes_accurate_player
+        description: "{{ doc('passes_accurate_player') }}"
       - name: tackles_player
         description: "{{ doc('tackles_player') }}"
       - name: blocks_player

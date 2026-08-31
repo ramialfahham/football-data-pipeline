@@ -416,7 +416,7 @@ models:
       Composed from the per-club atoms: the club rows re-summed to the competition-season, with
       ratios and per-90s re-derived from the re-summed atoms rather than averaged.
 
-      The atoms follow the metric_catalogue seed. passes_accurate is rounded per fixture then
+      The atoms follow the metric_catalogue seed. passes_accurate_player is rounded per fixture then
       summed, the weighted-ratio numerator. Counts treat NULL as 0. `appearances` counts matches
       actually PLAYED. Rates are NULL on a zero denominator. team_sk is the player's last known
       club that season.
@@ -428,15 +428,15 @@ models:
             - player_sk
             - season_sk
       - dbt_utils.expression_is_true:
-          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
-          name: int_player_season_pass_accuracy_pct_in_range
+          expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
+          name: int_player_season_passes_accuracy_player_pct_in_range
       - dbt_utils.expression_is_true:
           expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1) and (finishing_efficiency_player_pct is null or finishing_efficiency_player_pct between 0 and 1)"
           name: int_player_season_ratios_in_range
       # per-90 metrics (benchmark inputs) are unbounded above but can never be negative — a sign-flip
       # or a bad numerator would trip this. NULL is allowed (minutes = 0).
       - dbt_utils.expression_is_true:
-          expression: "(goals_per90 is null or goals_per90 >= 0) and (assists_per90 is null or assists_per90 >= 0) and (scorer_points_per90 is null or scorer_points_per90 >= 0) and (shots_on_goal_per90 is null or shots_on_goal_per90 >= 0) and (key_passes_per90 is null or key_passes_per90 >= 0) and (dribbles_success_per90 is null or dribbles_success_per90 >= 0) and (passes_per90 is null or passes_per90 >= 0) and (tackles_per90 is null or tackles_per90 >= 0) and (interceptions_per90 is null or interceptions_per90 >= 0) and (blocks_per90 is null or blocks_per90 >= 0) and (defensive_actions_per90 is null or defensive_actions_per90 >= 0) and (duels_won_per90 is null or duels_won_per90 >= 0) and (saves_per90 is null or saves_per90 >= 0)"
+          expression: "(goals_per90 is null or goals_per90 >= 0) and (assists_per90 is null or assists_per90 >= 0) and (scorer_points_per90 is null or scorer_points_per90 >= 0) and (shots_on_goal_per90 is null or shots_on_goal_per90 >= 0) and (passes_key_per90 is null or passes_key_per90 >= 0) and (dribbles_success_per90 is null or dribbles_success_per90 >= 0) and (passes_per90 is null or passes_per90 >= 0) and (tackles_per90 is null or tackles_per90 >= 0) and (interceptions_per90 is null or interceptions_per90 >= 0) and (blocks_per90 is null or blocks_per90 >= 0) and (defensive_actions_per90 is null or defensive_actions_per90 >= 0) and (duels_won_per90 is null or duels_won_per90 >= 0) and (saves_per90 is null or saves_per90 >= 0)"
           name: int_player_season_per90_non_negative
     columns:
       - name: player_sk
@@ -474,8 +474,8 @@ models:
               field: team_sk
       - name: appearances
         tests: [not_null]
-      - name: pass_accuracy_pct
-        description: "{{ doc('pass_accuracy_pct') }}"
+      - name: passes_accuracy_player_pct
+        description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: starts
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
@@ -490,12 +490,12 @@ models:
         description: "{{ doc('shots_player') }}"
       - name: shots_on_goal_player
         description: "{{ doc('shots_on_goal_player') }}"
-      - name: passes_total
-        description: "{{ doc('passes_total') }}"
-      - name: passes_accurate
-        description: "{{ doc('passes_accurate') }}"
-      - name: passes_key
-        description: "{{ doc('passes_key') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_accurate_player
+        description: "{{ doc('passes_accurate_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
       - name: tackles_player
         description: "{{ doc('tackles_player') }}"
       - name: interceptions_player
@@ -550,8 +550,8 @@ models:
         description: "{{ doc('scorer_points_per90') }}"
       - name: shots_on_goal_per90
         description: "{{ doc('shots_on_goal_per90') }}"
-      - name: key_passes_per90
-        description: "{{ doc('key_passes_per90') }}"
+      - name: passes_key_per90
+        description: "{{ doc('passes_key_per90') }}"
       - name: dribbles_success_per90
         description: "{{ doc('dribbles_success_per90') }}"
       - name: passes_per90

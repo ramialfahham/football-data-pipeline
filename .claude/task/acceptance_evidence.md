@@ -1,173 +1,226 @@
-# Acceptance evidence — step 4, MR 3: the five player `defending` metrics
+# Acceptance evidence — step 4, MR 4: the five player `passing` metrics
 
-Branch `refactor/metric-rename-player-defending`, from main `a3fb952`.
+Branch `refactor/metric-rename-player-passing`, from main `1cf0d40`.
 
-    tackles_total          →  tackles_player
-    tackles_interceptions  →  interceptions_player
-    tackles_blocks         →  blocks_player
-    defensive_actions      →  defensive_actions_player      (+ its 4 derived yoy forms)
-    dribbles_past          →  dribbles_past_player          (PLAYER entity only)
+    passes_total       →  passes_player
+    passes_accurate    →  passes_accurate_player
+    passes_key         →  passes_key_player        (+ its 4 derived yoy forms, CPO-ruled)
+    pass_accuracy_pct  →  passes_accuracy_player_pct
+    key_passes_per90   →  passes_key_per90         (PLAYER entity only)
 
-⚠⚠ **THIS IS ROUND 3. ROUNDS 1 AND 2 BOTH FAILED 4–1, on different things, and round 3 is the cap.**
+**The largest and most exposed batch of step 4**: 426 tokens across 48 files, three surfaces no
+previous batch had, and the first frontend source change of the whole step.
 
-**Round 2's finding, and it is the more serious of the two.** `scope-auditor` FAILed
-`impact_map.downstream` for describing the `dbt ls` lineage command without pasting its output. The
-honest correction is larger than the finding: the field claimed the command was *"run on this branch
-BEFORE the first edit"* — **it had not been run for this MR at all.** The sentence was carried over
-from `!127`'s contract, where it was true. I asserted a step I skipped. The real output is now
-pasted, and it is **13 models, not the 10** the previous batch held — so running it was not a
-formality.
-⭐ **The two round failures share one cause: carrying something forward without re-deriving it** — a
-guard that worked by luck in `!125`, and a claim that was true in `!127`. What a template carries
-safely is structure; every sentence in it that asserts a fact about *this* branch has to be
-re-earned. After the finding I audited the rest of the contract for the same defect:
-`deploy_order`'s "no touched model is incremental" was re-derived rather than re-asserted — all ten
-changed `.sql` models are `table` or `view`. That one held.
+⚠⚠ **THIS IS ROUND 3, THE CAP. ROUNDS 1 AND 2 BOTH FAILED, ON FOUR SITES OF ONE DEFECT CLASS.**
 
-⚠⚠ **ROUND 1 FAILED 4–1.** `bi-analyst-reviewer` found a real defect —
-`03_player_profile.md:127-128` renamed two field names in prose documenting `mart_player_match_log`,
-a provider surface that does not rename, so the wireframe named two fields existing nowhere in the
-export. Cause, fix and the corrected numbers are in the section below; the other four reviewers
-PASSed and their findings are unaffected by the fix, which touched one markdown paragraph.
+  - **Round 1, 4–1** (`analytics-engineer-reviewer`): three models shipped
+    `round(passes_player * passes_accuracy_percent / 100)` — a nested aggregate over a SIBLING
+    ALIAS, against CTEs carrying only `passes_total`.
+  - **Round 2, 3–2** (`analytics-engineer-reviewer` and `bi-analyst-reviewer`, independently): a
+    FOURTH site, `mart_player_season_record.sql:168-170,187`, where the `matched` CTE was updated
+    but the model's own FINAL SELECT still projected the old names — and its own yml already
+    declared the new ones.
 
-Every gate below was run **unpiped, with its exit code read bare**. ⚠ One exception is recorded
-rather than hidden: the mutation-2 run was first piped through `tail -5` and reported
-`HYGIENE_EXIT=0` — which was **`tail`'s** exit code, not the gate's. Caught immediately and re-run
-bare, where it reads **1**. That is the trap the record already names, committed live, and it is
-here because the near-miss is more useful than a clean-looking log.
+Counts moved 275/151 → 267/159 → **272/154**. All four sites could not have compiled.
+⭐ **Before spending the last round I built a check that cannot fail the way my other four did** —
+see "An independent check" below. It found exactly the one site the reviewers had found, and no
+fifth; that is what made round 3 worth spending rather than a guess.
 
-⚠ **AND ONE GATE IN `done_when` IS NOT EVIDENCE FOR THIS CHANGE**, raised by `platform-reviewer`.
-`check_ui_i18n_metrics.py` validates only `site/**`, the retired frozen tree this branch never
-touches, so its exit 0 passes identically whether or not the rename happened. It is still run
-because it is a real CI gate, but it is **not** discriminating here and is no longer counted as
-evidence. The discriminating check for the UI risk is the structural `dist` comparison.
+Every gate below was run **unpiped, with its exit code read bare**.
+⚠ `check_ui_i18n_metrics.py` is run because it is a real CI gate but is **NOT evidence** here — it
+validates only the frozen `site/**` tree this branch never touches, so it passes identically whether
+or not the rename happened (`platform-reviewer`, `!128`).
 
 criteria_demonstrated:
-  - ⭐ **Criterion 1 — and for the first time in step 4 this is a REAL check, not a confirmed prediction.** `defensive_actions_per_match` is one of the 12 rendered metric rows AND a PROTECTED token of this batch, so a mis-scope would delete a rendered label. The site was built TWICE — base content (stashed by explicit path) and branch — and measured structurally from the markup, never by substring: **12 rows and 7 group headings per comparison block in EN, DE and FI across 19 fixture pages**, distinct-label sets equal element-for-element, **REMOVED none / ADDED none** in every locale. The row itself is present in all three: "Ø Defensive actions" / "Ø Defensivaktionen" / "Ø Puolustustoimet", on 19 built pages.
-  - **Criterion 2 — old names gone from every surface that moved, nothing half-renamed, and the frontend untouched.** `git diff --name-only -- site_v2/` is **empty**: not one frontend file changed, including the five that were swept. New names present in **26** files (`tackles_player`), **25** (`interceptions_player`, `blocks_player`), **18** (`dribbles_past_player`), **12** (`defensive_actions_player`), **4** each for the derived yoy forms. All **72** yml column entries naming an old or new name were reconciled against their own model's SQL; 71 resolve literally and 1 is reported as not literally checkable rather than skipped. The **24** surviving old names sit in exactly five partially-moving files in the counts the classifier printed — four models (8 / 6 / 4 / 4), every one an upstream READ of a provider relation, plus **2 in `03_player_profile.md`'s match-log paragraph**.
-  - **Criterion 3 — two guards passed AND each watched going RED.** `sync_metric_docs_blocks.py --check` (exit 0, 173 blocks) broken by mutating the seed's `tackles_player` `metric_id` → **RED, exit 1**. `check_description_hygiene.py` (exit 0, 1604) broken by pointing `mart_leaderboards.defensive_actions_player` at a non-existent block → **RED, exit 1**. Both reverted, both green, file count unchanged at 28.
-  - ⭐ **Criterion 4 — every dotted AND bare reference resolves, and the resolver was repaired and re-proved before it was trusted.** 48 references checked, **0 broken**, 5 reported unresolved. See below — this is the batch's most substantial finding.
+  - **Criterion 1 — no rendered name changed its words.** The site was built TWICE (base content stashed by explicit path, then branch) and measured structurally from the markup, never by substring: **12 rows and 7 group headings per comparison block in EN, DE and FI across 19 fixture pages**, distinct-label sets equal element-for-element, **REMOVED none / ADDED none**. ⚠ **For this batch that CONFIRMS A PREDICTION rather than discriminating** — see the correction below. The discriminating guard for the protected team row is `npm test`'s label binding.
+  - ⭐ **Criterion 2 — `site_v2/src/lib/types.ts` is the ONLY frontend file that changes**, and it changes exactly one token (`passes_key` → `passes_key_player` on the `TopPlayer` interface). The other four swept frontend files are byte-identical and still carry `passes_key_per_match`. All **82** yml column entries naming an old, new, derived or protected name were reconciled against their own model's SQL — 79 resolve literally, 3 reported as not literally checkable (wildcard projections) rather than skipped. Every surviving old name is an upstream READ of a provider relation or a TEAM column.
+  - **Criterion 3 — two guards passed AND each watched going RED.** `sync_metric_docs_blocks.py --check` (exit 0, 175 blocks) broken by mutating the seed's `passes_key_player` `metric_id` → **RED, exit 1**, and usefully it named all five dependent blocks. `check_description_hygiene.py` (exit 0, 1604) broken by dangling the re-pointed `doc('passes_key_player')` on the two provider marts → **RED, exit 1**, two findings. Both reverted, both green, file count unchanged at 33.
+  - ⭐ **Criterion 4 — every dotted AND bare reference resolves.** 54 references checked, **0 broken**, 6 reported unresolved. Watched going RED on a reproduction of the `!125` round-2 defect: reverting `int_player_season__metrics.sql:47` to `sum(passes_total) as passes_player` gives *"bare read of 'passes_total' inside CTE 'aggregated' whose source is int_player_club_season__metrics, which does not emit it"*, exit 1. Restored, green.
 
-## ⛔⛔ The resolver had a FALSE-POSITIVE class, found on the UNMODIFIED tree
+## ⛔⛔ The round-1 defect: the alias heuristic, one more time
 
-Run against `main` before a single edit, `check_column_refs.py` reported a BROKEN reference:
+Three models shipped code that could not compile:
 
-    int_player_profile__yoy.sql:82  bare read of 'defensive_actions' inside CTE 'cur'
-    whose source is int_player_season_record, which does not emit it
+    int_player_club_season__metrics.sql:125 · int_player_season_position__metrics.sql:106
+    int_player_season_record.sql:54
+        sum(round(passes_player * passes_accuracy_percent / 100)) as passes_accurate_player
+                     ^^^^^^^^^^^^^ a sibling alias; the CTE only carries passes_total
 
-**It was wrong.** The column is *born in the chain*: `std` creates it at line 50 as
-`tackles_total + tackles_interceptions + tackles_blocks as defensive_actions`, and `cur` reads it
-two CTEs downstream. Chasing the chain to the underlying `ref()` and asking whether IT emits the
-column gives the wrong answer for any column a CTE computes. No earlier batch exercised this,
-because none had a metric COMPUTED inside a CTE from renamed inputs.
+**The cause is the mistake this programme logged once already.** The classifier decided "is this an
+upstream read?" by asking whether the LINE ends with `as <the same token>`. That recognises
+`sum(passes_total) as passes_player` and misses `sum(round(passes_total * …)) as
+passes_accurate_player` — which is just as much an upstream read, because the metric is *computed
+from* the provider column. `!125`'s round-2 lesson was, verbatim, that for bare reads I asked "does
+the alias match the inner name" instead of "did the source relation rename this column".
 
-⭐ Fixed: a name created by an `as <name>` alias in the same model is exempted — and exempted **into
-the "unresolved, reported" list, never silently**, so what the tool did not check stays visible.
+⭐ **The fix deletes the heuristic rather than patching it.** Every bare read now resolves its
+scope's SOURCE: a source CTE that WRITES the token will emit the new name (aliases always move) →
+RENAME; a chain reaching a provider relation → PROTECT; a chain reaching a renaming relation →
+RENAME; **anything else ABORTS.** That abort fired twice on the first run — a jinja macro with no
+query scope, and tokens inside `{# #}` comments — and both were real gaps in my model of the files,
+now handled explicitly. ⚠ One inversion had to be corrected inside the new rule too: a source CTE
+that aliases the token still shows the OLD name in the base text, but that alias moves, so the read
+moves with it — reading the base and concluding "protect" is the same pre-vs-post error `!125` made
+in the yml-column guard, and it inverted 17 decisions before it was caught.
 
-⭐ **Then proved the fix had not blunted it**, which is the half that matters. Reproducing the `!125`
-round-2 defect — reverting `int_player_season__metrics.sql:45` to `sum(shots_total) as shots_player`
-— still turns it **RED, exit 1**, with the exact diagnosis: *"bare read of 'shots_total' inside CTE
-'aggregated' whose source is int_player_club_season__metrics, which does not emit it."* Restored,
-green.
+## ⛔⛔ The resolver could not have caught it — three blind spots, found by experiment
 
-⭐ **THE RULE THIS LEAVES: a check that cries wolf gets ignored, which makes it the same defect as
-one that gives false confidence.** The record already carries the second half. This is the first
-instance of the first half, and it argues for *hardening* the resolver before adopting it as a CI
-gate, not against adopting it — a false positive on a correct `main` would have turned the pipeline
-red for nothing.
+I told the CPO the `!128` exemption had created a false negative here. **That was wrong, and the
+truth is worse:** reintroducing the defect and running the resolver gave **exit 0**. Three separate
+gaps, none of which two batches of green results had revealed:
 
-## ⛔⛔ The round-1 defect: a line-scoped guard on a list that wraps
+| gap | consequence |
+|---|---|
+| `check_bare` walked only CTE bodies | a read in a model's FINAL SELECT was never scanned — exactly where `int_player_season_record.sql:54` lives |
+| `window w as (…)` parsed as a CTE | pushed the synthesised final-select scope past the end of the file, so adding that scope still scanned nothing |
+| a CTE joining two relations resolved to one | reported `int_team_season_record.sql:141` broken — **a false positive on a file this branch never touches** |
 
-`docs/wireframes/03_player_profile.md` documents **two surfaces**, and round 1 got one of them
-wrong:
+All three are closed, and each was verified by watching the real defect go RED (exit 1, exact line
+and diagnosis) and the untouched file go GREEN. The `!128` `created` exemption was additionally made
+**scope-aware**: a name aliased in the SAME select as the read is not exempt, because SQL cannot see
+a sibling alias.
 
-| lines | surface | source | round 1 | round 2 |
-|---|---|---|---|---|
-| 96-106 | season-stats bundle + unbundled atomics | `mart_player_profile` / `mart_player_season_record` — **rename** | 4 moved ✓ | 4 moved ✓ |
-| 126-129 | MATCH LOG expanded-row list | `mart_player_match_log` — **provider, does not rename** | 2 moved ✗ | **2 protected** ✓ |
+⭐⭐ **THE RULE: a fix that removes a false positive can install a false negative, and only
+re-proving the ORIGINAL defect still goes red will tell you.** Twice in two batches now — which is
+the strongest evidence yet that the resolver must be hardened before it is ever considered as a
+committed CI gate.
 
-**The cause.** The provider-prose guard keys on line content — the mark *"may show the full
-per-match line"* — but tested it against **the token's own line**. In `!125` the affected token
-(`shots_total`) happened to sit on the same line as the mark, so it worked *by luck*. Here the list
-wraps: mark on 126, tokens on 127-128. Every sibling in that list is a provider name —
-`shots_total`, `shots_on`, `passes_accuracy_percent`, `fouls_drawn`, `is_starter` — which is what
-makes the surface unambiguous once you look at the whole paragraph instead of one line.
+## ⛔⛔ The round-2 defect: a fourth site, and a third root under the same rule
 
-⭐ **THE CLASS: a line-scoped test on a construct that spans lines.** The repo already records this
-for grep ("a line-based grep misses a phrase straddling a line break"). This is the same defect in
-prose. The mark now governs its whole **paragraph**, up to the first blank line.
+`mart_player_season_record.sql`. The `matched` CTE was correctly updated to read
+`sf.passes_key_player` / `sf.passes_accurate_player` / `sf.passes_player`, but the model's own FINAL
+SELECT still projected `passes_key` / `passes_accurate` / `passes_total`, which no longer exist in
+that chain — and `shared.yml` already declared the new names for the same model.
 
-**The fix was applied by re-running the classifier**, not by hand-editing the file, so what ships is
-the classifier's own output. Totals moved **247/120 → 245/122**: exactly those two tokens changed
-column, nothing else. Verified per-file — `03_player_profile.md` went from `renamed 6 / protected 0`
-to `renamed 4 / protected 2`, every other file identical.
+**The cause:** `matched` is `from sides as s inner join season_final as sf`, and the renamed columns
+come from the JOINED side. My scope resolution followed only `FROM`, chased `sides`, and answered
+from the wrong branch. **Neither the classifier nor the resolver follows joins**, which is why both
+reported the tree clean — twice.
 
-⚠ The verification suite had to change with it, and the shape of that change matters:
-`03_player_profile.md` is pinned by an **exact count of 2 protected**, not added to a whitelist. A
-whole-file exemption would let a future half-rename through silently — the second time in this
-programme that a whole-file question proved wrong for a file that only PARTLY moves.
+⭐ Fixed by resolving across the WHOLE source set — every `ref()`, every `from` and every `join`,
+walked transitively; RENAME if any terminal is a renaming relation, PROTECT only if every terminal
+is a provider relation, **ABORT otherwise**. Two further aborts fired immediately and were real gaps
+rather than noise: window clauses (`w as (…)`) parsing as CTEs had been hiding the final select of
+`int_player_season_record.sql` from resolution entirely. The fix is the classifier's own output, not
+a hand-edit — verified by re-running it from base and re-reading all four sites.
 
-## The classification — 367 tokens, 245 renamed / 122 protected
+## ⭐⭐ An independent check, because four failures all came from one kind of logic
 
-1,464 tokens repo-wide: **1,062** untouched (the sample — `teams/33.json` alone holds 121 —
-`.claude/**`, `site/**`, the regenerated `metric_columns.md`), **35** in provider `.sql` excluded by
-the "yes" ruling, **367** in sweep across 42 files. 26 files were written; **16 were swept, decided
-and left untouched**, which is deliberate: a printed decision for each beats silence.
+Every miss across both rounds came from my own source resolution. So before spending the last round
+I built a check that cannot fail the same way: **for every model, do the columns its yml declares
+actually appear in its FINAL SELECT projection?** That is exactly the mismatch `bi-analyst-reviewer`
+used to find the round-2 site, and it is independent of CTE chains, joins and aliases.
 
-⭐ **FOUR self-aliasing `sum(X) … as X` sites, and only ONE moves its inner read.** MR 2 had three;
-this batch adds `int_player_season_position__metrics`, newly in the sweep:
+⚠ It also exposes why the existing yml guard was too weak: that one asked whether the new name
+appears ANYWHERE in the file, and `passes_key_player` did — inside a CTE. The new check looks only
+at the final projection.
 
-    int_player_club_season__metrics.sql:108      sum(coalesce(tackles_total, 0)) as tackles_player
-    int_player_season_position__metrics.sql:108  sum(coalesce(tackles_total, 0)) as tackles_player
-    int_player_season_record.sql                 sum(tackles_total) over w as tackles_player
-    int_player_season__metrics.sql:50            sum(tackles_player) as tackles_player   ← MOVES
+  - **Run 1, against the still-broken round-2 state** (to validate the check against a known defect): 10 models, **exactly one mismatch** — `mart_player_season_record`, the site the reviewers had found, **and no fifth**. That result is what justified spending round 3 rather than guessing.
+  - **Run 2, against the submitted state**, after the classifier fix was applied: 10 models, **zero mismatches**.
+  ⚠ Dated explicitly because an undated "one mismatch" is ambiguous about which state it describes — raised by `platform-reviewer` at round 3, who resolved it independently by reading the delivered SQL.
+  - ⭐ **The already-merged `!125` / `!127` / `!128` names, run as an audit of shipped work: 9 models, zero mismatches.** The three merged batches are sound.
 
-⭐ **And the batch's own new shape, in `int_player_profile__yoy.sql`:** a metric COMPOSED across a
-model boundary. Line 50 reads three columns from `int_player_season_record` (which renames them) and
-writes a fourth:
+## ⛔⛔ Three claims of mine that measurement disproved, all caught before review
 
-    - tackles_total + tackles_interceptions + tackles_blocks as defensive_actions
-    + tackles_player + interceptions_player + blocks_player as defensive_actions_player
+`!128` lost two review rounds to claims carried forward from a previous branch. This batch was
+audited for that specifically, and three of my own predictions still missed. Each is recorded as a
+miss, not quietly restated.
 
-## ⛔ The team/player junction, which is what makes this batch different
+**1. "`passes_key_per_match` is one of the 12 rendered rows, so criterion 1 is a real check."**
+Both halves wrong. `metricRows.ts` declares **16** rows, **12** render, and the twelve EN labels are
+`% Duels won · % Save percentage · Clean sheets · Ø Corners · Ø Corners against · Ø Defensive
+actions… · Ø Duels · Ø Goals · Ø Goals against · Ø Passes · Ø Shots · Ø Shots on target`.
+**"Ø Key passes" appears on ZERO built pages.** I carried the framing from `!128`, where
+`defensive_actions_per_match` genuinely renders. ⭐ What *does* discriminate here, verified:
+`check-metric-labels.test.mjs` extracts every `labelKey` from `metricRows.ts` and asserts in both
+directions and all three locales that each is defined in `strings.ts` and that no defined label goes
+unasked — so renaming one side without the other turns `npm test` red. `!125` measured that this
+guard covers only TEAM `metrics.*` keys, which is exactly why it is load-bearing where the thing at
+risk is a team row.
 
-RULING 5's own reasoning named `int_legs__team_from_players` as where seven TEAM metrics are
-aggregated FROM player data. Four of these five are on that list, and the model reads:
+**2. "The block count will fall to 171 (two orphans disappear)."** It rose to **175**. The delta is
+−2 +4: the two predicted orphans (`passes_total_sum_season__player`,
+`passes_accurate_sum_season__player`) do stop being emitted, but four NEW blocks appear —
+`passes_key_player_this_season__player` and its three siblings. They exist because the CPO-ruled
+rename moves those columns from `key_passes_*` (which decomposes onto `key_passes`, **not** a player
+metric_id, so no block) to `passes_key_player_*` (which decomposes onto a real player metric). I had
+reasoned about the half of the mechanism I had seen before and not about the half this batch
+introduced.
 
-    sum(tackles_total) as tackles · sum(tackles_blocks) as blocks · sum(tackles_interceptions) as interceptions
+**3. "That's a documentation improvement — four columns can now carry a description."** Also wrong,
+and I checked it only because claim 2 had just failed. **All four new blocks are ORPHANS**: `git
+grep "doc('passes_key_player_this_season__player')"` and its siblings return **zero** references,
+exactly like the two that disappeared (also zero at base). Nothing gained a description. The honest
+statement is *two orphan blocks are replaced by four*. Wiring descriptions onto those columns would
+be scope creep on a rename and blank descriptions are already tracked as **#82** — flagged, not
+folded in.
 
-Player names in, TEAM names out. It is excluded outright as provider `.sql`, and that exclusion is
-**load-bearing**: its reads point at `int_legs__player_match`, which does not rename, so renaming
-them would produce a model that cannot execute. Verified explicitly — untouched by the branch, still
-reading the provider names, no new name leaked into it.
+⭐ **THE PATTERN ACROSS ALL THREE: a number I predicted from a previous batch's mechanism is a
+claim, not evidence. When it misses, the miss is the finding.**
 
-⭐ The team seed formulas are safe by construction: `defensive_actions_per_match` reads
-`sum(tackles + interceptions + blocks)` from that model, whose columns are `tackles` /
-`interceptions` / `blocks` — **different tokens**, unreachable by any stem.
+## The classification — 426 tokens, 272 renamed / 154 protected
+
+1,655 tokens repo-wide: **1,197** untouched (the sample, `.claude/**`, `site/**` — which holds
+`pass_accuracy_recent`, the retired MVP's live_id — and the regenerated `metric_columns.md`), **32**
+in provider `.sql`, **426** in sweep across 48 files. 31 files were written; **17 were swept,
+decided and left untouched.**
+
+⭐ **Bare `key_passes` is swept but never moves** — 14 printed PROTECT decisions instead of 14
+invisible exclusions. Step 3's batch D justified it structurally and left the rule that comes with
+it: *on a rename whose stem is shared, print the classification, not just the diff — a reviewer can
+check a decision list, they cannot check an exclusion you kept in your head.*
+
+⭐ **THE FIFTH SURFACE, and the record said to expect one: the seed's `description` field.** `!127`
+found `label_i18n_key` as the fourth. Three descriptions gloss their own formula in prose and name
+the PROVIDER column — `passes_accurate` ("Derived as SUM(passes_total × …)"), `pass_accuracy_pct`
+("Null when passes_total is zero") and the TEAM `passes_accuracy_pct` (same sentence). ⛔ Not
+cosmetic: `+persist_docs` publishes these to BigQuery, so renaming them would ship a published
+description naming a column that exists nowhere. ⚠ The limit is stated: the field is protected
+wholesale, a description naming its own metric_id would need the opposite treatment, none does, and
+all three occurrences are printed for individual review.
+
+**Four self-aliasing `sum(X) … as X` sites, one moves its inner read** — unchanged from `!128`.
+
+## ⛔ The team/player junction, and this time a stem reaches it directly
+
+`int_legs__team_from_players.sql:28` reads `sum(passes_key) as key_passes` — player name in, TEAM
+name out. RULING 5 named key passes among the seven team metrics aggregated from player data.
+Excluded as provider `.sql`, and that exclusion is **load-bearing**: verified untouched, still
+reading the provider name, no new name leaked in. `int_legs__team_match.sql:120-121` additionally
+carries `own.passes_total` / `own.passes_accurate` — TEAM leg columns sharing the player metric
+names, also provider-excluded and verified.
+
+⚠ **The substring hazard runs the other way here** and step 3 recorded it: a careless sweep turns
+the team's `passes_accuracy_pct` into `passes_accuracy_pct_pct`. Measured after: all three 22-name
+team lists still read `passes_accuracy_pct` intact.
 
 ## Gates, each unpiped with its exit code read bare
 
-  - `sync_metric_docs_blocks.py --check` → **0**. 173 blocks before and after.
-  - `check_description_hygiene.py` → **0**. **1604 descriptions**, 235 blocks resolved — *identical to base*. That number is the "re-point them" ruling measured: 59 of 72 doc references move, 13 do not because their blocks are not renamed.
-  - `check_layer_contract.py` → **0**; `check_ui_i18n_metrics.py` → **0**.
-  - `dbt parse` → **0**.
-  - `sqlfluff lint` on the 10 changed models → **1**, and **proved pre-existing**: the same files stashed by explicit path, re-linted at base content, output **BYTE-IDENTICAL**, **zero LT05** both sides. All findings are the known `dbt_utils` TMP/PRS noise and its ST11 cascade.
-  - `python -m pytest -q` → **0**: **1009 passed, 1 skipped, 14 subtests** — the baseline. Verified it carries: neither `!127` nor this branch changes any file under `tests/`.
-  - `npm test` → **0**: 76/76. `npm run build` → **0** on both base and branch: 66 pages, `audit-seo` OK.
+  - `sync_metric_docs_blocks.py --check` → **0**, 175 blocks, delta reconciled term by term above.
+  - `check_description_hygiene.py` → **0**. **1604 descriptions — identical to the base**, which is the "re-point them" ruling measured a fifth time. Docs blocks resolved 235 → 237.
+  - `check_layer_contract.py` → **0**. `dbt parse` → **0**.
+  - `sqlfluff lint` on the 10 changed models → **1**, **proved pre-existing**: same files stashed by explicit path, re-linted at base content, output **BYTE-IDENTICAL**, **zero LT05** both sides. ⚠ The changed **macro** (`player_benchmark_metrics.sql`) is not in that set because CI runs `sqlfluff lint models` — macros are not linted there. Linted separately anyway: 3 LT02 findings at lines 19/20/41, and `git diff -U0` shows this branch touches only lines 26 and 31, so they are provably untouched.
+  - `python -m pytest -q` → **0**: **1009 passed, 1 skipped, 14 subtests** — the baseline.
+  - `npm test` → **0**: 76/76, including the label-binding guard that is this batch's real frontend check. `npm run build` → **0** on both base and branch: 66 pages, `audit-seo` OK.
 
-## #96 — SEVEN reproductions, and three of the six lists are in play
+## #96 at its widest yet — THREE of six lists, seven entries
 
 | list | names | this batch |
 |---|---|---|
-| `int_competition_benchmarks.yml:27` / `:66`, `shared.yml:2080` | 22 team | unchanged — and they hold `defensive_actions_per_match`, `tackles_per_match`, `interceptions_per_match`, `blocks_per_match`, all PROTECTED |
-| ⭐ `int_competition_benchmarks.yml:105`, `shared.yml:2186` | 18 player | unchanged — both hold **`defensive_actions_per90`, which must NOT move**. Checked as PROTECTIONS, which is new this batch |
-| ⭐ `shared.yml:1756` | 14 board keys | **`defensive_actions` → `defensive_actions_player`** |
+| `int_competition_benchmarks.yml:27` / `:66`, `shared.yml:2080` | 22 team | unchanged — `passes_per_match`, `passes_accuracy_pct`, `passes_key_per_match` all intact |
+| ⭐ `int_competition_benchmarks.yml:105`, `shared.yml:2186` | 18 player | **both change** — `key_passes_per90` → `passes_key_per90`, `pass_accuracy_pct` → `passes_accuracy_player_pct`; **`passes_per90` correctly does NOT move**. First batch in which either list changes at all |
+| ⭐ `shared.yml:1756` | 14 board keys | **three entries** — `passes_total`, `passes_key`, `pass_accuracy_pct` |
 
-The board key was then pinned mechanically, not by eye alone: the set `mart_leaderboards.sql`
-emits, the `accepted_values` list, and the export's `_LEADERBOARD_METRICS` all carry
-`defensive_actions_player`, none carries bare `defensive_actions`, and emitted == accepted exactly.
+Then pinned mechanically: the count-board keys agree as a SET across `mart_leaderboards.sql`,
+`accepted_values` and `_LEADERBOARD_METRICS`; `passes_accuracy_player_pct` is a RATE board, so it is
+correctly present in the mart and the list and **absent from the export** (rates deferred by #506) —
+asserting it "in all three" was a check bug that fired on the first run and was corrected.
 
-## Two defects of my own, both caught before review
+## The four range tests — a surface `!127` and `!128` had none of
 
-  - **I reintroduced the lying-decision-list defect while trying to fix it.** MR 2 labelled every non-self-aliasing bare read "this model's own column" — false at `int_player_profile__yoy.sql:50`. My improvement swallowed the `alias` case, so the four aliases in `int_player_season_record.sql` came out labelled *"bare read of int_legs__player_match, which renames it"* — false twice over: a WRITE, and that relation does not rename. Decisions were identical before and after the fix (247/120), so it was label-only; but **a decision list a reviewer checks INSTEAD of the diff must not lie**, and I had just re-broken exactly that. Fixed by handling `alias` explicitly and naming the renaming relations.
-  - **The verification suite cried wolf twice**, and both were the check's fault, not the work's. Protected-token counts read the whole repo and failed on +6 / +7 that were entirely inside `contract.md`, which *discusses* those tokens by name — now counted over the code tree only. And the yml-column check called `int_team_season__metrics.defensive_actions_per_match` a defect when that model projects `sf.* except (match_number)`; the column arrives from the cumulative model and never appears literally. Pre-existing on main, untouched here, now reported as not-literally-checkable rather than failed.
+All four PLAYER tests renamed (`int_player_season_…`, `std_player_…`, `player_profile_…`,
+`mart_leaderboards_passes_accuracy_player_pct_in_range`), none left on the old name.
+⚠ **And the first version of that check was wrong in a way worth keeping:** it asserted the set of
+`*pass*_in_range` tests was exactly those four. There are **eight** — the other four are TEAM tests
+on `passes_accuracy_pct` (`mmi_home_…`, `mmi_away_…`, `momentum_team_…`, `std_team_…`) which must
+NOT move. Both halves are now pinned, which is strictly stronger than pinning one.

@@ -6677,3 +6677,183 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   the wireframe alone could reasonably ask why. No reviewer failed on it and it is outside this
   MR's scope, so it is recorded here rather than added to the diff.
 
+
+2026-08-30 STEP 4 MR 4 — THE `passing` GROUP, AND A CPO RULING TAKEN BEFORE ANY CODE WAS WRITTEN.
+
+  `passes_total → passes_player`, `passes_accurate → passes_accurate_player`,
+  `passes_key → passes_key_player`, `pass_accuracy_pct → passes_accuracy_player_pct`,
+  `key_passes_per90 → passes_key_per90`. PLAYER only. Authority: the "⛔ PLAYER, 35 REMAINING"
+  table, all five verbatim; `passes_accuracy_player_pct` is RULING 5's shape applied to item 6 of
+  "THE SIX". Group membership checked FROM THE SEED: `player`/`passing` is 6 rows — these five plus
+  `passes_per90`, unchanged. ⚠ `key_passes_per90 → passes_key_per90` is the ONLY `_per90` name in
+  the whole programme that renames, and it sits in BOTH 18-name player `accepted_values` lists.
+  **The largest and most exposed batch of step 4: 426 tokens across 48 files.**
+
+  ⭐⭐ **THE RULING, taken during planning and recorded with what it answered.** The four derived yoy
+  columns `key_passes_this_season` / `_prev_season` / `_prev_season_full` / `_delta_yoy` — 20
+  occurrences, 4 files, none a catalogue row — **rename with the metric** to `passes_key_player_*`.
+  ⛔ WHAT HE WAS SHOWN BEFORE ANSWERING, recorded beside the approval because a blanket answer is
+  unverifiable without the thing it answered:
+    · that they are UNREACHABLE by the token sweep — they use the OLD `key_passes` noun order and
+      contain none of the five stems, so nothing would have moved them by accident;
+    · that renaming them also REVERSES that noun order, which RULING 6 settled for the metric_id but
+      never for these derived columns — the reason it was put to him instead of decided;
+    · that `!125` and `!128` both moved derived forms with their metric
+      (`shots_on_goal_this_season → shots_on_goal_player_this_season`);
+    · the two alternatives with their costs — DEFER (leaves a metric whose own yoy columns
+      contradict its name) or LEAVE PERMANENTLY (the ruled pattern stops describing the tree);
+    · the builder's recommendation, which was to rename, with its reasoning.
+  His answer: **rename them with the metric.**
+
+  ⭐⭐ **THE FIFTH SURFACE, AND THE RECORD SAID TO EXPECT ONE: THE SEED'S `description` FIELD.**
+  `!127` found `label_i18n_key` as the fourth and wrote "expect a fifth". Three descriptions gloss
+  their own FORMULA in prose and name the PROVIDER column:
+      passes_accurate            "Derived as SUM(passes_total x passes_accuracy_percent / 100)"
+      pass_accuracy_pct          "Null when passes_total is zero"
+      passes_accuracy_pct (TEAM) "Null when passes_total is zero"
+  All three name a leg column that does not rename — the same read-vs-write distinction as a dotted
+  SQL reference, wearing prose. ⛔ **And it is not cosmetic: `+persist_docs` publishes these to
+  BigQuery**, so renaming them would ship a published description naming a column that exists
+  nowhere. ⚠ The limit is stated rather than implied: the field is now protected WHOLESALE, and a
+  description naming its own metric_id would need the opposite treatment. None does today, and all
+  three occurrences are printed so a reviewer checks the three rather than trusting the rule.
+
+  ⛔⛔ **THREE PREDICTIONS OF MINE THAT MEASUREMENT DISPROVED — ALL CAUGHT BEFORE REVIEW, AND THE
+  PATTERN IS THE ENTRY.** `!128` lost two rounds to claims carried from a previous branch. This
+  batch was audited for exactly that, and three still missed:
+    1. **"`passes_key_per_match` is one of the 12 RENDERED rows, so criterion 1 is a real check."**
+       Both halves wrong. `metricRows.ts` declares **17** rows, **12** render, and **"Ø Key passes"
+       appears on ZERO built pages** — it is one of the rows the committed sample cannot feed. I
+       carried the framing from `!128`, where `defensive_actions_per_match` genuinely renders.
+       ⭐ What DOES discriminate, found by looking: `check-metric-labels.test.mjs` asserts the
+       `metricRows.ts` ↔ `strings.ts` binding in BOTH directions in all three locales, so renaming
+       one side alone turns `npm test` red. `!125` measured that this guard covers only TEAM
+       `metrics.*` keys — which is precisely why it is load-bearing HERE.
+    2. **"The block count falls to 171."** It ROSE to 175. −2 predicted orphans, **+4 unpredicted**:
+       the CPO-ruled rename moves four columns from `key_passes_*` (decomposes onto `key_passes`,
+       NOT a player metric_id, so no block) to `passes_key_player_*` (decomposes onto a real player
+       metric, so blocks appear). I reasoned about the half of the mechanism I had seen before.
+    3. **"That's a documentation improvement — four columns can now carry a description."** Also
+       wrong, and only checked because (2) had just failed. **All four new blocks are ORPHANS** —
+       zero references, exactly like the two that disappeared. Nothing gained a description. The
+       honest statement is *two orphan blocks replaced by four*.
+  ⭐⭐ **THE RULE: A NUMBER PREDICTED FROM A PREVIOUS BATCH'S MECHANISM IS A CLAIM, NOT EVIDENCE.
+  When it misses, the miss IS the finding** — and the only reason all three were caught is that each
+  prediction was written down first and then measured, rather than restated.
+
+  ⭐ **THE FRONTEND CHANGES FOR THE FIRST TIME IN STEP 4.** `site_v2/src/lib/types.ts:53` declares
+  `passes_key` on the `TopPlayer` interface, and `top_players[]` comes from `mart_player_momentum`,
+  which renames it — so the type would otherwise declare a field the payload stops carrying. One
+  token, one file; the other four swept frontend files are byte-identical. MRs 1-3 each asserted an
+  EMPTY `site_v2/` diff, and repeating that claim here would have been the same inherited-claim
+  defect that cost `!128` two rounds.
+
+  ⭐ **THE JUNCTION AGAIN, AND THIS TIME A STEM REACHES IT DIRECTLY.**
+  `int_legs__team_from_players.sql:28` reads `sum(passes_key) as key_passes` — player name in, TEAM
+  name out; RULING 5 named key passes among its seven team metrics. Provider-excluded, verified
+  untouched. `int_legs__team_match.sql:120-121` also carries `own.passes_total` /
+  `own.passes_accurate`, TEAM leg columns sharing the player metric names.
+  ⭐ **Bare `key_passes` was SWEPT deliberately even though it never moves** — 14 printed PROTECT
+  decisions instead of 14 invisible exclusions, per step 3's rule that a reviewer can check a
+  decision list but not an exclusion kept in someone's head.
+
+  ⚠ **#96 AT ITS WIDEST: THREE of six lists, SEVEN entries.** Both 18-name PLAYER lists change for
+  the first time (`key_passes_per90`, `pass_accuracy_pct`) while `passes_per90` must not move; the
+  14-name board list moves three. The three 22-name TEAM lists are untouched — and the substring
+  hazard step 3 recorded did NOT fire: `passes_accuracy_pct` is intact, not `passes_accuracy_pct_pct`.
+  ⚠ FOUR singular range tests renamed — a surface `!127` and `!128` had none of, and one step 3
+  PROTECTED as "step-4 names". ⚠ My first check of them asserted the `*pass*_in_range` set was
+  exactly those four; there are EIGHT, the other four being TEAM tests that must not move. Both
+  halves are now pinned, which is stronger than pinning one.
+
+  ⭐ The 1604-description count is the "re-point them" ruling measured a fifth time, identical to
+  the base.
+
+  ⛔⛔ **ROUND 1 FAILED 4–1 ON A NON-COMPILING DEFECT, AND IT IS THE ALIAS HEURISTIC AGAIN.**
+  `analytics-engineer-reviewer` found three models shipping
+  `sum(round(passes_player * passes_accuracy_percent / 100)) as passes_accurate_player` — a nested
+  aggregate over a SIBLING ALIAS, against CTEs that carry only `passes_total`:
+      int_player_club_season__metrics.sql:125 · int_player_season_position__metrics.sql:106
+      int_player_season_record.sql:54
+  ⛔ **THE CAUSE IS THE MISTAKE THIS LOG ALREADY RECORDS.** The classifier decided "is this an
+  upstream read?" by asking whether the LINE ends with `as <the same token>`. That recognises
+  `sum(passes_total) as passes_player` and MISSES `sum(round(passes_total * …)) as
+  passes_accurate_player`, which is just as much an upstream read — the metric is COMPUTED FROM the
+  provider column, so the alias is a different word. `!125`'s round-2 entry says, verbatim, that for
+  bare reads I asked "does the alias happen to match the inner name" instead of "did the source
+  relation rename this column". **Same mistake, third shape, four batches apart.**
+  ⭐ **THE FIX DELETES THE HEURISTIC RATHER THAN PATCHING IT.** Every bare read now resolves its
+  scope's SOURCE: a source CTE that WRITES the token emits the new name (aliases always move) →
+  RENAME; a chain reaching a provider relation → PROTECT; a renaming relation → RENAME; **anything
+  else ABORTS.** The abort fired twice on the first run — a jinja macro with no query scope, and
+  tokens inside `{# #}` comments — and both were real gaps in my model of the files, not noise.
+  ⚠ One inversion inside the new rule had to be corrected too: a source CTE that aliases the token
+  still shows the OLD name in the base text, but that alias moves, so the read moves with it.
+  Reading the base and concluding "protect" is the same pre-vs-post error `!125` made in the
+  yml-column guard; it inverted 17 decisions before being caught. Counts: **275/151 → 267/159**.
+
+  ⛔⛔ **AND THE RESOLVER COULD NOT HAVE CAUGHT IT — THREE BLIND SPOTS, FOUND BY EXPERIMENT.** I
+  first told the CPO that `!128`'s exemption had created a false negative here. **That was wrong.**
+  Reintroducing the defect and running the tool gave **exit 0**, and the reason was not the
+  exemption at all:
+    · `check_bare` walked only CTE BODIES, so a read in a model's FINAL SELECT was never scanned —
+      which is exactly where `int_player_season_record.sql:54` lives;
+    · `window w as (…)` clauses parsed as CTEs, pushing the synthesised final-select scope past the
+      end of the file even after that scope was added;
+    · a CTE that JOINS two relations resolved to only one, reporting `int_team_season_record.sql:141`
+      broken — a FALSE POSITIVE on a file this branch never touched, the cries-wolf class a third time.
+  All three closed, each verified by watching the real defect go RED with the exact line and the
+  untouched file go GREEN. The `!128` `created` exemption was additionally made SCOPE-AWARE: a name
+  aliased in the SAME select as the read is not exempt, because SQL cannot see a sibling alias.
+  ⭐⭐ **THE RULE: A FIX THAT REMOVES A FALSE POSITIVE CAN INSTALL A FALSE NEGATIVE, AND ONLY
+  RE-PROVING THE ORIGINAL DEFECT STILL GOES RED WILL TELL YOU.** Twice in two batches.
+  ⛔ **AND THE HONEST READ ON THE OPEN CI-GATE QUESTION:** two batches of green results had concealed
+  three separate blind spots in this tool. It is not close to committable. "Harden, then commit" is
+  no longer a preference — it is what the evidence says.
+
+  ⚠ A miscount of mine, caught independently by `bi-analyst-reviewer` and `platform-reviewer`:
+  `metricRows.ts` declares **16** rows, not the 17 I wrote. I counted `field:` string occurrences,
+  which double-counts the nested `team:` override on the `clean_sheets` row. The conclusion it
+  supported is unchanged and both reviewers re-derived it: 16 − 4 rows the sample cannot feed = 12
+  rendered, and "Ø Key passes" renders nowhere.
+
+  ⛔⛔ **ROUND 2 THEN FAILED TOO — 3 PASS / 2 FAIL — ON A FOURTH SITE OF THE SAME CLASS**, found
+  INDEPENDENTLY by `analytics-engineer-reviewer` and `bi-analyst-reviewer`.
+  `mart_player_season_record.sql:168-170,187`: the `matched` CTE was correctly updated to
+  `sf.passes_key_player` / `sf.passes_accurate_player` / `sf.passes_player`, but the model's own
+  FINAL SELECT still projected the OLD bare names, which no longer exist in that chain — while its
+  own `shared.yml` entry already declared the new ones. A fourth model that could not compile.
+  ⛔ **THE CAUSE, a THIRD root under the same rule: NEITHER TOOL FOLLOWED `JOIN`.** `matched` is
+  `from sides as s inner join season_final as sf` and the renamed columns come from the JOINED side;
+  my resolution chased `sides` and answered from the wrong branch. Both the classifier and the
+  resolver reported the tree clean — twice.
+  ⭐ Fixed by resolving across the WHOLE source set: every `ref()`, `from` AND `join`, walked
+  transitively; RENAME if any terminal renames, PROTECT only if EVERY terminal is a provider
+  relation, **ABORT otherwise**. Two more aborts fired at once and were real: window clauses
+  (`w as (…)`) parsing as CTEs had been hiding the final select of `int_player_season_record.sql`
+  from resolution entirely. Counts across the three rounds: **275/151 → 267/159 → 272/154.**
+
+  ⭐⭐ **THE ENTRY WORTH KEEPING: WHEN EVERY FAILURE COMES FROM ONE KIND OF LOGIC, STOP FIXING IT
+  AND BUILD A CHECK THAT CANNOT FAIL THAT WAY.** Four missed sites across two rounds all came from
+  my own source resolution — alias heuristics, chain walking, join following. Before spending the
+  LAST round I built one that is independent of all of it: **for every model, do the columns its yml
+  declares actually appear in its FINAL SELECT projection?** That is precisely the mismatch
+  `bi-analyst-reviewer` used to find the round-2 site, and it needs no notion of CTEs, joins or
+  aliases at all.
+  ⚠ It also shows why the pre-existing yml guard was too weak: it asked whether the new name appears
+  ANYWHERE in the file, and `passes_key_player` did — inside a CTE. The new check reads only the
+  final projection.
+  ⭐ Result: **10 models, exactly one mismatch — the site the reviewers had found, and no fifth.**
+  That is what justified spending round 3 rather than guessing.
+  ⭐⭐ **AND IT WAS THEN RUN AS AN AUDIT OF ALREADY-MERGED WORK — `!125`, `!127`, `!128`: 9 models,
+  ZERO mismatches.** The three merged batches are sound. Worth doing whenever a defect class is
+  discovered late: ask whether it also shipped.
+
+  ⛔ **WHAT THIS SETTLES ABOUT THE OPEN CI-GATE QUESTION.** Across MR 4 the column-reference resolver
+  was found to have FOUR blind spots — CTE-bodies-only scanning, window clauses parsed as CTEs,
+  single-branch join resolution, and a silent skip when a scope's relation could not be resolved,
+  which is the "reported, never skipped" property I had claimed it has. Two batches of green results
+  had concealed all four. **It is not committable, and "harden, then commit" is now what the
+  evidence says rather than a preference.** The check that actually caught things — yml vs final
+  projection — is simpler than the resolver and is the better candidate if a gate is ever wanted.
+

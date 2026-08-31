@@ -760,12 +760,6 @@ Interceptions.
 {% enddocs %}
 
 
-{% docs key_passes_per90 %}
-Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when
-minutes is zero.
-{% enddocs %}
-
-
 {% docs last_meeting_goals_against__player %}
 Goals conceded by the team while the player was on the pitch (GK-relevant). Taken from the most
 recent previous meeting between these two teams.
@@ -807,12 +801,6 @@ rather than this one.
 {% enddocs %}
 
 
-{% docs pass_accuracy_pct %}
-Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier
-passing game weighs more. Null when passes_total is zero.
-{% enddocs %}
-
-
 {% docs passes_accuracy_pct %}
 Share of passes successfully completed. Null when passes_total is zero.
 {% enddocs %}
@@ -840,20 +828,21 @@ now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs passes_accurate %}
+{% docs passes_accuracy_player_pct %}
+Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier
+passing game weighs more. Null when passes_total is zero.
+{% enddocs %}
+
+
+{% docs passes_accurate_player %}
 Accurate passes. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small
 per-fixture rounding error.
 {% enddocs %}
 
 
-{% docs passes_accurate_sum_season__player %}
-Accurate passes. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small
-per-fixture rounding error. Totalled over the season.
-{% enddocs %}
-
-
-{% docs passes_key %}
-Key passes. API definition: a pass leading directly to a shot.
+{% docs passes_key_per90 %}
+Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when
+minutes is zero.
 {% enddocs %}
 
 
@@ -882,6 +871,41 @@ season against a full one.
 {% docs passes_key_per_match_this_season__team %}
 Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
 Value for the season now in progress, accumulated through the matches played so far.
+{% enddocs %}
+
+
+{% docs passes_key_player %}
+Key passes. API definition: a pass leading directly to a shot.
+{% enddocs %}
+
+
+{% docs passes_key_player_delta_yoy__player %}
+Key passes. API definition: a pass leading directly to a shot. The change from the previous
+season to the current one, compared at the same point of the campaign: the current value minus
+the previous one. NULL when there is no prior season at this club to compare against, which
+covers a transfer, a first season at this level and a prior season that was never loaded, and
+NULL for a competition that carries no year-on-year comparison at all, such as a cup, a
+qualifying campaign or an international tournament.
+{% enddocs %}
+
+
+{% docs passes_key_player_prev_season__player %}
+Key passes. API definition: a pass leading directly to a shot. Value for the season before,
+through the same number of matches as the current season has played so far, so the two are
+compared at the same point of a campaign rather than a part season against a full one.
+{% enddocs %}
+
+
+{% docs passes_key_player_prev_season_full__player %}
+Key passes. API definition: a pass leading directly to a shot. The previous season's complete
+total, with no cutoff. It is context for how large that season was and is never subtracted from
+the season in progress, because a part season against a full one would mislead.
+{% enddocs %}
+
+
+{% docs passes_key_player_this_season__player %}
+Key passes. API definition: a pass leading directly to a shot. Value for the season now in
+progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -917,13 +941,8 @@ progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
-{% docs passes_total %}
+{% docs passes_player %}
 Total passes attempted.
-{% enddocs %}
-
-
-{% docs passes_total_sum_season__player %}
-Total passes attempted. Totalled over the season.
 {% enddocs %}
 
 

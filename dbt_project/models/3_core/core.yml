@@ -680,9 +680,9 @@ models:
       - name: goalkeeper_saves
         description: "{{ doc('saves__team') }}"
       - name: passes_total
-        description: "{{ doc('passes_total') }}"
+        description: "{{ doc('passes_player') }}"
       - name: passes_accurate
-        description: "{{ doc('passes_accurate') }}"
+        description: "{{ doc('passes_accurate_player') }}"
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: raw_ingested_at
@@ -762,9 +762,9 @@ models:
       - name: saves
         description: "{{ doc('saves__player') }}"
       - name: passes_total
-        description: "{{ doc('passes_total') }}"
+        description: "{{ doc('passes_player') }}"
       - name: passes_key
-        description: "{{ doc('passes_key') }}"
+        description: "{{ doc('passes_key_player') }}"
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: tackles_total
