@@ -7199,3 +7199,59 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   One root — **a scope coarser than the role it had to resolve**, which is the same sentence `!131`
   ended on. **Every gate was green at all three stages.** The blinded review is the only thing that
   found any of it, which is now four MRs running.
+
+
+---
+
+2026-08-31 STEP 5 STARTS — the English label "on target" -> "on goal", AND A RULING THAT WIDENS IT.
+
+  ⭐⭐ RULING, taken this session and the reason this MR is bigger than RULING 2's stated scope.
+  RULING 2 said the change is "in the catalogue". Before proposing anything I MEASURED where the
+  website actually gets its metric labels, and it is NOT the catalogue: the site reads its own
+  `METRIC_LABELS_EN` map in `site_v2/src/i18n/strings.ts`, keyed by `label_i18n_key`. **Four of the
+  nine labels render on the live site today.** So catalogue-only would have changed a column with
+  one consumer (`metrics.json`) and left every rendered page still reading "Shots on target" — the
+  exact mismatch RULING 2 exists to remove.
+  ⭐ THE QUESTION AND THE ANSWER, VERBATIM, because this entry was FAILed in review for narrating an
+  outcome where every other ruling here quotes him. Asked, verbatim:
+    "Step 5 changes the English wording 'on target' -> 'on goal'. Your ruling scoped it to 'in the
+     catalogue' - that's 9 rows in the seed. But I measured where the website actually gets its
+     labels, and it is NOT the catalogue: the site reads its own file
+     (site_v2/src/i18n/strings.ts). Four of those nine labels render on the live site today, and
+     they would keep saying 'Shots on target' if I only touch the catalogue. Do I change the
+     website's four too?"
+  He selected, verbatim, the option titled:
+    **"Catalogue + website (recommended)"**
+  whose stated text was: "Change all 9 catalogue labels AND the 4 that render on the site, so pages
+  show 'O Shots on goal'. This is what your words asked for - 'consistency between the metric name
+  and what we show (in english)'. German and Finnish stay untouched; they already say Torschusse /
+  Maalilaukaukset. I checked the gates: no test breaks."
+  The alternative he declined was "Catalogue only", stated as leaving the website showing
+  "Shots on target".
+  ⚠ It is a SELECTION, not free text — recorded as such rather than dressed up as a quotation of
+  his own sentence. So the four `strings.ts` EN values move with the nine seed labels.
+  ⚠ German and Finnish still do NOT move — that half of RULING 2 is untouched and was re-measured
+  here: `Ø Torschüsse` and `Ø Maalilaukaukset` already say "goal shots".
+
+  ⛔ THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED. It named nine metric_ids; SIX were
+  superseded by step 3's team renames and step 4's player renames (`shot_accuracy` is now
+  `shots_on_goal_pct`, `sot_difference_per_match` is `shots_on_goal_difference_per_match`, the four
+  player names all carry `_player`, and `finishing_efficiency` is `finishing_efficiency_pct`). The
+  nine were re-derived by matching `label_en` against "on target" in the seed.
+  ⭐ The COUNT was right and the NAMES were wrong, which is the tell worth keeping: a stale list can
+  agree with reality on the summary number and disagree on every element.
+
+  ⛔ STEP 5 IS THE MIRROR IMAGE OF STEP 4, AND THAT IS THE SAFETY PROPERTY. Every one of step 4's
+  seven classifiers deliberately PROTECTED `label_en`; this MR moves `label_en` and protects
+  `metric_id` everywhere. The two halves of the programme cannot collide.
+
+  ⛔ `label_i18n_key` DOES NOT MOVE, including the one value that contains the words.
+  `shots_on_goal_per_match` declares `metrics.shots_on_target_per_match.label` — the only key in the
+  seed carrying "on_target". It is a JOIN KEY across the seed, `strings.ts`, `metricRows.ts`, three
+  hand-written parsers and the page specs, and the catalogue declares no `..._on_goal_...` key, so
+  "fixing" it resolves the label to nothing. RULING 2 governs what is SHOWN, not keys.
+
+  ⛔ THE SEED'S `description` COLUMN IS FLAGGED, NOT TAKEN. ~19 descriptions say "shots on target" as
+  prose, and `persist_docs` publishes them to BigQuery, so after this MR a row's label and its own
+  description disagree. Recommended as a small follow-up; NOT folded in, because widening scope
+  mid-MR is precisely what this programme has been FAILed on.

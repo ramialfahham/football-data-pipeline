@@ -54,7 +54,7 @@ floor carries no block (§6).
 │  Goals            0.82            ▐███████▌ top 5%│      per-90 value · bar (dashed median) · label
 │  Assists          0.31            ▐█████▌ top 28% │
 │  SHOOTING                                         │
-│  Shots on target  1.9             ▐██████▌ top 12%│
+│  Shots on goal    1.9             ▐██████▌ top 12%│
 │  Finishing        18 of 74 · 24%  ▐████▌ median   │      ratio → volume triple in the value slot
 ├────────────────── fold (~700px) ──────────────────┤
 │  DUELS                                            │

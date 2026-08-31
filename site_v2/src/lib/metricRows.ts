@@ -86,9 +86,12 @@ export const METRIC_ROWS: MetricRowDef[] = [
   { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
   //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
-  // The internal id says "on goal", the user-facing term is "on target". Do NOT "fix" this to
-  // `metrics.shots_on_goal_per_match.label` — the catalogue declares no such key and the label would
-  // resolve to nothing.
+  // Do NOT "fix" this to `metrics.shots_on_goal_per_match.label` — the catalogue declares no such
+  // key and the label would resolve to nothing.
+  // ⭐ The REASON changed in step 5, the INSTRUCTION did not. This used to be a genuine term split
+  // (internal id "on goal", user-facing label "on target"); RULING 2 closed it, so the label now
+  // reads "Ø Shots on goal" and both say "on goal". What is left is only a LEGACY KEY NAME, which
+  // is still the join key and still the only thing that resolves this label.
   { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
   { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
   { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },

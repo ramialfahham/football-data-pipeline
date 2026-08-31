@@ -132,7 +132,7 @@ deleted, per this file's own convention.
 What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points_player`
 (goals and assists became boards in their own right, so the combined metric had nothing left to
 combine), every second/context column (`passes_accuracy_player_pct`, `dribbles_success_player_pct`,
-`duels_won_player_pct`, `saves_player_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
+`duels_won_player_pct`, `saves_player_pct`), and Shots on goal, Duels, Dribbles, Tackles, Goals conceded and
 Cards entirely. ⚠ **There is therefore NO GOALKEEPER BOARD** — the four survivors are all
 attacking/possession metrics, so an outfield creator can top every board and a keeper can top none.
 ⚠ The Goals-conceded row's "ASCENDING" note is what GAP-26 was written about; that board no longer
@@ -144,7 +144,7 @@ exists and the gap is VOID.
 | Board | Shown | Ranked by |
 |---|---|---|
 | Goal contributions | `goals_player` · `assists_player` · `scorer_points_player` | `scorer_points_player` |
-| Shots on target | `shots_on_goal_player` | `shots_on_goal_player` |
+| Shots on goal | `shots_on_goal_player` | `shots_on_goal_player` |
 | Duels | `duels_won_player` · `duels_player` · `duels_won_player_pct` | `duels_player` |
 | Dribbles attempted | `dribbles_attempts_player` · `dribbles_success_player` · `dribbles_success_player_pct` | `dribbles_attempts_player` |
 | Passes | `passes_player` · `passes_accurate_player` · `passes_accuracy_player_pct` | `passes_player` |
@@ -170,7 +170,7 @@ was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_o
 |---|---|---|
 | % Points captured | `points_capture_pct` · `points_won` · `deserved_points` | `points_capture_pct` |
 | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
-| Ø Shots on target difference | `shots_on_goal_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency_pct` | `shots_on_goal_difference_per_match` |
+| Ø Shots on goal difference | `shots_on_goal_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency_pct` | `shots_on_goal_difference_per_match` |
 | Ø Defensive actions | `defensive_actions_per_match` | descending |
 | Ø Passes | `passes_accuracy_pct` · `passes_key_per_match` · `passes_per_match` | `passes_per_match` |
 | Ø Duels | `duels_per_match` · `duels_won_pct` | `duels_per_match` |
@@ -337,7 +337,7 @@ Closed since 2026-08-04:
   players ruling, this is NOT free against the existing mock.** `top_teams_mock.html` was opened
   to check (per THE METHOD: check the mock's numbers, don't trust them): 3 of its 4 boards
   genuinely mix teams from one league — Real Madrid + Barcelona both La Liga on Goals/Shots on
-  target/Passes, Arsenal + Manchester City both Premier League on Shots on target/Passes — and
+  target/Passes, Arsenal + Manchester City both Premier League on Shots on goal/Passes — and
   drop other pool leagues off the board entirely. Only Duels per match lands on 7 distinct
   leagues, by coincidence, not design. The players mock was already correct by accident; this one
   is not, and its placeholder rows need redoing before anyone should read a shape off it. No mart
