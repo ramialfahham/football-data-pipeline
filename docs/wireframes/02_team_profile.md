@@ -137,14 +137,14 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 | Clean sheets (x/y) | derivable: `clean_sheets` of `played` |
 | Ø Shots | `shots_per_match` |
 | % Shots from box | `shots_inside_box_pct` |
-| % Goals per shot on target | `finishing_efficiency_pct` |
+| % Goals per shot on goal | `finishing_efficiency_pct` |
 | Ø Passes | `passes_per_match` |
 | % Pass accuracy | `passes_accuracy_pct` |
 | Ø Corners | `corners_per_match` |
 | Ø Corners against | `corners_against_per_match` |
 | % Save percentage | `saves_pct` |
 
-**Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
+**Missing season variants (GAP-13)**: Ø Shots on goal, Ø Duels, % Duels won,
 Ø Defensive actions, Ø Key passes — the full-season intermediate predates the
 player-stat-derived team metrics. Until GAP-13 ships these rows render only in
 the fixture comparison, not here. Coverage caption from

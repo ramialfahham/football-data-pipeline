@@ -63,8 +63,11 @@ test("every labelKey is a label_i18n_key the catalogue actually declares", () =>
   // Checks the `label_i18n_key` COLUMN, verbatim. The first version of this test stripped
   // ⚠ Read the `label_i18n_key` COLUMN. Do not strip `metrics.`/`.label` and look the remainder up in
   // `metric_id` — that is a different and wrong invariant. metric_id `shots_on_goal_per_match` declares
-  // label_i18n_key `metrics.shots_on_target_per_match.label` (internal id "on goal", user-facing term
-  // "on target"), so an id-based check calls the real key dangling and an invented one valid.
+  // label_i18n_key `metrics.shots_on_target_per_match.label`, so an id-based check calls the real key
+  // dangling and an invented one valid.
+  // ⭐ That disagreement is now a LEGACY KEY NAME, not a term split: step 5 (RULING 2) moved the
+  // English label to "Ø Shots on goal", so the id and the user-facing term agree and only the key
+  // still reads "on_target". The invariant this test enforces is unchanged.
   const csv = readFileSync(join(REPO, "dbt_project/seeds/metric_catalogue.csv"), "utf8");
   const lines = csv.split(/\r?\n/);
   const header = lines[0].split(",");

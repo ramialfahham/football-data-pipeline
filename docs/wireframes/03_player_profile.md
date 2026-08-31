@@ -45,7 +45,7 @@ atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest
 ├────────────────────────────────────────────┤
 │  SEASON STATS                              │  (5) the 9 bundled rows
 │  Scorer points        9 G · 6 A            │
-│  Shots on target      21                   │
+│  Shots on goal        21                   │
 ├──────────────— fold (~700px) —─────────────┤
 │  Duels won            96 of 178 · 54%      │
 │  Successful dribbles  38 of 61 · 62%       │
@@ -91,7 +91,7 @@ catalogue metrics; rendered as a one-line summary.
 | Bundle (contract) | JSON keys (selected season row) |
 |---|---|
 | Scorer points | `goals_player`, `assists_player` |
-| Shots on target | `shots_on_target` |
+| Shots on goal | `shots_on_target` |
 | Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
 | Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
 | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |

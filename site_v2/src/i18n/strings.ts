@@ -602,9 +602,17 @@ export function positionLabel(lang: Lang, code: string | null | undefined): stri
  *  extraction, so flat keys would have smuggled 54 strings past the copy check. This map has its own
  *  reader in the copy gate.
  *
- *  ENGLISH IS UNCHANGED BY THIS TASK. Every EN string below is byte-identical to what shipped before,
- *  including `% Goals per shot on target`, which the CPO's MVP corpus calls `% Conversion rate` — two
- *  approved English names for one metric, a §10 pick left to him and recorded in the contract.
+ *  ENGLISH WAS UNCHANGED BY #370, AND CHANGED ONCE SINCE, BY STEP 5 OF THE NAMING PROGRAMME.
+ *  RULING 2 — "consistency between the metric name and what we show (in english)" — moved four EN
+ *  labels from "on target" to "on goal", so they now match ids that have said `shots_on_goal_*` all
+ *  along. Those four are the ONLY EN strings here that have ever moved; every other one is still
+ *  byte-identical to what shipped with #370.
+ *  ⚠ `% Goals per shot on goal` remains a divergence from the CPO's MVP corpus, which calls that
+ *  metric `% Conversion rate` — two approved English names for one metric, a §10 pick left to him,
+ *  recorded in the contract and skipped by name in `check-metric-labels.test.mjs`. Step 5 changed
+ *  the wording, not the divergence.
+ *  ⛔ DE and FI did NOT move, by the same ruling: both already say "goal shots" (`Ø Torschüsse`,
+ *  `Ø Maalilaukaukset`), which is why only English was out of step.
  *  DE/FI provenance: 10 are the CPO's validated MVP corpus (`site/i18n/*.json`), test-pinned so they
  *  cannot drift; the rest were written for this task and externally verified, EXCEPT the three
  *  Finnish forms the CPO supplied himself.
@@ -621,10 +629,10 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.clean_sheets_pct.label": "% Clean sheets",
   "metrics.shots_per_match.label": "Ø Shots",
   "metrics.shots_inside_box_pct.label": "% Shots from box",
-  "metrics.shots_on_target_per_match.label": "Ø Shots on target",
-  "metrics.shots_on_goal_against_per_match.label": "Ø Shots on target against",
-  "metrics.shots_on_goal_difference_per_match.label": "Ø Shots on target difference",
-  "metrics.finishing_efficiency_pct.label": "% Goals per shot on target",
+  "metrics.shots_on_target_per_match.label": "Ø Shots on goal",
+  "metrics.shots_on_goal_against_per_match.label": "Ø Shots on goal against",
+  "metrics.shots_on_goal_difference_per_match.label": "Ø Shots on goal difference",
+  "metrics.finishing_efficiency_pct.label": "% Goals per shot on goal",
   "metrics.duels_per_match.label": "Ø Duels",
   "metrics.duels_won_pct.label": "% Duels won",
   "metrics.defensive_actions_per_match.label": "Ø Defensive actions",

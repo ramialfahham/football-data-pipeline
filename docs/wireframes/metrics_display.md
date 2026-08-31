@@ -135,8 +135,8 @@ Set pieces → Goalkeeping.
 | 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | **new** (GAP-11) |
 | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
 | 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
-| 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
-| 7 | % Goals per shot on target | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11) |
+| 6 | Ø Shots on goal | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
+| 7 | % Goals per shot on goal | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11; "on target" → "on goal", step 5) |
 | 8 | Ø Duels | `duels_per_match` | Duels | 2 | **new** (GAP-11) |
 | 9 | % Duels won | `duels_won_pct` | Duels | 2 | live |
 | 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
@@ -170,11 +170,19 @@ owns its order, grouping and tier; the i18n layer owns its display string per lo
 
 ⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
 id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
-`shots_on_goal_per_match` — the internal id says "on goal", the user-facing term is "on target". The
-catalogue reconciles them in its `label_i18n_key` column, which for that row is
-`metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during #370: the key was
-read as a metric id, judged dangling, and replaced with one the catalogue declares nowhere. **Resolve
-a label by reading the `label_i18n_key` column; never infer it from an id or a payload field.**
+`shots_on_goal_per_match`. The catalogue reconciles them in its `label_i18n_key` column, which for
+that row is `metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during
+#370: the key was read as a metric id, judged dangling, and replaced with one the catalogue declares
+nowhere. **Resolve a label by reading the `label_i18n_key` column; never infer it from an id or a
+payload field.**
+
+⭐ **The REASON for that mismatch changed in step 5; the INSTRUCTION did not.** It used to be a real
+term split — the internal id said "on goal" while the user-facing label said "on target". RULING 2
+closed that: **both now say "on goal"**, and the label reads `Ø Shots on goal`. What survives is
+purely a LEGACY KEY NAME. `metrics.shots_on_target_per_match.label` is still the only key in the
+catalogue carrying "on_target", it is still what `strings.ts` and `metricRows.ts` join on, and the
+catalogue still declares no `metrics.shots_on_goal_per_match.label` — so inferring the key from the
+id still resolves the label to nothing. Renaming the key is a separate job with its own contract.
 
 ⚠ **Row 3 carries TWO metric ids, and that is the contract, not a typo.** A row of this table is a
 display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
@@ -187,8 +195,10 @@ formula between them, and the seed carries both. In `metricRows.ts` the row's ow
 order, group and tier are shared and unchanged, so this table still locks sixteen rows.
 
 Row 7's "relabeled" note is also load-bearing: this document rules that v2 ships
-`% Goals per shot on target`, while the retired MVP corpus (`site/i18n/*.json`) says
-`% Conversion rate`. #370 kept this document's version and left the divergence for the CPO.
+`% Goals per shot on goal` (step 5; it read `% Goals per shot on target` until then), while the
+retired MVP corpus (`site/i18n/*.json`) says `% Conversion rate`. #370 kept this document's version
+and left the divergence for the CPO, and step 5 does not settle it either — the frozen corpus is not
+touched, and `check-metric-labels.test.mjs` still skips this one row by name for that reason.
 
 **German and Finnish are CPO-approved** (2026-07-31); ten are carried forward from the validated MVP
 corpus and are test-pinned to it so they cannot drift.
@@ -216,7 +226,7 @@ Performance row's is 77px, both measured at 375px.
 Any locale that compounds (Dutch is next) inherits all of this.
 
 **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
-comparison): `shots_on_goal_pct` (% shots on target — superseded by the Ø-shots vs
+comparison): `shots_on_goal_pct` (% shots on goal — superseded by the Ø-shots vs
 Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /
 `blocks_per_match` (sub-display of row 10 only), `dribbles_success_player_pct`
 (dropped team-side; stays a player metric), `points_won` + `league_rank`
@@ -225,7 +235,7 @@ comparison): `shots_on_goal_pct` (% shots on target — superseded by the Ø-sho
 ### The shooting funnel (rationale, ruled with fix "a")
 
 Volume (Ø shots) → location quality (% from box) → on-target volume (Ø shots on
-target) → finishing (% goals per shot on target). The finishing metric keeps its
+goal) → finishing (% goals per shot on goal). The finishing metric keeps its
 formula (goals ÷ shots on goal, coverage-aligned) — the old label "% Conversion
 rate" was the misnomer and is replaced. Glossary carries the caveat that finishing
 can exceed 100% (penalties/own goals counted as goals but not always as shots);
@@ -255,7 +265,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | # | Row | Display string | Atomics | Group |
 |---|---|---|---|---|
 | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
-| 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
+| 2 | Shots on goal | `{shots_on}` | shots_on_target | Shooting |
 | 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | Duels |
 | 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | Duels |
 | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |

@@ -62,7 +62,7 @@ next to the %), both being separate metrics already in the set.
 │  SHOOTING                                         │      order = the LOCKED shooting funnel
 │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
 │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
-│  Ø Shots on target 5.3  3rd of 18   +0.8  ▐███▌   │      on-target volume →
+│  Ø Shots on goal   5.3  3rd of 18   +0.8  ▐███▌   │      on-goal volume →
 │  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
 ├────────────────── fold (~700px) ──────────────────┤
 │  DUELS                                            │

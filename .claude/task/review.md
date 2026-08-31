@@ -1,244 +1,177 @@
-# Review — refactor/metric-rename-player-goals — 2026-08-31
+# Review — refactor/metric-label-on-goal — 2026-08-31
 
-> **STEP 4 of the metric catalogue naming programme, MR 7 of seven — THE LAST BATCH.** The seven
-> player `goals` metrics: `goals` → `goals_player`, `assists` → `assists_player`, `goals_penalty` →
-> `goals_penalty_player`, `scorer_points` → `scorer_points_player`, `goals_open_play` →
-> `goals_open_play_player`, `penalty_won` → `penalty_won_player`, `contribution_share` →
-> `contribution_player_pct`. PLAYER entity only. Branched from main `6f0ee07`.
+> **STEP 5 of the metric catalogue naming programme.** The English label "on target" → "on goal" on
+> nine catalogue `label_en` rows and on the four `METRIC_LABELS_EN` values that render. The mirror
+> image of step 4: that programme moved `metric_id` and PROTECTED `label_en`; this moves `label_en`
+> and protects `metric_id` everywhere. Branched from main `649b11c`.
 
-diff_sha256: 0e995d62a43bac0f497c202c2bd4119d79ba614ef7457920dab314d6d835df32
+diff_sha256: 766b2b2b30338f4cf03082f77445881bd8fbf14b683d6c25037d87042508d836
 
-rounds: 4
+rounds: 2
 
-rounds_cap_override: The CPO authorised the fourth round explicitly. I brought the round-3 findings
-to him rather than looping, recommended committing without a further pass, and offered the
-alternative in these words: "The alternative is authorising one more scope-auditor pass on the
-corrected log. That is the conservative call and I will run it if you want it." He replied, verbatim
-and in full: **"do it"**. Round 4 is therefore a NARROW DELTA pass by `scope-auditor` alone, scoped
-to one question — whether its own round-3 FAIL is properly fixed. No code, model, seed, doc or test
-file changed between round 3 and round 4; the delta is `escalations.log`, `acceptance_evidence.md`,
-`review.md` and `active_work.md` only.
+⭐⭐ **THE SCOPE IS WIDER THAN THE RECORDED RULING 2, BY A RULING TAKEN THIS SESSION.** RULING 2's
+scope was confirmed *"in the catalogue"*. Measured before proposing anything: the catalogue is **not**
+what the website renders — `strings.ts`'s `METRIC_LABELS_EN` is — and four of the nine labels render
+today, so catalogue-only would have left every page still reading "Shots on target", which is the
+mismatch the ruling exists to remove. Shown both options and their consequences, the CPO selected
+**"Catalogue + website (recommended)"**. Recorded in `escalations.log` with the question verbatim,
+the selected option's exact title and text, the declined alternative, and an explicit note that it
+was a SELECTION rather than free text.
 
-⚠ **Round 4 was a NARROW DELTA pass by `scope-auditor` alone, authorised by the CPO past the cap of
-3**, to check one thing: that its round-3 FAIL was properly fixed. It was asked for explicitly after
-I recommended committing without it. **All five reviewers now PASS.**
+⚠ **THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED.** It named nine metric_ids; **six were
+superseded** by step 3's and step 4's renames. **The COUNT was right and the NAMES were wrong** —
+the tell worth keeping, because a stale list can agree with reality on the summary number and
+disagree on every element. The nine were re-derived from the seed.
 
-⛔⛔ **ONE RULE SET THREE TIMES. ROUND 1 FAILED 5–0, ROUND 2 FAILED 4–1, ROUND 3 FAILED 4–1, ROUND 4
-PASSED — AND EVERY GATE WAS GREEN AT ALL THREE FAILING STAGES.** `dbt parse`, both doc gates, the
-resolver, the projection check, `pytest`, `npm test` and the site build passed with each defect in
-the tree. **The blinded round was the only thing that found any of them**, which is now four MRs
-running.
+## ⛔⛔ ROUND 1 FAILED 3–1, AND THE MISS IS THE LESSON
 
-⭐⭐ **THE DEFECTS WERE ONE HABIT, NOT SIX BUGS: A SCOPE COARSER THAN THE ROLE IT HAD TO RESOLVE.**
-`goals` and `assists` are ordinary English words as well as metric ids, and I mis-set the boundary
-three times in a row:
+`bi-analyst` found a **third live copy** of the id-vs-label claim — `DeservedHero.astro:43` — that
+`decisions_taken §2` rewrites in two other places. It was absent from my census entirely.
 
-1. **Too wide (round 1).** The sweep rewrote running prose — *"the club's WHOLE-SEASON
-   goals_player"*, *"own goals_player"*, *"Involved in 45% of Bayern's goals_player"*. Because
-   `+persist_docs` is on for every model, `int_player_profile.yml`'s model description would have
-   shipped to BigQuery telling a stranger the club's season goal total is called `goals_player`.
-   `int_player_profile__contribution`'s docstring said it BOTH ways in one paragraph — prose wrong,
-   formula line beneath it right.
-2. **Too narrow (round 1, same round).** My fix required the token to BE a whole backticked span,
-   which left `` `mart_player_career.goals` ``, `` `goals − goals_penalty_player` `` and the
-   `Atomics` column's `goals, assists` stale — the last two rows above ids `!130` had renamed.
-3. **Right in tables, blind outside them (round 2).** Two SQL comments quoted the
-   finishing-efficiency formula as `(goals − goals_penalty_player)` directly above code computing
-   `(goals_player - goals_penalty_player)`.
+⭐ **WHY: I matched `"on target"` and `"on-target"` and never matched `"on_target"`.** An enumeration
+of spellings, which loses by one variant — the exact failure `feedback_fix_the_class_not_the_instance`
+records holing a guard four rounds running. Re-swept with the PATTERN `on[\s_-]?target`:
+**136 occurrences, 5 of them CLAIMS about the split.** Two already rewritten; two stale and now
+fixed; **one (`check-page-specs.test.mjs:179`) still TRUE and deliberately untouched**, because it
+compares the id to the KEY rather than to the user-facing term — named in the evidence so its absence
+from the diff reads as a decision, not another miss.
 
-⭐ **THE RULE THAT HOLDS IS ROLE, NOT PUNCTUATION**, in two reaches, each set from a census of the
-whole tree rather than the sites a reviewer named:
-  - **Inside a markdown table the COLUMN decides.** 16 distinct column headers, three roles —
-    `Source column`/`Atomics`/`numerator`/`denominator` move; `Payload key`/`JSON key` stay (the
-    CPO's ruling); everything else is prose. **51 in-table occurrences: exactly 6 move, 45 stay.**
-  - **Outside one, an OPERAND is an identifier**: a token inside parentheses holding both an
-    arithmetic operator and another underscored identifier. **26 comment occurrences: exactly 2
-    move, 24 stay** — "own goals", "Penalty goals", `group=goals`, and an ORDER BY description over
-    the PROVIDER columns `goals_total`/`goals_assists` all correctly left alone.
-  - `{goals}` is excluded as a template slot, proved by its sibling row: `{won} of {total} · {pct}%`
-    sits against atomics `duels_won_player, duels_player, duels_won_player_pct`. The slots were
-    never the ids.
-⭐ `11_team_squad.md:120` carries both rulings in one line and is right in both halves:
-`` `squad[].goals` `` stays, `` `mart_player_career.goals_player` `` moves.
-
-⛔ **A MACHINERY DEFECT COST A WHOLE ROUND, AND IT IS DISCLOSED RATHER THAN QUIETLY REPAIRED.** The
-first round-2 attempt served all five reviewers a **STALE `review_input.patch`** — the round-1 diff.
-`git_discipline.py --review-patch` PRINTS to stdout and builds from `git diff --staged <base>`, so
-run bare with nothing staged it exits 0 and leaves the previous round's file on disk. Two reviewers
-FAILed on defects fixed hours earlier, citing offsets that no longer existed; that attempt is void
-and is not counted as a round. **The free tell is `--staged-hash` printing `e3b0c442…`, which is
-`sha256("")`.** What resolved it in one step: `analytics-engineer`, reading the FILES, reported the
-prose clean while `platform`, reading the PATCH, reported it corrupted — **two reviewers
-contradicting each other on the same tokens means the artifact is wrong, not the code.**
-
-⭐ **ONE PREDICTION WAS DISPROVED, AND THE CORRECTION IS THE INTERESTING HALF.** I predicted `goals`,
-`goals_open_play` and `goals_penalty` would all leave the hygiene gate's ambiguous-name list, leaving
-`league_code` alone. Measured base-vs-branch it goes **4 → 3**, not 4 → 1: `goals_open_play` leaves,
-**`goals_penalty` does not, because it is also a PROVIDER leg column.** That is `!131`'s ruling
-reproduced independently — **a rename frees a name from #87 only when no provider column shares it.**
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-
-**Round 1 FAIL** — prose corruption at `metrics_display.md:303` ("goals_player against", splitting the
-team construct "goals against"), `:37-40`, `03_player_profile.md:118` and `mart_player_profile.sql:85,197`.
-**Round 2 FAIL** — the two half-renamed formula comments at `int_player_season__metrics.sql:112` and
-`int_player_season_position__metrics.sql:155`, each directly above code that got it right. Accepted in
-full; fixed as `in_operand_position()` and censused across every comment line in the repo.
-**Round 3 PASS.** Verified both findings fixed at the flagged lines with no collateral change, spot-checked
-the 24 protected English comments, and re-checked catalogue governance and the consumption layer:
-*"every changed row differs from base in `metric_id` only … payload keys stay, only warehouse-facing reads
-and fixtures move; no derivation added."*
-
-risks_checked:
-- Both round-2 comment defects fixed exactly at the flagged lines, with no collateral change in the
-  surrounding hunks; the code beneath each was already correct and is untouched by the delta.
-- The `in_operand_position()` rule checked for OVER-reach: "own goals", "Penalty goals",
-  `group=goals` and `mart_player_momentum.sql`'s ORDER BY comment all still read as English.
-- Catalogue governance on `metric_catalogue.csv` — every changed row differs from base in `metric_id`
-  only; the TEAM `goals`/`goals_against` rows untouched, consistent with the scoreline rule.
-- Consumption layer: payload keys stay, only warehouse-facing reads and fixtures move; no new math,
-  ranking or derivation introduced — still pure selection and rename.
-- `mart_player_career.sql`'s `group=goals` correctly left unrenamed, confirming §9(b)'s fix held.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-
-**Round 1 FAIL** — the over-correction: `metrics_display.md:257`'s Atomics column unrenamed,
-`11_team_squad.md:120-121` stale, `12_player_stats.md:142` half-renamed. This is the finding that
-proved the backtick alone cannot decide, and it drove the column-role rule.
-**Round 2 PASS. Round 3 PASS**, re-verified after the whole sweep was re-applied from base:
-*"the payload keys `squad[].goals`/`squad[].assists` are still byte-identical (stay), while the
-identifier column moved … both halves correct together on the same line."* Confirmed zero
-`site_v2/` and `site/i18n/` hunks, and traced `_LEADERBOARD_METRICS` as the distinct already-ruled
-§7 case rather than a contradiction of the payload rule.
-
-risks_checked:
-- All three round-2 identifier sites re-verified after the full re-apply from base, in BOTH
-  directions: `11_team_squad.md:120-121` (payload key stays, source column moves — both halves right
-  on one line), `metrics_display.md:257` (Atomics moves, `{goals}` template slot stays),
-  `12_player_stats.md:142` (numerator operands both moved).
-- Every wireframe touched by the MR swept for the reverse defect — an English-prose occurrence
-  wrongly renamed: none found.
-- The team scoreline family byte-identical everywhere it sits adjacent to a renamed player token.
-- Zero `site_v2/src/**` and `site/i18n/` hunks, traced by reading each swept-but-protected frontend
-  file's actual field reads against the mart and export diffs rather than trusting the contract.
-- `rendered_page_evidence.md` read as evidence, not paperwork: built from `dist/`, states its method,
-  and honestly scopes what the comparison can and cannot prove.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-
-**Round 1 FAIL**, two findings. The second is the one that mattered and it was about the record, not
-the code: **the `contribution_player_pct` caveat I was carrying had already been DISCHARGED.**
-`escalations.log`, 2026-08-29, records *"RULING, verbatim: 'contribution_player_pct is fine, go with
-it'"* and states the older *"flag it rather than quote it as his"* warning "does not need to travel
-further". I had repeated it in the contract, the evidence and the log entry. Corrected in all three.
-**Round 2 PASS. Round 3 PASS**, re-verifying the seed is `metric_id`-only after the re-apply and
-judging the corrected formula football-correct: *"All three operands are player-grain columns — no
-team or provider-leg column is mixed in."*
-
-risks_checked:
-- The two corrected comments re-read against the code three lines beneath each — no half-renamed
-  operand remains in either.
-- Football correctness of the corrected formula: `goals_player` (own goals already excluded) minus
-  `goals_penalty_player`, over that same player's `shots_on_goal_player`, is a standard open-play
-  conversion rate at player grain; the `< 0` / `> shots_on_goal_player` guards preserve the
-  never-above-100% honesty the catalogue enforces elsewhere.
-- The seed re-checked after the full re-apply: all seven rows differ in `metric_id` only — label,
-  description, base_relation, numerator/denominator, direction and interpretation byte-identical.
-- The `contribution_player_pct` authority re-verified directly in `escalations.log`: the 2026-08-29
-  verbatim ruling and its explicit discharge, now cited correctly in both contract and log.
-- Surrounding hunks in both changed SQL files swept to confirm the fixes are isolated single-line
-  changes with no new token, no new formula and no scope creep.
-
-## platform-reviewer
-VERDICT: PASS
-
-**Round 1 FAIL** — the persisted-documentation instance of the prose defect across
-`int_player_profile.yml`, `int_player_profile__contribution.sql` and `mart_player_profile.sql`.
-**Round 2 PASS**, with the observation that pins §9(c): *"reverting `career.get("goals_player")` back
-to `career.get("goals")` would make these assertions fail (fixtures no longer carry a `"goals"` key),
-so the changed behaviour is exercised, not just renamed in lockstep."*
-**Round 3 PASS.** Confirmed no hook, CI file, dependency manifest or build/hosting config is touched;
-grepped the LIVE tree (not the patch) for any remaining half-renamed formula comment — zero hits.
-⚠ It flagged, correctly, that two gate results were left as "see below" placeholders in the evidence.
-Filled in: `pytest` **1009 passed / 1 skipped / 14 subtests**, `sqlfluff` **byte-identical** to base.
-
-risks_checked:
-- No file under `.claude/hooks/`, `.github/workflows/`, `.gitlab-ci.yml`, any `*requirements*.txt`,
-  `package*.json`, or the site build/hosting config appears in the changed-file list at all.
-- Both corrected comment lines read in the cumulative diff and confirmed to match the code beneath.
-- Line length: `.sqlfluff` sets `max_line_length = 120`; the lengthened comment measures ~106 with
-  indent, and the byte-identical lint result confirms no rule newly trips.
-- The LIVE `dbt_project/` tree grepped — not just the patch — for any remaining half-renamed formula
-  comment: zero hits, so the fix landed in the actual files.
-- `tests/test_export_site_data.py` read directly: fixture inputs renamed, output assertions kept on
-  the payload key, so reverting the export would make the assertions FAIL — the behaviour is
-  exercised, not renamed in lockstep.
-- `_LEADERBOARD_METRICS`/`_LB_KEEP` still pinned by no test — carried as the disclosed #99 gap, not a
-  new defect.
-- ⚠ Its one process note, recorded rather than waved away: it could not itself execute `sqlfluff`, so
-  its line-length check was a manual character count against the stated rule, not an executed run.
-  The executed run is mine, reported in `acceptance_evidence.md`.
+Two smaller round-1 findings, both accepted and fixed: the **ASCII mockups lost their box alignment**
+("on goal" is two characters shorter), measured and re-padded to base columns; and **the new ruling
+was recorded as narration rather than the CPO's words**, now corrected.
 
 ## scope-auditor
 VERDICT: PASS
 
-**Round 1 FAIL** — the prose corruption in `int_player_profile.yml`'s model description and
-`int_player_profile__contribution.sql`, i.e. the `persist_docs` hazard.
-**Round 2 (void attempt) FAIL** — and it was RIGHT for a reason I had not considered: it refused to
-certify a diff whose authority record it could prove stale from the same artifact set. That is what
-exposed the stale-patch defect above.
-**Round 2 PASS** on the correct patch, having verified both round-1 defect classes and all four §9
-fixes directly against the artifacts rather than the narration.
-**Round 3 FAIL — accepted in full, and it is the most uncomfortable finding of the three rounds.**
-My `escalations.log` entry still carried the ROUND-1 counts ("442 renamed, 1,077 protected", "70
-`doc()` re-points, 20 TEAM-side") while the contract carried the corrected ones — in the append-only
-record other work cites as ground truth. **This is `feedback_corrections_replace` again: I fixed the
-numbers where I remembered changing them and left them standing where I did not.** The fix applied is
-the one that memory prescribes — extract EVERY number in the document and ask of each whether it is
-still true — which caught a third stale figure the reviewer never named ("nine" → **eleven**
-round-1 defect strings verified absent). A cross-document sweep over all five artifacts now returns
-**zero** unexplained stale figures; the four remaining hits are labelled historical citations.
-
-**Round 4 PASS** — the CPO-authorised delta pass on the corrected log. It confirmed the nine headline
-figures agree across contract, evidence and log; that the third stale figure is gone with no orphan
-left anywhere in the five artifacts; that the two placeholder gate lines are filled with real
-results; and that `active_work.md` no longer claims step 4 complete. It also checked the thing worth
-checking most: *"the correction is honestly recorded, not quietly made — the log entry names the
-stale figures verbatim, states they are the round-1 numbers superseded by §9(d)/(e), states they were
-corrected in contract/evidence but left standing in the log, and names me as the reviewer who FAILed
-it in round 3."*
+**Round 1 PASS**, having verified RULING 2 and the new session ruling by content in `escalations.log`,
+the `label_i18n_key`/`description` protections, and the `99_gaps_register.md` reversion. It raised
+the evidentiary weakness in how the new ruling was recorded — "a weaker evidentiary form" than the
+file's convention — which is what prompted the correction.
+**Round 2 PASS**, including an explicit ruling on the contract amendment.
 
 risks_checked:
-- The nine headline figures cross-checked across `contract.md`, the `escalations.log` MR-7 entry and
-  `acceptance_evidence.md` — all three agree on the shipped round-3 counts.
-- The correction verified as honestly recorded rather than quietly made: the log names the stale
-  figures verbatim, says which rules superseded them, admits they were fixed elsewhere and left
-  standing there, and names the reviewer who caught it.
-- The third stale figure hunted specifically: only the corrected "eleven round-1 defect strings"
-  remains, matching the evidence; no orphaned "nine" anywhere in the five artifacts.
-- Every remaining occurrence of "442 renamed", "1,077 protected", "70 re-points", "20 TEAM-side"
-  checked and found to be a labelled historical citation, not a live claim.
-- The two previously-placeholder gate lines confirmed filled with real results matching what
-  `platform-reviewer` flagged.
-- `active_work.md` confirmed no longer claiming step 4 complete — it states the MR is built and
-  reviewed but NOT committed, and defers the commit decision to the CPO.
-- Earlier rounds: `scope_paths` reconciled exactly against the changed file set; both round-1 defect
-  classes verified fixed directly in the artifacts rather than the narration; all four §9 fixes
-  confirmed present in the files, not merely asserted.
+- The `amendments:` reasoning judged against the actual diff: *"both are comment-only fixes
+  documenting an already-ruled label change, not new user-visible decisions; no new CPO authority
+  was needed and none was smuggled in."*
+- The corrected `escalations.log` entry checked for overclaiming in the OTHER direction — it labels
+  the entry a selection rather than dressing it as a quoted free-text sentence.
+- ASCII re-padding verified by character count across three files: closing borders land on the base
+  column.
+- `scope_paths` reconciled 1:1 against the full `diff --git` file list; no stray file.
+- The seed checked column-by-column against `protected_override`: `metric_id`, `label_i18n_key` and
+  `description` byte-identical on all nine touched rows.
+- `decisions_reserved` items (the `description` column, the `label_i18n_key` rename) confirmed
+  untouched in the diff, as declared.
+- Credential sweep across the patch; impact-map/A6 trigger check — no new structural surface.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+
+**Round 1 FAIL** — the finding that drove round 2, above. **Round 2 PASS**, and it did not take the
+fix on trust: it re-ran its own full-repo sweep rather than checking mine.
+
+risks_checked:
+- Independent case-insensitive sweep for `on[\s_-]?target` over the whole repo, every non-`.claude`
+  match inspected by hand: *"the pattern that escaped round 1's enumeration-based census is now
+  genuinely closed."* ⭐ It also identified a false positive in the raw count worth recording —
+  `README.md:145` matches on "ingesti**on target**", a substring, not a metric reference.
+- Both rewritten comments read directly: each keeps the load-bearing instruction and replaces only
+  the dead reason; "legacy key name" is accurate because the key literally still reads `on_target`.
+- `check-page-specs.test.mjs:178-181` read directly and confirmed still true, correctly unedited.
+- ASCII box widths **re-measured with its own regex** rather than trusting my column numbers —
+  every row in each box, borders included, matches the fixed inner width (44 / 51 / 51).
+- The four chrome strings confirmed unchanged and honestly disclosed as flagged-not-folded-in.
+- Verified against the actual `dist/` build, not the evidence prose: EN 38 "on goal" / 0 "on target",
+  DE and FI 0 of either. It also read the built team page directly and confirmed the three unrendered
+  labels genuinely reach no page today — a tighter check than my own "coming soon" paraphrase.
+- Read `site/i18n/en.json` directly to confirm the frozen corpus declares three of the four ids
+  nowhere, independently verifying that the byte-identical gate cannot pin their new wording.
+- All six edited wireframes traced 1:1 to a real catalogue or `METRIC_LABELS_EN` change.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+
+**Round 1 PASS** after a field-by-field seed verification; **Round 2 PASS** confirming the warehouse
+surface is untouched since.
+
+risks_checked:
+- Seed diff byte-for-byte: nine `label_en` cells, **0** other cells; `metric_id`, `label_i18n_key`,
+  `description` and every formula/format/direction column unchanged. Read the full current seed, not
+  only the diff.
+- Confirmed the first apply's defect (three `description` cells rewritten) is genuinely closed by the
+  field allowlist.
+- Full patch scanned for any `.sql`/`.yml`/macro/model file — none in either round.
+- `sync_metric_docs_blocks.py` grepped for `label_en`: zero references, so `metric_columns.md` cannot
+  regenerate from a label change.
+- `fetch_glossary()` read directly and confirmed the sole reader of the metric catalogue's
+  `label_en` — a pure select/serialize, no consumption-layer computation. Every other `label_en` hit
+  traced to the unrelated `competition_types`/`confederations` seeds.
+- ⭐ An extra check it ran unprompted: the seed's own
+  `metric_catalogue_label_en_unique_within_entity` test, checked by hand against the nine new values
+  within their team/player partitions — no collision introduced.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+
+**Round 1 PASS** on the domain question; **Round 2 PASS** on the delta.
+
+risks_checked:
+- Judged the new wording as football English: "on target" and "on goal" name the identical provider
+  event, so no meaning changes. "On target" is more idiomatic in British/international coverage and
+  "on goal" is the American convention, so the new wording reads slightly unfamiliar to a European
+  fan — but none of the nine is factually wrong or misleading, and the naming call is squarely the
+  CPO's under §10. It specifically scrutinised "Shots on goal faced" and "% Goals per shot on goal".
+- Field-by-field seed check: only `label_en` moves; no formula, denominator, coverage caveat or
+  direction touched. No residual "on target" in any `label_en` cell.
+- RULING 2 read verbatim in `escalations.log` and matched against the contract's quote, including the
+  scope confirmation and the German/Finnish exclusion — no overstatement.
+- Judged the disclosed label-vs-description split acceptable to ship: the two terms name the same
+  event, so it is a wording inconsistency rather than a wrong claim, it is disclosed in
+  `decisions_reserved` with a recommended follow-up, and folding it in would repeat the scope-creep
+  failure this same programme was FAILed on three times.
+- Confirmed the corrected ruling record "reads honestly against the file's own convention".
+
+## platform-reviewer
+VERDICT: PASS
+
+Not routed in round 1 — no machinery file was touched. Routed in for round 2 because the fix edited
+a test file, which the contract's amendment predicted.
+
+risks_checked:
+- `check-metric-labels.test.mjs` diff confirmed comment-only: assertion code, regex, `col`,
+  `declared` and `bad` logic byte-identical. The rewritten comment's claim verified against the code
+  it sits above — the test never reads label VALUES, so "the invariant is unchanged" is correct.
+- ⭐ **The §3 gate analysis verified STRUCTURALLY, not just observationally.** It read the
+  byte-identical test's loop and `site/i18n/en.json` directly: three of the four changed ids are
+  absent from the frozen corpus entirely and the fourth is skipped by a hard-coded name check, so
+  none of the four is ever compared.
+- ⭐ **The mutation claim verified against code rather than narration**: it walked all seven tests
+  against a hypothetical `"Ø Bananas per fortnight"` and confirmed each one passes — the wording of
+  the four labels is pinned by nothing, while emptying one fails the non-empty assertion.
+- ⭐ **The pytest-not-rerun reasoning checked at the one place it was actually at risk**, which is
+  stronger than my own file-extension argument: `tests/test_governance_hooks.py` DOES read
+  `DeservedHero.astro` verbatim and regex-matches `"metrics.*.label"` literals against a floor of 18.
+  It verified the round-2 comment adds no new such literal and the matched code line is untouched.
+- Whole 923-line patch read end to end: no `.claude/hooks/**`, workflow, `.gitlab-ci.yml`,
+  dependency manifest, lockfile, `astro.config.mjs`, `firebase.json`, `tsconfig.json` or `.gitignore`.
+- `check-page-specs.test.mjs:179` confirmed key-only and correctly unedited.
+- No credentials or permission widenings; no new pages, routes, fetches or build steps.
 
 ## escalations
 
-**None raised.** The one §10-adjacent question — whether the published payload key follows the
-warehouse column — was ruled by the CPO in this session: *"Naming conventions in the warehouse are
-one thing. What we show on the website is another."* Implemented asymmetrically on all four lines,
-and that asymmetry is what let `pytest` catch a real rule inversion (§9(c)).
+**None raised.** The one §10 question — whether the website's rendered labels move with the
+catalogue, given RULING 2's scope was "in the catalogue" — was put to the CPO before any file was
+touched and is recorded with its question, options and outcome.
 
-⛔ **CARRIED, NOT CLOSED, AND THE CPO'S:** the `__team`/`__player` doc-block split has **no live
-instance** after this MR — all six dual-entity ids are renamed. Nothing was removed or weakened;
-`_derived()` still suffixes unconditionally, `_blocks()` still splits and still aborts, and the
-synthetic fixtures stay. One new seed row recreates the collision. Whether a guard with no live
-instance should remain is his call. Also carried: the resolver as a committed CI gate; **#99**
-(the export's literal board keys moved here and remain pinned by no test); **#96**; **#87**; **#98**.
+⛔ **FLAGGED FOR THE CPO, deliberately NOT folded in** (both disclosed in `decisions_reserved` and
+confirmed untouched by two reviewers):
+  - **The seed's `description` column.** A row's label now reads "on goal" while its own description
+    says "shots on target", and `persist_docs` publishes those to BigQuery.
+  - **Four CHROME strings in `strings.ts`'s `Dict`** — `axPlay` ("Shots on target difference /
+    match", the hero chart's x-axis) and the three `heroVerdict*`/`heroCaption` strings. When the
+    team Performance surface ships, that axis will read "Shots on target difference" beside a metric
+    row reading "Ø Shots on goal difference". Neither renders today.
+
+⚠ **AND WHAT THIS MR CANNOT PROVE, carried rather than closed:** the wording of the four changed
+rendered labels is pinned by **no test** (mutation-verified by two reviewers independently), and
+**three of the four render on zero built pages**. Only `Ø Shots on goal` is proven by the dist read.

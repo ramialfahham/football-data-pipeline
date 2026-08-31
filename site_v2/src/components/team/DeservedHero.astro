@@ -40,9 +40,12 @@ const nums = [
   // #370: names read from the catalogue's own i18n keys, not from three hand-written `heroSot*`
   // strings. Each key is the metric whose value sits beside it, so the tile cannot drift from the
   // number it labels.
-  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target" — internal id vs
-  // user-facing term. Read it from the catalogue's `label_i18n_key` column; never infer it from the
-  // payload field name.
+  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target". Read it from the
+  // catalogue's `label_i18n_key` column; never infer it from the payload field name.
+  // ⭐ It is a LEGACY KEY NAME, not a term split. Step 5 (RULING 2) moved the English label to
+  // "Ø Shots on goal", so the id and the user-facing term now agree and only the KEY still says
+  // "on_target" — and the catalogue declares no `..._on_goal_...` variant, so inferring it from the
+  // id still resolves to nothing.
   { label: metricLabel(lang, "metrics.shots_on_target_per_match.label"), value: decimal1(s.shots_on_goal_per_match, lang) },
   { label: metricLabel(lang, "metrics.shots_on_goal_against_per_match.label"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
   { label: metricLabel(lang, "metrics.shots_on_goal_difference_per_match.label"), value: signedDec1(s.shots_on_goal_difference_per_match) },
