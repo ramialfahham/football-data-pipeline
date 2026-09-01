@@ -17,25 +17,33 @@ build sample now pins **2026-09-01**, and the comparison renders **16 rows again
 
 ## ⛔⛔ NEXT ACTION: NONE. THE QUEUE FROM THE NAMING PROGRAMME IS EMPTY.
 
-⛔⛔ **THE ONE THING WITH MONEY ATTACHED, AND IT IS THE CPO'S: UNDOCUMENTED DAILY BIGQUERY SPEND.**
-Found while attributing `!136`'s own cost — not looked for. On 2026-09-01, **1,488 query jobs /
-37.23 GB between 04:02 and 05:27 UTC**, under
-`github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`, sample query
-`select league_code, max(ingested_at) from raw.RAW_APIF_COACHES group by …`.
-**That contradicts two things this repo states as fact**: `CLAUDE.md` ("GitHub … Its Actions run
-nothing") and this file's own former line ("no nightly SCHEDULE exists … nothing refreshes the data
-on a timer"). Something runs a full pipeline daily at the documented 04:00 UTC ingest slot — which is
-also why the warehouse was fresh enough for the roll-forward to work at all.
-⚠ **~$0.23/day ≈ $7/month, recurring, unattributed in the docs.** Cost is explicitly the CPO's.
-NOT investigated further and NOT touched — it belongs to no MR yet.
-⭐ To pick it up: `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` (⚠ **EU, not US** — a `region-us`
-query returns a comfortable and completely false "0 jobs, no cost").
-⛔ **`CLAUDE.md:209-210` IS NOW HALF-FALSE AND IS LOADED EVERY SESSION.** It says *"No nightly
-SCHEDULE exists on GitLab yet … so nothing refreshes the data on a timer right now."* The first
-clause may still be true — the evidence names a **GitHub** service account, not a GitLab schedule —
-but **the second clause is false**, and a fresh session reading it will wrongly conclude the
-warehouse is stale. Deliberately NOT edited here: correcting it means asserting what that 04:00 job
-actually is, which is the investigation itself, not a doc fix.
+⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open.** Two ENABLED jobs in
+**europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and `fdp-freshness`
+(`7 * * * *`, hourly). The CPO moved them there after GitLab CI limitations made a CI-hosted cron
+unworkable. **The data IS refreshed on a timer**, which is why the warehouse was fresh enough for
+`!136` to work.
+⚠ `data:nightly` in `.gitlab-ci.yml` is NOT the nightly — nothing triggers it. GitLab schedule
+`4379625` is deliberately **DISABLED** (last run 2026-08-10). **Enabling it without disabling
+`fdp-nightly` runs the build twice.**
+⛔ **AND THE LESSON THAT COST A WHOLE INVESTIGATION, 2026-09-01.** These jobs authenticate as
+`github-actions-dbt@…`, a legacy GitHub-era name the GitLab migration reused. I reported a daily
+04:02 pipeline to the CPO as UNEXPLAINED recurring spend, and named GitHub Actions as the cause from
+the SA's name plus a leftover workflow file with a matching cron — both circumstantial, both wrong.
+His reply settled it: *"We moved these two jobs to the cloud after your recommendation. We did this
+after I ran into CI limitations with Gitlab."*
+⭐ **Two rules out of it.** (1) **Identify a caller by its AUTH PATH, not its name** — that SA has
+zero user-managed keys and one `workloadIdentityUser` binding, so GitHub could never have been it.
+(2) **Before reporting anything as unexplained, check whether it is simply undocumented** — it was a
+deliberate, authorised decision that no document recorded, and the doc gap was the only real defect.
+⚠ Measured cost of the two jobs: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**, recorded because it was
+written down nowhere. Whether `fdp-freshness` needs to be hourly is the CPO's call, untouched.
+⭐ **THE RUNBOOK IS `deploy/nightly/README.md`** — jobs, scheduler, IAM, and the `gcloud` that built
+them. ⚠ I claimed this was "recorded nowhere" and it was not: I went from BigQuery metadata straight
+to `CLAUDE.md` and never searched the repo. **"Undocumented" is a claim about the WHOLE tree — one
+`git grep` for the identifier settles it.**
+⭐ To measure it yourself: `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` (⚠ **EU, not US** — a
+`region-us` query returns a comfortable and completely false "0 jobs, no cost"), and pull a RANGE of
+days: my first figure was ~$7/month from a single day that happened to be the smallest of fourteen.
 
 ## ⛔ THE SAMPLE IS FRESH TODAY AND WILL GO STALE THE MOMENT THOSE FIXTURES KICK OFF
 

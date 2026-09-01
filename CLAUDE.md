@@ -206,8 +206,25 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
   `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
   returns. Do not read that directory as the CI reference, and do not edit a workflow there to
   "keep it in sync".
-- **⚠ No nightly SCHEDULE exists on GitLab yet.** `data:nightly` is written and reachable only by
-  a manual web dispatch, so nothing refreshes the data on a timer right now. Creating a schedule
-  is a recurring-cost decision and therefore the CPO's.
+- **⭐ THE NIGHTLY LIVES IN CLOUD SCHEDULER, NOT IN CI.** Two ENABLED jobs in **europe-west1**:
+  **`fdp-nightly`** (`0 4 * * *`) runs the ingest and the full prod dbt build, and
+  **`fdp-freshness`** (`7 * * * *`) runs hourly. Moved there by the CPO after GitLab CI limitations
+  made a CI-hosted cron unworkable. **So the data IS refreshed on a timer** — observed starting
+  04:01–04:03 UTC every day, writing to `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
+  ⚠ **`data:nightly` in `.gitlab-ci.yml` is NOT the nightly.** It is written and reachable by manual
+  web dispatch, but nothing triggers it. The GitLab schedule `4379625` exists and is deliberately
+  **DISABLED** — its last run was 2026-08-10; do not read it as the owner, and do not enable it
+  without disabling `fdp-nightly`, or the build runs twice.
+  ⛔ **THE SERVICE ACCOUNT IS CALLED `github-actions-dbt@…` AND THAT NAME IS A LIE OF HISTORY.** It
+  is the GitHub-era account the GitLab migration reused. It cost a full investigation on 2026-09-01,
+  which concluded "GitHub Actions must still be running" from the name plus a leftover workflow file
+  with a matching cron — both circumstantial, both wrong. **Identify a caller by its AUTH PATH, never
+  by its name**: this SA has zero user-managed keys and exactly one `workloadIdentityUser` binding,
+  so GitHub could never have been it.
+  ⭐ **THE RUNBOOK IS [`deploy/nightly/README.md`](deploy/nightly/README.md)** — the Cloud Run jobs,
+  the scheduler entries, the IAM grants and the `gcloud` commands that created them. Read it before
+  touching any of this; this bullet is a pointer, not a duplicate.
+  ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Whether
+  `fdp-freshness` needs to be hourly is a recurring-cost question and therefore the CPO's.
 - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
   GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
