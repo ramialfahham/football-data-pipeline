@@ -1006,13 +1006,13 @@ unless both own and opponent shots-on-target data cover every season game.
 
 
 {% docs shots_on_goal_pct %}
-Share of shots that were on target. Total shots include blocked shots. Null when shots_total is
+Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is
 zero.
 {% enddocs %}
 
 
 {% docs shots_on_goal_per90 %}
-Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+Shots on goal per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 {% enddocs %}
 
 

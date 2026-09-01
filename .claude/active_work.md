@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-01**. **main `22c8d9b`**, clean, no open MRs.
+_Last updated **2026-09-01**. **main `89b8c01`**; `refactor/seed-prose-on-goal` open.
 ⭐⭐ **THE NAMING PROGRAMME IS DONE AND SO IS THE WORK IT OWED.** Step 4: all 35 player metrics carry
 `_player` across seven MRs (`!125`–`!132`) — verified on main, of 48 player catalogue rows the only
 one without a `_player` marker is `minutes_per_appearance`, the one name the record's "UNCHANGED,
@@ -17,100 +17,86 @@ build sample now pins **2026-09-01**, and the comparison renders **16 rows again
 
 ## ⛔⛔ NEXT ACTION: NONE. THE QUEUE FROM THE NAMING PROGRAMME IS EMPTY.
 
-⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open.** Two ENABLED jobs in
-**europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and `fdp-freshness`
-(`7 * * * *`, hourly). The CPO moved them there after GitLab CI limitations made a CI-hosted cron
-unworkable. **The data IS refreshed on a timer**, which is why the warehouse was fresh enough for
-`!136` to work.
-⚠ `data:nightly` in `.gitlab-ci.yml` is NOT the nightly — nothing triggers it. GitLab schedule
-`4379625` is deliberately **DISABLED** (last run 2026-08-10). **Enabling it without disabling
-`fdp-nightly` runs the build twice.**
-⛔ **AND THE LESSON THAT COST A WHOLE INVESTIGATION, 2026-09-01.** These jobs authenticate as
-`github-actions-dbt@…`, a legacy GitHub-era name the GitLab migration reused. I reported a daily
-04:02 pipeline to the CPO as UNEXPLAINED recurring spend, and named GitHub Actions as the cause from
-the SA's name plus a leftover workflow file with a matching cron — both circumstantial, both wrong.
-His reply settled it: *"We moved these two jobs to the cloud after your recommendation. We did this
-after I ran into CI limitations with Gitlab."*
-⭐ **Two rules out of it.** (1) **Identify a caller by its AUTH PATH, not its name** — that SA has
-zero user-managed keys and one `workloadIdentityUser` binding, so GitHub could never have been it.
-(2) **Before reporting anything as unexplained, check whether it is simply undocumented** — it was a
-deliberate, authorised decision that no document recorded, and the doc gap was the only real defect.
-⚠ Measured cost of the two jobs: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**, recorded because it was
-written down nowhere. Whether `fdp-freshness` needs to be hourly is the CPO's call, untouched.
-⭐ **THE RUNBOOK IS `deploy/nightly/README.md`** — jobs, scheduler, IAM, and the `gcloud` that built
-them. ⚠ I claimed this was "recorded nowhere" and it was not: I went from BigQuery metadata straight
-to `CLAUDE.md` and never searched the repo. **"Undocumented" is a claim about the WHOLE tree — one
-`git grep` for the identifier settles it.**
-⭐ To measure it yourself: `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` (⚠ **EU, not US** — a
-`region-us` query returns a comfortable and completely false "0 jobs, no cost"), and pull a RANGE of
-days: my first figure was ~$7/month from a single day that happened to be the smallest of fourteen.
+⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
+Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
+`fdp-freshness` (`7 * * * *`). **The data IS refreshed on a timer.**
+⚠ `data:nightly` in `.gitlab-ci.yml` is NOT it — nothing triggers it; GitLab schedule `4379625` is
+deliberately **DISABLED**. **Enabling it without disabling `fdp-nightly` runs the build twice.**
+⚠ Cost **~129 GB/day ≈ $17–24/mo**. Whether `fdp-freshness` needs hourly runs is the CPO's.
+⛔ **Four rules, each bought with an error, 2026-09-01.** (1) **Identify a caller by its AUTH PATH,
+not its name** — these run as `github-actions-dbt@…`, a reused legacy name, and I blamed a suspended
+GitHub account for the spend. (2) **"Undocumented" is a claim about the WHOLE tree** — I said
+"recorded nowhere" with no `git grep`; the runbook existed. (3) **Never quote a rate from ONE day** —
+my first figure was ~$7/month, the smallest of fourteen. (4) Query
+`region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` — **EU, not US**; `region-us` returns a false "0 jobs".
 
 ## ⛔ THE SAMPLE IS FRESH TODAY AND WILL GO STALE THE MOMENT THOSE FIXTURES KICK OFF
 
 `!136` pinned the **2026-09-01** matchday: 4 fixtures, 3 competitions (`CIT` ×2, `DFBP`, `SPL`).
 ⚠ **A past fixture can NEVER be re-exported** — `fetch_fixture_payloads` emits `status_short in
 ('NS','TBD') and fixture_date >= current_date()`, and once a match kicks off its pre-match form rows
-leave `mart_team_momentum` entirely. So this set is already unrefreshable, exactly like its
-predecessor. **The next refresh REPLACES it wholesale; it can never be updated in place.**
-⭐ The full recipe, the traps and the four-list consistency check live in
-`site_v2/src/data/README.md` — follow it verbatim rather than reinventing it.
-⚠ It is deliberately thin (4/3 against the outgoing 19/13) on a CPO steer that this is
-infrastructure with nothing on display. Coverage was MEASURED, not hoped: both competition shapes,
-all three form paths, and the row-omission path. A richer matchday (2026-09-04 had 28 fixtures /
-16 competitions) is available whenever a fatter sample is wanted.
+leave `mart_team_momentum`. **The next refresh REPLACES the set wholesale; it is never updated in
+place.** ⭐ Recipe, traps and the four-list consistency check: `site_v2/src/data/README.md`.
+⚠ Deliberately thin (4/3 vs the outgoing 19/13) on a CPO steer that this is infrastructure with
+nothing on display. Coverage was MEASURED: both competition shapes, all three form paths, the
+row-omission path. 2026-09-04 (28 fixtures / 16 comps) is there if a fatter one is wanted.
 
-## ⛔ TWO FOLLOW-UPS STEP 5 DELIBERATELY LEFT — flagged to the CPO, not folded in
+## ⛔ ONE FOLLOW-UP STEP 5 LEFT — the other is this branch
 
-Both were disclosed in `!134`'s `decisions_reserved` and confirmed untouched by two reviewers. Each
-is small; neither was taken, because widening scope mid-MR is what this programme was FAILed on.
-
-  - **The seed's `description` column.** ~19 descriptions still say "shots on target" as prose, so a
-    row's label now reads "on goal" while its own description disagrees — and `persist_docs`
-    publishes those descriptions to BigQuery.
+  - ⚠ **The seed's prose — `refactor/seed-prose-on-goal`, PARTLY done and BLOCKED on one copy call.**
+    **5 phrases move across 4 rows; 34 stay.** Rows split on main 9 → head 7: **2 fixed, 0 newly
+    split.** ⛔ **THE UNIT IS THE ROW, NOT THE CELL** — round 1 converted whichever column held a
+    movable phrase and froze its sibling, producing exactly the label=goal / desc=goal /
+    interp=target state the CPO named when he widened the scope. Two reviewers FAILed it separately;
+    `fetch_glossary()` ships both fields into `metrics.json` side by side. ⚠ A "don't make it WORSE"
+    guard was ALSO wrong — those rows were already split by their label, so it passed them. The
+    condition must be **the end state is right**, not the delta is non-negative.
+    ⛔ **7 ROWS BLOCKED ON ONE CPO COPY DECISION**, inventory DERIVED from the seed (my hand-written
+    one FAILed round 2): **«on-target shots» 4 sites · «on-target threat» 3 · «on-target dominance»
+    1 · «on target for − against» 1.** Deciding the first three frees **6 of 7**. ⚠ Two blocks sit
+    in the DESCRIPTION, not the interpretation. **"On-goal threat" is not English** and there is no
+    "off-goal" as there is "off-target", so there is no substitution — only a rewrite, which the
+    copy gate reserves to him permanently. Until then `shots_on_goal_player` keeps label "Shots on
+    goal" / description "Shots on target."
+    ⚠ `saves_pct`, `deserved_points`, `deserved_points_gap` are HELD but NOT split — every field
+    already agrees; converting only their movable part is what would split them. Not debt.
   - **Four CHROME strings in `strings.ts`'s `Dict`** that name the same metric in rendered English:
     `axPlay` ("Shots on target difference / match", the team hero's x-axis) and
     `heroVerdictUnder`/`heroVerdictOver`/`heroCaption` ("a shots-on-target difference of {sotd}…").
     ⚠ **When the team Performance surface ships, that axis will read "Shots on target difference"
     beside a metric row reading "Ø Shots on goal difference".** Neither renders today.
-  ⛔ **`label_i18n_key` is NOT one of these.** `metrics.shots_on_target_per_match.label` stays: it is
-  the join key across the seed, `strings.ts`, `metricRows.ts`, three parsers and the page specs, and
-  the catalogue declares no `..._on_goal_...` variant, so "fixing" it resolves the label to nothing.
-  Four separate comments now say so; one more (`check-page-specs.test.mjs:179`) is still true because
-  it compares the id to the KEY, not to the user-facing term.
+  ⛔ **`label_i18n_key` is NOT one of these.** `metrics.shots_on_target_per_match.label` stays — the
+  join key across the seed, `strings.ts`, `metricRows.ts`, three parsers and the page specs, and the
+  catalogue declares no `..._on_goal_...` variant, so "fixing" it resolves the label to nothing.
 
 ## ⛔ WHAT STEP 5 IS PINNED BY — and what it is NOT
 
-**Nothing pins the wording of the four rendered labels.** Mutation-tested and confirmed by two
-reviewers independently: emptying a label goes RED, but putting `"Ø Bananas per fortnight"` in one
-leaves `npm test` **green**. Three of the four also render on **zero** built pages (they live on the
-unbuilt team Performance surface), so only `Ø Shots on goal` is provable from `dist/`.
-⭐ The reason is structural, not accidental: the byte-identical gate compares only keys present in
-BOTH `strings.ts` and the frozen `site/i18n` corpus — three of the four are absent from it and the
-fourth is skipped by name.
+**Nothing pins the WORDING of the four rendered labels.** Mutation-tested, two reviewers: emptying a
+label goes RED, but `"Ø Bananas per fortnight"` leaves `npm test` **green**. Structural, not
+accidental — the byte-identical gate compares only keys in BOTH `strings.ts` and the frozen
+`site/i18n` corpus; three of the four are absent and the fourth is skipped by name. Those three also
+render on **zero** built pages, so only `Ø Shots on goal` is provable from `dist/`.
 
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
-  - ⭐ **The `__team`/`__player` doc-block split now has NO live instance.** All six dual-entity ids
-    (`duels_won_pct`, `saves`, `goals_against`, `goals`, `goals_open_play`, `goals_penalty`) were
+  - ⭐ **The `__team`/`__player` doc-block split has NO live instance.** All six dual-entity ids were
     renamed on the player side, so no catalogue metric disagrees across entities any more.
-    ⛔ **Nothing was removed or weakened**: `_derived()` still suffixes unconditionally, `_blocks()`
-    still splits and still aborts on rows it cannot tell apart, the synthetic fixtures stay, and one
-    new seed row recreates the collision. ⚠ The cost is concrete: **five files documented the
-    mechanism with a worked example the programme then falsified.** Whether a guard with no live
-    instance should remain is his call.
+    ⛔ **Nothing was removed or weakened** — `_derived()` still suffixes unconditionally, `_blocks()`
+    still splits and aborts on rows it cannot tell apart, the fixtures stay, and one new seed row
+    recreates the collision. ⚠ But **five files document it with a worked example the programme
+    falsified.** Whether a guard with no live instance should remain is his call.
   - **A rename frees a name from #87 only when no PROVIDER column shares it.** Measured twice
-    independently (`!131`, `!132`): the hygiene gate's ambiguous-name list went 4 → 3, not 4 → 1.
-    `goals_open_play` left it; `goals_penalty` and `goals_against` did not, because both are also
-    provider leg columns. **#87's 49 blank columns are NOT freed by this programme.**
-  - **The column-reference resolver as a committed CI gate.** `!129` found four blind spots; `!130`
-    and `!131` bounded it further (dotted references only; the projection check's weak form). Not
-    proposed.
+    (`!131`, `!132`): the ambiguous-name list went 4 → 3, not 4 → 1 — `goals_penalty` and
+    `goals_against` stayed, both being provider leg columns too. **#87's 49 blank columns are NOT
+    freed by this programme.**
+  - **The column-reference resolver as a committed CI gate.** `!129`–`!131` bounded it (dotted refs
+    only; the projection check's weak form). Not proposed.
   - **#99** — the export's literal board keys moved in `!132` and remain pinned by NO test.
-  - **`_LEADERBOARD_METRICS` / `_LB_KEEP`** pinned by no test, confirmed by `platform-reviewer` on
-    five MRs. ⭐ `!131` added that the OTHER export path is unpinned too: `shape_top_players`'
-    DROP-list means `TopPlayer` fields reach the frontend with no test between mart and component.
-  - **#96** — eleven reproductions; no offline gate checks `accepted_values`, only `data:build:mr`.
-  - **#98**; the doc-block inheritance trap.
+  - **`_LEADERBOARD_METRICS` / `_LB_KEEP`** pinned by no test (`platform-reviewer`, five MRs).
+    ⭐ `!131`: the OTHER export path is unpinned too — `shape_top_players`' DROP-list means
+    `TopPlayer` fields reach the frontend with no test between mart and component.
+  - **#96** — no offline gate checks `accepted_values`, only `data:build:mr`. **#98**; the doc-block
+    inheritance trap.
 
 ## ⛔ WHAT THE SWEEP MRs PROVED — read before any similar rename or text sweep
 
@@ -136,6 +122,28 @@ an exemption list; it is a finer rule with a checkable property. The ones earned
 ⛔ And write the separator as a character class BEFORE counting: `!134` FAILed round 1 because the
 census matched `"on target"` and `"on-target"` but never `"on_target"`. **An enumeration of spellings
 loses by one variant.** ⚠ A pattern buys false positives too — `README.md`'s "ingesti**on target**".
+⛔⛔ **THAT RULE WAS NOT ENOUGH — the seed-prose MR got it wrong TWICE MORE on one file, and a
+too-narrow census reports a confident ZERO, never an error.** Four spellings live in
+`metric_catalogue.csv`: `on target`, `on-target`, `on_target`, **`OnTarget`**. Two traps beneath the
+character class: (1) **`\b` does not delimit `on` in `shots_on_target`** — `_` is a WORD character,
+so there is no boundary there; the count read 0 until the boundary was respelled `(?<![A-Za-z])`.
+(2) **camelCase has no separator at all**, so every bounded pattern misses it. Protected count went
+**0 → 1 → 3** as this was corrected.
+⭐ **Standing form: the regex that DECIDES may be strict; the regex that COUNTS must be permissive**
+(`on[ _-]?target`, no anchors). Opposite jobs — one must be precise, the other must miss nothing.
+⭐⭐ **THREE DETECTORS, THREE JOBS — collapsing any two broke the seed-prose sweep ONCE EACH.**
+(1) DECIDES what changes: strict. (2) COUNTS occurrences: maximally permissive, every separator,
+its only job is to miss nothing. (3) JUDGES reader-facing consistency: **prose only**.
+⚠ Five errors on one phrase in one file — four too NARROW, then one too WIDE. The fourth: the
+detector for the *new* word asked `"on goal" in cell`, a literal SPACE, so "shots-**on-goal** data"
+read as unconverted. The fifth, fixing that: `on[ _-]?goal` then matched the METRIC ID
+`shots_on_goal_difference_per_match` quoted in a description, inventing a split.
+⭐ **Resolution = ROLE, NOT PUNCTUATION (step 4's rule):** prose separates with SPACE or HYPHEN, an
+identifier with an UNDERSCORE. Measured proof they differ: narrowing (2) to prose dropped the
+protected count 3 → 0; widening (3) past prose invented a split.
+⭐ **And run every such assertion against BASE as well as HEAD.** Mine was stated as an absolute
+("no cell contains both spellings") and main already violated it, in `finishing_efficiency_pct`.
+Two-sided is the only form an MR can own: introduced 0, removed 0.
 
 **3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** A blocklist of 5 of the
 seed's 15 columns swept `interpretation`; the fix is a field allowlist. Then `!132` and `!136` both
