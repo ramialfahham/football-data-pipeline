@@ -1,425 +1,308 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 52f37b3..af86230 100644
+index af86230..4ca8900 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,41 +1,50 @@
--# Task contract — STEP 5: the English label "on target" → "on goal"
-+# Task contract — the sample roll-forward
+@@ -1,145 +1,100 @@
+-# Task contract — the sample roll-forward
++# Task contract — record where the nightly actually runs
  
  objective: >
--  **STEP 5 of the metric catalogue naming programme, and the mirror image of step 4.** Step 4 moved
--  `metric_id` and deliberately PROTECTED `label_en` in every one of its seven classifiers. This MR
--  moves `label_en` and touches `metric_id` **nowhere**.
+-  **Replace the committed build sample so the fixture comparison renders all sixteen locked rows
+-  again instead of twelve.**
 -
--  Nine catalogue rows carry the English words "on target" while their internal ids have said
--  `shots_on_goal_*` for months. RULING 2 closes that gap.
+-  `site_v2/src/data/` holds a snapshot of one matchday so CI can build the site without BigQuery.
+-  It pins **2026-08-28**; today is **2026-09-01**, so it is four days past. Two consequences, both
+-  measured rather than assumed:
 -
--  ⭐⭐ **AND IT IS WIDER THAN THE RECORD'S SCOPE, BY A RULING TAKEN THIS SESSION.** RULING 2's scope
--  was confirmed *"in the catalogue"*. I measured, before proposing anything, that **the catalogue is
--  not where the website gets its labels** — the site reads its own `METRIC_LABELS_EN` map in
--  `site_v2/src/i18n/strings.ts`, and **four of the nine labels render on the live site today**.
--  Catalogue-only would therefore have left the visible mismatch untouched — the exact thing the
--  ruling exists to fix. Asked in plain terms whether the website's four should move too, the CPO
--  chose **catalogue + website**. Recorded in `escalations.log` under today's date.
+-  1. **Four of the sixteen locked display rows do not render.** Probed a committed payload: the
+-     fields are **ABSENT FROM THE KEY SET**, not null — the snapshot predates those mart columns.
+-     `shots_inside_box_pct`, `finishing_efficiency_pct`, `passes_accuracy_pct`,
+-     `passes_key_per_match`. All four are emitted by `mart_team_momentum` today (`:63`, `:77`,
+-     `:86`, `:107`), so the roll-forward genuinely restores them.
+-  2. **It cannot be refreshed in place, and that is the whole trap.**
+-     `fetch_fixture_payloads` selects `status_short in ('NS','TBD') and fixture_date >=
+-     current_date()`; once a fixture kicks off its pre-match form rows leave `mart_team_momentum`
+-     entirely. A rerun writes thousands of NEW payloads and silently leaves every committed one
+-     untouched — exactly what happened on 2026-08-28, where the export exited 0, reported 5,066
+-     payloads written, and not one tracked file changed. **The set is REPLACED, never appended.**
 -
--  ⚠ **THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED.** It named nine metric_ids; **six were
--  superseded** by step 3's team renames and step 4's player renames. The nine below are measured
--  from the seed with `label_en` matched on "on target", not carried from any document.
-+  **Replace the committed build sample so the fixture comparison renders all sixteen locked rows
-+  again instead of twelve.**
+-  ⭐ **CPO steer this session**, on whether the thin next matchday is acceptable: *"We're doing
+-  infrastructure work and don't show anything now."* So the snapshot is a BUILD INPUT, not a shop
+-  window, and the only live question is whether it still exercises the components. It does — see
+-  `decisions_taken §2`.
++  **Correct two documents that state, as fact, that nothing refreshes the data on a timer — when a
++  Cloud Scheduler job has been doing exactly that every morning.** Documentation only: no code, no
++  config, no infrastructure change.
 +
-+  `site_v2/src/data/` holds a snapshot of one matchday so CI can build the site without BigQuery.
-+  It pins **2026-08-28**; today is **2026-09-01**, so it is four days past. Two consequences, both
-+  measured rather than assumed:
++  `CLAUDE.md:209-211` says *"⚠ No nightly SCHEDULE exists on GitLab yet … so nothing refreshes the
++  data on a timer right now."* That file is loaded at the start of every session. It is now false,
++  and being false there is expensive: a fresh chat reads it, observes fresh data, and has to
++  reconstruct why.
 +
-+  1. **Four of the sixteen locked display rows do not render.** Probed a committed payload: the
-+     fields are **ABSENT FROM THE KEY SET**, not null — the snapshot predates those mart columns.
-+     `shots_inside_box_pct`, `finishing_efficiency_pct`, `passes_accuracy_pct`,
-+     `passes_key_per_match`. All four are emitted by `mart_team_momentum` today (`:63`, `:77`,
-+     `:86`, `:107`), so the roll-forward genuinely restores them.
-+  2. **It cannot be refreshed in place, and that is the whole trap.**
-+     `fetch_fixture_payloads` selects `status_short in ('NS','TBD') and fixture_date >=
-+     current_date()`; once a fixture kicks off its pre-match form rows leave `mart_team_momentum`
-+     entirely. A rerun writes thousands of NEW payloads and silently leaves every committed one
-+     untouched — exactly what happened on 2026-08-28, where the export exited 0, reported 5,066
-+     payloads written, and not one tracked file changed. **The set is REPLACED, never appended.**
-+
-+  ⭐ **CPO steer this session**, on whether the thin next matchday is acceptable: *"We're doing
-+  infrastructure work and don't show anything now."* So the snapshot is a BUILD INPUT, not a shop
-+  window, and the only live question is whether it still exercises the components. It does — see
-+  `decisions_taken §2`.
++  ⛔ **THIS MR EXISTS BECAUSE I DID EXACTLY THAT, AT LENGTH.** While attributing `!136`'s BigQuery
++  spend I found a daily 04:02 UTC pipeline, could not reconcile it with the docs, and reported it to
++  the CPO as an unexplained recurring cost. His answer: **"We moved these two jobs to the cloud after
++  your recommendation. We did this after I ran into CI limitations with Gitlab."** It was a
++  deliberate, authorised decision that no document records. The investigation was avoidable; the
++  documentation gap is the actual defect.
  
  refs: >
--  **`.claude/task/escalations.log`, RULING 2**, verbatim: *"we have inconsistency between name and
--  shown as / example: shots_on_goal_per_match vs Ø Shots on target -> should be Ø Shots on goal
--  (apply everywhere where applicable)"*. Scope confirmed later, verbatim: *"in the catalogue"*.
--  On languages, verbatim: *"i know, but here i explicitly want consistency between the metric name
--  and what we show (in english). German and Finnish or any other language should not be affected."*
--  Cited by CONTENT.
+-  **`site_v2/src/data/README.md`** documents the procedure and the trap in full, including the
+-  measured 2026-08-28 failure. This MR follows it verbatim rather than inventing one; the
+-  `--entities teams,fixtures` list is copied from **`.gitlab-ci.yml:941`**, where a comment marks it
+-  load-bearing.
 -
--  ⭐ **THE NEW RULING, this session**, on whether the four rendered labels move with the catalogue:
--  the CPO was shown that `strings.ts` and not the seed is what the site renders, and chose
--  **catalogue + website**. Appended to `escalations.log` under 2026-08-31 before any file was
--  touched.
+-  **`.claude/active_work.md`** carried this as the last owed item of the "after step 4" pair, and
+-  the standing instruction was that the CPO decides when it runs. He said, verbatim: **"start the
+-  sample roll-forward"**. That is the authority for doing the task.
 -
--  ⚠ The record's own measurement, re-confirmed here: **German already says `Torschüsse` and Finnish
--  `Maalilaukaukset`**, both literally "goal shots". Only ENGLISH was out of step, which is why the
--  ruling excludes the other languages rather than deferring them.
-+  **`site_v2/src/data/README.md`** documents the procedure and the trap in full, including the
-+  measured 2026-08-28 failure. This MR follows it verbatim rather than inventing one; the
-+  `--entities teams,fixtures` list is copied from **`.gitlab-ci.yml:941`**, where a comment marks it
-+  load-bearing.
+-  ⛔ **THE THIN-MATCHDAY DECISION IS AN INTERPRETATION, NOT A RULING, AND THE RECORD NOW SAYS SO.**
+-  `.claude/task/escalations.log`, dated 2026-09-01, sets out exactly what happened: I asked whether
+-  to run today or wait for 2026-09-04, **he DISMISSED the question**, asked for a plain-language
+-  explanation, and then said — verbatim and in full — *"We're doing infrastructure work and don't
+-  show anything now."* **He never said "run it today".** I read that statement as removing the sole
+-  premise of my own recommendation (that the thinner sample is visible) and proceeded.
+-  ⚠ `scope-auditor` FAILed round 1 because this contract cited that steer as authority while the log
+-  carried no entry at all — the recurrence of `feedback_dont_attribute_repo_practice_to_cpo`. The
+-  entry is now written, in the form above, so the interpretation can be challenged rather than
+-  merely trusted.
++  **CPO, verbatim, this session:** *"We moved these two jobs to the cloud after your recommendation.
++  We did this after I ran into CI limitations with Gitlab."* That is the authority for what this MR
++  writes down. It is a statement of fact about a past decision, not a new ruling.
 +
-+  **`.claude/active_work.md`** carried this as the last owed item of the "after step 4" pair, and
-+  the standing instruction was that the CPO decides when it runs. He said, verbatim: **"start the
-+  sample roll-forward"**. That is the authority for doing the task.
-+
-+  ⛔ **THE THIN-MATCHDAY DECISION IS AN INTERPRETATION, NOT A RULING, AND THE RECORD NOW SAYS SO.**
-+  `.claude/task/escalations.log`, dated 2026-09-01, sets out exactly what happened: I asked whether
-+  to run today or wait for 2026-09-04, **he DISMISSED the question**, asked for a plain-language
-+  explanation, and then said — verbatim and in full — *"We're doing infrastructure work and don't
-+  show anything now."* **He never said "run it today".** I read that statement as removing the sole
-+  premise of my own recommendation (that the thinner sample is visible) and proceeded.
-+  ⚠ `scope-auditor` FAILed round 1 because this contract cited that steer as authority while the log
-+  carried no entry at all — the recurrence of `feedback_dont_attribute_repo_practice_to_cpo`. The
-+  entry is now written, in the form above, so the interpretation can be challenged rather than
-+  merely trusted.
++  **Measured directly from GCP, read-only** — this is what the docs will now say:
++    · Cloud Scheduler, **europe-west1**: `fdp-nightly` `0 4 * * *` ENABLED; `fdp-freshness`
++      `7 * * * *` ENABLED.
++    · Observed effect: a full ingest + prod dbt build starting 04:01–04:03 UTC **every day for the
++      last 14**, writing to `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
++    · GitLab schedule `4379625` exists but is **Active=false**; its last scheduled pipeline ran
++      **2026-08-10** and failed.
  
  scope_paths:
    - .claude/active_work.md
-@@ -44,112 +53,93 @@ scope_paths:
-   - .claude/task/rendered_page_evidence.md
+   - .claude/task/contract.md
+   - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
    - .claude/task/escalations.log
    - .claude/task/review.md
--  - dbt_project/seeds/metric_catalogue.csv
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/metricRows.ts
--  - site_v2/src/components/team/DeservedHero.astro
--  - site_v2/scripts/check-metric-labels.test.mjs
--  - docs/wireframes/metrics_display.md
--  - docs/wireframes/02_team_profile.md
--  - docs/wireframes/03_player_profile.md
--  - docs/wireframes/10_home.md
--  - docs/wireframes/12_player_stats.md
--  - docs/wireframes/14_team_stats.md
--
--amendments: >
--  **ROUND 2 — two files ADDED to `scope_paths`**, on no new CPO authority and needing none: this is
--  not a widening of what the task does, it is the FIX for a MISS against a criterion the contract
--  already declared ("every 'on target' occurrence classified once").
--  `bi-analyst-reviewer` FAILed round 1 on `site_v2/src/components/team/DeservedHero.astro:43`, which
--  carries a THIRD copy of the id-vs-label claim that `decisions_taken §2` identifies and rewrites in
--  two other places. My census missed it, and the reason is worth more than the fix: **I matched
--  "on target" and "on-target" and never matched `on_target`** — an enumeration of spellings, which
--  loses by one variant every time. Re-swept with the PATTERN `on[\s_-]?target`: **136 occurrences,
--  5 of them CLAIMS about the split.** Two were already rewritten, `check-page-specs.test.mjs:179` is
--  still TRUE (it compares the id to the KEY, not to the user-facing term), and two were stale —
--  `DeservedHero.astro` and `check-metric-labels.test.mjs`, hence these two paths.
--  ⚠ Adding the test file routes `platform-reviewer` in from round 2.
-+  - .gitignore
-+  - site_v2/src/data/README.md
-+  - site_v2/src/data/landing.json
-+  - site_v2/src/data/competitions.json
-+  - site_v2/src/data/competition_index.json
-+  # ⚠ GLOBS, not bare directory names. `scope_paths` entries are fnmatch patterns and `*` does not
-+  # cross `/`, so `site_v2/src/data/teams` matches the DIRECTORY and nothing inside it. The contract
-+  # gate caught that on the first export — correctly — and this is the fix, not an exemption.
-+  - site_v2/src/data/fixtures/*.json
-+  - site_v2/src/data/teams/*.json
+-  - .gitignore
+-  - site_v2/src/data/README.md
+-  - site_v2/src/data/landing.json
+-  - site_v2/src/data/competitions.json
+-  - site_v2/src/data/competition_index.json
+-  # ⚠ GLOBS, not bare directory names. `scope_paths` entries are fnmatch patterns and `*` does not
+-  # cross `/`, so `site_v2/src/data/teams` matches the DIRECTORY and nothing inside it. The contract
+-  # gate caught that on the first export — correctly — and this is the fix, not an exemption.
+-  - site_v2/src/data/fixtures/*.json
+-  - site_v2/src/data/teams/*.json
++  - CLAUDE.md
  
  protected_override: >
--  **`metric_id` IS PROTECTED IN THIS MR, on every row and in every file.** Step 4 moved ids and
--  protected labels; this moves labels and protects ids. Nothing in the seed changes except the
--  `label_en` cell on nine rows.
-+  ⛔ **NO PAYLOAD IS EVER HAND-EDITED.** Every committed JSON is verbatim export output. If a value
-+  looks wrong the fix is upstream in a mart, never in the file. `site_v2/src/data/README.md` states
-+  this twice and it is the reason the sample can be trusted as evidence at all.
+-  ⛔ **NO PAYLOAD IS EVER HAND-EDITED.** Every committed JSON is verbatim export output. If a value
+-  looks wrong the fix is upstream in a mart, never in the file. `site_v2/src/data/README.md` states
+-  this twice and it is the reason the sample can be trusted as evidence at all.
++  ⛔ **DOCUMENTATION ONLY. NOTHING EXECUTABLE CHANGES.** No workflow, no `.gitlab-ci.yml`, no
++  scheduler job, no IAM binding, no `.github/workflows/**` file. The two Cloud Scheduler jobs and the
++  disabled GitLab schedule are left exactly as they are — this MR describes the world, it does not
++  alter it.
  
--  ⛔ **`label_i18n_key` IS PROTECTED TOO, including the one value that contains the words.**
--  `shots_on_goal_per_match` declares `label_i18n_key = metrics.shots_on_target_per_match.label` —
--  the ONLY key in the seed carrying "on_target", and it stays. It is a JOIN KEY across the seed,
--  `strings.ts`, `metricRows.ts`, three hand-written parsers and the page specs; the catalogue
--  declares no `metrics.shots_on_goal_per_match.label`, so "fixing" it would resolve the label to
--  nothing. RULING 2 is about what is SHOWN, not about keys.
-+  ⛔ **NO CODE CHANGES.** `scripts/export_site_data.py`, the marts and the frontend are untouched.
-+  This MR replaces DATA and the allowlist that pins it. If the export turns out to need a fix, that
-+  is a separate MR with its own contract — flag it, do not fold it in.
- 
--  ⛔ **The seed's `description` column is protected** — ~19 occurrences read "shots on target" as
--  prose. Not labels, not ruled. See `decisions_reserved`.
+-  ⛔ **NO CODE CHANGES.** `scripts/export_site_data.py`, the marts and the frontend are untouched.
+-  This MR replaces DATA and the allowlist that pins it. If the export turns out to need a fix, that
+-  is a separate MR with its own contract — flag it, do not fold it in.
 -
--  ⛔ **DE and FI are protected**, by the ruling's own words.
--  ⛔ **`site/i18n/*.json` is protected** — the frozen retired-MVP corpus (2026-07-21).
-+  ⛔ **THE `.gitignore` FIXTURE ALLOWLIST IS REPLACED, NEVER APPENDED TO** (block at `:262-289`).
-+  A stale id pins a payload no rerun can ever update, which is how the previous set came to serve
-+  column names renamed two MRs earlier.
+-  ⛔ **THE `.gitignore` FIXTURE ALLOWLIST IS REPLACED, NEVER APPENDED TO** (block at `:262-289`).
+-  A stale id pins a payload no rerun can ever update, which is how the previous set came to serve
+-  column names renamed two MRs earlier.
++  ⛔ **`escalations.log` IS APPENDED TO, NEVER REWRITTEN.** The `!136` entry that framed this as an
++  unexplained finding is a DATED record of what I believed then. It stays verbatim; the correction is
++  a new dated entry. *Living document → replace; dated log → append.*
  
  impact_map: >
--  `label_en` has exactly one live consumer: `fetch_glossary()` in `scripts/export_site_data.py`
--  emits the whole seed row as `metrics.json`, so the nine new labels reach that payload. **No dbt
--  model reads the metric catalogue's `label_en`** — verified by sweeping every reader of the token
--  across the repo; the hits belong to `competition_types` and `confederations`, different seeds.
+-  Data-only. The committed sample is read at build time by `site_v2` and by nothing else; no dbt
+-  model, no export code path and no test imports it as a module. Its blast radius is the built
+-  pages plus `audit-seo.mjs`, which fails the build on an internal link resolving to no emitted
+-  page — the one check that catches a landing↔fixtures mismatch, and only in CI.
 -
--  `sync_metric_docs_blocks.py` has **zero** `label_en` references, so `metric_columns.md` does NOT
--  regenerate from this change. Its "on target" text is descriptions, which are protected above.
-+  Data-only. The committed sample is read at build time by `site_v2` and by nothing else; no dbt
-+  model, no export code path and no test imports it as a module. Its blast radius is the built
-+  pages plus `audit-seo.mjs`, which fails the build on an internal link resolving to no emitted
-+  page — the one check that catches a landing↔fixtures mismatch, and only in CI.
- 
--  The four rendered labels reach the page as
--  `strings.ts METRIC_LABELS_EN` → `metricLabel(lang, labelKey)` → the fixture comparison block.
-+  ⚠ **A local build cannot reproduce that check.** A full export leaves thousands of untracked
-+  payloads on disk, so every link resolves locally while CI sees only the tracked set. `git clean
-+  -fX site_v2/src/data` before building is what makes the local build honest.
+-  ⚠ **A local build cannot reproduce that check.** A full export leaves thousands of untracked
+-  payloads on disk, so every link resolves locally while CI sees only the tracked set. `git clean
+-  -fX site_v2/src/data` before building is what makes the local build honest.
++  `CLAUDE.md` is loaded into every session by the harness, and `.claude/active_work.md` by the
++  SessionStart hook — so both reach every future chat directly. That is the entire blast radius:
++  nothing reads them at build or run time.
  
  acceptance_criteria:
--  - The nine `label_en` values read "on goal", and the seed differs from base in `label_en` ONLY —
--    `metric_id`, `label_i18n_key`, `description` and every other column byte-identical on every row.
--  - The four rendered EN labels move, and the built `dist/` shows **"Ø Shots on goal"** with **zero**
--    EN pages containing "on target". DE and FI pages byte-identical to base.
--  - `npm test` stays 76/76, including all seven `check-metric-labels` tests, and the byte-identical
--    gate is watched going RED on a deliberate break before being reverted.
--  - Every "on target" occurrence in the repo is classified once with a printed decision, reported as
--    a TWO-SIDED count (N move, M stay).
-+  - The fixture comparison renders **16** rows per window, not 12, measured from built `dist/` with
-+    comments stripped, and the four restored labels named explicitly.
-+  - **The set is self-consistent**: the fixture ids `landing.json` links, the ids in the `.gitignore`
-+    allowlist, and the files tracked under `fixtures/` are the SAME set, asserted mechanically.
-+  - Every committed payload is verbatim export output — no hand edits.
-+  - `npm run build` green with `audit-seo … OK.`; `npm test` 76/76; `pytest` at the `7caaf21`
-+    baseline; no untracked payload bulk left in the tree.
+-  - The fixture comparison renders **16** rows per window, not 12, measured from built `dist/` with
+-    comments stripped, and the four restored labels named explicitly.
+-  - **The set is self-consistent**: the fixture ids `landing.json` links, the ids in the `.gitignore`
+-    allowlist, and the files tracked under `fixtures/` are the SAME set, asserted mechanically.
+-  - Every committed payload is verbatim export output — no hand edits.
+-  - `npm run build` green with `audit-seo … OK.`; `npm test` 76/76; `pytest` at the `7caaf21`
+-    baseline; no untracked payload bulk left in the tree.
++  - `CLAUDE.md` no longer asserts that nothing refreshes the data on a timer, and names Cloud
++    Scheduler as the owner of the nightly, with the job names, crons and region.
++  - `.claude/active_work.md` no longer presents this as an open cost finding for the CPO; it records
++    the answer.
++  - `escalations.log` carries a NEW dated entry correcting the `!136` framing, with the earlier
++    entry untouched.
++  - **The legacy-name trap is written down**, because it is the reusable part: the service account
++    is called `github-actions-dbt` and that name says nothing about the caller.
++  - No executable file appears in the diff.
  
  decisions_taken: >
--  ⭐ **§1. THE DISCRIMINATOR IS "IS THIS A DISPLAYED LABEL?", AND IT IS APPLIED PER OCCURRENCE.**
--  Step 4's closing lesson was that a scope coarser than the ROLE it must resolve is the one recurring
--  defect, and it cost three rounds on `!132`. The same trap is here in a new dress: "on target"
--  appears in display labels, in prose explaining the concept, in dated changelog rows, and in a
--  comment that documents the id-vs-label split. Only the first moves. Each occurrence is classified
--  once and the decision printed, and the result is reported as a two-sided count.
+-  ⭐ **§1. RUN IT TODAY, ON A DELIBERATELY THIN MATCHDAY — and this is MY call on HIS statement, not
+-  a ruling of his.** The next matchday is **2026-09-01: 4 fixtures across 3 competitions**
+-  (`CIT` ×2, `DFBP`, `SPL`), against the outgoing set's 19/13. I put the trade-off to him — thin now
+-  versus 28/16 on 2026-09-04, recommending the wait — **he dismissed the question**, and then said
+-  *"We're doing infrastructure work and don't show anything now."* My recommendation to wait rested
+-  entirely on the thinner sample being VISIBLE; his statement removes that premise, leaving no
+-  argument for delay. So I proceeded today. Full account, including that he never said "run it
+-  today", in `escalations.log` 2026-09-01. **If the reading is wrong the cost is one more
+-  roll-forward, not a wrong artefact** — but it is his to overturn, which is why it is written down
+-  as an interpretation.
 -
--  ⭐ **§2. THE ONE COMMENT THIS CHANGE FALSIFIES, AND THE INSTRUCTION INSIDE IT THAT MUST SURVIVE.**
--  `site_v2/src/lib/metricRows.ts:87-91` reads *"The internal id says 'on goal', the user-facing term
--  is 'on target'. Do NOT 'fix' this to `metrics.shots_on_goal_per_match.label`."* After this MR both
--  say "on goal", so the REASON is void — but the INSTRUCTION is not, and is now the only thing
--  standing between a future reader and a label that resolves to nothing. The comment is rewritten to
--  keep the instruction and replace the reason: the key name is legacy, not a term difference.
+-  ⭐ **§2. THE THIN SET STILL EXERCISES THE COMPONENTS, MEASURED BEFORE COMMITTING TO IT.**
+-    · **Both competition shapes**: 3 `domestic_cup` + 1 `domestic_league`, so the standings block is
+-      exercised on the league fixture and the no-table path on the cups.
+-    · **Both form paths**: the matchday has **7** `mart_team_momentum` rows for 8 team-slots, so one
+-      side has an absent W1 — the same deliberate absent-path coverage the outgoing set documented
+-      for `1575140`, arrived at by measurement rather than luck.
+-    · **The four restored columns are populated**: 6–7 of the 7 rows non-null.
 -
--  ⭐ **§3. WHY THE BYTE-IDENTICAL GATE DOES NOT BLOCK THIS, SIMULATED BEFORE ANY EDIT.**
--  `check-metric-labels.test.mjs`'s *"CPO-validated MVP labels are byte-identical to site/i18n"*
--  compares only keys present in BOTH `strings.ts` and the frozen corpus. Simulated against the real
--  files: **29 labels compared, of which ZERO contain "on target"** — three of our four are absent
--  from the frozen corpus and `finishing_efficiency_pct` is skipped by name, a divergence the test
--  already documents as a §10 pick reserved to the CPO. The gate is measured, not assumed, and is
--  mutation-tested afterwards.
-+  ⭐ **§1. RUN IT TODAY, ON A DELIBERATELY THIN MATCHDAY — and this is MY call on HIS statement, not
-+  a ruling of his.** The next matchday is **2026-09-01: 4 fixtures across 3 competitions**
-+  (`CIT` ×2, `DFBP`, `SPL`), against the outgoing set's 19/13. I put the trade-off to him — thin now
-+  versus 28/16 on 2026-09-04, recommending the wait — **he dismissed the question**, and then said
-+  *"We're doing infrastructure work and don't show anything now."* My recommendation to wait rested
-+  entirely on the thinner sample being VISIBLE; his statement removes that premise, leaving no
-+  argument for delay. So I proceeded today. Full account, including that he never said "run it
-+  today", in `escalations.log` 2026-09-01. **If the reading is wrong the cost is one more
-+  roll-forward, not a wrong artefact** — but it is his to overturn, which is why it is written down
-+  as an interpretation.
+-  ⚠ **§3. THE CLOCK IS PART OF THE TASK.** First kickoff is **16:00 UTC**; it was 08:24 UTC when
+-  the target set was measured. A fixture that kicks off leaves the selector, so the set can shrink
+-  between measuring and exporting. **The committed set is verified against what the export actually
+-  returned, never against this contract** — and if it comes back smaller, that is reported, not
+-  papered over.
+-
+-  ⭐ **§4. COST IS MEASURED, NOT ESTIMATED AFTER THE FACT.** Reads marts only, writes no BigQuery
+-  table, no ingest and no recurring cost. Read-only probing to build this plan billed ~84 MB; the
+-  export's own scan is reported in the evidence.
++  ⭐ **§1. WHAT THE DOCS WILL SAY, AND WHY IT IS PHRASED AS OWNERSHIP.** Not "a schedule exists" but
++  "the nightly lives in Cloud Scheduler" — because the failure mode this fixes is a reader asking
++  *what refreshes the data* and finding an answer that points nowhere. The GitLab schedule is named
++  as deliberately disabled so it does not read as the intended owner, and `data:nightly` is named as
++  reachable-but-unused rather than deleted.
 +
-+  ⭐ **§2. THE THIN SET STILL EXERCISES THE COMPONENTS, MEASURED BEFORE COMMITTING TO IT.**
-+    · **Both competition shapes**: 3 `domestic_cup` + 1 `domestic_league`, so the standings block is
-+      exercised on the league fixture and the no-table path on the cups.
-+    · **Both form paths**: the matchday has **7** `mart_team_momentum` rows for 8 team-slots, so one
-+      side has an absent W1 — the same deliberate absent-path coverage the outgoing set documented
-+      for `1575140`, arrived at by measurement rather than luck.
-+    · **The four restored columns are populated**: 6–7 of the 7 rows non-null.
++  ⭐ **§2. THE LEGACY SERVICE-ACCOUNT NAME IS THE PART WORTH KEEPING.** The jobs authenticate as
++  `github-actions-dbt@…`, which sent me to GitHub on nothing but the name plus a workflow file with a
++  matching cron. Both circumstantial; I reported them as fact and was wrong. What actually settles
++  the caller is the auth path — that SA has **zero user-managed keys** and exactly one
++  `workloadIdentityUser` binding (the `gitlab-pool`), so GitHub could never have been it. **Check how
++  a principal authenticates before naming it from its name.**
 +
-+  ⚠ **§3. THE CLOCK IS PART OF THE TASK.** First kickoff is **16:00 UTC**; it was 08:24 UTC when
-+  the target set was measured. A fixture that kicks off leaves the selector, so the set can shrink
-+  between measuring and exporting. **The committed set is verified against what the export actually
-+  returned, never against this contract** — and if it comes back smaller, that is reported, not
-+  papered over.
-+
-+  ⭐ **§4. COST IS MEASURED, NOT ESTIMATED AFTER THE FACT.** Reads marts only, writes no BigQuery
-+  table, no ingest and no recurring cost. Read-only probing to build this plan billed ~84 MB; the
-+  export's own scan is reported in the evidence.
++  ⭐ **§3. THE COST FIGURES GO IN, BECAUSE THEY WERE MEASURED AND ARE OTHERWISE UNRECORDED.**
++  ~129 GB/day over 14 days ≈ 3.8 TiB/month ≈ $17–24. Recorded as the observed cost of an authorised
++  decision, NOT as a concern. ⚠ And with the correction attached: my first figure was ~$7/month, from
++  a single day that happened to be the smallest of the fourteen, and before I knew `fdp-freshness`
++  existed at all.
  
  decisions_reserved:
--  - ⛔ **THE SEED'S `description` COLUMN — flagged, not taken.** After this MR a row's label reads
--    "on goal" while its description beside it still reads "shots on target", and `persist_docs`
--    publishes those descriptions to BigQuery. My recommendation is a small follow-up applying the
--    same wording to descriptions, but widening scope mid-MR is the failure this programme has been
--    FAILed on, so it is the CPO's call and it is not taken here.
--  - ⛔ **`label_i18n_key` renaming** — the one key containing "on_target" stays. A join-key rename
--    across five surfaces and three parsers is its own job with its own contract.
--  - ⚠ CARRIED from step 4, none of them touched here: the `__team`/`__player` split with no live
--    instance; the resolver as a committed CI gate; **#99**; **#96**; **#87**; **#98**.
-+  - ⛔ **Nothing enforces the landing↔allowlist match except `audit-seo.mjs` in CI, after the fact.**
-+    `site_v2/src/data/README.md` names the real fix — CI building from a live export instead of
-+    stored samples — as infrastructure work outside #367. Not proposed here; this MR asserts the
-+    match mechanically in its own evidence instead, which is a check, not a guard.
-+  - ⚠ CARRIED, untouched: step 5's two follow-ups (the seed `description` column; the four chrome
-+    strings including the hero x-axis); the `__team`/`__player` split with no live instance; the
-+    resolver as a committed CI gate; **#99**, **#96**, **#87**, **#98**.
+-  - ⛔ **Nothing enforces the landing↔allowlist match except `audit-seo.mjs` in CI, after the fact.**
+-    `site_v2/src/data/README.md` names the real fix — CI building from a live export instead of
+-    stored samples — as infrastructure work outside #367. Not proposed here; this MR asserts the
+-    match mechanically in its own evidence instead, which is a check, not a guard.
+-  - ⚠ CARRIED, untouched: step 5's two follow-ups (the seed `description` column; the four chrome
+-    strings including the hero x-axis); the `__team`/`__player` split with no live instance; the
+-    resolver as a committed CI gate; **#99**, **#96**, **#87**, **#98**.
++  - ⛔ **Whether `fdp-freshness` should run hourly** (24×/day) is a recurring-cost question and
++    therefore the CPO's. Noted in the docs as a fact, not as a recommendation, and not acted on.
++  - ⛔ **Whether the disabled GitLab schedule `4379625` should be deleted** — it is infrastructure,
++    not documentation. This MR only stops it reading as the intended owner.
++  - ⚠ CARRIED: step 5's two follow-ups; the `__team`/`__player` split with no live instance; the
++    resolver as a CI gate; **#99**, **#96**, **#87**, **#98**; `stash@{0}`'s parked test.
  
  done_when: >
--  - The nine `label_en` values read "on goal" and the seed differs from base in `label_en` only.
--  - The four `METRIC_LABELS_EN` values move; DE and FI are byte-identical.
--  - `metricRows.ts`'s comment keeps its instruction and loses its dead reason.
--  - Every "on target" occurrence classified once, reported as N move / M stay.
--  - All offline gates EXIT=0 unpiped; `npm test` 76/76; `pytest` at the `649b11c` baseline;
--    the site built and `dist/` read for "on goal" with zero EN "on target".
--  - The label gate watched going RED on a deliberate break, then reverted green.
--  - Five blinded reviewers, `review.md` bound with `--staged-hash`. Round cap 3.
-+  - 16 rows render per window, the four restored labels named, measured from `dist/`.
-+  - The three id lists (landing, allowlist, tracked files) are identical, asserted mechanically.
-+  - `.gitignore`'s allowlist and `site_v2/src/data/README.md` both describe the NEW set — date,
-+    counts, and the form-window coverage sentence.
-+  - Departed payloads `git rm`'d; no untracked bulk left; every committed payload verbatim output.
-+  - Gates green, the site built, `pytest` at baseline, and the export's BigQuery cost reported.
-+  - Blinded review with `review.md` bound by `--staged-hash`. **Round cap 3.**
+-  - 16 rows render per window, the four restored labels named, measured from `dist/`.
+-  - The three id lists (landing, allowlist, tracked files) are identical, asserted mechanically.
+-  - `.gitignore`'s allowlist and `site_v2/src/data/README.md` both describe the NEW set — date,
+-    counts, and the form-window coverage sentence.
+-  - Departed payloads `git rm`'d; no untracked bulk left; every committed payload verbatim output.
+-  - Gates green, the site built, `pytest` at baseline, and the export's BigQuery cost reported.
+-  - Blinded review with `review.md` bound by `--staged-hash`. **Round cap 3.**
++  - `CLAUDE.md` and `.claude/active_work.md` describe the real arrangement, including the legacy
++    service-account name.
++  - `escalations.log` has a new dated correction; the `!136` entry is byte-identical.
++  - `git diff --stat` shows documentation files only.
++  - Offline gates green; blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index acc0eec..2174bc2 100644
+index 2174bc2..10984ca 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -7255,3 +7255,48 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
-   prose, and `persist_docs` publishes them to BigQuery, so after this MR a row's label and its own
-   description disagree. Recommended as a small follow-up; NOT folded in, because widening scope
-   mid-MR is precisely what this programme has been FAILed on.
+@@ -7300,3 +7300,43 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+   … nothing refreshes the data on a timer"), and it explains why the warehouse was fresh enough for
+   this roll-forward to work. ~$0.23/day, recurring, unattributed in the docs. **Cost is the CPO's.**
+   Not investigated further and not folded in.
 +
 +
 +---
 +
-+2026-09-01 THE SAMPLE ROLL-FORWARD — AND AN AUTHORITY RECORD I ALMOST DID NOT WRITE.
++2026-09-01 CORRECTION — THE "UNDOCUMENTED DAILY SPEND" WAS A DECISION HE HAD ALREADY TAKEN.
 +
-+  ⛔ THIS ENTRY EXISTS BECAUSE `scope-auditor` FAILED ROUND 1 FOR ITS ABSENCE. The contract cited a
-+  CPO steer as authority for a scope decision and I never wrote it here — the exact anti-pattern
-+  `feedback_dont_attribute_repo_practice_to_cpo` records: "'you ruled' needs a quote from
-+  escalations.log … I narrate outcomes in prose and never write them into the file the gate parses."
-+  Fourth-plus recurrence. I appended the STEP 5 ruling correctly two MRs ago and skipped it here
-+  because his input arrived as conversation rather than as a formal answer — which is not a
-+  distinction the record recognises, and is precisely how this keeps happening.
++  ⛔ THIS CORRECTS THE FRAMING OF TODAY'S EARLIER ENTRY, WHICH STAYS VERBATIM. That entry recorded a
++  daily 04:02 UTC BigQuery pipeline as an unexplained contradiction with the docs and flagged it to
++  the CPO as recurring spend "unattributed in the docs". The spend was real and the docs were wrong,
++  but "unexplained" was mine, not the world's.
 +
-+  ⭐ THE AUTHORITY FOR DOING THE TASK AT ALL, verbatim: **"start the sample roll-forward"**.
++  ⭐ HIS ANSWER, verbatim: **"We moved these two jobs to the cloud after your recommendation. We did
++  this after I ran into CI limitations with Gitlab."**
 +
-+  ⛔ THE THIN-MATCHDAY QUESTION, AND WHAT ACTUALLY HAPPENED — recorded exactly, because it is NOT a
-+  clean ruling and dressing it up as one is what got FAILed:
-+    1. I asked, via AskUserQuestion, whether to roll forward TODAY (2026-09-01: 4 fixtures across
-+       3 competitions, first kickoff 16:00 UTC) or wait for 2026-09-04 (28 fixtures, 16
-+       competitions), recommending the wait. **He DISMISSED the question** — no option selected.
-+    2. He then asked, verbatim: **"What is the problem? Explain in plain words, keep it short."**
-+    3. After the plain-language explanation he said, verbatim and in full:
-+       **"We're doing infrastructure work and don't show anything now."**
-+    4. ⚠ **I INTERPRETED that as removing the objection and ran it today. He never said "run it
-+       today" in words.** The reasoning: my recommendation to wait rested entirely on the sample
-+       being visibly thinner, and his statement says nothing is on display — so the premise of my
-+       own recommendation was gone, leaving no argument for delay.
-+  ⚠ **Recorded as an INTERPRETATION of a statement, not as an answer to the question I asked.** If
-+  that reading is wrong the cost is one more roll-forward, not a wrong artefact — but a reviewer
-+  must be able to challenge it, which requires it to be written down in this form.
++  ⭐ WHAT IS ACTUALLY THERE, measured read-only from GCP: Cloud Scheduler, europe-west1 —
++  `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and `fdp-freshness` (`7 * * * *`), both
++  ENABLED. GitLab schedule `4379625` exists but is DISABLED, last run 2026-08-10.
++  **So it was authorised, on my own recommendation, and simply never written down.**
 +
-+  ⭐ WHAT WAS MEASURED BEFORE ACCEPTING THE THIN SET, since "he said it is fine" is not evidence
-+  that it works: both competition shapes (3 domestic_cup + 1 domestic_league), all THREE form paths
-+  (fully populated; present-but-NULL where a side has no player-stat coverage; entirely ABSENT), and
-+  the row-omission path where a row has data on neither side. That is one more path than the
-+  outgoing 19-fixture set documented.
++  ⛔⛔ HOW I GOT IT WRONG, because the mechanism repeats. I named GitHub Actions as the cause from
++  TWO circumstantial facts — the service account is called `github-actions-dbt@…`, and
++  `.github/workflows/dbt-scheduled.yml` carries a matching `0 4 * * *` cron — and I reported that to
++  the CPO as fact. He pushed back with one sentence: **"How is that possible, the account is
++  suspended."** He was right. Checking the AUTH PATH settled it in two queries: that SA has **zero
++  user-managed keys** and exactly one `workloadIdentityUser` binding (the `gitlab-pool`), so GitHub
++  could never have assumed it under any circumstances.
++  ⭐ **RULE: identify a caller by how it AUTHENTICATES, never by what it is NAMED.** A service-account
++  name is a historical artefact; the IAM policy and key list are the evidence.
++  ⭐ **RULE: before reporting something as unexplained, ask whether it is merely undocumented.** The
++  repo's silence was the defect, not the job.
 +
-+  ⛔ AN UNRELATED FINDING, FLAGGED AND NOT ACTED ON. Attributing this MR's BigQuery spend surfaced
-+  **1,488 query jobs / 37.23 GB at 04:02-05:27 UTC on 2026-09-01** under
-+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`. That contradicts
-+  `CLAUDE.md` ("GitHub … Its Actions run nothing") and `active_work.md` ("no nightly SCHEDULE exists
-+  … nothing refreshes the data on a timer"), and it explains why the warehouse was fresh enough for
-+  this roll-forward to work. ~$0.23/day, recurring, unattributed in the docs. **Cost is the CPO's.**
-+  Not investigated further and not folded in.
-diff --git a/.gitignore b/.gitignore
-index 235e9d9..4413bd1 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -260,33 +260,23 @@ site_v2/src/data/slug_map.json
- site_v2/src/data/teams/*.json
- !site_v2/src/data/teams/33.json
- site_v2/src/data/fixtures/*.json
--# The 2026-08-28 matchday: 19 fixtures across 13 competitions, exactly what `landing.json` links to.
-+# The 2026-09-01 matchday: 4 fixtures across 3 competitions, exactly what `landing.json` links to.
- #
--# ⛔ THIS SET REPLACED THE 2026-08-18 ONE WHOLESALE, and a future refresh must do the same rather
-+# ⛔ THIS SET REPLACED THE 2026-08-28 ONE WHOLESALE, and a future refresh must do the same rather
- # than append. The export emits UPCOMING fixtures only — `status_short in ('NS', 'TBD') and
- # fixture_date >= current_date()` in `fetch_fixture_payloads` — and once a fixture kicks off its
--# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether (queried:
--# 0 rows for both of the previous set's ids). So a past id can never be re-exported, and a stale
--# entry left here would pin a payload that no rerun can ever update. Replace, never add.
--!site_v2/src/data/fixtures/1493106.json
--!site_v2/src/data/fixtures/1550097.json
--!site_v2/src/data/fixtures/1552144.json
--!site_v2/src/data/fixtures/1552746.json
--!site_v2/src/data/fixtures/1553147.json
--!site_v2/src/data/fixtures/1553153.json
--!site_v2/src/data/fixtures/1557381.json
--!site_v2/src/data/fixtures/1558608.json
--!site_v2/src/data/fixtures/1570353.json
--!site_v2/src/data/fixtures/1570359.json
--!site_v2/src/data/fixtures/1575140.json
--!site_v2/src/data/fixtures/1575481.json
--!site_v2/src/data/fixtures/1576152.json
--!site_v2/src/data/fixtures/1576153.json
--!site_v2/src/data/fixtures/1584391.json
--!site_v2/src/data/fixtures/1602998.json
--!site_v2/src/data/fixtures/1602999.json
--!site_v2/src/data/fixtures/1603000.json
--!site_v2/src/data/fixtures/1603001.json
-+# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether. So a past
-+# id can never be re-exported, and a stale entry left here would pin a payload that no rerun can
-+# ever update. Replace, never add.
-+# ⚠ The 2026-08-28 set proved that from the other side: it was FOUR DAYS past when replaced, and its
-+# payloads were still missing four mart columns added after they were written — `shots_inside_box_pct`,
-+# `finishing_efficiency_pct`, `passes_accuracy_pct`, `passes_key_per_match` — so the fixture
-+# comparison rendered 12 of its 16 locked rows. Not one of the 19 changed on a rerun. Zero of them
-+# carried over into this set.
-+!site_v2/src/data/fixtures/1550704.json
-+!site_v2/src/data/fixtures/1603007.json
-+!site_v2/src/data/fixtures/1628894.json
-+!site_v2/src/data/fixtures/1629056.json
- 
- # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
- # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/README.md             |   27 +-
-#    site_v2/src/data/fixtures/1493106.json |  724 --------
-#    site_v2/src/data/fixtures/1550097.json |  592 ------
-#    site_v2/src/data/fixtures/1550704.json |  289 +++
-#    site_v2/src/data/fixtures/1552144.json |  659 -------
-#    site_v2/src/data/fixtures/1552746.json |  634 -------
-#    site_v2/src/data/fixtures/1553147.json |  731 --------
-#    site_v2/src/data/fixtures/1553153.json |  681 -------
-#    site_v2/src/data/fixtures/1557381.json |  615 -------
-#    site_v2/src/data/fixtures/1558608.json |  599 ------
-#    site_v2/src/data/fixtures/1570353.json |  651 -------
-#    site_v2/src/data/fixtures/1570359.json |  563 ------
-#    site_v2/src/data/fixtures/1575140.json |  408 ----
-#    site_v2/src/data/fixtures/1575481.json |  673 -------
-#    site_v2/src/data/fixtures/1576152.json |  582 ------
-#    site_v2/src/data/fixtures/1576153.json |  668 -------
-#    site_v2/src/data/fixtures/1584391.json |  563 ------
-#    site_v2/src/data/fixtures/1602998.json |  631 -------
-#    site_v2/src/data/fixtures/1602999.json |  659 -------
-#    site_v2/src/data/fixtures/1603000.json |  655 -------
-#    site_v2/src/data/fixtures/1603001.json |  687 -------
-#    site_v2/src/data/fixtures/1603007.json |  687 +++++++
-#    site_v2/src/data/fixtures/1628894.json |  661 +++++++
-#    site_v2/src/data/fixtures/1629056.json |  596 ++++++
-#    site_v2/src/data/landing.json          |  474 +----
-#    site_v2/src/data/teams/33.json         | 3167 ++++++++++++++++----------------
-#    26 files changed, 3898 insertions(+), 13978 deletions(-)
-# ============================================================================
++  ⚠ AND THE NUMBER WAS WRONG TOO, TWICE OVER. I first quoted ~$0.23/day ≈ $7/month from a SINGLE
++  day's jobs — which happened to be the smallest of the previous fourteen (37 GB against a 15–197 GB
++  range) — and before I knew `fdp-freshness` existed at all. Measured properly over 14 days, the two
++  jobs together bill **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. **Pull a RANGE before quoting a rate.**
++  ⚠ Also: query `region-eu`, not `region-us`. A US query against these datasets returns a confident
++  and completely false "0 jobs, no cost".
++
++  ⛔ NOT ACTED ON, and still the CPO's: whether `fdp-freshness` needs to run hourly (24×/day), and
++  whether the disabled GitLab schedule should be deleted rather than left looking like the owner.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 30eaa80..5856770 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -206,8 +206,23 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
+   `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
+   returns. Do not read that directory as the CI reference, and do not edit a workflow there to
+   "keep it in sync".
+-- **⚠ No nightly SCHEDULE exists on GitLab yet.** `data:nightly` is written and reachable only by
+-  a manual web dispatch, so nothing refreshes the data on a timer right now. Creating a schedule
+-  is a recurring-cost decision and therefore the CPO's.
++- **⭐ THE NIGHTLY LIVES IN CLOUD SCHEDULER, NOT IN CI.** Two ENABLED jobs in **europe-west1**:
++  **`fdp-nightly`** (`0 4 * * *`) runs the ingest and the full prod dbt build, and
++  **`fdp-freshness`** (`7 * * * *`) runs hourly. Moved there by the CPO after GitLab CI limitations
++  made a CI-hosted cron unworkable. **So the data IS refreshed on a timer** — observed starting
++  04:01–04:03 UTC every day, writing to `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
++  ⚠ **`data:nightly` in `.gitlab-ci.yml` is NOT the nightly.** It is written and reachable by manual
++  web dispatch, but nothing triggers it. The GitLab schedule `4379625` exists and is deliberately
++  **DISABLED** — its last run was 2026-08-10; do not read it as the owner, and do not enable it
++  without disabling `fdp-nightly`, or the build runs twice.
++  ⛔ **THE SERVICE ACCOUNT IS CALLED `github-actions-dbt@…` AND THAT NAME IS A LIE OF HISTORY.** It
++  is the GitHub-era account the GitLab migration reused. It cost a full investigation on 2026-09-01,
++  which concluded "GitHub Actions must still be running" from the name plus a leftover workflow file
++  with a matching cron — both circumstantial, both wrong. **Identify a caller by its AUTH PATH, never
++  by its name**: this SA has zero user-managed keys and exactly one `workloadIdentityUser` binding,
++  so GitHub could never have been it.
++  ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Recorded
++  because it was otherwise written down nowhere. Whether `fdp-freshness` needs to be hourly is a
++  recurring-cost question and therefore the CPO's.
+ - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
+   GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -433,9 +316,9 @@ index 235e9d9..4413bd1 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |  259 +++----
-#    .claude/task/rendered_page_evidence.md |  133 ++--
-#    .claude/task/review.md                 |  235 ++----
-#    .claude/task/review_input.patch        | 1244 ++++++++++----------------------
-#    4 files changed, 628 insertions(+), 1243 deletions(-)
+#   .claude/active_work.md              |  42 +--
+#    .claude/task/acceptance_evidence.md | 177 +++++-----
+#    .claude/task/review.md              | 136 +++-----
+#    .claude/task/review_input.patch     | 633 +++++++++++++++---------------------
+#    4 files changed, 410 insertions(+), 578 deletions(-)
 # ============================================================================

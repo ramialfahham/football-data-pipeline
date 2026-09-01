@@ -7300,3 +7300,43 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   … nothing refreshes the data on a timer"), and it explains why the warehouse was fresh enough for
   this roll-forward to work. ~$0.23/day, recurring, unattributed in the docs. **Cost is the CPO's.**
   Not investigated further and not folded in.
+
+
+---
+
+2026-09-01 CORRECTION — THE "UNDOCUMENTED DAILY SPEND" WAS A DECISION HE HAD ALREADY TAKEN.
+
+  ⛔ THIS CORRECTS THE FRAMING OF TODAY'S EARLIER ENTRY, WHICH STAYS VERBATIM. That entry recorded a
+  daily 04:02 UTC BigQuery pipeline as an unexplained contradiction with the docs and flagged it to
+  the CPO as recurring spend "unattributed in the docs". The spend was real and the docs were wrong,
+  but "unexplained" was mine, not the world's.
+
+  ⭐ HIS ANSWER, verbatim: **"We moved these two jobs to the cloud after your recommendation. We did
+  this after I ran into CI limitations with Gitlab."**
+
+  ⭐ WHAT IS ACTUALLY THERE, measured read-only from GCP: Cloud Scheduler, europe-west1 —
+  `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and `fdp-freshness` (`7 * * * *`), both
+  ENABLED. GitLab schedule `4379625` exists but is DISABLED, last run 2026-08-10.
+  **So it was authorised, on my own recommendation, and simply never written down.**
+
+  ⛔⛔ HOW I GOT IT WRONG, because the mechanism repeats. I named GitHub Actions as the cause from
+  TWO circumstantial facts — the service account is called `github-actions-dbt@…`, and
+  `.github/workflows/dbt-scheduled.yml` carries a matching `0 4 * * *` cron — and I reported that to
+  the CPO as fact. He pushed back with one sentence: **"How is that possible, the account is
+  suspended."** He was right. Checking the AUTH PATH settled it in two queries: that SA has **zero
+  user-managed keys** and exactly one `workloadIdentityUser` binding (the `gitlab-pool`), so GitHub
+  could never have assumed it under any circumstances.
+  ⭐ **RULE: identify a caller by how it AUTHENTICATES, never by what it is NAMED.** A service-account
+  name is a historical artefact; the IAM policy and key list are the evidence.
+  ⭐ **RULE: before reporting something as unexplained, ask whether it is merely undocumented.** The
+  repo's silence was the defect, not the job.
+
+  ⚠ AND THE NUMBER WAS WRONG TOO, TWICE OVER. I first quoted ~$0.23/day ≈ $7/month from a SINGLE
+  day's jobs — which happened to be the smallest of the previous fourteen (37 GB against a 15–197 GB
+  range) — and before I knew `fdp-freshness` existed at all. Measured properly over 14 days, the two
+  jobs together bill **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. **Pull a RANGE before quoting a rate.**
+  ⚠ Also: query `region-eu`, not `region-us`. A US query against these datasets returns a confident
+  and completely false "0 jobs, no cost".
+
+  ⛔ NOT ACTED ON, and still the CPO's: whether `fdp-freshness` needs to run hourly (24×/day), and
+  whether the disabled GitLab schedule should be deleted rather than left looking like the owner.

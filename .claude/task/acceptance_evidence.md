@@ -1,105 +1,82 @@
-# Acceptance evidence — the sample roll-forward
+# Acceptance evidence — record where the nightly actually runs
 
-Branch `chore/roll-forward-sample`, from main `7caaf21`.
+Branch `docs/nightly-lives-in-cloud-scheduler`, from main `1e76078`. **Documentation only.**
 
-**The committed build sample moves from the 2026-08-28 matchday to 2026-09-01**, and the fixture
-comparison renders its full sixteen locked rows again instead of twelve. Data and an allowlist only:
-no code, no mart, no frontend file changed.
+`CLAUDE.md` told every session that nothing refreshes the data on a timer. A Cloud Scheduler job has
+been doing exactly that every morning, on the CPO's own decision. This MR writes down the world as it
+is; it changes nothing about the world.
 
 criteria_demonstrated:
 
-  - **The headline: 16 rows render, and the four that were missing are back.** Measured from built
-    `dist/`, comments stripped and whitespace collapsed. The EN set now carries all sixteen locked
-    labels, including **`% Shots from box`**, **`% Goals per shot on goal`**, **`% Pass accuracy`**
-    and **`Ø Key passes`** — the exact four absent before.
-  - **The set is self-consistent, asserted mechanically over FOUR lists, not the three the plan
-    named.** The ids `landing.json` links, the `.gitignore` allowlist, the files tracked in git, and
-    the files present on disk are **identical**: `{1550704, 1603007, 1628894, 1629056}`. This is the
-    mismatch `audit-seo.mjs` only catches in CI, after the fact, and that a local build cannot
-    reproduce. ⚠ The first run of this assertion FAILED on `tracked = 0` — the new payloads existed
-    on disk and in the allowlist but were not yet `git add`ed. Worth recording: the check earned its
-    keep on its first execution.
-  - **Every payload is verbatim export output.** No file under `site_v2/src/data/` was hand-edited;
-    the README forbids it twice and it is why the sample can be trusted as evidence at all.
-  - **The set was REPLACED, not appended to**: all 19 outgoing ids left, 4 joined, **0 carried
-    over**. `.gitignore`'s allowlist was rewritten rather than added to.
-  - `npm run build` — 21 pages, **`audit-seo: 22 built page(s) checked. OK.`** `npm test` **76/76**.
-    `python -m pytest -q` — **1009 passed, 1 skipped, 14 subtests**, matching the `7caaf21` baseline.
-  - **No untracked payload bulk remains.** The export wrote 3,289 team and 5,394 fixture payloads;
-    `git clean -fX site_v2/src/data` removed **8,680** ignored files, and a dry run was read first to
-    confirm none of the four allowlisted fixtures nor `teams/33.json` was among them.
+  - **`CLAUDE.md` no longer asserts the false thing.** The bullet now names the owner —
+    **`fdp-nightly` (`0 4 * * *`) and `fdp-freshness` (`7 * * * *`), both ENABLED in
+    europe-west1** — states that the data IS refreshed on a timer, and marks `data:nightly` and the
+    disabled GitLab schedule `4379625` as NOT the owner, with the warning that enabling the latter
+    without disabling the former runs the build twice.
+  - **`.claude/active_work.md` no longer presents this as an open CPO cost item.** It records the
+    answer and the CPO's verbatim sentence.
+  - **`escalations.log` is APPENDED, never rewritten.** Asserted mechanically: **0 removed lines,
+    31 added**, and no hunk touches the `!136` entry that framed this as unexplained. That entry is
+    a dated record of what I believed at the time and stays verbatim — *living document → replace;
+    dated log → append.*
+  - **No executable file in the diff.** `git diff --name-only` is four files: `CLAUDE.md`,
+    `.claude/active_work.md`, `.claude/task/contract.md`, `.claude/task/escalations.log`. No
+    workflow, no `.gitlab-ci.yml`, no scheduler job, no IAM binding.
+  - **The legacy-name trap is written into both documents**, because it is the reusable part.
 
-## ⛔ THE RESULT, PER WINDOW — 15 of the 16 rows appear once, in one window, on one page
+## Gates
 
-⚠ **My first draft of this section was WRONG and `bi-analyst` caught it.** I measured labels per
-page and divided by two windows, which averaged two DIFFERENT numbers into one. Re-measured by
-splitting the block at the `win win-w2` marker:
+  - `check_layer_contract.py` — **EXIT=0**. `check_registry_var_sync.py` — **EXIT=0** (48
+    competitions). `sync_metric_docs_blocks.py --check` — **EXIT=0**, 163 blocks.
+    `check_copy_gate.py` — **EXIT=0**, 435 strings.
+  - `pytest` / `npm test` / the site build are **not run and not claimed**: nothing executable
+    changed, and asserting a green suite for a prose diff would be noise dressed as rigour.
 
-    fixture                                       w1 (Last 5)          w2 (This season)
-    2026-09-01-parma-vs-us-cremonese              16 rows / 7 groups   16 rows / 7 groups
-    2026-09-01-torino-fc-vs-monza                 16 rows / 7 groups   16 rows / 7 groups
-    2026-09-01-al-hilal-saudi-fc-vs-al-ahli-...   16 rows / 7 groups   16 rows / 7 groups
-    2026-09-01-hebc-vs-borussia-dortmund          15 rows / 6 groups   16 rows / 7 groups
+## ⛔⛔ THIS MR IS A CORRECTION OF MY OWN REPORTING, AND THE MECHANISM IS THE POINT
 
-So **seven of the eight windows render the full 16/7**, and the single exception is `1550704`'s
-**w1 only** — not the page, as I first wrote.
+While attributing `!136`'s BigQuery spend I found a daily 04:02 UTC pipeline, could not reconcile it
+with the docs, and reported it to the CPO as **unexplained recurring cost**. His answer:
+*"We moved these two jobs to the cloud after your recommendation. We did this after I ran into CI
+limitations with Gitlab."* Authorised, on my own earlier recommendation, and recorded nowhere.
 
-⭐ **And the correction improves the result rather than dents it.** Diagnosed against the payload and
-`MetricComparison.astro`: HEBC has no w1 form window at all and Dortmund's
-`w1.defensive_actions_per_match` is null (its `blocks_per_match` is null, breaking the sum), so in w1
-that row has data on **neither** side and is correctly omitted with its single-row group heading. In
-**w2** Dortmund's figure is 24.33, so the row renders — Dortmund's value beside an em-dash for HEBC.
-**One fixture therefore exercises BOTH display paths**: row-omitted-entirely in w1, and
-one-side-null-shows-"–" in w2 — on the same page, in two windows.
-⚠ **Two different rules, and my citation ran them together.** `01_fixture_page.md:235` covers only
-the one-side-null → "–" case. The both-null → row-omitted case is `00_overview.md:37-39` ("omitted
-entirely where absence is by design") plus `MetricComparison.astro`'s own header: *"A row whose value
-is missing on BOTH sides is hidden (avoid a wall of dashes); a row missing on one side shows '-'
-there."* Corrected after `bi-analyst` flagged it. The behaviour was right either way; the citation
-was not, and this MR has already been corrected once for an imprecise claim.
+**Three distinct errors, and each has a rule attached:**
 
-## The set is thin, and it was measured before being accepted
+**(a) I named a culprit from a NAME.** I said GitHub Actions was running it, from two circumstantial
+facts: the service account is `github-actions-dbt@…`, and `.github/workflows/dbt-scheduled.yml`
+carries a matching `0 4 * * *` cron. I reported that as fact. The CPO refused it in one sentence —
+*"How is that possible, the account is suspended"* — and he was right. **The auth path settled it in
+two queries**: that SA has **zero user-managed keys** and exactly one `workloadIdentityUser` binding
+(the `gitlab-pool`), so GitHub could never have assumed it under any circumstances.
+⭐ **Rule: identify a caller by how it AUTHENTICATES, never by what it is NAMED.**
 
-4 fixtures across 3 competitions, against the outgoing 19/13. I put the trade-off to the CPO — thin
-today versus 28 fixtures / 16 competitions on 2026-09-04 — and his answer removed the objection
-rather than picking the larger set: *"We're doing infrastructure work and don't show anything now."*
-So the sample is a build input, and the only live question is component coverage. Measured:
+**(b) I called it unexplained when it was merely undocumented.** The job was authorised; the repo was
+silent. ⭐ **Rule: before reporting something as unexplained, ask whether it is simply unrecorded.**
 
-  - **Both competition shapes**: 3 `domestic_cup` + 1 `domestic_league`.
-  - **All three form paths**: fully populated (`1628894`, `1629056`), **present-but-null** where a
-    side has no player-stat coverage (`1603007` away), and **entirely absent** (`1550704` home).
-  - **Plus the row-omission path** above. ⭐ That is one more path than the outgoing 19-fixture set
-    documented, which named only "populated" and "absent".
-  - The four restored columns carry real values, not just present keys: `shots_inside_box_pct`
-    0.57–0.81, `finishing_efficiency_pct` 0.15–0.67, `passes_accuracy_pct` 0.84–0.93.
+**(c) I quoted a rate from one sample.** My first figure was ~$0.23/day ≈ $7/month, taken from a
+single day — which happened to be the **smallest of the previous fourteen** (37 GB against a 15–197
+GB range) — and before I had found `fdp-freshness` at all. Measured over 14 days the two jobs
+together bill **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. ⭐ **Rule: pull a RANGE before quoting a
+rate.** ⚠ And query `region-eu` — `region-us` returns a confident, false "0 jobs, no cost".
 
-## Cost — measured, as the contract requires
+## What was measured, and how
 
-Reads marts only; writes no BigQuery table; no ingest, no API calls, no recurring cost.
-Measured from `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT`, by hour, and attributed:
+All read-only, all from GCP directly rather than from documents:
 
-    my work (08:00–09:59 UTC)   21 query jobs    0.456 GB billed    ≈ $0.003
+    Cloud Scheduler europe-west1   fdp-nightly    0 4 * * *   ENABLED
+                                   fdp-freshness  7 * * * *   ENABLED
+    Observed effect                ingest + prod dbt build, 04:01–04:03 UTC, 14 days running,
+                                   writing dbt_analytics / marts / core / intermediate / staging
+    GitLab schedule 4379625        Active=false; last scheduled pipeline 2026-08-10, failed
+    SA github-actions-dbt          0 user-managed keys; 3 system-managed
+                                   1 workloadIdentityUser binding -> gitlab-pool only
+    Project IAM                    no broad serviceAccountTokenCreator; owner is the CPO
+    Cloud Workflows API            disabled — ruled out
 
-⚠ **The first cost query returned zero and was wrong**: I queried `region-us`, and these datasets are
-in **EU**. Recorded because a "0 GB, no cost" answer is exactly the kind of comfortable result worth
-distrusting.
+## Deliberately NOT done
 
-## ⛔⛔ AN UNRELATED FINDING THE COST QUERY SURFACED — flagged, NOT folded in
-
-Attributing my own spend meant looking at every job in the window, and the hourly breakdown showed
-activity that is not mine and is not documented:
-
-    04:02–05:27 UTC   1,488 query jobs   37.23 GB   ≈ $0.23
-    service account:  github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com
-    sample query:     select league_code, max(ingested_at) from `raw.RAW_APIF_COACHES` group by ...
-
-**That contradicts two things the repo states as fact.** `CLAUDE.md` says GitHub is "RETAINED but
-DORMANT… Its Actions run nothing", and `.claude/active_work.md` says "⚠ No nightly SCHEDULE exists on
-GitLab yet… nothing refreshes the data on a timer right now." Something ran a full pipeline under the
-GitHub Actions service account at 04:00 UTC today — which is exactly the documented daily ingest
-slot, and which also explains why the warehouse was fresh enough for this roll-forward to work at all
-(`max_played_date` = today).
-
-⚠ **Recurring spend of ~$0.23/day ≈ $7/month, unattributed in the docs.** Cost is explicitly the
-CPO's under `CLAUDE.md`. Not investigated further and not touched here — it belongs to no part of
-this MR, and folding it in would be exactly the scope creep this programme has been FAILed on.
+  - **Nothing was switched on, off, or deleted.** The two scheduler jobs, the disabled GitLab
+    schedule and `.github/workflows/dbt-scheduled.yml` are all exactly as they were.
+  - **Whether `fdp-freshness` should be hourly** (24×/day) is a recurring-cost question and the
+    CPO's. Written into the docs as a fact, not as a recommendation.
+  - **Whether GitLab schedule `4379625` should be deleted** rather than left disabled — that is
+    infrastructure, not documentation. This MR only stops it reading as the intended owner.

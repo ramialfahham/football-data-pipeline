@@ -1,102 +1,72 @@
-# Review — chore/roll-forward-sample — 2026-09-01
+# Review — docs/nightly-lives-in-cloud-scheduler — 2026-09-01
 
-> **The sample roll-forward.** The committed build sample under `site_v2/src/data/` moves from the
-> 2026-08-28 matchday to 2026-09-01, so the fixture comparison renders its full sixteen locked rows
-> again instead of twelve. Data and a `.gitignore` allowlist only — no code, no mart, no frontend
-> file. Branched from main `7caaf21`.
+> **Record where the nightly actually runs.** `CLAUDE.md` told every session that nothing refreshes
+> the data on a timer, while a Cloud Scheduler job did exactly that each morning. Documentation
+> only — no code, no config, no infrastructure. Branched from main `1e76078`.
 
-diff_sha256: 3d938a277dfc4a4fc02372d0af906c9c14bb2f96657f5c382911e50dde6a3a3c
+diff_sha256: a6c966e8865a131a516f6f6a53be6c96292a473d7bf27a71e7fa10c7c4440215
 
-rounds: 2
+rounds: 1
 
-⭐ **THE RESULT.** The old payloads pre-dated four mart columns and were missing those keys
-**entirely** — absent from the key set, not null. The new set restores `% Shots from box`,
-`% Goals per shot on goal`, `% Pass accuracy` and `Ø Key passes`. **Seven of eight rendered windows
-now show the full 16 rows / 7 groups.**
+⛔⛔ **THIS MR IS A CORRECTION OF MY OWN REPORTING.** While attributing `!136`'s BigQuery spend I
+found a daily 04:02 UTC pipeline, could not reconcile it with the docs, and reported it to the CPO
+as **unexplained recurring cost**. It was neither unexplained nor unauthorised. His answer, verbatim:
+*"We moved these two jobs to the cloud after your recommendation. We did this after I ran into CI
+limitations with Gitlab."* Authorised, on my own earlier recommendation, and recorded nowhere — the
+documentation gap was the only real defect.
 
-⛔⛔ **ROUND 1 FAILED 1–1, AND BOTH REVIEWERS WERE RIGHT ABOUT SOMETHING I HAD WRITTEN CARELESSLY.**
+**Three errors, each with the rule it earned:**
 
-**`scope-auditor` FAILed on an authority record that did not exist.** The contract cited a CPO steer
-as the basis for accepting a materially thinner CI sample, and `escalations.log` carried **no entry
-for this task at all**. That is `feedback_dont_attribute_repo_practice_to_cpo` recurring — *"'you
-ruled' needs a quote from `escalations.log` … I narrate outcomes in prose and never write them into
-the file the gate parses."* I appended the STEP 5 ruling correctly two MRs ago and skipped it here
-because the input arrived as conversation rather than as a formal answer, which is not a distinction
-the record recognises.
+**(a) I named a culprit from a NAME.** I told the CPO GitHub Actions was running it, from two
+circumstantial facts: the service account is `github-actions-dbt@…`, and
+`.github/workflows/dbt-scheduled.yml` carries a matching `0 4 * * *` cron. He refused it in one
+sentence — *"How is that possible, the account is suspended"* — and was right. The AUTH PATH settled
+it in two queries: that SA has **zero user-managed keys** and exactly one `workloadIdentityUser`
+binding (the `gitlab-pool`), so GitHub could never have assumed it.
+⭐ **Identify a caller by how it AUTHENTICATES, never by what it is NAMED.**
 
-⭐ **Writing it forced a correction I had glossed over.** The contract said he "answered the
-thinness question". **He did not — he DISMISSED it**, asked for a plain-language explanation, then
-stated *"We're doing infrastructure work and don't show anything now."* **He never said "run it
-today."** Proceeding was MY reading: my recommendation to wait rested entirely on the thinner sample
-being visible, and his statement removed that premise. The log now records the sequence exactly and
-labels the decision an INTERPRETATION, so it can be challenged rather than merely trusted.
+**(b) I called it unexplained when it was merely undocumented.**
+⭐ **Ask which of the two it is before reporting it.**
 
-**`bi-analyst` PASSed but caught a measurement error.** I reported the HEBC page as "15 rows / 6
-groups" — measured per page and divided by two windows, averaging two different numbers.
+**(c) I quoted a rate from ONE sample** — ~$7/month, from a day that was the smallest of the previous
+fourteen (37 GB against a 15–197 GB range), and before I had found `fdp-freshness` at all. Measured
+over 14 days: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**.
+⭐ **Pull a RANGE before quoting a rate.** ⚠ And query `region-eu` — `region-us` returns a confident,
+false "0 jobs, no cost".
 
 ## scope-auditor
 VERDICT: PASS
 
-**Round 1 FAIL** — the missing `escalations.log` entry, above. **Round 2 PASS.**
-
 risks_checked:
-- The new log entry verified as a **pure append** after the STEP 5 entry's separator: no prior dated
-  entry's text touched.
-- The account cross-checked against `contract.md`'s `refs` and `decisions_taken §1`: both cite the
-  log, both repeat "he never said 'run it today'" verbatim, and both frame the call as mine.
-  Explicitly checked for **overstating in the other direction** and found none.
-- ⚠ Noted the `objective` section's terser phrasing reads less self-contained, but judged it fully
-  qualified by the adjacent `refs`/`decisions_taken` text, so not a misattribution on its own.
-  Left as-is rather than churned: the contract gate requires a clean tree, and re-opening a passed
-  item for a phrase two reviewers have read in context is not worth the stash-dance.
-- Round-1 items re-checked for drift: the `scope_paths` glob fix, `.gitignore` replace-not-append
-  (19 ids out, 4 in, no leftovers), `protected_override`'s no-hand-edit / no-code rules.
-- The unrelated `github-actions-dbt` finding confirmed present, marked "flagged and not acted on",
-  and **not** absorbed into `decisions_taken` or `acceptance_criteria`.
-- Swept for new §10 decision classes, new mechanisms and credential-shaped strings: none.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-
-**Round 1 PASS**, but with the finding that drove the round-2 correction. **Round 2 PASS**, verified
-against the built output rather than the corrected prose.
-
-risks_checked:
-- ⭐ **The measurement error it caught.** Reading the built HTML directly, it found `win-w1` =
-  15 rows / 6 groups and `win-w2` = 16 rows / 7 groups on the HEBC fixture — two different numbers
-  my per-page division had averaged into one. Re-measured by splitting at the `win win-w2` marker
-  and corrected in both evidence files.
-- The mechanism traced to the payload: HEBC's `w1` is null in full; Dortmund's
-  `w1.defensive_actions_per_match` is null (its `blocks_per_match` is null, breaking the sum), so in
-  w1 the row has data on neither side. In `w2` Dortmund's value is 24.33 and HEBC renders "–".
-  ⭐ **So one fixture exercises BOTH null-display paths** — a stronger coverage result than the
-  original claim, not a weaker one.
-- The row-hiding logic traced to `MetricComparison.astro` and confirmed **unmodified** by this
-  branch — pre-existing behaviour, not a defect introduced by the data swap.
-- ⚠ **A citation-precision note, acted on**: `01_fixture_page.md:235` covers only the one-side-null
-  "–"; the both-null omission belongs to `00_overview.md:37-39` and the component's own header. Both
-  evidence files now cite the right rule for the right case.
-- 16-row claim verified on the built pages, all four fixtures, with no "on target" text left in
-  `dist/en`. Set self-consistency re-confirmed across landing / allowlist / tracked / disk.
-- No hand-edited payload: `landing.json` carries only `type`/`upcoming` and the fixture payloads
-  keep the full nested export shape — consistent with genuine output, not a trimmed sample.
-- The four restored fields traced to `select * from mart_team_momentum` in `fetch_fixture_payloads`,
-  so they are forwarded from a real mart column rather than typed into the sample.
+- **Append-only log verified structurally**: the `escalations.log` diff is a single hunk
+  `@@ -7300,3 +7300,43 @@`, all `+` lines, **zero `-` lines**, with the prior `!136` entry sitting
+  in unmodified context. The dated record of the mistaken belief survives intact — correcting it in
+  place would have been falsifying the record.
+- **Executable surface**: no `.gitlab-ci.yml`, no `.github/workflows/**`, no scheduler or IAM config
+  anywhere in the diff or the excluded-but-listed file set, matching `protected_override`.
+- **Authority use**: the CPO quote is cited as attribution of a past fact only, and nothing in
+  `decisions_taken` converts it into a new ruling.
+- **Cost figures consistent** across `contract.md`, `escalations.log` and `CLAUDE.md` — no inflation
+  between documents, and the earlier wrong `~$7/month` figure is explicitly flagged along with the
+  mechanism that produced it.
+- **Reserved decisions correctly withheld**: `fdp-freshness`'s hourly cadence and the disabled GitLab
+  schedule's fate are recorded as facts for the CPO, not acted on — recurring-cost decisions are his
+  alone under §10.
+- `scope_paths` reconciled against every touched file; Appendix A1–A6 anti-patterns checked and none
+  match — a factual correction of infrastructure documentation, not a new mechanism.
 
 ## escalations
 
-**One, and it is recorded rather than resolved.** The thin-matchday decision is documented in
-`escalations.log` (2026-09-01) as **my interpretation of a CPO statement**, not as a ruling — see the
-round-1 account above. If the reading is wrong the cost is one more roll-forward, not a bad artefact.
+**None raised.** The CPO's statement is used as attribution for a factual correction, not as a new
+ruling, and the new dated `escalations.log` entry records both the correction and how I got it wrong.
 
-⛔ **AN UNRELATED FINDING, FLAGGED AND NOT ACTED ON.** Attributing this MR's BigQuery spend surfaced
-**1,488 query jobs / 37.23 GB at 04:02–05:27 UTC on 2026-09-01** under
-`github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com` — ~$0.23/day, recurring.
-That contradicts `CLAUDE.md` ("GitHub … Its Actions run nothing") and `active_work.md` ("no nightly
-SCHEDULE exists … nothing refreshes the data on a timer"), and it explains why the warehouse was
-fresh enough for this roll-forward to work at all. **Cost is the CPO's.** Not investigated further
-and not folded in.
+⛔ **RECORDED FOR THE CPO, DELIBERATELY NOT ACTED ON** — both are recurring-cost or infrastructure
+calls, and this MR changes no infrastructure at all:
+  - **Whether `fdp-freshness` needs to run hourly** (24×/day).
+  - **Whether GitLab schedule `4379625` should be deleted** rather than left disabled and reading
+    like the intended owner. ⚠ Enabling it without disabling `fdp-nightly` would run the build twice.
 
 ⚠ **CARRIED, untouched:** step 5's two follow-ups (the seed `description` column; the four chrome
-strings including the hero x-axis); the `__team`/`__player` split with no live instance; the
-resolver as a committed CI gate; **#99**, **#96**, **#87**, **#98**.
+strings including the hero x-axis); the `__team`/`__player` split with no live instance; the resolver
+as a committed CI gate; **#99**, **#96**, **#87**, **#98**; `stash@{0}`'s parked value-equivalence
+test.
