@@ -7378,3 +7378,148 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   (1) named GitHub from a service-account NAME; (2) said "unexplained" for "undocumented";
   (3) quoted a monthly rate from ONE unrepresentative day; (4) said "recorded nowhere" without
   searching the tree; (5) corrected (4) everywhere except the record that matters most.
+
+
+---
+
+2026-09-01 CPO STEER — THE SEED'S PROSE FOLLOWS THE LABEL, AND IT COVERS BOTH READER COLUMNS.
+
+  ⭐ THE ASK, verbatim: **"start the seed description sweep"**. Then, asked whether the seed's second
+  reader-facing column should move with the first, he selected **"Both columns (recommended)"**,
+  whose stated text was: *"Sweep `description` AND `interpretation` together. Otherwise one metric
+  ends up saying 'on goal' in its label, 'on goal' in its description, and 'on target' in its
+  interpretation."* Logged because `contract.md` cites this as its authority, and a citation with no
+  entry here is what FAILed `!136` round 1.
+
+  ⭐ SCOPE IT INHERITS: RULING 2 in this log — *"…should be Ø Shots on goal (apply everywhere where
+  applicable)"*, scope confirmed *"in the catalogue"*. This MR is inside that ruling; the phrase
+  **"where applicable"** is what the contract turns into a checkable grammar rule.
+
+  ⛔ WHAT WAS NOT DONE, deliberately, and stays the CPO's: **16 cells cannot be made internally
+  consistent without rewriting the sentence.** "on target" fills two grammatical roles and only one
+  substitutes — the noun phrase after shot/shots ("shots on target" → "shots on goal") does, the
+  bare modifier does not, because **"on-goal threat" is not English**. Rewording "On-target threat",
+  "On-target dominance" and "the on-target process" is copy, which `check_copy_gate.py` reserves
+  permanently: *"Wording stays yours… Judgement about whether a sentence reads naturally stays with
+  the CPO, permanently."* Flagged, not attempted. ⚠ And leaving them forever is defensible rather
+  than debt: "on-target" as an ordinary adjective is normal football English.
+
+  ⭐⭐ THE FINDING WORTH KEEPING — A CENSUS REGEX THAT IS TOO NARROW REPORTS A CONFIDENT **ZERO**,
+  NEVER AN ERROR. Mine was wrong three times on one file, and each widening found more:
+    · `on target` · `on-target` · `on_target` (`label_i18n_key`) · `OnTarget` (camelCase, same column)
+  Two traps, both silent:
+    1. **`\b` DOES NOT DELIMIT `on` IN `shots_on_target`** — `_` is a WORD character, so there is no
+       boundary there at all. `\bon[ _-]target\b` matched nothing and printed "protected: 0".
+    2. **camelCase carries NO separator**, so every bounded pattern misses `shotsOnTarget`.
+  Protected count went **0 → 1 → 3** as it was corrected. This is `!134`'s miss repeated, and the
+  handover rule written THIS SESSION ("write the separator as a character class before you count
+  anything") was not enough, because it named the character class and not the boundary.
+
+  ⭐ STANDING FORM, now in `contract.md §1a`: **the regex that DECIDES may be strict; the regex that
+  COUNTS must be permissive** — `on[ _-]?target`, no anchors. Their jobs are opposite: one must be
+  precise, the other must miss nothing. Two-sided count: **12 move, 27 stay, 39 total**.
+
+  ⚠ AND ONE ABSOLUTE CLAIM IN MY OWN CONTRACT WAS FALSE, caught by measuring both sides rather than
+  one. The acceptance criterion read *"no cell contains both spellings"*.
+  **`finishing_efficiency_pct` [description] already contains both on main** — *"per shot on goal"*
+  and *"their own on-target shots"* in one sentence. The criterion is now stated two-sided
+  (introduced 0, removed 0, base 1, head 1) because that is the only form this MR can actually own.
+  Same shape as the five errors tallied above: a conclusion stated before the cheapest disconfirming
+  check — here, running the assertion against BASE as well as HEAD.
+
+
+---
+
+2026-09-01 ROUND 1 FAILED TWICE, INDEPENDENTLY, AND THE UNIT OF THE RULE WAS WRONG.
+
+  ⛔ `scope-auditor` and `analytics-engineer` both FAILed the seed-prose sweep, on the same defect,
+  reached separately. The rule was per-CELL: convert a cell when every occurrence inside it is
+  movable. That moves whichever COLUMN happens to hold a convertible phrase and freezes its sibling
+  — so a row ends up reading **"on goal" in its label, "on goal" in its description and "on target"
+  in its interpretation**.
+
+  ⭐⭐ THAT IS NOT AN APPROXIMATION OF THE CPO's RULING. IT IS THE LITERAL STATE HE NAMED. His words,
+  logged in the entry above as this MR's authority: *"Otherwise one metric ends up saying 'on goal'
+  in its label, 'on goal' in its description, and 'on target' in its interpretation."* I quoted that
+  sentence in `contract.md` as the reason for the two-column scope, and then built a rule that
+  produces it. **Quoting a ruling is not the same as implementing it, and nothing in my process
+  checks the difference.**
+
+  ⚠ SCALE, and it is why this was a FAIL and not a nit: `analytics-engineer` measured **7 rows**
+  where two previously-AGREEING columns were made to disagree, and traced it to a live artifact —
+  `fetch_glossary()` (`scripts/export_site_data.py:1296`) serialises `description` and
+  `interpretation` side by side into `metrics.json`, so the disagreement ships verbatim.
+
+  ⭐ THE FIX WAS TO CHANGE THE UNIT, NOT TO ADD AN EXCEPTION. A row's cells are written only if the
+  ROW ends fully consistent; otherwise nothing on that row is touched. **A partly-converted ROW is
+  worse than an unconverted one, for exactly the reason a partly-converted CELL is** — the rule was
+  already in the contract, one level down, and simply never lifted.
+
+  ⚠ AND AN INTERMEDIATE FIX WAS ALSO WRONG, which is worth recording because it looked right. My
+  first correction guarded "do not NEWLY split a row" — and it passed those 7 rows, because their
+  LABEL already split them on main. A guard phrased against "getting worse" is satisfied by
+  something already bad. The condition has to be **the end state is right**, not **the delta is
+  not negative**.
+
+  ⛔ THE COST IS REAL AND IS NOT BEING HIDDEN: the sweep shrank from **12 substitutions to 5**, and
+  the MR no longer fixes its own headline example — `shots_on_goal_player` still reads label
+  "Shots on goal" / description "Shots on target.", because its interpretation says "On-target
+  threat". **Seven rows are now blocked on one COPY decision**, which is the CPO's under the copy
+  gate: what replaces **"On-target threat"**, **"On-target dominance"**, **"On-target shots faced"**,
+  **"On-target threat conceded"** and "the on-target process". "On-goal threat" is not English.
+
+  ⭐ FOURTH REGEX LESSON ON ONE FILE, and this one is new in kind. The three before were about
+  detecting the OLD word. This one is about the NEW one: the row-consistency check first asked
+  `"on goal" in cell` — a literal SPACE — so a cell converted to *"shots-on-goal data"* read as
+  still-unconverted, and `deserved_points` scored as a clean move while its row actually ended
+  holding both spellings. **The detector for what you are WRITING needs exactly the permissiveness
+  of the detector for what you are REPLACING.** I had already written the permissive-counting rule
+  into this contract for `on target` and did not apply it to `on goal` in the very next function.
+
+
+---
+
+2026-09-01 ROUND 2: THE MECHANISM PASSED, THE WRITE-UP FAILED — I LISTED THE BLOCKERS FROM MEMORY.
+
+  ⚠ VERDICTS: `analytics-engineer` PASS, `football-analytics-expert` PASS, `scope-auditor` **FAIL**.
+  Both PASSing reviewers independently recomputed the counts from the files and reconciled them
+  exactly (5 move / 34 stay / 39 total, 3 protected, 9 split on main → 7 on head, 2 fixed, **0 newly
+  split**). The row-unit rule is sound. **What failed was a paragraph of prose I wrote about it.**
+
+  ⛔ THE DEFECT: my `decisions_reserved` named four phrases and asserted that answering them "makes
+  all 7 rows convertible". Wrong three ways, and checkable against the seed in one pass:
+    (a) two of the seven — `finishing_efficiency_pct`, `finishing_efficiency_player_pct` — are
+        blocked by **«on-target shots» inside their DESCRIPTION** ("not finishing the team's own
+        on-target shots"), a phrase my list did not contain;
+    (b) I said every block sits in the `interpretation`. It does not;
+    (c) I listed **`deserved_points`, which is not split at all** — its `label_en` never carried the
+        phrase, so nothing in that row disagrees with anything. It is HELD by the rule, which is a
+        different thing from being BLOCKED, and I conflated the two.
+
+  ⭐ THE RULE, and it is the census rule one level up: **A BLOCKER INVENTORY IS A CLAIM ABOUT THE
+  FILE, SO IT MUST BE EXTRACTED FROM THE FILE.** I had already written "census with a pattern, not a
+  list of spellings" into this very contract, then hand-listed the blockers from recall in the
+  paragraph immediately below it. Derived, with site counts: «on-target shots» 4, «on-target threat»
+  3, «on-target dominance» 1, «on target for − against» 1 — deciding the first three frees 6 of 7.
+
+  ⛔⛔ FIFTH REGEX ERROR, AND THE FIRST FALSE POSITIVE — found only by chasing that FAIL. Widening
+  the "on goal" detector to `on[ _-]?goal` (the fix for the fourth error) made it match the METRIC
+  ID `shots_on_goal_difference_per_match`, which `deserved_points`' description quotes verbatim — so
+  a fully consistent row read as SPLIT. Four errors from being too narrow, then one from being too
+  wide, on the same phrase in the same file.
+
+  ⭐⭐ THE RESOLUTION IS THE RULE STEP 4 ALREADY EARNED AND I DID NOT CARRY OVER: **ROLE, NOT
+  PUNCTUATION.** Prose separates with a SPACE or a HYPHEN; an identifier separates with an
+  UNDERSCORE. Row consistency is a claim about the ENGLISH A READER SEES, so an identifier must not
+  count either way.
+
+  ⭐ AND THE GENERAL FORM, which is the part worth keeping: **THREE DETECTORS, THREE JOBS, AND
+  COLLAPSING ANY TWO OF THEM BROKE THIS SWEEP ONCE EACH.** (1) DECIDES what changes — strict.
+  (2) COUNTS occurrences — maximally permissive, every separator; its only job is to miss nothing.
+  (3) JUDGES reader-facing consistency — prose only, identifiers excluded. They are not
+  interchangeable and the proof is measured: narrowing (2) to prose dropped the protected count from
+  **3 to 0**; widening (3) past prose invented a split that did not exist.
+
+  ⚠ CHECKED, because a bad detector could have reached the data: **it did not.** `git diff` shows
+  the seed byte-identical to what both round-2 reviewers read. Only my prose was wrong — but the
+  prose is what the CPO would have acted on, which is why it was rightly a FAIL and not a nit.

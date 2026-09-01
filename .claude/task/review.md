@@ -1,85 +1,98 @@
-# Review — test/player-season-grain-value-equivalence — 2026-09-01
+# Review — refactor/seed-prose-on-goal — 2026-09-01
 
-> **One dbt schema test**: `(player_sk, league_code, season_api_year)` unique on
-> `int_player_season__metrics`. The model already asserts the same grain as
-> `(player_sk, season_sk)`; this adds the readable spelling that any leg-model join must use.
-> No model SQL, no existing test touched. Branched from main `fadd52f`.
+diff_sha256: f5ac2829b70b649bd3bbdf28666660179a080050a0d49d3935fbbbf2e62d8626
 
-diff_sha256: 4a6b3e6a90173edb9cbcb19440ddd2b84655d385ffb30c54a6408d60481d8de0
-
-rounds: 1
-
-⭐ **VERIFIED BEFORE COMMITTING, NOT LEFT FOR CI.** `dbt build` never runs locally, so no green local
-test run is claimed. Instead the test's own logic — `dbt_utils` emits *group by the columns, keep
-groups with `count(*) > 1`* — was run against production, as written and mutated three ways:
-
-    as written  (player_sk, league_code, season_api_year)   PASS   0 failing groups
-    existing    (player_sk, season_sk)                      PASS   0 failing groups
-    mutation    drop league_code                            FAIL   34,884 failing groups
-    mutation    drop season_api_year                        FAIL   41,256 failing groups
-    mutation    player_sk alone                             FAIL   31,168 failing groups
-
-**Every column in the key is load-bearing.** 185,421 rows, both spellings distinct at 185,421, and
-**34,884 player-years span more than one `league_code`** (max 8) — so the test is not vacuous, which
-was the thing most worth disproving.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-
-⭐ **It traced my central claim to source instead of accepting it, and sharpened it.**
-
-risks_checked:
-- **The value-equivalence claim verified at source**: `season_sk` really is
-  `generate_surrogate_key(['league_api_id', 'season_api_year'])` — `dim_competition_season.sql:8`
-  and `fct_fixture.sql:11`. Then traced `league_code` and `season_sk` end-to-end from `fct_fixture`
-  through `int_player_club_season__metrics.sql:56-57` into the aggregation's group-by: **both come
-  off the same fixture row**, so most divergence would trip the existing test as well.
-- ⭐ **A case I had not considered, and it strengthens the MR**: if two different `league_api_id`s
-  ever shared one `league_code` within a season, the new test would be **strictly stronger** than
-  the old rather than a respelling. Not rulable out from static reads; ruled out *empirically* by
-  the equal counts. So the precise claim is **equivalent today, and structurally either equivalent
-  or stronger — never weaker.** The evidence now says that instead of "two spellings".
-- ⭐ **The redundancy rule I should have checked myself**: `engineering_standards.md:195` forbids
-  repeating a uniqueness assertion **across layers** unless the grain changes. Found **inapplicable**
-  — this is two assertions on one model in one layer, each in the spelling a different consumer
-  needs. It also confirmed the precedent is real: `int_team_season__metrics` already carries both a
-  `team_season_sk` unique test and a `(league_code, season_api_year, team_sk)` combination test.
-- Layer placement correct per `layering.md`; no model SQL touched; the existing
-  `(player_sk, season_sk)` test byte-identical; no catalogue row, no hardcoded competition
-  identifier, no consumption-layer change; A6 impact-map trigger does not apply (no grain change,
-  no raw write, no `1_staging` model).
-- ⚠ Its measurements were verified by code tracing, not re-queried — it has no BigQuery access. The
-  numbers above are mine, and CI's `data:build:mr` is the only run that executes the test for real.
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
-
 risks_checked:
-- **Authority**: the CPO's *"start the value-equivalence test"* resumes parked work whose
-  precondition (the catalogue rows, steps 4–5) is documented as shipped. The contract does not
-  stretch it into new design; the column combination came from the stash, not from me.
-- **Stash discipline**: confirmed from the diff that the new block uses the **current**
-  post-rename column name, with no trace of the stale `pass_accuracy_pct` spelling the stash's
-  context still carries, and nothing from that stash's unrelated 304-line contract leaked in.
-  ⚠ It could not run `git stash list` — no shell in its harness — so it rested on my account.
-  **Verified here instead: 17 entries, `stash@{0}` byte-identical at 2 files / 166 / 150.**
-- **File-location sanity**: the test for `int_player_season__metrics` lives in `int_team_season.yml`
-  because both model blocks share that one file — checked, not a scope mismatch.
-- **Verification adequacy**: judged the substitute honest — disclosed as a substitute for
-  `dbt build`, not misrepresented as a local green run.
-- **Pre-commitment** in `decisions_reserved` — stop and escalate if the assertion were false, rather
-  than weaken the test — checked against `feedback_never_loosen_a_guard` and found correct.
-- `scope_paths` reconciled; no `.sql` in the diff; no new mechanism or recurring cost; no
-  credential-shaped strings.
+- Recomputed §3's blocker table against the seed directly, not from the contract's prose: all 9
+  blocking-phrase sites across the 7 named split rows verified — «on-target shots» ×4,
+  «on-target threat» ×3, «on-target dominance» ×1, «on target for − against» ×1. Every site matches
+  the seed's actual text; no phantom and no missing site.
+- Verified "deciding the first three frees 6 of 7": six rows are blocked only by phrases in the
+  first three categories; `shots_on_goal_difference_per_match` additionally needs the fourth in its
+  own description. True as stated.
+- Verified `deserved_points` is correctly EXCLUDED from the 7 (its `label_en` carries no phrase at
+  all, so nothing in the row disagrees) and correctly grouped with `saves_pct` and
+  `deserved_points_gap` as held-but-not-split. Checked all three field-by-field: every field that
+  mentions the phrase agrees on "on target", and each row pairs a movable noun phrase with an
+  immovable bare modifier — which is exactly why §2 holds them rather than partly converting.
+- Verified the two "blocked in DESCRIPTION, not interpretation" rows against the seed — both carry
+  "on-target shots" in `.desc`, confirming the correction to round 2's wrong claim.
+- Cross-checked the diff against the seed: exactly 5 occurrences change across exactly 4 rows, and
+  `metric_columns.md` regenerates only for the two whose `description` changed (the generator
+  renders `description` only — confirmed by reading the unaffected `saves_player` /
+  `saves_player_pct` doc blocks), so there is no doc-sync gap.
+- Verified both cited rulings in `escalations.log` BY CONTENT: RULING 2 ("…should be Ø Shots on goal
+  (apply everywhere where applicable)", scope "in the catalogue") and the "Both columns
+  (recommended)" steer are present verbatim as quoted; the `check_copy_gate.py` quote matches that
+  script's actual docstring.
+- Scope and protected columns: the diff touches only the four files in `scope_paths`;
+  `metric_id`, `label_en`, `label_i18n_key` and every other protected column are byte-identical —
+  spot-checked that `shots_on_goal_per_match.label_i18n_key` still reads
+  `metrics.shots_on_target_per_match.label`.
+- ROUNDS 1–2 (both FAIL, superseded): round 1 caught the per-cell rule splitting `shots_on_goal_pct`
+  against itself — the state the CPO's two-column steer existed to prevent. Round 2 caught the
+  reserved-decision list being written from memory: it claimed four phrases freed all 7 rows, put
+  every blocker in the `interpretation`, and included `deserved_points`, which is not split at all.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Confirmed the seed and generated-doc hunks in `review_input.patch` are unchanged from the round-2
+  PASS — same 4 rows / 5 field edits, no new or moved data hunk; `escalations.log` appends only
+  (offset 7378+), no retroactive edits to prior log content.
+- Independently re-derived §3's blocker table from the live seed rather than trusting the prose: all
+  four buckets and every site match — «on-target shots» ×4 (`finishing_efficiency_pct`.desc,
+  `finishing_efficiency_player_pct`.desc, `shots_on_goal_against_player`.interp,
+  `shots_on_goal_difference_per_match`.interp), «on-target threat» ×3, «on-target dominance» ×1,
+  «on target for − against» ×1. "Deciding the first three frees 6 of 7" checks out — only
+  `shots_on_goal_difference_per_match` needs the fourth, being blocked in both fields.
+- Verified the 3 rows named held-but-NOT-split (`saves_pct`, `deserved_points`,
+  `deserved_points_gap`) — each spells the phrase consistently across every field that carries it,
+  so "not split" is factually correct and distinct from "held" under §2.
+- Verified §1a's detector counts against the file: exactly 3 `on_target`/`OnTarget` identifier
+  occurrences exist, all in `label_i18n_key` (rows 13, 34, 65), matching "permissive 3 → prose-only
+  0"; and `deserved_points`' description does quote `shots_on_goal_difference_per_match` verbatim,
+  confirming the `on[ _-]?goal` false positive.
+- No acceptance criterion reads as weakened relative to round 2.
+- ROUND 2 (PASS, superseded): reconstructed main-vs-head per row from the patch — 2 genuine fixes,
+  2 no-conflict moves, **0 newly split**; recounted 34 remaining occurrences and 3 protected
+  directly over the seed; confirmed `finishing_efficiency_pct` the sole pre-existing mixed cell;
+  confirmed the generator keys off `description` only, so interpretation-only rows correctly produce
+  no doc diff; confirmed the consumer inventory is exactly the three the contract claims.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Confirmed the catalogue diff against the live seed: the 4 changed rows
+  (`shots_on_goal_pct`, `saves_player`, `saves_player_pct`, `shots_on_goal_per90`) carry the same
+  5 substitutions as round 2 and no other row differs from main — a delta review, not a full one.
+- Re-derived the 7 still-split rows directly from the seed rather than trusting the contract:
+  `shots_on_goal_per_match` (13), `finishing_efficiency_pct` (14), `finishing_efficiency_player_pct`
+  (15), `shots_on_goal_player` (34), `shots_on_goal_against_player` (53),
+  `shots_on_goal_difference_per_match` (75), `shots_on_goal_against_per_match` (76). Matches §3
+  exactly; the memory-written list's three errors are gone.
+- Verified the two DESCRIPTION-side blockers by reading raw text: rows 14 and 15 both block on
+  "…not finishing the team's/player's own on-target shots" in `description`, not `interpretation`.
+- Verified `shots_on_goal_difference_per_match` carries two INDEPENDENT blockers in two fields —
+  description "(on target for − against)" and interpretation "On-target dominance" — so §3's
+  separate listing is not double-counting.
+- Checked the §2 row rule against `shots_on_goal_against_player`: its description phrase is
+  individually movable but correctly held, because the row's interpretation stays blocked.
+- Football-validity of the two new contract claims: "on-goal threat" is not idiomatic football
+  English (real usage is "on-target threat" or plain "goal threat"), and there is no "off-goal"
+  counterpart to "off-target". Both hold as language claims, not cover for skipping a fix.
+- Confirmed the wording decision is correctly reserved to the CPO under `check_copy_gate.py`'s
+  stated scope — sentence-level phrasing, not a metric-definition or direction change.
+- ROUND 2 (PASS, superseded by the above): judged the new predicate-position substitution
+  "Share of shots that were on goal" natural football English, parallel to "on frame"/"on net", and
+  distinct from the idiom "in on goal"; verified all 4 substitutions against formula, denominator,
+  null condition and `direction` with no drift; confirmed no natural on-goal phrasing was missed on
+  any of the 7 held rows.
 
 ## escalations
-
-**None raised.** Resuming parked work on the CPO's instruction, with its documented precondition met.
-
-⛔ **Pre-committed and not needed**: had the assertion proved false, this MR would have stopped and
-gone to the CPO rather than adjusting the grain or weakening the test — the model's stated grain
-would then have been wrong, which is a data-model question, not a test question.
-
-⚠ **CARRIED, untouched:** step 5's two follow-ups; `fdp-freshness`'s hourly cadence; the disabled
-GitLab schedule `4379625`; the `__team`/`__player` split with no live instance; the resolver as a
-committed CI gate; **#99**, **#96**, **#87**, **#98**.
+(none — the bare-modifier wording is RESERVED to the CPO in `decisions_reserved`, not escalated as
+a blocking question. The MR ships without it; see `contract.md` §3 for the derived blocker table.)

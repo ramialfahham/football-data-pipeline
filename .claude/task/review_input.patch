@@ -1,219 +1,492 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0836d78..278e1fa 100644
+index 278e1fa..36c406c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,41 +1,35 @@
--# Task contract — record where the nightly actually runs
-+# Task contract — assert the player-season grain in its JOINABLE spelling
+@@ -1,35 +1,27 @@
+-# Task contract — assert the player-season grain in its JOINABLE spelling
++# Task contract — the seed's PROSE follows the label, where English allows
  
  objective: >
--  **Correct two documents that state, as fact, that nothing refreshes the data on a timer — when a
--  Cloud Scheduler job has been doing exactly that every morning.** Documentation only: no code, no
--  config, no infrastructure change.
+-  **Add one uniqueness test to `int_player_season__metrics`: `(player_sk, league_code,
+-  season_api_year)`.**
++  **Make the catalogue's reader-facing prose say "on goal" wherever the label already does — in the
++  cells where that can be done without rewriting a sentence.**
+ 
+-  The model already asserts the same grain as **`(player_sk, season_sk)`**. `season_sk` is built from
+-  `(league_api_id, season_api_year)`, so the two are the SAME key in two spellings — this is not a
+-  second, weaker assertion. It is the surrogate form and the readable form of one rule.
++  Step 5 moved nine `label_en` values from "on target" to "on goal" and deliberately left the prose.
++  The result is visible in BigQuery, because `persist_docs` publishes both: `shots_on_goal_player`
++  is labelled **"Shots on goal"** and described as **"Shots on target."** — the label and its own
++  definition using different words for one thing.
+ 
+-  ⭐ **WHY THE SECOND SPELLING EARNS ITS KEEP.** Anything joining a LEG model has to group on
+-  `(player_sk, league_code, season_api_year)` — the readable columns — not on `season_sk`. Asserting
+-  that form directly is what lets a consumer know the join cannot fan out. Today nothing checks it,
+-  so a `league_code` split would surface downstream as **missing rows with no test naming the
+-  cause** — the worst shape of data defect, because the symptom appears far from the cause.
 -
--  `CLAUDE.md:209-211` says *"⚠ No nightly SCHEDULE exists on GitLab yet … so nothing refreshes the
--  data on a timer right now."* That file is loaded at the start of every session. It is now false,
--  and being false there is expensive: a fresh chat reads it, observes fresh data, and has to
--  reconstruct why.
+-  ⭐ **AND IT CLOSES AN ASYMMETRY THAT ALREADY EXISTS.** The TEAM model beside it has carried
+-  **both** spellings since it was written; the player model carried only the `season_sk` form. This
+-  MR makes the pair symmetric.
 -
--  ⛔ **THIS MR EXISTS BECAUSE I DID EXACTLY THAT, AT LENGTH.** While attributing `!136`'s BigQuery
--  spend I found a daily 04:02 UTC pipeline, could not reconcile it with the docs, and reported it to
--  the CPO as an unexplained recurring cost. His answer: **"We moved these two jobs to the cloud after
--  your recommendation. We did this after I ran into CI limitations with Gitlab."** It was a
--  deliberate, authorised decision. The investigation was avoidable; the documentation gap is the
--  actual defect.
--
--  ⛔ **AND THE GAP IS NARROWER THAN I FIRST WROTE — CORRECTED BEFORE MERGE.** An earlier draft of
--  this contract said "no document records" it. **False.** `deploy/nightly/README.md` is a full
--  runbook for exactly this: the Cloud Run jobs, the scheduler entries, the service account, the
--  `gcloud` commands that created them. I never opened it — I went from BigQuery job metadata
--  straight to `CLAUDE.md`. So the real defect is **one stale document contradicting a correct one**,
--  and `CLAUDE.md`'s bullet must therefore POINT AT the runbook rather than restate it.
-+  **Add one uniqueness test to `int_player_season__metrics`: `(player_sk, league_code,
-+  season_api_year)`.**
-+
-+  The model already asserts the same grain as **`(player_sk, season_sk)`**. `season_sk` is built from
-+  `(league_api_id, season_api_year)`, so the two are the SAME key in two spellings — this is not a
-+  second, weaker assertion. It is the surrogate form and the readable form of one rule.
-+
-+  ⭐ **WHY THE SECOND SPELLING EARNS ITS KEEP.** Anything joining a LEG model has to group on
-+  `(player_sk, league_code, season_api_year)` — the readable columns — not on `season_sk`. Asserting
-+  that form directly is what lets a consumer know the join cannot fan out. Today nothing checks it,
-+  so a `league_code` split would surface downstream as **missing rows with no test naming the
-+  cause** — the worst shape of data defect, because the symptom appears far from the cause.
-+
-+  ⭐ **AND IT CLOSES AN ASYMMETRY THAT ALREADY EXISTS.** The TEAM model beside it has carried
-+  **both** spellings since it was written; the player model carried only the `season_sk` form. This
-+  MR makes the pair symmetric.
-+
-+  ⚠ **This is parked work, resumed — not new design.** It sat in `stash@{0}` labelled *"PARK:
-+  value-equivalence test, ships AFTER the catalogue rows"*. Those rows shipped in steps 4 and 5.
+-  ⚠ **This is parked work, resumed — not new design.** It sat in `stash@{0}` labelled *"PARK:
+-  value-equivalence test, ships AFTER the catalogue rows"*. Those rows shipped in steps 4 and 5.
++  ⭐ **THE CPO WIDENED THIS TO TWO COLUMNS.** Asked whether `interpretation` — the seed's second
++  reader-facing column, which feeds the site's good/bad reading — should move with `description`, he
++  chose **both**. Leaving it would have produced a THIRD spelling on one row.
  
  refs: >
--  **CPO, verbatim, this session:** *"We moved these two jobs to the cloud after your recommendation.
--  We did this after I ran into CI limitations with Gitlab."* That is the authority for what this MR
--  writes down. It is a statement of fact about a past decision, not a new ruling.
--
--  **Measured directly from GCP, read-only** — this is what the docs will now say:
--    · Cloud Scheduler, **europe-west1**: `fdp-nightly` `0 4 * * *` ENABLED; `fdp-freshness`
--      `7 * * * *` ENABLED.
--    · Observed effect: a full ingest + prod dbt build starting 04:01–04:03 UTC **every day for the
--      last 14**, writing to `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
--    · GitLab schedule `4379625` exists but is **Active=false**; its last scheduled pipeline ran
--      **2026-08-10** and failed.
-+  **CPO, verbatim, this session:** *"start the value-equivalence test"*.
-+
-+  **`stash@{0}`**, *"PARK: value-equivalence test, ships AFTER the catalogue rows"* — the parked
-+  work, carried on branch `feat/metric-catalogue-value-equivalence`.
-+  ⚠ **The stash is NOT popped.** It also carries a 304-line `contract.md` for the unrelated task it
-+  was parked from, and its diff context references `pass_accuracy_pct`, a column the naming
-+  programme has since renamed to `passes_accuracy_player_pct`. **Only the twelve-line test is taken,
-+  applied by hand against the current file.** The stash stays on the stack untouched.
+-  **CPO, verbatim, this session:** *"start the value-equivalence test"*.
++  **CPO, verbatim, this session:** *"start the seed description sweep"*, then — asked whether to
++  include the `interpretation` column — he selected **"Both columns (recommended)"**, whose stated
++  text was: *"Sweep `description` AND `interpretation` together. Otherwise one metric ends up saying
++  'on goal' in its label, 'on goal' in its description, and 'on target' in its interpretation."*
+ 
+-  **`stash@{0}`**, *"PARK: value-equivalence test, ships AFTER the catalogue rows"* — the parked
+-  work, carried on branch `feat/metric-catalogue-value-equivalence`.
+-  ⚠ **The stash is NOT popped.** It also carries a 304-line `contract.md` for the unrelated task it
+-  was parked from, and its diff context references `pass_accuracy_pct`, a column the naming
+-  programme has since renamed to `passes_accuracy_player_pct`. **Only the twelve-line test is taken,
+-  applied by hand against the current file.** The stash stays on the stack untouched.
++  **RULING 2** (`escalations.log`): *"…should be Ø Shots on goal (apply everywhere where
++  applicable)"*, scope confirmed *"in the catalogue"*. This MR is inside that scope; the phrase
++  **"where applicable"** is what `decisions_taken §1` turns into a checkable rule.
  
  scope_paths:
    - .claude/active_work.md
-@@ -43,65 +37,65 @@ scope_paths:
+@@ -37,65 +29,176 @@ scope_paths:
    - .claude/task/acceptance_evidence.md
    - .claude/task/escalations.log
    - .claude/task/review.md
--  - CLAUDE.md
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/docs/metric_columns.md
  
  protected_override: >
--  ⛔ **DOCUMENTATION ONLY. NOTHING EXECUTABLE CHANGES.** No workflow, no `.gitlab-ci.yml`, no
--  scheduler job, no IAM binding, no `.github/workflows/**` file. The two Cloud Scheduler jobs and the
--  disabled GitLab schedule are left exactly as they are — this MR describes the world, it does not
--  alter it.
-+  ⛔ **NO MODEL SQL CHANGES.** `int_player_season__metrics.sql` is not touched. This MR adds an
-+  ASSERTION about behaviour that already exists; if the assertion fails, the fix is upstream data or
-+  an upstream model, never weakening the test.
-+
-+  ⛔ **NO EXISTING TEST IS REMOVED OR RELAXED.** The `(player_sk, season_sk)` test stays exactly as
-+  it is. Both spellings are asserted, which is the whole point — replacing one with the other would
-+  discard the surrogate-key guarantee that downstream `season_sk` joins rely on.
+-  ⛔ **NO MODEL SQL CHANGES.** `int_player_season__metrics.sql` is not touched. This MR adds an
+-  ASSERTION about behaviour that already exists; if the assertion fails, the fix is upstream data or
+-  an upstream model, never weakening the test.
++  ⛔ **`metric_id`, `label_en`, `label_i18n_key` AND EVERY OTHER COLUMN ARE PROTECTED.** Only
++  `description` and `interpretation` may change — a field allowlist, checked before any text rule,
++  which is the `!131`/`!132`/`!136` lesson. `label_i18n_key` in particular still carries
++  `metrics.shots_on_target_per_match.label` and stays: it is a join key across five surfaces.
  
--  ⛔ **`escalations.log` IS APPENDED TO, NEVER REWRITTEN.** The `!136` entry that framed this as an
--  unexplained finding is a DATED record of what I believed then. It stays verbatim; the correction is
--  a new dated entry. *Living document → replace; dated log → append.*
-+  ⛔ **`stash@{0}` IS NOT POPPED OR DROPPED.** The stash stack is repo-level and load-bearing; other
-+  parked work lives in it. Read from it, leave it alone.
+-  ⛔ **NO EXISTING TEST IS REMOVED OR RELAXED.** The `(player_sk, season_sk)` test stays exactly as
+-  it is. Both spellings are asserted, which is the whole point — replacing one with the other would
+-  discard the surrogate-key guarantee that downstream `season_sk` joins rely on.
++  ⛔ **NO SENTENCE IS REWRITTEN.** Only the exact phrase substitution below. Rewording reader-facing
++  English is copy, and `scripts/check_copy_gate.py` states the standing position in its own
++  docstring: *"Editorial and Localisation exists as a mechanical gate, not a copy approver. Wording
++  stays yours… Judgement about whether a sentence reads naturally stays with the CPO, permanently."*
+ 
+-  ⛔ **`stash@{0}` IS NOT POPPED OR DROPPED.** The stash stack is repo-level and load-bearing; other
+-  parked work lives in it. Read from it, leave it alone.
++  ⛔ **NO MODEL, MACRO OR TEST CHANGES.** `metric_columns.md` is REGENERATED, never hand-edited —
++  it renders these descriptions, so `sync_metric_docs_blocks.py` must run and `--check` must pass.
  
  impact_map: >
--  `CLAUDE.md` is loaded into every session by the harness, and `.claude/active_work.md` by the
--  SessionStart hook — so both reach every future chat directly. That is the entire blast radius:
--  nothing reads them at build or run time.
-+  A dbt schema test only. It adds one assertion to the nightly and to `data:build:mr`; it changes no
-+  table, no column and no value. ⚠ **The one real risk is that the assertion is FALSE in production
-+  data** — in which case CI goes red and the MR has surfaced a live defect rather than caused one.
-+  That is checked BEFORE committing by querying BigQuery directly (see `decisions_taken §2`).
+-  A dbt schema test only. It adds one assertion to the nightly and to `data:build:mr`; it changes no
+-  table, no column and no value. ⚠ **The one real risk is that the assertion is FALSE in production
+-  data** — in which case CI goes red and the MR has surfaced a live defect rather than caused one.
+-  That is checked BEFORE committing by querying BigQuery directly (see `decisions_taken §2`).
++  `description` and `interpretation` reach three places: `metric_columns.md` (generated, hence in
++  scope), the BigQuery table/column comments via `+persist_docs`, and `metrics.json` via
++  `fetch_glossary()`, which dumps the whole seed row. No model logic reads either column, so no
++  value, grain or row count can move.
++  ⚠ **Unlike step 5, `metric_columns.md` DOES regenerate here** — that generator renders
++  descriptions, and it ignored step 5 only because it never reads `label_en`.
  
  acceptance_criteria:
--  - `CLAUDE.md` no longer asserts that nothing refreshes the data on a timer, and names Cloud
--    Scheduler as the owner of the nightly, with the job names, crons and region.
--  - `.claude/active_work.md` no longer presents this as an open cost finding for the CPO; it records
--    the answer.
--  - `escalations.log` carries a NEW dated entry correcting the `!136` framing, with the earlier
--    entry untouched.
--  - **The legacy-name trap is written down**, because it is the reusable part: the service account
--    is called `github-actions-dbt` and that name says nothing about the caller.
--  - No executable file appears in the diff.
-+  - The test compiles: `dbt parse` EXIT=0, and all three columns exist in the model's final
-+    projection (verified: `int_player_season__metrics.sql:70-75`).
-+  - **The assertion is TRUE in production data**, verified by direct query before commit — not
-+    assumed, and not left for CI to discover.
-+  - **The assertion is not VACUOUS**, verified in the same query: if no player ever appeared in more
-+    than one `league_code` within a season, the two spellings could not diverge and the test would
-+    be theatre. Whatever the answer, it is reported.
-+  - The existing `(player_sk, season_sk)` test is byte-identical, and no model SQL changes.
+-  - The test compiles: `dbt parse` EXIT=0, and all three columns exist in the model's final
+-    projection (verified: `int_player_season__metrics.sql:70-75`).
+-  - **The assertion is TRUE in production data**, verified by direct query before commit — not
+-    assumed, and not left for CI to discover.
+-  - **The assertion is not VACUOUS**, verified in the same query: if no player ever appeared in more
+-    than one `league_code` within a season, the two spellings could not diverge and the test would
+-    be theatre. Whatever the answer, it is reported.
+-  - The existing `(player_sk, season_sk)` test is byte-identical, and no model SQL changes.
++  - The seed differs from base in `description` and `interpretation` ONLY — every other column
++    byte-identical on every row.
++  - ⭐ **NO ROW IS MADE WORSE — the criterion round 1 lacked, and the one that matters.** Measured
++    across `label_en` + `description` + `interpretation` on BOTH sides: rows split on main **9**, on
++    head **7**; **2 fixed, 0 newly split**. Every row this MR writes ends fully self-consistent.
++  - **The sweep INTRODUCES no internally-mixed cell** — no cell it writes contains both "on goal"
++    and "on target". ⚠ Stated two-sided, because the absolute form ("no cell anywhere is mixed") is
++    FALSE and measuring it is what proved it: **`finishing_efficiency_pct` [description] is ALREADY
++    mixed on main** — it says *"per shot on goal"* and *"their own on-target shots"* in one
++    sentence. §2 leaves it untouched, so this MR neither creates nor removes it. Measured both
++    sides: mixed on base **1**, on head **1**, introduced **0**, removed **0**.
++  - `metric_columns.md` regenerated, `sync_metric_docs_blocks --check` EXIT=0, and the description
++    hygiene gate green (⚠ BigQuery hard-rejects a column description over 1,024 chars; "on goal" is
++    shorter than "on target", so every cell shrinks).
++  - Every occurrence classified once with a printed decision, reported as a TWO-SIDED count.
  
  decisions_taken: >
--  ⭐ **§1. WHAT THE DOCS WILL SAY, AND WHY IT IS PHRASED AS OWNERSHIP.** Not "a schedule exists" but
--  "the nightly lives in Cloud Scheduler" — because the failure mode this fixes is a reader asking
--  *what refreshes the data* and finding an answer that points nowhere. The GitLab schedule is named
--  as deliberately disabled so it does not read as the intended owner, and `data:nightly` is named as
--  reachable-but-unused rather than deleted.
+-  ⭐ **§1. HAND-APPLIED, NOT POPPED.** See `refs`. The stash's own diff no longer matches the file —
+-  the naming programme renamed a neighbouring column in its context lines — and it carries an
+-  unrelated contract. Taking the twelve lines by hand is the smaller, checkable operation.
 -
--  ⭐ **§2. THE LEGACY SERVICE-ACCOUNT NAME IS THE PART WORTH KEEPING.** The jobs authenticate as
--  `github-actions-dbt@…`, which sent me to GitHub on nothing but the name plus a workflow file with a
--  matching cron. Both circumstantial; I reported them as fact and was wrong. What actually settles
--  the caller is the auth path — that SA has **zero user-managed keys** and exactly one
--  `workloadIdentityUser` binding (the `gitlab-pool`), so GitHub could never have been it. **Check how
--  a principal authenticates before naming it from its name.**
--
--  ⭐ **§3. THE COST FIGURES GO IN, BECAUSE THEY WERE MEASURED AND ARE OTHERWISE UNRECORDED.**
--  ~129 GB/day over 14 days ≈ 3.8 TiB/month ≈ $17–24. Recorded as the observed cost of an authorised
--  decision, NOT as a concern. ⚠ And with the correction attached: my first figure was ~$7/month, from
--  a single day that happened to be the smallest of the fourteen, and before I knew `fdp-freshness`
--  existed at all.
-+  ⭐ **§1. HAND-APPLIED, NOT POPPED.** See `refs`. The stash's own diff no longer matches the file —
-+  the naming programme renamed a neighbouring column in its context lines — and it carries an
-+  unrelated contract. Taking the twelve lines by hand is the smaller, checkable operation.
+-  ⭐ **§2. THE TEST IS VERIFIED AGAINST REAL DATA BEFORE IT SHIPS, AND IN BOTH DIRECTIONS.**
+-  ⚠ `dbt build` must never run locally, so a green local run is not available and is not claimed.
+-  Instead the assertion is checked by querying `intermediate.int_player_season__metrics` directly:
+-    · **does it hold** — `count(*)` against `count(distinct (player_sk, league_code, season_api_year))`;
+-    · **is it equivalent** to the existing test — the same count against
+-      `count(distinct (player_sk, season_sk))`;
+-    · **is it non-vacuous** — how many players appear under more than one `league_code` in a season,
+-      which is the only situation in which the two spellings could ever disagree.
+-  This is the `feedback_verify_the_test_fails` discipline adapted to a test that cannot be run
+-  locally: prove the thing it asserts, and prove the assertion has content.
++  ⭐⭐ **§1. THE RULE, AND IT IS A GRAMMAR FACT, NOT A PREFERENCE.** "on target" serves two
++  grammatical roles and only one has an English equivalent:
++    · **NOUN PHRASE** — "shots on target", "shots-on-target data", "per shot on target". Substitutes
++      cleanly to "shots on goal", "shots-on-goal data". **MOVES.**
++    · **BARE MODIFIER** — "on-target threat", "on-target dominance", "the on-target process",
++      "on-target shots". **"on-goal threat" is not English.** No substitution exists. **STAYS.**
++  Checkable form: substitute only where `shot`/`shots` immediately precedes.
 +
-+  ⭐ **§2. THE TEST IS VERIFIED AGAINST REAL DATA BEFORE IT SHIPS, AND IN BOTH DIRECTIONS.**
-+  ⚠ `dbt build` must never run locally, so a green local run is not available and is not claimed.
-+  Instead the assertion is checked by querying `intermediate.int_player_season__metrics` directly:
-+    · **does it hold** — `count(*)` against `count(distinct (player_sk, league_code, season_api_year))`;
-+    · **is it equivalent** to the existing test — the same count against
-+      `count(distinct (player_sk, season_sk))`;
-+    · **is it non-vacuous** — how many players appear under more than one `league_code` in a season,
-+      which is the only situation in which the two spellings could ever disagree.
-+  This is the `feedback_verify_the_test_fails` discipline adapted to a test that cannot be run
-+  locally: prove the thing it asserts, and prove the assertion has content.
++  ⭐⭐ **§1a. AND THE PHRASE HAS FOUR SPELLINGS IN ONE FILE — the census regex was widened THREE
++  times and each widening found more.** This is `!134`'s miss, repeated, and worth stating as a
++  rule rather than a war story:
++    · `on target` · `on-target` · `on_target` (`label_i18n_key`) · `OnTarget` (camelCase, same column)
++  Two traps behind it, both silent — a too-narrow census reports a confident **zero**, never an error:
++    1. **`\b` does not delimit `on` in `shots_on_target`.** `_` is a WORD character, so there is no
++       boundary there. The count read 0 until the boundary was respelled as `(?<![A-Za-z])`.
++    2. **camelCase has NO separator at all**, so every bounded pattern misses it.
++  Standing form: the regex that DECIDES may be strict; the regex that COUNTS must be permissive
++  (`on[ _-]?target`, no anchors) — its only job is to miss nothing.
++
++  ⚠ **AND THE SAME BLINDNESS HIT THE DETECTOR FOR THE *NEW* WORD.** The row-consistency check first
++  asked `"on goal" in cell` — a literal SPACE — so a cell converted to *"shots-**on-goal** data"*
++  read as still-unconverted and `deserved_points` was scored as a clean move while its row actually
++  ended holding both spellings.
++
++  ⛔⛔ **AND WIDENING *THAT* ONE BROKE IT THE OTHER WAY — the fifth error, and the first
++  FALSE POSITIVE.** `on[ _-]?goal` matches the METRIC ID `shots_on_goal_difference_per_match`, which
++  `deserved_points`' description quotes verbatim; a fully consistent row then read as split.
++  ⭐ **THE RESOLUTION IS THE RULE STEP 4 ALREADY EARNED — ROLE, NOT PUNCTUATION.** Prose separates
++  with a SPACE or a HYPHEN; an identifier separates with an UNDERSCORE. Row consistency is a claim
++  about the ENGLISH A READER SEES, so an identifier must not count either way.
++
++  ⭐⭐ **THEREFORE: THREE DETECTORS, THREE JOBS, AND COLLAPSING ANY TWO HAS BROKEN THIS SWEEP ONCE
++  EACH.** (1) the one that DECIDES what changes — strict; (2) the one that COUNTS occurrences —
++  maximally permissive, every separator, because its only job is to miss nothing; (3) the one that
++  JUDGES reader-facing consistency — prose only, no identifiers. ⚠ Proof they are not
++  interchangeable: narrowing (2) to prose dropped the protected count from **3 to 0**, and widening
++  (3) past prose invented a split that was not there.
++
++  Two-sided count, final: **5 move, 34 stay** — 16 premodifier (no English form), 15 held because
++  the row would split, 3 protected — **39 total**.
++
++  ⚠ **AND ADJACENCY WAS THE WRONG PROXY FOR THAT ROLE — round 1 FAILed on it.** The first checkable
++  form was *"substitute only where `shot`/`shots` immediately precedes"*, which is a different
++  claim: *"Share of shots **that were** on target"* is the identical role and is not adjacent, so it
++  was frozen while its sibling column moved. The discriminator is **POSITION relative to the noun** —
++  "on target" FOLLOWING a shot (directly, or across a copula) moves; "on-target" PREMODIFYING a noun
++  stays.
++
++  ⭐⭐ **§2. THE UNIT IS THE ROW, NOT THE CELL — and that is the whole correction of round 1.**
++  A row's cells are written **only if the row ends fully consistent**: `label_en`, `description` and
++  `interpretation` all spelling the phrase the same way, none holding both. Otherwise **nothing on
++  that row is touched.**
++
++  ⛔ **THE CELL-LEVEL RULE FAILED REVIEW, AND FOR THE RIGHT REASON.** It moved whichever column
++  happened to hold a convertible phrase and froze its sibling, producing rows reading "on goal" in
++  the label, "on goal" in the description and "on target" in the interpretation. **That is not an
++  approximation of the CPO's ruling — it is the literal state he named as his reason for widening
++  this sweep to two columns.** `scope-auditor` and `analytics-engineer` FAILed it independently; the
++  second measured **7 rows** where two previously-agreeing columns were made to disagree, and traced
++  it into `metrics.json` via `fetch_glossary()`, which serialises both fields of a row side by side.
++  A partly-converted ROW is worse than an unconverted one, for the reason a partly-converted cell is.
++
++  ⭐ **Measured under the row rule: 5 occurrences move across 4 rows; 34 stay.** Rows split on main
++  **9**, on head **7** — **2 fixed, 0 newly split**, no row made worse in any respect.
++
++  ⛔ **§3. WHAT BLOCKS THE REST IS A COPY DECISION, AND IT IS THE CPO'S.** Seven rows stay split:
++  `shots_on_goal_per_match`, `finishing_efficiency_pct`, `finishing_efficiency_player_pct`,
++  `shots_on_goal_player`, `shots_on_goal_against_player`, `shots_on_goal_difference_per_match`,
++  `shots_on_goal_against_per_match`. Each holds a bare modifier for which no English "on-goal" form
++  exists — **"on-goal threat" is not a football phrase, and there is no "off-goal" the way there is
++  "off-target"**. So there is no substitution available, only a rewrite, and
++  `scripts/check_copy_gate.py` reserves wording permanently: *"Judgement about whether a sentence
++  reads naturally stays with the CPO, permanently."*
++
++  ⚠⚠ **THE FIRST VERSION OF THIS PARAGRAPH WAS WRONG IN THREE WAYS, AND IT WAS WRONG BECAUSE I WROTE
++  THE LIST FROM MEMORY INSTEAD OF DERIVING IT** — `scope-auditor` FAILed round 2 on it and
++  `football-analytics-expert` flagged the same thing independently. It (a) claimed the named phrases
++  make "all 7 rows convertible", (b) said every block sits in the `interpretation`, and (c) listed
++  `deserved_points`, which **is not split at all** — its `label_en` never carried the phrase, so
++  nothing in that row disagrees with anything. **A blocker inventory is a claim about the file and
++  has to be extracted from it**, which is the same rule as the census itself.
++
++  Derived, with site counts:
++
++  | blocking phrase | sites | where |
++  |---|---|---|
++  | «on-target shots» | 4 | `finishing_efficiency_pct`.desc, `finishing_efficiency_player_pct`.desc, `shots_on_goal_against_player`.interp, `shots_on_goal_difference_per_match`.interp |
++  | «on-target threat» | 3 | `shots_on_goal_per_match`.interp, `shots_on_goal_player`.interp, `shots_on_goal_against_per_match`.interp |
++  | «on-target dominance» | 1 | `shots_on_goal_difference_per_match`.interp |
++  | «on target for − against» | 1 | `shots_on_goal_difference_per_match`.desc |
++
++  ⭐ **Deciding the first three frees 6 of the 7.** `shots_on_goal_difference_per_match` needs the
++  fourth as well. ⚠ Note **two of the seven are blocked in their DESCRIPTION, not their
++  interpretation** — "not finishing the team's/player's own on-target shots" — which is exactly what
++  the memory-written version got wrong.
++  ⚠ `finishing_efficiency_pct` is additionally the one **pre-existing** mixed cell (see the
++  acceptance criteria); it is stuck for both reasons at once.
++  ⚠ Three further rows — `saves_pct`, `deserved_points`, `deserved_points_gap` — are held by §2 but
++  are **NOT split**: every field they have already agrees, and converting only the movable part is
++  what would split them. They need no decision and are not debt.
++  ⚠ **So this MR does NOT fix its own headline example.** `shots_on_goal_player` still reads label
++  "Shots on goal" / description "Shots on target." — because its interpretation says "On-target
++  threat", and moving the description alone is exactly the defect above. Stated plainly rather than
++  buried: the objective is only partly reachable without that decision.
  
  decisions_reserved:
--  - ⛔ **Whether `fdp-freshness` should run hourly** (24×/day) is a recurring-cost question and
--    therefore the CPO's. Noted in the docs as a fact, not as a recommendation, and not acted on.
--  - ⛔ **Whether the disabled GitLab schedule `4379625` should be deleted** — it is infrastructure,
--    not documentation. This MR only stops it reading as the intended owner.
--  - ⚠ CARRIED: step 5's two follow-ups; the `__team`/`__player` split with no live instance; the
--    resolver as a CI gate; **#99**, **#96**, **#87**, **#98**; `stash@{0}`'s parked test.
-+  - ⚠ **If the assertion turns out to be FALSE**, this MR stops and the finding goes to the CPO.
-+    Adjusting the grain, or weakening the test to make it pass, would be exactly the
-+    `feedback_never_loosen_a_guard` failure — and the model's stated grain would then be wrong,
-+    which is a data-model question, not a test question.
-+  - ⚠ CARRIED, untouched: step 5's two follow-ups; `fdp-freshness`'s hourly cadence; the disabled
-+    GitLab schedule; the `__team`/`__player` split with no live instance; the resolver as a CI gate;
-+    **#99**, **#96**, **#87**, **#98**.
+-  - ⚠ **If the assertion turns out to be FALSE**, this MR stops and the finding goes to the CPO.
+-    Adjusting the grain, or weakening the test to make it pass, would be exactly the
+-    `feedback_never_loosen_a_guard` failure — and the model's stated grain would then be wrong,
+-    which is a data-model question, not a test question.
+-  - ⚠ CARRIED, untouched: step 5's two follow-ups; `fdp-freshness`'s hourly cadence; the disabled
+-    GitLab schedule; the `__team`/`__player` split with no live instance; the resolver as a CI gate;
+-    **#99**, **#96**, **#87**, **#98**.
++  - ⛔ **THE DECISION THAT UNBLOCKS THE REMAINING 7 ROWS: what replaces the bare modifier.** Four
++    phrases carry it, with the site counts derived in §3 — **«on-target shots»** (4),
++    **«on-target threat»** (3), **«on-target dominance»** (1), **«on target for − against»** (1).
++    Deciding the first three frees **6 of 7**; the fourth frees
++    `shots_on_goal_difference_per_match`. Not answering leaves all seven exactly as main has them.
++    ⚠ Do NOT restate this list from memory — it was wrong three ways when I did, and `scope-auditor`
++    FAILed round 2 for it. Re-derive it from the seed.
++  - ⚠ **Leaving them forever is defensible and this is NOT assumed to be debt.** "Shots on goal" is
++    the product term for the metric; "on-target" as an ordinary adjective is normal football English
++    and reads correctly. `football-analytics-expert` reviewed the STAY set on football grounds and
++    agreed no natural "on-goal" phrasing was missed.
++  - ⚠ CARRIED, untouched: step 5's four chrome strings (`axPlay`, the hero verdicts);
++    `fdp-freshness`'s hourly cadence; the disabled GitLab schedule; the `__team`/`__player` split
++    with no live instance; the resolver as a CI gate; **#99**, **#96**, **#87**, **#98**.
  
  done_when: >
--  - `CLAUDE.md` and `.claude/active_work.md` describe the real arrangement, including the legacy
--    service-account name.
--  - `escalations.log` has a new dated correction; the `!136` entry is byte-identical.
--  - `git diff --stat` shows documentation files only.
--  - Offline gates green; blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**
-+  - The test is present on `int_player_season__metrics`, with the comment explaining why a second
-+    spelling of one grain is not a second key.
-+  - `dbt parse` EXIT=0; the offline gates green.
-+  - The three measurements above are reported with their numbers, including the non-vacuity one.
-+  - `stash@{0}` still on the stack, untouched.
-+  - Blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 1f3092c..a807060 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -427,6 +427,22 @@ models:
-           combination_of_columns:
-             - player_sk
-             - season_sk
-+      # The SAME grain, spelled the way anything joining a LEG model has to spell it. `season_sk` is
-+      # built from (league_api_id, season_api_year), so this is not a second, weaker key — it is one
-+      # rule in its surrogate form above and its readable form here. Asserting the readable form
-+      # directly is what lets a consumer group legs on (player_sk, league_code, season_api_year) and
-+      # know the join cannot fan out. The TEAM model has carried both spellings since it was written;
-+      # the player model had only the season_sk form, so a league_code split would have surfaced
-+      # downstream as missing rows with no test naming the cause.
-+      # ⭐ NOT VACUOUS, measured on prod before this shipped: 185,421 rows, both spellings distinct at
-+      # 185,421 — and **34,884 player-years span more than one league_code** (max 8), a quarter of all
-+      # player-years. So league_code is load-bearing in this key; (player_sk, season_api_year) alone
-+      # would fan out badly.
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns:
-+            - player_sk
-+            - league_code
-+            - season_api_year
-       - dbt_utils.expression_is_true:
-           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
-           name: int_player_season_passes_accuracy_player_pct_in_range
+-  - The test is present on `int_player_season__metrics`, with the comment explaining why a second
+-    spelling of one grain is not a second key.
+-  - `dbt parse` EXIT=0; the offline gates green.
+-  - The three measurements above are reported with their numbers, including the non-vacuity one.
+-  - `stash@{0}` still on the stack, untouched.
+-  - Blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**
++  - The 5 occurrences move across 4 rows, each ending fully consistent; every other row is
++    byte-identical to base.
++  - **0 rows newly split**, measured against base across all three reader-facing fields.
++  - The MR introduces no mixed cell, measured against base on BOTH sides. The single pre-existing
++    one (`finishing_efficiency_pct`) is reported, not silently inherited.
++  - Seed differs in `description`/`interpretation` only; `metric_columns.md` regenerated.
++  - Gates green, two-sided count reported, blinded review, `review.md` bound with `--staged-hash`.
++    **Round cap 3.**
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 800ed94..c2dbfc4 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -7378,3 +7378,148 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+   (1) named GitHub from a service-account NAME; (2) said "unexplained" for "undocumented";
+   (3) quoted a monthly rate from ONE unrepresentative day; (4) said "recorded nowhere" without
+   searching the tree; (5) corrected (4) everywhere except the record that matters most.
++
++
++---
++
++2026-09-01 CPO STEER — THE SEED'S PROSE FOLLOWS THE LABEL, AND IT COVERS BOTH READER COLUMNS.
++
++  ⭐ THE ASK, verbatim: **"start the seed description sweep"**. Then, asked whether the seed's second
++  reader-facing column should move with the first, he selected **"Both columns (recommended)"**,
++  whose stated text was: *"Sweep `description` AND `interpretation` together. Otherwise one metric
++  ends up saying 'on goal' in its label, 'on goal' in its description, and 'on target' in its
++  interpretation."* Logged because `contract.md` cites this as its authority, and a citation with no
++  entry here is what FAILed `!136` round 1.
++
++  ⭐ SCOPE IT INHERITS: RULING 2 in this log — *"…should be Ø Shots on goal (apply everywhere where
++  applicable)"*, scope confirmed *"in the catalogue"*. This MR is inside that ruling; the phrase
++  **"where applicable"** is what the contract turns into a checkable grammar rule.
++
++  ⛔ WHAT WAS NOT DONE, deliberately, and stays the CPO's: **16 cells cannot be made internally
++  consistent without rewriting the sentence.** "on target" fills two grammatical roles and only one
++  substitutes — the noun phrase after shot/shots ("shots on target" → "shots on goal") does, the
++  bare modifier does not, because **"on-goal threat" is not English**. Rewording "On-target threat",
++  "On-target dominance" and "the on-target process" is copy, which `check_copy_gate.py` reserves
++  permanently: *"Wording stays yours… Judgement about whether a sentence reads naturally stays with
++  the CPO, permanently."* Flagged, not attempted. ⚠ And leaving them forever is defensible rather
++  than debt: "on-target" as an ordinary adjective is normal football English.
++
++  ⭐⭐ THE FINDING WORTH KEEPING — A CENSUS REGEX THAT IS TOO NARROW REPORTS A CONFIDENT **ZERO**,
++  NEVER AN ERROR. Mine was wrong three times on one file, and each widening found more:
++    · `on target` · `on-target` · `on_target` (`label_i18n_key`) · `OnTarget` (camelCase, same column)
++  Two traps, both silent:
++    1. **`\b` DOES NOT DELIMIT `on` IN `shots_on_target`** — `_` is a WORD character, so there is no
++       boundary there at all. `\bon[ _-]target\b` matched nothing and printed "protected: 0".
++    2. **camelCase carries NO separator**, so every bounded pattern misses `shotsOnTarget`.
++  Protected count went **0 → 1 → 3** as it was corrected. This is `!134`'s miss repeated, and the
++  handover rule written THIS SESSION ("write the separator as a character class before you count
++  anything") was not enough, because it named the character class and not the boundary.
++
++  ⭐ STANDING FORM, now in `contract.md §1a`: **the regex that DECIDES may be strict; the regex that
++  COUNTS must be permissive** — `on[ _-]?target`, no anchors. Their jobs are opposite: one must be
++  precise, the other must miss nothing. Two-sided count: **12 move, 27 stay, 39 total**.
++
++  ⚠ AND ONE ABSOLUTE CLAIM IN MY OWN CONTRACT WAS FALSE, caught by measuring both sides rather than
++  one. The acceptance criterion read *"no cell contains both spellings"*.
++  **`finishing_efficiency_pct` [description] already contains both on main** — *"per shot on goal"*
++  and *"their own on-target shots"* in one sentence. The criterion is now stated two-sided
++  (introduced 0, removed 0, base 1, head 1) because that is the only form this MR can actually own.
++  Same shape as the five errors tallied above: a conclusion stated before the cheapest disconfirming
++  check — here, running the assertion against BASE as well as HEAD.
++
++
++---
++
++2026-09-01 ROUND 1 FAILED TWICE, INDEPENDENTLY, AND THE UNIT OF THE RULE WAS WRONG.
++
++  ⛔ `scope-auditor` and `analytics-engineer` both FAILed the seed-prose sweep, on the same defect,
++  reached separately. The rule was per-CELL: convert a cell when every occurrence inside it is
++  movable. That moves whichever COLUMN happens to hold a convertible phrase and freezes its sibling
++  — so a row ends up reading **"on goal" in its label, "on goal" in its description and "on target"
++  in its interpretation**.
++
++  ⭐⭐ THAT IS NOT AN APPROXIMATION OF THE CPO's RULING. IT IS THE LITERAL STATE HE NAMED. His words,
++  logged in the entry above as this MR's authority: *"Otherwise one metric ends up saying 'on goal'
++  in its label, 'on goal' in its description, and 'on target' in its interpretation."* I quoted that
++  sentence in `contract.md` as the reason for the two-column scope, and then built a rule that
++  produces it. **Quoting a ruling is not the same as implementing it, and nothing in my process
++  checks the difference.**
++
++  ⚠ SCALE, and it is why this was a FAIL and not a nit: `analytics-engineer` measured **7 rows**
++  where two previously-AGREEING columns were made to disagree, and traced it to a live artifact —
++  `fetch_glossary()` (`scripts/export_site_data.py:1296`) serialises `description` and
++  `interpretation` side by side into `metrics.json`, so the disagreement ships verbatim.
++
++  ⭐ THE FIX WAS TO CHANGE THE UNIT, NOT TO ADD AN EXCEPTION. A row's cells are written only if the
++  ROW ends fully consistent; otherwise nothing on that row is touched. **A partly-converted ROW is
++  worse than an unconverted one, for exactly the reason a partly-converted CELL is** — the rule was
++  already in the contract, one level down, and simply never lifted.
++
++  ⚠ AND AN INTERMEDIATE FIX WAS ALSO WRONG, which is worth recording because it looked right. My
++  first correction guarded "do not NEWLY split a row" — and it passed those 7 rows, because their
++  LABEL already split them on main. A guard phrased against "getting worse" is satisfied by
++  something already bad. The condition has to be **the end state is right**, not **the delta is
++  not negative**.
++
++  ⛔ THE COST IS REAL AND IS NOT BEING HIDDEN: the sweep shrank from **12 substitutions to 5**, and
++  the MR no longer fixes its own headline example — `shots_on_goal_player` still reads label
++  "Shots on goal" / description "Shots on target.", because its interpretation says "On-target
++  threat". **Seven rows are now blocked on one COPY decision**, which is the CPO's under the copy
++  gate: what replaces **"On-target threat"**, **"On-target dominance"**, **"On-target shots faced"**,
++  **"On-target threat conceded"** and "the on-target process". "On-goal threat" is not English.
++
++  ⭐ FOURTH REGEX LESSON ON ONE FILE, and this one is new in kind. The three before were about
++  detecting the OLD word. This one is about the NEW one: the row-consistency check first asked
++  `"on goal" in cell` — a literal SPACE — so a cell converted to *"shots-on-goal data"* read as
++  still-unconverted, and `deserved_points` scored as a clean move while its row actually ended
++  holding both spellings. **The detector for what you are WRITING needs exactly the permissiveness
++  of the detector for what you are REPLACING.** I had already written the permissive-counting rule
++  into this contract for `on target` and did not apply it to `on goal` in the very next function.
++
++
++---
++
++2026-09-01 ROUND 2: THE MECHANISM PASSED, THE WRITE-UP FAILED — I LISTED THE BLOCKERS FROM MEMORY.
++
++  ⚠ VERDICTS: `analytics-engineer` PASS, `football-analytics-expert` PASS, `scope-auditor` **FAIL**.
++  Both PASSing reviewers independently recomputed the counts from the files and reconciled them
++  exactly (5 move / 34 stay / 39 total, 3 protected, 9 split on main → 7 on head, 2 fixed, **0 newly
++  split**). The row-unit rule is sound. **What failed was a paragraph of prose I wrote about it.**
++
++  ⛔ THE DEFECT: my `decisions_reserved` named four phrases and asserted that answering them "makes
++  all 7 rows convertible". Wrong three ways, and checkable against the seed in one pass:
++    (a) two of the seven — `finishing_efficiency_pct`, `finishing_efficiency_player_pct` — are
++        blocked by **«on-target shots» inside their DESCRIPTION** ("not finishing the team's own
++        on-target shots"), a phrase my list did not contain;
++    (b) I said every block sits in the `interpretation`. It does not;
++    (c) I listed **`deserved_points`, which is not split at all** — its `label_en` never carried the
++        phrase, so nothing in that row disagrees with anything. It is HELD by the rule, which is a
++        different thing from being BLOCKED, and I conflated the two.
++
++  ⭐ THE RULE, and it is the census rule one level up: **A BLOCKER INVENTORY IS A CLAIM ABOUT THE
++  FILE, SO IT MUST BE EXTRACTED FROM THE FILE.** I had already written "census with a pattern, not a
++  list of spellings" into this very contract, then hand-listed the blockers from recall in the
++  paragraph immediately below it. Derived, with site counts: «on-target shots» 4, «on-target threat»
++  3, «on-target dominance» 1, «on target for − against» 1 — deciding the first three frees 6 of 7.
++
++  ⛔⛔ FIFTH REGEX ERROR, AND THE FIRST FALSE POSITIVE — found only by chasing that FAIL. Widening
++  the "on goal" detector to `on[ _-]?goal` (the fix for the fourth error) made it match the METRIC
++  ID `shots_on_goal_difference_per_match`, which `deserved_points`' description quotes verbatim — so
++  a fully consistent row read as SPLIT. Four errors from being too narrow, then one from being too
++  wide, on the same phrase in the same file.
++
++  ⭐⭐ THE RESOLUTION IS THE RULE STEP 4 ALREADY EARNED AND I DID NOT CARRY OVER: **ROLE, NOT
++  PUNCTUATION.** Prose separates with a SPACE or a HYPHEN; an identifier separates with an
++  UNDERSCORE. Row consistency is a claim about the ENGLISH A READER SEES, so an identifier must not
++  count either way.
++
++  ⭐ AND THE GENERAL FORM, which is the part worth keeping: **THREE DETECTORS, THREE JOBS, AND
++  COLLAPSING ANY TWO OF THEM BROKE THIS SWEEP ONCE EACH.** (1) DECIDES what changes — strict.
++  (2) COUNTS occurrences — maximally permissive, every separator; its only job is to miss nothing.
++  (3) JUDGES reader-facing consistency — prose only, identifiers excluded. They are not
++  interchangeable and the proof is measured: narrowing (2) to prose dropped the protected count from
++  **3 to 0**; widening (3) past prose invented a split that did not exist.
++
++  ⚠ CHECKED, because a bad detector could have reached the data: **it did not.** `git diff` shows
++  the seed byte-identical to what both round-2 reviewers read. Only my prose was wrong — but the
++  prose is what the CPO would have acted on, which is why it was rightly a FAIL and not a nit.
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index 6230b63..6d7e33c 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -1006,13 +1006,13 @@ unless both own and opponent shots-on-target data cover every season game.
+ 
+ 
+ {% docs shots_on_goal_pct %}
+-Share of shots that were on target. Total shots include blocked shots. Null when shots_total is
++Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is
+ zero.
+ {% enddocs %}
+ 
+ 
+ {% docs shots_on_goal_per90 %}
+-Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.
++Shots on goal per 90 minutes played. Minutes-normalised. Null when minutes is zero.
+ {% enddocs %}
+ 
+ 
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index c288961..3cdd6ce 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -8,7 +8,7 @@ goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from
+ goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
+ goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency_pct.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
+ shots_per_match,team,metrics.shots_per_match.label,Ø Shots,"Average total shots attempted per match with available team stats. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),expression,false,decimal_1,shooting,2,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality)
+-shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on goal,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on target
++shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on goal,Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on goal
+ shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,% Shots from box,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),expression,false,percent,shooting,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
+ shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Ø Shots on goal,"Average shots on target per match, counted over the games whose shots-on-target data is present rather than every game played.",int_legs__team_match,sum(shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
+ finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),expression,false,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
+@@ -49,9 +49,9 @@ cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards,Yellow cards.
+ cards_red_player,player,playerMetrics.cards.red,Red cards,Red cards.,int_legs__player_match,sum(cards_red),,expression,true,integer,discipline,1,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count)
+ offsides_player,player,playerMetrics.offsides.label,Offsides,Offsides caught.,int_legs__player_match,sum(offsides),,expression,true,integer,discipline,2,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement)
+ penalty_committed_player,player,playerMetrics.penalties.committed,Penalties conceded,"Penalties the player conceded. The provider spells the source field `penalty.commited`, which is misspelled at source and spelled correctly here.",int_legs__player_match,sum(penalty_committed),,expression,true,integer,discipline,3,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little)
+-saves_player,player,playerMetrics.savePct.saves,Saves,Saves made.,int_legs__player_match,sum(saves),,expression,false,integer,goalkeeping,1,higher_better,Save volume - shots on target kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that)
++saves_player,player,playerMetrics.savePct.saves,Saves,Saves made.,int_legs__player_match,sum(saves),,expression,false,integer,goalkeeping,1,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that)
+ shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on goal faced,Shots on target faced. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,expression,true,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper)
+-saves_player_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percentage. Null when denominator is zero.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,false,percent,goalkeeping,1,higher_better,Share of shots on target saved; high = a strong shot-stopper.
++saves_player_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percentage. Null when denominator is zero.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,false,percent,goalkeeping,1,higher_better,Share of shots on goal saved; high = a strong shot-stopper.
+ shots_player,player,playerMetrics.shots.label,Shots,Total shots (on and off target).,int_legs__player_match,sum(shots_total),,expression,false,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played)
+ goals_against_player,player,playerMetrics.goalsConceded.label,Goals conceded,Goals conceded by the team while the player was on the pitch (GK-relevant).,int_legs__player_match,sum(goals_against),,expression,true,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual)
+ shots_share_pct,team,metrics.shots_share_pct.label,% Share of shots,Share of all shots in the team's matches taken by the team. Null when no shots.,int_legs__team_match,sum(shots_total),sum(shots_total + opponent_shots_total),expression,false,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
+@@ -62,7 +62,7 @@ cards_player,player,playerMetrics.cards.label,Cards,"Yellow plus red cards (tota
+ goals_per90,player,playerMetrics.goalsPer90.label,Ø Goals per 90,Goals per 90 minutes played. Minutes-normalised so playing time does not distort the comparison. Null when minutes is zero.,int_legs__player_match,sum(goals_total) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.
+ assists_per90,player,playerMetrics.assistsPer90.label,Ø Assists per 90,Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,How often the player creates goals for others; high = a frequent creator.
+ scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,Ø Goal contributions per 90,Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_total + goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.
+-shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Ø Shots on goal per 90,Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),expression,false,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
++shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Ø Shots on goal per 90,Shots on goal per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),expression,false,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
+ passes_key_per90,player,playerMetrics.keyPassesPer90.label,Ø Key passes per 90,Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_key) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.
+ dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,Ø Dribbles completed per 90,Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(dribbles_success) * 90,sum(minutes_played),expression,false,decimal_1,duels,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.
+ passes_per90,player,playerMetrics.passesPer90.label,Ø Passes per 90,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_total) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -227,8 +500,8 @@ index 1f3092c..a807060 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 173 ++++++------
-#    .claude/task/review.md              | 139 +++++-----
-#    .claude/task/review_input.patch     | 511 +++++++++++++-----------------------
-#    3 files changed, 344 insertions(+), 479 deletions(-)
+#   .claude/active_work.md              | 158 +++++----
+#    .claude/task/acceptance_evidence.md | 219 +++++++-----
+#    .claude/task/review_input.patch     | 657 +++++++++++++++++++++++++-----------
+#    3 files changed, 674 insertions(+), 360 deletions(-)
 # ============================================================================
