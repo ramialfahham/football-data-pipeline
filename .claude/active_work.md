@@ -4,13 +4,12 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-01**. **main `89b8c01`**; `refactor/seed-prose-on-goal` open.
+_Last updated **2026-09-01**. **main `5aab198`**, clean, no open MRs.
 ⭐⭐ **THE NAMING PROGRAMME IS DONE AND SO IS THE WORK IT OWED.** Step 4: all 35 player metrics carry
-`_player` across seven MRs (`!125`–`!132`) — verified on main, of 48 player catalogue rows the only
-one without a `_player` marker is `minutes_per_appearance`, the one name the record's "UNCHANGED,
-all 14" list names. Step 5 (`!134`): the English label reads "on goal" — verified, **0** `label_en`
-and **0** `METRIC_LABELS_EN` values still say "on target". The sample roll-forward (`!136`): the
-build sample now pins **2026-09-01**, and the comparison renders **16 rows again, not 12**.
+`_player` (`!125`–`!132`) — of 48 player rows the only one without the marker is
+`minutes_per_appearance`, which the record lists as UNCHANGED. Step 5 (`!134`): **0** `label_en` and
+**0** `METRIC_LABELS_EN` values still say "on target". Sample roll-forward (`!136`): pins
+**2026-09-01**, comparison renders **16 rows, not 12**.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
@@ -38,44 +37,43 @@ my first figure was ~$7/month, the smallest of fourteen. (4) Query
 leave `mart_team_momentum`. **The next refresh REPLACES the set wholesale; it is never updated in
 place.** ⭐ Recipe, traps and the four-list consistency check: `site_v2/src/data/README.md`.
 ⚠ Deliberately thin (4/3 vs the outgoing 19/13) on a CPO steer that this is infrastructure with
-nothing on display. Coverage was MEASURED: both competition shapes, all three form paths, the
-row-omission path. 2026-09-04 (28 fixtures / 16 comps) is there if a fatter one is wanted.
+nothing shown. Coverage MEASURED: both competition shapes, all three form paths, the row-omission
+path. 2026-09-04 (28 fixtures / 16 comps) is there if a fatter one is wanted.
 
-## ⛔ ONE FOLLOW-UP STEP 5 LEFT — the other is this branch
+## ⛔ ONE FOLLOW-UP STEP 5 LEFT — plus 7 rows waiting on ONE copy call
 
-  - ⚠ **The seed's prose — `refactor/seed-prose-on-goal`, PARTLY done and BLOCKED on one copy call.**
-    **5 phrases move across 4 rows; 34 stay.** Rows split on main 9 → head 7: **2 fixed, 0 newly
-    split.** ⛔ **THE UNIT IS THE ROW, NOT THE CELL** — round 1 converted whichever column held a
+  - ✅ **The seed's prose — MERGED (`!140`), deliberately only PARTLY done.** 5 phrases moved across
+    4 rows; 34 stay. Rows split 9 → 7: **2 fixed, 0 newly split.**
+    ⛔ **THE UNIT IS THE ROW, NOT THE CELL** — the first rule converted whichever column held a
     movable phrase and froze its sibling, producing exactly the label=goal / desc=goal /
     interp=target state the CPO named when he widened the scope. Two reviewers FAILed it separately;
     `fetch_glossary()` ships both fields into `metrics.json` side by side. ⚠ A "don't make it WORSE"
-    guard was ALSO wrong — those rows were already split by their label, so it passed them. The
-    condition must be **the end state is right**, not the delta is non-negative.
+    guard was ALSO wrong — those rows were already split by their label, so it passed them. **The
+    condition must be "the end state is right", not "the delta is non-negative".**
     ⛔ **7 ROWS BLOCKED ON ONE CPO COPY DECISION**, inventory DERIVED from the seed (my hand-written
     one FAILed round 2): **«on-target shots» 4 sites · «on-target threat» 3 · «on-target dominance»
     1 · «on target for − against» 1.** Deciding the first three frees **6 of 7**. ⚠ Two blocks sit
     in the DESCRIPTION, not the interpretation. **"On-goal threat" is not English** and there is no
     "off-goal" as there is "off-target", so there is no substitution — only a rewrite, which the
-    copy gate reserves to him permanently. Until then `shots_on_goal_player` keeps label "Shots on
-    goal" / description "Shots on target."
+    copy gate reserves to him permanently. **My recommendation, given to him: LEAVE THEM** — the
+    football reviewer confirmed no natural on-goal phrasing exists, so it is a defensible end state,
+    not debt. Until decided, `shots_on_goal_player` keeps label "Shots on goal" / description "Shots
+    on target."
     ⚠ `saves_pct`, `deserved_points`, `deserved_points_gap` are HELD but NOT split — every field
-    already agrees; converting only their movable part is what would split them. Not debt.
-  - **Four CHROME strings in `strings.ts`'s `Dict`** that name the same metric in rendered English:
+    already agrees; converting only their movable part is what would split them. Not debt either.
+  - **Four CHROME strings in `strings.ts`'s `Dict`** naming the same metric in rendered English:
     `axPlay` ("Shots on target difference / match", the team hero's x-axis) and
-    `heroVerdictUnder`/`heroVerdictOver`/`heroCaption` ("a shots-on-target difference of {sotd}…").
-    ⚠ **When the team Performance surface ships, that axis will read "Shots on target difference"
-    beside a metric row reading "Ø Shots on goal difference".** Neither renders today.
+    `heroVerdictUnder`/`heroVerdictOver`/`heroCaption`. ⚠ **When the team Performance surface ships,
+    that axis reads "Shots on target difference" beside a row reading "Ø Shots on goal difference".**
+    Neither renders today.
   ⛔ **`label_i18n_key` is NOT one of these.** `metrics.shots_on_target_per_match.label` stays — the
   join key across the seed, `strings.ts`, `metricRows.ts`, three parsers and the page specs, and the
   catalogue declares no `..._on_goal_...` variant, so "fixing" it resolves the label to nothing.
 
-## ⛔ WHAT STEP 5 IS PINNED BY — and what it is NOT
-
-**Nothing pins the WORDING of the four rendered labels.** Mutation-tested, two reviewers: emptying a
-label goes RED, but `"Ø Bananas per fortnight"` leaves `npm test` **green**. Structural, not
-accidental — the byte-identical gate compares only keys in BOTH `strings.ts` and the frozen
-`site/i18n` corpus; three of the four are absent and the fourth is skipped by name. Those three also
-render on **zero** built pages, so only `Ø Shots on goal` is provable from `dist/`.
+⛔ **NOTHING PINS THE WORDING of the four rendered labels.** Mutation-tested, two reviewers: emptying
+a label goes RED, `"Ø Bananas per fortnight"` leaves `npm test` **green**. Structural — the
+byte-identical gate compares only keys in BOTH `strings.ts` and the frozen `site/i18n` corpus; three
+of the four are absent, the fourth is skipped by name, and those three render on zero built pages.
 
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
@@ -100,12 +98,12 @@ render on **zero** built pages, so only `Ø Shots on goal` is provable from `dis
 
 ## ⛔ WHAT THE SWEEP MRs PROVED — read before any similar rename or text sweep
 
-The programme is merged; the MR-by-MR account is in git and in
-`feedback_fix_the_class_not_the_instance`. What survives is the method.
+Programme merged; the MR-by-MR account is in git and `feedback_fix_the_class_not_the_instance`.
+What survives is the method.
 
-**1. A SCOPE COARSER THAN THE ROLE IT MUST RESOLVE IS THE ONE RECURRING DEFECT** — it FAILed review
-on `!131`, `!132` (three rounds) and `!134`, **with every gate green every time**. The fix is never
-an exemption list; it is a finer rule with a checkable property. The ones earned so far:
+**1. A SCOPE COARSER THAN THE ROLE IT MUST RESOLVE IS THE ONE RECURRING DEFECT** — FAILed review on
+`!131`, `!132` (×3), `!134` and `!140`, **every gate green every time**. The fix is never an
+exemption list; it is a finer rule with a checkable property. Those earned so far:
   - entity by enclosing model (`- name:` in yml), by the seed's `entity` column, by file for SQL
   - **role** where two meanings share a line: `t(lang,"x")` is a UI word, `player.x` a payload field,
     `.get("x")` a warehouse column, `"x":` a payload key, `group=x` a metric group
@@ -119,40 +117,33 @@ an exemption list; it is a finer rule with a checkable property. The ones earned
 
 **2. CENSUS THE TREE, COUNT BOTH DIRECTIONS, AND MATCH A PATTERN NOT A LIST.** Report every sweep as
 "N move, M stay" — a one-sided claim ("the prose is fixed") is what let an over-correction through.
-⛔ And write the separator as a character class BEFORE counting: `!134` FAILed round 1 because the
-census matched `"on target"` and `"on-target"` but never `"on_target"`. **An enumeration of spellings
-loses by one variant.** ⚠ A pattern buys false positives too — `README.md`'s "ingesti**on target**".
-⛔⛔ **THAT RULE WAS NOT ENOUGH — the seed-prose MR got it wrong TWICE MORE on one file, and a
-too-narrow census reports a confident ZERO, never an error.** Four spellings live in
-`metric_catalogue.csv`: `on target`, `on-target`, `on_target`, **`OnTarget`**. Two traps beneath the
-character class: (1) **`\b` does not delimit `on` in `shots_on_target`** — `_` is a WORD character,
-so there is no boundary there; the count read 0 until the boundary was respelled `(?<![A-Za-z])`.
-(2) **camelCase has no separator at all**, so every bounded pattern misses it. Protected count went
-**0 → 1 → 3** as this was corrected.
-⭐ **Standing form: the regex that DECIDES may be strict; the regex that COUNTS must be permissive**
-(`on[ _-]?target`, no anchors). Opposite jobs — one must be precise, the other must miss nothing.
+⛔⛔ **ONE PHRASE HAD FOUR SPELLINGS IN ONE FILE AND MY REGEX WAS WRONG FIVE TIMES — four too NARROW,
+then one too WIDE.** `on target`, `on-target`, `on_target`, **`OnTarget`**. ⚠ **A too-narrow census
+reports a confident ZERO, never an error.** In order: an enumeration of spellings loses by one
+variant (`!134`); **`\b` does not delimit `on` in `shots_on_target`**, `_` being a WORD character;
+**camelCase has no separator at all**; the detector for the *new* word inherited the same blindness
+(`"on goal"` with a literal SPACE missed "shots-**on-goal** data"); and widening THAT made
+`on[ _-]?goal` match the METRIC ID `shots_on_goal_difference_per_match` quoted in a description,
+inventing a split. Protected count read **0 → 1 → 3** as this was corrected.
 ⭐⭐ **THREE DETECTORS, THREE JOBS — collapsing any two broke the seed-prose sweep ONCE EACH.**
-(1) DECIDES what changes: strict. (2) COUNTS occurrences: maximally permissive, every separator,
-its only job is to miss nothing. (3) JUDGES reader-facing consistency: **prose only**.
-⚠ Five errors on one phrase in one file — four too NARROW, then one too WIDE. The fourth: the
-detector for the *new* word asked `"on goal" in cell`, a literal SPACE, so "shots-**on-goal** data"
-read as unconverted. The fifth, fixing that: `on[ _-]?goal` then matched the METRIC ID
-`shots_on_goal_difference_per_match` quoted in a description, inventing a split.
-⭐ **Resolution = ROLE, NOT PUNCTUATION (step 4's rule):** prose separates with SPACE or HYPHEN, an
+(1) DECIDES what changes: strict. (2) COUNTS occurrences: maximally permissive, every separator; its
+only job is to miss nothing. (3) JUDGES reader-facing consistency: **prose only**.
+⭐ **Resolution = ROLE, NOT PUNCTUATION (rule 1 again):** prose separates with SPACE or HYPHEN, an
 identifier with an UNDERSCORE. Measured proof they differ: narrowing (2) to prose dropped the
-protected count 3 → 0; widening (3) past prose invented a split.
-⭐ **And run every such assertion against BASE as well as HEAD.** Mine was stated as an absolute
-("no cell contains both spellings") and main already violated it, in `finishing_efficiency_pct`.
-Two-sided is the only form an MR can own: introduced 0, removed 0.
+protected count 3 → 0; widening (3) past prose invented a split. ⚠ A pattern buys false positives
+too — `README.md`'s "ingesti**on target**".
+⭐ **And run every such assertion against BASE as well as HEAD.** Mine was an absolute ("no cell
+contains both spellings") and main already violated it, in `finishing_efficiency_pct`. Two-sided is
+the only form an MR can own: introduced 0, removed 0.
 
 **3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** A blocklist of 5 of the
 seed's 15 columns swept `interpretation`; the fix is a field allowlist. Then `!132` and `!136` both
 proved the second half — a token rule placed BEFORE the allowlist silently reopens the hole.
 
-**4. WHAT ACTUALLY FINDS DEFECTS**, in order: the **blinded review** (every defect of the last four
-MRs, all with gates green); **reading the printed decisions and the applied diff** (defects whose
-counts were identical before and after); and the **test suite** — but only where a ruling forces
-code and test apart. Where a sweep edits both sides in lockstep, green means nothing.
+**4. WHAT ACTUALLY FINDS DEFECTS**, in order: the **blinded review** (every defect of the last five
+MRs, all with gates green); **reading the printed decisions and the applied diff**; and the **test
+suite** — but only where a ruling forces code and test apart. Where a sweep edits both sides in
+lockstep, green means nothing.
 
 **5. SIMULATE THE GENERATOR BEFORE PREDICTING**, and **report the disproved predictions** — that is
 how the "a rename frees a name from #87 only if no provider column shares it" rule got confirmed.
@@ -163,6 +154,16 @@ a `safe_divide` on it — token presence, not projection. Mutation-test any guar
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
+⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, NOT A FACT TO ACT ON — this cost a recovery on `!140`.** Told
+"140 merged", I ran cleanup without checking; the merge had NOT landed, and **deleting an open MR's
+source branch CLOSES the MR on GitLab.** Recovered from the reflog (branch recreated at the same
+commit, `glab mr reopen 140`), nothing lost — but do not repeat it.
+⭐ **The check, before deleting anything:** `git fetch gitlab` then
+`git merge-base --is-ancestor <sha> gitlab/main`.
+⚠ **`git pull` on main hits the DEAD GitHub `origin` and 403s.** Use `git pull --ff-only gitlab main`.
+⚠ **The push guard refuses EVERY push while standing on main**, including deleting a merged branch —
+so delete the remote branch BEFORE checking out main. It is a PreToolUse hook reading the CURRENT
+branch, so `checkout && push` in one call is blocked as a whole; they must be separate calls.
 ⚠ **CWD persists between Bash calls** — a `cd` in one call breaks repo-relative paths in the next;
 it aborted an apply mid-run on `!131` and again on `!132`.
 ⚠ `git checkout -- .` reverts the CONTRACT too if it is unstaged — exclude it explicitly.
