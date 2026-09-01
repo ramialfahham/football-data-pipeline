@@ -1,71 +1,72 @@
-# Rendered page evidence — STEP 5, the English label "on target" → "on goal"
+# Rendered page evidence — the sample roll-forward
 
-Branch `refactor/metric-label-on-goal`, base main `649b11c`.
+Branch `chore/roll-forward-sample`, base main `7caaf21`.
 
-Read from `site_v2/dist/` after `npm run build` (66 pages, `audit-seo: 67 built page(s) checked.
-OK.`) — never from source, never from `outerHTML`. HTML comments stripped and whitespace collapsed
-before any comparison, because Astro splits interpolated text with `<!-- -->` and a line-based grep
-misses a phrase straddling a break.
+Read from `site_v2/dist/` after `npm run build`, comments stripped and whitespace collapsed before
+any comparison — never from source, never from `outerHTML`.
 
-⭐ **THIS IS THE CRITERION THAT PROVES THE NEW RULING, and it is the only one that can.** The CPO
-extended RULING 2 from "in the catalogue" to catalogue + website precisely so the change is visible.
-A seed-only change would leave this table unmoved.
+⭐ **This MR's whole purpose is a rendered-page outcome**, so unlike the recent naming MRs the dist
+read is not a confirmation that nothing moved; it is the deliverable.
 
-| | base (`649b11c`) | after |
+| | before (main `7caaf21`) | after |
 |---|---|---|
-| EN pages containing **"on target"** | 38 | **0** |
-| EN pages containing **"on goal"** | 0 | **38** |
-| DE / FI containing either | 0 / 0 | **0 / 0** |
-| comparison rows per window — EN / DE / FI | 12 / 12 / 12 | **12 / 12 / 12** |
-| group headings per window | 7 / 7 / 7 | **7 / 7 / 7** |
-| distinct rendered labels per locale | 12 | **12** |
+| distinct comparison labels, EN | 12 | **16** |
+| `% Shots from box` | absent | **renders** |
+| `% Goals per shot on goal` | absent | **renders** |
+| `% Pass accuracy` | absent | **renders** |
+| `Ø Key passes` | absent | **renders** |
+| fixture pages per locale | 19 | 4 |
+| build | 66 pages, `audit-seo … OK.` | **21 pages, `audit-seo: 22 built page(s) checked. OK.`** |
 
-Across all **19** fixture pages in each locale, both windows. **Exactly one label string moved and
-the structure did not**: the EN set now reads `Ø Shots on goal` where it read `Ø Shots on target`,
-and the other eleven are byte-identical.
+The sixteen EN labels now rendered:
 
-    EN   % Duels won · % Save percentage · Clean sheets · Ø Corners · Ø Corners against ·
-         Ø Defensive actions · Ø Duels · Ø Goals · Ø Goals against · Ø Passes · Ø Shots ·
-         Ø Shots on goal          <- the only change
-    DE   Ø Torschüsse             <- unchanged, already "goal shots"
-    FI   Ø Maalilaukaukset        <- unchanged, already "goal shots"
+    Ø Goals · Ø Goals against · Clean sheets · Ø Shots · % Shots from box · Ø Shots on goal ·
+    % Goals per shot on goal · Ø Duels · % Duels won · Ø Defensive actions · Ø Passes ·
+    % Pass accuracy · Ø Key passes · Ø Corners · Ø Corners against · % Save percentage
 
-## ⛔ WHAT THIS BUILD CANNOT PROVE, stated before it is asked
+⭐ Note `Ø Shots on goal` and `% Goals per shot on goal` — step 5's wording, now rendering on a
+sample that postdates it. `!134` could only prove one of its four changed labels from the build
+because three rendered nowhere; **this roll-forward renders a second of them**
+(`% Goals per shot on goal`), narrowing that disclosed gap without being asked to.
 
-**All 38 EN occurrences are the SAME label**, `Ø Shots on goal` — two per fixture page across 19
-pages. The other three labels this MR changes render on **zero** built pages:
+## Per WINDOW, because per page still averages two different numbers
 
-    Ø Shots on goal against        team Performance surface — not built
-    Ø Shots on goal difference     team Performance surface + hero — not built
-    % Goals per shot on goal       team Performance surface — not built
+⚠ **Corrected after round 1.** I first reported this per page — 16 on three, 15 on one — by dividing
+each page's labels by its two windows. `bi-analyst` read the built HTML and found the two windows
+differ, so the division averaged them. Re-measured by splitting at the `win win-w2` marker:
 
-The one EN team page in the sample (`teams/manchester-united-fc`) carries none of them; its
-Performance tab still renders "coming soon". **So the dist read proves one of the four rendered
-labels and cannot see the other three.** They were verified by reading `strings.ts` directly, and
-`acceptance_evidence.md` §(c) records that no test pins their wording either — a mutation putting
-`"Ø Bananas per fortnight"` in one of them leaves `npm test` **green**.
+    fixture                                       w1 (Last 5)          w2 (This season)
+    2026-09-01-parma-vs-us-cremonese              16 rows / 7 groups   16 rows / 7 groups
+    2026-09-01-torino-fc-vs-monza                 16 rows / 7 groups   16 rows / 7 groups
+    2026-09-01-al-hilal-saudi-fc-vs-al-ahli-...   16 rows / 7 groups   16 rows / 7 groups
+    2026-09-01-hebc-vs-borussia-dortmund          15 rows / 6 groups   16 rows / 7 groups
 
-## The chrome strings that did NOT move, and what a reader will see
+**Seven of eight windows render the full 16/7.** The exception is `1550704`'s **w1 only**: HEBC has
+no Last-5 window at all and Dortmund's `w1.defensive_actions_per_match` is null, so the Defending row
+has data on neither side and is omitted with its single-row heading. In **w2** Dortmund's figure is
+24.33, so the same row renders with an em-dash on the HEBC side.
 
-⛔ `strings.ts`'s `Dict` holds four strings that name this same metric in rendered English and are
-**deliberately out of scope** (copy is §10; the approved scope named the four `METRIC_LABELS` values):
+⭐ **That one fixture therefore exercises BOTH null-display paths on the same page** — row omitted
+entirely (w1) and one-side-null shows "–" (w2). ⚠ Those are **two different rules** and an earlier
+draft cited only one: `01_fixture_page.md:235` governs the one-side-null "–"; the both-null omission
+is `00_overview.md:37-39` ("omitted entirely where absence is by design") and
+`MetricComparison.astro`'s header — *"A row whose value is missing on BOTH sides is hidden (avoid a
+wall of dashes)"*. Corrected after `bi-analyst` flagged the citation.
+**DE and FI match EN page for page**, 4 fixture pages each.
 
-    axPlay          "Shots on target difference / match"        the hero chart's x-axis
-    heroVerdictUnder / heroVerdictOver / heroCaption            "a shots-on-target difference of …"
+## What the smaller page count does and does not mean
 
-None renders in this sample either, for the same reason — the hero is on the unbuilt Performance
-surface. ⚠ **But when that surface ships, the axis will read "Shots on target difference / match"
-beside a metric row reading "Ø Shots on goal difference".** Flagged for the CPO rather than folded
-in, and recorded here so the build that first renders the hero does not ship the mismatch unnoticed.
+21 built pages against 66 before, because the set is 4 fixtures rather than 19. That is the direct
+consequence of the matchday, not a regression: `audit-seo` checks every built page and every internal
+link, and passes. ⚠ It does mean **CI now exercises fewer pages**, which is the cost the CPO accepted
+when he ruled the sample is infrastructure rather than a display. The component coverage that
+matters was measured instead of assumed — three form paths plus the row-omission path, and both
+competition shapes — and is set out in `acceptance_evidence.md`.
 
-## Step 5 is confirmed as still-pending by its own predecessor
+## The check a local build cannot make
 
-`!132`'s rendered evidence recorded, as a passing observation, that the EN comparison block still
-read **"Ø Shots on target"** — which was the standing proof that step 5 had not run. That line now
-reads **"Ø Shots on goal"**, and the same measurement re-run on this branch is what closes it.
-
-## Row count in context
-
-12 is where `!123` left it — 16 catalogue rows minus the four the committed sample cannot feed. The
-sample roll-forward is what restores them, it is owed and unscheduled, and **nothing in this MR
-moves that number**: a label change cannot add or drop a row.
+`audit-seo.mjs` fails on an internal link resolving to no emitted page, and that is the only guard on
+landing↔fixtures consistency. It cannot be reproduced locally: a full export leaves thousands of
+untracked payloads on disk, so every link resolves while CI sees only the tracked set. Two things
+close that here — `git clean -fX site_v2/src/data` before building, so the local build is honest, and
+the four-list assertion in `acceptance_evidence.md`, which is a check rather than a guard.

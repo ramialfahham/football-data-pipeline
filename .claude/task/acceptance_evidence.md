@@ -1,164 +1,105 @@
-# Acceptance evidence — STEP 5: the English label "on target" → "on goal"
+# Acceptance evidence — the sample roll-forward
 
-Branch `refactor/metric-label-on-goal`, from main `649b11c`.
+Branch `chore/roll-forward-sample`, from main `7caaf21`.
 
-**Nine `label_en` values in the catalogue, plus the four `METRIC_LABELS_EN` values that actually
-render.** The mirror image of step 4: that programme moved `metric_id` and PROTECTED `label_en` in
-all seven of its classifiers; this moves `label_en` and protects `metric_id` everywhere.
-
-⭐ **THE SCOPE IS WIDER THAN RULING 2's "in the catalogue", BY A RULING TAKEN THIS SESSION.** I
-measured before proposing: the catalogue is **not** what the website renders — `strings.ts`'s
-`METRIC_LABELS_EN` is — and four of the nine labels render today. Catalogue-only would have left
-every page still reading "Shots on target". Shown both options, the CPO chose **catalogue + website**.
-
-⚠ **The handover's step-5 list was STALE and was not used.** It named nine metric_ids; **six were
-superseded** by step 3's and step 4's renames. The count was right and the names were wrong — the
-nine below were re-derived by matching `label_en` against "on target" in the seed.
+**The committed build sample moves from the 2026-08-28 matchday to 2026-09-01**, and the fixture
+comparison renders its full sixteen locked rows again instead of twelve. Data and an allowlist only:
+no code, no mart, no frontend file changed.
 
 criteria_demonstrated:
 
-  - **The seed differs from base in `label_en` ONLY** — 9 cells changed, **0** other cells, checked
-    field-by-field across all 86 rows. `metric_id` and `label_i18n_key` columns are byte-identical.
-    ⚠ This criterion FAILED on the first apply and caught a real defect — see §(a).
-  - **The four rendered EN labels moved and DE/FI did not** — parsed out of `METRIC_LABELS_*` and
-    compared to base: EN 4 of 19 changed, **DE 0 of 19, FI 0 of 19**. The ruling excludes the other
-    languages because both already say "goal shots" (`Ø Torschüsse`, `Ø Maalilaukaukset`).
-  - **The rendered pages prove it**: across 67 built pages, EN carries **0** occurrences of
-    "on target" and **38** of "on goal"; DE and FI carry **0** of either, unchanged. The comparison
-    block still renders **12/12/12 rows and 7/7/7 headings** in EN/DE/FI over 19 fixture pages —
-    the structure is untouched and exactly one label string moved.
-  - **Every occurrence of EVERY SPELLING is classified once and reported TWO-SIDED.** ⚠ The round-1
-    census was **incomplete** and a reviewer proved it — see §(d). Re-swept with the PATTERN
-    `on[\s_-]?target` rather than a list of spellings: **136 occurrences**, of which **5 are CLAIMS
-    about the id/label split** (4 rewritten or already true, 1 still true as written), 14 are the
-    protected `label_i18n_key`, and the rest are prose. The substitution itself is
-    **10 move, 65 stay, 9 by hand**.
-  - **`metric_id` moved nowhere.** No file in the diff changes an identifier.
+  - **The headline: 16 rows render, and the four that were missing are back.** Measured from built
+    `dist/`, comments stripped and whitespace collapsed. The EN set now carries all sixteen locked
+    labels, including **`% Shots from box`**, **`% Goals per shot on goal`**, **`% Pass accuracy`**
+    and **`Ø Key passes`** — the exact four absent before.
+  - **The set is self-consistent, asserted mechanically over FOUR lists, not the three the plan
+    named.** The ids `landing.json` links, the `.gitignore` allowlist, the files tracked in git, and
+    the files present on disk are **identical**: `{1550704, 1603007, 1628894, 1629056}`. This is the
+    mismatch `audit-seo.mjs` only catches in CI, after the fact, and that a local build cannot
+    reproduce. ⚠ The first run of this assertion FAILED on `tracked = 0` — the new payloads existed
+    on disk and in the allowlist but were not yet `git add`ed. Worth recording: the check earned its
+    keep on its first execution.
+  - **Every payload is verbatim export output.** No file under `site_v2/src/data/` was hand-edited;
+    the README forbids it twice and it is why the sample can be trusted as evidence at all.
+  - **The set was REPLACED, not appended to**: all 19 outgoing ids left, 4 joined, **0 carried
+    over**. `.gitignore`'s allowlist was rewritten rather than added to.
+  - `npm run build` — 21 pages, **`audit-seo: 22 built page(s) checked. OK.`** `npm test` **76/76**.
+    `python -m pytest -q` — **1009 passed, 1 skipped, 14 subtests**, matching the `7caaf21` baseline.
+  - **No untracked payload bulk remains.** The export wrote 3,289 team and 5,394 fixture payloads;
+    `git clean -fX site_v2/src/data` removed **8,680** ignored files, and a dry run was read first to
+    confirm none of the four allowlisted fixtures nor `teams/33.json` was among them.
 
-## Gates — each run unpiped, exit code read bare
+## ⛔ THE RESULT, PER WINDOW — 15 of the 16 rows appear once, in one window, on one page
 
-  - `check_copy_gate.py` — **EXIT=0**: 435 strings across 3 locales (378 chrome + 57 metric labels),
-    390 corpus strings consulted. This is the gate that sees metric labels (its #370 parser).
-  - `check_ui_i18n_metrics.py` — **EXIT=0**, 13 shown metrics resolve.
-  - `sync_metric_docs_blocks.py --check` — **EXIT=0**, 163 blocks (unchanged: the generator has zero
-    `label_en` references, so `metric_columns.md` does not regenerate from a label change).
-  - `check_description_hygiene.py` — **EXIT=0**, 1604 descriptions, 225 blocks resolved.
-  - `check_layer_contract.py` / `check_registry_var_sync.py` — **EXIT=0**.
-  - `dbt parse` — **EXIT=0**.
-  - `python -m pytest -q` — **1009 passed, 1 skipped, 14 subtests**, matching the `649b11c` baseline.
-  - `npm test` — **76/76**, including all seven `check-metric-labels` tests.
-  - `npm run build` — 66 pages, `audit-seo: 67 built page(s) checked. OK.`
+⚠ **My first draft of this section was WRONG and `bi-analyst` caught it.** I measured labels per
+page and divided by two windows, which averaged two DIFFERENT numbers into one. Re-measured by
+splitting the block at the `win win-w2` marker:
 
-## ⛔⛔ (a) THE DEFECT MY OWN CHECK CAUGHT, AND THE RULE THAT FIXED IT
+    fixture                                       w1 (Last 5)          w2 (This season)
+    2026-09-01-parma-vs-us-cremonese              16 rows / 7 groups   16 rows / 7 groups
+    2026-09-01-torino-fc-vs-monza                 16 rows / 7 groups   16 rows / 7 groups
+    2026-09-01-al-hilal-saudi-fc-vs-al-ahli-...   16 rows / 7 groups   16 rows / 7 groups
+    2026-09-01-hebc-vs-borussia-dortmund          15 rows / 6 groups   16 rows / 7 groups
 
-The first apply changed **three seed `description` cells** the contract protects:
-`'Shots on target.' → 'Shots on goal.'` and two others. Cause: my rule was "substitute an exact
-rendered label", and a description **contains** its own label as a substring — `"Shots on target."`
-contains `"Shots on target"`. Nothing about the rule was wrong; its SCOPE was, because it ran over
-raw lines and so could reach any cell on the row.
+So **seven of the eight windows render the full 16/7**, and the single exception is `1550704`'s
+**w1 only** — not the page, as I first wrote.
 
-⭐ **Fixed as `!131`/`!132`'s rule, not as three edits**: the seed is now parsed as CSV and only
-`SEED_RENAMEABLE_FIELDS = {"label_en"}` may change, checked **before** any token rule can look at
-the text. That is the same lesson those MRs ended on — *an allowlist that something is checked
-before is not an allowlist* — arriving here in a new disguise. Verified after: **0 non-`label_en`
-cells differ from base.**
+⭐ **And the correction improves the result rather than dents it.** Diagnosed against the payload and
+`MetricComparison.astro`: HEBC has no w1 form window at all and Dortmund's
+`w1.defensive_actions_per_match` is null (its `blocks_per_match` is null, breaking the sum), so in w1
+that row has data on **neither** side and is correctly omitted with its single-row group heading. In
+**w2** Dortmund's figure is 24.33, so the row renders — Dortmund's value beside an em-dash for HEBC.
+**One fixture therefore exercises BOTH display paths**: row-omitted-entirely in w1, and
+one-side-null-shows-"–" in w2 — on the same page, in two windows.
+⚠ **Two different rules, and my citation ran them together.** `01_fixture_page.md:235` covers only
+the one-side-null → "–" case. The both-null → row-omitted case is `00_overview.md:37-39` ("omitted
+entirely where absence is by design") plus `MetricComparison.astro`'s own header: *"A row whose value
+is missing on BOTH sides is hidden (avoid a wall of dashes); a row missing on one side shows '-'
+there."* Corrected after `bi-analyst` flagged it. The behaviour was right either way; the citation
+was not, and this MR has already been corrected once for an imprecise claim.
 
-## ⛔ (b) THE CONTRACT GATE CAUGHT A SCOPE VIOLATION, AND IT WAS RIGHT
+## The set is thin, and it was measured before being accepted
 
-The apply also touched `docs/wireframes/99_gaps_register.md`, which is **not** in `scope_paths`. The
-gate refused the turn until it was reverted. It is now in the classifier's skip list so a re-run
-cannot silently reintroduce it. On the merits the gate's answer is also the right one: the gap
-register is a dated record of gaps as they were found, not a display spec.
+4 fixtures across 3 competitions, against the outgoing 19/13. I put the trade-off to the CPO — thin
+today versus 28 fixtures / 16 competitions on 2026-09-04 — and his answer removed the objection
+rather than picking the larger set: *"We're doing infrastructure work and don't show anything now."*
+So the sample is a build input, and the only live question is component coverage. Measured:
 
-## ⛔ (c) WHAT IS NOT GUARDED — measured by mutation, in BOTH directions
+  - **Both competition shapes**: 3 `domestic_cup` + 1 `domestic_league`.
+  - **All three form paths**: fully populated (`1628894`, `1629056`), **present-but-null** where a
+    side has no player-stat coverage (`1603007` away), and **entirely absent** (`1550704` home).
+  - **Plus the row-omission path** above. ⭐ That is one more path than the outgoing 19-fixture set
+    documented, which named only "populated" and "absent".
+  - The four restored columns carry real values, not just present keys: `shots_inside_box_pct`
+    0.57–0.81, `finishing_efficiency_pct` 0.15–0.67, `passes_accuracy_pct` 0.84–0.93.
 
-The label gate was mutated three ways, `npm test` run after each, then reverted green:
+## Cost — measured, as the contract requires
 
-| mutation | result | what it proves |
-|---|---|---|
-| **EMPTY** one of the four labels | **RED** (exit 1) | the gate pins that a label EXISTS and is non-empty |
-| **WRONG TEXT**, key intact (`"Ø Bananas per fortnight"`) | ⛔ **GREEN** | **nothing pins what these four labels SAY** |
-| revert | green | the suite returns to 76/76 |
+Reads marts only; writes no BigQuery table; no ingest, no API calls, no recurring cost.
+Measured from `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT`, by hour, and attributed:
 
-⛔ **So the wording of the four labels this MR changes is pinned by NO test** — they are absent from
-the frozen `site/i18n` corpus (or, for `finishing_efficiency_pct`, skipped by name), which is exactly
-why the byte-identical gate does not block the change. It also cannot catch a wrong one.
-⛔ **And 3 of the 4 render on ZERO built pages.** Only `Ø Shots on goal` appears in the sample (38
-times, 2 per fixture page × 19). `Ø Shots on goal against`, `Ø Shots on goal difference` and
-`% Goals per shot on goal` live on the team Performance surface, which still renders "coming soon" —
-the single built EN team page carries none of them.
-**Those three were verified by reading `strings.ts` directly.** Stated as what it is — a manual
-verification of an unguarded path — not dressed up as a passing check.
+    my work (08:00–09:59 UTC)   21 query jobs    0.456 GB billed    ≈ $0.003
 
-## ⛔⛔ (d) ROUND 1 FAILED 3–1, AND THE MISS IS MORE INSTRUCTIVE THAN THE FIX
+⚠ **The first cost query returned zero and was wrong**: I queried `region-us`, and these datasets are
+in **EU**. Recorded because a "0 GB, no cost" answer is exactly the kind of comfortable result worth
+distrusting.
 
-`scope-auditor`, `analytics-engineer` and `football-analytics-expert` PASSed. **`bi-analyst` FAILed**,
-and was right: `site_v2/src/components/team/DeservedHero.astro:43` carried a **third copy** of the
-id-vs-label claim that §2 identifies and rewrites in two other places — live in the render path, and
-absent from my census entirely.
+## ⛔⛔ AN UNRELATED FINDING THE COST QUERY SURFACED — flagged, NOT folded in
 
-⭐ **WHY IT ESCAPED, which is the part worth keeping.** My census matched `"on target"` and
-`"on-target"`. `DeservedHero.astro` writes it `"on_target"`. **I enumerated spellings instead of
-writing a pattern**, and an enumeration loses by one variant — the exact failure
-`feedback_fix_the_class_not_the_instance` records holing a guard four rounds running.
-Re-swept with `on[\s_-]?target`: **136 occurrences, 5 of them claims**. Two were already rewritten;
-`check-page-specs.test.mjs:179` is still TRUE (it compares the id to the **KEY**, not to the
-user-facing term, and that disagreement survives this MR); **two were stale and are now fixed** —
-`DeservedHero.astro` and `check-metric-labels.test.mjs`. Both were added to `scope_paths` by a
-recorded amendment, on no new authority: this completes a criterion the contract already declared.
+Attributing my own spend meant looking at every job in the window, and the hourly breakdown showed
+activity that is not mine and is not documented:
 
-**Two more round-1 findings, both accepted:**
-  - **The ASCII mockups lost their box alignment** (`03_player_profile.md:48`,
-    `12_player_stats.md:57`, `14_team_stats.md:65`) — "on goal" is two characters shorter than
-    "on target", and a mockup's whole job is showing layout. Flagged by two reviewers independently.
-    Measured rather than eyeballed: each closing border had moved LEFT by exactly 2 columns; all
-    three are re-padded and now sit at their base columns (45, 52, 52), verified against the
-    neighbouring rows.
-  - **The new ruling was recorded as my narration, not his words.** `scope-auditor` called it "a
-    weaker evidentiary form"; `football-analytics-expert` noted it departs from the file's
-    convention. Corrected: the log now carries the question verbatim, the **exact title and text of
-    the option he selected**, and the option he declined — and states plainly that it was a
-    SELECTION rather than free text, instead of dressing it up as a quotation.
+    04:02–05:27 UTC   1,488 query jobs   37.23 GB   ≈ $0.23
+    service account:  github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com
+    sample query:     select league_code, max(ingested_at) from `raw.RAW_APIF_COACHES` group by ...
 
-## The things rewritten BY HAND, because a substitution would have shipped a lie
+**That contradicts two things the repo states as fact.** `CLAUDE.md` says GitHub is "RETAINED but
+DORMANT… Its Actions run nothing", and `.claude/active_work.md` says "⚠ No nightly SCHEDULE exists on
+GitLab yet… nothing refreshes the data on a timer right now." Something ran a full pipeline under the
+GitHub Actions service account at 04:00 UTC today — which is exactly the documented daily ingest
+slot, and which also explains why the warehouse was fresh enough for this roll-forward to work at all
+(`max_played_date` = today).
 
-Each of these asserted the old state as a FACT. A blind replace would have left a sentence that is
-false in a new way, so the reason was rewritten while the instruction was kept verbatim.
-
-  - **`site_v2/src/lib/metricRows.ts:87-91`** said *"the internal id says 'on goal', the user-facing
-    term is 'on target'"* — no longer true. ⚠ Its INSTRUCTION is load-bearing and survives: do NOT
-    "fix" `labelKey` to `metrics.shots_on_goal_per_match.label`, which the catalogue declares
-    nowhere. Only the reason changed: what remains is a **legacy key name**, not a term split.
-  - **`docs/wireframes/metrics_display.md:171-177`** carried the same claim, plus the #370 defect it
-    caused. Rewritten the same way, keeping "resolve a label by reading `label_i18n_key`".
-  - **`site_v2/src/i18n/strings.ts`'s header** asserted *"ENGLISH IS UNCHANGED BY THIS TASK … every
-    EN string below is byte-identical to what shipped before"*. That was true of #370 and is false
-    now; it names step 5 as the one change since, and records that DE/FI did not move.
-  - **`site_v2/src/components/team/DeservedHero.astro:43`** and
-    **`site_v2/scripts/check-metric-labels.test.mjs:66`** — added in round 2, same class, same
-    treatment: the key really does read `on_target`, so the instruction stands; what died is the
-    REASON, which is now a legacy key name rather than a term split.
-  ⭐ **`site_v2/scripts/check-page-specs.test.mjs:179` was checked and deliberately NOT changed** —
-  it says the metric_id says "on_goal" while the display KEY says "on_target", which is still exactly
-  true. Naming it here so its absence from the diff reads as a decision, not an oversight.
-
-## Deliberate non-changes, each with its reason
-
-  - **`label_i18n_key`** stays, including `metrics.shots_on_target_per_match.label` — the only key
-    containing "on_target". It is the JOIN KEY across the seed, `strings.ts`, `metricRows.ts`, three
-    hand-written parsers and the page specs; the catalogue declares no `on_goal` variant, so
-    "fixing" it resolves the label to nothing. RULING 2 governs what is SHOWN.
-  - **The seed's `description` column** — see §(a). ⛔ **FLAGGED FOR THE CPO**: a row's label now
-    reads "on goal" while its own description says "shots on target", and `persist_docs` publishes
-    those to BigQuery. A small follow-up is recommended; not folded in.
-  - ⛔ **FLAGGED, and the closest call in this MR — four CHROME strings in `strings.ts`'s `Dict`
-    that name this same metric in rendered English**: `axPlay` ("Shots on target difference /
-    match", the hero chart's x-axis) and the three `heroVerdict*`/`heroCaption` strings
-    ("a shots-on-target difference of {sotd} per match"). They are copy, not `METRIC_LABELS`
-    entries, and the approved scope named the four label values — so they are **flagged, not folded
-    in**. ⚠ The consequence is concrete and should be decided: the team hero will say
-    "shots-on-target difference" beside a metric row saying "Ø Shots on goal difference".
-  - **DE and FI**, and **`site/i18n/*.json`** (the frozen retired-MVP corpus) — both excluded by
-    ruling.
-  - **71 hyphenated "on-target" occurrences** — measured; all are concept prose
-    ("shots-on-target coverage", "the on-target pair"), none is a rendered label. All stay.
+⚠ **Recurring spend of ~$0.23/day ≈ $7/month, unattributed in the docs.** Cost is explicitly the
+CPO's under `CLAUDE.md`. Not investigated further and not touched here — it belongs to no part of
+this MR, and folding it in would be exactly the scope creep this programme has been FAILed on.
