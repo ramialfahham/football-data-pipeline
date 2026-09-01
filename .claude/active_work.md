@@ -4,22 +4,52 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-08-31**. **main `b34c4c0`**, clean, no open MRs.
-⭐⭐ **THE NAMING PROGRAMME IS DONE — STEPS 4 AND 5 BOTH MERGED.** Step 4: all 35 player metrics
-carry `_player` across seven MRs (`!125`–`!132`); verified on main — of 48 player catalogue rows the
-only one without a `_player` marker is `minutes_per_appearance`, which is the one name the record's
-"UNCHANGED, all 14" list names. Step 5 (`!134`): the English label reads "on goal", not "on target";
-verified on main — **0** `label_en` and **0** `METRIC_LABELS_EN` values still say "on target".
+_Last updated **2026-09-01**. **main `22c8d9b`**, clean, no open MRs.
+⭐⭐ **THE NAMING PROGRAMME IS DONE AND SO IS THE WORK IT OWED.** Step 4: all 35 player metrics carry
+`_player` across seven MRs (`!125`–`!132`) — verified on main, of 48 player catalogue rows the only
+one without a `_player` marker is `minutes_per_appearance`, the one name the record's "UNCHANGED,
+all 14" list names. Step 5 (`!134`): the English label reads "on goal" — verified, **0** `label_en`
+and **0** `METRIC_LABELS_EN` values still say "on target". The sample roll-forward (`!136`): the
+build sample now pins **2026-09-01**, and the comparison renders **16 rows again, not 12**.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔⛔ NEXT ACTION: NONE. THE SAMPLE ROLL-FORWARD IS THE CPO'S CALL.
+## ⛔⛔ NEXT ACTION: NONE. THE QUEUE FROM THE NAMING PROGRAMME IS EMPTY.
 
-**THE SAMPLE ROLL-FORWARD**, owed and unscheduled — the last item of the "after step 4" pair.
-⚠ The obvious recipe is a trap: `fetch_fixture_payloads` emits UPCOMING fixtures only. The comparison
-block has rendered **12** rows since `!123` (16 catalogue rows minus four the committed sample cannot
-feed); the roll-forward is what restores them, and it is the only thing that will.
+⛔⛔ **THE ONE THING WITH MONEY ATTACHED, AND IT IS THE CPO'S: UNDOCUMENTED DAILY BIGQUERY SPEND.**
+Found while attributing `!136`'s own cost — not looked for. On 2026-09-01, **1,488 query jobs /
+37.23 GB between 04:02 and 05:27 UTC**, under
+`github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`, sample query
+`select league_code, max(ingested_at) from raw.RAW_APIF_COACHES group by …`.
+**That contradicts two things this repo states as fact**: `CLAUDE.md` ("GitHub … Its Actions run
+nothing") and this file's own former line ("no nightly SCHEDULE exists … nothing refreshes the data
+on a timer"). Something runs a full pipeline daily at the documented 04:00 UTC ingest slot — which is
+also why the warehouse was fresh enough for the roll-forward to work at all.
+⚠ **~$0.23/day ≈ $7/month, recurring, unattributed in the docs.** Cost is explicitly the CPO's.
+NOT investigated further and NOT touched — it belongs to no MR yet.
+⭐ To pick it up: `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` (⚠ **EU, not US** — a `region-us`
+query returns a comfortable and completely false "0 jobs, no cost").
+⛔ **`CLAUDE.md:209-210` IS NOW HALF-FALSE AND IS LOADED EVERY SESSION.** It says *"No nightly
+SCHEDULE exists on GitLab yet … so nothing refreshes the data on a timer right now."* The first
+clause may still be true — the evidence names a **GitHub** service account, not a GitLab schedule —
+but **the second clause is false**, and a fresh session reading it will wrongly conclude the
+warehouse is stale. Deliberately NOT edited here: correcting it means asserting what that 04:00 job
+actually is, which is the investigation itself, not a doc fix.
+
+## ⛔ THE SAMPLE IS FRESH TODAY AND WILL GO STALE THE MOMENT THOSE FIXTURES KICK OFF
+
+`!136` pinned the **2026-09-01** matchday: 4 fixtures, 3 competitions (`CIT` ×2, `DFBP`, `SPL`).
+⚠ **A past fixture can NEVER be re-exported** — `fetch_fixture_payloads` emits `status_short in
+('NS','TBD') and fixture_date >= current_date()`, and once a match kicks off its pre-match form rows
+leave `mart_team_momentum` entirely. So this set is already unrefreshable, exactly like its
+predecessor. **The next refresh REPLACES it wholesale; it can never be updated in place.**
+⭐ The full recipe, the traps and the four-list consistency check live in
+`site_v2/src/data/README.md` — follow it verbatim rather than reinventing it.
+⚠ It is deliberately thin (4/3 against the outgoing 19/13) on a CPO steer that this is
+infrastructure with nothing on display. Coverage was MEASURED, not hoped: both competition shapes,
+all three form paths, and the row-omission path. A richer matchday (2026-09-04 had 28 fixtures /
+16 competitions) is available whenever a fatter sample is wanted.
 
 ## ⛔ TWO FOLLOW-UPS STEP 5 DELIBERATELY LEFT — flagged to the CPO, not folded in
 
@@ -74,58 +104,46 @@ fourth is skipped by name.
   - **#96** — eleven reproductions; no offline gate checks `accepted_values`, only `data:build:mr`.
   - **#98**; the doc-block inheritance trap.
 
-## ⛔ WHAT STEP 4 PROVED ABOUT THIS KIND OF WORK — read before any similar sweep
+## ⛔ WHAT THE SWEEP MRs PROVED — read before any similar rename or text sweep
 
-**1. A SCOPE COARSER THAN THE ROLE IT MUST RESOLVE IS THE ONE RECURRING DEFECT.** It failed review on
-`!131` (5–0) and on `!132` (5–0, then 4–1, then 4–1) — **with every gate green every time.** On
-`!132` I set the SAME rule three times: too wide (English prose rewritten, and `persist_docs` ships
-model descriptions to BigQuery), too narrow (identifier references in doc tables left stale), then
-right inside markdown tables and blind outside them. The fix is never an exemption list; it is a
-finer rule with a stated, checkable property:
+The programme is merged; the MR-by-MR account is in git and in
+`feedback_fix_the_class_not_the_instance`. What survives is the method.
+
+**1. A SCOPE COARSER THAN THE ROLE IT MUST RESOLVE IS THE ONE RECURRING DEFECT** — it FAILed review
+on `!131`, `!132` (three rounds) and `!134`, **with every gate green every time**. The fix is never
+an exemption list; it is a finer rule with a checkable property. The ones earned so far:
   - entity by enclosing model (`- name:` in yml), by the seed's `entity` column, by file for SQL
-  - **role** where two meanings share a line: `t(lang, "x")` is a UI word, `player.x` is a payload
-    field, `.get("x")` is a warehouse column, `"x":` is a payload key, `group=x` is a metric group
-  - **a domain fact** where one exists: there is no player `goals_for`, so the scoreline family is
-    the team's — that single discriminator separated 6 wrong renames from 60 right ones
-  - **in a markdown TABLE the COLUMN decides**, not the backtick: `Source column`/`Atomics`/
-    `numerator` are identifiers; `Payload key`/`JSON key` stay; everything else is prose
-  - **outside one, an OPERAND is an identifier**: a token inside parentheses holding BOTH an
-    arithmetic operator AND another underscored identifier — that is a formula quoted in a comment
+  - **role** where two meanings share a line: `t(lang,"x")` is a UI word, `player.x` a payload field,
+    `.get("x")` a warehouse column, `"x":` a payload key, `group=x` a metric group
+  - **a domain fact** where one exists — there is no player `goals_for`, so the scoreline family is
+    the team's; that one discriminator separated 6 wrong renames from 60 right ones
+  - **in a markdown TABLE the COLUMN decides**, not the backtick (`Source column`/`Atomics`/
+    `numerator` are identifiers; `Payload key`/`JSON key` stay; the rest is prose)
+  - **outside one, an OPERAND is an identifier**: a token in parentheses holding BOTH an arithmetic
+    operator AND another underscored identifier is a formula quoted in a comment
   - `{placeholder}` is a template slot, never an id
 
-**2. CENSUS THE WHOLE TREE, THEN COUNT BOTH DIRECTIONS.** Every rule above was set from a census, not
-from the sites a reviewer named, and each was reported as a two-sided count: **51 in-table
-occurrences → 6 move, 45 stay**; **26 comment occurrences → 2 move, 24 stay**. A one-sided claim
-("the prose is fixed") is what let the over-correction through.
-⛔⛔ **AND THE CENSUS ITSELF NEEDS A PATTERN, NOT A LIST OF SPELLINGS — step 5 FAILed round 1 on
-exactly this.** I searched `"on target"` and `"on-target"` and never searched `"on_target"`, so a
-live stale comment in `DeservedHero.astro` survived and `bi-analyst` found it. Re-swept with
-`on[\s_-]?target`: **136 occurrences, 5 of them CLAIMS**, two of which were stale. **An enumeration
-of spellings loses by one variant** — the same shape as the word list that holed a guard four rounds
-running. Write the separator as a character class before you count anything.
-⚠ Watch the false positives a pattern buys you: `README.md`'s "ingesti**on target**" matches.
+**2. CENSUS THE TREE, COUNT BOTH DIRECTIONS, AND MATCH A PATTERN NOT A LIST.** Report every sweep as
+"N move, M stay" — a one-sided claim ("the prose is fixed") is what let an over-correction through.
+⛔ And write the separator as a character class BEFORE counting: `!134` FAILed round 1 because the
+census matched `"on target"` and `"on-target"` but never `"on_target"`. **An enumeration of spellings
+loses by one variant.** ⚠ A pattern buys false positives too — `README.md`'s "ingesti**on target**".
 
-**3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** The seed protect-list was a
-blocklist of 5 of 15 columns and swept `interpretation` (`!131`); it is now
-`SEED_RENAMEABLE_FIELDS = {"metric_id"}`. `!132` proved the second half: a token-level rule placed
-BEFORE that allowlist silently reopened the hole.
+**3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** A blocklist of 5 of the
+seed's 15 columns swept `interpretation`; the fix is a field allowlist. Then `!132` and `!136` both
+proved the second half — a token rule placed BEFORE the allowlist silently reopens the hole.
 
-**4. THE THINGS THAT ACTUALLY FIND DEFECTS**, in order: the **blinded review** (every defect of the
-last two MRs, all with gates green); **reading the printed decisions and the applied diff** (two
-defects whose token counts were identical before and after); and the **test suite** — but only where
-a ruling forces code and test apart. `!132`'s payload-key ruling did exactly that and pytest caught a
-real rule inversion; where a sweep edits both sides in lockstep, green means nothing.
+**4. WHAT ACTUALLY FINDS DEFECTS**, in order: the **blinded review** (every defect of the last four
+MRs, all with gates green); **reading the printed decisions and the applied diff** (defects whose
+counts were identical before and after); and the **test suite** — but only where a ruling forces
+code and test apart. Where a sweep edits both sides in lockstep, green means nothing.
 
-**5. SIMULATE THE GENERATOR BEFORE PREDICTING.** Load `sync_metric_docs_blocks.py`, apply the renames
-to the seed rows in memory, call `_render()`, diff the block-name sets. Held exactly on `!130`
-(175→172), `!131` (172→167) and `!132` (167→163). Write the prediction into the contract, then
-measure it — and **report the disproved ones**: `!132` predicted the #87 list would fall to one name
-and it fell to three, which is how the provider-shares-the-name rule got its second confirmation.
+**5. SIMULATE THE GENERATOR BEFORE PREDICTING**, and **report the disproved predictions** — that is
+how the "a rename frees a name from #87 only if no provider column shares it" rule got confirmed.
 
 **6. TWO GUARD FACTS, MEASURED.** `check_description_hygiene` DOES catch a dangling `doc()`.
-`check_yml_vs_projection` has a real bound: a column dropped from the final SELECT but still named
-inside a `safe_divide` on that same SELECT leaves it GREEN — it tests token presence, not projection.
-Mutation-test any guard before citing it, in both its strong and its weak form.
+`check_yml_vs_projection` does NOT catch a column dropped from the final SELECT while still named in
+a `safe_divide` on it — token presence, not projection. Mutation-test any guard before citing it.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
