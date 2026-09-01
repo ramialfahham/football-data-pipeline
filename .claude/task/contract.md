@@ -1,41 +1,35 @@
-# Task contract — record where the nightly actually runs
+# Task contract — assert the player-season grain in its JOINABLE spelling
 
 objective: >
-  **Correct two documents that state, as fact, that nothing refreshes the data on a timer — when a
-  Cloud Scheduler job has been doing exactly that every morning.** Documentation only: no code, no
-  config, no infrastructure change.
+  **Add one uniqueness test to `int_player_season__metrics`: `(player_sk, league_code,
+  season_api_year)`.**
 
-  `CLAUDE.md:209-211` says *"⚠ No nightly SCHEDULE exists on GitLab yet … so nothing refreshes the
-  data on a timer right now."* That file is loaded at the start of every session. It is now false,
-  and being false there is expensive: a fresh chat reads it, observes fresh data, and has to
-  reconstruct why.
+  The model already asserts the same grain as **`(player_sk, season_sk)`**. `season_sk` is built from
+  `(league_api_id, season_api_year)`, so the two are the SAME key in two spellings — this is not a
+  second, weaker assertion. It is the surrogate form and the readable form of one rule.
 
-  ⛔ **THIS MR EXISTS BECAUSE I DID EXACTLY THAT, AT LENGTH.** While attributing `!136`'s BigQuery
-  spend I found a daily 04:02 UTC pipeline, could not reconcile it with the docs, and reported it to
-  the CPO as an unexplained recurring cost. His answer: **"We moved these two jobs to the cloud after
-  your recommendation. We did this after I ran into CI limitations with Gitlab."** It was a
-  deliberate, authorised decision. The investigation was avoidable; the documentation gap is the
-  actual defect.
+  ⭐ **WHY THE SECOND SPELLING EARNS ITS KEEP.** Anything joining a LEG model has to group on
+  `(player_sk, league_code, season_api_year)` — the readable columns — not on `season_sk`. Asserting
+  that form directly is what lets a consumer know the join cannot fan out. Today nothing checks it,
+  so a `league_code` split would surface downstream as **missing rows with no test naming the
+  cause** — the worst shape of data defect, because the symptom appears far from the cause.
 
-  ⛔ **AND THE GAP IS NARROWER THAN I FIRST WROTE — CORRECTED BEFORE MERGE.** An earlier draft of
-  this contract said "no document records" it. **False.** `deploy/nightly/README.md` is a full
-  runbook for exactly this: the Cloud Run jobs, the scheduler entries, the service account, the
-  `gcloud` commands that created them. I never opened it — I went from BigQuery job metadata
-  straight to `CLAUDE.md`. So the real defect is **one stale document contradicting a correct one**,
-  and `CLAUDE.md`'s bullet must therefore POINT AT the runbook rather than restate it.
+  ⭐ **AND IT CLOSES AN ASYMMETRY THAT ALREADY EXISTS.** The TEAM model beside it has carried
+  **both** spellings since it was written; the player model carried only the `season_sk` form. This
+  MR makes the pair symmetric.
+
+  ⚠ **This is parked work, resumed — not new design.** It sat in `stash@{0}` labelled *"PARK:
+  value-equivalence test, ships AFTER the catalogue rows"*. Those rows shipped in steps 4 and 5.
 
 refs: >
-  **CPO, verbatim, this session:** *"We moved these two jobs to the cloud after your recommendation.
-  We did this after I ran into CI limitations with Gitlab."* That is the authority for what this MR
-  writes down. It is a statement of fact about a past decision, not a new ruling.
+  **CPO, verbatim, this session:** *"start the value-equivalence test"*.
 
-  **Measured directly from GCP, read-only** — this is what the docs will now say:
-    · Cloud Scheduler, **europe-west1**: `fdp-nightly` `0 4 * * *` ENABLED; `fdp-freshness`
-      `7 * * * *` ENABLED.
-    · Observed effect: a full ingest + prod dbt build starting 04:01–04:03 UTC **every day for the
-      last 14**, writing to `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
-    · GitLab schedule `4379625` exists but is **Active=false**; its last scheduled pipeline ran
-      **2026-08-10** and failed.
+  **`stash@{0}`**, *"PARK: value-equivalence test, ships AFTER the catalogue rows"* — the parked
+  work, carried on branch `feat/metric-catalogue-value-equivalence`.
+  ⚠ **The stash is NOT popped.** It also carries a 304-line `contract.md` for the unrelated task it
+  was parked from, and its diff context references `pass_accuracy_pct`, a column the naming
+  programme has since renamed to `passes_accuracy_player_pct`. **Only the twelve-line test is taken,
+  applied by hand against the current file.** The stash stays on the stack untouched.
 
 scope_paths:
   - .claude/active_work.md
@@ -43,65 +37,65 @@ scope_paths:
   - .claude/task/acceptance_evidence.md
   - .claude/task/escalations.log
   - .claude/task/review.md
-  - CLAUDE.md
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 
 protected_override: >
-  ⛔ **DOCUMENTATION ONLY. NOTHING EXECUTABLE CHANGES.** No workflow, no `.gitlab-ci.yml`, no
-  scheduler job, no IAM binding, no `.github/workflows/**` file. The two Cloud Scheduler jobs and the
-  disabled GitLab schedule are left exactly as they are — this MR describes the world, it does not
-  alter it.
+  ⛔ **NO MODEL SQL CHANGES.** `int_player_season__metrics.sql` is not touched. This MR adds an
+  ASSERTION about behaviour that already exists; if the assertion fails, the fix is upstream data or
+  an upstream model, never weakening the test.
 
-  ⛔ **`escalations.log` IS APPENDED TO, NEVER REWRITTEN.** The `!136` entry that framed this as an
-  unexplained finding is a DATED record of what I believed then. It stays verbatim; the correction is
-  a new dated entry. *Living document → replace; dated log → append.*
+  ⛔ **NO EXISTING TEST IS REMOVED OR RELAXED.** The `(player_sk, season_sk)` test stays exactly as
+  it is. Both spellings are asserted, which is the whole point — replacing one with the other would
+  discard the surrogate-key guarantee that downstream `season_sk` joins rely on.
+
+  ⛔ **`stash@{0}` IS NOT POPPED OR DROPPED.** The stash stack is repo-level and load-bearing; other
+  parked work lives in it. Read from it, leave it alone.
 
 impact_map: >
-  `CLAUDE.md` is loaded into every session by the harness, and `.claude/active_work.md` by the
-  SessionStart hook — so both reach every future chat directly. That is the entire blast radius:
-  nothing reads them at build or run time.
+  A dbt schema test only. It adds one assertion to the nightly and to `data:build:mr`; it changes no
+  table, no column and no value. ⚠ **The one real risk is that the assertion is FALSE in production
+  data** — in which case CI goes red and the MR has surfaced a live defect rather than caused one.
+  That is checked BEFORE committing by querying BigQuery directly (see `decisions_taken §2`).
 
 acceptance_criteria:
-  - `CLAUDE.md` no longer asserts that nothing refreshes the data on a timer, and names Cloud
-    Scheduler as the owner of the nightly, with the job names, crons and region.
-  - `.claude/active_work.md` no longer presents this as an open cost finding for the CPO; it records
-    the answer.
-  - `escalations.log` carries a NEW dated entry correcting the `!136` framing, with the earlier
-    entry untouched.
-  - **The legacy-name trap is written down**, because it is the reusable part: the service account
-    is called `github-actions-dbt` and that name says nothing about the caller.
-  - No executable file appears in the diff.
+  - The test compiles: `dbt parse` EXIT=0, and all three columns exist in the model's final
+    projection (verified: `int_player_season__metrics.sql:70-75`).
+  - **The assertion is TRUE in production data**, verified by direct query before commit — not
+    assumed, and not left for CI to discover.
+  - **The assertion is not VACUOUS**, verified in the same query: if no player ever appeared in more
+    than one `league_code` within a season, the two spellings could not diverge and the test would
+    be theatre. Whatever the answer, it is reported.
+  - The existing `(player_sk, season_sk)` test is byte-identical, and no model SQL changes.
 
 decisions_taken: >
-  ⭐ **§1. WHAT THE DOCS WILL SAY, AND WHY IT IS PHRASED AS OWNERSHIP.** Not "a schedule exists" but
-  "the nightly lives in Cloud Scheduler" — because the failure mode this fixes is a reader asking
-  *what refreshes the data* and finding an answer that points nowhere. The GitLab schedule is named
-  as deliberately disabled so it does not read as the intended owner, and `data:nightly` is named as
-  reachable-but-unused rather than deleted.
+  ⭐ **§1. HAND-APPLIED, NOT POPPED.** See `refs`. The stash's own diff no longer matches the file —
+  the naming programme renamed a neighbouring column in its context lines — and it carries an
+  unrelated contract. Taking the twelve lines by hand is the smaller, checkable operation.
 
-  ⭐ **§2. THE LEGACY SERVICE-ACCOUNT NAME IS THE PART WORTH KEEPING.** The jobs authenticate as
-  `github-actions-dbt@…`, which sent me to GitHub on nothing but the name plus a workflow file with a
-  matching cron. Both circumstantial; I reported them as fact and was wrong. What actually settles
-  the caller is the auth path — that SA has **zero user-managed keys** and exactly one
-  `workloadIdentityUser` binding (the `gitlab-pool`), so GitHub could never have been it. **Check how
-  a principal authenticates before naming it from its name.**
-
-  ⭐ **§3. THE COST FIGURES GO IN, BECAUSE THEY WERE MEASURED AND ARE OTHERWISE UNRECORDED.**
-  ~129 GB/day over 14 days ≈ 3.8 TiB/month ≈ $17–24. Recorded as the observed cost of an authorised
-  decision, NOT as a concern. ⚠ And with the correction attached: my first figure was ~$7/month, from
-  a single day that happened to be the smallest of the fourteen, and before I knew `fdp-freshness`
-  existed at all.
+  ⭐ **§2. THE TEST IS VERIFIED AGAINST REAL DATA BEFORE IT SHIPS, AND IN BOTH DIRECTIONS.**
+  ⚠ `dbt build` must never run locally, so a green local run is not available and is not claimed.
+  Instead the assertion is checked by querying `intermediate.int_player_season__metrics` directly:
+    · **does it hold** — `count(*)` against `count(distinct (player_sk, league_code, season_api_year))`;
+    · **is it equivalent** to the existing test — the same count against
+      `count(distinct (player_sk, season_sk))`;
+    · **is it non-vacuous** — how many players appear under more than one `league_code` in a season,
+      which is the only situation in which the two spellings could ever disagree.
+  This is the `feedback_verify_the_test_fails` discipline adapted to a test that cannot be run
+  locally: prove the thing it asserts, and prove the assertion has content.
 
 decisions_reserved:
-  - ⛔ **Whether `fdp-freshness` should run hourly** (24×/day) is a recurring-cost question and
-    therefore the CPO's. Noted in the docs as a fact, not as a recommendation, and not acted on.
-  - ⛔ **Whether the disabled GitLab schedule `4379625` should be deleted** — it is infrastructure,
-    not documentation. This MR only stops it reading as the intended owner.
-  - ⚠ CARRIED: step 5's two follow-ups; the `__team`/`__player` split with no live instance; the
-    resolver as a CI gate; **#99**, **#96**, **#87**, **#98**; `stash@{0}`'s parked test.
+  - ⚠ **If the assertion turns out to be FALSE**, this MR stops and the finding goes to the CPO.
+    Adjusting the grain, or weakening the test to make it pass, would be exactly the
+    `feedback_never_loosen_a_guard` failure — and the model's stated grain would then be wrong,
+    which is a data-model question, not a test question.
+  - ⚠ CARRIED, untouched: step 5's two follow-ups; `fdp-freshness`'s hourly cadence; the disabled
+    GitLab schedule; the `__team`/`__player` split with no live instance; the resolver as a CI gate;
+    **#99**, **#96**, **#87**, **#98**.
 
 done_when: >
-  - `CLAUDE.md` and `.claude/active_work.md` describe the real arrangement, including the legacy
-    service-account name.
-  - `escalations.log` has a new dated correction; the `!136` entry is byte-identical.
-  - `git diff --stat` shows documentation files only.
-  - Offline gates green; blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**
+  - The test is present on `int_player_season__metrics`, with the comment explaining why a second
+    spelling of one grain is not a second key.
+  - `dbt parse` EXIT=0; the offline gates green.
+  - The three measurements above are reported with their numbers, including the non-vacuity one.
+  - `stash@{0}` still on the stack, untouched.
+  - Blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**

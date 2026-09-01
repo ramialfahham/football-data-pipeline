@@ -427,6 +427,22 @@ models:
           combination_of_columns:
             - player_sk
             - season_sk
+      # The SAME grain, spelled the way anything joining a LEG model has to spell it. `season_sk` is
+      # built from (league_api_id, season_api_year), so this is not a second, weaker key — it is one
+      # rule in its surrogate form above and its readable form here. Asserting the readable form
+      # directly is what lets a consumer group legs on (player_sk, league_code, season_api_year) and
+      # know the join cannot fan out. The TEAM model has carried both spellings since it was written;
+      # the player model had only the season_sk form, so a league_code split would have surfaced
+      # downstream as missing rows with no test naming the cause.
+      # ⭐ NOT VACUOUS, measured on prod before this shipped: 185,421 rows, both spellings distinct at
+      # 185,421 — and **34,884 player-years span more than one league_code** (max 8), a quarter of all
+      # player-years. So league_code is load-bearing in this key; (player_sk, season_api_year) alone
+      # would fan out badly.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - league_code
+            - season_api_year
       - dbt_utils.expression_is_true:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: int_player_season_passes_accuracy_player_pct_in_range
