@@ -1,91 +1,98 @@
-# Acceptance evidence — record where the nightly actually runs
+# Acceptance evidence — assert the player-season grain in its joinable spelling
 
-Branch `docs/nightly-lives-in-cloud-scheduler`, from main `1e76078`. **Documentation only.**
+Branch `test/player-season-grain-value-equivalence`, from main `fadd52f`.
 
-`CLAUDE.md` told every session that nothing refreshes the data on a timer. A Cloud Scheduler job has
-been doing exactly that every morning, on the CPO's own decision. This MR writes down the world as it
-is; it changes nothing about the world.
+**One dbt schema test added** to `int_player_season__metrics`: `(player_sk, league_code,
+season_api_year)`. No model SQL, no column, no value changes. It asserts behaviour that already
+exists, in the spelling a downstream join actually has to use.
 
 criteria_demonstrated:
 
-  - **`CLAUDE.md` no longer asserts the false thing.** The bullet now names the owner —
-    **`fdp-nightly` (`0 4 * * *`) and `fdp-freshness` (`7 * * * *`), both ENABLED in
-    europe-west1** — states that the data IS refreshed on a timer, and marks `data:nightly` and the
-    disabled GitLab schedule `4379625` as NOT the owner, with the warning that enabling the latter
-    without disabling the former runs the build twice.
-  - **`.claude/active_work.md` no longer presents this as an open CPO cost item.** It records the
-    answer and the CPO's verbatim sentence.
-  - **`escalations.log` is APPENDED, never rewritten.** Asserted mechanically: **0 removed lines,
-    31 added**, and no hunk touches the `!136` entry that framed this as unexplained. That entry is
-    a dated record of what I believed at the time and stays verbatim — *living document → replace;
-    dated log → append.*
-  - **No executable file in the diff.** `git diff --name-only` is four files: `CLAUDE.md`,
-    `.claude/active_work.md`, `.claude/task/contract.md`, `.claude/task/escalations.log`. No
-    workflow, no `.gitlab-ci.yml`, no scheduler job, no IAM binding.
-  - **The legacy-name trap is written into both documents**, because it is the reusable part.
+  - **The test compiles into a real node**, not just valid YAML. `dbt ls --resource-type test`
+    returns **both** uniqueness tests on the model:
+    `..._player_sk__league_code__season_api_year` (new) and `..._player_sk__season_sk` (existing,
+    untouched). `dbt parse` EXIT=0.
+  - **The assertion is TRUE in production, verified before committing** — not left for CI to find.
+    `intermediate.int_player_season__metrics`: **185,421 rows**, and **185,421** distinct on
+    `(player_sk, league_code, season_api_year)`.
+  - **The two spellings are demonstrably equivalent on real data**: the existing
+    `(player_sk, season_sk)` key also yields **185,421**. Same rule, two forms — which is the claim
+    the MR is named for, now measured rather than reasoned.
+    ⭐ **AND THE CLAIM IS SHARPER THAN "TWO SPELLINGS", per `analytics-engineer` at round 1.** It
+    traced the derivation to source — `dim_competition_season.sql:8` and `fct_fixture.sql:11` both
+    build `season_sk` as `generate_surrogate_key(['league_api_id', 'season_api_year'])` — and then
+    found a case I had not considered: **if two different `league_api_id`s ever shared one
+    `league_code` within a season, the new test would be STRICTLY STRONGER than the old, not a
+    respelling.** That cannot be ruled out from static reads. The equal counts above rule it out
+    *empirically for current data*. So the precise claim is: **the new test is equivalent to the
+    existing one today, and structurally it is either equivalent or stronger — never weaker.**
+    That is a better reason to add it than the one I started with.
+  - **The test is NOT vacuous, and this is the number that matters**: **34,884 player-years span
+    more than one `league_code`** (max **8** leagues for one player in one season), out of 139,139
+    player-year pairs. So `league_code` is load-bearing in the key, not decoration. The identical
+    34,884 appears for "player-years with multiple `season_sk`s" — exactly what
+    `season_sk = f(league, year)` predicts, and a second confirmation of the equivalence.
+  - **No NULL keys**: `league_code` and `season_api_year` are both non-null across all 185,421 rows,
+    so the uniqueness claim has no NULL-grouping escape hatch.
+  - **The existing test is byte-identical and no model SQL changed.**
+  - **`stash@{0}` is still on the stack, untouched.**
+
+## ⭐ THE TEST WAS BROKEN ON PURPOSE AND WATCHED GO RED — three ways
+
+⚠ `dbt build` must never run locally, so a green local test run is not available and is not claimed.
+Instead the test's own logic — `dbt_utils.unique_combination_of_columns` emits *group by the columns,
+keep groups with `count(*) > 1`* — was run directly against production, as written and mutated:
+
+| grain under test | result | |
+|---|---|---|
+| `(player_sk, league_code, season_api_year)` | **PASS** — 0 failing groups | the test as written |
+| `(player_sk, season_sk)` | **PASS** — 0 failing groups | the existing test |
+| drop `league_code` | **FAIL** — 34,884 failing groups | |
+| drop `season_api_year` | **FAIL** — 41,256 failing groups | |
+| `player_sk` alone | **FAIL** — 31,168 failing groups | |
+
+**Every column in the key is load-bearing** — remove any one and the assertion collapses. A mutation
+that still passed would have meant that column was decorative. This is
+`feedback_verify_the_test_fails` adapted to a test that cannot be run locally: prove what it asserts,
+then prove the assertion has content.
+
+## The redundancy rule I should have checked myself
+
+`dbt_project/docs/engineering_standards.md:195` says *"Do not repeat the same uniqueness assertion
+downstream unless the grain changes."* I did not consult it before adding a second uniqueness test —
+`analytics-engineer` did, and found it **inapplicable**: that rule targets re-testing an unchanged
+grain **ACROSS LAYERS** (staging → base → later), whereas this is two assertions on **one model in
+one layer**, each in the spelling a different consumer needs. ⭐ It also confirmed the precedent is
+real rather than asserted: the sibling `int_team_season__metrics` already carries both forms — a
+`team_season_sk` unique test plus a `(league_code, season_api_year, team_sk)` combination test.
 
 ## Gates
 
-  - `check_layer_contract.py` — **EXIT=0**. `check_registry_var_sync.py` — **EXIT=0** (48
-    competitions). `sync_metric_docs_blocks.py --check` — **EXIT=0**, 163 blocks.
-    `check_copy_gate.py` — **EXIT=0**, 435 strings.
-  - `pytest` / `npm test` / the site build are **not run and not claimed**: nothing executable
-    changed, and asserting a green suite for a prose diff would be noise dressed as rigour.
+  - `dbt parse` — **EXIT=0**.
+  - `check_layer_contract.py` — **EXIT=0**. `check_description_hygiene.py` — **EXIT=0**, 1604
+    descriptions. `sync_metric_docs_blocks.py --check` — **EXIT=0**, 163 blocks.
+    `check_registry_var_sync.py` — **EXIT=0**.
+  - `pytest` / `npm test` / the site build are **not run and not claimed** — nothing Python,
+    JavaScript or frontend changed, and a green suite for a YAML test addition would be noise
+    dressed as rigour.
+  - ⚠ **The authoritative run is CI's `data:build:mr`**, which executes the test against BigQuery.
+    Everything above is the strongest evidence obtainable without it, stated as exactly that.
 
-## ⛔⛔ THIS MR IS A CORRECTION OF MY OWN REPORTING, AND THE MECHANISM IS THE POINT
+## Parked work resumed, not popped
 
-While attributing `!136`'s BigQuery spend I found a daily 04:02 UTC pipeline, could not reconcile it
-with the docs, and reported it to the CPO as **unexplained recurring cost**. His answer:
-*"We moved these two jobs to the cloud after your recommendation. We did this after I ran into CI
-limitations with Gitlab."* Authorised, on my own earlier recommendation.
+The test came from `stash@{0}` — *"PARK: value-equivalence test, ships AFTER the catalogue rows."*
+Those rows shipped in steps 4 and 5, so the precondition is met.
+⚠ **The stash was READ, never popped.** It also carries a 304-line `contract.md` for the unrelated
+task it was parked from, and its diff context references `pass_accuracy_pct` — a column the naming
+programme has since renamed to `passes_accuracy_player_pct`, so the patch would not have applied
+cleanly anyway. Only the twelve-line test was taken, by hand, against the current file. The stash
+stack is repo-level and holds other parked work; it is left exactly as found.
 
-⛔ **(d) A FOURTH ERROR, CAUGHT BEFORE THIS MERGED: I SAID IT WAS "RECORDED NOWHERE". IT WASN'T.**
-`deploy/nightly/README.md` documents exactly this — the Cloud Run jobs, the scheduler entries, the
-service account, the `gcloud` commands that built them. I never opened it, because I went from
-BigQuery job metadata straight to `CLAUDE.md` and stopped at the first document that mentioned
-schedules. ⭐ **Rule: "undocumented" is a claim about the WHOLE repo, so it needs a repo-wide search
-before you make it** — `git grep` for the identifier would have found the runbook in one command.
-So the defect is **one stale document contradicting a correct one**, and `CLAUDE.md` now points at
-the runbook instead of duplicating it.
+## Not done, deliberately
 
-**Three distinct errors, and each has a rule attached:**
-
-**(a) I named a culprit from a NAME.** I said GitHub Actions was running it, from two circumstantial
-facts: the service account is `github-actions-dbt@…`, and `.github/workflows/dbt-scheduled.yml`
-carries a matching `0 4 * * *` cron. I reported that as fact. The CPO refused it in one sentence —
-*"How is that possible, the account is suspended"* — and he was right. **The auth path settled it in
-two queries**: that SA has **zero user-managed keys** and exactly one `workloadIdentityUser` binding
-(the `gitlab-pool`), so GitHub could never have assumed it under any circumstances.
-⭐ **Rule: identify a caller by how it AUTHENTICATES, never by what it is NAMED.**
-
-**(b) I called it unexplained when it was merely undocumented.** The job was authorised; the repo was
-silent. ⭐ **Rule: before reporting something as unexplained, ask whether it is simply unrecorded.**
-
-**(c) I quoted a rate from one sample.** My first figure was ~$0.23/day ≈ $7/month, taken from a
-single day — which happened to be the **smallest of the previous fourteen** (37 GB against a 15–197
-GB range) — and before I had found `fdp-freshness` at all. Measured over 14 days the two jobs
-together bill **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. ⭐ **Rule: pull a RANGE before quoting a
-rate.** ⚠ And query `region-eu` — `region-us` returns a confident, false "0 jobs, no cost".
-
-## What was measured, and how
-
-All read-only, all from GCP directly rather than from documents:
-
-    Cloud Scheduler europe-west1   fdp-nightly    0 4 * * *   ENABLED
-                                   fdp-freshness  7 * * * *   ENABLED
-    Observed effect                ingest + prod dbt build, 04:01–04:03 UTC, 14 days running,
-                                   writing dbt_analytics / marts / core / intermediate / staging
-    GitLab schedule 4379625        Active=false; last scheduled pipeline 2026-08-10, failed
-    SA github-actions-dbt          0 user-managed keys; 3 system-managed
-                                   1 workloadIdentityUser binding -> gitlab-pool only
-    Project IAM                    no broad serviceAccountTokenCreator; owner is the CPO
-    Cloud Workflows API            disabled — ruled out
-
-## Deliberately NOT done
-
-  - **Nothing was switched on, off, or deleted.** The two scheduler jobs, the disabled GitLab
-    schedule and `.github/workflows/dbt-scheduled.yml` are all exactly as they were.
-  - **Whether `fdp-freshness` should be hourly** (24×/day) is a recurring-cost question and the
-    CPO's. Written into the docs as a fact, not as a recommendation.
-  - **Whether GitLab schedule `4379625` should be deleted** rather than left disabled — that is
-    infrastructure, not documentation. This MR only stops it reading as the intended owner.
+  - **The comment on the test carries the measured numbers**, so the next reader does not have to
+    re-derive whether the second spelling is redundant. That is the whole failure mode this test
+    guards against being reintroduced by someone "simplifying" it away.
+  - ⛔ If the assertion had been FALSE, this MR would have stopped and gone to the CPO rather than
+    weakening the test — the model's stated grain would then be wrong, which is a data-model
+    question, not a test question. It was true, so that path was not taken.
