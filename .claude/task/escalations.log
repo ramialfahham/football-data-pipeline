@@ -7255,3 +7255,48 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   prose, and `persist_docs` publishes them to BigQuery, so after this MR a row's label and its own
   description disagree. Recommended as a small follow-up; NOT folded in, because widening scope
   mid-MR is precisely what this programme has been FAILed on.
+
+
+---
+
+2026-09-01 THE SAMPLE ROLL-FORWARD — AND AN AUTHORITY RECORD I ALMOST DID NOT WRITE.
+
+  ⛔ THIS ENTRY EXISTS BECAUSE `scope-auditor` FAILED ROUND 1 FOR ITS ABSENCE. The contract cited a
+  CPO steer as authority for a scope decision and I never wrote it here — the exact anti-pattern
+  `feedback_dont_attribute_repo_practice_to_cpo` records: "'you ruled' needs a quote from
+  escalations.log … I narrate outcomes in prose and never write them into the file the gate parses."
+  Fourth-plus recurrence. I appended the STEP 5 ruling correctly two MRs ago and skipped it here
+  because his input arrived as conversation rather than as a formal answer — which is not a
+  distinction the record recognises, and is precisely how this keeps happening.
+
+  ⭐ THE AUTHORITY FOR DOING THE TASK AT ALL, verbatim: **"start the sample roll-forward"**.
+
+  ⛔ THE THIN-MATCHDAY QUESTION, AND WHAT ACTUALLY HAPPENED — recorded exactly, because it is NOT a
+  clean ruling and dressing it up as one is what got FAILed:
+    1. I asked, via AskUserQuestion, whether to roll forward TODAY (2026-09-01: 4 fixtures across
+       3 competitions, first kickoff 16:00 UTC) or wait for 2026-09-04 (28 fixtures, 16
+       competitions), recommending the wait. **He DISMISSED the question** — no option selected.
+    2. He then asked, verbatim: **"What is the problem? Explain in plain words, keep it short."**
+    3. After the plain-language explanation he said, verbatim and in full:
+       **"We're doing infrastructure work and don't show anything now."**
+    4. ⚠ **I INTERPRETED that as removing the objection and ran it today. He never said "run it
+       today" in words.** The reasoning: my recommendation to wait rested entirely on the sample
+       being visibly thinner, and his statement says nothing is on display — so the premise of my
+       own recommendation was gone, leaving no argument for delay.
+  ⚠ **Recorded as an INTERPRETATION of a statement, not as an answer to the question I asked.** If
+  that reading is wrong the cost is one more roll-forward, not a wrong artefact — but a reviewer
+  must be able to challenge it, which requires it to be written down in this form.
+
+  ⭐ WHAT WAS MEASURED BEFORE ACCEPTING THE THIN SET, since "he said it is fine" is not evidence
+  that it works: both competition shapes (3 domestic_cup + 1 domestic_league), all THREE form paths
+  (fully populated; present-but-NULL where a side has no player-stat coverage; entirely ABSENT), and
+  the row-omission path where a row has data on neither side. That is one more path than the
+  outgoing 19-fixture set documented.
+
+  ⛔ AN UNRELATED FINDING, FLAGGED AND NOT ACTED ON. Attributing this MR's BigQuery spend surfaced
+  **1,488 query jobs / 37.23 GB at 04:02-05:27 UTC on 2026-09-01** under
+  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`. That contradicts
+  `CLAUDE.md` ("GitHub … Its Actions run nothing") and `active_work.md` ("no nightly SCHEDULE exists
+  … nothing refreshes the data on a timer"), and it explains why the warehouse was fresh enough for
+  this roll-forward to work. ~$0.23/day, recurring, unattributed in the docs. **Cost is the CPO's.**
+  Not investigated further and not folded in.

@@ -260,33 +260,23 @@ site_v2/src/data/slug_map.json
 site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/33.json
 site_v2/src/data/fixtures/*.json
-# The 2026-08-28 matchday: 19 fixtures across 13 competitions, exactly what `landing.json` links to.
+# The 2026-09-01 matchday: 4 fixtures across 3 competitions, exactly what `landing.json` links to.
 #
-# ⛔ THIS SET REPLACED THE 2026-08-18 ONE WHOLESALE, and a future refresh must do the same rather
+# ⛔ THIS SET REPLACED THE 2026-08-28 ONE WHOLESALE, and a future refresh must do the same rather
 # than append. The export emits UPCOMING fixtures only — `status_short in ('NS', 'TBD') and
 # fixture_date >= current_date()` in `fetch_fixture_payloads` — and once a fixture kicks off its
-# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether (queried:
-# 0 rows for both of the previous set's ids). So a past id can never be re-exported, and a stale
-# entry left here would pin a payload that no rerun can ever update. Replace, never add.
-!site_v2/src/data/fixtures/1493106.json
-!site_v2/src/data/fixtures/1550097.json
-!site_v2/src/data/fixtures/1552144.json
-!site_v2/src/data/fixtures/1552746.json
-!site_v2/src/data/fixtures/1553147.json
-!site_v2/src/data/fixtures/1553153.json
-!site_v2/src/data/fixtures/1557381.json
-!site_v2/src/data/fixtures/1558608.json
-!site_v2/src/data/fixtures/1570353.json
-!site_v2/src/data/fixtures/1570359.json
-!site_v2/src/data/fixtures/1575140.json
-!site_v2/src/data/fixtures/1575481.json
-!site_v2/src/data/fixtures/1576152.json
-!site_v2/src/data/fixtures/1576153.json
-!site_v2/src/data/fixtures/1584391.json
-!site_v2/src/data/fixtures/1602998.json
-!site_v2/src/data/fixtures/1602999.json
-!site_v2/src/data/fixtures/1603000.json
-!site_v2/src/data/fixtures/1603001.json
+# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether. So a past
+# id can never be re-exported, and a stale entry left here would pin a payload that no rerun can
+# ever update. Replace, never add.
+# ⚠ The 2026-08-28 set proved that from the other side: it was FOUR DAYS past when replaced, and its
+# payloads were still missing four mart columns added after they were written — `shots_inside_box_pct`,
+# `finishing_efficiency_pct`, `passes_accuracy_pct`, `passes_key_per_match` — so the fixture
+# comparison rendered 12 of its 16 locked rows. Not one of the 19 changed on a rerun. Zero of them
+# carried over into this set.
+!site_v2/src/data/fixtures/1550704.json
+!site_v2/src/data/fixtures/1603007.json
+!site_v2/src/data/fixtures/1628894.json
+!site_v2/src/data/fixtures/1629056.json
 
 # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
 # Not project source, so not committed -- and not deleted either: the contract and stop gates flag

@@ -1,907 +1,425 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index afca7b5..52f37b3 100644
+index 52f37b3..af86230 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,361 +1,155 @@
--# Task contract — rename the seven player goals metrics (step 4, MR 7 — THE LAST BATCH)
-+# Task contract — STEP 5: the English label "on target" → "on goal"
+@@ -1,41 +1,50 @@
+-# Task contract — STEP 5: the English label "on target" → "on goal"
++# Task contract — the sample roll-forward
  
  objective: >
--  **STEP 4 of the metric catalogue naming programme, MR 7 of seven. This closes step 4.**
-+  **STEP 5 of the metric catalogue naming programme, and the mirror image of step 4.** Step 4 moved
-+  `metric_id` and deliberately PROTECTED `label_en` in every one of its seven classifiers. This MR
-+  moves `label_en` and touches `metric_id` **nowhere**.
- 
--      goals           →  goals_player            assists       →  assists_player
--      goals_penalty   →  goals_penalty_player    scorer_points →  scorer_points_player
--      goals_open_play →  goals_open_play_player  penalty_won   →  penalty_won_player
--      contribution_share →  contribution_player_pct
-+  Nine catalogue rows carry the English words "on target" while their internal ids have said
-+  `shots_on_goal_*` for months. RULING 2 closes that gap.
- 
--  `!125` `shooting`, `!127` `discipline`, `!128` `defending`, `!129` `passing`, `!130` `duels`,
--  `!131` `goalkeeping`. Nothing remains after this.
-+  ⭐⭐ **AND IT IS WIDER THAN THE RECORD'S SCOPE, BY A RULING TAKEN THIS SESSION.** RULING 2's scope
-+  was confirmed *"in the catalogue"*. I measured, before proposing anything, that **the catalogue is
-+  not where the website gets its labels** — the site reads its own `METRIC_LABELS_EN` map in
-+  `site_v2/src/i18n/strings.ts`, and **four of the nine labels render on the live site today**.
-+  Catalogue-only would therefore have left the visible mismatch untouched — the exact thing the
-+  ruling exists to fix. Asked in plain terms whether the website's four should move too, the CPO
-+  chose **catalogue + website**. Recorded in `escalations.log` under today's date.
- 
--  ⛔⛔ **THE RULE IS UNCHANGED AND IS STILL THE WHOLE DESIGN: A REFERENCE FOLLOWS ITS SOURCE.**
+-  **STEP 5 of the metric catalogue naming programme, and the mirror image of step 4.** Step 4 moved
+-  `metric_id` and deliberately PROTECTED `label_en` in every one of its seven classifiers. This MR
+-  moves `label_en` and touches `metric_id` **nowhere**.
 -
--  ⭐⭐ **THE BIGGEST BATCH OF THE PROGRAMME: 1,519 occurrences across 93 swept files and 94 distinct
--  maximal tokens** (`!131`: 676 / 76 / 50), landing on **38 changed files**. Decided once each:
--  **279 renames · 63 `doc()` re-points (19 TEAM-side) · 1,177 protected.** Protections outnumber
--  changes better than 3 to 1, because `goals` is the most generic stem in the domain.
--  ⚠ These are the ROUND-2 counts. Round 1 read 442 changed / 1,077 protected; the prose rule in
--  `decisions_taken §9(d)` moved exactly **100** occurrences into PROTECT.
-+  ⚠ **THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED.** It named nine metric_ids; **six were
-+  superseded** by step 3's team renames and step 4's player renames. The nine below are measured
-+  from the seed with `label_en` matched on "on target", not carried from any document.
+-  Nine catalogue rows carry the English words "on target" while their internal ids have said
+-  `shots_on_goal_*` for months. RULING 2 closes that gap.
+-
+-  ⭐⭐ **AND IT IS WIDER THAN THE RECORD'S SCOPE, BY A RULING TAKEN THIS SESSION.** RULING 2's scope
+-  was confirmed *"in the catalogue"*. I measured, before proposing anything, that **the catalogue is
+-  not where the website gets its labels** — the site reads its own `METRIC_LABELS_EN` map in
+-  `site_v2/src/i18n/strings.ts`, and **four of the nine labels render on the live site today**.
+-  Catalogue-only would therefore have left the visible mismatch untouched — the exact thing the
+-  ruling exists to fix. Asked in plain terms whether the website's four should move too, the CPO
+-  chose **catalogue + website**. Recorded in `escalations.log` under today's date.
+-
+-  ⚠ **THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED.** It named nine metric_ids; **six were
+-  superseded** by step 3's team renames and step 4's player renames. The nine below are measured
+-  from the seed with `label_en` matched on "on target", not carried from any document.
++  **Replace the committed build sample so the fixture comparison renders all sixteen locked rows
++  again instead of twelve.**
++
++  `site_v2/src/data/` holds a snapshot of one matchday so CI can build the site without BigQuery.
++  It pins **2026-08-28**; today is **2026-09-01**, so it is four days past. Two consequences, both
++  measured rather than assumed:
++
++  1. **Four of the sixteen locked display rows do not render.** Probed a committed payload: the
++     fields are **ABSENT FROM THE KEY SET**, not null — the snapshot predates those mart columns.
++     `shots_inside_box_pct`, `finishing_efficiency_pct`, `passes_accuracy_pct`,
++     `passes_key_per_match`. All four are emitted by `mart_team_momentum` today (`:63`, `:77`,
++     `:86`, `:107`), so the roll-forward genuinely restores them.
++  2. **It cannot be refreshed in place, and that is the whole trap.**
++     `fetch_fixture_payloads` selects `status_short in ('NS','TBD') and fixture_date >=
++     current_date()`; once a fixture kicks off its pre-match form rows leave `mart_team_momentum`
++     entirely. A rerun writes thousands of NEW payloads and silently leaves every committed one
++     untouched — exactly what happened on 2026-08-28, where the export exited 0, reported 5,066
++     payloads written, and not one tracked file changed. **The set is REPLACED, never appended.**
++
++  ⭐ **CPO steer this session**, on whether the thin next matchday is acceptable: *"We're doing
++  infrastructure work and don't show anything now."* So the snapshot is a BUILD INPUT, not a shop
++  window, and the only live question is whether it still exercises the components. It does — see
++  `decisions_taken §2`.
  
  refs: >
--  **`.claude/task/escalations.log`, the block "THE METRIC CATALOGUE NAMING PROGRAMME"**, its table
--  "⛔ PLAYER, 35 REMAINING" — all seven renames appear in it verbatim. Cited by CONTENT.
--  ⭐ **`contribution_player_pct` IS RULED**, and the entry that rules it is dated **2026-08-29**:
--  *"RULING, verbatim: **contribution_player_pct is fine, go with it**"*. The same entry states that
--  the 35-row player list is now FULLY RULED and that the older caveat — *"Flag it rather than quote
--  it as his"* — is **DISCHARGED and does not need to travel further**.
--  ⛔ I wrote that discharged caveat into this contract, its evidence and its log entry anyway.
--  Corrected in all three; found by `football-analytics-expert-reviewer`. The entry names the rule I
--  broke: **living document → replace; dated log → append.**
--  ⚠ Seed-verified: `player`/`goals` is **10 rows** — these seven plus `goals_per90`, `assists_per90`
--  and `scorer_points_per90`, which do not change.
+-  **`.claude/task/escalations.log`, RULING 2**, verbatim: *"we have inconsistency between name and
+-  shown as / example: shots_on_goal_per_match vs Ø Shots on target -> should be Ø Shots on goal
+-  (apply everywhere where applicable)"*. Scope confirmed later, verbatim: *"in the catalogue"*.
+-  On languages, verbatim: *"i know, but here i explicitly want consistency between the metric name
+-  and what we show (in english). German and Finnish or any other language should not be affected."*
+-  Cited by CONTENT.
 -
--  ⭐ **TWO STANDING CPO RULINGS applied unchanged**: **"re-point them"** (63 references here, **19 of
--  them TEAM-side**) and **"yes"** (provider surfaces keep the provider name — ten `.sql` files
--  excluded, 126 tokens).
+-  ⭐ **THE NEW RULING, this session**, on whether the four rendered labels move with the catalogue:
+-  the CPO was shown that `strings.ts` and not the seed is what the site renders, and chose
+-  **catalogue + website**. Appended to `escalations.log` under 2026-08-31 before any file was
+-  touched.
 -
--  ⭐ **ONE RULING TAKEN THIS SESSION, recorded with what it answered.** Asked: `_shape_squad_member`
--  writes `"goals": career.get("goals")` — the mart column moves, so must the published payload KEY?
--  Answered: *"Naming conventions in the warehouse are one thing. What we show on the website is
--  another."* **The key stays; only the warehouse-facing half moves.** See `decisions_taken` §2.
--
--  ⭐ **ONE RULED CLASS APPLIED, not re-decided**: `!129`'s ruling that derived yoy columns rename
--  with their metric. Eight of them here — see `decisions_taken` §1.
-+  **`.claude/task/escalations.log`, RULING 2**, verbatim: *"we have inconsistency between name and
-+  shown as / example: shots_on_goal_per_match vs Ø Shots on target -> should be Ø Shots on goal
-+  (apply everywhere where applicable)"*. Scope confirmed later, verbatim: *"in the catalogue"*.
-+  On languages, verbatim: *"i know, but here i explicitly want consistency between the metric name
-+  and what we show (in english). German and Finnish or any other language should not be affected."*
-+  Cited by CONTENT.
+-  ⚠ The record's own measurement, re-confirmed here: **German already says `Torschüsse` and Finnish
+-  `Maalilaukaukset`**, both literally "goal shots". Only ENGLISH was out of step, which is why the
+-  ruling excludes the other languages rather than deferring them.
++  **`site_v2/src/data/README.md`** documents the procedure and the trap in full, including the
++  measured 2026-08-28 failure. This MR follows it verbatim rather than inventing one; the
++  `--entities teams,fixtures` list is copied from **`.gitlab-ci.yml:941`**, where a comment marks it
++  load-bearing.
 +
-+  ⭐ **THE NEW RULING, this session**, on whether the four rendered labels move with the catalogue:
-+  the CPO was shown that `strings.ts` and not the seed is what the site renders, and chose
-+  **catalogue + website**. Appended to `escalations.log` under 2026-08-31 before any file was
-+  touched.
++  **`.claude/active_work.md`** carried this as the last owed item of the "after step 4" pair, and
++  the standing instruction was that the CPO decides when it runs. He said, verbatim: **"start the
++  sample roll-forward"**. That is the authority for doing the task.
 +
-+  ⚠ The record's own measurement, re-confirmed here: **German already says `Torschüsse` and Finnish
-+  `Maalilaukaukset`**, both literally "goal shots". Only ENGLISH was out of step, which is why the
-+  ruling excludes the other languages rather than deferring them.
++  ⛔ **THE THIN-MATCHDAY DECISION IS AN INTERPRETATION, NOT A RULING, AND THE RECORD NOW SAYS SO.**
++  `.claude/task/escalations.log`, dated 2026-09-01, sets out exactly what happened: I asked whether
++  to run today or wait for 2026-09-04, **he DISMISSED the question**, asked for a plain-language
++  explanation, and then said — verbatim and in full — *"We're doing infrastructure work and don't
++  show anything now."* **He never said "run it today".** I read that statement as removing the sole
++  premise of my own recommendation (that the thinner sample is visible) and proceeded.
++  ⚠ `scope-auditor` FAILed round 1 because this contract cited that steer as authority while the log
++  carried no entry at all — the recurrence of `feedback_dont_attribute_repo_practice_to_cpo`. The
++  entry is now written, in the form above, so the interpretation can be challenged rather than
++  merely trusted.
  
  scope_paths:
--  # ⚠ `mart_roster.sql` was declared here before implementation and REMOVED in round 2: its only
--  # hit is a SQL comment naming the Squad tab's PAYLOAD fields in display shorthand
--  # ("appearances / mins-per-app / goals / assists"), which §2's ruling protects. Zero changes, so
--  # it claims no permission — `!131`'s precedent for a file that falls to zero renames.
-+  - .claude/active_work.md
-+  - .claude/task/contract.md
-+  - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
-+  - .claude/task/escalations.log
-+  - .claude/task/review.md
-   - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/models/docs/metric_columns.md
--  - dbt_project/macros/player_benchmark_metrics.sql
--  - dbt_project/models/3_core/core.yml
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_legs.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
--  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
--  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
--  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
--  - dbt_project/models/5_marts/shared/mart_player_career.sql
--  - dbt_project/models/5_marts/shared/mart_player_momentum.sql
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
--  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - docs/content_architecture.md
--  - docs/wireframes/01_fixture_page.md
-+  - site_v2/src/i18n/strings.ts
-+  - site_v2/src/lib/metricRows.ts
-+  - site_v2/src/components/team/DeservedHero.astro
-+  - site_v2/scripts/check-metric-labels.test.mjs
-+  - docs/wireframes/metrics_display.md
-+  - docs/wireframes/02_team_profile.md
-   - docs/wireframes/03_player_profile.md
-   - docs/wireframes/10_home.md
--  - docs/wireframes/11_team_squad.md
-   - docs/wireframes/12_player_stats.md
--  - docs/wireframes/13_player_career.md
--  - docs/wireframes/99_gaps_register.md
+   - .claude/active_work.md
+@@ -44,112 +53,93 @@ scope_paths:
+   - .claude/task/rendered_page_evidence.md
+   - .claude/task/escalations.log
+   - .claude/task/review.md
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - site_v2/src/i18n/strings.ts
+-  - site_v2/src/lib/metricRows.ts
+-  - site_v2/src/components/team/DeservedHero.astro
+-  - site_v2/scripts/check-metric-labels.test.mjs
 -  - docs/wireframes/metrics_display.md
--  - scripts/export_site_data.py
--  - scripts/sync_metric_docs_blocks.py
--  - tests/test_export_site_data.py
--  - .claude/task/contract.md
--  - .claude/task/escalations.log
--  - .claude/task/review.md
--  - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--  - .claude/active_work.md
+-  - docs/wireframes/02_team_profile.md
+-  - docs/wireframes/03_player_profile.md
+-  - docs/wireframes/10_home.md
+-  - docs/wireframes/12_player_stats.md
+-  - docs/wireframes/14_team_stats.md
 -
--# ⚠ The EXACT changed set, reconciled against `git diff --name-only` in both directions. 37 come
--# from the classifier's DRY RUN; `metric_columns.md` is regenerated; `sync_metric_docs_blocks.py` is
--# rewritten BY HAND (decisions_taken §6); six are review paperwork.
--#
--# ⭐⭐ NO `site_v2/` ENTRY, AND THAT IS A MEASURED RESULT, NOT AN INHERITED CLAIM. Thirteen frontend
--# files carry a swept token and **every one protects**: `PlayerRow.astro` reads the PROVIDER columns
--# `goals_total`/`goals_assists` (unlike `!131`, where it read renaming payload fields); the rest are
--# team scoreline fields, TEAM metric label keys, or UI words. `TeamSquad.astro` and `types.ts` are
--# untouched because of the CPO ruling in §2.
--#
--# ⚠ SWEPT BUT NOT CHANGED — 56 files, every token PROTECTED, kept IN the sweep so a decision is
--# printed for each:
--#  · the whole TEAM tree, including `mart_standings`, `mart_fixture_standing_context`,
--#    `mart_head_to_head`, `mart_team_fixtures` and the two fixture-goal singular tests
--#  · THIRTEEN frontend files (see above)
--#  · ⭐ NINE documentation files where `goals` is an ENGLISH WORD — `CLAUDE.md`,
--#    `docs/north_star.md`, `docs/data_contract.md`, `dbt_project/docs/layering.md` and five more
--#  · `dbt_project/seeds/schema.yml` — see decisions_taken §5
--#  · `declare_missing_columns.py` and both docs-block test modules: `!131` already made their
--#    worked example historical, so they need no further edit this batch
--#
--# ⚠ NOT IN SCOPE: `.claude/task/review_input.patch` (regenerated paperwork, hash-excluded);
--# `site_v2/src/data/**` and `site/**`; the ten provider `.sql` files (126 tokens, the "yes" ruling).
-+  - docs/wireframes/14_team_stats.md
-+
-+amendments: >
-+  **ROUND 2 — two files ADDED to `scope_paths`**, on no new CPO authority and needing none: this is
-+  not a widening of what the task does, it is the FIX for a MISS against a criterion the contract
-+  already declared ("every 'on target' occurrence classified once").
-+  `bi-analyst-reviewer` FAILed round 1 on `site_v2/src/components/team/DeservedHero.astro:43`, which
-+  carries a THIRD copy of the id-vs-label claim that `decisions_taken §2` identifies and rewrites in
-+  two other places. My census missed it, and the reason is worth more than the fix: **I matched
-+  "on target" and "on-target" and never matched `on_target`** — an enumeration of spellings, which
-+  loses by one variant every time. Re-swept with the PATTERN `on[\s_-]?target`: **136 occurrences,
-+  5 of them CLAIMS about the split.** Two were already rewritten, `check-page-specs.test.mjs:179` is
-+  still TRUE (it compares the id to the KEY, not to the user-facing term), and two were stale —
-+  `DeservedHero.astro` and `check-metric-labels.test.mjs`, hence these two paths.
-+  ⚠ Adding the test file routes `platform-reviewer` in from round 2.
+-amendments: >
+-  **ROUND 2 — two files ADDED to `scope_paths`**, on no new CPO authority and needing none: this is
+-  not a widening of what the task does, it is the FIX for a MISS against a criterion the contract
+-  already declared ("every 'on target' occurrence classified once").
+-  `bi-analyst-reviewer` FAILed round 1 on `site_v2/src/components/team/DeservedHero.astro:43`, which
+-  carries a THIRD copy of the id-vs-label claim that `decisions_taken §2` identifies and rewrites in
+-  two other places. My census missed it, and the reason is worth more than the fix: **I matched
+-  "on target" and "on-target" and never matched `on_target`** — an enumeration of spellings, which
+-  loses by one variant every time. Re-swept with the PATTERN `on[\s_-]?target`: **136 occurrences,
+-  5 of them CLAIMS about the split.** Two were already rewritten, `check-page-specs.test.mjs:179` is
+-  still TRUE (it compares the id to the KEY, not to the user-facing term), and two were stale —
+-  `DeservedHero.astro` and `check-metric-labels.test.mjs`, hence these two paths.
+-  ⚠ Adding the test file routes `platform-reviewer` in from round 2.
++  - .gitignore
++  - site_v2/src/data/README.md
++  - site_v2/src/data/landing.json
++  - site_v2/src/data/competitions.json
++  - site_v2/src/data/competition_index.json
++  # ⚠ GLOBS, not bare directory names. `scope_paths` entries are fnmatch patterns and `*` does not
++  # cross `/`, so `site_v2/src/data/teams` matches the DIRECTORY and nothing inside it. The contract
++  # gate caught that on the first export — correctly — and this is the fix, not an exemption.
++  - site_v2/src/data/fixtures/*.json
++  - site_v2/src/data/teams/*.json
  
  protected_override: >
--  none. No guard, threshold, schedule or exemption is loosened. `fct_fixture_player_stats` is again
--  the only `incremental` model carrying these names and its COLUMNS are not renamed — only `doc()`
--  pointers — so no `--full-refresh` is implied.
-+  **`metric_id` IS PROTECTED IN THIS MR, on every row and in every file.** Step 4 moved ids and
-+  protected labels; this moves labels and protects ids. Nothing in the seed changes except the
-+  `label_en` cell on nine rows.
+-  **`metric_id` IS PROTECTED IN THIS MR, on every row and in every file.** Step 4 moved ids and
+-  protected labels; this moves labels and protects ids. Nothing in the seed changes except the
+-  `label_en` cell on nine rows.
++  ⛔ **NO PAYLOAD IS EVER HAND-EDITED.** Every committed JSON is verbatim export output. If a value
++  looks wrong the fix is upstream in a mart, never in the file. `site_v2/src/data/README.md` states
++  this twice and it is the reason the sample can be trusted as evidence at all.
  
--impact_map: >
--  ⭐ **RUN ON THIS BRANCH BEFORE THE FIRST EDIT, PASTED VERBATIM.**
-+  ⛔ **`label_i18n_key` IS PROTECTED TOO, including the one value that contains the words.**
-+  `shots_on_goal_per_match` declares `label_i18n_key = metrics.shots_on_target_per_match.label` —
-+  the ONLY key in the seed carrying "on_target", and it stays. It is a JOIN KEY across the seed,
-+  `strings.ts`, `metricRows.ts`, three hand-written parsers and the page specs; the catalogue
-+  declares no `metrics.shots_on_goal_per_match.label`, so "fixing" it would resolve the label to
-+  nothing. RULING 2 is about what is SHOWN, not about keys.
+-  ⛔ **`label_i18n_key` IS PROTECTED TOO, including the one value that contains the words.**
+-  `shots_on_goal_per_match` declares `label_i18n_key = metrics.shots_on_target_per_match.label` —
+-  the ONLY key in the seed carrying "on_target", and it stays. It is a JOIN KEY across the seed,
+-  `strings.ts`, `metricRows.ts`, three hand-written parsers and the page specs; the catalogue
+-  declares no `metrics.shots_on_goal_per_match.label`, so "fixing" it would resolve the label to
+-  nothing. RULING 2 is about what is SHOWN, not about keys.
++  ⛔ **NO CODE CHANGES.** `scripts/export_site_data.py`, the marts and the frontend are untouched.
++  This MR replaces DATA and the allowlist that pins it. If the export turns out to need a fix, that
++  is a separate MR with its own contract — flag it, do not fold it in.
  
--      $ dbt ls --resource-type model --select int_player_season__metrics+ \
--          int_player_club_season__metrics+ int_player_momentum__metrics+ \
--          int_player_season_position__metrics+ int_player_season_record+ \
--          int_player_profile__yoy+ int_player_profile__contribution+ mart_leaderboards+ \
--          mart_player_career+ mart_player_momentum+ mart_player_profile+ \
--          mart_player_season_record+ mart_roster+
-+  ⛔ **The seed's `description` column is protected** — ~19 occurrences read "shots on target" as
-+  prose. Not labels, not ruled. See `decisions_reserved`.
+-  ⛔ **The seed's `description` column is protected** — ~19 occurrences read "shots on target" as
+-  prose. Not labels, not ruled. See `decisions_reserved`.
+-
+-  ⛔ **DE and FI are protected**, by the ruling's own words.
+-  ⛔ **`site/i18n/*.json` is protected** — the frozen retired-MVP corpus (2026-07-21).
++  ⛔ **THE `.gitignore` FIXTURE ALLOWLIST IS REPLACED, NEVER APPENDED TO** (block at `:262-289`).
++  A stale id pins a payload no rerun can ever update, which is how the previous set came to serve
++  column names renamed two MRs earlier.
  
--      football_data_pipeline.4_intermediate.domestic_league.team_season.int_player_season__metrics
--      football_data_pipeline.4_intermediate.shared.int_player_club_season__metrics
--      football_data_pipeline.4_intermediate.shared.int_player_competition_benchmarks
--      football_data_pipeline.4_intermediate.shared.int_player_momentum__metrics
--      football_data_pipeline.4_intermediate.shared.int_player_profile__contribution
--      football_data_pipeline.4_intermediate.shared.int_player_profile__yoy
--      football_data_pipeline.4_intermediate.shared.int_player_season_position__metrics
--      football_data_pipeline.4_intermediate.shared.int_player_season_record
--      football_data_pipeline.5_marts.shared.mart_leaderboards
--      football_data_pipeline.5_marts.shared.mart_player_career
--      football_data_pipeline.5_marts.shared.mart_player_competition_benchmarks
--      football_data_pipeline.5_marts.shared.mart_player_momentum
--      football_data_pipeline.5_marts.shared.mart_player_profile
--      football_data_pipeline.5_marts.shared.mart_player_season_record
--      football_data_pipeline.5_marts.shared.mart_roster
-+  ⛔ **DE and FI are protected**, by the ruling's own words.
-+  ⛔ **`site/i18n/*.json` is protected** — the frozen retired-MVP corpus (2026-07-21).
+ impact_map: >
+-  `label_en` has exactly one live consumer: `fetch_glossary()` in `scripts/export_site_data.py`
+-  emits the whole seed row as `metrics.json`, so the nine new labels reach that payload. **No dbt
+-  model reads the metric catalogue's `label_en`** — verified by sweeping every reader of the token
+-  across the repo; the hits belong to `competition_types` and `confederations`, different seeds.
+-
+-  `sync_metric_docs_blocks.py` has **zero** `label_en` references, so `metric_columns.md` does NOT
+-  regenerate from this change. Its "on target" text is descriptions, which are protected above.
++  Data-only. The committed sample is read at build time by `site_v2` and by nothing else; no dbt
++  model, no export code path and no test imports it as a module. Its blast radius is the built
++  pages plus `audit-seo.mjs`, which fails the build on an internal link resolving to no emitted
++  page — the one check that catches a landing↔fixtures mismatch, and only in CI.
  
--  **15 models** — two more than `!130`/`!131`, because `int_player_profile__contribution` (where
--  `contribution_share` is computed as `scorer_points / team_goals_season`) and `mart_roster` join for
--  the first time. ⚠ **`int_player_competition_benchmarks` and `mart_player_competition_benchmarks`
--  change only through `player_benchmark_metrics()`**, and unlike every previous batch there is **no
--  over-count**: every model in this lineage carries at least one of the seven names.
-+impact_map: >
-+  `label_en` has exactly one live consumer: `fetch_glossary()` in `scripts/export_site_data.py`
-+  emits the whole seed row as `metrics.json`, so the nine new labels reach that payload. **No dbt
-+  model reads the metric catalogue's `label_en`** — verified by sweeping every reader of the token
-+  across the repo; the hits belong to `competition_types` and `confederations`, different seeds.
-+
-+  `sync_metric_docs_blocks.py` has **zero** `label_en` references, so `metric_columns.md` does NOT
-+  regenerate from this change. Its "on target" text is descriptions, which are protected above.
- 
--  Downstream: `scripts/export_site_data.py` and `tests/test_export_site_data.py`. **No `site_v2/src`
--  source consumes a renamed name** — measured, not assumed.
-+  The four rendered labels reach the page as
-+  `strings.ts METRIC_LABELS_EN` → `metricLabel(lang, labelKey)` → the fixture comparison block.
+-  The four rendered labels reach the page as
+-  `strings.ts METRIC_LABELS_EN` → `metricLabel(lang, labelKey)` → the fixture comparison block.
++  ⚠ **A local build cannot reproduce that check.** A full export leaves thousands of untracked
++  payloads on disk, so every link resolves locally while CI sees only the tracked set. `git clean
++  -fX site_v2/src/data` before building is what makes the local build honest.
  
  acceptance_criteria:
--  - ⛔ **THE TEAM SCORELINE FAMILY IS UNTOUCHED.** `goals_for`, `goals_against`, `goals_home`, `goals_away`, `goals_diff`, `standing_goals_diff`, `goals_own`, `last_meeting_goals_*` and their yoy forms all survive byte-identical, and **zero** renamed tokens sit in a construct with any of them. This is the class that FAILed `!131` round 1 with one token; here the stem reaches all of them.
--  - ⭐ **NO `site_v2/` FILE CHANGES**, re-derived for this batch: thirteen frontend files carry a swept token and every one protects. `PlayerRow.astro` reads PROVIDER columns this time; `TeamSquad.astro` and `types.ts` are untouched under the §2 ruling. No name is HALF-renamed — every surviving old name is a provider read, a TEAM column, an English word, or a UI key.
--  - ⭐ **The published payload key `"goals"` is still emitted** by `_shape_squad_member` and `_shape_player_career_season` while their `.get()` reads move — the ruling in §2, verified on both sides of both lines.
--  - `sync_metric_docs_blocks.py --check` and `check_description_hygiene.py` both pass AND are each watched going RED; the seed differs from base in `metric_id` only, on every row.
--  - Every dotted AND bare reference resolves; the yml-vs-projection check reports zero mismatches and is mutation-tested in BOTH its strong and its known-weak form.
--  - ⛔ **All 16 `doc()` references to the eight derived player yoy blocks re-point** — none dangles, which `check_description_hygiene` proves by going green.
-+  - The nine `label_en` values read "on goal", and the seed differs from base in `label_en` ONLY —
-+    `metric_id`, `label_i18n_key`, `description` and every other column byte-identical on every row.
-+  - The four rendered EN labels move, and the built `dist/` shows **"Ø Shots on goal"** with **zero**
-+    EN pages containing "on target". DE and FI pages byte-identical to base.
-+  - `npm test` stays 76/76, including all seven `check-metric-labels` tests, and the byte-identical
-+    gate is watched going RED on a deliberate break before being reverted.
-+  - Every "on target" occurrence in the repo is classified once with a printed decision, reported as
-+    a TWO-SIDED count (N move, M stay).
+-  - The nine `label_en` values read "on goal", and the seed differs from base in `label_en` ONLY —
+-    `metric_id`, `label_i18n_key`, `description` and every other column byte-identical on every row.
+-  - The four rendered EN labels move, and the built `dist/` shows **"Ø Shots on goal"** with **zero**
+-    EN pages containing "on target". DE and FI pages byte-identical to base.
+-  - `npm test` stays 76/76, including all seven `check-metric-labels` tests, and the byte-identical
+-    gate is watched going RED on a deliberate break before being reverted.
+-  - Every "on target" occurrence in the repo is classified once with a printed decision, reported as
+-    a TWO-SIDED count (N move, M stay).
++  - The fixture comparison renders **16** rows per window, not 12, measured from built `dist/` with
++    comments stripped, and the four restored labels named explicitly.
++  - **The set is self-consistent**: the fixture ids `landing.json` links, the ids in the `.gitignore`
++    allowlist, and the files tracked under `fixtures/` are the SAME set, asserted mechanically.
++  - Every committed payload is verbatim export output — no hand edits.
++  - `npm run build` green with `audit-seo … OK.`; `npm test` 76/76; `pytest` at the `7caaf21`
++    baseline; no untracked payload bulk left in the tree.
  
  decisions_taken: >
--  All seven names come from the record, `contribution_player_pct` included — it was ruled verbatim on
--  2026-08-29 (see `refs`), which is where an earlier draft of this contract was wrong.
+-  ⭐ **§1. THE DISCRIMINATOR IS "IS THIS A DISPLAYED LABEL?", AND IT IS APPLIED PER OCCURRENCE.**
+-  Step 4's closing lesson was that a scope coarser than the ROLE it must resolve is the one recurring
+-  defect, and it cost three rounds on `!132`. The same trap is here in a new dress: "on target"
+-  appears in display labels, in prose explaining the concept, in dated changelog rows, and in a
+-  comment that documents the id-vs-label split. Only the first moves. Each occurrence is classified
+-  once and the decision printed, and the result is reported as a two-sided count.
 -
--  ⭐⭐ **ONE QUESTION, ASKED OF EVERY OCCURRENCE.** 1,519 occurrences classified once, each decision
--  printed with its resolved entity — **279 renames, 63 re-points, 1,177 protected** across 93 swept
--  files, landing on 38 changed ones. 6,533 tokens
--  repo-wide: 4,888 untouched (the sample, `.claude/**`, `site/**`, `docs/audits/**`, the regenerated
--  `metric_columns.md`), 126 in provider `.sql`.
+-  ⭐ **§2. THE ONE COMMENT THIS CHANGE FALSIFIES, AND THE INSTRUCTION INSIDE IT THAT MUST SURVIVE.**
+-  `site_v2/src/lib/metricRows.ts:87-91` reads *"The internal id says 'on goal', the user-facing term
+-  is 'on target'. Do NOT 'fix' this to `metrics.shots_on_goal_per_match.label`."* After this MR both
+-  say "on goal", so the REASON is void — but the INSTRUCTION is not, and is now the only thing
+-  standing between a future reader and a label that resolves to nothing. The comment is rewritten to
+-  keep the instruction and replace the reason: the key name is legacy, not a term difference.
 -
--  ⭐⭐ **§1. EIGHT DERIVED PLAYER YOY COLUMNS MOVE — AND THEY ARE NOT ORPHANS.** `!131`'s five
--  deleted `__player` blocks had zero references. These eight do not: `goals_{this_season,
--  prev_season, prev_season_full, delta_yoy}` and the same four for `assists` each carry **two live
--  `doc()` references** on `int_player_profile__yoy` and `mart_player_profile` — 16 in all. Leaving
--  the columns behind would delete their blocks and dangle every one, turning
--  `check_description_hygiene` red. This is the class the CPO ruled on for `!129`'s `key_passes_*`
--  ("rename them with the metric"), so it is applied, not re-decided. Verified team-side safe: the
--  team uses `goals_for_*`, never `goals_*`.
--
--  ⭐⭐ **§2. A CPO RULING TAKEN THIS SESSION, AND WHAT IT ANSWERED.** `_shape_squad_member` writes
--  `"goals": career.get("goals")` — a published payload key on the left, a warehouse column on the
--  right. I asked whether the key moves with the column. He ruled: *"Naming conventions in the
--  warehouse are one thing. What we show on the website is another."* **So only the right half
--  moves.** Implemented as a ROLE rule rather than a file scope: the argument of `.get(...)` follows
--  the mart; a bare `"x":` dict key stays; anything else in those two files is a `metric_key` VALUE
--  and follows the mart's own column. Measured: **19 payload keys protected, 4 warehouse reads
--  renamed, 22 metric_key values renamed.**
--  ⚠ The same rule is what protects `export_site_data.py:1044/1046` — `"goals": r.get("goals_home")`,
--  a payload key that is a TEAM scoreline, in the same file as the player board keys. **`!131` shipped
--  exactly that class of mistake** by scoping this file wholesale.
--
--  ⭐⭐ **§3. `goals_for` CONTAINS THE STEM, SO `!131`'s DEFECT CLASS IS EVERYWHERE.** The scoreline
--  guard is widened from one companion token to the whole family — `goals_for`, `goals_against`,
--  `goals_home`, `goals_away`, `goals_diff`, `standing_goals_diff`, `goals_own` — and still scoped to
--  the CONSTRUCT (the paragraph in markdown, the enclosing statement elsewhere), because a
--  line-scoped test on a wrapping construct is how `!128` failed. The discriminator remains a fact
--  about the domain, not a heuristic: **there is no player `goals_for`.**
--
--  ⭐ **§4. A TOKEN-LEVEL RULE, JUSTIFIED BY A PROPERTY OF THE WHOLE REPO.**
--  `docs/content_architecture.md` mixes English `goals`/`assists` with one genuine backticked
--  `` `contribution_share` ``, so a file-level scope is wrong for it in BOTH directions. Rather than
--  exempt the file, I verified that `contribution_share` (12 occurrences) and `scorer_points` (39) are
--  **only ever this metric id** — never an English word, a provider column, a team metric or a UI key
--  — and decided them by token, before file scope. The property is checkable by grep.
--
--  ⭐ **§5. THE BACKTICK SETTLES WHERE THAT RULE STOPS, AND THE SEED'S ALLOWLIST OUTRANKS IT — both
--  found by measurement, not reasoning.**
--  (a) `seeds/schema.yml:339` says, in plain prose, *"Redundancy at tier 1 is deliberate — goals,
--  assists and scorer_points"*. Three PLAYER metric names in one readable list, but `goals` and
--  `assists` are protected there (line 330's `metric_group` enum value `goals` must not move), so the
--  token rule alone would have shipped **"goals, assists and scorer_points_player"** — an internally
--  inconsistent sentence. In a DOC file the backtick decides: an identifier reference moves, running
--  prose does not. **`seeds/schema.yml` therefore does not change at all.**
--  (b) ⛔ **AND THE FIRST APPLY SHIPPED A REAL DEFECT THAT THE SEED CHECK CAUGHT**: the
--  `contribution_share` row's own `description` glosses the formula as *"the player's goals + assists
--  (scorer_points)"*, and the token rule — checked before the seed's field allowlist — rewrote it to
--  `(scorer_points_player)`. **A rule placed before the allowlist silently reopens the hole `!131`
--  closed.** The seed allowlist now outranks it, and the check that found it is a done_when item:
--  the seed must differ from base in `metric_id` ONLY, on every row. Verified: 0 other fields differ.
--
--  ⭐⭐ **§6. THREE COLLAPSES AT ONCE, AND THE MECHANISM LOSES ITS LAST LIVE INSTANCE.** Simulated
--  against the real generator before any code, with both the seed renames and the eight derived
--  column renames applied in memory:
--
--      167 → 163 blocks   (22 removed, 18 added)
--      REMOVED  goals__{player,team} · goals_penalty__{player,team} ·
--               goals_open_play__{player,team} · assists · penalty_won · scorer_points ·
--               contribution_share · the 8 goals_/assists_ yoy __player blocks ·
--               4 goals_*__team derived orphans (verified 0 references)
--      ADDED    goals · goals_player · goals_penalty · goals_penalty_player ·
--               goals_open_play · goals_open_play_player · assists_player ·
--               penalty_won_player · scorer_points_player · contribution_player_pct ·
--               the 8 renamed yoy __player blocks
--
--  **63 `doc()` re-points, 19 of them TEAM-side.** ⛔ **After this MR the `__team`/`__player` split
--  has NO live instance in the catalogue** — all six dual-entity ids have been renamed across step 4.
--  `sync_metric_docs_blocks.py`'s module docstring uses `goals_open_play` as its worked example of the
--  collision, which this batch falsifies; it is rewritten by hand to state the rule and mark the
--  example historical. ⛔ **Nothing is deleted** — `_derived()` still suffixes by entity, `_blocks()`
--  still splits and still aborts, and the synthetic test fixtures stay. Whether a mechanism with no
--  live instance should remain is carried to the CPO, not acted on.
--
--  ⭐ **§7. #99 COMES DUE, AS THE HANDOVER PREDICTED.** `_LEADERBOARD_METRICS` / `_LB_KEEP` carry the
--  literal player board keys `"goals"`, `"assists"`, `"scorer_points"`; they follow the mart's
--  `metric_key` and move. Still pinned by no test — the gap is carried, not closed.
--
--  ⛔⛔ **§9. FIVE DEFECTS THE IMPLEMENTATION SURFACED — each found by a different means, and
--  each fixed as a RULE rather than an edit.** They are recorded because the means matter more than
--  the defects. **(d) and (e) are the blinded review's: round 1 FAILed 5–0, round 2 FAILed 4–1.**
--
--  **(a) Found by a CHECK.** The seed's `contribution_share` row glosses its own formula as *"the
--  player's goals + assists (scorer_points)"*, and the token rule — placed before the seed's field
--  allowlist — rewrote it to `(scorer_points_player)`. **A rule checked before the allowlist silently
--  reopens the hole `!131` closed.** The allowlist now outranks it, and the check that caught it is a
--  `done_when` item: the seed must differ from base in `metric_id` ONLY. Verified: 0 other fields.
--
--  **(b) Found by READING the applied diff.** `mart_player_career.sql:130` documents the catalogue row
--  as *"(entity=player, group=goals, tier 1)"*. The first apply turned that into `group=goals_player`
--  — naming a metric_group that does not exist. `goals` is a metric_GROUP value as well as a
--  metric_id (`seeds/schema.yml:330` lists it beside "shooting" and "defending"), so the rule is now
--  positional: `goals` immediately after `group=` / `group:` is the group. **No total, count or gate
--  would have shown this** — only reading the diff.
--
--  **(c) Found by the TEST SUITE, which is the one that matters.** I put
--  `tests/test_export_site_data.py` in the same payload-key/warehouse-read role set as the export, and
--  **pytest failed three tests**. The rule was not stale — it was inverted: in the TEST file a dict
--  KEY is a FIXTURE (a `mart_player_career` row, i.e. a warehouse column that must move), while the
--  payload keys appear as SUBSCRIPTS (`squad[9]["goals"]`) and as members of an expected-key set. No
--  single subscript rule works either, because `boards["goals_player"]` subscripts a dict keyed by
--  metric_key, which does move. So the test file follows the mart like any other player file, and the
--  four assertions about `_shape_squad_member` / `_shape_career_row` OUTPUT are corrected BY HAND — a
--  visible separate edit implementing §2's ruling rather than a rule contorted to serve both roles.
--  ⭐ **`!131` recorded that an automated rename editing code and test together leaves the suite
--  unable to disagree. Here the suite disagreed** — because the ruling deliberately holds one side
--  still, so the two sides could no longer move in lockstep. **A rule that forces the code and its
--  test apart is what makes the test able to fail.**
--
--  ⛔⛔ **(d) Found by the BLINDED REVIEW — round 1 FAILed 5–0, and I got this class wrong TWICE.**
--  `goals` and `assists` are ordinary English words, and the sweep rewrote them inside running prose.
--  `scope-auditor`, `analytics-engineer` and `football-analytics-expert` each found it independently:
--  *"the club's WHOLE-SEASON goals_player"*, *"own goals_player"*, *"Involved in 45% of Bayern's
--  goals_player"*, *"goals_player against"* — and because `+persist_docs` is on for every model, those
--  ship to BigQuery as the model's real documentation. `int_player_profile__contribution`'s docstring
--  said it BOTH ways in one paragraph: the prose mislabelled, the formula line beneath it correct.
--  ⛔ **Then my first fix over-corrected**, and `bi-analyst` caught the other side in the same round:
--  requiring the token to BE a whole backticked span left `` `mart_player_career.goals` ``,
--  `` `goals − goals_penalty_player` `` and the `Atomics` column's `goals, assists` stale — the last
--  two rows above metric ids `!130` had already renamed.
--  ⭐ **The rule that holds is ROLE, not punctuation** — the same lesson step 4 has been learning
--  since `!131`. A census over EVERY markdown table cell in the repo carrying the bare stem returned
--  **16 distinct column headers in three roles**:
--      IDENTIFIER  `Source column` · `Atomics` · `numerator` · `denominator`   → moves
--      PAYLOAD     `Payload key` · `JSON key`                                  → stays (§2's ruling)
--      PROSE       Element · Ruling · Gap · Notes · Display string · …         → stays
--  Outside a table the backtick still decides; `{goals}` is excluded as a template slot, proved by its
--  own sibling row where `{won} of {total} · {pct}%` sits against atomics `duels_won_player,
--  duels_player, duels_won_player_pct` — **the slots were never the ids.**
--  ⭐ `11_team_squad.md:120` carries BOTH rulings in one line and is now right in both halves:
--  `` `squad[].goals` `` stays, `` `mart_player_career.goals_player` `` moves.
--  **Measured across all 51 in-table occurrences: exactly 6 move, 45 stay.** Every one of the seven
--  prose sites the reviewers named is verified back to English.
--
--  ⛔ **(e) Found by the BLINDED REVIEW AGAIN — round 2, 4 PASS / 1 FAIL, and it is (d)'s rule meeting
--  a construct outside its reach.** `analytics-engineer` found two SQL comments —
--  `int_player_season__metrics.sql:112` and `int_player_season_position__metrics.sql:155` — reading
--  `-- ... open-play conversion = (goals − goals_penalty_player) / shots_on_goal_player`
--  directly above code that correctly computes `(goals_player - goals_penalty_player)`. A **formula
--  quoted in a comment**, half-renamed: every other name in the sentence had already moved, so the
--  comment contradicted the three lines beneath it.
--  ⭐ **This is the identical construct (d) fixed at `12_player_stats.md:142` via the `numerator`
--  column — the role rule simply had no reach outside a markdown table.** `in_operand_position()`
--  gives it one: a token inside a parenthesised arithmetic expression that ALSO names an underscored
--  identifier is an operand, not a word. Both conditions are required, and together they are what
--  separates a quoted formula from English — prose says "penalty goals" and "own goals" with no
--  operator and no underscored neighbour, and never inside parentheses holding both.
--  ⭐ **Census over every comment line in the repo carrying a bare swept token — 26 occurrences: the
--  rule moves exactly 2 and keeps all 24**, including "own goals", "Penalty goals", "goals/subs",
--  `group=goals`, and `mart_player_momentum.sql:72`'s "goals, then assists, then key passes", which
--  describes an ORDER BY over the PROVIDER columns `goals_total`/`goals_assists`.
--  ⛔ **Stated plainly, because it is the lesson: I set this one rule THREE times** — too wide (prose
--  rewritten), too narrow (identifier references left stale), then right in tables and blind outside
--  them. Same root each time, a scope coarser than the role it had to resolve; found by review each
--  time, by a gate never.
--
--  ⭐ **§8. ONE SINGULAR TEST**, name and expression together:
--  `player_contribution_share_within_unit` → `player_contribution_player_pct_within_unit`. The `!131`
--  precedent (`player_profile_saves_lte_faced`) applied to a second non-`*_in_range` name. **#96 is
--  narrow this batch**: only `shared.yml:1756`'s 14-name board list moves, 2 entries; five other lists
--  carry protected-only hits.
-+  ⭐ **§1. THE DISCRIMINATOR IS "IS THIS A DISPLAYED LABEL?", AND IT IS APPLIED PER OCCURRENCE.**
-+  Step 4's closing lesson was that a scope coarser than the ROLE it must resolve is the one recurring
-+  defect, and it cost three rounds on `!132`. The same trap is here in a new dress: "on target"
-+  appears in display labels, in prose explaining the concept, in dated changelog rows, and in a
-+  comment that documents the id-vs-label split. Only the first moves. Each occurrence is classified
-+  once and the decision printed, and the result is reported as a two-sided count.
+-  ⭐ **§3. WHY THE BYTE-IDENTICAL GATE DOES NOT BLOCK THIS, SIMULATED BEFORE ANY EDIT.**
+-  `check-metric-labels.test.mjs`'s *"CPO-validated MVP labels are byte-identical to site/i18n"*
+-  compares only keys present in BOTH `strings.ts` and the frozen corpus. Simulated against the real
+-  files: **29 labels compared, of which ZERO contain "on target"** — three of our four are absent
+-  from the frozen corpus and `finishing_efficiency_pct` is skipped by name, a divergence the test
+-  already documents as a §10 pick reserved to the CPO. The gate is measured, not assumed, and is
+-  mutation-tested afterwards.
++  ⭐ **§1. RUN IT TODAY, ON A DELIBERATELY THIN MATCHDAY — and this is MY call on HIS statement, not
++  a ruling of his.** The next matchday is **2026-09-01: 4 fixtures across 3 competitions**
++  (`CIT` ×2, `DFBP`, `SPL`), against the outgoing set's 19/13. I put the trade-off to him — thin now
++  versus 28/16 on 2026-09-04, recommending the wait — **he dismissed the question**, and then said
++  *"We're doing infrastructure work and don't show anything now."* My recommendation to wait rested
++  entirely on the thinner sample being VISIBLE; his statement removes that premise, leaving no
++  argument for delay. So I proceeded today. Full account, including that he never said "run it
++  today", in `escalations.log` 2026-09-01. **If the reading is wrong the cost is one more
++  roll-forward, not a wrong artefact** — but it is his to overturn, which is why it is written down
++  as an interpretation.
 +
-+  ⭐ **§2. THE ONE COMMENT THIS CHANGE FALSIFIES, AND THE INSTRUCTION INSIDE IT THAT MUST SURVIVE.**
-+  `site_v2/src/lib/metricRows.ts:87-91` reads *"The internal id says 'on goal', the user-facing term
-+  is 'on target'. Do NOT 'fix' this to `metrics.shots_on_goal_per_match.label`."* After this MR both
-+  say "on goal", so the REASON is void — but the INSTRUCTION is not, and is now the only thing
-+  standing between a future reader and a label that resolves to nothing. The comment is rewritten to
-+  keep the instruction and replace the reason: the key name is legacy, not a term difference.
++  ⭐ **§2. THE THIN SET STILL EXERCISES THE COMPONENTS, MEASURED BEFORE COMMITTING TO IT.**
++    · **Both competition shapes**: 3 `domestic_cup` + 1 `domestic_league`, so the standings block is
++      exercised on the league fixture and the no-table path on the cups.
++    · **Both form paths**: the matchday has **7** `mart_team_momentum` rows for 8 team-slots, so one
++      side has an absent W1 — the same deliberate absent-path coverage the outgoing set documented
++      for `1575140`, arrived at by measurement rather than luck.
++    · **The four restored columns are populated**: 6–7 of the 7 rows non-null.
 +
-+  ⭐ **§3. WHY THE BYTE-IDENTICAL GATE DOES NOT BLOCK THIS, SIMULATED BEFORE ANY EDIT.**
-+  `check-metric-labels.test.mjs`'s *"CPO-validated MVP labels are byte-identical to site/i18n"*
-+  compares only keys present in BOTH `strings.ts` and the frozen corpus. Simulated against the real
-+  files: **29 labels compared, of which ZERO contain "on target"** — three of our four are absent
-+  from the frozen corpus and `finishing_efficiency_pct` is skipped by name, a divergence the test
-+  already documents as a §10 pick reserved to the CPO. The gate is measured, not assumed, and is
-+  mutation-tested afterwards.
++  ⚠ **§3. THE CLOCK IS PART OF THE TASK.** First kickoff is **16:00 UTC**; it was 08:24 UTC when
++  the target set was measured. A fixture that kicks off leaves the selector, so the set can shrink
++  between measuring and exporting. **The committed set is verified against what the export actually
++  returned, never against this contract** — and if it comes back smaller, that is reported, not
++  papered over.
++
++  ⭐ **§4. COST IS MEASURED, NOT ESTIMATED AFTER THE FACT.** Reads marts only, writes no BigQuery
++  table, no ingest and no recurring cost. Read-only probing to build this plan billed ~84 MB; the
++  export's own scan is reported in the evidence.
  
  decisions_reserved:
--  - none NEW on naming beyond the ruling in `refs`, taken before any code and recorded with what it
--    answered. `contribution_player_pct` is HIS, ruled verbatim on 2026-08-29.
--  - ⭐ **NOW REALISED, AND STILL THE CPO'S: the `__team`/`__player` split has no live instance after
--    this MR.** Carried since `!130`, and `!131` showed the cost is concrete — four files documented
--    the mechanism with an example that no longer existed. This batch makes it five. Nothing is
--    proposed and nothing is removed.
--  - ⚠ CARRIED: the column-reference resolver as a committed CI gate — `!129` argued against it,
--    `!130` and `!131` bounded it further. Not proposed.
--  - ⚠ CARRIED: **#99** — the export's literal board keys move here but remain pinned by no test.
--  - ⚠ CARRIED: `_LEADERBOARD_METRICS` / `_LB_KEEP` untested; **#96**, eleven reproductions; **#87**,
--    which `!131` established this programme does NOT advance; **#98**.
--
--done_when:
--  - `sync_metric_docs_blocks.py --check` passes at **163** blocks, reconciled term by term against the simulation in §6 — 22 removed, 18 added.
--  - `check_description_hygiene.py`, `check_layer_contract.py` pass, `dbt parse` is clean, and the description count is measured against base. **All 16 derived-block references resolve** — the gate proves it.
--  - The seed differs from base in `metric_id` ONLY, on every row.
--  - The scoreline family is byte-identical and no renamed token shares a construct with it.
--  - `python -m pytest -q` matches the `6f0ee07` baseline; `npm test` green; the site built TWICE.
--  - `sqlfluff lint` on every changed model, from the REPO ROOT, UNPIPED, byte-identical to a re-lint of the stashed base.
--  - Mutations watched RED, including the yml-vs-projection check in both its strong and known-weak form.
--  - ⚠ `check_ui_i18n_metrics.py` is run because it is a real CI gate but is **NOT evidence** here.
-+  - ⛔ **THE SEED'S `description` COLUMN — flagged, not taken.** After this MR a row's label reads
-+    "on goal" while its description beside it still reads "shots on target", and `persist_docs`
-+    publishes those descriptions to BigQuery. My recommendation is a small follow-up applying the
-+    same wording to descriptions, but widening scope mid-MR is the failure this programme has been
-+    FAILed on, so it is the CPO's call and it is not taken here.
-+  - ⛔ **`label_i18n_key` renaming** — the one key containing "on_target" stays. A join-key rename
-+    across five surfaces and three parsers is its own job with its own contract.
-+  - ⚠ CARRIED from step 4, none of them touched here: the `__team`/`__player` split with no live
-+    instance; the resolver as a committed CI gate; **#99**; **#96**; **#87**; **#98**.
-+
-+done_when: >
-+  - The nine `label_en` values read "on goal" and the seed differs from base in `label_en` only.
-+  - The four `METRIC_LABELS_EN` values move; DE and FI are byte-identical.
-+  - `metricRows.ts`'s comment keeps its instruction and loses its dead reason.
-+  - Every "on target" occurrence classified once, reported as N move / M stay.
-+  - All offline gates EXIT=0 unpiped; `npm test` 76/76; `pytest` at the `649b11c` baseline;
-+    the site built and `dist/` read for "on goal" with zero EN "on target".
-+  - The label gate watched going RED on a deliberate break, then reverted green.
-+  - Five blinded reviewers, `review.md` bound with `--staged-hash`. Round cap 3.
+-  - ⛔ **THE SEED'S `description` COLUMN — flagged, not taken.** After this MR a row's label reads
+-    "on goal" while its description beside it still reads "shots on target", and `persist_docs`
+-    publishes those descriptions to BigQuery. My recommendation is a small follow-up applying the
+-    same wording to descriptions, but widening scope mid-MR is the failure this programme has been
+-    FAILed on, so it is the CPO's call and it is not taken here.
+-  - ⛔ **`label_i18n_key` renaming** — the one key containing "on_target" stays. A join-key rename
+-    across five surfaces and three parsers is its own job with its own contract.
+-  - ⚠ CARRIED from step 4, none of them touched here: the `__team`/`__player` split with no live
+-    instance; the resolver as a committed CI gate; **#99**; **#96**; **#87**; **#98**.
++  - ⛔ **Nothing enforces the landing↔allowlist match except `audit-seo.mjs` in CI, after the fact.**
++    `site_v2/src/data/README.md` names the real fix — CI building from a live export instead of
++    stored samples — as infrastructure work outside #367. Not proposed here; this MR asserts the
++    match mechanically in its own evidence instead, which is a check, not a guard.
++  - ⚠ CARRIED, untouched: step 5's two follow-ups (the seed `description` column; the four chrome
++    strings including the hero x-axis); the `__team`/`__player` split with no live instance; the
++    resolver as a committed CI gate; **#99**, **#96**, **#87**, **#98**.
+ 
+ done_when: >
+-  - The nine `label_en` values read "on goal" and the seed differs from base in `label_en` only.
+-  - The four `METRIC_LABELS_EN` values move; DE and FI are byte-identical.
+-  - `metricRows.ts`'s comment keeps its instruction and loses its dead reason.
+-  - Every "on target" occurrence classified once, reported as N move / M stay.
+-  - All offline gates EXIT=0 unpiped; `npm test` 76/76; `pytest` at the `649b11c` baseline;
+-    the site built and `dist/` read for "on goal" with zero EN "on target".
+-  - The label gate watched going RED on a deliberate break, then reverted green.
+-  - Five blinded reviewers, `review.md` bound with `--staged-hash`. Round cap 3.
++  - 16 rows render per window, the four restored labels named, measured from `dist/`.
++  - The three id lists (landing, allowlist, tracked files) are identical, asserted mechanically.
++  - `.gitignore`'s allowlist and `site_v2/src/data/README.md` both describe the NEW set — date,
++    counts, and the form-window coverage sentence.
++  - Departed payloads `git rm`'d; no untracked bulk left; every committed payload verbatim output.
++  - Gates green, the site built, `pytest` at baseline, and the export's BigQuery cost reported.
++  - Blinded review with `review.md` bound by `--staged-hash`. **Round cap 3.**
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 62285b3..acc0eec 100644
+index acc0eec..2174bc2 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -7199,3 +7199,59 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
-   One root — **a scope coarser than the role it had to resolve**, which is the same sentence `!131`
-   ended on. **Every gate was green at all three stages.** The blinded review is the only thing that
-   found any of it, which is now four MRs running.
+@@ -7255,3 +7255,48 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+   prose, and `persist_docs` publishes them to BigQuery, so after this MR a row's label and its own
+   description disagree. Recommended as a small follow-up; NOT folded in, because widening scope
+   mid-MR is precisely what this programme has been FAILed on.
 +
 +
 +---
 +
-+2026-08-31 STEP 5 STARTS — the English label "on target" -> "on goal", AND A RULING THAT WIDENS IT.
++2026-09-01 THE SAMPLE ROLL-FORWARD — AND AN AUTHORITY RECORD I ALMOST DID NOT WRITE.
 +
-+  ⭐⭐ RULING, taken this session and the reason this MR is bigger than RULING 2's stated scope.
-+  RULING 2 said the change is "in the catalogue". Before proposing anything I MEASURED where the
-+  website actually gets its metric labels, and it is NOT the catalogue: the site reads its own
-+  `METRIC_LABELS_EN` map in `site_v2/src/i18n/strings.ts`, keyed by `label_i18n_key`. **Four of the
-+  nine labels render on the live site today.** So catalogue-only would have changed a column with
-+  one consumer (`metrics.json`) and left every rendered page still reading "Shots on target" — the
-+  exact mismatch RULING 2 exists to remove.
-+  ⭐ THE QUESTION AND THE ANSWER, VERBATIM, because this entry was FAILed in review for narrating an
-+  outcome where every other ruling here quotes him. Asked, verbatim:
-+    "Step 5 changes the English wording 'on target' -> 'on goal'. Your ruling scoped it to 'in the
-+     catalogue' - that's 9 rows in the seed. But I measured where the website actually gets its
-+     labels, and it is NOT the catalogue: the site reads its own file
-+     (site_v2/src/i18n/strings.ts). Four of those nine labels render on the live site today, and
-+     they would keep saying 'Shots on target' if I only touch the catalogue. Do I change the
-+     website's four too?"
-+  He selected, verbatim, the option titled:
-+    **"Catalogue + website (recommended)"**
-+  whose stated text was: "Change all 9 catalogue labels AND the 4 that render on the site, so pages
-+  show 'O Shots on goal'. This is what your words asked for - 'consistency between the metric name
-+  and what we show (in english)'. German and Finnish stay untouched; they already say Torschusse /
-+  Maalilaukaukset. I checked the gates: no test breaks."
-+  The alternative he declined was "Catalogue only", stated as leaving the website showing
-+  "Shots on target".
-+  ⚠ It is a SELECTION, not free text — recorded as such rather than dressed up as a quotation of
-+  his own sentence. So the four `strings.ts` EN values move with the nine seed labels.
-+  ⚠ German and Finnish still do NOT move — that half of RULING 2 is untouched and was re-measured
-+  here: `Ø Torschüsse` and `Ø Maalilaukaukset` already say "goal shots".
++  ⛔ THIS ENTRY EXISTS BECAUSE `scope-auditor` FAILED ROUND 1 FOR ITS ABSENCE. The contract cited a
++  CPO steer as authority for a scope decision and I never wrote it here — the exact anti-pattern
++  `feedback_dont_attribute_repo_practice_to_cpo` records: "'you ruled' needs a quote from
++  escalations.log … I narrate outcomes in prose and never write them into the file the gate parses."
++  Fourth-plus recurrence. I appended the STEP 5 ruling correctly two MRs ago and skipped it here
++  because his input arrived as conversation rather than as a formal answer — which is not a
++  distinction the record recognises, and is precisely how this keeps happening.
 +
-+  ⛔ THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED. It named nine metric_ids; SIX were
-+  superseded by step 3's team renames and step 4's player renames (`shot_accuracy` is now
-+  `shots_on_goal_pct`, `sot_difference_per_match` is `shots_on_goal_difference_per_match`, the four
-+  player names all carry `_player`, and `finishing_efficiency` is `finishing_efficiency_pct`). The
-+  nine were re-derived by matching `label_en` against "on target" in the seed.
-+  ⭐ The COUNT was right and the NAMES were wrong, which is the tell worth keeping: a stale list can
-+  agree with reality on the summary number and disagree on every element.
++  ⭐ THE AUTHORITY FOR DOING THE TASK AT ALL, verbatim: **"start the sample roll-forward"**.
 +
-+  ⛔ STEP 5 IS THE MIRROR IMAGE OF STEP 4, AND THAT IS THE SAFETY PROPERTY. Every one of step 4's
-+  seven classifiers deliberately PROTECTED `label_en`; this MR moves `label_en` and protects
-+  `metric_id` everywhere. The two halves of the programme cannot collide.
++  ⛔ THE THIN-MATCHDAY QUESTION, AND WHAT ACTUALLY HAPPENED — recorded exactly, because it is NOT a
++  clean ruling and dressing it up as one is what got FAILed:
++    1. I asked, via AskUserQuestion, whether to roll forward TODAY (2026-09-01: 4 fixtures across
++       3 competitions, first kickoff 16:00 UTC) or wait for 2026-09-04 (28 fixtures, 16
++       competitions), recommending the wait. **He DISMISSED the question** — no option selected.
++    2. He then asked, verbatim: **"What is the problem? Explain in plain words, keep it short."**
++    3. After the plain-language explanation he said, verbatim and in full:
++       **"We're doing infrastructure work and don't show anything now."**
++    4. ⚠ **I INTERPRETED that as removing the objection and ran it today. He never said "run it
++       today" in words.** The reasoning: my recommendation to wait rested entirely on the sample
++       being visibly thinner, and his statement says nothing is on display — so the premise of my
++       own recommendation was gone, leaving no argument for delay.
++  ⚠ **Recorded as an INTERPRETATION of a statement, not as an answer to the question I asked.** If
++  that reading is wrong the cost is one more roll-forward, not a wrong artefact — but a reviewer
++  must be able to challenge it, which requires it to be written down in this form.
 +
-+  ⛔ `label_i18n_key` DOES NOT MOVE, including the one value that contains the words.
-+  `shots_on_goal_per_match` declares `metrics.shots_on_target_per_match.label` — the only key in the
-+  seed carrying "on_target". It is a JOIN KEY across the seed, `strings.ts`, `metricRows.ts`, three
-+  hand-written parsers and the page specs, and the catalogue declares no `..._on_goal_...` key, so
-+  "fixing" it resolves the label to nothing. RULING 2 governs what is SHOWN, not keys.
++  ⭐ WHAT WAS MEASURED BEFORE ACCEPTING THE THIN SET, since "he said it is fine" is not evidence
++  that it works: both competition shapes (3 domestic_cup + 1 domestic_league), all THREE form paths
++  (fully populated; present-but-NULL where a side has no player-stat coverage; entirely ABSENT), and
++  the row-omission path where a row has data on neither side. That is one more path than the
++  outgoing 19-fixture set documented.
 +
-+  ⛔ THE SEED'S `description` COLUMN IS FLAGGED, NOT TAKEN. ~19 descriptions say "shots on target" as
-+  prose, and `persist_docs` publishes them to BigQuery, so after this MR a row's label and its own
-+  description disagree. Recommended as a small follow-up; NOT folded in, because widening scope
-+  mid-MR is precisely what this programme has been FAILed on.
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index aadf9f0..c288961 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -8,11 +8,11 @@ goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from
- goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
- goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency_pct.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
- shots_per_match,team,metrics.shots_per_match.label,Ø Shots,"Average total shots attempted per match with available team stats. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),expression,false,decimal_1,shooting,2,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality)
--shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on target,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on target
-+shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on goal,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on target
- shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,% Shots from box,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),expression,false,percent,shooting,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
--shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Ø Shots on target,"Average shots on target per match, counted over the games whose shots-on-target data is present rather than every game played.",int_legs__team_match,sum(shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
--finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,% Goals per shot on target,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),expression,false,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
--finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,% Goals per shot on target,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].",int_legs__player_match,sum(goals_total - goals_penalty),sum(shots_on),expression,false,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher
-+shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Ø Shots on goal,"Average shots on target per match, counted over the games whose shots-on-target data is present rather than every game played.",int_legs__team_match,sum(shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
-+finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),expression,false,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
-+finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].",int_legs__player_match,sum(goals_total - goals_penalty),sum(shots_on),expression,false,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher
- duels_per_match,team,metrics.duels_per_match.label,Ø Duels,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),expression,false,decimal_0,duels,2,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure)
- duels_won_pct,team,metrics.duels_won_pct.label,% Duels won,Duel win rate. Null when duels_total is zero. Aggregated from player stats.,int_legs__team_from_players,sum(duels_won),sum(duels_total),expression,false,percent,duels,2,higher_better,Duel success - share of duels won; high = wins the physical battle
- duels_won_player_pct,player,playerMetrics.duels.wonPct,% Duels won,Duel win rate. Null when duels_total is zero.,int_legs__player_match,sum(duels_won),sum(duels_total),expression,false,percent,duels,1,higher_better,Duel success - share of 1v1 contests won; high = wins the physical battle
-@@ -31,7 +31,7 @@ assists_player,player,playerMetrics.scorerPoints.assists,Assists,Goal assists.,i
- goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties
- goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,Open-play goals,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency_player_pct. (goals_total already excludes own goals.),int_legs__player_match,sum(goals_total - goals_penalty),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output
- penalty_won_player,player,playerMetrics.penalties.won,Penalties won,Penalties won.,int_legs__player_match,sum(penalty_won),,expression,false,integer,goals,3,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little)
--shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on target,Shots on target.,int_legs__player_match,sum(shots_on),,expression,false,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played)
-+shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on goal,Shots on target.,int_legs__player_match,sum(shots_on),,expression,false,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played)
- duels_won_player,player,playerMetrics.duels.won,Duels won,Duels won. A duel is any 1v1 physical contest (ground and aerial pooled).,int_legs__player_match,sum(duels_won),,expression,false,integer,duels,1,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency)
- duels_player,player,playerMetrics.duels.total,Duels,Total duels contested.,int_legs__player_match,sum(duels_total),,expression,false,integer,duels,1,higher_better,Duel engagement - 1v1 contests entered in the window; high = a physically involved player (a volume read; can also reflect a side under pressure)
- dribbles_success_player,player,playerMetrics.dribbles.success,Dribbles completed,Successful dribbles.,int_legs__player_match,sum(dribbles_success),,expression,false,integer,duels,1,higher_better,Take-ons completed - opponents beaten on the dribble; high = a dangerous ball-carrier (a volume read; the success rate captures reliability)
-@@ -50,7 +50,7 @@ cards_red_player,player,playerMetrics.cards.red,Red cards,Red cards.,int_legs__p
- offsides_player,player,playerMetrics.offsides.label,Offsides,Offsides caught.,int_legs__player_match,sum(offsides),,expression,true,integer,discipline,2,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement)
- penalty_committed_player,player,playerMetrics.penalties.committed,Penalties conceded,"Penalties the player conceded. The provider spells the source field `penalty.commited`, which is misspelled at source and spelled correctly here.",int_legs__player_match,sum(penalty_committed),,expression,true,integer,discipline,3,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little)
- saves_player,player,playerMetrics.savePct.saves,Saves,Saves made.,int_legs__player_match,sum(saves),,expression,false,integer,goalkeeping,1,higher_better,Save volume - shots on target kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that)
--shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target faced,Shots on target faced. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,expression,true,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper)
-+shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on goal faced,Shots on target faced. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,expression,true,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper)
- saves_player_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percentage. Null when denominator is zero.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,false,percent,goalkeeping,1,higher_better,Share of shots on target saved; high = a strong shot-stopper.
- shots_player,player,playerMetrics.shots.label,Shots,Total shots (on and off target).,int_legs__player_match,sum(shots_total),,expression,false,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played)
- goals_against_player,player,playerMetrics.goalsConceded.label,Goals conceded,Goals conceded by the team while the player was on the pitch (GK-relevant).,int_legs__player_match,sum(goals_against),,expression,true,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual)
-@@ -62,7 +62,7 @@ cards_player,player,playerMetrics.cards.label,Cards,"Yellow plus red cards (tota
- goals_per90,player,playerMetrics.goalsPer90.label,Ø Goals per 90,Goals per 90 minutes played. Minutes-normalised so playing time does not distort the comparison. Null when minutes is zero.,int_legs__player_match,sum(goals_total) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.
- assists_per90,player,playerMetrics.assistsPer90.label,Ø Assists per 90,Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,How often the player creates goals for others; high = a frequent creator.
- scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,Ø Goal contributions per 90,Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_total + goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.
--shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Ø Shots on target per 90,Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),expression,false,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
-+shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Ø Shots on goal per 90,Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),expression,false,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
- passes_key_per90,player,playerMetrics.keyPassesPer90.label,Ø Key passes per 90,Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_key) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.
- dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,Ø Dribbles completed per 90,Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(dribbles_success) * 90,sum(minutes_played),expression,false,decimal_1,duels,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.
- passes_per90,player,playerMetrics.passesPer90.label,Ø Passes per 90,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_total) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one
-@@ -72,8 +72,8 @@ blocks_per90,player,playerMetrics.blocksPer90.label,Ø Blocks per 90,Blocks per
- defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Ø Defensive actions per 90,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press
- duels_won_per90,player,playerMetrics.duelsWonPer90.label,Ø Duels won per 90,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(duels_won) * 90,sum(minutes_played),expression,false,decimal_1,duels,2,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency
- saves_per90,player,playerMetrics.savesPer90.label,Ø Saves per 90,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(saves) * 90,sum(minutes_played),expression,false,decimal_1,goalkeeping,2,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that
--shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Ø Shots on target difference,Average shots-on-target difference per match (on target for - against). The best non-outcome predictor of league position; the deserved process signal behind deserved-vs-actual. Null unless both own and opponent shots-on-target data cover every season game.,int_legs__team_match,sum(shots_on_goal - opponent_shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input)
--shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Ø Shots on target against,Average shots on target conceded per match. The defensive companion to shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),expression,true,decimal_1,shooting,1,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
-+shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Ø Shots on goal difference,Average shots-on-target difference per match (on target for - against). The best non-outcome predictor of league position; the deserved process signal behind deserved-vs-actual. Null unless both own and opponent shots-on-target data cover every season game.,int_legs__team_match,sum(shots_on_goal - opponent_shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input)
-+shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Ø Shots on goal against,Average shots on target conceded per match. The defensive companion to shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),expression,true,decimal_1,shooting,1,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
- deserved_rank,team,metrics.deserved_rank.label,Deserved position,"Rank of the team within its league-season by deserved_points (descending; 1 = most points deserved) - the process-deserved table position. Not aggregated from match legs; computed by ranking the deserved_points metric, so the position and the points total can never disagree. Domestic leagues only. Null exactly whenever deserved_points is null - the two appear and disappear together, so a team never shows one without the other.",,,,model,true,integer,outcomes,2,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit
- deserved_points,team,metrics.deserved_points.label,Deserved points,"Points the on-target process deserved across the season. Within each league-season, ordinary least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted rate multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a within-group position, not a comparable league table. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total
- deserved_points_gap,team,metrics.deserved_points_gap.label,Deserved-points gap,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad"
-diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
-index 8aad553..983a159 100644
---- a/docs/wireframes/02_team_profile.md
-+++ b/docs/wireframes/02_team_profile.md
-@@ -137,14 +137,14 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
- | Clean sheets (x/y) | derivable: `clean_sheets` of `played` |
- | Ø Shots | `shots_per_match` |
- | % Shots from box | `shots_inside_box_pct` |
--| % Goals per shot on target | `finishing_efficiency_pct` |
-+| % Goals per shot on goal | `finishing_efficiency_pct` |
- | Ø Passes | `passes_per_match` |
- | % Pass accuracy | `passes_accuracy_pct` |
- | Ø Corners | `corners_per_match` |
- | Ø Corners against | `corners_against_per_match` |
- | % Save percentage | `saves_pct` |
++  ⛔ AN UNRELATED FINDING, FLAGGED AND NOT ACTED ON. Attributing this MR's BigQuery spend surfaced
++  **1,488 query jobs / 37.23 GB at 04:02-05:27 UTC on 2026-09-01** under
++  `github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com`. That contradicts
++  `CLAUDE.md` ("GitHub … Its Actions run nothing") and `active_work.md` ("no nightly SCHEDULE exists
++  … nothing refreshes the data on a timer"), and it explains why the warehouse was fresh enough for
++  this roll-forward to work. ~$0.23/day, recurring, unattributed in the docs. **Cost is the CPO's.**
++  Not investigated further and not folded in.
+diff --git a/.gitignore b/.gitignore
+index 235e9d9..4413bd1 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -260,33 +260,23 @@ site_v2/src/data/slug_map.json
+ site_v2/src/data/teams/*.json
+ !site_v2/src/data/teams/33.json
+ site_v2/src/data/fixtures/*.json
+-# The 2026-08-28 matchday: 19 fixtures across 13 competitions, exactly what `landing.json` links to.
++# The 2026-09-01 matchday: 4 fixtures across 3 competitions, exactly what `landing.json` links to.
+ #
+-# ⛔ THIS SET REPLACED THE 2026-08-18 ONE WHOLESALE, and a future refresh must do the same rather
++# ⛔ THIS SET REPLACED THE 2026-08-28 ONE WHOLESALE, and a future refresh must do the same rather
+ # than append. The export emits UPCOMING fixtures only — `status_short in ('NS', 'TBD') and
+ # fixture_date >= current_date()` in `fetch_fixture_payloads` — and once a fixture kicks off its
+-# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether (queried:
+-# 0 rows for both of the previous set's ids). So a past id can never be re-exported, and a stale
+-# entry left here would pin a payload that no rerun can ever update. Replace, never add.
+-!site_v2/src/data/fixtures/1493106.json
+-!site_v2/src/data/fixtures/1550097.json
+-!site_v2/src/data/fixtures/1552144.json
+-!site_v2/src/data/fixtures/1552746.json
+-!site_v2/src/data/fixtures/1553147.json
+-!site_v2/src/data/fixtures/1553153.json
+-!site_v2/src/data/fixtures/1557381.json
+-!site_v2/src/data/fixtures/1558608.json
+-!site_v2/src/data/fixtures/1570353.json
+-!site_v2/src/data/fixtures/1570359.json
+-!site_v2/src/data/fixtures/1575140.json
+-!site_v2/src/data/fixtures/1575481.json
+-!site_v2/src/data/fixtures/1576152.json
+-!site_v2/src/data/fixtures/1576153.json
+-!site_v2/src/data/fixtures/1584391.json
+-!site_v2/src/data/fixtures/1602998.json
+-!site_v2/src/data/fixtures/1602999.json
+-!site_v2/src/data/fixtures/1603000.json
+-!site_v2/src/data/fixtures/1603001.json
++# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether. So a past
++# id can never be re-exported, and a stale entry left here would pin a payload that no rerun can
++# ever update. Replace, never add.
++# ⚠ The 2026-08-28 set proved that from the other side: it was FOUR DAYS past when replaced, and its
++# payloads were still missing four mart columns added after they were written — `shots_inside_box_pct`,
++# `finishing_efficiency_pct`, `passes_accuracy_pct`, `passes_key_per_match` — so the fixture
++# comparison rendered 12 of its 16 locked rows. Not one of the 19 changed on a rerun. Zero of them
++# carried over into this set.
++!site_v2/src/data/fixtures/1550704.json
++!site_v2/src/data/fixtures/1603007.json
++!site_v2/src/data/fixtures/1628894.json
++!site_v2/src/data/fixtures/1629056.json
  
--**Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
-+**Missing season variants (GAP-13)**: Ø Shots on goal, Ø Duels, % Duels won,
- Ø Defensive actions, Ø Key passes — the full-season intermediate predates the
- player-stat-derived team metrics. Until GAP-13 ships these rows render only in
- the fixture comparison, not here. Coverage caption from
-diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
-index 3ecc2fb..96acfaf 100644
---- a/docs/wireframes/03_player_profile.md
-+++ b/docs/wireframes/03_player_profile.md
-@@ -45,7 +45,7 @@ atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest
- ├────────────────────────────────────────────┤
- │  SEASON STATS                              │  (5) the 9 bundled rows
- │  Scorer points        9 G · 6 A            │
--│  Shots on target      21                   │
-+│  Shots on goal        21                   │
- ├──────────────— fold (~700px) —─────────────┤
- │  Duels won            96 of 178 · 54%      │
- │  Successful dribbles  38 of 61 · 62%       │
-@@ -91,7 +91,7 @@ catalogue metrics; rendered as a one-line summary.
- | Bundle (contract) | JSON keys (selected season row) |
- |---|---|
- | Scorer points | `goals_player`, `assists_player` |
--| Shots on target | `shots_on_target` |
-+| Shots on goal | `shots_on_target` |
- | Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
- | Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
- | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
-diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
-index 30a53b7..1fd1b51 100644
---- a/docs/wireframes/10_home.md
-+++ b/docs/wireframes/10_home.md
-@@ -132,7 +132,7 @@ deleted, per this file's own convention.
- What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points_player`
- (goals and assists became boards in their own right, so the combined metric had nothing left to
- combine), every second/context column (`passes_accuracy_player_pct`, `dribbles_success_player_pct`,
--`duels_won_player_pct`, `saves_player_pct`), and Shots on target, Duels, Dribbles, Tackles, Goals conceded and
-+`duels_won_player_pct`, `saves_player_pct`), and Shots on goal, Duels, Dribbles, Tackles, Goals conceded and
- Cards entirely. ⚠ **There is therefore NO GOALKEEPER BOARD** — the four survivors are all
- attacking/possession metrics, so an outfield creator can top every board and a keeper can top none.
- ⚠ The Goals-conceded row's "ASCENDING" note is what GAP-26 was written about; that board no longer
-@@ -144,7 +144,7 @@ exists and the gap is VOID.
- | Board | Shown | Ranked by |
- |---|---|---|
- | Goal contributions | `goals_player` · `assists_player` · `scorer_points_player` | `scorer_points_player` |
--| Shots on target | `shots_on_goal_player` | `shots_on_goal_player` |
-+| Shots on goal | `shots_on_goal_player` | `shots_on_goal_player` |
- | Duels | `duels_won_player` · `duels_player` · `duels_won_player_pct` | `duels_player` |
- | Dribbles attempted | `dribbles_attempts_player` · `dribbles_success_player` · `dribbles_success_player_pct` | `dribbles_attempts_player` |
- | Passes | `passes_player` · `passes_accurate_player` · `passes_accuracy_player_pct` | `passes_player` |
-@@ -170,7 +170,7 @@ was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_o
- |---|---|---|
- | % Points captured | `points_capture_pct` · `points_won` · `deserved_points` | `points_capture_pct` |
- | Ø Goals | `goals_per_match` · `goals_against_per_match` | `goals_per_match` |
--| Ø Shots on target difference | `shots_on_goal_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency_pct` | `shots_on_goal_difference_per_match` |
-+| Ø Shots on goal difference | `shots_on_goal_difference_per_match` · `shots_on_goal_per_match` · `shots_on_goal_against_per_match` · `finishing_efficiency_pct` | `shots_on_goal_difference_per_match` |
- | Ø Defensive actions | `defensive_actions_per_match` | descending |
- | Ø Passes | `passes_accuracy_pct` · `passes_key_per_match` · `passes_per_match` | `passes_per_match` |
- | Ø Duels | `duels_per_match` · `duels_won_pct` | `duels_per_match` |
-@@ -337,7 +337,7 @@ Closed since 2026-08-04:
-   players ruling, this is NOT free against the existing mock.** `top_teams_mock.html` was opened
-   to check (per THE METHOD: check the mock's numbers, don't trust them): 3 of its 4 boards
-   genuinely mix teams from one league — Real Madrid + Barcelona both La Liga on Goals/Shots on
--  target/Passes, Arsenal + Manchester City both Premier League on Shots on target/Passes — and
-+  target/Passes, Arsenal + Manchester City both Premier League on Shots on goal/Passes — and
-   drop other pool leagues off the board entirely. Only Duels per match lands on 7 distinct
-   leagues, by coincidence, not design. The players mock was already correct by accident; this one
-   is not, and its placeholder rows need redoing before anyone should read a shape off it. No mart
-diff --git a/docs/wireframes/12_player_stats.md b/docs/wireframes/12_player_stats.md
-index df060a3..281818a 100644
---- a/docs/wireframes/12_player_stats.md
-+++ b/docs/wireframes/12_player_stats.md
-@@ -54,7 +54,7 @@ floor carries no block (§6).
- │  Goals            0.82            ▐███████▌ top 5%│      per-90 value · bar (dashed median) · label
- │  Assists          0.31            ▐█████▌ top 28% │
- │  SHOOTING                                         │
--│  Shots on target  1.9             ▐██████▌ top 12%│
-+│  Shots on goal    1.9             ▐██████▌ top 12%│
- │  Finishing        18 of 74 · 24%  ▐████▌ median   │      ratio → volume triple in the value slot
- ├────────────────── fold (~700px) ──────────────────┤
- │  DUELS                                            │
-diff --git a/docs/wireframes/14_team_stats.md b/docs/wireframes/14_team_stats.md
-index 6a55456..f44a773 100644
---- a/docs/wireframes/14_team_stats.md
-+++ b/docs/wireframes/14_team_stats.md
-@@ -62,7 +62,7 @@ next to the %), both being separate metrics already in the set.
- │  SHOOTING                                         │      order = the LOCKED shooting funnel
- │  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
- │  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
--│  Ø Shots on target 5.3  3rd of 18   +0.8  ▐███▌   │      on-target volume →
-+│  Ø Shots on goal   5.3  3rd of 18   +0.8  ▐███▌   │      on-goal volume →
- │  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
- ├────────────────── fold (~700px) ──────────────────┤
- │  DUELS                                            │
-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 93b3ef5..47f8104 100644
---- a/docs/wireframes/metrics_display.md
-+++ b/docs/wireframes/metrics_display.md
-@@ -135,8 +135,8 @@ Set pieces → Goalkeeping.
- | 3 | Clean sheets (x/y) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | **new** (GAP-11) |
- | 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
- | 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
--| 6 | Ø Shots on target | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
--| 7 | % Goals per shot on target | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11) |
-+| 6 | Ø Shots on goal | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
-+| 7 | % Goals per shot on goal | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11; "on target" → "on goal", step 5) |
- | 8 | Ø Duels | `duels_per_match` | Duels | 2 | **new** (GAP-11) |
- | 9 | % Duels won | `duels_won_pct` | Duels | 2 | live |
- | 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
-@@ -170,11 +170,19 @@ owns its order, grouping and tier; the i18n layer owns its display string per lo
- 
- ⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
- id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
--`shots_on_goal_per_match` — the internal id says "on goal", the user-facing term is "on target". The
--catalogue reconciles them in its `label_i18n_key` column, which for that row is
--`metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during #370: the key was
--read as a metric id, judged dangling, and replaced with one the catalogue declares nowhere. **Resolve
--a label by reading the `label_i18n_key` column; never infer it from an id or a payload field.**
-+`shots_on_goal_per_match`. The catalogue reconciles them in its `label_i18n_key` column, which for
-+that row is `metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during
-+#370: the key was read as a metric id, judged dangling, and replaced with one the catalogue declares
-+nowhere. **Resolve a label by reading the `label_i18n_key` column; never infer it from an id or a
-+payload field.**
-+
-+⭐ **The REASON for that mismatch changed in step 5; the INSTRUCTION did not.** It used to be a real
-+term split — the internal id said "on goal" while the user-facing label said "on target". RULING 2
-+closed that: **both now say "on goal"**, and the label reads `Ø Shots on goal`. What survives is
-+purely a LEGACY KEY NAME. `metrics.shots_on_target_per_match.label` is still the only key in the
-+catalogue carrying "on_target", it is still what `strings.ts` and `metricRows.ts` join on, and the
-+catalogue still declares no `metrics.shots_on_goal_per_match.label` — so inferring the key from the
-+id still resolves the label to nothing. Renaming the key is a separate job with its own contract.
- 
- ⚠ **Row 3 carries TWO metric ids, and that is the contract, not a typo.** A row of this table is a
- display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
-@@ -187,8 +195,10 @@ formula between them, and the seed carries both. In `metricRows.ts` the row's ow
- order, group and tier are shared and unchanged, so this table still locks sixteen rows.
- 
- Row 7's "relabeled" note is also load-bearing: this document rules that v2 ships
--`% Goals per shot on target`, while the retired MVP corpus (`site/i18n/*.json`) says
--`% Conversion rate`. #370 kept this document's version and left the divergence for the CPO.
-+`% Goals per shot on goal` (step 5; it read `% Goals per shot on target` until then), while the
-+retired MVP corpus (`site/i18n/*.json`) says `% Conversion rate`. #370 kept this document's version
-+and left the divergence for the CPO, and step 5 does not settle it either — the frozen corpus is not
-+touched, and `check-metric-labels.test.mjs` still skips this one row by name for that reason.
- 
- **German and Finnish are CPO-approved** (2026-07-31); ten are carried forward from the validated MVP
- corpus and are test-pinned to it so they cannot drift.
-@@ -216,7 +226,7 @@ Performance row's is 77px, both measured at 375px.
- Any locale that compounds (Dutch is next) inherits all of this.
- 
- **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
--comparison): `shots_on_goal_pct` (% shots on target — superseded by the Ø-shots vs
-+comparison): `shots_on_goal_pct` (% shots on goal — superseded by the Ø-shots vs
- Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /
- `blocks_per_match` (sub-display of row 10 only), `dribbles_success_player_pct`
- (dropped team-side; stays a player metric), `points_won` + `league_rank`
-@@ -225,7 +235,7 @@ comparison): `shots_on_goal_pct` (% shots on target — superseded by the Ø-sho
- ### The shooting funnel (rationale, ruled with fix "a")
- 
- Volume (Ø shots) → location quality (% from box) → on-target volume (Ø shots on
--target) → finishing (% goals per shot on target). The finishing metric keeps its
-+goal) → finishing (% goals per shot on goal). The finishing metric keeps its
- formula (goals ÷ shots on goal, coverage-aligned) — the old label "% Conversion
- rate" was the misnomer and is replaced. Glossary carries the caveat that finishing
- can exceed 100% (penalties/own goals counted as goals but not always as shots);
-@@ -255,7 +265,7 @@ mixes groups; (3) ratio displays standardized to the full triple
- | # | Row | Display string | Atomics | Group |
- |---|---|---|---|---|
- | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
--| 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
-+| 2 | Shots on goal | `{shots_on}` | shots_on_target | Shooting |
- | 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | Duels |
- | 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | Duels |
- | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
-diff --git a/site_v2/scripts/check-metric-labels.test.mjs b/site_v2/scripts/check-metric-labels.test.mjs
-index 704ecef..c16b38d 100644
---- a/site_v2/scripts/check-metric-labels.test.mjs
-+++ b/site_v2/scripts/check-metric-labels.test.mjs
-@@ -63,8 +63,11 @@ test("every labelKey is a label_i18n_key the catalogue actually declares", () =>
-   // Checks the `label_i18n_key` COLUMN, verbatim. The first version of this test stripped
-   // ⚠ Read the `label_i18n_key` COLUMN. Do not strip `metrics.`/`.label` and look the remainder up in
-   // `metric_id` — that is a different and wrong invariant. metric_id `shots_on_goal_per_match` declares
--  // label_i18n_key `metrics.shots_on_target_per_match.label` (internal id "on goal", user-facing term
--  // "on target"), so an id-based check calls the real key dangling and an invented one valid.
-+  // label_i18n_key `metrics.shots_on_target_per_match.label`, so an id-based check calls the real key
-+  // dangling and an invented one valid.
-+  // ⭐ That disagreement is now a LEGACY KEY NAME, not a term split: step 5 (RULING 2) moved the
-+  // English label to "Ø Shots on goal", so the id and the user-facing term agree and only the key
-+  // still reads "on_target". The invariant this test enforces is unchanged.
-   const csv = readFileSync(join(REPO, "dbt_project/seeds/metric_catalogue.csv"), "utf8");
-   const lines = csv.split(/\r?\n/);
-   const header = lines[0].split(",");
-diff --git a/site_v2/src/components/team/DeservedHero.astro b/site_v2/src/components/team/DeservedHero.astro
-index 3a91614..9009d0e 100644
---- a/site_v2/src/components/team/DeservedHero.astro
-+++ b/site_v2/src/components/team/DeservedHero.astro
-@@ -40,9 +40,12 @@ const nums = [
-   // #370: names read from the catalogue's own i18n keys, not from three hand-written `heroSot*`
-   // strings. Each key is the metric whose value sits beside it, so the tile cannot drift from the
-   // number it labels.
--  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target" — internal id vs
--  // user-facing term. Read it from the catalogue's `label_i18n_key` column; never infer it from the
--  // payload field name.
-+  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target". Read it from the
-+  // catalogue's `label_i18n_key` column; never infer it from the payload field name.
-+  // ⭐ It is a LEGACY KEY NAME, not a term split. Step 5 (RULING 2) moved the English label to
-+  // "Ø Shots on goal", so the id and the user-facing term now agree and only the KEY still says
-+  // "on_target" — and the catalogue declares no `..._on_goal_...` variant, so inferring it from the
-+  // id still resolves to nothing.
-   { label: metricLabel(lang, "metrics.shots_on_target_per_match.label"), value: decimal1(s.shots_on_goal_per_match, lang) },
-   { label: metricLabel(lang, "metrics.shots_on_goal_against_per_match.label"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
-   { label: metricLabel(lang, "metrics.shots_on_goal_difference_per_match.label"), value: signedDec1(s.shots_on_goal_difference_per_match) },
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index f6c34c6..b84c0ab 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -602,9 +602,17 @@ export function positionLabel(lang: Lang, code: string | null | undefined): stri
-  *  extraction, so flat keys would have smuggled 54 strings past the copy check. This map has its own
-  *  reader in the copy gate.
-  *
-- *  ENGLISH IS UNCHANGED BY THIS TASK. Every EN string below is byte-identical to what shipped before,
-- *  including `% Goals per shot on target`, which the CPO's MVP corpus calls `% Conversion rate` — two
-- *  approved English names for one metric, a §10 pick left to him and recorded in the contract.
-+ *  ENGLISH WAS UNCHANGED BY #370, AND CHANGED ONCE SINCE, BY STEP 5 OF THE NAMING PROGRAMME.
-+ *  RULING 2 — "consistency between the metric name and what we show (in english)" — moved four EN
-+ *  labels from "on target" to "on goal", so they now match ids that have said `shots_on_goal_*` all
-+ *  along. Those four are the ONLY EN strings here that have ever moved; every other one is still
-+ *  byte-identical to what shipped with #370.
-+ *  ⚠ `% Goals per shot on goal` remains a divergence from the CPO's MVP corpus, which calls that
-+ *  metric `% Conversion rate` — two approved English names for one metric, a §10 pick left to him,
-+ *  recorded in the contract and skipped by name in `check-metric-labels.test.mjs`. Step 5 changed
-+ *  the wording, not the divergence.
-+ *  ⛔ DE and FI did NOT move, by the same ruling: both already say "goal shots" (`Ø Torschüsse`,
-+ *  `Ø Maalilaukaukset`), which is why only English was out of step.
-  *  DE/FI provenance: 10 are the CPO's validated MVP corpus (`site/i18n/*.json`), test-pinned so they
-  *  cannot drift; the rest were written for this task and externally verified, EXCEPT the three
-  *  Finnish forms the CPO supplied himself.
-@@ -621,10 +629,10 @@ const METRIC_LABELS_EN: MetricLabels = {
-   "metrics.clean_sheets_pct.label": "% Clean sheets",
-   "metrics.shots_per_match.label": "Ø Shots",
-   "metrics.shots_inside_box_pct.label": "% Shots from box",
--  "metrics.shots_on_target_per_match.label": "Ø Shots on target",
--  "metrics.shots_on_goal_against_per_match.label": "Ø Shots on target against",
--  "metrics.shots_on_goal_difference_per_match.label": "Ø Shots on target difference",
--  "metrics.finishing_efficiency_pct.label": "% Goals per shot on target",
-+  "metrics.shots_on_target_per_match.label": "Ø Shots on goal",
-+  "metrics.shots_on_goal_against_per_match.label": "Ø Shots on goal against",
-+  "metrics.shots_on_goal_difference_per_match.label": "Ø Shots on goal difference",
-+  "metrics.finishing_efficiency_pct.label": "% Goals per shot on goal",
-   "metrics.duels_per_match.label": "Ø Duels",
-   "metrics.duels_won_pct.label": "% Duels won",
-   "metrics.defensive_actions_per_match.label": "Ø Defensive actions",
-diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
-index b2afaa8..0c82304 100644
---- a/site_v2/src/lib/metricRows.ts
-+++ b/site_v2/src/lib/metricRows.ts
-@@ -86,9 +86,12 @@ export const METRIC_ROWS: MetricRowDef[] = [
-   { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
-   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
-   //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
--  // The internal id says "on goal", the user-facing term is "on target". Do NOT "fix" this to
--  // `metrics.shots_on_goal_per_match.label` — the catalogue declares no such key and the label would
--  // resolve to nothing.
-+  // Do NOT "fix" this to `metrics.shots_on_goal_per_match.label` — the catalogue declares no such
-+  // key and the label would resolve to nothing.
-+  // ⭐ The REASON changed in step 5, the INSTRUCTION did not. This used to be a genuine term split
-+  // (internal id "on goal", user-facing label "on target"); RULING 2 closed it, so the label now
-+  // reads "Ø Shots on goal" and both say "on goal". What is left is only a LEGACY KEY NAME, which
-+  // is still the join key and still the only thing that resolves this label.
-   { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
-   { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
-   { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
+ # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
+ # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md             |   27 +-
+#    site_v2/src/data/fixtures/1493106.json |  724 --------
+#    site_v2/src/data/fixtures/1550097.json |  592 ------
+#    site_v2/src/data/fixtures/1550704.json |  289 +++
+#    site_v2/src/data/fixtures/1552144.json |  659 -------
+#    site_v2/src/data/fixtures/1552746.json |  634 -------
+#    site_v2/src/data/fixtures/1553147.json |  731 --------
+#    site_v2/src/data/fixtures/1553153.json |  681 -------
+#    site_v2/src/data/fixtures/1557381.json |  615 -------
+#    site_v2/src/data/fixtures/1558608.json |  599 ------
+#    site_v2/src/data/fixtures/1570353.json |  651 -------
+#    site_v2/src/data/fixtures/1570359.json |  563 ------
+#    site_v2/src/data/fixtures/1575140.json |  408 ----
+#    site_v2/src/data/fixtures/1575481.json |  673 -------
+#    site_v2/src/data/fixtures/1576152.json |  582 ------
+#    site_v2/src/data/fixtures/1576153.json |  668 -------
+#    site_v2/src/data/fixtures/1584391.json |  563 ------
+#    site_v2/src/data/fixtures/1602998.json |  631 -------
+#    site_v2/src/data/fixtures/1602999.json |  659 -------
+#    site_v2/src/data/fixtures/1603000.json |  655 -------
+#    site_v2/src/data/fixtures/1603001.json |  687 -------
+#    site_v2/src/data/fixtures/1603007.json |  687 +++++++
+#    site_v2/src/data/fixtures/1628894.json |  661 +++++++
+#    site_v2/src/data/fixtures/1629056.json |  596 ++++++
+#    site_v2/src/data/landing.json          |  474 +----
+#    site_v2/src/data/teams/33.json         | 3167 ++++++++++++++++----------------
+#    26 files changed, 3898 insertions(+), 13978 deletions(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -915,8 +433,9 @@ index b2afaa8..0c82304 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |  352 ++--
-#    .claude/task/rendered_page_evidence.md |  107 +-
-#    .claude/task/review_input.patch        | 3387 ++++++++------------------------
-#    3 files changed, 981 insertions(+), 2865 deletions(-)
+#   .claude/task/acceptance_evidence.md    |  259 +++----
+#    .claude/task/rendered_page_evidence.md |  133 ++--
+#    .claude/task/review.md                 |  235 ++----
+#    .claude/task/review_input.patch        | 1244 ++++++++++----------------------
+#    4 files changed, 628 insertions(+), 1243 deletions(-)
 # ============================================================================

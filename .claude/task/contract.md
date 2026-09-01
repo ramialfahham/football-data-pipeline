@@ -1,41 +1,50 @@
-# Task contract — STEP 5: the English label "on target" → "on goal"
+# Task contract — the sample roll-forward
 
 objective: >
-  **STEP 5 of the metric catalogue naming programme, and the mirror image of step 4.** Step 4 moved
-  `metric_id` and deliberately PROTECTED `label_en` in every one of its seven classifiers. This MR
-  moves `label_en` and touches `metric_id` **nowhere**.
+  **Replace the committed build sample so the fixture comparison renders all sixteen locked rows
+  again instead of twelve.**
 
-  Nine catalogue rows carry the English words "on target" while their internal ids have said
-  `shots_on_goal_*` for months. RULING 2 closes that gap.
+  `site_v2/src/data/` holds a snapshot of one matchday so CI can build the site without BigQuery.
+  It pins **2026-08-28**; today is **2026-09-01**, so it is four days past. Two consequences, both
+  measured rather than assumed:
 
-  ⭐⭐ **AND IT IS WIDER THAN THE RECORD'S SCOPE, BY A RULING TAKEN THIS SESSION.** RULING 2's scope
-  was confirmed *"in the catalogue"*. I measured, before proposing anything, that **the catalogue is
-  not where the website gets its labels** — the site reads its own `METRIC_LABELS_EN` map in
-  `site_v2/src/i18n/strings.ts`, and **four of the nine labels render on the live site today**.
-  Catalogue-only would therefore have left the visible mismatch untouched — the exact thing the
-  ruling exists to fix. Asked in plain terms whether the website's four should move too, the CPO
-  chose **catalogue + website**. Recorded in `escalations.log` under today's date.
+  1. **Four of the sixteen locked display rows do not render.** Probed a committed payload: the
+     fields are **ABSENT FROM THE KEY SET**, not null — the snapshot predates those mart columns.
+     `shots_inside_box_pct`, `finishing_efficiency_pct`, `passes_accuracy_pct`,
+     `passes_key_per_match`. All four are emitted by `mart_team_momentum` today (`:63`, `:77`,
+     `:86`, `:107`), so the roll-forward genuinely restores them.
+  2. **It cannot be refreshed in place, and that is the whole trap.**
+     `fetch_fixture_payloads` selects `status_short in ('NS','TBD') and fixture_date >=
+     current_date()`; once a fixture kicks off its pre-match form rows leave `mart_team_momentum`
+     entirely. A rerun writes thousands of NEW payloads and silently leaves every committed one
+     untouched — exactly what happened on 2026-08-28, where the export exited 0, reported 5,066
+     payloads written, and not one tracked file changed. **The set is REPLACED, never appended.**
 
-  ⚠ **THE HANDOVER'S STEP-5 LIST WAS STALE AND WAS NOT USED.** It named nine metric_ids; **six were
-  superseded** by step 3's team renames and step 4's player renames. The nine below are measured
-  from the seed with `label_en` matched on "on target", not carried from any document.
+  ⭐ **CPO steer this session**, on whether the thin next matchday is acceptable: *"We're doing
+  infrastructure work and don't show anything now."* So the snapshot is a BUILD INPUT, not a shop
+  window, and the only live question is whether it still exercises the components. It does — see
+  `decisions_taken §2`.
 
 refs: >
-  **`.claude/task/escalations.log`, RULING 2**, verbatim: *"we have inconsistency between name and
-  shown as / example: shots_on_goal_per_match vs Ø Shots on target -> should be Ø Shots on goal
-  (apply everywhere where applicable)"*. Scope confirmed later, verbatim: *"in the catalogue"*.
-  On languages, verbatim: *"i know, but here i explicitly want consistency between the metric name
-  and what we show (in english). German and Finnish or any other language should not be affected."*
-  Cited by CONTENT.
+  **`site_v2/src/data/README.md`** documents the procedure and the trap in full, including the
+  measured 2026-08-28 failure. This MR follows it verbatim rather than inventing one; the
+  `--entities teams,fixtures` list is copied from **`.gitlab-ci.yml:941`**, where a comment marks it
+  load-bearing.
 
-  ⭐ **THE NEW RULING, this session**, on whether the four rendered labels move with the catalogue:
-  the CPO was shown that `strings.ts` and not the seed is what the site renders, and chose
-  **catalogue + website**. Appended to `escalations.log` under 2026-08-31 before any file was
-  touched.
+  **`.claude/active_work.md`** carried this as the last owed item of the "after step 4" pair, and
+  the standing instruction was that the CPO decides when it runs. He said, verbatim: **"start the
+  sample roll-forward"**. That is the authority for doing the task.
 
-  ⚠ The record's own measurement, re-confirmed here: **German already says `Torschüsse` and Finnish
-  `Maalilaukaukset`**, both literally "goal shots". Only ENGLISH was out of step, which is why the
-  ruling excludes the other languages rather than deferring them.
+  ⛔ **THE THIN-MATCHDAY DECISION IS AN INTERPRETATION, NOT A RULING, AND THE RECORD NOW SAYS SO.**
+  `.claude/task/escalations.log`, dated 2026-09-01, sets out exactly what happened: I asked whether
+  to run today or wait for 2026-09-04, **he DISMISSED the question**, asked for a plain-language
+  explanation, and then said — verbatim and in full — *"We're doing infrastructure work and don't
+  show anything now."* **He never said "run it today".** I read that statement as removing the sole
+  premise of my own recommendation (that the thinner sample is visible) and proceeded.
+  ⚠ `scope-auditor` FAILed round 1 because this contract cited that steer as authority while the log
+  carried no entry at all — the recurrence of `feedback_dont_attribute_repo_practice_to_cpo`. The
+  entry is now written, in the form above, so the interpretation can be challenged rather than
+  merely trusted.
 
 scope_paths:
   - .claude/active_work.md
@@ -44,112 +53,93 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
   - .claude/task/escalations.log
   - .claude/task/review.md
-  - dbt_project/seeds/metric_catalogue.csv
-  - site_v2/src/i18n/strings.ts
-  - site_v2/src/lib/metricRows.ts
-  - site_v2/src/components/team/DeservedHero.astro
-  - site_v2/scripts/check-metric-labels.test.mjs
-  - docs/wireframes/metrics_display.md
-  - docs/wireframes/02_team_profile.md
-  - docs/wireframes/03_player_profile.md
-  - docs/wireframes/10_home.md
-  - docs/wireframes/12_player_stats.md
-  - docs/wireframes/14_team_stats.md
-
-amendments: >
-  **ROUND 2 — two files ADDED to `scope_paths`**, on no new CPO authority and needing none: this is
-  not a widening of what the task does, it is the FIX for a MISS against a criterion the contract
-  already declared ("every 'on target' occurrence classified once").
-  `bi-analyst-reviewer` FAILed round 1 on `site_v2/src/components/team/DeservedHero.astro:43`, which
-  carries a THIRD copy of the id-vs-label claim that `decisions_taken §2` identifies and rewrites in
-  two other places. My census missed it, and the reason is worth more than the fix: **I matched
-  "on target" and "on-target" and never matched `on_target`** — an enumeration of spellings, which
-  loses by one variant every time. Re-swept with the PATTERN `on[\s_-]?target`: **136 occurrences,
-  5 of them CLAIMS about the split.** Two were already rewritten, `check-page-specs.test.mjs:179` is
-  still TRUE (it compares the id to the KEY, not to the user-facing term), and two were stale —
-  `DeservedHero.astro` and `check-metric-labels.test.mjs`, hence these two paths.
-  ⚠ Adding the test file routes `platform-reviewer` in from round 2.
+  - .gitignore
+  - site_v2/src/data/README.md
+  - site_v2/src/data/landing.json
+  - site_v2/src/data/competitions.json
+  - site_v2/src/data/competition_index.json
+  # ⚠ GLOBS, not bare directory names. `scope_paths` entries are fnmatch patterns and `*` does not
+  # cross `/`, so `site_v2/src/data/teams` matches the DIRECTORY and nothing inside it. The contract
+  # gate caught that on the first export — correctly — and this is the fix, not an exemption.
+  - site_v2/src/data/fixtures/*.json
+  - site_v2/src/data/teams/*.json
 
 protected_override: >
-  **`metric_id` IS PROTECTED IN THIS MR, on every row and in every file.** Step 4 moved ids and
-  protected labels; this moves labels and protects ids. Nothing in the seed changes except the
-  `label_en` cell on nine rows.
+  ⛔ **NO PAYLOAD IS EVER HAND-EDITED.** Every committed JSON is verbatim export output. If a value
+  looks wrong the fix is upstream in a mart, never in the file. `site_v2/src/data/README.md` states
+  this twice and it is the reason the sample can be trusted as evidence at all.
 
-  ⛔ **`label_i18n_key` IS PROTECTED TOO, including the one value that contains the words.**
-  `shots_on_goal_per_match` declares `label_i18n_key = metrics.shots_on_target_per_match.label` —
-  the ONLY key in the seed carrying "on_target", and it stays. It is a JOIN KEY across the seed,
-  `strings.ts`, `metricRows.ts`, three hand-written parsers and the page specs; the catalogue
-  declares no `metrics.shots_on_goal_per_match.label`, so "fixing" it would resolve the label to
-  nothing. RULING 2 is about what is SHOWN, not about keys.
+  ⛔ **NO CODE CHANGES.** `scripts/export_site_data.py`, the marts and the frontend are untouched.
+  This MR replaces DATA and the allowlist that pins it. If the export turns out to need a fix, that
+  is a separate MR with its own contract — flag it, do not fold it in.
 
-  ⛔ **The seed's `description` column is protected** — ~19 occurrences read "shots on target" as
-  prose. Not labels, not ruled. See `decisions_reserved`.
-
-  ⛔ **DE and FI are protected**, by the ruling's own words.
-  ⛔ **`site/i18n/*.json` is protected** — the frozen retired-MVP corpus (2026-07-21).
+  ⛔ **THE `.gitignore` FIXTURE ALLOWLIST IS REPLACED, NEVER APPENDED TO** (block at `:262-289`).
+  A stale id pins a payload no rerun can ever update, which is how the previous set came to serve
+  column names renamed two MRs earlier.
 
 impact_map: >
-  `label_en` has exactly one live consumer: `fetch_glossary()` in `scripts/export_site_data.py`
-  emits the whole seed row as `metrics.json`, so the nine new labels reach that payload. **No dbt
-  model reads the metric catalogue's `label_en`** — verified by sweeping every reader of the token
-  across the repo; the hits belong to `competition_types` and `confederations`, different seeds.
+  Data-only. The committed sample is read at build time by `site_v2` and by nothing else; no dbt
+  model, no export code path and no test imports it as a module. Its blast radius is the built
+  pages plus `audit-seo.mjs`, which fails the build on an internal link resolving to no emitted
+  page — the one check that catches a landing↔fixtures mismatch, and only in CI.
 
-  `sync_metric_docs_blocks.py` has **zero** `label_en` references, so `metric_columns.md` does NOT
-  regenerate from this change. Its "on target" text is descriptions, which are protected above.
-
-  The four rendered labels reach the page as
-  `strings.ts METRIC_LABELS_EN` → `metricLabel(lang, labelKey)` → the fixture comparison block.
+  ⚠ **A local build cannot reproduce that check.** A full export leaves thousands of untracked
+  payloads on disk, so every link resolves locally while CI sees only the tracked set. `git clean
+  -fX site_v2/src/data` before building is what makes the local build honest.
 
 acceptance_criteria:
-  - The nine `label_en` values read "on goal", and the seed differs from base in `label_en` ONLY —
-    `metric_id`, `label_i18n_key`, `description` and every other column byte-identical on every row.
-  - The four rendered EN labels move, and the built `dist/` shows **"Ø Shots on goal"** with **zero**
-    EN pages containing "on target". DE and FI pages byte-identical to base.
-  - `npm test` stays 76/76, including all seven `check-metric-labels` tests, and the byte-identical
-    gate is watched going RED on a deliberate break before being reverted.
-  - Every "on target" occurrence in the repo is classified once with a printed decision, reported as
-    a TWO-SIDED count (N move, M stay).
+  - The fixture comparison renders **16** rows per window, not 12, measured from built `dist/` with
+    comments stripped, and the four restored labels named explicitly.
+  - **The set is self-consistent**: the fixture ids `landing.json` links, the ids in the `.gitignore`
+    allowlist, and the files tracked under `fixtures/` are the SAME set, asserted mechanically.
+  - Every committed payload is verbatim export output — no hand edits.
+  - `npm run build` green with `audit-seo … OK.`; `npm test` 76/76; `pytest` at the `7caaf21`
+    baseline; no untracked payload bulk left in the tree.
 
 decisions_taken: >
-  ⭐ **§1. THE DISCRIMINATOR IS "IS THIS A DISPLAYED LABEL?", AND IT IS APPLIED PER OCCURRENCE.**
-  Step 4's closing lesson was that a scope coarser than the ROLE it must resolve is the one recurring
-  defect, and it cost three rounds on `!132`. The same trap is here in a new dress: "on target"
-  appears in display labels, in prose explaining the concept, in dated changelog rows, and in a
-  comment that documents the id-vs-label split. Only the first moves. Each occurrence is classified
-  once and the decision printed, and the result is reported as a two-sided count.
+  ⭐ **§1. RUN IT TODAY, ON A DELIBERATELY THIN MATCHDAY — and this is MY call on HIS statement, not
+  a ruling of his.** The next matchday is **2026-09-01: 4 fixtures across 3 competitions**
+  (`CIT` ×2, `DFBP`, `SPL`), against the outgoing set's 19/13. I put the trade-off to him — thin now
+  versus 28/16 on 2026-09-04, recommending the wait — **he dismissed the question**, and then said
+  *"We're doing infrastructure work and don't show anything now."* My recommendation to wait rested
+  entirely on the thinner sample being VISIBLE; his statement removes that premise, leaving no
+  argument for delay. So I proceeded today. Full account, including that he never said "run it
+  today", in `escalations.log` 2026-09-01. **If the reading is wrong the cost is one more
+  roll-forward, not a wrong artefact** — but it is his to overturn, which is why it is written down
+  as an interpretation.
 
-  ⭐ **§2. THE ONE COMMENT THIS CHANGE FALSIFIES, AND THE INSTRUCTION INSIDE IT THAT MUST SURVIVE.**
-  `site_v2/src/lib/metricRows.ts:87-91` reads *"The internal id says 'on goal', the user-facing term
-  is 'on target'. Do NOT 'fix' this to `metrics.shots_on_goal_per_match.label`."* After this MR both
-  say "on goal", so the REASON is void — but the INSTRUCTION is not, and is now the only thing
-  standing between a future reader and a label that resolves to nothing. The comment is rewritten to
-  keep the instruction and replace the reason: the key name is legacy, not a term difference.
+  ⭐ **§2. THE THIN SET STILL EXERCISES THE COMPONENTS, MEASURED BEFORE COMMITTING TO IT.**
+    · **Both competition shapes**: 3 `domestic_cup` + 1 `domestic_league`, so the standings block is
+      exercised on the league fixture and the no-table path on the cups.
+    · **Both form paths**: the matchday has **7** `mart_team_momentum` rows for 8 team-slots, so one
+      side has an absent W1 — the same deliberate absent-path coverage the outgoing set documented
+      for `1575140`, arrived at by measurement rather than luck.
+    · **The four restored columns are populated**: 6–7 of the 7 rows non-null.
 
-  ⭐ **§3. WHY THE BYTE-IDENTICAL GATE DOES NOT BLOCK THIS, SIMULATED BEFORE ANY EDIT.**
-  `check-metric-labels.test.mjs`'s *"CPO-validated MVP labels are byte-identical to site/i18n"*
-  compares only keys present in BOTH `strings.ts` and the frozen corpus. Simulated against the real
-  files: **29 labels compared, of which ZERO contain "on target"** — three of our four are absent
-  from the frozen corpus and `finishing_efficiency_pct` is skipped by name, a divergence the test
-  already documents as a §10 pick reserved to the CPO. The gate is measured, not assumed, and is
-  mutation-tested afterwards.
+  ⚠ **§3. THE CLOCK IS PART OF THE TASK.** First kickoff is **16:00 UTC**; it was 08:24 UTC when
+  the target set was measured. A fixture that kicks off leaves the selector, so the set can shrink
+  between measuring and exporting. **The committed set is verified against what the export actually
+  returned, never against this contract** — and if it comes back smaller, that is reported, not
+  papered over.
+
+  ⭐ **§4. COST IS MEASURED, NOT ESTIMATED AFTER THE FACT.** Reads marts only, writes no BigQuery
+  table, no ingest and no recurring cost. Read-only probing to build this plan billed ~84 MB; the
+  export's own scan is reported in the evidence.
 
 decisions_reserved:
-  - ⛔ **THE SEED'S `description` COLUMN — flagged, not taken.** After this MR a row's label reads
-    "on goal" while its description beside it still reads "shots on target", and `persist_docs`
-    publishes those descriptions to BigQuery. My recommendation is a small follow-up applying the
-    same wording to descriptions, but widening scope mid-MR is the failure this programme has been
-    FAILed on, so it is the CPO's call and it is not taken here.
-  - ⛔ **`label_i18n_key` renaming** — the one key containing "on_target" stays. A join-key rename
-    across five surfaces and three parsers is its own job with its own contract.
-  - ⚠ CARRIED from step 4, none of them touched here: the `__team`/`__player` split with no live
-    instance; the resolver as a committed CI gate; **#99**; **#96**; **#87**; **#98**.
+  - ⛔ **Nothing enforces the landing↔allowlist match except `audit-seo.mjs` in CI, after the fact.**
+    `site_v2/src/data/README.md` names the real fix — CI building from a live export instead of
+    stored samples — as infrastructure work outside #367. Not proposed here; this MR asserts the
+    match mechanically in its own evidence instead, which is a check, not a guard.
+  - ⚠ CARRIED, untouched: step 5's two follow-ups (the seed `description` column; the four chrome
+    strings including the hero x-axis); the `__team`/`__player` split with no live instance; the
+    resolver as a committed CI gate; **#99**, **#96**, **#87**, **#98**.
 
 done_when: >
-  - The nine `label_en` values read "on goal" and the seed differs from base in `label_en` only.
-  - The four `METRIC_LABELS_EN` values move; DE and FI are byte-identical.
-  - `metricRows.ts`'s comment keeps its instruction and loses its dead reason.
-  - Every "on target" occurrence classified once, reported as N move / M stay.
-  - All offline gates EXIT=0 unpiped; `npm test` 76/76; `pytest` at the `649b11c` baseline;
-    the site built and `dist/` read for "on goal" with zero EN "on target".
-  - The label gate watched going RED on a deliberate break, then reverted green.
-  - Five blinded reviewers, `review.md` bound with `--staged-hash`. Round cap 3.
+  - 16 rows render per window, the four restored labels named, measured from `dist/`.
+  - The three id lists (landing, allowlist, tracked files) are identical, asserted mechanically.
+  - `.gitignore`'s allowlist and `site_v2/src/data/README.md` both describe the NEW set — date,
+    counts, and the form-window coverage sentence.
+  - Departed payloads `git rm`'d; no untracked bulk left; every committed payload verbatim output.
+  - Gates green, the site built, `pytest` at baseline, and the export's BigQuery cost reported.
+  - Blinded review with `review.md` bound by `--staged-hash`. **Round cap 3.**
