@@ -221,8 +221,10 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
   with a matching cron — both circumstantial, both wrong. **Identify a caller by its AUTH PATH, never
   by its name**: this SA has zero user-managed keys and exactly one `workloadIdentityUser` binding,
   so GitHub could never have been it.
-  ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Recorded
-  because it was otherwise written down nowhere. Whether `fdp-freshness` needs to be hourly is a
-  recurring-cost question and therefore the CPO's.
+  ⭐ **THE RUNBOOK IS [`deploy/nightly/README.md`](deploy/nightly/README.md)** — the Cloud Run jobs,
+  the scheduler entries, the IAM grants and the `gcloud` commands that created them. Read it before
+  touching any of this; this bullet is a pointer, not a duplicate.
+  ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Whether
+  `fdp-freshness` needs to be hourly is a recurring-cost question and therefore the CPO's.
 - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
   GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.

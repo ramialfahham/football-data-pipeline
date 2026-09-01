@@ -14,8 +14,15 @@ objective: >
   spend I found a daily 04:02 UTC pipeline, could not reconcile it with the docs, and reported it to
   the CPO as an unexplained recurring cost. His answer: **"We moved these two jobs to the cloud after
   your recommendation. We did this after I ran into CI limitations with Gitlab."** It was a
-  deliberate, authorised decision that no document records. The investigation was avoidable; the
-  documentation gap is the actual defect.
+  deliberate, authorised decision. The investigation was avoidable; the documentation gap is the
+  actual defect.
+
+  ⛔ **AND THE GAP IS NARROWER THAN I FIRST WROTE — CORRECTED BEFORE MERGE.** An earlier draft of
+  this contract said "no document records" it. **False.** `deploy/nightly/README.md` is a full
+  runbook for exactly this: the Cloud Run jobs, the scheduler entries, the service account, the
+  `gcloud` commands that created them. I never opened it — I went from BigQuery job metadata
+  straight to `CLAUDE.md`. So the real defect is **one stale document contradicting a correct one**,
+  and `CLAUDE.md`'s bullet must therefore POINT AT the runbook rather than restate it.
 
 refs: >
   **CPO, verbatim, this session:** *"We moved these two jobs to the cloud after your recommendation.

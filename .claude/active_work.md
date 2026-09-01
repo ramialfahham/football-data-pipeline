@@ -37,6 +37,10 @@ zero user-managed keys and one `workloadIdentityUser` binding, so GitHub could n
 deliberate, authorised decision that no document recorded, and the doc gap was the only real defect.
 ⚠ Measured cost of the two jobs: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**, recorded because it was
 written down nowhere. Whether `fdp-freshness` needs to be hourly is the CPO's call, untouched.
+⭐ **THE RUNBOOK IS `deploy/nightly/README.md`** — jobs, scheduler, IAM, and the `gcloud` that built
+them. ⚠ I claimed this was "recorded nowhere" and it was not: I went from BigQuery metadata straight
+to `CLAUDE.md` and never searched the repo. **"Undocumented" is a claim about the WHOLE tree — one
+`git grep` for the identifier settles it.**
 ⭐ To measure it yourself: `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` (⚠ **EU, not US** — a
 `region-us` query returns a comfortable and completely false "0 jobs, no cost"), and pull a RANGE of
 days: my first figure was ~$7/month from a single day that happened to be the smallest of fourteen.

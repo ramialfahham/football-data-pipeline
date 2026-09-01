@@ -37,7 +37,16 @@ criteria_demonstrated:
 While attributing `!136`'s BigQuery spend I found a daily 04:02 UTC pipeline, could not reconcile it
 with the docs, and reported it to the CPO as **unexplained recurring cost**. His answer:
 *"We moved these two jobs to the cloud after your recommendation. We did this after I ran into CI
-limitations with Gitlab."* Authorised, on my own earlier recommendation, and recorded nowhere.
+limitations with Gitlab."* Authorised, on my own earlier recommendation.
+
+⛔ **(d) A FOURTH ERROR, CAUGHT BEFORE THIS MERGED: I SAID IT WAS "RECORDED NOWHERE". IT WASN'T.**
+`deploy/nightly/README.md` documents exactly this — the Cloud Run jobs, the scheduler entries, the
+service account, the `gcloud` commands that built them. I never opened it, because I went from
+BigQuery job metadata straight to `CLAUDE.md` and stopped at the first document that mentioned
+schedules. ⭐ **Rule: "undocumented" is a claim about the WHOLE repo, so it needs a repo-wide search
+before you make it** — `git grep` for the identifier would have found the runbook in one command.
+So the defect is **one stale document contradicting a correct one**, and `CLAUDE.md` now points at
+the runbook instead of duplicating it.
 
 **Three distinct errors, and each has a rule attached:**
 

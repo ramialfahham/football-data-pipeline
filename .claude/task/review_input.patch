@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index af86230..4ca8900 100644
+index af86230..0836d78 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,145 +1,100 @@
+@@ -1,145 +1,107 @@
 -# Task contract — the sample roll-forward
 +# Task contract — record where the nightly actually runs
  
@@ -43,8 +43,15 @@ index af86230..4ca8900 100644
 +  spend I found a daily 04:02 UTC pipeline, could not reconcile it with the docs, and reported it to
 +  the CPO as an unexplained recurring cost. His answer: **"We moved these two jobs to the cloud after
 +  your recommendation. We did this after I ran into CI limitations with Gitlab."** It was a
-+  deliberate, authorised decision that no document records. The investigation was avoidable; the
-+  documentation gap is the actual defect.
++  deliberate, authorised decision. The investigation was avoidable; the documentation gap is the
++  actual defect.
++
++  ⛔ **AND THE GAP IS NARROWER THAN I FIRST WROTE — CORRECTED BEFORE MERGE.** An earlier draft of
++  this contract said "no document records" it. **False.** `deploy/nightly/README.md` is a full
++  runbook for exactly this: the Cloud Run jobs, the scheduler entries, the service account, the
++  `gcloud` commands that created them. I never opened it — I went from BigQuery job metadata
++  straight to `CLAUDE.md`. So the real defect is **one stale document contradicting a correct one**,
++  and `CLAUDE.md`'s bullet must therefore POINT AT the runbook rather than restate it.
  
  refs: >
 -  **`site_v2/src/data/README.md`** documents the procedure and the trap in full, including the
@@ -225,10 +232,10 @@ index af86230..4ca8900 100644
 +  - `git diff --stat` shows documentation files only.
 +  - Offline gates green; blinded review; `review.md` bound with `--staged-hash`. **Round cap 3.**
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 2174bc2..10984ca 100644
+index 2174bc2..800ed94 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -7300,3 +7300,43 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
+@@ -7300,3 +7300,81 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
    … nothing refreshes the data on a timer"), and it explains why the warehouse was fresh enough for
    this roll-forward to work. ~$0.23/day, recurring, unattributed in the docs. **Cost is the CPO's.**
    Not investigated further and not folded in.
@@ -272,11 +279,49 @@ index 2174bc2..10984ca 100644
 +
 +  ⛔ NOT ACTED ON, and still the CPO's: whether `fdp-freshness` needs to run hourly (24×/day), and
 +  whether the disabled GitLab schedule should be deleted rather than left looking like the owner.
++
++
++---
++
++2026-09-01 CORRECTION TO THE CORRECTION — "NEVER WRITTEN DOWN" WAS ITSELF FALSE.
++
++  ⛔ THE ENTRY ABOVE, dated today, ends the paragraph on the Cloud Scheduler nightly with: "So it was
++  authorised, on my own recommendation, and simply never written down." **That last clause is wrong.**
++  `deploy/nightly/README.md` is a full runbook for exactly this arrangement — the two Cloud Run jobs,
++  the scheduler entries, the service account, the IAM bindings, and the `gcloud` commands that
++  created them. I never opened it: I went from BigQuery job metadata straight to `CLAUDE.md`, found a
++  document that mentioned schedules, and stopped there.
++
++  ⭐ THE CORRECT FRAMING, which the contract and the evidence now carry: **one stale document
++  (`CLAUDE.md`) contradicting a correct one (`deploy/nightly/README.md`)** — not an undocumented
++  decision. `CLAUDE.md` now POINTS AT the runbook rather than restating it, so there is one source to
++  keep current instead of two.
++
++  ⭐ RULE: **"undocumented" is a claim about the WHOLE TREE, so it needs a tree-wide search before
++  you make it.** One `git grep` for the service-account name would have surfaced the runbook
++  immediately. Reaching the first document that mentions the topic is not the same as searching.
++
++  ⛔⛔ AND THE REASON THIS ENTRY EXISTS AT ALL IS THE PART WORTH KEEPING. I corrected "never written
++  down" in `contract.md`, `acceptance_evidence.md`, `CLAUDE.md` and `active_work.md` — the living
++  documents — and left it standing HERE, in the dated log, which is the artifact a later reader
++  actually consults for the record. `scope-auditor` FAILed round 2 for exactly that, and noted that
++  this MR's own `protected_override` states the rule it broke: *"escalations.log IS APPENDED TO,
++  NEVER REWRITTEN … the correction is a new dated entry. Living document → replace; dated log →
++  append."* **I wrote that rule into this contract and then failed to follow it inside the same MR.**
++  That is `feedback_corrections_replace` again — the correction has to land EVERYWHERE, and the
++  place I keep missing is the append-only record, precisely because fixing it needs a new write
++  rather than an edit to something already in front of me.
++
++  ⚠ FOR THE TALLY, because the pattern matters more than any one item: five errors in this thread,
++  all the same shape — reporting a conclusion before checking the cheapest disconfirming source.
++  (1) named GitHub from a service-account NAME; (2) said "unexplained" for "undocumented";
++  (3) quoted a monthly rate from ONE unrepresentative day; (4) said "recorded nowhere" without
++  searching the tree; (5) corrected (4) everywhere except the record that matters most.
 diff --git a/CLAUDE.md b/CLAUDE.md
-index 30eaa80..5856770 100644
+index 30eaa80..717ad56 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
-@@ -206,8 +206,23 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
+@@ -206,8 +206,25 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
    `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
    returns. Do not read that directory as the CI reference, and do not edit a workflow there to
    "keep it in sync".
@@ -298,9 +343,11 @@ index 30eaa80..5856770 100644
 +  with a matching cron — both circumstantial, both wrong. **Identify a caller by its AUTH PATH, never
 +  by its name**: this SA has zero user-managed keys and exactly one `workloadIdentityUser` binding,
 +  so GitHub could never have been it.
-+  ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Recorded
-+  because it was otherwise written down nowhere. Whether `fdp-freshness` needs to be hourly is a
-+  recurring-cost question and therefore the CPO's.
++  ⭐ **THE RUNBOOK IS [`deploy/nightly/README.md`](deploy/nightly/README.md)** — the Cloud Run jobs,
++  the scheduler entries, the IAM grants and the `gcloud` commands that created them. Read it before
++  touching any of this; this bullet is a pointer, not a duplicate.
++  ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Whether
++  `fdp-freshness` needs to be hourly is a recurring-cost question and therefore the CPO's.
  - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
    GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
 
@@ -316,9 +363,9 @@ index 30eaa80..5856770 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |  42 +--
-#    .claude/task/acceptance_evidence.md | 177 +++++-----
+#   .claude/active_work.md              |  46 +--
+#    .claude/task/acceptance_evidence.md | 186 +++++------
 #    .claude/task/review.md              | 136 +++-----
-#    .claude/task/review_input.patch     | 633 +++++++++++++++---------------------
-#    4 files changed, 410 insertions(+), 578 deletions(-)
+#    .claude/task/review_input.patch     | 642 +++++++++++++++---------------------
+#    4 files changed, 433 insertions(+), 577 deletions(-)
 # ============================================================================
