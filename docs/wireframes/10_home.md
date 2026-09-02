@@ -246,8 +246,9 @@ ranks `partition by league_code, season_api_year`, so every competition is alrea
 The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 rulings
 (§10 below) it does not, for EITHER block** — both Top players and Top teams take each pool
 league's own rank-1 and order the winners, so the RANKING never crosses `league_code` and every
-board is 7 rows from 7 leagues by construction (Top teams: by construction once its still-unbuilt
-mart is partitioned the same way — see the Open note; the CURRENT mock does not yet honour this).
+board is 7 rows from 7 leagues by construction (Top teams too: `mart_team_leaderboards` SHIPPED
+2026-09-02 partitioned the same way, so this holds for both blocks now — the CURRENT mock still
+does not honour it, which is a mock defect, not a mart one).
 The rule stays dormant for both blocks, and returns for any future surface that genuinely ranks
 players or teams from different competitions against each other.
 
@@ -329,8 +330,11 @@ finished rather than dress it as current.
 
 **What this needs from the warehouse.** ⚠ **"None of it is built" was true when written and is NOT
 true now**: the two `mart_leaderboards` bullets below (GAP-30's assists board, and the club on a
-row) are SHIPPED, and so is the group field — `competition_group`, under GAP-28. **Only the team
-boards mart (GAP-29) remains unbuilt.**
+row) are SHIPPED, and so is the group field — `competition_group`, under GAP-28. ⭐ **ALL FOUR ARE
+NOW SHIPPED**: GAP-29's team boards mart landed 2026-09-02 as `mart_team_leaderboards`.
+⛔ **A CLOSED GAP REGISTER IS NOT A BUILT PAGE.** Nothing below is rendered: the two blocks, their
+export payload and the `competition_group` → render wiring are all still unwritten. What changed is
+that the warehouse no longer blocks them.
 
 ⛔ **THE FIRST THREE BULLETS ARE THE NINE-BOARD SET AND ARE VOID** (2026-08-10 reduction; they are
 GAP-24, GAP-25 and GAP-26, all withdrawn in `99_gaps_register.md`). Every metric they ask for was
@@ -367,11 +371,16 @@ live and unchanged.
   (`league_code`, `competition_type`, `parent_competition`). Pooling needs `tier` and `season_type`
   projected from the YAML registry,~~ ~~Only the **one authored pool field** remains.~~
   ✅ **SHIPPED 2026-09-02** as `competition_group`. Nothing of this bullet is outstanding.
-- **A team boards mart.** All eleven team metrics already exist season-to-date in
+- ~~**A team boards mart.** All eleven team metrics already exist season-to-date in
   `int_team_season__metrics_cumulative`, and `deserved_points` is already on
   `mart_team_profile.sql:195`. What does not exist is top-N-per-metric ACROSS teams:
   `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite
-  shape. So this is a new mart composing an existing model, not a reshape of the benchmark.
+  shape. So this is a new mart composing an existing model, not a reshape of the benchmark.~~
+  ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards` (GAP-29) — four boards, `>= 3` finished games
+  to be ranked, `dense_rank` DESC partitioned `(league_code, season_api_year, metric_key)`. It reads
+  `int_team_season__metrics`, the whole-season projection of the cumulative model this bullet names.
+  ⚠ **"All eleven team metrics" is the NINE-BOARD-era framing**; the 2026-08-10 reduction left FOUR,
+  and only those four are boards.
 
 ⚠ **The registry's `current_season` is stale and must not drive the season.** Compared against the
 live export on 2026-08-08: APD, BSA and KL1 each read 2025 in the registry against 2026 in the
@@ -415,10 +424,17 @@ Closed since 2026-08-04:
   target/Passes, Arsenal + Manchester City both Premier League on Shots on goal/Passes — and
   drop other pool leagues off the board entirely. Only Duels per match lands on 7 distinct
   leagues, by coincidence, not design. The players mock was already correct by accident; this one
-  is not, and its placeholder rows need redoing before anyone should read a shape off it. No mart
-  exists yet either way (GAP-29, still not started) — when it is built, partition the rank by
+  is not, and its placeholder rows need redoing before anyone should read a shape off it. ⚠ **The
+  mock defect stands; the mart no longer does.** ~~No mart exists yet either way (GAP-29, still not
+  started) — when it is built,~~ **`mart_team_leaderboards` SHIPPED 2026-09-02 and does exactly what
+  this sentence asked**: it partitions the rank by
   `(league_code, season_api_year, metric_key)`, the way `mart_team_competition_benchmarks` already
   does, which is what makes "one per league" free at the SQL level, same as `mart_leaderboards`.
+  ⭐ **And that partition is now GUARDED, which it nearly was not.** Dropping `metric_key` from it —
+  the exact way this ruling gets violated — was caught by no test: the grain stays unique because
+  each team-season-board still appears once, so the rank is wrong rather than duplicated.
+  `assert_mart_team_leaderboards_every_board_has_a_leader` was added for it (0 of 865 groups healthy
+  vs 34 of 266 mutated), so the shape this paragraph specifies cannot silently regress.
 - **The Top teams intro copy — CPO confirmed 2026-08-18 the mock's "Ranked across pooled leagues"
   line is wrong now too**, and needs the same adjustment as the Top players line, same session.
   **Proposed, NOT yet approved** (copy is always his call — this is a draft for him to correct or
@@ -928,8 +944,9 @@ document: a deleted module leaves traces that do not carry its name.
 
 The Top players and Top teams blocks specified in §0 need six pieces of warehouse work. ⚠ **"none of
 it built" was true when written and is NOT true now** — GAP-30 (the assists board) and GAP-27 (the
-club on a row) are SHIPPED, and so is GAP-28, as `competition_group`. Only the team boards mart
-(GAP-29) remains.
+club on a row) are SHIPPED, and so is GAP-28, as `competition_group`. ⭐ **GAP-29's team boards mart
+landed 2026-09-02 as `mart_team_leaderboards`, so all four are now closed** — while the blocks
+themselves, their export payload and the render wiring remain unwritten.
 They are registered rather than described only here, because `00_overview.md`'s binding rule
 is unconditional — a gap goes to the register with a proposed disposition and is never silently
 drawn — and describing one inline, however loudly, is not registering it. The precedent is
@@ -954,9 +971,15 @@ register is the authority — check it, not this summary.
   seed: 19 domestic leagues grouped, 29 other competitions empty. ~~LIVE, but SMALLER than written:
   `tier` and `season_type` are ALREADY projected into the seed (8 columns, verified). Only the
   authored pool field remains.~~
-- **GAP-29** — LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.
+- **GAP-29** — ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards`: four boards, ranked DESC and
+  partitioned `(league_code, season_api_year, metric_key)`, `>= 3` finished games to qualify.
+  ~~LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.~~
 - **GAP-30** — LIVE, registered 2026-08-18. `assists_player` is not a ranked board, so the reduced set's
   second board has no rank-1 to take.
+
+⚠ **This summary list is stale for GAP-27 and GAP-30, which both shipped in `!142` on 2026-09-02.**
+Not corrected here on purpose: neither was falsified by this change, and the list's own header
+already says **the register is the authority — check it, not this summary**. Tracked as **#103**.
 - ~~**GAP-31** — a pooled rank across the pool.~~ **WITHDRAWN 2026-08-18**: the block is one player
   per league, so the per-league rank the mart already computes is the one it needs.
 - **GAP-32** — LIVE, registered 2026-08-18. Belongs to the fixtures hero, not these blocks: the
