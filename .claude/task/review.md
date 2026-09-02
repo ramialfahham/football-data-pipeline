@@ -143,6 +143,37 @@ risks_checked:
   `mart_player_profile.sql`, `int_player_season__metrics.sql` and `tests/test_export_site_data.py`
   for stale board-count claims — none found.
 
+## bi-analyst-reviewer
+VERDICT: PASS
+⚠ **RUN LATE — this reviewer is REQUIRED and was missed for all five rounds.** Routing sends
+`docs/wireframes/**` here, and `99_gaps_register.md` has been in `scope_paths` since the first
+contract. I hand-derived the reviewer set by reading `review_routing.json` instead of running
+`scripts/check_task_artifacts.py`, which computes it — so no local check could catch it and CI's
+`validate:governance` did. Its verdict binds to the same `diff_sha256`; the diff did not change.
+risks_checked:
+- **The binding rule vs the mart/export split** — the central question. Traced the four new mart
+  columns and confirmed `_LEADERBOARD_METRICS` and `_LB_KEEP` in `export_site_data.py` are
+  untouched, so nothing new reaches a payload; then checked `10_home.md`'s SHIPPED bullets describe
+  **the mart only** and never claim the payload carries these fields. **No binding-rule violation
+  created** — a reader is not told the block is feedable when it is not.
+- Field-fabrication check: all four columns genuinely exist on `dim_team`; `assists_player` is an
+  existing catalogue metric with a real `label_i18n_key`, not a hand-authored new one.
+- ⭐ **The "club AND league on a row" requirement (#40/#41)**: confirmed `league_code` was already
+  on the mart before this MR and still is, and that the export already has a working
+  `league_code → {name, slug}` registry lookup — so this MR does not need to add league data and
+  introduces no gap on that axis. The crest requirement is met by carrying `team_logo_url`.
+- Traced `team_sk`'s upstream derivation and confirmed the "last known club / nullable when no
+  finished match" wording in `shared.yml` matches it — **no fabricated provenance claim**.
+- Locked-contract check: `count_boards` gained exactly one entry; no tier, ordering or metric creep;
+  no metric definition hand-authored, per `protected_override`.
+- `99_gaps_register.md`'s GAP-27/GAP-30 rows checked against the GAP-01 precedent — same convention.
+- ⚠ Scrutinised rather than rubber-stamped the one left-in-place `LIVE` line (`10_home.md`,
+  "`grep -c team_sk` on the mart = 0", now false): confirmed the "register is the authority"
+  disclaimer sits directly adjacent and scopes to exactly that list, and that the register's own
+  rows are correct — so no reader following the file's own pointer is misled. Defensible leave.
+- i18n: no `label_i18n_key`, `site/i18n/` or `site_v2/src/**` file touched, so no user-visible
+  string changed. `rendered_page_evidence.md` correctly N/A for the same reason.
+
 ## escalations
 (none — GAP-30 was put to the CPO as a decision and he returned it as already-decided: *"So what's
 the question. The player block has assists in the mockup."* Recorded in `escalations.log`; no
