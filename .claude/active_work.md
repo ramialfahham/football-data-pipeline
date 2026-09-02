@@ -4,30 +4,33 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-02**. **main `dfe6c73`**, clean, **no open MRs**. The naming programme is
+_Last updated **2026-09-02**. **main `c662e08`**, clean, **no open MRs**. The naming programme is
 DONE; only the ONE copy call below survives it.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔ NEXT ACTION: build **GAP-29** — the last Home warehouse gap
+## ⛔ NEXT ACTION: NONE ASSIGNED. Home's warehouse is DONE; the next step is a DESIGN call (#101)
 
-⭐ **HOME'S FOUR WAREHOUSE GAPS WENT 0 → 3 SHIPPED ON 2026-09-02.** GAP-27 (club on a leaderboard
-row) + GAP-30 (`assists_player` board, 14 → 15) in `!142`; **GAP-28** in `!143` as
-**`competition_group`** on the registry — `elite` 7 · `europe` 3 · `international` 2 · `calendar` 6 ·
-`secondary` 1, over 19 domestic leagues, 29 other competitions empty. AUTHORED, not derived (CPO:
-*"basically all of it is judgement"*), guarded in Python like `tier`, which has the identical
-non-empty-iff-domestic_league shape.
-⛔ **GAP-29 — a team equivalent of `mart_leaderboards` — is the ONLY one left**, and Top teams cannot
-ship without it. Design approved 2026-08-08; ruled 2026-08-18 to be **one team per league**, so
-partition the rank by `(league_code, season_api_year, metric_key)` and no pooled computation is ever
-needed. All four metrics it needs are already on `int_team_season__metrics_cumulative`.
-⭐ **Which group Home actually renders, and how it rotates when one is out of season, is NOT decided**
-— GAP-33 / **#101**, on his *"file it, should not block us here"*. The groups are not simultaneously
-in season, which is what makes it a data question rather than a styling one.
-⚠ **After GAP-29 the gaps are closed but Home is NOT built** — the blocks, their export payload and
-the `competition_group` → render wiring are all still unwritten. `10_home.md` is the spec, and #100
-proposes rewriting it wholesale; **do not treat a closed gap register as a built page.**
+⭐⭐ **ALL FOUR OF HOME'S WAREHOUSE GAPS SHIPPED 2026-09-02.** GAP-27 (club on a leaderboard row) +
+GAP-30 (`assists_player` board, 14 → 15) in `!142`; **GAP-28** in `!143` as **`competition_group`**
+(`elite` 7 · `europe` 3 · `international` 2 · `calendar` 6 · `secondary` 1 over 19 domestic leagues,
+29 others empty — AUTHORED not derived, guarded in Python like `tier`); **GAP-29** in `!145` as
+**`mart_team_leaderboards`** — four boards, `>= 3` finished games, `dense_rank` DESC partitioned
+`(league_code, season_api_year, metric_key)`. Measured on live prod: 9,438 rows / 44 leagues.
+⛔⛔ **A CLOSED GAP REGISTER IS NOT A BUILT PAGE, and this is the easiest thing here to get wrong.**
+NEITHER block exists. No export payload carries them; nothing wires `competition_group` to a render.
+What changed is only that the warehouse stopped blocking them. `10_home.md` is the spec (**#100**
+proposes rewriting it wholesale).
+⭐ **THE NEXT DECISION IS THE CPO'S AND IT IS DESIGN, NOT DATA — #101 / GAP-33: which group Home
+renders, and how it rotates when one is out of season.** The groups are not simultaneously in
+season, which is what makes it unavoidable rather than cosmetic. Do not start building a block
+before it is answered.
+⚠ **ONE OPEN RESIDUAL from `!145`, reversible:** widening that MR's scope to edit `10_home.md` was
+MY call after he declined to adjudicate the fork (*"You are talking cryptic language"*).
+`scope-auditor` passed it as a **recorded residual, not a clean pass**, and said the remedy if he
+disagrees is to correct it directly rather than through another review round. Nothing is recorded
+as his ruling.
 
 ⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
 Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
