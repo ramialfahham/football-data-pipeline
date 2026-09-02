@@ -4,14 +4,13 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-02**. **main `27889d1`**. ⛔ **`!143` IS OPEN, mergeable, CI green, 5/5 PASS —
-it needs the CPO's merge and nothing else.** The naming programme is DONE; its queue is empty, and
-only the ONE copy call below survives it.
+_Last updated **2026-09-02**. **main `dfe6c73`**, clean, **no open MRs**. The naming programme is
+DONE; only the ONE copy call below survives it.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔ NEXT ACTION: merge `!143`, then build **GAP-29** — the last Home warehouse gap
+## ⛔ NEXT ACTION: build **GAP-29** — the last Home warehouse gap
 
 ⭐ **HOME'S FOUR WAREHOUSE GAPS WENT 0 → 3 SHIPPED ON 2026-09-02.** GAP-27 (club on a leaderboard
 row) + GAP-30 (`assists_player` board, 14 → 15) in `!142`; **GAP-28** in `!143` as
@@ -23,13 +22,12 @@ non-empty-iff-domestic_league shape.
 ship without it. Design approved 2026-08-08; ruled 2026-08-18 to be **one team per league**, so
 partition the rank by `(league_code, season_api_year, metric_key)` and no pooled computation is ever
 needed. All four metrics it needs are already on `int_team_season__metrics_cumulative`.
-⚠ **`!143` carries TWO SENTENCES THE REVIEWERS NEVER SAW.** The rebase onto `!142` auto-merged
-`10_home.md` cleanly, and the clean merge WAS the defect: `!142` wrote *"the pool field … remain[s]
-unbuilt"* twice, which `!143` itself falsifies. I corrected both after round 5 rather than open an
-unauthorised round 6. If the CPO wants a narrow confirmation pass before merging, that is the scope.
 ⭐ **Which group Home actually renders, and how it rotates when one is out of season, is NOT decided**
 — GAP-33 / **#101**, on his *"file it, should not block us here"*. The groups are not simultaneously
 in season, which is what makes it a data question rather than a styling one.
+⚠ **After GAP-29 the gaps are closed but Home is NOT built** — the blocks, their export payload and
+the `competition_group` → render wiring are all still unwritten. `10_home.md` is the spec, and #100
+proposes rewriting it wholesale; **do not treat a closed gap register as a built page.**
 
 ⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
 Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
