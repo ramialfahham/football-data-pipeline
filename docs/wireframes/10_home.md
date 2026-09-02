@@ -259,7 +259,9 @@ more than one pool qualifies, so it holds the slot roughly September to May and 
 the summer. If none qualifies, show the most recent completed pool 1 season and LABEL it finished
 rather than dress it as current.
 
-**What this needs from the warehouse. None of it is built.**
+**What this needs from the warehouse.** ⚠ **"None of it is built" was true when written and is NOT
+true now**: the two `mart_leaderboards` bullets below (GAP-30's assists board, and the club on a
+row) are SHIPPED. The pool field and the team boards mart remain unbuilt.
 
 ⛔ **THE FIRST THREE BULLETS ARE THE NINE-BOARD SET AND ARE VOID** (2026-08-10 reduction; they are
 GAP-24, GAP-25 and GAP-26, all withdrawn in `99_gaps_register.md`). Every metric they ask for was
@@ -280,12 +282,15 @@ live and unchanged.
   otherwise top it. This is the one board where volume ranking does not protect the result.~~
   VOID — there is no Goals conceded board. ⚠ The limitation it describes is REAL and returns with
   any future ascending board; it is recorded on GAP-26's withdrawal for that reason.
-- ⭐ **STILL MISSING and registered as GAP-30**: `assists_player` is not a ranked board at all. It is the
-  second of the four surviving boards, so the reduced set cannot be built without it — a gap the
-  nine-board list above never had to name, because `scorer_points_player` covered assists back then.
-- **The club on a leaderboard row.** `int_player_season__metrics` already carries `team_sk`, the
-  last club that competition-season; it is not selected into `mart_leaderboards`. Without it a row
-  links to a player and nothing else, which halves the navigation purpose this block exists for.
+- ✅ **SHIPPED (GAP-30).** ~~`assists_player` is not a ranked board at all.~~ It now is: added to
+  `count_boards`, taking the mart to 10 count + 5 rate. It is the second of the four surviving
+  boards, so the reduced set could not be built without it — a gap the nine-board list above never
+  had to name, because `scorer_points_player` covered assists back then.
+- ✅ **SHIPPED (GAP-27). The club on a leaderboard row.** `int_player_season__metrics` already
+  carried `team_sk`, the last club that competition-season; ~~it is not selected into
+  `mart_leaderboards`~~ — it now is, with `team_name`, `team_slug` and `team_logo_url`, via a
+  `dim_team` identity join. Without it a row linked to a player and nothing else, which halved the
+  navigation purpose this block exists for.
 - **Pool membership in the dbt seed.** ⚠ **HALF OF THIS IS NOW BUILT** (verified 2026-08-18):
   `competition_registry.csv` carries EIGHT columns, not three — `league_code, competition_type,
   parent_competition, confederation, slug, sort_order, tier, season_type` — so the `tier` and
@@ -751,11 +756,13 @@ introducing a second ranking. A registry reorder moves this block with no file e
 
 Five rows each. Both are teasers; the full lists are the competition pages.
 
-**No team name on a top-scorer row.** `mart_leaderboards` carries no team column (verified against
-the live schema: `player_sk`, `player_name`, `player_nationality`, `player_position`,
-`player_photo_url`, then the stat columns). The scorer row is therefore rank, name and goals. Adding
-the club would mean joining a squad mart in the export, which is derivation in the consumption
-layer, so it is a warehouse change if it is ever wanted. A first draft of this table bound a
+**No team name on a top-scorer row.** ⚠ **SUPERSEDED — `mart_leaderboards` now carries the club**
+(`team_sk`, `team_name`, `team_slug`, `team_logo_url`), so this constraint no longer holds. It was
+true when written, and the paragraph is kept because its reasoning was: adding the club "would mean
+joining a squad mart in the export, which is derivation in the consumption layer, so it is a
+warehouse change if it is ever wanted". That is what happened — and NOT via a squad mart: the club
+already arrives on `int_player_season__metrics` as the player's last club that competition-season,
+so the mart needs only a `dim_team` identity join and the export derives nothing. A first draft of this table bound a
 `team_name` key that does not exist, which is the binding rule doing its job.
 
 **The standings columns are `points` / `played`, not `standing_points` / `standing_played`** (same
@@ -846,8 +853,10 @@ document: a deleted module leaves traces that do not carry its name.
   going to add a sentence to each trending row; with that block gone, neither shipped module has a
   slot for generated prose. Its remaining claimants are the other screens.
 
-The Top players and Top teams blocks specified in §0 need six pieces of warehouse work, none of it
-built. They are registered rather than described only here, because `00_overview.md`'s binding rule
+The Top players and Top teams blocks specified in §0 need six pieces of warehouse work. ⚠ **"none of
+it built" was true when written and is NOT true now** — GAP-30 (the assists board) and GAP-27 (the
+club on a row) are SHIPPED; the pool field and the team boards mart remain.
+They are registered rather than described only here, because `00_overview.md`'s binding rule
 is unconditional — a gap goes to the register with a proposed disposition and is never silently
 drawn — and describing one inline, however loudly, is not registering it. The precedent is
 GAP-11/12/13/20/21/22/23: every one was an already CPO-approved locked design that still took a

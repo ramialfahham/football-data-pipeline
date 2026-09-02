@@ -5,8 +5,9 @@
   Generalises the retired mart_top_scorers beyond goals. One row per (player, board): the player's rank on
   that board within its competition-season. Season-to-date, composed from the canonical
   int_player_season__metrics (the single source) + dim_player identity — NOT mart-from-mart.
+  dim_team supplies the club a row belongs to, so a row can link to its club as well as its player.
 
-  14 boards: 9 COUNT + 5 RATE (#506). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
+  15 boards: 10 COUNT + 5 RATE (#506). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
   board's metric desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and
   the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
   value on a board are ranked (a leaderboard shows positive performers).
@@ -24,6 +25,7 @@
 
 {% set count_boards = [
     'goals_player',
+    'assists_player',
     'scorer_points_player',
     'shots_on_goal_player',
     'dribbles_success_player',
@@ -69,6 +71,19 @@ players as (
     from {{ ref('dim_player') }}
 ),
 
+-- The club the row belongs to. team_sk arrives from int_player_season__metrics already resolved to
+-- the player's last known club that competition-season, so this is identity lookup only — no
+-- affiliation logic here, and deliberately not a join to a squad mart. dim_team is unique on
+-- team_sk, so the left join cannot fan the row count out.
+teams as (
+    select
+        team_sk,
+        team_name,
+        team_slug,
+        team_logo_url
+    from {{ ref('dim_team') }}
+),
+
 base as (
     select
         s.player_sk,
@@ -103,9 +118,14 @@ base as (
         p.player_name,
         p.player_nationality,
         p.player_position,
-        p.player_photo_url
+        p.player_photo_url,
+        s.team_sk,
+        t.team_name,
+        t.team_slug,
+        t.team_logo_url
     from season as s
     left join players as p on s.player_sk = p.player_sk
+    left join teams as t on s.team_sk = t.team_sk
 ),
 
 ranked as (
@@ -141,6 +161,10 @@ select
     player_nationality,
     player_position,
     player_photo_url,
+    team_sk,
+    team_name,
+    team_slug,
+    team_logo_url,
     appearances,
     minutes,
     goals_player,

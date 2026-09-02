@@ -329,7 +329,7 @@ Canonical mart inventory (exhaustive) for this project:
 | Mart | Grain | Materialization | Notes |
 |------|-------|-----------------|-------|
 | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
-| `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards (9 count boards); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share. |
+| `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards (10 count boards); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share. |
 | `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
 | `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
 | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | Current league standings per team-season. |
