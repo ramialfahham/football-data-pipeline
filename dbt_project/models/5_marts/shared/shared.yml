@@ -1705,9 +1705,13 @@ models:
       competition-season. Long-shaped — the board is a value in metric_key, not a column.
       Grain: (player_sk, season_sk, metric_key).
 
-      Season-to-date, composed from int_player_season__metrics and dim_player. rank is a
+      Season-to-date, composed from int_player_season__metrics, dim_player and dim_team. rank is a
       DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
       share a rank and the top 10 includes them. Only a positive value is ranked.
+
+      Each row also carries the club the player belonged to that competition-season, so a row
+      identifies a team as well as a player. The club is null when the player has no finished
+      match in that competition-season.
 
       RATE boards carry a qualification floor so a small sample cannot game a rate: 270 minutes, a
       position scope, 10 shots on target for finishing.
@@ -1749,11 +1753,11 @@ models:
         description: "Surrogate from (player_sk, season_sk, metric_key)."
         tests: [not_null, unique]
       - name: metric_key
-        description: "The board — a metric_catalogue metric_id (9 count + 5 rate boards = 14)."
+        description: "The board — a metric_catalogue metric_id (10 count + 5 rate boards = 15)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["goals_player", "assists_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -1795,6 +1799,21 @@ models:
         description: "Listed/bio position from dim_player."
       - name: player_photo_url
         description: "Player photo URL from dim_player; nullable."
+      # The club the player belonged to that competition-season, resolved upstream in
+      # int_player_season__metrics as the club of his most recent finished match. All four are
+      # null together when he has no finished match in that competition-season.
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: team_name
+        description: "Denormalised from dim_team; null when the row has no club."
+      - name: team_slug
+        description: "{{ doc('team_slug') }}"
+      - name: team_logo_url
+        description: "Club crest URL from dim_team; null when the row has no club."
       # Denormalised season-to-date display atoms (from int_player_season__metrics): the per-board
       # breakdown values the UI shows alongside sort_value (the board's own ranked metric).
       - name: appearances

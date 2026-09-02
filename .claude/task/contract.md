@@ -1,27 +1,32 @@
-# Task contract — the seed's PROSE follows the label, where English allows
+# Task contract — the assists board, and a club on every leaderboard row
 
 objective: >
-  **Make the catalogue's reader-facing prose say "on goal" wherever the label already does — in the
-  cells where that can be done without rewriting a sentence.**
+  **Close two registered gaps against `mart_leaderboards`, both prerequisites for Home's Top players
+  block.**
 
-  Step 5 moved nine `label_en` values from "on target" to "on goal" and deliberately left the prose.
-  The result is visible in BigQuery, because `persist_docs` publishes both: `shots_on_goal_player`
-  is labelled **"Shots on goal"** and described as **"Shots on target."** — the label and its own
-  definition using different words for one thing.
+  · **GAP-30** — add `assists_player` to `count_boards`. The approved four-board design is
+    goals → **assists** → passes → key passes; three are boards, assists is not, so the second board
+    of four has no rank to read. The column already exists on the mart and upstream; it simply never
+    appears in the board list.
+  · **GAP-27** — carry the player's club on every row. Today a leaderboard row links to a player and
+    to nothing else, which halves the internal-link value the block exists for.
 
-  ⭐ **THE CPO WIDENED THIS TO TWO COLUMNS.** Asked whether `interpretation` — the seed's second
-  reader-facing column, which feeds the site's good/bad reading — should move with `description`, he
-  chose **both**. Leaving it would have produced a THIRD spelling on one row.
+  ⚠ **NEITHER IS A DESIGN DECISION.** Both implement designs already approved; the register's
+  "NOT YET RULED" on GAP-30 is a stale status field, corrected in this MR.
 
 refs: >
-  **CPO, verbatim, this session:** *"start the seed description sweep"*, then — asked whether to
-  include the `interpretation` column — he selected **"Both columns (recommended)"**, whose stated
-  text was: *"Sweep `description` AND `interpretation` together. Otherwise one metric ends up saying
-  'on goal' in its label, 'on goal' in its description, and 'on target' in its interpretation."*
+  **CPO, verbatim, this session:** *"go ahead"*, on a plan naming exactly these two gaps as the
+  first of three warehouse steps for Home. Preceded by *"For every page we need to know what is
+  missing so it can be built. Home first anyway."*
 
-  **RULING 2** (`escalations.log`): *"…should be Ø Shots on goal (apply everywhere where
-  applicable)"*, scope confirmed *"in the catalogue"*. This MR is inside that scope; the phrase
-  **"where applicable"** is what `decisions_taken §1` turns into a checkable rule.
+  **CPO, on GAP-30 being treated as an open question:** *"So what's the question. The player block
+  has assists in the mockup."* — correct, and the reason the register's status field is fixed here.
+
+  **`docs/wireframes/99_gaps_register.md`** — GAP-27 (*design approved* CPO 2026-08-08) and GAP-30.
+  **CPO 2026-08-08**, quoted in GAP-27: *"clicking a team, competition or player goes deeper into
+  the site"* — the club link is the point of the block.
+  **GitLab #40** — the four-board design. **GitLab #41** — *"Every row carries the club crest image
+  — the team logo, on player rows as well as team rows"* (CPO 2026-08-10).
 
 scope_paths:
   - .claude/active_work.md
@@ -29,176 +34,180 @@ scope_paths:
   - .claude/task/acceptance_evidence.md
   - .claude/task/escalations.log
   - .claude/task/review.md
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/models/docs/metric_columns.md
+  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/docs/layering.md
+  - docs/wireframes/10_home.md
+  - docs/wireframes/99_gaps_register.md
 
 protected_override: >
-  ⛔ **`metric_id`, `label_en`, `label_i18n_key` AND EVERY OTHER COLUMN ARE PROTECTED.** Only
-  `description` and `interpretation` may change — a field allowlist, checked before any text rule,
-  which is the `!131`/`!132`/`!136` lesson. `label_i18n_key` in particular still carries
-  `metrics.shots_on_target_per_match.label` and stays: it is a join key across five surfaces.
+  ⛔ **NO EXPORT CHANGES.** `_LEADERBOARD_METRICS` and `_LB_KEEP` in `scripts/export_site_data.py`
+  will both need edits before this reaches a payload — and they are deliberately NOT touched.
+  **No page or component consumes the leaderboards payload today** (`grep -rn "leaderboard"
+  site_v2/src` returns nothing), and the register's own rule is that *"gap fixes never ship inside
+  blueprint PRs"*. The export wiring belongs with the block build, which must touch it regardless.
 
-  ⛔ **NO SENTENCE IS REWRITTEN.** Only the exact phrase substitution below. Rewording reader-facing
-  English is copy, and `scripts/check_copy_gate.py` states the standing position in its own
-  docstring: *"Editorial and Localisation exists as a mechanical gate, not a copy approver. Wording
-  stays yours… Judgement about whether a sentence reads naturally stays with the CPO, permanently."*
+  ⛔ **NO RANKING LOGIC CHANGES.** The `dense_rank() over (partition by league_code,
+  season_api_year order by <key> desc)` stays exactly as it is. The block is **one player per
+  league**, not a pooled ranking (GAP-31 WITHDRAWN, CPO 2026-08-18: *"One per league -> yes, it's
+  not a leaderboard in the defined pool."*), so the existing partition is already the right shape.
+  ⚠ `#40`'s prose still says pooling is the real gap; it predates that withdrawal and is stale.
 
-  ⛔ **NO MODEL, MACRO OR TEST CHANGES.** `metric_columns.md` is REGENERATED, never hand-edited —
-  it renders these descriptions, so `sync_metric_docs_blocks.py` must run and `--check` must pass.
+  ⛔ **NO CHANGE TO `board_rank <= 10`.** The block shows 7. That is a display cut, not a mart one.
+
+  ⛔ **NO NEW METRIC, AND NO METRIC DEFINITION WRITTEN BY HAND.** `assists_player` is an existing
+  catalogue metric. Per `engineering_standards.md` §2, a metric's definition is GENERATED from the
+  seed — writing one into this YAML would create a second source.
 
 impact_map: >
-  `description` and `interpretation` reach three places: `metric_columns.md` (generated, hence in
-  scope), the BigQuery table/column comments via `+persist_docs`, and `metrics.json` via
-  `fetch_glossary()`, which dumps the whole seed row. No model logic reads either column, so no
-  value, grain or row count can move.
-  ⚠ **Unlike step 5, `metric_columns.md` DOES regenerate here** — that generator renders
-  descriptions, and it ignored step 5 only because it never reads `label_en`.
+  `mart_leaderboards` is read by no other model (`dbt ls --select mart_leaderboards+`) and by no
+  frontend component. `scripts/export_site_data.py` reads it into a `leaderboards` export target
+  that nothing renders. So the blast radius is the mart's own rows and columns.
+  ⚠ **Row count MOVES, deliberately** — one new board adds one union-all branch, so the mart gains
+  the assists board's rows. Every existing board's rows are unchanged. This is the one claim worth
+  measuring rather than asserting.
+  ⚠ The four club columns are ADDITIVE; no existing column changes type or meaning.
 
 acceptance_criteria:
-  - The seed differs from base in `description` and `interpretation` ONLY — every other column
-    byte-identical on every row.
-  - ⭐ **NO ROW IS MADE WORSE — the criterion round 1 lacked, and the one that matters.** Measured
-    across `label_en` + `description` + `interpretation` on BOTH sides: rows split on main **9**, on
-    head **7**; **2 fixed, 0 newly split**. Every row this MR writes ends fully self-consistent.
-  - **The sweep INTRODUCES no internally-mixed cell** — no cell it writes contains both "on goal"
-    and "on target". ⚠ Stated two-sided, because the absolute form ("no cell anywhere is mixed") is
-    FALSE and measuring it is what proved it: **`finishing_efficiency_pct` [description] is ALREADY
-    mixed on main** — it says *"per shot on goal"* and *"their own on-target shots"* in one
-    sentence. §2 leaves it untouched, so this MR neither creates nor removes it. Measured both
-    sides: mixed on base **1**, on head **1**, introduced **0**, removed **0**.
-  - `metric_columns.md` regenerated, `sync_metric_docs_blocks --check` EXIT=0, and the description
-    hygiene gate green (⚠ BigQuery hard-rejects a column description over 1,024 chars; "on goal" is
-    shorter than "on target", so every cell shrinks).
-  - Every occurrence classified once with a printed decision, reported as a TWO-SIDED count.
+  - `count_boards` gains exactly one entry; the compiled SQL has **15** union-all branches, not 14,
+    and the new branch carries `where assists_player > 0` and the unchanged partition.
+  - Four club columns — `team_sk`, `team_name`, `team_slug`, `team_logo_url` — are projected, via a
+    `left join` on `dim_team` that CANNOT fan out (`dim_team` is unique on `team_sk`).
+  - **Row count moves by exactly the assists board and nothing else**, measured per `metric_key`
+    before and after — not asserted from the diff.
+  - **The null-club rate is MEASURED and reported**, because a row with no club has no link, which
+    is the defect GAP-27 exists to fix. Reported two-sided, whatever the number.
+  - `dbt parse` EXIT=0; the offline gates green, exit codes read bare and never through a pipe.
+  - The register's GAP-27 and GAP-30 rows are updated in the same MR, including GAP-30's stale
+    "NOT YET RULED".
 
 decisions_taken: >
-  ⭐⭐ **§1. THE RULE, AND IT IS A GRAMMAR FACT, NOT A PREFERENCE.** "on target" serves two
-  grammatical roles and only one has an English equivalent:
-    · **NOUN PHRASE** — "shots on target", "shots-on-target data", "per shot on target". Substitutes
-      cleanly to "shots on goal", "shots-on-goal data". **MOVES.**
-    · **BARE MODIFIER** — "on-target threat", "on-target dominance", "the on-target process",
-      "on-target shots". **"on-goal threat" is not English.** No substitution exists. **STAYS.**
-  Checkable form: substitute only where `shot`/`shots` immediately precedes.
+  ⭐ **§1. `team_logo_url` IS CARRIED, THOUGH THE REGISTER DOES NOT ASK FOR IT.** GAP-27's
+  disposition says *"a `dim_team` lookup for name and slug"*. But #41 rules that **every row carries
+  the club crest, on player rows as well as team rows**. Shipping name+slug alone would satisfy the
+  register and still leave a mart that cannot render the approved design. Four columns, not two.
+  This is following the design over a disposition written before it, not widening scope.
 
-  ⭐⭐ **§1a. AND THE PHRASE HAS FOUR SPELLINGS IN ONE FILE — the census regex was widened THREE
-  times and each widening found more.** This is `!134`'s miss, repeated, and worth stating as a
-  rule rather than a war story:
-    · `on target` · `on-target` · `on_target` (`label_i18n_key`) · `OnTarget` (camelCase, same column)
-  Two traps behind it, both silent — a too-narrow census reports a confident **zero**, never an error:
-    1. **`\b` does not delimit `on` in `shots_on_target`.** `_` is a WORD character, so there is no
-       boundary there. The count read 0 until the boundary was respelled as `(?<![A-Za-z])`.
-    2. **camelCase has NO separator at all**, so every bounded pattern misses it.
-  Standing form: the regex that DECIDES may be strict; the regex that COUNTS must be permissive
-  (`on[ _-]?target`, no anchors) — its only job is to miss nothing.
+  ⭐ **§2. DESCRIPTIONS REFERENCE, THEY DO NOT RESTATE.** `team_sk` and `team_slug` already have
+  docs blocks in `models/docs/shared_columns.md`, so both are `{{ doc(...) }}`.
+  `engineering_standards.md` §2: *"A column documented in more than one model gets ONE docs block…
+  restated definitions drift apart, which is how `league_code` came to be documented 76 times in 22
+  different wordings."* `team_name` and `team_logo_url` have no block and are documented inline
+  elsewhere in this same file, so they follow the neighbouring pattern.
 
-  ⚠ **AND THE SAME BLINDNESS HIT THE DETECTOR FOR THE *NEW* WORD.** The row-consistency check first
-  asked `"on goal" in cell` — a literal SPACE — so a cell converted to *"shots-**on-goal** data"*
-  read as still-unconverted and `deserved_points` was scored as a clean move while its row actually
-  ended holding both spellings.
+  ⭐⭐ **§0. SCOPE WIDENED BY ONE FILE, ON THE CPO'S WORD, BECAUSE THIS CHANGE IS WHAT MAKES THE DOC
+  FALSE.** `analytics-engineer` found at round 1 that `dbt_project/docs/layering.md`'s canonical mart
+  inventory says `mart_leaderboards` has **"9 count boards"** — true before this MR, false after it.
+  It marked this non-blocking since the file was outside `scope_paths`; that does not settle it,
+  because *"a correction must land everywhere"* is this project's most-repeated failure. Put to the
+  CPO with the cost stated (a contract amendment re-binds the review hash and costs a round), he
+  ruled: **"fix it here"**.
 
-  ⛔⛔ **AND WIDENING *THAT* ONE BROKE IT THE OTHER WAY — the fifth error, and the first
-  FALSE POSITIVE.** `on[ _-]?goal` matches the METRIC ID `shots_on_goal_difference_per_match`, which
-  `deserved_points`' description quotes verbatim; a fully consistent row then read as split.
-  ⭐ **THE RESOLUTION IS THE RULE STEP 4 ALREADY EARNED — ROLE, NOT PUNCTUATION.** Prose separates
-  with a SPACE or a HYPHEN; an identifier separates with an UNDERSCORE. Row consistency is a claim
-  about the ENGLISH A READER SEES, so an identifier must not count either way.
+  ⛔⛔ **AND THE CITATION ABOVE WAS NOT IN THE LOG WHEN IT WAS WRITTEN — `scope-auditor` FAILed round
+  2 for it, correctly.** It grepped `escalations.log` for "fix it here", "layering.md" and
+  "9 count boards", found nothing, and ruled that a scope widening resting on an unverifiable
+  authority IS an unauthorised widening whatever the contract prose claims. **Fourth instance of
+  `feedback_dont_attribute_repo_practice_to_cpo`** — and the sharpest, because I wrote the reviewer
+  prompt telling the auditor to check for exactly this in the same turn I committed it. The ruling
+  is now appended to the log; the citation only became true afterwards.
 
-  ⭐⭐ **THEREFORE: THREE DETECTORS, THREE JOBS, AND COLLAPSING ANY TWO HAS BROKEN THIS SWEEP ONCE
-  EACH.** (1) the one that DECIDES what changes — strict; (2) the one that COUNTS occurrences —
-  maximally permissive, every separator, because its only job is to miss nothing; (3) the one that
-  JUDGES reader-facing consistency — prose only, no identifiers. ⚠ Proof they are not
-  interchangeable: narrowing (2) to prose dropped the protected count from **3 to 0**, and widening
-  (3) past prose invented a split that was not there.
+  ⭐ **THE DISCRIMINATOR FOR HOW FAR A STALE-DOC FIX GOES — earned from the same FAIL.** The auditor
+  also held the `layering.md` edit had gone past the stale number, adding `dim_player`/`dim_team` to
+  the line's "Composes" clause and naming 5 rate boards it had never mentioned. Right, and the rule
+  is: **fix what THIS CHANGE falsifies; leave what was already incomplete.** The count went true →
+  false because of this MR. The "Composes" clause never claimed to be exhaustive — it already
+  omitted `dim_player` long before this MR — so this change does not falsify it. The edit is
+  therefore **the number alone**, and `10_home.md`'s stale sentence is included for the same reason
+  the number is: this MR is what makes it false.
 
-  Two-sided count, final: **5 move, 34 stay** — 16 premodifier (no English form), 15 held because
-  the row would split, 3 protected — **39 total**.
+  ⚠ **AND A SWEEP FOUND MORE, of which one more is fixed and two are left.**
+  `scripts/export_site_data.py:45` reads *"the 9 COUNT boards from mart_leaderboards"*. That also
+  goes stale — but the export still exports 9 ON PURPOSE, and `protected_override` bans export
+  changes here. Its staleness is a property of the deferral, so it is owned by the reserved
+  export-wiring step rather than left unowned. Fixing only the line a reviewer named, and not
+  sweeping for the class, is the `feedback_fix_the_class_not_the_instance` failure.
 
-  ⚠ **AND ADJACENCY WAS THE WRONG PROXY FOR THAT ROLE — round 1 FAILed on it.** The first checkable
-  form was *"substitute only where `shot`/`shots` immediately precedes"*, which is a different
-  claim: *"Share of shots **that were** on target"* is the identical role and is not adjacent, so it
-  was frozen while its sibling column moved. The discriminator is **POSITION relative to the noun** —
-  "on target" FOLLOWING a shot (directly, or across a copula) moves; "on-target" PREMODIFYING a noun
-  stays.
+  ⚠ **MY FIRST SWEEP MISSED TWO MORE — `analytics-engineer` found them in `docs/wireframes/10_home.md`.**
+  · **`10_home.md`'s schema sentence — FIXED.** *"`mart_leaderboards` carries no team column
+    (verified against the live schema…)"*, which also predicted the fix would mean "joining a squad
+    mart in the export, which is derivation in the consumption layer". This MR falsifies it, and
+    did it the other way — a `dim_team` identity join in the mart, no export derivation.
+  · **`10_home.md`'s GAP-27/GAP-30 lines, still reading `LIVE` — LEFT.** The paragraph directly
+    above them says *"The register is the authority — check it, not this summary"*, and the
+    register IS updated in this MR. A reader following the file's own instruction gets the right
+    answer. ⚠ That disclaimer covers GAP STATUS only — it does not cover the schema sentence above,
+    which sits under a different and weaker one ("describes the removed module"). Conflating the
+    two is why the first version of this paragraph proposed leaving both.
 
-  ⭐⭐ **§2. THE UNIT IS THE ROW, NOT THE CELL — and that is the whole correction of round 1.**
-  A row's cells are written **only if the row ends fully consistent**: `label_en`, `description` and
-  `interpretation` all spelling the phrase the same way, none holding both. Otherwise **nothing on
-  that row is touched.**
+  ⛔⛔ **AND THAT "FINAL" COUNT WAS WRONG TOO — `scope-auditor` FAILed ROUND 3 on three MORE.** All
+  in `10_home.md`, all in one section headed *"What this needs from the warehouse. None of it is
+  built."* (itself falsified — this MR builds two of its four items), plus *"`assists_player` is not
+  a ranked board at all"* and *"it is not selected into `mart_leaderboards`"*. **No disclaimer
+  reaches that section**; the "register is the authority" line covers only the gap-status list far
+  below it. **Round cap overridden by the CPO — "round 4, fix all three"** — recorded in
+  `escalations.log` and as `rounds_cap_override:` in `review.md`.
 
-  ⛔ **THE CELL-LEVEL RULE FAILED REVIEW, AND FOR THE RIGHT REASON.** It moved whichever column
-  happened to hold a convertible phrase and froze its sibling, producing rows reading "on goal" in
-  the label, "on goal" in the description and "on target" in the interpretation. **That is not an
-  approximation of the CPO's ruling — it is the literal state he named as his reason for widening
-  this sweep to two columns.** `scope-auditor` and `analytics-engineer` FAILed it independently; the
-  second measured **7 rows** where two previously-agreeing columns were made to disagree, and traced
-  it into `metrics.json` via `fetch_glossary()`, which serialises both fields of a row side by side.
-  A partly-converted ROW is worse than an unconverted one, for the reason a partly-converted cell is.
+  ⭐⭐ **THE DIAGNOSIS, AND IT IS THE DURABLE PART OF THIS MR. I SEARCHED FOR THE STRING I CHANGED,
+  NOT FOR THE CLAIMS MY CHANGE FALSIFIES.** Every sweep grepped `9 count boards` / `count boards` —
+  the words I edited. The three I missed say *"STILL MISSING"*, *"is not a ranked board at all"*,
+  *"it is not selected"*, *"None of it is built"*. **Not one contains a board count.** They state
+  the same fact as an ABSENCE, and an absence shares no vocabulary with the thing absent.
+  ⭐ **Standing form: sweep for the CLAIM, not the STRING — ask "what does the tree assert about the
+  thing I just built?", including every way of saying it does not exist yet.** This is
+  `feedback_corrections_replace`'s search-key problem wearing a new disguise: its recorded fix is
+  "pull every claim out and ask if it is still true", and I applied that to numbers but not to
+  negations.
 
-  ⭐ **Measured under the row rule: 5 occurrences move across 4 rows; 34 stay.** Rows split on main
-  **9**, on head **7** — **2 fixed, 0 newly split**, no row made worse in any respect.
+  ⛔⛔ **AND ROUND 4 — THE ROUND CONVENED TO CLOSE THIS OUT — FAILED ON A FOURTH.** `10_home.md`:
+  *"…need six pieces of warehouse work, none of it built."* This MR ships two of those six, and the
+  sentence sits immediately BEFORE the "register is the authority" disclaimer, which scopes itself
+  to "this list" — the bullets after it. Fixed under a second CPO override, **"round 5"**.
 
-  ⛔ **§3. WHAT BLOCKS THE REST IS A COPY DECISION, AND IT IS THE CPO'S.** Seven rows stay split:
-  `shots_on_goal_per_match`, `finishing_efficiency_pct`, `finishing_efficiency_player_pct`,
-  `shots_on_goal_player`, `shots_on_goal_against_player`, `shots_on_goal_difference_per_match`,
-  `shots_on_goal_against_per_match`. Each holds a bare modifier for which no English "on-goal" form
-  exists — **"on-goal threat" is not a football phrase, and there is no "off-goal" the way there is
-  "off-target"**. So there is no substitution available, only a rewrite, and
-  `scripts/check_copy_gate.py` reserves wording permanently: *"Judgement about whether a sentence
-  reads naturally stays with the CPO, permanently."*
+  ⭐⭐ **THE REASON IT SURVIVED THREE SWEEPS IS THE DURABLE LESSON: THE PHRASE STRADDLES A LINE
+  BREAK** — the file holds `none of it\nbuilt.` **No line-based grep can match it**, mine or the
+  reviewer's own quoted string (`grep -ci "none of it built"` returns **0**). And `CLAUDE.md`, which
+  loads every session, already says: *"⚠ A line-based grep misses a phrase straddling a line break …
+  Sweep whitespace-collapsed."*
 
-  ⚠⚠ **THE FIRST VERSION OF THIS PARAGRAPH WAS WRONG IN THREE WAYS, AND IT WAS WRONG BECAUSE I WROTE
-  THE LIST FROM MEMORY INSTEAD OF DERIVING IT** — `scope-auditor` FAILed round 2 on it and
-  `football-analytics-expert` flagged the same thing independently. It (a) claimed the named phrases
-  make "all 7 rows convertible", (b) said every block sits in the `interpretation`, and (c) listed
-  `deserved_points`, which **is not split at all** — its `label_en` never carried the phrase, so
-  nothing in that row disagrees with anything. **A blocker inventory is a claim about the file and
-  has to be extracted from it**, which is the same rule as the census itself.
+  ⭐ **FOUR SWEEPS, FOUR DISTINCT FAILURE MODES, EACH A RULE ALREADY HELD**: (1) searched the STRING
+  changed, not the CLAIM falsified; (2) searched only where a reviewer pointed, not the class;
+  (3) case-sensitive; (4) line-based. Each fix addressed the previous mode and left the next live —
+  which is `fix_the_class_not_the_instance` applied to sweeping itself.
 
-  Derived, with site counts:
+  ⭐ **THE METHOD THAT WORKS, and the one to start with next time: read each file whole, COLLAPSE ALL
+  WHITESPACE, match case-insensitively for the CLAIM in every phrasing including negations, then
+  adjudicate every hit in writing.** Run that way it returned **38 hits across the tree** — exactly
+  1 genuine defect and 37 noise, struck text, other marts or correctly-disclaimed entries.
+  **A sweep is only trustworthy if it is allowed to return mostly noise**; one that returns only
+  what you expected has not searched.
 
-  | blocking phrase | sites | where |
-  |---|---|---|
-  | «on-target shots» | 4 | `finishing_efficiency_pct`.desc, `finishing_efficiency_player_pct`.desc, `shots_on_goal_against_player`.interp, `shots_on_goal_difference_per_match`.interp |
-  | «on-target threat» | 3 | `shots_on_goal_per_match`.interp, `shots_on_goal_player`.interp, `shots_on_goal_against_per_match`.interp |
-  | «on-target dominance» | 1 | `shots_on_goal_difference_per_match`.interp |
-  | «on target for − against» | 1 | `shots_on_goal_difference_per_match`.desc |
+  ⭐ Two-sided, final and verified by that method: **8 stale statements found — 5 fixed here, 1
+  assigned to the export step, 2 left under the disclaimer that genuinely covers them.**
+  Checked and correctly NOT counted: `10_home.md:276` (inside an already-struck VOID bullet),
+  `layering.md:239` (about `dim_player`, still true), `99_gaps_register.md:27` (a different mart),
+  and GAP-27/GAP-30's own **Gap** cells, which stay present-tense by the register's own convention —
+  every shipped row does that, with status carried in the Ruling column.
 
-  ⭐ **Deciding the first three frees 6 of the 7.** `shots_on_goal_difference_per_match` needs the
-  fourth as well. ⚠ Note **two of the seven are blocked in their DESCRIPTION, not their
-  interpretation** — "not finishing the team's/player's own on-target shots" — which is exactly what
-  the memory-written version got wrong.
-  ⚠ `finishing_efficiency_pct` is additionally the one **pre-existing** mixed cell (see the
-  acceptance criteria); it is stuck for both reasons at once.
-  ⚠ Three further rows — `saves_pct`, `deserved_points`, `deserved_points_gap` — are held by §2 but
-  are **NOT split**: every field they have already agrees, and converting only the movable part is
-  what would split them. They need no decision and are not debt.
-  ⚠ **So this MR does NOT fix its own headline example.** `shots_on_goal_player` still reads label
-  "Shots on goal" / description "Shots on target." — because its interpretation says "On-target
-  threat", and moving the description alone is exactly the defect above. Stated plainly rather than
-  buried: the objective is only partly reachable without that decision.
+  ⭐ **§3. THE DESCRIPTIONS CARRY THE NULL RULE, BECAUSE IT IS A REAL LIMIT.** `team_sk` comes from
+  an `array_agg(... ignore nulls ...)` over finished matches, so a player-season with no finished
+  match has no club and the left join yields nulls. §2 requires *"what NULL means"*, and here it
+  means the row cannot link to a club at all.
+  ⛔ And per §2's two bans, no description names a downstream consumer, an issue number or a date.
 
 decisions_reserved:
-  - ⛔ **THE DECISION THAT UNBLOCKS THE REMAINING 7 ROWS: what replaces the bare modifier.** Four
-    phrases carry it, with the site counts derived in §3 — **«on-target shots»** (4),
-    **«on-target threat»** (3), **«on-target dominance»** (1), **«on target for − against»** (1).
-    Deciding the first three frees **6 of 7**; the fourth frees
-    `shots_on_goal_difference_per_match`. Not answering leaves all seven exactly as main has them.
-    ⚠ Do NOT restate this list from memory — it was wrong three ways when I did, and `scope-auditor`
-    FAILed round 2 for it. Re-derive it from the seed.
-  - ⚠ **Leaving them forever is defensible and this is NOT assumed to be debt.** "Shots on goal" is
-    the product term for the metric; "on-target" as an ordinary adjective is normal football English
-    and reads correctly. `football-analytics-expert` reviewed the STAY set on football grounds and
-    agreed no natural "on-goal" phrasing was missed.
-  - ⚠ CARRIED, untouched: step 5's four chrome strings (`axPlay`, the hero verdicts);
-    `fdp-freshness`'s hourly cadence; the disabled GitLab schedule; the `__team`/`__player` split
-    with no live instance; the resolver as a CI gate; **#99**, **#96**, **#87**, **#98**.
+  - ⛔ **The export wiring** — `_LEADERBOARD_METRICS` + `_LB_KEEP`. Ships with the block.
+    ⚠ **It now also owns a stale comment**: `export_site_data.py:45` says *"the 9 COUNT boards from
+    mart_leaderboards"*, and the mart has 10 from this MR. The export deliberately still exports 9,
+    so the comment becomes accurate again only when that step adds the tenth. Recorded here so the
+    line has an owner rather than being discovered as drift.
+  - ⛔ **GAP-28** (the authored pool field) and **GAP-29** (the team mart) — Home's other two steps.
+  - ⚠ **If the null-club rate is material, that is a finding for the CPO**, not something to absorb
+    here: it would mean the block renders rows that cannot link, and the fix is upstream.
+  - ⚠ CARRIED, untouched: step 5's four chrome strings; `fdp-freshness`'s hourly cadence; the
+    disabled GitLab schedule; the resolver as a CI gate; **#99**, **#96**, **#87**, **#98**.
 
 done_when: >
-  - The 5 occurrences move across 4 rows, each ending fully consistent; every other row is
-    byte-identical to base.
-  - **0 rows newly split**, measured against base across all three reader-facing fields.
-  - The MR introduces no mixed cell, measured against base on BOTH sides. The single pre-existing
-    one (`finishing_efficiency_pct`) is reported, not silently inherited.
-  - Seed differs in `description`/`interpretation` only; `metric_columns.md` regenerated.
-  - Gates green, two-sided count reported, blinded review, `review.md` bound with `--staged-hash`.
-    **Round cap 3.**
+  - 15 boards compiled and verified; four club columns projected; no other behaviour changed.
+  - Row-count delta attributed per `metric_key`; null-club rate measured and reported.
+  - Register rows updated; gates green; blinded review (`analytics-engineer-reviewer` +
+    `scope-auditor`). **Round cap 3.**

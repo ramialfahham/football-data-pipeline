@@ -7523,3 +7523,160 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   ⚠ CHECKED, because a bad detector could have reached the data: **it did not.** `git diff` shows
   the seed byte-identical to what both round-2 reviewers read. Only my prose was wrong — but the
   prose is what the CPO would have acted on, which is why it was rightly a FAIL and not a nit.
+
+
+---
+
+2026-09-02 PRODUCT WORK RESUMES — HOME, AND A GAP REGISTER'S STATUS FIELD IS NOT AN OPEN QUESTION.
+
+  ⭐ THE ASK, verbatim: *"For every page we need to know what is missing so it can be built. Home
+  first anyway."* Then, on a plan naming GAP-30 + GAP-27 as the first of three warehouse steps for
+  Home: *"go ahead"*. Logged because `contract.md` cites both as its authority.
+
+  ⭐ THE FRAME HE SET, and it is the standing loop for every page: *"Design the page using consistent
+  design language, define the content blocks and define what data sources these pages / content
+  blocks consume from. Then we can say whether it is done, meaning we can build it."*
+  ⚠ I offered two corrections and he accepted neither as a change: (1) per-page SEO cannot wait for
+  the end — `check-page-specs.mjs` already refuses to build a page that does not declare its
+  canonical, title, schema type and minimum-data rule, so those are decided WITH the design; only
+  the site-wide link graph waits. (2) "Define the data source" must mean "check it says what the
+  block needs", not that the source exists — registry `country` holds a country, a continent or
+  "International" depending on the row, and points are a synthetic 3-1-0 tally in every competition.
+
+  ⛔⛔ THE CORRECTION THAT MATTERS, AND IT WAS HIS. I brought GAP-30 to him as an open decision
+  because the register's Ruling column reads **"NOT YET RULED"**. His reply: *"So what's the
+  question. The player block has assists in the mockup."*
+  ⭐ **He is right, and the rule generalises: REGISTERING A GAP DOES NOT UN-RULE THE DESIGN ABOVE
+  IT.** #40 fixed the four boards on 2026-08-10 as goals → assists → passes → key passes. GAP-30
+  asks for the mechanical consequence of that — a board key in a list. Its status field describes
+  whether the GAP entry was ruled on, not whether the design is decided, and I read the first as
+  the second. That is a micro-escalation of exactly the kind already logged: handing him a fork
+  that his own earlier ruling had closed.
+
+  ⚠ ALSO CORRECTED BY HIM, EARLIER IN THE SAME THREAD: I described Home as a one-block page from
+  reading `[lang]/index.astro`'s spec. *"You are looking at the actual page. The mockups tell a
+  different story. Home definitely is supposed to have more blocks. Maybe we don't have the data
+  models / marts yet that feed the content."* Correct on both counts — the design is three blocks,
+  and both missing ones are blocked on the warehouse, which #40 and #41 each say in their own words.
+  **What is BUILT and what is DESIGNED are different questions, and I answered the wrong one.**
+
+  ⭐ A REGISTER ENTRY CAN ALSO UNDERSTATE ITS OWN WORK. GAP-27's disposition says "a `dim_team`
+  lookup for name and slug". #41 rules that every row carries the club crest, "on player rows as
+  well as team rows" — so name+slug alone satisfies the register and still leaves a mart that
+  cannot render the approved design. `team_logo_url` is carried on the DESIGN's authority, not the
+  disposition's. Read the design the gap serves, not only the gap.
+
+  ⚠ STALE CLAIM FOUND AND NOT ACTED ON, recorded so it is not rediscovered: **#40's "What this
+  needs from the warehouse" still says the real gap is POOLING across leagues.** GAP-31 was
+  WITHDRAWN on 2026-08-18 on the CPO's ruling *"One per league -> yes, it's not a leaderboard in the
+  defined pool"*, which makes `mart_leaderboards`' existing `partition by league_code,
+  season_api_year` already the right shape. #40's paragraph predates that and was not edited. I
+  quoted it to the CPO as live before catching it. Fixing #40's text is not in this MR's scope.
+
+
+---
+
+2026-09-02 CPO RULING — WIDEN SCOPE BY ONE FILE TO FIX A DOC THIS MR ITSELF MAKES FALSE.
+
+  ⭐ THE RULING, verbatim: **"fix it here"**.
+
+  ⭐ THE QUESTION PUT TO HIM. `analytics-engineer-reviewer` PASSed round 1 but flagged, as explicitly
+  NON-BLOCKING and out-of-scope, that `dbt_project/docs/layering.md`'s canonical mart inventory says
+  `mart_leaderboards` has **"9 count boards"** — true before this MR, false after it. I argued that
+  being out of `scope_paths` does not settle it, because THIS change is what falsifies the line, and
+  *"a correction must land everywhere"* is this project's most-repeated failure. I stated the cost
+  plainly — amending `scope_paths` re-binds the review hash and costs a review round — and gave the
+  alternative (ship and file a follow-up). He chose to fix it here.
+
+  ⛔⛔ AND THIS ENTRY EXISTS BECAUSE I FAILED TO WRITE IT. I amended `contract.md` to cite *"he
+  ruled: 'fix it here'"* and did not add the ruling to this log. `scope-auditor` FAILed round 2 for
+  exactly that, and it was right: it grepped the log for `fix it here`, `layering.md` and
+  `9 count boards` and found nothing, so **a scope widening rested on an authority that could not be
+  verified** — which is an unauthorised widening whatever the contract prose says.
+  ⚠ FOURTH RECORDED INSTANCE of `feedback_dont_attribute_repo_practice_to_cpo`: *"'you ruled' needs
+  a quote from escalations.log"*. Sharper this time — **I wrote the reviewer prompt that told the
+  auditor to check for this by name, in the same turn that I committed it.** Knowing the rule, and
+  even instrumenting for it, does not make me follow it. The habit that fails is narrating a ruling
+  in prose and never writing it into the file the gate parses.
+
+  ⭐ SECOND FINDING, ACCEPTED AND ACTED ON. The auditor also held that with the ruling unrecorded,
+  the SCOPE of the widening was unverifiable — and that the `layering.md` edit had gone past the
+  stale number, adding `dim_player`/`dim_team` to the line's "Composes" clause and naming the 5 rate
+  boards the inventory had never mentioned.
+  ⭐ THE DISCRIMINATOR I SHOULD HAVE USED, and now do: **fix what THIS CHANGE falsifies; leave what
+  was already incomplete.** The count went from true to false because of this MR — in scope. The
+  "Composes" clause never claimed to be exhaustive (it already omitted `dim_player`, long before
+  this MR), so this change does not falsify it — OUT of scope. The missing rate boards are likewise
+  a pre-existing omission. The edit is therefore reduced to the number alone, and the residue is
+  recorded as an observation rather than folded in.
+
+
+---
+
+2026-09-02 CPO RULING — ROUND CAP OVERRIDE, AND THE THIRD SWEEP FAILURE IN ONE MR.
+
+  ⭐ THE RULING, verbatim: **"round 4, fix all three"**. Authorises exceeding the round cap of 3,
+  recorded as `rounds_cap_override:` in `review.md` because the commit gate refuses otherwise.
+
+  ⭐ WHAT WAS PUT TO HIM. `scope-auditor` FAILed round 3 on two stale statements in
+  `docs/wireframes/10_home.md` (lines 283 and 286-288) which this MR directly falsifies and which no
+  disclaimer covers — the "register is the authority" line reaches only the separate gap-status list
+  further down. Verifying them I found a THIRD: the section heading at line 262 reads *"What this
+  needs from the warehouse. None of it is built."*, and this MR builds two of its four items. I
+  stopped at the cap and brought all three rather than fixing them, and he authorised the round.
+
+  ⛔⛔ THE PATTERN, AND IT IS THE POINT OF THIS ENTRY: **THREE FAILED SWEEPS IN ONE MR.** Round 2
+  FAILed on an unrecorded authority AND an over-wide doc edit; round 3 FAILed on an incomplete
+  sweep; and my own "two-sided, final: 4 stale statements found" was written while three more sat
+  unfound in a file I had already opened and edited.
+
+  ⭐⭐ THE DIAGNOSIS, which is sharper than "sweep harder". **I SEARCHED FOR THE STRING I CHANGED,
+  NOT FOR THE CLAIMS MY CHANGE FALSIFIES.** My sweep grepped `9 count boards` / `count boards` —
+  the words I edited. The statements I missed say *"STILL MISSING"*, *"is not a ranked board at
+  all"*, *"it is not selected into `mart_leaderboards`"*, *"None of it is built"*. Not one contains
+  a board count. They are the SAME FACT phrased as an absence, and an absence shares no vocabulary
+  with the thing it is absent of.
+  ⭐ **THE STANDING FORM: sweep for the CLAIM, not the STRING. Ask "what does the tree assert about
+  the thing I just built?" — including every way of saying it does not exist yet.** This is
+  `feedback_corrections_replace`'s search-key problem in a new disguise: its recorded form is "I
+  sweep for the numbers I remember changing", and the fix already written there is "invert it — pull
+  every claim out and ask if it is still true." I applied that to numbers and not to negations.
+
+
+---
+
+2026-09-02 CPO RULING — ROUND 5. A FOURTH INSTANCE, AND FOUR SWEEPS THAT FAILED FOUR DIFFERENT WAYS.
+
+  ⭐ THE RULING, verbatim: **"round 5"**. A second round-cap override on the same MR.
+
+  ⛔ WHAT WAS FOUND. `analytics-engineer-reviewer` FAILed round 4 — the round explicitly convened to
+  close this class out — on a FOURTH stale statement in the same file, `10_home.md`: *"The Top
+  players and Top teams blocks specified in §0 need six pieces of warehouse work, none of it
+  built."* This MR ships two of those six. It sits in the prose sentence immediately BEFORE the
+  "register is the authority" disclaimer, which by its own wording scopes to "this list" — the
+  bullets that follow it — so no disclaimer reaches it.
+
+  ⛔⛔ AND THE REASON IT SURVIVED IS THE WHOLE POINT: **THE PHRASE STRADDLES A LINE BREAK.** The file
+  holds `none of it\nbuilt.` — so NO line-based grep can match it. Not my sweep, and not the
+  reviewer's own quoted string either (`grep -ci "none of it built"` returns **0**).
+  ⭐ **AND THAT TRAP IS WRITTEN IN `CLAUDE.md`, WHICH LOADS EVERY SESSION:** *"⚠ A line-based grep
+  misses a phrase straddling a line break … Sweep whitespace-collapsed with comments stripped."*
+  I had the rule in the always-loaded file and did not apply it.
+
+  ⭐⭐ FOUR SWEEPS, FOUR DISTINCT FAILURE MODES, EVERY ONE A RULE I ALREADY HELD:
+    1. searched the STRING changed ("9 count boards") rather than the CLAIMS falsified;
+    2. searched only where a reviewer had already pointed, not the class;
+    3. case-sensitive — "None of it is built" vs "none of it built";
+    4. **line-based, so a phrase broken across two lines is invisible.**
+  ⚠ Each fix addressed the previous mode and left the next one live. Widening a sweep one failure at
+  a time IS the `fix_the_class_not_the_instance` failure, applied to sweeping itself.
+
+  ⭐ THE METHOD THAT FINALLY WORKED, and the one to use from the start next time: **read each file
+  whole, collapse ALL whitespace, match case-insensitively for the CLAIM in every phrasing including
+  negations, then adjudicate every hit in writing.** Run on that basis it produced **38 hits across
+  the tree**, of which exactly one was a genuine new defect and 37 were noise, struck text, other
+  marts, or correctly-disclaimed list entries. A sweep is only trustworthy if it is allowed to
+  return mostly noise; one that returns only the answer you expected has not searched.
+
+  ⚠ COST, recorded because it is the honest measure: **three lines of SQL, five review rounds, and
+  every FAIL was documentation drift rather than the change itself.**
