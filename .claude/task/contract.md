@@ -1,32 +1,25 @@
-# Task contract — the assists board, and a club on every leaderboard row
+# Task contract — every domestic league gets a competition group
 
 objective: >
-  **Close two registered gaps against `mart_leaderboards`, both prerequisites for Home's Top players
-  block.**
-
-  · **GAP-30** — add `assists_player` to `count_boards`. The approved four-board design is
-    goals → **assists** → passes → key passes; three are boards, assists is not, so the second board
-    of four has no rank to read. The column already exists on the mart and upstream; it simply never
-    appears in the board list.
-  · **GAP-27** — carry the player's club on every row. Today a leaderboard row links to a player and
-    to nothing else, which halves the internal-link value the block exists for.
-
-  ⚠ **NEITHER IS A DESIGN DECISION.** Both implement designs already approved; the register's
-  "NOT YET RULED" on GAP-30 is a stale status field, corrected in this MR.
+  **Encode the CPO's league grouping as a registry field, so the home page's blocks have a set of
+  leagues to select from.** Home's Top players and Top teams each show *one per league* drawn from a
+  chosen set; nothing in the warehouse says which leagues form which set. That is **GAP-28**, and it
+  blocks both blocks.
 
 refs: >
-  **CPO, verbatim, this session:** *"go ahead"*, on a plan naming exactly these two gaps as the
-  first of three warehouse steps for Home. Preceded by *"For every page we need to know what is
-  missing so it can be built. Home first anyway."*
-
-  **CPO, on GAP-30 being treated as an open question:** *"So what's the question. The player block
-  has assists in the mockup."* — correct, and the reason the register's status field is fixed here.
-
-  **`docs/wireframes/99_gaps_register.md`** — GAP-27 (*design approved* CPO 2026-08-08) and GAP-30.
-  **CPO 2026-08-08**, quoted in GAP-27: *"clicking a team, competition or player goes deeper into
-  the site"* — the club link is the point of the block.
-  **GitLab #40** — the four-board design. **GitLab #41** — *"Every row carries the club crest image
-  — the team logo, on player rows as well as team rows"* (CPO 2026-08-10).
+  **CPO, verbatim, this session**, in order:
+  · *"Drop the pools, let's rethink this properly"* — the existing pool table is retired, not amended.
+  · *"However, the 3 new clubs would be in pool 2"* — Belgium/Turkey/Poland are NOT elite.
+  · *"Should not be a blocker here. Basically all of it is judgement"* — settles the design question:
+    **authored, not derived.**
+  · The grouping itself, restated by him: *"we have one set of top 7 clubs (which all happen to be
+    european), split calendar / we have a set of another european clubs (not part of the top group),
+    split calendar / we have non-european groups, split calendar / we have leagues with calendar year
+    (non-europena and 1 eurpean) / all of them are in the first league of their countries / then
+    there is the 'rest'"*.
+  · *"names are good, build it"* — on `elite` · `europe` · `international` · `summer` · `secondary`.
+  · Then, correcting one: *"They play through summer, yes but not only in summer. actually for
+    example in argetina season starts in january"* — so **`summer` became `calendar`**.
 
 scope_paths:
   - .claude/active_work.md
@@ -34,180 +27,165 @@ scope_paths:
   - .claude/task/acceptance_evidence.md
   - .claude/task/escalations.log
   - .claude/task/review.md
-  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
-  - dbt_project/models/5_marts/shared/shared.yml
-  - dbt_project/docs/layering.md
+  - docs/competition_registry.yml
+  - dbt_project/seeds/competition_registry.csv
+  - dbt_project/seeds/schema.yml
+  - scripts/sync_dbt_vars.py
+  - tests/test_registry_seed_projection.py
+  - .claude/skills/onboard-competition/SKILL.md
   - docs/wireframes/10_home.md
   - docs/wireframes/99_gaps_register.md
 
+amendments: >
+  ⭐ **2026-09-02 — `docs/wireframes/10_home.md` ADDED to scope_paths. CPO: "yes, widen it".**
+  It was RESERVED in the first draft of this contract on the grounds that the file is the subject
+  of **#100** and cost `!142` five review rounds. `bi-analyst-reviewer` FAILed that reservation and
+  was right: the retired pool table is **not** in the file's disclaimed historical part, it is in
+  **§0, which the file's own header calls "the current authority"** — so a builder following the
+  document's stated authority chain reads a design this MR has retired. Worse, it contradicts the
+  CPO directly (*"Belgium and Turkey belong in pool 1"* against his *"the 3 new clubs would be in
+  pool 2"*), and its four-pool algorithm has no bucket for the three leagues now in `europe`.
+  ⚠ Put to him as an explicit scope question rather than inferred, because inferring a ruling is
+  what FAILed the previous round of this same MR.
+
+  ⭐ **2026-09-02 — `.claude/skills/onboard-competition/SKILL.md` ADDED**, on
+  `data-engineer-reviewer`'s FAIL. The skill is the procedure someone actually follows to onboard a
+  league; it listed every other registry field and not this one, so following it exactly produced a
+  league that fails CI with no explanation. A registry field onboarding does not know about is a
+  defect in the field, not in onboarding.
+
 protected_override: >
-  ⛔ **NO EXPORT CHANGES.** `_LEADERBOARD_METRICS` and `_LB_KEEP` in `scripts/export_site_data.py`
-  will both need edits before this reaches a payload — and they are deliberately NOT touched.
-  **No page or component consumes the leaderboards payload today** (`grep -rn "leaderboard"
-  site_v2/src` returns nothing), and the register's own rule is that *"gap fixes never ship inside
-  blueprint PRs"*. The export wiring belongs with the block build, which must touch it regardless.
+  ⛔ **NO DERIVATION IS ADDED TO `sync_dbt_vars.py`.** Its docstring calls the seed "the registry's
+  own fields, PROJECTED into the warehouse", and `_registry_seed_rows()` is a pure copy —
+  `_normalise(row.get(c))` per column, nothing computed. The only change there is one string in
+  `SEED_COLUMNS`. Computing the group in that script would put business logic into a build step
+  that is deliberately a projection, and `check_registry_var_sync.py` would then have to
+  reimplement or import the rule to validate it.
 
-  ⛔ **NO RANKING LOGIC CHANGES.** The `dense_rank() over (partition by league_code,
-  season_api_year order by <key> desc)` stays exactly as it is. The block is **one player per
-  league**, not a pooled ranking (GAP-31 WITHDRAWN, CPO 2026-08-18: *"One per league -> yes, it's
-  not a leaderboard in the defined pool."*), so the existing partition is already the right shape.
-  ⚠ `#40`'s prose still says pooling is the real gap; it predates that withdrawal and is stale.
+  ⛔ **THE SEED IS GENERATED, NEVER HAND-EDITED.** `python scripts/sync_dbt_vars.py` writes it;
+  commit the output.
 
-  ⛔ **NO CHANGE TO `board_rank <= 10`.** The block shows 7. That is a display cut, not a mart one.
+  ⛔ **NO NEW SCRIPT, NO NEW SEED, NO NEW MECHANISM.** Drift protection already exists and extends
+  itself — `check_registry_var_sync.py`: *"Both sides now iterate SEED_COLUMNS, so a new column is
+  covered the moment it is [added]."*
 
-  ⛔ **NO NEW METRIC, AND NO METRIC DEFINITION WRITTEN BY HAND.** `assists_player` is an existing
-  catalogue metric. Per `engineering_standards.md` §2, a metric's definition is GENERATED from the
-  seed — writing one into this YAML would create a second source.
+  ⚠⚠ **THIS BULLET ORIGINALLY ENDED "Validation of the VALUES goes in dbt as tests on the seed,
+  which is the existing pattern, not a new Python gate." THAT WAS FACTUALLY WRONG** and contradicted
+  §6 in this same file. I wrote it before finding the `tier` precedent, and never reconciled it once
+  §6 came to say the opposite. **The real existing pattern is Python-only**: `tier` has the identical
+  non-empty-iff-domestic_league shape and carries **zero** dbt tests, for the stated reason that a
+  blank is legitimate off a league. `competition_group` follows it — no `not_null`, no
+  `accepted_values`, both directions plus the vocabulary pinned by
+  `tests/test_registry_seed_projection.py` in `test:python`. Caught by `analytics-engineer` at
+  round 3, which verified `schema.yml`'s `tier` entry has no `tests:` key at all.
+  ⚠ **Third self-contradiction in this contract** (after `impact_map`'s dbt-test claim and
+  `protected_override`'s stale `10_home.md` ban). All three are the same habit: a constraint written
+  early, left standing after the reasoning behind it moved.
+
+  ⛔ **NO DISPLAY LABELS, NO i18n.** A group has no user-facing name yet. That arrives with the
+  blocks, and inventing one now is designing off the cuff.
+
+  ⚠⚠ **THIS BAN IS LIFTED — see `amendments:` above.** It originally read *"`10_home.md` IS NOT
+  TOUCHED… the register row is the authority and is updated instead"*, on the grounds that the file
+  is the subject of **#100**. `bi-analyst-reviewer` FAILed that reservation and the CPO lifted it
+  (*"yes, widen it"*): the stale content is in **§0, which the file calls its current authority**,
+  and it contradicted his own ruling. **The ban is struck rather than deleted** because leaving a
+  live prohibition next to an amendment that overrides it is itself the contradiction this section
+  exists to prevent — `bi-analyst` caught exactly that at round 2.
+  ⛔ What still holds: `10_home.md` is edited ONLY to supersede what this change falsifies. No
+  design is rewritten there, and nothing is restated that `docs/competition_registry.yml` owns.
 
 impact_map: >
-  `mart_leaderboards` is read by no other model (`dbt ls --select mart_leaderboards+`) and by no
-  frontend component. `scripts/export_site_data.py` reads it into a `leaderboards` export target
-  that nothing renders. So the blast radius is the mart's own rows and columns.
-  ⚠ **Row count MOVES, deliberately** — one new board adds one union-all branch, so the mart gains
-  the assists board's rows. Every existing board's rows are unchanged. This is the one claim worth
-  measuring rather than asserting.
-  ⚠ The four club columns are ADDITIVE; no existing column changes type or meaning.
+  A new column on a seed nothing reads yet. `competition_registry.csv` is consumed by models that
+  look up competition metadata; adding a column is additive and changes no existing value, no grain
+  and no row count. `dbt ls --select competition_registry+` names what could read it.
+  ⚠ The one live effect is CI: the two new tests are PYTHON and run in **`test:python`**, not
+  `data:build:mr`. **No dbt test is added** — see §6. An earlier draft of this line said "the new
+  dbt tests run in `data:build:mr`", contradicting §6 in the same file; `platform-reviewer` caught
+  it. `data:build:mr` re-seeds and so carries the wider seed, but exercises nothing new for this
+  column.
 
 acceptance_criteria:
-  - `count_boards` gains exactly one entry; the compiled SQL has **15** union-all branches, not 14,
-    and the new branch carries `where assists_player > 0` and the unchanged partition.
-  - Four club columns — `team_sk`, `team_name`, `team_slug`, `team_logo_url` — are projected, via a
-    `left join` on `dim_team` that CANNOT fan out (`dim_team` is unique on `team_sk`).
-  - **Row count moves by exactly the assists board and nothing else**, measured per `metric_key`
-    before and after — not asserted from the diff.
-  - **The null-club rate is MEASURED and reported**, because a row with no club has no link, which
-    is the defect GAP-27 exists to fix. Reported two-sided, whatever the number.
-  - `dbt parse` EXIT=0; the offline gates green, exit codes read bare and never through a pipe.
-  - The register's GAP-27 and GAP-30 rows are updated in the same MR, including GAP-30's stale
-    "NOT YET RULED".
+  - The seed gains **exactly one column** and **no other cell moves** — asserted by parsing both
+    sides, not by reading the diff.
+  - **All 19 `domestic_league` rows carry a group; all 29 other competitions are empty.** Counted.
+  - **The documented assignment rule reproduces the authored values exactly**, on all 19 — so the
+    rule and the data cannot silently disagree.
+  - `check_registry_var_sync.py` EXIT=0 **and mutation-tested RED**: corrupt one group value in the
+    seed by hand, confirm it fails, restore. A guard that passes either way proves nothing.
+  - `dbt parse` EXIT=0; offline gates green, exit codes read bare.
 
 decisions_taken: >
-  ⭐ **§1. `team_logo_url` IS CARRIED, THOUGH THE REGISTER DOES NOT ASK FOR IT.** GAP-27's
-  disposition says *"a `dim_team` lookup for name and slug"*. But #41 rules that **every row carries
-  the club crest, on player rows as well as team rows**. Shipping name+slug alone would satisfy the
-  register and still leave a mart that cannot render the approved design. Four columns, not two.
-  This is following the design over a disposition written before it, not widening scope.
+  ⭐⭐ **§1. AUTHORED, NOT DERIVED — and that is the CPO's ruling, not a convenience.** *"Basically
+  all of it is judgement."* Only `elite` is genuinely underivable (Belgium, Turkey and Poland match
+  every column-based rule for it and are deliberately excluded), but the whole grouping is authored
+  so that one file states the answer plainly instead of a script inferring four fifths of it.
 
-  ⭐ **§2. DESCRIPTIONS REFERENCE, THEY DO NOT RESTATE.** `team_sk` and `team_slug` already have
-  docs blocks in `models/docs/shared_columns.md`, so both are `{{ doc(...) }}`.
-  `engineering_standards.md` §2: *"A column documented in more than one model gets ONE docs block…
-  restated definitions drift apart, which is how `league_code` came to be documented 76 times in 22
-  different wordings."* `team_name` and `team_logo_url` have no block and are documented inline
-  elsewhere in this same file, so they follow the neighbouring pattern.
+  ⭐ **§2. THE RULE IS DOCUMENTATION FOR AN ONBOARDER, AND IT IS VERIFIED, NOT ASSERTED.**
 
-  ⭐⭐ **§0. SCOPE WIDENED BY ONE FILE, ON THE CPO'S WORD, BECAUSE THIS CHANGE IS WHAT MAKES THE DOC
-  FALSE.** `analytics-engineer` found at round 1 that `dbt_project/docs/layering.md`'s canonical mart
-  inventory says `mart_leaderboards` has **"9 count boards"** — true before this MR, false after it.
-  It marked this non-blocking since the file was outside `scope_paths`; that does not settle it,
-  because *"a correction must land everywhere"* is this project's most-repeated failure. Put to the
-  CPO with the cost stated (a contract amendment re-binds the review hash and costs a round), he
-  ruled: **"fix it here"**.
+      if in the authored elite list -> elite      (never touched when a league is added)
+      elif tier != 1                -> secondary
+      elif season_type = calendar   -> calendar
+      elif confederation = UEFA     -> europe
+      else                          -> international
 
-  ⛔⛔ **AND THE CITATION ABOVE WAS NOT IN THE LOG WHEN IT WAS WRITTEN — `scope-auditor` FAILed round
-  2 for it, correctly.** It grepped `escalations.log` for "fix it here", "layering.md" and
-  "9 count boards", found nothing, and ruled that a scope widening resting on an unverifiable
-  authority IS an unauthorised widening whatever the contract prose claims. **Fourth instance of
-  `feedback_dont_attribute_repo_practice_to_cpo`** — and the sharpest, because I wrote the reviewer
-  prompt telling the auditor to check for exactly this in the same turn I committed it. The ruling
-  is now appended to the log; the citation only became true afterwards.
+  Checked against all 19 leagues before it was written down: it reproduces the authored grouping
+  exactly. It lives in the registry header, where every other projected field already documents what
+  enforces it — an acceptance criterion re-runs it, so the prose cannot drift from the data.
 
-  ⭐ **THE DISCRIMINATOR FOR HOW FAR A STALE-DOC FIX GOES — earned from the same FAIL.** The auditor
-  also held the `layering.md` edit had gone past the stale number, adding `dim_player`/`dim_team` to
-  the line's "Composes" clause and naming 5 rate boards it had never mentioned. Right, and the rule
-  is: **fix what THIS CHANGE falsifies; leave what was already incomplete.** The count went true →
-  false because of this MR. The "Composes" clause never claimed to be exhaustive — it already
-  omitted `dim_player` long before this MR — so this change does not falsify it. The edit is
-  therefore **the number alone**, and `10_home.md`'s stale sentence is included for the same reason
-  the number is: this MR is what makes it false.
+  ⭐ **§3. `calendar` — HE REJECTED `summer`, THEN SEPARATELY APPROVED `calendar`. TWO RULINGS, NOT
+  ONE.** His rejection was a fact, not a preference: those leagues do not merely play "in summer",
+  and the label is hemisphere-nonsense for Argentina, whose season starts in January. `calendar`
+  mirrors the registry's own `season_type: calendar_year`.
 
-  ⚠ **AND A SWEEP FOUND MORE, of which one more is fixed and two are left.**
-  `scripts/export_site_data.py:45` reads *"the 9 COUNT boards from mart_leaderboards"*. That also
-  goes stale — but the export still exports 9 ON PURPOSE, and `protected_override` bans export
-  changes here. Its staleness is a property of the deferral, so it is owned by the reserved
-  export-wiring step rather than left unowned. Fixing only the line a reviewer named, and not
-  sweeping for the class, is the `feedback_fix_the_class_not_the_instance` failure.
+  ⛔⛔ **AND THE FIRST VERSION OF THIS SECTION MISATTRIBUTED IT — `scope-auditor` FAILed round 1.**
+  It read *"the CPO corrected my name"*, which claims he supplied `calendar`. He did not: he
+  rejected `summer` and said nothing about a replacement. **I chose `calendar` and wrote it up as
+  his ruling.** The auditor's point was not pedantry — this name lands as a permanent enum in the
+  seed, a CI-enforced vocabulary test, `schema.yml`, the registry header and the gaps register, and
+  naming is §10 CPO-class precisely because it is expensive to undo. Put to him as an open
+  question, he answered **"calendar / this"**. That answer is what authorises the name; the
+  paragraph above only became true afterwards.
+  ⚠ **FIFTH instance of `feedback_dont_attribute_repo_practice_to_cpo` this session, and the second
+  in two consecutive MRs.** The tell is identical each time: I narrate a decision in prose without
+  a quote behind it, and the narration reads as authority.
 
-  ⚠ **MY FIRST SWEEP MISSED TWO MORE — `analytics-engineer` found them in `docs/wireframes/10_home.md`.**
-  · **`10_home.md`'s schema sentence — FIXED.** *"`mart_leaderboards` carries no team column
-    (verified against the live schema…)"*, which also predicted the fix would mean "joining a squad
-    mart in the export, which is derivation in the consumption layer". This MR falsifies it, and
-    did it the other way — a `dim_team` identity join in the mart, no export derivation.
-  · **`10_home.md`'s GAP-27/GAP-30 lines, still reading `LIVE` — LEFT.** The paragraph directly
-    above them says *"The register is the authority — check it, not this summary"*, and the
-    register IS updated in this MR. A reader following the file's own instruction gets the right
-    answer. ⚠ That disclaimer covers GAP STATUS only — it does not cover the schema sentence above,
-    which sits under a different and weaker one ("describes the removed module"). Conflating the
-    two is why the first version of this paragraph proposed leaving both.
+  ⭐ **§4. NON-LEAGUE COMPETITIONS GET NOTHING, not a placeholder.** Cups, continental competitions
+  and qualifiers are not league-ranking candidates. Absent is the convention `parent_competition`
+  already uses for "not applicable", and `_normalise` renders it `""`.
 
-  ⛔⛔ **AND THAT "FINAL" COUNT WAS WRONG TOO — `scope-auditor` FAILed ROUND 3 on three MORE.** All
-  in `10_home.md`, all in one section headed *"What this needs from the warehouse. None of it is
-  built."* (itself falsified — this MR builds two of its four items), plus *"`assists_player` is not
-  a ranked board at all"* and *"it is not selected into `mart_leaderboards`"*. **No disclaimer
-  reaches that section**; the "register is the authority" line covers only the gap-status list far
-  below it. **Round cap overridden by the CPO — "round 4, fix all three"** — recorded in
-  `escalations.log` and as `rounds_cap_override:` in `review.md`.
+  ⭐ **§5. A COMPLETENESS TEST, BECAUSE THE FAILURE IS SILENT.** Without one, a newly onboarded
+  league syncs with an empty group and simply falls out of every board — visible nowhere. That is
+  GAP-27's lesson restated: *"A silently omitted board is invisible to the visitor by design — and
+  therefore invisible to us too. A DQ check has to catch a board that vanished, because the page
+  deliberately will not."*
 
-  ⭐⭐ **THE DIAGNOSIS, AND IT IS THE DURABLE PART OF THIS MR. I SEARCHED FOR THE STRING I CHANGED,
-  NOT FOR THE CLAIMS MY CHANGE FALSIFIES.** Every sweep grepped `9 count boards` / `count boards` —
-  the words I edited. The three I missed say *"STILL MISSING"*, *"is not a ranked board at all"*,
-  *"it is not selected"*, *"None of it is built"*. **Not one contains a board count.** They state
-  the same fact as an ABSENCE, and an absence shares no vocabulary with the thing absent.
-  ⭐ **Standing form: sweep for the CLAIM, not the STRING — ask "what does the tree assert about the
-  thing I just built?", including every way of saying it does not exist yet.** This is
-  `feedback_corrections_replace`'s search-key problem wearing a new disguise: its recorded fix is
-  "pull every claim out and ask if it is still true", and I applied that to numbers but not to
-  negations.
-
-  ⛔⛔ **AND ROUND 4 — THE ROUND CONVENED TO CLOSE THIS OUT — FAILED ON A FOURTH.** `10_home.md`:
-  *"…need six pieces of warehouse work, none of it built."* This MR ships two of those six, and the
-  sentence sits immediately BEFORE the "register is the authority" disclaimer, which scopes itself
-  to "this list" — the bullets after it. Fixed under a second CPO override, **"round 5"**.
-
-  ⭐⭐ **THE REASON IT SURVIVED THREE SWEEPS IS THE DURABLE LESSON: THE PHRASE STRADDLES A LINE
-  BREAK** — the file holds `none of it\nbuilt.` **No line-based grep can match it**, mine or the
-  reviewer's own quoted string (`grep -ci "none of it built"` returns **0**). And `CLAUDE.md`, which
-  loads every session, already says: *"⚠ A line-based grep misses a phrase straddling a line break …
-  Sweep whitespace-collapsed."*
-
-  ⭐ **FOUR SWEEPS, FOUR DISTINCT FAILURE MODES, EACH A RULE ALREADY HELD**: (1) searched the STRING
-  changed, not the CLAIM falsified; (2) searched only where a reviewer pointed, not the class;
-  (3) case-sensitive; (4) line-based. Each fix addressed the previous mode and left the next live —
-  which is `fix_the_class_not_the_instance` applied to sweeping itself.
-
-  ⭐ **THE METHOD THAT WORKS, and the one to start with next time: read each file whole, COLLAPSE ALL
-  WHITESPACE, match case-insensitively for the CLAIM in every phrasing including negations, then
-  adjudicate every hit in writing.** Run that way it returned **38 hits across the tree** — exactly
-  1 genuine defect and 37 noise, struck text, other marts or correctly-disclaimed entries.
-  **A sweep is only trustworthy if it is allowed to return mostly noise**; one that returns only
-  what you expected has not searched.
-
-  ⭐ Two-sided, final and verified by that method: **8 stale statements found — 5 fixed here, 1
-  assigned to the export step, 2 left under the disclaimer that genuinely covers them.**
-  Checked and correctly NOT counted: `10_home.md:276` (inside an already-struck VOID bullet),
-  `layering.md:239` (about `dim_player`, still true), `99_gaps_register.md:27` (a different mart),
-  and GAP-27/GAP-30's own **Gap** cells, which stay present-tense by the register's own convention —
-  every shipped row does that, with status carried in the Ruling column.
-
-  ⭐ **§3. THE DESCRIPTIONS CARRY THE NULL RULE, BECAUSE IT IS A REAL LIMIT.** `team_sk` comes from
-  an `array_agg(... ignore nulls ...)` over finished matches, so a player-season with no finished
-  match has no club and the left join yields nulls. §2 requires *"what NULL means"*, and here it
-  means the row cannot link to a club at all.
-  ⛔ And per §2's two bans, no description names a downstream consumer, an issue number or a date.
+  ⭐⭐ **§6. AND IT GOES IN PYTHON, NOT dbt — because `tier` IS THE SAME SHAPE AND ALREADY SOLVED.**
+  `competition_group` is non-empty exactly when `competition_type` is `domestic_league`, which is
+  `tier`'s rule verbatim. The registry header spells out how that is handled, and it is deliberate:
+  *"⚠ NO dbt TEST, precisely because a blank is legitimate here. The rule that makes it safe —
+  non-empty iff domestic_league — is a PYTHON test (`tests/test_registry_seed_projection.py`), which
+  runs in the `test:python` CI job."* So this mirrors
+  `test_tier_is_declared_exactly_for_domestic_leagues` — **both directions** (a league that loses
+  its group, and a non-league that gains one), plus the value enum, in one offline test. No dbt test
+  and no `accepted_values`: a second mechanism for a rule this file already has one for.
+  ⚠ `tests/test_registry_seed_projection.py` is therefore in `scope_paths`.
 
 decisions_reserved:
-  - ⛔ **The export wiring** — `_LEADERBOARD_METRICS` + `_LB_KEEP`. Ships with the block.
-    ⚠ **It now also owns a stale comment**: `export_site_data.py:45` says *"the 9 COUNT boards from
-    mart_leaderboards"*, and the mart has 10 from this MR. The export deliberately still exports 9,
-    so the comment becomes accurate again only when that step adds the tenth. Recorded here so the
-    line has an owner rather than being discovered as drift.
-  - ⛔ **GAP-28** (the authored pool field) and **GAP-29** (the team mart) — Home's other two steps.
-  - ⚠ **If the null-club rate is material, that is a finding for the CPO**, not something to absorb
-    here: it would mean the block renders rows that cannot link, and the fix is upstream.
+  - ⛔ **Which group the home page shows, and how it rotates.** CPO: *"I would like to have a
+    mechanism for showing the others as well, by rotation or randomly, no idea, especially when a
+    league group is not active but another is -> file it, should not block us here."* Filed as its
+    own issue. Recorded there: the page uses `elite`, or `europe`+`international` **merged into one
+    board**, or `calendar`.
+  - ⛔ **Display labels / i18n for the group names** — with the blocks.
+  - ⛔ **GAP-29** (the team boards mart) — the next step, unblocked by this one.
   - ⚠ CARRIED, untouched: step 5's four chrome strings; `fdp-freshness`'s hourly cadence; the
-    disabled GitLab schedule; the resolver as a CI gate; **#99**, **#96**, **#87**, **#98**.
+    disabled GitLab schedule; the resolver as a CI gate; **#99**, **#96**, **#87**, **#98**, **#100**.
 
 done_when: >
-  - 15 boards compiled and verified; four club columns projected; no other behaviour changed.
-  - Row-count delta attributed per `metric_key`; null-club rate measured and reported.
-  - Register rows updated; gates green; blinded review (`analytics-engineer-reviewer` +
-    `scope-auditor`). **Round cap 3.**
+  - 19 leagues grouped, 29 empty, one new seed column, nothing else moved.
+  - The documented rule re-derives the authored values exactly.
+  - The sync guard mutation-tested RED; gates green; `dbt parse` EXIT=0.
+  - ⭐ **Reviewer set taken from `python scripts/check_task_artifacts.py --base main`, NOT
+    hand-derived from `review_routing.json`** — that is exactly how `!142` failed CI.
+  - Blinded review. **Round cap 3.**

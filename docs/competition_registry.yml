@@ -37,6 +37,21 @@
 #                   makes it safe — non-empty iff domestic_league — is a PYTHON test
 #                   (tests/test_registry_seed_projection.py), which runs in the `test:python` CI
 #                   job, NOT in `dbt build`. Setting a wrong tier fails there, not in the warehouse.
+#   competition_group : which leagues this one is ranked ALONGSIDE when a surface shows one entry
+#                   per league. elite | europe | international | calendar | secondary.
+#                   Same shape as `tier`, so it has the same guard: blank off a domestic_league,
+#                   NO dbt test, pinned both ways plus its vocabulary by that same Python test.
+#                   ⚠ AUTHORED, NOT DERIVED — a CPO judgement ("basically all of it is judgement").
+#                   Assigning a NEWLY onboarded league, in order:
+#                       elite      — never changes when a league is added; it is a strength call
+#                                    and several leagues match every structural rule for it while
+#                                    being deliberately outside it
+#                       secondary  — tier is not 1
+#                       calendar   — season_type is calendar_year
+#                       europe     — confederation is UEFA
+#                       international — everything else
+#                   That order reproduces today's grouping exactly, but it is GUIDANCE for a human,
+#                   not code: sync_dbt_vars.py projects this field and computes nothing.
 # ⚠ `country` is NOT projected (#69). dim_league already carries provider country and flag, and
 # this field holds a region word ("Europe", "International") for multi-country competitions, so
 # projecting it would make a third copy of a concept the warehouse already models.
@@ -65,6 +80,7 @@ competitions:
     provider_league_code: "D1"      # as it appears in api-football payload
     provider_league_id: 78
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2024"
     history_seasons: 10             # backfill window: last N season start years
     status: "active"
@@ -264,6 +280,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 39
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2025"
     history_seasons: 11
     status: "active"
@@ -283,6 +300,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 140
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2025"
     history_seasons: 10
     status: "active"
@@ -302,6 +320,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 79
     season_type: "split_year"
+    competition_group: "secondary"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -321,6 +340,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 135
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2025"
     history_seasons: 11
     status: "active"
@@ -340,6 +360,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 61
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2025"
     history_seasons: 11
     status: "active"
@@ -359,6 +380,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 244
     season_type: "calendar_year"
+    competition_group: "calendar"
     current_season: "2026"
     history_seasons: 5
     status: "active"
@@ -379,6 +401,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 262
     season_type: "split_year"
+    competition_group: "international"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -399,6 +422,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 94
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -419,6 +443,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 253
     season_type: "calendar_year"
+    competition_group: "calendar"
     current_season: "2026"
     history_seasons: 5
     status: "active"
@@ -439,6 +464,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 307
     season_type: "split_year"
+    competition_group: "international"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -459,6 +485,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 88
     season_type: "split_year"
+    competition_group: "elite"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -479,6 +506,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 144
     season_type: "split_year"
+    competition_group: "europe"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -499,6 +527,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 203
     season_type: "split_year"
+    competition_group: "europe"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -519,6 +548,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 106
     season_type: "split_year"
+    competition_group: "europe"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -775,6 +805,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 71
     season_type: "calendar_year"
+    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"
@@ -795,6 +826,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 128
     season_type: "calendar_year"
+    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"
@@ -815,6 +847,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 98
     season_type: "calendar_year"
+    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"
@@ -835,6 +868,7 @@ competitions:
     provider_league_code: null
     provider_league_id: 292
     season_type: "calendar_year"
+    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"

@@ -154,6 +154,65 @@ def test_tier_is_declared_exactly_for_domestic_leagues():
     )
 
 
+COMPETITION_GROUPS = frozenset(
+    {"elite", "europe", "international", "calendar", "secondary"}
+)
+
+
+def test_competition_group_is_declared_exactly_for_domestic_leagues():
+    """GAP-28. `competition_group` has `tier`'s exact shape, so it gets `tier`'s exact guard.
+
+    Both directions, because the rule breaks either way: a league silently losing its group — which
+    drops it out of every one-per-league surface with nothing on screen to show for it — or a cup
+    silently gaining one. Asserted against the COMMITTED seed rather than the registry, so it also
+    catches a projection that drops the column on the way through.
+
+    Why here and not in dbt: a blank is LEGITIMATE off a league, so `not_null` is wrong, and the
+    registry header already records that reasoning for `tier`. One rule, one mechanism, one place.
+    """
+    league_without_group = []
+    non_league_with_group = []
+    for row in _seed_rows():
+        is_league = row["competition_type"] == "domestic_league"
+        has_group = bool((row.get("competition_group") or "").strip())
+        if is_league and not has_group:
+            league_without_group.append(row["league_code"])
+        if not is_league and has_group:
+            non_league_with_group.append((row["league_code"], row["competition_type"]))
+
+    assert not league_without_group, (
+        "domestic_league competitions with no `competition_group` in the seed: "
+        f"{sorted(league_without_group)}. A league with no group is selected by no surface and "
+        "fails silently — nothing renders to reveal it. Assign one in "
+        "docs/competition_registry.yml and re-run scripts/sync_dbt_vars.py."
+    )
+    assert not non_league_with_group, (
+        f"non-league competitions carrying a `competition_group`: {sorted(non_league_with_group)}. "
+        "Groups rank leagues against each other; a cup or tournament is not a candidate, so this "
+        "must be empty."
+    )
+
+
+def test_competition_group_uses_only_the_declared_names():
+    """A typo'd group is worse than a blank: it passes the completeness check above and still
+
+    selects nothing. Pinning the vocabulary is what makes that impossible. Widening this set is a
+    product decision — add the name here deliberately, never to make a red test go green.
+    """
+    unknown = sorted(
+        {
+            (row["league_code"], row["competition_group"])
+            for row in _seed_rows()
+            if (row.get("competition_group") or "").strip()
+            and row["competition_group"] not in COMPETITION_GROUPS
+        }
+    )
+    assert not unknown, (
+        f"competitions with an unrecognised `competition_group`: {unknown}. "
+        f"Permitted: {sorted(COMPETITION_GROUPS)}."
+    )
+
+
 def test_projection_is_faithful_to_the_registry():
     """Every projected column equals what the registry declares, for every competition.
 
