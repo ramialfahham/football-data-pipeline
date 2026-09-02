@@ -1865,6 +1865,98 @@ models:
       - name: finishing_efficiency_player_pct
         description: "{{ doc('finishing_efficiency_player_pct') }}"
 
+  - name: mart_team_leaderboards
+    description: >
+      One row per (team, board): where that team ranks on that board within a competition-season.
+      The team mirror of mart_leaderboards. Long-shaped — the board is a value in metric_key, not a
+      column. Grain: (team_sk, season_sk, metric_key).
+
+      Four boards (goals, shots on goal, passes, duels — all per match), season-to-date, composed
+      from int_team_season__metrics and dim_team. rank is a DENSE_RANK over the board's metric
+      descending within (league_code, season_api_year), so ties share a rank and the top 10 includes
+      them. All four metrics are higher-is-better, so one shared descending order is correct for
+      every board.
+
+      The rank is per league by design: a board is each league's leading team collected and ordered,
+      never a ranking across competitions. Teams need three finished games to be ranked, which is
+      the small-sample guard — team metrics are per-match rates already, so the minutes and position
+      floors the player boards use have no analogue. A team with no value for a metric is absent
+      from that board rather than ranked on a null.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "leaderboards"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_sk, metric_key]
+      - dbt_utils.expression_is_true:
+          expression: "rank between 1 and 10"
+          name: mart_team_leaderboards_rank_in_range
+      - dbt_utils.expression_is_true:
+          expression: "sort_value > 0"
+          name: mart_team_leaderboards_sort_value_positive
+      - dbt_utils.expression_is_true:
+          expression: "season_games_played >= 3"
+          name: mart_team_leaderboards_games_gate_holds
+    columns:
+      - name: team_leaderboard_sk
+        description: "Surrogate from (team_sk, season_sk, metric_key)."
+        tests: [not_null, unique]
+      - name: metric_key
+        description: >
+          The board — a metric_catalogue team metric_id (4 boards).
+          accepted_values pins the set against an ADDED board; it cannot catch a REMOVED one, since
+          a smaller set is still a subset. assert_mart_team_leaderboards_all_boards_present covers
+          that direction.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["goals_per_match", "shots_on_goal_per_match", "passes_per_match", "duels_per_match"]
+      - name: rank
+        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+        tests: [not_null]
+      - name: sort_value
+        description: "The board's own value the rank is computed from (always > 0). The four boards are all per-match rates."
+        tests: [not_null]
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        description: "{{ doc('league_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: team_name
+        description: "Denormalised from dim_team."
+      - name: team_slug
+        description: "{{ doc('team_slug') }}"
+      - name: team_logo_url
+        description: "Denormalised from dim_team; nullable."
+      - name: season_games_played
+        description: "Finished games behind the ranked value this competition-season. Always >= 3 — the qualification gate."
+        tests: [not_null]
+
   - name: mart_team_market_value
     description: >
       WC national teams with latest squad market value estimate. Grain: team_sk. Metric name:
