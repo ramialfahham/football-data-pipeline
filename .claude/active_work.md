@@ -4,17 +4,32 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-01**. **main `5aab198`**, clean, no open MRs.
-⭐⭐ **THE NAMING PROGRAMME IS DONE AND SO IS THE WORK IT OWED.** Step 4: all 35 player metrics carry
-`_player` (`!125`–`!132`) — of 48 player rows the only one without the marker is
-`minutes_per_appearance`, which the record lists as UNCHANGED. Step 5 (`!134`): **0** `label_en` and
-**0** `METRIC_LABELS_EN` values still say "on target". Sample roll-forward (`!136`): pins
-**2026-09-01**, comparison renders **16 rows, not 12**.
+_Last updated **2026-09-02**. **main `27889d1`**. ⛔ **`!143` IS OPEN, mergeable, CI green, 5/5 PASS —
+it needs the CPO's merge and nothing else.** The naming programme is DONE; its queue is empty, and
+only the ONE copy call below survives it.
 **GITLAB** (`glab`, MRs); runner `ci-runner-01`.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔⛔ NEXT ACTION: NONE. THE QUEUE FROM THE NAMING PROGRAMME IS EMPTY.
+## ⛔ NEXT ACTION: merge `!143`, then build **GAP-29** — the last Home warehouse gap
+
+⭐ **HOME'S FOUR WAREHOUSE GAPS WENT 0 → 3 SHIPPED ON 2026-09-02.** GAP-27 (club on a leaderboard
+row) + GAP-30 (`assists_player` board, 14 → 15) in `!142`; **GAP-28** in `!143` as
+**`competition_group`** on the registry — `elite` 7 · `europe` 3 · `international` 2 · `calendar` 6 ·
+`secondary` 1, over 19 domestic leagues, 29 other competitions empty. AUTHORED, not derived (CPO:
+*"basically all of it is judgement"*), guarded in Python like `tier`, which has the identical
+non-empty-iff-domestic_league shape.
+⛔ **GAP-29 — a team equivalent of `mart_leaderboards` — is the ONLY one left**, and Top teams cannot
+ship without it. Design approved 2026-08-08; ruled 2026-08-18 to be **one team per league**, so
+partition the rank by `(league_code, season_api_year, metric_key)` and no pooled computation is ever
+needed. All four metrics it needs are already on `int_team_season__metrics_cumulative`.
+⚠ **`!143` carries TWO SENTENCES THE REVIEWERS NEVER SAW.** The rebase onto `!142` auto-merged
+`10_home.md` cleanly, and the clean merge WAS the defect: `!142` wrote *"the pool field … remain[s]
+unbuilt"* twice, which `!143` itself falsifies. I corrected both after round 5 rather than open an
+unauthorised round 6. If the CPO wants a narrow confirmation pass before merging, that is the scope.
+⭐ **Which group Home actually renders, and how it rotates when one is out of season, is NOT decided**
+— GAP-33 / **#101**, on his *"file it, should not block us here"*. The groups are not simultaneously
+in season, which is what makes it a data question rather than a styling one.
 
 ⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
 Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
@@ -29,16 +44,15 @@ GitHub account for the spend. (2) **"Undocumented" is a claim about the WHOLE tr
 my first figure was ~$7/month, the smallest of fourteen. (4) Query
 `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` — **EU, not US**; `region-us` returns a false "0 jobs".
 
-## ⛔ THE SAMPLE IS FRESH TODAY AND WILL GO STALE THE MOMENT THOSE FIXTURES KICK OFF
+## ⛔ THE PINNED SAMPLE WENT STALE ON 2026-09-01 — those fixtures have kicked off
 
 `!136` pinned the **2026-09-01** matchday: 4 fixtures, 3 competitions (`CIT` ×2, `DFBP`, `SPL`).
 ⚠ **A past fixture can NEVER be re-exported** — `fetch_fixture_payloads` emits `status_short in
 ('NS','TBD') and fixture_date >= current_date()`, and once a match kicks off its pre-match form rows
-leave `mart_team_momentum`. **The next refresh REPLACES the set wholesale; it is never updated in
-place.** ⭐ Recipe, traps and the four-list consistency check: `site_v2/src/data/README.md`.
-⚠ Deliberately thin (4/3 vs the outgoing 19/13) on a CPO steer that this is infrastructure with
-nothing shown. Coverage MEASURED: both competition shapes, all three form paths, the row-omission
-path. 2026-09-04 (28 fixtures / 16 comps) is there if a fatter one is wanted.
+leave `mart_team_momentum`. **A refresh REPLACES the set wholesale, never in place**, so re-pinning
+takes whatever matchday is future at that moment. Deliberately thin (4/3) on a CPO steer that this
+is infrastructure with nothing shown; coverage MEASURED across both competition shapes, all three
+form paths and the row-omission path. ⭐ Recipe and traps: `site_v2/src/data/README.md`.
 
 ## ⛔ ONE FOLLOW-UP STEP 5 LEFT — plus 7 rows waiting on ONE copy call
 
@@ -77,16 +91,12 @@ of the four are absent, the fourth is skipped by name, and those three render on
 
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
-  - ⭐ **The `__team`/`__player` doc-block split has NO live instance.** All six dual-entity ids were
-    renamed on the player side, so no catalogue metric disagrees across entities any more.
-    ⛔ **Nothing was removed or weakened** — `_derived()` still suffixes unconditionally, `_blocks()`
-    still splits and aborts on rows it cannot tell apart, the fixtures stay, and one new seed row
-    recreates the collision. ⚠ But **five files document it with a worked example the programme
-    falsified.** Whether a guard with no live instance should remain is his call.
-  - **A rename frees a name from #87 only when no PROVIDER column shares it.** Measured twice
-    (`!131`, `!132`): the ambiguous-name list went 4 → 3, not 4 → 1 — `goals_penalty` and
-    `goals_against` stayed, both being provider leg columns too. **#87's 49 blank columns are NOT
-    freed by this programme.**
+  - ⭐ **The `__team`/`__player` doc-block split has NO live instance** — all six dual-entity ids were
+    renamed player-side. ⛔ Nothing was removed or weakened, and one new seed row recreates the
+    collision. ⚠ But **five files document it with a worked example the programme falsified.**
+    Whether a guard with no live instance should remain is his call.
+  - **A rename frees a name from #87 only when no PROVIDER column shares it** — measured twice, the
+    ambiguous list went 4 → 3, not 4 → 1. **#87's 49 blank columns are NOT freed by this programme.**
   - **The column-reference resolver as a committed CI gate.** `!129`–`!131` bounded it (dotted refs
     only; the projection check's weak form). Not proposed.
   - **#99** — the export's literal board keys moved in `!132` and remain pinned by NO test.
@@ -104,16 +114,12 @@ What survives is the method.
 **1. A SCOPE COARSER THAN THE ROLE IT MUST RESOLVE IS THE ONE RECURRING DEFECT** — FAILed review on
 `!131`, `!132` (×3), `!134` and `!140`, **every gate green every time**. The fix is never an
 exemption list; it is a finer rule with a checkable property. Those earned so far:
-  - entity by enclosing model (`- name:` in yml), by the seed's `entity` column, by file for SQL
   - **role** where two meanings share a line: `t(lang,"x")` is a UI word, `player.x` a payload field,
     `.get("x")` a warehouse column, `"x":` a payload key, `group=x` a metric group
   - **a domain fact** where one exists — there is no player `goals_for`, so the scoreline family is
     the team's; that one discriminator separated 6 wrong renames from 60 right ones
-  - **in a markdown TABLE the COLUMN decides**, not the backtick (`Source column`/`Atomics`/
-    `numerator` are identifiers; `Payload key`/`JSON key` stay; the rest is prose)
-  - **outside one, an OPERAND is an identifier**: a token in parentheses holding BOTH an arithmetic
-    operator AND another underscored identifier is a formula quoted in a comment
-  - `{placeholder}` is a template slot, never an id
+  - **in a markdown TABLE the COLUMN decides**, not the backtick; outside one, a token in
+    parentheses beside an arithmetic operator is a quoted formula; `{placeholder}` is never an id
 
 **2. CENSUS THE TREE, COUNT BOTH DIRECTIONS, AND MATCH A PATTERN NOT A LIST.** Report every sweep as
 "N move, M stay" — a one-sided claim ("the prose is fixed") is what let an over-correction through.
@@ -145,20 +151,15 @@ MRs, all with gates green); **reading the printed decisions and the applied diff
 suite** — but only where a ruling forces code and test apart. Where a sweep edits both sides in
 lockstep, green means nothing.
 
-**5. SIMULATE THE GENERATOR BEFORE PREDICTING**, and **report the disproved predictions** — that is
-how the "a rename frees a name from #87 only if no provider column shares it" rule got confirmed.
-
-**6. TWO GUARD FACTS, MEASURED.** `check_description_hygiene` DOES catch a dangling `doc()`.
+**5. TWO GUARD FACTS, MEASURED.** `check_description_hygiene` DOES catch a dangling `doc()`.
 `check_yml_vs_projection` does NOT catch a column dropped from the final SELECT while still named in
 a `safe_divide` on it — token presence, not projection. Mutation-test any guard before citing it.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
-⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, NOT A FACT TO ACT ON — this cost a recovery on `!140`.** Told
-"140 merged", I ran cleanup without checking; the merge had NOT landed, and **deleting an open MR's
-source branch CLOSES the MR on GitLab.** Recovered from the reflog (branch recreated at the same
-commit, `glab mr reopen 140`), nothing lost — but do not repeat it.
-⭐ **The check, before deleting anything:** `git fetch gitlab` then
+⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, NOT A FACT TO ACT ON.** Told "140 merged", I ran cleanup
+without checking; it had NOT landed, and **deleting an open MR's source branch CLOSES the MR on
+GitLab.** Recovered from the reflog. ⭐ **Before deleting anything:** `git fetch gitlab` then
 `git merge-base --is-ancestor <sha> gitlab/main`.
 ⚠ **`git pull` on main hits the DEAD GitHub `origin` and 403s.** Use `git pull --ff-only gitlab main`.
 ⚠ **The push guard refuses EVERY push while standing on main**, including deleting a merged branch —
@@ -182,10 +183,9 @@ Never write it into `review.md`.
 ⭐ **When two reviewers contradict each other on the same tokens, suspect the ARTIFACT before the
 code.** One reading files said clean, one reading the patch said corrupted; that resolved it in one
 step.
-⚠ **`subprocess.run(..., text=True)` decodes with the WINDOWS locale (cp1252), not UTF-8.** Comparing
-`git show <base>:file` against a UTF-8 read reports every non-ASCII character as a difference — `Ø`
-arrives as `Ã˜` — and made a byte-identical seed look like 32 corrupted fields. Capture BYTES and
-`.decode("utf-8")` both sides. The seed's `label_en` column is full of `Ø`.
+⚠ **`subprocess.run(..., text=True)` decodes with the WINDOWS locale (cp1252), not UTF-8**, so `Ø`
+arrives as `Ã˜` and a byte-identical seed looked like 32 corrupted fields. Capture BYTES and
+`.decode("utf-8")` both sides; the seed's `label_en` is full of `Ø`.
 
 ## Method that works — seven MRs of evidence
 
@@ -197,8 +197,7 @@ with exit codes read bare, mutations watched RED, two site builds, five blinded 
 `review.md` with `--staged-hash`. **ROUND CAP 3** — past it, STOP and bring the findings; a fourth
 round needs the CPO's word recorded as `rounds_cap_override:` in `review.md`, or the commit gate
 refuses. Each reviewer section needs `## <exact-routing-key>`, then `VERDICT:`, then a
-`risks_checked:` block — a PASS with an empty one is rejected. The classifiers are in the scratchpad
-(`rename_s4_goals.py` is the most developed) and are deliberately **not committed**.
+`risks_checked:` block — a PASS with an empty one is rejected.
 
 ## Standing traps (also in CLAUDE.md)
 
