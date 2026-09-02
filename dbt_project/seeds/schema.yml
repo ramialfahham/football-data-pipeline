@@ -187,6 +187,21 @@ seeds:
           the boundaries of a season window.
         tests:
           - not_null
+      - name: competition_group
+        description: >
+          Which leagues this one is ranked alongside when a surface shows one entry per league.
+          "elite" the seven strongest European top flights; "europe" the remaining European top
+          flights on a SPLIT-YEAR season; "international" top flights outside Europe on a
+          split-year season; "calendar" top flights whose season sits inside one calendar year,
+          wherever they are (which is why Finland is here and not in "europe"); "secondary" below
+          a country's top flight. Mutually exclusive and exhaustive over domestic leagues.
+
+          Authored, not derived: "elite" is a strength judgement no other column expresses, and
+          several leagues match every structural rule for it yet sit outside it. EMPTY for anything
+          that is not a domestic_league — a cup is not ranked against leagues, so this is
+          structurally N/A rather than missing, which is why there is no not_null test. Non-empty
+          exactly when competition_type is domestic_league; tests/test_registry_seed_projection.py
+          pins that both ways and pins the permitted values.
 
   - name: metric_catalogue
     description: >

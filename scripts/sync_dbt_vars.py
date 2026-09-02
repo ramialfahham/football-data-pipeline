@@ -55,6 +55,7 @@ SEED_COLUMNS: tuple[str, ...] = (
     "sort_order",
     "tier",
     "season_type",
+    "competition_group",
 )
 
 

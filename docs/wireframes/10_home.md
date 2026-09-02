@@ -33,6 +33,28 @@
 > Two dated layers, oldest first. Where they conflict the later one wins and the superseded line
 > says so on its own row, rather than leaving both readable as current.
 
+⛔⛔ **READ THIS FIRST — "POOL" APPEARS THROUGHOUT §0 AND IS RETIRED VOCABULARY (2026-09-02).** CPO:
+*"Drop the pools, let's rethink this properly."* They are replaced by **`competition_group`**, a
+registry field shipped under GAP-28: `elite` (7) · `europe` (3) · `international` (2) ·
+`calendar` (6) · `secondary` (1) — **five groups, not four**. The word survives in passages written
+before that ruling which are otherwise still current, so two rules for reading them:
+  · **"pool" means `competition_group`.** Where a passage says "one row per pool league", "each pool
+    league's rank-1 player", "the pool being shown" or "the pool-selection gate", the MECHANIC
+    survives untouched — the CPO ruled one entry per league — and only the noun is stale.
+  · ⛔ **"the ACTIVE POOL" is NOT a settled mechanic. It is the open question.** Which group a render
+    uses, and how it rotates when one is out of season, is **GAP-33** and is **NOT YET RULED**. Any
+    passage that reads as though a single active pool is decided — or that names which pools hold
+    which part of the year — is asserting a question, not an answer.
+  · The authoritative list of which league is in which group is `docs/competition_registry.yml`. It
+    is never restated in this file.
+
+⚠ **This banner sits at the TOP of §0 on purpose, and that placement is the whole fix.** It was
+first written 40 lines further down, beside the retired pool table — where it could not reach the
+uses that precede it. Reviewers FAILed this file three times running on that: each round corrected
+the passages a reviewer had named while the next unnamed one, in the same section, stayed live. The
+defect was never the wording, it was the ORDER; a reading rule that arrives after what it governs
+governs nothing.
+
 ### The rule a block must pass (CPO, 2026-08-04)
 
 **A block earns its place by sending someone somewhere.** It is a hook into the page that owns the
@@ -199,8 +221,9 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
 
 **Shared display rules.**
 
-- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Both blocks are **one row per pool league**
-  since the 2026-08-18 rulings, so pool 1 renders **seven** rows on every board — a 5-row cap
+- ~~**Top 5 entries per board.**~~ **SUPERSEDED.** Both blocks are **one row per league in the
+  shown group** since the 2026-08-18 rulings, so `elite` renders **seven** rows on every board —
+  a 5-row cap
   could not show a leader from all seven leagues the approved intro copy names. ⚠ For Top teams
   this is now the reason; the row count was previously guessed from the mock alone, before the
   ruling existed, and the mock's row count of seven was right for the wrong reason — see the Open
@@ -231,37 +254,83 @@ players or teams from different competitions against each other.
 A rolling window was proposed as a way to keep every pool current year-round, and REJECTED.
 CPO: *"no it must be within season, that's how you compare."*
 
-**Four pools.**
+⛔⛔ **SUPERSEDED 2026-09-02 — THE POOLS ARE RETIRED.** CPO: *"Drop the pools, let's rethink this
+properly."* Replaced by **`competition_group`**, a registry field shipped under GAP-28:
+`elite` (7) · `europe` (3) · `international` (2) · `calendar` (6) · `secondary` (1).
+**FIVE groups, not four** — the table below has no bucket at all for the three leagues in `europe`.
 
-| Pool | Leagues | Definition |
+⚠ **Two things it asserts that are FALSE, both load-bearing:**
+  · *"Belgium and Turkey belong in pool 1"* — **they do not.** CPO, this session: *"However, the 3
+    new clubs would be in pool 2."* Belgium, Turkey and Poland are `europe`, not `elite`.
+  · *"Veikkausliiga would gate-crash the star pool on any derived rule"* — **VL is excluded by
+    `season_type`**, being calendar-year, so it lands in `calendar` and never reaches the European
+    branch. The leagues that genuinely defeat derivation are BPL, EKS and TSL, which this passage
+    never names.
+
+~~**Four pools.**~~
+
+| ~~Pool~~ | ~~Leagues~~ | ~~Definition~~ |
 |---|---|---|
-| 1 | PL · PD · BL1 · SA · L1 · LP · ED | European top, tier 1, split-year |
-| 2 | LMX · SPL | rest tier 1, split-year |
-| 3 | BSA · APD · MLS · J1 · KL1 · VL | rest tier 1, calendar-year |
-| 4 | BL2 | second tier — NEVER a home-page candidate |
+| ~~1~~ | ~~PL · PD · BL1 · SA · L1 · LP · ED~~ | ~~European top, tier 1, split-year~~ |
+| ~~2~~ | ~~LMX · SPL~~ | ~~rest tier 1, split-year~~ |
+| ~~3~~ | ~~BSA · APD · MLS · J1 · KL1 · VL~~ | ~~rest tier 1, calendar-year~~ |
+| ~~4~~ | ~~BL2~~ | ~~second tier — NEVER a home-page candidate~~ |
 
-Pool 1 membership is **authored, not derived**. It cannot come from confederation plus tier: the
+~~Pool 1 membership is **authored, not derived**. It cannot come from confederation plus tier: the
 UEFA tier-1 leagues we carry are BL1, PL, PD, SA, L1, LP, ED **and VL**, so Veikkausliiga would
 gate-crash the star pool on any derived rule. Belgium and Turkey belong in pool 1 and join when
-they are ingested, with no restructuring.
+they are ingested, with no restructuring.~~
 
-Pool 4 exists so the tier split is mechanical — `tier` is already a registry field, so a new second
+⭐ **What SURVIVES the retirement.** "Authored, not derived" was right, and is exactly why
+`competition_group` is a hand-authored registry field — CPO: *"basically all of it is judgement."*
+The tier split also stays mechanical: `secondary` is `tier != 1`, so a new second tier lands there
+with no restructuring. The authoritative list of which league is in which group is
+`docs/competition_registry.yml`; it is never restated here.
+
+~~Pool 4 exists so the tier split is mechanical — `tier` is already a registry field, so a new second
 tier lands there with zero file edits. It is never a home-page candidate. Today it holds one
 league, and a pooled ranking over one league IS that league's leaderboard, which the competition
-page owns; the block rule at the top of this section forbids the copy.
+page owns; the block rule at the top of this section forbids the copy.~~
 
-**Selection.** One pool at a time, the other two reachable. A pool is in season when its
-LEAST-PROGRESSED league has played at least **3** games, gated on the minimum the way
+⚠ **SUPERSEDED with the pools** — "Pool 4" no longer exists. Its content carries over to
+`secondary` unchanged and is stated once, above: `tier != 1`, so a new second tier lands there with
+no restructuring, and it is never a home-page candidate. The reason is worth keeping: a ranking over
+one league IS that league's leaderboard, which the competition page owns, and the block rule at the
+top of this section forbids the copy.
+
+⚠ **SELECTION IS NOW AN OPEN QUESTION, NOT A DECIDED DESIGN** — it is written against the four
+retired pools, and the CPO reopened it: *"I would like to have a mechanism for showing the others
+as well, by rotation or randomly, no idea, especially when a league group is not active but another
+is -> file it."* Filed as its own issue and registered as **GAP-33**. What he has said since about
+the shape: the page uses `elite`, or `europe`+`international` **merged into one board**, or
+`calendar`.
+
+⛔ **AN EARLIER VERSION OF THIS NOTE SAID "only its pool NAMES are stale". THAT WAS THE CONVENIENT
+READING, AND `scope-auditor` FAILED IT.** The ARITHMETIC and the SCHEDULING are stale too, and both
+are struck below:
+  · *"the other **two** reachable"* — there are now **four** other groups, not two.
+  · *"pools 2 and 3 cover the summer"* — false twice over. `europe` and `international` are
+    split-year like `elite`, so they do not cover its off-season at all; and `calendar` is not
+    "summer" — the CPO's own correction earlier in this session was that Argentina starts in
+    January, which is why the group is named for the calendar year and not the season.
+⭐ **What genuinely survives, and is the input GAP-33 needs:** the **in-season gate** (3 games on the
+least-progressed league), the ruling behind it (*"no it must be within season, that's how you
+compare"*), and the **fallback principle** — if nothing qualifies, show the most recent completed
+season and LABEL it finished rather than dress it as current.
+
+**Selection.** ~~One pool at a time, the other two reachable.~~ A ~~pool~~ group is in season when
+its LEAST-PROGRESSED league has played at least **3** games, gated on the minimum the way
 `int_team_season__deserved_vs_actual.sql:139` does with `min_games_played >= 3`. A higher floor was
 proposed, on the grounds that a count leaderboard is more fragile early than the team rate metrics
-that gate was written for; the CPO chose 3 for consistency with the house gate. Pool 1 wins when
+that gate was written for; the CPO chose 3 for consistency with the house gate. ~~Pool 1 wins when
 more than one pool qualifies, so it holds the slot roughly September to May and pools 2 and 3 cover
-the summer. If none qualifies, show the most recent completed pool 1 season and LABEL it finished
-rather than dress it as current.
+the summer.~~ If none qualifies, show the most recent completed ~~pool 1~~ season and LABEL it
+finished rather than dress it as current.
 
 **What this needs from the warehouse.** ⚠ **"None of it is built" was true when written and is NOT
 true now**: the two `mart_leaderboards` bullets below (GAP-30's assists board, and the club on a
-row) are SHIPPED. The pool field and the team boards mart remain unbuilt.
+row) are SHIPPED, and so is the group field — `competition_group`, under GAP-28. **Only the team
+boards mart (GAP-29) remains unbuilt.**
 
 ⛔ **THE FIRST THREE BULLETS ARE THE NINE-BOARD SET AND ARE VOID** (2026-08-10 reduction; they are
 GAP-24, GAP-25 and GAP-26, all withdrawn in `99_gaps_register.md`). Every metric they ask for was
@@ -296,7 +365,8 @@ live and unchanged.
   parent_competition, confederation, slug, sort_order, tier, season_type` — so the `tier` and
   `season_type` projection this bullet asks for already shipped. ~~carries three columns
   (`league_code`, `competition_type`, `parent_competition`). Pooling needs `tier` and `season_type`
-  projected from the YAML registry,~~ Only the **one authored pool field** remains.
+  projected from the YAML registry,~~ ~~Only the **one authored pool field** remains.~~
+  ✅ **SHIPPED 2026-09-02** as `competition_group`. Nothing of this bullet is outstanding.
 - **A team boards mart.** All eleven team metrics already exist season-to-date in
   `int_team_season__metrics_cumulative`, and `deserved_points` is already on
   `mart_team_profile.sql:195`. What does not exist is top-N-per-metric ACROSS teams:
@@ -305,7 +375,7 @@ live and unchanged.
 
 ⚠ **The registry's `current_season` is stale and must not drive the season.** Compared against the
 live export on 2026-08-08: APD, BSA and KL1 each read 2025 in the registry against 2026 in the
-warehouse; UCL and UECL read 2024 against 2026; BL1 reads 2024 while every other pool-1 league
+warehouse; UCL and UECL read 2024 against 2026; BL1 reads 2024 while every other `elite` league
 reads 2025. Take the season from the data. This is a defect in its own right, separate from this
 block.
 
@@ -361,8 +431,8 @@ Closed since 2026-08-04:
   block's own name, avoids "leader" for the same reason it was rejected there, names no metric.
   Keeps **"Season to date"**, not "Season totals to date" — the team boards are per-match rates,
   not sums, so "totals" would misdescribe them, not just diverge from the players wording for no
-  reason. Same caveat as the players line: the league list is the ACTIVE POOL's members, not a
-  fixed seven.
+  reason. Same caveat as the players line: the league list is the SHOWN GROUP's members, not a
+  fixed seven — and which group is shown is GAP-33, not yet ruled.
 - ~~**The Top players intro copy.**~~ **APPROVED 2026-08-18** (CPO: "you rephrase", then approved
   the proposal). The EN string is:
 
@@ -381,9 +451,12 @@ Closed since 2026-08-04:
   - The sentence sits ABOVE all four boards, so it must not name a metric — "top player" carries
     goals, assists, passes and key passes equally.
 
-  ⚠ The league list is the ACTIVE POOL's members, not a fixed seven: pools 2 and 3 hold the slot in
-  the European summer, so the names change with the pool. DE and FI are written when the block is
-  built, against `check_copy_gate.py` (no byte-identical-to-English values, no em dashes).
+  ⚠ The league list is the SHOWN GROUP's members, not a fixed seven, so the names change with the
+  group. ~~pools 2 and 3 hold the slot in the European summer~~ ⛔ **STRUCK — that asserted a
+  selection rule that is now GAP-33 and NOT YET RULED**, and it is wrong twice over: `europe` and
+  `international` are split-year like `elite`, so they cover none of its off-season, and `calendar`
+  is not "summer" (Argentina starts in January). DE and FI are written when the block is built,
+  against `check_copy_gate.py` (no byte-identical-to-English values, no em dashes).
 - ~~**The team stats block shape.**~~ ~~Six boards, specified above.~~ **FOUR boards** since the
   2026-08-10 reduction: `goals_per_match` → `shots_on_goal_per_match` → `passes_per_match` →
   `duels_per_match`.
@@ -855,7 +928,8 @@ document: a deleted module leaves traces that do not carry its name.
 
 The Top players and Top teams blocks specified in §0 need six pieces of warehouse work. ⚠ **"none of
 it built" was true when written and is NOT true now** — GAP-30 (the assists board) and GAP-27 (the
-club on a row) are SHIPPED; the pool field and the team boards mart remain.
+club on a row) are SHIPPED, and so is GAP-28, as `competition_group`. Only the team boards mart
+(GAP-29) remains.
 They are registered rather than described only here, because `00_overview.md`'s binding rule
 is unconditional — a gap goes to the register with a proposed disposition and is never silently
 drawn — and describing one inline, however loudly, is not registering it. The precedent is
@@ -876,8 +950,10 @@ register is the authority — check it, not this summary.
   ascending board — `mart_leaderboards` ranks descending and only positive values, so a
   zero-is-best board silently excludes its own subjects.
 - **GAP-27** — LIVE. The club on a leaderboard row (`team_sk`); `grep -c team_sk` on the mart = 0.
-- **GAP-28** — LIVE, but SMALLER than written: `tier` and `season_type` are ALREADY projected into
-  the seed (8 columns, verified). Only the authored pool field remains.
+- **GAP-28** — ✅ **SHIPPED 2026-09-02** as `competition_group` on the registry, projected into the
+  seed: 19 domestic leagues grouped, 29 other competitions empty. ~~LIVE, but SMALLER than written:
+  `tier` and `season_type` are ALREADY projected into the seed (8 columns, verified). Only the
+  authored pool field remains.~~
 - **GAP-29** — LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.
 - **GAP-30** — LIVE, registered 2026-08-18. `assists_player` is not a ranked board, so the reduced set's
   second board has no rank-1 to take.
