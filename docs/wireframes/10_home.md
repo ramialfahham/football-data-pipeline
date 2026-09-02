@@ -329,7 +329,8 @@ finished rather than dress it as current.
 
 **What this needs from the warehouse.** ⚠ **"None of it is built" was true when written and is NOT
 true now**: the two `mart_leaderboards` bullets below (GAP-30's assists board, and the club on a
-row) are SHIPPED. The pool field and the team boards mart remain unbuilt.
+row) are SHIPPED, and so is the group field — `competition_group`, under GAP-28. **Only the team
+boards mart (GAP-29) remains unbuilt.**
 
 ⛔ **THE FIRST THREE BULLETS ARE THE NINE-BOARD SET AND ARE VOID** (2026-08-10 reduction; they are
 GAP-24, GAP-25 and GAP-26, all withdrawn in `99_gaps_register.md`). Every metric they ask for was
@@ -927,7 +928,8 @@ document: a deleted module leaves traces that do not carry its name.
 
 The Top players and Top teams blocks specified in §0 need six pieces of warehouse work. ⚠ **"none of
 it built" was true when written and is NOT true now** — GAP-30 (the assists board) and GAP-27 (the
-club on a row) are SHIPPED; the pool field and the team boards mart remain.
+club on a row) are SHIPPED, and so is GAP-28, as `competition_group`. Only the team boards mart
+(GAP-29) remains.
 They are registered rather than described only here, because `00_overview.md`'s binding rule
 is unconditional — a gap goes to the register with a proposed disposition and is never silently
 drawn — and describing one inline, however loudly, is not registering it. The precedent is

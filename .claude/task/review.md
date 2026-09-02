@@ -1,6 +1,26 @@
 # Review — feat/competition-group — 2026-09-02
 
-diff_sha256: 612a7b0ee12586b2023fcf8dd2cfbce200bd51cff10131a7a98ebb3b62b63142
+diff_sha256: c7c512d7b38a2bf166a920440b23b90fe187737252af632bfa268d77aa878dc2
+
+rebased: onto `27889d1` (!142 merged to main after this branch was cut), REBOUND from
+  `612a7b0e…` — the hash the five PASS verdicts below were given against. **The reviewed WAREHOUSE
+  diff is byte-identical across the rebase**: `git diff 0a220c2 199bcc9` touches none of
+  `docs/competition_registry.yml`, `scripts/sync_dbt_vars.py`, `competition_registry.csv`,
+  `seeds/schema.yml`, `tests/test_registry_seed_projection.py` or `onboard-competition/SKILL.md`.
+  Two conflict resolutions and one consequential edit, all in documentation:
+  1. `99_gaps_register.md` — one hunk, because GAP-27 and GAP-28 are ADJACENT LINES: main changed
+     GAP-27 (!142's ship note), I changed GAP-28. Resolved to main's GAP-27 + my GAP-28; both now
+     read SHIPPED 2026-09-02. My diff got SMALLER — the GAP-27 row is main's now.
+  2. `.claude/task/escalations.log` — append-only, and the conflict base region was EMPTY, so both
+     sides had appended at the same point. Kept BOTH, main's !142 entries first. Hash-excluded.
+  3. ⚠ `10_home.md` auto-merged, and the merge is what needed the edit: **!142 wrote "the pool field
+     and the team boards mart remain unbuilt" in two places, and this MR ships the pool field.**
+     Corrected both to name `competition_group`/GAP-28 as shipped, leaving GAP-29 as the one
+     remaining. Not new scope — the merge would otherwise publish a statement this very MR falsifies,
+     which is the exact defect class the five rounds below were spent on.
+  ⭐ Re-verified after the merge, because `10_home.md` is where every FAIL in this MR lived: the
+  reading-rule banner still opens §0 at **line 36**, and **exactly one** "pool" occurrence precedes
+  it — the banner's own headline. Unchanged from the round-5 state.
 
 rounds: 5
 
