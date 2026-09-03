@@ -10,8 +10,8 @@ DONE; only the ONE copy call below survives it.
 ⛔⛔ **CI HAS NO FALLBACK SINCE 2026-09-02.** `shared_runners_enabled=false`, so **`ci-runner-01` is
 the ONLY runner** — a dead box means pipelines QUEUE, they do not fail over. Turned off because
 "CI costs zero GitLab minutes" was **false for three weeks**: nothing in `.gitlab-ci.yml` is tagged
-and the runner takes untagged jobs, so **96 of 100 jobs went to GitLab's shared fleet** (154 min in
-two days, quota nearly gone). Standing a runner up does not move the work to it.
+and the runner takes untagged jobs, so **96 of 100 jobs went to GitLab's shared fleet**. Standing a
+runner up does not move the work to it.
 ⭐ **Both things that made that scary are FIXED 2026-09-03**: the IPv6 address is **deleted at
 Hetzner** (so no IPv6 route can return after a reboot), and root SSH by key works again (restored
 via rescue; `/dev/sda1` is the root fs).
