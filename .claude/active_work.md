@@ -6,18 +6,26 @@
 
 _Last updated **2026-09-02**. **main `c662e08`**, clean, **no open MRs**. The naming programme is
 DONE; only the ONE copy call below survives it.
-**GITLAB** (`glab`, MRs); runner `ci-runner-01`.
+**GITLAB** (`glab`, MRs).
+⛔⛔ **CI HAS NO FALLBACK SINCE 2026-09-02.** `shared_runners_enabled=false`, so **`ci-runner-01` is
+the ONLY runner** — a dead box means pipelines QUEUE, they do not fail over. Turned off because
+"CI costs zero GitLab minutes" was **false for three weeks**: nothing in `.gitlab-ci.yml` is tagged
+and the runner takes untagged jobs, so **96 of 100 jobs went to GitLab's shared fleet** (154 min in
+two days, quota nearly gone). Standing a runner up does not move the work to it.
+⭐ **Both things that made that scary are FIXED 2026-09-03**: the IPv6 address is **deleted at
+Hetzner** (so no IPv6 route can return after a reboot), and root SSH by key works again (restored
+via rescue; `/dev/sda1` is the root fs).
+⚠ `~/.ssh/id_ed25519` is **PASSPHRASE-PROTECTED**, so `ssh -o BatchMode=yes` cannot log in — it
+fails `Permission denied (publickey)` even though the server accepts the key. Not a broken key.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
 ## ⛔ NEXT ACTION: NONE ASSIGNED. Home's warehouse is DONE; the next step is a DESIGN call (#101)
 
-⭐⭐ **ALL FOUR OF HOME'S WAREHOUSE GAPS SHIPPED 2026-09-02.** GAP-27 (club on a leaderboard row) +
-GAP-30 (`assists_player` board, 14 → 15) in `!142`; **GAP-28** in `!143` as **`competition_group`**
-(`elite` 7 · `europe` 3 · `international` 2 · `calendar` 6 · `secondary` 1 over 19 domestic leagues,
-29 others empty — AUTHORED not derived, guarded in Python like `tier`); **GAP-29** in `!145` as
-**`mart_team_leaderboards`** — four boards, `>= 3` finished games, `dense_rank` DESC partitioned
-`(league_code, season_api_year, metric_key)`. Measured on live prod: 9,438 rows / 44 leagues.
+⭐⭐ **ALL FOUR OF HOME'S WAREHOUSE GAPS SHIPPED 2026-09-02** (`!142`, `!143`, `!145` — details in
+git). The two live facts a builder needs: **`competition_group`** on the registry — `elite` 7 ·
+`europe` 3 · `international` 2 · `calendar` 6 · `secondary` 1, AUTHORED not derived — and
+**`mart_team_leaderboards`**, four boards ranked per `(league_code, season_api_year, metric_key)`.
 ⛔⛔ **A CLOSED GAP REGISTER IS NOT A BUILT PAGE, and this is the easiest thing here to get wrong.**
 NEITHER block exists. No export payload carries them; nothing wires `competition_group` to a render.
 What changed is only that the warehouse stopped blocking them. `10_home.md` is the spec (**#100**
@@ -26,11 +34,8 @@ proposes rewriting it wholesale).
 renders, and how it rotates when one is out of season.** The groups are not simultaneously in
 season, which is what makes it unavoidable rather than cosmetic. Do not start building a block
 before it is answered.
-⚠ **ONE OPEN RESIDUAL from `!145`, reversible:** widening that MR's scope to edit `10_home.md` was
-MY call after he declined to adjudicate the fork (*"You are talking cryptic language"*).
-`scope-auditor` passed it as a **recorded residual, not a clean pass**, and said the remedy if he
-disagrees is to correct it directly rather than through another review round. Nothing is recorded
-as his ruling.
+⚠ **`!145` residual, reversible:** widening its scope to edit `10_home.md` was MY call, passed by
+`scope-auditor` as a residual not a clean pass. Nothing is recorded as a CPO ruling.
 
 ⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
 Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
@@ -38,12 +43,8 @@ Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full 
 ⚠ `data:nightly` in `.gitlab-ci.yml` is NOT it — nothing triggers it; GitLab schedule `4379625` is
 deliberately **DISABLED**. **Enabling it without disabling `fdp-nightly` runs the build twice.**
 ⚠ Cost **~129 GB/day ≈ $17–24/mo**. Whether `fdp-freshness` needs hourly runs is the CPO's.
-⛔ **Four rules, each bought with an error, 2026-09-01.** (1) **Identify a caller by its AUTH PATH,
-not its name** — these run as `github-actions-dbt@…`, a reused legacy name, and I blamed a suspended
-GitHub account for the spend. (2) **"Undocumented" is a claim about the WHOLE tree** — I said
-"recorded nowhere" with no `git grep`; the runbook existed. (3) **Never quote a rate from ONE day** —
-my first figure was ~$7/month, the smallest of fourteen. (4) Query
-`region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` — **EU, not US**; `region-us` returns a false "0 jobs".
+⚠ Query `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` — **EU, not US**; `region-us` returns a
+false "0 jobs". (The 2026-09-01 cost-investigation lessons live in `CLAUDE.md` and memory.)
 
 ## ⛔ THE PINNED SAMPLE WENT STALE ON 2026-09-01 — those fixtures have kicked off
 
