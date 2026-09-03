@@ -4,9 +4,16 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-02**. **main `c662e08`**, clean, **no open MRs**. The naming programme is
-DONE; only the ONE copy call below survives it.
+_Last updated **2026-09-03**. **main `66e4ca9`**, clean, **no open MRs**.
 **GITLAB** (`glab`, MRs).
+⛔⛔ **DO NOT TOUCH `glab auth` OR INSTALL A PROJECT TOKEN. 2026-09-03 cost a full day.** `glab` auth
+is ONE credential per MACHINE, shared by every repo — re-authing it to a project access token broke
+`claude-guardrails` and another repo. Reverted; `glab` is `rami.al-fahham` again. The safeguard that
+the agent never merges is **branch protection** (main = Maintainers-only) + the hard memory rule
+**never merge**; NOT a token, NOT a hook. → [remove-the-permission], [never-merge] in memory.
+⛔ **THE `fix/merge-guard-covers-the-api` BRANCH IS DEAD** — 11 review rounds hardening a text hook
+against shell spellings, judged over-engineering, DISCARDED. Do not resurrect it. The one-line
+`_MR_MERGE` guard on main is fine as-is.
 ⛔⛔ **CI HAS NO FALLBACK SINCE 2026-09-02.** `shared_runners_enabled=false`, so **`ci-runner-01` is
 the ONLY runner** — a dead box means pipelines QUEUE, they do not fail over. Turned off because
 "CI costs zero GitLab minutes" was **false for three weeks**: nothing in `.gitlab-ci.yml` is tagged
@@ -20,22 +27,25 @@ fails `Permission denied (publickey)` even though the server accepts the key. No
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔ NEXT ACTION: NONE ASSIGNED. Home's warehouse is DONE; the next step is a DESIGN call (#101)
+## ⛔ NEXT ACTION: BUILD **#40 — the Top players block** (Home page)
 
-⭐⭐ **ALL FOUR OF HOME'S WAREHOUSE GAPS SHIPPED 2026-09-02** (`!142`, `!143`, `!145` — details in
-git). The two live facts a builder needs: **`competition_group`** on the registry — `elite` 7 ·
-`europe` 3 · `international` 2 · `calendar` 6 · `secondary` 1, AUTHORED not derived — and
-**`mart_team_leaderboards`**, four boards ranked per `(league_code, season_api_year, metric_key)`.
-⛔⛔ **A CLOSED GAP REGISTER IS NOT A BUILT PAGE, and this is the easiest thing here to get wrong.**
-NEITHER block exists. No export payload carries them; nothing wires `competition_group` to a render.
-What changed is only that the warehouse stopped blocking them. `10_home.md` is the spec (**#100**
-proposes rewriting it wholesale).
-⭐ **THE NEXT DECISION IS THE CPO'S AND IT IS DESIGN, NOT DATA — #101 / GAP-33: which group Home
-renders, and how it rotates when one is out of season.** The groups are not simultaneously in
-season, which is what makes it unavoidable rather than cosmetic. Do not start building a block
-before it is answered.
-⚠ **`!145` residual, reversible:** widening its scope to edit `10_home.md` was MY call, passed by
-`scope-auditor` as a residual not a clean pass. Nothing is recorded as a CPO ruling.
+⭐ Home's warehouse is DONE and #101 (which group renders) is DECIDED. Next is pure build work: the
+Top players block. Its data source exists — **`mart_leaderboards`** (per-league player boards; the
+reduced design is goals → assists → passes → key passes). Sibling **`mart_team_leaderboards`** feeds
+**#41** (Top teams) after.
+⛔⛔ **A CLOSED GAP REGISTER IS NOT A BUILT PAGE.** No block exists yet; no export payload carries
+them; nothing wires the group selection to a render. `10_home.md` is the spec (**#100** proposes
+rewriting it wholesale). Build **against `elite` first**, then wire in the #101 selection.
+⭐⭐ **#101 DECIDED 2026-09-03** (recorded as a comment ON THE ISSUE — read it):
+each nightly build picks ONE `competition_group` slot by **weighted random over the IN-SEASON
+slots** — `elite` 60 / `europe`+`international` merged 20 / `calendar` 20; `secondary` never.
+"In season" = a slot has ≥1 league with ≥3 finished games this season (the benchmark gate). Both
+blocks show the same slot; each names its leagues. **Fallback:** if nothing qualifies, show `elite`'s
+last completed season + a DQ alert. Guarantee holds because split-year (~Sep–May) and calendar-year
+(~Mar–Nov) tile the year. The mechanism lives in export/warehouse, never a component. Unblocks #40/#41.
+⚠ Related design facts in memory: `mart_leaderboards` is player-only under an unprefixed name
+(**#102** proposes renaming to `mart_player_leaderboards` — do NOT fold into #40); **#103** = two
+stale summary lines in `10_home.md`.
 
 ⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
 Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
@@ -46,50 +56,15 @@ deliberately **DISABLED**. **Enabling it without disabling `fdp-nightly` runs th
 ⚠ Query `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` — **EU, not US**; `region-us` returns a
 false "0 jobs". (The 2026-09-01 cost-investigation lessons live in `CLAUDE.md` and memory.)
 
-## ⛔ THE PINNED SAMPLE WENT STALE ON 2026-09-01 — those fixtures have kicked off
+## ⛔ CARRIED, LOW PRIORITY (not blocking #40)
 
-`!136` pinned the **2026-09-01** matchday: 4 fixtures, 3 competitions (`CIT` ×2, `DFBP`, `SPL`).
-⚠ **A past fixture can NEVER be re-exported** — `fetch_fixture_payloads` emits `status_short in
-('NS','TBD') and fixture_date >= current_date()`, and once a match kicks off its pre-match form rows
-leave `mart_team_momentum`. **A refresh REPLACES the set wholesale, never in place**, so re-pinning
-takes whatever matchday is future at that moment. Deliberately thin (4/3) on a CPO steer that this
-is infrastructure with nothing shown; coverage MEASURED across both competition shapes, all three
-form paths and the row-omission path. ⭐ Recipe and traps: `site_v2/src/data/README.md`.
-
-## ⛔ ONE FOLLOW-UP STEP 5 LEFT — plus 7 rows waiting on ONE copy call
-
-  - ✅ **The seed's prose — MERGED (`!140`), deliberately only PARTLY done.** 5 phrases moved across
-    4 rows; 34 stay. Rows split 9 → 7: **2 fixed, 0 newly split.**
-    ⛔ **THE UNIT IS THE ROW, NOT THE CELL** — the first rule converted whichever column held a
-    movable phrase and froze its sibling, producing exactly the label=goal / desc=goal /
-    interp=target state the CPO named when he widened the scope. Two reviewers FAILed it separately;
-    `fetch_glossary()` ships both fields into `metrics.json` side by side. ⚠ A "don't make it WORSE"
-    guard was ALSO wrong — those rows were already split by their label, so it passed them. **The
-    condition must be "the end state is right", not "the delta is non-negative".**
-    ⛔ **7 ROWS BLOCKED ON ONE CPO COPY DECISION**, inventory DERIVED from the seed (my hand-written
-    one FAILed round 2): **«on-target shots» 4 sites · «on-target threat» 3 · «on-target dominance»
-    1 · «on target for − against» 1.** Deciding the first three frees **6 of 7**. ⚠ Two blocks sit
-    in the DESCRIPTION, not the interpretation. **"On-goal threat" is not English** and there is no
-    "off-goal" as there is "off-target", so there is no substitution — only a rewrite, which the
-    copy gate reserves to him permanently. **My recommendation, given to him: LEAVE THEM** — the
-    football reviewer confirmed no natural on-goal phrasing exists, so it is a defensible end state,
-    not debt. Until decided, `shots_on_goal_player` keeps label "Shots on goal" / description "Shots
-    on target."
-    ⚠ `saves_pct`, `deserved_points`, `deserved_points_gap` are HELD but NOT split — every field
-    already agrees; converting only their movable part is what would split them. Not debt either.
-  - **Four CHROME strings in `strings.ts`'s `Dict`** naming the same metric in rendered English:
-    `axPlay` ("Shots on target difference / match", the team hero's x-axis) and
-    `heroVerdictUnder`/`heroVerdictOver`/`heroCaption`. ⚠ **When the team Performance surface ships,
-    that axis reads "Shots on target difference" beside a row reading "Ø Shots on goal difference".**
-    Neither renders today.
-  ⛔ **`label_i18n_key` is NOT one of these.** `metrics.shots_on_target_per_match.label` stays — the
-  join key across the seed, `strings.ts`, `metricRows.ts`, three parsers and the page specs, and the
-  catalogue declares no `..._on_goal_...` variant, so "fixing" it resolves the label to nothing.
-
-⛔ **NOTHING PINS THE WORDING of the four rendered labels.** Mutation-tested, two reviewers: emptying
-a label goes RED, `"Ø Bananas per fortnight"` leaves `npm test` **green**. Structural — the
-byte-identical gate compares only keys in BOTH `strings.ts` and the frozen `site/i18n` corpus; three
-of the four are absent, the fourth is skipped by name, and those three render on zero built pages.
+  - **Naming programme leftover — 7 seed rows blocked on ONE CPO copy call.** «on-target shots» 4
+    sites · «on-target threat» 3 · «on-target dominance» 1 · «on target for−against» 1. My
+    recommendation given to him: **LEAVE THEM** — no natural "on-goal" phrasing exists, defensible
+    end state not debt. `shots_on_goal_player` keeps label "Shots on goal" / desc "Shots on target"
+    until decided. ⚠ `label_i18n_key` (`metrics.shots_on_target_per_match.label`) STAYS — it is the
+    join key; "fixing" it resolves to nothing. Four `strings.ts` chrome strings (`axPlay`,
+    `heroVerdict*`, `heroCaption`) render on zero pages today.
 
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
