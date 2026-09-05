@@ -1,0 +1,21 @@
+league_code,league_name,source,note
+ACN,AFC Asian Cup,docs/competition_registry.yml,Provider drops the confederation prefix the tournament is officially named with.
+APD,Liga Profesional de Fútbol (Argentina),docs/competition_registry.yml,"Provider sends the short form; the qualifier distinguishes it from other Ligas Profesionales."
+BPL,Belgian Pro League,docs/competition_registry.yml,Provider sends the sponsor name (Jupiler); a sponsor is not the competition's name.
+BSA,Brasileirão Série A,docs/competition_registry.yml,"⛔ COLLISION. Provider sends ""Serie A"" — byte-identical to Italy's SA — so two competitions shared one title, description and H1. This row is the reason the seed exists."
+CCCU,CONCACAF Champions Cup,docs/competition_registry.yml,Competition was renamed from Champions League in 2024; the provider still sends the old name.
+COAM,Copa América,docs/competition_registry.yml,Provider drops the diacritic.
+DFBP,DFB-Pokal,docs/competition_registry.yml,Provider omits the hyphen the official name carries.
+EURO,UEFA European Championship,docs/competition_registry.yml,"Provider sends the colloquial ""Euro Championship""."
+LIBER,Copa Libertadores,docs/competition_registry.yml,Provider prefixes the confederation; the competition's name does not carry it.
+LP,Liga Portugal,docs/competition_registry.yml,Competition was renamed from Primeira Liga in 2023; the provider still sends the old name.
+UECL,UEFA Conference League,#55,"BOTH sources are stale and AGREE, so a disagreement check would never find this: UEFA dropped ""Europa"" from the name in 2024 and the provider and the registry both still carry it."
+SPL,Saudi Pro League,docs/competition_registry.yml,"Provider sends bare ""Pro League"", which names no country and collides conceptually with BPL."
+WC,FIFA World Cup,docs/competition_registry.yml,"Entity name only. The registry spells it ""FIFA World Cup 2026""; a season does not belong inside an entity's name, and the registry's own slug (world-cup) already omits it. A season-scoped surface composes the label from this name plus the season."
+WCQAF,World Cup Qualification Africa,docs/competition_registry.yml,"Provider hyphenates (""World Cup - Qualification Africa""); the registry abbreviates to ""WC"". Neither is the name spelled as a reader says it."
+WCQAS,World Cup Qualification Asia,docs/competition_registry.yml,"See WCQAF."
+WCQCA,World Cup Qualification CONCACAF,docs/competition_registry.yml,"See WCQAF."
+WCQEU,World Cup Qualification Europe,docs/competition_registry.yml,"See WCQAF."
+WCQIP,World Cup Qualification Intercontinental Playoffs,docs/competition_registry.yml,"See WCQAF."
+WCQOC,World Cup Qualification Oceania,docs/competition_registry.yml,"See WCQAF."
+WCQSA,World Cup Qualification South America,docs/competition_registry.yml,"See WCQAF."
