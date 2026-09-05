@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 947f726..1cb9eaf 100644
+index 947f726..fb74f67 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,236 +1,197 @@
+@@ -1,236 +1,205 @@
 -# Task contract — one authoritative competition name, corrected in base
 +# Task contract — navigation rules, and Next matches applying them
  
@@ -46,6 +46,7 @@ index 947f726..1cb9eaf 100644
 +  - site_v2/scripts/audit-seo.test.mjs
 +  - .claude/task/escalations.log
 +  - .claude/task/rendered_page_evidence.md
++  - .claude/active_work.md
    - .claude/task/contract.md
 -  - .claude/task/acceptance_evidence.md
    - .claude/task/review.md
@@ -409,6 +410,13 @@ index 947f726..1cb9eaf 100644
 +  negative-margin pair (33px hit area, text position unchanged, verified by screenshot).
 +  ⭐ The mobile check was in `done_when` from the start. Skipping it and writing the evidence file
 +  anyway would have shipped a real accessibility defect behind a green build.
++
++  2026-09-04 — `.claude/active_work.md` ADDED to scope_paths, AFTER the work was committed
++  (`af55c38`) and `!151` opened. Authority: mine, and it is bookkeeping, not scope. The handover
++  hook requires the file be brought current before the session ends, and the contract gate denies
++  editing any path not listed — so it has to be in scope to write the handover at all. No code,
++  no page and no decision is touched by this entry; it exists so the edit is authorised rather
++  than silently made.
 +
 +  2026-09-04 — `platform-reviewer` round-1 FAIL accepted; no scope change needed (both files were
 +  already in scope). It proved the tie branch of `specForPath` was untested — mutating `>` to `>=`
@@ -1119,8 +1127,10 @@ index 9a61daa..66a7a0d 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |  236 +++--
+#   .claude/active_work.md                 |  146 +--
+#    .claude/task/acceptance_evidence.md    |  250 +++--
 #    .claude/task/rendered_page_evidence.md |  176 ++--
-#    .claude/task/review_input.patch        | 1767 +++++++++++++++++++-------------
-#    3 files changed, 1322 insertions(+), 857 deletions(-)
+#    .claude/task/review.md                 |  140 +--
+#    .claude/task/review_input.patch        | 1777 ++++++++++++++++++++------------
+#    5 files changed, 1502 insertions(+), 987 deletions(-)
 # ============================================================================

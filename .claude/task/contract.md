@@ -24,6 +24,7 @@ scope_paths:
   - site_v2/scripts/audit-seo.test.mjs
   - .claude/task/escalations.log
   - .claude/task/rendered_page_evidence.md
+  - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/acceptance_evidence.md
@@ -186,6 +187,13 @@ amendments: >
   negative-margin pair (33px hit area, text position unchanged, verified by screenshot).
   ⭐ The mobile check was in `done_when` from the start. Skipping it and writing the evidence file
   anyway would have shipped a real accessibility defect behind a green build.
+
+  2026-09-04 — `.claude/active_work.md` ADDED to scope_paths, AFTER the work was committed
+  (`af55c38`) and `!151` opened. Authority: mine, and it is bookkeeping, not scope. The handover
+  hook requires the file be brought current before the session ends, and the contract gate denies
+  editing any path not listed — so it has to be in scope to write the handover at all. No code,
+  no page and no decision is touched by this entry; it exists so the edit is authorised rather
+  than silently made.
 
   2026-09-04 — `platform-reviewer` round-1 FAIL accepted; no scope change needed (both files were
   already in scope). It proved the tie branch of `specForPath` was untested — mutating `>` to `>=`

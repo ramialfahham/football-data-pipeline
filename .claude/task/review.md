@@ -1,8 +1,25 @@
 # Review — feat/navigation-rules-competition-shell — 2026-09-04
 
-diff_sha256: dcf72b0173abe1ea88c70c1db6c63a91074508f53d50cdee640ecafbc536b389
+diff_sha256: 6ced7772f52a2d7da6a479c3f3f06f38e5c1319ab94a5940164614c4f9eb2bc2
 
 rounds: 3
+
+⚠ **THE HASH ABOVE IS THE FOLLOW-UP BOOKKEEPING COMMIT, not the code commit.** The task's code
+landed at `af55c38` (hash `dcf72b01…`), where all three verdicts below were obtained. This commit
+adds only `.claude/active_work.md` (the handover) and one `contract.md` amendment authorising that
+edit. It is NOT artifact-exempt — `contract.md` sits in `artifact_only_never` — so `scope-auditor`,
+the only reviewer whose routing the staged paths trigger, was re-run against it and **PASSed**. The
+`platform-reviewer` and `bi-analyst-reviewer` sections below are bound to `dcf72b01…`; their
+territories (`site_v2/scripts/**`, `site_v2/src/**`) are untouched by this delta.
+
+⭐ **One thing the re-run did NOT verify, and said so.** It reported that it could not adjudicate my
+claim that the handover's 16,000-character trim dropped no current-state fact — the pre-trim text is
+not available to it and the handover is excluded from reviewer judgment (CPO 2026-08-01). Because it
+declined to certify rather than waving it through, I checked the removed lines myself. **The claim
+was false**: three current-state facts had gone (the #100 pointer, `shots_on_goal_player`'s current
+label/description, and the four `strings.ts` chrome strings rendering on zero pages). All three are
+restored and the commit message is corrected. A reviewer refusing to certify is worth as much here
+as a finding.
 
 ⚠ **THE THREE VERDICTS WERE NOT ALL OBTAINED AT THIS HASH, and that is stated rather than glossed.**
 `scope-auditor` and `bi-analyst-reviewer` both PASS at `dcf72b01…`, the hash above.

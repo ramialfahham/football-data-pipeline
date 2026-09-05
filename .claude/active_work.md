@@ -4,8 +4,13 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-03**. **main `66e4ca9`**, clean, **no open MRs**.
-**GITLAB** (`glab`, MRs).
+_Last updated **2026-09-04**. **main `56278d5`**, clean. **ONE OPEN MR: !151** (navigation rule +
+competition scaffold) — awaiting the CPO's merge. **GITLAB** (`glab`, MRs).
+⛔ **THE POST-COMMIT HOOK PUSHES TO `main` IF THE BRANCH TRACKS `main`, AND IT TRIED TO ON !151.**
+`git checkout -b <branch> gitlab/main` sets `main` as upstream, so the hook's bare push follows it.
+Branch protection rejected it (`! [remote rejected] … -> main`). **Run `git branch --unset-upstream`
+right after creating a branch**, and always push with an explicit refspec
+`git push gitlab <branch>:<branch>`, verifying the output says `-> <branch>`.
 ⛔⛔ **DO NOT TOUCH `glab auth` OR INSTALL A PROJECT TOKEN. 2026-09-03 cost a full day.** `glab` auth
 is ONE credential per MACHINE, shared by every repo — re-authing it to a project access token broke
 `claude-guardrails` and another repo. Reverted; `glab` is `rami.al-fahham` again. The safeguard that
@@ -27,15 +32,45 @@ fails `Permission denied (publickey)` even though the server accepts the key. No
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`._
 
-## ⛔ NEXT ACTION: BUILD **#40 — the Top players block** (Home page)
+## ⛔ NEXT ACTION: **#40 needs a PLAN before any code** (Home page, Top players)
 
-⭐ Home's warehouse is DONE and #101 (which group renders) is DECIDED. Next is pure build work: the
-Top players block. Its data source exists — **`mart_leaderboards`** (per-league player boards; the
-reduced design is goals → assists → passes → key passes). Sibling **`mart_team_leaderboards`** feeds
-**#41** (Top teams) after.
-⛔⛔ **A CLOSED GAP REGISTER IS NOT A BUILT PAGE.** No block exists yet; no export payload carries
-them; nothing wires the group selection to a render. `10_home.md` is the spec (**#100** proposes
-rewriting it wholesale). Build **against `elite` first**, then wire in the #101 selection.
+⛔⛔ **DO NOT START BUILDING #40 FROM THE ISSUE TEXT.** The CPO stopped exactly that on 2026-09-04:
+*"we have no plan yet for top players and top teams."* Start from the MOCK, not the issue. Open
+`design-mocks/top_players_mock.html` (outside the repo, beside the memory folder) and settle these
+FIRST, with him:
+  · **Page length** — 4 player boards + 4 team boards at 7 rows = 56 rows, on a page that already
+    measured 4126px on mobile with ONE block built. Still open in `10_home.md` §0.
+  · **#40's issue body is STALE.** It describes a POOLED ranking across seven leagues; that was
+    withdrawn 2026-08-18 (GAP-31) for **one player per league**, which `mart_leaderboards` already
+    produces. Its intro copy was replaced the same day. The spec's §0/§10 win over the issue.
+  · **#101's group rotation** is decided but unwired. **#100** proposes rewriting `10_home.md`
+    wholesale; **#103** = two stale summary lines in it.
+⭐ Data is READY: `mart_leaderboards` has all four boards (`goals_player`, `assists_player`,
+`passes_player`, `passes_key_player`) plus `team_sk`/`team_name`/`team_slug`/`team_logo_url` and a
+per-league `dense_rank`. Sibling `mart_team_leaderboards` feeds **#41**.
+⛔ **There is NO player page and no player route**, so Top players rows have no destination yet.
+Under the navigation rule below, a row links to its SUBJECT — the player. Per §0's standing rule
+(*"do not reorder the build because a destination page does not exist yet"*) that means shipping a
+player scaffold alongside the block, exactly as !151 did for the competition page. `players` is
+already an export entity with `shape_player_payload` and a `player_slug_with_id` helper, so the
+route is cheap and mirrors `teams/[team].astro`.
+
+## ⭐ WHAT !151 ESTABLISHED — read before touching any page
+
+**The navigation rule is now written**, in `docs/site_architecture.md` §3, and it is **PROVISIONAL**
+by the CPO's instruction (*"the rules might be subject to change. We have not built every page
+yet"*). Three families — chrome / content links / controls, and **only two navigate**. Four
+content-link shapes: row · heading · chip · prose. The rule: *every content link points at the one
+entity it names, and a row names its subject; nothing inside a row is separately clickable.*
+Confirmed for header+row structures, which is what both Home blocks are. The four rulings behind it
+are in `escalations.log` (entry `2026-09-04 — THE NAVIGATION RULE`).
+⭐ **The competition page exists as a SCAFFOLD** (`/{lang}/{slug}/`, 144 pages, in `STUB_PAGES`).
+Its content is **#47**. The competitions index page's 48 rows are still inert but now UNBLOCKED —
+a second surface, deliberately left out of !151.
+⚠ **Competition names were corrected in the warehouse (!150, merged).** `league_name_overrides` →
+`base_apif__leagues` → `dim_league`. 20 corrected, 28 on the provider name. The remaining
+external-record verification of all 48 belongs to **#55**, which also owns removing the export's
+registry reads. **#105** = compose name + season so an active World Cup reads "FIFA World Cup 2026".
 ⭐⭐ **#101 DECIDED 2026-09-03** (recorded as a comment ON THE ISSUE — read it):
 each nightly build picks ONE `competition_group` slot by **weighted random over the IN-SEASON
 slots** — `elite` 60 / `europe`+`international` merged 20 / `calendar` 20; `secondary` never.
@@ -58,13 +93,13 @@ false "0 jobs". (The 2026-09-01 cost-investigation lessons live in `CLAUDE.md` a
 
 ## ⛔ CARRIED, LOW PRIORITY (not blocking #40)
 
-  - **Naming programme leftover — 7 seed rows blocked on ONE CPO copy call.** «on-target shots» 4
-    sites · «on-target threat» 3 · «on-target dominance» 1 · «on target for−against» 1. My
-    recommendation given to him: **LEAVE THEM** — no natural "on-goal" phrasing exists, defensible
-    end state not debt. `shots_on_goal_player` keeps label "Shots on goal" / desc "Shots on target"
-    until decided. ⚠ `label_i18n_key` (`metrics.shots_on_target_per_match.label`) STAYS — it is the
-    join key; "fixing" it resolves to nothing. Four `strings.ts` chrome strings (`axPlay`,
-    `heroVerdict*`, `heroCaption`) render on zero pages today.
+  - **Naming programme leftover — 7 seed rows on ONE CPO copy call.** «on-target shots» ×4 ·
+    «on-target threat» ×3 · «on-target dominance» ×1 · «on target for−against» ×1. Recommendation
+    given: **LEAVE THEM** — no natural "on-goal" phrasing exists, so it is a defensible end state,
+    not debt. Until decided, `shots_on_goal_player` keeps label "Shots on goal" / desc "Shots on
+    target". ⚠ `label_i18n_key` (`metrics.shots_on_target_per_match.label`) STAYS — it is the join
+    key and "fixing" it resolves to nothing. Four `strings.ts` chrome strings (`axPlay`,
+    `heroVerdict*`, `heroCaption`) name the same metric and render on zero pages today.
 
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
@@ -89,48 +124,34 @@ Programme merged; the MR-by-MR account is in git and `feedback_fix_the_class_not
 What survives is the method.
 
 **1. A SCOPE COARSER THAN THE ROLE IT MUST RESOLVE IS THE ONE RECURRING DEFECT** — FAILed review on
-`!131`, `!132` (×3), `!134` and `!140`, **every gate green every time**. The fix is never an
-exemption list; it is a finer rule with a checkable property. Those earned so far:
-  - **role** where two meanings share a line: `t(lang,"x")` is a UI word, `player.x` a payload field,
-    `.get("x")` a warehouse column, `"x":` a payload key, `group=x` a metric group
-  - **a domain fact** where one exists — there is no player `goals_for`, so the scoreline family is
-    the team's; that one discriminator separated 6 wrong renames from 60 right ones
-  - **in a markdown TABLE the COLUMN decides**, not the backtick; outside one, a token in
-    parentheses beside an arithmetic operator is a quoted formula; `{placeholder}` is never an id
+`!131`, `!132` (×3), `!134`, `!140`, **every gate green every time**. The fix is never an exemption
+list; it is a finer rule with a checkable property — resolve by **ROLE** (`t(lang,"x")` is a UI
+word, `.get("x")` a warehouse column, `"x":` a payload key), by a **domain fact** where one exists,
+and in a markdown TABLE by the COLUMN, not the backtick.
 
-**2. CENSUS THE TREE, COUNT BOTH DIRECTIONS, AND MATCH A PATTERN NOT A LIST.** Report every sweep as
-"N move, M stay" — a one-sided claim ("the prose is fixed") is what let an over-correction through.
-⛔⛔ **ONE PHRASE HAD FOUR SPELLINGS IN ONE FILE AND MY REGEX WAS WRONG FIVE TIMES — four too NARROW,
-then one too WIDE.** `on target`, `on-target`, `on_target`, **`OnTarget`**. ⚠ **A too-narrow census
-reports a confident ZERO, never an error.** In order: an enumeration of spellings loses by one
-variant (`!134`); **`\b` does not delimit `on` in `shots_on_target`**, `_` being a WORD character;
-**camelCase has no separator at all**; the detector for the *new* word inherited the same blindness
-(`"on goal"` with a literal SPACE missed "shots-**on-goal** data"); and widening THAT made
-`on[ _-]?goal` match the METRIC ID `shots_on_goal_difference_per_match` quoted in a description,
-inventing a split. Protected count read **0 → 1 → 3** as this was corrected.
-⭐⭐ **THREE DETECTORS, THREE JOBS — collapsing any two broke the seed-prose sweep ONCE EACH.**
-(1) DECIDES what changes: strict. (2) COUNTS occurrences: maximally permissive, every separator; its
-only job is to miss nothing. (3) JUDGES reader-facing consistency: **prose only**.
-⭐ **Resolution = ROLE, NOT PUNCTUATION (rule 1 again):** prose separates with SPACE or HYPHEN, an
-identifier with an UNDERSCORE. Measured proof they differ: narrowing (2) to prose dropped the
-protected count 3 → 0; widening (3) past prose invented a split. ⚠ A pattern buys false positives
-too — `README.md`'s "ingesti**on target**".
-⭐ **And run every such assertion against BASE as well as HEAD.** Mine was an absolute ("no cell
-contains both spellings") and main already violated it, in `finishing_efficiency_pct`. Two-sided is
-the only form an MR can own: introduced 0, removed 0.
+**2. CENSUS THE TREE, COUNT BOTH DIRECTIONS, MATCH A PATTERN NOT A LIST.** Report every sweep as
+"N move, M stay". ⛔⛔ One phrase had FOUR spellings in one file and my regex was wrong five times,
+four too narrow then one too wide. ⚠ **A too-narrow census reports a confident ZERO, never an
+error.** `\b` does not delimit `on` in `shots_on_target` (`_` is a word character); camelCase has no
+separator at all. ⭐⭐ **THREE DETECTORS, THREE JOBS** — (1) DECIDES: strict. (2) COUNTS: maximally
+permissive. (3) JUDGES prose only. Collapsing any two broke the sweep once each.
+⭐ **Run every such assertion against BASE as well as HEAD** — mine was an absolute that main already
+violated. Two-sided is the only form an MR can own: introduced 0, removed 0.
 
-**3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** A blocklist of 5 of the
-seed's 15 columns swept `interpretation`; the fix is a field allowlist. Then `!132` and `!136` both
-proved the second half — a token rule placed BEFORE the allowlist silently reopens the hole.
+**3. ALLOWLIST, NEVER BLOCKLIST — AND NOTHING MAY BE CHECKED BEFORE IT.** A token rule placed BEFORE
+the allowlist silently reopens the hole (`!132`, `!136`).
 
 **4. WHAT ACTUALLY FINDS DEFECTS**, in order: the **blinded review** (every defect of the last five
-MRs, all with gates green); **reading the printed decisions and the applied diff**; and the **test
-suite** — but only where a ruling forces code and test apart. Where a sweep edits both sides in
-lockstep, green means nothing.
+MRs, all with gates green); reading the printed decisions and the applied diff; then the test suite
+— but only where a ruling forces code and test apart. Where a sweep edits both sides in lockstep,
+green means nothing. ⭐ Reconfirmed on !150/!151: **every** FAIL was found by a reviewer, none by me,
+and two were product defects (a 21px tap target, a focus ring through a divider) behind a green build.
 
 **5. TWO GUARD FACTS, MEASURED.** `check_description_hygiene` DOES catch a dangling `doc()`.
 `check_yml_vs_projection` does NOT catch a column dropped from the final SELECT while still named in
 a `safe_divide` on it — token presence, not projection. Mutation-test any guard before citing it.
+⚠ **And mutation-test against more than the mutation you thought of**: a fixture with one case per
+level cannot distinguish `max` from `min`, so my tie-break test pinned nothing until a reviewer said so.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
@@ -167,14 +188,15 @@ arrives as `Ã˜` and a byte-identical seed looked like 32 corrupted fields. Cap
 ## Method that works — seven MRs of evidence
 
 Contract FIRST on a clean tree (the gate refuses otherwise; stash by explicit path with a `TEMP-`
-label, verify your own entry is on top, pop immediately). Classify every token once and **print the
-decision with its resolved entity**; abort before writing on any protected-count change or unlisted
-file; maximal-token matching; multiset verify over old ∪ new; no no-op writes. Then gates unpiped
-with exit codes read bare, mutations watched RED, two site builds, five blinded reviewers,
-`review.md` with `--staged-hash`. **ROUND CAP 3** — past it, STOP and bring the findings; a fourth
-round needs the CPO's word recorded as `rounds_cap_override:` in `review.md`, or the commit gate
-refuses. Each reviewer section needs `## <exact-routing-key>`, then `VERDICT:`, then a
-`risks_checked:` block — a PASS with an empty one is rejected.
+label, verify your own entry is on top, pop immediately). Abort before writing on any
+protected-count change or unlisted file. Then gates unpiped with exit codes read bare, mutations
+watched RED, the site built, the blinded reviewers, `review.md` with `--staged-hash`.
+**ROUND CAP 3** — past it STOP and bring the findings; a fourth round needs the CPO's word as
+`rounds_cap_override:` in `review.md` or the commit gate refuses. ⚠ Rounds are PER REVIEWER and can
+differ (on !151: scope 3, platform 3, BI 4). Each section needs `## <exact-routing-key>`, then
+`VERDICT:`, then a `risks_checked:` block — a PASS with an empty one is rejected.
+⚠ **`contract.md` is INSIDE the review hash**, so amending it after the reviewers ran invalidates
+every verdict. Amend before the review round, not after.
 
 ## Standing traps (also in CLAUDE.md)
 
