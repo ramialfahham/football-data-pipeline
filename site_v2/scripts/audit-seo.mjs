@@ -176,6 +176,70 @@ export function titleWidthPx(text, fontPx = TITLE_FONT_PX) {
  *
  * `[lang]/teams/[team].astro` -> /^\/[^/]+\/teams\/[^/]+\/$/
  */
+/**
+ * How SPECIFIC a route is: the number of LITERAL segments in it.
+ *
+ * `specRouteRegex` turns every `[param]` into `[^/]+`, which is right for matching but makes a
+ * dynamic route swallow its literal siblings: `[lang]/[competition]/index.astro` compiles to
+ * `^/[^/]+/[^/]+/$` and therefore matches `/en/competitions/` — the competitions INDEX — as
+ * happily as it matches `/en/bundesliga/`. Two specs then claim one URL and the audit judged it
+ * against whichever `walkJson` happened to yield first, demanding the hub's `SportsOrganization`
+ * of a page that correctly emits `ItemList`.
+ *
+ * Astro itself has never been ambiguous here — a static route always beats a dynamic one — so
+ * this restores the router's own precedence rather than inventing a rule. Counting literal
+ * segments is enough for that: `[lang]/competitions/index` scores 2 (`competitions`, `index`)
+ * against `[lang]/[competition]/index`'s 1 (`index`).
+ *
+ * ⚠ Deliberately NOT an exemption for this one page. Every future top-level dynamic route would
+ * collide with every literal sibling the same way.
+ */
+export function routeSpecificity(pageField) {
+  return pageField
+    .replace(/\.astro$/, "")
+    .split("/")
+    .filter((seg) => seg && !/^\[.+\]$/.test(seg)).length;
+}
+
+/**
+ * The spec that governs an emitted path: of every spec whose route matches, the MOST SPECIFIC.
+ *
+ * Pure and exported so the tie-break is testable. It used to be `specs.find(s => s.match.test(p))`
+ * inline in main(), which returned whichever spec `walkJson` yielded first — i.e. the answer
+ * depended on directory-walk order, and on a collision it silently judged one page against
+ * another's spec. Ties keep the first match, which is only reachable if two specs declare routes
+ * of equal specificity that match the same URL — a spec-authoring bug, not something to paper over.
+ */
+export function specForPath(specs, path) {
+  const matches = specs.filter((s) => s.match.test(path));
+  if (matches.length === 0) return null;
+  const top = Math.max(...matches.map((s) => s.specificity));
+  return matches.find((s) => s.specificity === top);
+}
+
+/**
+ * The specs that TIE for a path: two or more claiming it at equal specificity. Empty otherwise.
+ *
+ * The tie-break above cannot resolve this one — both routes are equally specific, so whichever
+ * wins is decided by directory-walk order, which is exactly the order-dependence `specForPath`
+ * exists to remove. It is a spec-AUTHORING bug (two specs declaring overlapping routes), and this
+ * gate must fail CLOSED on it rather than guess: the same doctrine `MIN_EXPECTED_PAGES` states a
+ * few dozen lines down, that a broken check reports itself instead of passing everything.
+ *
+ * Reachable, not hypothetical: `[lang]/foo/[b]/[c]` and `[lang]/[a]/bar/[c]` both score 1 and both
+ * match `/en/foo/bar/x/`. Nothing today ties — the only live collision is
+ * `[lang]/[competition]/index` against `[lang]/competitions/index`, which the specificity rule
+ * settles 2 to 1 — so this reports a defect that does not exist yet and would otherwise arrive
+ * silently.
+ */
+export function specTie(specs, path) {
+  const matches = specs.filter((s) => s.match.test(path));
+  if (matches.length < 2) return [];
+  const top = Math.max(...matches.map((s) => s.specificity));
+  const winners = matches.filter((s) => s.specificity === top);
+  return winners.length > 1 ? winners : [];
+}
+
 export function specRouteRegex(pageField) {
   const withoutExt = pageField.replace(/\.astro$/, "");
   const escaped = withoutExt
@@ -395,7 +459,12 @@ export function readSpecExpectations(specsDir = join(SITE_ROOT, "src", "specs"))
     if (!file.endsWith(".spec.json")) continue;
     const spec = JSON.parse(readFileSync(file, "utf8"));
     if (!spec.page || !spec.seo) continue;
-    out.push({ page: spec.page, schemaOrg: spec.seo.schema_org, match: specRouteRegex(spec.page) });
+    out.push({
+      page: spec.page,
+      schemaOrg: spec.seo.schema_org,
+      match: specRouteRegex(spec.page),
+      specificity: routeSpecificity(spec.page),
+    });
   }
   return out;
 }
@@ -434,8 +503,13 @@ export async function main(distDir = DIST_DIR) {
   // "none" means the spec says this page carries no entity node (the scaffold).
   const specs = readSpecExpectations();
   const expectedTypes = {};
+  const specTies = [];
   for (const p of knownPaths) {
-    const spec = specs.find((s) => s.match.test(p));
+    // FAIL CLOSED on an unresolvable spec set: two specs claiming one URL at equal specificity
+    // would otherwise be settled by directory-walk order, which is the defect specForPath removes.
+    const tie = specTie(specs, p);
+    if (tie.length) specTies.push(`${p}: claimed by ${tie.map((s) => s.page).join(" and ")}`);
+    const spec = specForPath(specs, p);
     if (spec && spec.schemaOrg && spec.schemaOrg !== "none") {
       expectedTypes[entityKey(p, locales)] = spec.schemaOrg;
     }
@@ -446,6 +520,11 @@ export async function main(distDir = DIST_DIR) {
   }
 
   const issues = auditSet(pages, { site, locales, indexable: INDEXABLE, knownPaths, expectedTypes });
+
+  // Reported as issues, not thrown: they belong in the same list as every other build defect, and
+  // a duplicate per locale is information (it says the overlap is route-shaped, not entity-shaped).
+  for (const t of specTies)
+    issues.push(`AMBIGUOUS PAGE SPECS — ${t}. Two specs claim one URL at equal route specificity, so which one judges it depends on directory-walk order. Narrow one of the routes.`);
 
   // Whole-build assertions that are not per-page.
   const robots = join(distDir, "robots.txt");

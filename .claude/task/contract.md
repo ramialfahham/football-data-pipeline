@@ -1,236 +1,197 @@
-# Task contract — one authoritative competition name, corrected in base
+# Task contract — navigation rules, and Next matches applying them
 
 objective: >
-  **Make `dim_league.league_name` the single source of truth for a competition's display name**,
-  by giving leagues the override seed that teams, countries and coaches already have. Today the
-  provider's name reaches the site uncorrected, and it is not unique: API-Football calls
-  Brasileirão "Serie A", the same string as Italy's Serie A, so two competitions render an
-  identical title, description and H1.
+  Settle the site's navigation rule once — which element types are clickable and what each
+  points at — write it into the authoritative IA doc as a PROVISIONAL standard, and apply it to
+  the one block it was worked out against: Next matches. The competition heading becomes a real
+  link, which requires a near-empty competition page for it to land on.
 refs: >
-  **#55** — "Competition display name has no single source: registry and dim_league disagree, and
-  neither is the name we show", open since 2026-08-10. It specifies this fix in full: *"One field,
-  in the warehouse, that every surface reads. Published by `dim_league`, with corrections applied
-  in base… The registry keeps what it is good at and stops carrying a display name."* This task is
-  its WAREHOUSE HALF. ⚠ I did not find #55 until after building, and filed **#106** as a duplicate
-  of it, which is closed. The pattern it names is documented independently in
-  `dbt_project/docs/layering.md:227` (cross-source reconciliation lives in base) and
-  `dbt_project/seeds/schema.yml:472-497` (a correction cites an external source, never taste).
-  Surfaced by the build of `feat/navigation-rules-competition-shell`, which is BLOCKED on it (the
-  SEO audit refuses two pages with byte-identical titles). That branch is stashed as
-  `TEMP-nav-rules-competition-shell`.
+  #52 (interaction standard — "which elements redirect where", open since 2026-08-10, never
+  decided); #47 (the competition page's real content, NOT this task); plan
+  C:/Users/Rami/.claude/plans/unified-seeking-waffle.md, CPO-approved 2026-09-04.
 
 scope_paths:
+  - docs/site_architecture.md
+  - site_v2/src/specs/competition/index.spec.json
+  - site_v2/src/pages/*/*/index.astro
+  - site_v2/src/config/indexability.mjs
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/styles/system.css
+  - site_v2/src/components/home/HeroFixtures.astro
+  - site_v2/src/data/competition_index.json
+  - .gitignore
+  - site_v2/scripts/audit-seo.mjs
+  - site_v2/scripts/audit-seo.test.mjs
+  - .claude/task/escalations.log
+  - .claude/task/rendered_page_evidence.md
   - .claude/task/contract.md
-  - .claude/task/acceptance_evidence.md
   - .claude/task/review.md
+  - .claude/task/acceptance_evidence.md
   - .claude/task/review_input.patch
-  - dbt_project/seeds/league_name_overrides.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/2_base/api_football/base_apif__leagues.sql
-  - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/tests/assert_league_name_overrides_are_corrections.sql
-  - dbt_project/tests/assert_competition_name_is_unique.sql
 
 impact_map: >
-  writers: no ingestion loader changes. The RAW tables and `stg_apif__leagues` are untouched; the
-    correction is applied in the BASE layer, which is where the transformation layer cleans and
-    reconciles (CPO 2026-08-14) and where `base_apif__leagues` ALREADY applies exactly this
-    pattern for `league_country` via `country_name_overrides`.
-  downstream: `dbt ls --select base_apif__leagues+ --resource-type model` (dbt 1.7.19, run
-    2026-09-04) returns 17 models:
-      base_apif__competition_seasons · base_apif__league_entity · base_apif__leagues ·
-      dim_competition_season · dim_league · dim_player_team_season_mapping · fct_standings ·
-      int_team_season__deserved_vs_actual · int_team_season__standings_primary ·
-      mart_competition_index · mart_fixture_standing_context · mart_matchday_insights ·
-      mart_roster · mart_standings · mart_team_profile · mart_team_season ·
-      mart_team_season_insights
-    ⚠ Only the ones that CARRY `league_name` can change, which is a much smaller set — measured
-    with `grep -rn "league_name" dbt_project/models`: `dim_league` (publishes it),
-    `mart_competition_index:103` (`as competition_name`) and `mart_matchday_insights:139`.
-    ⚠ `league_name` also arrives by TWO OTHER staging paths that this change does NOT touch and
-    must not be assumed fixed: `stg_apif__fixtures_next:35` and
-    `stg_apif__standings:30` → `base_apif__standings:41`. Neither reaches a mart, so no page
-    renders the uncorrected copy — but the REASON matters and an earlier version of this line got
-    it wrong (corrected on `analytics-engineer-reviewer`'s trace): it claimed `fct_standings` does
-    `select *` from the base "so it does carry the column". It does not. The `select *` is only in
-    its import CTE; `fct_standings`' terminal SELECT is an explicit column list that OMITS
-    `league_name`, so `mart_standings`' own `select *` propagates nothing. The fixtures path dies
-    the same way in `base_apif__fixtures_next`, and `mart_matchday_insights:139` reads
-    `l.league_name` from a `dim_league` join, i.e. the CORRECTED value. Recorded because "the
-    league name is fixed" would be false as a blanket claim, and because a right conclusion resting
-    on a wrong mechanism is the kind of thing that rots into a real defect.
-  layer_rules: `check_layer_contract.py` — staging stays raw cleanup only (untouched); the
-    correction sits in base; `dim_league` PUBLISHES and does not coalesce, which is the rule
-    `base_apif__leagues`' own comment states ("the core dim publishes rather than corrects —
-    there is no coalesce in dim_league") and which `feedback_entity_corrections_in_base` records.
-  deploy_order: the seed must load before the model builds — `dbt build` orders seeds first via
-    `ref()`, so no manual sequencing. Prod picks it up on the next `fdp-nightly` run (04:00 UTC);
-    until then the committed `site_v2/src/data/competition_index.json` still holds the old names,
-    so the frontend does not change on merge alone. ⚠ That is the sequencing that keeps
-    `feat/navigation-rules-competition-shell` blocked: it needs this merged, a nightly, and a
-    re-export of `competition_index.json`.
-  blast_radius: the `league_name` value for the competitions whose seed row is present, wherever
-    `dim_league` publishes it — the fixture payload's `league_name` and
-    `mart_competition_index.competition_name`. No count, rank, metric or date changes anywhere.
-    Row counts are unchanged: the seed is joined LEFT on `league_code`, and
-    `assert_league_name_overrides_are_corrections` fails if a seed row matches no league or
-    already equals the provider string.
+  writers: NONE. No dbt model, no ingestion loader and no export script is in scope.
+    `grep -c "dbt_project/models" scope_paths` = 0. The warehouse is untouched, so there is no
+    deploy ordering against the 04:00 nightly and no shared-warehouse migration.
+  downstream: the EMITTED site only. `site_v2/src/pages/*/*/index.astro` adds a route; nothing
+    imports a page. `system.css` is imported globally by `layouts/Layout.astro`, so a CSS change
+    reaches every page — the addition is a NEW class selector (`.gh a` heading-link affordance),
+    additive, and overrides nothing existing. `strings.ts` gains two keys per locale; every
+    existing key is untouched. `indexability.mjs` has four readers (astro.config.mjs,
+    Layout.astro, robots.txt.ts, audit-seo.mjs) and only `STUB_PAGES` changes, which is read by
+    the audit alone.
+  layer_rules: `check_layer_contract.py` governs dbt layers and is not engaged (no models).
+    Consumption layer: select and filter served values, never derive facts. The shell derives
+    nothing. Its source is a mart per `content_architecture.md` §2 rule 2 ("one block = one
+    mart") — `competition_index.json`, from `mart_competition_index`, the same payload the
+    competitions index page reads. ⚠ Route enumeration only: this shell has no blocks, and #47
+    binds the hub's CONTENT to `competitions/{league_code}/{season}.json` per
+    `site_architecture.md` §5.
+  deploy_order: none. Frontend-only; `deploy:site-v2` is manual-only and unaffected.
+  blast_radius: one newly emitted page per competition per locale, every one `noindex` while
+    `INDEXABLE === false`, plus one changed element on the home page in 3 locales. No number on
+    any page changes.
+    ⚠ The count is a FORMULA, never a constant —
+    `count(competition_index.json rows) x count(locales)`. Today that is 48 x 3 = 144
+    (`python -c "import json;print(len(json.load(open('site_v2/src/data/competition_index.json'))['competitions']))"`),
+    but the registry grows: a competition added to `docs/competition_registry.yml` must produce
+    its page with NO code change, the frontend counterpart of the repo's no-new-model rule. The
+    route therefore iterates the served map and never a literal list, and the spec's
+    `page_count_driver` states the formula.
+
+acceptance_criteria:
+  - The navigation rule is written in `docs/site_architecture.md` and names all three families
+    (chrome, content links, controls) and the four content-link shapes (row, heading, chip,
+    prose), and states in the CPO's own terms that it is provisional. Shown by quoting the
+    committed section.
+  - The rule states the row half explicitly: a row links to its subject and nothing inside a row
+    is separately clickable. Shown by quoting it.
+  - On the built home page, the competition heading in Next matches is an `<a>` whose href is
+    the competition's own URL, in all three locales. Shown from `dist/` html, not from source.
+  - The heading link's affordance (a chevron) is present AT REST, not only on hover. Shown from
+    the emitted markup plus the CSS rule that renders it.
+  - A match row in Next matches remains a single link with no nested anchor inside it. Shown by
+    counting `<a` inside one emitted `.fxrow`.
+  - Every competition URL the home page links to is emitted by the build. Shown by a green
+    `audit-seo.mjs`, whose check 8 fails the build on a link resolving to no emitted page.
+  - The route is driven by the MART payload (`competition_index.json`, from
+    `mart_competition_index`), not by a literal list and not by the registry map, so a competition
+    added to the registry flows registry → mart → page with no code change. Shown by the spec's
+    `page_count_driver` being a formula, by the page importing `competition_index.json`, and by
+    `grep` finding no league_code or slug literal in the page source.
+  - The three locales' competition pages emit non-identical `<title>` values. Shown by a green
+    audit (check 6) plus the three emitted titles for one competition.
+  - `STUB_PAGES` lists the competition page, and the audit still refuses `INDEXABLE === true`
+    while it is non-empty. Shown by the committed array and the audit's own assertion.
 
 decisions_taken: >
-  The MECHANISM is the CPO's, quoted above and already the repo's approach: a seed mapping applied
-  in base. This is the THIRD instance of an existing documented pattern (`team_name_overrides`,
-  `country_name_overrides`), which `base_apif__coaches` and `base_apif__player_profiles` both cite
-  by name as "the seed + left join + coalesce pattern".
+  ⭐ **THE RECORD IS `.claude/task/escalations.log`, entry `2026-09-04 —
+  feat/navigation-rules-competition-shell — THE NAVIGATION RULE`.** Four rulings are there with the
+  CPO's words verbatim and the consequence each one had on what was built:
+  · **Ruling 1** — the navigation rule is PROVISIONAL ("the rules might be subject to change. We
+    have not built every page yet"), and the header+row half is confirmed for Next matches and for
+    any future header+row structure. Hence §3, not §2 where locked constraints live.
+  · **Ruling 2** — a destination that does not exist yet is BUILT, not routed around. ⚠ Already
+    written in `docs/wireframes/10_home.md` §0, which records that he had corrected me on it twice
+    before; raising it a third time was the defect, not the question.
+  · **Ruling 3** — the split. This branch is the rule + Next matches + the scaffold; #40 and #41
+    need their own plan.
+  · **Ruling 4** — deviating from dbt's structure is fine where the repo explains why, and
+    otherwise stay close to dbt. A STANDING answer, not a one-branch one.
+  ⛔ An earlier version of this block asserted those quotes here with NO log entry behind them, and
+  `scope-auditor` failed round 1 for exactly that: unverifiable prose standing in for the record
+  §11 requires. The quotes were real; the record was missing. Written now, and cited from here
+  rather than restated.
 
-  ⛔ **THE EARLIER VERSION OF THIS PARAGRAPH WAS FALSE AND `scope-auditor` FAILED IT (round 1).**
-  It claimed "every value is the name the CPO already authored… this changes no name the reader
-  currently sees." That was true when written and became false the same session, when the CPO
-  ruled and the seed changed. Corrected rather than softened; the auditor was reading the stale
-  text and its finding follows from it.
-
-  ⭐ **THE AUTHORITY IS THE WRITTEN RECORD, NOT A QUOTE FROM THE CPO.** An earlier version of this
-  section listed four chat quotes as rulings. Three of the four were already documented in the
-  repo, and citing him for them was both unnecessary and the failure class
-  `feedback_dont_attribute_repo_practice_to_cpo` names. Cited instead:
-  · **Corrections belong in base.** `dbt_project/docs/layering.md:13, 52, 186, 227` — base is
-    "entity resolution and first logical standardization across sources", and `:227` puts
-    cross-source reconciliation there explicitly so core "receives the already-conformed version".
-  · **A correction is a seed row justified by an external source of record, never taste.**
-    `dbt_project/seeds/schema.yml:472-497` (the `team_name_overrides` doc): *"Add one only where an
-    authoritative external source disagrees with the provider, and cite it — never taste, never a
-    nickname, never a locale preference."*
-    ⛔ **THIS SEED DOES NOT YET MEET THAT BAR, and an earlier version of this line claimed it did**
-    (`scope-auditor`, round 4). `team_name_overrides.source` is defined as a URL of an external
-    record (`schema.yml:497`); 19 of this seed's 20 rows cite `docs/competition_registry.yml`, an
-    internal file — and this seed's own description says so outright: *"source records where a name
-    was taken from, not who is authoritative over it."* So the rule is cited as the STANDARD this
-    seed must eventually satisfy, not as one it satisfies today. Reaching it is #55's
-    external-record pass, and `acceptance_evidence.md` records the same limit.
-  · **The site reads a mart, not a config file.** `docs/content_architecture.md:22` — §1
-    Principles, rule 2, "One block = one mart" — machine-enforced since **#826**. This is why no
-    registry edit is in scope. (Cited as "§2 rule 2" until `analytics-engineer-reviewer` checked
-    the locator and found it wrong; the substance was right, the pointer was not.)
-  · **This whole task is #55**, which specifies the field, the correction layer, the registry
-    dropping its display name, and the external-record discipline (naming #850 as the model).
-
-  ⚠ **TWO THINGS ARE GENUINELY NOT WRITTEN ANYWHERE, and neither is dressed up as if it were.**
-  Both came from the CPO in conversation on 2026-09-04 and neither has a home in the repo yet, so
-  they are recorded here as unwritten rather than cited as policy:
-  · **A season is not part of an entity's name**, and a season-scoped label is composed. `WC`
-    therefore carries `FIFA World Cup`, not `FIFA World Cup 2026`. The composition is **#105**,
-    filed and not built; #105 is where this becomes written.
-  · **Names are standardised, not abbreviated** — the reason the seven `WCQ*` rows spell out
-    "World Cup Qualification …" rather than the registry's "WC Qualification …".
-    ⛔ An earlier version of this section DELETED this rationale while the seed kept implementing
-    it (`scope-auditor`, round 4), leaving the record misleading about why those seven rows read
-    as they do. Removing an over-attribution must not remove the reason with it.
-  · **BL1 is "Bundesliga"** — ruled 2026-08-10, recorded on **#55**, found only after building.
-    The provider already sends exactly that, so BL1 needs no row: one would equal the provider
-    value and the STALE branch of `assert_league_name_overrides_are_corrections` would fail it.
-    The wrong value for BL1 is the REGISTRY's long form, which reaches the home page through the
-    export — #55's export half, not a row here.
-    ⛔ **BL2 IS NOT COVERED BY THAT RULING AND MUST NOT RIDE ON IT** (`scope-auditor`, round 2).
-    An earlier version of this line said "BL1 and BL2 are therefore NOT in the seed", attributing
-    both to a ruling that names only BL1. That is deciding by analogy on a §10 naming class, which
-    the working agreement forbids by name. BL2's two sources DISAGREE — registry
-    "2. Fußball-Bundesliga" vs provider "2. Bundesliga" — so by this seed's own inclusion test it
-    is a candidate, and nothing has ruled which is right. It is therefore left on the provider
-    value like the other unverified names and is explicitly inside **#55**'s scope. That is MY
-    deferral, not a ruling.
-
-  Measured both directions: 48 competitions, **20 corrected, 28 left on the provider name.**
-
-  THRESHOLD DECLARATIONS: no new mechanism (third use of a documented pattern), no new dependency,
-  no recurring cost (a 21-row seed; the nightly's scan does not measurably change). No guard is
-  loosened — two singular tests are ADDED.
+  THRESHOLD DECLARATIONS: no new mechanism — `STUB_PAGES` already exists and this is its
+  documented purpose ("Adding an entry here is how a future scaffold ships honestly"). No new
+  dependency. No recurring cost: the build emits 144 more static pages, which is build-time only;
+  nothing is scheduled, queried or billed. No guard is loosened — `STUB_PAGES` becoming non-empty
+  TIGHTENS the go-live gate, since the audit refuses `INDEXABLE === true` while it holds entries.
 
 decisions_reserved:
-  - **The wording of any competition's name is the CPO's, permanently.**
-    ⚠ One row DID change on my own initiative and has been REVERTED after `scope-auditor` caught
-    it: `WCQIP` was written "Play-offs", matching the provider's hyphenation, against the
-    registry's "Playoffs". Nobody ruled that. It is "Playoffs" again, and #55's external-record
-    pass will settle the spelling like every other row.
-  - **Whether the 28 uncorrected names are actually right — BL2 among them, named explicitly.**
-    The seed was derived from where the registry and the provider DISAGREE, and that method cannot
-    see a name both sources get wrong together — `UECL` is the proven case (UEFA dropped "Europa"
-    in 2024; both still carry it), in the seed only because #55 had caught it by hand. **BL2 is
-    the opposite case**: its sources DO disagree, so the method flags it, and I still left it
-    alone because nothing on record covers it and I will not pick a competition's name. Both belong
-    to **#55**, which already states the external-record discipline they need and names #850 as the
-    model. ⚠ I filed **#107** for that pass during this task and CLOSED it as a duplicate of #55;
-    it was work already tracked, not a new finding.
-  - **Retiring `name` from `docs/competition_registry.yml`.** After the follow-up below, no code
-    reads it. Whether the authored name should live only in the seed is a single-source question
-    for the CPO; leaving two hand-maintained homes is exactly what the single-source rule dislikes.
-  - **Whether `stg_apif__standings.league_name` / `stg_apif__fixtures_next.league_name` should be
-    dropped or corrected.** No mart reads them today, so they are dormant duplicates rather than
-    live defects. Not touched here.
-
-follow_up: >
-  **The export still reads the registry for display names** — `_registry_competitions` at
-  `export_site_data.py:944, 995, 1078, 1206`, surfacing on competitions.json, the competition
-  payloads, the leaderboards payloads and the landing payload. Seeding the override makes the two
-  sources AGREE, which removes the symptom; it does not remove the second source. Making the export
-  read the warehouse is its own change, because `_competitions_index()` is deliberately
-  BigQuery-free today ("registry-only, no BigQuery") and that property would have to go. File it.
+  - Whether the navigation rules graduate from provisional to locked, and when. The CPO said
+    explicitly we do not know yet because not every page is built. Never decide this here.
+  - Whether the competitions index page's 48 inert rows get wired to the new shell. It is the
+    same rule applied to a second surface and it is now unblocked, but the CPO scoped this task
+    to the rule plus Next matches. Raise it; do not fold it in.
+  - The competition page's real content, tabs and blocks — #47. This task ships a shell with no
+    content blocks and must not design one.
+  - Whether a stub for EVERY competition in the registry is right, versus only those with enough
+    data. §2's locked "no thin pages" constraint and #845's minimum-data gate both bear on it; a
+    stub is a thin page by definition, which is why STUB_PAGES blocks go-live. ⚠ Whatever is
+    decided must stay a RULE over the served registry, never a hand-kept list — the CPO,
+    2026-09-04: "We have 48 competitions NOW. We will add more, so we should [have] something
+    that is prepared for it anytime." Flagged, not decided.
 
 done_when:
-  - `python scripts/check_registry_var_sync.py` passes (the registry seed is untouched by this
-    change; the new seed is separate).
-  - `.venv/Scripts/dbt.exe parse` succeeds and `dbt ls --select league_name_overrides+` shows the
-    seed reaching `base_apif__leagues`.
-  - `python -m sqlfluff lint` from the REPO ROOT passes on both new tests and the changed model.
-  - Both singular tests are MUTATION-TESTED RED before being accepted green: break the coalesce
-    and `assert_competition_name_is_unique` must fail; point a seed row at a league_code that does
-    not exist, and at a name equal to the provider's, and
-    `assert_league_name_overrides_are_corrections` must fail on each.
-  - `python -m pytest tests/ -q` passes.
-  - No two competitions share a `competition_name` in `mart_competition_index`.
+  - `python scripts/check_copy_gate.py` passes (no em dashes; no non-EN value byte-identical
+    to EN) with the two new SEO keys present in all three locales.
+  - `node site_v2/scripts/check-page-specs.mjs` passes: the new spec parses, its `stub: true`
+    waives the blocks requirement, and every i18n key it names exists in the EN dict.
+  - `npm run build` in `site_v2` succeeds after `git clean -fX site_v2/src/data`, and
+    `audit-seo.mjs` reports zero issues — specifically no "dead internal link" (check 8) and no
+    byte-identical title across locales (check 6).
+  - `npm test` in `site_v2` passes.
+  - The `validate-local` skill passes (governance, UI, secrets, python).
+  - Browser pane at desktop and 375px: the accessibility tree shows the heading as a link with
+    its chevron, and one `.fxrow` containing exactly one anchor.
 
 amendments: >
-  2026-09-04 — `decisions_taken` and `decisions_reserved` REWRITTEN on `scope-auditor`'s round-1
-  FAIL. Authority: the CPO's rulings of the same session, now quoted in `decisions_taken` rather
-  than paraphrased. No path was added or removed; scope is unchanged. The auditor's finding was
-  correct on the facts it could see — the contract asserted the seed introduced no new names while
-  the diff changed eight of them — and the fix is to record the rulings, not to soften the claim.
-  Content: (a) the false "not new naming" paragraph replaced by the four rulings verbatim;
-  (b) the stale "WC / WCQ / BL1 flagged, not decided" bullet replaced by what is genuinely still
-  reserved; (c) the unauthorised `Play-offs` spelling reverted in the seed and recorded here;
-  (d) **#55** cited as the issue this implements and **#105** as what it defers.
+  2026-09-04 — `site_v2/src/data/competition_index.json` and `.gitignore` ADDED to scope_paths.
+  Authority: mine, on a mechanical dependency, not a design decision. This branch was blocked
+  because two competitions rendered byte-identical titles; `!150` fixed that in the warehouse and
+  is merged, and prod rebuilt (`data:build:main`, verified against `mart_competition_index` rather
+  than trusted from the green job). The committed payload still holds the pre-fix names, so the
+  branch cannot go green until it is re-exported — the file is a build INPUT this task must
+  refresh, not a surface it redesigns. `.gitignore` rides along only if the tracked-file allowlist
+  moves with it. No name, no design and no page behaviour is decided here; the export is rerun
+  verbatim per `site_v2/src/data/README.md` and never hand-edited.
 
-  ⚠ This task's work is the WAREHOUSE HALF OF #55, which specified the identical fix 24 days
-  before the branch existed and which I did not find until after building. #106 was filed by me
-  during this task and CLOSED as its duplicate.
+  2026-09-04 — `site_v2/scripts/audit-seo.mjs` and its test ADDED to scope_paths. Authority: mine,
+  on a defect this task EXPOSED rather than caused. `audit-seo.mjs:438` picks a page's spec with
+  `specs.find((s) => s.match.test(p))` — the FIRST match, with no specificity rule — and
+  `specRouteRegex` turns every `[param]` segment into `[^/]+`. So `[lang]/[competition]/index.astro`
+  matches `/en/competitions/` and the competitions INDEX gets judged against the competition HUB's
+  spec, demanding `SportsOrganization` of a page that correctly emits `ItemList`. Astro itself
+  routes correctly; only the audit is ambiguous.
+  ⚠ This is not specific to my route: ANY top-level dynamic route collides with any sibling
+  literal one, so the fix is a specificity rule (most literal segments wins), not an exemption for
+  this page. Reported by the build, three violations, one per locale.
+  ⚠ **Adds `platform-reviewer` to the required reviewer set** (`review_routing.json` maps
+  `site_v2/scripts/**` to it), which is a consequence to declare rather than discover at commit.
 
-  2026-09-04 (round 4) — two corrections, both `scope-auditor` findings, both accepted.
-  (a) `decisions_taken` claimed this seed satisfies the external-source-of-record rule it cites.
-  It does not: 19 of 20 rows cite the registry, an internal file, and this seed's own description
-  says `source` is provenance not authority. The citation is now framed as the standard to reach,
-  with #55 owning the pass that reaches it.
-  (b) The round-3 rewrite, in stripping over-attribution, DELETED the reason the seven `WCQ*` rows
-  are spelled out while the seed still spelled them out. Restored as an unwritten rule beside the
-  season rule. ⚠ Over-correcting is the same defect as over-claiming: the fix for "cited him
-  without a record" is to state the reason plainly, not to delete the reason.
-  ⛔ Also caught this round, and worse than either finding: `review_input.patch` was STALE — staged
-  without regenerating, so rounds were reviewed against a superseded diff. The documented trap
-  (`--review-patch` must be REGENERATED with a redirect after every `git add`). Regenerated.
+  2026-09-04 — `.claude/task/escalations.log` ADDED to scope_paths, on `scope-auditor`'s round-1
+  FAIL. Authority: `docs/working_agreement.md` §11, which the reviewer quoted — *"Every escalation
+  is appended to `.claude/task/escalations.log` (committed with the branch)"*. `decisions_taken`
+  cited three CPO chat quotes that appear nowhere in the log, so a reviewer had no way to check
+  them and the working agreement's own record was simply missing. The rulings are real; the record
+  was not written.
+  ⚠ **This is NOT the same fix as the sibling branch's.** There, the principles I was citing him
+  for were ALREADY documented (`layering.md`, the seed docs, #55), so the answer was to cite those
+  and stop invoking him. Here the navigation standard is genuinely new — nothing in the repo
+  states it — so the answer is the opposite: write the ruling into the log where §11 puts it.
+  Distinguishing the two cases is the whole lesson: "cite the record" and "create the record" are
+  different remedies for the same symptom.
 
-  2026-09-04 (round 3) — `decisions_taken` REWRITTEN AGAIN, and this time the fix is to stop
-  citing the CPO at all. `scope-auditor` FAILed round 3 on "agreed with the CPO as its own pass"
-  having no record; the correct response was not to write his words into `escalations.log` but to
-  notice that THREE OF THE FOUR "rulings" were already documented in the repo —
-  `layering.md:13/52/186/227`, `seeds/schema.yml:472-497`, `content_architecture.md` §2 rule 2 —
-  and that the fourth, this whole task, is **#55**. Authority now cites those; the only genuinely
-  unwritten rule (a season is not part of an entity's name) is flagged as unwritten and is #105's
-  to establish. #107 closed as a duplicate of #55. No code changed.
-  ⛔ **This is the same class caught THREE times on one branch** — attribution by prose instead of
-  by record. Each time the reviewer found it and I did not.
+  2026-09-04 — `.claude/task/rendered_page_evidence.md` ADDED to scope_paths, on
+  `bi-analyst-reviewer`'s round-1 FAIL. Authority: mine, and the finding was plainly right. The
+  file on disk documented a DIFFERENT branch (`chore/roll-forward-sample`, fixture-page metric
+  labels) and said nothing about this diff — which its brief treats as equivalent to the artifact
+  being absent, and absence on a rendering-affecting `site_v2/src/**` change is itself a FAIL.
+  ⛔ It also caught that this contract's own `done_when` demanded a check "at desktop and 375px"
+  and I had only ever looked at desktop. Doing it found a REAL defect the desktop pass could not:
+  the heading link measured **100x21** at 375px, under the 24x24 CSS-px minimum target size and a
+  third the height of the 81px match row beside it. Fixed in `system.css` with a padding /
+  negative-margin pair (33px hit area, text position unchanged, verified by screenshot).
+  ⭐ The mobile check was in `done_when` from the start. Skipping it and writing the evidence file
+  anyway would have shipped a real accessibility defect behind a green build.
 
-  2026-09-04 (round 2) — `decisions_taken` and `decisions_reserved` corrected again on
-  `scope-auditor`'s second FAIL. Authority: none needed; this REMOVES an attribution rather than
-  adding one. The paragraph had said "BL1 and BL2 are therefore NOT in the seed" and credited a
-  ruling that names only BL1 — deciding BL2 by analogy on a §10 naming class. BL2 is now stated as
-  MY deferral to #55, with its two disagreeing sources quoted. No path, no code and no seed row
-  changed; the diff moves only this file. ⚠ Recurrence of the failure class
-  `feedback_dont_attribute_repo_practice_to_cpo` records — caught by the reviewer, not by me,
-  which is the same way it was caught the previous five times.
+  2026-09-04 — `platform-reviewer` round-1 FAIL accepted; no scope change needed (both files were
+  already in scope). It proved the tie branch of `specForPath` was untested — mutating `>` to `>=`
+  turned ZERO tests red — and that the code silently resolved an equal-specificity overlap by
+  walk order while its own comment called that "a spec-authoring bug, not something to paper
+  over". A gate wired into `astro build` must fail CLOSED. `specTie()` added, reported as a build
+  issue, with the reviewer's own counterexample (`[lang]/foo/[b]/[c]` vs `[lang]/[a]/bar/[c]`,
+  both specificity 1, both matching `/en/foo/bar/x/`) kept verbatim as the test fixture.
+  Mutation-tested: making `specTie` always return `[]` turns exactly that one test red.

@@ -35,16 +35,20 @@ export const INDEXABLE = false;
  * no machine-readable signal and this does: the audit refuses to pass with `INDEXABLE === true`
  * while this array is non-empty.
  *
- * EMPTY since #367: the landing page was the only entry, and it is now a real page with ONE
- * content block — next matches. One, not three: the CPO's composition is next matches, Top
- * players, Top teams (`10_home.md` §0; browse, the original fourth, was DROPPED 2026-08-19), and
- * the other two are specified but unbuilt.
- * An earlier version of this comment said "four", counting the composition rather than the build.
- * This array being empty is a PRECONDITION of go-live, not go-live itself — the other gates on
- * `INDEXABLE` above are all still open. Adding an entry here is how a future scaffold ships
- * honestly; it should not stay for long, because that is what re-blocks #377.
+ * ⚠ NO LONGER EMPTY. It was empty from #367 (the landing page graduated to a real page with its
+ * next-matches block) until the competition hub scaffold below, and emptying it again is a
+ * precondition of go-live — not go-live itself; the other gates on `INDEXABLE` above are all still
+ * open. Adding an entry here is how a scaffold ships honestly; it should not stay for long,
+ * because that is what re-blocks #377.
+ *
+ * `[lang]/[competition]/index.astro` — the competition hub, added because the navigation rule in
+ * `site_architecture.md` §3 makes a section heading link to what the section is about, so Next
+ * matches' competition heading needs a destination. The route, its canonical, its hreflang set and
+ * its locale-distinct title are all true today; only the CONTENT is missing, and **#47** owns it.
+ * Every competition in `mart_competition_index` gets one, so this array grows no entries as the
+ * registry grows — the page count does, the stub list does not.
  */
-export const STUB_PAGES = [];
+export const STUB_PAGES = ["[lang]/[competition]/index.astro"];
 
 /**
  * Emitted paths kept OUT of the sitemap even when indexable.

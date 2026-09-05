@@ -1,0 +1,22 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/[competition]/index.astro",
+  "entity": "competition",
+  "stub": true,
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoCompetitionTitle",
+    "description": "seoCompetitionDesc",
+    "schema_org": "SportsOrganization",
+    "links": {
+      "inbound_hub": "competitionIndex",
+      "outbound": []
+    },
+    "minimum_data": "A row in mart_competition_index, which already applies the browsable filter (a non-blank display_group). No further gate is declared here on purpose: what earns a competition a page is #845's minimum-data question, and it must stay a rule over the served mart rather than a list in the frontend. The mart already carries the facts such a rule would key on (next_kickoff_datetime, last_kickoff_datetime).",
+    "page_count_driver": "count(competition_index.json .competitions) x count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The URL is permanent and is the one site_architecture.md section 3 already reserves for the competition hub. The slug is the registry's authored slug, served through mart_competition_index, so it is not re-derived at build time the way team and player slugs still are (#843/#852). ⚠ STUB: this ships the URL, its canonical, its hreflang set and a locale-distinct title — all true facts about a URL that exists — and NO content blocks. #47 owns the hub's real content and binds it to competitions/{league_code}/{season}.json per section 5. Listed in STUB_PAGES, which blocks INDEXABLE === true until it is filled. ⚠ inbound_hub declares the INTENT: the competitions index is the hub, but its 48 rows are still inert (its own spec says outbound is empty until #47). The live inbound link today is the home page's Next matches heading, added with this spec."
+  },
+  "blocks": []
+}

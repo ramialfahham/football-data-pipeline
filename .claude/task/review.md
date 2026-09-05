@@ -1,75 +1,93 @@
-# Review — fix/competition-name-from-registry — 2026-09-04
+# Review — feat/navigation-rules-competition-shell — 2026-09-04
 
-diff_sha256: 9426b0714073ca82245b7a714ed8560da6493d640fdc3e66f6069365a4f7e84c
+diff_sha256: dcf72b0173abe1ea88c70c1db6c63a91074508f53d50cdee640ecafbc536b389
 
-rounds: 5
+rounds: 3
 
-⚠ **ONE CHANGE WAS MADE AFTER BOTH VERDICTS, and it is declared rather than hidden.** Both
-reviewers passed at hash `be46688b…`. `analytics-engineer-reviewer` then reported, in the same
-pass, that `contract.md` cited `content_architecture.md` as "§2 rule 2" when the rule is at
-`:22` under "§1 Principles" — its own words: *"a locator imprecision, not a misstatement of
-substance, and not a warehouse-correctness defect."* Corrected, which moved the hash to the value
-above. No sixth round was run for a section number, and nothing else changed: the SQL, the seed and
-both tests are byte-identical to what was passed five times, and the corrected pointer is the
-finding the reviewer itself raised rather than a new claim it never saw.
+⚠ **THE THREE VERDICTS WERE NOT ALL OBTAINED AT THIS HASH, and that is stated rather than glossed.**
+`scope-auditor` and `bi-analyst-reviewer` both PASS at `dcf72b01…`, the hash above.
+`platform-reviewer` PASSed at `0217e44…`, one hash earlier. Nothing in its territory changed
+between the two: `site_v2/scripts/**` is byte-identical, and the only code delta was
+`system.css`'s `a.cnm` padding (BI's territory, and BI re-reviewed it afterwards). `scope-auditor`
+WAS re-run for exactly this reason — it had passed at `a879ff6…`, before the new test and the CSS
+fix, and a PASS bound to a superseded diff is not a PASS.
 
-rounds_cap_override: >
-  CPO, 2026-09-04, when offered the choice of handing the branch over unfinished instead of
-  spending further rounds: *"Why do you keep saying this as an option? You don't want to work?"* —
-  i.e. finish it. Recorded because the cap exists to force a STOP-and-ask, and the ask was made and
-  answered rather than assumed.
-  ⚠ Worth stating plainly for whoever reads this next: **every one of the four FAILs was my prose,
-  not the code.** The seed, the base model and both tests were byte-identical from round 1 and
-  passed the warehouse review five times. A cap meant to stop a code-quality loop was consumed by
-  an artifact-honesty loop, which is a different failure and arguably should not spend the same
-  budget.
+⚠ **Rounds are counted per reviewer, and they differ**: scope 3, platform 3, BI 4. The cap of 3 was
+exceeded on the BI thread alone, and each of its rounds found something real — see below. Recorded
+because a single `rounds:` number understates what happened here.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round-4 finding 1 (the contract claimed the seed satisfies the external-source-of-record rule it
-  cites) re-checked in `contract.md` decisions_taken and `seeds/schema.yml` — both now state the
-  seed does NOT meet that bar; no contradicting sentence in `acceptance_evidence.md` or `base.yml`.
-- Round-4 finding 2 (the round-3 rewrite deleted the rationale for the seven spelled-out `WCQ*`
-  rows while the seed still implemented them) re-checked — restored as an explicitly UNWRITTEN
-  item, not dressed as a logged ruling. Verified against `escalations.log` by grep ("standardised",
-  "WCQ", "2026-09-04"): no matching entry, so the "unwritten" framing conceals no record.
-- Swept ALL 20 seed rows against `docs/competition_registry.yml` hunting a THIRD undisclosed
-  authority: 11 rows are byte-identical registry copies, `WC` drops the season, the 7 `WCQ*` rows
-  expand "WC" to "World Cup", `UECL` cites #55. Every one maps onto a disclosed written source or
-  one of the two disclosed unwritten rules. None rests on anything else.
-- Scope: every changed path is inside `scope_paths`; `layering.md`'s exhaustive inventory is
-  marts-only and this adds no mart, so no doc-sync gap.
-- Threshold crossings: no new mechanism (third instance of the documented seed + left join +
-  coalesce pattern), no new dependency, no recurring cost; declarations accurate against the diff.
-- Credential sweep across the full patch — nothing credential-shaped.
+- Confirmed every file in the delta (`audit-seo.mjs`, `audit-seo.test.mjs`, `system.css`) is
+  already inside `scope_paths` (contract.md:13-30), so the claim that no fifth amendment was needed
+  holds and no scope creep occurred across four amendments.
+- Verified the `[2,2,1]` fixture (audit-seo.test.mjs:790-814) against the real implementation
+  (audit-seo.mjs:624-652) — it genuinely distinguishes `Math.max` from `Math.min`, so it closes the
+  finding it claims to close rather than merely citing it.
+- Checked the CSS delta against the LOCKED criteria "chevron present AT REST" and "match row
+  remains a single link" (contract.md:143-146) — criteria unchanged, still satisfied, none softened
+  or reworded to accommodate the fix.
+- Swept both evidence files for a THIRD measured-vs-derived overclaim, the defect found twice on
+  this branch and once on its sibling. Found none undisclosed: every derived number is flagged as
+  derived, and the corrected focus numbers match real `getComputedStyle`/DOM reads.
+- Verified the tie-break rule and the padding split are attributed to ME, not written as CPO
+  decisions — they are engineering responses to reviewer findings, not §10 calls.
+- Confirmed the four earlier rulings in `escalations.log` are quoted verbatim and that each stated
+  consequence matches what the diff builds; the cite-the-record vs create-the-record distinction
+  against the sibling branch is real, not a rationalisation.
+- Scanned all changed files for credential-shaped content; none.
 
-## analytics-engineer-reviewer
+## platform-reviewer
+VERDICT: PASS  (at `0217e44…`; `site_v2/scripts/**` byte-identical at the hash above)
+risks_checked:
+- Re-verified the `[2,2,1]` fixture closes round 2's gap by hand-tracing both branches: `Math.min`
+  gives `top=1`, one winner, `[]`; `Math.max` gives `top=2`, two winners, tie reported.
+- Hand-mutated every other plausible operator in `specForPath`/`specTie` — `matches.length === 0`
+  → `!== 0`, `find`'s `===` → `!==`, `winners.length > 1` → `>= 1` and `> 0`, `matches.length < 2`
+  → `< 3`, and both filters' `===` → `!==`. **No surviving mutation found.**
+- Traced fail-CLOSED end to end: `specTies` → `issues[]` (audit-seo.mjs:507-511) → non-empty issues
+  → `return 1` (:557-561) → `process.exit` (:567) → `seo-audit.mjs:39-47` rethrows on non-zero →
+  `astro:build:done` fails the build. Not merely logged.
+- Confirmed the fixture is self-verifying: it asserts its own computed specificities are `[2,2,1]`
+  and that all three regexes match the shared path, so a change to `routeSpecificity` or
+  `specRouteRegex` fails those assertions rather than silently ceasing to exercise the branch.
+- Confirmed `specForPath`'s `Math.max`+`find` rewrite changed no behaviour for any real spec route,
+  in either array order, and that the `null` no-match return matches the old `find`'s `undefined`
+  at its one call site.
+- Checked the ambiguity message is actionable (names the URL and both spec `page` fields) and is
+  arity-agnostic, so a three-way collision reports correctly without special-casing.
+
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Counted the seed independently: 20 data rows, 19 citing `docs/competition_registry.yml` and one
-  (`UECL`) citing #55 — matches the contract's "19 of 20" claim rather than taking it on trust.
-- Confirmed `seeds/schema.yml:521-523` frames `source` as provenance not authority, against
-  `:497`'s "URL of the external source of record" for `team_name_overrides` — so the contract's
-  admission that this seed does not meet that bar is accurate.
-- Cross-checked the seven `WCQ*` seed rows against `docs/competition_registry.yml:139,158,177,196,
-  215,234,253` — the spelled-out-vs-abbreviated claim holds.
-- Re-read `base_apif__leagues.sql` end to end: the import CTE, the
-  `coalesce(name_overrides.league_name, leagues.league_name)` projection and the `left join` on
-  `league_code`. Unchanged across all five rounds. The seed's `unique` + `not_null` on `league_code`
-  means the left join cannot fan out.
-- Re-read `dim_league.sql`: still a plain column list off `base_apif__league_entity` with no
-  coalesce, so "the core dim publishes rather than corrects" holds; `base_apif__league_entity`'s
-  `select *` confirms the corrected `league_name` actually flows through.
-- Read both new tests in full and diffed their logic against their own inline claims — the
-  ORPHAN/STALE split, the PRE-override comparison against `stg_apif__leagues`, and the assertion
-  surface (`mart_competition_index`) all match what the SQL does. Verified the sibling comparison in
-  the new test's comment against `assert_team_name_overrides_still_needed.sql:35` — it is indeed an
-  `inner join`, so the comment is checked rather than an assumed analogy.
-- Checked for per-competition branching outside the seed: the only league codes in the model are in
-  SQL comments and the seed's `note` column, never in executable logic; the join stays generic on
-  `league_code`.
-- Confirmed `mart_competition_index`, `export_site_data.py` and the consumption layer are untouched.
+- Confirmed the focus section is free of asserted numbers: every value is read under a confirmed
+  `a.matches(':focus-visible') === true`, with `outline-width`/`outline-offset` from
+  `getComputedStyle` rather than assumed. The one arithmetic passage (3 + 4 = 7 = `.gh`'s
+  padding-bottom) explains an already-measured number rather than producing a new one, and the
+  measured values carry realistic sub-pixel precision rather than round figures.
+- Checked `clearanceAbove` measures the right reference: `.sechead`'s rule line is a flex-child
+  `::after` INSIDE its box (SectionHead.astro:11-14, system.css:62), so a bounding-box read already
+  encloses it — no closer collision the measurement's reference point could miss.
+- Verified the asymmetric padding (system.css:508-511) grows the border-box 9px above the text with
+  no visual shift, giving the uniform 13px clearance measured on all three groups — a constant
+  offset from the text, not a coincidence.
+- Confirmed 0.7px below is an intentional derived value (the ring lands on the divider's inner
+  edge), not an unnoticed defect, with the coupling to `.gh`'s padding-bottom flagged in the CSS
+  for future maintenance.
+- Re-cleared the binding rule: `competition_name`/`slug` on the new page and
+  `competition_slug`/`league_name` on the heading trace to real `mart_competition_index` columns
+  via `shape_competition_index`; no fabricated field.
+- Re-confirmed `.fxrow` is still a single anchor with 0 nested `<a>`, the new CSS introduces no
+  `--accent`, and no metric, percentage or KPI is rendered anywhere in this diff.
 
 ## escalations
 (none)
+
+⭐ **What the reviewers caught that I did not — recorded because it is the point of the cycle.**
+Every FAIL on this branch was found by a reviewer and none by me, and two were defects in the
+PRODUCT, not the paperwork: a 21px tap target on mobile (under the 24px minimum, invisible at
+desktop width) and a keyboard focus ring cutting through the group divider. Both sat behind a green
+build. A third was a build gate failing OPEN on an ambiguity its own comment called a bug. The
+remaining FAILs were mine writing derived numbers as measured — twice on this branch, including
+inside the artifact written to correct the first instance.
