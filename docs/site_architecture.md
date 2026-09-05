@@ -130,6 +130,63 @@ alias/301 mechanism, so the promise below holds. Until then, treat it as an inte
   source for routing and internal links. **Target state (#852, not yet true):** slugs never
   change once published; a rename produces a new alias, not a new canonical.
 
+### Navigation — what is clickable, and where it goes
+
+> ⚠ **PROVISIONAL.** CPO, 2026-09-04: *"the rules might be subject to change. We have not built
+> every page yet, so actually we don't know yet."* A working standard, not a locked constraint —
+> §2 is where locked things live. What IS confirmed is the **header + row** rule, applied to the
+> Next matches block and *"we would apply this again if we have a header-row content structure."*
+> This answers **#52** (*"which elements redirect where"*), open since 2026-08-10.
+
+§6 asks for an internal-linking graph but never said which ELEMENT carries a link. The result was
+nine clickable element types across four surfaces with six different hover treatments, and the
+affordance pointing at the wrong thing — the whole match row was the link while hover underlined
+a *club name*, of which a row has two.
+
+**Three families of clickable thing. Only two navigate.**
+
+| Family | Examples | Goes where |
+|---|---|---|
+| **Chrome** | site header, footer, breadcrumb | a section of the site; identical on every page |
+| **Content links** | row · heading · chip · prose link | an entity page |
+| **Controls** | tabs, segmented switches | **nowhere** — they change what is shown on the page you are on |
+
+**The rule:** *every content link points at the one entity it names, and a row names its subject.
+Nothing inside a row is separately clickable.*
+
+The four content-link shapes:
+
+| Shape | Points at | Affordance at rest |
+|---|---|---|
+| **row** | what the row is *about* — its subject | list structure + separators; background lift on hover |
+| **heading** | what the section is about (`Premier League ›` → that competition) | a chevron, always present |
+| **chip** | the single thing named on it | its own border |
+| **prose link** | whatever it names, in running text | a real underline |
+
+Applied: a match row → the match. A Top players row → the player. A Top teams row → the team. A
+standings row → the team. A squad row → the player.
+
+Three consequences, written down because they are costs, not free wins:
+
+- **A match row cannot also reach its two clubs.** You reach them from the match page, where the
+  teams are headings. One extra click — but the path is visible at rest rather than hidden in a
+  hover state.
+- **Controls must never look like links**, or a reader cannot learn which one leaves the page.
+  Tabs use underline + colour; heading links use a chevron. Keep that separation deliberate.
+- **Clickability is visible at rest; hover only confirms it.** An affordance that exists only on
+  hover does not exist on a phone, which is most readers.
+
+Two rules this restates rather than invents, both already in the interaction standard (#52):
+**never nest a link inside a link** (browsers do not parse it reliably and the reader cannot tell
+what they hit), and **one element, one destination**.
+
+⚠ Colour: rest, hover and active all move along the neutral ramp (`--muted` → `--ink-2` → `--ink`,
+`--page` → `--surface` → `--sunk`), because `--accent` is reserved for "better value" and `--loss`
+for a Loss pill by `system.css`'s colour contract. **The keyboard focus ring is the one exception**
+and is already `--accent` sitewide (`system.css` `.fx a:focus-visible`) — a focus ring is an
+accessibility signal, not a meaning signal, and it must stay distinguishable from every hover
+state. Do not "fix" it to the neutral ramp.
+
 ## 4. Competition IA
 
 ⚠ **This section described TWO axes reached from the home page's browse block. That block was

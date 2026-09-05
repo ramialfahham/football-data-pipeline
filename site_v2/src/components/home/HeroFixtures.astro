@@ -48,10 +48,26 @@ const ordered = orderUpcomingGroups(groups);
 
   {ordered.map((group) => (
     <div class="fxgroup">
-      {/* Plain text, NOT a link: the competition hub (/{locale}/{slug}/) is step 2 of the build
-          and does not exist yet, so linking it would emit a guaranteed 404 on every home page. */}
+      {/* HEADING LINK — a section heading leads to what the section is about
+          (site_architecture.md §3 "Navigation"; #52). The chevron is present AT REST, because a
+          hover-only affordance does not exist on a phone.
+          ⚠ It was plain text until 2026-09-04 for a reason that no longer holds: the competition
+          hub did not exist, so linking it would have emitted a guaranteed 404 on every home page.
+          The hub now ships as a scaffold, so the link is real.
+          Falls back to plain text when the payload carries no slug — a competition we cannot
+          address is not a competition we may pretend to link. The same guard the rows below use. */}
       <div class="gh">
-        <span class="nm">{group.league_name ?? group.league_code}</span>
+        {group.competition_slug ? (
+          <a class="cnm" href={localeHref(lang, `${group.competition_slug}/`)}>
+            <span class="nm">{group.league_name ?? group.league_code}</span>
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </a>
+        ) : (
+          <span class="nm">{group.league_name ?? group.league_code}</span>
+        )}
       </div>
 
       {group.fixtures.map((fx) => (

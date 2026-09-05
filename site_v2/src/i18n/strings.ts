@@ -210,6 +210,11 @@ const EN: Dict = {
   confedUefa: "Europe",
   seoCompetitionsTitle: "All football competitions",
   seoCompetitionsDesc: "Every league, cup and international competition we cover, grouped by type and region.",
+  // The competition HUB (singular), not the index above. Deliberately modest wording: the page is
+  // a scaffold with no content blocks yet (#47), so a title promising a table, fixtures and
+  // scorers would be a promise the page does not keep. Revisit the wording when #47 fills it.
+  seoCompetitionTitle: "{competition}: Overview",
+  seoCompetitionDesc: "Overview page for {competition}.",
   filterAll: "All",
   filterClubs: "Clubs",
   filterNational: "National teams",
@@ -378,6 +383,8 @@ const DE: Dict = {
   confedUefa: "Europa",
   seoCompetitionsTitle: "Alle Fußballwettbewerbe",
   seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
+  seoCompetitionTitle: "{competition}: Überblick",
+  seoCompetitionDesc: "Überblicksseite für {competition}.",
   filterAll: "Alle",
   filterClubs: "Vereine",
   filterNational: "Nationalmannschaften",
@@ -557,6 +564,8 @@ const FI: Dict = {
   confedUefa: "Eurooppa",
   seoCompetitionsTitle: "Kaikki jalkapallokilpailut",
   seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
+  seoCompetitionTitle: "{competition}: yleiskatsaus",
+  seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
   filterAll: "Kaikki",
   filterClubs: "Seurat",
   filterNational: "Maajoukkueet",

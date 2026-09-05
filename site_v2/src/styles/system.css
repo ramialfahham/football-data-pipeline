@@ -484,6 +484,46 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
   padding-bottom: 7px; border-bottom: 1px solid var(--div);
 }
 .fxgroup > .gh .nm { font-size: 14px; font-weight: 700; color: var(--ink); }
+
+/* HEADING LINK — a section heading that leads to the thing the section is about
+   (docs/site_architecture.md §3 "Navigation", the header+row rule; GitLab #52).
+   THE CHEVRON IS PRESENT AT REST. That is the whole point: the reader knows it is a link before
+   touching it, which underline-on-hover never told them — and on a phone there is no hover at all,
+   so a hover-only affordance does not exist for most readers.
+   Class name `cnm` is the interaction standard's own, kept so the eventual full port of
+   INTERACTION_CSS under #52 lands without renaming this. */
+/* The padding/negative-margin pair grows the TAP TARGET without moving the text: measured at
+   375px the link was 100x21, and 21px is under the 24x24 CSS-px minimum (WCAG 2.5.8) and far
+   under a comfortable thumb target, while the match row beside it is 81px tall. The margin
+   cancels the padding so the heading sits exactly where the design put it.
+   ⚠ ASYMMETRIC, and the asymmetry is measured, not aesthetic. `.fx a:focus-visible` draws its ring
+   from the BORDER-box this padding moves (outline-offset 2px + width 2px = 4px beyond the edge).
+   A symmetric 6px/6px put the ring's bottom at y=168.2 against `.gh`'s divider at y=165.8 — a
+   2.3px overshoot straight through the line — while leaving 16px unused above. 9px/3px keeps the
+   33px target and spends it where the room actually is.
+   ⭐ The 3px is DERIVED, not tuned: 3px padding + the ring's 4px reach = 7px = `.gh`'s own
+   padding-bottom, so the ring lands exactly on the divider's inner edge and not a pixel past it.
+   That is the largest downward growth available. If `.gh`'s padding-bottom changes, this must
+   change with it — measured clearance today is 0.7px, which is the sub-pixel border, not slack. */
+a.cnm {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  padding-block: 9px 3px; margin-block: -9px -3px;
+}
+.chev {
+  width: 15px; height: 15px; flex: 0 0 auto; color: var(--muted);
+  transition: transform .12s ease, color .12s ease;
+}
+/* Rest/hover/active stay on the NEUTRAL ramp; --accent is reserved for "better value" by the
+   colour contract above. The focus ring is the one exception and .fx a:focus-visible already
+   covers this link sitewide. */
+@media (hover: hover) {
+  a.cnm:hover .chev { color: var(--ink-2); transform: translateX(2px); }
+  a.cnm:hover .nm { color: var(--ink); }
+}
+a.cnm:active .chev { color: var(--ink); }
+/* Never underlined: the heading's own shape and its chevron are the signal. */
+a.cnm .nm { text-decoration: none; }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 .fxrow {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
   padding: 12px 0; border-bottom: 1px solid var(--line);

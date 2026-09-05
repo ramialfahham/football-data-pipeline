@@ -1,0 +1,88 @@
+---
+// Competition hub — SCAFFOLD (spec: src/specs/competition/index.spec.json, "stub": true).
+//
+// This ships the URL section 3 of docs/site_architecture.md already reserves for the competition
+// hub, with a real canonical, a real hreflang set and a locale-distinct title — all true facts
+// about a URL that exists — and NO content blocks. #47 owns the hub's real content and binds it to
+// competitions/{league_code}/{season}.json (site_architecture.md section 5).
+//
+// WHY IT EXISTS NOW: the navigation rule recorded in section 3 makes a section heading a link to
+// what the section is about, so Next matches' "Premier League ›" heading needs somewhere to land.
+// A destination that does not exist yet is BUILT, not routed around — 10_home.md section 0:
+// "do not reorder the build because a destination page does not exist yet."
+//
+// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
+// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
+// page in the index.
+//
+// SOURCE IS THE MART, not the registry map. competition_index.json is mart_competition_index
+// verbatim, the same payload the competitions index page reads, so the set of competitions with a
+// page is exactly the set that index lists. competitions.json is a registry-derived slug lookup for
+// the fixture page's URL segment and is deliberately NOT used here.
+// Nothing on this page is derived: the slug, the name and the crest are served fields.
+import Layout from "../../../layouts/Layout.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref, LOCALES } from "../../../lib/href";
+import type { Lang } from "../../../lib/format";
+import type { CompetitionIndex, CompetitionIndexRow } from "../../../lib/types";
+import competitionIndex from "../../../data/competition_index.json";
+
+export function getStaticPaths() {
+  // One page per competition per locale. The competition list is ITERATED, never enumerated: a
+  // competition added to docs/competition_registry.yml flows registry -> mart_competition_index ->
+  // competition_index.json -> here, and its page appears with no code change. That is the frontend
+  // counterpart of the repo's no-new-model rule, and it is why no league_code or slug is written
+  // in this file.
+  const data = competitionIndex as unknown as CompetitionIndex;
+  return data.competitions.flatMap((competition) =>
+    LOCALES.map((lang) => ({
+      params: { lang, competition: competition.slug },
+      props: { competition, lang },
+    })),
+  );
+}
+
+interface Props {
+  competition: CompetitionIndexRow;
+  lang: Lang;
+}
+const { competition, lang } = Astro.props;
+
+const name = competition.competition_name ?? "";
+
+// Through t() with the served name as a parameter, never concatenated: a concatenated title is
+// locale-independent, which is exactly how all three locales came to ship byte-identical titles
+// before #844's gate existed. The descriptive words are the entire locale signal.
+const title = t(lang, "seoCompetitionTitle", { competition: name });
+const description = t(lang, "seoCompetitionDesc", { competition: name });
+
+// schema.org/SportsOrganization — a competition is the organising body, not one event. Selection
+// only; every value is a served payload field. Undefined rather than null on a missing name: the
+// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
+// where an empty string is not.
+const entity = {
+  "@type": "SportsOrganization",
+  name: name || undefined,
+  sport: "Football",
+};
+
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+  { name },
+];
+---
+
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+  <div class="inner">
+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+      <span class="sep">›</span>
+      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
+      <span class="sep">›</span>
+      <span class="here">{name}</span>
+    </nav>
+
+    <h1>{name}</h1>
+  </div>
+</Layout>

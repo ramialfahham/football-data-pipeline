@@ -1,123 +1,151 @@
-# Acceptance evidence — one authoritative competition name, corrected in base
+# Acceptance evidence — navigation rules, and Next matches applying them
 
-⭐ **THIS IS THE WAREHOUSE HALF OF #55**, which specified this exact fix 24 days before the work
-started: *"One field, in the warehouse, that every surface reads. Published by `dim_league`, with
-corrections applied in base… The registry keeps what it is good at and stops carrying a display
-name."* The contract was written against the defect rather than against #55 because the issue was
-not found until after the build; recorded here rather than restated, since the contract may not be
-edited on a dirty tree. #106 was filed and CLOSED as a duplicate of #55.
+Everything below is read from the BUILT output (`site_v2/dist/`) or from the committed files, never
+from source intent. The build is green: `audit-seo: 166 built page(s) checked. OK.`
 
-⚠ **THE SEED'S METHOD HAS A KNOWN LIMIT, and it is not theoretical.** The 20 rows were derived from
-where the registry and the provider DISAGREE. #55 proves that is insufficient: `UECL` was stale in
-BOTH sources, so they agreed and were both wrong (UEFA dropped "Europa" in 2024). It is in the seed
-only because #55 had caught it by hand. Among the 28 competitions left on the provider name there
-may be more stale-but-agreeing names; nothing has checked them against an external record. That
-pass belongs to **#55**, which already states the discipline and names #850 as the model.
+criteria_demonstrated:
 
-⚠ **BL1 is not in the seed, and BL2 is not in it for a DIFFERENT reason.** Do not merge the two.
-  · **BL1** — #55 rules the name is "Bundesliga" and the provider already sends exactly that, so an
-    override row would equal the provider value and
-    `assert_league_name_overrides_are_corrections` would fail it as STALE. The wrong value is the
-    REGISTRY's long legal form, which reaches the home page through the export rather than through
-    `dim_league`; that is #55's export half, not a row here.
-  · **BL2** — NOTHING has ruled it. Its two sources disagree ("2. Fußball-Bundesliga" vs
-    "2. Bundesliga"), so the seed's own inclusion test flags it, and I left it alone rather than
-    pick a competition's name. It sits with the other unverified names under #55.
-⛔ An earlier version of this passage said "BL1 and BL2 are deliberately NOT in the seed" and
-credited one ruling for both. `scope-auditor` FAILed that in `contract.md` twice; it survived HERE
-because I corrected the line each reviewer named instead of sweeping the class
-(`feedback_fix_the_class_not_the_instance`). Found by `analytics-engineer-reviewer` in round 3, out
-of its own remit.
+  - **The navigation rule is in `docs/site_architecture.md`, names all three families and the four
+    content-link shapes, and says it is provisional in the CPO's own words.** The section is
+    `### Navigation — what is clickable, and where it goes`, under §3 beside the URL scheme. It
+    opens with his words: *"the rules might be subject to change. We have not built every page yet,
+    so actually we don't know yet."* It carries a table of the three families (chrome / content
+    links / controls) and a second table of the four shapes (row / heading / chip / prose), each
+    with its destination and its at-rest affordance.
+  - **The row half is stated explicitly.** Verbatim: *"every content link points at the one entity
+    it names, and a row names its subject. Nothing inside a row is separately clickable."* Applied
+    examples follow for match, Top players, Top teams, standings and squad rows.
+  - **The competition heading is a real link in all three locales, read from `dist/`.**
+    `grep -o '<a class="cnm" href="[^"]*"' dist/en/index.html` returns
+    `/en/coppa-italia/`, `/en/dfb-pokal/`, `/en/saudi-pro-league/` — three of three groups. Same in
+    `de` and `fi`. The accessible text is carried: the rendered DOM gives
+    `[{href:"/en/dfb-pokal/", text:"DFB-Pokal"}, …]`.
+  - **The chevron is present AT REST, not on hover.** In the emitted markup, `class="chev"` appears
+    3 times in `dist/en/index.html`, once per heading — i.e. it is in the HTML, not applied by a
+    `:hover` rule. Measured on the rendered page:
+    `{display:"block", visibility:"visible", opacity:"1", w:15, h:15, visibleAtRest:true}`, and the
+    svg carries `aria-hidden="true"` so it is decoration, not a second label.
+    ⚠ Measured rather than reasoned about, because the whole point of the rule is that an
+    affordance which exists only on hover does not exist on a phone.
+  - **A match row is still a single link with nothing clickable inside it.** Over
+    `dist/en/index.html`: 4 `.fxrow` anchors found, and **0** of them contain a nested `<a`.
+  - **Every competition URL the home page links to is emitted.** `audit-seo.mjs` check 8 fails the
+    build on any internal href resolving to no emitted page; the audit passes over 166 pages, with
+    the page-count driver reporting `/[lang]/[competition] -> 144`.
+  - **The route is driven by the MART payload, not a literal list.** The page imports
+    `../../../data/competition_index.json` (from `mart_competition_index`), and
+    `grep -nE '"(BL1|PL|SA|BSA|DFBP|bundesliga|dfb-pokal|premier-league)"'` over the page source
+    returns nothing. The spec's `page_count_driver` is the formula
+    `count(competition_index.json .competitions) x count(locales)`, not a constant.
+  - **The three locales' competition pages emit non-identical titles.** For `dfb-pokal`:
+    `de` → `DFB-Pokal: Überblick` · `en` → `DFB-Pokal: Overview` · `fi` → `DFB-Pokal: yleiskatsaus`.
+    The audit's cross-locale uniqueness check (the one written for the live defect where all three
+    shipped byte-identical) passes.
+  - **`STUB_PAGES` lists the competition page and still blocks go-live.**
+    `export const STUB_PAGES = ["[lang]/[competition]/index.astro"];` and `audit-seo.mjs:505-506`
+    raises *"INDEXABLE is true while STUB_PAGES is non-empty … a stub is a thin page"*. So shipping
+    this scaffold TIGHTENS the go-live gate rather than loosening it.
 
-## The defect, measured on LIVE PRODUCTION data before any change
+## The audit defect this branch exposed, and the guard added for it
+
+`audit-seo.mjs` matched a page to its spec with `specs.find((s) => s.match.test(p))` — the FIRST
+match, in `walkJson` directory order. `specRouteRegex` compiles every `[param]` to `[^/]+`, so
+`[lang]/[competition]/index.astro` matches `/en/competitions/` as readily as `/en/bundesliga/`, and
+the competitions INDEX was judged against the competition HUB's spec: three violations, one per
+locale, on a page that was correct.
+
+Fixed with a specificity rule — most literal segments wins — extracted into an exported
+`specForPath()` so the tie-break is testable rather than buried in `main()`.
+
+⚠ **Mutation-tested, because the first two tests I wrote would NOT have caught a regression.** They
+asserted `routeSpecificity()` and the regex collision directly, both of which stay true whether the
+selection uses `find` or the tie-break. Reverting `specForPath` to `specs.find(...)`:
 
 ```
-$ bq query --use_legacy_sql=false \
-  'select competition_name, count(*) as competitions_sharing_the_name,
-          string_agg(league_code order by league_code) as league_codes
-   from `football-data-pipeline-gcp.marts.mart_competition_index`
-   where competition_name is not null
-   group by competition_name having count(*) > 1'
-
-+------------------+-------------------------------+--------------+
-| competition_name | competitions_sharing_the_name | league_codes |
-+------------------+-------------------------------+--------------+
-| Serie A          |                             2 | BSA,SA       |
-+------------------+-------------------------------+--------------+
+✖ specForPath: the literal route wins the collision, in EITHER array order
+ℹ pass 78   ℹ fail 1
 ```
 
-API-Football sends `Serie A` for Brazil's Brasileirão as well as Italy's Serie A. Because
-`mart_competition_index.competition_name` drives a competition page's `<title>`, `<meta
-description>` and `<h1>`, two competitions produced byte-identical SEO surfaces. The site's own
-audit refused the build rather than shipping them, which is how this was found.
+Exactly one test red, and it is the one that asserts BOTH array orders — which is what makes `find`
+impossible to satisfy, since it can only ever be right for one of them. Restored: `79 pass, 0 fail`.
 
-It was already visible without a competition page: `dist/en/competitions/index.html` renders
-"Serie A" twice and contains the word "Brasileirão" nowhere.
+## Round-1 review findings, and what they changed
 
-## The divergence behind it, measured both directions
+- **`bi-analyst-reviewer` FAIL** — `rendered_page_evidence.md` documented a different branch, and
+  the 375px check this contract's `done_when` requires had never been run. Running it found a real
+  defect: the heading link measured **100x21** at mobile width, under the 24x24 minimum target size
+  and a third the height of the 81px row beside it. Fixed (33px hit area, text unchanged) and the
+  artifact rewritten for this branch. Full measurements in `rendered_page_evidence.md`.
+- **`platform-reviewer` FAIL** — the tie branch of `specForPath` was untested (mutating `>` to `>=`
+  turned zero tests red) and the code silently resolved an equal-specificity overlap by walk order,
+  which its own comment called a bug not to paper over. A gate wired into `astro build` must fail
+  CLOSED. `specTie()` now reports the overlap as a build issue; its test uses the reviewer's own
+  counterexample and goes red when the guard is neutered.
+- **`scope-auditor` FAIL** — `decisions_taken` cited CPO chat quotes with no `escalations.log`
+  entry behind them. The rulings were real; the record was missing. Written to the log, and the
+  contract now cites the log rather than restating the quotes. **PASSed round 2.**
 
-Two sources fed competition names, and they disagreed for **21 of 48** competitions (27 agreed):
+## Round-2 finding — the guard I added was itself under-tested
 
-| | Home page | Competitions page |
-|---|---|---|
-| source | registry `name`, read by the export | provider name, via `dim_league` |
-| DFBP | `DFB-Pokal` | `DFB Pokal` |
-| SPL | `Saudi Pro League` | `Pro League` |
+**`platform-reviewer` FAIL, and a sharper finding than its first.** My round-1 fix added `specTie`,
+and my test for it did not pin `Math.max`: mutating it to `Math.min` survived all 81 tests. The
+reason is exact — every fixture I wrote had at most ONE spec per specificity level, and with one
+spec per level `max` and `min` both end up with a single winner, so `winners.length > 1` is false
+either way and the mutant is indistinguishable.
 
-Both strings are in the built output at `site_v2/dist/`. Verified with
-`grep -o "DFB[- ]Pokal" dist/en/index.html` → `DFB-Pokal` and the same grep on
-`dist/en/competitions/index.html` → `DFB Pokal`.
+It named the shape that separates them: **three** matching specs at specificities `[2, 2, 1]`.
 
-## criteria_demonstrated:
+```
+Math.max -> top = 2, winners = the two specificity-2 specs -> TIE reported   (correct)
+Math.min -> top = 1, winners = the one specificity-1 spec  -> []             (silently resolved)
+```
 
-  - **The seed corrects exactly the competitions whose provider name we do not show, and no
-    others.** Measured against live `stg_apif__leagues`: **20 corrected, 28 left on the provider
-    name, 48 total.** Two-sided, so an over-correction would show as a shrunk right-hand number.
-    (It read 21/27 before BL1 and BL2 came out and `UECL` went in.)
-  - **`assert_competition_name_is_unique` is RED before the change and GREEN after.** Before is
-    not a simulation — it is the `bq` result above, run against prod. After is the same predicate
-    over `coalesce(override, provider)`:
-    `BEFORE -> RED {'Serie A': ['BSA', 'SA']}` · `AFTER -> GREEN`.
-  - **`assert_league_name_overrides_are_corrections` fires on BOTH its branches, watched red.**
-    Evaluated against live provider data:
-    `1. the seed as committed -> GREEN (0 rows)`
-    `2. MUTATED: a league_code that does not exist -> RED (1 row)  ORPHAN NOPE`
-    `3. MUTATED: BSA set to the provider's own name -> RED (1 row)  STALE BSA`
-    A test that only ever passes proves nothing; both branches were made to fail on purpose first.
-  - **No name shown to a reader changes.** Every seed value is the name already authored in
-    `docs/competition_registry.yml` and already served to the registry-fed pages. The change makes
-    the provider-fed pages agree with them; it introduces no new wording.
-  - **The join cannot fan out the row count.** `league_name_overrides.league_code` carries dbt's
-    `unique` and `not_null` tests, registered in the graph as
-    `football_data_pipeline.unique_league_name_overrides_league_code`.
-  - **The correction sits in base and the dim still publishes.** `dim_league.sql` is unchanged and
-    contains no coalesce; the coalesce is in `base_apif__leagues.sql` beside the country one that
-    was already there.
+That is the round-1 defect surviving inside the round-1 fix, one collision-member out of view. Test
+added with a `[2, 2, 1]` fixture; the mutation now turns exactly that test red (`pass 80, fail 1`)
+and restoring gives `pass 81, fail 0`.
+
+⚠ **The lesson is mine, not the reviewer's to keep repeating:** I mutation-tested the fix and
+declared it guarded, but only against the mutation I had thought of. A fixture that cannot
+distinguish two implementations does not test the thing it appears to test.
+
+## Round-3 finding — the focus ring, and a second overclaim in the write-up
+
+**`bi-analyst-reviewer` FAIL, twice over, and both were right.**
+
+**(a) A real defect.** The focus ring is drawn from the border-box the tap-target fix moved, and I
+had verified rest state and tap size but never focus. Measured: the ring's bottom sat at **168.2**
+against the group divider at **165.8** — crossing the line — with 16px unused above. Fixed by
+biasing the padding upward (`padding-block: 9px 3px`), same 33px target. Re-measured on all three
+groups: clears by 0.7px below, 13px above, no collision either side. Detail in
+`rendered_page_evidence.md`.
+
+**(b) An overclaim in the fix's own evidence.** I then wrote the post-fix numbers under a "Measured
+with REAL keyboard focus" header when they were computed from a static box plus assumed outline
+constants, disclosing it only in a footnote. Round 3 caught that — the same overclaim, committed
+while certifying the fix for an overclaim, in the artifact meant to prove it had stopped. Redone
+under a confirmed `:focus-visible` on every group, with the outline constants read from
+`getComputedStyle`.
+
+⭐ **One of its hypotheses was disproved BY the measurement, and that is worth keeping.** It derived
+~1px of clearance above the first group from margin collapse. Measured: 13px, the same as the
+others, because the ring's reach starts at the padded border-box rather than the text. A reasonable
+derivation, still wrong — which is the entire argument for measuring rather than reasoning about
+single-digit pixels.
 
 ## Gates
 
 ```
-python scripts/check_registry_var_sync.py     OK (48 competitions; 48 rows over 9 columns)
-python scripts/check_description_hygiene.py   ok (1629 descriptions, rendered lengths within 1024/16384)
-python -m sqlfluff lint <the 3 changed/added SQL files>  All Finished!  (repo root, jinja, bigquery)
-.venv/Scripts/dbt.exe parse                   OK
-.venv/Scripts/dbt.exe ls --select league_name_overrides+   seed reaches the graph
-python -m pytest tests/ -q                    1010 passed, 1 skipped, 14 subtests
+npm test (site_v2)                     79 pass, 0 fail
+npm run build + audit-seo.mjs          166 built page(s) checked. OK.
+check-page-specs.mjs                   5 page(s) validated against their specs. OK.
+check_copy_gate.py                     ok, 3 locales
 ```
-
-⚠ `check_description_hygiene` FAILED first, and correctly: the seed description carried an ISO
-date, the word "CPO" and a severity emoji. dbt descriptions are published to BigQuery columns and
-read by strangers, so the standard bans all three. Rewritten to state what the data means.
 
 ## What this does NOT do
 
-- **It does not change the frontend today.** Prod picks the seed up on the next `fdp-nightly`
-  (04:00 UTC); the committed `site_v2/src/data/competition_index.json` still holds the old names
-  until re-exported. `feat/navigation-rules-competition-shell` stays blocked until merge → nightly
-  → re-export.
-- **It does not remove the second source.** The export still reads registry `name` at
-  `export_site_data.py:944, 995, 1078, 1206`. Seeding the override makes the two AGREE, which is
-  why nothing a reader sees changes; making the export read the warehouse is the filed follow-up.
-- **It does not touch the other two `league_name` paths.** `stg_apif__fixtures_next:35` and
-  `stg_apif__standings:30` carry their own copies. No mart reads either, so no page renders them
-  today — recorded because "the league name is fixed" would otherwise be a false blanket claim.
+- **No competition page has content.** It is a scaffold: URL, canonical, hreflang, title, breadcrumb
+  and an `<h1>`. #47 owns the real page.
+- **The competitions index page's 48 rows are still inert.** They are now unblocked — the hub they
+  would link to exists — but wiring them is a second surface and was kept out of scope.
+- **No player route exists**, so Top players (#40) still has no destination. That block is not in
+  this branch.

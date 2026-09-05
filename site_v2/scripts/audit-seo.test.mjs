@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import {
   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
   specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
-  MIN_EXPECTED_PAGES,
+  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie,
 } from "./audit-seo.mjs";
 
 const SITE = "https://matchdaypilot.com";
@@ -392,6 +392,107 @@ test("the REAL fixture templates fit two long names inside the BUDGET, not just 
     worst <= TITLE_PX_BUDGET,
     `worst realistic fixture title is ~${worst}px, over the ${TITLE_PX_BUDGET}px budget`,
   );
+});
+
+test("THE COLLISION: a dynamic route's regex also matches its literal sibling's URL", () => {
+  // This is the ambiguity, asserted rather than described. Both specs genuinely match
+  // /en/competitions/, which is why picking the FIRST match was picking by directory-walk order.
+  const hub = specRouteRegex("[lang]/[competition]/index.astro");
+  const index = specRouteRegex("[lang]/competitions/index.astro");
+  assert.ok(hub.test("/en/competitions/"), "the hub pattern matches the index URL — the collision");
+  assert.ok(index.test("/en/competitions/"), "the index pattern matches its own URL");
+  assert.ok(hub.test("/en/bundesliga/"), "the hub pattern still matches a real competition");
+  assert.ok(!index.test("/en/bundesliga/"), "the index pattern does not match a competition");
+});
+
+test("routeSpecificity ranks the literal sibling above the dynamic one", () => {
+  // The tie-break. Without it the competitions INDEX was judged against the competition HUB's
+  // spec and failed for emitting ItemList instead of SportsOrganization — three violations, one
+  // per locale, on a page that was correct.
+  assert.equal(routeSpecificity("[lang]/competitions/index.astro"), 2); // competitions + index
+  assert.equal(routeSpecificity("[lang]/[competition]/index.astro"), 1); // index
+  assert.ok(
+    routeSpecificity("[lang]/competitions/index.astro") >
+      routeSpecificity("[lang]/[competition]/index.astro"),
+    "a literal segment must outrank a dynamic one, or the index inherits the hub's spec",
+  );
+  // Not a special case for this pair: the deeper literal route also wins.
+  assert.equal(routeSpecificity("[lang]/[competition]/matches/[fixture].astro"), 1);
+  assert.equal(routeSpecificity("[lang]/teams/[team].astro"), 1);
+  assert.equal(routeSpecificity("index.astro"), 1);
+});
+
+test("specForPath: the literal route wins the collision, in EITHER array order", () => {
+  // The mutation guard. The previous implementation was `specs.find(s => s.match.test(p))`, which
+  // returns the first match — so it passed or failed on directory-walk order. Asserting BOTH
+  // orders is what makes `find` fail here: it can only ever be right for one of the two.
+  const spec = (page, schemaOrg) => ({
+    page, schemaOrg, match: specRouteRegex(page), specificity: routeSpecificity(page),
+  });
+  const hub = spec("[lang]/[competition]/index.astro", "SportsOrganization");
+  const index = spec("[lang]/competitions/index.astro", "ItemList");
+
+  for (const order of [[hub, index], [index, hub]]) {
+    assert.equal(
+      specForPath(order, "/en/competitions/").schemaOrg, "ItemList",
+      "the competitions index must be judged against its OWN spec, whatever order specs load in",
+    );
+    assert.equal(
+      specForPath(order, "/en/bundesliga/").schemaOrg, "SportsOrganization",
+      "a real competition still resolves to the hub spec",
+    );
+  }
+  assert.equal(specForPath([hub, index], "/en/teams/x/"), null, "no spec matches, no verdict");
+});
+
+test("specTie: an EQUAL-specificity overlap is reported, not silently resolved", () => {
+  // The counterexample platform-reviewer built, kept verbatim as the fixture. Both routes have
+  // exactly one literal segment ("foo" / "bar") and both match /en/foo/bar/x/, so the specificity
+  // rule cannot separate them and whichever wins would come down to directory-walk order — the
+  // very order-dependence specForPath exists to remove. The gate must fail CLOSED here.
+  const spec = (page) => ({
+    page, schemaOrg: "Thing", match: specRouteRegex(page), specificity: routeSpecificity(page),
+  });
+  const a = spec("[lang]/foo/[b]/[c].astro");
+  const b = spec("[lang]/[a]/bar/[c].astro");
+  assert.equal(routeSpecificity(a.page), routeSpecificity(b.page), "the fixture must actually tie");
+  assert.ok(a.match.test("/en/foo/bar/x/") && b.match.test("/en/foo/bar/x/"), "both must match");
+
+  const tie = specTie([a, b], "/en/foo/bar/x/");
+  assert.equal(tie.length, 2, "an equal-specificity overlap must be reported");
+  assert.deepEqual(tie.map((s) => s.page).sort(), [a.page, b.page].sort());
+
+  // And the live spec set does NOT tie — the real collision is settled 2 to 1 by specificity.
+  const hub = spec("[lang]/[competition]/index.astro");
+  const index = spec("[lang]/competitions/index.astro");
+  assert.deepEqual(specTie([hub, index], "/en/competitions/"), [], "specificity settles this one");
+  assert.deepEqual(specTie([hub, index], "/en/bundesliga/"), [], "only one spec matches at all");
+});
+
+test("specTie: a tie at the TOP level is caught even when a less-specific spec also matches", () => {
+  // THREE matching specs at specificities [2, 2, 1]. This is the case that pins `Math.max`:
+  // with only two matching specs, one per level, `max` and `min` pick different levels but both
+  // end up with a single winner, so `winners.length > 1` is false either way and the mutation
+  // survives. platform-reviewer found exactly that hole in the two-spec fixture above.
+  //   Math.max -> top = 2, winners = the two specificity-2 specs -> TIE reported (correct)
+  //   Math.min -> top = 1, winners = the one specificity-1 spec  -> [] (silently resolved)
+  // It is the shape a growing spec set produces as soon as routes nest under a dynamic segment.
+  const spec = (page) => ({
+    page, schemaOrg: "Thing", match: specRouteRegex(page), specificity: routeSpecificity(page),
+  });
+  const a = spec("[lang]/foo/bar/[c].astro");   // literals: foo, bar -> 2
+  const b = spec("[lang]/foo/[b]/x.astro");     // literals: foo, x   -> 2
+  const c = spec("[lang]/[a]/bar/[c].astro");   // literals: bar      -> 1
+  const path = "/en/foo/bar/x/";
+
+  assert.deepEqual([a, b, c].map((s) => s.specificity), [2, 2, 1], "the fixture must be [2,2,1]");
+  assert.ok([a, b, c].every((s) => s.match.test(path)), "all three must match the same path");
+
+  const tie = specTie([a, b, c], path);
+  assert.equal(tie.length, 2, "the TOP-level tie must be reported, not the least-specific match");
+  assert.deepEqual(tie.map((s) => s.page).sort(), [a.page, b.page].sort());
+  // And the winner is drawn from the tied top level, never from the specificity-1 spec.
+  assert.equal(specForPath([a, b, c], path).specificity, 2);
 });
 
 test("emptyPaths finds nulls, blanks and placeholders anywhere in a graph", () => {

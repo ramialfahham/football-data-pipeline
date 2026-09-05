@@ -7868,3 +7868,88 @@ then the 48 player metrics and ruled the names. This is the authority for the fo
   `$?` explicitly.** It warned that two narrow instance-rules in one family is precisely how this
   project's documented instance-fix pattern regenerates — which is the same diagnosis as the
   relocation above, applied to my own rule-writing.
+
+
+================================================================================
+2026-09-04 — feat/navigation-rules-competition-shell — THE NAVIGATION RULE
+================================================================================
+
+⛔ WRITTEN LATE, ON A REVIEWER'S FAIL. `scope-auditor` failed round 1 because `decisions_taken`
+cited three CPO chat quotes that appear nowhere in this log, so no reviewer could check them and
+§11's record simply did not exist. The rulings below are real and were made in conversation on
+2026-09-04; what was missing was the entry. Recorded now, with the quotes verbatim.
+
+⚠ THE SIBLING BRANCH `fix/competition-name-from-registry` FAILED FOUR ROUNDS ON THE SAME SYMPTOM
+AND TOOK THE OPPOSITE REMEDY, correctly. There, the principles I was crediting him with were
+ALREADY documented (`dbt_project/docs/layering.md:227`, `dbt_project/seeds/schema.yml:472-497`,
+`docs/content_architecture.md:22`, issue #55), so the fix was to cite those and stop invoking him
+at all. He said so directly: *"I don't understand why we need these again. It is all defined
+already… We should have defined these already long time ago. I want you to check it."* I checked;
+three of four were written down. **Here the navigation standard is genuinely new — nothing in the
+repo states it — so the remedy inverts: create the record rather than cite it.** Telling those two
+cases apart is the lesson. "Cite the record" and "write the record" are different fixes for the
+same-looking defect, and picking the wrong one produces either clutter or an unverifiable claim.
+
+--------------------------------------------------------------------------------
+RULING 1 — the navigation rule is PROVISIONAL, and the header+row half is confirmed
+--------------------------------------------------------------------------------
+Asked whether to write the three-families / four-shapes navigation rule down as a standard:
+
+  "I like the approach but does it apply to the whole page? Is the content only header plus rows?"
+
+and, after the answer that it is chrome / content links / controls, with four content-link shapes:
+
+  "Write them down but the rules might be subject to change. We have not built every page yet, so
+   actually we don't know yet. But for the homepage's next matches part the header-row rule that
+   you suggested makes sense. so we would apply this again if we have a header-row content
+   structure."
+
+CONSEQUENCE, as built: the rule goes into `docs/site_architecture.md` §3 marked PROVISIONAL in his
+words, NOT into §2 where locked constraints live. Only the Next matches application is built.
+Whether it graduates to locked is reserved to him and is recorded in `decisions_reserved`.
+
+--------------------------------------------------------------------------------
+RULING 2 — a destination that does not exist yet is BUILT, not routed around
+--------------------------------------------------------------------------------
+I had raised "it links to a page that does not exist" as a blocker three times. He ended it:
+
+  "We have to begin somewhere. And that at the beginning one page leads to nowhere is quite
+   natural no? What is the textbook approach? I'd like to finish the home page and not jump again
+   somewhere else. Why do you ALWAYS bring the argument 'redirects to pages that don't exist'???
+   Of course not, we have to build them and we will."
+
+⚠ This was ALREADY WRITTEN in `docs/wireframes/10_home.md` §0 — *"do not reorder the build because
+a destination page does not exist yet… that is the starting condition of a site, not a blocker"* —
+and §0 itself records that he had corrected me on it twice before. So this ruling is a THIRD
+instance of a rule already in the repo, and raising it again was the defect, not the question.
+CONSEQUENCE: the competition hub ships as a scaffold in `STUB_PAGES`, which is that mechanism's
+documented purpose.
+
+--------------------------------------------------------------------------------
+RULING 3 — the split: the rule plus Next matches now, the two blocks separately
+--------------------------------------------------------------------------------
+On being shown a plan that bundled the navigation rule with #40/#41:
+
+  "The plan is related to the next matches block right now, right? we have no plan yet for top
+   players and top teams"
+
+CONSEQUENCE: this branch is the rule plus Next matches plus the scaffold. #40 (Top players) and
+#41 (Top teams) are explicitly out and need their own plan, starting from the mock, with page
+length and #101's group rotation as open questions.
+
+--------------------------------------------------------------------------------
+RULING 4 — deviating from dbt's structure is fine where it is reasoned; otherwise follow dbt
+--------------------------------------------------------------------------------
+Raised because he had said a seed "must become a model in staging first, we don't skip staging",
+which is not current practice — 10 seeds, none staged, `ref()`d directly from base, core,
+intermediate and marts across 15 files — and is not what dbt recommends either (staging is 1:1
+with a SOURCE; dbt has no `base` peer layer, and seeds are authored clean and `ref()`d directly).
+Put to him with that evidence:
+
+  "they do and it is fine to deviate from dbt's recommendation, we have reasons to do it. and they
+   are explained in the repo. but beyond that i want to stick close to what dbt recommends"
+
+CONSEQUENCE: the five-layer contract stands. No staging model was created for the correction seed
+on the sibling branch; it is `ref()`d in base beside `country_name_overrides`, which is both the
+dbt-aligned choice and the existing repo precedent. Recorded here because it is a STANDING answer
+about how far this project's layer contract may drift, not a one-branch decision.
