@@ -505,6 +505,57 @@ seeds:
         tests:
           - not_null
 
+  - name: league_name_overrides
+    description: >
+      Corrections to a COMPETITION's display name: one row per competition whose provider name is
+      not the name we show. Applied in `base_apif__leagues` and published by `dim_league`, so this
+      value names the competition everywhere downstream — the fixture payload's `league_name` and
+      `mart_competition_index.competition_name` both read it.
+
+      It exists because the provider's competition names are neither unique nor current. `Serie A`
+      arrives for both Italy's SA and Brazil's BSA, so without a correction two competitions carry
+      one label wherever the name is shown. `Primeira Liga` and `CONCACAF Champions League` are
+      renames the provider has not taken up, and `Jupiler Pro League` is a sponsor name rather than
+      the competition's own.
+
+      The display name is decided in the warehouse, and this seed is how a correction reaches it.
+      The registry is an input: `source` records where a name was taken from, not who is
+      authoritative over it.
+
+      A row carries the competition's NAME and nothing else. A season is not part of it, even
+      where a surface shows both: `FIFA World Cup` is the competition and `2026` is the season, so
+      a season-scoped label is composed from the two rather than stored as one string. The
+      registry's own slug follows the same rule (`world-cup`).
+
+      Known gap, the same shape the country seed has: only listed competitions are corrected, so a
+      newly onboarded league keeps the provider's name until a row is added for it.
+    config:
+      column_types:
+        league_code: string
+        league_name: string
+        source: string
+        note: string
+    columns:
+      - name: league_code
+        description: "The competition whose display name this row replaces. OUR discriminator, not the provider's id."
+        tests:
+          - not_null
+          - unique
+      - name: league_name
+        description: "The competition's display name, as authored in the registry."
+        tests:
+          - not_null
+      - name: source
+        description: "Where the name was authored (required — the governance control). Normally docs/competition_registry.yml."
+        tests:
+          - not_null
+      - name: note
+        description: >
+          Why the provider's value is not usable: a collision with another competition, a rename
+          the provider has not taken up, a sponsor name, or a dropped diacritic. State which.
+        tests:
+          - not_null
+
   - name: country_name_overrides
     description: >
       Maps a provider COUNTRY string to the one canonical English name. One row per distinct

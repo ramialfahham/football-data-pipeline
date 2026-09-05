@@ -53,7 +53,9 @@ models:
       Grain: (league_code, league_api_id, season_api_year).
 
       It also applies the country corrections from the country_name_overrides seed, so
-      league_country is already the canonical English name by the time the core dim publishes it.
+      league_country is already the canonical English name by the time the core dim publishes it,
+      and the competition-name corrections from the league_name_overrides seed, so league_name is
+      the name we show rather than the provider's.
     config:
       tags: ["base", "api_football", "league_context"]
     tests:
@@ -61,6 +63,14 @@ models:
           combination_of_columns: [league_code, league_api_id, season_api_year]
     columns:
       - name: league_code
+        tests: [not_null]
+      - name: league_name
+        description: >
+          The competition's DISPLAY NAME, already corrected. Provider value where no override
+          exists, otherwise the league_name_overrides row — the provider's names are neither
+          unique (`Serie A` arrives for both Italy's SA and Brazil's BSA) nor current (Primeira
+          Liga, CONCACAF Champions League are renames it never took up). dim_league publishes this
+          value unchanged; there is no coalesce in the dim.
         tests: [not_null]
       - name: league_api_id
         tests: [not_null]

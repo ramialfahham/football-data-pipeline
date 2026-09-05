@@ -6,6 +6,10 @@ import_country_name_overrides as (
     select * from {{ ref('country_name_overrides') }}
 ),
 
+import_league_name_overrides as (
+    select * from {{ ref('league_name_overrides') }}
+),
+
 -- The provider's country string is not display-ready: it hyphenates multi-word names
 -- (Saudi-Arabia, South-Korea) and abbreviates one (USA). Standardised HERE, in base, because
 -- the transformation layer is where we clean and reconcile (CPO 2026-08-14) and because the
@@ -23,7 +27,6 @@ src as (
     select
         leagues.league_code,
         leagues.league_api_id,
-        leagues.league_name,
         leagues.league_type,
         leagues.league_logo_url,
         leagues.country_flag_url,
@@ -44,6 +47,14 @@ src as (
         leagues.has_coverage_predictions,
         leagues.has_coverage_odds,
         leagues.raw_ingested_at,
+        -- The competition's DISPLAY NAME, corrected here for the same reason the country is:
+        -- what the provider delivers is not the single source of truth (CPO 2026-09-04), and its
+        -- names are neither current nor unique. `Serie A` arrives for BOTH Italy's SA and
+        -- Brazil's BSA, which put two competitions on one title, description and H1; others are
+        -- stale renames (Primeira Liga, CONCACAF Champions League) or sponsor names (Jupiler).
+        -- Same three parts as country_name_overrides and team_name_overrides: seed, left join,
+        -- and a singular test that fails when a row stops being a correction.
+        coalesce(name_overrides.league_name, leagues.league_name) as league_name,
         case
             when leagues.country = 'World' then null
             else coalesce(overrides.country_name, leagues.country)
@@ -51,6 +62,11 @@ src as (
     from import_stg_apif__leagues as leagues
     left join import_country_name_overrides as overrides
         on leagues.country = overrides.provider_country
+    -- Keyed on OUR league_code, not the provider's league_api_id: the code is the discriminator
+    -- every model already carries, and a competition keeps it across provider id changes. The
+    -- seed is unique on league_code (tested), so this left join cannot fan the row count out.
+    left join import_league_name_overrides as name_overrides
+        on leagues.league_code = name_overrides.league_code
     where leagues.league_api_id is not null and leagues.season_api_year is not null
 ),
 
