@@ -1,151 +1,111 @@
-# Acceptance evidence — navigation rules, and Next matches applying them
+# Acceptance evidence — the current-season pick and the board DQ guard (#40, warehouse half)
 
-Everything below is read from the BUILT output (`site_v2/dist/`) or from the committed files, never
-from source intent. The build is green: `audit-seo: 166 built page(s) checked. OK.`
+Branch `feat/40-leaderboards-current-season-and-board-dq`, from main `8af4b45`.
+
+⚠ **THIS IS HALF OF #40.** The split is recorded in `.claude/task/escalations.log`, entry
+`2026-09-04 — feat/40-leaderboards-current-season-and-board-dq — SPLITTING #40`, which carries the
+three options put to the CPO, which one he chose, and what he explicitly did NOT rule. Cited here
+rather than restated.
+⛔ This sentence previously asserted "SPLIT ON THE CPO'S CALL" with nothing behind it.
+`scope-auditor` FAILed that in `contract.md` (round 1), I corrected it THERE and left it standing
+HERE, and round 2 failed the residue. Fixing the instance a reviewer names instead of sweeping the
+class is its own logged failure (`feedback_fix_the_class_not_the_instance`) and it happened inside
+the fix for an attribution failure.
+The reason for the split: the block cannot render until this column is in prod (merge + the 04:00
+nightly), so shipping the export and component alongside would have left their criteria
+undemonstrable. The export, component, player scaffold and copy are BUILT and PARKED in the stash
+`TEMP-40-mrB`.
+
+Everything below is measured against **LIVE PROD DATA** by compiling the model and running it
+read-only. The ban is on `dbt build`, which writes and bills a materialisation; a SELECT over the
+compiled SQL is neither. Same approach `!145` used.
+⚠ The compiled SQL exceeds Windows' command-line limit ("Die Befehlszeile ist zu lang"), so every
+query is fed to `bq` on **stdin**. Recorded because the first attempt failed on it.
 
 criteria_demonstrated:
 
-  - **The navigation rule is in `docs/site_architecture.md`, names all three families and the four
-    content-link shapes, and says it is provisional in the CPO's own words.** The section is
-    `### Navigation — what is clickable, and where it goes`, under §3 beside the URL scheme. It
-    opens with his words: *"the rules might be subject to change. We have not built every page yet,
-    so actually we don't know yet."* It carries a table of the three families (chrome / content
-    links / controls) and a second table of the four shapes (row / heading / chip / prose), each
-    with its destination and its at-rest affordance.
-  - **The row half is stated explicitly.** Verbatim: *"every content link points at the one entity
-    it names, and a row names its subject. Nothing inside a row is separately clickable."* Applied
-    examples follow for match, Top players, Top teams, standings and squad rows.
-  - **The competition heading is a real link in all three locales, read from `dist/`.**
-    `grep -o '<a class="cnm" href="[^"]*"' dist/en/index.html` returns
-    `/en/coppa-italia/`, `/en/dfb-pokal/`, `/en/saudi-pro-league/` — three of three groups. Same in
-    `de` and `fi`. The accessible text is carried: the rendered DOM gives
-    `[{href:"/en/dfb-pokal/", text:"DFB-Pokal"}, …]`.
-  - **The chevron is present AT REST, not on hover.** In the emitted markup, `class="chev"` appears
-    3 times in `dist/en/index.html`, once per heading — i.e. it is in the HTML, not applied by a
-    `:hover` rule. Measured on the rendered page:
-    `{display:"block", visibility:"visible", opacity:"1", w:15, h:15, visibleAtRest:true}`, and the
-    svg carries `aria-hidden="true"` so it is decoration, not a second label.
-    ⚠ Measured rather than reasoned about, because the whole point of the rule is that an
-    affordance which exists only on hover does not exist on a phone.
-  - **A match row is still a single link with nothing clickable inside it.** Over
-    `dist/en/index.html`: 4 `.fxrow` anchors found, and **0** of them contain a nested `<a`.
-  - **Every competition URL the home page links to is emitted.** `audit-seo.mjs` check 8 fails the
-    build on any internal href resolving to no emitted page; the audit passes over 166 pages, with
-    the page-count driver reporting `/[lang]/[competition] -> 144`.
-  - **The route is driven by the MART payload, not a literal list.** The page imports
-    `../../../data/competition_index.json` (from `mart_competition_index`), and
-    `grep -nE '"(BL1|PL|SA|BSA|DFBP|bundesliga|dfb-pokal|premier-league)"'` over the page source
-    returns nothing. The spec's `page_count_driver` is the formula
-    `count(competition_index.json .competitions) x count(locales)`, not a constant.
-  - **The three locales' competition pages emit non-identical titles.** For `dfb-pokal`:
-    `de` → `DFB-Pokal: Überblick` · `en` → `DFB-Pokal: Overview` · `fi` → `DFB-Pokal: yleiskatsaus`.
-    The audit's cross-locale uniqueness check (the one written for the live defect where all three
-    shipped byte-identical) passes.
-  - **`STUB_PAGES` lists the competition page and still blocks go-live.**
-    `export const STUB_PAGES = ["[lang]/[competition]/index.astro"];` and `audit-seo.mjs:505-506`
-    raises *"INDEXABLE is true while STUB_PAGES is non-empty … a stub is a thin page"*. So shipping
-    this scaffold TIGHTENS the go-live gate rather than loosening it.
+  - **`is_current_season` is true for exactly one season per league, on prod.** 45 leagues, 45 with
+    exactly one flagged season, **0 violations**. Measured, not read off the SQL.
 
-## The audit defect this branch exposed, and the guard added for it
+  - **It is true for EVERY row of that season, not one row of it.** This is the criterion that
+    separates `rank()` from `row_number()`, which look interchangeable here:
 
-`audit-seo.mjs` matched a page to its spec with `specs.find((s) => s.match.test(p))` — the FIRST
-match, in `walkJson` directory order. `specRouteRegex` compiles every `[param]` to `[^/]+`, so
-`[lang]/[competition]/index.astro` matches `/en/competitions/` as readily as `/en/bundesliga/`, and
-the competitions INDEX was judged against the competition HUB's spec: three violations, one per
-locale, on a page that was correct.
+        BL1  2026   flagged 712 of 712 rows   ALL
+        PD   2026   flagged 792 of 792 rows   ALL
+        PL   2026   flagged 832 of 832 rows   ALL
 
-Fixed with a specificity rule — most literal segments wins — extracted into an exported
-`specForPath()` so the tie-break is testable rather than buried in `main()`.
+    With `row_number()` each would read `1 of 712`, and a consumer filtering on the flag would get
+    one player per league across ALL FOUR boards instead of one per league per board.
 
-⚠ **Mutation-tested, because the first two tests I wrote would NOT have caught a regression.** They
-asserted `routeSpecificity()` and the regex collision directly, both of which stay true whether the
-selection uses `find` or the tie-break. Reverting `specForPath` to `specs.find(...)`:
+  - **The column changes nothing else.** Row count of the LIVE table vs the compiled model carrying
+    the new column: **189,116 and 189,116**. Additive, as the impact map claims.
 
-```
-✖ specForPath: the literal route wins the collision, in EITHER array order
-ℹ pass 78   ℹ fail 1
-```
+  - **Every home board has a rank-1 in every elite league, today.** The guard's own predicate run
+    over prod: **0 missing (league, board) pairs** across 4 boards × the elite group.
 
-Exactly one test red, and it is the one that asserts BOTH array orders — which is what makes `find`
-impossible to satisfy, since it can only ever be right for one of them. Restored: `79 pass, 0 fail`.
+  - **`assert_one_current_season_per_league` is RED under all three mutations**, measured on prod,
+    and GREEN unmutated:
 
-## Round-1 review findings, and what they changed
+        healthy model                                        GREEN (0 rows)
+        MUTATED: order asc (flags the OLDEST season)         RED   (34 rows)
+        MUTATED: two seasons flagged (dense_rank <= 2)       RED   (34 rows)
+        MUTATED: row_number (one ROW flagged, not a season)  RED   (45 rows)
 
-- **`bi-analyst-reviewer` FAIL** — `rendered_page_evidence.md` documented a different branch, and
-  the 375px check this contract's `done_when` requires had never been run. Running it found a real
-  defect: the heading link measured **100x21** at mobile width, under the 24x24 minimum target size
-  and a third the height of the 81px row beside it. Fixed (33px hit area, text unchanged) and the
-  artifact rewritten for this branch. Full measurements in `rendered_page_evidence.md`.
-- **`platform-reviewer` FAIL** — the tie branch of `specForPath` was untested (mutating `>` to `>=`
-  turned zero tests red) and the code silently resolved an equal-specificity overlap by walk order,
-  which its own comment called a bug not to paper over. A gate wired into `astro build` must fail
-  CLOSED. `specTie()` now reports the overlap as a build issue; its test uses the reviewer's own
-  counterexample and goes red when the guard is neutered.
-- **`scope-auditor` FAIL** — `decisions_taken` cited CPO chat quotes with no `escalations.log`
-  entry behind them. The rulings were real; the record was missing. Written to the log, and the
-  contract now cites the log rather than restating the quotes. **PASSed round 2.**
+    ⛔ **The third was GREEN until `analytics-engineer-reviewer` FAILed the test for missing it**,
+    and it is the mutation the whole design rests on. See below.
 
-## Round-2 finding — the guard I added was itself under-tested
+  - **`assert_mart_leaderboards_every_home_board_has_a_leader` is RED under both**, GREEN unmutated:
 
-**`platform-reviewer` FAIL, and a sharper finding than its first.** My round-1 fix added `specTie`,
-and my test for it did not pin `Math.max`: mutating it to `Math.min` survived all 81 tests. The
-reason is exact — every fixture I wrote had at most ONE spec per specificity level, and with one
-spec per level `max` and `min` both end up with a single winner, so `winners.length > 1` is false
-either way and the mutant is indistinguishable.
+        healthy model                          GREEN (0 rows)
+        MUTATED: the Assists board vanishes    RED   (7 rows)   <- the failure the page hides
+        MUTATED: no rank-1 anywhere            RED   (28 rows)
 
-It named the shape that separates them: **three** matching specs at specificities `[2, 2, 1]`.
+  - **`dbt parse` exits 0 and SQLFluff exits 0** under the dbt templater CI actually uses, run from
+    `dbt_project/` with the venv's Python. ⚠ Both exit codes read BARE, never through a pipe — the
+    repo's own rule, and the local `--templater jinja` run is NOT the check (it reports
+    `dbt_utils`-unresolvable TMP/PRS noise on this model that CI does not see).
 
-```
-Math.max -> top = 2, winners = the two specificity-2 specs -> TIE reported   (correct)
-Math.min -> top = 1, winners = the one specificity-1 spec  -> []             (silently resolved)
-```
+## ⛔ Mutation testing changed the shipped code, twice
 
-That is the round-1 defect surviving inside the round-1 fix, one collision-member out of view. Test
-added with a `[2, 2, 1]` fixture; the mutation now turns exactly that test red (`pass 80, fail 1`)
-and restoring gives `pass 81, fail 0`.
+**1. It proved my own guard was weaker than its name.** `assert_one_current_season_per_league`
+originally asserted only HOW MANY seasons carried the flag. Flipping the window's `ORDER BY` to
+ascending flags the OLDEST season — still exactly one per league — and the test stayed **GREEN**.
+The block would have shown last season's leaders under a heading reading "Season totals to date",
+and nothing else in the repo would have noticed. The test now also asserts the flagged season is
+`max(season_api_year)`; that mutation now fails with 34 rows.
 
-⚠ **The lesson is mine, not the reviewer's to keep repeating:** I mutation-tested the fix and
-declared it guarded, but only against the mutation I had thought of. A fixture that cannot
-distinguish two implementations does not test the thing it appears to test.
+**2. It caught a mutation of mine that tested nothing.** My first attempt mutated `rank() = 1` to
+`rank() <= 2` expecting two flagged seasons. It is INERT: `rank()` skips, so every latest-season row
+shares rank 1 and the next season's rank jumps far past 2. Had I not checked the result, I would
+have recorded a "surviving mutation" that never mutated anything. `dense_rank() <= 2` is the form
+that actually flags two seasons.
 
-## Round-3 finding — the focus ring, and a second overclaim in the write-up
+**3. And a reviewer found the gap BOTH of my mutations left.** `analytics-engineer-reviewer` FAILed
+the test by reading it rather than running it: revert the model's `rank()` to `row_number()` and
+exactly ONE row per league carries the flag, yet `count(distinct flagged season)` is still 1 and
+that row's season is still the max — so cardinality-plus-recency stayed **GREEN while the flag was
+false on 711 of 712 rows.** It also noted the board-leader test only covers the 6 `elite` leagues,
+so it gave no cover for the other 39.
 
-**`bi-analyst-reviewer` FAIL, twice over, and both were right.**
+⛔ **That is the mutation this contract itself calls the whole reason for choosing `rank()`** — and
+I had not run it. I ran the two I thought of (ascending order, two seasons) and neither changes the
+season SET, which is the only thing the test could see. The test now also asserts a flagged season
+is flagged ENTIRELY (`flagged_rows = season_rows`), and `row_number()` fails it with 45 rows.
 
-**(a) A real defect.** The focus ring is drawn from the border-box the tap-target fix moved, and I
-had verified rest state and tap size but never focus. Measured: the ring's bottom sat at **168.2**
-against the group divider at **165.8** — crossing the line — with 16px unused above. Fixed by
-biasing the padding upward (`padding-block: 9px 3px`), same 33px target. Re-measured on all three
-groups: clears by 0.7px below, 13px above, no collision either side. Detail in
-`rendered_page_evidence.md`.
-
-**(b) An overclaim in the fix's own evidence.** I then wrote the post-fix numbers under a "Measured
-with REAL keyboard focus" header when they were computed from a static box plus assumed outline
-constants, disclosing it only in a footnote. Round 3 caught that — the same overclaim, committed
-while certifying the fix for an overclaim, in the artifact meant to prove it had stopped. Redone
-under a confirmed `:focus-visible` on every group, with the outline constants read from
-`getComputedStyle`.
-
-⭐ **One of its hypotheses was disproved BY the measurement, and that is worth keeping.** It derived
-~1px of clearance above the first group from margin collapse. Measured: 13px, the same as the
-others, because the ring's reach starts at the padded border-box rather than the text. A reasonable
-derivation, still wrong — which is the entire argument for measuring rather than reasoning about
-single-digit pixels.
-
-## Gates
-
-```
-npm test (site_v2)                     79 pass, 0 fail
-npm run build + audit-seo.mjs          166 built page(s) checked. OK.
-check-page-specs.mjs                   5 page(s) validated against their specs. OK.
-check_copy_gate.py                     ok, 3 locales
-```
+⭐ All three are the same lesson in different clothes, and it is the one `!151` ended on: **a
+mutation that cannot distinguish two implementations tests neither of them.** Verifying that a
+guard fails is not enough — the mutation has to be capable of changing the answer, and the
+mutations worth running are the ones the design is defended against, not the ones that come to mind.
 
 ## What this does NOT do
 
-- **No competition page has content.** It is a scaffold: URL, canonical, hreflang, title, breadcrumb
-  and an `<h1>`. #47 owns the real page.
-- **The competitions index page's 48 rows are still inert.** They are now unblocked — the hub they
-  would link to exists — but wiring them is a second surface and was kept out of scope.
-- **No player route exists**, so Top players (#40) still has no destination. That block is not in
-  this branch.
+- **Nothing renders.** No consumer reads the column yet — the export reads this mart but not this
+  field, by design. The frontend is byte-identical.
+- **It does not ask whether a season has STARTED.** "Latest" is by `season_api_year` alone. #101's
+  in-season gate (">= 3 finished games") is a group-level question for the rotation MR, and
+  conflating them would bake a rotation rule into a column that answers a simpler question. A league
+  whose latest season has not kicked off is therefore "current" and its boards are empty — which #40
+  already rules is simply not rendered. Recorded in `decisions_reserved` as a real question for that
+  MR, not a defect here.
+- **It does not verify the block.** Four boards rendering, no truncation at 375px, per-board
+  stacking, links resolving — all MR B's, on data that does not exist until the nightly runs.

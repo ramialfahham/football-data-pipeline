@@ -188,6 +188,18 @@ select
     duels_won_player_pct,
     dribbles_success_player_pct,
     saves_player_pct,
-    finishing_efficiency_player_pct
+    finishing_efficiency_player_pct,
+    -- WHICH SEASON a consumer should show, served as a fact rather than chosen downstream.
+    -- The Home block shows one league's current-season leader; without this the export would have
+    -- to pick a season itself, which is the window-selection shape analytics-engineer-reviewer
+    -- FAILed twice under GAP-32. Same answer #846 reached for mart_player_profile's
+    -- is_featured_season: serve the pick, let consumption filter on it.
+    -- Latest season per LEAGUE, not per player: the flag answers "is this the season the site is
+    -- currently showing for this competition", so every row of a league agrees. ST06 puts
+    -- calculations after simple targets, hence its position last.
+    rank() over (
+        partition by league_code
+        order by season_api_year desc
+    ) = 1 as is_current_season
 from ranked
 where board_rank <= 10
