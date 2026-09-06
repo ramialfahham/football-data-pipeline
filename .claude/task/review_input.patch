@@ -1,586 +1,676 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index fb74f67..4edfc72 100644
+index 4edfc72..2153a02 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,205 +1,123 @@
--# Task contract — navigation rules, and Next matches applying them
-+# Task contract — the current-season pick and the board DQ guard (#40, warehouse half)
+@@ -1,27 +1,31 @@
+-# Task contract — the current-season pick and the board DQ guard (#40, warehouse half)
++# Task contract — bound the deserved-points fit to the range it is allowed to occupy
  
  objective: >
--  Settle the site's navigation rule once — which element types are clickable and what each
--  points at — write it into the authoritative IA doc as a PROVISIONAL standard, and apply it to
--  the one block it was worked out against: Next matches. The competition heading becomes a real
--  link, which requires a near-empty competition page for it to land on.
-+  Serve the two warehouse facts the Top players block needs: **which season a competition is
-+  currently showing** (`is_current_season` on `mart_leaderboards`), and **a guard that notices a
-+  board with no league leader** — which the page deliberately will not, because #40 rules that a
-+  board with no data is not rendered at all.
-+
+-  Serve the two warehouse facts the Top players block needs: **which season a competition is
+-  currently showing** (`is_current_season` on `mart_leaderboards`), and **a guard that notices a
+-  board with no league leader** — which the page deliberately will not, because #40 rules that a
+-  board with no data is not rendered at all.
++  `int_team_season_deserved_points_in_legal_range` is FAILING the prod build, and has been since
++  !153 merged — one row, LP 2026, a fitted 12.0259 points against a ceiling of 12. It is an
++  error-severity test inside `dbt build`, so everything below `int_team_season__deserved_vs_actual`
++  is marked skipped and prod stops refreshing there. This caps the fitted points-per-match rate to
++  the range the outcome can actually take, so the model cannot emit an impossible points total.
+ 
  refs: >
--  #52 (interaction standard — "which elements redirect where", open since 2026-08-10, never
--  decided); #47 (the competition page's real content, NOT this task); plan
--  C:/Users/Rami/.claude/plans/unified-seeking-waffle.md, CPO-approved 2026-09-04.
-+  **GitLab #40** is the block's design authority. This is its WAREHOUSE HALF ONLY.
-+  ⚠ **SPLIT ON THE CPO'S CALL, recorded in `.claude/task/escalations.log`, entry
-+  `2026-09-04 — feat/40-leaderboards-current-season-and-board-dq — SPLITTING #40`.** That entry
-+  carries the three options he was given and which he chose; it is the checkable record, and this
-+  line cites it rather than restating it.
-+  ⛔ It was written LATE, on `scope-auditor`'s FAIL — the assertion stood here with nothing behind
-+  it, which is the **fifth** instance of that class in one session. He ruled a SEQUENCING, not a
-+  design: nothing about #40's block design changed.
-+  The reason for the split: the block cannot render until `is_current_season` is in prod (merge plus
-+  the 04:00 `fdp-nightly`), so shipping the export and component together would have left most of
-+  the block's criteria undemonstrable at commit time. Same sequencing !150 → !151 used.
-+  The export, the component, the player scaffold and the copy are BUILT and PARKED in the stash
-+  `TEMP-40-mrB`; they are MR B, after this merges and the nightly runs.
-+  Plan: `C:/Users/Rami/.claude/plans/unified-seeking-waffle.md` (approved 2026-09-04) — its §3-§6
-+  are MR B's.
+-  **GitLab #40** is the block's design authority. This is its WAREHOUSE HALF ONLY.
+-  ⚠ **SPLIT ON THE CPO'S CALL, recorded in `.claude/task/escalations.log`, entry
+-  `2026-09-04 — feat/40-leaderboards-current-season-and-board-dq — SPLITTING #40`.** That entry
+-  carries the three options he was given and which he chose; it is the checkable record, and this
+-  line cites it rather than restating it.
+-  ⛔ It was written LATE, on `scope-auditor`'s FAIL — the assertion stood here with nothing behind
+-  it, which is the **fifth** instance of that class in one session. He ruled a SEQUENCING, not a
+-  design: nothing about #40's block design changed.
+-  The reason for the split: the block cannot render until `is_current_season` is in prod (merge plus
+-  the 04:00 `fdp-nightly`), so shipping the export and component together would have left most of
+-  the block's criteria undemonstrable at commit time. Same sequencing !150 → !151 used.
+-  The export, the component, the player scaffold and the copy are BUILT and PARKED in the stash
+-  `TEMP-40-mrB`; they are MR B, after this merges and the nightly runs.
+-  Plan: `C:/Users/Rami/.claude/plans/unified-seeking-waffle.md` (approved 2026-09-04) — its §3-§6
+-  are MR B's.
++  Not an issue — a live prod-build failure found on the !153 merge pipeline (job 16331792666).
++  ⭐ **THE APPROACH IS THE CPO'S, AND HE OVERRULED MINE.** I recommended withholding the whole
++  league-season's fit whenever any team left the legal range, arguing an out-of-range value is
++  evidence of a degenerate fit. He rejected that and ruled for a mechanical cap:
++  *"We could use methods that count for censoring of the dependent variable but to be pragmatic, we
++  use OLS and cap mechanically at the possible max or mins."* Recorded in
++  `.claude/task/escalations.log`, entry `2026-09-06 — fix/deserved-points-clamped-to-legal-range — DESERVED POINTS, CAP NOT WITHHOLD`.
++  ⛔ **He was right and the measurement says so**, which is why this contract does not hedge: over
++  1,125 fitted rows in prod, exactly ONE crosses a bound, by 0.0065 points per match, and no other
++  row is within 0.1 of either bound. There is no degenerate-fit population for a cap to conceal, so
++  my objection was a hypothesis the data does not contain.
++  He then ruled the outcome's domain — *"Deserved points is always a positive integer incl zero"* —
++  and, when I answered that the page already rounds it, overruled that too: *"Rounding is business
++  logic."* ⛔ Both rulings stand; only the second one's CONSEQUENCE is out of scope here. The
++  warehouse owes the integer, the page must not compute it, and `DeservedHero.astro:79` doing so is a
++  defect — filed as **GitLab #108** with two siblings found in the same sweep. This MR keeps the
++  stored value continuous for reasons that survive the correction (`decisions_taken`), and does not
++  add the integer; #108 does.
  
  scope_paths:
--  - docs/site_architecture.md
--  - site_v2/src/specs/competition/index.spec.json
--  - site_v2/src/pages/*/*/index.astro
--  - site_v2/src/config/indexability.mjs
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/styles/system.css
--  - site_v2/src/components/home/HeroFixtures.astro
--  - site_v2/src/data/competition_index.json
--  - .gitignore
--  - site_v2/scripts/audit-seo.mjs
--  - site_v2/scripts/audit-seo.test.mjs
--  - .claude/task/escalations.log
--  - .claude/task/rendered_page_evidence.md
--  - .claude/active_work.md
    - .claude/task/contract.md
--  - .claude/task/review.md
-   - .claude/task/acceptance_evidence.md
-+  - .claude/task/review.md
+@@ -29,95 +33,206 @@ scope_paths:
+   - .claude/task/review.md
    - .claude/task/review_input.patch
-+  - .claude/task/escalations.log
-+  - .claude/active_work.md
-+  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-+  - dbt_project/tests/assert_one_current_season_per_league.sql
+   - .claude/task/escalations.log
+-  - .claude/active_work.md
+-  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+-  - dbt_project/tests/assert_one_current_season_per_league.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/docs/metric_columns.md
  
  impact_map: >
--  writers: NONE. No dbt model, no ingestion loader and no export script is in scope.
--    `grep -c "dbt_project/models" scope_paths` = 0. The warehouse is untouched, so there is no
--    deploy ordering against the 04:00 nightly and no shared-warehouse migration.
--  downstream: the EMITTED site only. `site_v2/src/pages/*/*/index.astro` adds a route; nothing
--    imports a page. `system.css` is imported globally by `layouts/Layout.astro`, so a CSS change
--    reaches every page — the addition is a NEW class selector (`.gh a` heading-link affordance),
--    additive, and overrides nothing existing. `strings.ts` gains two keys per locale; every
--    existing key is untouched. `indexability.mjs` has four readers (astro.config.mjs,
--    Layout.astro, robots.txt.ts, audit-seo.mjs) and only `STUB_PAGES` changes, which is read by
--    the audit alone.
--  layer_rules: `check_layer_contract.py` governs dbt layers and is not engaged (no models).
--    Consumption layer: select and filter served values, never derive facts. The shell derives
--    nothing. Its source is a mart per `content_architecture.md` §2 rule 2 ("one block = one
--    mart") — `competition_index.json`, from `mart_competition_index`, the same payload the
--    competitions index page reads. ⚠ Route enumeration only: this shell has no blocks, and #47
--    binds the hub's CONTENT to `competitions/{league_code}/{season}.json` per
--    `site_architecture.md` §5.
--  deploy_order: none. Frontend-only; `deploy:site-v2` is manual-only and unaffected.
--  blast_radius: one newly emitted page per competition per locale, every one `noindex` while
--    `INDEXABLE === false`, plus one changed element on the home page in 3 locales. No number on
--    any page changes.
--    ⚠ The count is a FORMULA, never a constant —
--    `count(competition_index.json rows) x count(locales)`. Today that is 48 x 3 = 144
--    (`python -c "import json;print(len(json.load(open('site_v2/src/data/competition_index.json'))['competitions']))"`),
--    but the registry grows: a competition added to `docs/competition_registry.yml` must produce
--    its page with NO code change, the frontend counterpart of the repo's no-new-model rule. The
--    route therefore iterates the served map and never a literal list, and the spec's
--    `page_count_driver` states the formula.
-+  writers: no ingestion loader changes; no staging or base model touched.
-+  downstream: **`mart_leaderboards` IS A LEAF.** Pasted, not asserted —
-+  `dbt ls --select mart_leaderboards+ --resource-type model` returns exactly one line:
-+      football_data_pipeline.5_marts.shared.mart_leaderboards
-+  and the same selector without the resource filter returns only the model plus its own schema
-+  tests (not_null / unique / relationships / expression_is_true). Nothing reads it but the export.
-+  The change is ADDITIVE — one boolean appended after the existing select list — so no consumer's
-+  column set moves and no existing test's expression changes.
-+  consumers: `scripts/export_site_data.py` reads this mart directly. It does NOT read the new
-+  column yet; that is MR B. So this MR is inert at the frontend by construction.
-+  ⚠ `_LEADERBOARD_METRICS` / `_LB_KEEP` in the export serve the SEPARATE per-league leaderboards
-+  payload and are untouched here (their untested state is #99's, not this task's).
-+  layer_rules: `check_layer_contract.py` — a mart may serve a decided fact, and deciding WHICH
-+  season a surface shows is exactly that. The alternative, filtering by season in the export, is
-+  the window selection `analytics-engineer-reviewer` FAILed twice under GAP-32 and that #846
-+  settled by serving `is_featured_season` as a tested boolean on `mart_player_profile`.
-+  deploy_order: the column exists in prod only after merge + the 04:00 `fdp-nightly`. Nothing
-+  breaks meanwhile: no consumer reads it. MR B is gated on that rebuild.
-+  blast_radius: one added boolean column on a VIEW; two added singular tests. No existing row,
-+  count, rank or metric changes — verified by running the compiled model against prod and comparing
-+  its row count to the live table.
+-  writers: no ingestion loader changes; no staging or base model touched.
+-  downstream: **`mart_leaderboards` IS A LEAF.** Pasted, not asserted —
+-  `dbt ls --select mart_leaderboards+ --resource-type model` returns exactly one line:
+-      football_data_pipeline.5_marts.shared.mart_leaderboards
+-  and the same selector without the resource filter returns only the model plus its own schema
+-  tests (not_null / unique / relationships / expression_is_true). Nothing reads it but the export.
+-  The change is ADDITIVE — one boolean appended after the existing select list — so no consumer's
+-  column set moves and no existing test's expression changes.
+-  consumers: `scripts/export_site_data.py` reads this mart directly. It does NOT read the new
+-  column yet; that is MR B. So this MR is inert at the frontend by construction.
+-  ⚠ `_LEADERBOARD_METRICS` / `_LB_KEEP` in the export serve the SEPARATE per-league leaderboards
+-  payload and are untouched here (their untested state is #99's, not this task's).
+-  layer_rules: `check_layer_contract.py` — a mart may serve a decided fact, and deciding WHICH
+-  season a surface shows is exactly that. The alternative, filtering by season in the export, is
+-  the window selection `analytics-engineer-reviewer` FAILed twice under GAP-32 and that #846
+-  settled by serving `is_featured_season` as a tested boolean on `mart_player_profile`.
+-  deploy_order: the column exists in prod only after merge + the 04:00 `fdp-nightly`. Nothing
+-  breaks meanwhile: no consumer reads it. MR B is gated on that rebuild.
+-  blast_radius: one added boolean column on a VIEW; two added singular tests. No existing row,
+-  count, rank or metric changes — verified by running the compiled model against prod and comparing
+-  its row count to the live table.
++  writers: no ingestion, staging or base model touched. The change is inside one intermediate model.
++  downstream: `int_team_season__deserved_vs_actual` is NOT a leaf. Its consumers, found by grep for
++  `deserved_points`/`deserved_rank` across models, scripts and the site:
++      dbt_project/models/5_marts/shared/mart_team_profile.sql
++      scripts/export_site_data.py            (deserved_scatter_index, :208)
++      site_v2/src/components/team/DeservedHero.astro
++      site_v2/src/lib/types.ts
++  None of them is EDITED here, and none needs to be: the column keeps its name, type and null
++  semantics, and only its value moves — by at most the amount that made it illegal.
++  ⛔ **THE ONE CONSUMER THAT CARES IS THE HERO'S TREND LINE, AND MY FIRST ASSESSMENT OF IT WAS
++  WRONG.** `DeservedHero.astro:96-110` draws a straight segment between the two extreme-`sotd` dots'
++  served `deserved` values, which are colinear in `sotd` only while nothing is capped. I wrote that
++  "the component already tolerates a dot off the line (it plots dots and the trend independently)".
++  The DOTS are independent; the SEGMENT ENDPOINTS are not — they ARE served `deserved` values. And
++  the cap binds precisely at the extremes, because the capped team is by construction the one with
++  the most extreme signal (LP's capped row carries `sotd` 6.5, its league's highest). So for a capped
++  league-season the line is drawn through a capped endpoint and is no longer the model's line.
++  Half right, and the wrong half is the one that matters. Found only by sweeping inverted while
++  stopping at the round cap; no reviewer reached it. Filed as its own issue — see
++  `decisions_reserved` — because `site_v2/**` is outside these `scope_paths` and the fix belongs with
++  the rounding work, not here.
++  layer_rules: `check_layer_contract.py`. The bound is a property of the METRIC — points per match
++  cannot exceed 3 — so it belongs where the metric is computed, not in the mart or the export. The
++  consumption layer may not derive; capping downstream would be exactly the forbidden derivation.
++  deploy_order: none. The model rebuilds on the next `data:build:main` or nightly; no consumer
++  changes, so nothing has to land in an order.
++  blast_radius: one league-season's values move by <= 0.026 points TOTAL today (LP 2026, one team).
++  Every other one of the 1,125 fitted rows is byte-identical — asserted by running the model both
++  ways against prod and diffing, not by reading the SQL.
  
  acceptance_criteria:
--  - The navigation rule is written in `docs/site_architecture.md` and names all three families
--    (chrome, content links, controls) and the four content-link shapes (row, heading, chip,
--    prose), and states in the CPO's own terms that it is provisional. Shown by quoting the
--    committed section.
--  - The rule states the row half explicitly: a row links to its subject and nothing inside a row
--    is separately clickable. Shown by quoting it.
--  - On the built home page, the competition heading in Next matches is an `<a>` whose href is
--    the competition's own URL, in all three locales. Shown from `dist/` html, not from source.
--  - The heading link's affordance (a chevron) is present AT REST, not only on hover. Shown from
--    the emitted markup plus the CSS rule that renders it.
--  - A match row in Next matches remains a single link with no nested anchor inside it. Shown by
--    counting `<a` inside one emitted `.fxrow`.
--  - Every competition URL the home page links to is emitted by the build. Shown by a green
--    `audit-seo.mjs`, whose check 8 fails the build on a link resolving to no emitted page.
--  - The route is driven by the MART payload (`competition_index.json`, from
--    `mart_competition_index`), not by a literal list and not by the registry map, so a competition
--    added to the registry flows registry → mart → page with no code change. Shown by the spec's
--    `page_count_driver` being a formula, by the page importing `competition_index.json`, and by
--    `grep` finding no league_code or slug literal in the page source.
--  - The three locales' competition pages emit non-identical `<title>` values. Shown by a green
--    audit (check 6) plus the three emitted titles for one competition.
--  - `STUB_PAGES` lists the competition page, and the audit still refuses `INDEXABLE === true`
--    while it is non-empty. Shown by the committed array and the audit's own assertion.
-+  - `is_current_season` is true for exactly one `season_api_year` per `league_code`, measured on
-+    LIVE PROD DATA, not asserted from the SQL.
-+  - It is true for EVERY row of that season, not one row of it — the flag answers a question about
-+    the competition, so a per-row `row_number()` would be wrong. Shown by comparing the flagged row
-+    count to the season's total row count for a sample league.
-+  - Adding the column changes NOTHING else: the model's row count against prod is identical with
-+    and without it. Shown by running both.
-+  - `assert_one_current_season_per_league` fails when the flag is made per-player instead of per
-+    league-season. Watched RED under that mutation.
-+  - `assert_mart_leaderboards_every_home_board_has_a_leader` fails when an elite league loses its
-+    rank-1 on one of the four boards. Watched RED under that mutation.
-+  - Both tests pass on live prod data unmutated — so each guard is not merely capable of failing,
-+    it is green on the real warehouse.
-+  - `dbt parse` exits 0 and SQLFluff passes under the templater CI uses, with the exit code read
-+    BARE rather than through a pipe.
+-  - `is_current_season` is true for exactly one `season_api_year` per `league_code`, measured on
+-    LIVE PROD DATA, not asserted from the SQL.
+-  - It is true for EVERY row of that season, not one row of it — the flag answers a question about
+-    the competition, so a per-row `row_number()` would be wrong. Shown by comparing the flagged row
+-    count to the season's total row count for a sample league.
+-  - Adding the column changes NOTHING else: the model's row count against prod is identical with
+-    and without it. Shown by running both.
+-  - `assert_one_current_season_per_league` fails when the flag is made per-player instead of per
+-    league-season. Watched RED under that mutation.
+-  - `assert_mart_leaderboards_every_home_board_has_a_leader` fails when an elite league loses its
+-    rank-1 on one of the four boards. Watched RED under that mutation.
+-  - Both tests pass on live prod data unmutated — so each guard is not merely capable of failing,
+-    it is green on the real warehouse.
+-  - `dbt parse` exits 0 and SQLFluff passes under the templater CI uses, with the exit code read
+-    BARE rather than through a pipe.
++  - The compiled model run against LIVE PROD emits zero rows outside `[0, 3 * season_games_played]`,
++    where it emits exactly one today.
++  - Every other fitted row is UNCHANGED. Shown by a full row-by-row comparison of old against new
++    over all 1,125 fitted rows, not by a row count.
++  - `deserved_rank` and `deserved_points_gap` stay consistent with the capped `deserved_points`:
++    the rank is computed FROM the capped value so a consumer sorting by the value cannot disagree
++    with the served rank, and the gap arithmetic contract still holds exactly.
++  - `deserved_points_was_capped` is true for exactly the rows the cap actually moved, and false
++    (not null) for every other fitted row. Measured on prod.
++  - `int_team_season_deserved_points_in_legal_range` passes on prod, and STILL FAILS when the cap
++    is removed — so it pins that the cap is wired in, having lost the ability to discover the
++    condition itself. Watched RED under that mutation.
++  - The new warn-severity test reports the capped row rather than erroring, so a build is not
++    skipped by it. Shown by the WARN line in the run output.
++  - `dbt parse` exits 0 and SQLFluff passes under the templater CI uses, exit codes read BARE.
++  - `check_description_hygiene.py` passes — the edited `deserved_points` doc block stays under
++    BigQuery's 1,024-character column limit, measured as RENDERED text.
  
  decisions_taken: >
--  ⭐ **THE RECORD IS `.claude/task/escalations.log`, entry `2026-09-04 —
--  feat/navigation-rules-competition-shell — THE NAVIGATION RULE`.** Four rulings are there with the
--  CPO's words verbatim and the consequence each one had on what was built:
--  · **Ruling 1** — the navigation rule is PROVISIONAL ("the rules might be subject to change. We
--    have not built every page yet"), and the header+row half is confirmed for Next matches and for
--    any future header+row structure. Hence §3, not §2 where locked constraints live.
--  · **Ruling 2** — a destination that does not exist yet is BUILT, not routed around. ⚠ Already
--    written in `docs/wireframes/10_home.md` §0, which records that he had corrected me on it twice
--    before; raising it a third time was the defect, not the question.
--  · **Ruling 3** — the split. This branch is the rule + Next matches + the scaffold; #40 and #41
--    need their own plan.
--  · **Ruling 4** — deviating from dbt's structure is fine where the repo explains why, and
--    otherwise stay close to dbt. A STANDING answer, not a one-branch one.
--  ⛔ An earlier version of this block asserted those quotes here with NO log entry behind them, and
--  `scope-auditor` failed round 1 for exactly that: unverifiable prose standing in for the record
--  §11 requires. The quotes were real; the record was missing. Written now, and cited from here
--  rather than restated.
--
--  THRESHOLD DECLARATIONS: no new mechanism — `STUB_PAGES` already exists and this is its
--  documented purpose ("Adding an entry here is how a future scaffold ships honestly"). No new
--  dependency. No recurring cost: the build emits 144 more static pages, which is build-time only;
--  nothing is scheduled, queried or billed. No guard is loosened — `STUB_PAGES` becoming non-empty
--  TIGHTENS the go-live gate, since the audit refuses `INDEXABLE === true` while it holds entries.
-+  Serving the season pick rather than filtering downstream follows #846's precedent
-+  (`mart_player_profile.is_featured_season`), which settled this exact shape after the export-side
-+  version was FAILed twice. Not a new mechanism; the second instance of a documented one.
-+  ⭐ **`rank()` not `row_number()`, and that is a correctness choice, not a style one.** The flag
-+  marks a SEASON, so every row of a league's latest season must carry it. `row_number()` would flag
-+  exactly one arbitrary row, and a consumer filtering on it would then get one player per league
-+  across ALL boards rather than one per league per board. Recorded because the two functions look
-+  interchangeable here and are not.
-+  ⭐ **Latest by `season_api_year` alone — it does NOT ask whether the season has started.** #101's
-+  in-season gate (">= 3 finished games") is a GROUP-level question belonging to the rotation MR;
-+  conflating them would bake a rotation rule into a column that answers a simpler question. The
-+  column's own description says so, so a reader cannot mistake it for an in-season test.
-+  THRESHOLD DECLARATIONS: no new mechanism, no new dependency, no recurring cost (one boolean on an
-+  existing view; the nightly's scan does not measurably change). No guard is loosened — two ADDED.
+-  Serving the season pick rather than filtering downstream follows #846's precedent
+-  (`mart_player_profile.is_featured_season`), which settled this exact shape after the export-side
+-  version was FAILed twice. Not a new mechanism; the second instance of a documented one.
+-  ⭐ **`rank()` not `row_number()`, and that is a correctness choice, not a style one.** The flag
+-  marks a SEASON, so every row of a league's latest season must carry it. `row_number()` would flag
+-  exactly one arbitrary row, and a consumer filtering on it would then get one player per league
+-  across ALL boards rather than one per league per board. Recorded because the two functions look
+-  interchangeable here and are not.
+-  ⭐ **Latest by `season_api_year` alone — it does NOT ask whether the season has started.** #101's
+-  in-season gate (">= 3 finished games") is a GROUP-level question belonging to the rotation MR;
+-  conflating them would bake a rotation rule into a column that answers a simpler question. The
+-  column's own description says so, so a reader cannot mistake it for an in-season test.
+-  THRESHOLD DECLARATIONS: no new mechanism, no new dependency, no recurring cost (one boolean on an
+-  existing view; the nightly's scan does not measurably change). No guard is loosened — two ADDED.
++  ⭐ **CAP THE RATE, NOT THE TOTAL.** `deserved_points <= 3 * games` is exactly
++  `fitted_points_per_match <= 3`, and stating it on the rate makes the bound scale-free — it does
++  not move when teams in one league-season have played different numbers of matches, which is
++  already the awkward part of this model's mid-season arithmetic. The two are equivalent where games
++  are equal; the rate form is the one that stays correct where they are not.
++  ⭐ **RANK ON THE CAPPED VALUE.** If two teams ever both hit the ceiling they tie, and `rank()`
++  handles that. Ranking on the pre-cap fit would preserve a strict ordering, but then
++  `deserved_rank` disagrees with sorting by the served `deserved_points` — two served columns
++  contradicting each other, which is worse than an honest tie. Nothing hits this today; it is a rule
++  for when something does.
++  ⛔ **THE STORED VALUE STAYS CONTINUOUS HERE — but the reason I first gave for that was WRONG and is
++  struck.** This said "the integer domain is a display property, and stays one", on the grounds that
++  `DeservedHero.astro:79` already renders `integer(...)`. The CPO overruled it: *"Rounding is
++  business logic."* The page rounding a metric is the consumption layer deriving, which this repo
++  forbids, so pointing at it was pointing at a defect and calling it a design.
++  What survives is only the MEASUREMENT, and it argues about WHICH column, not about where rounding
++  belongs: rounding the single served column would take rows tied on `deserved_points` from 75 of
++  1,125 (6.7%) to 252 of 1,125 (22.4%), making a fifth of `deserved_rank` an artifact of rounding
++  rather than of the fit, and would scatter the hero's dots off the trend line they are colinear
++  with. So `deserved_points` keeps the continuous fit that the rank and the line need, and the
++  warehouse owes an integer ALONGSIDE it — which is #108's, not this MR's. See
++  `decisions_reserved`.
++  ⛔ **The cap does NOT replace the `>= 3 finished games` gate**, and raising that threshold was
++  rejected: it picks a new magic constant that will break again the first time a league carries an
++  outlier at 6 or 8 games, where the cap needs no constant and is self-correcting as spread grows.
++  THRESHOLD DECLARATIONS: no new mechanism, no new dependency, no recurring cost (two expressions in
++  an existing table model). TWO guards are ADDED — `..._cap_did_not_bind` at warn and
++  `..._capped_flag_matches_value` at error. ⛔ This line said "One guard is ADDED" and was WRONG;
++  `scope-auditor` caught the miscount at round 2 and judged it concealed nothing, which it did not,
++  but an unmeasured self-measurement in a contract that otherwise counts everything is exactly the
++  habit worth not having. `int_team_season_deserved_points_in_legal_range` is
++  NOT loosened — its predicate is unchanged and it stays severity=error; what changes is that the
++  model now satisfies it by construction, which is why the new warn test exists to carry the
++  detection the old test can no longer do.
  
  decisions_reserved:
--  - Whether the navigation rules graduate from provisional to locked, and when. The CPO said
--    explicitly we do not know yet because not every page is built. Never decide this here.
--  - Whether the competitions index page's 48 inert rows get wired to the new shell. It is the
--    same rule applied to a second surface and it is now unblocked, but the CPO scoped this task
--    to the rule plus Next matches. Raise it; do not fold it in.
--  - The competition page's real content, tabs and blocks — #47. This task ships a shell with no
--    content blocks and must not design one.
--  - Whether a stub for EVERY competition in the registry is right, versus only those with enough
--    data. §2's locked "no thin pages" constraint and #845's minimum-data gate both bear on it; a
--    stub is a thin page by definition, which is why STUB_PAGES blocks go-live. ⚠ Whatever is
--    decided must stay a RULE over the served registry, never a hand-kept list — the CPO,
--    2026-09-04: "We have 48 competitions NOW. We will add more, so we should [have] something
--    that is prepared for it anytime." Flagged, not decided.
-+  - **#101's group rotation and its in-season gate.** Decided, unwired, and deliberately NOT what
-+    this column models.
-+  - **Whether "latest season with data" is the right notion of current for the rotation.**
-+    ⛔ An earlier version of this item said a league whose latest season has not kicked off "is
-+    therefore current, by construction, and its boards are empty". **That was wrong**, and
-+    `analytics-engineer-reviewer` traced why. The chain, named precisely because the first version
-+    of this correction cited the wrong link in it: this mart reads `int_player_season__metrics`
-+    (`mart_leaderboards.sql:61`), which is a pure re-aggregation adding no filter of its own; the
-+    finished-match rule lives one step further up in `int_player_club_season__metrics`
-+    (`status_short in ('FT','AET','PEN')`, inner-joined). So the property holds TRANSITIVELY: a
-+    season with no completed football produces no rows and cannot reach this mart at all. The flag
-+    therefore falls back to the last season that HAS data — real leaders from the previous season,
-+    not an empty board. The runtime behaviour is safe; my description of it was not, and my first
-+    correction of it pointed at a model this mart does not directly read.
-+    What genuinely remains open for the rotation MR: showing last season's leaders under a heading
-+    that reads "Season totals to date" is misleading once a new season is under way but has no
-+    finished matches yet. #101's in-season gate (">= 3 finished games") is the mechanism that would
-+    settle it. Flagged, not decided.
-+  - **DE/FI for the four board labels** (written and parked in MR B, needing the CPO's
-+    confirmation) — `10_home.md` §10 records that they are needed before go-live, not before build.
+-  - **#101's group rotation and its in-season gate.** Decided, unwired, and deliberately NOT what
+-    this column models.
+-  - **Whether "latest season with data" is the right notion of current for the rotation.**
+-    ⛔ An earlier version of this item said a league whose latest season has not kicked off "is
+-    therefore current, by construction, and its boards are empty". **That was wrong**, and
+-    `analytics-engineer-reviewer` traced why. The chain, named precisely because the first version
+-    of this correction cited the wrong link in it: this mart reads `int_player_season__metrics`
+-    (`mart_leaderboards.sql:61`), which is a pure re-aggregation adding no filter of its own; the
+-    finished-match rule lives one step further up in `int_player_club_season__metrics`
+-    (`status_short in ('FT','AET','PEN')`, inner-joined). So the property holds TRANSITIVELY: a
+-    season with no completed football produces no rows and cannot reach this mart at all. The flag
+-    therefore falls back to the last season that HAS data — real leaders from the previous season,
+-    not an empty board. The runtime behaviour is safe; my description of it was not, and my first
+-    correction of it pointed at a model this mart does not directly read.
+-    What genuinely remains open for the rotation MR: showing last season's leaders under a heading
+-    that reads "Season totals to date" is misleading once a new season is under way but has no
+-    finished matches yet. #101's in-season gate (">= 3 finished games") is the mechanism that would
+-    settle it. Flagged, not decided.
+-  - **DE/FI for the four board labels** (written and parked in MR B, needing the CPO's
+-    confirmation) — `10_home.md` §10 records that they are needed before go-live, not before build.
++  - **The mid-season rendering questions.** Memory records two open CPO decisions on this read — how
++    to render the fitted line mid-season, and from which matchday to show it at all. This touches
++    NEITHER. It is a correctness bound, not a decision about when the read is worth showing, and it
++    is deliberately built so that raising a matchday threshold later is still fully open.
++  - **Whether a capped read should be suppressed at the page.** `deserved_points_was_capped` is
++    emitted so that question CAN be answered later; it is not answered here, and no consumer reads
++    it.
++  - ⛔ **ROUNDING BELONGS IN THE WAREHOUSE, AND THE FRONTEND IS DOING IT — GitLab #108.**
++    An earlier `decisions_taken` in this contract asserted the opposite: *"the integer domain is a
++    display property, and stays one"*, on the grounds that `DeservedHero.astro:79` already renders
++    `integer(...)`. **The CPO overruled that**: *"Rounding is business logic."* He is right, and the
++    rule was already written — the consumption layer may select, filter and order, never derive. Two
++    blinded reviewers passed my version, so this was a wrong decision that survived review.
++    A sweep of `site_v2/src` found **three** places deriving a number the reader sees: the rounding
++    here, `bars.ts`'s `displayRank` computing the direction-aware rank printed as "3rd of 18", and
++    `TeamSquad.astro:58` defining "played" as `appearances >= 1` and printing the count. Two-sided:
++    `barWidth`, `stackShares`, `rankFill` and `format.ts`'s percent conversion were checked and
++    CLEARED — every call site traced, none produces a printed number.
++    ⚠ Deliberately NOT fixed here. Serving the rounded integer changes what reaches the frontend, so
++    it touches the mart, the export and `DeservedHero` — including the trend-line defect above. This
++    MR's cap is correct either way and was already at the round cap. #108 carries it, with the
++    ordering, and with the warning not to move any of it into `scripts/export_site_data.py`, which is
++    consumption too.
++  - **The freshness guard, and the nightly failing ~1 night in 3.** `assert_fct_fixture_no_stale_live`
++    uses a 3-hour window against a once-daily ingest; its sibling `assert_fct_fixture_no_stale_ns`
++    was already given a 30-hour cadence-aware window and says why in its own comment. Diagnosed in
++    the same session, deliberately NOT in this MR — it widens a guard and deserves its own contract.
++  - **The handover misattributes how `is_current_season` reached prod** (it says the nightly; it was
++    `data:build:main` on the !153 merge). Left for the next handover MR rather than smuggled in here.
  
  done_when:
--  - `python scripts/check_copy_gate.py` passes (no em dashes; no non-EN value byte-identical
--    to EN) with the two new SEO keys present in all three locales.
--  - `node site_v2/scripts/check-page-specs.mjs` passes: the new spec parses, its `stub: true`
--    waives the blocks requirement, and every i18n key it names exists in the EN dict.
--  - `npm run build` in `site_v2` succeeds after `git clean -fX site_v2/src/data`, and
--    `audit-seo.mjs` reports zero issues — specifically no "dead internal link" (check 8) and no
--    byte-identical title across locales (check 6).
--  - `npm test` in `site_v2` passes.
--  - The `validate-local` skill passes (governance, UI, secrets, python).
--  - Browser pane at desktop and 375px: the accessibility tree shows the heading as a link with
--    its chevron, and one `.fxrow` containing exactly one anchor.
--
--amendments: >
--  2026-09-04 — `site_v2/src/data/competition_index.json` and `.gitignore` ADDED to scope_paths.
--  Authority: mine, on a mechanical dependency, not a design decision. This branch was blocked
--  because two competitions rendered byte-identical titles; `!150` fixed that in the warehouse and
--  is merged, and prod rebuilt (`data:build:main`, verified against `mart_competition_index` rather
--  than trusted from the green job). The committed payload still holds the pre-fix names, so the
--  branch cannot go green until it is re-exported — the file is a build INPUT this task must
--  refresh, not a surface it redesigns. `.gitignore` rides along only if the tracked-file allowlist
--  moves with it. No name, no design and no page behaviour is decided here; the export is rerun
--  verbatim per `site_v2/src/data/README.md` and never hand-edited.
--
--  2026-09-04 — `site_v2/scripts/audit-seo.mjs` and its test ADDED to scope_paths. Authority: mine,
--  on a defect this task EXPOSED rather than caused. `audit-seo.mjs:438` picks a page's spec with
--  `specs.find((s) => s.match.test(p))` — the FIRST match, with no specificity rule — and
--  `specRouteRegex` turns every `[param]` segment into `[^/]+`. So `[lang]/[competition]/index.astro`
--  matches `/en/competitions/` and the competitions INDEX gets judged against the competition HUB's
--  spec, demanding `SportsOrganization` of a page that correctly emits `ItemList`. Astro itself
--  routes correctly; only the audit is ambiguous.
--  ⚠ This is not specific to my route: ANY top-level dynamic route collides with any sibling
--  literal one, so the fix is a specificity rule (most literal segments wins), not an exemption for
--  this page. Reported by the build, three violations, one per locale.
--  ⚠ **Adds `platform-reviewer` to the required reviewer set** (`review_routing.json` maps
--  `site_v2/scripts/**` to it), which is a consequence to declare rather than discover at commit.
--
--  2026-09-04 — `.claude/task/escalations.log` ADDED to scope_paths, on `scope-auditor`'s round-1
--  FAIL. Authority: `docs/working_agreement.md` §11, which the reviewer quoted — *"Every escalation
--  is appended to `.claude/task/escalations.log` (committed with the branch)"*. `decisions_taken`
--  cited three CPO chat quotes that appear nowhere in the log, so a reviewer had no way to check
--  them and the working agreement's own record was simply missing. The rulings are real; the record
--  was not written.
--  ⚠ **This is NOT the same fix as the sibling branch's.** There, the principles I was citing him
--  for were ALREADY documented (`layering.md`, the seed docs, #55), so the answer was to cite those
--  and stop invoking him. Here the navigation standard is genuinely new — nothing in the repo
--  states it — so the answer is the opposite: write the ruling into the log where §11 puts it.
--  Distinguishing the two cases is the whole lesson: "cite the record" and "create the record" are
--  different remedies for the same symptom.
--
--  2026-09-04 — `.claude/task/rendered_page_evidence.md` ADDED to scope_paths, on
--  `bi-analyst-reviewer`'s round-1 FAIL. Authority: mine, and the finding was plainly right. The
--  file on disk documented a DIFFERENT branch (`chore/roll-forward-sample`, fixture-page metric
--  labels) and said nothing about this diff — which its brief treats as equivalent to the artifact
--  being absent, and absence on a rendering-affecting `site_v2/src/**` change is itself a FAIL.
--  ⛔ It also caught that this contract's own `done_when` demanded a check "at desktop and 375px"
--  and I had only ever looked at desktop. Doing it found a REAL defect the desktop pass could not:
--  the heading link measured **100x21** at 375px, under the 24x24 CSS-px minimum target size and a
--  third the height of the 81px match row beside it. Fixed in `system.css` with a padding /
--  negative-margin pair (33px hit area, text position unchanged, verified by screenshot).
--  ⭐ The mobile check was in `done_when` from the start. Skipping it and writing the evidence file
--  anyway would have shipped a real accessibility defect behind a green build.
--
--  2026-09-04 — `.claude/active_work.md` ADDED to scope_paths, AFTER the work was committed
--  (`af55c38`) and `!151` opened. Authority: mine, and it is bookkeeping, not scope. The handover
--  hook requires the file be brought current before the session ends, and the contract gate denies
--  editing any path not listed — so it has to be in scope to write the handover at all. No code,
--  no page and no decision is touched by this entry; it exists so the edit is authorised rather
--  than silently made.
-+  - `.venv/Scripts/dbt.exe parse` exits 0.
-+  - SQLFluff passes under the dbt templater from `dbt_project/`, exit code read bare.
-+  - The compiled model runs against prod read-only; row count matches the live table.
-+  - Both new tests measured on prod: green unmutated, RED under their named mutation.
-+  - `python -m pytest tests/ -q` passes as a regression check (nothing here touches Python).
+   - `.venv/Scripts/dbt.exe parse` exits 0.
+   - SQLFluff passes under the dbt templater from `dbt_project/`, exit code read bare.
+-  - The compiled model runs against prod read-only; row count matches the live table.
+-  - Both new tests measured on prod: green unmutated, RED under their named mutation.
++  - The compiled model runs against prod read-only; old-vs-new compared row by row.
++  - The legal-range test measured on prod: green with the cap, RED without it.
++  - The new warn test measured on prod: reports the LP row, does not error.
+   - `python -m pytest tests/ -q` passes as a regression check (nothing here touches Python).
  
--  2026-09-04 — `platform-reviewer` round-1 FAIL accepted; no scope change needed (both files were
--  already in scope). It proved the tie branch of `specForPath` was untested — mutating `>` to `>=`
--  turned ZERO tests red — and that the code silently resolved an equal-specificity overlap by
--  walk order while its own comment called that "a spec-authoring bug, not something to paper
--  over". A gate wired into `astro build` must fail CLOSED. `specTie()` added, reported as a build
--  issue, with the reviewer's own counterexample (`[lang]/foo/[b]/[c]` vs `[lang]/[a]/bar/[c]`,
--  both specificity 1, both matching `/en/foo/bar/x/`) kept verbatim as the test fixture.
--  Mutation-tested: making `specTie` always return `[]` turns exactly that one test red.
-+amendments: (none)
+-amendments: (none)
++amendments:
++  - **2026-09-06, round 1 → 2: `dbt_project/seeds/metric_catalogue.csv` added to `scope_paths`.**
++    NOT a scope expansion — a correction of where the SAME text had to be written.
++    ⛔ **I hand-edited `dbt_project/models/docs/metric_columns.md`, which is a GENERATED FILE.** Its
++    own first line says `GENERATED FILE - DO NOT EDIT BY HAND`, and
++    `dbt_project/docs/engineering_standards.md:129-135` says the same as a project standard: a
++    metric's definition is generated from the seed's `description` by
++    `scripts/sync_metric_docs_blocks.py`. The seed row (`metric_catalogue.csv:78`,
++    `deserved_points`) still carried the pre-cap text, so the seed and the generated file disagreed
++    about what the metric means — the exact drift that rule exists to prevent — and the next run of
++    the sync script would have silently overwritten my edit with the stale description.
++    ⚠ **`.gitlab-ci.yml:411` runs `sync_metric_docs_blocks.py --check` in `validate:governance`**, so
++    this was a live CI break, not a hypothetical one.
++    ⭐ **Found by `tests/test_sync_metric_docs_blocks.py::test_the_real_seed_and_the_real_file_are_in_sync`
++    AND, independently, by `analytics-engineer-reviewer`.** Neither `dbt parse`, SQLFluff,
++    `check_description_hygiene.py`, `check_layer_contract.py` nor `check_registry_var_sync.py` saw
++    it: all five went green over a hand-edited generated file. No CPO authority is cited because
++    none is needed — the ruling is unchanged, only the file it had to be written into.
++    The fix: revert the generated file, put the sentence in the seed's `description`, regenerate.
++  - **2026-09-06, round 2 → 3: the sums-to-zero claim swept, not patched where it was named.**
++    `football-analytics-expert-reviewer` FAILed round 2 because the round-2 fix corrected *"the gap
++    sums to exactly 0 across a balanced season"* in the SQL comment and left the SAME claim standing
++    in `metric_catalogue.csv:79` (`deserved_points_gap`) — which is the copy that actually reaches
++    readers: `persist_docs` attaches it to the BigQuery column, `dbt docs generate --static`
++    publishes it, and `scripts/export_site_data.py`'s `fetch_glossary` ships it into `metrics.json`.
++    ⛔ That is `feedback_fix_the_class_not_the_instance` again, INSIDE the fix for a finding about a
++    claim left standing in a sibling artifact. So the tree was swept rather than the named line
++    patched. **Two-sided count: the claim had THREE live instances from TWO sources** — the SQL
++    comment (already fixed at round 2), `metric_catalogue.csv:79`, and
++    `int_team_season.yml:309`'s model description, **which the reviewer did NOT name**. The fourth
++    copy, `metric_columns.md:306`, is generated from the seed and follows. Fixing only what was named
++    would have shipped the third.
++    ⭐ No scope change: both files were already in `scope_paths`. Recorded because an amendment block
++    should carry what a later reader needs to know, not only what moved a path.
++  - **2026-09-06, round 3 → 4: `severity: warn` is now the CPO's ruling, not my analogy.**
++    ⛔ An earlier version of this entry kept `warn` and justified it in place, arguing §3 "carries the
++    same principle". `scope-auditor` FAILed that and quoted the rule it broke:
++    `docs/working_agreement.md:328` — *"when a new case does not clearly match a written rule, the
++    classification itself is a CPO decision. 'It's analogous to X' is not a license."* It was right;
++    :322 lists rule extension as CPO-only, and I had conceded the mismatch in writing before
++    closing it myself.
++    ⚠ The two reviewers had reached OPPOSITE conclusions — `analytics-engineer-reviewer` called warn
++    "functionally sound independent of which §3 row it maps to" — which is itself the argument that
++    the classification was not mine.
++    Escalated, and ruled: **"warn"**. Recorded in `escalations.log`, entry
++    `2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN`, with both options
++    and their consequences as he was given them.
++    ⚠ It rules on THIS test only. §3's table gains no fourth row, so the next computed-degradation
++    test faces the same undecided classification; that was offered and not taken up.
++  - **2026-09-06, round 3 → 4: the now-false formula sentence, and the `_was_capped` rename.**
++    `analytics-engineer-reviewer` FAILed round 3 on `int_team_season.yml:305-307`, which still stated
++    the PRE-CAP formula flatly — *"deserved_points is that rate times the team's games played"* —
++    three lines above the sentence the round-3 sweep had just patched, in the same paragraph. False
++    today for the LP 2026 row, where the served value is the capped rate times games.
++    ⛔ That is the same class the round-3 amendment describes fixing, recurring one sentence away,
++    inside the fix for it. The lesson, recorded because two sweeps have now missed by the same
++    method: **grepping the phrase a reviewer named finds instances of that phrase. It does not find
++    the other statements the change falsified.** Sweeping INVERTED — enumerate every claim about the
++    quantity and ask whether each is still true — found this one AND a second outside these
++    `scope_paths` (see `decisions_reserved`).
++    Bundled with it, on the same authority: `deserved_points_was_clamped` → `deserved_points_was_capped`,
++    so the column matches the word the CPO's own ruling used and the word all four prose copies use.
++    `football-analytics-expert-reviewer` raised the inconsistency without failing it.
++    ⛔ **AND THE RENAME BROKE BOTH CITATIONS TO THE ESCALATION LOG, which `scope-auditor` FAILed at
++    round 4.** I aligned this file's wording with a blanket find-and-replace of "clamp" → "cap",
++    which rewrote the branch name INSIDE the quoted entry titles — so the contract cited
++    `fix/deserved-points-capped-to-legal-range`, a string that appears nowhere in the log, in the one
++    artifact whose entire job is to make the CPO's authority independently checkable. A reader
++    following the citation could not have found the ruling.
++    Both are restored to the literal headers. The lesson, and it is the same one twice on this branch:
++    **a blanket replace edits quoted strings too.** The first instance corrupted meaning I had to
++    strike; this one corrupted a citation. `acceptance_evidence.md` had the branch name wrong from the
++    same sed and is fixed with it.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index dabc173..2544f28 100644
+index 2544f28..22bb02b 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -7953,3 +7953,57 @@ CONSEQUENCE: the five-layer contract stands. No staging model was created for th
- on the sibling branch; it is `ref()`d in base beside `country_name_overrides`, which is both the
- dbt-aligned choice and the existing repo precedent. Recorded here because it is a STANDING answer
- about how far this project's layer contract may drift, not a one-branch decision.
-+
+@@ -8007,3 +8007,89 @@ prevent a single one of the five. What caught all five was a reviewer with a gre
+ argument for the check over the note, and the reason the fix is mechanical (extend
+ `check_description_hygiene`'s decision-language rule to `.claude/task/*.md`) rather than another
+ sentence in a memory file.
 +
 +================================================================================
-+2026-09-04 — feat/40-leaderboards-current-season-and-board-dq — SPLITTING #40
++2026-09-06 — fix/deserved-points-clamped-to-legal-range — DESERVED POINTS, CAP NOT WITHHOLD
 +================================================================================
 +
-+⛔ WRITTEN LATE, ON `scope-auditor`'s FAIL — THE FIFTH INSTANCE OF THIS CLASS IN ONE SESSION. The
-+contract asserted "SPLIT ON THE CPO'S CALL" with no entry here to check it against. The ruling is
-+real; the record was missing, which is the same defect the navigation-rules branch was failed for
-+earlier today and the competition-name branch was failed for four times before that. The reviewer
-+found it by grepping this log for every plausible key and finding only the navigation entry, which
-+is a DIFFERENT decision on a DIFFERENT branch.
++CONTEXT. `int_team_season_deserved_points_in_legal_range` failed the prod build on the !153 merge
++pipeline (job 16331792666). One row: LP 2026, four games played, a fitted 12.0259 points against a
++ceiling of 3 x 4 = 12. It is severity=error inside `dbt build`, so ~620 downstream nodes were marked
++skipped and prod stopped refreshing below that model's subtree.
 +
-+--------------------------------------------------------------------------------
-+THE RULING — split #40 into a warehouse MR and a frontend MR
-+--------------------------------------------------------------------------------
-+CONTEXT I PUT TO HIM. #40 was planned and approved as one MR. Mid-build I found the block cannot
-+render until `is_current_season` exists in prod, which needs a merge plus the 04:00 `fdp-nightly`.
-+That meant most of the block's acceptance criteria — four boards render, no truncation at 375px,
-+stacking uniform per board, every player link resolves — could not be demonstrated at commit time.
++MY RECOMMENDATION, WHICH HE REJECTED. I put three options to him and recommended the second:
++  1. Raise the fittability gate above 3 finished games.
++  2. Withhold the whole league-season's fit whenever any team leaves [0, 3 * games].
++  3. Clamp the value into range.
++My argument for 2 was that an out-of-range value is evidence the least-squares LINE is wrong rather
++than that one team's number needs trimming, so clamping would hide a degenerate fit behind a
++legal-looking number and leave 17 quietly-wrong teammates on the same bad slope.
 +
-+I offered three options and recommended the first:
-+  1. Split: the warehouse MR first, verifiable now against prod; then export + component + scaffold,
-+     verified against real data after the nightly.
-+  2. One MR, rendering verified against a hand-made local fixture payload.
-+  3. One MR, committed with the criteria explicitly undemonstrated, verified the next day.
++HIS RULING, verbatim:
++  "Definitely no! We need to find a smarter way. In the example the deserved points would be 12 and
++   12.0259. The latter is the result of the estimation. We could use methods that count for
++   censoring of the dependent variable but to be pragmatic, we use OLS and cap mechanically at the
++   possible max or mins. Makes sense? Or not?"
 +
-+HIS ANSWER: **option 1, "Split: warehouse MR first"**, selected from those options.
++and, on the outcome's domain:
++  "Deserved points is allways a positive integer incl zero"
 +
-+CONSEQUENCE, as built: this branch carries only `is_current_season` on `mart_leaderboards` plus the
-+two DQ tests. The export shaper, `TopPlayers.astro`, the board CSS, the types, the three-locale copy
-+and the player scaffold are BUILT and PARKED in the stash `TEMP-40-mrB`; they are MR B, gated on
-+this merging and the nightly running. The contract was rewritten for the warehouse half on a clean
-+tree before any of it was staged.
++WHY HE WAS RIGHT, measured rather than conceded. Over the 1,125 fitted rows in prod: exactly ONE
++crosses a bound, by 0.0065 points per match (3.0065 against a ceiling of 3.0); none crosses the
++floor; the minimum fitted rate is 0.1944; and NO other row is within 0.1 of either bound. The
++degenerate-fit population my objection assumed does not exist in the data. A linear predictor on a
++bounded outcome leaving its support by a rounding-scale amount is an expected property, not a
++symptom — which is the framing his "censoring of the dependent variable" names exactly.
 +
-+⚠ WHAT HE DID NOT RULE, and must not be read into this: he chose a sequencing, not a design. Nothing
-+about #40's block design changed — four boards, one metric each, top 7, one player per league, a
-+board with no data not rendered. Those remain #40's, unaltered.
++WHAT THE INTEGER RULING SETTLES, AND WHAT IT DOES NOT. It settles the DISPLAY, and the display
++already honoured it before this MR: `DeservedHero.astro:79` renders `integer(s.deserved_points)`, so
++no reader has ever seen 12.0259. It does NOT move rounding into the warehouse, and that was put to
++him with the measurement: rounding the stored column takes rows tied on `deserved_points` from 75 of
++1,125 to 252 of 1,125, so more than a fifth of teams would share a `deserved_rank` as an artifact of
++rounding rather than of the fit, and it scatters the hero's dots off the trend line they are
++colinear with. He said "go ahead" on the split as stated — warehouse continuous and bounded, page
++integer.
 +
-+--------------------------------------------------------------------------------
-+THE PATTERN, recorded because writing it down has not yet stopped it
-+--------------------------------------------------------------------------------
-+Five instances in one session, every one caught by a reviewer and none by me:
-+  · four on `fix/competition-name-from-registry`, where the remedy was to CITE existing docs,
-+    because the principles I was crediting him with were already written down;
-+  · one on `feat/navigation-rules-competition-shell`, where the remedy was the opposite — CREATE
-+    the record, because the navigation standard was genuinely new;
-+  · this one, where the remedy is again to create the record.
-+⭐ The memory file `feedback_dont_attribute_repo_practice_to_cpo` has said "'you ruled' needs a
-+quote from escalations.log" since 2026-08-26. It was loaded at the start of this session. It did not
-+prevent a single one of the five. What caught all five was a reviewer with a grep — which is the
-+argument for the check over the note, and the reason the fix is mechanical (extend
-+`check_description_hygiene`'s decision-language rule to `.claude/task/*.md`) rather than another
-+sentence in a memory file.
-diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-index d0e9b2d..3abf8f2 100644
---- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-+++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-@@ -188,6 +188,18 @@ select
-     duels_won_player_pct,
-     dribbles_success_player_pct,
-     saves_player_pct,
--    finishing_efficiency_player_pct
-+    finishing_efficiency_player_pct,
-+    -- WHICH SEASON a consumer should show, served as a fact rather than chosen downstream.
-+    -- The Home block shows one league's current-season leader; without this the export would have
-+    -- to pick a season itself, which is the window-selection shape analytics-engineer-reviewer
-+    -- FAILed twice under GAP-32. Same answer #846 reached for mart_player_profile's
-+    -- is_featured_season: serve the pick, let consumption filter on it.
-+    -- Latest season per LEAGUE, not per player: the flag answers "is this the season the site is
-+    -- currently showing for this competition", so every row of a league agrees. ST06 puts
-+    -- calculations after simple targets, hence its position last.
-+    rank() over (
-+        partition by league_code
-+        order by season_api_year desc
-+    ) = 1 as is_current_season
- from ranked
- where board_rank <= 10
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 60bba65..d87929e 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1715,6 +1715,9 @@ models:
++⚠ WHAT HE DID NOT RULE. Nothing about WHEN this read should be shown. The two mid-season questions
++recorded in memory — how to render the fitted line mid-season, and from which matchday to show it at
++all — are untouched and remain open. Raising a matchday threshold later is still fully available;
++this MR deliberately does not spend it.
++
++================================================================================
++2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN
++================================================================================
++
++THE QUESTION, and why it reached him. `scope-auditor` FAILed round 3 because I chose
++`severity: warn` for the new test `int_team_season_deserved_points_cap_did_not_bind` after
++conceding, in writing, that the case matches none of `dbt_project/docs/engineering_standards.md`
++§3's three severity rows — and then closed the gap by analogy ("carries the same principle").
++`docs/working_agreement.md:328` forbids exactly that: "when a new case does not clearly match a
++written rule, the classification itself is a CPO decision. 'It's analogous to X' is not a license."
++:322 lists "Rule reinterpretation or extension" as CPO-only.
++
++⚠ THE TWO REVIEWERS DISAGREED, which is itself why it was his. `analytics-engineer-reviewer` called
++warn "functionally sound independent of which §3 row it maps to"; `scope-auditor` said the
++classification is not mine to make whichever answer is right.
++
++WHAT HE WAS TOLD. The test fires when the cap actually moved a value — today exactly one row, the
++LP 2026 team whose 12.0259 was shaved to 12. It exists because the older test
++`int_team_season_deserved_points_in_legal_range` can no longer fail once the model enforces the range
++itself, so capping would otherwise become invisible. The two options and their consequences:
++  · warn  — logged, build continues.
++  · error — stops the build and skips ~620 downstream models, which is precisely the failure that
++            stopped the prod warehouse on 2026-09-06 and that this MR exists to remove. It fires
++            TODAY, so error means a broken nightly the same night.
++Recommendation given: warn.
++
++HIS RULING, verbatim: "warn"
++
++⚠ WHAT THIS DOES NOT DO. It rules on THIS test. It does not add a fourth row to §3's table, so the
++next computed-degradation test faces the same undecided classification. Whether §3 should gain a row
++naming this class — a correct-but-notable computed condition, surfaced without blocking — was
++offered and not taken up, and remains open.
++
++ROUND CAP. He was told "Say 'warn' and I'll finish. Two smaller things I'll fold in without asking
++further," and answered "warn". That is the authority for `rounds_cap_override:` and for the two
++follow-on edits (the false formula sentence at int_team_season.yml:305-307, and the
++`_was_clamped` -> `_was_capped` rename). It is NOT authority for anything else; the DeservedHero
++trend-line defect found while stopping is filed as its own issue, not pulled into this MR.
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index a807060..31c0a58 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -303,10 +303,12 @@ models:
+       season_sk). DOMESTIC LEAGUES ONLY: a group-stage standing is not a comparable league rank.
  
-       RATE boards carry a qualification floor so a small sample cannot game a rate: 270 minutes, a
-       position scope, 10 shots on target for finishing.
+       Least squares fits points-per-match on shots_on_goal_difference_per_match within each league-season.
+-      deserved_points is that rate times the team's games played; deserved_points_gap is actual minus
+-      deserved, NEGATIVE meaning under-performing.
++      deserved_points is that rate, capped into the [0, 3] a match can yield, times the team's games
++      played; deserved_points_gap is actual minus deserved, NEGATIVE meaning under-performing.
++      deserved_points_was_capped says when the cap moved a row.
+ 
+-      The gap redistributes: it sums to zero across a balanced season. NULL unless every team in
++      The gap redistributes: it sums to zero across a balanced season where no deserved_points row
++      was capped — the cap breaks that identity by exactly the amount it shaves. NULL unless every team in
+       that league-season has full shots-on-target coverage, a league rank and three finished
+       games.
+     config:
+@@ -335,13 +337,50 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "deserved_points is null or (shots_on_goal_difference_per_match is not null and actual_rank is not null)"
+           name: int_team_season_deserved_points_requires_inputs
+-      # LEGAL-RANGE INVARIANT. A fitted value can leave the possible range when the fit is degenerate
+-      # (a tiny league, a signal with no spread, too few games). Asserting the invariant catches every
+-      # such cause at once, rather than guarding the one threshold that happened to be the trigger:
+-      # before the >= 3 games gate, two Liga MX rows one game into the season fell outside it.
++      # LEGAL-RANGE INVARIANT. ⚠ THIS TEST CAN NO LONGER DISCOVER THE CONDITION IT NAMES, and that is
++      # deliberate: since 2026-09-06 the model caps the fitted rate into [0, 3], so the invariant holds
++      # by construction. What it still pins is that the cap is WIRED IN — delete the cap and this goes
++      # red, which is the mutation the acceptance evidence watches. It is kept at severity=error for
++      # that reason and must not be deleted as redundant.
++      # Its history, because it explains why the cap exists: it fired twice on real data. Before the
++      # >= 3 games gate, two Liga MX rows one game into the season fell outside the range; then on
++      # 2026-09-06 an LP row four games in fitted 12.0259 against a ceiling of 12 and stopped the prod
++      # build. The DETECTION job now belongs to the warn-severity test below.
+       - dbt_utils.expression_is_true:
+           expression: "deserved_points is null or (deserved_points >= 0 and deserved_points <= 3 * season_games_played)"
+           name: int_team_season_deserved_points_in_legal_range
++      # THE DETECTOR, and the reason capping does not become invisible. A cap that shaves 0.0065 points
++      # per match off one row in 1,125 is an estimation artifact; a cap binding on many rows, or hard,
++      # would mean the fit itself had gone wrong — and after the change above, nothing else in the repo
++      # would notice. WARN, not error: this must stay visible without skipping the ~620 downstream
++      # nodes that a severity=error failure inside `dbt build` marks as skipped, which is exactly how
++      # the prod warehouse stopped refreshing on 2026-09-06.
++      #
++      # ⚠ IT READS THE VALUE, NOT THE FLAG, AND THAT IS THE WHOLE POINT. The first version asserted
++      # `not deserved_points_was_capped`, and hardwiring that column to FALSE silenced it with every
++      # test still green — a surviving mutation, measured. A capped row sits EXACTLY on its bound, so
++      # the value itself carries the evidence and no boolean can be trusted away. The flag is then
++      # pinned separately, below.
++      #
++      # ⚠ WHY `warn` IS THE RIGHT SEVERITY AND NOT A LOOSENING. A capped row is CORRECT behaviour —
++      # a bounded outcome met an unbounded estimator — so this is not an error condition and
++      # `severity: error` would fail the prod build on data the model handled properly. It is
++      # therefore a signal, and the closest of engineering_standards.md §3's three guideline rows is
++      # the third ("nice to have" coverage): surface it, do not block on it. Recorded because
++      # analytics-engineer-reviewer noted the case matches none of the three exactly, and a reader
++      # should see the reasoning rather than assume the table was ignored.
++      - dbt_utils.expression_is_true:
++          expression: "deserved_points is null or (deserved_points > 0 and deserved_points < 3 * season_games_played)"
++          name: int_team_season_deserved_points_cap_did_not_bind
++          severity: warn
++      # the flag must agree with the value it explains, in BOTH directions: true exactly when
++      # deserved_points sits on a bound. Without this, `deserved_points_was_capped` is an unpinned
++      # boolean that could go constantly false (hiding every cap) or constantly true (making the
++      # column meaningless) with nothing red. severity=error, like this model's other biconditional
++      # contracts — two columns of one model disagreeing is a defect, not a data condition.
++      - dbt_utils.expression_is_true:
++          expression: "deserved_points is null or (deserved_points_was_capped = (deserved_points = 0 or deserved_points = 3 * season_games_played))"
++          name: int_team_season_deserved_capped_flag_matches_value
+       # deserved_points_gap null/arithmetic contract: null exactly when not fittable, else exactly
+       # points_won_sum_season - deserved_points. Pins the SIGN CONVENTION, which is inverted relative
+       # to the sot_rank_gap this replaced (there, positive meant under-performing).
+@@ -396,6 +435,8 @@ models:
+         description: "{{ doc('deserved_points') }}"
+       - name: actual_table_is_single_ladder
+         description: "TRUE when the league-season's actual ranks form a 1..N permutation, i.e. one table rather than conferences (MLS) or a split year of two tournaments (Apertura/Clausura). Part of the fittability gate, and emitted so a consumer can say WHY a league-season carries no deserved read at all."
++      - name: deserved_points_was_capped
++        description: "TRUE when the mechanical cap moved this row, i.e. the least-squares fit put the team outside the [0, 3] points-per-match a match can actually yield and deserved_points was brought back to the bound. NULL, not FALSE, where the league-season is not fittable at all — 'was it capped' has no answer where there is no fit. Emitted for the same reason as actual_table_is_single_ladder: it is the only thing that explains why a served value sits exactly on a bound, and it is what the warn-severity detector reads."
+       - name: deserved_rank
+         description: "{{ doc('deserved_rank') }}"
+       - name: deserved_points_gap
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+index 3bd2a25..620b700 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+@@ -6,10 +6,14 @@
+ 
+   Method (CPO-locked 2026-07-22, escalations.log): deserved signal = shots_on_goal_difference_per_match
+   (SoT for - against per match). Within each league-season, fit ordinary least squares of
+-  points-per-match on that signal, then deserved_points = the fitted points-per-match * the team's
+-  own games played. deserved_points_gap = points_won_sum_season - deserved_points, so NEGATIVE = under-
++  points-per-match on that signal, then deserved_points = the fitted points-per-match, CAPPED INTO
++  [0, 3], * the team's own games played. The cap is mechanical (CPO 2026-09-06, escalations.log):
++  points per match is a bounded outcome and least squares is an unbounded predictor, so a fitted rate
++  can land fractionally outside a support it cannot actually leave. deserved_points_gap =
++  points_won_sum_season - deserved_points, so NEGATIVE = under-
+   performing (results lag the process) and POSITIVE = over-performing. deserved_rank = rank teams by
+-  deserved_points within their league-season (descending; 1 = best). TEAM only; no xG.
++  deserved_points within their league-season (descending; 1 = best), computed from the CAPPED value
++  so a consumer sorting by the served points cannot disagree with the served rank. TEAM only; no xG.
+ 
+   ⚠️ THE GAP SIGN IS INVERTED relative to the sot_rank_gap this replaces, where POSITIVE meant
+   under-performing. That column is deleted rather than kept, precisely so one page cannot carry two
+@@ -56,9 +60,17 @@
+ 
+   NOTE, because it surprises people: because the fit is least squares within the league-season, the
+   gap is a REDISTRIBUTION — one team's over-performance is another's under-performance. It sums to
+-  exactly 0 across a balanced (completed) league-season. Mid-season it sums to only approximately 0
+-  (measured: mean 3.9, max 9.6 points across a whole league) because each team's fitted rate is
+-  scaled by its own games played, which then differ.
++  exactly 0 across a balanced (completed) league-season WHERE NO ROW WAS CAPPED. Mid-season it sums
++  to only approximately 0 (measured: mean 3.9, max 9.6 points across a whole league) because each
++  team's fitted rate is scaled by its own games played, which then differ.
 +
-+      is_current_season marks the latest season a competition has, so a consumer showing one season
-+      filters on a served fact instead of choosing a season itself.
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -1764,6 +1767,16 @@ models:
-       - name: sort_value
-         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
-         tests: [not_null]
-+      - name: is_current_season
-+        description: >
-+          True on every row of a competition's latest season, false on earlier ones. It answers
-+          "is this the season the site currently shows for this competition", so a surface that
-+          displays one season filters on it rather than deciding which season to show.
-+
-+          Per LEAGUE, not per player, so all rows of a league's latest season agree. Latest by
-+          season_api_year alone; it does not ask whether that season has started or how many
-+          matches have been played.
-+        tests: [not_null]
-       - name: player_sk
-         description: "{{ doc('player_sk') }}"
-         tests:
-diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-new file mode 100644
-index 0000000..bd73cfc
---- /dev/null
-+++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-@@ -0,0 +1,76 @@
-+-- Every Home board must have a rank-1 player in every elite league's current season.
++  ⚠️ THE CAP BREAKS THAT IDENTITY, by exactly the amount it shaves, and nothing compensates. The
++  qualifier above is not decoration: a completed season could carry a capped row, and this comment
++  claimed an unconditional 0 until analytics-engineer-reviewer caught it. In practice the breakage is
++  far inside the mid-season approximation already accepted here — the one capped row in prod moves
++  its league's sum by 0.026 points against a mid-season spread measured in whole points, and no
++  COMPLETED season carries a capped row today. Stated rather than relied on, because "no completed
++  season carries one" is a fact about current data, not a property of the model.
+ 
+   Grain: (team_sk, season_sk).
+ #}
+@@ -187,19 +199,46 @@ fitted as (
+     from stats as s
+ ),
+ 
+-deserved as (
++-- the fitted rate, kept as its own step so the bound below can be stated ON THE RATE. The legality
++-- condition `deserved_points <= 3 * games` is exactly `rate <= 3`, and on the rate it is scale-free:
++-- it does not move when teams within one league-season have played different numbers of matches,
++-- which is already what makes this model's mid-season arithmetic awkward.
++rated as (
+     select
+         f.*,
+         case
+             when f.league_season_fittable
+-                then (
++                then
+                     (f.mean_points_per_match - f.slope * f.mean_sot_difference)
+                     + f.slope * f.shots_on_goal_difference_per_match
+-                ) * f.season_games_played
+-        end as deserved_points
++        end as fitted_points_per_match
+     from fitted as f
+ ),
+ 
++-- MECHANICAL CAP AT THE BOUNDS (CPO-ruled 2026-09-06, escalations.log). Points per match lives in
++-- [0, 3] by the rules of the competition, and ordinary least squares is an unbounded predictor, so
++-- it will occasionally put a team fractionally outside a support it cannot actually leave. Capping
++-- is the pragmatic treatment of that bounded outcome; the principled alternative is a model that
++-- accounts for the censoring, which is not worth its complexity here.
 +--
-+-- ⛔ THE PAGE DELIBERATELY WILL NOT TELL US. #40 rules that a board with no data is not rendered —
-+-- no placeholder, no empty state — because *"if a board is missing, the user may not even notice,
-+-- so don't show."* That is right for the reader and blind for us: a board that silently stops
-+-- being produced looks identical to a board that was never meant to appear. #40 names the
-+-- consequence and asks for this test by name:
-+--   "A silently omitted board is invisible to the visitor by design — and therefore invisible to
-+--    us too. A DQ check has to catch a board that vanished, because the page deliberately will
-+--    not."
++-- Measured before choosing it, over the 1,125 fitted rows then in prod: exactly ONE crossed a bound,
++-- by 0.0065 points per match, none crossed the floor, and no other row was within 0.1 of either
++-- bound. So the cap shaves an estimation artifact rather than concealing a degenerate fit — the
++-- population a cap could have hidden does not exist in this data.
 +--
-+-- Mirrors assert_mart_team_leaderboards_every_board_has_a_leader, which exists because dropping
-+-- metric_key from that mart's rank partition was caught by NOTHING — the grain stayed unique, the
-+-- board set stayed complete, and only a missing rank-1 exposed it.
-+--
-+-- Scoped to the ELITE group and the current season because that is what the block renders. A board
-+-- with no data in a league the block never shows is not a defect; asserting it would fail on
-+-- competitions that legitimately carry no player stats.
-+
-+{% set home_boards = [
-+    'goals_player',
-+    'assists_player',
-+    'passes_player',
-+    'passes_key_player',
-+] %}
-+
-+with import_mart_leaderboards as (
-+    select * from {{ ref('mart_leaderboards') }}
-+),
-+
-+import_competition_registry as (
-+    select * from {{ ref('competition_registry') }}
-+),
-+
-+elite_leagues as (
-+    select league_code
-+    from import_competition_registry
-+    where competition_group = 'elite'
-+),
-+
-+expected as (
++-- Withholding the whole league-season's fit whenever any team left the range was proposed and
++-- REJECTED. GREATEST/LEAST return NULL on a NULL argument, so an unfittable league-season stays NULL
++-- here with no extra guard, and `deserved_points_was_capped` is NULL with it — "was it capped" has
++-- no answer where there is no fit.
++deserved as (
 +    select
-+        e.league_code,
-+        metric_key
-+    from elite_leagues as e
-+    cross join unnest([
-+        {% for key in home_boards %}
-+        '{{ key }}'{% if not loop.last %},{% endif %}
-+        {% endfor %}
-+    ]) as metric_key
++        r.*,
++        least(greatest(r.fitted_points_per_match, 0), 3) * r.season_games_played as deserved_points,
++        r.fitted_points_per_match < 0
++        or r.fitted_points_per_match > 3 as deserved_points_was_capped
++    from rated as r
 +),
 +
-+actual as (
-+    select distinct
-+        league_code,
-+        metric_key
-+    from import_mart_leaderboards
-+    where
-+        is_current_season
-+        and rank = 1
-+        and metric_key in (
-+            {% for key in home_boards %}
-+            '{{ key }}'{% if not loop.last %},{% endif %}
-+            {% endfor %}
-+        )
-+)
-+
-+select
-+    expected.league_code,
-+    expected.metric_key
-+from expected
-+left join actual
-+    on
-+        expected.league_code = actual.league_code
-+        and expected.metric_key = actual.metric_key
-+where actual.league_code is null
-diff --git a/dbt_project/tests/assert_one_current_season_per_league.sql b/dbt_project/tests/assert_one_current_season_per_league.sql
-new file mode 100644
-index 0000000..67b6966
---- /dev/null
-+++ b/dbt_project/tests/assert_one_current_season_per_league.sql
-@@ -0,0 +1,64 @@
-+-- Exactly ONE season per competition may be flagged current.
-+--
-+-- `is_current_season` is a served pick: the Home block filters on it instead of choosing a season
-+-- itself. If two seasons were flagged for one league, that filter would return a league's leaders
-+-- twice and the block's "one player per league" rule would break silently — the rows would still
-+-- look plausible, just doubled.
-+--
-+-- Counts DISTINCT seasons, not rows: the flag is per league-season and every row of that season
-+-- carries it, so a row count would be the leaderboard's size and always > 1.
-+--
-+-- A league with no flagged season is caught too (count 0 <> 1). That is reachable only if the
-+-- window function stops matching any row, which would mean the column had silently become false
-+-- everywhere — the failure mode a `> 1` check alone would pass.
-+
-+-- ⚠ IT ASSERTS RECENCY AS WELL AS CARDINALITY, and the second half was added because mutation
-+-- testing proved the first half alone was too weak: flipping the window's ORDER BY to ascending
-+-- flags the OLDEST season instead of the newest, still exactly one per league, and a
-+-- cardinality-only check stayed GREEN. The block would then have shown last season's leaders under
-+-- a heading that says "season totals to date" — wrong, and invisible to every other guard.
-+
-+-- ⛔ AND IT ASSERTS ROW COMPLETENESS, which is the property the whole `rank()` choice rests on and
-+-- which the first two halves CANNOT see. Revert the model's `rank()` to `row_number()` and exactly
-+-- ONE row per league carries the flag: the distinct-season count is still 1, that row's season is
-+-- still the max, and a cardinality-plus-recency test stays GREEN while the flag is false on every
-+-- other row of the season. `analytics-engineer-reviewer` found that gap; the mutations I had run
-+-- (ascending order, two seasons flagged) both missed it because neither changes the season SET.
-+-- A flagged season must therefore be flagged ENTIRELY.
-+
-+with import_mart_leaderboards as (
-+    select * from {{ ref('mart_leaderboards') }}
-+),
-+
-+per_season as (
-+    select
-+        league_code,
-+        season_api_year,
-+        countif(is_current_season) as flagged_rows,
-+        count(*) as season_rows
-+    from import_mart_leaderboards
-+    group by league_code, season_api_year
-+),
-+
-+per_league as (
-+    select
-+        league_code,
-+        max(season_api_year) as latest_season,
-+        countif(flagged_rows > 0) as flagged_seasons,
-+        max(case when flagged_rows > 0 then season_api_year end) as flagged_season,
-+        countif(flagged_rows > 0 and flagged_rows <> season_rows) as partly_flagged_seasons
-+    from per_season
-+    group by league_code
-+)
-+
-+select
-+    league_code,
-+    latest_season,
-+    flagged_season,
-+    flagged_seasons,
-+    partly_flagged_seasons
-+from per_league
-+where
-+    flagged_seasons <> 1
-+    or flagged_season <> latest_season
-+    or partly_flagged_seasons > 0
+ -- single-ladder is now part of league_season_fittable, so deserved_points is already null wherever
+ -- a rank would be meaningless. deserved_rank therefore appears and disappears exactly with
+ -- deserved_points, and the schema asserts that biconditionally.
+@@ -234,6 +273,9 @@ select
+     -- that a genuine single-ladder table MUST get a rank (see the positive-existence guard in
+     -- int_team_season.yml). A consumer can also use it to say why the rank is absent.
+     actual_table_is_single_ladder,
++    -- emitted for the same reason as the column above: it is the only thing that explains why a
++    -- served value sits exactly on a bound. NULL, not false, where there is no fit at all.
++    deserved_points_was_capped,
+     deserved_rank,
+     -- negative = under-performing (fewer points than the process deserved); null when not fittable
+     points_won_sum_season - deserved_points as deserved_points_gap
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index 6d7e33c..0a9a711 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -286,8 +286,9 @@ in progress, accumulated through the matches played so far.
+ {% docs deserved_points %}
+ Points the on-target process deserved across the season. Within each league-season, ordinary
+ least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted
+-rate multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it
+-carries no formula. Domestic leagues only - a group-stage tournament's standing is a
++rate, capped into the [0, 3] a match can yield, times the team's own games played.
++deserved_points_was_capped flags a row the cap moved. Fitted, not an aggregate of match legs,
++so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a
+ within-group position, not a comparable league table. Null when the league-season is not
+ fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished
+ games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura
+@@ -303,12 +304,12 @@ under-performing (fewer points than the on-target process deserved); POSITIVE =
+ over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where
+ positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is
+ least squares within the league-season the gap is a redistribution: it sums to zero across a
+-balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning
+-some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual
+-table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one
+-season spans two separate tournaments whose points reset, so a season points total is a figure
+-nobody tracks); or the signal has no spread across the league-season (the slope is then
+-undefined rather than flat).
++balanced season where no deserved_points row was capped. Domestic leagues only. Null when the
++league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league
++rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the
++Apertura/Clausura formats where one season spans two separate tournaments whose points reset,
++so a season points total is a figure nobody tracks); or the signal has no spread across the
++league-season (the slope is then undefined rather than flat).
+ {% enddocs %}
+ 
+ 
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 3cdd6ce..bc3ada4 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -75,8 +75,8 @@ saves_per90,player,playerMetrics.savesPer90.label,Ø Saves per 90,Goalkeeper sav
+ shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Ø Shots on goal difference,Average shots-on-target difference per match (on target for - against). The best non-outcome predictor of league position; the deserved process signal behind deserved-vs-actual. Null unless both own and opponent shots-on-target data cover every season game.,int_legs__team_match,sum(shots_on_goal - opponent_shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input)
+ shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Ø Shots on goal against,Average shots on target conceded per match. The defensive companion to shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),expression,true,decimal_1,shooting,1,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
+ deserved_rank,team,metrics.deserved_rank.label,Deserved position,"Rank of the team within its league-season by deserved_points (descending; 1 = most points deserved) - the process-deserved table position. Not aggregated from match legs; computed by ranking the deserved_points metric, so the position and the points total can never disagree. Domestic leagues only. Null exactly whenever deserved_points is null - the two appear and disappear together, so a team never shows one without the other.",,,,model,true,integer,outcomes,2,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit
+-deserved_points,team,metrics.deserved_points.label,Deserved points,"Points the on-target process deserved across the season. Within each league-season, ordinary least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted rate multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a within-group position, not a comparable league table. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total
+-deserved_points_gap,team,metrics.deserved_points_gap.label,Deserved-points gap,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad"
++deserved_points,team,metrics.deserved_points.label,Deserved points,"Points the on-target process deserved across the season. Within each league-season, ordinary least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted rate, capped into the [0, 3] a match can yield, times the team's own games played. deserved_points_was_capped flags a row the cap moved. Fitted, not an aggregate of match legs, so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a within-group position, not a comparable league table. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total
++deserved_points_gap,team,metrics.deserved_points_gap.label,Deserved-points gap,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season where no deserved_points row was capped. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad"
+ contribution_player_pct,player,playerMetrics.contributionShare.label,% Share of team goals,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing, because the denominator is the whole season while the numerator counts only covered appearances. Null when the club scored 0 that competition-season.",,,,cross_grain,false,percent,goals,2,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
+ minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Ø Minutes per appearance,"Average minutes played per appearance (minutes / appearances, where an appearance is a match the player actually played). A squad-list playing-time read describing role - a regular starter versus a rotation or impact-sub player - not quality. The mart computes the value inline via safe_divide; this row registers its meaning.",int_legs__player_match,sum(minutes_played),countif(minutes_played > 0),expression,false,decimal_0,playing_time,2,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad."
+ goals,team,metrics.goals.label,Goals,"Goals scored by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records.",int_legs__team_match,sum(goals_for),,expression,false,integer,goals,2,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)"
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -594,7 +684,8 @@ index 0000000..67b6966
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  250 +++---
-#    .claude/task/review_input.patch     | 1613 ++++++++++++-----------------------
-#    2 files changed, 642 insertions(+), 1221 deletions(-)
+#   .claude/task/acceptance_evidence.md |  305 ++++++---
+#    .claude/task/review.md              |  170 ++---
+#    .claude/task/review_input.patch     | 1159 +++++++++++++++++++----------------
+#    3 files changed, 919 insertions(+), 715 deletions(-)
 # ============================================================================

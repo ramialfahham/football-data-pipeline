@@ -286,8 +286,9 @@ in progress, accumulated through the matches played so far.
 {% docs deserved_points %}
 Points the on-target process deserved across the season. Within each league-season, ordinary
 least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted
-rate multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it
-carries no formula. Domestic leagues only - a group-stage tournament's standing is a
+rate, capped into the [0, 3] a match can yield, times the team's own games played.
+deserved_points_was_capped flags a row the cap moved. Fitted, not an aggregate of match legs,
+so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a
 within-group position, not a comparable league table. Null when the league-season is not
 fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished
 games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura
@@ -303,12 +304,12 @@ under-performing (fewer points than the on-target process deserved); POSITIVE =
 over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where
 positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is
 least squares within the league-season the gap is a redistribution: it sums to zero across a
-balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning
-some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual
-table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one
-season spans two separate tournaments whose points reset, so a season points total is a figure
-nobody tracks); or the signal has no spread across the league-season (the slope is then
-undefined rather than flat).
+balanced season where no deserved_points row was capped. Domestic leagues only. Null when the
+league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league
+rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the
+Apertura/Clausura formats where one season spans two separate tournaments whose points reset,
+so a season points total is a figure nobody tracks); or the signal has no spread across the
+league-season (the slope is then undefined rather than flat).
 {% enddocs %}
 
 

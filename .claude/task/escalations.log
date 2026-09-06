@@ -8007,3 +8007,89 @@ prevent a single one of the five. What caught all five was a reviewer with a gre
 argument for the check over the note, and the reason the fix is mechanical (extend
 `check_description_hygiene`'s decision-language rule to `.claude/task/*.md`) rather than another
 sentence in a memory file.
+
+================================================================================
+2026-09-06 — fix/deserved-points-clamped-to-legal-range — DESERVED POINTS, CAP NOT WITHHOLD
+================================================================================
+
+CONTEXT. `int_team_season_deserved_points_in_legal_range` failed the prod build on the !153 merge
+pipeline (job 16331792666). One row: LP 2026, four games played, a fitted 12.0259 points against a
+ceiling of 3 x 4 = 12. It is severity=error inside `dbt build`, so ~620 downstream nodes were marked
+skipped and prod stopped refreshing below that model's subtree.
+
+MY RECOMMENDATION, WHICH HE REJECTED. I put three options to him and recommended the second:
+  1. Raise the fittability gate above 3 finished games.
+  2. Withhold the whole league-season's fit whenever any team leaves [0, 3 * games].
+  3. Clamp the value into range.
+My argument for 2 was that an out-of-range value is evidence the least-squares LINE is wrong rather
+than that one team's number needs trimming, so clamping would hide a degenerate fit behind a
+legal-looking number and leave 17 quietly-wrong teammates on the same bad slope.
+
+HIS RULING, verbatim:
+  "Definitely no! We need to find a smarter way. In the example the deserved points would be 12 and
+   12.0259. The latter is the result of the estimation. We could use methods that count for
+   censoring of the dependent variable but to be pragmatic, we use OLS and cap mechanically at the
+   possible max or mins. Makes sense? Or not?"
+
+and, on the outcome's domain:
+  "Deserved points is allways a positive integer incl zero"
+
+WHY HE WAS RIGHT, measured rather than conceded. Over the 1,125 fitted rows in prod: exactly ONE
+crosses a bound, by 0.0065 points per match (3.0065 against a ceiling of 3.0); none crosses the
+floor; the minimum fitted rate is 0.1944; and NO other row is within 0.1 of either bound. The
+degenerate-fit population my objection assumed does not exist in the data. A linear predictor on a
+bounded outcome leaving its support by a rounding-scale amount is an expected property, not a
+symptom — which is the framing his "censoring of the dependent variable" names exactly.
+
+WHAT THE INTEGER RULING SETTLES, AND WHAT IT DOES NOT. It settles the DISPLAY, and the display
+already honoured it before this MR: `DeservedHero.astro:79` renders `integer(s.deserved_points)`, so
+no reader has ever seen 12.0259. It does NOT move rounding into the warehouse, and that was put to
+him with the measurement: rounding the stored column takes rows tied on `deserved_points` from 75 of
+1,125 to 252 of 1,125, so more than a fifth of teams would share a `deserved_rank` as an artifact of
+rounding rather than of the fit, and it scatters the hero's dots off the trend line they are
+colinear with. He said "go ahead" on the split as stated — warehouse continuous and bounded, page
+integer.
+
+⚠ WHAT HE DID NOT RULE. Nothing about WHEN this read should be shown. The two mid-season questions
+recorded in memory — how to render the fitted line mid-season, and from which matchday to show it at
+all — are untouched and remain open. Raising a matchday threshold later is still fully available;
+this MR deliberately does not spend it.
+
+================================================================================
+2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN
+================================================================================
+
+THE QUESTION, and why it reached him. `scope-auditor` FAILed round 3 because I chose
+`severity: warn` for the new test `int_team_season_deserved_points_cap_did_not_bind` after
+conceding, in writing, that the case matches none of `dbt_project/docs/engineering_standards.md`
+§3's three severity rows — and then closed the gap by analogy ("carries the same principle").
+`docs/working_agreement.md:328` forbids exactly that: "when a new case does not clearly match a
+written rule, the classification itself is a CPO decision. 'It's analogous to X' is not a license."
+:322 lists "Rule reinterpretation or extension" as CPO-only.
+
+⚠ THE TWO REVIEWERS DISAGREED, which is itself why it was his. `analytics-engineer-reviewer` called
+warn "functionally sound independent of which §3 row it maps to"; `scope-auditor` said the
+classification is not mine to make whichever answer is right.
+
+WHAT HE WAS TOLD. The test fires when the cap actually moved a value — today exactly one row, the
+LP 2026 team whose 12.0259 was shaved to 12. It exists because the older test
+`int_team_season_deserved_points_in_legal_range` can no longer fail once the model enforces the range
+itself, so capping would otherwise become invisible. The two options and their consequences:
+  · warn  — logged, build continues.
+  · error — stops the build and skips ~620 downstream models, which is precisely the failure that
+            stopped the prod warehouse on 2026-09-06 and that this MR exists to remove. It fires
+            TODAY, so error means a broken nightly the same night.
+Recommendation given: warn.
+
+HIS RULING, verbatim: "warn"
+
+⚠ WHAT THIS DOES NOT DO. It rules on THIS test. It does not add a fourth row to §3's table, so the
+next computed-degradation test faces the same undecided classification. Whether §3 should gain a row
+naming this class — a correct-but-notable computed condition, surfaced without blocking — was
+offered and not taken up, and remains open.
+
+ROUND CAP. He was told "Say 'warn' and I'll finish. Two smaller things I'll fold in without asking
+further," and answered "warn". That is the authority for `rounds_cap_override:` and for the two
+follow-on edits (the false formula sentence at int_team_season.yml:305-307, and the
+`_was_clamped` -> `_was_capped` rename). It is NOT authority for anything else; the DeservedHero
+trend-line defect found while stopping is filed as its own issue, not pulled into this MR.
