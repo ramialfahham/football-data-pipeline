@@ -1,88 +1,121 @@
-# Review — feat/40-leaderboards-current-season-and-board-dq — 2026-09-04
+# Review — fix/deserved-points-clamped-to-legal-range — 2026-09-06
 
-diff_sha256: f090d023545a5a9556e22737caa4300e8659270255da10e5b75e095edd95b869
+diff_sha256: 5e0a4f826b2c4c8acb588c72acacebf7491fbc5f95d8b8200e86a1c0a17addf6
 
-rounds: 4
+rounds: 5
 
 rounds_cap_override: >
-  CPO, 2026-09-04, when the gate stopped the commit and the position was put to him — both
-  reviewers PASS, nothing open, and a round-by-round account of what each round was spent on:
-  *"go ahead, all rounds were fixes not disagreements"*.
-  ⚠ That is the distinction the cap exists to test, so it is worth stating what it means here. The
-  cap guards against LOOPING — the same finding re-argued, or reviewers and builder disagreeing
-  about whether something is a defect. Neither happened. Every round accepted its finding in full
-  and fixed it: an unrecorded ruling (round 1), the same claim left standing in the sibling artifact
-  (round 2), a guard that would have passed a broken model (round 3), and a re-run because the code
-  moved after a verdict (round 4). Round 3 alone justified the budget: it was a real code defect in
-  the exact property this change exists to guarantee.
+  CPO, 2026-09-06. Round 3 hit the cap with TWO open FAILs and I stopped and brought them, as the
+  rule requires. One of them — the `severity: warn` classification — could not be fixed by me at all,
+  because `scope-auditor` had correctly identified it as a §10 decision. He was given both options
+  with their consequences, told "Say 'warn' and I'll finish. Two smaller things I'll fold in without
+  asking further," and answered **"warn"**. Recorded in `escalations.log`, entry
+  `2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN`.
+  ⚠ What the extra rounds were spent on, because the cap exists to test exactly this distinction —
+  looping versus fixing. Nothing was re-argued and no reviewer verdict was disputed:
+    round 1  FAIL — a metric definition hand-written into a GENERATED file (also caught by the suite)
+    round 2  FAIL — the same stale claim left standing in the sibling artifact readers actually see
+    round 3  FAIL x2 — a §10 decision I took myself, and a now-false formula sentence
+    round 4  FAIL — my own blanket find-and-replace corrupted a citation to the ruling record
+    round 5  PASS
+  Every round accepted its finding in full. Round 3's pair is what justifies the budget: one was a
+  live falsehood about a row in prod, the other was a decision that was never mine.
 
-⚠ **ROUNDS DIFFER PER REVIEWER AND THAT MATTERS HERE**: `scope-auditor` 4, `analytics-engineer-reviewer` 2.
-Both PASS at the hash above. The analytics verdict was obtained at `3beb10f…`; the only change since
-is one `contract.md` paragraph fixing a model citation IT raised, and `scope-auditor` re-read the
-whole diff at `f090d02…` afterwards. Recorded rather than implied.
-
-⚠ **THE CODE FAILED REVIEW ONCE AND IT WAS THE MOST VALUABLE FINDING OF THE BRANCH.** Every other
-FAIL was my prose. See the closing note.
+⚠ **VERDICTS WERE OBTAINED AT TWO HASHES AND THAT IS RECORDED, NOT IMPLIED.**
+`analytics-engineer-reviewer` and `football-analytics-expert-reviewer` PASSed at `ed557267…`.
+The only change since is `contract.md` prose plus two lines of `acceptance_evidence.md` — the
+citation fix `scope-auditor` itself raised — and `scope-auditor`, which is the reviewer that judges
+`contract.md`, re-read the whole diff at `5e0a4f82…` afterwards. No code, yml, seed or generated file
+differs between the two hashes; `scope-auditor` verified that independently.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- `assert_one_current_season_per_league.sql`'s new `partly_flagged_seasons` predicate matches the
-  briefed change exactly — groups to (league_code, season_api_year), fails when a flagged season is
-  not flagged entirely; no unrelated logic smuggled in.
-- Attribution language in the `decisions_reserved` correction and the test's own header: both credit
-  `analytics-engineer-reviewer` for finding the gap, not the CPO and not my own insight. Checked
-  specifically against the five-instance pattern this session logged; this delta adds no sixth.
-- `scope_paths`: both delta-touched files were already listed, so `amendments: (none)` is honest and
-  no path was touched that needed one.
-- The split citation and the DE/FI item: one cites a real logged ruling by exact key, the other is
-  still marked as pending the CPO — neither smuggled in as decided.
-- Acceptance criteria unchanged in substance. The criterion "fails when the flag is made per-player"
-  PREDATES the new predicate, and the predicate is what finally makes the test satisfy it — the
-  criterion was not loosened to fit the test, which is the direction that would have been a defect.
-- Credentials sweep of the delta; threshold declarations unchanged and still accurate (one more SQL
-  predicate, no new mechanism, no recurring cost).
+- Both cited escalation-log strings searched VERBATIM against the log: found character for character
+  at `escalations.log:8012` and `:8059`. The corrupted variant it had FAILed on
+  (`fix/deserved-points-capped-to-legal-range`) has zero hits in either file.
+- ⭐ It did not stop at the two citations. It cross-checked EVERY other quoted string in the contract
+  — the four verbatim CPO quotes, the `docs/working_agreement.md:322,328` rule references, the test
+  names, the file:line refs — against the log and the diff, looking for a second instance of the same
+  blanket-replace corruption. None found.
+- ⭐ It confirmed the `escalations.log` hunk is APPEND-ONLY past line 8007, ruling out the possibility
+  that the citations now match because the log was edited to fit the contract rather than the other
+  way round. That is the check that makes the whole attribution mechanism worth having.
+- Code diff re-confirmed unchanged from round 4's substance; this round touched contract prose only.
+- `scope_paths` unchanged and covering every touched path; nothing smuggled in with the fix.
+- The amendment's account of the cause matches what it verified independently and does not overclaim
+  — it names both files fixed and claims nothing beyond the citation, branch-name and
+  stale-measurement corrections.
 
 ## analytics-engineer-reviewer
-VERDICT: PASS
+VERDICT: PASS (at `ed557267…`)
 risks_checked:
-- Traced the row-completeness predicate BY HAND against a `row_number()` model rather than trusting
-  the description: confirmed it cannot stay green (`flagged_rows=1`, `season_rows>1` fires for every
-  league with more than one row), and confirmed the healthy model passes all three predicates.
-- Checked it for FALSE failures: a league whose latest season legitimately has one row
-  (`flagged_rows == season_rows == 1`, not counted as partial); `is_current_season` derives from
-  `rank()=1` and is never NULL, so `countif` behaves as a plain boolean count.
-- Worked through further hypothetical defects — stuck-true, stuck-false, dropped `partition by`, two
-  full seasons flagged, extra rows flagged in an unrelated season — all caught by the three
-  predicates together.
-- Searched for a FOURTH weakness and reported plainly that it found none, rather than manufacturing
-  one to justify a verdict.
-- Verified the board-leader test's `elite`-only scope against `10_home.md:225,247` and the registry:
-  the blocks render `elite` only, so the scope tracks the render surface rather than convenience.
-  ⚠ It corrected my count — **7** elite leagues (BL1, PL, PD, SA, L1, LP, ED), not 6. The error was
-  in my review prompt; the evidence arithmetic (28 = 7 × 4) was already right.
-- Re-traced the `decisions_reserved` finished-matches claim through `int_player_club_season__metrics`
-  and `int_player_season__metrics` and confirmed the conclusion holds transitively.
-- Checked every mutation count in the evidence for internal consistency against 7 elite leagues, 4
-  boards and 45 total leagues — 28 / 7 / 45 / 34 / 34 all reconcile; no arithmetic overclaim.
-- Confirmed the diff is additive only: one boolean column, two new test files, no other model or
-  existing test touched, no hardcoded league identifier, no new metric needing catalogue
-  registration.
+- Rename completeness across SQL alias, final `select`, yml column entry, BOTH test expressions, BOTH
+  test names, the seed row and the regenerated markdown. A repo-wide case-insensitive `clamp` grep
+  returns only two unrelated hits (a different metric's comment, a CSS property) plus task paperwork
+  narrating the rename as history. No orphaned identifier.
+- The corrected formula sentence checked AGAINST THE SQL rather than for plausibility, including the
+  null case: `GREATEST`/`LEAST` propagate NULL, so both `deserved_points` and
+  `deserved_points_was_capped` are NULL for an unfittable league-season, matching the column doc's
+  explicit "NULL, not FALSE" claim.
+- Seed vs regenerated markdown for both changed rows: identical word for word. Rendered lengths
+  ~963 and ~977 against the 1,024 limit — reported as a hand count and explicitly flagged as an
+  approximation rather than a certified pass, which is the honest form.
+- ⭐ **It ran the inverted sweep I should have run two rounds earlier**, enumerating every prose claim
+  about `deserved_points` / `_gap` / `_rank` / `_was_capped` across the SQL docstring, yml, column
+  descriptions, test comments, seed and markdown, and reported that it found no third false statement.
+- Mutation reasoning re-derived with the new names: `deserved_rank` ranks on the POST-cap value, so no
+  wrong-rank mutation survives silently; both error-severity tests read served columns directly.
+- Structural checks after the edits: CTE chain resolves, `season_games_played` exists on the model,
+  the CSV row still has its 15 fields, no project-level severity default overrides the warn/error split.
+- The `DeservedHero.astro:79` rounding confirmed unchanged, out of scope, and correctly deferred to
+  #108 rather than re-raised as this diff's defect.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS (at `ed557267…`)
+risks_checked:
+- The renamed column and test read correctly to a football audience and use the word the CPO's own
+  ruling used. Checked that the column name, the comment prose and the SQL alias agree.
+- The seed states the cap in FOOTBALL terms — "capped into the [0, 3] a match can yield" cites what a
+  single match can actually produce (0/1/3), not a statistical "clamped to interval" phrasing.
+- The corrected model description checked against the SQL it describes: literally true, not merely
+  plausible.
+- All FOUR copies of the sums-to-zero claim compared for a consistent story; none asserts an
+  unconditional zero-sum that another denies.
+- `direction` / `interpretation` / `format` / `lower_is_better` re-derived fresh on all three deserved
+  rows rather than assumed settled by its two earlier passes, and cross-checked against the
+  catalogue's existing convention for other `neutral` rows.
+- ⚠ It named a real tension and correctly declined to fail on it: `format: integer` on a column the
+  warehouse stores as a continuous float. That is exactly what GitLab **#108** now carries, disclosed
+  in `decisions_reserved` with the CPO's ruling quoted.
+- Checked that no composite or fabricated-probability metric is introduced — the cap is a transparent,
+  disclosed bound on a described OLS fit.
 
 ## escalations
-(none)
+- **RULED: `severity: warn`.** `escalations.log`, entry
+  `2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN`. Reached the CPO
+  because `scope-auditor` FAILed my analogy-based classification under §10, and because the two
+  reviewers had reached opposite conclusions on the same question.
+- **RULED EARLIER, and it overturned a decision of mine that had already passed review:**
+  *"Rounding is business logic."* Consequence filed as GitLab **#108**; not fixed here.
 
-⭐ **THE ONE FINDING THAT CHANGED THE PRODUCT, and it was found by reading, not running.**
-`analytics-engineer-reviewer` FAILed round 1 because `assert_one_current_season_per_league` asserted
-how MANY seasons carried the flag and WHICH one, but never that the flagged season was flagged
-ENTIRELY. Revert the model's `rank()` to `row_number()` and exactly one row per league is flagged —
-the distinct-season count is still 1, that row's season is still the max — so the test stayed GREEN
-while the flag was false on 711 of 712 rows. That is the mutation this contract itself calls the
-whole reason for choosing `rank()`, and I had not run it: I ran the two that occurred to me
-(ascending order, two seasons flagged), and neither can change the season SET, which is the only
-thing the test could see.
+## ⛔ WHAT THIS BRANCH SHOULD BE REMEMBERED FOR
 
-⚠ Same shape as `!151`'s closing lesson, one level deeper. There, a fixture that could not
-distinguish `max` from `min` tested neither. Here, a guard that could not distinguish `rank` from
-`row_number` guarded nothing — and I had verified it "fails under mutation", truthfully, against
-mutations that were never going to catch it.
+**1. Every defect came from the blinded review or the test suite. None came from a gate.** At round 1,
+`dbt parse`, SQLFluff, `check_description_hygiene.py`, `check_layer_contract.py` and
+`check_registry_var_sync.py` all exited 0 over a hand-edited GENERATED file that would have broken
+`validate:governance` in CI.
+
+**2. Two sweeps missed by the same method, and the method is the fault.** Grepping the phrase a
+reviewer named finds instances of that phrase. It does not find the other statements the change
+falsified. Sweeping INVERTED — enumerate every claim about the quantity, ask whether each is still
+true — found what two reviewer-named sweeps had left, including one defect no reviewer reached
+(`DeservedHero.astro:97`, corrected in the impact map).
+
+**3. A blanket find-and-replace edits quoted strings too.** Twice on this branch: once corrupting
+meaning I had to strike, once corrupting the citation to the ruling record itself.
+
+**4. A wrong decision of mine passed two blinded reviewers and was caught only by the CPO.** I wrote
+"the integer domain is a display property, and stays one" while pointing at a frontend defect as the
+evidence for it. Reviewers check the diff against the contract; they do not check whether the
+contract's own premise is right.

@@ -6,10 +6,14 @@
 
   Method (CPO-locked 2026-07-22, escalations.log): deserved signal = shots_on_goal_difference_per_match
   (SoT for - against per match). Within each league-season, fit ordinary least squares of
-  points-per-match on that signal, then deserved_points = the fitted points-per-match * the team's
-  own games played. deserved_points_gap = points_won_sum_season - deserved_points, so NEGATIVE = under-
+  points-per-match on that signal, then deserved_points = the fitted points-per-match, CAPPED INTO
+  [0, 3], * the team's own games played. The cap is mechanical (CPO 2026-09-06, escalations.log):
+  points per match is a bounded outcome and least squares is an unbounded predictor, so a fitted rate
+  can land fractionally outside a support it cannot actually leave. deserved_points_gap =
+  points_won_sum_season - deserved_points, so NEGATIVE = under-
   performing (results lag the process) and POSITIVE = over-performing. deserved_rank = rank teams by
-  deserved_points within their league-season (descending; 1 = best). TEAM only; no xG.
+  deserved_points within their league-season (descending; 1 = best), computed from the CAPPED value
+  so a consumer sorting by the served points cannot disagree with the served rank. TEAM only; no xG.
 
   ⚠️ THE GAP SIGN IS INVERTED relative to the sot_rank_gap this replaces, where POSITIVE meant
   under-performing. That column is deleted rather than kept, precisely so one page cannot carry two
@@ -56,9 +60,17 @@
 
   NOTE, because it surprises people: because the fit is least squares within the league-season, the
   gap is a REDISTRIBUTION — one team's over-performance is another's under-performance. It sums to
-  exactly 0 across a balanced (completed) league-season. Mid-season it sums to only approximately 0
-  (measured: mean 3.9, max 9.6 points across a whole league) because each team's fitted rate is
-  scaled by its own games played, which then differ.
+  exactly 0 across a balanced (completed) league-season WHERE NO ROW WAS CAPPED. Mid-season it sums
+  to only approximately 0 (measured: mean 3.9, max 9.6 points across a whole league) because each
+  team's fitted rate is scaled by its own games played, which then differ.
+
+  ⚠️ THE CAP BREAKS THAT IDENTITY, by exactly the amount it shaves, and nothing compensates. The
+  qualifier above is not decoration: a completed season could carry a capped row, and this comment
+  claimed an unconditional 0 until analytics-engineer-reviewer caught it. In practice the breakage is
+  far inside the mid-season approximation already accepted here — the one capped row in prod moves
+  its league's sum by 0.026 points against a mid-season spread measured in whole points, and no
+  COMPLETED season carries a capped row today. Stated rather than relied on, because "no completed
+  season carries one" is a fact about current data, not a property of the model.
 
   Grain: (team_sk, season_sk).
 #}
@@ -187,17 +199,44 @@ fitted as (
     from stats as s
 ),
 
-deserved as (
+-- the fitted rate, kept as its own step so the bound below can be stated ON THE RATE. The legality
+-- condition `deserved_points <= 3 * games` is exactly `rate <= 3`, and on the rate it is scale-free:
+-- it does not move when teams within one league-season have played different numbers of matches,
+-- which is already what makes this model's mid-season arithmetic awkward.
+rated as (
     select
         f.*,
         case
             when f.league_season_fittable
-                then (
+                then
                     (f.mean_points_per_match - f.slope * f.mean_sot_difference)
                     + f.slope * f.shots_on_goal_difference_per_match
-                ) * f.season_games_played
-        end as deserved_points
+        end as fitted_points_per_match
     from fitted as f
+),
+
+-- MECHANICAL CAP AT THE BOUNDS (CPO-ruled 2026-09-06, escalations.log). Points per match lives in
+-- [0, 3] by the rules of the competition, and ordinary least squares is an unbounded predictor, so
+-- it will occasionally put a team fractionally outside a support it cannot actually leave. Capping
+-- is the pragmatic treatment of that bounded outcome; the principled alternative is a model that
+-- accounts for the censoring, which is not worth its complexity here.
+--
+-- Measured before choosing it, over the 1,125 fitted rows then in prod: exactly ONE crossed a bound,
+-- by 0.0065 points per match, none crossed the floor, and no other row was within 0.1 of either
+-- bound. So the cap shaves an estimation artifact rather than concealing a degenerate fit — the
+-- population a cap could have hidden does not exist in this data.
+--
+-- Withholding the whole league-season's fit whenever any team left the range was proposed and
+-- REJECTED. GREATEST/LEAST return NULL on a NULL argument, so an unfittable league-season stays NULL
+-- here with no extra guard, and `deserved_points_was_capped` is NULL with it — "was it capped" has
+-- no answer where there is no fit.
+deserved as (
+    select
+        r.*,
+        least(greatest(r.fitted_points_per_match, 0), 3) * r.season_games_played as deserved_points,
+        r.fitted_points_per_match < 0
+        or r.fitted_points_per_match > 3 as deserved_points_was_capped
+    from rated as r
 ),
 
 -- single-ladder is now part of league_season_fittable, so deserved_points is already null wherever
@@ -234,6 +273,9 @@ select
     -- that a genuine single-ladder table MUST get a rank (see the positive-existence guard in
     -- int_team_season.yml). A consumer can also use it to say why the rank is absent.
     actual_table_is_single_ladder,
+    -- emitted for the same reason as the column above: it is the only thing that explains why a
+    -- served value sits exactly on a bound. NULL, not false, where there is no fit at all.
+    deserved_points_was_capped,
     deserved_rank,
     -- negative = under-performing (fewer points than the process deserved); null when not fittable
     points_won_sum_season - deserved_points as deserved_points_gap
