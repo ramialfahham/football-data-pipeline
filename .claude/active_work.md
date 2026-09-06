@@ -4,8 +4,9 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-04**. **main `56278d5`**, clean. **ONE OPEN MR: !151** (navigation rule +
-competition scaffold) — awaiting the CPO's merge. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-04**. **main `448ef77`**, clean, **no open MRs** (!150 and !151 both merged).
+**GITLAB** (`glab`, MRs). Branches swept 2026-09-04: 63 remote + 22 local deleted; 6 remote and 2
+local remain (`backup/27-pre-rebase` holds 15 unique commits). How to check one is in TRAPS below.
 ⛔ **THE POST-COMMIT HOOK PUSHES TO `main` IF THE BRANCH TRACKS `main`, AND IT TRIED TO ON !151.**
 `git checkout -b <branch> gitlab/main` sets `main` as upstream, so the hook's bare push follows it.
 Branch protection rejected it (`! [remote rejected] … -> main`). **Run `git branch --unset-upstream`
@@ -82,14 +83,20 @@ last completed season + a DQ alert. Guarantee holds because split-year (~Sep–M
 (**#102** proposes renaming to `mart_player_leaderboards` — do NOT fold into #40); **#103** = two
 stale summary lines in `10_home.md`.
 
-⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open. Runbook `deploy/nightly/README.md`.**
-Two ENABLED jobs in **europe-west1**: `fdp-nightly` (`0 4 * * *`, ingest + full prod dbt build) and
-`fdp-freshness` (`7 * * * *`). **The data IS refreshed on a timer.**
-⚠ `data:nightly` in `.gitlab-ci.yml` is NOT it — nothing triggers it; GitLab schedule `4379625` is
-deliberately **DISABLED**. **Enabling it without disabling `fdp-nightly` runs the build twice.**
-⚠ Cost **~129 GB/day ≈ $17–24/mo**. Whether `fdp-freshness` needs hourly runs is the CPO's.
-⚠ Query `region-eu.INFORMATION_SCHEMA.JOBS_BY_PROJECT` — **EU, not US**; `region-us` returns a
-false "0 jobs". (The 2026-09-01 cost-investigation lessons live in `CLAUDE.md` and memory.)
+⭐ **THE NIGHTLY LIVES IN CLOUD SCHEDULER — answered, not open.** Detail in `CLAUDE.md` and
+`deploy/nightly/README.md`; not duplicated here. ⚠ The one trap worth repeating: `data:nightly` in
+`.gitlab-ci.yml` is NOT the nightly, and enabling GitLab schedule `4379625` without disabling
+`fdp-nightly` runs the prod build TWICE.
+
+## ⛔ A PRODUCTION FIX THAT NEVER LANDED (found in the 2026-09-04 branch sweep)
+
+⛔⛔ **`fix/raw-players-row-chunking` is UNMERGED and its mechanism is ABSENT from main** — which is
+why the branch is kept. Commit `1f822a2` chunks the `RAW_APIF_PLAYERS` snapshot under **BigQuery's
+100MB per-row limit**, citing a real failure: *"LIBER failed… UEL 81.8MB / UCL 78.7MB imminent."*
+On main: `tests/test_squad_players_chunking.py` does NOT exist and `ingestion/` has no
+`chunk`/`MAX_ROW`/`100MB` — yet `tests/fixtures/apif/players_cwc_sample.json` DOES. Fixture landed,
+fix did not. **Settle superseded-or-abandoned before those rosters grow.** (4 other branches held
+back; `fix/transfers-drop-bl1-hardcode` is verified landed, the rest superseded or shipped.)
 
 ## ⛔ CARRIED, LOW PRIORITY (not blocking #40)
 
@@ -104,17 +111,15 @@ false "0 jobs". (The 2026-09-01 cost-investigation lessons live in `CLAUDE.md` a
 ## ⛔ OPEN, AND THE CPO'S — carried, never decided
 
   - ⭐ **The `__team`/`__player` doc-block split has NO live instance** — all six dual-entity ids were
-    renamed player-side. ⛔ Nothing was removed or weakened, and one new seed row recreates the
-    collision. ⚠ But **five files document it with a worked example the programme falsified.**
-    Whether a guard with no live instance should remain is his call.
+    renamed player-side, though one new seed row recreates the collision and five files still
+    document it with a worked example the programme falsified. Whether a guard with no live
+    instance should remain is his call.
   - **A rename frees a name from #87 only when no PROVIDER column shares it** — measured twice, the
     ambiguous list went 4 → 3, not 4 → 1. **#87's 49 blank columns are NOT freed by this programme.**
-  - **The column-reference resolver as a committed CI gate.** `!129`–`!131` bounded it (dotted refs
-    only; the projection check's weak form). Not proposed.
   - **#99** — the export's literal board keys moved in `!132` and remain pinned by NO test.
-  - **`_LEADERBOARD_METRICS` / `_LB_KEEP`** pinned by no test (`platform-reviewer`, five MRs).
-    ⭐ `!131`: the OTHER export path is unpinned too — `shape_top_players`' DROP-list means
-    `TopPlayer` fields reach the frontend with no test between mart and component.
+  - **`_LEADERBOARD_METRICS` / `_LB_KEEP`** pinned by no test (`platform-reviewer`, five MRs), and
+    so is the other export path — `shape_top_players`' DROP-list means `TopPlayer` fields reach the
+    frontend with no test between mart and component.
   - **#96** — no offline gate checks `accepted_values`, only `data:build:mr`. **#98**; the doc-block
     inheritance trap.
 
@@ -155,52 +160,48 @@ level cannot distinguish `max` from `min`, so my tie-break test pinned nothing u
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
-⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, NOT A FACT TO ACT ON.** Told "140 merged", I ran cleanup
-without checking; it had NOT landed, and **deleting an open MR's source branch CLOSES the MR on
-GitLab.** Recovered from the reflog. ⭐ **Before deleting anything:** `git fetch gitlab` then
-`git merge-base --is-ancestor <sha> gitlab/main`.
+⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, NOT A FACT TO ACT ON**, and **`--is-ancestor` IS NOT THE
+CHECK.** Told "140 merged", I ran cleanup without checking; it had NOT landed, and **deleting an
+open MR's source branch CLOSES the MR on GitLab.** Recovered from the reflog. ⚠ The check this
+entry used to recommend, `git merge-base --is-ancestor`, is WRONG for a squash-merged branch: on
+2026-09-04 it called 20 of 22 fully-landed branches unmerged, and `git branch -d` refuses them for
+the same reason. A diff-based check is useless too — main's own progress dominates it.
+⭐ **The only correct check is `git cherry gitlab/main <branch>`** — `+` = patch not upstream,
+`-` = already applied. Always `git fetch gitlab` first, and check for OPEN MRs before deleting.
 ⚠ **`git pull` on main hits the DEAD GitHub `origin` and 403s.** Use `git pull --ff-only gitlab main`.
-⚠ **The push guard refuses EVERY push while standing on main**, including deleting a merged branch —
-so delete the remote branch BEFORE checking out main. It is a PreToolUse hook reading the CURRENT
-branch, so `checkout && push` in one call is blocked as a whole; they must be separate calls.
-⚠ **CWD persists between Bash calls** — a `cd` in one call breaks repo-relative paths in the next;
-it aborted an apply mid-run on `!131` and again on `!132`.
+⚠ **The push guard refuses EVERY push while standing on main**, including deleting a merged branch.
+Branch off main to a throwaway (`git checkout -b tmp/…`) to push deletions, then come back. It is a
+PreToolUse hook reading the CURRENT branch, so `checkout && push` in one call is blocked as a whole.
 ⚠ `git checkout -- .` reverts the CONTRACT too if it is unstaged — exclude it explicitly.
-⚠ A file that falls to ZERO renames is never reopened by the no-op-write guard, so it keeps its
-previous text: restore it from base explicitly and re-reconcile `scope_paths`.
-⚠ `git grep` is BRE — `[` opens a character class, so `git grep 'values: ['` silently finds nothing.
-Use `-F`.
-⛔⛔ **`--review-patch` PRINTS; only a REDIRECT writes the file — and it reads the INDEX, not the
-working tree.** `git_discipline.py --review-patch` builds from `git diff --staged <base>`, so running
-it bare emits to stdout and **leaves the previous round's `review_input.patch` on disk**, exit 0. On
-`!132` that served all five reviewers the ROUND-1 diff: two FAILed on defects already fixed, quoting
-offsets that no longer existed. Correct call: `git add -u` then
-`… --review-patch > .claude/task/review_input.patch`.
-⭐ **The tell is free: `--staged-hash` printing `e3b0c442…`** = `sha256("")`, an empty staged diff.
-Never write it into `review.md`.
+⛔⛔ **`--review-patch` PRINTS; only a REDIRECT writes the file, and it reads the INDEX.** Running it
+bare emits to stdout and **leaves the previous round's `review_input.patch` on disk**, exit 0 — on
+`!132` that served every reviewer the ROUND-1 diff, and two FAILed on already-fixed defects. Correct
+call: `git add -u` then `… --review-patch > .claude/task/review_input.patch`. ⚠ It happened AGAIN on
+`!151` (staged without regenerating), caught by a reviewer, so re-read this before each round.
+⭐ Free tell: `--staged-hash` printing `e3b0c442…` = `sha256("")`, an empty staged diff.
 ⭐ **When two reviewers contradict each other on the same tokens, suspect the ARTIFACT before the
-code.** One reading files said clean, one reading the patch said corrupted; that resolved it in one
-step.
-⚠ **`subprocess.run(..., text=True)` decodes with the WINDOWS locale (cp1252), not UTF-8**, so `Ø`
-arrives as `Ã˜` and a byte-identical seed looked like 32 corrupted fields. Capture BYTES and
-`.decode("utf-8")` both sides; the seed's `label_en` is full of `Ø`.
+code.**
+⚠ **CP1252, NOT UTF-8, IN BOTH DIRECTIONS on this machine.** `subprocess.run(..., text=True)`
+decodes with the Windows locale, so `Ø` arrives as `Ã˜` and a byte-identical seed looked like 32
+corrupted fields — and the `bq` CLI's own CSV output is cp1252 too (`Süper Lig` arrives as a bare
+`0xFC`, so a UTF-8 decode RAISES). Capture BYTES and decode explicitly, utf-8 first with a cp1252
+fallback.
 
 ## Method that works — seven MRs of evidence
 
-Contract FIRST on a clean tree (the gate refuses otherwise; stash by explicit path with a `TEMP-`
-label, verify your own entry is on top, pop immediately). Abort before writing on any
-protected-count change or unlisted file. Then gates unpiped with exit codes read bare, mutations
-watched RED, the site built, the blinded reviewers, `review.md` with `--staged-hash`.
-**ROUND CAP 3** — past it STOP and bring the findings; a fourth round needs the CPO's word as
-`rounds_cap_override:` in `review.md` or the commit gate refuses. ⚠ Rounds are PER REVIEWER and can
-differ (on !151: scope 3, platform 3, BI 4). Each section needs `## <exact-routing-key>`, then
-`VERDICT:`, then a `risks_checked:` block — a PASS with an empty one is rejected.
-⚠ **`contract.md` is INSIDE the review hash**, so amending it after the reviewers ran invalidates
-every verdict. Amend before the review round, not after.
+Contract FIRST on a clean tree (stash by explicit path with a `TEMP-` label, verify your entry is on
+top, pop immediately). Then gates unpiped with exit codes read bare, mutations watched RED, the site
+built, blinded reviewers, `review.md` with `--staged-hash`.
+**ROUND CAP 3** — past it STOP and bring the findings; a fourth needs the CPO's word as
+`rounds_cap_override:`. ⚠ Rounds are PER REVIEWER and differ (!151: scope 3, platform 3, BI 4). Each
+section needs `## <exact-routing-key>`, `VERDICT:`, then `risks_checked:` — an empty one is rejected.
+⚠ **`contract.md` is INSIDE the review hash**; amending it after the reviewers ran voids every
+verdict. Amend BEFORE the round.
 
 ## Standing traps (also in CLAUDE.md)
 
-`git commit` must be the SOLE command in a Bash call. Heredocs are gate-blocked for file writes —
-use Edit/Write. `review.md` must be COMMITTED. `acceptance_evidence.md` needs a
-`criteria_demonstrated:` block with one 15+ character bullet per declared criterion. Contract edits
-need a CLEAN tree. Never read a gate's exit code through a pipe.
+`git commit` SOLE in its Bash call. Heredocs gate-blocked for file writes — use Edit/Write.
+`review.md` must be COMMITTED. Contract edits need a CLEAN tree. Never read a gate's exit code
+through a pipe. ⚠ `acceptance_evidence.md` needs a `criteria_demonstrated:` marker **at column 0**
+— `## criteria_demonstrated:` is invisible to the parser (it matches `^criteria_demonstrated:`),
+which reads as "0 of N demonstrated" — with one 15+ character bullet per declared criterion.
