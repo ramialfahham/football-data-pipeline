@@ -1715,6 +1715,9 @@ models:
 
       RATE boards carry a qualification floor so a small sample cannot game a rate: 270 minutes, a
       position scope, 10 shots on target for finishing.
+
+      is_current_season marks the latest season a competition has, so a consumer showing one season
+      filters on a served fact instead of choosing a season itself.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -1763,6 +1766,16 @@ models:
         tests: [not_null]
       - name: sort_value
         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
+        tests: [not_null]
+      - name: is_current_season
+        description: >
+          True on every row of a competition's latest season, false on earlier ones. It answers
+          "is this the season the site currently shows for this competition", so a surface that
+          displays one season filters on it rather than deciding which season to show.
+
+          Per LEAGUE, not per player, so all rows of a league's latest season agree. Latest by
+          season_api_year alone; it does not ask whether that season has started or how many
+          matches have been played.
         tests: [not_null]
       - name: player_sk
         description: "{{ doc('player_sk') }}"

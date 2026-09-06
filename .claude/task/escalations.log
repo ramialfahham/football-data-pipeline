@@ -7953,3 +7953,57 @@ CONSEQUENCE: the five-layer contract stands. No staging model was created for th
 on the sibling branch; it is `ref()`d in base beside `country_name_overrides`, which is both the
 dbt-aligned choice and the existing repo precedent. Recorded here because it is a STANDING answer
 about how far this project's layer contract may drift, not a one-branch decision.
+
+
+================================================================================
+2026-09-04 — feat/40-leaderboards-current-season-and-board-dq — SPLITTING #40
+================================================================================
+
+⛔ WRITTEN LATE, ON `scope-auditor`'s FAIL — THE FIFTH INSTANCE OF THIS CLASS IN ONE SESSION. The
+contract asserted "SPLIT ON THE CPO'S CALL" with no entry here to check it against. The ruling is
+real; the record was missing, which is the same defect the navigation-rules branch was failed for
+earlier today and the competition-name branch was failed for four times before that. The reviewer
+found it by grepping this log for every plausible key and finding only the navigation entry, which
+is a DIFFERENT decision on a DIFFERENT branch.
+
+--------------------------------------------------------------------------------
+THE RULING — split #40 into a warehouse MR and a frontend MR
+--------------------------------------------------------------------------------
+CONTEXT I PUT TO HIM. #40 was planned and approved as one MR. Mid-build I found the block cannot
+render until `is_current_season` exists in prod, which needs a merge plus the 04:00 `fdp-nightly`.
+That meant most of the block's acceptance criteria — four boards render, no truncation at 375px,
+stacking uniform per board, every player link resolves — could not be demonstrated at commit time.
+
+I offered three options and recommended the first:
+  1. Split: the warehouse MR first, verifiable now against prod; then export + component + scaffold,
+     verified against real data after the nightly.
+  2. One MR, rendering verified against a hand-made local fixture payload.
+  3. One MR, committed with the criteria explicitly undemonstrated, verified the next day.
+
+HIS ANSWER: **option 1, "Split: warehouse MR first"**, selected from those options.
+
+CONSEQUENCE, as built: this branch carries only `is_current_season` on `mart_leaderboards` plus the
+two DQ tests. The export shaper, `TopPlayers.astro`, the board CSS, the types, the three-locale copy
+and the player scaffold are BUILT and PARKED in the stash `TEMP-40-mrB`; they are MR B, gated on
+this merging and the nightly running. The contract was rewritten for the warehouse half on a clean
+tree before any of it was staged.
+
+⚠ WHAT HE DID NOT RULE, and must not be read into this: he chose a sequencing, not a design. Nothing
+about #40's block design changed — four boards, one metric each, top 7, one player per league, a
+board with no data not rendered. Those remain #40's, unaltered.
+
+--------------------------------------------------------------------------------
+THE PATTERN, recorded because writing it down has not yet stopped it
+--------------------------------------------------------------------------------
+Five instances in one session, every one caught by a reviewer and none by me:
+  · four on `fix/competition-name-from-registry`, where the remedy was to CITE existing docs,
+    because the principles I was crediting him with were already written down;
+  · one on `feat/navigation-rules-competition-shell`, where the remedy was the opposite — CREATE
+    the record, because the navigation standard was genuinely new;
+  · this one, where the remedy is again to create the record.
+⭐ The memory file `feedback_dont_attribute_repo_practice_to_cpo` has said "'you ruled' needs a
+quote from escalations.log" since 2026-08-26. It was loaded at the start of this session. It did not
+prevent a single one of the five. What caught all five was a reviewer with a grep — which is the
+argument for the check over the note, and the reason the fix is mechanical (extend
+`check_description_hygiene`'s decision-language rule to `.claude/task/*.md`) rather than another
+sentence in a memory file.
