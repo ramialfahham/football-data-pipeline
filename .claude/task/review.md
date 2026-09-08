@@ -1,6 +1,18 @@
 # Review — fix/freshness-guard-severity-by-cause — 2026-09-08
 
-diff_sha256: 7487f15666a5a5e67f22a13e9b1a1797ba709f6d0f3874858351291364b83029
+diff_sha256: aec1ea0bc5860a9a25ddf106fd1e7f600fb0456abfb7b999c532aae485ccebca
+
+rebased_onto: >
+  **main `81117ae`, after `!158` merged.** Code applied cleanly; all five conflicts were task
+  artifacts, the usual sibling-MR shape. The four documents take this branch's version;
+  `escalations.log` is a UNION so `!158`'s `DO NOT ASK FOR MECHANICS` entry and this branch's
+  `A VALID STATUS IS NOT AN ALARM` entry both survive — verified, both present, and main's 8,255
+  lines byte-identical to the head of the resolved file.
+  ⚠ **The conflict was diff3 again**, with the `|||||||` marker this morning's rebase left committed
+  in the ruling record. All four marker kinds were removed and the whole `.claude/task/` tree swept
+  for every kind afterwards: zero. Not learning that twice in one day was the minimum bar.
+  ⚠ Hash rebound. No code, test or yml differs from the state both reviewers PASSed at round 4 —
+  only the base commit, the unioned log, the regenerated patch and this file.
 
 rounds: 4
 
