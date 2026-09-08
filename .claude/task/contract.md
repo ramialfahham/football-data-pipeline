@@ -1,26 +1,15 @@
-# Task contract — a suspended match is information, not an alarm
+# Task contract — the freshness guard is fixed; point the handover at what is left
 
 objective: >
-  `assert_fct_fixture_no_stale_live` fails if a fixture is still in a live status more than 3 hours
-  after kickoff, and it lists `SUSP` and `INT` among those statuses. It has failed the nightly
-  repeatedly. Remove those two from it entirely — they are valid status information, not a data
-  defect — keep an error for the statuses that genuinely mean OUR ingest missed an update, and widen
-  the reconciliation that catches what actually matters from one league to all 46.
+  `.claude/active_work.md` says the next action is one of two candidates, the first being
+  *"THE FRESHNESS GUARD, still unfixed, still failing the nightly intermittently"*. `!159` merged and
+  fixed it. Update the handover so a cold session is not sent to do work that is already done, and
+  point it at the one decision that now blocks product work.
 
 refs: >
-  The CPO's instruction, verbatim: *"fix the freshness guard"*.
-  ⛔ **AND HE REJECTED MY FIRST DESIGN, WHICH WAS MECHANICAL RATHER THAN REASONED.** I proposed
-  keeping `SUSP`/`INT` in the guard at `severity: warn` on a 3-hour window. He asked
-  *"Why and when should susp or int throw a warning at all??"* and then ruled:
-  *"it's a valid status info and we should be able to handle it the right way"*.
-  He is right and the first design had no answer: a suspended match is a true fact about the world
-  that can hold for days, nothing we do changes it, and there is nothing actionable to report at
-  3 hours or 6. I had preserved the old window instead of asking what the check was for.
-  ⭐ **WHAT THE INCIDENT WAS ACTUALLY ABOUT.** The Eredivisie fixture that stuck at `INT` mattered
-  because **FC Utrecht was a game short of its league**, not because a status string was unusual.
-  That question has a proper detector — reconciling our game count against the standings' own
-  `played` — and it was scoped to `league_code = 'BL1'`, so it did not run on ED.
-  Approved: *"yes, rebuild it that way"*.
+  Bookkeeping. Triggered by the handover write-out gate after `!159` merged. No issue.
+  The CPO's standing instruction on volume, which this edit obeys rather than ignores:
+  *"you all constantly flooding the zone with shot"* — the file gets SHORTER, not longer.
 
 scope_paths:
   - .claude/task/contract.md
@@ -28,128 +17,54 @@ scope_paths:
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/escalations.log
-  - dbt_project/tests/assert_fct_fixture_no_stale_live.sql
-  - dbt_project/tests/assert_mart_team_season_insights_games_match_played.sql
-  - dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+  - .claude/active_work.md
 
 impact_map: >
-  writers: none. No model, seed, macro, script, workflow or site file is touched — two singular
-  tests change and no new test is added.
-  layer_rules: `check_layer_contract.py`. Both are singular tests; no layer moves.
-  ⛔ **WHERE THE FRESHNESS TEST RUNS, because it decides how it can be verified.** It carries
-  `tags=['freshness_check']`, and that tag is EXCLUDED everywhere except the real nightly:
-  `selectors.yml`'s `downstream` selector excludes it (the exclusion must live in the selector,
-  because dbt ignores a CLI `--exclude` when `--selector` is supplied), `data:build:mr` excludes it,
-  and `data:build:main` excludes it again on its final `dbt test`. The ONLY place it executes is
-  `fdp-nightly` — the Cloud Run job whose `dbt build --target prod` takes no selector.
-  ⚠ **So CI CANNOT EXERCISE IT, and a green MR pipeline is not evidence about that file.**
-  ⭐ The reconciliation test is the opposite: it carries `tags=["dq","mart","season_insights"]`, no
-  `freshness_check`, so it DOES run in `data:build:mr` and `data:build:main`. Widening it from one
-  league to 46 is therefore exercised by CI on this very MR.
-  downstream: dbt marks dependents of an ERROR-severity test as skipped. Removing two statuses from
-  the freshness guard removes the only cause that has ever fired it, so the nightly stops being
-  taken down by a fact about the world. Widening the reconciliation ADDS coverage on a test that
-  already runs; it is measured green on all 46 leagues before shipping.
+  writers: none. One tracked document, no model, script, seed, test or site file.
+  layer_rules: not applicable.
+  downstream: read by a fresh session at start and by `handover_in.py`, which enforces a
+  16,000-CHARACTER cap — measured with Python `len()`, never `wc -c`, which counts BYTES and reads
+  high on this file's marks.
   deploy_order: none.
-  blast_radius: zero rows today on both tests. The change is to what happens on a future night.
+  blast_radius: one document. The risk is sending the next session to redo finished work, or
+  dropping a trap that cost time to learn.
 
 acceptance_criteria:
-  - The freshness guard no longer names `SUSP` or `INT` in any form, and no replacement test carries
-    them. They are simply not a freshness question.
-  - The freshness predicate returns 0 rows against live prod, reported TWO-SIDED — the row count in
-    each status class and how many sit inside the window — because a broken query also returns zero.
-  - The freshness predicate is mutation-tested **RED** on a synthesised population: a genuinely
-    playing status past 6 hours is caught, one inside 6 hours is not, and `SUSP`/`INT` are caught at
-    no age at all.
-  - **The new reconciliation returns EXACTLY THREE rows against live prod, and every one is a real
-    shortfall.** ⚠ These two bullets previously read "returns 0 rows across all 46 leagues... measured
-    on the mart" — written for the WIDENED-MART design of round 2, which was a tautology, and left
-    standing when the design was rebuilt in round 3. Both were therefore false against the shipped
-    code: it is red by design pending GitLab #110, and it touches no mart at all. Corrected rather
-    than deleted, because the criterion is still the right one to state — only its expected value and
-    its subject changed. Found by `analytics-engineer-reviewer`; it is the same class of stale claim
-    that reviewer caught twice on `!156`.
-  - **The three rows have TWO DIFFERENT CAUSES, and that is the case for the test rather than an
-    embarrassment.** Trabzonspor and Gaziantep FK (TSL 2022, one game each) are the earthquake
-    forfeit filed as `CANC` — a match we HOLD and do not count, GitLab #110's class. Al Wehda Club
-    (AFCCL 2021, five games) is NOT that: we hold exactly ONE AFCCL 2021 fixture for them, so those
-    five were never ingested. One detector, two unrelated causes, no status enumeration.
-    ⛔ Al Wehda must NOT be cited as a #110 instance; it is an ingest coverage gap.
-  - **The standings collapse is deterministic.** `fct_standings` can hold several rows per
-    team-season (group, play-off, relegation tables): 299 team-seasons do, and **204 of those
-    disagree on `played` by up to 13 games**, frequently sharing a `raw_ingested_at` so a
-    latest-ingest tiebreak is not even stable. `max(played)` is used instead, and returns the same 3
-    rows as the arbitrary pick today — so the change alters no current result and removes a
-    non-determinism that could have invented a shortfall or hidden one.
-  - `dbt parse` exits 0; SQLFluff passes from the repo root with the exit code read BARE and
-    UNREDIRECTED; `check_layer_contract.py` and `check_description_hygiene.py` pass.
-  - ⛔ No claim that CI validated the FRESHNESS test. It does validate the reconciliation test.
+  - The freshness guard is no longer listed as a next action or as unfixed anywhere in the file.
+  - The remaining next action and the open decision are each stated in one sentence, at the top, with
+    no process detail — the CPO has said twice today that the volume is the problem.
+  - Every trap in the previous version is carried or deliberately dropped, and nothing is dropped for
+    space.
+  - Under 16,000 characters with real headroom, measured with `len()`.
+    ⚠ **This criterion first read "the file is SHORTER than the version it replaces", and I could not
+    meet it honestly.** The file went 12,198 → 14,492. History WAS compressed — the `!156`/`!157`
+    paragraphs are cut to two sentences each and the lessons section merged — but this update adds
+    real state that did not exist before: `!159`'s outcome, `#110` written out properly so a cold
+    session does not have to reconstruct it, and the communication warning. Getting under 12,198
+    would have meant deleting warnings, which `decisions_taken` in this same contract forbids.
+    Corrected rather than met by mutilating the file, and recorded because a criterion I quietly
+    dropped would be exactly what reviewers caught twice on `!159`.
+  - Header facts re-derived, not carried: `main` SHA, which MRs merged, whether any MR is open.
 
 decisions_taken: >
-  ⭐ **A VALID STATUS IS NOT AN ALARM.** `SUSP` and `INT` are the provider correctly reporting that a
-  match was suspended or interrupted. That state can hold for days pending a replay decision, no
-  re-ingest changes it, and there is no action anyone takes on being told about it. It is therefore
-  neither an error nor a warning — it is removed from the guard, not downgraded within it. ⛔ The
-  version of this MR that made it a `warn` was preserving the old window rather than answering the
-  question *what is this check for*, and the CPO caught that.
-  ⭐ **RECONCILE AGAINST AN INDEPENDENT AUTHORITY INSTEAD OF ENUMERATING STATUSES.** A status list can
-  only catch the causes somebody thought to list — and today's evidence is that the provider's status
-  is the least reliable field it has. The standings' `played` count is produced independently of the
-  fixture status, so it catches a team being a game short whatever the cause: suspended, interrupted,
-  mislabelled `CANC`, or simply never published. That is the systematic form of this fix and the
-  reason it is not an ad-hoc patch.
-  ⛔ **AND MY FIRST ATTEMPT AT IT WAS A TAUTOLOGY — the single worst error of this branch.** I widened
-  `assert_mart_team_season_insights_games_match_played` from BL1 to 46 leagues and reported
-  "0 mismatches over 1,826 rows" as evidence of reconciliation. It is 0 by CONSTRUCTION:
-  `mart_team_season.sql:34` is `m.season_games_played as played` — the mart's `played` is an ALIAS OF
-  OUR OWN COUNT, not the standings figure. Both sides of that predicate resolve to the same row of
-  `int_team_season__metrics` through the `team_season_sk` join, so it cannot fail on any data, ever.
-  I read the column NAME and asserted its provenance instead of reading the SQL — the exact failure
-  `feedback_shared_definition_widest_call_site` names. Found by `analytics-engineer-reviewer`.
-  ⭐ **THE GENUINE COUNT EXISTS AND WAS BEING DROPPED.** `fct_standings.sql:30` carries
-  `cs.played_all as played` from the provider's standings feed, and
-  `int_team_season__standings_primary.sql` reads `fct_standings` but projects only `standing_rank`,
-  `form` and `group_description` — `played` never reaches the marts. So the new test joins
-  `int_team_season__metrics` to `fct_standings` directly.
-  ⛔ **ONE DIRECTION ONLY, and the measurement is what decides that.** Comparing the two over 4,082
-  team-seasons: 2,515 agree, **1,564 have OUR count HIGHER by 1 to 30 games**, and **3 have ours
-  LOWER**. The "higher" population is a stale standings snapshot — we keep counting fixtures after
-  the standings were last ingested — and is not a defect. Only `ours < standings` means we are
-  missing a match a governing body says was played. A two-sided test would be red on 38% of rows and
-  useless; the one-sided test is red on 3 and every one is a real finding.
-  ⭐ **IT REDISCOVERED A DEFECT I HAD FOUND BY HAND, FROM FIRST PRINCIPLES.** Two of its three rows
-  are Trabzonspor and Gaziantep FK in TSL 2022, each one game short — that is fixture 884568, the
-  earthquake forfeit filed as `CANC`, which I only found this morning by reading a status label and
-  then searching the web. The test finds it with no status list and no external research. The third,
-  Al Wehda Club in AFCCL 2021 missing five games, was not previously known.
-  ⭐ **SEVERITY: WARN, and it is the CPO's — quoted, not inferred.** *"do it that way, warn severity
-  for now"*. It is red on real data today, so error severity would stop the warehouse over defects
-  whose fix is GitLab #110's open rule; warn reports them while that is decided.
-  ⛔ **THE TAUTOLOGY TEST IS DELETED RATHER THAN KEPT ALONGSIDE.** Retaining a test that is provably
-  incapable of failing is not caution, it is false assurance — it appears in every green run as
-  evidence of a reconciliation that never happened. Its intent is carried, correctly, by the new test.
-  ⭐ **THE WINDOW MOVES 3h → 6h ON WHAT REMAINS.** The condition detected — a status never updated —
-  persists indefinitely, so on a once-nightly run any threshold from about 3h to 20h detects it
-  equally; the threshold only controls FALSE alarms on a match still legitimately in play, and a
-  match with extra time and penalties approaches 2h50 before any delay. The sibling
-  `assert_fct_fixture_no_stale_ns.sql` made exactly this argument first, at 30 hours, so tuning a
-  freshness window to the run cadence is the established pattern here rather than a new idea.
-  ⛔ **THE BL1 RESTRICTION IS DROPPED, NOT WIDENED TO A LONGER LEAGUE LIST.** `played is not null` is
-  the guard instead: a competition that publishes no standings has nothing to reconcile against and
-  is skipped for a reason visible in the data, rather than by a hardcoded code that has to be
-  maintained. This also respects the repo's no-hardcoded-competition rule.
-  ⚠ **NO NEW TEST IS ADDED.** The first design added one; this one removes a concern from an existing
-  test and widens another. Fewer moving parts is the point.
+  ⭐ **THE TOP OF THE FILE BECOMES TWO SENTENCES.** The previous version opened with two candidate
+  next actions and a paragraph of reasoning for each. One is now done, and the CPO's complaint today
+  was specifically that he is handed more than he can hold. What a cold session needs first is: the
+  one thing to build, and the one thing that is blocked on him. Everything else is reference and
+  moves below it.
+  ⛔ **WHAT DOES NOT GET SHORTENED: the traps.** They are the part that cost real time — the
+  incremental-fact trap, the diff3 fourth marker, the CP1252 encoding, the `--review-patch` redirect,
+  the push guard on main. Brevity at the top is paid for by deleting HISTORY, not by deleting
+  warnings.
+  ⭐ **THE FRESHNESS ENTRY IS REPLACED BY ITS RESULT, not annotated as done.** A struck-through "was
+  the next action" line is still a line the next reader has to process. What survives is one sentence
+  of what changed in prod, in the section that already exists for that.
 
 decisions_reserved: >
-  - **GitLab #110 — awarded results filed as `FT` with no stat line.** 463 team-seasons in
-    well-covered competitions show no statistics because a handful of fixtures lack a stat line, 28
-    of them Süper Lig forfeits the provider labelled `FT`. The rule for deciding a match could never
-    have had statistics is the CPO's and is filed, not attempted here. ⚠ It is the same principle as
-    this MR — prefer an independent signal over the status field — so the two should stay consistent.
-  - **`kickoff_datetime` carries no `not_null` test**, so a NULL would silently drop a row from every
-    freshness predicate. Pre-existing, present identically in the untouched `NS` sibling, and not
-    introduced here. Worth its own issue.
-  - **`assert_fct_fixture_no_stale_ns.sql`'s closing line still cites `dbt-scheduled.yml`**, a
-    GitHub-era workflow that has run nothing since the 2026-08 migration. Corrected in the file this
-    MR owns; left alone in that one.
+  - **GitLab #110** — whether a finished match with no statistics should count as one that could
+    never have had them. 463 team-seasons blanked. The CPO's, unanswered, and now the only thing
+    between him and product work.
+  - **The round cap precedent** — unresolved on `!156` and again on `!159`, where I recorded an
+    override that explicitly does not claim he ruled. Carried, not decided here.
+  - **The three rows the new reconciliation warns on** — two are the Turkish forfeit awaiting #110's
+    rule, one is an AFCCL ingest gap. Neither is fixed here.
