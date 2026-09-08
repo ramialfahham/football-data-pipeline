@@ -1,104 +1,49 @@
-# Review — docs/incomplete-data-rule-in-the-metric-doc — 2026-09-08
+# Review — chore/handover-after-161 — 2026-09-08
 
-diff_sha256: 72351c2d8defe7195ee6bae592f98aec703817aa2b47b6b57b4830875c53f0a2
+diff_sha256: 5bdd0467e0c94951dcfeb2bc8e4b58173bc16554a1e1e3e2094e2bc56b4b295f
 
-rounds: 2
+rounds: 1
 
-⚠ **DOCUMENTATION MR, but the documentation makes technical claims about the warehouse**, so
-`analytics-engineer-reviewer` was briefed to ignore prose and check every statement against the
-code. That is what found both of its failures.
-
-## analytics-engineer-reviewer
-VERDICT: PASS (round 2)
-risks_checked:
-- ⛔ **ROUND 1: it found I had reintroduced the exact defect the rewrite exists to fix, one line
-  below the fix.** I corrected the canonical-model table, then wrote *"a player metric is added to
-  the atoms model"* — false for most of the player catalogue. The atoms model's own docstring says
-  atoms are the SUMMABLE counts only and that ratios, per-90s and composites are *"derived where
-  consumed"*. It listed them: every `_pct`, every `_per90`, `scorer_points_player`,
-  `defensive_actions_player`, `cards_player` — all in the COMPOSING model.
-- **ROUND 2** verified the replacement against the model code rather than the docstring paraphrase:
-  the atoms model's final select is plain `sum`/`countif` columns with no ratio present, the
-  composing model derives five `_pct` and eleven `_per90`, and `mart_player_career:138` really does
-  derive its own `minutes_per_appearance` — so both halves of the sentence hold. It searched
-  specifically for a metric fitting NEITHER half and found none.
-- ⭐ It also checked the paraphrase for drift against the atoms docstring — the failure mode where a
-  restatement is true in isolation but softer than the original. None found.
-- ⚠ It named a boundary without calling it a defect: `int_player_season_position__metrics` computes
-  the same per-90 formulas independently for the benchmark engine, outside the drift guard's scanned
-  set. The doc never claims the three canonical models are the only place a per-90 is ever computed,
-  so it is out of scope for this text — recorded rather than folded in.
-- Across both rounds it verified: the seed's 15 columns against the CSV header exactly; all five
-  guard descriptions against what each test asserts; that steps 3 and 4 of the recipe are real CI
-  gates in `validate:governance`; the `points_won` passthrough and its `_sum_season` exemption; the
-  player-zero/team-missing asymmetry; that `games_expecting_team_stats` is team-side only; and the
-  corrected `metrics_display.md` paragraph against the model and the yml assertion.
+⚠ **BOOKKEEPING MR, reviewed proportionately** (`feedback_review_cost_discipline`): one tracked
+document plus task artifacts, no code. `scope-auditor` is the only routed reviewer.
 
 ## scope-auditor
-VERDICT: PASS (round 2)
-risks_checked:
-- ⛔ **ROUND 1: it FAILed because I edited a CPO-LOCKED document on authority no reviewer could
-  check.** `metrics_display.md` is marked LOCKED, `contract.md` cited *"fix it"* as the authority,
-  and `escalations.log` had no entry for any instruction on this branch. Fourth instance of that
-  class in one day and the second on this branch — hours after I logged an entry saying a quote goes
-  in the ledger before the sentence citing it exists.
-- **ROUND 2** verified all six quotes resolve, ⭐ and did it the hard way: it re-joined the log's own
-  mid-quote line wraps rather than concluding a phrase was absent because a single-line `grep` missed
-  it. That is the trap that made me reflow the entry — one clause per line — after my own check
-  returned a false zero.
-- ⭐ **It then ruled on the substance rather than deferring it.** *"fix it"*, now logged, is adequate
-  authority for THIS correction — given in direct response to a specific factual defect I had just
-  reported, scope-limited by the entry itself, and touching only rationale prose. It said explicitly
-  that a standing instruction to edit locked documents would NOT be adequate.
-- Confirmed what the lock actually protects is byte-for-byte unchanged: block order
-  Goals→Shooting→Duels→Defending→Passing→Set pieces→Goalkeeping, and row 7's label and `metric_id`.
-- Confirmed the log addition is append-only past main, every diffed path is in `scope_paths`, the new
-  document carries no dates, quotes or provenance, and `decisions_reserved` is untouched.
-
-## bi-analyst-reviewer
 VERDICT: PASS (round 1)
 risks_checked:
-- ⚠ **It ran because the COMMIT GATE caught a route I had missed** — `docs/wireframes/**` requires
-  this reviewer and I had run only the other two. Recorded because the gate found it, not I.
-- ⭐ **It checked the question that decides whether this is half a fix**: the old text said the
-  glossary carries a >100% caveat, so if any built surface still promised that, correcting the
-  rationale alone would leave the site saying something false. It swept `i18n/strings.ts`,
-  `lib/format.ts` and the committed team/fixture samples — no component, sample or string asserts
-  the removed behaviour, and no `finishing_efficiency_pct` value above 1 appears in the samples.
-- ⭐ It found there was never a capping mechanism to describe: `format.ts`'s `percent()` multiplies
-  and formats with no clamp anywhere in the file, so *"never capped"* was describing an absence.
-  Removing it loses nothing operative.
-- Verified the seed's own description matches the new wording essentially verbatim — open-play
-  numerator, same-games denominator, `[0, 1]`, NULL on disagreement — so the wireframe and the SSoT
-  now agree rather than one restating the other loosely.
-- Confirmed "serves NULL" is display-accurate: `percent()` returns the dash for a non-numeric value,
-  which is the repo's null-rendering rule, so a reader is told what a visitor actually sees.
-- Confirmed row 7's label, `metric_id`, tier and the block order are outside the diff.
-- ⚠ Noted without failing: `metrics_display.md:298`'s GAP-11 register still lists the ">100%
-  finishing caveat" as a past scope item. Historical bookkeeping, not a live promise, and outside
-  what *"fix it"* authorised. Left alone deliberately.
-
-## escalations
-- **`2026-09-08 — docs/incomplete-data-rule-in-the-metric-doc — RESTRUCTURE THE DOC; FIX THE LOCKED
-  CAVEAT`** — every instruction verbatim, with an explicit paragraph on what *"fix it"* does and does
-  not authorise: the factual paragraph inside the locked section, NOT the funnel or row order, and
-  not a general licence to edit locked documents.
+- ⭐ **The attribution check, which has failed FOUR times today**, was clean here: both CPO quotes
+  carried into the next-action block resolve verbatim in `escalations.log` (lines 8370 and 8376), and
+  `contract.md`'s two cited entry headers match real headers at 8258 and 8392. Nothing new is
+  attributed without backing.
+- Verified the metric-layer pointer against the actual file rather than the commit message —
+  `docs/metric_layer.md` does carry `## Incomplete data is not calculated`, so the handover's claim
+  that the rule now lives there is true of the tree.
+- Checked the arithmetic in the #110 measurement: 3,405 empty-array + 6,110 no-statistics-section =
+  9,515, matching the stated total. That figure is load-bearing — it is why 435 of the 463 blanked
+  team-seasons are correct output rather than a bug, and it is what stops the next reader
+  over-fixing #110.
+- Confirmed `decisions_reserved` is honest: #110, #111, `metrics_context_model.md` §8.1 and the
+  round-cap precedent are all listed as open, and none is decided inside the diff. The diff only
+  re-types #110 and records #111's existence, both citing the prior 2026-06-25 ruling rather than
+  making a new one.
+- Scope and credentials clean; every diffed path is in `scope_paths`.
+- ⚠ **It declared what it could NOT verify rather than implying coverage.** It had no Bash or git
+  tool in that session, so the header facts — `main b29f2e0`, "no open MRs", the `!154`–`!161` range
+  — could not be re-derived from `git log` / `glab mr list`. It found no internal contradiction but
+  flagged the class as unverifiable with its tools. Those three were re-derived by me before writing
+  them, and the flag is recorded rather than glossed.
 
 ## ⛔ WHAT THIS BRANCH SHOULD BE REMEMBERED FOR
 
-**1. The document was wrong in eight places and nobody had noticed**, because nobody re-reads a doc
-they think they know. It named 2 of 3 canonical models, listed the seed's columns twice with the two
-lists disagreeing, denied two features that had shipped, and named 1 of 5 guards.
+**1. A handover that says "blocked, do not start" when nothing is blocked costs a whole session.**
+The line was true when I wrote it this morning and false eight hours later, because `!161` settled
+the thing it was waiting on. A stale instruction is more expensive than a stale fact: a reader can
+correct a number, but they obey an instruction.
 
-**2. I wrote the fix from memory and broke it again in the same paragraph.** Round 1's fix corrected
-the table; the sentence I then wrote under it sent an engineer to the wrong model for every ratio and
-per-90. Correcting a claim and then writing an adjacent claim without opening the file is the same
-failure wearing a different hat.
+**2. `#110` changed TYPE, not existence.** It went from a decision the CPO owed an answer on to a
+defect somebody has to fix. Deleting it would have lost a measured finding; leaving it as "blocked"
+would have kept the stall. The entry now also carries the boundary that stops it being over-fixed —
+of 9,515 fixtures with no team statistics, zero have statistics we discard.
 
-**3. Placement is not importance.** I opened the document with the rule I had just been arguing
-about. An independent review — briefed not to treat any section as recent or protected — put the
-router table first, because of four questions a reader arrives with, the rule answers one.
-
-**4. Four unlogged-quote failures in one day, two on this branch.** The rule is not the problem; the
-habit is. A quote goes in the ledger before the sentence that cites it exists, and a quote that wraps
-mid-line is unfindable — one clause per line.
+**3. I introduced a duplication and found it by reading the rendered section, not the diff.** The
+next action ended up stated twice, leaving an orphaned sentence starting mid-clause. The diff looked
+fine; the document did not.
